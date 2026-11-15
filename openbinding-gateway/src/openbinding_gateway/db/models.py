@@ -460,8 +460,6 @@ from .platform_models import (  # noqa: E402,F401
     OrganizationMembership,
     OrganizationRole,
     Project,
-    ProjectResource,
-    ProjectResourceRevision,
     RunState,
     Study,
     StudyCell,
@@ -470,12 +468,6 @@ from .platform_models import (  # noqa: E402,F401
     Visibility,
     PasswordResetToken,
     ProblemCompilation,
-)
-
-from .artifact_models import (  # noqa: E402,F401
-    ArtifactCaseReference,
-    Artifact, ArtifactVersion, ArtifactDraft, ArtifactDependency,
-    ArtifactPublication, ProjectArtifact,
 )
 
 # Last, once every table above is in the metadata: the triggers of db/triggers.py (D2).

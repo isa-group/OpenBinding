@@ -129,7 +129,7 @@ describe('AppHeader', () => {
     fireEvent.click(toggle);
     expect(toggle).toHaveAttribute('aria-expanded', 'true');
     const menu = document.getElementById('app-lab-menu') as HTMLElement;
-    expect(entriesOf(menu)).toEqual([['Runs', '/app/isa-demo/runs'], ['Studies', '/app/isa-demo/qos/studies']]);
+    expect(entriesOf(menu)).toEqual([['Runs', '/app/isa-demo/runs'], ['Studies', '/app/isa-demo/studies']]);
 
     within(menu).getByRole('link', { name: 'Runs' }).focus();
     fireEvent.keyDown(within(menu).getByRole('link', { name: 'Runs' }), { key: 'Escape' });
@@ -148,7 +148,7 @@ describe('AppHeader', () => {
     expect(problems).toHaveAccessibleDescription('Needs an organization');
   });
 
-  it('keeps Problems and Runs in the organization and disables Studies with the hint "Needs a project" without a project', () => {
+  it('keeps Problems, Runs and Studies in the organization, with or without a project', () => {
     renderHeader(user, { withProject: false });
 
     expect(within(mainNav()).getByRole('link', { name: 'Problems' })).toHaveAttribute('href', '/app/isa-demo/problems');
@@ -156,10 +156,18 @@ describe('AppHeader', () => {
     fireEvent.click(labToggle());
     const menu = document.getElementById('app-lab-menu') as HTMLElement;
     expect(within(menu).getByRole('link', { name: 'Runs' })).toHaveAttribute('href', '/app/isa-demo/runs');
+    expect(within(menu).getByRole('link', { name: 'Studies' })).toHaveAttribute('href', '/app/isa-demo/studies');
+  });
+
+  it('disables Studies with the hint "Needs an organization" without one', () => {
+    renderHeader(user, { withProject: false, withOrganization: false });
+
+    fireEvent.click(labToggle());
+    const menu = document.getElementById('app-lab-menu') as HTMLElement;
     const entry = within(menu).getByText('Studies');
     expect(entry).toHaveAttribute('aria-disabled', 'true');
     expect(entry).not.toHaveAttribute('href');
-    expect(entry).toHaveAccessibleDescription('Needs a project');
+    expect(entry).toHaveAccessibleDescription('Needs an organization');
   });
 
   it('shows the organization and project as a context chip that leads to /app', () => {
@@ -177,7 +185,7 @@ describe('AppHeader', () => {
     ['/app/isa-demo/problems', 'Problems'],
     ['/app/isa-demo/workbench', 'Problems'],
     ['/app/isa-demo/runs/job-1', 'Lab'],
-    ['/app/isa-demo/qos/studies/engines-vs-seeds', 'Lab'],
+    ['/app/isa-demo/studies/engines-vs-seeds', 'Lab'],
     ['/app/engines/registrations', 'Engines'],
     ['/app/admin/moderation', 'Admin'],
     ['/app/isa-demo/qos/published', null],
@@ -192,7 +200,7 @@ describe('AppHeader', () => {
   });
 
   it('marks the entry of the Lab menu that matches the address', () => {
-    renderHeader(user, { path: '/app/isa-demo/qos/studies' });
+    renderHeader(user, { path: '/app/isa-demo/studies' });
     fireEvent.click(labToggle());
 
     const menu = document.getElementById('app-lab-menu') as HTMLElement;
@@ -200,7 +208,7 @@ describe('AppHeader', () => {
     expect(within(menu).getByRole('link', { name: 'Runs' })).not.toHaveAttribute('aria-current');
   });
 
-  it('lists Problem and Run in the organization and Study in the current project from the New menu', () => {
+  it('lists Problem, Study and Run in the organization from the New menu', () => {
     renderHeader();
     const toggle = newToggle();
     fireEvent.click(toggle);
@@ -208,7 +216,7 @@ describe('AppHeader', () => {
     const menu = document.getElementById('app-new-menu') as HTMLElement;
     expect(entriesOf(menu)).toEqual([
       ['Problem', '/app/isa-demo/problems?create=problem'],
-      ['Study', '/app/isa-demo/qos/studies/new'],
+      ['Study', '/app/isa-demo/studies/new'],
       ['Run', '/app/isa-demo/runs/new'],
     ]);
 
@@ -216,15 +224,15 @@ describe('AppHeader', () => {
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
   });
 
-  it('disables Study of the New menu with the hint "Needs a project" when there is no project', () => {
+  it('keeps Study of the New menu in the organization when there is no project', () => {
     renderHeader(user, { withProject: false });
     fireEvent.click(newToggle());
 
     const menu = document.getElementById('app-new-menu') as HTMLElement;
     expect(entriesOf(menu)).toEqual([
-      ['Problem', '/app/isa-demo/problems?create=problem'], ['Study', 'disabled: Needs a project'], ['Run', '/app/isa-demo/runs/new'],
+      ['Problem', '/app/isa-demo/problems?create=problem'], ['Study', '/app/isa-demo/studies/new'], ['Run', '/app/isa-demo/runs/new'],
     ]);
-    for (const item of menu.querySelectorAll('[aria-disabled="true"]')) expect(item).toHaveAccessibleDescription('Needs a project');
+    expect(menu.querySelectorAll('[aria-disabled="true"]')).toHaveLength(0);
   });
 
   it('has none of the former New items', () => {
@@ -313,23 +321,23 @@ describe('AppHeader', () => {
       expect(entriesOf(mobileNav())).toEqual([
         ['ISA Demo Group / QoS Benchmarks', '/app'],
         ['Home', '/app'], ['Problems', '/app/isa-demo/problems'],
-        ['Runs', '/app/isa-demo/runs'], ['Studies', '/app/isa-demo/qos/studies'],
+        ['Runs', '/app/isa-demo/runs'], ['Studies', '/app/isa-demo/studies'],
         ['Engines', '/engines'], ['Admin', '/app/admin'],
         ['Problem', '/app/isa-demo/problems?create=problem'],
-        ['Study', '/app/isa-demo/qos/studies/new'], ['Run', '/app/isa-demo/runs/new'],
+        ['Study', '/app/isa-demo/studies/new'], ['Run', '/app/isa-demo/runs/new'],
       ]);
       expect(within(mobileNav()).getByRole('button', { name: 'Search' })).toBeInTheDocument();
     });
 
-    it('disables the project entries with their hint when there is no project, with ids of their own', () => {
-      renderHeader(user, { withProject: false });
+    it('disables the organization entries with their hint when there is no organization, with ids of their own', () => {
+      renderHeader(user, { withProject: false, withOrganization: false });
 
       const disabled = [...document.querySelectorAll<HTMLElement>('[aria-disabled="true"]')];
-      // Studies and the New item Study, in the header menus and in the phone menu.
+      // Problems, Runs, Studies and the New items, in the header menus and in the phone menu.
       expect(disabled.length).toBeGreaterThanOrEqual(2);
       const hints = disabled.map((item) => item.getAttribute('aria-describedby'));
       expect(new Set(hints).size).toBe(hints.length);
-      for (const item of disabled) expect(item).toHaveAccessibleDescription('Needs a project');
+      for (const item of disabled) expect(item).toHaveAccessibleDescription('Needs an organization');
     });
 
     it('closes after following a link', () => {

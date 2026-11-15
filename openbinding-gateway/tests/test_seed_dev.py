@@ -15,7 +15,7 @@ _tools_dir = str(GATEWAY_ROOT / "tools")
 if _tools_dir not in sys.path:
     sys.path.insert(0, _tools_dir)
 
-from openbinding_gateway.db.models import Artifact, ArtifactVersion, ApiKey, EngineRegistrationRevision, EngineRevision, Job, User, UserRole
+from openbinding_gateway.db.models import ApiKey, Study, EngineRegistrationRevision, EngineRevision, Job, User, UserRole
 from openbinding_gateway.db.platform_models import (
     AuditEvent,
     BindingCase,
@@ -133,7 +133,7 @@ async def test_seed_dev_lifecycle(db_session):
     tables = (await db_session.execute(text("SELECT name FROM sqlite_master WHERE type = 'table'"))).scalars().all()
     assert "reports" not in tables and "alembic_version" in tables
 
-    # Verify that clean deleted the seeded orgs, artifacts, resources, and non-admin users
+    # Verify that clean deleted the seeded orgs, problems, studies and non-admin users
     remaining_engs = (await db_session.execute(select(EngineRevision))).scalars().all()
     assert len(remaining_engs) == 0
 
@@ -143,11 +143,8 @@ async def test_seed_dev_lifecycle(db_session):
     remaining_problems = (await db_session.execute(select(BindingCase))).scalars().all()
     assert len(remaining_problems) == 0
 
-    remaining_resources = (await db_session.execute(select(Artifact))).scalars().all()
-    assert len(remaining_resources) == 0
-
-    remaining_revisions = (await db_session.execute(select(ArtifactVersion))).scalars().all()
-    assert len(remaining_revisions) == 0
+    remaining_studies = (await db_session.execute(select(Study))).scalars().all()
+    assert len(remaining_studies) == 0
 
     remaining_orgs = (await db_session.execute(select(Organization))).scalars().all()
     assert len(remaining_orgs) == 0

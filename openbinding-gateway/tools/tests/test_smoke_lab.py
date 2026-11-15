@@ -184,7 +184,7 @@ class FakeLab:
             return self.reply(200, [{"slug": "bim-demo"}])
         if sub == "/v1/organizations/lab-main/problems/simple-seq/revisions":
             return self.reply(200, [{"id": "rev-1", "revision": 1}])
-        if sub == f"{base}/bim-demo/studies" and request.method == "POST":
+        if sub == "/v1/organizations/lab-main/studies" and request.method == "POST":
             if role == "VIEWER":
                 return self.problem(403, "organization_forbidden")
             document = json.loads(request.content)
@@ -196,7 +196,7 @@ class FakeLab:
             created = slug not in self.studies
             self.studies.add(slug)
             return self.reply(201, {"slug": slug}) if created else self.problem(409, "slug_conflict")
-        if sub == f"{base}/bim-demo/studies/smoke-lab/runs" and request.method == "POST":
+        if sub == "/v1/organizations/lab-main/studies/smoke-lab/runs" and request.method == "POST":
             if role == "VIEWER" and "viewer_run_open" not in self.faults:
                 return self.problem(403, "organization_forbidden")
             self.study_runs += 1

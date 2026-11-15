@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { CaseContent } from '../../features/workspace/model';
-import { CHECKOUT, REVISION_1, REVISION_2, cellsFixture, studyFixture } from '../../test/fixtures/studies';
+import { CHECKOUT, REVISION_1, REVISION_2, cellsFixture, runFixture, studyFixture } from '../../test/fixtures/studies';
 import {
   MAX_SEEDS, defaultSelection, definitionGrid, definitionSize, describeParameters, emptyVariant, engineChoices, enginesOf, explainFailure,
   formatMeasure, formatSeconds, formulaOf, heatLevel, matrixView, measureValue, measuresOf, metricsOf, parametersKey, readSeeds, readVariant, revisionIndex,
-  revisionLabel, rivalsOf, seedsOf, studyContentSize, breakdownText, slot, definitionEngines, studyCriteriaCount, studyOptimization,
+  revisionLabel, rivalsOf, seedsOf, definitionOfRun, sameDefinition, breakdownText, slot, definitionEngines, studyCriteriaCount, studyOptimization,
 } from './studiesModel';
 
 const cases: CaseContent[] = [{ item: CHECKOUT, revisions: [REVISION_1, REVISION_2] }];
@@ -149,9 +149,12 @@ describe('case revisions', () => {
     expect(defaultSelection({ cases, caseSlug: 'ghost', revision: null })).toEqual([]);
   });
 
-  it('reads what a sealed study says about its size', () => {
-    expect(studyContentSize(JSON.stringify({ cases: [1, 2], engines: [1], parameter_sets: [{}, {}], seeds: [1, 2, 3] }))).toMatchObject({ cells: 12 });
-    expect(studyContentSize('{}')).toBeNull();
+  it('reads the definition a run froze back as the study definition it came from', () => {
+    expect(definitionOfRun(runFixture())).toEqual(studyFixture().definition);
+    const definition = studyFixture().definition;
+    const reordered = { seeds: definition.seeds, parameter_sets: definition.parameter_sets, engines: definition.engines, revision_ids: [...definition.revision_ids].reverse() };
+    expect(sameDefinition(definitionOfRun(runFixture()), reordered)).toBe(true);
+    expect(sameDefinition(definition, { ...definition, seeds: [9] })).toBe(false);
   });
 });
 

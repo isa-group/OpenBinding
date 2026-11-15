@@ -175,8 +175,6 @@
 .st-icon-button svg { width: 16px; height: 16px; }
 .st-field-error { margin: 0; color: var(--color-error); font-size: 0.8125rem; }
 
-.st-adopt { display: flex; flex-direction: column; gap: var(--tp-spacing-sm); padding: var(--tp-spacing-md); border: 1px solid var(--tp-beige-deep); border-radius: 14px; background: var(--tp-surface-cream); }
-.st-adopt-size { margin: 0; font-weight: 500; }
 
 .st-matrix { display: flex; flex-direction: column; gap: 10px; padding: var(--tp-spacing-md); border: 1px solid var(--tp-hairline); border-radius: var(--tp-radius-xl); background: var(--tp-canvas); }
 .st-eyebrow { color: var(--tp-steel); font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; }
@@ -329,3 +327,10 @@
   .stability-ledger > div { grid-template-columns: 1fr auto; }
   .stability-ledger meter, .stability-ledger small { grid-column: 1 / -1; }
 }
+
+/* The definition a run froze (Progress and Results tabs) and the definition editor. */
+.st-frozen { display: flex; flex-direction: column; gap: var(--tp-spacing-sm); }
+.st-frozen > h2 small { font-weight: 400; }
+.st-frozen-problems { margin: 0; padding-left: 1.25rem; display: flex; flex-direction: column; gap: 4px; }
+.st-frozen code, .st-card code { overflow-wrap: anywhere; }
+.st-definition-text { font-family: var(--tp-font-mono, ui-monospace, monospace); font-size: 0.8125rem; }

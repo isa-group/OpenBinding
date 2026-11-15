@@ -48,12 +48,10 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
     permissions: [
       { id: 'organizations:read', description: 'Read organizations' },
       { id: 'organizations:write', description: 'Change organizations and members' },
-      { id: 'projects:read', description: 'Read projects and their runs' },
+      { id: 'projects:read', description: 'Read projects' },
       { id: 'projects:write', description: 'Change projects' },
       { id: 'studies:read', description: 'Read studies and runs' },
       { id: 'studies:write', description: 'Change and run studies' },
-      { id: 'artifacts:read', description: 'Read library artifacts' },
-      { id: 'artifacts:write', description: 'Edit library artifacts' },
     ],
   },
   {
@@ -73,7 +71,7 @@ const CATALOGUED: Record<ApiKeyPermission, true> = {
   'problems:read': true, 'problems:write': true,
   'jobs:read': true, 'engines:read': true, 'engines:execute': true, 'engines:register': true, 'engines:publish': true, 'engines:moderate': true,
   'organizations:read': true, 'organizations:write': true, 'projects:read': true, 'projects:write': true,
-  'studies:read': true, 'studies:write': true, 'artifacts:read': true, 'artifacts:write': true,
+  'studies:read': true, 'studies:write': true,
   'notifications:read': true, 'pricing:read': true, 'admin:accounts:read': true, 'admin:accounts:write': true,
 };
 

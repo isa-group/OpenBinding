@@ -38,10 +38,13 @@ describe('why the gateway refuses a study', () => {
     expect(studyRefusal(refused(403, 'forbidden', 'Needs ADMIN.'), 'delete').text).toContain('Deleting needs ADMIN');
   });
 
+  it('says a stale edit lost to a newer one (412)', () => {
+    expect(studyRefusal(refused(412, 'precondition_failed'), 'update')).toMatchObject({ kind: 'conflict', title: 'The study changed since you opened it (412 · precondition_failed)' });
+  });
+
   it('words each 409 by what it protects', () => {
     expect(studyRefusal(refused(409, 'slug_conflict'), 'create').title).toBe('That address is already used (409 · slug_conflict)');
     expect(studyRefusal(refused(409, 'study_archived'), 'run').title).toBe('This study is archived (409 · study_archived)');
-    expect(studyRefusal(refused(409, 'evidence_only_study'), 'run').title).toBe('This study only holds stored evidence (409 · evidence_only_study)');
     const finished = studyRefusal(refused(409, 'terminal_run'), 'cancel');
     expect(finished.kind).toBe('terminal');
     expect(finished.title).toBe('This run already finished (409 · terminal_run)');
@@ -79,7 +82,7 @@ describe('why the gateway refuses a study', () => {
 
   it('words each 422 by what the study asked for', () => {
     expect(studyRefusal(refused(422, 'study_matrix_too_large'), 'create')).toMatchObject({ kind: 'too-big', title: 'The matrix is too large (422 · study_matrix_too_large)' });
-    expect(studyRefusal(refused(422, 'empty_study_cases'), 'create').title).toBe('The study needs a problem (422 · empty_study_cases)');
+    expect(studyRefusal(refused(422, 'revision_not_recompilable'), 'run')).toMatchObject({ kind: 'incompatible', title: 'A problem version can’t be compiled by the installed toolchain (422 · revision_not_recompilable)' });
     expect(studyRefusal(refused(422, 'foreign_case_revision'), 'create').title).toBe('A problem version isn’t in this organization (422 · foreign_case_revision)');
     const mode = studyRefusal(refused(422, 'engine_mode_incompatible', 'MiniZinc has no mode for this goal.'), 'create');
     expect(mode.kind).toBe('incompatible');
@@ -112,7 +115,7 @@ describe('why the gateway refuses a study', () => {
   });
 
   it('separates a missing cell or job, a pricing outage and a service that did not answer', () => {
-    expect(studyRefusal(refused(404, 'not_found'), 'attach').text).toContain('only a finished run you launched can be attached');
+    expect(studyRefusal(refused(404, 'not_found'), 'attach').text).toContain('only a finished run of this organization can be attached');
     expect(studyRefusal(new PricingUnavailableError('pricing down'), 'run')).toMatchObject({ kind: 'pricing', title: 'Limits can’t be checked right now (503 · pricing_unavailable)' });
     expect(studyRefusal(refused(503, 'upstream'), 'run').kind).toBe('unavailable');
     expect(studyRefusal(refused(401), 'run').kind).toBe('session');

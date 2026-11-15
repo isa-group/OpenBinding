@@ -15,8 +15,8 @@ in ``PUBLIC_READ_ALLOWED``. The rest of the project API stays deny-by-default:
   project must be public, and the caller's rate window must have room. Anything
   else falls through to the usual membership check, so a private project, a
   denied route and a write answer exactly as they did before.
-* Handlers whose data is only partly public (the library) ask
-  ``is_public_read(session)`` and narrow what they return.
+* Handlers whose data is only partly public ask ``is_public_read(session)``
+  and narrow what they return.
 
 Reads are counted against the *caller* (the account, or the client address when
 anonymous): nothing here touches anybody's plan.
@@ -45,13 +45,6 @@ PUBLIC_READ = "public_read"
 #: GET routes a non-member may call on a PUBLIC project. Value: what is shown.
 PUBLIC_READ_ALLOWED: dict[str, str] = {
     PROJECT: "Public project metadata (the creator is not disclosed).",
-    f"{PROJECT}/resources": "Project resources.",
-    f"{PROJECT}/resources/{{resource}}/revisions": "Resource revisions.",
-    f"{PROJECT}/studies": "Studies.",
-    f"{PROJECT}/studies/{{study}}/runs": "Study runs.",
-    f"{PROJECT}/studies/{{study}}/runs/{{run_id}}/cells": "Run cells.",
-    f"{PROJECT}/studies/{{study}}/runs/{{run_id}}/cells/{{cell_id}}": "One run cell.",
-    f"{PROJECT}/studies/{{study}}/runs/{{run_id}}/analytics": "Run analytics.",
 }
 
 #: GET routes that stay closed to non-members even on public projects.

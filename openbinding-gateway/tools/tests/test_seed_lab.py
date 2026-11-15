@@ -46,7 +46,7 @@ async def test_first_run_creates_the_lab_with_the_real_roles(db_session):
     result = await seed_lab.seed(db_session, PASSWORD, EXAMPLES)
     assert result["counts"] == {
         "users": 6, "apiKeys": 6, "organizations": 2, "memberships": 5, "projects": 1, "cases": 1, "caseRevisions": 1,
-        "artifacts": 0, "compilations": 1,
+        "compilations": 1,
     }
 
     users = {user.username: user for user in (await db_session.scalars(select(User))).all()}

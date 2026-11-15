@@ -42,16 +42,19 @@ async def a_run(db_session, lab: Lab, owner: Person, run_number: int) -> tuple[S
     """A run of study ``s`` by ``owner``: one cell finished, one still waiting for it."""
     study = (await db_session.scalars(select(Study).where(Study.slug == "s"))).one()
     run = StudyRun(
-        study_id=study.id, definition_version_id=study.definition_version_id, run_number=run_number,
+        study_id=study.id, run_number=run_number,
         state=RunState.RUNNING, matrix_digest="sha256-" + "0" * 64, created_by_id=owner.id,
+        definition={"apiVersion": "openbinding/study-run/v1", "problems": [], "engines": list(lab.definition["engines"]),
+                    "parameterSets": [{"iterations": 100}], "seeds": [0, 1]},
+        definition_digest="sha256-" + "1" * 64,
     )
     db_session.add(run)
     await db_session.flush()
     cells = []
     for ordinal in range(2):
         cell = StudyCell(
-            study_run_id=run.id, ordinal=ordinal, binding_case_revision_id=uuid.UUID(lab.definition["case_revision_ids"][0]),
-            engine_ref=dict(lab.definition["engines"][0]), parameters={"iterations": 100}, seed=ordinal,
+            study_run_id=run.id, ordinal=ordinal, binding_case_revision_id=uuid.UUID(lab.definition["revision_ids"][0]),
+            compilation_id=lab.compilation_id, engine_ref=dict(lab.definition["engines"][0]), parameters={"iterations": 100}, seed=ordinal,
             fingerprint=f"sha256-{run_number}-{ordinal}", state=RunState.RUNNING if ordinal == 0 else RunState.QUEUED,
         )
         db_session.add(cell)

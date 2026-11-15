@@ -4,8 +4,9 @@ import { choose, mockStudies, selectedTab, selectorOf, shownBy, tabGroup, tabLab
 
 test.use({ viewport: { width: 1280, height: 800 } });
 
-const STUDY = '/app/acme/demo/studies/s1';
-const TABS = ['Setup', 'Progress', 'Results', 'Publish'];
+// Studies belong to the organization (F0b B7).
+const STUDY = '/app/acme/studies/s1';
+const TABS = ['Setup', 'Progress', 'Results'];
 
 test('a study with runs opens Progress and the run selector shows the latest run r2', async ({ page }) => {
   await mockStudies(page);
@@ -20,7 +21,7 @@ test('a study with runs opens Progress and the run selector shows the latest run
 
 test('a study without runs opens Setup', async ({ page }) => {
   await mockStudies(page);
-  await page.goto('/app/acme/demo/studies/s0');
+  await page.goto('/app/acme/studies/s0');
   const group = tabGroup(page, TABS);
   await expect.poll(() => tabLabels(group)).toEqual(TABS);
   await expect(selectedTab(group, 'Setup')).toBeVisible();
@@ -46,6 +47,20 @@ test('a cell inside Results links Open run to the run it ran as', async ({ page 
   await expect(open).toBeVisible();
   // Runs belong to the organization: the run of a cell opens under it, not under the project.
   await expect(open).toHaveAttribute('href', `/app/acme/${RUNS_SEGMENT}/j9`);
+});
+
+test('the Progress tab shows the definition the selected run froze', async ({ page }) => {
+  await mockStudies(page);
+  await page.goto(`${STUDY}/progress?run=r1`);
+  const frozen = page.getByRole('region', { name: 'Frozen definition' });
+  await expect(frozen).toBeVisible();
+  await expect(frozen.getByRole('listitem')).toHaveCount(1);
+});
+
+test('a study is not under a project any more', async ({ page }) => {
+  await mockStudies(page);
+  await page.goto('/app/acme/demo/studies/s1');
+  await expect(page.getByRole('heading', { level: 1, name: 'Study one' })).toHaveCount(0);
 });
 
 test('an unknown study tab shows Page not found', async ({ page }) => {

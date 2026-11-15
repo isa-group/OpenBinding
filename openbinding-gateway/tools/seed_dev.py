@@ -98,7 +98,6 @@ from openbinding_gateway.db.platform_models import (
     Project,
     RunState,
     Study,
-    StudyCell,
     StudyRun,
     StudyState,
     Visibility,
@@ -109,8 +108,7 @@ from openbinding_gateway.security.apikeys import ADMIN_PERMISSIONS, ALL_PERMISSI
 from openbinding_gateway.security.passwords import hash_password
 from openbinding_gateway.services.engines import manifest as engine_manifest, protocol_digest
 from openbinding_gateway.modules.problems.application import add_revision, create_problem
-from openbinding_gateway.studies import expand_study
-from openbinding_gateway.study_jobs import StudyLaunchError, launch_study_cell
+from openbinding_gateway.study_jobs import StudyLaunchError, create_study_run, launch_study_cell
 from bim_core.canonical import digest
 
 logger = logging.getLogger("seed_dev")
@@ -656,7 +654,6 @@ async def ensure_cases(
 async def execute_real_studies(
     session: AsyncSession,
     org: Organization,
-    project: Project,
     user: User,
     case_map: dict[str, tuple[BindingCase, BindingCaseRevision]],
 ) -> list[tuple[Study, StudyRun]]:
@@ -682,35 +679,22 @@ async def execute_real_studies(
     for case_key, slug, name, seeds in scenarios:
         if case_key not in case_map:
             continue
-        definition = StudyDefinition(case_revision_ids=[case_map[case_key][1].id], engines=engine_refs,
-                                     parameter_sets=[{"time_budget_ms": 5000}], seeds=seeds)
-        study = (await session.execute(select(Study).where(Study.project_id == project.id, Study.slug == slug))).scalars().first()
-        from openbinding_gateway.studies import seal_study_definition
-        version = await seal_study_definition(session, project, user, name, definition,
-            current=study.definition_version if study else None)
+        definition = StudyDefinition(revision_ids=[case_map[case_key][1].id], engines=engine_refs,
+                                     parameter_sets=[{"time_budget_ms": 5000}], seeds=seeds).model_dump(mode="json")
+        study = (await session.execute(select(Study).where(Study.organization_id == org.id, Study.slug == slug))).scalars().first()
         if study is None:
-            study = Study(project_id=project.id, slug=slug, name=name, definition_version=version,
-                          state=StudyState.READY, created_by_id=user.id)
+            study = Study(organization_id=org.id, slug=slug, name=name, definition=definition,
+                          definition_digest=digest(definition), state=StudyState.READY, created_by_id=user.id)
             session.add(study)
-        else:
-            study.definition_version = version
+        elif study.definition_digest != digest(definition):
+            study.definition, study.definition_digest = definition, digest(definition)
         await session.flush()
-        expanded = expand_study(definition)
-        identity = digest({"matrix": expanded, "generator": 3, "evaluator": bim.toolchain_digest()})
+        identity = digest({"definition": study.definition_digest, "generator": 4, "evaluator": bim.toolchain_digest()})
         runs = (await session.execute(select(StudyRun).where(StudyRun.study_id == study.id))).scalars().all()
         run = next((r for r in runs if (r.summary or {}).get("seedScenarioDigest") == identity), None)
         if run is None:
-            run = StudyRun(study_id=study.id, definition_version_id=study.definition_version_id, run_number=1+max((r.run_number for r in runs), default=0),
-                           state=RunState.QUEUED, matrix_digest=digest([item["fingerprint"] for item in expanded]),
-                           summary={"cells": len(expanded), "seedScenarioDigest": identity}, created_by_id=user.id)
-            session.add(run)
-            await session.flush()
-            cells = [StudyCell(study_run_id=run.id, ordinal=item["ordinal"],
-                               binding_case_revision_id=uuid.UUID(item["caseRevisionId"]), engine_ref=item["engine"],
-                               parameters=item["parameters"], seed=item["seed"], fingerprint=item["fingerprint"],
-                               state=RunState.QUEUED) for item in expanded]
-            session.add_all(cells)
-            await session.flush()
+            # The run is frozen exactly as runStudy freezes it.
+            run, cells = await create_study_run(session, study, org, user, summary={"seedScenarioDigest": identity})
             # One coordinator: sync_study_job dispatches later cells. Launching them here too races its worker.
             try:
                 await launch_study_cell(session, cells[0], user, org)
@@ -860,26 +844,23 @@ def print_summary_banner(users: dict[str, User]) -> None:
     print("    - acme-corp (Root - Acme Corporation)")
     print("        └── acme-cloud (Sub-org: Cloud Infrastructure)")
 
-    print("\n  [Projects & Studies]")
+    print("\n  [Problems & Studies]")
+    print("    - score-ai problems: simple-seq, parallel-mesh, multi-objective")
+    print("    - score-ai studies: exact-vs-heuristic (Real Runs & Jobs), parallel-scaling-study")
+
+    print("\n  [Projects]")
     print("    - score-ai/qos-placement (Public)")
-    print("        ├── Cases: simple-seq, parallel-mesh, multi-objective")
-    print("        ├── Resources: standard-candidate-catalog (2 revs), sla-latency-constraints, balanced-cost-latency-weights")
-    print("        ├── Studies: exact-vs-heuristic (Real Runs & Jobs), parallel-scaling-study")
-    print("        └── Artifacts: benchmark datasets, execution traces, reproducibility package")
     print("    - score-ai/smart-orchestration (Private)")
     print("    - score-edge/fog-latency-benchmark (Public)")
-    print("        └── Resources: fog-node-topology")
     print("    - acme-cloud/stock-trading-pipeline (Public)")
-    print("        └── Resources: financial-order-routing-catalog")
     print("    - acme-cloud/resilient-data-mesh (Private)")
 
     print("\n  [Example API Requests]")
     alice_key, _, _ = dev_api_key("alice", "alice0001")
     print(f"    curl -H 'x-api-key: {alice_key}' http://localhost:8000/v1/users/me")
     print(f"    curl -H 'x-api-key: {alice_key}' http://localhost:8000/v1/users/me/pricing-token")
-    print(f"    curl -H 'x-api-key: {alice_key}' http://localhost:8000/v1/organizations/score-ai/projects/qos-placement/resources")
-    print(f"    curl -H 'x-api-key: {alice_key}' http://localhost:8000/v1/organizations/score-ai/projects/qos-placement/studies")
-    print(f"    curl -H 'x-api-key: {alice_key}' http://localhost:8000/v1/organizations/score-ai/projects/qos-placement/blobs")
+    print(f"    curl -H 'x-api-key: {alice_key}' http://localhost:8000/v1/organizations/score-ai/problems")
+    print(f"    curl -H 'x-api-key: {alice_key}' http://localhost:8000/v1/organizations/score-ai/studies")
     print(banner + "\n")
 
 
@@ -932,14 +913,13 @@ async def main() -> int:
             project_map = await ensure_projects(session, org_map, user_map)
 
             # 4. Problems of an organization, uploaded from the demo packages
-            qos_project = project_map["score-ai/qos-placement"]
             case_map = await ensure_cases(session, org_map["score-ai"], user_map["alice"], examples_dir)
 
             # 5. Standalone solve jobs
             await ensure_standalone_jobs(session, org_map["score-ai"], user_map["alice"], problems=case_map, all_states=True)
 
             # 6. Studies & Real Job Executions
-            await execute_real_studies(session, org_map["score-ai"], qos_project, user_map["alice"], case_map)
+            await execute_real_studies(session, org_map["score-ai"], user_map["alice"], case_map)
 
             # 7. Notifications & Audit
             await ensure_notifications_and_audit(session, org_map, project_map, user_map)

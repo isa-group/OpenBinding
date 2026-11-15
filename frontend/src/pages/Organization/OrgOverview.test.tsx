@@ -5,7 +5,7 @@ import { addressNow, lucia, member, org, project, renderScreen, researchUsage } 
 import { OrgOverview } from './OrgOverview';
 
 const api = vi.hoisted(() => ({ getOwnUsage: vi.fn() }));
-const platform = vi.hoisted(() => ({ projects: vi.fn(), members: vi.fn(), createProject: vi.fn() }));
+const platform = vi.hoisted(() => ({ projects: vi.fn(), members: vi.fn(), createProject: vi.fn(), studies: vi.fn() }));
 const problems = vi.hoisted(() => ({ list: vi.fn() }));
 const runsApi = vi.hoisted(() => ({ list: vi.fn() }));
 
@@ -32,6 +32,7 @@ describe('Organization overview', () => {
     api.getOwnUsage.mockResolvedValue(researchUsage());
     problems.list.mockResolvedValue({ problems: [], total: 0, limit: 5, offset: 0 });
     runsApi.list.mockResolvedValue({ runs: [], total: 0 });
+    platform.studies.mockResolvedValue([]);
   });
 
   it('introduces the organization: address, role and where it comes from, and creation date', async () => {
@@ -231,5 +232,21 @@ describe('Organization overview', () => {
     expect(within(panel).getByText('12')).toBeInTheDocument();
     expect(within(panel).getByRole('link', { name: 'All runs' })).toHaveAttribute('href', '/app/isa-demo/runs');
     expect(within(panel).getByRole('link', { name: '+ New run' })).toHaveAttribute('href', '/app/isa-demo/runs/new');
+  });
+
+  it('lists the organization’s studies and leads to all of them', async () => {
+    platform.studies.mockResolvedValue([{
+      id: 'study-1', organization_id: group.id, slug: 'engines-vs-seeds', name: 'Engines × seeds', description: '', archived: false,
+      definition: { revision_ids: ['r1', 'r2'], engines: [{}, {}], parameter_sets: [{}], seeds: [1, 2] }, definition_digest: 'd',
+      state: 'ready', created_by_id: lucia.id, created_at: '2026-10-01T09:00:00Z',
+    }]);
+    renderOverview();
+
+    const panel = (await screen.findByRole('heading', { name: /^Studies/ })).closest('section')!;
+    expect(platform.studies).toHaveBeenCalledWith('isa-demo');
+    expect(await within(panel).findByRole('link', { name: /Engines × seeds/ })).toHaveAttribute('href', '/app/isa-demo/studies/engines-vs-seeds');
+    expect(within(panel).getByText(/2 problem versions · 2 engines/)).toBeInTheDocument();
+    expect(within(panel).getByRole('link', { name: 'All studies' })).toHaveAttribute('href', '/app/isa-demo/studies');
+    expect(within(panel).getByRole('link', { name: '+ New study' })).toHaveAttribute('href', '/app/isa-demo/studies/new');
   });
 });

@@ -49,30 +49,20 @@ export function buildCommands({ organizations = [], projects = [], organization,
       commands.push(command('Organization', 'Problems', `Binding problems and their versions · ${organization.name}`, problems.to));
       commands.push(command('Create', 'New problem', `Upload a BIM package in ${organization.name}`, `${problems.to}?create=problem`, '+'));
     }
-    const runs = labEntries(organization, project).find((entry) => entry.id === 'runs');
+    const runs = labEntries(organization).find((entry) => entry.id === 'runs');
     if (runs?.to) {
       commands.push(command('Organization', 'Runs', `Every run of the organization · ${organization.name}`, runs.to));
       commands.push(command('Create', 'New run', `Launch an engine run in ${organization.name}`, `${runs.to}/new`, '+'));
     }
+    const studies = labEntries(organization).find((entry) => entry.id === 'studies');
+    const study = createItems(organization).find((entry) => entry.label === 'Study');
+    if (studies?.to) {
+      commands.push(command('Organization', 'Studies', `Problems × engines × parameters × seeds · ${organization.name}`, studies.to));
+    }
+    if (study?.to) commands.push(command('Create', 'New study', `Compare engines on problems in ${organization.name}`, study.to, '+'));
   }
   if (root && project) {
-    const studies = labEntries(organization, project).find((entry) => entry.id === 'studies');
-    const sections: Array<[string, string, string | undefined]> = [
-      ['Studies', 'Problems × engines × parameters × seeds', studies?.to],
-      ['Project settings', 'Name, visibility and members', `${root}/settings`],
-    ];
-    for (const [label, desc, href] of sections) {
-      if (href) commands.push(command('Project', label, `${desc} · ${project.name}`, href));
-    }
-    const where = `in ${project.name}`;
-    const created = createItems(organization, project);
-    const describe: Record<string, string> = {
-      Study: 'Compare engines on problems',
-    };
-    for (const item of created) {
-      // The problem and the run belong to the organization: their commands are above.
-      if (item.to && item.label !== 'Problem' && item.label !== 'Run') commands.push(command('Create', `New ${item.label.toLowerCase()}`, `${describe[item.label]} ${where}`, item.to, '+'));
-    }
+    commands.push(command('Project', 'Project settings', `Name, visibility and members · ${project.name}`, `${root}/settings`));
   }
 
   const accountDesc: Record<string, string> = {

@@ -55,32 +55,22 @@ field is unchanged. A visitor does not get `created_by_id` (`null`).
 | Route (GET) | What a visitor gets |
 |---|---|
 | `` (the project itself) | public metadata; `access: "public_read"` |
-| `/resources`, `/resources/{resource}` | the project's resources |
-| `/resources/{resource}/revisions`, `/resources/{resource}/revisions/{revision}` | resource revisions |
-| `/library` | library associations, **only artifacts that are themselves published** |
-| `/studies` | studies |
-| `/studies/{study}/runs` | study runs |
-| `/studies/{study}/runs/{run_id}/cells`, `/studies/{study}/runs/{run_id}/cells/{cell_id}` | cells of a run |
-| `/studies/{study}/runs/{run_id}/analytics` | run analytics |
 
-Two precisions. *Resources* are the project's own contents; an artifact of
-**another** organization that the project merely associates (resources,
-library) is shown to visitors only while it is itself published, so
-a withdrawn one does not stay reachable through the project. *Problems* belong to
-the organization, not to a project: `/v1/organizations/{org}/problems/...` is
-members-only (VIEWER and up) and this policy does not open it. *Runs* belong to
-the organization too (`/v1/organizations/{org}/runs/...`, below), and are never
-public.
+*Problems*, *runs* and *studies* belong to the organization, not to a project:
+`/v1/organizations/{org}/problems/...`, `/v1/organizations/{org}/studies/...` and
+`/v1/organizations/{org}/runs/...` (below) are members-only (VIEWER and up), and
+this policy does not open them. The artifact library and the project resources
+were removed in F0b.
 
 ## Always denied to visitors
 
 | Route | Why |
 |---|---|
-| every `POST`, `PUT`, `PATCH`, `DELETE` under the project | writes (creating or changing resources, studies, runs, cells, library associations, settings, visibility, deleting the project) |
+| every `POST`, `PUT`, `PATCH`, `DELETE` under the project | writes (changing settings or visibility, deleting the project) |
 
 Outside the project path nothing changes either: members, invitations,
-organization settings, quota/usage/billing, API keys, library drafts, and the
-private analyses under `/v1/analysis` stay members-only (or owner-only).
+organization settings, quota/usage/billing, API keys, problems, studies and runs
+stay members-only (or owner-only).
 The refusal is the ordinary one: `403 organization_forbidden` for a signed-in
 non-member, `401` without credentials.
 
@@ -159,5 +149,3 @@ kept whole, as before.
 - Expect `429` with `Retry-After` while browsing other people's public projects
   quickly, and from the routes above when one client asks too often; show the
   countdown the way other `429`s are shown.
-- The file and library lists a visitor gets are already narrowed by
-  the server; do not try to infer drafts or private files from them.

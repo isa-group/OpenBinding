@@ -5,6 +5,7 @@ import { problemsApi } from '../../api/problems';
 import { problemPath, problemsPath } from '../../routes/paths/problems';
 import { runsApi } from '../../api/runs';
 import { launchPath, runPath, runsPath } from '../../routes/paths/runs';
+import { newStudyPath, studiesPath, studyPath } from '../../routes/paths/studies';
 import { jobStatus } from '../../features/workspace/model';
 import type { Organization, Project } from '../../api/platform';
 import { Action } from '../../components/ui/Action';
@@ -102,6 +103,36 @@ function RunsPanel({ slug, canCreate }: { slug: string; canCreate: boolean }) {
   );
 }
 
+/** How many studies the overview lists. */
+const STUDIES_SHOWN = 5;
+
+/** The organization's studies (the live ones, by name) and the way to all of them. */
+function StudiesPanel({ slug, canCreate }: { slug: string; canCreate: boolean }) {
+  const studies = useResource(`org-studies:${slug}`, () => platformApi.studies(slug));
+  const failure = studies.status === 'error' ? classifyAuthError(studies.error) : null;
+  const rows = studies.data ?? [];
+  return (
+    <section className="org-card" aria-labelledby="org-studies-title" aria-busy={studies.status === 'loading'}>
+      <div className="org-card-head">
+        <h2 id="org-studies-title">Studies{studies.data && <span className="org-count">{rows.length}</span>}</h2>
+        {canCreate && <Link to={newStudyPath(slug)} viewTransition>+ New study</Link>}
+      </div>
+      {studies.status === 'loading' && <Skeleton variant="tile" />}
+      {failure && <span className="org-muted">Studies couldn’t be loaded{marker(failure)}.</span>}
+      {studies.status === 'ready' && rows.length === 0 && <span className="org-muted">None yet. A study compares engines and settings across problem versions.</span>}
+      {rows.slice(0, STUDIES_SHOWN).map((study) => (
+        <Link key={study.id} to={studyPath(slug, study.slug)} viewTransition className="org-sub">
+          <span>
+            <strong>{study.name}</strong>
+            <small>{study.definition.revision_ids.length} problem versions · {study.definition.engines.length} engines · {formatDate(study.created_at) ?? '—'}</small>
+          </span>
+        </Link>
+      ))}
+      <Link to={studiesPath(slug)} viewTransition>All studies</Link>
+    </section>
+  );
+}
+
 function OrgOverviewBody({ organization }: { organization: Organization }) {
   const { context } = useRouteOrganization();
   const navigate = useNavigate();
@@ -190,7 +221,7 @@ function OrgOverviewBody({ organization }: { organization: Organization }) {
             <div className="org-empty">
               <strong>No projects yet</strong>
               <span>
-                A project groups the studies for one piece of work. Anybody can read a public project;
+                A project groups people around one piece of work. Anybody can read a public project;
                 private ones are only for members.
               </span>
               {canCreate && <Action to={createAddress(`/app/${slug}`, 'project')} variant="primary" size="sm">Create the first project</Action>}
@@ -214,6 +245,7 @@ function OrgOverviewBody({ organization }: { organization: Organization }) {
         <aside className="org-aside">
           <ProblemsPanel slug={slug} canCreate={canCreate} />
           <RunsPanel slug={slug} canCreate={canCreate} />
+          <StudiesPanel slug={slug} canCreate={canCreate} />
           <section className="org-card" aria-labelledby="org-subs-title">
             <div className="org-card-head">
               <h2 id="org-subs-title">Sub-organizations</h2>
@@ -238,7 +270,7 @@ function OrgOverviewBody({ organization }: { organization: Organization }) {
   );
 }
 
-/** An organization (`org-overview`, `/app/:org`): its projects, its problems, its runs and its sub-organizations. */
+/** An organization (`org-overview`, `/app/:org`): its projects, its problems, its runs, its studies and its sub-organizations. */
 export function OrgOverview() {
   const { organization, waiting } = useRouteOrganization();
   if (waiting) return <div className="org-page"><PageSkeleton /></div>;

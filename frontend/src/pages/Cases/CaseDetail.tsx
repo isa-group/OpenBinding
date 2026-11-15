@@ -19,9 +19,9 @@ import { UploadVersionDialog } from './dialogs';
 import { CaseFrame, CaseMissing, ReadOnlyNote } from './parts';
 import { ProblemSettings } from './ProblemSettings';
 import { VersionSource } from './RevisionSource';
-import { projectRootOf, runLaunchOf } from './runTarget';
+import { runLaunchOf } from './runTarget';
+import { newStudyPath } from '../../routes/paths/studies';
 import { useRouteProblem, type RouteProblemContent } from './useRouteProblem';
-import { useRouteOrganization } from '../Organization/useRouteOrganization';
 import { VersionHistory } from './VersionHistory';
 import { VersionRuns } from './VersionRuns';
 
@@ -41,7 +41,6 @@ function ProblemBody({ organization, content, revision, tab, canCreate, canAdmin
 }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { context } = useRouteOrganization();
   const [query] = useSearchParams();
   const { item, revisions } = content;
   const org = organization.slug;
@@ -50,9 +49,8 @@ function ProblemBody({ organization, content, revision, tab, canCreate, canAdmin
   const [uploading, setUploading] = useState(false);
   const [toast, setToast] = useState<string>(() => (location.state as { toast?: string } | null)?.toast ?? '');
   const open = (id: TabId, show: { version?: string } = { version: named }) => void navigate(problemPath(org, item.slug, id === 'overview' ? undefined : id, show), { viewTransition: true });
-  const projectRoot = projectRootOf(context, org);
   const runHref = revision ? runLaunchOf(org, item.slug, revision.revision) : null;
-  const studyHref = revision && projectRoot ? `${projectRoot}/studies/new?case=${encodeURIComponent(item.slug)}&revision=${revision.revision}` : null;
+  const studyHref = revision ? newStudyPath(org, { case: item.slug, revision: revision.revision }) : null;
 
   return (
     <CaseFrame organization={organization} trail={[{ label: 'Problems', to: problemsPath(org) }, { label: item.name }]}>

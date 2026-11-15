@@ -7,14 +7,11 @@ import { Action } from '../../components/ui/Action';
 import { FormField } from '../../components/ui/FormField';
 import { Modal } from '../../components/ui/Modal';
 import { Notice } from '../../components/ui/Notice';
-import { Skeleton } from '../../components/ui/Skeleton';
 import { useAuth } from '../../contexts/auth';
-import { useResource } from '../../utils/useResource';
 import { Gate } from '../Organization/parts';
 import { NotFoundScreen } from '../../routes/NotFoundScreen';
-import { loadStudies } from './projectData';
 import { deleteRefusal, updateRefusal, type ProjectRefusal } from './projectErrors';
-import { countWord, DESCRIPTION_MAX, integrityOf, NAME_MAX, visibilityEffects, visibilityLabel } from './projectModel';
+import { DESCRIPTION_MAX, NAME_MAX, visibilityEffects, visibilityLabel } from './projectModel';
 import { canOpenSection } from './accessLevel';
 import { MembersOnlyGate, OrgGate, OrgSkeleton } from '../../features/workspace/OrgFrame';
 import { ProjectMembers } from './ProjectMembers';
@@ -49,7 +46,7 @@ function DeleteDialog({ organization, project, onClose, onDeleted }: {
   return (
     <Modal title={`Delete ${project.name}?`} tone="danger" size="md" onClose={() => !busy && onClose()}>
       <form className="org-dialog-form" onSubmit={submit} noValidate>
-        <p>This removes its problems, runs, studies and drafts from {organization.name}. It is refused (409) if anything inside has sealed history. This can’t be undone.</p>
+        <p>This removes the project and its memberships from {organization.name}. Problems, runs and studies belong to the organization and stay. This can’t be undone.</p>
         <FormField
           label={`Type ${project.slug} to confirm`}
           value={typed}
@@ -86,25 +83,12 @@ function SettingsBody({ organization, project, canEdit, reloadProject, reloadWor
   const [deleting, setDeleting] = useState(false);
   const [deleted, setDeleted] = useState(false);
 
-  const history = useResource(`settings-history:${org}/${project.slug}`, async () => {
-    try {
-      const studies = await loadStudies(org, project.slug);
-      return { items: integrityOf({ studies }).filter((item) => item.kind === 'sealed') };
-    } catch {
-      return null;
-    }
-  });
-
   const name = draftName ?? project.name;
   const description = draftDescription ?? project.description;
   const visibility = draftVisibility ?? project.visibility;
   const detailsUnchanged = (name.trim() === project.name && description.trim() === project.description) || !name.trim();
   const visibilityUnchanged = visibility === project.visibility;
   const effects = visibilityEffects(visibility);
-
-  const sealedItems = history.data?.items ?? [];
-  const sealed = sealedItems.length > 0;
-  const sealedList = sealedItems.map((item) => `${item.count} ${countWord(item)}`).join(', ');
 
   const finish = async (text: string) => {
     await reloadWorkspace();
@@ -154,7 +138,7 @@ function SettingsBody({ organization, project, canEdit, reloadProject, reloadWor
     return (
       <div className="proj-body is-md">
         <Gate title={`${project.name} was deleted`} action={<Action to={`/app/${org}`} variant="primary">Back to {organization.name}</Action>}>
-          Its problems, runs, studies and drafts are gone. The deletion is recorded in the audit log.
+          The organization keeps its problems, runs and studies. The deletion is recorded in the audit log.
         </Gate>
       </div>
     );
@@ -239,18 +223,8 @@ function SettingsBody({ organization, project, canEdit, reloadProject, reloadWor
         <h2 id="ps-danger">Danger zone</h2>
         <div className="org-card is-danger org-stack">
           <strong>Delete this project</strong>
-          {sealed && (
-            <div className="proj-note is-warning" role="note">
-              <Lock aria-hidden="true" className="org-inline-icon" />
-              <span>
-                Deleting is blocked: this project has sealed history ({sealedList}).
-                Sealed history must stay reachable so people can still verify it.
-              </span>
-            </div>
-          )}
-          <span className="org-muted">Removes its problems, runs, studies and drafts. This can’t be undone.</span>
-          {history.status === 'loading' && canEdit && <Skeleton variant="tile" />}
-          {canEdit && <Action variant="danger-outline" onClick={() => setDeleting(true)} disabled={sealed} className="org-danger-button">Delete project</Action>}
+          <span className="org-muted">Removes the project and its memberships; the organization keeps its problems, runs and studies. This can’t be undone.</span>
+          {canEdit && <Action variant="danger-outline" onClick={() => setDeleting(true)} className="org-danger-button">Delete project</Action>}
         </div>
       </section>
 

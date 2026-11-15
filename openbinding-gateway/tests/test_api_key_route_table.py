@@ -48,7 +48,7 @@ def is_open(method: str, path: str) -> bool:
 
 
 def test_the_route_table_has_the_v1_surface():
-    assert len(ROUTES) == 118
+    assert len(ROUTES) == 114
 
 
 def test_the_unclassified_permission_cannot_be_granted():
@@ -106,13 +106,24 @@ def test_the_runs_of_an_organization_are_jobs_reads_and_engine_executions():
     assert required_permissions(f"{runs}/{{run}}/events", "GET") == frozenset({"jobs:read"})
     for path in (runs, f"{runs}/{{run}}/cancel", f"{runs}/{{run}}/retry", f"{runs}/{{run}}/reevaluate"):
         assert required_permissions(path, "POST") == frozenset({"engines:execute"}), path
-    # The organizations fallback does not reach the runs, nor do the study runs of a project.
+    # The organizations fallback does not reach the runs, and the runs branch does not take the study runs.
     assert "organizations:write" not in required_permissions(runs, "POST")
-    study_runs = "/v1/organizations/{org}/projects/{project}/studies/{study}/runs"
+    study_runs = "/v1/organizations/{org}/studies/{study}/runs"
     assert required_permissions(study_runs, "POST") == frozenset({"studies:write"})
+    assert required_permissions(f"{study_runs}/{{run_id}}", "GET") == frozenset({"studies:read"})
 
 
-def test_the_library_report_and_resource_writes_are_gone_and_the_kept_reads_keep_their_permissions():
+def test_the_studies_of_an_organization_are_study_reads_and_writes():
+    studies = "/v1/organizations/{org}/studies"
+    study_routes = [route for route in ROUTES if route[1].startswith(studies)]
+    assert len(study_routes) >= 12
+    for method, path in study_routes:
+        expected = "studies:read" if method == "GET" else "studies:write"
+        assert required_permissions(path, method) == frozenset({expected}), (method, path)
+    assert not [route for route in ROUTES if "/projects/{project}/studies" in route[1]]
+
+
+def test_the_library_reports_and_project_resources_are_gone():
     project = "/v1/organizations/{org}/projects/{project}"
     retired = {
         ("POST", "/v1/organizations/{org}/library"),
@@ -127,18 +138,16 @@ def test_the_library_report_and_resource_writes_are_gone_and_the_kept_reads_keep
         ("DELETE", f"{project}/publications/{{publication}}"),
         ("POST", f"{project}/resources"),
         ("PATCH", f"{project}/resources/{{resource}}"),
+        # The artifact store, the library and the project resources went in F0b B7.
+        ("GET", "/v1/organizations/{org}/library"),
+        ("GET", "/v1/artifacts/{artifact_id}/versions"),
+        ("GET", "/v1/artifacts/{artifact_id}/versions/{version_id}/content"),
+        ("POST", "/v1/artifacts/resolve"),
+        ("GET", f"{project}/resources"),
+        ("GET", f"{project}/resources/{{resource}}/revisions"),
     }
     assert not retired & set(ROUTES)
-    # The kept operations of the same areas stay classified as before (design D6).
-    kept = {
-        ("GET", "/v1/organizations/{org}/library"): {"artifacts:read"},
-        ("GET", "/v1/artifacts/{artifact_id}/versions"): {"artifacts:read"},
-        ("POST", "/v1/artifacts/resolve"): {"artifacts:read"},
-        ("GET", f"{project}/resources/{{resource}}/revisions"): {"projects:read"},
-    }
-    for (method, path), permissions in kept.items():
-        assert (method, path) in ROUTES
-        assert required_permissions(path, method) == frozenset(permissions), (method, path)
+    assert not [route for route in ROUTES if route[1].startswith("/v1/artifacts") or "/library" in route[1]]
 
 
 def test_unknown_paths_are_denied_under_v1_and_untouched_elsewhere():

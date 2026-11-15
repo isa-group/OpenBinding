@@ -4,20 +4,20 @@ import { MEMBER_NAMES, PROJECT_TABS, VISITOR_TABS, isCurrent, mockProject, navEn
 test.use({ viewport: { width: 1440, height: 900 } });
 
 const PROJECT = '/app/acme/demo';
-// The problems and the runs belong to the organization, so a project has no Problems tab and no Runs tab.
-const TAB_HREFS = [PROJECT, `${PROJECT}/studies`, `${PROJECT}/settings`];
+// The problems, the runs and the studies belong to the organization, so a project has no Problems, Runs or Studies tab.
+const TAB_HREFS = [PROJECT, `${PROJECT}/settings`];
 
 // ---- frontend-nav-project-tabs ----------------------------------------------------------------------------------
 
-test('the project tabs of a member read Overview, Studies, Settings', async ({ page }) => {
+test('the project tabs of a member read Overview, Settings', async ({ page }) => {
   await mockProject(page);
-  await page.goto(`${PROJECT}/studies`);
+  await page.goto(PROJECT);
   await expect(projectTabs(page).getByRole('link')).toHaveText(PROJECT_TABS);
 });
 
-test('the project tabs link to the project, its areas and its settings', async ({ page }) => {
+test('the project tabs link to the project and its settings', async ({ page }) => {
   await mockProject(page);
-  await page.goto(`${PROJECT}/studies`);
+  await page.goto(PROJECT);
   const tabs = projectTabs(page);
   for (const [index, label] of PROJECT_TABS.entries()) {
     await expect(tabs.getByRole('link', { name: label, exact: true }), `href of ${label}`).toHaveAttribute('href', TAB_HREFS[index]!);
@@ -26,15 +26,15 @@ test('the project tabs link to the project, its areas and its settings', async (
 
 test('the tab of the current area carries aria-current page', async ({ page }) => {
   await mockProject(page);
-  await page.goto(`${PROJECT}/studies`);
+  await page.goto(`${PROJECT}/settings`);
   const tabs = projectTabs(page);
-  await expect(tabs.getByRole('link', { name: 'Studies', exact: true })).toHaveAttribute('aria-current', 'page');
+  await expect(tabs.getByRole('link', { name: 'Settings', exact: true })).toHaveAttribute('aria-current', 'page');
   await expect(tabs.getByRole('link', { name: 'Overview', exact: true })).not.toHaveAttribute('aria-current', 'page');
 });
 
-test('the project tabs of a public visitor read Overview, Studies', async ({ page }) => {
+test('the project tabs of a public visitor read Overview', async ({ page }) => {
   await mockProject(page, { visitor: true });
-  await page.goto(`${PROJECT}/studies`);
+  await page.goto(PROJECT);
   await expect(projectTabs(page, VISITOR_TABS).getByRole('link')).toHaveText(VISITOR_TABS);
 });
 
@@ -57,13 +57,13 @@ test('the settings section Members lists the members of acme and links to manage
   await expect(page.getByRole('link', { name: 'Manage members', exact: true })).toHaveAttribute('href', '/app/acme/settings/members');
 });
 
-test('the former tabs Problems, Runs, Cases, Jobs, Publications, Published, Files and Package are gone', async ({ page }) => {
+test('the former tabs Problems, Runs, Studies, Cases, Jobs, Publications, Published, Files and Package are gone', async ({ page }) => {
   await mockProject(page);
   await page.goto(PROJECT);
   const tabs = projectTabs(page, ['Overview', 'Settings']);
   await expect(navEntry(tabs, 'Overview')).toBeVisible();
   await expect(tabs.getByRole('link')).toHaveText(PROJECT_TABS);
-  for (const former of ['Problems', 'Runs', 'Cases', 'Jobs', 'Publications', 'Published', 'Files', 'Package']) {
+  for (const former of ['Problems', 'Runs', 'Studies', 'Cases', 'Jobs', 'Publications', 'Published', 'Files', 'Package']) {
     await expect(navEntry(tabs, former), `tab ${former}`).toHaveCount(0);
   }
 });

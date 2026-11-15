@@ -25,24 +25,24 @@ export const REVISION_1 = revisionFixture(1);
 export const REVISION_2 = revisionFixture(2);
 
 export const STUDY_ID = 'study-engines-vs-seeds';
-export const VERSION_ID = 'version-engines-vs-seeds-1';
+export const COMPILATION_1 = 'compilation-checkout-1';
+export const COMPILATION_2 = 'compilation-checkout-2';
 
 export function studyFixture(over: Partial<Study> = {}): Study {
   return {
     archived: false,
     id: STUDY_ID,
-    definition_version_id: VERSION_ID,
-    definition_artifact_id: 'artifact-engines-vs-seeds',
-    project_id: 'project-qos-benchmarks',
+    organization_id: 'org-isa-demo',
     slug: 'engines-vs-seeds',
     name: 'Engines × seeds',
     description: '',
     definition: {
-      case_revision_ids: [REVISION_1.id, REVISION_2.id],
+      revision_ids: [REVISION_1.id, REVISION_2.id],
       engines: [RANDOM_SEARCH, EVOLUTIONARY],
       parameter_sets: [{}],
       seeds: [1, 2],
     },
+    definition_digest: digestOf('e'),
     state: 'ready',
     created_by_id: 'user-admin',
     created_at: '2026-09-20T08:00:00Z',
@@ -52,9 +52,24 @@ export function studyFixture(over: Partial<Study> = {}): Study {
 
 export const RUN_ID = '00000000-0000-4000-8000-000000000101';
 
+/** What the run froze: the study's definition, with the compilation each problem version runs. */
+export function frozenFixture(): StudyRun['definition'] {
+  return {
+    apiVersion: 'openbinding/study-run/v1',
+    problems: [REVISION_1, REVISION_2].map((revision, position) => ({
+      revisionId: revision.id, problemId: CHECKOUT.id, revision: revision.revision, packageDigest: revision.package_digest,
+      compilationId: position === 0 ? COMPILATION_1 : COMPILATION_2, compilationDigest: digestOf(position === 0 ? '7' : '8'), irDigest: digestOf(position === 0 ? '5' : '6'),
+    })),
+    engines: [RANDOM_SEARCH, EVOLUTIONARY],
+    parameterSets: [{}],
+    seeds: [1, 2],
+  };
+}
+
 export function runFixture(over: Partial<StudyRun> = {}): StudyRun {
   return {
-    id: RUN_ID, definition_version_id: VERSION_ID, study_id: STUDY_ID, run_number: 1, state: 'partial', matrix_digest: digestOf('d'), cells: 8, summary: {},
+    id: RUN_ID, study_id: STUDY_ID, run_number: 1, state: 'partial', matrix_digest: digestOf('d'), cells: 8, summary: {},
+    definition: frozenFixture(), definition_digest: digestOf('9'),
     created_at: '2026-09-20T09:00:00Z', finished_at: '2026-09-20T09:20:00Z', ...over,
   };
 }
@@ -78,6 +93,7 @@ export function cellFixture(ordinal: number, revision: ProblemRevision, engine: 
     study_run_id: RUN_ID,
     ordinal,
     binding_case_revision_id: revision.id,
+    compilation_id: revision.id === REVISION_1.id ? COMPILATION_1 : COMPILATION_2,
     engine_ref: engine,
     parameters: {},
     seed,

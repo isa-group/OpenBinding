@@ -1,21 +1,19 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../api/client';
-import { org, project, renderProjectScreen } from '../../features/workspace/testKit';
+import { org, renderProjectScreen } from '../../features/workspace/testKit';
 import { CHECKOUT, REVISION_1, REVISION_2, RUN_ID, analyticsFixture, cellsFixture, runFixture, studyFixture } from '../../test/fixtures/studies';
 import { StudyDetail } from './StudyDetail';
 
 const platform = vi.hoisted(() => ({
-  project: vi.fn(), studies: vi.fn(), studyRuns: vi.fn(), studyCells: vi.fn(), analytics: vi.fn(),
+  study: vi.fn(), studyRuns: vi.fn(), studyRun: vi.fn(), studyCells: vi.fn(), analytics: vi.fn(),
  
 }));
 const runsApi = vi.hoisted(() => ({ get: vi.fn() }));
-const library = vi.hoisted(() => ({ libraryApi: { versions: vi.fn().mockResolvedValue([]) } }));
 
 const problems = vi.hoisted(() => ({ list: vi.fn(), revisions: vi.fn(), compilation: vi.fn(), ir: vi.fn() }));
 vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'), platformApi: platform }));
 vi.mock('../../api/problems', () => ({ problemsApi: problems }));
-vi.mock('../../api/library', () => library);
 vi.mock('../../api/runs', async () => ({ ...await vi.importActual<typeof import('../../api/runs')>('../../api/runs'), runsApi }));
 // The decision workspace is not what is under test here.
 vi.mock('../../components/BindingAnalysis/BindingAnalysis', async () => {
@@ -23,10 +21,19 @@ vi.mock('../../components/BindingAnalysis/BindingAnalysis', async () => {
   return { BindingAnalysis: ({ jobId }: { jobId?: string }) => createElement('div', null, `Binding analysis of ${jobId}`) };
 });
 
+/** The one-run read answers from what the study's run list answers. */
+function oneRunFromList() {
+  platform.studyRun.mockImplementation(async (_org: string, _study: string, id: string) => {
+    const runs = (await platform.studyRuns()) as Array<{ id: string }>;
+    const found = runs.find((run) => run.id === id);
+    if (!found) throw Object.assign(new HttpError(404, 'Study run not found.'), { code: 'not_found' });
+    return found;
+  });
+}
+
 const group = org('isa-demo', { name: 'ISA Demo Group' });
 const viewing = org('read-lab', { name: 'Read Lab', effective_role: 'VIEWER' });
-const qos = project('qos-benchmarks', { name: 'QoS Benchmarks' });
-const ROOT = '/app/isa-demo/qos-benchmarks';
+const ROOT = '/app/isa-demo';
 const RESULTS = `${ROOT}/studies/engines-vs-seeds/results?run=${RUN_ID}`;
 const cells = cellsFixture();
 
@@ -35,7 +42,7 @@ const refusal = (status: number, code: string, message = 'refused') => Object.as
 /** The Results tab of the study page, on the study run named by `?run=`. */
 function renderAnalytics(options: { slug?: string; run?: string } = {}) {
   return renderProjectScreen(<StudyDetail />, {
-    path: '/app/:org/:project/studies/:study/:tab?', url: `/app/${options.slug ?? 'isa-demo'}/qos-benchmarks/studies/engines-vs-seeds/results?run=${options.run ?? RUN_ID}`,
+    path: '/app/:org/studies/:study/:tab?', url: `/app/${options.slug ?? 'isa-demo'}/studies/engines-vs-seeds/results?run=${options.run ?? RUN_ID}`,
     organizations: [group, viewing],
   });
 }
@@ -45,8 +52,8 @@ const figure = (label: string) => within(screen.getByLabelText('Counts of the ru
 describe('Analytics of a run, in the Results tab', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    platform.project.mockResolvedValue(qos);
-    platform.studies.mockResolvedValue([studyFixture()]);
+    platform.study.mockResolvedValue({ value: studyFixture(), etag: null });
+    oneRunFromList();
     platform.studyRuns.mockResolvedValue([runFixture()]);
     platform.studyCells.mockResolvedValue(cells);
     platform.analytics.mockResolvedValue(analyticsFixture());
@@ -72,8 +79,8 @@ describe('Analytics of a run, in the Results tab', () => {
     expect(screen.getByRole('img', { name: 'evolutionary: 2 values from 0.104 to 0.112, median 0.108' })).toBeInTheDocument();
     expect(screen.getByRole('img', { name: 'random-search: 4 values from 0.109 to 0.121, median 0.1145' })).toBeInTheDocument();
     expect(screen.getByRole('img', { name: /evolutionary took 1 min 58 s to 2 min; random-search took 58 s to 1 min/ })).toBeInTheDocument();
-    const tabs = screen.getByRole('navigation', { name: 'Project sections' });
-    expect(within(tabs).getByRole('link', { name: 'Studies' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.queryByRole('navigation', { name: 'Project sections' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Studies' })).toHaveAttribute('href', '/app/isa-demo/studies');
   });
 
   it('plots two objectives and marks the best trade-offs of one case at a time', async () => {
@@ -202,7 +209,7 @@ describe('Analytics of a run, in the Results tab', () => {
     renderAnalytics();
 
     expect(await screen.findByRole('heading', { name: 'Run not found' })).toBeInTheDocument();
-    expect(screen.getByText('No such run in QoS Benchmarks (404).')).toBeInTheDocument();
+    expect(screen.getByText('No such run in this study (404).')).toBeInTheDocument();
   });
 
   it('offers a retry when the analytics cannot be loaded', async () => {

@@ -59,6 +59,16 @@ RETIRED_TABLES = frozenset({
     "v1_instance_snapshots",
     # F0b B6: runs move under the organization; the write-only run provenance copy goes (D28).
     "v1_job_provenance",
+    # F0b B7: study runs freeze their definitions; the artifact store and the project resources go.
+    "artifact_case_references",
+    "artifact_dependencies",
+    "artifact_drafts",
+    "artifact_publications",
+    "artifact_versions",
+    "artifacts",
+    "project_artifacts",
+    "project_resource_revisions",
+    "project_resources",
 })
 
 VERSIONS = GATEWAY_ROOT / "alembic" / "versions"
@@ -165,7 +175,7 @@ def test_a_trigger_on_a_table_the_metadata_lacks_is_refused():
     metadata = MetaData()
     Table("jobs", metadata, Column("id", Integer, primary_key=True), Column("configuration_version_id", Integer))
 
-    with pytest.raises(ValueError, match="artifact_versions"):
+    with pytest.raises(ValueError, match="binding_case_revisions"):
         register_triggers(metadata)
 
 
@@ -180,7 +190,6 @@ def test_a_trigger_on_a_column_the_table_lacks_is_refused():
 def test_the_partial_indexes_keep_their_where(migrated, created):
     for database in (migrated, created):
         assert index_sql(database, "uq_jobs_study_cell_id").endswith("WHERE study_cell_id IS NOT NULL")
-        assert index_sql(database, "uq_artifact_identity").endswith("WHERE archived = 0")
 
 
 def test_the_downgrade_leaves_only_the_version_table(tmp_path):

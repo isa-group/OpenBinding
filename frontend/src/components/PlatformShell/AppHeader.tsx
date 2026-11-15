@@ -81,8 +81,8 @@ export function AppHeader({ organizations = [], projects = [], organization, pro
   const contextLabel = organization ? [organization.name, project?.name].filter(Boolean).join(' / ') : '';
   const initials = personInitials(user?.username);
   const problems = problemsEntry(organization);
-  const lab = labEntries(organization, project);
-  const items = createItems(organization, project);
+  const lab = labEntries(organization);
+  const items = createItems(organization);
 
   /** A link, or an entry that is disabled and says what it needs. `where` keeps the hint ids of the desktop and phone menus apart. */
   const renderEntry = (entry: MenuEntry, where: string, className?: string, active = false) => {

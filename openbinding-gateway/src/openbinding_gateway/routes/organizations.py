@@ -22,9 +22,6 @@ from ..collaboration import (
     require_role,
 )
 from ..db.models import (
-    Artifact,
-    ArtifactVersion,
-    ProjectArtifact,
     Blob,
     AuditEvent,
     BindingCase,
@@ -36,10 +33,7 @@ from ..db.models import (
     OrganizationRole,
     ProblemCompilation,
     Project,
-    ProjectResource,
-    ProjectResourceRevision,
     Study,
-    StudyCell,
     StudyRun,
     User,
     Visibility,
@@ -60,14 +54,10 @@ from ..models.platform import (
     ProjectCreate,
     ProjectUpdate,
     ProjectView,
-    ProjectResourceRevisionView,
-    ProjectResourceView,
 )
 from ..access import public_read
 from ..repositories import organizations as organization_repository
 from ..access.dependencies import get_current_user, session_dependency
-from ..artifacts import version_content
-import json
 
 router = APIRouter(prefix="/v1/organizations", tags=["Organizations"])
 invitation_router = APIRouter(prefix="/v1/invitations", tags=["Organizations"])
@@ -244,44 +234,7 @@ async def update_organization(
 
 
 async def _cascade_delete_project(session: AsyncSession, project: Project) -> None:
-    historical_run = await session.scalar(select(StudyRun.id).join(Study).where(
-        Study.project_id == project.id).limit(1))
-    if historical_run:
-        raise api_error(409, "historical_references", "A project with study runs cannot be deleted; archive its studies to retain their evidence.")
-    # Problems and blobs belong to the organization: deleting a project leaves them.
-    resources = (
-        await session.execute(
-            select(ProjectResource).where(ProjectResource.project_id == project.id)
-        )
-    ).scalars().all()
-    for r in resources:
-        await session.execute(
-            delete(ProjectResourceRevision).where(
-                ProjectResourceRevision.project_resource_id == r.id
-            )
-        )
-        await session.delete(r)
-
-    # Common library identities outlive a project; only the usage edge is
-    # removed when a project is deleted.
-    await session.execute(delete(ProjectArtifact).where(ProjectArtifact.project_id == project.id))
-
-    studies = (
-        await session.execute(
-            select(Study).where(Study.project_id == project.id)
-        )
-    ).scalars().all()
-    for s in studies:
-        runs = (
-            await session.execute(
-                select(StudyRun).where(StudyRun.study_id == s.id)
-            )
-        ).scalars().all()
-        for run in runs:
-            await session.execute(delete(StudyCell).where(StudyCell.run_id == run.id))
-            await session.delete(run)
-        await session.delete(s)
-
+    # Problems, blobs, runs and studies belong to the organization: deleting a project leaves them.
     await session.delete(project)
 
 
@@ -297,13 +250,10 @@ async def delete_organization(
 
     descendants = await descendant_ids(session, organization.id)
     unique_descendants = list(dict.fromkeys(descendants))
-    from ..db.models import Artifact, ArtifactVersion
-    if await session.scalar(select(ArtifactVersion.id).join(Artifact, Artifact.id == ArtifactVersion.artifact_id)
-                            .where(Artifact.organization_id.in_(unique_descendants)).limit(1)):
-        raise api_error(409, 'historical_references', 'Organizations with sealed library history cannot be deleted.')
+    # Runs and study runs are history: an organization that has any is kept.
     if await session.scalar(select(Job.id).where(Job.organization_id.in_(unique_descendants)).limit(1)) or await session.scalar(
-        select(StudyRun.id).join(Study, Study.id == StudyRun.study_id).join(Project, Project.id == Study.project_id)
-        .where(Project.organization_id.in_(unique_descendants)).limit(1)
+        select(StudyRun.id).join(Study, Study.id == StudyRun.study_id)
+        .where(Study.organization_id.in_(unique_descendants)).limit(1)
     ):
         raise api_error(409, 'historical_references', 'Organizations with runs or study runs cannot be deleted; their history is kept.')
     for oid in unique_descendants:
@@ -319,7 +269,7 @@ async def delete_organization(
         await session.execute(
             delete(AuditEvent).where(AuditEvent.organization_id == oid)
         )
-        await session.execute(delete(Artifact).where(Artifact.organization_id == oid))
+        await session.execute(delete(Study).where(Study.organization_id == oid))
         cases = select(BindingCase.id).where(BindingCase.organization_id == oid)
         revisions = select(BindingCaseRevision.id).where(BindingCaseRevision.binding_case_id.in_(cases))
         await session.execute(delete(ProblemCompilation).where(ProblemCompilation.revision_id.in_(revisions)))
@@ -751,111 +701,3 @@ async def delete_project(
     _audit(session, user, "project.deleted", found, organization.id)
     await _cascade_delete_project(session, found)
     await session.flush()
-
-
-@router.get(
-    "/{org}/projects/{project}/resources",
-    response_model=list[ProjectResourceView],
-    operation_id="listProjectResources",
-)
-async def list_project_resources(
-    org: str,
-    project: str,
-    user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(session_dependency, scope="function"),
-) -> list[ProjectResourceView]:
-    organization = await _required_org(session, org)
-    found_project = await require_project(
-        session, organization, project, user, OrganizationRole.VIEWER
-    )
-    rows = (await session.scalars(select(Artifact).join(ProjectArtifact)
-        .where(ProjectArtifact.project_id == found_project.id)
-        .order_by(Artifact.display_name))).all()
-    return [_legacy_resource_view(row, found_project.id) for row in rows
-            if row.kind not in {"Application", "CandidateCatalog", "ConstraintSet",
-                                "ExecutionConfiguration", "AnalysisConfiguration",
-                                "Study", "BindingDecision"}
-            and await _visible_resource(session, found_project, row)]
-
-
-async def _visible_resource(session: AsyncSession, project: Project, artifact: Artifact) -> bool:
-    """What a read-only visitor may see of a project's resources.
-
-    The project's own resources are its contents; an artifact of another
-    organization that the project merely associates is shown only while it is
-    itself published (a withdrawn one must not stay reachable through here).
-    Members are not filtered.
-    """
-
-    if not public_read.is_public_read(session):
-        return True
-    from ..artifacts import can_read
-
-    return artifact.organization_id == project.organization_id or await can_read(session, artifact, None)
-
-
-def _legacy_resource_view(artifact: Artifact, project_id: uuid.UUID) -> dict:
-    """Compatibility DTO backed exclusively by the common artifact identity."""
-    return dict(id=artifact.id, project_id=project_id, slug=artifact.name,
-        name=artifact.display_name, description=artifact.description, kind=artifact.kind,
-        created_by_id=artifact.created_by_id, created_at=artifact.created_at)
-
-
-async def _legacy_resource_revision_view(session: AsyncSession, artifact: Artifact,
-                                         version: ArtifactVersion, project_id: uuid.UUID) -> dict:
-    content, media_type = await version_content(session, version)
-    try:
-        document = json.loads(content.decode()) if media_type == "application/json" else {"content": content.decode()}
-    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise api_error(409, "content_integrity", "Resource content is not valid JSON.") from exc
-    return dict(id=version.id, project_resource_id=artifact.id, revision=version.ordinal,
-        digest=version.content_digest, document=document, created_at=version.created_at)
-
-
-async def _legacy_artifact(session: AsyncSession, project_id: uuid.UUID, reference: str) -> Artifact:
-    try:
-        parsed = uuid.UUID(reference)
-    except ValueError:
-        parsed = None
-    row = (await session.execute(select(Artifact).join(ProjectArtifact)
-        .where(ProjectArtifact.project_id == project_id,
-               Artifact.id == parsed if parsed else Artifact.name == reference))).scalars().first()
-    if row is None:
-        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Project resource not found.")
-    return row
-
-
-# Project resources are read-only since M9.6: only the two lists are routed (design.md §2.1 rows 29 to 34).
-async def _project_resource(
-    session: AsyncSession, project_id: uuid.UUID | Project, reference: str
-) -> Artifact:
-    """A project's resource by reference; a visitor never gets one they may not see."""
-
-    project = project_id if isinstance(project_id, Project) else None
-    found = await _legacy_artifact(session, project.id if project else project_id, reference)
-    if project is not None and not await _visible_resource(session, project, found):
-        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Project resource not found.")
-    return found
-
-
-@router.get(
-    "/{org}/projects/{project}/resources/{resource}/revisions",
-    response_model=list[ProjectResourceRevisionView],
-    operation_id="listProjectResourceRevisions",
-)
-async def list_project_resource_revisions(
-    org: str,
-    project: str,
-    resource: str,
-    user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(session_dependency, scope="function"),
-) -> list[ProjectResourceRevisionView]:
-    organization = await _required_org(session, org)
-    found_project = await require_project(
-        session, organization, project, user, OrganizationRole.VIEWER
-    )
-    found_resource = await _project_resource(session, found_project, resource)
-    rows = (await session.scalars(select(ArtifactVersion)
-        .where(ArtifactVersion.artifact_id == found_resource.id)
-        .order_by(ArtifactVersion.ordinal))).all()
-    return [await _legacy_resource_revision_view(session, found_resource, row, found_project.id) for row in rows]

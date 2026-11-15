@@ -42,8 +42,8 @@ async function signIn(page: Page, persona: keyof typeof personas) {
 }
 
 async function openWorkspace(page: Page) {
-  // A project screen whose data is not mocked (the API answers 404) keeps the page behind the header independent of any API data.
-  await page.goto('/app/isa-demo/qos-benchmarks/studies');
+  // A screen whose data is not mocked (the API answers 404) keeps the page behind the header independent of any API data.
+  await page.goto('/app/isa-demo/studies');
   await expect(page.locator('header.app-header')).toBeVisible();
   await expect(page.getByRole('button', { name: '1 unread notifications' })).toBeVisible();
   await page.evaluate(() => document.fonts.ready);
@@ -131,7 +131,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
           await expect(lab).toHaveAttribute('aria-expanded', 'true');
           const labMenu = header.locator('#app-lab-menu');
           await expect(labMenu.getByRole('link', { name: 'Runs' })).toHaveAttribute('href', '/app/isa-demo/runs');
-          await expect(labMenu.getByRole('link', { name: 'Studies' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/studies');
+          await expect(labMenu.getByRole('link', { name: 'Studies' })).toHaveAttribute('href', '/app/isa-demo/studies');
           await shot('menu-lab');
           await page.keyboard.press('Escape');
           await expect(lab).toHaveAttribute('aria-expanded', 'false');

@@ -6,17 +6,20 @@ import uuid
 from typing import Any, Iterable
 
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .db import base as db_base
 from .db.models import (
     AuditEvent,
+    BindingCase,
     BindingCaseRevision,
     Job,
     JobState,
     Organization,
+    ProblemCompilation,
     RunState,
+    Study,
     StudyCell,
     StudyRun,
     User,
@@ -27,13 +30,16 @@ from .domain.entitlements import Refusal
 from .job_dispatch import dispatch_persisted_job
 from .jobs import lifecycle
 from .jobs.leases import aware
+from .models.errors import api_error
 from .modules.execution.application import STUDY_CELL_KEY_PREFIX, RunRequest
 from .security.roles import require_work_role
 from .services.engines import engine_mode, manifest_async
 from .services.entitlements import entitlement_service
 from .services.job_submission import JobSubmission, discard_pending_launches, pending_launches
 from .modules.problems.application import compile_or_get
-from .studies import aggregate_metrics
+from .models.platform import StudyDefinition
+from .studies import aggregate_metrics, expand_study, frozen_definition
+from bim_core.canonical import digest
 
 
 class StudyLaunchError(RuntimeError):
@@ -119,10 +125,12 @@ async def cell_job_mismatches(
     """Which identities of a job differ from the cell it is offered as the result of.
 
     The keys are ``case_revision`` (the problem revision the cell pins),
-    ``engine`` (namespace, name, version and digest), ``mode``
-    (when the cell pins one) and ``seed``. Each maps to what the cell expects
-    and what the job recorded; an empty result means the job is a faithful
-    execution of the cell.
+    ``compilation`` (the compilation its run pinned for that revision, D7;
+    compared only when the revision matches, since another revision is
+    another compilation), ``engine`` (namespace, name, version and digest),
+    ``mode`` (when the cell pins one) and ``seed``. Each maps to what the
+    cell expects and what the job recorded; an empty result means the job is
+    a faithful execution of the cell.
     """
 
     provenance = job.provenance if isinstance(job.provenance, dict) else {}
@@ -130,6 +138,8 @@ async def cell_job_mismatches(
 
     if job.revision_id != cell.binding_case_revision_id:
         mismatches["case_revision"] = {"cell": str(cell.binding_case_revision_id), "job": str(job.revision_id)}
+    elif job.compilation_id != cell.compilation_id:
+        mismatches["compilation"] = {"cell": str(cell.compilation_id), "job": str(job.compilation_id)}
 
     job_engine = provenance.get("engine") if isinstance(provenance.get("engine"), dict) else {}
     cell_engine = {field: cell.engine_ref.get(field) for field in ENGINE_IDENTITY_FIELDS}
@@ -150,33 +160,108 @@ async def cell_job_mismatches(
     return mismatches
 
 
-async def study_binding_space_refusal(
-    session: AsyncSession, revision_ids: Iterable[uuid.UUID]
-) -> Refusal | None:
-    """The first refusal among the distinct revisions of a study run, decided before the run exists.
+async def pin_compilations(
+    session: AsyncSession, organization_id: uuid.UUID, revision_ids: Iterable[uuid.UUID]
+) -> list[tuple[BindingCaseRevision, BindingCase, ProblemCompilation]]:
+    """Each distinct revision of a study run, its problem and the compilation its cells will run (D7).
 
-    Each revision's compilation by the installed toolchain (``compile_or_get``, which compiles once on a
-    miss) is held against the deployment's binding-space limit (``MAX_BINDING_SPACE_LOG10``), so a run
-    whose problems are too large is refused whole instead of being accepted and then failing cell by
-    cell. A revision that cannot be compiled is left to the launch of its cells, which reports it; launch
-    applies the same limit again to every job it creates.
+    Called before the run exists: every revision must be a problem revision of ``organization_id``
+    (``422 foreign_case_revision`` otherwise), and ``compile_or_get`` runs once per revision, so a
+    revision the installed toolchain cannot compile refuses the run whole. The compilations found
+    here are the ones the run pins: a toolchain release while its cells launch does not change them.
     """
+    pinned: list[tuple[BindingCaseRevision, BindingCase, ProblemCompilation]] = []
     seen: set[uuid.UUID] = set()
     for revision_id in revision_ids:
         if revision_id in seen:
             continue
         seen.add(revision_id)
-        revision = await session.get(BindingCaseRevision, revision_id)
-        if revision is None:
-            continue
-        try:
-            compilation = await compile_or_get(session, revision)
-        except HTTPException:
-            continue
+        row = (await session.execute(
+            select(BindingCaseRevision, BindingCase)
+            .join(BindingCase, BindingCase.id == BindingCaseRevision.binding_case_id)
+            .where(BindingCaseRevision.id == revision_id)
+        )).first()
+        if row is None or row[1].organization_id != organization_id:
+            raise api_error(
+                422, "foreign_case_revision", "Every study revision must be a problem revision of this organization."
+            )
+        revision, problem = row
+        pinned.append((revision, problem, await compile_or_get(session, revision)))
+    return pinned
+
+
+def study_binding_space_refusal(compilations: Iterable[ProblemCompilation]) -> Refusal | None:
+    """The first refusal among the pinned compilations of a study run, decided before the run exists.
+
+    Each compilation is held against the deployment's binding-space limit (``MAX_BINDING_SPACE_LOG10``),
+    so a run whose problems are too large is refused whole instead of being accepted and then failing
+    cell by cell. Launch applies the same limit again to every job it creates.
+    """
+    for compilation in compilations:
         refusal = entitlement_service.binding_space_refusal(BindingSpace.from_analysis(compilation.analysis))
         if refusal is not None:
             return refusal
     return None
+
+
+async def create_study_run(
+    session: AsyncSession,
+    study: Study,
+    organization: Organization,
+    user: User,
+    *,
+    summary: dict[str, Any] | None = None,
+) -> tuple[StudyRun, list[StudyCell]]:
+    """Freeze ``study``'s current definition into a new run and write its cells; launch nothing.
+
+    The revisions are checked and their compilations pinned first (``pin_compilations``), and a
+    problem over the binding-space limit refuses the run whole, before the run exists. The run
+    stores the frozen ``openbinding/study-run/v1`` document and its digest; each cell carries the
+    compilation of its revision. Plan checks (feature, cell limit) are the caller's.
+    """
+    definition = StudyDefinition.model_validate(study.definition)
+    pinned = await pin_compilations(session, organization.id, definition.revision_ids)
+    refusal = study_binding_space_refusal(compilation for _, _, compilation in pinned)
+    if refusal is not None:
+        raise api_error(refusal.status, refusal.code, refusal.detail, headers=refusal.headers or None, **refusal.extra)
+    frozen = frozen_definition(definition, [
+        {
+            "revisionId": str(revision.id),
+            "problemId": str(problem.id),
+            "revision": revision.revision,
+            "packageDigest": revision.package_digest,
+            "compilationId": str(compilation.id),
+            "compilationDigest": compilation.compilation_digest,
+            "irDigest": compilation.ir_digest,
+        }
+        for revision, problem, compilation in pinned
+    ])
+    expanded = expand_study(definition, {item["revisionId"]: item["compilationId"] for item in frozen["problems"]})
+    await session.execute(select(Study.id).where(Study.id == study.id).with_for_update())
+    number = int(await session.scalar(
+        select(func.max(StudyRun.run_number)).where(StudyRun.study_id == study.id)
+    ) or 0) + 1
+    run = StudyRun(
+        study_id=study.id, run_number=number, state=RunState.QUEUED,
+        matrix_digest=digest([cell["fingerprint"] for cell in expanded]),
+        definition=frozen, definition_digest=digest(frozen),
+        summary={"cells": len(expanded), **(summary or {})}, created_by_id=user.id,
+    )
+    session.add(run)
+    await session.flush()
+    cells = [
+        StudyCell(
+            study_run_id=run.id, ordinal=cell["ordinal"],
+            binding_case_revision_id=uuid.UUID(cell["caseRevisionId"]),
+            compilation_id=uuid.UUID(cell["compilationId"]),
+            engine_ref=cell["engine"], parameters=cell["parameters"],
+            seed=cell["seed"], fingerprint=cell["fingerprint"], state=RunState.QUEUED,
+        )
+        for cell in expanded
+    ]
+    session.add_all(cells)
+    await session.flush()
+    return run, cells
 
 
 async def launch_study_cell(
@@ -188,7 +273,8 @@ async def launch_study_cell(
     """Create one normal persisted run of ``organization`` from an immutable study cell.
 
     The cell's request goes through ``JobSubmission`` as a ``RunRequest``, as
-    ``createRun`` does. The job is written with its ``study_cell_id`` and the
+    ``createRun`` does, with the compilation the cell's run pinned: a cell whose
+    compilation the installed toolchain cannot run fails ``contract_not_installed``. The job is written with its ``study_cell_id`` and the
     cell's ``job_id`` is set in the caller's transaction, which is neither
     committed nor dispatched here. The caller must ``commit_launched`` (or
     commit and then ``dispatch_after_commit``); an existing job of the cell is
@@ -252,6 +338,7 @@ async def launch_study_cell(
         optimization=execution_optimization,
         options=options,
         idempotency_key=key,
+        compilation_id=cell.compilation_id,
     )
     pending = pending_launches(session)
     before = set(pending)

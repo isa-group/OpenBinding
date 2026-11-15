@@ -20,8 +20,8 @@ import { DataTable } from '../../components/ui/DataTable';
 import { FilterPills } from '../../components/ui/FilterPills';
 import { Notice } from '../../components/ui/Notice';
 import { OrganizationPicker } from '../../components/ui/OrganizationPicker';
-import { ProjectPicker } from '../../components/ui/ProjectPicker';
 import { launchPath } from '../../routes/paths/runs';
+import { newStudyPath } from '../../routes/paths/studies';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { TabBar, TabPanel } from '../../components/ui/TabBar';
 import { useCopy } from '../../components/ui/useCopy';
@@ -239,7 +239,7 @@ export function EngineDetail() {
           {user ? (
             <>
               <OrganizationPicker variant="primary" label="Run with this engine" destination={(org) => launchPath(org, { engine: ref })} />
-              <ProjectPicker label="Add to a study" destination={(org, project) => `/app/${org}/${project}/studies/new?engine=${encodeURIComponent(ref)}`} />
+              <OrganizationPicker label="Add to a study" destination={(org) => newStudyPath(org, { engine: ref })} />
             </>
           ) : (
             <Link className="engine-detail-login" to="/login">Log in to run</Link>

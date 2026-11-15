@@ -95,14 +95,12 @@ function CellSolutions({ org, cells, index }: { org: string; cells: readonly Stu
 
 /** The Results tab of the study page: the analytics of the study run `runId`, its cells and their CSV export. */
 export function RunResults({ scope, runId }: { scope: StudyScopeValue; runId: string }) {
-  const { study, organization, project, root } = scope;
+  const { study, organization, studyPath } = scope;
   const org = organization.slug;
-  const slug = project.slug;
-  const studyPath = `${root}/studies/${encodeURIComponent(study.slug)}`;
   const cellHref = (cellId: string) => studyPageHref(studyPath, 'results', { run: runId, cell: cellId });
   const { index } = useRevisionIndex(org);
-  const analytics = useResource(`analytics:${runId}`, () => platformApi.analytics(org, slug, study.slug, runId));
-  const loaded = useResource(`analytics-run:${study.id}/${runId}`, () => loadRun(org, slug, study.slug, runId));
+  const analytics = useResource(`analytics:${runId}`, () => platformApi.analytics(org, study.slug, runId));
+  const loaded = useResource(`analytics-run:${study.id}/${runId}`, () => loadRun(org, study.slug, runId));
   const [engine, setEngine] = useState('');
   const [measureChoice, setMeasureChoice] = useState<string | null>(null);
   const [caseChoice, setCaseChoice] = useState('');
@@ -116,7 +114,7 @@ export function RunResults({ scope, runId }: { scope: StudyScopeValue; runId: st
   if (failed && (!summary || !data)) {
     const problem = classifyAuthError(failed);
     if (problem.status === 404) {
-      return <StudyGate title="Run not found" action={<Action to={studyPath} variant="primary">Back to the study</Action>}>No such run in {project.name} (404).</StudyGate>;
+      return <StudyGate title="Run not found" action={<Action to={studyPath} variant="primary">Back to the study</Action>}>No such run in this study (404).</StudyGate>;
     }
     if (problem.status === 403) {
       return <Notice tone="warning" title={`This API key can’t show these results${marker(problem)}`}>The key isn’t allowed to use one of the engines this run pinned.</Notice>;

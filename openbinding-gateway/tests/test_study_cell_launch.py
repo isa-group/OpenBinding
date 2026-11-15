@@ -21,7 +21,7 @@ from openbinding_gateway.services.engines import engine_ref
 from _pricing import fake_pricing_gate
 
 EXAMPLE = REPO_ROOT / "examples/demo/01_simple_seq"
-BASE = "/v1/organizations/lab/projects/routing/studies/compare/runs"
+BASE = "/v1/organizations/lab/studies/compare/runs"
 OPTIMIZATION = {"type": "SINGLE", "scalarization": "weighted-sum"}
 
 
@@ -68,13 +68,13 @@ async def _study(client, registration, seeds):
     revision = await upload_problem(client, headers, "lab", slug="checkout")
     reference = engine_ref(routes._manifest("random-search"), "bim.builtin")
     created = await client.post(
-        "/v1/organizations/lab/projects/routing/studies",
+        "/v1/organizations/lab/studies",
         headers=headers,
         json={
             "slug": "compare",
             "name": "Compare",
             "definition": {
-                "case_revision_ids": [revision["revision_id"]],
+                "revision_ids": [revision["revision_id"]],
                 "engines": [{**reference, "mode": "seeded", "optimization": dict(OPTIMIZATION)}],
                 "parameter_sets": [{}],
                 "seeds": seeds,

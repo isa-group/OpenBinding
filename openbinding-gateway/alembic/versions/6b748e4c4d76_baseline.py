@@ -12,77 +12,37 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision: str = '0a7fcc8bf015'
+revision: str = '6b748e4c4d76'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 # Frozen from openbinding_gateway/db/triggers.py by tools/rebaseline.py.
 SQLITE_TRIGGERS = (
-    "CREATE TRIGGER immutable_artifact_versions_update BEFORE UPDATE ON artifact_versions BEGIN SELECT RAISE(ABORT, 'artifact_versions rows are sealed and immutable'); END",
-    "CREATE TRIGGER immutable_artifact_versions_delete BEFORE DELETE ON artifact_versions BEGIN SELECT RAISE(ABORT, 'artifact_versions rows are sealed and immutable'); END",
-    "CREATE TRIGGER immutable_artifact_dependencies_update BEFORE UPDATE ON artifact_dependencies BEGIN SELECT RAISE(ABORT, 'artifact_dependencies rows are sealed and immutable'); END",
-    "CREATE TRIGGER immutable_artifact_dependencies_delete BEFORE DELETE ON artifact_dependencies BEGIN SELECT RAISE(ABORT, 'artifact_dependencies rows are sealed and immutable'); END",
     "CREATE TRIGGER immutable_binding_case_revisions_update BEFORE UPDATE ON binding_case_revisions BEGIN SELECT RAISE(ABORT, 'binding_case_revisions rows are sealed and immutable'); END",
     "CREATE TRIGGER immutable_problem_compilations_update BEFORE UPDATE ON problem_compilations BEGIN SELECT RAISE(ABORT, 'problem_compilations rows are sealed and immutable'); END",
-    "CREATE TRIGGER immutable_artifact_case_references_update BEFORE UPDATE ON artifact_case_references BEGIN SELECT RAISE(ABORT, 'artifact_case_references rows are sealed and immutable'); END",
-    "CREATE TRIGGER immutable_artifact_case_references_delete BEFORE DELETE ON artifact_case_references BEGIN SELECT RAISE(ABORT, 'artifact_case_references rows are sealed and immutable'); END",
-    "CREATE TRIGGER protect_artifacts BEFORE UPDATE ON artifacts WHEN OLD.organization_id IS NOT NEW.organization_id OR OLD.namespace IS NOT NEW.namespace OR OLD.name IS NOT NEW.name OR OLD.kind IS NOT NEW.kind BEGIN SELECT RAISE(ABORT, 'the protected columns of artifacts are immutable'); END",
-    "CREATE TRIGGER protect_artifact_drafts BEFORE UPDATE ON artifact_drafts WHEN (OLD.sealed_version_id IS NOT NULL) BEGIN SELECT RAISE(ABORT, 'a sealed draft is immutable'); END",
-    "CREATE TRIGGER protect_artifact_publications BEFORE UPDATE ON artifact_publications WHEN OLD.version_id IS NOT NEW.version_id OR OLD.citation IS NOT NEW.citation OR OLD.published_by_id IS NOT NEW.published_by_id OR OLD.published_at IS NOT NEW.published_at OR (OLD.withdrawn = 1 AND NEW.withdrawn = 0) BEGIN SELECT RAISE(ABORT, 'a publication is immutable and a withdrawal is final'); END",
-    "CREATE TRIGGER retain_artifact_publications BEFORE DELETE ON artifact_publications BEGIN SELECT RAISE(ABORT, 'artifact_publications history is retained'); END",
-    "CREATE TRIGGER protect_study_runs BEFORE UPDATE ON study_runs WHEN OLD.definition_version_id IS NOT NEW.definition_version_id OR OLD.study_id IS NOT NEW.study_id OR OLD.run_number IS NOT NEW.run_number OR OLD.matrix_digest IS NOT NEW.matrix_digest BEGIN SELECT RAISE(ABORT, 'the protected columns of study_runs are immutable'); END",
+    "CREATE TRIGGER protect_study_runs BEFORE UPDATE ON study_runs WHEN OLD.study_id IS NOT NEW.study_id OR OLD.run_number IS NOT NEW.run_number OR OLD.matrix_digest IS NOT NEW.matrix_digest OR OLD.definition IS NOT NEW.definition OR OLD.definition_digest IS NOT NEW.definition_digest BEGIN SELECT RAISE(ABORT, 'the protected columns of study_runs are immutable'); END",
     "CREATE TRIGGER retain_study_runs BEFORE DELETE ON study_runs BEGIN SELECT RAISE(ABORT, 'study_runs history is retained'); END",
-    "CREATE TRIGGER protect_study_cells BEFORE UPDATE ON study_cells WHEN OLD.study_run_id IS NOT NEW.study_run_id OR OLD.ordinal IS NOT NEW.ordinal OR OLD.binding_case_revision_id IS NOT NEW.binding_case_revision_id OR OLD.engine_ref IS NOT NEW.engine_ref OR OLD.parameters IS NOT NEW.parameters OR OLD.seed IS NOT NEW.seed OR OLD.fingerprint IS NOT NEW.fingerprint BEGIN SELECT RAISE(ABORT, 'the protected columns of study_cells are immutable'); END",
+    "CREATE TRIGGER protect_study_cells BEFORE UPDATE ON study_cells WHEN OLD.study_run_id IS NOT NEW.study_run_id OR OLD.ordinal IS NOT NEW.ordinal OR OLD.binding_case_revision_id IS NOT NEW.binding_case_revision_id OR OLD.compilation_id IS NOT NEW.compilation_id OR OLD.engine_ref IS NOT NEW.engine_ref OR OLD.parameters IS NOT NEW.parameters OR OLD.seed IS NOT NEW.seed OR OLD.fingerprint IS NOT NEW.fingerprint BEGIN SELECT RAISE(ABORT, 'the protected columns of study_cells are immutable'); END",
     "CREATE TRIGGER retain_study_cells BEFORE DELETE ON study_cells BEGIN SELECT RAISE(ABORT, 'study_cells history is retained'); END",
 )
 POSTGRESQL_TRIGGERS = (
-    "CREATE OR REPLACE FUNCTION immutable_artifact_versions_update() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'artifact_versions rows are sealed and immutable'; END $$",
-    'CREATE TRIGGER immutable_artifact_versions_update BEFORE UPDATE ON artifact_versions FOR EACH ROW EXECUTE FUNCTION immutable_artifact_versions_update()',
-    "CREATE OR REPLACE FUNCTION immutable_artifact_versions_delete() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'artifact_versions rows are sealed and immutable'; END $$",
-    'CREATE TRIGGER immutable_artifact_versions_delete BEFORE DELETE ON artifact_versions FOR EACH ROW EXECUTE FUNCTION immutable_artifact_versions_delete()',
-    "CREATE OR REPLACE FUNCTION immutable_artifact_dependencies_update() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'artifact_dependencies rows are sealed and immutable'; END $$",
-    'CREATE TRIGGER immutable_artifact_dependencies_update BEFORE UPDATE ON artifact_dependencies FOR EACH ROW EXECUTE FUNCTION immutable_artifact_dependencies_update()',
-    "CREATE OR REPLACE FUNCTION immutable_artifact_dependencies_delete() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'artifact_dependencies rows are sealed and immutable'; END $$",
-    'CREATE TRIGGER immutable_artifact_dependencies_delete BEFORE DELETE ON artifact_dependencies FOR EACH ROW EXECUTE FUNCTION immutable_artifact_dependencies_delete()',
     "CREATE OR REPLACE FUNCTION immutable_binding_case_revisions_update() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'binding_case_revisions rows are sealed and immutable'; END $$",
     'CREATE TRIGGER immutable_binding_case_revisions_update BEFORE UPDATE ON binding_case_revisions FOR EACH ROW EXECUTE FUNCTION immutable_binding_case_revisions_update()',
     "CREATE OR REPLACE FUNCTION immutable_problem_compilations_update() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'problem_compilations rows are sealed and immutable'; END $$",
     'CREATE TRIGGER immutable_problem_compilations_update BEFORE UPDATE ON problem_compilations FOR EACH ROW EXECUTE FUNCTION immutable_problem_compilations_update()',
-    "CREATE OR REPLACE FUNCTION immutable_artifact_case_references_update() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'artifact_case_references rows are sealed and immutable'; END $$",
-    'CREATE TRIGGER immutable_artifact_case_references_update BEFORE UPDATE ON artifact_case_references FOR EACH ROW EXECUTE FUNCTION immutable_artifact_case_references_update()',
-    "CREATE OR REPLACE FUNCTION immutable_artifact_case_references_delete() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'artifact_case_references rows are sealed and immutable'; END $$",
-    'CREATE TRIGGER immutable_artifact_case_references_delete BEFORE DELETE ON artifact_case_references FOR EACH ROW EXECUTE FUNCTION immutable_artifact_case_references_delete()',
-    "CREATE OR REPLACE FUNCTION protect_artifacts() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF OLD.organization_id IS DISTINCT FROM NEW.organization_id OR OLD.namespace IS DISTINCT FROM NEW.namespace OR OLD.name IS DISTINCT FROM NEW.name OR OLD.kind IS DISTINCT FROM NEW.kind THEN RAISE EXCEPTION 'the protected columns of artifacts are immutable'; END IF; RETURN NEW; END $$",
-    'CREATE TRIGGER protect_artifacts BEFORE UPDATE ON artifacts FOR EACH ROW EXECUTE FUNCTION protect_artifacts()',
-    "CREATE OR REPLACE FUNCTION protect_artifact_drafts() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF (OLD.sealed_version_id IS NOT NULL) THEN RAISE EXCEPTION 'a sealed draft is immutable'; END IF; RETURN NEW; END $$",
-    'CREATE TRIGGER protect_artifact_drafts BEFORE UPDATE ON artifact_drafts FOR EACH ROW EXECUTE FUNCTION protect_artifact_drafts()',
-    "CREATE OR REPLACE FUNCTION protect_artifact_publications() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF OLD.version_id IS DISTINCT FROM NEW.version_id OR OLD.citation::jsonb IS DISTINCT FROM NEW.citation::jsonb OR OLD.published_by_id IS DISTINCT FROM NEW.published_by_id OR OLD.published_at IS DISTINCT FROM NEW.published_at OR (OLD.withdrawn AND NOT NEW.withdrawn) THEN RAISE EXCEPTION 'a publication is immutable and a withdrawal is final'; END IF; RETURN NEW; END $$",
-    'CREATE TRIGGER protect_artifact_publications BEFORE UPDATE ON artifact_publications FOR EACH ROW EXECUTE FUNCTION protect_artifact_publications()',
-    "CREATE OR REPLACE FUNCTION retain_artifact_publications() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'artifact_publications history is retained'; END $$",
-    'CREATE TRIGGER retain_artifact_publications BEFORE DELETE ON artifact_publications FOR EACH ROW EXECUTE FUNCTION retain_artifact_publications()',
-    "CREATE OR REPLACE FUNCTION protect_study_runs() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF OLD.definition_version_id IS DISTINCT FROM NEW.definition_version_id OR OLD.study_id IS DISTINCT FROM NEW.study_id OR OLD.run_number IS DISTINCT FROM NEW.run_number OR OLD.matrix_digest IS DISTINCT FROM NEW.matrix_digest THEN RAISE EXCEPTION 'the protected columns of study_runs are immutable'; END IF; RETURN NEW; END $$",
+    "CREATE OR REPLACE FUNCTION protect_study_runs() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF OLD.study_id IS DISTINCT FROM NEW.study_id OR OLD.run_number IS DISTINCT FROM NEW.run_number OR OLD.matrix_digest IS DISTINCT FROM NEW.matrix_digest OR OLD.definition::jsonb IS DISTINCT FROM NEW.definition::jsonb OR OLD.definition_digest IS DISTINCT FROM NEW.definition_digest THEN RAISE EXCEPTION 'the protected columns of study_runs are immutable'; END IF; RETURN NEW; END $$",
     'CREATE TRIGGER protect_study_runs BEFORE UPDATE ON study_runs FOR EACH ROW EXECUTE FUNCTION protect_study_runs()',
     "CREATE OR REPLACE FUNCTION retain_study_runs() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'study_runs history is retained'; END $$",
     'CREATE TRIGGER retain_study_runs BEFORE DELETE ON study_runs FOR EACH ROW EXECUTE FUNCTION retain_study_runs()',
-    "CREATE OR REPLACE FUNCTION protect_study_cells() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF OLD.study_run_id IS DISTINCT FROM NEW.study_run_id OR OLD.ordinal IS DISTINCT FROM NEW.ordinal OR OLD.binding_case_revision_id IS DISTINCT FROM NEW.binding_case_revision_id OR OLD.engine_ref::jsonb IS DISTINCT FROM NEW.engine_ref::jsonb OR OLD.parameters::jsonb IS DISTINCT FROM NEW.parameters::jsonb OR OLD.seed IS DISTINCT FROM NEW.seed OR OLD.fingerprint IS DISTINCT FROM NEW.fingerprint THEN RAISE EXCEPTION 'the protected columns of study_cells are immutable'; END IF; RETURN NEW; END $$",
+    "CREATE OR REPLACE FUNCTION protect_study_cells() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF OLD.study_run_id IS DISTINCT FROM NEW.study_run_id OR OLD.ordinal IS DISTINCT FROM NEW.ordinal OR OLD.binding_case_revision_id IS DISTINCT FROM NEW.binding_case_revision_id OR OLD.compilation_id IS DISTINCT FROM NEW.compilation_id OR OLD.engine_ref::jsonb IS DISTINCT FROM NEW.engine_ref::jsonb OR OLD.parameters::jsonb IS DISTINCT FROM NEW.parameters::jsonb OR OLD.seed IS DISTINCT FROM NEW.seed OR OLD.fingerprint IS DISTINCT FROM NEW.fingerprint THEN RAISE EXCEPTION 'the protected columns of study_cells are immutable'; END IF; RETURN NEW; END $$",
     'CREATE TRIGGER protect_study_cells BEFORE UPDATE ON study_cells FOR EACH ROW EXECUTE FUNCTION protect_study_cells()',
     "CREATE OR REPLACE FUNCTION retain_study_cells() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'study_cells history is retained'; END $$",
     'CREATE TRIGGER retain_study_cells BEFORE DELETE ON study_cells FOR EACH ROW EXECUTE FUNCTION retain_study_cells()',
 )
 POSTGRESQL_TRIGGER_FUNCTIONS = (
-    'immutable_artifact_versions_update',
-    'immutable_artifact_versions_delete',
-    'immutable_artifact_dependencies_update',
-    'immutable_artifact_dependencies_delete',
     'immutable_binding_case_revisions_update',
     'immutable_problem_compilations_update',
-    'immutable_artifact_case_references_update',
-    'immutable_artifact_case_references_delete',
-    'protect_artifacts',
-    'protect_artifact_drafts',
-    'protect_artifact_publications',
-    'retain_artifact_publications',
     'protect_study_runs',
     'retain_study_runs',
     'protect_study_cells',
@@ -276,25 +236,6 @@ def upgrade() -> None:
     sa.UniqueConstraint('resource_kind', 'resource_digest', name='uq_v1_publication_resource')
     )
     op.create_index(op.f('ix_v1_manifest_publications_resource_digest'), 'v1_manifest_publications', ['resource_digest'], unique=False)
-    op.create_table('artifacts',
-    sa.Column('id', sa.Uuid(), nullable=False),
-    sa.Column('organization_id', sa.Uuid(), nullable=False),
-    sa.Column('namespace', sa.String(length=128), nullable=False),
-    sa.Column('name', sa.String(length=128), nullable=False),
-    sa.Column('display_name', sa.String(length=160), nullable=False),
-    sa.Column('kind', sa.String(length=128), nullable=False),
-    sa.Column('description', sa.String(length=4000), nullable=False),
-    sa.Column('labels', sa.JSON(), nullable=False),
-    sa.Column('archived', sa.Boolean(), nullable=False),
-    sa.Column('created_by_id', sa.Uuid(), nullable=False),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
-    sa.ForeignKeyConstraint(['created_by_id'], ['users.id'], name=op.f('fk_artifacts_created_by_id_users'), ondelete='RESTRICT'),
-    sa.ForeignKeyConstraint(['organization_id'], ['organizations.id'], name=op.f('fk_artifacts_organization_id_organizations'), ondelete='RESTRICT'),
-    sa.PrimaryKeyConstraint('id', name=op.f('pk_artifacts'))
-    )
-    op.create_index(op.f('ix_artifacts_kind'), 'artifacts', ['kind'], unique=False)
-    op.create_index(op.f('ix_artifacts_organization_id'), 'artifacts', ['organization_id'], unique=False)
-    op.create_index('uq_artifact_identity', 'artifacts', ['namespace', 'name'], unique=True, sqlite_where=sa.text('archived = 0'), postgresql_where=sa.text('archived = false'))
     op.create_table('audit_events',
     sa.Column('id', sa.Uuid(), nullable=False),
     sa.Column('organization_id', sa.Uuid(), nullable=True),
@@ -395,6 +336,26 @@ def upgrade() -> None:
     )
     op.create_index(op.f('ix_projects_organization_id'), 'projects', ['organization_id'], unique=False)
     op.create_index(op.f('ix_projects_slug'), 'projects', ['slug'], unique=False)
+    op.create_table('studies',
+    sa.Column('id', sa.Uuid(), nullable=False),
+    sa.Column('organization_id', sa.Uuid(), nullable=False),
+    sa.Column('slug', sa.String(length=64), nullable=False),
+    sa.Column('name', sa.String(length=160), nullable=False),
+    sa.Column('description', sa.String(length=2000), nullable=False),
+    sa.Column('definition', sa.JSON(), nullable=False),
+    sa.Column('definition_digest', sa.String(length=80), nullable=False),
+    sa.Column('archived', sa.Boolean(), nullable=False),
+    sa.Column('state', sa.Enum('draft', 'ready', name='studystate', native_enum=False, length=32), nullable=False),
+    sa.Column('created_by_id', sa.Uuid(), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.ForeignKeyConstraint(['created_by_id'], ['users.id'], name=op.f('fk_studies_created_by_id_users'), ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['organization_id'], ['organizations.id'], name=op.f('fk_studies_organization_id_organizations'), ondelete='RESTRICT'),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_studies')),
+    sa.UniqueConstraint('organization_id', 'slug', name='uq_study_org_slug')
+    )
+    op.create_index(op.f('ix_studies_organization_id'), 'studies', ['organization_id'], unique=False)
+    op.create_index(op.f('ix_studies_slug'), 'studies', ['slug'], unique=False)
     op.create_table('v1_engine_credentials',
     sa.Column('id', sa.Uuid(), nullable=False),
     sa.Column('registration_id', sa.Uuid(), nullable=False),
@@ -405,31 +366,6 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id', name=op.f('pk_v1_engine_credentials'))
     )
     op.create_index(op.f('ix_v1_engine_credentials_registration_id'), 'v1_engine_credentials', ['registration_id'], unique=True)
-    op.create_table('artifact_versions',
-    sa.Column('id', sa.Uuid(), nullable=False),
-    sa.Column('artifact_id', sa.Uuid(), nullable=False),
-    sa.Column('ordinal', sa.Integer(), nullable=False),
-    sa.Column('version', sa.String(length=64), nullable=False),
-    sa.Column('blob_id', sa.Uuid(), nullable=False),
-    sa.Column('content_digest', sa.String(length=80), nullable=False),
-    sa.Column('version_digest', sa.String(length=80), nullable=False),
-    sa.Column('manifest', sa.JSON(), nullable=False),
-    sa.Column('based_on_id', sa.Uuid(), nullable=True),
-    sa.Column('created_by_id', sa.Uuid(), nullable=False),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
-    sa.CheckConstraint('ordinal > 0', name=op.f('ck_artifact_versions_artifact_ordinal_positive')),
-    sa.ForeignKeyConstraint(['artifact_id'], ['artifacts.id'], name=op.f('fk_artifact_versions_artifact_id_artifacts'), ondelete='RESTRICT'),
-    sa.ForeignKeyConstraint(['based_on_id'], ['artifact_versions.id'], name=op.f('fk_artifact_versions_based_on_id_artifact_versions'), ondelete='RESTRICT'),
-    sa.ForeignKeyConstraint(['blob_id'], ['blobs.id'], name=op.f('fk_artifact_versions_blob_id_blobs'), ondelete='RESTRICT'),
-    sa.ForeignKeyConstraint(['created_by_id'], ['users.id'], name=op.f('fk_artifact_versions_created_by_id_users'), ondelete='RESTRICT'),
-    sa.PrimaryKeyConstraint('id', name=op.f('pk_artifact_versions')),
-    sa.UniqueConstraint('artifact_id', 'ordinal', name='uq_artifact_ordinal'),
-    sa.UniqueConstraint('artifact_id', 'version', name='uq_artifact_version'),
-    sa.UniqueConstraint('version_digest', name=op.f('uq_artifact_versions_version_digest'))
-    )
-    op.create_index(op.f('ix_artifact_versions_artifact_id'), 'artifact_versions', ['artifact_id'], unique=False)
-    op.create_index('ix_artifact_versions_based_on_id', 'artifact_versions', ['based_on_id'], unique=False)
-    op.create_index(op.f('ix_artifact_versions_content_digest'), 'artifact_versions', ['content_digest'], unique=False)
     op.create_table('binding_case_revisions',
     sa.Column('id', sa.Uuid(), nullable=False),
     sa.Column('binding_case_id', sa.Uuid(), nullable=False),
@@ -456,75 +392,26 @@ def upgrade() -> None:
     op.create_index(op.f('ix_binding_case_revisions_created_by_id'), 'binding_case_revisions', ['created_by_id'], unique=False)
     op.create_index(op.f('ix_binding_case_revisions_package_blob_id'), 'binding_case_revisions', ['package_blob_id'], unique=False)
     op.create_index(op.f('ix_binding_case_revisions_package_digest'), 'binding_case_revisions', ['package_digest'], unique=False)
-    op.create_table('project_artifacts',
-    sa.Column('project_id', sa.Uuid(), nullable=False),
-    sa.Column('artifact_id', sa.Uuid(), nullable=False),
-    sa.ForeignKeyConstraint(['artifact_id'], ['artifacts.id'], name=op.f('fk_project_artifacts_artifact_id_artifacts'), ondelete='RESTRICT'),
-    sa.ForeignKeyConstraint(['project_id'], ['projects.id'], name=op.f('fk_project_artifacts_project_id_projects'), ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('project_id', 'artifact_id', name=op.f('pk_project_artifacts'))
-    )
-    op.create_table('project_resources',
+    op.create_table('study_runs',
     sa.Column('id', sa.Uuid(), nullable=False),
-    sa.Column('project_id', sa.Uuid(), nullable=False),
-    sa.Column('slug', sa.String(length=64), nullable=False),
-    sa.Column('name', sa.String(length=160), nullable=False),
-    sa.Column('description', sa.String(length=2000), nullable=False),
-    sa.Column('kind', sa.String(length=128), nullable=False),
+    sa.Column('study_id', sa.Uuid(), nullable=False),
+    sa.Column('run_number', sa.Integer(), nullable=False),
+    sa.Column('state', sa.Enum('queued', 'running', 'completed', 'partial', 'failed', 'cancelled', name='runstate', native_enum=False, length=32), nullable=False),
+    sa.Column('matrix_digest', sa.String(length=80), nullable=False),
+    sa.Column('definition', sa.JSON(), nullable=False),
+    sa.Column('definition_digest', sa.String(length=80), nullable=False),
+    sa.Column('summary', sa.JSON(), nullable=False),
     sa.Column('created_by_id', sa.Uuid(), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
-    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
-    sa.ForeignKeyConstraint(['created_by_id'], ['users.id'], name=op.f('fk_project_resources_created_by_id_users'), ondelete='RESTRICT'),
-    sa.ForeignKeyConstraint(['project_id'], ['projects.id'], name=op.f('fk_project_resources_project_id_projects'), ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('id', name=op.f('pk_project_resources')),
-    sa.UniqueConstraint('project_id', 'slug', name='uq_project_resource_slug')
+    sa.Column('finished_at', sa.DateTime(timezone=True), nullable=True),
+    sa.CheckConstraint('run_number > 0', name=op.f('ck_study_runs_study_run_number_positive')),
+    sa.ForeignKeyConstraint(['created_by_id'], ['users.id'], name=op.f('fk_study_runs_created_by_id_users'), ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['study_id'], ['studies.id'], name=op.f('fk_study_runs_study_id_studies'), ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_study_runs')),
+    sa.UniqueConstraint('study_id', 'run_number', name='uq_study_run_number')
     )
-    op.create_index(op.f('ix_project_resources_project_id'), 'project_resources', ['project_id'], unique=False)
-    op.create_index(op.f('ix_project_resources_slug'), 'project_resources', ['slug'], unique=False)
-    op.create_table('artifact_case_references',
-    sa.Column('version_id', sa.Uuid(), nullable=False),
-    sa.Column('position', sa.Integer(), nullable=False),
-    sa.Column('case_revision_id', sa.Uuid(), nullable=False),
-    sa.CheckConstraint('position >= 0', name=op.f('ck_artifact_case_references_artifact_case_position_nonnegative')),
-    sa.ForeignKeyConstraint(['case_revision_id'], ['binding_case_revisions.id'], name=op.f('fk_artifact_case_references_case_revision_id_binding_case_revisions'), ondelete='RESTRICT'),
-    sa.ForeignKeyConstraint(['version_id'], ['artifact_versions.id'], name=op.f('fk_artifact_case_references_version_id_artifact_versions'), ondelete='RESTRICT'),
-    sa.PrimaryKeyConstraint('version_id', 'position', name=op.f('pk_artifact_case_references'))
-    )
-    op.create_index(op.f('ix_artifact_case_references_case_revision_id'), 'artifact_case_references', ['case_revision_id'], unique=False)
-    op.create_table('artifact_dependencies',
-    sa.Column('version_id', sa.Uuid(), nullable=False),
-    sa.Column('dependency_id', sa.Uuid(), nullable=False),
-    sa.CheckConstraint('version_id != dependency_id', name=op.f('ck_artifact_dependencies_artifact_no_self_dependency')),
-    sa.ForeignKeyConstraint(['dependency_id'], ['artifact_versions.id'], name=op.f('fk_artifact_dependencies_dependency_id_artifact_versions'), ondelete='RESTRICT'),
-    sa.ForeignKeyConstraint(['version_id'], ['artifact_versions.id'], name=op.f('fk_artifact_dependencies_version_id_artifact_versions'), ondelete='RESTRICT'),
-    sa.PrimaryKeyConstraint('version_id', 'dependency_id', name=op.f('pk_artifact_dependencies'))
-    )
-    op.create_table('artifact_drafts',
-    sa.Column('id', sa.Uuid(), nullable=False),
-    sa.Column('artifact_id', sa.Uuid(), nullable=False),
-    sa.Column('revision', sa.Integer(), nullable=False),
-    sa.Column('payload', sa.JSON(), nullable=False),
-    sa.Column('based_on_id', sa.Uuid(), nullable=True),
-    sa.Column('sealed_version_id', sa.Uuid(), nullable=True),
-    sa.Column('created_by_id', sa.Uuid(), nullable=False),
-    sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
-    sa.CheckConstraint('revision > 0', name=op.f('ck_artifact_drafts_artifact_draft_revision_positive')),
-    sa.ForeignKeyConstraint(['artifact_id'], ['artifacts.id'], name=op.f('fk_artifact_drafts_artifact_id_artifacts'), ondelete='CASCADE'),
-    sa.ForeignKeyConstraint(['based_on_id'], ['artifact_versions.id'], name=op.f('fk_artifact_drafts_based_on_id_artifact_versions'), ondelete='RESTRICT'),
-    sa.ForeignKeyConstraint(['created_by_id'], ['users.id'], name=op.f('fk_artifact_drafts_created_by_id_users'), ondelete='RESTRICT'),
-    sa.ForeignKeyConstraint(['sealed_version_id'], ['artifact_versions.id'], name=op.f('fk_artifact_drafts_sealed_version_id_artifact_versions'), ondelete='RESTRICT'),
-    sa.PrimaryKeyConstraint('id', name=op.f('pk_artifact_drafts'))
-    )
-    op.create_index(op.f('ix_artifact_drafts_artifact_id'), 'artifact_drafts', ['artifact_id'], unique=False)
-    op.create_table('artifact_publications',
-    sa.Column('version_id', sa.Uuid(), nullable=False),
-    sa.Column('withdrawn', sa.Boolean(), nullable=False),
-    sa.Column('citation', sa.JSON(), nullable=False),
-    sa.Column('published_by_id', sa.Uuid(), nullable=False),
-    sa.Column('published_at', sa.DateTime(timezone=True), nullable=False),
-    sa.ForeignKeyConstraint(['published_by_id'], ['users.id'], name=op.f('fk_artifact_publications_published_by_id_users'), ondelete='RESTRICT'),
-    sa.ForeignKeyConstraint(['version_id'], ['artifact_versions.id'], name=op.f('fk_artifact_publications_version_id_artifact_versions'), ondelete='RESTRICT'),
-    sa.PrimaryKeyConstraint('version_id', name=op.f('pk_artifact_publications'))
-    )
+    op.create_index(op.f('ix_study_runs_matrix_digest'), 'study_runs', ['matrix_digest'], unique=False)
+    op.create_index(op.f('ix_study_runs_study_id'), 'study_runs', ['study_id'], unique=False)
     op.create_table('problem_compilations',
     sa.Column('id', sa.Uuid(), nullable=False),
     sa.Column('revision_id', sa.Uuid(), nullable=False),
@@ -544,44 +431,6 @@ def upgrade() -> None:
     )
     op.create_index(op.f('ix_problem_compilations_ir_digest'), 'problem_compilations', ['ir_digest'], unique=False)
     op.create_index(op.f('ix_problem_compilations_revision_id'), 'problem_compilations', ['revision_id'], unique=False)
-    op.create_table('project_resource_revisions',
-    sa.Column('id', sa.Uuid(), nullable=False),
-    sa.Column('project_resource_id', sa.Uuid(), nullable=False),
-    sa.Column('revision', sa.Integer(), nullable=False),
-    sa.Column('digest', sa.String(length=80), nullable=False),
-    sa.Column('document', sa.JSON(), nullable=False),
-    sa.Column('created_by_id', sa.Uuid(), nullable=False),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
-    sa.CheckConstraint('revision > 0', name=op.f('ck_project_resource_revisions_project_resource_revision_positive')),
-    sa.ForeignKeyConstraint(['created_by_id'], ['users.id'], name=op.f('fk_project_resource_revisions_created_by_id_users'), ondelete='RESTRICT'),
-    sa.ForeignKeyConstraint(['project_resource_id'], ['project_resources.id'], name=op.f('fk_project_resource_revisions_project_resource_id_project_resources'), ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('id', name=op.f('pk_project_resource_revisions')),
-    sa.UniqueConstraint('project_resource_id', 'digest', name='uq_project_resource_digest'),
-    sa.UniqueConstraint('project_resource_id', 'revision', name='uq_project_resource_revision')
-    )
-    op.create_index(op.f('ix_project_resource_revisions_digest'), 'project_resource_revisions', ['digest'], unique=False)
-    op.create_index(op.f('ix_project_resource_revisions_project_resource_id'), 'project_resource_revisions', ['project_resource_id'], unique=False)
-    op.create_table('studies',
-    sa.Column('id', sa.Uuid(), nullable=False),
-    sa.Column('project_id', sa.Uuid(), nullable=False),
-    sa.Column('slug', sa.String(length=64), nullable=False),
-    sa.Column('name', sa.String(length=160), nullable=False),
-    sa.Column('description', sa.String(length=2000), nullable=False),
-    sa.Column('definition_version_id', sa.Uuid(), nullable=False),
-    sa.Column('archived', sa.Boolean(), nullable=False),
-    sa.Column('state', sa.Enum('draft', 'ready', name='studystate', native_enum=False, length=32), nullable=False),
-    sa.Column('created_by_id', sa.Uuid(), nullable=False),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
-    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
-    sa.ForeignKeyConstraint(['created_by_id'], ['users.id'], name=op.f('fk_studies_created_by_id_users'), ondelete='RESTRICT'),
-    sa.ForeignKeyConstraint(['definition_version_id'], ['artifact_versions.id'], name=op.f('fk_studies_definition_version_id_artifact_versions'), ondelete='RESTRICT'),
-    sa.ForeignKeyConstraint(['project_id'], ['projects.id'], name=op.f('fk_studies_project_id_projects'), ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('id', name=op.f('pk_studies')),
-    sa.UniqueConstraint('project_id', 'slug', name='uq_study_project_slug')
-    )
-    op.create_index(op.f('ix_studies_definition_version_id'), 'studies', ['definition_version_id'], unique=False)
-    op.create_index(op.f('ix_studies_project_id'), 'studies', ['project_id'], unique=False)
-    op.create_index(op.f('ix_studies_slug'), 'studies', ['slug'], unique=False)
     op.create_table('jobs',
     sa.Column('id', sa.Uuid(), nullable=False),
     sa.Column('owner_id', sa.Uuid(), nullable=True),
@@ -633,27 +482,6 @@ def upgrade() -> None:
     op.create_index('ix_jobs_state_lease_until', 'jobs', ['state', 'lease_until'], unique=False)
     op.create_index(op.f('ix_jobs_termination'), 'jobs', ['termination'], unique=False)
     op.create_index('uq_jobs_study_cell_id', 'jobs', ['study_cell_id'], unique=True, sqlite_where=sa.text('study_cell_id IS NOT NULL'), postgresql_where=sa.text('study_cell_id IS NOT NULL'))
-    op.create_table('study_runs',
-    sa.Column('id', sa.Uuid(), nullable=False),
-    sa.Column('study_id', sa.Uuid(), nullable=False),
-    sa.Column('definition_version_id', sa.Uuid(), nullable=False),
-    sa.Column('run_number', sa.Integer(), nullable=False),
-    sa.Column('state', sa.Enum('queued', 'running', 'completed', 'partial', 'failed', 'cancelled', name='runstate', native_enum=False, length=32), nullable=False),
-    sa.Column('matrix_digest', sa.String(length=80), nullable=False),
-    sa.Column('summary', sa.JSON(), nullable=False),
-    sa.Column('created_by_id', sa.Uuid(), nullable=False),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
-    sa.Column('finished_at', sa.DateTime(timezone=True), nullable=True),
-    sa.CheckConstraint('run_number > 0', name=op.f('ck_study_runs_study_run_number_positive')),
-    sa.ForeignKeyConstraint(['created_by_id'], ['users.id'], name=op.f('fk_study_runs_created_by_id_users'), ondelete='RESTRICT'),
-    sa.ForeignKeyConstraint(['definition_version_id'], ['artifact_versions.id'], name=op.f('fk_study_runs_definition_version_id_artifact_versions'), ondelete='RESTRICT'),
-    sa.ForeignKeyConstraint(['study_id'], ['studies.id'], name=op.f('fk_study_runs_study_id_studies'), ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('id', name=op.f('pk_study_runs')),
-    sa.UniqueConstraint('study_id', 'run_number', name='uq_study_run_number')
-    )
-    op.create_index(op.f('ix_study_runs_definition_version_id'), 'study_runs', ['definition_version_id'], unique=False)
-    op.create_index(op.f('ix_study_runs_matrix_digest'), 'study_runs', ['matrix_digest'], unique=False)
-    op.create_index(op.f('ix_study_runs_study_id'), 'study_runs', ['study_id'], unique=False)
     op.create_table('job_engine_attempts',
     sa.Column('id', sa.Uuid(), nullable=False),
     sa.Column('job_id', sa.Uuid(), nullable=False),
@@ -688,6 +516,7 @@ def upgrade() -> None:
     sa.Column('study_run_id', sa.Uuid(), nullable=False),
     sa.Column('ordinal', sa.Integer(), nullable=False),
     sa.Column('binding_case_revision_id', sa.Uuid(), nullable=False),
+    sa.Column('compilation_id', sa.Uuid(), nullable=False),
     sa.Column('engine_ref', sa.JSON(), nullable=False),
     sa.Column('parameters', sa.JSON(), nullable=False),
     sa.Column('seed', sa.Integer(), nullable=False),
@@ -697,6 +526,7 @@ def upgrade() -> None:
     sa.Column('metrics', sa.JSON(), nullable=False),
     sa.CheckConstraint('ordinal >= 0', name=op.f('ck_study_cells_study_cell_ordinal_nonnegative')),
     sa.ForeignKeyConstraint(['binding_case_revision_id'], ['binding_case_revisions.id'], name=op.f('fk_study_cells_binding_case_revision_id_binding_case_revisions'), ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['compilation_id', 'binding_case_revision_id'], ['problem_compilations.id', 'problem_compilations.revision_id'], name='fk_study_cells_compilation_revision', ondelete='RESTRICT'),
     sa.ForeignKeyConstraint(['job_id'], ['jobs.id'], name=op.f('fk_study_cells_job_id_jobs'), ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['study_run_id'], ['study_runs.id'], name=op.f('fk_study_cells_study_run_id_study_runs'), ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_study_cells')),
@@ -704,6 +534,7 @@ def upgrade() -> None:
     sa.UniqueConstraint('study_run_id', 'ordinal', name='uq_study_cell_ordinal')
     )
     op.create_index(op.f('ix_study_cells_binding_case_revision_id'), 'study_cells', ['binding_case_revision_id'], unique=False)
+    op.create_index(op.f('ix_study_cells_compilation_id'), 'study_cells', ['compilation_id'], unique=False)
     op.create_index(op.f('ix_study_cells_job_id'), 'study_cells', ['job_id'], unique=False)
     op.create_index(op.f('ix_study_cells_study_run_id'), 'study_cells', ['study_run_id'], unique=False)
     # Foreign keys that close a cycle: inline on SQLite, added once both tables exist elsewhere.
@@ -719,6 +550,7 @@ def downgrade() -> None:
         op.drop_constraint('fk_jobs_study_cell_id', 'jobs', type_='foreignkey')
     op.drop_index(op.f('ix_study_cells_study_run_id'), table_name='study_cells')
     op.drop_index(op.f('ix_study_cells_job_id'), table_name='study_cells')
+    op.drop_index(op.f('ix_study_cells_compilation_id'), table_name='study_cells')
     op.drop_index(op.f('ix_study_cells_binding_case_revision_id'), table_name='study_cells')
     op.drop_table('study_cells')
     op.drop_index('uq_job_engine_evidence_job_attempt', table_name='job_engine_evidence')
@@ -727,10 +559,6 @@ def downgrade() -> None:
     op.drop_index('uq_job_engine_attempts_job_attempt', table_name='job_engine_attempts')
     op.drop_index('ix_job_engine_attempts_cancel_due', table_name='job_engine_attempts')
     op.drop_table('job_engine_attempts')
-    op.drop_index(op.f('ix_study_runs_study_id'), table_name='study_runs')
-    op.drop_index(op.f('ix_study_runs_matrix_digest'), table_name='study_runs')
-    op.drop_index(op.f('ix_study_runs_definition_version_id'), table_name='study_runs')
-    op.drop_table('study_runs')
     op.drop_index('uq_jobs_study_cell_id', table_name='jobs', sqlite_where=sa.text('study_cell_id IS NOT NULL'), postgresql_where=sa.text('study_cell_id IS NOT NULL'))
     op.drop_index(op.f('ix_jobs_termination'), table_name='jobs')
     op.drop_index('ix_jobs_state_lease_until', table_name='jobs')
@@ -742,37 +570,22 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_jobs_created_at'), table_name='jobs')
     op.drop_index(op.f('ix_jobs_compilation_id'), table_name='jobs')
     op.drop_table('jobs')
-    op.drop_index(op.f('ix_studies_slug'), table_name='studies')
-    op.drop_index(op.f('ix_studies_project_id'), table_name='studies')
-    op.drop_index(op.f('ix_studies_definition_version_id'), table_name='studies')
-    op.drop_table('studies')
-    op.drop_index(op.f('ix_project_resource_revisions_project_resource_id'), table_name='project_resource_revisions')
-    op.drop_index(op.f('ix_project_resource_revisions_digest'), table_name='project_resource_revisions')
-    op.drop_table('project_resource_revisions')
     op.drop_index(op.f('ix_problem_compilations_revision_id'), table_name='problem_compilations')
     op.drop_index(op.f('ix_problem_compilations_ir_digest'), table_name='problem_compilations')
     op.drop_table('problem_compilations')
-    op.drop_table('artifact_publications')
-    op.drop_index(op.f('ix_artifact_drafts_artifact_id'), table_name='artifact_drafts')
-    op.drop_table('artifact_drafts')
-    op.drop_table('artifact_dependencies')
-    op.drop_index(op.f('ix_artifact_case_references_case_revision_id'), table_name='artifact_case_references')
-    op.drop_table('artifact_case_references')
-    op.drop_index(op.f('ix_project_resources_slug'), table_name='project_resources')
-    op.drop_index(op.f('ix_project_resources_project_id'), table_name='project_resources')
-    op.drop_table('project_resources')
-    op.drop_table('project_artifacts')
+    op.drop_index(op.f('ix_study_runs_study_id'), table_name='study_runs')
+    op.drop_index(op.f('ix_study_runs_matrix_digest'), table_name='study_runs')
+    op.drop_table('study_runs')
     op.drop_index(op.f('ix_binding_case_revisions_package_digest'), table_name='binding_case_revisions')
     op.drop_index(op.f('ix_binding_case_revisions_package_blob_id'), table_name='binding_case_revisions')
     op.drop_index(op.f('ix_binding_case_revisions_created_by_id'), table_name='binding_case_revisions')
     op.drop_index(op.f('ix_binding_case_revisions_binding_case_id'), table_name='binding_case_revisions')
     op.drop_table('binding_case_revisions')
-    op.drop_index(op.f('ix_artifact_versions_content_digest'), table_name='artifact_versions')
-    op.drop_index('ix_artifact_versions_based_on_id', table_name='artifact_versions')
-    op.drop_index(op.f('ix_artifact_versions_artifact_id'), table_name='artifact_versions')
-    op.drop_table('artifact_versions')
     op.drop_index(op.f('ix_v1_engine_credentials_registration_id'), table_name='v1_engine_credentials')
     op.drop_table('v1_engine_credentials')
+    op.drop_index(op.f('ix_studies_slug'), table_name='studies')
+    op.drop_index(op.f('ix_studies_organization_id'), table_name='studies')
+    op.drop_table('studies')
     op.drop_index(op.f('ix_projects_slug'), table_name='projects')
     op.drop_index(op.f('ix_projects_organization_id'), table_name='projects')
     op.drop_table('projects')
@@ -795,10 +608,6 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_audit_events_actor_id'), table_name='audit_events')
     op.drop_index(op.f('ix_audit_events_action'), table_name='audit_events')
     op.drop_table('audit_events')
-    op.drop_index('uq_artifact_identity', table_name='artifacts', sqlite_where=sa.text('archived = 0'), postgresql_where=sa.text('archived = false'))
-    op.drop_index(op.f('ix_artifacts_organization_id'), table_name='artifacts')
-    op.drop_index(op.f('ix_artifacts_kind'), table_name='artifacts')
-    op.drop_table('artifacts')
     op.drop_index(op.f('ix_v1_manifest_publications_resource_digest'), table_name='v1_manifest_publications')
     op.drop_table('v1_manifest_publications')
     op.drop_index(op.f('ix_v1_engine_revisions_owner_id'), table_name='v1_engine_revisions')

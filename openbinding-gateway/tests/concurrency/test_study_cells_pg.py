@@ -13,17 +13,14 @@ import pytest
 from sqlalchemy import func, select
 
 from openbinding_gateway import study_jobs
-from openbinding_gateway.db.artifact_models import Artifact, ArtifactVersion
 from openbinding_gateway.db.models import (
     AuditEvent,
-    Blob,
     Job,
     JobState,
     Organization,
     OrganizationMembership,
     OrganizationRole,
     ProblemCompilation,
-    Project,
     RunState,
     Study,
     StudyCell,
@@ -64,48 +61,34 @@ async def _seed(session, prepare=None, owner_role=OrganizationRole.OWNER):
     # The creator of an organization is always a member; ``study_jobs._sync`` stops launching
     # cells for a run whose owner no longer has MEMBER access.
     session.add(OrganizationMembership(organization_id=organization.id, user_id=user.id, role=owner_role))
-    project = Project(organization_id=organization.id, slug="p", name="P", created_by_id=user.id)
-    session.add(project)
-    await session.flush()
-    blob = Blob(
-        organization_id=organization.id, digest="sha256-" + "0" * 64,
-        media_type="application/json", size_bytes=2, storage_uri="memory://blob", created_by_id=user.id,
-    )
-    artifact = Artifact(
-        organization_id=organization.id, namespace="ns", name="study", display_name="Study", kind="Study",
-        created_by_id=user.id,
-    )
-    session.add_all([blob, artifact])
-    await session.flush()
-    version = ArtifactVersion(
-        artifact_id=artifact.id, ordinal=1, version="1.0.0", blob_id=blob.id,
-        content_digest="sha256-" + "1" * 64, version_digest="sha256-" + "2" * 64,
-        manifest={"kind": "Study"}, created_by_id=user.id,
-    )
-    session.add(version)
     await session.flush()
     engine_ref = None
     if prepare is not None:
         refs, engine_ref = await prepare(session, user, organization)
     else:
         refs = run_refs(await seed_problem_run(session, owner_id=user.id, organization_id=organization.id))
+    engine = engine_ref or {
+        "namespace": "bim.builtin", "name": "random-search", "version": "1.0.0", "digest": "sha256-" + "5" * 64,
+    }
+    definition = {"revision_ids": [str(refs["revision_id"])], "engines": [engine], "parameter_sets": [{}], "seeds": [0, 1]}
     study = Study(
-        project_id=project.id, slug="s", name="S", definition_version_id=version.id, created_by_id=user.id,
+        organization_id=organization.id, slug="s", name="S", definition=definition,
+        definition_digest="sha256-" + "3" * 64, created_by_id=user.id,
     )
     session.add(study)
     await session.flush()
     run = StudyRun(
-        study_id=study.id, definition_version_id=version.id, run_number=1, state=RunState.RUNNING,
-        matrix_digest="sha256-" + "4" * 64, summary={}, created_by_id=user.id,
+        study_id=study.id, run_number=1, state=RunState.RUNNING, matrix_digest="sha256-" + "4" * 64,
+        definition={"apiVersion": "openbinding/study-run/v1", "problems": [], "engines": [engine],
+                    "parameterSets": [{}], "seeds": [0, 1]},
+        definition_digest="sha256-" + "7" * 64, summary={}, created_by_id=user.id,
     )
     session.add(run)
     await session.flush()
-    engine = engine_ref or {
-        "namespace": "bim.builtin", "name": "random-search", "version": "1.0.0", "digest": "sha256-" + "5" * 64,
-    }
     cells = [
         StudyCell(
-            study_run_id=run.id, ordinal=ordinal, binding_case_revision_id=refs["revision_id"], engine_ref=engine,
+            study_run_id=run.id, ordinal=ordinal, binding_case_revision_id=refs["revision_id"],
+            compilation_id=refs["compilation_id"], engine_ref=engine,
             parameters={}, seed=ordinal, fingerprint=f"sha256-{ordinal}" + "6" * 63, state=RunState.QUEUED,
         )
         for ordinal in (0, 1)
@@ -254,3 +237,56 @@ async def test_two_sessions_launching_one_cell_create_one_job_and_one_reservatio
     jobs = await first.scalar(select(func.count()).select_from(Job).where(Job.study_cell_id == waiting_id))
     assert jobs == 1
     assert dispatched == [str(job_ids[0])]
+
+
+# -- The compilation a cell pins (F0b B7, D7) ------------------------------------------------------------
+
+
+async def _another_cell(session, waiting_id, *, refs) -> StudyCell:
+    """A new cell of the waiting cell's run, on the revision and compilation of ``refs``."""
+    waiting = await session.get(StudyCell, waiting_id)
+    cell = StudyCell(
+        study_run_id=waiting.study_run_id, ordinal=7, binding_case_revision_id=refs["revision_id"],
+        compilation_id=refs["compilation_id"], engine_ref=dict(waiting.engine_ref), parameters={}, seed=7,
+        fingerprint="sha256-" + "8" * 64, state=RunState.QUEUED,
+    )
+    session.add(cell)
+    return cell
+
+
+@pytest.mark.asyncio
+async def test_a_cell_cannot_pin_the_compilation_of_another_revision(two_sessions):
+    from sqlalchemy.exc import IntegrityError
+
+    session, _ = two_sessions
+    finished_id, waiting_id = await _seed(session)
+    owner = (await session.get(Job, finished_id)).owner_id
+    waiting = await session.get(StudyCell, waiting_id)
+    other = run_refs(await seed_problem_run(session, owner_id=owner))
+    await session.commit()
+
+    await _another_cell(session, waiting_id, refs={
+        "revision_id": waiting.binding_case_revision_id, "compilation_id": other["compilation_id"],
+    })
+    with pytest.raises(IntegrityError, match="fk_study_cells_compilation_revision"):
+        await session.flush()
+    await session.rollback()
+
+
+@pytest.mark.asyncio
+async def test_a_compilation_a_cell_pinned_cannot_be_deleted(two_sessions):
+    from sqlalchemy import delete
+    from sqlalchemy.exc import IntegrityError
+
+    session, _ = two_sessions
+    finished_id, waiting_id = await _seed(session)
+    owner = (await session.get(Job, finished_id)).owner_id
+    organization_id = (await session.get(Job, finished_id)).organization_id
+    pinned = run_refs(await seed_problem_run(session, owner_id=owner, organization_id=organization_id))
+    await _another_cell(session, waiting_id, refs=pinned)
+    await session.commit()
+
+    with pytest.raises(IntegrityError, match="fk_study_cells_compilation_revision"):
+        await session.execute(delete(ProblemCompilation).where(ProblemCompilation.id == pinned["compilation_id"]))
+    await session.rollback()
+    assert await session.get(ProblemCompilation, pinned["compilation_id"]) is not None

@@ -54,7 +54,7 @@ class Person:
 
 @dataclass
 class Lab:
-    """One organization with a project (for its studies), a problem, and one person of each role.
+    """One organization with a project, a problem, its studies, and one person of each role.
 
     The problem was uploaded by ``author`` (a MEMBER), so every role reaches it only through the organization.
     """
@@ -76,6 +76,10 @@ class Lab:
     @property
     def base(self) -> str:
         return f"/v1/organizations/{self.slug}/projects"
+
+    @property
+    def studies(self) -> str:
+        return f"/v1/organizations/{self.slug}/studies"
 
     @property
     def runs(self) -> str:
@@ -152,7 +156,7 @@ async def lab(api_client, registration, db_session, gate, no_dispatch):  # noqa:
     )
     reference = engine_ref(v1_routes._manifest("random-search"), "bim.builtin")
     definition = {
-        "case_revision_ids": [uploaded["revision_id"]],
+        "revision_ids": [uploaded["revision_id"]],
         "engines": [{**reference, "mode": "seeded", "optimization": OPTIMIZATION}],
         "parameter_sets": [{"iterations": 100}], "seeds": [1],
     }
@@ -163,7 +167,7 @@ async def lab(api_client, registration, db_session, gate, no_dispatch):  # noqa:
         outsider=Person(uuid.UUID(outsider_account["id"]), outsider_headers), outsider_org=outsider_org["slug"],
     )
     for slug_ in ("s", *(f"doomed-{role.lower()}" for role in ROLES)):
-        created = await api_client.post(f"{base}/p/studies", headers=author.headers, json=study_body(built, slug_))
+        created = await api_client.post(built.studies, headers=author.headers, json=study_body(built, slug_))
         assert created.status_code == 201, created.text
     for role in ROLES:
         built.doomed[role] = f"doomed-{role.lower()}"
@@ -180,7 +184,7 @@ async def lab(api_client, registration, db_session, gate, no_dispatch):  # noqa:
 
 async def read(client, lab: Lab, role: str):
     jobs = await client.get(lab.runs, headers=lab.people[role].headers)
-    studies = await client.get(f"{lab.base}/p/studies", headers=lab.people[role].headers)
+    studies = await client.get(f"{lab.studies}", headers=lab.people[role].headers)
     return jobs if jobs.status_code != 200 else studies
 
 
@@ -190,12 +194,12 @@ async def launch(client, lab: Lab, role: str):
 
 
 async def create_study(client, lab: Lab, role: str):
-    return await client.post(f"{lab.base}/p/studies", headers=lab.people[role].headers,
+    return await client.post(f"{lab.studies}", headers=lab.people[role].headers,
                              json=study_body(lab, f"made-by-{role.lower()}"))
 
 
 async def relaunch(client, lab: Lab, role: str):
-    return await client.post(f"{lab.base}/p/studies/s/runs", headers=lab.people[role].headers)
+    return await client.post(f"{lab.studies}/s/runs", headers=lab.people[role].headers)
 
 
 async def retry(client, lab: Lab, role: str):
@@ -207,7 +211,7 @@ async def cancel(client, lab: Lab, role: str):
 
 
 async def delete(client, lab: Lab, role: str):
-    return await client.delete(f"{lab.base}/p/studies/{lab.doomed[role]}", headers=lab.people[role].headers)
+    return await client.delete(f"{lab.studies}/{lab.doomed[role]}", headers=lab.people[role].headers)
 
 
 #: Cancelling comes before the launches so that a plan's concurrency limit never decides the outcome.
@@ -256,7 +260,7 @@ async def test_a_viewer_reads_the_results_with_the_existing_redaction(api_client
     assert teammate.json()["result"]["error"] == teammate.json()["error"] == GENERIC_ERROR
     for leaked in ("tok-SECRET", "10.0.0.5", "private-engine"):
         assert leaked not in response.text + teammate.text, leaked
-    studies = await api_client.get(f"{lab.base}/p/studies", headers=lab.people["VIEWER"].headers)
+    studies = await api_client.get(f"{lab.studies}", headers=lab.people["VIEWER"].headers)
     assert studies.status_code == 200, studies.text
 
 
@@ -400,9 +404,9 @@ async def test_a_user_of_another_organization_cannot_touch_the_work_of_this_one(
     attempts = [
         await api_client.post(lab.run(lab.queued['MEMBER'], "/cancel"), headers=headers),
         await api_client.post(lab.run(lab.failed['MEMBER'], "/retry"), headers=headers),
-        await api_client.post(f"{lab.base}/p/studies", headers=headers, json=study_body(lab, "intruder")),
-        await api_client.post(f"{lab.base}/p/studies/s/runs", headers=headers),
-        await api_client.delete(f"{lab.base}/p/studies/{lab.doomed['MEMBER']}", headers=headers),
+        await api_client.post(f"{lab.studies}", headers=headers, json=study_body(lab, "intruder")),
+        await api_client.post(f"{lab.studies}/s/runs", headers=headers),
+        await api_client.delete(f"{lab.studies}/{lab.doomed['MEMBER']}", headers=headers),
         await api_client.get(lab.runs, headers=headers),
     ]
 
@@ -456,7 +460,7 @@ async def test_a_key_with_every_write_scope_of_a_viewer_cannot_launch_repeat_or_
         await api_client.post(lab.runs, headers={**key, "Idempotency-Key": "viewer-key-1"}, json=job_body(lab.snapshot)),
         await api_client.post(lab.run(lab.failed['VIEWER'], "/retry"), headers=key),
         await api_client.post(lab.run(lab.queued['VIEWER'], "/cancel"), headers=key),
-        await api_client.post(f"{lab.base}/p/studies/s/runs", headers=key),
+        await api_client.post(f"{lab.studies}/s/runs", headers=key),
     ]
 
     assert [response.status_code for response in responses] == [403, 403, 403, 403]

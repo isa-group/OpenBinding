@@ -61,7 +61,6 @@ from .modules.problems.adapters.routes import router as problems_router
 from .routes.admin import router as admin_router
 from .routes.auth import router as auth_router
 from .routes.cas import identity_router, router as cas_router
-from .routes.library import router as library_router
 from .routes.notifications import router as notifications_router
 from .routes.organizations import invitation_router, router as organizations_router
 from .routes.pricing import public_router as pricing_router
@@ -226,7 +225,7 @@ TAGS_METADATA = [
     {"name": "Organizations", "description": "Nested organizations and their members."},
     {"name": "Projects", "description": "Collaborative projects."},
     {"name": "Problems", "description": "BIM problems of an organization, their revisions and compilations."},
-    {"name": "Studies", "description": "Reproducible comparative studies."},
+    {"name": "Studies", "description": "Comparative studies of an organization; each study run freezes its definition."},
     {"name": "Runs", "description": "Runs of an organization's problem revisions: launch, follow, cancel, retry and re-evaluate."},
     {"name": "Notifications", "description": "Account inbox and preferences."},
     {
@@ -423,7 +422,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(organizations_router)
     app.include_router(invitation_router)
     app.include_router(studies_router)
-    app.include_router(library_router)
     app.include_router(problems_router)
     app.include_router(bim_router)
     app.include_router(runs_router)
@@ -512,13 +510,6 @@ def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_o
     component_schemas.setdefault("Problem", problem_schema)
     document["x-api-key-permissions"] = list(ALL_PERMISSIONS)
     schemas = document["components"]["schemas"]
-    from .models.artifacts import StudyArtifactContent
-    document['x-artifact-content-schemas'] = {}
-    for kind, model in [('Study', StudyArtifactContent)]:
-        content_schema = model.model_json_schema(ref_template='#/components/schemas/{model}')
-        schemas.update(content_schema.pop('$defs', {}))
-        schemas[model.__name__] = content_schema
-        document['x-artifact-content-schemas'][kind] = {'$ref': '#/components/schemas/' + model.__name__}
     schema_root = Path(settings.schemas_dir)
     if not schema_root.is_dir():
         schema_root = Path(__file__).resolve().parents[3] / "schemas"

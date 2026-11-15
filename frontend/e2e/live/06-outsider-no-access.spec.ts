@@ -46,15 +46,12 @@ test.describe('live · lab-outsider has no access to lab-main', () => {
     const errors = watchPageErrors(page);
     await signInByApi(page, 'outsider');
 
-    // Problems and runs belong to the organization: the outsider gets its neutral refusal.
-    for (const path of [`/app/${ORG}/problems`, `/app/${ORG}/problems/${CASE}`, RUNS_PATH, `${RUNS_PATH}/new`]) {
+    // Problems, runs and studies belong to the organization: the outsider gets its neutral refusal.
+    for (const path of [`/app/${ORG}/problems`, `/app/${ORG}/problems/${CASE}`, RUNS_PATH, `${RUNS_PATH}/new`, `/app/${ORG}/studies`, `/app/${ORG}/studies/new`]) {
       await page.goto(path);
       await expect(page.getByRole('heading', { name: 'Organization not available' }), path).toBeVisible();
-      await expect(page.getByRole('heading', { level: 1, name: /^(Problems|Runs)$/ }), path).toHaveCount(0);
+      await expect(page.getByRole('heading', { level: 1, name: /^(Problems|Runs|Studies)$/ }), path).toHaveCount(0);
     }
-    // Studies belong to the project.
-    await page.goto(`${PROJECT_PATH}/studies`);
-    await expect(page.getByRole('heading', { name: 'Project not found' })).toBeVisible();
     expect(errors).toEqual([]);
   });
 });

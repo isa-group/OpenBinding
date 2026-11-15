@@ -113,23 +113,14 @@ def retain(table: str, *, message: str | None = None) -> Trigger:
 
 
 TRIGGERS: tuple[Trigger, ...] = (
-    *immutable("artifact_versions"),
-    *immutable("artifact_dependencies"),
     *immutable("binding_case_revisions", delete=False),
     *immutable("problem_compilations", delete=False),
-    *immutable("artifact_case_references"),
-    protect("artifacts", ("organization_id", "namespace", "name", "kind")),
-    protect("artifact_drafts", when=("OLD.sealed_version_id IS NOT NULL", "OLD.sealed_version_id IS NOT NULL"),
-            message="a sealed draft is immutable"),
-    protect("artifact_publications", ("version_id", "citation", "published_by_id", "published_at"),
-            json_columns=("citation",),
-            when=("OLD.withdrawn = 1 AND NEW.withdrawn = 0", "OLD.withdrawn AND NOT NEW.withdrawn"),
-            message="a publication is immutable and a withdrawal is final"),
-    retain("artifact_publications"),
-    protect("study_runs", ("definition_version_id", "study_id", "run_number", "matrix_digest")),
+    protect("study_runs", ("study_id", "run_number", "matrix_digest", "definition", "definition_digest"),
+            json_columns=("definition",)),
     retain("study_runs"),
     protect("study_cells",
-            ("study_run_id", "ordinal", "binding_case_revision_id", "engine_ref", "parameters", "seed", "fingerprint"),
+            ("study_run_id", "ordinal", "binding_case_revision_id", "compilation_id", "engine_ref", "parameters",
+             "seed", "fingerprint"),
             json_columns=("engine_ref", "parameters")),
     retain("study_cells"),
 )

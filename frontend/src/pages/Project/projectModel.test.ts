@@ -1,11 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { HttpError } from '../../api/client';
 import {
-  accessIn, canOpenSection, canRead, canWrite, levelOf, cellBreakdown, countWord, integrityOf, latestRun,
-  sealedShare, visibilityEffects,
+  accessIn, canOpenSection, canRead, canWrite, levelOf, visibilityEffects,
 } from './projectModel';
 import { createRefusal, deleteRefusal, updateRefusal } from './projectErrors';
-import { org, runOf, studyOf } from '../../features/workspace/testKit';
+import { org } from '../../features/workspace/testKit';
 
 describe('who can do what in a project', () => {
   it('reads it from the role in the organization', () => {
@@ -64,33 +63,6 @@ describe('access levels', () => {
     }
     for (const section of ['overview', 'cases', 'studies']) expect(canOpenSection('public_read', section)).toBe(true);
     expect(canOpenSection('ADMIN', 'settings')).toBe(true);
-  });
-});
-
-describe('what is sealed and what is a draft', () => {
-  const study = studyOf('engines');
-
-  it('counts study runs as sealed', () => {
-    const items = integrityOf({ studies: [{ study, runs: [runOf(study, 1)] }] });
-
-    expect(items.map((item) => [item.id, item.kind, item.count])).toEqual([['runs', 'sealed', 1]]);
-    expect(sealedShare(items)).toEqual({ sealed: 1, drafts: 0, sealedPct: 100, draftPct: 0 });
-    expect(countWord(items[0])).toBe('study run');
-  });
-
-  it('has nothing to share when nothing exists', () => {
-    expect(integrityOf({})).toEqual([]);
-    expect(sealedShare([])).toEqual({ sealed: 0, drafts: 0, sealedPct: 0, draftPct: 0 });
-  });
-
-  it('finds the latest run and how its cells ended', () => {
-    expect(latestRun([runOf(study, 1), runOf(study, 3), runOf(study, 2)])?.run_number).toBe(3);
-    expect(latestRun([])).toBeUndefined();
-    const cells = ['completed', 'completed', 'failed', 'cancelled', 'running'].map((state, index) => ({ id: String(index), state })) as never;
-    expect(cellBreakdown(cells)).toEqual([
-      { id: 'completed', count: 2, label: 'completed' }, { id: 'failed', count: 1, label: 'failed' },
-      { id: 'cancelled', count: 1, label: 'cancelled' }, { id: 'pending', count: 1, label: 'in progress' },
-    ]);
   });
 });
 

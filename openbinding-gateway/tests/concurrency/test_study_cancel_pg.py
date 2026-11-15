@@ -22,7 +22,6 @@ from openbinding_gateway.db.models import (
     Job,
     JobState,
     Organization,
-    Project,
     RunState,
     Study,
     StudyCell,
@@ -46,7 +45,6 @@ async def _world(session, **kwargs) -> SimpleNamespace:
         run_id=await session.scalar(select(StudyRun.id)),
         user_id=await session.scalar(select(User.id)),
         organization_id=await session.scalar(select(Organization.id)),
-        project_id=await session.scalar(select(Project.id)),
         study_id=await session.scalar(select(Study.id)),
         first_cell_id=await session.scalar(select(StudyCell.id).where(StudyCell.ordinal == 0)),
     )
@@ -175,22 +173,22 @@ async def test_two_retries_of_one_cell_create_one_job_and_the_second_gets_it(two
     launched: list[uuid.UUID] = []
     monkeypatch.setattr(study_routes, "launch_study_cell", _launcher(launched))
 
-    async def context(session, *args, **kwargs):
-        return SimpleNamespace(id=world.organization_id), SimpleNamespace(id=world.project_id)
+    async def organization(session, *args, **kwargs):
+        return SimpleNamespace(id=world.organization_id)
 
-    async def study(session, project_id, reference, user, **kwargs):
+    async def study(session, organization_id, reference, user, **kwargs):
         return SimpleNamespace(id=world.study_id)
 
     async def run(session, study_id, run_id, user):
         return await session.get(StudyRun, run_id)
 
-    monkeypatch.setattr(study_routes, "_context", context)
+    monkeypatch.setattr(study_routes, "_organization", organization)
     monkeypatch.setattr(study_routes, "_study", study)
     monkeypatch.setattr(study_routes, "_run", run)
 
     async def retry(session):
         return await study_routes.retry_study_cell(
-            org="o", project="p", study="s", run_id=world.run_id, cell_id=world.first_cell_id,
+            org="o", study="s", run_id=world.run_id, cell_id=world.first_cell_id,
             user=SimpleNamespace(id=world.user_id), session=session,
         )
 

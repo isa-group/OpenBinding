@@ -4,27 +4,34 @@ import { QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import type { StudyCell as StudyCellView } from '../../api/platform';
 import { jobOf } from '../../test/fixtures/jobs';
-import { org, project, renderProjectScreen } from '../../features/workspace/testKit';
+import { org, renderProjectScreen } from '../../features/workspace/testKit';
 import { CHECKOUT, REVISION_1, REVISION_2, RUN_ID, cellsFixture, runFixture, studyFixture } from '../../test/fixtures/studies';
 import { StudyDetail } from './StudyDetail';
 
 const platform = vi.hoisted(() => ({
-  project: vi.fn(), studies: vi.fn(), studyRuns: vi.fn(), studyCells: vi.fn(), studyCell: vi.fn(), retryStudyCell: vi.fn(),
+  study: vi.fn(), studyRuns: vi.fn(), studyRun: vi.fn(), studyCells: vi.fn(), studyCell: vi.fn(), retryStudyCell: vi.fn(),
   attachStudyCellResult: vi.fn(),
 }));
 const runsApi = vi.hoisted(() => ({ list: vi.fn() }));
-const library = vi.hoisted(() => ({ libraryApi: { versions: vi.fn().mockResolvedValue([]) } }));
 
 const problems = vi.hoisted(() => ({ list: vi.fn(), revisions: vi.fn(), compilation: vi.fn(), ir: vi.fn() }));
 vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'), platformApi: platform }));
 vi.mock('../../api/problems', () => ({ problemsApi: problems }));
-vi.mock('../../api/library', () => library);
 vi.mock('../../api/runs', async () => ({ ...await vi.importActual<typeof import('../../api/runs')>('../../api/runs'), runsApi }));
+
+/** The one-run read answers from what the study's run list answers. */
+function oneRunFromList() {
+  platform.studyRun.mockImplementation(async (_org: string, _study: string, id: string) => {
+    const runs = (await platform.studyRuns()) as Array<{ id: string }>;
+    const found = runs.find((run) => run.id === id);
+    if (!found) throw Object.assign(new HttpError(404, 'Study run not found.'), { code: 'not_found' });
+    return found;
+  });
+}
 
 const group = org('isa-demo', { name: 'ISA Demo Group' });
 const viewing = org('read-lab', { name: 'Read Lab', effective_role: 'VIEWER' });
-const qos = project('qos-benchmarks', { name: 'QoS Benchmarks' });
-const ROOT = '/app/isa-demo/qos-benchmarks';
+const ROOT = '/app/isa-demo';
 const STUDY = `${ROOT}/studies/engines-vs-seeds`;
 const RESULTS = `${STUDY}/results?run=${RUN_ID}`;
 
@@ -35,18 +42,18 @@ const refusal = (status: number, code: string, message = 'refused') => Object.as
 /** A cell inside the Results tab of the study page: `?run=` names the study run and `?cell=` the cell. */
 function renderCell(ordinal: number, slug = 'isa-demo') {
   return renderProjectScreen(<StudyDetail />, {
-    path: '/app/:org/:project/studies/:study/:tab?', url: `/app/${slug}/qos-benchmarks/studies/engines-vs-seeds/results?run=${RUN_ID}&cell=${byOrdinal(ordinal).id}`, organizations: [group, viewing],
+    path: '/app/:org/studies/:study/:tab?', url: `/app/${slug}/studies/engines-vs-seeds/results?run=${RUN_ID}&cell=${byOrdinal(ordinal).id}`, organizations: [group, viewing],
   });
 }
 
 describe('One cell of a run, inside the Results tab', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    platform.project.mockResolvedValue(qos);
-    platform.studies.mockResolvedValue([studyFixture()]);
+    platform.study.mockResolvedValue({ value: studyFixture(), etag: null });
+    oneRunFromList();
     platform.studyRuns.mockResolvedValue([runFixture()]);
     platform.studyCells.mockResolvedValue(cells);
-    platform.studyCell.mockImplementation((_org: string, _project: string, _study: string, _run: string, cell: string) => {
+    platform.studyCell.mockImplementation((_org: string, _study: string, _run: string, cell: string) => {
       const found = cells.find((item) => item.id === cell);
       return found ? Promise.resolve(found) : Promise.reject(refusal(404, 'not_found'));
     });
@@ -110,7 +117,7 @@ describe('One cell of a run, inside the Results tab', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Retry this cell' }));
 
     expect(await screen.findByText('Cell queued again.')).toBeInTheDocument();
-    expect(platform.retryStudyCell).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks', 'engines-vs-seeds', RUN_ID, cells[1].id);
+    expect(platform.retryStudyCell).toHaveBeenCalledWith('isa-demo', 'engines-vs-seeds', RUN_ID, cells[1].id);
   });
 
   it.each([
@@ -130,13 +137,13 @@ describe('One cell of a run, inside the Results tab', () => {
   it('says a cancelled cell never ran and has no job yet', async () => {
     renderCell(5);
 
-    expect(await screen.findByText('Cancelled before it ran. Retry it, or attach the result of a run you already did with the same inputs.')).toBeInTheDocument();
+    expect(await screen.findByText('Cancelled before it ran. Retry it, or attach the result of a run of the organization with the same inputs.')).toBeInTheDocument();
     expect(screen.getByText('none yet')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Open run' })).not.toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'Result' })).not.toBeInTheDocument();
   });
 
-  it('attaches the result of a finished job of the account', async () => {
+  it('attaches the result of a finished run of the organization, whoever launched it', async () => {
     const mine = [
       jobOf('job-mine-a', 'random-search', 'completed', 'FEASIBLE', '2026-10-01T09:00:00Z', '2026-10-01T09:01:00Z'),
       jobOf('job-mine-b', 'evolutionary', 'failed', 'UNKNOWN', '2026-10-02T09:00:00Z', '2026-10-02T09:00:20Z'),
@@ -149,13 +156,13 @@ describe('One cell of a run, inside the Results tab', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Use an existing run’s result' }));
     const dialog = await screen.findByRole('dialog', { name: 'Use an existing run’s result' });
     const choices = await within(dialog).findByRole('radiogroup', { name: 'Finished runs' });
-    expect(within(choices).getAllByRole('radio')).toHaveLength(2);
+    expect(within(choices).getAllByRole('radio')).toHaveLength(3);
     expect(within(dialog).getByRole('button', { name: 'Attach this result' })).toBeDisabled();
-    fireEvent.click(within(choices).getByRole('radio', { name: /random-search · completed/ }));
+    fireEvent.click(within(choices).getByRole('radio', { name: /random-search · completed · by lucia/ }));
     fireEvent.click(within(dialog).getByRole('button', { name: 'Attach this result' }));
 
     expect(await screen.findByText('Result attached. It now counts as this cell’s result.')).toBeInTheDocument();
-    expect(platform.attachStudyCellResult).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks', 'engines-vs-seeds', RUN_ID, cells[5].id, 'job-mine-a');
+    expect(platform.attachStudyCellResult).toHaveBeenCalledWith('isa-demo', 'engines-vs-seeds', RUN_ID, cells[5].id, 'job-mine-a');
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
 
@@ -210,12 +217,12 @@ describe('One cell of a run, inside the Results tab', () => {
     expect(await within(dialog).findByText(title)).toBeInTheDocument();
   });
 
-  it('says there is nothing to attach when the account has no finished job here', async () => {
+  it('says there is nothing to attach when the organization has no finished run', async () => {
     renderCell(5);
 
     fireEvent.click(await screen.findByRole('button', { name: 'Use an existing run’s result' }));
 
-    expect(await screen.findByText('You have no finished run in this organization to attach.')).toBeInTheDocument();
+    expect(await screen.findByText('This organization has no finished run to attach.')).toBeInTheDocument();
   });
 
   it('is read-only for a viewer', async () => {

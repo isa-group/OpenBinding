@@ -5,8 +5,8 @@ import type { ProjectAccessKind } from '../../api/platform';
 import { canOpenSection, levelOf } from '../../utils/accessLevel';
 import './SectionNav.css';
 
-// Problems and runs belong to the organization; a project holds its studies.
-export type ProjectSection = 'overview' | 'studies' | 'settings';
+// Problems, runs and studies belong to the organization; a project keeps its overview and settings until projects go.
+export type ProjectSection = 'overview' | 'settings';
 
 interface ProjectTabsProps {
   active?: ProjectSection;
@@ -27,7 +27,6 @@ interface Tab {
 
 const TABS: readonly Tab[] = [
   { key: 'overview', label: 'Overview', suffix: '' },
-  { key: 'studies', label: 'Studies', suffix: '/studies' },
   { key: 'settings', label: 'Settings', suffix: '/settings', trailing: true },
 ];
 

@@ -1,8 +1,8 @@
 """Collaborative platform tables built around the BIM v1 pipeline.
 
 Organizations own problems (``binding_cases``), whose revisions are uploaded
-packages kept as blobs, and the compilations of those revisions; projects own
-studies until they are retired.
+packages kept as blobs, the compilations of those revisions, and studies whose
+runs freeze the definition they ran.
 """
 
 from __future__ import annotations
@@ -10,7 +10,7 @@ from __future__ import annotations
 import enum
 import uuid
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Optional
+from typing import Optional
 
 from sqlalchemy import (
     JSON,
@@ -20,19 +20,16 @@ from sqlalchemy import (
     DateTime,
     Enum,
     ForeignKey,
+    ForeignKeyConstraint,
     Integer,
     String,
     UniqueConstraint,
     Uuid,
     func,
 )
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 
 from .base import Base
-
-if TYPE_CHECKING:
-    from .artifact_models import ArtifactVersion
-
 
 def utcnow() -> datetime:
     return datetime.now(timezone.utc)
@@ -301,73 +298,26 @@ class ProblemCompilation(Base):
     )
 
 
-class ProjectResource(Base):
-    """A named project resource whose revisions are immutable JSON documents."""
-
-    __tablename__ = "project_resources"
-    __table_args__ = (UniqueConstraint("project_id", "slug", name="uq_project_resource_slug"),)
-
-    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    project_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
-    )
-    slug: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
-    name: Mapped[str] = mapped_column(String(160), nullable=False)
-    description: Mapped[str] = mapped_column(String(2000), nullable=False, default="")
-    kind: Mapped[str] = mapped_column(String(128), nullable=False, default="bim-resource")
-    created_by_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow, server_default=func.now()
-    )
-
-
-class ProjectResourceRevision(Base):
-    __tablename__ = "project_resource_revisions"
-    __table_args__ = (
-        UniqueConstraint("project_resource_id", "revision", name="uq_project_resource_revision"),
-        UniqueConstraint("project_resource_id", "digest", name="uq_project_resource_digest"),
-        CheckConstraint("revision > 0", name="project_resource_revision_positive"),
-    )
-
-    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    project_resource_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("project_resources.id", ondelete="CASCADE"), nullable=False, index=True
-    )
-    revision: Mapped[int] = mapped_column(Integer, nullable=False)
-    digest: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
-    document: Mapped[dict] = mapped_column(JSON, nullable=False)
-    created_by_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
-    )
-
-
 class Study(Base):
+    """A comparative study of an organization: its editable matrix, inline.
+
+    ``definition`` is the current matrix and changes under If-Match; every study run freezes its own
+    copy (``study_runs.definition``), so editing the study never changes what a run ran (D7).
+    """
+
     __tablename__ = "studies"
-    __table_args__ = (UniqueConstraint("project_id", "slug", name="uq_study_project_slug"),)
+    __table_args__ = (UniqueConstraint("organization_id", "slug", name="uq_study_org_slug"),)
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    project_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="RESTRICT"), nullable=False, index=True
     )
     slug: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(160), nullable=False)
     description: Mapped[str] = mapped_column(String(2000), nullable=False, default="")
-    definition_version_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("artifact_versions.id", ondelete="RESTRICT"), nullable=False, index=True)
-    definition_version: Mapped["ArtifactVersion"] = relationship("ArtifactVersion", foreign_keys=[definition_version_id], lazy="joined")
-
-    @property
-    def definition(self) -> dict:
-        from ..studies import definition_from_version
-        return definition_from_version(self.definition_version)
-
+    #: The ``StudyDefinition`` document (revision ids, engines with resolved modes, parameter sets, seeds).
+    definition: Mapped[dict] = mapped_column(JSON, nullable=False)
+    definition_digest: Mapped[str] = mapped_column(String(80), nullable=False)
     archived: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     state: Mapped[StudyState] = enum_column(StudyState, StudyState.DRAFT)
     created_by_id: Mapped[uuid.UUID] = mapped_column(
@@ -392,10 +342,13 @@ class StudyRun(Base):
     study_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("studies.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    definition_version_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("artifact_versions.id", ondelete="RESTRICT"), nullable=False, index=True)
     run_number: Mapped[int] = mapped_column(Integer, nullable=False)
     state: Mapped[RunState] = enum_column(RunState, RunState.QUEUED)
     matrix_digest: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
+    #: The frozen ``openbinding/study-run/v1`` document: each problem revision with the compilation the
+    #: run uses, the engines, parameter sets and seeds. Written once at launch (D7).
+    definition: Mapped[dict] = mapped_column(JSON, nullable=False)
+    definition_digest: Mapped[str] = mapped_column(String(80), nullable=False)
     summary: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     created_by_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
@@ -412,6 +365,13 @@ class StudyCell(Base):
         UniqueConstraint("study_run_id", "ordinal", name="uq_study_cell_ordinal"),
         UniqueConstraint("study_run_id", "fingerprint", name="uq_study_cell_fingerprint"),
         CheckConstraint("ordinal >= 0", name="study_cell_ordinal_nonnegative"),
+        # The compilation a cell runs is one of its revision's, pinned when the run is created (D7).
+        ForeignKeyConstraint(
+            ["compilation_id", "binding_case_revision_id"],
+            ["problem_compilations.id", "problem_compilations.revision_id"],
+            ondelete="RESTRICT",
+            name="fk_study_cells_compilation_revision",
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
@@ -422,6 +382,7 @@ class StudyCell(Base):
     binding_case_revision_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("binding_case_revisions.id", ondelete="RESTRICT"), nullable=False, index=True
     )
+    compilation_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False, index=True)
     engine_ref: Mapped[dict] = mapped_column(JSON, nullable=False)
     parameters: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     seed: Mapped[int] = mapped_column(Integer, nullable=False)

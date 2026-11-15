@@ -32,10 +32,10 @@ export function matrixSize(parts: { cases: number; engines: number; settings: nu
   return { ...parts, cells: parts.cases * parts.engines * parts.settings * parts.seeds };
 }
 
-/** The matrix a sealed definition spells out: every combination of case revision × engine × setting × seed is one cell. */
+/** The matrix a definition spells out: every combination of problem revision × engine × setting × seed is one cell. */
 export function definitionSize(definition: Study['definition']): MatrixSize {
   return matrixSize({
-    cases: definition.case_revision_ids?.length ?? 0,
+    cases: definition.revision_ids?.length ?? 0,
     engines: definition.engines?.length ?? 0,
     settings: definition.parameter_sets?.length ?? 0,
     seeds: definition.seeds?.length ?? 0,
@@ -272,20 +272,24 @@ export function defaultSelection({ cases, caseSlug, revision }: SelectionInput):
   return [...picked];
 }
 
-/** The cells a sealed Study version spells out (`StudyArtifactContent`); `null` when its content doesn't read as one. */
-export function studyContentSize(content: string): MatrixSize | null {
-  try {
-    const parsed: unknown = JSON.parse(content);
-    if (!isRecord(parsed) || !Array.isArray(parsed.cases) || !Array.isArray(parsed.engines)) return null;
-    return matrixSize({
-      cases: parsed.cases.length,
-      engines: parsed.engines.length,
-      settings: Array.isArray(parsed.parameter_sets) ? parsed.parameter_sets.length : 1,
-      seeds: Array.isArray(parsed.seeds) ? parsed.seeds.length : 1,
-    });
-  } catch {
-    return null;
-  }
+/**
+ * The definition a study run froze, read back as an editable study definition: the same revisions, engines, settings and seeds.
+ * PATCHing a study with it runs the old matrix again (the compilations are pinned anew by the next run).
+ */
+export function definitionOfRun(run: Pick<StudyRun, 'definition'>): Study['definition'] {
+  const frozen = run.definition;
+  return {
+    revision_ids: (frozen.problems ?? []).map((problem) => problem.revisionId),
+    engines: frozen.engines ?? [],
+    parameter_sets: frozen.parameterSets ?? [],
+    seeds: frozen.seeds ?? [],
+  };
+}
+
+/** Whether two definitions say the same thing, in any key order (the gateway sorts the revisions of a stored one). */
+export function sameDefinition(a: Study['definition'], b: Study['definition']): boolean {
+  const sorted = (definition: Study['definition']) => ({ ...definition, revision_ids: [...(definition.revision_ids ?? [])].sort() });
+  return stable(sorted(a)) === stable(sorted(b));
 }
 
 // --- runs and cells
@@ -486,7 +490,7 @@ export interface DefinitionGrid {
 
 /** The matrix a definition spells out, in the order the gateway expands it: case revisions by id, engines by identity, settings, seeds ascending. */
 export function definitionGrid(definition: Study['definition']): DefinitionGrid {
-  const rows = [...(definition.case_revision_ids ?? [])].sort();
+  const rows = [...(definition.revision_ids ?? [])].sort();
   const engines = [...(definition.engines ?? [])].sort((a, b) => (
     [a.namespace, a.name, a.version, a.digest, a.mode ?? ''].join('\u0000').localeCompare([b.namespace, b.name, b.version, b.digest, b.mode ?? ''].join('\u0000'))
   ));

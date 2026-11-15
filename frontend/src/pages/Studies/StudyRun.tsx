@@ -23,12 +23,10 @@ type Outcome =
 
 /** The Progress tab of the study page: the study run `runId` with every cell and its state, kept up to date while it runs. */
 export function RunProgress({ scope, runId }: { scope: StudyScopeValue; runId: string }) {
-  const { study, organization, project, access, root } = scope;
+  const { study, organization, access, studyPath } = scope;
   const org = organization.slug;
-  const slug = project.slug;
-  const studyPath = `${root}/studies/${encodeURIComponent(study.slug)}`;
   const { index } = useRevisionIndex(org);
-  const resource = useResource(`run:${study.id}/${runId}`, () => loadRun(org, slug, study.slug, runId));
+  const resource = useResource(`run:${study.id}/${runId}`, () => loadRun(org, study.slug, runId));
   const [auto, setAuto] = useState(true);
   const [measureChoice, setMeasureChoice] = useState<string | null>(null);
   const [outcome, setOutcome] = useState<Outcome | null>(null);
@@ -75,7 +73,7 @@ export function RunProgress({ scope, runId }: { scope: StudyScopeValue; runId: s
     setBusy('cancel');
     setOutcome(null);
     try {
-      await platformApi.cancelStudyRun(org, slug, study.slug, run.id);
+      await platformApi.cancelStudyRun(org, study.slug, run.id);
       setOutcome({ tone: 'success', text: 'Run cancelled. Cells that hadn’t finished are cancelled; you can retry them.' });
       reload();
     } catch (caught) {
@@ -89,7 +87,7 @@ export function RunProgress({ scope, runId }: { scope: StudyScopeValue; runId: s
     setRetrying(cell.id);
     setOutcome(null);
     try {
-      await platformApi.retryStudyCell(org, slug, study.slug, run.id, cell.id);
+      await platformApi.retryStudyCell(org, study.slug, run.id, cell.id);
       setOutcome({ tone: 'success', text: `Cell ${cell.ordinal} queued again.` });
       reload();
     } catch (caught) {
@@ -106,7 +104,7 @@ export function RunProgress({ scope, runId }: { scope: StudyScopeValue; runId: s
     try {
       for (const cell of retryable) {
         setRetrying(cell.id);
-        await platformApi.retryStudyCell(org, slug, study.slug, run.id, cell.id);
+        await platformApi.retryStudyCell(org, study.slug, run.id, cell.id);
         done += 1;
       }
       setOutcome({ tone: 'success', text: `${plural(done, 'cell')} queued again.` });

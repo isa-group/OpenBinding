@@ -434,17 +434,14 @@ async def add_revision(
 async def delete_problem(session: AsyncSession, problem: BindingCase, actor: User) -> None:
     """Delete ``problem``, its revisions and compilations; 409 ``problem_has_runs`` when anything names them.
 
-    A run, a study cell or (until the artifact store goes) a sealed study definition that names one of its
-    revisions keeps the problem. Blob rows and files stay (D14). A run launched while the delete runs is
-    caught by the ``RESTRICT`` foreign keys and answered the same way.
+    A run or a study cell that names one of its revisions keeps the problem. Blob rows and files stay (D14).
+    A run launched while the delete runs is caught by the ``RESTRICT`` foreign keys and answered the same way.
     """
-    from ....db.models import ArtifactCaseReference
-
     revision_ids = list((await session.scalars(
         select(BindingCaseRevision.id).where(BindingCaseRevision.binding_case_id == problem.id)
     )).all())
     if revision_ids:
-        for column in (Job.revision_id, StudyCell.binding_case_revision_id, ArtifactCaseReference.case_revision_id):
+        for column in (Job.revision_id, StudyCell.binding_case_revision_id):
             if await session.scalar(select(column).where(column.in_(revision_ids)).limit(1)) is not None:
                 raise _has_runs()
     try:

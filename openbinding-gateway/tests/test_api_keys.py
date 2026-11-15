@@ -396,7 +396,7 @@ async def test_method_organization_project_and_slug_boundaries_all_reduce_access
     key = await mint_key(
         api_client,
         token,
-        permissions=["projects:read", "projects:write"],
+        permissions=["projects:read", "projects:write", "studies:read"],
         boundary={
             "methods": ["GET"],
             "organizations": ["bounded-org"],
@@ -419,7 +419,7 @@ async def test_method_organization_project_and_slug_boundaries_all_reduce_access
         "/v1/organizations/bounded-org/projects/denied", headers=key_headers
     )
     wrong_kind = await api_client.get(
-        "/v1/organizations/bounded-org/projects/allowed/resources", headers=key_headers
+        "/v1/organizations/bounded-org/studies", headers=key_headers
     )
 
     assert allowed.status_code == 200
@@ -761,14 +761,24 @@ async def test_an_admin_can_issue_a_read_only_admin_key(
 
 
 @pytest.mark.parametrize('path,method,permission', [
-    ('/v1/artifacts/id', 'PATCH', 'artifacts:write'),
-    ('/v1/artifacts/id/versions', 'GET', 'artifacts:read'),
-    ('/v1/artifacts/resolve', 'POST', 'artifacts:read'),
-    ('/v1/organizations/team/library', 'POST', 'artifacts:write'),
-    ('/v1/organizations/team/projects/project/library/id', 'DELETE', 'artifacts:write'),
+    ('/v1/organizations/team/studies', 'GET', 'studies:read'),
+    ('/v1/organizations/team/studies', 'POST', 'studies:write'),
+    ('/v1/organizations/{org}/studies/{study}', 'GET', 'studies:read'),
+    ('/v1/organizations/{org}/studies/{study}', 'PATCH', 'studies:write'),
+    ('/v1/organizations/{org}/studies/{study}/runs', 'POST', 'studies:write'),
+    ('/v1/organizations/{org}/studies/{study}/runs/{run_id}', 'GET', 'studies:read'),
+    ('/v1/organizations/{org}/studies/{study}/runs/{run_id}/cells/{cell_id}/retry', 'POST', 'studies:write'),
 ])
-def test_library_permissions_share_artifact_grants(path, method, permission):
+def test_study_routes_need_the_study_permissions(path, method, permission):
     assert apikeys.required_permissions(path, method) == frozenset({permission})
+
+
+@pytest.mark.parametrize('path', ['/v1/artifacts/id/versions', '/v1/organizations/team/library'])
+def test_the_library_is_gone_and_its_paths_are_unclassified(path):
+    assert apikeys.required_permissions(path, 'GET') in (
+        frozenset({apikeys.UNCLASSIFIED_ROUTE_PERMISSION}), frozenset({'organizations:read'}),
+    )
+    assert 'artifacts:read' not in apikeys.ALL_PERMISSIONS
 
 
 @pytest.mark.parametrize('path,method,permission', [

@@ -80,14 +80,14 @@ async def test_study_patch_and_delete(api_client, registration, platform_gate):
 
     # Study CRUD
     study_resp = await api_client.post(
-        f"/v1/organizations/{org_slug}/projects/{proj_slug}/studies",
+        f"/v1/organizations/{org_slug}/studies",
         headers=headers,
         json={
             "slug": "study-a",
             "name": "Study Alpha",
             "description": "Initial study",
             "definition": {
-                "case_revision_ids": [case_rev_id],
+                "revision_ids": [case_rev_id],
                 "engines": [{**engine_ref(routes._manifest("random-search"), "bim.builtin"), "mode": "seeded",
                              "optimization": {"type": "SINGLE", "scalarization": "weighted-sum"}}],
                 "parameter_sets": [{}],
@@ -98,7 +98,7 @@ async def test_study_patch_and_delete(api_client, registration, platform_gate):
     assert study_resp.status_code == 201
 
     study_patch = await api_client.patch(
-        f"/v1/organizations/{org_slug}/projects/{proj_slug}/studies/study-a",
+        f"/v1/organizations/{org_slug}/studies/study-a",
         headers=headers,
         json={"name": "Study Alpha Updated", "description": "Updated description"},
     )
@@ -106,7 +106,7 @@ async def test_study_patch_and_delete(api_client, registration, platform_gate):
     assert study_patch.json()["name"] == "Study Alpha Updated"
 
     study_del = await api_client.delete(
-        f"/v1/organizations/{org_slug}/projects/{proj_slug}/studies/study-a",
+        f"/v1/organizations/{org_slug}/studies/study-a",
         headers=headers,
     )
     assert study_del.status_code == 204

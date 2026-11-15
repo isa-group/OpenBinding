@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { FlaskConical } from 'lucide-react';
 import { HttpError } from '../../api/client';
-import { platformApi, type Organization, type Project, type Study } from '../../api/platform';
+import { platformApi, type Organization, type Study } from '../../api/platform';
 import { Action } from '../../components/ui/Action';
 import { Chip } from '../../components/ui/Chip';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -14,9 +14,11 @@ import { useResource } from '../../utils/useResource';
 import { classifyAuthError, marker } from '../Account/accountErrors';
 import { RefusalNotice } from '../Jobs/parts';
 import { OrgGate, OrgSkeleton } from '../../features/workspace/OrgFrame';
-import { loadStudies } from '../Project/projectData';
 import type { StudyContent } from '../../features/workspace/model';
-import { useRouteProject } from '../Project/useRouteProject';
+import { newStudyPath, studyPath } from '../../routes/paths/studies';
+import { problemAccess } from '../Cases/useRouteProblem';
+import { useRouteOrganization } from '../Organization/useRouteOrganization';
+import { loadStudies } from './studiesData';
 import { CellBar, StateChip, StudyFrame } from './parts';
 import { definitionSize, formulaOf, latestOf, plural, studyPageHref } from './studiesModel';
 import { studyRefusal, type Refusal } from './studyErrors';
@@ -34,13 +36,9 @@ function DemoGrid() {
   );
 }
 
-function StudyListBody({ organization, project, canCreate, canAdminister }: { organization: Organization; project: Project; canCreate: boolean; canAdminister: boolean }) {
+function StudyListBody({ organization, canCreate, canAdminister }: { organization: Organization; canCreate: boolean; canAdminister: boolean }) {
   const org = organization.slug;
-  const slug = project.slug;
-  const root = `/app/${org}/${slug}`;
-  // A visitor of a public project reads the studies.
-  const publicRead = project.access === 'public_read';
-  const studies = useResource<StudyContent[]>(`studies-list:${org}/${slug}`, () => loadStudies(org, slug, WITH_CELLS));
+  const studies = useResource<StudyContent[]>(`studies-list:${org}`, () => loadStudies(org, WITH_CELLS));
   const [showArchived, setShowArchived] = useState(false);
   const [outcome, setOutcome] = useState<Outcome | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -56,7 +54,7 @@ function StudyListBody({ organization, project, canCreate, canAdminister }: { or
     setBusy(study.id);
     setOutcome(null);
     try {
-      await platformApi.updateStudy(org, slug, study.slug, { archived: !study.archived });
+      await platformApi.updateStudy(org, study.slug, { archived: !study.archived });
       setOutcome({ tone: 'success', text: study.archived ? 'Restored.' : 'Archived: it can’t start new runs, and existing results stay.' });
       reload();
     } catch (caught) {
@@ -70,13 +68,13 @@ function StudyListBody({ organization, project, canCreate, canAdminister }: { or
     setBusy(study.id);
     setOutcome(null);
     try {
-      await platformApi.deleteStudy(org, slug, study.slug);
+      await platformApi.deleteStudy(org, study.slug);
       setOutcome({ tone: 'success', text: `Deleted ${study.name}.` });
     } catch (caught) {
       if (caught instanceof HttpError && caught.status === 409 && caught.code === 'study_history_retained') {
         // Runs are history: the gateway refuses the delete, so the study is archived instead and its results stay.
         try {
-          await platformApi.updateStudy(org, slug, study.slug, { archived: true });
+          await platformApi.updateStudy(org, study.slug, { archived: true });
           setOutcome({ tone: 'success', text: 'This study has runs, so it was archived instead of deleted. Its runs and results stay intact.' });
         } catch (second) {
           setOutcome({ tone: 'error', refusal: studyRefusal(second, 'archive') });
@@ -93,13 +91,13 @@ function StudyListBody({ organization, project, canCreate, canAdminister }: { or
 
   const none = data && data.length === 0;
   return (
-    <StudyFrame organization={organization} project={project} trail={[{ label: 'Studies' }]}>
+    <StudyFrame organization={organization} trail={[{ label: 'Studies' }]}>
       <header className="proj-title-row">
         <div className="proj-title">
           <h1>Studies</h1>
           <p>A study runs every combination of problems × engines × settings × seeds, so results can be compared fairly and repeated.</p>
         </div>
-        {canCreate && <div className="proj-actions"><Action to={`${root}/studies/new`} variant="primary">New study</Action></div>}
+        {canCreate && <div className="proj-actions"><Action to={newStudyPath(org)} variant="primary">New study</Action></div>}
       </header>
 
       {data && archivedCount > 0 && (
@@ -128,8 +126,8 @@ function StudyListBody({ organization, project, canCreate, canAdminister }: { or
             <strong>No studies yet</strong>
             <span>2 problem versions × 2 engines × 2 seeds = 8 runs, all with the same rules. That’s a study.</span>
             {canCreate
-              ? <Action to={`${root}/studies/new`} variant="primary">Build a study</Action>
-              : <small className="org-muted">{publicRead ? 'This project hasn’t shared a study yet.' : `Creating a study needs MEMBER in ${organization.name}.`}</small>}
+              ? <Action to={newStudyPath(org)} variant="primary">Build a study</Action>
+              : <small className="org-muted">Creating a study needs MEMBER in {organization.name}.</small>}
           </div>
         </section>
       )}
@@ -139,14 +137,14 @@ function StudyListBody({ organization, project, canCreate, canAdminister }: { or
       )}
 
       {rows.length > 0 && (
-        <ul className="st-list" aria-label="Studies of the project">
+        <ul className="st-list" aria-label="Studies of the organization">
           {rows.map(({ study, runs, latestCells }) => {
             const run = latestOf(runs);
             const size = definitionSize(study.definition);
             const when = run ? formatDate(run.created_at) : null;
             return (
               <li key={study.id} className="st-row">
-                <Link to={`${root}/studies/${encodeURIComponent(study.slug)}`} viewTransition className="st-row-main">
+                <Link to={studyPath(org, study.slug)} viewTransition className="st-row-main">
                   <span className="st-row-name">
                     <strong>{study.name}</strong>
                     {study.archived && <Chip>Archived</Chip>}
@@ -158,7 +156,7 @@ function StudyListBody({ organization, project, canCreate, canAdminister }: { or
                   {run ? (
                     <>
                       <small>
-                        <Link to={studyPageHref(`${root}/studies/${encodeURIComponent(study.slug)}`, 'progress', { run: run.id })} viewTransition>Last run #{run.run_number}</Link>
+                        <Link to={studyPageHref(studyPath(org, study.slug), 'progress', { run: run.id })} viewTransition>Last run #{run.run_number}</Link>
                         {when ? ` · ${when}` : ''} · {run.state}
                         {runs.length > 1 ? ` · ${plural(runs.length, 'run')} in all` : ''}
                       </small>
@@ -195,12 +193,11 @@ function StudyListBody({ organization, project, canCreate, canAdminister }: { or
   );
 }
 
-/** The studies of a project (`study-list`, `/app/:org/:project/studies`): the matrix of each and its latest run. */
+/** The studies of an organization (`study-list`, `/app/:org/studies`): the matrix of each and its latest run. */
 export function StudyList() {
-  const { organization, project, access, waiting, failure, reload } = useRouteProject();
-  if (waiting) return <OrgSkeleton label="Loading project…" />;
-  if (!organization || !project) {
-    return <OrgGate failure={organization ? failure : null} organizationName={organization?.name} onRetry={reload} />;
-  }
-  return <StudyListBody key={`${organization.slug}/${project.slug}`} organization={organization} project={project} canCreate={access.canCreate} canAdminister={access.canAdminister} />;
+  const { organization, waiting } = useRouteOrganization();
+  if (waiting) return <OrgSkeleton label="Loading organization…" />;
+  if (!organization) return <OrgGate failure={null} subject="organization" />;
+  const access = problemAccess(organization);
+  return <StudyListBody key={organization.slug} organization={organization} canCreate={access.canCreate} canAdminister={access.canAdminister} />;
 }

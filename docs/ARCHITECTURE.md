@@ -107,10 +107,10 @@ has the one-shot `pricing-bootstrap`, a separate compose project that prepares t
 |---|---|---|---|
 | `identity` | accounts, sessions, passwords, API keys, external identities (CAS) | `IdentityProvider` (CAS), `Mailer` | `routes/auth.py`, `routes/users.py`, `routes/cas.py`, `cas.py`, `security/*` |
 | `collaboration` | organizations (nested), projects, memberships, roles, invitations, audit, notifications, public read | — | `collaboration.py`, `routes/organizations.py` (org/project/member parts), `repositories/organizations.py`, `access/public_read.py` |
-| `problems` | problems of an organization, their sealed revisions (the uploaded `.bim.zip` and its digests) and compilations (one per revision and toolchain, insert-only), the stateless BIM services (`/v1/bim/validate`, `/v1/bim/templates`) | `BimPort`, `BlobStore` | `modules/problems` (domain, application, adapters; F0b); `integrations/bim*.py`, the engine protocol document in `services/engines.py`; `artifacts.py` and the library (`routes/library.py`) retire (§4.3) |
+| `problems` | problems of an organization, their sealed revisions (the uploaded `.bim.zip` and its digests) and compilations (one per revision and toolchain, insert-only), the stateless BIM services (`/v1/bim/validate`, `/v1/bim/templates`) | `BimPort`, `BlobStore` | `modules/problems` (domain, application, adapters; F0b); `integrations/bim*.py`, the engine protocol document in `services/engines.py` |
 | `engines` | engine revisions, modes and manifests, federated deployments, conformance, capability matching | `EngineTransport` | `services/engines.py`, `services/engine_registry.py`, `services/probe.py`, `v1/remote.py` |
 | `execution` | runs of an organization: submission, idempotency, dispatch, leases, cancellation, events, re-evaluation, results (with the trade-off set of a multi-objective run), neighbourhood | `EngineTransport`, `BimPort`, `PlanPort` | `modules/execution` (the run request and the runs API `/v1/organizations/{org}/runs`; F0b); `services/job_submission.py`, `services/execution.py`, `jobs/*`, `job_dispatch.py`, `worker.py` |
-| `laboratory` | studies, study runs, cells, protocol metrics, trade-offs across engines | `execution` application API | `studies.py`, `study_jobs.py`, `routes/studies.py`; the generator moved to QACOForge; the decision-space workspace (`analysis_jobs.py`, analysis routes, analysis queue and worker) was removed by M9.6 |
+| `laboratory` | studies of an organization (the editable matrix inline), study runs that freeze their definition and pin each revision's compilation, cells, protocol metrics, trade-offs across engines | `execution` application API | `studies.py`, `study_jobs.py`, `routes/studies.py` (`/v1/organizations/{org}/studies`; F0b); the generator moved to QACOForge; the decision-space workspace (`analysis_jobs.py`, analysis routes, analysis queue and worker) was removed by M9.6 |
 | `publishing` | published results (a frozen study run), citations, Zenodo-ready export | application APIs of `problems` and `laboratory` | none: the reports, their publications and Explore were removed in F0a |
 | `plans` | the SPACE port, the entitlement map, the pricing descriptor, plan changes and eligibility (RESEARCH through CAS) | `PlanPort` (SPACE), `PricingSource` (SPHERE public API) | `modules/plans` (entitlement map, per-account quotas, the package copy of the pricing; F0b); `space_client/*`, `services/entitlements.py`, `access/policy.py`, `access/contracts.py`, `domain/entitlements.py`. Local metering and billing sponsorship were removed in F0b |
 | `administration` | users, queues and engine health, storage and retention, audit, moderation of public content | application APIs of the other modules | `routes/admin.py`, `telemetry.py` |
@@ -162,10 +162,10 @@ openbinding-gateway/src/openbinding_gateway/
 0. Retire first. The decision-space workspace, the report editor, the library as a catalogue (organization
    library, project resources, project library), the composer and sponsorship lose their screens, then their
    endpoints, then their code, so nothing retired is ever moved. Done by M9.6 (2026-10-27): the owner skipped the
-   `Deprecation`/`Sunset` period because nothing ran in production, and the 41 operations are removed. The versioned-artifact store itself stays as the repository's internal storage of sealed parts:
-   problems are edited and versioned as a whole, and sealed problem versions keep referencing their parts by exact
-   digest, so nothing sealed changes. The data of the retired features was dropped with them, and the tables they
-   left behind (reports, publications, collections, report evidence) went with the one-revision baseline of F0b.
+   `Deprecation`/`Sunset` period because nothing ran in production, and the 41 operations are removed. The data of
+   the retired features was dropped with them, and the tables they left behind (reports, publications, collections,
+   report evidence) went with the one-revision baseline of F0b. The versioned-artifact store itself, the read-only
+   library and the project resources went in F0b too, once study runs froze their own definitions (D7).
 1. Create `app/`, `shared/` and `modules/` with import-linter contracts; move nothing. Packages and contracts exist
    (§4.2); the blocking CI step is pending.
 2. New capabilities land directly in modules: `plans` (M4) and the language registry (M5) are the first.
@@ -288,8 +288,8 @@ classDiagram
 Mapping to `v1` names: Problem = `BindingCase` (owned by an organization), ProblemVersion = `BindingCaseRevision` (the
 uploaded package and its digests), CompiledForm = `ProblemCompilation` (its IR, per toolchain), Run = `Job` (it names a
 revision and its compilation and never copies the IR), Result = job result plus re-evaluation, PublishedResult = a simplified `publications`
-record (no report, no editions). A problem version's resources are sealed parts in the internal versioned-artifact
-store, addressed by digest; there is no component catalogue. Every sealed entity has a content digest
+record (no report, no editions). A problem version is its uploaded package, addressed by digest; there is no
+component catalogue. A study run freezes its definition, with the compilation of each revision it runs. Every sealed entity has a content digest
 that the API returns and Verify checks;
 screens name it as §5.4 says. Permanent links address problems and published results independently of
 slugs.
@@ -544,7 +544,7 @@ remote SPACE and its routes are unverified until the first live run of the one-s
 | Data | Where | Retention |
 |---|---|---|
 | Sealed problem versions, compiled forms, published results | PostgreSQL + blob store | permanent; withdrawal hides, never deletes |
-| Sealed parts in the versioned-artifact store (resources, study definitions, execution configurations) | PostgreSQL + blob store | permanent while a sealed version, a study run or a run references them |
+| Frozen study-run definitions (with the compilation each revision runs) | PostgreSQL | permanent, with their study run |
 | Drafts | PostgreSQL | until deleted; owner notified after 180 idle days |
 | Runs and results | PostgreSQL + blob store | permanent while part of a study run or a published result; otherwise 365 days |
 | Raw engine logs | blob store | 90 days unless the run belongs to a published result |

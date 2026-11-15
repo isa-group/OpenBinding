@@ -88,7 +88,6 @@ const projectsOf = (): Record<string, Project[]> => ({
   'member-lab': [project(4, 'org-4', 'bench', 'Bench', 'A bench.', 'private', 'MEMBER')],
 });
 
-const digest = (char: string) => `sha256-${char.repeat(64)}`;
 
 /** What the gateway reports for the RESEARCH plan: the plan and its limits, with no consumption. */
 const researchUsage = () => ({
@@ -97,15 +96,6 @@ const researchUsage = () => ({
   features: { collaboration: true, runs: true },
   capabilities: { maxConcurrentRuns: 4, maxPrivateProjects: 10, maxProblems: null, maxRepositoryStorage: null },
 });
-
-const study = {
-  archived: false, id: 'study-1', definition_version_id: 'sv-1', definition_artifact_id: 'sa-1', project_id: 'project-1', slug: 'engines-seeds', name: 'Engines × seeds', description: '',
-  definition: { case_revision_ids: ['rev-1', 'rev-2'], engines: [{}, {}], parameter_sets: [{}], seeds: [1, 2] }, state: 'active', created_by_id: 'user-1', created_at: '2026-09-20T00:00:00Z',
-};
-const studyRun = { id: 'run-1', definition_version_id: 'sv-1', study_id: 'study-1', run_number: 1, state: 'partial', matrix_digest: digest('d'), cells: 8, summary: {}, created_at: '2026-09-21T00:00:00Z', finished_at: null };
-const cells = [...Array.from({ length: 6 }, () => 'completed'), 'failed', 'cancelled'].map((state, index) => ({
-  id: `cell-${index}`, study_run_id: 'run-1', ordinal: index, binding_case_revision_id: 'rev-1', engine_ref: {}, parameters: {}, seed: index, fingerprint: 'f', job_id: null, state, metrics: {},
-}));
 
 /** The members of every organization of the mock: the project settings list them. */
 const orgMembers = [
@@ -122,8 +112,6 @@ interface State {
   visitor: Record<string, Project[]>;
   /** The answer to opening one of those (a 429, say); unset means it opens. */
   visitorRefusal?: Handler;
-  /** Content per project slug; a project not listed here is empty. */
-  filled: Set<string>;
   /** A refusal for one action; unset means the action succeeds. */
   refuse: Partial<Record<Refusable, Handler>>;
 }
@@ -136,7 +124,6 @@ async function mockApi(page: Page, overrides: Partial<State> = {}): Promise<Stat
     organizations: [isaDemo, consultora, memberLab],
     projects: projectsOf(),
     visitor: { 'open-lab': [openBench] },
-    filled: new Set(['qos-benchmarks', 'open-bench']),
     refuse: {},
     ...overrides,
   };
@@ -157,13 +144,15 @@ async function mockApi(page: Page, overrides: Partial<State> = {}): Promise<Stat
 
   await page.route(new RegExp(`^${API}/v1/organizations(/.*)?(\\?.*)?$`), async (route) => {
     const parts = new URL(route.request().url()).pathname.split('/').filter(Boolean);
-    // /v1/organizations/{org}/projects/{project}/{sub}/{subId}/{subSub}/…
-    const [, , orgSlug, section, projectSlug, sub, subId, subSub] = parts;
+    // /v1/organizations/{org}/projects/{project}/{sub}/…
+    const [, , orgSlug, section, projectSlug, sub] = parts;
     const method = methodOf(route);
     const found = state.organizations.find((item) => item.slug === orgSlug);
 
     if (!orgSlug) return json(state.organizations)(route);
     if (section === 'members') return json(orgMembers)(route);
+    // The organization overview lists its studies; none here.
+    if (section === 'studies') return json([])(route);
     if (section !== 'projects') return json(found ?? { detail: { code: 'not_found', error: 'Organization not found.' } }, found ? 200 : 404)(route);
 
     const visitorList = state.visitor[orgSlug];
@@ -201,15 +190,8 @@ async function mockApi(page: Page, overrides: Partial<State> = {}): Promise<Stat
     }
 
     if (!current) return detail(404, 'not_found', 'Project not found.')(route);
-    const filled = state.filled.has(projectSlug);
-    switch (sub) {
-      case 'studies':
-        if (subId && subSub === 'runs' && parts.includes('cells')) return json(cells)(route);
-        if (subId && subSub === 'runs') return json([studyRun])(route);
-        return json(filled ? [study] : [])(route);
-      default:
-        return detail(404, 'not_found', 'Not mocked.')(route);
-    }
+    // Problems, runs and studies belong to the organization: nothing else is below a project.
+    return detail(404, 'not_found', 'Not mocked.')(route);
   });
   return state;
 }
@@ -331,19 +313,18 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(band.getByRole('link', { name: 'Workbench' })).toHaveAttribute('href', '/app/isa-demo/workbench');
       await expect(band.getByRole('link', { name: 'Export package' })).toHaveCount(0);
       const tabs = main.getByRole('navigation', { name: 'Project sections' });
-      await expect(tabs.getByRole('link')).toHaveText(['Overview', 'Studies', 'Settings']);
+      await expect(tabs.getByRole('link')).toHaveText(['Overview', 'Settings']);
       await expect(tabs.getByRole('link', { name: 'Overview' })).toHaveAttribute('aria-current', 'page');
       await expect(tabs.getByRole('link', { name: 'Settings' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/settings');
 
-      const strip = main.getByRole('region', { name: 'What’s sealed and what’s still a draft' });
-      await expect(strip.getByRole('list', { name: 'Sealed and draft items' }).getByRole('listitem')).toHaveText(['1 study run']);
+      // Problems, runs and studies belong to the organization: the project guides there instead of listing them.
+      await expect(main.getByRole('region', { name: 'Get started' })).toBeVisible();
+      await expect(band.getByRole('link', { name: 'Studies' })).toHaveAttribute('href', '/app/isa-demo/studies');
       await expect(main.getByRole('region', { name: 'Problems' })).toHaveCount(0);
       // Runs belong to the organization: the project shows none.
       await expect(main.getByRole('region', { name: 'Recent runs' })).toHaveCount(0);
       await expect(band.getByRole('link', { name: 'Run' })).toHaveAttribute('href', '/app/isa-demo/runs/new');
-      const studies = main.getByRole('region', { name: 'Studies' });
-      await expect(studies.getByText('Run #1 · partial')).toBeVisible();
-      await expect(studies.getByRole('img', { name: '6 completed, 1 failed, 1 cancelled of 8' })).toBeVisible();
+      await expect(main.getByRole('region', { name: 'Studies' })).toHaveCount(0);
       // The report editor is retired: no Reports card, no New report action, no All reports link.
       await expect(main.getByRole('region', { name: 'Reports' })).toHaveCount(0);
       await expect(main.getByText('New report')).toHaveCount(0);
@@ -375,10 +356,10 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('heading', { level: 1, name: 'Open bench' })).toBeVisible();
       await expect(main.getByText('You are viewing a public project (read-only).')).toBeVisible();
       const publicTabs = main.getByRole('navigation', { name: 'Project sections' });
-      await expect(publicTabs.getByRole('link')).toHaveText(['Overview', 'Studies']);
+      await expect(publicTabs.getByRole('link')).toHaveText(['Overview']);
       for (const hidden of ['Problems', 'Run', 'New study', 'New report', 'Export package']) await expect(band.getByText(hidden, { exact: true })).toHaveCount(0);
       await expect(main.getByRole('region', { name: 'Recent runs' })).toHaveCount(0);
-      await expect(main.getByRole('region', { name: 'Studies' })).toBeVisible();
+      await expect(main.getByRole('region', { name: 'Studies' })).toHaveCount(0);
       await capture(page, testInfo, `overview-${name}-public-read`);
 
       // Its members-only parts show the neutral gate, not the screens.
@@ -434,9 +415,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByLabel('Name', { exact: true })).toHaveValue('QoS Benchmarks');
       await expect(main.getByText('/app/isa-demo/qos-benchmarks', { exact: true })).toBeVisible();
       await expect(main.getByRole('button', { name: 'Save' })).toBeDisabled();
-      // The project has study runs: deleting is blocked up front, and says why.
-      await expect(main.getByRole('note')).toContainText('Deleting is blocked: this project has sealed history (1 study run).');
-      await expect(main.getByRole('button', { name: 'Delete project' })).toBeDisabled();
+      // Studies belong to the organization: a project has no history of its own that blocks deleting it.
+      await expect(main.getByRole('note')).toHaveCount(0);
+      await expect(main.getByRole('button', { name: 'Delete project' })).toBeEnabled();
       await capture(page, testInfo, `settings-${name}-success`);
 
       // Below ADMIN the page is read-only, with the reason.

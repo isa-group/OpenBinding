@@ -99,7 +99,7 @@ describe('New API key', () => {
       renderWizard();
       await nameIt();
 
-      expect(screen.getAllByRole('checkbox')).toHaveLength(24);
+      expect(screen.getAllByRole('checkbox')).toHaveLength(22);
       for (const id of ['engines:moderate', 'admin:accounts:read', 'admin:accounts:write']) {
         expect(permission(id)).toBeDisabled();
       }

@@ -1,15 +1,14 @@
 import { Plus, Trash2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import type { Artifact, ArtifactVersion } from '../../api/library';
 import type { CaseContent } from '../../features/workspace/model';
 import { Action } from '../../components/ui/Action';
 import { Chip } from '../../components/ui/Chip';
 import { problemsPath } from '../../routes/paths/problems';
 import { formatDate } from '../../utils/format';
-import { engineLabel, studyVersionLabel } from '../../shared/lib/identity';
+import { engineLabel } from '../../shared/lib/identity';
 import {
   MAX_SETTINGS, latestExecutable, offeredRevisions, plural, readVariant,
-  describeParameters, type EngineChoice, type MatrixSize, type Variant,
+  describeParameters, type EngineChoice, type Variant,
 } from './studiesModel';
 
 interface CasesFieldProps {
@@ -20,7 +19,7 @@ interface CasesFieldProps {
   org: string;
 }
 
-/** 1 · Cases: the executable revisions of the project. */
+/** 1 · Cases: the executable problem revisions of the organization. */
 export function CasesField({ cases, selected, onChange, org }: CasesFieldProps) {
   const offered = offeredRevisions(cases);
   const toggle = (id: string) => onChange(selected.includes(id) ? selected.filter((item) => item !== id) : [...selected, id]);
@@ -155,44 +154,5 @@ export function SettingsField({ variants, onChange, seeds, onSeeds, seedsError, 
         </small>
       </label>
     </fieldset>
-  );
-}
-
-/** The "Reuse a shared definition" side of the builder: a sealed Study version from the library. */
-export function AdoptPanel({ studies, artifact, onArtifact, versions, version, onVersion, size, loading }: {
-  studies: readonly Artifact[];
-  artifact: string;
-  onArtifact: (id: string) => void;
-  versions: readonly ArtifactVersion[];
-  version: string;
-  onVersion: (id: string) => void;
-  size: MatrixSize | null;
-  loading: boolean;
-}) {
-  return (
-    <section className="st-adopt" aria-label="Shared definition">
-      <div className="st-pair">
-        <label>
-          <span>Study definition</span>
-          <select value={artifact} onChange={(event) => onArtifact(event.target.value)}>
-            <option value="">Choose a definition</option>
-            {studies.map((item) => <option key={item.id} value={item.id}>{item.display_name}</option>)}
-          </select>
-        </label>
-        <label>
-          <span>Sealed version</span>
-          <select value={version} disabled={!artifact} onChange={(event) => onVersion(event.target.value)}>
-            <option value="">Choose a version</option>
-            {versions.map((item) => <option key={item.id} value={item.id}>{studyVersionLabel({ name: item.ref.name, version: item.ordinal })}</option>)}
-          </select>
-        </label>
-      </div>
-      {studies.length === 0 && <p className="org-muted">The library has no study definition to reuse yet. Define a new matrix first.</p>}
-      {version && (
-        <p className="st-adopt-size" role="status">
-          {loading ? 'Reading the definition…' : size ? `From the library · ${plural(size.cells, 'cell')} (${plural(size.cases, 'problem')} × ${plural(size.engines, 'engine')} × ${plural(size.settings, 'setting')} × ${plural(size.seeds, 'seed')})` : 'From the library · its size can’t be read here; the gateway checks it when you create the study.'}
-        </p>
-      )}
-    </section>
   );
 }

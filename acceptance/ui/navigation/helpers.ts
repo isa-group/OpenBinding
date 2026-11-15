@@ -43,7 +43,7 @@ const members = [
   { id: 'm1', organization_id: 'org-acme', user_id: 'user-1', username: 'lucia', email: 'lucia@example.org', role: 'OWNER', created_at: NOW },
 ];
 
-// The problems and the runs belong to the organization (`/app/acme/problems`, `/app/acme/runs`); studies still live in a project.
+// The problems, the runs and the studies belong to the organization (`/app/acme/problems`, `/app/acme/runs`, `/app/acme/studies`).
 export const PROBLEMS_SEGMENT = 'problems';
 export const RUNS_SEGMENT = 'runs';
 export const PROBLEMS = `/app/acme/${PROBLEMS_SEGMENT}`;

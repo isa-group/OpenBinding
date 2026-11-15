@@ -1,4 +1,4 @@
-"""ETag / If-Match / 412 on updateStudy (a study has no single-resource GET: the tag comes from the PATCH)."""
+"""ETag / If-Match / 412 on updateStudy; the tag comes from getStudy or from the PATCH."""
 
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ OPTIMIZATION = {"type": "SINGLE", "scalarization": "weighted-sum"}
 
 @pytest_asyncio.fixture
 async def lab(api_client, registration):
-    """An organization with a project and one study, owned by one account, plus a viewer and an outsider."""
+    """An organization with one study, owned by one account, plus a viewer and an outsider."""
     previous = space_client.get_gate()
     space_client.set_gate(fake_pricing_gate())
     _, headers = await account(api_client, registration)
@@ -38,18 +38,14 @@ async def lab(api_client, registration):
         f"{base}/members/{viewer['id']}", headers=headers, json={"user_id": viewer["id"], "role": "VIEWER"}
     )
     assert added.status_code == 200, added.text
-    project = await api_client.post(
-        f"{base}/projects", headers=headers, json={"slug": "routing", "name": "Routing", "visibility": "private"}
-    )
-    assert project.status_code == 201, project.text
     revision_id = (await upload_problem(api_client, headers, slug, slug="checkout"))["revision_id"]
     reference = engine_ref(routes._manifest("random-search"), "bim.builtin")
     study = await api_client.post(
-        f"{base}/projects/routing/studies", headers=headers,
+        f"{base}/studies", headers=headers,
         json={
             "slug": "compare", "name": "Compare",
             "definition": {
-                "case_revision_ids": [revision_id],
+                "revision_ids": [revision_id],
                 "engines": [{**reference, "mode": "seeded", "optimization": dict(OPTIMIZATION)}],
                 "parameter_sets": [{}], "seeds": [1],
             },
@@ -57,17 +53,29 @@ async def lab(api_client, registration):
     )
     assert study.status_code == 201, study.text
     yield {
-        "url": f"{base}/projects/routing/studies/compare", "id": study.json()["id"],
+        "url": f"{base}/studies/compare", "id": study.json()["id"],
         "headers": headers, "viewer": viewer_headers, "outsider": outsider,
     }
     space_client.set_gate(previous)
 
 
 async def first_tag(client, lab) -> str:
-    """No GET exists: an unguarded PATCH that changes nothing reports the current ETag."""
-    response = await client.patch(lab["url"], headers=lab["headers"], json={})
+    """The ETag getStudy reports; an unguarded PATCH that changes nothing reports the same one."""
+    response = await client.get(lab["url"], headers=lab["headers"])
     assert response.status_code == 200, response.text
+    unchanged = await client.patch(lab["url"], headers=lab["headers"], json={})
+    assert unchanged.headers["ETag"] == response.headers["ETag"]
     return response.headers["ETag"]
+
+
+def foreign_definition() -> dict:
+    """A well-formed definition whose one revision is not a problem revision of the organization."""
+    reference = engine_ref(routes._manifest("random-search"), "bim.builtin")
+    return {"definition": {
+        "revision_ids": [str(uuid.uuid4())],
+        "engines": [{**reference, "mode": "seeded", "optimization": dict(OPTIMIZATION)}],
+        "parameter_sets": [{}], "seeds": [1],
+    }}
 
 
 async def updated_events(db_session) -> int:
@@ -183,18 +191,18 @@ async def test_a_malformed_if_match_on_an_unknown_study_is_404(api_client, lab) 
     assert "ETag" not in refused.headers
 
 
-async def test_stale_tag_beats_foreign_study_version(api_client, lab) -> None:
+async def test_stale_tag_beats_a_foreign_revision(api_client, lab) -> None:
     stale = await first_tag(api_client, lab)
     moved = await api_client.patch(lab["url"], headers={**lab["headers"], "If-Match": stale}, json={"name": "Moved on"})
     assert moved.status_code == 200, moved.text
-    body = {"definition_version_id": str(uuid.uuid4())}
+    body = foreign_definition()
 
     refused = await api_client.patch(lab["url"], headers={**lab["headers"], "If-Match": stale}, json=body)
     current = await api_client.patch(lab["url"], headers={**lab["headers"], "If-Match": moved.headers["ETag"]}, json=body)
 
     assert refused.status_code == 412, refused.text
     assert current.status_code == 422, current.text
-    assert current.json()["code"] == "foreign_study_version"
+    assert current.json()["code"] == "foreign_case_revision"
 
 
 async def test_a_body_that_fails_validation_is_refused_before_a_stale_tag(api_client, lab) -> None:
@@ -315,11 +323,11 @@ async def test_a_refusal_after_the_claim_leaves_the_etag_unchanged(api_client, l
     await db_session.commit()
 
     refused = await api_client.patch(
-        lab["url"], headers={**lab["headers"], "If-Match": current}, json={"definition_version_id": str(uuid.uuid4())}
+        lab["url"], headers={**lab["headers"], "If-Match": current}, json=foreign_definition()
     )
 
     assert refused.status_code == 422, refused.text
-    assert refused.json()["code"] == "foreign_study_version"
+    assert refused.json()["code"] == "foreign_case_revision"
     assert await first_tag(api_client, lab) != current  # the claim did happen
     await db_session.rollback()
     assert await first_tag(api_client, lab) == current
@@ -328,7 +336,7 @@ async def test_a_refusal_after_the_claim_leaves_the_etag_unchanged(api_client, l
 def test_openapi_documents_if_match_and_both_failures() -> None:
     from openbinding_gateway.main import app
 
-    patch = app.openapi()["paths"]["/v1/organizations/{org}/projects/{project}/studies/{study}"]["patch"]
+    patch = app.openapi()["paths"]["/v1/organizations/{org}/studies/{study}"]["patch"]
     assert patch["operationId"] == "updateStudy"
     header = [p for p in patch["parameters"] if p["name"] == "If-Match"]
     assert len(header) == 1 and header[0]["in"] == "header" and header[0]["required"] is False

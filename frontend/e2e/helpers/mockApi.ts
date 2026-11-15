@@ -2,7 +2,7 @@ import JSZip from 'jszip';
 import type { Page, Route } from '@playwright/test';
 import type { AdminUserView } from '../../src/api/auth';
 import type { Job } from '../../src/api/platform';
-import { digestOf as caseDigest, irDocument, sourceContents } from '../../src/pages/Cases/fixtures';
+import { digestOf as caseDigest, irDocument } from '../../src/pages/Cases/fixtures';
 import { CURRENT_FIXTURE, catalogFixture } from '../../src/pages/Pricing/pricingFixture';
 import {
   AUDIT, ERROR_EVENTS, ERROR_OVERVIEW, MODERATION, OVERVIEW, USERS, queuesAt, subscriptionOf, usageOf as adminUsageOf, userPage,
@@ -12,16 +12,12 @@ import {
   REPORT_FAILED, REPORT_PENDING, REPORT_VERIFIED, SHARED_SOLVER, SOLVER_IN_REVIEW, reportOf as registrationReport,
 } from '../../src/test/fixtures/engines';
 import { NEIGHBORHOOD, REGISTRATION, RUN_REFS, SOLUTION, detailOf as jobDetailOf, jobOf } from '../../src/test/fixtures/jobs';
-import { resourceOf, resourceRevisionOf } from '../../src/test/fixtures/resources';
 import {
-  RANDOM_SEARCH, REVISION_2, VERSION_ID, analyticsFixture, cellsFixture, revisionFixture, runFixture, studyFixture,
+  RANDOM_SEARCH, REVISION_2, analyticsFixture, cellsFixture, revisionFixture, runFixture, studyFixture,
 } from '../../src/test/fixtures/studies';
-import {
-  bpmnContent, catalogContent, catalogRangesContent, goalContent, itemOf, rulesContent, versionOf,
-} from './libraryFixtures';
 
 // One mock of the gateway for the whole QA gallery: a platform administrator of a RESEARCH (institutional) account, one organization
-// with problems and a project that has runs, studies and a library behind it, and everything the public screens read.
+// with problems, runs and studies, a project, and everything the public screens read.
 // Every date is fixed, so two runs of the gallery draw the same pictures. A request nobody answers is a 404 and is recorded.
 
 export const API = 'http://localhost:8000';
@@ -194,32 +190,6 @@ export const PUBLIC_ENGINES = [
 const EDGE_ENGINE = engineEntry('edge-solver', 'alex.rivera', '0.3.1', `sha256-${'f1f2f3f4'.repeat(8)}`, [engineMode('tabu', 'tabu-search', false)]);
 const OWN_ENGINES = [...PUBLIC_ENGINES, EDGE_ENGINE];
 
-// -- The library behind the cases
-
-const LIB_ORG = { organization_id: 'org-isa-demo', namespace: 'isa-demo' };
-const app = itemOf('checkout-app', 'Application', 'Checkout app', { ...LIB_ORG, description: 'The checkout workflow: authenticate, reserve stock, ship, pay and notify.' });
-const catalog = itemOf('providers-eu', 'CandidateCatalog', 'EU providers', { ...LIB_ORG, description: 'Payment, stock and shipping providers in the EU, with their measured latency, cost and availability.' });
-const rules = itemOf('sla-hard', 'ConstraintSet', 'Hard SLA', { ...LIB_ORG, description: 'Latency and availability limits every binding must respect.' });
-const goal = itemOf('weighted-cost-latency', 'Optimization', 'Weighted cost and latency', { ...LIB_ORG });
-const workflow = itemOf('checkout-bpmn', 'Workflow', 'Checkout workflow (BPMN)', { ...LIB_ORG });
-const external = itemOf('external-catalog', 'CandidateCatalog', 'External catalog', { organization_id: 'org-partner-lab', namespace: 'partner-lab', description: 'Published by Partner Lab.' });
-const LIBRARY = [catalog, rules, goal, app, workflow];
-
-const rulesV1 = versionOf(rules, '1');
-const catalogV2 = versionOf(catalog, '2', { public: true });
-const catalogV3 = versionOf(catalog, '3', { manifest: { mediaType: 'application/json', contracts: [], dependencies: [rulesV1.ref], kind: 'CandidateCatalog' }, based_on_id: catalogV2.id });
-const VERSIONS: Record<string, ReturnType<typeof versionOf>[]> = {
-  [catalog.id]: [catalogV3, catalogV2],
-  [rules.id]: [rulesV1],
-  [goal.id]: [versionOf(goal, '1')],
-  [app.id]: [versionOf(app, '3')],
-  [workflow.id]: [versionOf(workflow, '1', { manifest: { mediaType: 'application/vnd.omg.bpmn+xml', contracts: [], dependencies: [], kind: 'Workflow' } })],
-  [external.id]: [versionOf(external, '1', { public: true })],
-};
-const CONTENT: Record<string, unknown> = {
-  [catalog.id]: catalogRangesContent(), [rules.id]: rulesContent(), [goal.id]: goalContent(), [app.id]: sourceContents.application, [external.id]: catalogContent(), [workflow.id]: bpmnContent,
-};
-
 // -- Problems, their versions and compilations
 
 const PROBLEM = {
@@ -304,8 +274,8 @@ function jobDetailOnly(id: string): Record<string, unknown> | null {
 
 const STUDY = localize(studyFixture());
 const OTHER_STUDY = localize(studyFixture({
-  id: 'study-placement', slug: 'placement-sweep', name: 'Placement sweep', description: 'Pools and latencies on the edge.', definition_artifact_id: 'artifact-placement',
-  definition: { case_revision_ids: [REVISION_2.id], engines: [RANDOM_SEARCH], parameter_sets: [{}], seeds: [1, 2, 3] },
+  id: 'study-placement', slug: 'placement-sweep', name: 'Placement sweep', description: 'Pools and latencies on the edge.',
+  definition: { revision_ids: [REVISION_2.id], engines: [RANDOM_SEARCH], parameter_sets: [{}], seeds: [1, 2, 3] },
 }));
 const STUDIES = [STUDY, OTHER_STUDY];
 const RUN = runFixture();
@@ -363,49 +333,35 @@ interface Request {
 
 function projectRoutes(request: Request, orgSlug: string, projectSlug: string): Reply {
   const { parts } = request;
-  const [, , , , , sub, subId, action, actionId, tail, tailId] = parts;
+  const sub = parts[5];
   const current = (PROJECTS[orgSlug] ?? []).find((item) => item.slug === projectSlug);
   if (!current) return notFound('Project not found.');
   if (!sub) return ok(current);
-  const filled = projectSlug === 'qos-benchmarks';
+  // Problems, runs and studies belong to the organization: nothing else is below a project.
+  return notFound('Not mocked.');
+}
 
-  switch (sub) {
-    case 'studies': {
-      if (!filled) return ok([]);
-      if (!subId) return ok(STUDIES);
-      if (!STUDIES.some((item) => item.slug === subId)) return notFound('Study not found.');
-      if (action === 'runs') {
-        if (subId !== STUDY.slug) return ok([]);
-        if (!actionId) return ok([RUN]);
-        if (tail === 'cells' && tailId) {
-          const cell = CELLS.find((item) => item.id === tailId);
-          return cell ? ok(cell) : notFound('Study cell not found.');
-        }
-        if (tail === 'cells') return ok(CELLS);
-        if (tail === 'analytics') return ok(ANALYTICS);
-        return ok(RUN);
-      }
-      return ok(STUDIES.find((item) => item.slug === subId));
+/** `/v1/organizations/{org}/studies/…`: the studies of `isa-demo`, the one run of the first and its cells; another organization has none. */
+function studyRoutes(request: Request, orgSlug: string): Reply {
+  const { parts } = request;
+  const [, , , , subId, action, actionId, tail, tailId] = parts;
+  const studies = orgSlug === 'isa-demo' ? STUDIES : [];
+  if (!subId) return ok(studies);
+  const study = studies.find((item) => item.slug === subId);
+  if (!study) return notFound('Study not found.');
+  if (action === 'runs') {
+    if (subId !== STUDY.slug) return actionId ? notFound('Study run not found.') : ok([]);
+    if (!actionId) return ok([RUN]);
+    if (actionId !== RUN.id) return notFound('Study run not found.');
+    if (tail === 'cells' && tailId) {
+      const cell = CELLS.find((item) => item.id === tailId);
+      return cell ? ok(cell) : notFound('Study cell not found.');
     }
-    case 'resources': {
-      if (!filled) return ok([]);
-      const resources = localize([
-        resourceOf('latency-probes', 'Latency probes', { kind: 'Dataset', description: 'Latency probe results used by the checkout benchmarks.' }),
-        resourceOf('weighted-goal', 'Weighted goal', { kind: 'Optimization' }),
-        resourceOf('notes', 'Notes'),
-      ]);
-      if (!subId) return ok(resources);
-      const found = resources.find((item) => item.slug === subId);
-      if (!found) return notFound('Resource not found.');
-      if (action !== 'revisions') return notFound('Not mocked.');
-      return ok(localize(subId === 'notes' ? [] : [
-        resourceRevisionOf(found, 2, { title: 'Latency probes', samples: 5 }),
-        resourceRevisionOf(found, 1, { title: 'Latency probes', samples: 3 }),
-      ]));
-    }
-    default:
-      return notFound('Not mocked.');
+    if (tail === 'cells') return ok(CELLS);
+    if (tail === 'analytics') return ok(ANALYTICS);
+    return ok(RUN);
   }
+  return ok(study);
 }
 
 /** `/v1/organizations/{org}/problems/…`: the problems of `isa-demo`, their versions, sources and compilations. */
@@ -438,7 +394,7 @@ function problemRoutes(request: Request, orgSlug: string): Reply {
 }
 
 function organizationRoutes(request: Request): Reply {
-  const { parts, query } = request;
+  const { parts } = request;
   const [, , orgSlug, section, projectSlug] = parts;
   if (!orgSlug) return ok(ORGANIZATIONS);
   const found = ORGANIZATIONS.find((item) => item.slug === orgSlug || item.id === orgSlug);
@@ -447,15 +403,12 @@ function organizationRoutes(request: Request): Reply {
   switch (section) {
     case 'members': return ok(MEMBERS[found.slug] ?? []);
     case 'audit': return ok({ events: ORG_AUDIT, total: ORG_AUDIT.length, offset: 0, limit: 50 });
-    case 'library': {
-      const own = found.slug === 'isa-demo' ? LIBRARY : [];
-      return ok(query.get('include_public') === 'true' ? [...own, external] : own);
-    }
     case 'projects':
       if (!projectSlug) return ok(PROJECTS[found.slug] ?? []);
       return projectRoutes(request, found.slug, projectSlug);
     case 'problems': return problemRoutes(request, found.slug);
     case 'runs': return runRoutes(request, found.slug);
+    case 'studies': return studyRoutes(request, found.slug);
     default: return notFound('Not mocked.');
   }
 }
@@ -474,35 +427,6 @@ function runRoutes(request: Request, orgSlug: string): Reply {
   if (action === 'neighborhood') return ok(localize({ ...NEIGHBORHOOD, jobId: runId }));
   const detail = orgSlug === 'isa-demo' ? jobDetail(runId) : null;
   return detail ? ok(localize(detail)) : notFound('Run not found.');
-}
-
-function artifactRoutes(request: Request): Reply {
-  const { parts } = request;
-  const [, , id, sub, subId, action] = parts;
-  if (id === 'resolve') {
-    const wanted = request.body() as { name?: string; version?: string };
-    const hit = Object.values(VERSIONS).flat().find((version) => version.ref.name === wanted.name && version.ref.version === wanted.version);
-    return hit ? ok(hit) : notFound('Artifact version not found.');
-  }
-  // The artifact behind a study's definition: one sealed version, the one the study points at.
-  if (id.startsWith('artifact-') && sub === 'versions') {
-    if (action === 'content') return { status: 200, type: 'text/plain', text: JSON.stringify(STUDY.definition) };
-    return ok([{
-      id: VERSION_ID, artifact_id: id, ordinal: 1, ref: { namespace: 'isa-demo', name: id, version: '1', versionDigest: caseDigest('9') }, contentDigest: caseDigest('8'),
-      manifest: { mediaType: 'application/json', contracts: [], dependencies: [], kind: 'Study' }, based_on_id: null, public: false, withdrawn: false, created_at: '2026-09-20T08:00:00Z',
-    }]);
-  }
-  const item = [...LIBRARY, external].find((candidate) => candidate.id === id || candidate.name === id);
-  if (!item) return notFound('Artifact not found.');
-  if (sub === 'versions') {
-    const versions = VERSIONS[item.id] ?? [];
-    if (!subId) return ok(versions);
-    if (action === 'content') {
-      const content = CONTENT[item.id];
-      return { status: 200, type: 'text/plain', text: typeof content === 'string' ? content : JSON.stringify(content) };
-    }
-  }
-  return notFound('Not mocked.');
 }
 
 function userRoutes(request: Request): Reply {
@@ -575,7 +499,7 @@ function adminRoutes(request: Request): Reply {
 }
 
 /** The first path segments the gateway only answers to a session. */
-const SESSION_ONLY = new Set(['users', 'admin', 'notifications', 'organizations', 'engines', 'engine-registrations', 'artifacts']);
+const SESSION_ONLY = new Set(['users', 'admin', 'notifications', 'organizations', 'engines', 'engine-registrations']);
 
 function route(request: Request): Reply | null {
   const { parts } = request;
@@ -598,7 +522,6 @@ function route(request: Request): Reply | null {
       if (second === 'current') return ok(CURRENT_FIXTURE);
       return null;
     case 'organizations': return organizationRoutes(request);
-    case 'artifacts': return artifactRoutes(request);
     case 'engine-registrations': return engineRegistrationRoutes(request);
     case 'admin': return adminRoutes(request);
     case 'engines':

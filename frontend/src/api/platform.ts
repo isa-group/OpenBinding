@@ -1,4 +1,4 @@
-import { apiClient } from './client';
+import { apiClient, type Revised } from './client';
 
 export type Visibility = 'private' | 'public';
 export type RunState = 'queued' | 'running' | 'completed' | 'failed' | 'cancelled' | 'partial';
@@ -87,26 +87,6 @@ export interface Project {
   effective_role?: OrganizationRole | null;
 }
 
-export interface ProjectResource {
-  id: string;
-  project_id: string;
-  slug: string;
-  name: string;
-  description: string;
-  kind: string;
-  created_by_id: string;
-  created_at: string;
-}
-
-export interface ProjectResourceRevision {
-  id: string;
-  project_resource_id: string;
-  revision: number;
-  digest: string;
-  document: Record<string, unknown>;
-  created_at: string;
-}
-
 /** One engine of a study definition: the pinned revision, the mode and the optimization the gateway requires of each. */
 export interface StudyEngine {
   namespace?: string;
@@ -117,33 +97,57 @@ export interface StudyEngine {
   optimization?: { type: string; scalarization: string };
 }
 
+/** The editable matrix of a study: problem revisions of its organization, engines (with a resolved mode), parameter sets and seeds. */
+export interface StudyDefinition {
+  revision_ids: string[];
+  engines: StudyEngine[];
+  parameter_sets: Array<Record<string, unknown>>;
+  seeds: number[];
+}
+
 export interface Study {
   archived: boolean;
   id: string;
-  definition_version_id: string;
-  definition_artifact_id: string;
-  project_id: string;
+  organization_id: string;
   slug: string;
   name: string;
   description: string;
-  definition: {
-    case_revision_ids: string[];
-    engines: StudyEngine[];
-    parameter_sets: Array<Record<string, unknown>>;
-    seeds: number[];
-  };
+  /** The current matrix. Edit it with `updateStudy`; every run keeps the copy it froze. */
+  definition: StudyDefinition;
+  definition_digest: string;
   state: string;
   created_by_id: string;
   created_at: string;
 }
 
+/** One problem revision of a study run, with the compilation every cell of it runs. */
+export interface StudyRunProblem {
+  revisionId: string;
+  problemId: string;
+  revision: number;
+  packageDigest: string;
+  compilationId: string;
+  compilationDigest: string;
+  irDigest: string;
+}
+
+/** The definition a study run froze when it started (`openbinding/study-run/v1`). */
+export interface StudyRunDefinition {
+  apiVersion: string;
+  problems: StudyRunProblem[];
+  engines: StudyEngine[];
+  parameterSets: Array<Record<string, unknown>>;
+  seeds: number[];
+}
+
 export interface StudyRun {
   id: string;
-  definition_version_id: string;
   study_id: string;
   run_number: number;
   state: RunState;
   matrix_digest: string;
+  definition: StudyRunDefinition;
+  definition_digest: string;
   cells: number;
   summary: Record<string, unknown>;
   created_at: string;
@@ -155,6 +159,7 @@ export interface StudyCell {
   study_run_id: string;
   ordinal: number;
   binding_case_revision_id: string;
+  compilation_id: string;
   engine_ref: Record<string, string>;
   parameters: Record<string, unknown>;
   seed: number;
@@ -360,76 +365,88 @@ export const platformApi = {
   /** Needs ADMIN. 409 `historical_references` while the project has sealed history. */
   deleteProject: (org: string, project: string) =>
     apiClient.request<void>(root(org, project), { method: 'DELETE' }, undefined, true, true),
-  /** The project's older resources: library items of kinds the library screens don't own. VIEWER can read. */
-  resources: (org: string, project: string) =>
-    apiClient.request<ProjectResource[]>(`${root(org, project)}/resources`),
-  resourceRevisions: (org: string, project: string, resource: string) =>
-    apiClient.request<ProjectResourceRevision[]>(
-      `${root(org, project)}/resources/${encodeURIComponent(resource)}/revisions`,
+  studies: (org: string, includeArchived = false) =>
+    apiClient.request<Study[]>(`${root(org)}/studies?include_archived=${includeArchived}`),
+  /** One study with its ETag: the revision an edit names as `If-Match`. 404 for a study of another organization. */
+  study: (org: string, study: string) =>
+    apiClient.request<Revised<Study>>(
+      `${root(org)}/studies/${encodeURIComponent(study)}`, {}, undefined, true, true,
+      async (response) => ({ value: await response.json() as Study, etag: response.headers.get('ETag') }),
     ),
-  studies: (org: string, project: string, includeArchived = false) =>
-    apiClient.request<Study[]>(`${root(org, project)}/studies?include_archived=${includeArchived}`),
   /**
    * Needs MEMBER. 403 `api_key_engine_forbidden`, 409 `slug_conflict`,
-   * 422 for an empty or foreign selection (`empty_study_cases`, `foreign_case_revision`) or a matrix over 10,000 cells (`study_matrix_too_large`).
+   * 422 for a revision of another organization (`foreign_case_revision`) or a matrix over 10,000 cells (`study_matrix_too_large`).
    */
-  createStudy: (org: string, project: string, value: Pick<Study, 'slug' | 'name' | 'description'> & ({ definition: Study['definition'] } | { definition_version_id: string })) =>
-    apiClient.request<Study>(`${root(org, project)}/studies`, {
+  createStudy: (org: string, value: Pick<Study, 'slug' | 'name' | 'description' | 'definition'>) =>
+    apiClient.request<Study>(`${root(org)}/studies`, {
       method: 'POST', body: JSON.stringify(value),
     }, undefined, true, true),
-  /** Needs MEMBER. Changing `definition_version_id` picks another sealed version of the same Study artifact. */
-  updateStudy: (org: string, project: string, study: string, value: { name?: string; description?: string; definition_version_id?: string; archived?: boolean }) =>
-    apiClient.request<Study>(`${root(org, project)}/studies/${encodeURIComponent(study)}`, {
-      method: 'PATCH', body: JSON.stringify(value),
-    }, undefined, true, true),
+  /**
+   * Needs MEMBER. `definition` replaces the current matrix (runs keep the copy they froze). With `ifMatch` the edit is
+   * refused with 412 `precondition_failed` when the study changed since it was read; the answer carries the new ETag.
+   */
+  updateStudy: (
+    org: string, study: string,
+    value: { name?: string; description?: string; archived?: boolean; definition?: StudyDefinition },
+    ifMatch: string | null = null,
+  ) =>
+    apiClient.request<Revised<Study>>(`${root(org)}/studies/${encodeURIComponent(study)}`, {
+      method: 'PATCH', body: JSON.stringify(value), ...(ifMatch ? { headers: { 'If-Match': ifMatch } } : {}),
+    }, undefined, true, true, async (response) => ({ value: await response.json() as Study, etag: response.headers.get('ETag') })),
   /** Needs ADMIN. 409 `study_history_retained` once the study has runs: archive it instead. */
-  deleteStudy: (org: string, project: string, study: string) =>
-    apiClient.request<void>(`${root(org, project)}/studies/${encodeURIComponent(study)}`, { method: 'DELETE' }, undefined, true, true),
+  deleteStudy: (org: string, study: string) =>
+    apiClient.request<void>(`${root(org)}/studies/${encodeURIComponent(study)}`, { method: 'DELETE' }, undefined, true, true),
   engineRevisions: () =>
     apiClient.request<{ revisions: EngineRevision[] }>('/v1/engines/revisions'),
   engineRevision: (namespace: string, name: string, version: string) =>
     apiClient.request<EngineRevision>(`/v1/engines/${encodeURIComponent(namespace)}/${encodeURIComponent(name)}/revisions/${encodeURIComponent(version)}`),
-  studyRuns: (org: string, project: string, study: string) =>
-    apiClient.request<StudyRun[]>(`${root(org, project)}/studies/${encodeURIComponent(study)}/runs`),
-  studyCells: (org: string, project: string, study: string, run: string) =>
+  studyRuns: (org: string, study: string) =>
+    apiClient.request<StudyRun[]>(`${root(org)}/studies/${encodeURIComponent(study)}/runs`),
+  /** One run with the definition it froze and that definition's digest. */
+  studyRun: (org: string, study: string, run: string) =>
+    apiClient.request<StudyRun>(
+      `${root(org)}/studies/${encodeURIComponent(study)}/runs/${encodeURIComponent(run)}`, {}, undefined, true, true,
+    ),
+  studyCells: (org: string, study: string, run: string) =>
     apiClient.request<StudyCell[]>(
-      `${root(org, project)}/studies/${encodeURIComponent(study)}/runs/${encodeURIComponent(run)}/cells`,
+      `${root(org)}/studies/${encodeURIComponent(study)}/runs/${encodeURIComponent(run)}/cells`,
     ),
   /** One cell of a run. 404 whether the cell is missing or belongs to another run. */
-  studyCell: (org: string, project: string, study: string, run: string, cell: string) =>
+  studyCell: (org: string, study: string, run: string, cell: string) =>
     apiClient.request<StudyCell>(
-      `${root(org, project)}/studies/${encodeURIComponent(study)}/runs/${encodeURIComponent(run)}/cells/${encodeURIComponent(cell)}`,
+      `${root(org)}/studies/${encodeURIComponent(study)}/runs/${encodeURIComponent(run)}/cells/${encodeURIComponent(cell)}`,
       {}, undefined, true, true,
     ),
-  analytics: (org: string, project: string, study: string, run: string) =>
+  analytics: (org: string, study: string, run: string) =>
     apiClient.request<Analytics>(
-      `${root(org, project)}/studies/${encodeURIComponent(study)}/runs/${encodeURIComponent(run)}/analytics`,
+      `${root(org)}/studies/${encodeURIComponent(study)}/runs/${encodeURIComponent(run)}/analytics`,
     ),
   /**
-   * Needs MEMBER. 202 with the new run. 402 `quota_exceeded`, 429 `concurrency_limit_exceeded`, 403 `feature_not_entitled`
-   * or `api_key_engine_forbidden`, 409 `study_archived` or `evidence_only_study`, 503 `pricing_unavailable`.
+   * Needs MEMBER. Freezes the study's current definition into a new run: 202 with it. 402 `quota_exceeded`,
+   * 429 `concurrency_limit_exceeded`, 403 `feature_not_entitled` or `api_key_engine_forbidden`, 409 `study_archived`,
+   * 422 `foreign_case_revision` or `revision_not_recompilable`, 503 `pricing_unavailable`.
    */
-  runStudy: (org: string, project: string, study: string, version: string) =>
+  runStudy: (org: string, study: string) =>
     apiClient.request<StudyRun>(
-      `${root(org, project)}/studies/${encodeURIComponent(study)}/runs?definition_version_id=${encodeURIComponent(version)}`,
+      `${root(org)}/studies/${encodeURIComponent(study)}/runs`,
       { method: 'POST' }, undefined, true, true,
     ),
   /** Needs MEMBER. 409 `terminal_run` once it ended. */
-  cancelStudyRun: (org: string, project: string, study: string, run: string) =>
+  cancelStudyRun: (org: string, study: string, run: string) =>
     apiClient.request<StudyRun>(
-      `${root(org, project)}/studies/${encodeURIComponent(study)}/runs/${encodeURIComponent(run)}/cancel`,
+      `${root(org)}/studies/${encodeURIComponent(study)}/runs/${encodeURIComponent(run)}/cancel`,
       { method: 'POST' }, undefined, true, true,
     ),
   /** Needs MEMBER. Only failed or cancelled cells: 409 `cell_not_retryable` otherwise, 422 when the cell can't be launched again. */
-  retryStudyCell: (org: string, project: string, study: string, run: string, cell: string) =>
+  retryStudyCell: (org: string, study: string, run: string, cell: string) =>
     apiClient.request<StudyCellRetry>(
-      `${root(org, project)}/studies/${encodeURIComponent(study)}/runs/${encodeURIComponent(run)}/cells/${encodeURIComponent(cell)}/retry`,
+      `${root(org)}/studies/${encodeURIComponent(study)}/runs/${encodeURIComponent(run)}/cells/${encodeURIComponent(cell)}/retry`,
       { method: 'POST' }, undefined, true, true,
     ),
-  /** Needs MEMBER. Attaches a finished job of the caller as the cell's result: 404 for a job that isn't theirs, 409 `job_not_finished`. */
-  attachStudyCellResult: (org: string, project: string, study: string, run: string, cell: string, jobId: string) =>
+  /** Needs MEMBER. Attaches a finished run of the organization as the cell's result: 404 for a run of another organization, 409 `job_not_finished`. */
+  attachStudyCellResult: (org: string, study: string, run: string, cell: string, jobId: string) =>
     apiClient.request<StudyCellAttached>(
-      `${root(org, project)}/studies/${encodeURIComponent(study)}/runs/${encodeURIComponent(run)}/cells/${encodeURIComponent(cell)}/result`,
+      `${root(org)}/studies/${encodeURIComponent(study)}/runs/${encodeURIComponent(run)}/cells/${encodeURIComponent(cell)}/result`,
       { method: 'POST', body: JSON.stringify({ job_id: jobId }) }, undefined, true, true,
     ),
 };

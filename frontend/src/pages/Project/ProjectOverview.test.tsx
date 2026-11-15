@@ -1,12 +1,11 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../api/client';
-import type { StudyCell } from '../../api/platform';
 import { ProjectOverview } from './ProjectOverview';
-import { iker, org, project, renderProjectScreen, runOf, studyOf } from '../../features/workspace/testKit';
+import { iker, org, project, renderProjectScreen } from '../../features/workspace/testKit';
 
 const platform = vi.hoisted(() => ({
-  project: vi.fn(), studies: vi.fn(), studyRuns: vi.fn(), studyCells: vi.fn(),
+  project: vi.fn(),
 }));
 
 vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'), platformApi: platform }));
@@ -14,11 +13,6 @@ vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof imp
 const group = org('isa-demo', { name: 'ISA Demo Group' });
 const viewing = org('read-lab', { name: 'Read Lab', effective_role: 'VIEWER' });
 const qos = project('qos-benchmarks', { name: 'QoS Benchmarks', description: 'Reference binding cases.', visibility: 'public' });
-const study = studyOf('engines', { name: 'Engines × seeds' });
-
-const cell = (n: number, state: StudyCell['state']): StudyCell => ({
-  id: `cell-${n}`, study_run_id: 'run', ordinal: n, binding_case_revision_id: 'rev', engine_ref: {}, parameters: {}, seed: n, fingerprint: 'f', job_id: null, state, metrics: {},
-});
 
 function renderOverview(options: { organizations?: ReturnType<typeof org>[]; slug?: string; user?: Parameters<typeof renderProjectScreen>[1]['user'] } = {}) {
   return renderProjectScreen(<ProjectOverview />, {
@@ -32,9 +26,6 @@ describe('Project overview', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     platform.project.mockResolvedValue(qos);
-    platform.studies.mockResolvedValue([study]);
-    platform.studyRuns.mockResolvedValue([runOf(study, 1)]);
-    platform.studyCells.mockResolvedValue([...[1, 2, 3, 4, 5, 6].map((n) => cell(n, 'completed')), cell(7, 'failed'), cell(8, 'cancelled')]);
   });
 
   it('opens with the project’s name, visibility, role and the actions of the project', async () => {
@@ -47,7 +38,9 @@ describe('Project overview', () => {
     expect(within(band).getByText('Reference binding cases.')).toBeInTheDocument();
     const root = '/app/isa-demo/qos-benchmarks';
     expect(within(band).getByRole('link', { name: 'Run' })).toHaveAttribute('href', '/app/isa-demo/runs/new');
-    expect(within(band).getByRole('link', { name: 'New study' })).toHaveAttribute('href', `${root}/studies/new`);
+    // Studies belong to the organization (F0b B7).
+    expect(within(band).getByRole('link', { name: 'Studies' })).toHaveAttribute('href', '/app/isa-demo/studies');
+    expect(within(band).queryByRole('link', { name: 'New study' })).not.toBeInTheDocument();
     expect(within(band).queryByText('New report')).not.toBeInTheDocument();
     // Problems and the Workbench belong to the organization.
     expect(within(band).getByRole('link', { name: 'Problems' })).toHaveAttribute('href', '/app/isa-demo/problems');
@@ -60,43 +53,20 @@ describe('Project overview', () => {
     expect(within(tabs).getByRole('link', { name: 'Settings' })).toHaveAttribute('href', `${root}/settings`);
   });
 
-  it('shows the sealed against draft strip with what the project holds', async () => {
+  it('has no Problems, runs or Studies card: they belong to the organization', async () => {
     renderOverview();
 
-    const strip = await screen.findByRole('region', { name: 'What’s sealed and what’s still a draft' });
-    const chips = within(strip).getByRole('list', { name: 'Sealed and draft items' });
-    expect(within(chips).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['1 study run']);
-  });
-
-  it('has no Problems card: problems belong to the organization', async () => {
-    renderOverview();
-
-    expect(await screen.findByRole('region', { name: 'Studies' })).toBeInTheDocument();
-    expect(screen.queryByRole('region', { name: 'Problems' })).not.toBeInTheDocument();
-  });
-
-  it('has no runs card: runs belong to the organization', async () => {
-    renderOverview();
-
-    expect(await screen.findByRole('region', { name: 'Studies' })).toBeInTheDocument();
-    expect(screen.queryByRole('region', { name: 'Recent runs' })).not.toBeInTheDocument();
-    expect(Array.from(document.querySelectorAll('a[href]')).map((link) => link.getAttribute('href'))).not.toContain('/app/isa-demo/qos-benchmarks/runs');
-  });
-
-  it('draws the latest run of a study as a stacked bar', async () => {
-    renderOverview();
-
-    const card = await screen.findByRole('region', { name: 'Studies' });
-    expect(await within(card).findByText('Run #1 · partial')).toBeInTheDocument();
-    expect(within(card).getByText('2 problem versions × 2 engines × 2 seeds = 8 cells · Sep 20, 2026')).toBeInTheDocument();
-    expect(within(card).getByRole('img', { name: '6 completed, 1 failed, 1 cancelled of 8' })).toBeInTheDocument();
+    expect(await screen.findByRole('region', { name: 'Get started' })).toBeInTheDocument();
+    for (const name of ['Problems', 'Recent runs', 'Studies']) expect(screen.queryByRole('region', { name })).not.toBeInTheDocument();
+    const hrefs = Array.from(document.querySelectorAll('a[href]')).map((link) => link.getAttribute('href'));
+    expect(hrefs).not.toContain('/app/isa-demo/qos-benchmarks/runs');
+    expect(hrefs).not.toContain('/app/isa-demo/qos-benchmarks/studies');
   });
 
   it('has no Reports card, no All reports link and no link to the retired report addresses, and keeps the other cards', async () => {
     renderOverview();
 
-    expect(await screen.findByRole('region', { name: 'Studies' })).toBeInTheDocument();
-    await screen.findByText('Run #1 · partial');
+    expect(await screen.findByRole('region', { name: 'Get started' })).toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'Reports' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'All reports' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'New report' })).not.toBeInTheDocument();
@@ -123,8 +93,7 @@ describe('Project overview', () => {
     });
   });
 
-  it('guides an empty project instead of showing four empty cards', async () => {
-    platform.studies.mockResolvedValue([]);
+  it('guides a member to the organization’s problems and runs', async () => {
     renderOverview();
 
     const guide = await screen.findByRole('region', { name: 'Get started' });
@@ -158,7 +127,7 @@ describe('Project overview', () => {
       }
       expect(within(band).queryByRole('link', { name: 'Problems' })).not.toBeInTheDocument();
       const tabs = within(screen.getByRole('navigation', { name: 'Project sections' }));
-      expect(tabs.getAllByRole('link').map((link) => link.textContent)).toEqual(['Overview', 'Studies']);
+      expect(tabs.getAllByRole('link').map((link) => link.textContent)).toEqual(['Overview']);
       expect(tabs.queryByRole('link', { name: 'Published' })).not.toBeInTheDocument();
       expect(tabs.queryByRole('link', { name: 'Reports' })).not.toBeInTheDocument();
       expect(tabs.queryByRole('link', { name: 'Runs' })).not.toBeInTheDocument();
@@ -166,20 +135,13 @@ describe('Project overview', () => {
       expect(tabs.queryByRole('link', { name: 'Settings' })).not.toBeInTheDocument();
     });
 
-    it('reads studies, and shows no runs', async () => {
-      renderVisitor();
-
-      expect(await screen.findByRole('region', { name: 'Studies' })).toBeInTheDocument();
-      expect(screen.queryByRole('region', { name: 'Reports' })).not.toBeInTheDocument();
-      expect(screen.queryByRole('region', { name: 'Recent runs' })).not.toBeInTheDocument();
-    });
-
-    it('does not show the get-started guide of a member when it is empty', async () => {
-      platform.studies.mockResolvedValue([]);
+    it('shows no studies, no runs and not the get-started guide of a member', async () => {
       renderVisitor();
 
       expect(await screen.findByText('Nothing has been shared in this project yet.')).toBeInTheDocument();
       expect(screen.queryByRole('region', { name: 'Get started' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('region', { name: 'Studies' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('region', { name: 'Recent runs' })).not.toBeInTheDocument();
     });
 
     it('treats a platform administrator who is not a member as a visitor too: public reading never writes', async () => {

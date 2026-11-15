@@ -567,7 +567,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       // The three admin-only permissions are locked with a reason, so nothing implies an admin key from the browser.
       await expect(main.getByRole('heading', { name: 'Permissions' })).toBeVisible();
-      await expect(main.getByRole('checkbox')).toHaveCount(24);
+      await expect(main.getByRole('checkbox')).toHaveCount(22);
       for (const id of ['engines:moderate', 'admin:accounts:read', 'admin:accounts:write']) {
         await expect(main.getByRole('checkbox', { name: new RegExp(`^${id}`) })).toBeDisabled();
       }
@@ -656,7 +656,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       await main.getByLabel('Name').fill('admin-audit-reader');
       await main.getByRole('button', { name: 'Continue' }).click();
-      await expect(main.getByRole('checkbox')).toHaveCount(24);
+      await expect(main.getByRole('checkbox')).toHaveCount(22);
       for (const id of ['engines:moderate', 'admin:accounts:read']) {
         await expect(main.getByRole('checkbox', { name: new RegExp(`^${id}`) })).toBeEnabled();
       }

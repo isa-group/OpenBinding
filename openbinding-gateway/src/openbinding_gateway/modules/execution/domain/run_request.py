@@ -28,6 +28,8 @@ class RunRequest:
     study's); ``revision_id`` names the revision as the client sent it, still unparsed. ``engine``
     is a built-in engine name or an immutable reference; ``registration`` an optional immutable
     reference. ``body_size`` is the size of the request body as read (0 for a study cell).
+    ``compilation_id`` is set by a study cell only: the compilation its run pinned (D7), which the job
+    runs instead of the installed toolchain's; ``createRun`` never sets it.
     """
 
     organization_id: uuid.UUID
@@ -39,6 +41,7 @@ class RunRequest:
     optimization: Any = None
     idempotency_key: str | None = None
     body_size: int = 0
+    compilation_id: uuid.UUID | None = None
 
     def body(self) -> dict[str, Any]:
         """The request as a document: what its idempotency fingerprint is taken over.
@@ -51,6 +54,8 @@ class RunRequest:
             value = getattr(self, name)
             if value is not None:
                 document[name] = value
+        if self.compilation_id is not None:
+            document["compilation"] = str(self.compilation_id)
         return document
 
     @classmethod

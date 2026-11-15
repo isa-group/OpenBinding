@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { libraryApi, type ArtifactVersion } from '../../api/library';
 import { HttpError } from '../../api/client';
 import { platformApi, type Study, type StudyCell, type StudyRun } from '../../api/platform';
 import { Action } from '../../components/ui/Action';
@@ -16,13 +15,16 @@ import { useResource, type Resource } from '../../utils/useResource';
 import { classifyAuthError, marker } from '../Account/accountErrors';
 import { RefusalNotice } from '../Jobs/parts';
 import { NotFoundScreen } from '../../routes/NotFoundScreen';
+import { studiesPath } from '../../routes/paths/studies';
 import { CellBar, StateChip, StudyFrame } from './parts';
 import { CellPanel } from './StudyCell';
+import { CopyDigest } from './CopyDigest';
 import { StudyScope, type StudyScopeValue } from './StudyScope';
 import { RunResults } from './StudyAnalytics';
 import { RunProgress } from './StudyRun';
 import {
-  STUDY_TABS, definitionGrid, definitionSize, describeParameters, formulaOf, isStudyTab, plural, revisionLabel, stateWord, studyPageHref, type StudyTabId,
+  STUDY_TABS, definitionGrid, definitionOfRun, definitionSize, describeParameters, formulaOf, isStudyTab, plural, revisionLabel, sameDefinition, stateWord,
+  studyPageHref, type StudyTabId,
 } from './studiesModel';
 import { studyRefusal, type Refusal } from './studyErrors';
 import { useRevisionIndex } from './useRevisionIndex';
@@ -36,12 +38,12 @@ type Outcome =
   | { tone: 'success'; text: string; follow?: { to: string; label: string } }
   | { tone: 'error'; refusal: Refusal };
 
-function DefinitionMatrix({ study, org }: { study: Study; org: string }) {
+function DefinitionMatrix({ definition, org }: { definition: Study['definition']; org: string }) {
   const { index } = useRevisionIndex(org);
-  const grid = definitionGrid(study.definition);
-  const size = definitionSize(study.definition);
-  const seeds = [...study.definition.seeds].sort((a, b) => a - b);
-  const settings = study.definition.parameter_sets ?? [];
+  const grid = definitionGrid(definition);
+  const size = definitionSize(definition);
+  const seeds = [...definition.seeds].sort((a, b) => a - b);
+  const settings = definition.parameter_sets ?? [];
   return (
     <section className="st-card" aria-labelledby="st-matrix-title">
       <h2 id="st-matrix-title">The matrix</h2>
@@ -81,13 +83,12 @@ function DefinitionMatrix({ study, org }: { study: Study; org: string }) {
 }
 
 function RunsCard({ scope, runs }: { scope: StudyScopeValue; runs: Resource<StudyRun[]> }) {
-  const { study, root, organization, project } = scope;
-  const studyPath = `${root}/studies/${encodeURIComponent(study.slug)}`;
+  const { study, organization, studyPath } = scope;
   const list = runs.data ?? runs.stale;
   // The newest runs show their cells as a bar; reading them waits for the Setup tab, which is the only one that draws them.
   const newest = (list ?? []).slice(0, RUNS_WITH_BARS);
   const bars = useResource<Record<string, StudyCell[]>>(`study-run-bars:${study.id}:${newest.map((run) => run.id).join(',')}`, async () => {
-    const entries = await Promise.all(newest.map(async (run) => [run.id, await platformApi.studyCells(organization.slug, project.slug, study.slug, run.id).catch(() => undefined)] as const));
+    const entries = await Promise.all(newest.map(async (run) => [run.id, await platformApi.studyCells(organization.slug, study.slug, run.id).catch(() => undefined)] as const));
     return Object.fromEntries(entries.filter((entry): entry is readonly [string, StudyCell[]] => entry[1] !== undefined));
   });
   const data = list ? { runs: list, cells: bars.data ?? bars.stale ?? {} } : undefined;
@@ -103,9 +104,7 @@ function RunsCard({ scope, runs }: { scope: StudyScopeValue; runs: Resource<Stud
       )}
       {data && data.runs.length === 0 && (
         <p className="org-muted">
-          {scope.access.publicRead
-            ? 'No runs yet.'
-            : <>No runs yet. Running uses 1 study run from your month and runs up to {plural(definitionSize(study.definition).cells, 'cell')}.</>}
+          No runs yet. Running uses 1 study run from your month and runs up to {plural(definitionSize(study.definition).cells, 'cell')}.
         </p>
       )}
       {data && data.runs.length > 0 && (
@@ -129,39 +128,30 @@ function RunsCard({ scope, runs }: { scope: StudyScopeValue; runs: Resource<Stud
   );
 }
 
-function VersionsCard({ scope, versions, onPick, busy }: {
-  scope: StudyScopeValue; versions: Resource<ArtifactVersion[] | null>; onPick: (id: string) => void; busy: boolean;
-}) {
+/** The current definition: its digest, and the way to edit it. A run keeps the copy it froze, so editing never changes a run. */
+function DefinitionCard({ scope, onEdit, busy }: { scope: StudyScopeValue; onEdit: () => void; busy: boolean }) {
   const { study, access } = scope;
-  const list = versions.data ?? versions.stale ?? [];
-  const usable = list.filter((version) => !version.withdrawn);
-  const locked = !access.canCreate || study.archived || busy;
   return (
-    <section className="st-card" aria-labelledby="st-versions-title">
-      <h2 id="st-versions-title">Definition versions</h2>
-      {versions.status === 'ready' && versions.data === null && <p className="org-muted">The library didn’t answer, so the versions can’t be listed right now.</p>}
-      <label className="st-select">
-        <span>Use version</span>
-        <select aria-label="Use version" value={study.definition_version_id} disabled={locked || usable.length < 2} onChange={(event) => onPick(event.target.value)}>
-          {usable.length === 0 && <option value={study.definition_version_id}>Current version</option>}
-          {usable.map((version) => <option key={version.id} value={version.id}>v{version.ordinal}{version.id === study.definition_version_id ? ' · current' : ''}</option>)}
-        </select>
-      </label>
+    <section className="st-card" aria-labelledby="st-definition-title">
+      <h2 id="st-definition-title">Definition</h2>
       <span className="st-caption">
-        {usable.length <= 1
-          ? 'Only one version exists. A new version appears when the definition is sealed again.'
-          : `${usable.length} versions are sealed. A new run uses the one chosen here.`}
-        {!access.canCreate && ' Changing it needs MEMBER.'}
+        Each run freezes the definition it starts with, and the compilation of every problem version, so editing it here changes
+        only the runs that start afterwards.
       </span>
+      <span><CopyDigest value={study.definition_digest} label="Copy the definition digest" /></span>
+      {access.canCreate && (
+        <Action variant="secondary" size="sm" disabled={study.archived || busy} onClick={onEdit}>Edit definition</Action>
+      )}
+      {!access.canCreate && <span className="st-caption">Editing it needs MEMBER.</span>}
     </section>
   );
 }
 
-/** The Setup tab: the definition as the M2.5 pair, Overview (matrix, runs, versions) and Source. */
-function SetupTab({ scope, runs, versions, onPick, busy }: {
-  scope: StudyScopeValue; runs: Resource<StudyRun[]>; versions: Resource<ArtifactVersion[] | null>; onPick: (id: string) => void; busy: boolean;
+/** The Setup tab: the definition as the M2.5 pair, Overview (matrix, runs, definition) and Source. */
+function SetupTab({ scope, runs, onEdit, busy }: {
+  scope: StudyScopeValue; runs: Resource<StudyRun[]>; onEdit: () => void; busy: boolean;
 }) {
-  const { study, organization, access } = scope;
+  const { study, organization } = scope;
   const [view, setView] = useState<'overview' | 'source'>('overview');
   return (
     <>
@@ -169,11 +159,11 @@ function SetupTab({ scope, runs, versions, onPick, busy }: {
       <TabPanel prefix="st-view" active={view}>
         {view === 'overview' ? (
           <>
-            <DefinitionMatrix study={study} org={organization.slug} />
+            <DefinitionMatrix definition={study.definition} org={organization.slug} />
 
             <div className="st-two">
               <RunsCard scope={scope} runs={runs} />
-              {!access.publicRead && <VersionsCard scope={scope} versions={versions} onPick={onPick} busy={busy} />}
+              <DefinitionCard scope={scope} onEdit={onEdit} busy={busy} />
             </div>
           </>
         ) : (
@@ -184,29 +174,52 @@ function SetupTab({ scope, runs, versions, onPick, busy }: {
   );
 }
 
+/** What the selected run froze: its problem versions with the compilation each runs, and the way back to that matrix. */
+function FrozenDefinition({ scope, run, onRestore, busy }: { scope: StudyScopeValue; run: StudyRun; onRestore: (run: StudyRun) => void; busy: boolean }) {
+  const { access, study, organization } = scope;
+  const { index } = useRevisionIndex(organization.slug);
+  const definition = definitionOfRun(run);
+  const same = sameDefinition(definition, study.definition);
+  return (
+    <section className="st-card st-frozen" aria-labelledby="st-frozen-title">
+      <h2 id="st-frozen-title">Frozen definition</h2>
+      <span className="st-caption">What this run froze when it started. Editing the study does not change it.</span>
+      <span><CopyDigest value={run.definition_digest} label="Copy the digest of the frozen definition" /></span>
+      <ul className="st-frozen-problems" aria-label="Problem versions of the run">
+        {run.definition.problems.map((problem) => (
+          <li key={problem.revisionId}>
+            <span>{revisionLabel(index, problem.revisionId, true)}</span>{' '}
+            <small className="org-muted">compiled once for this run · </small>
+            <CopyDigest value={problem.compilationDigest} label={`Copy the compilation digest of ${revisionLabel(index, problem.revisionId, true)}`} />
+          </li>
+        ))}
+      </ul>
+      <span className="st-caption">{formulaOf(definitionSize(definition))}: this run expanded exactly these cells.</span>
+      {access.canCreate && !same && (
+        <Action variant="secondary" size="sm" disabled={study.archived || busy} onClick={() => onRestore(run)}>Use it for the next runs</Action>
+      )}
+      {same && <span className="st-caption">The study’s current definition is this one.</span>}
+    </section>
+  );
+}
+
 function NoRuns() {
   return <p className="org-muted">This study has no run yet. Start one with Run study; its progress and results appear here.</p>;
 }
 
 function DetailBody({ scope, tab }: { scope: StudyScopeValue; tab: StudyTabId | undefined }) {
-  const { study, organization, project, access, root, reloadStudy } = scope;
+  const { study, organization, access, etag, studyPath, reloadStudy } = scope;
   const org = organization.slug;
-  const slug = project.slug;
   const navigate = useNavigate();
   const [query, setQuery] = useSearchParams();
-  const studyPath = `${root}/studies/${encodeURIComponent(study.slug)}`;
   const runs = useResource<StudyRun[]>(`study-runs:${study.id}`, async () => {
-    const list = await platformApi.studyRuns(org, slug, study.slug);
+    const list = await platformApi.studyRuns(org, study.slug);
     return [...list].sort((a, b) => b.run_number - a.run_number);
   });
-  // The definition lives in the organization’s library, which a visitor of a public project doesn’t read.
-  const versions = useResource<ArtifactVersion[] | null>(
-    `study-versions:${study.definition_artifact_id}:${access.publicRead ? 'public' : 'member'}`,
-    () => (access.publicRead ? Promise.resolve(null) : libraryApi.versions(study.definition_artifact_id).catch(() => null)),
-  );
   const [outcome, setOutcome] = useState<Outcome | null>(null);
-  const [busy, setBusy] = useState<'run' | 'archive' | 'version' | 'delete' | null>(null);
+  const [busy, setBusy] = useState<'run' | 'archive' | 'definition' | 'delete' | null>(null);
   const [editing, setEditing] = useState(false);
+  const [editingDefinition, setEditingDefinition] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   // The study run shown: the one the address names, else the latest. The default tab is Progress for a study with runs, else Setup.
@@ -220,14 +233,14 @@ function DetailBody({ scope, tab }: { scope: StudyScopeValue; tab: StudyTabId | 
   const listFailure = needsList && runs.status === 'error' ? classifyAuthError(runs.error) : null;
   const active: StudyTabId = tab ?? (runList && runList.length > 0 ? 'progress' : 'setup');
 
-  const current = (versions.data ?? versions.stale ?? []).find((version) => version.id === study.definition_version_id);
+  const shownRun = runList?.find((item) => item.id === runId);
   const settle = (next: Outcome | null) => { setOutcome(next); setBusy(null); };
 
   const run = async () => {
     setBusy('run');
     setOutcome(null);
     try {
-      const made = await platformApi.runStudy(org, slug, study.slug, study.definition_version_id);
+      const made = await platformApi.runStudy(org, study.slug);
       settle({ tone: 'success', text: `Run #${made.run_number} accepted (202). Cells start as run slots free up.`, follow: { to: studyPageHref(studyPath, 'progress', { run: made.id }), label: `Follow run #${made.run_number}` } });
       runs.reload();
     } catch (caught) {
@@ -239,7 +252,7 @@ function DetailBody({ scope, tab }: { scope: StudyScopeValue; tab: StudyTabId | 
     setBusy('archive');
     setOutcome(null);
     try {
-      await platformApi.updateStudy(org, slug, study.slug, { archived: !study.archived });
+      await platformApi.updateStudy(org, study.slug, { archived: !study.archived });
       settle({ tone: 'success', text: study.archived ? 'Restored. It can start new runs again.' : 'Archived: it can’t start new runs, and existing results stay.' });
       reloadStudy();
     } catch (caught) {
@@ -247,13 +260,12 @@ function DetailBody({ scope, tab }: { scope: StudyScopeValue; tab: StudyTabId | 
     }
   };
 
-  const pickVersion = async (id: string) => {
-    if (id === study.definition_version_id) return;
-    setBusy('version');
+  const restore = async (from: StudyRun) => {
+    setBusy('definition');
     setOutcome(null);
     try {
-      await platformApi.updateStudy(org, slug, study.slug, { definition_version_id: id });
-      settle({ tone: 'success', text: 'The study now uses that definition version. Earlier runs keep the version they ran with.' });
+      await platformApi.updateStudy(org, study.slug, { definition: definitionOfRun(from) }, etag);
+      settle({ tone: 'success', text: `The study’s definition is now the one run #${from.run_number} froze. Earlier runs keep the definitions they ran with.` });
       reloadStudy();
     } catch (caught) {
       settle({ tone: 'error', refusal: studyRefusal(caught, 'update') });
@@ -263,14 +275,14 @@ function DetailBody({ scope, tab }: { scope: StudyScopeValue; tab: StudyTabId | 
   const remove = async () => {
     setBusy('delete');
     try {
-      await platformApi.deleteStudy(org, slug, study.slug);
-      void navigate(`${root}/studies`, { viewTransition: true });
+      await platformApi.deleteStudy(org, study.slug);
+      void navigate(studiesPath(org), { viewTransition: true });
     } catch (caught) {
       setDeleting(false);
       if (caught instanceof HttpError && caught.status === 409 && caught.code === 'study_history_retained') {
         try {
-          await platformApi.updateStudy(org, slug, study.slug, { archived: true });
-          settle({ tone: 'success', text: 'This study has runs, so it was archived instead of deleted. Results cited by reports stay intact.' });
+          await platformApi.updateStudy(org, study.slug, { archived: true });
+          settle({ tone: 'success', text: 'This study has runs, so it was archived instead of deleted. Its runs and results stay intact.' });
           reloadStudy();
         } catch (second) {
           settle({ tone: 'error', refusal: studyRefusal(second, 'archive') });
@@ -282,14 +294,14 @@ function DetailBody({ scope, tab }: { scope: StudyScopeValue; tab: StudyTabId | 
   };
 
   return (
-    <StudyFrame organization={organization} project={project} trail={[{ label: 'Studies', to: `${root}/studies` }, { label: study.name }]}>
+    <StudyFrame organization={organization} trail={[{ label: 'Studies', to: studiesPath(org) }, { label: study.name }]}>
       <header className="proj-title-row">
         <div className="proj-title">
           <div className="proj-title-line">
             <h1>{study.name}</h1>
             {study.archived && <Chip>Archived</Chip>}
           </div>
-          <p>{current ? `Definition version ${current.ordinal}` : 'Definition version'} · sealed</p>
+          <p>{formulaOf(definitionSize(study.definition))} = {plural(definitionSize(study.definition).cells, 'cell')}</p>
           {study.description && <p>{study.description}</p>}
         </div>
         <div className="proj-actions">
@@ -312,11 +324,7 @@ function DetailBody({ scope, tab }: { scope: StudyScopeValue; tab: StudyTabId | 
         <Notice tone="info">Archived studies keep their runs and results but can’t start new runs until restored.</Notice>
       )}
       {!access.canCreate && (
-        <p className="org-muted">
-          {access.publicRead
-            ? 'You can read this study and its runs. Only members of the organization run, archive or edit it.'
-            : `You can read this study. Running, archiving and editing it need MEMBER in ${organization.name}.`}
-        </p>
+        <p className="org-muted">You can read this study. Running, archiving and editing it need MEMBER in {organization.name}.</p>
       )}
 
       {waiting ? (
@@ -341,7 +349,7 @@ function DetailBody({ scope, tab }: { scope: StudyScopeValue; tab: StudyTabId | 
             prefix="st-tab"
           />
           <TabPanel prefix="st-tab" active={active}>
-            {active === 'setup' && <SetupTab scope={scope} runs={runs} versions={versions} onPick={(id) => void pickVersion(id)} busy={busy === 'version'} />}
+            {active === 'setup' && <SetupTab scope={scope} runs={runs} onEdit={() => setEditingDefinition(true)} busy={busy !== null} />}
             {active !== 'setup' && listFailure && (
               <Notice tone="error" action={<Action variant="secondary" size="sm" onClick={runs.reload}>Retry</Action>}>
                 {listFailure.status === 403 ? `This key can’t read the runs${marker(listFailure)}.` : `The runs couldn’t be loaded${marker(listFailure)}.`}
@@ -349,6 +357,7 @@ function DetailBody({ scope, tab }: { scope: StudyScopeValue; tab: StudyTabId | 
             )}
             {active !== 'setup' && !listFailure && (
               <>
+                {shownRun && <FrozenDefinition scope={scope} run={shownRun} onRestore={(from) => void restore(from)} busy={busy !== null} />}
                 {active === 'progress' && (runId ? <RunProgress key={runId} scope={scope} runId={runId} /> : <NoRuns />)}
                 {active === 'results' && (runId
                   ? cellId
@@ -361,7 +370,16 @@ function DetailBody({ scope, tab }: { scope: StudyScopeValue; tab: StudyTabId | 
         </>
       )}
 
-      {editing && <EditDialog study={study} onClose={() => setEditing(false)} onSaved={() => { setEditing(false); settle({ tone: 'success', text: 'Details saved.' }); reloadStudy(); }} org={org} project={slug} />}
+      {editing && <EditDialog study={study} onClose={() => setEditing(false)} onSaved={() => { setEditing(false); settle({ tone: 'success', text: 'Details saved.' }); reloadStudy(); }} org={org} />}
+      {editingDefinition && (
+        <DefinitionDialog
+          study={study}
+          etag={etag}
+          org={org}
+          onClose={() => setEditingDefinition(false)}
+          onSaved={() => { setEditingDefinition(false); settle({ tone: 'success', text: 'Definition saved. The next run uses it; earlier runs keep the definitions they ran with.' }); reloadStudy(); }}
+        />
+      )}
       {deleting && (
         <Modal title={`Delete ${study.name}?`} tone="danger" onClose={() => busy === null && setDeleting(false)}>
           <p>The definition goes away for good. A study that already has runs can’t be deleted, because runs are history: it is archived instead, and its results stay.</p>
@@ -375,7 +393,7 @@ function DetailBody({ scope, tab }: { scope: StudyScopeValue; tab: StudyTabId | 
   );
 }
 
-function EditDialog({ study, org, project, onClose, onSaved }: { study: Study; org: string; project: string; onClose: () => void; onSaved: () => void }) {
+function EditDialog({ study, org, onClose, onSaved }: { study: Study; org: string; onClose: () => void; onSaved: () => void }) {
   const [name, setName] = useState(study.name);
   const [description, setDescription] = useState(study.description);
   const [busy, setBusy] = useState(false);
@@ -385,7 +403,7 @@ function EditDialog({ study, org, project, onClose, onSaved }: { study: Study; o
     setBusy(true);
     setRefusal(null);
     try {
-      await platformApi.updateStudy(org, project, study.slug, { name: name.trim(), description: description.trim() });
+      await platformApi.updateStudy(org, study.slug, { name: name.trim(), description: description.trim() });
       onSaved();
     } catch (caught) {
       setRefusal(studyRefusal(caught, 'update'));
@@ -410,8 +428,73 @@ function EditDialog({ study, org, project, onClose, onSaved }: { study: Study; o
   );
 }
 
+/** The definition as JSON: the problem versions, engines, settings and seeds. Saved with the ETag it was read with. */
+function DefinitionDialog({ study, org, etag, onClose, onSaved }: { study: Study; org: string; etag: string | null; onClose: () => void; onSaved: () => void }) {
+  const [text, setText] = useState(() => JSON.stringify(study.definition, null, 2));
+  const [busy, setBusy] = useState(false);
+  const [refusal, setRefusal] = useState<Refusal | null>(null);
+  const parsed = readDefinition(text);
+  const save = async () => {
+    if (!parsed.definition) return;
+    setBusy(true);
+    setRefusal(null);
+    try {
+      await platformApi.updateStudy(org, study.slug, { definition: parsed.definition }, etag);
+      onSaved();
+    } catch (caught) {
+      setRefusal(studyRefusal(caught, 'update'));
+      setBusy(false);
+    }
+  };
+  return (
+    <Modal title="Edit definition" size="lg" onClose={() => !busy && onClose()}>
+      <form className="org-dialog-form" onSubmit={(event) => { event.preventDefault(); void save(); }} noValidate>
+        <p className="org-muted">
+          The problem versions (<code>revision_ids</code>), engines, settings (<code>parameter_sets</code>) and seeds of the study.
+          Runs already made keep the definition they froze.
+        </p>
+        <label className="st-description">
+          <span>Definition (JSON)</span>
+          <textarea
+            className="proj-textarea st-definition-text"
+            rows={14}
+            spellCheck={false}
+            value={text}
+            onChange={(event) => { setText(event.target.value); setRefusal(null); }}
+            aria-invalid={parsed.error ? 'true' : undefined}
+          />
+        </label>
+        {parsed.error && <Notice tone="warning">{parsed.error}</Notice>}
+        {refusal && <RefusalNotice refusal={refusal} />}
+        <div className="ui-modal-actions">
+          <Action variant="secondary" onClick={onClose} disabled={busy}>Cancel</Action>
+          <Action type="submit" variant="primary" busy={busy} disabled={!parsed.definition}>Save definition</Action>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+/** A definition typed as JSON, or why it isn't one. The gateway checks the rest (that every version is the organization's, the engines). */
+function readDefinition(text: string): { definition?: Study['definition']; error?: string } {
+  let value: unknown;
+  try {
+    value = JSON.parse(text);
+  } catch {
+    return { error: 'This isn’t valid JSON.' };
+  }
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return { error: 'The definition must be a JSON object.' };
+  const record = value as Record<string, unknown>;
+  const lists = ['revision_ids', 'engines', 'parameter_sets', 'seeds'] as const;
+  const missing = lists.filter((key) => !Array.isArray(record[key]));
+  if (missing.length) return { error: `It needs the lists ${missing.join(', ')}.` };
+  const extra = Object.keys(record).filter((key) => !(lists as readonly string[]).includes(key));
+  if (extra.length) return { error: `Unknown fields: ${extra.join(', ')}.` };
+  return { definition: record as unknown as Study['definition'] };
+}
+
 /**
- * One study (`study-detail`, `/app/:org/:project/studies/:study/:tab?`): Setup (the definition), Progress and Results of the study run
+ * One study (`study-detail`, `/app/:org/studies/:study/:tab?`): Setup (the definition), Progress and Results of the study run
  * named by `?run=` (the latest when none). Any other tab is a page that does not exist.
  */
 export function StudyDetail() {

@@ -349,10 +349,12 @@ def sqlite_only(db_session):
 async def a_cell(session, owner, job_id, state=RunState.RUNNING) -> uuid.UUID:
     run = StudyRun(
         study_id=uuid.uuid4(),
-        definition_version_id=uuid.uuid4(),
         run_number=1,
         state=RunState.RUNNING,
         matrix_digest="sha256-" + "0" * 64,
+        definition={"apiVersion": "openbinding/study-run/v1", "problems": [], "engines": [],
+                    "parameterSets": [{}], "seeds": [0]},
+        definition_digest="sha256-" + "1" * 64,
         created_by_id=owner.id,
     )
     session.add(run)
@@ -361,6 +363,7 @@ async def a_cell(session, owner, job_id, state=RunState.RUNNING) -> uuid.UUID:
         study_run_id=run.id,
         ordinal=0,
         binding_case_revision_id=uuid.uuid4(),
+        compilation_id=uuid.uuid4(),
         engine_ref={"namespace": "bim.builtin", "name": "random-search", "version": "1.0.0"},
         parameters={},
         seed=0,

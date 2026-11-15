@@ -220,7 +220,7 @@ is managed in the remote SPHERE and SPACE UIs, not in OpenBinding.
 
 OpenBinding guarantees strict cryptographic immutability and provenance:
 - **In-browser ZIP Uncompression & Inspection**: Explore `.bim.zip` problem revisions and artifact archives directly in the browser with directory trees and syntax-highlighted code inspection via CodeMirror.
-- **Versioned study definitions**: Projects can share an exact library Study version and adopt updates independently. Runs retain their original version and matrix; archive/restore preserves execution history. See the [artifact lifecycle and migration status](docs/VERSIONED_ARTIFACTS.md).
+- **Frozen study definitions**: A study keeps its editable matrix inline; every study run freezes a copy of it, with its digest and the compilation each problem revision runs on, so editing a study never changes what a run ran. Archive/restore preserves execution history.
 - **Dedicated Deep-Linked Views**: Full-page inspection and editing for Problems (`/app/:org/problems/:problem`), their revisions and Jobs (`/jobs/:jobId`).
 
 ## Repository layout
@@ -315,5 +315,3 @@ docker compose exec -T gateway-dev test \
 docker compose exec -T gateway-dev test \
   tests/test_v1_lifecycle_rbac.py tests/test_federated_multi_heuristic_example.py
 ```
-
-The [versioned artifact library](docs/VERSIONED_ARTIFACTS.md) documents the organization-scoped lifecycle, exact references, case composition and migration status. Project resource endpoints delegate to the same library; `/blobs` stores bytes and `/v1/artifacts` exposes editorial identities.

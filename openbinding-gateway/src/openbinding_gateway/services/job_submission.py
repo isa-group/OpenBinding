@@ -68,6 +68,11 @@ from ..modules.problems.application import compile_or_get, package_file_digests
 from .entitlements import EntitlementsUnavailable, entitlement_service
 
 _PENDING_LAUNCHES = "pending-job-launches"
+#: What a study cell is told when the compilation its run pinned cannot run on the installed toolchain.
+STUDY_STALE_IR_MESSAGE = (
+    "This study run's compilation was produced by another bim-toolchain release than the installed one: "
+    "start a new study run to compile its problems with the installed toolchain."
+)
 _ACCOUNT_REQUIRED = "Submitting a job requires an account."
 
 
@@ -347,12 +352,27 @@ class JobSubmission:
             ))
         try:
             await require_work_role(session, self.caller, [problem_row.organization_id])
-            compilation = await compile_or_get(session, revision, release_transaction=self.commit)
+            if request.compilation_id is not None:
+                compilation = await self._pinned_compilation(request.compilation_id)
+            else:
+                compilation = await compile_or_get(session, revision, release_transaction=self.commit)
         except HTTPException as exc:
             raise _Finished(problem_from_http(exc)) from exc
         if compilation.ir.get("apiVersion") != "bim/v1" or compilation.ir.get("kind") != "BindingProblem":
             raise _Finished(problem(422, "execution_capability_unavailable", "This output has no installed execution evaluator"))
         return _Source(revision, problem_row, compilation, request)
+
+    async def _pinned_compilation(self, compilation_id: uuid.UUID) -> ProblemCompilation:
+        """The compilation a study run pinned for this cell (D7), if the installed toolchain can still run it.
+
+        The composite foreign key of ``jobs`` ties it to the revision the job names, so it is not checked
+        here. One that another toolchain release produced is ``422 contract_not_installed``; retrying the
+        cell cannot help, a new study run compiles the problems again.
+        """
+        compilation = await self.session.get(ProblemCompilation, compilation_id)
+        if compilation is None or not bim.ir_is_installed(compilation.ir):
+            raise _Finished(problem(422, "contract_not_installed", STUDY_STALE_IR_MESSAGE))
+        return compilation
 
     async def _precheck(self, request: RunRequest, source: _Source) -> str:
         """The request's fingerprint; an earlier job with the same key settles the request here (replay or 409)."""

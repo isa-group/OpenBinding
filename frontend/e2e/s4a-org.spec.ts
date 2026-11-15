@@ -580,7 +580,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(confirm).toBeDisabled();
       await dialog.getByLabel('Type isa-demo to confirm').fill('isa-demo');
       await expect(confirm).toBeEnabled();
-      state.refuse.remove = detail(409, 'historical_references', 'Organizations with sealed library history cannot be deleted.');
+      state.refuse.remove = detail(409, 'historical_references', 'Organizations with runs or study runs cannot be deleted; their history is kept.');
       await confirm.click();
       await expect(dialog.getByRole('alert')).toContainText('It has sealed history, so it can’t be deleted (409 · historical_references).');
       await capture(page, testInfo, `settings-${name}-delete-409`);

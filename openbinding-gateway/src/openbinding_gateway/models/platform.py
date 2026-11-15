@@ -134,43 +134,22 @@ class ProjectView(ProjectCreate):
     )
 
 
-class ProjectResourceView(BaseModel):
-    # Project resources are read-only since M9.6; the fields and their schema are those of the former create body.
-    model_config = ConfigDict(extra="forbid")
-    slug: str = Field(..., pattern=SLUG)
-    name: str = Field(..., min_length=1, max_length=160)
-    description: str = Field(default="", max_length=2000)
-    kind: str = Field(default="bim-resource", min_length=1, max_length=128)
-    id: uuid.UUID
-    project_id: uuid.UUID
-    created_by_id: uuid.UUID
-    created_at: datetime
-
-
-class ProjectResourceRevisionView(BaseModel):
-    id: uuid.UUID
-    project_resource_id: uuid.UUID
-    revision: int
-    digest: str
-    document: dict[str, Any]
-    created_at: datetime
-
-
 class StudyDefinition(BaseModel):
-    """The reproducible Cartesian product behind a comparative study."""
+    """The reproducible Cartesian product behind a comparative study: problem revisions of the study's
+    organization, exact engine revisions with a mode, parameter sets and seeds."""
 
     model_config = ConfigDict(extra="forbid")
-    case_revision_ids: list[uuid.UUID] = Field(default_factory=list, max_length=250)
+    revision_ids: list[uuid.UUID] = Field(default_factory=list, max_length=250)
     engines: list[dict[str, Any]] = Field(..., min_length=1, max_length=50)
     parameter_sets: list[dict[str, Any]] = Field(default_factory=lambda: [{}], min_length=1, max_length=100)
     seeds: list[int] = Field(default_factory=lambda: [0], min_length=1, max_length=100)
 
     @model_validator(mode="after")
     def bounded_matrix(self):
-        if not self.case_revision_ids:
-            raise ValueError("provide case_revision_ids")
-        if len(set(self.case_revision_ids)) != len(self.case_revision_ids):
-            raise ValueError("case_revision_ids contains duplicates")
+        if not self.revision_ids:
+            raise ValueError("provide revision_ids")
+        if len(set(self.revision_ids)) != len(self.revision_ids):
+            raise ValueError("revision_ids contains duplicates")
         if len(set(self.seeds)) != len(self.seeds):
             raise ValueError("seeds contains duplicates")
         if len({json.dumps(value, sort_keys=True, separators=(",", ":")) for value in self.parameter_sets}) != len(self.parameter_sets):
@@ -181,8 +160,8 @@ class StudyDefinition(BaseModel):
         }
         if len(identities) != len(self.engines):
             raise ValueError("engines contains duplicate revisions")
-        cells = max(1, len(self.case_revision_ids)) * len(self.engines) * len(self.parameter_sets) * len(self.seeds)
-        if self.case_revision_ids and cells > 10_000:
+        cells = max(1, len(self.revision_ids)) * len(self.engines) * len(self.parameter_sets) * len(self.seeds)
+        if self.revision_ids and cells > 10_000:
             raise ValueError("a study run may contain at most 10,000 cells")
         required = {"namespace", "name", "version", "digest"}
         allowed = required | {"mode", "optimization"}
@@ -207,43 +186,59 @@ class StudyMetadata(BaseModel):
 
 
 class StudyCreate(StudyMetadata):
-    definition: Optional[StudyDefinition] = None
-    definition_version_id: Optional[uuid.UUID] = None
-
-    @model_validator(mode="after")
-    def exact_definition_source(self):
-        if (self.definition is None) == (self.definition_version_id is None):
-            raise ValueError("Specify either definition or definition_version_id.")
-        return self
+    definition: StudyDefinition
 
 
 class StudyUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
     archived: Optional[bool] = None
-    definition_version_id: Optional[uuid.UUID] = None
     name: Optional[str] = Field(default=None, min_length=1, max_length=160)
     description: Optional[str] = Field(default=None, max_length=2000)
+    #: The new current matrix. Runs keep the copy they froze.
+    definition: Optional[StudyDefinition] = None
 
 
 class StudyView(StudyMetadata):
-    definition: StudyDefinition
-    archived: bool
-    definition_artifact_id: uuid.UUID
-    definition_version_id: uuid.UUID
     id: uuid.UUID
-    project_id: uuid.UUID
+    organization_id: uuid.UUID
+    definition: StudyDefinition
+    definition_digest: str
+    archived: bool
     state: str
     created_by_id: uuid.UUID
     created_at: datetime
 
 
+class StudyRunProblem(BaseModel):
+    """One problem revision of a study run, with the compilation every cell of it runs."""
+
+    revisionId: uuid.UUID
+    problemId: uuid.UUID
+    revision: int
+    packageDigest: str
+    compilationId: uuid.UUID
+    compilationDigest: str
+    irDigest: str
+
+
+class StudyRunDefinition(BaseModel):
+    """The definition a study run froze when it was created (``openbinding/study-run/v1``)."""
+
+    apiVersion: str
+    problems: list[StudyRunProblem]
+    engines: list[dict[str, Any]]
+    parameterSets: list[dict[str, Any]]
+    seeds: list[int]
+
+
 class StudyRunView(BaseModel):
-    definition_version_id: uuid.UUID
     id: uuid.UUID
     study_id: uuid.UUID
     run_number: int
     state: str
     matrix_digest: str
+    definition: StudyRunDefinition
+    definition_digest: str
     cells: int
     summary: dict[str, Any]
     created_at: datetime
@@ -260,6 +255,7 @@ class StudyCellView(BaseModel):
     study_run_id: uuid.UUID
     ordinal: int
     binding_case_revision_id: uuid.UUID
+    compilation_id: uuid.UUID
     engine_ref: dict[str, Any]
     parameters: dict[str, Any]
     seed: int

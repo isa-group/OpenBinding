@@ -189,16 +189,16 @@ describe('Problem page', () => {
       expect(screen.getByRole('button', { name: 'Upload new version' })).toBeInTheDocument();
       expect(screen.getByRole('link', { name: 'Edit in the Workbench' })).toHaveAttribute('href', '/app/member-lab/workbench?problem=flujo-checkout&revision=2');
       expect(screen.getByRole('link', { name: 'Run this version' })).toHaveAttribute('href', '/app/member-lab/runs/new?problem=flujo-checkout&revision=2');
-      expect(screen.getByRole('link', { name: 'Add to study' })).toHaveAttribute('href', '/app/member-lab/qos-benchmarks/studies/new?case=flujo-checkout&revision=2');
+      expect(screen.getByRole('link', { name: 'Add to study' })).toHaveAttribute('href', '/app/member-lab/studies/new?case=flujo-checkout&revision=2');
       expect(screen.queryByRole('button', { name: 'Delete problem' })).not.toBeInTheDocument();
     });
 
-    it('runs a version in the organization even when it has no project, and builds no study then', async () => {
+    it('runs a version and builds a study in the organization even when it has no project', async () => {
       renderDetail(member, 'flujo-checkout', '', []);
 
       await screen.findByRole('heading', { level: 1, name: 'Flujo de checkout' });
       expect(screen.getByRole('link', { name: 'Run this version' })).toHaveAttribute('href', '/app/member-lab/runs/new?problem=flujo-checkout&revision=2');
-      expect(screen.queryByRole('link', { name: 'Add to study' })).not.toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Add to study' })).toHaveAttribute('href', '/app/member-lab/studies/new?case=flujo-checkout&revision=2');
     });
 
     it('lets a VIEWER read and compare, and nothing else', async () => {

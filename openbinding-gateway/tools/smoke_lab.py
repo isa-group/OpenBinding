@@ -681,8 +681,8 @@ def step_authorization(lab: Lab) -> Checks:
             job = mapping(body_of(seen))
             checks.expect(job.get("status") == "completed" and job.get("result") is not None, "viewer sees the state and the result")
             check_viewer_redaction(checks, job)
-    run = lab.call("POST", f"{base}/studies/{STUDY_SLUG}/runs", "viewer")
-    checks.expect(run.status_code in {403, 404}, f"viewer CANNOT start a study run in the org project ({describe(run)})")
+    run = lab.call("POST", f"/v1/organizations/{ORG}/studies/{STUDY_SLUG}/runs", "viewer")
+    checks.expect(run.status_code in {403, 404}, f"viewer CANNOT start a study run in the organization ({describe(run)})")
 
     for label, path in (("project", base), ("runs", RUNS), ("organization", f"/v1/organizations/{ORG}")):
         denied = lab.call("GET", path, "outsider")

@@ -91,14 +91,14 @@ queues, persistence, the artifact library, studies, reports or the HTTP routes. 
 [ARCHITECTURE.md](ARCHITECTURE.md) for the gateway side of the boundary.
 Engine manifests are a platform catalogue.
 
-Checks about a single document (resource schema validation, secure XML parse and
-BPMN XSD validation, the Engine manifest contract) go through
-`bim_client.BimResourcePort`, an extension of `BimPort` that the gateway gets
-from `InProcessBim` (with `bim_core`); the toolchain's `HttpBim` implements the
-same port over the `bim-service` endpoints below, for its own consumers. `integrations/bim_host.py` asks the port of the process and
-nothing else: it has no import of `bim_core`, and `dialect_type_matches` and
-`dialect_xml_type_matches` are computed there over the manifests that
-`dialects()` returned.
+The only check about a single document that the gateway asks of BIM is the
+Engine manifest contract (`validate_engine`, when someone creates an Engine). It
+goes through `bim_client.BimResourcePort`, an extension of `BimPort` that the
+gateway gets from `InProcessBim` (with `bim_core`); the toolchain's `HttpBim`
+implements the same port over the `bim-service` endpoints below, for its own
+consumers. `integrations/bim_host.py` asks the port of the process and nothing
+else: it has no import of `bim_core`, and `dialect_type_matches` is computed
+there over the manifests that `dialects()` returned.
 
 ### bim-service endpoints for single documents
 

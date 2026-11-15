@@ -1,4 +1,4 @@
-"""Deleting a problem that runs or sealed studies name answers 409 ``problem_has_runs``, never a 500.
+"""Deleting a problem that runs name answers 409 ``problem_has_runs``, never a 500.
 
 Needs PostgreSQL (``TEST_DATABASE_URL``): the ``RESTRICT`` foreign keys and row locks are the ones a
 deployment gets.
@@ -13,8 +13,7 @@ from fastapi import HTTPException
 from sqlalchemy import select
 
 from _problem_helpers import problem_for, run_refs, seed_problem_run
-from openbinding_gateway.db.artifact_models import Artifact, ArtifactCaseReference, ArtifactVersion
-from openbinding_gateway.db.models import BindingCase, Blob, Job, JobState, User
+from openbinding_gateway.db.models import BindingCase, Job, JobState, User
 from openbinding_gateway.modules.problems.application import delete_problem
 
 pytestmark = pytest.mark.asyncio
@@ -57,36 +56,6 @@ async def test_a_problem_named_by_a_run_is_kept(two_sessions):
     assert await session.get(BindingCase, seeded["problem_id"]) is not None
 
 
-async def test_a_problem_named_by_a_sealed_study_is_kept(two_sessions):
-    session, _ = two_sessions
-    user = await _user(session)
-    seeded = await seed_problem_run(session, owner_id=user.id)
-    blob = Blob(
-        organization_id=seeded["organization_id"], digest="sha256-" + uuid.uuid4().hex * 2,
-        media_type="application/json", size_bytes=2, storage_uri="memory://blob", created_by_id=user.id,
-    )
-    artifact = Artifact(
-        organization_id=seeded["organization_id"], namespace="ns", name="study", display_name="Study",
-        kind="Study", created_by_id=user.id,
-    )
-    session.add_all([blob, artifact])
-    await session.flush()
-    version = ArtifactVersion(
-        artifact_id=artifact.id, ordinal=1, version="1.0.0", blob_id=blob.id,
-        content_digest="sha256-" + "1" * 64, version_digest="sha256-" + "2" * 64,
-        manifest={"kind": "Study"}, created_by_id=user.id,
-    )
-    session.add(version)
-    await session.flush()
-    session.add(ArtifactCaseReference(version_id=version.id, position=0, case_revision_id=seeded["revision_id"]))
-    await session.commit()
-
-    refused = await _refused(session, seeded["problem_id"], user)
-
-    assert refused.status_code == 409
-    assert refused.detail["code"] == "problem_has_runs"
-
-
 async def test_a_run_committed_after_the_check_is_caught_by_the_foreign_key(two_sessions, monkeypatch):
     """The check and the delete are not atomic: the RESTRICT foreign key catches the run in between."""
     first, second = two_sessions
@@ -102,7 +71,7 @@ async def test_a_run_committed_after_the_check_is_caught_by_the_foreign_key(two_
         nonlocal checks
         value = await original_scalar(statement, *args, **kwargs)
         checks += 1
-        if checks == 3:  # the last reference check: launch a run from the other session now
+        if checks == 2:  # the last reference check (runs, then study cells): launch a run from the other session now
             second.add(_job(await second.get(User, user.id), refs))
             await second.commit()
         return value

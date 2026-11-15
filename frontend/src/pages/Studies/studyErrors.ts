@@ -120,19 +120,24 @@ export function studyRefusal(caught: unknown, action: StudyAction): Refusal {
     return {
       ...base, kind: 'not-found', title: `Not found${at}`,
       text: action === 'attach'
-        ? `The cell, or the run, doesn’t exist or isn’t yours: only a finished run you launched can be attached. ${nothing}`
+        ? `The cell, or the run, doesn’t exist or belongs to another organization: only a finished run of this organization can be attached. ${nothing}`
         : `It no longer exists, or you’re not in the organization it belongs to. ${nothing}`,
+    };
+  }
+
+  if (failure.status === 412) {
+    return {
+      ...base, kind: 'conflict', title: `The study changed since you opened it${at}`,
+      text: `Someone else saved it in the meantime. Reload the study to see their version, then make your change again. ${nothing}`,
     };
   }
 
   if (failure.status === 409) {
     switch (failure.code) {
       case 'slug_conflict':
-        return { ...base, kind: 'conflict', title: `That address is already used${at}`, text: `Another study of this project has it. Change the address. ${nothing}` };
+        return { ...base, kind: 'conflict', title: `That address is already used${at}`, text: `Another study of this organization has it. Change the address. ${nothing}` };
       case 'study_archived':
         return { ...base, kind: 'conflict', title: `This study is archived${at}`, text: `Restore it to run again. ${nothing}` };
-      case 'evidence_only_study':
-        return { ...base, kind: 'conflict', title: `This study only holds stored evidence${at}`, text: `It isn’t an executable definition, so it can’t run engines. ${nothing}` };
       case 'terminal_run':
         return { ...base, kind: 'terminal', title: `This run already finished${at}`, text: `There’s nothing left to cancel. ${nothing}` };
       case 'cell_not_retryable':
@@ -177,8 +182,8 @@ export function studyRefusal(caught: unknown, action: StudyAction): Refusal {
           text: `This deployment limits a study run to ${cap !== undefined ? `${cap.toLocaleString('en-US')} cells` : 'a number of cells'}${cells !== undefined ? `; this one expands to ${cells.toLocaleString('en-US')}` : ''}, whatever the plan. Remove an engine, a setting or some seeds. ${nothing}`,
         };
       }
-      case 'empty_study_cases':
-        return { ...base, kind: 'other', title: `The study needs a problem${at}`, text: `Choose at least one problem version. ${nothing}` };
+      case 'revision_not_recompilable':
+        return { ...base, kind: 'incompatible', title: `A problem version can’t be compiled by the installed toolchain${at}`, text: `${gateway}Remove that problem version from the study, or upload a new version of it. ${nothing}` };
       case 'foreign_case_revision':
         return { ...base, kind: 'other', title: `A problem version isn’t in this organization${at}`, text: `Every problem version of a study must belong to this organization. ${nothing}` };
       case 'engine_mode_incompatible':

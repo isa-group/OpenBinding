@@ -50,7 +50,7 @@ export async function mockGateway(page: Page, options: MockOptions = {}): Promis
   await answer(page, API_PROBLEMS, { problems: [problem], total: 1, limit: 200, offset: 0 });
   await answer(page, `${API_PROBLEMS}/${PROBLEM_SLUG}`, problem);
   await answer(page, API_RUNS, { runs: [], total: 0 });
-  await answer(page, '/v1/organizations/acme/projects/demo/studies', []);
+  await answer(page, '/v1/organizations/acme/studies', []);
   return { writes, gets };
 }
 

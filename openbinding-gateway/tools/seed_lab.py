@@ -59,7 +59,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from openbinding_gateway import space_client
 from openbinding_gateway.db.models import (
     ApiKey,
-    Artifact,
     ProblemCompilation,
     User,
     UserRole,
@@ -299,7 +298,6 @@ async def count_rows(session: AsyncSession, users: dict[str, User], organization
         "projects": await count(Project, Project.organization_id.in_(org_ids)),
         "cases": await count(BindingCase, BindingCase.organization_id.in_(org_ids)),
         "caseRevisions": await count(BindingCaseRevision, BindingCaseRevision.created_by_id.in_(user_ids)),
-        "artifacts": await count(Artifact, Artifact.organization_id.in_(org_ids)),
         "compilations": await count(
             ProblemCompilation,
             ProblemCompilation.revision_id.in_(

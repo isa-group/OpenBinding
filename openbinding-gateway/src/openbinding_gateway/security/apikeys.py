@@ -56,8 +56,6 @@ class ApiKeyPermission(str, Enum):
     PROJECTS_WRITE = "projects:write"
     STUDIES_READ = "studies:read"
     STUDIES_WRITE = "studies:write"
-    ARTIFACTS_READ = "artifacts:read"
-    ARTIFACTS_WRITE = "artifacts:write"
     NOTIFICATIONS_READ = "notifications:read"
     PRICING_READ = "pricing:read"
     ADMIN_ACCOUNTS_READ = "admin:accounts:read"
@@ -226,7 +224,7 @@ def allows_request(api_key: Any, *, method: str, path_params: Mapping[str, Any],
     aliases = {
         "organizations": ("org", "organization", "organization_id", "org_id"),
         "projects": ("project", "project_id"),
-        "slugs": ("slug", "problem", "study", "resource"),
+        "slugs": ("slug", "problem", "study"),
     }
     for field, names in aliases.items():
         allowed = boundary.get(field)
@@ -243,12 +241,9 @@ def allows_request(api_key: Any, *, method: str, path_params: Mapping[str, Any],
             "invitations": {"invitation", "invitations"},
             "projects": {"project", "projects"},
             "problems": {"problem", "problems"},
-            "resources": {"resource", "resources"},
             "studies": {"study", "studies"},
             "runs": {"run", "runs"},
             "cells": {"cell", "cells"},
-            "artifacts": {"artifact", "artifacts"},
-            "library": {"artifact", "artifacts"},
             "bim": {"problem", "problems"},
             "engines": {"engine", "engines"},
             "engine-registrations": {"engine-registration", "engine-registrations"},
@@ -375,27 +370,14 @@ def required_permissions(path: str, method: str) -> frozenset[str]:
             if method == "GET"
             else {ApiKeyPermission.PROBLEMS_WRITE.value}
         )
-    if path.startswith("/v1/artifacts") or (
-        path.startswith("/v1/organizations/") and "library" in path.split("/")
-    ):
+    if path.startswith("/v1/organizations/") and path.split("/")[4:5] == ["studies"]:
+        # The studies of an organization, their runs and cells: one permission pair for all of them.
         return frozenset(
-            {ApiKeyPermission.ARTIFACTS_READ.value}
-            if method == "GET" or path == "/v1/artifacts/resolve"
-            else {ApiKeyPermission.ARTIFACTS_WRITE.value}
+            {ApiKeyPermission.STUDIES_READ.value}
+            if method == "GET"
+            else {ApiKeyPermission.STUDIES_WRITE.value}
         )
     if "/projects" in path:
-        if any(token in path for token in ("/studies", "/runs")):
-            return frozenset(
-                {ApiKeyPermission.STUDIES_READ.value}
-                if method == "GET"
-                else {ApiKeyPermission.STUDIES_WRITE.value}
-            )
-        if "/artifacts" in path:
-            return frozenset(
-                {ApiKeyPermission.ARTIFACTS_READ.value}
-                if method == "GET"
-                else {ApiKeyPermission.ARTIFACTS_WRITE.value}
-            )
         return frozenset(
             {ApiKeyPermission.PROJECTS_READ.value}
             if method == "GET"

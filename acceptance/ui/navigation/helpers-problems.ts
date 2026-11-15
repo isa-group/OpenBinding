@@ -93,23 +93,32 @@ export async function mockProblems(page: Page, options: ProblemMockOptions = {})
 
 // ---- studies --------------------------------------------------------------------------------------------------
 
-const definition = { engines: [{ id: 'multi-heuristic' }], seeds: [1] };
+const definition = { revision_ids: ['rev-1'], engines: [{ id: 'multi-heuristic' }], parameter_sets: [{}], seeds: [1] };
 const study = (slug: string, name: string) => ({
-  id: `study-${slug}`, slug, name, description: '', project_id: 'project-demo', archived: false, state: 'ready',
-  definition, definition_artifact_id: `artifact-${slug}`, definition_version_id: `definition-${slug}`,
-  created_by_id: 'user-1', created_at: NOW,
+  id: `study-${slug}`, slug, name, description: '', organization_id: 'org-acme', archived: false, state: 'ready',
+  definition, definition_digest: `sha256-${'e'.repeat(64)}`, created_by_id: 'user-1', created_at: NOW,
 });
+
+/** What a run froze when it started: the study's definition, with the compilation its one problem version runs. */
+const frozen = {
+  apiVersion: 'openbinding/study-run/v1',
+  problems: [{
+    revisionId: 'rev-1', problemId: 'problem-routing', revision: 1, packageDigest: `sha256-${'1'.repeat(64)}`,
+    compilationId: 'compilation-1', compilationDigest: `sha256-${'c'.repeat(64)}`, irDigest: `sha256-${'d'.repeat(64)}`,
+  }],
+  engines: definition.engines, parameterSets: definition.parameter_sets, seeds: definition.seeds,
+};
 
 const studyRun = (id: string, number: number, created: string) => ({
   id, study_id: 'study-s1', run_number: number, state: 'completed', matrix_digest: `sha256-${String(number).repeat(64)}`,
-  cells: 1, summary: {}, definition_version_id: 'definition-s1', created_at: created, finished_at: created,
+  definition: frozen, definition_digest: `sha256-${'9'.repeat(64)}`, cells: 1, summary: {}, created_at: created, finished_at: created,
 });
 
 export const STUDY_RUNS = [studyRun('r1', 1, '2026-09-01T00:00:00Z'), studyRun('r2', 2, '2026-09-02T00:00:00Z')];
 
 const cell = {
   id: 'c7', study_run_id: 'r1', ordinal: 1, binding_case_revision_id: 'rev-1', engine_ref: { id: 'multi-heuristic' },
-  parameters: {}, seed: 1, fingerprint: 'fp-c7', job_id: 'j9', state: 'completed', metrics: {},
+  compilation_id: 'compilation-1', parameters: {}, seed: 1, fingerprint: 'fp-c7', job_id: 'j9', state: 'completed', metrics: {},
 };
 
 const analytics = (cells: number) => ({
@@ -117,16 +126,16 @@ const analytics = (cells: number) => ({
   pareto: [], stability: {}, binding_space: null,
 });
 
-/** Study `s1` with the study runs r1 and r2 (r2 the latest) and the cell c7 of r1 that ran as the run j9; study `s0` has none. */
+/** Study `s1` of acme with the study runs r1 and r2 (r2 the latest) and the cell c7 of r1 that ran as the run j9; study `s0` has none. */
 export async function mockStudies(page: Page, options: MockOptions = {}): Promise<Recorded[]> {
   const requests = await mockApi(page, options);
-  await answer(page, '/v1/organizations/acme/projects/demo/studies', [study('s1', 'Study one'), study('s0', 'Study zero')]);
-  await answer(page, '/v1/organizations/acme/projects/demo/studies/s1', study('s1', 'Study one'));
-  await answer(page, '/v1/organizations/acme/projects/demo/studies/s0', study('s0', 'Study zero'));
-  await answer(page, '/v1/organizations/acme/projects/demo/studies/s1/runs', STUDY_RUNS);
-  await answer(page, '/v1/organizations/acme/projects/demo/studies/s0/runs', []);
+  await answer(page, '/v1/organizations/acme/studies', [study('s1', 'Study one'), study('s0', 'Study zero')]);
+  await answer(page, '/v1/organizations/acme/studies/s1', study('s1', 'Study one'));
+  await answer(page, '/v1/organizations/acme/studies/s0', study('s0', 'Study zero'));
+  await answer(page, '/v1/organizations/acme/studies/s1/runs', STUDY_RUNS);
+  await answer(page, '/v1/organizations/acme/studies/s0/runs', []);
   for (const run of STUDY_RUNS) {
-    const base = `/v1/organizations/acme/projects/demo/studies/s1/runs/${run.id}`;
+    const base = `/v1/organizations/acme/studies/s1/runs/${run.id}`;
     await answer(page, base, run);
     await answer(page, `${base}/analytics`, analytics(run.id === 'r1' ? 11 : 22));
     await answer(page, `${base}/cells`, [{ ...cell, study_run_id: run.id }]);

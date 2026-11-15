@@ -12,14 +12,7 @@ from sqlalchemy import select
 
 from _pricing import fake_pricing_gate, largest_plan
 from openbinding_gateway import space_client
-from openbinding_gateway.db.models import (
-    Artifact,
-    ArtifactVersion,
-    Blob,
-    ProjectArtifact,
-    User,
-    UserRole,
-)
+from openbinding_gateway.db.models import User, UserRole
 
 
 @pytest.fixture
@@ -84,47 +77,6 @@ async def put_member(client, headers, org: str, user_id: str, role: str):
         headers=headers,
         json={"user_id": user_id, "role": role},
     )
-
-
-SECRET = "secret-name"
-
-
-def random_digest() -> str:
-    return "sha256-" + uuid.uuid4().hex + uuid.uuid4().hex
-
-
-async def add_blob(db, ctx, digest: str) -> Blob:
-    """A blob row without bytes; ``ctx`` carries ``org_id`` and ``user_id``."""
-    row = Blob(
-        organization_id=ctx.org_id, digest=digest,
-        media_type="application/octet-stream", size_bytes=1,
-        storage_uri=f"/nonexistent/{uuid.uuid4().hex}", created_by_id=ctx.user_id,
-    )
-    db.add(row)
-    await db.flush()
-    return row
-
-
-async def add_version(db, ctx, *, kind: str, content_digest: str, blob: Blob | None = None,
-                      project_id=None) -> tuple[Artifact, ArtifactVersion]:
-    """A sealed library version (optionally part of a project) with the given content digest."""
-    artifact = Artifact(
-        organization_id=ctx.org_id, namespace=str(ctx.org_id), name=f"{SECRET}-{uuid.uuid4().hex[:8]}",
-        display_name=f"{SECRET} display", kind=kind, created_by_id=ctx.user_id,
-    )
-    db.add(artifact)
-    await db.flush()
-    backing = blob or await add_blob(db, ctx, random_digest())
-    version = ArtifactVersion(
-        artifact_id=artifact.id, ordinal=1, version="1", blob_id=backing.id,
-        content_digest=content_digest, version_digest=random_digest(), manifest={},
-        created_by_id=ctx.user_id,
-    )
-    db.add(version)
-    if project_id is not None:
-        db.add(ProjectArtifact(project_id=project_id, artifact_id=artifact.id))
-    await db.flush()
-    return artifact, version
 
 
 async def roles(client, headers, org: str) -> dict[str, str]:

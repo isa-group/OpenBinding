@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import type { Organization, Project, StudyCell } from '../../api/platform';
+import type { Organization, StudyCell } from '../../api/platform';
 import { Gate, type Crumb } from '../Organization/parts';
 import { OrgFrame } from '../../features/workspace/OrgFrame';
 import { stateWord, countStates, breakdownText } from './studiesModel';
@@ -9,17 +9,16 @@ import './Studies.css';
 
 interface StudyFrameProps {
   organization: Organization;
-  project: Project;
-  /** The crumbs below the project: `Studies`, then the screen. The last one is where you are. */
+  /** The crumbs below the organization: `Studies`, then the screen. The last one is where you are. */
   trail: Crumb[];
   width?: 'md' | 'lg' | 'wide';
   children: ReactNode;
 }
 
-/** The frame of every project screen about studies: breadcrumb, the project tabs with Studies current, and one live content column. */
-export function StudyFrame({ organization, project, trail, width = 'wide', children }: StudyFrameProps) {
+/** The frame of every screen about the studies of an organization: breadcrumb and one live content column. */
+export function StudyFrame({ organization, trail, width = 'wide', children }: StudyFrameProps) {
   return (
-    <OrgFrame organization={organization} project={project} section="studies" trail={trail} width={width} bodyClassName="st-body">
+    <OrgFrame organization={organization} trail={trail} width={width} bodyClassName="st-body">
       {children}
     </OrgFrame>
   );

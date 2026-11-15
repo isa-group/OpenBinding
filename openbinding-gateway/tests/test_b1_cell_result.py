@@ -14,6 +14,7 @@ from _b1_helpers import gate, make_account, put_member  # noqa: F401
 from _repo import REPO_ROOT
 from openbinding_gateway.core.settings import get_settings
 from openbinding_gateway.db.models import Job, JobState, StudyCell
+from openbinding_gateway.db.platform_models import ProblemCompilation
 from openbinding_gateway.routes import v1 as routes
 from openbinding_gateway.services import execution
 from openbinding_gateway.services.engines import engine_ref
@@ -21,7 +22,7 @@ from bim_core.package import load_package
 
 EXAMPLE = REPO_ROOT / "examples/demo/01_simple_seq"
 OPTIMIZATION = {"type": "SINGLE", "scalarization": "weighted-sum"}
-BASE = "/v1/organizations/lab/projects/routing"
+BASE = "/v1/organizations/lab"
 
 
 async def build_world(api_client, db_session, registration, gate, monkeypatch, *, parameter_sets, seeds):  # noqa: F811
@@ -46,18 +47,14 @@ async def build_world(api_client, db_session, registration, gate, monkeypatch, *
         "mode": "seeded",
         "optimization": dict(OPTIMIZATION),
     }
-    for path, body in (
-        ("/v1/organizations", {"slug": "lab", "name": "Binding Lab"}),
-        ("/v1/organizations/lab/projects", {"slug": "routing", "name": "Routing", "visibility": "private"}),
-    ):
-        created = await api_client.post(path, headers=headers, json=body)
-        assert created.status_code == 201, created.text
+    created = await api_client.post("/v1/organizations", headers=headers, json={"slug": "lab", "name": "Binding Lab"})
+    assert created.status_code == 201, created.text
     revision = (await upload_problem(api_client, headers, "lab", slug="checkout"))["revision"]
     study = await api_client.post(
         f"{BASE}/studies",
         headers=headers,
         json={"slug": "compare", "name": "Compare", "definition": {
-            "case_revision_ids": [revision["id"]],
+            "revision_ids": [revision["id"]],
             "engines": [exact_engine],
             "parameter_sets": parameter_sets,
             "seeds": seeds,
@@ -207,6 +204,32 @@ async def test_a_job_of_another_case_engine_mode_or_seed_is_refused(
     assert cell.job_id == before
 
 
+async def test_a_job_of_the_same_revision_on_another_compilation_is_refused(api_client, db_session, world):
+    # D7: a run pins one compilation per revision; a job that ran another compilation of the same
+    # revision (a newer toolchain, say) did not run this cell.
+    cell = world.cells[0]
+    before = cell.job_id
+    pinned = await db_session.get(ProblemCompilation, cell.compilation_id)
+    newer = ProblemCompilation(
+        revision_id=pinned.revision_id, compiler_digest="sha256-" + "d" * 64,
+        compilation_digest="sha256-" + uuid.uuid4().hex + uuid.uuid4().hex, toolchain={},
+        ir_digest=pinned.ir_digest, ir=pinned.ir, source_map={}, analysis={},
+    )
+    db_session.add(newer)
+    await db_session.flush()
+    other = await clone_job(db_session, world.jobs[0], compilation_id=newer.id)
+
+    response = await attach(api_client, world, cell, other)
+
+    assert response.status_code == 409, response.text
+    detail = response.json()["detail"]
+    assert detail["code"] == "cell_job_mismatch"
+    assert detail["fields"] == ["compilation"]
+    assert detail["details"]["compilation"] == {"cell": str(cell.compilation_id), "job": str(newer.id)}
+    await db_session.refresh(cell)
+    assert cell.job_id == before
+
+
 async def test_the_job_of_a_sibling_cell_is_a_seed_mismatch(api_client, world):
     response = await attach(api_client, world, world.cells[0], world.jobs[1])
     assert response.status_code == 409
@@ -234,9 +257,10 @@ async def test_a_job_of_another_revision_with_the_same_package_is_a_case_mismatc
     assert response.json()["detail"]["fields"] == ["case_revision"]
 
 
-async def test_other_peoples_jobs_are_not_found(api_client, db_session, registration, gate, world):  # noqa: F811
+async def test_a_job_of_another_organization_is_not_found(api_client, db_session, registration, gate, world):  # noqa: F811
     stranger, _ = await make_account(api_client, registration, db_session, gate)
-    foreign = await clone_job(db_session, world.jobs[0], owner_id=uuid.UUID(stranger["id"]))
+    elsewhere = run_refs(await seed_problem_run(db_session, owner_id=uuid.UUID(stranger["id"])))
+    foreign = await clone_job(db_session, world.jobs[0], owner_id=uuid.UUID(stranger["id"]), **elsewhere)
 
     response = await attach(api_client, world, world.cells[0], foreign)
     missing = await api_client.post(
@@ -289,16 +313,18 @@ async def test_roles_and_credentials_decide_who_may_attach(api_client, db_sessio
     cell = world.cells[0]
     own = await clone_job(db_session, world.jobs[0], owner_id=uuid.UUID(member["id"]))
     owners = await clone_job(db_session, world.jobs[0])
+    teammates = await clone_job(db_session, world.jobs[0])
 
     as_viewer = await attach(api_client, world, cell, owners, viewer_headers)
     as_outsider = await attach(api_client, world, cell, owners, outsider_headers)
     anonymous = await api_client.post(world.url(cell), json={"job_id": str(owners.id)})
-    others_job_as_member = await attach(api_client, world, cell, owners, member_headers)
+    teammates_job_as_member = await attach(api_client, world, cell, teammates, member_headers)
     own_job_as_member = await attach(api_client, world, cell, own, member_headers)
 
     assert as_viewer.status_code == 403
     assert as_viewer.json()["detail"]["code"] == "organization_forbidden"
     assert as_outsider.status_code == 403
     assert anonymous.status_code == 401
-    assert others_job_as_member.status_code == 404
+    # Runs belong to the organization (D10): a MEMBER attaches a teammate's run as well as their own.
+    assert teammates_job_as_member.status_code == 200, teammates_job_as_member.text
     assert own_job_as_member.status_code == 200, own_job_as_member.text

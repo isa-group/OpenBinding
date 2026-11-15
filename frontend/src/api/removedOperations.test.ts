@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { apiClient } from './client';
 import { runsApi } from './runs';
-import { libraryApi } from './library';
 import { platformApi } from './platform';
 
 // M9.6 removed these operations from the gateway: no source of the application may bind them again.
@@ -32,7 +31,6 @@ const REMOVED_BINDINGS = [
   'libraryItemsApi.associate',
   'libraryItemsApi.projectItems',
   'libraryItemsApi.dissociate',
-  'libraryApi.drafts',
   'adminTransferSponsor',
   'listMySponsorProposals',
   'listOrganizationSponsorProposals',
@@ -72,6 +70,10 @@ const REMOVED_BINDINGS = [
   'getJobStatus',
   'getV1Job',
   'pollJob',
+  // F0b B7: study runs freeze their definitions; the artifact library and the project resources are gone.
+  'libraryApi',
+  'platformApi.resources',
+  'platformApi.resourceRevisions',
 ];
 
 const REMOVED_PATHS: [string, RegExp][] = [
@@ -87,18 +89,17 @@ const REMOVED_PATHS: [string, RegExp][] = [
   // F0b B6. An engine's own `/internal/v1/jobs/{id}` is the engine protocol, not the gateway's runs.
   ['/v1/jobs', /(?<!\/internal)\/v1\/jobs\b/],
   ['/v1/users/me/jobs', /\/v1\/users\/me\/jobs\b/],
+  // F0b B7.
+  ['/v1/artifacts', /\/v1\/artifacts\b/],
 ];
 
 const KEPT_BINDINGS = [
-  'platformApi.resources',
-  'platformApi.resourceRevisions',
   'libraryItemsApi.list',
   'libraryItemsApi.versions',
   'libraryItemsApi.content',
   'libraryItemsApi.resolve',
-  'libraryApi.list',
-  'libraryApi.versions',
-  'libraryApi.content',
+  'platformApi.studies',
+  'platformApi.studyRuns',
 ];
 
 const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -117,10 +118,10 @@ function findings(files: Record<string, string>): string[] {
 const sources = import.meta.glob(['/src/**/*.{ts,tsx}', '!/src/**/*.test.*', '!/src/test/**'], { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
 
 describe('removed operations (M9.6, F0b)', () => {
-  it('lists the bindings and paths of M9.6 and F0b (B4, B5 and B6)', () => {
-    expect(REMOVED_BINDINGS).toHaveLength(62);
-    expect(new Set(REMOVED_BINDINGS).size).toBe(62);
-    expect(REMOVED_PATHS).toHaveLength(11);
+  it('lists the bindings and paths of M9.6 and F0b (B4, B5, B6 and B7)', () => {
+    expect(REMOVED_BINDINGS).toHaveLength(64);
+    expect(new Set(REMOVED_BINDINGS).size).toBe(64);
+    expect(REMOVED_PATHS).toHaveLength(12);
   });
 
   it('finds no binding or path of a removed operation in the application sources', () => {
@@ -145,7 +146,7 @@ describe('removed operations (M9.6, F0b)', () => {
   });
 
   it('leaves none of the removed members on the client objects', () => {
-    const objects = new Map<string, object>([['platformApi', platformApi], ['libraryApi', libraryApi], ['apiClient', apiClient], ['runsApi', runsApi]]);
+    const objects = new Map<string, object>([['platformApi', platformApi], ['apiClient', apiClient], ['runsApi', runsApi]]);
     for (const binding of REMOVED_BINDINGS) {
       const dot = binding.indexOf('.');
       const owner = binding.slice(0, Math.max(dot, 0));
@@ -160,7 +161,7 @@ describe('removed operations (M9.6, F0b)', () => {
     }
   });
 
-  it('has no analysis archive module and no library item editor module', () => {
-    expect(Object.keys(import.meta.glob(['/src/analysis/archive.ts', '/src/api/analysis/**', '/src/api/libraryItems.ts']))).toEqual([]);
+  it('has no analysis archive module, no library item editor module and no library module', () => {
+    expect(Object.keys(import.meta.glob(['/src/analysis/archive.ts', '/src/api/analysis/**', '/src/api/libraryItems.ts', '/src/api/library.ts', '/src/components/Artifacts/**']))).toEqual([]);
   });
 });

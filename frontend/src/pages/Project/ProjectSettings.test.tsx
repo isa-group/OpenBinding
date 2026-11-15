@@ -3,11 +3,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PricingUnavailableError } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import { ProjectSettings } from './ProjectSettings';
-import { org, project, renderProjectScreen, runOf, studyOf, usageWithProjects } from '../../features/workspace/testKit';
+import { org, project, renderProjectScreen, usageWithProjects } from '../../features/workspace/testKit';
 
 const api = vi.hoisted(() => ({ getOwnUsage: vi.fn(), getPricingCatalog: vi.fn() }));
 const platform = vi.hoisted(() => ({
-  project: vi.fn(), updateProject: vi.fn(), deleteProject: vi.fn(), studies: vi.fn(), studyRuns: vi.fn(),
+  project: vi.fn(), updateProject: vi.fn(), deleteProject: vi.fn(),
   members: vi.fn(),
 }));
 
@@ -34,8 +34,6 @@ describe('Project settings', () => {
     platform.project.mockResolvedValue(qos);
     platform.updateProject.mockResolvedValue(qos);
     platform.deleteProject.mockResolvedValue(undefined);
-    platform.studies.mockResolvedValue([]);
-    platform.studyRuns.mockResolvedValue([]);
     platform.members.mockResolvedValue([
       { id: 'm1', organization_id: group.id, user_id: 'user-1', username: 'lucia', email: 'lucia@example.org', role: 'OWNER', created_at: '2026-01-01T00:00:00Z' },
       { id: 'm2', organization_id: group.id, user_id: 'user-2', username: 'tomas', email: 'tomas@example.org', role: 'MEMBER', created_at: '2026-01-01T00:00:00Z' },
@@ -201,18 +199,6 @@ describe('Project settings', () => {
   });
 
   describe('deleting', () => {
-    it('is blocked while the project has sealed history, and says what that is', async () => {
-      const engines = studyOf('engines');
-      platform.studies.mockResolvedValue([engines]);
-      platform.studyRuns.mockResolvedValue([runOf(engines, 1), runOf(engines, 2)]);
-      renderSettings();
-
-      const note = await screen.findByRole('note');
-      expect(note).toHaveTextContent('Deleting is blocked: this project has sealed history (2 study runs).');
-      expect(note).toHaveTextContent('Sealed history must stay reachable so people can still verify it.');
-      expect(screen.getByRole('button', { name: 'Delete project' })).toBeDisabled();
-    });
-
     it('asks for the address before it deletes, then closes the project’s page', async () => {
       const { reload } = renderSettings();
       fireEvent.click(await screen.findByRole('button', { name: 'Delete project' }));
