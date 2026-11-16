@@ -17,7 +17,7 @@ const main = (page: Page) => page.locator('main');
 const region = (page: Page, name: string) => main(page).getByRole('region', { name, exact: true });
 
 test.describe('S10a · compositions', () => {
-  test('the header and the New menu lead to the compositions of the organization', async ({
+  test('the New menu of the header creates a composition in the organization the address names', async ({
     page,
   }) => {
     const mock = await installMockApi(page, 'admin');
@@ -25,20 +25,10 @@ test.describe('S10a · compositions', () => {
     await page.goto('/app/isa-demo');
 
     const header = page.getByRole('banner');
-    await header.getByRole('link', { name: 'Compositions', exact: true }).click();
-    await expect(page).toHaveURL(LIST);
-    await expect(main(page).getByRole('heading', { level: 1, name: 'Compositions' })).toBeVisible();
-    await expect(header.getByRole('link', { name: 'Compositions', exact: true })).toHaveAttribute(
-      'aria-current',
-      'page'
-    );
-
     await header.getByRole('button', { name: 'New', exact: true }).click();
-    await page
-      .locator('#app-new-menu')
-      .getByRole('link', { name: 'Composition', exact: true })
-      .click();
+    await header.getByRole('link', { name: 'Composition', exact: true }).click();
     await expect(page).toHaveURL(`${LIST}?create=composition`);
+    await expect(main(page).getByRole('heading', { level: 1, name: 'Compositions' })).toBeVisible();
     await expect(page.getByRole('dialog', { name: 'New composition' })).toBeVisible();
     expect(mock.unmocked).toEqual([]);
   });

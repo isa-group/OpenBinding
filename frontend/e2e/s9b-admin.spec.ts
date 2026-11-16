@@ -499,14 +499,16 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('administration is for administrators: another account is sent away from these screens and sees none of it', async ({
+    test('administration is for administrators: another account gets the in-place 404 from these screens and sees none of it', async ({
       page,
     }) => {
       const critical = watchCriticalErrors(page);
       await mockApi(page, { role: 'user' });
       for (const path of ['/app/admin/moderation', '/app/admin?section=maintenance']) {
         await page.goto(path);
-        await expect(page).toHaveURL(/\/app\/account$/);
+        // Unreadable is the same in-place 404 as missing: the address stays, and nothing of the screen shows.
+        await expect(page.getByRole('heading', { level: 1, name: 'Page not found' })).toBeVisible();
+        expect(new URL(page.url()).pathname).toBe(path.split('?')[0]);
         await expect(page.getByText('Platform admin', { exact: true })).toHaveCount(0);
         await expect(page.getByRole('link', { name: 'Admin', exact: true })).toHaveCount(0);
       }

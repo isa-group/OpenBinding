@@ -23,12 +23,11 @@ test.describe('J6 · language', () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     const main = page.getByRole('main');
 
-    // The reference, from the public header.
+    // The reference, from the public header's Tools.
     await page.goto('/');
-    await page
-      .getByRole('navigation', { name: 'Primary navigation' })
-      .getByRole('link', { name: 'Language' })
-      .click();
+    const primary = page.getByRole('navigation', { name: 'Primary navigation' });
+    await primary.getByRole('button', { name: 'Tools' }).click();
+    await primary.getByRole('link', { name: 'Composition2Yaml' }).click();
     await expect(page).toHaveURL('/language');
     await expect(main.getByRole('heading', { level: 1, name: 'Composition2Yaml' })).toBeVisible();
     const source = main.getByRole('textbox', { name: 'composition.yaml source' });

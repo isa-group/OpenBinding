@@ -482,12 +482,15 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(
         main.getByRole('heading', { level: 1, name: 'Public compositions' })
       ).toBeVisible();
-      if (!isMobile)
-        await expect(
-          page
-            .getByRole('navigation', { name: 'Primary navigation' })
-            .getByRole('link', { name: 'Compositions' })
-        ).toHaveAttribute('aria-current', 'page');
+      if (!isMobile) {
+        const primary = page.getByRole('navigation', { name: 'Primary navigation' });
+        await primary.getByRole('button', { name: 'Explore' }).click();
+        await expect(primary.getByRole('link', { name: 'Compositions' })).toHaveAttribute(
+          'aria-current',
+          'page'
+        );
+        await page.keyboard.press('Escape');
+      }
       const list = main.getByRole('region', { name: 'Public compositions' });
       await expect(list.getByRole('article')).toHaveCount(2);
       await expect(list.getByText('2 compositions')).toBeVisible();
