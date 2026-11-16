@@ -630,12 +630,12 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(
         main.getByText(/A study runs every combination of problems × engines × settings × seeds/)
       ).toBeVisible();
-      // Studies belong to the organization: the crumbs lead back to it.
+      // Studies belong to the organization: the crumbs lead back to its page.
       await expect(
         main
           .getByRole('navigation', { name: 'Breadcrumb' })
           .getByRole('link', { name: 'ISA Demo Group' })
-      ).toHaveAttribute('href', ROOT);
+      ).toHaveAttribute('href', '/orgs/isa-demo');
       await expect(main.getByRole('link', { name: 'New study' })).toHaveAttribute(
         'href',
         `${ROOT}/studies/new`

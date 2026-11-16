@@ -148,9 +148,10 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
     test('research account shows the institutional co-brand', async ({ page }, testInfo) => {
       await signInAsResearchAccount(page);
+      // Signed in, the root address is the dashboard under the application header.
       await openHome(page);
 
-      const header = page.locator('header.site-header');
+      const header = page.locator('header.app-header');
       const footer = page.locator('footer.site-footer');
       const headerMark = header.getByRole('img', { name: 'Universidad de Sevilla' });
       await expect(headerMark).toBeVisible();

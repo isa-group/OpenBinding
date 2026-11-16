@@ -145,7 +145,14 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
           const toggle = header.getByRole('button', { name: 'Open menu' });
           await toggle.click();
           const menu = page.getByRole('navigation', { name: 'Mobile navigation' });
-          for (const label of ['Pricing', 'About', 'Organizations', 'Inbox', 'Account'])
+          for (const label of [
+            'Pricing',
+            'About',
+            'Organizations',
+            'Inbox',
+            'API keys',
+            'Settings',
+          ])
             await expect(menu.getByRole('link', { name: label, exact: true }), label).toBeVisible();
           for (const label of ['Tools', 'Explore', 'Search'])
             await expect(menu.getByRole('button', { name: label }), label).toBeVisible();
