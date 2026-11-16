@@ -21,7 +21,7 @@ export default function NotFoundPage() {
       <div className="mx-auto max-w-7xl px-4">
         <div className="mx-auto flex min-h-[60vh] max-w-120 flex-col items-center justify-center py-12 text-center">
           <h1 className="mb-3 font-display text-3xl leading-tight font-semibold text-tp-ink">
-            Sorry, page not found!
+            Page not found
           </h1>
 
           <p className="text-tp-slate">
@@ -38,7 +38,7 @@ export default function NotFoundPage() {
             className="inline-flex cursor-pointer items-center gap-2 rounded-md bg-tp-accent px-5 py-3 text-sm font-semibold text-tp-on-primary transition-colors hover:bg-tp-accent-hover"
           >
             <FiHome className="h-4 w-4" aria-hidden="true" />
-            Return to Home
+            Back to the home page
           </RouterLink>
         </div>
       </div>

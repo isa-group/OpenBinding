@@ -1,6 +1,6 @@
 import { matchRoutes } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
-import { routeDefinitions } from './registry';
+import { screens } from './router';
 
 /** The line (from 1) of an offset in a source. */
 const lineOf = (text: string, at: number) => text.slice(0, at).split('\n').length;
@@ -20,7 +20,7 @@ const LINK =
   /(?:\bto|\bhref|\bfrom)\s*(?:=\s*\{?|:\s*)(['"`])(\/[^'"`]*)\1|\bnavigate\(\s*(['"`])(\/[^'"`]*)\3/g;
 
 /** The screens: a link leads to one of them. */
-const config = routeDefinitions.map(definition => ({ id: definition.id, path: definition.path }));
+const config = screens.map(screen => ({ id: screen.id, path: screen.path }));
 
 /** The route an address leads to, with the query, the hash and any `${…}` filled in by an example value. */
 const pathOf = (address: string) => address.replace(/\$\{[^}]*\}/g, 'sample').split(/[?#]/)[0];
@@ -57,7 +57,7 @@ describe('internal links written in the code', () => {
     ]);
   });
 
-  it('resolve to a screen of routes/areas', () => {
+  it('resolve to a screen of the route table', () => {
     const lost = staticLinks()
       .filter(({ address }) => !matchRoutes(config, pathOf(address)))
       .map(({ file, line, address }) => `${file}:${line}: ${address}`);

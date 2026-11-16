@@ -1,7 +1,6 @@
-import { BrowserRouter } from 'react-router-dom';
-import { AuthProvider } from './modules/auth/contexts/authProvider';
 import { SpaceProviderWrapper } from './contexts/SpaceProviderWrapper';
-import { AppRoutes } from './routes';
+import { AuthProvider } from './modules/auth/contexts/authProvider';
+import Router from './routes/router';
 import './styles/globals.css';
 import './App.css';
 
@@ -9,9 +8,7 @@ function App() {
   return (
     <AuthProvider>
       <SpaceProviderWrapper>
-        <BrowserRouter>
-          <AppRoutes />
-        </BrowserRouter>
+        <Router />
       </SpaceProviderWrapper>
     </AuthProvider>
   );

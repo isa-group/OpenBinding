@@ -1,5 +1,5 @@
 import { useParams } from 'react-router-dom';
-import { NotFoundScreen } from '../../routes/NotFoundScreen';
+import NotFoundScreen from '../../modules/core/pages/page-not-found';
 import { Account } from './Account';
 import { AccountIdentities } from './AccountIdentities';
 import { AccountKeys } from './AccountKeys';

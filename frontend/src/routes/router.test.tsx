@@ -3,8 +3,8 @@ import { matchRoutes, MemoryRouter, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { UserProfile } from '../api/auth';
 import { AuthContext } from '../modules/auth/hooks/useAuth';
-import { AppRoutes } from './index';
-import { routeDefinitions } from './registry';
+import { createElement } from 'react';
+import Router, { screens as routeDefinitions } from './router';
 
 vi.mock('../api/platform', async () => ({
   ...(await vi.importActual<typeof import('../api/platform')>('../api/platform')),
@@ -18,24 +18,17 @@ vi.mock('../api/client', async () => ({
   apiClient: { listNotifications: vi.fn().mockResolvedValue([]) },
 }));
 
-// These tests are about routing: every screen of the registry is replaced by a stub that names itself, so no page file is needed.
+// These tests are about routing: every screen of the table is replaced by a stub that names itself, so no page file is needed.
 // `explode` names the one that fails to render.
-const screens = vi.hoisted(() => ({ explode: '' }));
-vi.mock('./registry', async () => {
-  const actual = await vi.importActual<typeof import('./registry')>('./registry');
-  const { createElement } = await import('react');
-  const Stub = ({ id }: { id: string }) => {
-    if (screens.explode === id) throw new Error('screen exploded');
-    return createElement('h1', { 'data-screen': id }, `Screen ${id}`);
-  };
-  return {
-    ...actual,
-    routeDefinitions: actual.routeDefinitions.map(definition => ({
-      ...definition,
-      element: createElement(Stub, { id: definition.id }),
-    })),
-  };
-});
+const screens = { explode: '' };
+const Stub = ({ id }: { id: string }) => {
+  if (screens.explode === id) throw new Error('screen exploded');
+  return createElement('h1', { 'data-screen': id }, `Screen ${id}`);
+};
+const table = routeDefinitions.map(definition => ({
+  ...definition,
+  element: <Stub id={definition.id} />,
+}));
 
 const config = routeDefinitions.map(definition => ({ id: definition.id, path: definition.path }));
 /** The screen an address resolves to, by the registry's own paths. */
@@ -65,7 +58,7 @@ const inOrganization = routeDefinitions.find(
 const adminOnly = routeDefinitions.find(
   definition => definition.requireAdmin && !definition.path.includes(':')
 );
-const invitation = routeDefinitions.find(definition => definition.sessionHeader);
+const invitation = routeDefinitions.find(definition => definition.layout === 'session');
 if (!fixedApp || !inOrganization || !adminOnly || !invitation)
   throw new Error('the registry lacks a screen of a shape these tests need');
 
@@ -99,14 +92,14 @@ function renderAt(path: string, user: UserProfile | null = person, loading = fal
           fetchWithInterceptor: vi.fn(),
         }}
       >
-        <AppRoutes />
+        <Router table={table} />
         <Location />
       </AuthContext.Provider>
     </MemoryRouter>
   );
 }
 
-describe('AppRoutes', () => {
+describe('Router', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     screens.explode = '';
@@ -154,9 +147,7 @@ describe('AppRoutes', () => {
   it('shows other accounts the in-place 404 on administrators-only screens, without moving them', async () => {
     renderAt(exampleOf(adminOnly.path));
 
-    expect(
-      await screen.findByRole('heading', { name: 'Sorry, page not found!' })
-    ).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Page not found' })).toBeInTheDocument();
     expect(screen.getByTestId('location')).toHaveTextContent(exampleOf(adminOnly.path));
   });
 

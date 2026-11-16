@@ -1,7 +1,7 @@
 import { matchRoutes } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 import type { Organization } from '../../api/platform';
-import { routeDefinitions } from '../../routes/registry';
+import { screens as routeDefinitions } from '../../routes/router';
 import {
   accountLinks,
   createItems,

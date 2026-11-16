@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { routeDefinitions } from '../../routes/registry';
+import { screens as routeDefinitions } from '../../routes/router';
 import { RESERVED_SLUGS, workspaceSlugs } from './workspacePath';
 
 /**

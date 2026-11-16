@@ -14,7 +14,7 @@ import { formatDateTime } from '../../utils/format';
 import { useResource, type Resource } from '../../utils/useResource';
 import { classifyAuthError, marker } from '../../modules/core/api/errors';
 import { RefusalNotice } from '../Runs/parts';
-import { NotFoundScreen } from '../../routes/NotFoundScreen';
+import NotFoundScreen from '../../modules/core/pages/page-not-found';
 import { studiesPath } from '../../routes/paths/studies';
 import { CellBar, StateChip, StudyFrame } from './parts';
 import { CellPanel } from './StudyCell';

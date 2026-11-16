@@ -140,10 +140,10 @@ const sources = import.meta.glob('/src/**/*.{ts,tsx}', {
 }) as Record<string, string>;
 
 describe('the addresses of the application sources', () => {
-  it('reads the application sources, the route areas among them', () => {
+  it('reads the application sources, the route table among them', () => {
     const paths = Object.keys(sources);
     expect(paths.length).toBeGreaterThan(200);
-    expect(paths.filter(path => path.startsWith('/src/routes/areas/')).length).toBeGreaterThan(5);
+    expect(paths).toContain('/src/routes/router.tsx');
   });
 
   it('builds no address with a cases, jobs or publications segment, and declares none', () => {

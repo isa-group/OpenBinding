@@ -1,32 +1,13 @@
 import { expect, test, type Page } from '@playwright/test';
-import { countLiveCalls, dropOptionalSegments, readAreaSources } from './helpers/galleryRoutes';
+import { countScreenLines, dropOptionalSegments, readScreenLines } from './helpers/galleryRoutes';
 
-// Visits every screen of the route registry (src/routes/areas/*.tsx) with example parameter values. There are no redirects: an old
+// Visits every screen of the route table (`screens` in src/routes/router.tsx) with example parameter values. There are no redirects: an old
 // address is answered by no screen.
 // There is no backend: the API origin is answered by page.route(), signed in only for /app screens.
 
 const API = 'http://localhost:8000';
 
-interface Screen {
-  id: string;
-  path: string;
-  requireAdmin: boolean;
-  area: string;
-}
-
-/** Reads `live('id', '/path', …)` lines from the area files. */
-function readRegistry(): Screen[] {
-  return readAreaSources().flatMap(({ area, source }) =>
-    [...source.matchAll(/^\s*live\('([a-z0-9-]+)',\s*'(\/[^']*)'(.*)$/gm)].map(match => ({
-      id: match[1],
-      path: match[2],
-      requireAdmin: match[3].includes('requireAdmin: true'),
-      area,
-    }))
-  );
-}
-
-const screens = readRegistry();
+const screens = readScreenLines();
 
 /** The base address of a pattern: an optional segment (`:section?`) is dropped with its slash before the parameters are filled. */
 const exampleUrl = (path: string) =>
@@ -151,9 +132,9 @@ const isScreenAddress = (pathname: string) =>
   screenPatterns.some(pattern => pattern.test(pathname));
 
 test.describe('route registry', () => {
-  test('lists every screen of the area files, each with its own id and path', () => {
+  test('lists every screen of the route table, each with its own id and path', () => {
     expect(screens.length).toBeGreaterThan(0);
-    expect(screens).toHaveLength(countLiveCalls());
+    expect(screens).toHaveLength(countScreenLines());
     expect(new Set(screens.map(screen => screen.id)).size).toBe(screens.length);
     expect(new Set(screens.map(screen => screen.path)).size).toBe(screens.length);
     expect(
@@ -190,7 +171,7 @@ test.describe('route registry', () => {
 test.describe.configure({ mode: 'serial' });
 
 for (const screen of screens) {
-  test(`${screen.area} ${screen.id} ${screen.path} loads`, async ({ page }) => {
+  test(`${screen.layout} ${screen.id} ${screen.path} loads`, async ({ page }) => {
     test.setTimeout(90_000);
     const underApp = screen.path === '/app' || screen.path.startsWith('/app/');
     const critical = watchCriticalErrors(page);

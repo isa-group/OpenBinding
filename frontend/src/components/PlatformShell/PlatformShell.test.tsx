@@ -6,7 +6,7 @@ import { AuthContext } from '../../modules/auth/hooks/useAuth';
 import { PlatformShell, type PlatformOutletContext } from './PlatformShell';
 import { buildCommands } from './paletteCommands';
 import { platformApi, type Organization } from '../../api/platform';
-import { routeDefinitions } from '../../routes/registry';
+import { screens as routeDefinitions } from '../../routes/router';
 
 vi.mock('../../api/platform', async () => ({
   ...(await vi.importActual<typeof import('../../api/platform')>('../../api/platform')),

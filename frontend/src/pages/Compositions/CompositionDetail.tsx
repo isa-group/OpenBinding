@@ -17,7 +17,7 @@ import { NewVersionMenu } from '../../features/composition-editor/NewVersionMenu
 import { ForkCompositionDialog } from '../../features/fork/ForkCompositionDialog';
 import { OrgGate, OrgSkeleton } from '../../features/workspace/OrgFrame';
 import { Gate } from '../../features/workspace/parts';
-import { NotFoundScreen } from '../../routes/NotFoundScreen';
+import NotFoundScreen from '../../modules/core/pages/page-not-found';
 import {
   compositionPath,
   compositionsPath,

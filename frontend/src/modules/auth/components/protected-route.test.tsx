@@ -97,7 +97,7 @@ describe('ProtectedRoute', () => {
 
   it('shows non-administrators the in-place 404 on admin pages, never a redirect', () => {
     renderGuard(account, true);
-    expect(screen.getByRole('heading', { name: 'Sorry, page not found!' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Page not found' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Account' })).not.toBeInTheDocument();
     expect(screen.queryByText('Protected content')).not.toBeInTheDocument();
   });

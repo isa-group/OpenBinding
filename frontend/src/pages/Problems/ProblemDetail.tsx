@@ -7,7 +7,7 @@ import { Action } from '../../components/ui/Action';
 import { Chip } from '../../components/ui/Chip';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { TabBar, TabPanel } from '../../components/ui/TabBar';
-import { NotFoundScreen } from '../../routes/NotFoundScreen';
+import NotFoundScreen from '../../modules/core/pages/page-not-found';
 import {
   isProblemTabSegment,
   problemPath,

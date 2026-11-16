@@ -13,7 +13,7 @@ import { ancestorsOf, atLeast, descendantsOf, pathOf } from './orgModel';
 import { generalFailure } from '../../features/workspace/errors';
 import { classifyAuthError, marker, type AuthFailure } from '../../modules/core/api/errors';
 import { Choice, NeutralGate, PageSkeleton, RoleChip } from './parts';
-import { NotFoundScreen } from '../../routes/NotFoundScreen';
+import NotFoundScreen from '../../modules/core/pages/page-not-found';
 import { OrgAudit } from './OrgAudit';
 import { OrgMembers } from './OrgMembers';
 import { OrgSettingsLayout } from './OrgSettingsLayout';
