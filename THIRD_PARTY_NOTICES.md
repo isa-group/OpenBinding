@@ -25,6 +25,27 @@ patterns from the following MIT-licensed projects:
 | [openapi-typescript](https://github.com/openapi-ts/openapi-typescript) | `7.13.0` (development only) | Generating the frontend's API types from `docs/openapi.json` |
 | [@codemirror/lang-xml](https://github.com/codemirror/lang-xml) | `6.1.0` | Highlighting the BPMN (XML) files of a package in the problem editor's code view |
 
+### Libraries of SPHERE's frontend stack
+
+The frontend takes the libraries SPHERE's frontend is built on, so that SPHERE's code can be reused as it is
+(`docs/adr/0053-frontend-on-sphere-stack.md`). They are dependencies, not copies; their licences travel with the
+packages.
+
+| Package | Version | Licence | Use in OpenBinding |
+|---|---|---|---|
+| [tailwindcss](https://github.com/tailwindlabs/tailwindcss) and `@tailwindcss/vite` | `4.3.5` | MIT | Styling with SPHERE's `tp` design tokens and its preflight |
+| [framer-motion](https://github.com/motiondivision/motion) | `12.43.0` | MIT | SPHERE's motion variants, tab underlines and dialog transitions |
+| [react-icons](https://github.com/react-icons/react-icons) | `5.7.0` | MIT (each icon set keeps its own licence, listed in the package) | Icons, through SPHERE's iconify shim |
+| [react-loading-skeleton](https://github.com/dvtng/react-loading-skeleton) | `3.5.0` | MIT | SPHERE's loading skeletons |
+| [date-fns](https://github.com/date-fns/date-fns) | `4.4.0` | MIT | Relative and formatted dates |
+| [react-dropzone](https://github.com/react-dropzone/react-dropzone) | `14.4.1` | MIT | File drop areas |
+| [dnd-kit](https://github.com/clauderic/dnd-kit) (`@dnd-kit/core`, `sortable`, `utilities`) | `6.3.1`, `10.0.0`, `3.2.2` | MIT | Drag and drop in the organization tree |
+| [react-easy-crop](https://github.com/ValentinH/react-easy-crop) | `5.5.7` | MIT | Cropping avatars |
+| [react-helmet-async](https://github.com/staylor/react-helmet-async) | `3.1.0` | Apache-2.0 | Page titles |
+| [monaco-editor](https://github.com/microsoft/monaco-editor) and [@monaco-editor/react](https://github.com/suren-atoyan/monaco-react) | `0.52.2`, `4.7.0` | MIT | The code editors, bundled locally |
+| [react-markdown](https://github.com/remarkjs/react-markdown) and [remark-gfm](https://github.com/remarkjs/remark-gfm) | `10.1.0`, `4.0.1` | MIT | The about pages |
+| [prettier](https://github.com/prettier/prettier) and [prettier-plugin-tailwindcss](https://github.com/tailwindlabs/prettier-plugin-tailwindcss) | `3.9.4`, `0.8.1` (development only) | MIT | Formatting with SPHERE's settings |
+
 The MIT notice applying to those projects follows:
 
 > Permission is hereby granted, free of charge, to any person obtaining a copy
