@@ -6,7 +6,7 @@ import { REGISTRATION, detailOf } from '../src/test/fixtures/jobs';
 
 // F2 · ranges of candidate features, from the problems to the engines.
 // A feature of a candidate is a number or a range { min, max } whose ends are numbers or null (no limit). This walks it through the
-// screens that read it (the Overview and the Versions tab of a problem page) and decide on it
+// screens that read it (the Candidates and Versions tabs of a problem page) and decide on it
 // (the engine step of a run, a run the engine refused, the workbench's check result, a run that failed for ranges). The Source tab is covered by its unit tests. The API origin is the shared mock of the QA gallery with a few answers of
 // its own on top. Unlike the other specs, the pictures are always taken (test-results/, ignored by git): they are the evidence of F2.
 
@@ -75,13 +75,13 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
     test.describe.configure({ mode: 'serial' });
     test.use({ viewport, isMobile, deviceScaleFactor });
 
-    test('problem-detail · bars for ranges on the Overview and what changed between two versions on the Versions tab', async ({ page }, testInfo) => {
+    test('problem-detail · bars for ranges on the Candidates tab and what changed between two versions on the Versions tab', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       await installMockApi(page, 'admin');
       await answerCompilations(page);
       const main = page.locator('#platform-main');
 
-      await page.goto(`${PROBLEMS}/checkout-flow?version=2`);
+      await page.goto(`${PROBLEMS}/checkout-flow/candidates?version=2`);
       // The candidates of a task: a table on a desktop, a card per candidate on a phone.
       const providers = main.getByRole('region', { name: 'Candidates of each task' });
       const candidate = (written: string) => (isMobile

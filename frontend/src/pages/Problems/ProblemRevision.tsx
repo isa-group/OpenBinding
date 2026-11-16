@@ -7,96 +7,20 @@ import { Action } from '../../components/ui/Action';
 import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useCopy } from '../../components/ui/useCopy';
-import { candidateMatrix } from '../../entities/binding/candidateMatrix';
 import { workflowGraph, type TaskOverlay } from '../../entities/binding/workflowGraph';
-import { describeExpression, isAlways } from '../../entities/problem/expressions';
 import { problemPath } from '../../routes/paths/problems';
-import type { ProblemFacts } from '../../shared/api/types';
 import { formatBytes, formatDateTime } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
-import { CandidateMatrix } from '../../widgets/candidate-matrix/CandidateMatrix';
 import { WorkflowGraph } from '../../widgets/workflow-graph/WorkflowGraph';
 import { marker } from '../../shared/api/errors';
 import { loadModel, modelKey, type ModelState } from './modelLoader';
 import { DigestLine } from './parts';
+import { RulesAndObjectives } from './RulesAndObjectives';
 import type { RouteProblemContent } from './useRouteProblem';
-
-const text = (value: unknown): string | null => (typeof value === 'string' && value ? value : null);
-const finite = (value: unknown): number | null => (typeof value === 'number' && Number.isFinite(value) ? value : null);
-const record = (value: unknown): Record<string, unknown> => (typeof value === 'object' && value !== null && !Array.isArray(value) ? value as Record<string, unknown> : {});
 
 /** The languages the compiler read the package in: the `apiVersion` of each resource the compilation lists, each once. */
 function languagesOf(compilation: ProblemCompilation | null): string[] {
   return [...new Set(Object.values(compilation?.resources ?? {}).flatMap((contract) => (contract.apiVersion ? [contract.apiVersion] : [])))];
-}
-
-function RulesCard({ facts }: { facts: ProblemFacts }) {
-  return (
-    <section className="proj-panel" aria-labelledby="rv-rules">
-      <h3 id="rv-rules">Rules</h3>
-      {facts.constraints.length === 0 && <p className="org-muted">This version declares no rules.</p>}
-      <ul className="case-rules">
-        {facts.constraints.map((rule) => (
-          <li key={rule.id}>
-            <span className={`case-must${rule.enforcement === 'soft' ? ' is-should' : ''}`}>{rule.enforcement === 'hard' ? 'MUST' : 'SHOULD'}</span>
-            <span>
-              {describeExpression(rule.expression)}
-              {rule.when !== null && !isAlways(rule.when) && <small> · when {describeExpression(rule.when)}</small>}
-              {rule.penalty !== null && <small> · penalty {describeExpression(rule.penalty)} if broken</small>}
-              <small className="case-rule-id">{rule.id}</small>
-            </span>
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-}
-
-function GoalCard({ facts }: { facts: ProblemFacts }) {
-  const criteria = facts.objectives.criteria.map((criterion, index) => {
-    const normalize = record(criterion.normalize);
-    const min = finite(normalize.min);
-    const max = finite(normalize.max);
-    const id = text(criterion.id) ?? `criterion ${index + 1}`;
-    return { id, feature: text(record(criterion.feature).id) ?? id, direction: text(criterion.direction), range: min !== null && max !== null ? { min, max } : null };
-  });
-  const penalties = facts.objectives.penalties.flatMap((penalty) => {
-    const rule = text(record(penalty.constraint).id);
-    const weight = finite(penalty.weight);
-    return rule && weight !== null ? [{ rule, weight }] : [];
-  });
-  const heaviest = Math.max(...penalties.map((penalty) => penalty.weight), 0);
-  return (
-    <section className="proj-panel" aria-labelledby="rv-goal">
-      <h3 id="rv-goal">Goal</h3>
-      {criteria.length === 0 && <p className="org-muted">This version declares no criteria to optimize.</p>}
-      <ul className="case-criteria">
-        {criteria.map((criterion) => (
-          <li key={criterion.id}>
-            <span><b>{criterion.id}</b>{criterion.feature !== criterion.id ? <small> ({criterion.feature})</small> : null}</span>
-            <span>{criterion.direction === 'maximize' ? 'higher is better' : criterion.direction === 'minimize' ? 'lower is better' : 'direction not stated'}{criterion.range ? ` · scaled ${criterion.range.min}–${criterion.range.max}` : ''}</span>
-          </li>
-        ))}
-      </ul>
-      {penalties.length > 0 && (
-        <>
-          <b className="case-sub">Breaking a “should” rule costs</b>
-          <ul className="case-criteria">
-            {penalties.map((penalty) => (
-              <li key={penalty.rule}>
-                <span>{penalty.rule}</span>
-                <span className="case-cell">
-                  <span className="case-bar is-small" aria-hidden="true"><i style={{ width: `${heaviest ? Math.round((penalty.weight / heaviest) * 100) : 0}%` }} /></span>
-                  weight {penalty.weight}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
-      <span className="org-muted">How the criteria trade off against each other is chosen when the version is run, so no weights are shown here.</span>
-    </section>
-  );
 }
 
 /** Whether the version declares placement: the compilation's analysis says so; the facts carry no pools. */
@@ -106,7 +30,7 @@ function PlacementCard({ compilation }: { compilation: ProblemCompilation }) {
     : <div className="case-dashed"><b>Placement</b> · not declared in this version (no pools, network or events).</div>;
 }
 
-/** The Overview tab of the problem page: the model of the problem version on show, in plain language. */
+/** The Overview tab of the problem page: the problem version on show, its workflow, and its rules and objectives, in plain language. */
 export function VersionOverview({ organization, content, revision }: {
   organization: Organization; content: RouteProblemContent; revision: Revision;
 }) {
@@ -119,7 +43,6 @@ export function VersionOverview({ organization, content, revision }: {
   const compilation = modelState.data?.state === 'ready' ? modelState.data.compilation : null;
   const languages = languagesOf(compilation);
   const graph = useMemo(() => (facts ? workflowGraph(facts.workflow) : null), [facts]);
-  const matrix = useMemo(() => (facts ? candidateMatrix(facts) : null), [facts]);
   const overlay = useMemo(() => Object.fromEntries((facts?.tasks ?? []).map((task): [string, TaskOverlay] => [task.id, { local: task.kind === 'local' }])), [facts]);
 
   return (
@@ -170,21 +93,15 @@ export function VersionOverview({ organization, content, revision }: {
         )}
       </section>
 
-      {facts && compilation && matrix && (
-        <section className="org-section" aria-labelledby="rv-model">
-          <h2 id="rv-model">Providers, rules and goal</h2>
-          <div className="case-model">
-            <section className="proj-panel" aria-labelledby="rv-candidates">
-              <h3 id="rv-candidates">Candidates</h3>
-              <CandidateMatrix matrix={matrix} mode="view" label="Candidates of each task" />
-            </section>
-            <div className="case-model-side">
-              <RulesCard facts={facts} />
-              <GoalCard facts={facts} />
-              <PlacementCard compilation={compilation} />
-            </div>
-          </div>
-        </section>
+      {facts && compilation && (
+        <>
+          <RulesAndObjectives facts={facts} />
+          <PlacementCard compilation={compilation} />
+          <p className="org-muted">
+            The candidates of each task, with the values the package writes for them, are on the{' '}
+            <Link to={problemPath(org, item.slug, 'candidates', { version: revision.revision })} viewTransition>Candidates</Link> tab.
+          </p>
+        </>
       )}
 
     </>

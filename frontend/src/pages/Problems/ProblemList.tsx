@@ -1,12 +1,16 @@
 import { useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { CheckCircle2 } from 'lucide-react';
 import type { Organization } from '../../api/platform';
 import { Action } from '../../components/ui/Action';
+import { Badge } from '../../components/ui/Badge';
 import { Chip } from '../../components/ui/Chip';
+import { FilterPills } from '../../components/ui/FilterPills';
 import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
-import { problemPath, problemsPath, problemEditorPath } from '../../routes/paths/problems';
+import { compositionsApi } from '../../entities/composition/api';
+import { problemPath, problemsPath, problemEditorPath, type ProblemsFilter } from '../../routes/paths/problems';
+import type { ProblemOrigin } from '../../shared/api/types';
 import { formatDate } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import { RoleChip } from '../Organization/parts';
@@ -25,6 +29,19 @@ import { problemAccess } from './useRouteProblem';
 /** The template a new problem starts from in the problem editor when the list offers one. */
 export const STARTER_TEMPLATE = 'demo/01_simple_seq';
 
+/** The most compositions the "Linked by composition" select offers. */
+const COMPOSITION_PAGE = 200;
+
+/** What each origin is called on screen. SPHERE is recorded by the gateway already and offered as a filter from F3. */
+const ORIGIN_LABELS: Readonly<Record<ProblemOrigin, string>> = {
+  upload: 'Uploaded', editor: 'Problem editor', qacoforge: 'QACOForge', sphere: 'SPHERE',
+};
+const ORIGIN_PILLS = [
+  { id: 'all', label: 'All origins' },
+  ...(['upload', 'editor', 'qacoforge'] as const).map((id) => ({ id, label: ORIGIN_LABELS[id] })),
+];
+const isFilterOrigin = (value: string | null): value is ProblemOrigin => value === 'upload' || value === 'editor' || value === 'qacoforge';
+
 function CaseRow({ org, entry, runHref, canCreate, canAdminister, onDelete }: {
   org: string; entry: CaseContent; runHref: string | null; canCreate: boolean; canAdminister: boolean; onDelete: () => void;
 }) {
@@ -37,6 +54,7 @@ function CaseRow({ org, entry, runHref, canCreate, canAdminister, onDelete }: {
         <span className="case-row-title">
           <strong>{item.name}</strong>
           <Chip tone={latest ? 'success' : 'plain'}>{latest ? 'Ready to run' : 'No version yet'}</Chip>
+          {item.latest_revision && <Badge title="Where its latest version came from">{ORIGIN_LABELS[item.latest_revision.origin]}</Badge>}
         </span>
         <span className="case-row-desc">{item.description || 'No description.'}</span>
         <span className="case-row-meta">
@@ -57,8 +75,13 @@ function CaseRow({ org, entry, runHref, canCreate, canAdminister, onDelete }: {
 function ListBody({ organization }: { organization: Organization }) {
   const location = useLocation();
   const navigate = useNavigate();
+  const [params] = useSearchParams();
   const org = organization.slug;
   const { role, canCreate, canAdminister } = problemAccess(organization);
+  const originParam = params.get('origin');
+  const filter: ProblemsFilter = { origin: isFilterOrigin(originParam) ? originParam : undefined, composition: params.get('composition') || undefined };
+  const filtered = Boolean(filter.origin || filter.composition);
+  const show = (next: ProblemsFilter) => void navigate(problemsPath(org, { ...filter, ...next }), { replace: true });
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<'recent' | 'name'>('recent');
   const dialog = useCreateDialog('problem', problemsPath(org), canCreate);
@@ -67,7 +90,10 @@ function ListBody({ organization }: { organization: Organization }) {
   if (closing && !dialog.open) setClosing(false);
   const [removing, setRemoving] = useState<CaseContent | null>(null);
   const [toast, setToast] = useState<string>(() => (location.state as { toast?: string } | null)?.toast ?? '');
-  const problems = useResource(`problems:${org}`, () => loadProblems(org));
+  const problems = useResource(`problems:${org}:${filter.origin ?? 'all'}:${filter.composition ?? ''}`, () => loadProblems(org, filter));
+  // The compositions the select offers; without them the select offers only "Any composition".
+  const compositions = useResource(`problem-filter-compositions:${org}`, () => compositionsApi.list(org, { sort: 'name', limit: COMPOSITION_PAGE }));
+  const compositionOptions = compositions.data?.compositions ?? [];
 
   const all = problems.data ?? [];
   const needle = query.trim().toLowerCase();
@@ -108,6 +134,14 @@ function ListBody({ organization }: { organization: Organization }) {
           <input id="case-search" type="search" value={query} placeholder="Search problems…" onChange={(event) => setQuery(event.target.value)} />
         </div>
         <label className="case-sort">
+          Linked by composition
+          <select value={filter.composition ?? ''} onChange={(event) => show({ composition: event.target.value || undefined })}>
+            <option value="">Any composition</option>
+            {filter.composition && !compositionOptions.some((item) => item.slug === filter.composition) && <option value={filter.composition}>{filter.composition}</option>}
+            {compositionOptions.map((item) => <option key={item.id} value={item.slug}>{item.name}</option>)}
+          </select>
+        </label>
+        <label className="case-sort">
           Sort
           <select value={sort} onChange={(event) => setSort(event.target.value as 'recent' | 'name')}>
             <option value="recent">Latest version</option>
@@ -115,6 +149,12 @@ function ListBody({ organization }: { organization: Organization }) {
           </select>
         </label>
       </div>
+      <FilterPills
+        options={ORIGIN_PILLS}
+        value={filter.origin ?? 'all'}
+        onChange={(id) => show({ origin: isFilterOrigin(id) ? id : undefined })}
+        ariaLabel="Origin of the latest version"
+      />
 
       {problems.status === 'loading' && (
         <div role="status" aria-busy="true" className="case-skeletons"><span className="sr-only">Loading problems…</span><Skeleton variant="tile" /><Skeleton variant="tile" /></div>
@@ -125,7 +165,10 @@ function ListBody({ organization }: { organization: Organization }) {
         </Notice>
       )}
 
-      {problems.status === 'ready' && all.length === 0 && (
+      {problems.status === 'ready' && all.length === 0 && filtered && (
+        <p className="org-muted">No problem matches these filters. <Link to={problemsPath(org)} replace>Show every problem</Link></p>
+      )}
+      {problems.status === 'ready' && all.length === 0 && !filtered && (
         <section className="case-guide" aria-labelledby="case-guide-title">
           <h2 id="case-guide-title">No problems yet</h2>
           <p>Upload a BIM package you already have, write one in the problem editor, or start from a template.</p>
@@ -185,8 +228,9 @@ function ListBody({ organization }: { organization: Organization }) {
 }
 
 /**
- * Problems (`problem-list`, `/app/:org/problems`): the organization's problems, how many versions each has, and the ways to add one. The
- * dialog `Upload BIM package` is open while the address holds `?create=problem`, for the people who may create.
+ * Problems (`problem-list`, `/app/:org/problems`): the organization's problems, how many versions each has, where its latest version
+ * came from, and the ways to add one. `?origin=` and `?composition=` narrow the list on the gateway. The dialog `Upload BIM package`
+ * is open while the address holds `?create=problem`, for the people who may create.
  */
 export function ProblemList() {
   const { organization, waiting } = useRouteOrganization();

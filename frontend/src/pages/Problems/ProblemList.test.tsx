@@ -8,14 +8,19 @@ import { caseOf, org, renderOrgScreen, revisionOf } from '../../features/workspa
 import { ProblemList } from './ProblemList';
 
 const problems = vi.hoisted(() => ({ list: vi.fn(), revisions: vi.fn(), create: vi.fn(), remove: vi.fn() }));
+const compositions = vi.hoisted(() => ({ list: vi.fn() }));
 
 vi.mock('../../api/problems', () => ({ problemsApi: problems }));
+vi.mock('../../entities/composition/api', () => ({ compositionsApi: compositions }));
 
 const group = org('isa-demo', { name: 'ISA Demo Group', effective_role: 'MEMBER' });
 const admin = org('qos-lab', { name: 'QoS Lab', effective_role: 'ADMIN' });
 const viewing = org('read-lab', { name: 'Read Lab', effective_role: 'VIEWER' });
 
-const checkout = caseOf('flujo-checkout', 'Flujo de checkout', { description: 'Payments with parallel stock and shipping.' });
+const checkout = caseOf('flujo-checkout', 'Flujo de checkout', {
+  description: 'Payments with parallel stock and shipping.',
+  latest_revision: { id: 'case-flujo-checkout-r2', revision: 2, package_digest: `sha256-${'2'.repeat(64)}`, created_at: '2026-04-02T00:00:00Z', origin: 'editor' },
+});
 const draft = caseOf('borrador', 'Borrador', { created_at: '2026-03-01T00:00:00Z' });
 const root = '/app/isa-demo';
 
@@ -56,19 +61,24 @@ describe('Problem list', () => {
     vi.clearAllMocks();
     problems.list.mockResolvedValue({ problems: [checkout, draft], total: 2, limit: 200, offset: 0 });
     problems.revisions.mockImplementation(async (_org: string, slug: string) => (slug === 'flujo-checkout' ? [revisionOf(checkout, 1), revisionOf(checkout, 2)] : []));
+    compositions.list.mockResolvedValue({
+      compositions: [{ id: 'composition-fleet', slug: 'fleet-plan', name: 'Fleet plan' }, { id: 'composition-desk', slug: 'order-desk', name: 'Order desk' }],
+      total: 2, limit: 200, offset: 0,
+    });
   });
 
   it('lists the organization’s problems with their versions, what is ready to run and where each one leads', async () => {
     renderList();
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Problems' })).toBeInTheDocument();
-    expect(problems.list).toHaveBeenCalledWith('isa-demo', { limit: 200 });
+    expect(problems.list).toHaveBeenCalledWith('isa-demo', { limit: 200, origin: undefined, composition: undefined });
     const list = await screen.findByRole('list', { name: 'Problems' });
     const rows = within(list).getAllByRole('listitem');
     expect(rows).toHaveLength(2);
     const first = within(rows[0]);
     expect(first.getByRole('link', { name: /Flujo de checkout/ })).toHaveAttribute('href', `${root}/problems/flujo-checkout`);
     expect(first.getByText('Ready to run')).toBeInTheDocument();
+    expect(first.getByText('Problem editor')).toBeInTheDocument();
     expect(first.getByText('2 versions')).toBeInTheDocument();
     expect(first.getByText(/latest v2 · /)).toBeInTheDocument();
     expect(document.body.textContent).not.toMatch(/sha256-|[0-9a-f]{12}/);
@@ -100,6 +110,69 @@ describe('Problem list', () => {
     expect(within(screen.getByRole('list', { name: 'Problems' })).getAllByRole('listitem')).toHaveLength(1);
     fireEvent.change(screen.getByRole('searchbox', { name: 'Search problems' }), { target: { value: 'zzz' } });
     expect(screen.getByText('No problem matches “zzz”.')).toBeInTheDocument();
+  });
+
+  describe('filters', () => {
+    it('narrows the list by the origin of the latest version, on the gateway and in the address', async () => {
+      renderList();
+      await screen.findByRole('list', { name: 'Problems' });
+
+      const origins = screen.getByRole('group', { name: 'Origin of the latest version' });
+      expect(within(origins).getAllByRole('button').map((button) => button.textContent)).toEqual(['All origins', 'Uploaded', 'Problem editor', 'QACOForge']);
+      expect(within(origins).getByRole('button', { name: 'All origins' })).toHaveAttribute('aria-pressed', 'true');
+      problems.list.mockResolvedValue({ problems: [checkout], total: 1, limit: 200, offset: 0 });
+      fireEvent.click(within(origins).getByRole('button', { name: 'Problem editor' }));
+
+      await waitFor(() => expect(where()).toBe(`${root}/problems?origin=editor`));
+      await waitFor(() => expect(problems.list).toHaveBeenLastCalledWith('isa-demo', { limit: 200, origin: 'editor', composition: undefined }));
+      await waitFor(() => expect(within(screen.getByRole('list', { name: 'Problems' })).getAllByRole('listitem')).toHaveLength(1));
+      expect(within(origins).getByRole('button', { name: 'Problem editor' })).toHaveAttribute('aria-pressed', 'true');
+    });
+
+    it('narrows the list to the problems a composition links, and offers the organization’s compositions', async () => {
+      renderList();
+      await screen.findByRole('list', { name: 'Problems' });
+
+      const select = screen.getByRole('combobox', { name: 'Linked by composition' });
+      await waitFor(() => expect(within(select).getAllByRole('option').map((option) => option.textContent)).toEqual(['Any composition', 'Fleet plan', 'Order desk']));
+      expect(compositions.list).toHaveBeenCalledWith('isa-demo', { sort: 'name', limit: 200 });
+      fireEvent.change(select, { target: { value: 'fleet-plan' } });
+
+      await waitFor(() => expect(where()).toBe(`${root}/problems?composition=fleet-plan`));
+      await waitFor(() => expect(problems.list).toHaveBeenLastCalledWith('isa-demo', { limit: 200, origin: undefined, composition: 'fleet-plan' }));
+    });
+
+    it('reads both filters from the address, and says when nothing matches them', async () => {
+      problems.list.mockResolvedValue({ problems: [], total: 0, limit: 200, offset: 0 });
+      renderList(group, '?origin=qacoforge&composition=fleet-plan');
+
+      expect(await screen.findByText(/No problem matches these filters\./)).toBeInTheDocument();
+      expect(problems.list).toHaveBeenCalledWith('isa-demo', { limit: 200, origin: 'qacoforge', composition: 'fleet-plan' });
+      expect(screen.queryByRole('heading', { name: 'No problems yet' })).not.toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Show every problem' })).toHaveAttribute('href', `${root}/problems`);
+      expect(screen.getByRole('combobox', { name: 'Linked by composition' })).toHaveValue('fleet-plan');
+    });
+
+    it('keeps the list when the compositions cannot be read: the select offers only any composition', async () => {
+      compositions.list.mockRejectedValue(refusal(503, 'unavailable'));
+      renderList();
+
+      await screen.findByRole('list', { name: 'Problems' });
+      expect(within(screen.getByRole('combobox', { name: 'Linked by composition' })).getAllByRole('option').map((option) => option.textContent)).toEqual(['Any composition']);
+    });
+
+    it('names where each latest version came from', async () => {
+      const uploaded = caseOf('subido', 'Subido', { latest_revision: { id: 'r1', revision: 1, package_digest: `sha256-${'1'.repeat(64)}`, created_at: '2026-04-02T00:00:00Z', origin: 'upload' } });
+      const forged = caseOf('forjado', 'Forjado', { latest_revision: { id: 'r1', revision: 1, package_digest: `sha256-${'1'.repeat(64)}`, created_at: '2026-04-01T00:00:00Z', origin: 'qacoforge' } });
+      problems.list.mockResolvedValue({ problems: [uploaded, forged, draft], total: 3, limit: 200, offset: 0 });
+      renderList();
+
+      const list = await screen.findByRole('list', { name: 'Problems' });
+      const row = (name: string) => within(list).getAllByRole('listitem').find((item) => item.textContent?.includes(name)) as HTMLElement;
+      expect(within(row('Subido')).getByText('Uploaded')).toBeInTheDocument();
+      expect(within(row('Forjado')).getByText('QACOForge')).toBeInTheDocument();
+      expect(within(row('Borrador')).queryByText(/Uploaded|Problem editor|QACOForge/)).not.toBeInTheDocument();
+    });
   });
 
   it('explains how to start when the organization has no problem', async () => {
@@ -149,7 +222,9 @@ describe('Problem list', () => {
       fireEvent.change(within(dialog).getByLabelText(/Description/), { target: { value: 'Edge pools' } });
       fireEvent.click(within(dialog).getByRole('button', { name: 'Upload problem' }));
 
-      await waitFor(() => expect(problems.create).toHaveBeenCalledWith('isa-demo', expect.any(File), { slug: 'analisis-de-latencia', name: 'analisis-de-latencia', description: 'Edge pools' }));
+      await waitFor(() => expect(problems.create).toHaveBeenCalledWith('isa-demo', expect.any(File), {
+        slug: 'analisis-de-latencia', name: 'analisis-de-latencia', description: 'Edge pools', producer: 'openbinding-upload',
+      }));
       // The problem page is another route: the list is left for it.
       expect(await screen.findByText('elsewhere')).toBeInTheDocument();
     });

@@ -29,7 +29,7 @@ const latest = VERSION_NUMBERS.length;
 const problem = {
   id: 'problem-routing', organization_id: 'org-acme', slug: PROBLEM_SLUG, name: 'Routing', description: 'A routing problem',
   created_by_id: 'user-1', created_at: NOW, updated_at: NOW,
-  latest_revision: { id: `rev-${latest}`, revision: latest, package_digest: revision(latest).package_digest, created_at: NOW },
+  latest_revision: { id: `rev-${latest}`, revision: latest, package_digest: revision(latest).package_digest, created_at: NOW, origin: 'upload' },
 };
 
 const revisionDetail = (n: number) => ({

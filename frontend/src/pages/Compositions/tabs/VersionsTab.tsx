@@ -27,7 +27,7 @@ import type { Loaded } from '../../../widgets/composition-renderer/modes/compari
 import type { Texts } from '../../../widgets/composition-renderer/modes/comparison/Comparison';
 import { EvolutionCharts } from '../../../widgets/evolution-charts/EvolutionCharts';
 import { ValueBadge } from '../../../widgets/value-badge/ValueBadge';
-import { factsSource } from '../factsSource';
+import { factsSource } from '../../../entities/composition/factsSource';
 
 type View = VersionsView;
 

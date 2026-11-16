@@ -44,6 +44,7 @@ test.describe('live · J1 derive, seal and compare on lab-main', () => {
     await upload.getByRole('button', { name: 'Upload problem' }).click();
     await expect(page).toHaveURL(new RegExp(`${PROBLEMS}/${name}$`), { timeout: 60_000 });
     await expect(main.getByRole('group', { name: 'Workflow' }).first()).toBeVisible({ timeout: 60_000 });
+    await main.getByRole('tab', { name: 'Candidates' }).click();
     const t1 = main.getByRole('region', { name: 'Candidates of each task' }).getByRole('region', { name: 'Candidates for t1' });
     await expect(t1).toContainText('c1a');
     await expect(t1).toContainText('c1b');

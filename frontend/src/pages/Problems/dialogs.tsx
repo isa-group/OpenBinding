@@ -10,6 +10,9 @@ import { DESCRIPTION_MAX, NAME_MAX } from './problemsModel';
 import { SLUG_PATTERN, slugFromName } from '../../shared/lib/slug';
 import '../../features/workspace/kit.css';
 
+/** The producer an upload names: the gateway records the version's origin as `upload` from it. */
+export const UPLOAD_PRODUCER = 'openbinding-upload';
+
 /** A package file a person picked: `.bim.zip` (or `.zip`). */
 const PACKAGE_ACCEPT = '.zip,application/zip,application/vnd.bim+zip';
 
@@ -78,7 +81,7 @@ export function UploadProblemDialog({ organization, onClose, onCreated }: {
     setRefusal(null);
     try {
       onCreated(await problemsApi.create(organization.slug, file, {
-        slug: slug || undefined, name: shownName.trim() || undefined, description: description.trim() || undefined,
+        slug: slug || undefined, name: shownName.trim() || undefined, description: description.trim() || undefined, producer: UPLOAD_PRODUCER,
       }));
     } catch (caught) {
       setRefusal(uploadRefusal(caught, 'problem'));
@@ -135,7 +138,7 @@ export function UploadVersionDialog({ organization, item, onClose, onSaved }: {
     setBusy(true);
     setRefusal(null);
     try {
-      onSaved(await problemsApi.createRevision(organization.slug, item.slug, file));
+      onSaved(await problemsApi.createRevision(organization.slug, item.slug, file, { producer: UPLOAD_PRODUCER }));
     } catch (caught) {
       setRefusal(uploadRefusal(caught, 'version'));
       setBusy(false);

@@ -4,6 +4,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../api/client';
 import type { ProblemUpload } from '../../api/problems';
 import { caseOf, org, renderOrgScreen, revisionOf } from '../../features/workspace/testKit';
+import type { CompositionVersionView, CompositionView, ProblemFacts } from '../../shared/api/types';
+import fmsFacts from '../../test/fixtures/core/fms.facts.json';
+import fmsVersion from '../../test/fixtures/core/fms.version.json';
 import { ProblemDetail } from './ProblemDetail';
 import { checkoutFacts, compiledDocument, digestOf } from './fixtures';
 
@@ -14,9 +17,11 @@ const problems = vi.hoisted(() => ({
 const runs = vi.hoisted(() => ({ list: vi.fn() }));
 
 const facts = vi.hoisted(() => ({ get: vi.fn() }));
+const compositions = vi.hoisted(() => ({ list: vi.fn(), get: vi.fn(), version: vi.fn() }));
 
 vi.mock('../../api/problems', () => ({ problemsApi: problems }));
 vi.mock('../../entities/problem/facts', async (actual) => ({ ...await actual<typeof import('../../entities/problem/facts')>(), problemFactsApi: facts }));
+vi.mock('../../entities/composition/api', () => ({ compositionsApi: compositions }));
 vi.mock('../../api/runs', async () => ({ ...await vi.importActual<typeof import('../../api/runs')>('../../api/runs'), runsApi: runs }));
 
 const owner = org('isa-demo', { name: 'ISA Demo Group', effective_role: 'OWNER' });
@@ -65,6 +70,7 @@ describe('Problem page', () => {
     }));
     problems.source.mockRejectedValue(refusal(503, 'unavailable'));
     runs.list.mockResolvedValue({ runs: [], total: 0 });
+    compositions.list.mockResolvedValue({ compositions: [], total: 0, limit: 200, offset: 0 });
     Object.defineProperty(navigator, 'clipboard', { value: { writeText: vi.fn().mockResolvedValue(undefined) }, configurable: true });
   });
 
@@ -81,11 +87,11 @@ describe('Problem page', () => {
     expect(problems.get).toHaveBeenCalledWith('isa-demo', 'flujo-checkout');
   });
 
-  it('serves the tabs Overview, Runs, Versions, Source and Settings, Overview first, showing the latest version', async () => {
+  it('serves the tabs Overview, Candidates, Versions, Runs, Compositions, Source and Settings, Overview first, showing the latest version', async () => {
     renderDetail();
 
     await screen.findByRole('heading', { level: 1, name: 'Flujo de checkout' });
-    expect(tabNames()).toEqual(['Overview', 'Runs', 'Versions', 'Source', 'Settings']);
+    expect(tabNames()).toEqual(['Overview', 'Candidates', 'Versions', 'Runs', 'Compositions', 'Source', 'Settings']);
     expect(screen.getByRole('tab', { name: 'Overview' })).toHaveAttribute('aria-selected', 'true');
     const version = screen.getByRole('combobox', { name: 'Version' });
     expect(version).toHaveValue('2');
@@ -95,7 +101,7 @@ describe('Problem page', () => {
   });
 
   it.each([
-    ['/runs', 'Runs'], ['/versions', 'Versions'], ['/source', 'Source'], ['/settings', 'Settings'],
+    ['/candidates', 'Candidates'], ['/versions', 'Versions'], ['/runs', 'Runs'], ['/compositions', 'Compositions'], ['/source', 'Source'], ['/settings', 'Settings'],
   ])('selects the tab named by the address %s', async (address, label) => {
     renderDetail(owner, 'flujo-checkout', address);
 
@@ -183,6 +189,126 @@ describe('Problem page', () => {
     });
   });
 
+  describe('Candidates tab', () => {
+    const fms = caseOf('fms', 'Fleet routing problem', { id: fmsVersion.problem.problem.id });
+    const fms1 = revisionOf(fms, 1);
+    const fms2 = revisionOf(fms, 2);
+    const fleet = { name: 'Fleet plan', slug: 'fleet-plan' } as CompositionView;
+    const chosen = () => structuredClone(fmsVersion) as CompositionVersionView;
+    const t1 = () => within(screen.getByRole('region', { name: 'Candidates of each task' })).getByRole('table', { name: /Task T1/ });
+
+    beforeEach(() => {
+      problems.get.mockResolvedValue(fms);
+      problems.revisions.mockResolvedValue([fms1, fms2]);
+      facts.get.mockResolvedValue(fmsFacts as ProblemFacts);
+      compositions.get.mockResolvedValue({ value: fleet, etag: null });
+      compositions.version.mockResolvedValue(chosen());
+    });
+
+    it('lists the candidates of each task with their values and where the package writes them, nothing selected', async () => {
+      renderDetail(owner, 'fms', '/candidates?version=1');
+
+      const table = await screen.findByRole('table', { name: /Task T1/ });
+      expect(within(table).getAllByRole('row').slice(1).every((row) => !row.hasAttribute('aria-current'))).toBe(true);
+      expect(within(table).getAllByText(/^written in candidates\.json at /).length).toBeGreaterThan(0);
+      expect(compositions.version).not.toHaveBeenCalled();
+    });
+
+    it('highlights what a composition version chose, read on the compilation its values were evaluated on, with a link back', async () => {
+      renderDetail(owner, 'fms', '/candidates?version=1&composition=fleet-plan&compositionVersion=1.0.0');
+
+      expect(await screen.findByText(/chose are selected/)).toHaveTextContent('The candidates Fleet plan 1.0.0 chose are selected');
+      expect(within(t1()).getByRole('row', { name: /^cand_t1_aws/ })).toHaveAttribute('aria-current', 'true');
+      expect(within(t1()).getByRole('row', { name: /^cand_t1_aws/ })).toHaveTextContent('Selected');
+      expect(within(t1()).getAllByRole('row').filter((row) => row.getAttribute('aria-current') === 'true')).toHaveLength(1);
+      expect(screen.getByRole('link', { name: 'Back to Fleet plan 1.0.0' })).toHaveAttribute('href', `${root}/compositions/fleet-plan?version=1.0.0`);
+      expect(compositions.version).toHaveBeenCalledWith('isa-demo', 'fleet-plan', '1.0.0');
+      expect(facts.get).toHaveBeenCalledWith('isa-demo', 'fms', 1, fmsVersion.evaluations[0].compilation.id);
+    });
+
+    it('leaves the tab and the highlight with it when another tab opens', async () => {
+      renderDetail(owner, 'fms', '/candidates?version=1&composition=fleet-plan&compositionVersion=1.0.0');
+
+      await screen.findByText(/chose are selected/);
+      fireEvent.click(screen.getByRole('tab', { name: 'Overview' }));
+      await waitFor(() => expect(where()).toBe(`${root}/problems/fms?version=1`));
+    });
+
+    it('sends to the problem version a composition version chose on', async () => {
+      renderDetail(owner, 'fms', '/candidates?version=2&composition=fleet-plan&compositionVersion=1.0.0');
+
+      expect(await screen.findByText('Fleet plan 1.0.0 chose its candidates on version 1 of this problem.')).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Open version 1' })).toHaveAttribute('href', `${root}/problems/fms/candidates?version=1&composition=fleet-plan&compositionVersion=1.0.0`);
+      expect(within(t1()).getAllByRole('row').filter((row) => row.hasAttribute('aria-current'))).toHaveLength(0);
+    });
+
+    it('says a composition version of another problem has nothing to highlight', async () => {
+      const other = chosen();
+      compositions.version.mockResolvedValue({ ...other, problem: other.problem && { ...other.problem, problem: { id: 'case-other', slug: 'other', name: 'Other' } } });
+      renderDetail(owner, 'fms', '/candidates?version=1&composition=fleet-plan&compositionVersion=1.0.0');
+
+      expect(await screen.findByText('Fleet plan 1.0.0 links no version of this problem, so it has nothing to highlight here.')).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Show without it' })).toHaveAttribute('href', `${root}/problems/fms/candidates?version=1`);
+    });
+
+    it('says when the composition version cannot be read, and keeps the candidates', async () => {
+      compositions.version.mockRejectedValue(refusal(404, 'not_found'));
+      renderDetail(owner, 'fms', '/candidates?version=1&composition=fleet-plan&compositionVersion=9.9.9');
+
+      expect(await screen.findByText(/The composition version 9\.9\.9 of fleet-plan couldn’t be loaded \(404/)).toBeInTheDocument();
+      expect(await screen.findByRole('table', { name: /Task T1/ })).toBeInTheDocument();
+    });
+  });
+
+  describe('Compositions tab', () => {
+    const fleet: CompositionView = {
+      id: 'composition-fleet', slug: 'fleet-plan', name: 'Fleet plan', description: '', kind: 'workflow', archived: false, visibility: 'private',
+      organization: { id: owner.id, slug: 'isa-demo', name: 'ISA Demo Group' }, created_by_id: null, created_at: '2026-09-01T00:00:00Z',
+      updated_at: '2026-10-01T00:00:00Z', version_count: 2,
+      latest_version: { id: 'v2', ordinal: 2, label: '1.1.0', values_status: 'verified', verified: true, created_at: '2026-10-01T00:00:00Z' },
+    };
+    const latest = (): CompositionVersionView => {
+      const version = structuredClone(fmsVersion) as CompositionVersionView;
+      return {
+        ...version, id: 'v2', label: '1.1.0', ordinal: 2,
+        problem: version.problem && { ...version.problem, problem: { id: checkout.id, slug: 'flujo-checkout', name: 'Flujo de checkout' }, revision: { id: r2.id, revision: 2 } },
+      };
+    };
+
+    it('lists the compositions that link the problem, with their latest version, its values and where it shows on the problem', async () => {
+      compositions.list.mockResolvedValue({ compositions: [fleet], total: 1, limit: 200, offset: 0 });
+      compositions.version.mockResolvedValue(latest());
+      renderDetail(owner, 'flujo-checkout', '/compositions');
+
+      const table = await screen.findByRole('region', { name: 'Compositions that link this problem' });
+      expect(compositions.list).toHaveBeenCalledWith('isa-demo', { problem: 'flujo-checkout', sort: 'name', limit: 200 });
+      expect(within(table).getByRole('link', { name: 'Fleet plan' })).toHaveAttribute('href', `${root}/compositions/fleet-plan`);
+      expect(within(table).getByRole('link', { name: '1.1.0' })).toHaveAttribute('href', `${root}/compositions/fleet-plan?version=1.1.0`);
+      expect(within(table).getByText('Verified')).toBeInTheDocument();
+      const values = await within(table).findByRole('list', { name: 'Values of Fleet plan 1.1.0' });
+      expect(values).toHaveTextContent('cost 3,060 USD/month');
+      expect(compositions.version).toHaveBeenCalledWith('isa-demo', 'fleet-plan', 'v2');
+      expect(within(table).getByRole('link', { name: 'Version 2' })).toHaveAttribute('href', `${root}/problems/flujo-checkout?version=2`);
+      expect(within(table).getByRole('link', { name: 'Show Fleet plan 1.1.0 on the problem' }))
+        .toHaveAttribute('href', `${root}/problems/flujo-checkout/candidates?version=2&composition=fleet-plan&compositionVersion=1.1.0`);
+    });
+
+    it('says when no composition links the problem', async () => {
+      renderDetail(owner, 'flujo-checkout', '/compositions');
+
+      expect(await screen.findByText('No composition links this problem yet.')).toBeInTheDocument();
+    });
+
+    it('offers a retry when the compositions cannot be listed', async () => {
+      compositions.list.mockRejectedValueOnce(refusal(503, 'unavailable'));
+      renderDetail(owner, 'flujo-checkout', '/compositions');
+
+      expect(await screen.findByText(/The compositions couldn’t be loaded \(503 · unavailable\)/)).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+      expect(await screen.findByText('No composition links this problem yet.')).toBeInTheDocument();
+    });
+  });
+
   describe('Runs tab', () => {
     it('lists the organization’s runs of a version of this problem, from the revision they name', async () => {
       runs.list.mockResolvedValue({ total: 2, runs: [
@@ -239,7 +365,7 @@ describe('Problem page', () => {
       fireEvent.change(within(dialog).getByLabelText('BIM package'), { target: { files: [file()] } });
       fireEvent.click(within(dialog).getByRole('button', { name: 'Upload version' }));
 
-      await waitFor(() => expect(problems.createRevision).toHaveBeenCalledWith('member-lab', 'flujo-checkout', expect.any(File)));
+      await waitFor(() => expect(problems.createRevision).toHaveBeenCalledWith('member-lab', 'flujo-checkout', expect.any(File), { producer: 'openbinding-upload' }));
       await waitFor(() => expect(where()).toBe('/app/member-lab/problems/flujo-checkout?version=3'));
       // The page reads the new version list again; the toast survives the redraw.
       expect(await screen.findByRole('option', { name: 'Version 3 · latest' })).toBeInTheDocument();

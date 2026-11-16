@@ -75,12 +75,15 @@ describe('area problems', () => {
 describe('the address builders of the problems area', () => {
 
   it('names the tab segments of the problem page', () => {
-    for (const segment of ['runs', 'versions', 'source', 'settings']) expect(isProblemTabSegment(segment), segment).toBe(true);
+    for (const segment of ['candidates', 'versions', 'runs', 'compositions', 'source', 'settings']) expect(isProblemTabSegment(segment), segment).toBe(true);
     for (const segment of ['overview', 'history', 'compare', '']) expect(isProblemTabSegment(segment), segment).toBe(false);
   });
 
   it('builds the list, the problem, its tab and the version or pair it shows', () => {
     expect(problemsPath('acme')).toBe('/app/acme/problems');
+    expect(problemsPath('acme', { origin: 'editor', composition: 'fleet routing' })).toBe('/app/acme/problems?origin=editor&composition=fleet+routing');
+    expect(problemPath('acme', 'routing', 'candidates', { version: 1, composition: 'fleet', compositionVersion: '1.2.0' }))
+      .toBe('/app/acme/problems/routing/candidates?version=1&composition=fleet&compositionVersion=1.2.0');
     expect(problemPath('acme', 'routing')).toBe('/app/acme/problems/routing');
     expect(problemPath('acme', 'routing', 'source', { version: 2 })).toBe('/app/acme/problems/routing/source?version=2');
     expect(problemPath('acme', 'routing', 'versions', { from: 1, to: 3 })).toBe('/app/acme/problems/routing/versions?from=1&to=3');

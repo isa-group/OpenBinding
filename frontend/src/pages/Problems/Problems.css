@@ -80,7 +80,6 @@
 .case-bar { display: inline-block; width: 90px; height: 6px; flex: none; overflow: hidden; border-radius: var(--tp-radius-full); background: var(--tp-hairline-soft); vertical-align: middle; }
 .case-bar i { display: block; height: 100%; border-radius: var(--tp-radius-full); background: var(--tp-primary); }
 .case-bar i.is-from { background: var(--tp-severity-info-border); }
-.case-bar.is-small { width: 56px; }
 .case-range { font-variant-numeric: tabular-nums; }
 .case-ranges { display: flex; min-width: 0; flex-direction: column; gap: var(--tp-spacing-xs); }
 .case-range-list { display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 0; list-style: none; font-size: 0.8125rem; }
@@ -105,7 +104,6 @@
 .case-glance span { color: var(--tp-steel); font-size: 0.75rem; }
 
 .case-dashed { padding: 12px 14px; border: 1px dashed var(--tp-hairline-strong); border-radius: var(--tp-radius-lg); background: var(--tp-canvas); color: var(--tp-slate); font-size: 0.8125rem; }
-.case-sub { margin-top: var(--tp-spacing-xs); font-size: 0.8125rem; font-weight: 600; }
 
 .case-flow-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 12px; color: var(--tp-steel); font-size: 0.75rem; }
 .case-flow-head b { font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; }
@@ -120,8 +118,6 @@
 .case-identity dd a { margin-left: 4px; font-size: 0.75rem; }
 .case-copyline { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 
-.case-model { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: var(--tp-spacing-md); align-items: start; }
-.case-model-side { display: flex; min-width: 0; flex-direction: column; gap: var(--tp-spacing-sm); }
 
 .case-table-scroll { overflow-x: auto; }
 .case-table { width: 100%; border-collapse: collapse; font-size: 0.8125rem; }
@@ -132,7 +128,6 @@
 .case-table tbody th code { font-family: var(--font-mono); overflow-wrap: anywhere; }
 .case-table tbody th small { display: block; color: var(--tp-steel); font-size: 0.6875rem; }
 .case-table code { font-family: var(--font-mono); font-size: 0.75rem; overflow-wrap: anywhere; }
-.case-cell { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
 
 .case-rules, .case-criteria { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
 .case-rules li { display: flex; align-items: baseline; gap: 8px; font-size: 0.8125rem; }
@@ -142,6 +137,11 @@
 .case-must.is-should { border: 1px solid var(--tp-ink); background: none; color: var(--tp-ink); }
 .case-criteria li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; font-size: 0.8125rem; }
 .case-criteria small { color: var(--tp-steel); }
+.case-rules-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: var(--tp-spacing-md); align-items: start; }
+.case-rules .case-written { display: block; margin: 0; overflow-wrap: anywhere; }
+.case-highlight { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--tp-spacing-sm); }
+.case-values { display: flex; flex-direction: column; gap: 2px; margin: 0; padding: 0; list-style: none; font-size: 0.8125rem; }
+.case-values span { color: var(--tp-steel); }
 
 .case-resources { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--tp-spacing-sm); margin: 0; padding: 0; list-style: none; }
 

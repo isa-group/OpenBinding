@@ -26,10 +26,10 @@ const compilationOf = (revision: string) => ({
   resources: { app: { role: 'application', path: 'application.json', apiVersion: 'qos-binding/v1', kind: 'Application' } }, compatible_modes: [],
 });
 
-/** The Overview tab of the problem page, showing the version named by the query. */
-function renderRevision(revision = '2', organization = group) {
+/** The Overview tab of the problem page (or `tab`), showing the version named by the query. */
+function renderRevision(revision = '2', organization = group, tab = '') {
   return renderOrgScreen(<ProblemDetail />, {
-    path: '/app/:org/problems/:case/:tab?', url: `${root}/problems/flujo-checkout?version=${revision}`, organizations: [organization],
+    path: '/app/:org/problems/:case/:tab?', url: `${root}/problems/flujo-checkout${tab}?version=${revision}`, organizations: [organization],
   });
 }
 
@@ -73,8 +73,8 @@ describe('Overview tab of the problem page', () => {
     expect(within(section).getByRole('status', { name: /Binding space size: 1,920 combinations/ })).toBeInTheDocument();
   });
 
-  it('lists the candidates of every task with their values, from the facts', async () => {
-    renderRevision();
+  it('lists the candidates of every task with their values on the Candidates tab, from the facts', async () => {
+    renderRevision('2', group, '/candidates');
 
     const providers = await screen.findByRole('region', { name: 'Candidates of each task' });
     const table = within(providers).getByRole('table', { name: /Task authenticate · 4 candidates/ });
@@ -87,7 +87,7 @@ describe('Overview tab of the problem page', () => {
   });
 
   it('writes a candidate’s range as a range, open or not, with a bar for the stretch it covers', async () => {
-    renderRevision();
+    renderRevision('2', group, '/candidates');
 
     const providers = await screen.findByRole('region', { name: 'Candidates of each task' });
     const table = within(providers).getByRole('table', { name: /Task authenticate/ });
@@ -111,23 +111,15 @@ describe('Overview tab of the problem page', () => {
     expect(bar(/authenticate-4/, 0)).toHaveAttribute('aria-hidden', 'true');
   });
 
-  it('writes the rules as must and should, the goal as directions and the placement as not declared', async () => {
+  it('shows the rules and objectives and the placement as not declared, and leads to the candidates', async () => {
     renderRevision();
 
-    const rules = await screen.findByRole('region', { name: 'Rules' });
-    expect(within(rules).getByText('MUST')).toBeInTheDocument();
-    expect(within(rules).getByText('SHOULD')).toBeInTheDocument();
-    expect(within(rules).getByText(/features\.latency ≤ 600/)).toBeInTheDocument();
-    expect(within(rules).getByText('rules/sla-availability')).toBeInTheDocument();
-    expect(rules).toHaveTextContent('penalty 5 if broken');
-
-    const goal = screen.getByRole('region', { name: 'Goal' });
-    expect(within(goal).getByText('cost')).toBeInTheDocument();
-    expect(within(goal).getAllByText('lower is better')).toHaveLength(1);
-    expect(goal).toHaveTextContent('lower is better · scaled 0–1000');
-    expect(goal).toHaveTextContent('Breaking a “should” rule costs');
-    expect(goal).toHaveTextContent('weight 5');
+    const section = await screen.findByRole('region', { name: 'Rules and objectives' });
+    expect(within(section).getByRole('region', { name: 'Rules' })).toHaveTextContent('features.latency ≤ 600');
+    expect(within(section).getByRole('region', { name: 'Objectives' })).toHaveTextContent('lower is better · scaled 0–1000');
     expect(screen.getByText(/not declared in this version \(no pools, network or events\)/)).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Candidates of each task' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Candidates' })).toHaveAttribute('href', `${root}/problems/flujo-checkout/candidates?version=2`);
   });
 
   it('says a declared placement is declared, from the compilation’s analysis', async () => {
@@ -172,7 +164,7 @@ describe('Overview tab of the problem page', () => {
     renderRevision();
 
     expect(await screen.findByText(/The compiled form couldn’t be read \(422 · revision_not_recompilable\)/)).toHaveTextContent('The installed toolchain refuses this package; it stays as evidence.');
-    expect(screen.queryByRole('region', { name: 'Providers, rules and goal' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Rules and objectives' })).not.toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Identity' })).toBeInTheDocument();
   });
 

@@ -18,6 +18,8 @@ import { plural } from './problemsModel';
 import { VersionCompare } from './ProblemCompare';
 import { UploadVersionDialog } from './dialogs';
 import { CaseFrame, CaseMissing, ReadOnlyNote } from './parts';
+import { VersionCandidates } from './ProblemCandidates';
+import { ProblemCompositions } from './ProblemCompositions';
 import { ProblemSettings } from './ProblemSettings';
 import { VersionSource } from './RevisionSource';
 import { runLaunchOf } from './runTarget';
@@ -30,11 +32,16 @@ type TabId = 'overview' | ProblemTabSegment;
 
 const TABS: ReadonlyArray<{ id: TabId; label: string }> = [
   { id: 'overview', label: 'Overview' },
-  { id: 'runs', label: 'Runs' },
+  { id: 'candidates', label: 'Candidates' },
   { id: 'versions', label: 'Versions' },
+  { id: 'runs', label: 'Runs' },
+  { id: 'compositions', label: 'Compositions' },
   { id: 'source', label: 'Source' },
   { id: 'settings', label: 'Settings' },
 ];
+
+/** The tabs that show one version of the problem: without a version they say how to make one. */
+const VERSION_TABS: ReadonlySet<TabId> = new Set(['overview', 'candidates', 'versions', 'source']);
 
 function ProblemBody({ organization, content, revision, tab, canCreate, canAdminister, role, reload }: {
   organization: Organization; content: RouteProblemContent; revision: ProblemRevision | undefined; tab: ProblemTabSegment | undefined;
@@ -91,6 +98,7 @@ function ProblemBody({ organization, content, revision, tab, canCreate, canAdmin
       <TabBar items={TABS} value={active} onChange={(id) => open(id as TabId)} ariaLabel="Problem sections" prefix="pp-tab" />
       <TabPanel prefix="pp-tab" active={active}>
         {active === 'runs' && <VersionRuns organization={organization} content={content} runHref={runHref} canCreate={canCreate} />}
+        {active === 'compositions' && <ProblemCompositions organization={organization} item={item} />}
         {active === 'settings' && (
           <ProblemSettings
             key={item.id}
@@ -102,7 +110,7 @@ function ProblemBody({ organization, content, revision, tab, canCreate, canAdmin
             onDeleted={(name) => navigate(problemsPath(org), { state: { toast: `Problem “${name}” deleted.` } })}
           />
         )}
-        {(active === 'overview' || active === 'versions' || active === 'source') && !revision && (
+        {VERSION_TABS.has(active) && !revision && (
           <section className="case-guide" aria-labelledby="cd-empty">
             <h2 id="cd-empty">No versions yet</h2>
             <p>A version is a sealed BIM package. Upload one, or write it in the problem editor, to be able to run this problem.</p>
@@ -110,6 +118,7 @@ function ProblemBody({ organization, content, revision, tab, canCreate, canAdmin
           </section>
         )}
         {revision && active === 'overview' && <VersionOverview key={revision.id} organization={organization} content={content} revision={revision} />}
+        {revision && active === 'candidates' && <VersionCandidates key={revision.id} organization={organization} content={content} revision={revision} />}
         {revision && active === 'versions' && (
           <>
             <VersionHistory org={org} content={content} runOf={(number) => runLaunchOf(org, item.slug, number)} canCreate={canCreate} />
@@ -211,8 +220,9 @@ function ProblemPage({ tab }: { tab: ProblemTabSegment | undefined }) {
 }
 
 /**
- * A problem (`problem-detail`, `/app/:org/problems/:case/:tab?`): Overview, Runs, Versions, Source and Settings of the problem version named by
- * `?version=` (the latest when none). Any other tab is a page that does not exist.
+ * A problem (`problem-detail`, `/app/:org/problems/:case/:tab?`): Overview, Candidates, Versions, Runs, Compositions, Source and Settings of
+ * the problem version named by `?version=` (the latest when none). The Candidates tab highlights what a composition version chose
+ * (`?composition=&compositionVersion=`). Any other tab is a page that does not exist.
  */
 export function ProblemDetail() {
   const { tab } = useParams();

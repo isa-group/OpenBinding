@@ -20,6 +20,9 @@ export type ProblemFactsCandidate = Schemas['ProblemFactsCandidate'];
 /** One constraint of a problem's facts: `<resource>/<id>`, its enforcement and its IR expressions. */
 export type ProblemFactsConstraint = Schemas['ProblemFactsConstraint'];
 
+/** Where the latest version of a problem came from: an upload, the problem editor, QACOForge or (F3) SPHERE. */
+export type ProblemOrigin = Schemas['LatestRevision']['origin'];
+
 /** Where a value of a candidate is written in its package (`kind: package`; F3 adds the other origins). */
 export type ProblemValueOrigin = Schemas['ProblemValueOrigin'];
 

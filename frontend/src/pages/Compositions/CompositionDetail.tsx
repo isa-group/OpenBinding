@@ -27,7 +27,7 @@ import { useResource } from '../../utils/useResource';
 import { ReadOnlyNote } from '../Problems/parts';
 import { CompositionMissing } from './CompositionMissing';
 import { CompositionFrame } from './parts';
-import { factsSource } from './factsSource';
+import { factsSource } from '../../entities/composition/factsSource';
 import { AnalysisTab } from './tabs/AnalysisTab';
 import { EditorTab, type EditorEntry } from './tabs/EditorTab';
 import { OverviewTab, type CandidatesState } from './tabs/OverviewTab';

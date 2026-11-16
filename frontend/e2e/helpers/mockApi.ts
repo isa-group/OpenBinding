@@ -181,7 +181,7 @@ const DRAFT_PROBLEM = {
 };
 const PROBLEM_REVISIONS = [revisionFixture(2, { package_size: 48_213 }), revisionFixture(1, { package_size: 46_100 })];
 const latestOf = (problem: typeof PROBLEM) => (problem.id === PROBLEM.id
-  ? { id: PROBLEM_REVISIONS[0].id, revision: 2, package_digest: PROBLEM_REVISIONS[0].package_digest, created_at: PROBLEM_REVISIONS[0].created_at }
+  ? { id: PROBLEM_REVISIONS[0].id, revision: 2, package_digest: PROBLEM_REVISIONS[0].package_digest, created_at: PROBLEM_REVISIONS[0].created_at, origin: 'upload' as const }
   : null);
 /** A gateway-produced fixture of src/test/fixtures/core (dump_frontend_fixtures.py), read as JSON. */
 const coreFixture = (file: string): Record<string, unknown> => JSON.parse(readFileSync(new URL(`../../src/test/fixtures/core/${file}`, import.meta.url), 'utf8'));
@@ -672,7 +672,7 @@ export async function installWalkApi(page: Page, template: Buffer): Promise<Walk
 
   const latestOfRow = (problem: WalkProblem) => {
     const newest = problem.revisions[problem.revisions.length - 1]?.row;
-    return newest ? { id: newest.id, revision: newest.revision, package_digest: newest.package_digest, created_at: newest.created_at } : null;
+    return newest ? { id: newest.id, revision: newest.revision, package_digest: newest.package_digest, created_at: newest.created_at, origin: 'upload' as const } : null;
   };
   const shown = (problem: WalkProblem) => ({ ...problem.item, latest_revision: latestOfRow(problem) });
   const compilationFor = (row: ProblemRevision) => ({

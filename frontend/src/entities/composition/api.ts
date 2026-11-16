@@ -52,6 +52,8 @@ export interface ListOptions {
   kind?: Kind;
   q?: string;
   archived?: boolean;
+  /** Only compositions with a version linking a revision of this problem (its slug or id); none for an unknown one. */
+  problem?: string;
   sort?: 'name' | 'updated';
   limit?: number;
   offset?: number;

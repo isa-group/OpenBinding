@@ -17,7 +17,7 @@ export interface CandidatesState {
 /**
  * Overview: the composition in `catalog` mode, then its `architecture` (who serves it) and its `workflow` (how its tasks run,
  * with the linked problem's candidates for a member). The page header already names it, so the catalog leaves its identity
- * out; the problem and the runs it names open for a member.
+ * out; the problem and the runs it names open for a member, who can also show the version's choice on the problem's Candidates tab.
  */
 export function OverviewTab({ org, model, version, candidates = null }: {
   org: string; model: CompositionViewModel; version: CompositionVersionView | null; candidates?: CandidatesState | null;
@@ -26,8 +26,18 @@ export function OverviewTab({ org, model, version, candidates = null }: {
   const problemHref = link && model.status.problemReadable
     ? problemPath(org, link.problem.slug, undefined, { version: link.revision.revision })
     : null;
+  // A member opens the linked problem's candidates with the ones this version chose selected.
+  const highlightHref = link && model.status.problemReadable && model.reader === 'member' && model.version
+    ? problemPath(org, link.problem.slug, 'candidates', { version: link.revision.revision, composition: model.identity.slug, compositionVersion: model.version.label })
+    : null;
   return (
     <div className="cmp-overview">
+      {highlightHref && (
+        <div className="cmp-overview-actions">
+          <Action to={highlightHref} variant="secondary" size="sm">Show on the problem</Action>
+          <span className="cmp-muted">Opens the problem version this one links, with the candidates it chose selected.</span>
+        </div>
+      )}
       <CompositionRenderer
         model={model}
         mode="catalog"

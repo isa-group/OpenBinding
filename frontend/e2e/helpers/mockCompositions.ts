@@ -712,7 +712,11 @@ export function compositionStore(options: CompositionSeed = {}): CompositionStor
     const kind = query.get('kind');
     const archived = query.get('archived');
     const needle = (query.get('q') ?? '').toLowerCase();
-    const rows = pool.map((entry) => entry.view)
+    // `problem`: the compositions with a version linking a revision of that problem (its slug or id).
+    const problem = query.get('problem');
+    const rows = pool
+      .filter((entry) => !problem || entry.versions.some((version) => version.problem?.problem.slug === problem || version.problem?.problem.id === problem))
+      .map((entry) => entry.view)
       .filter((view) => (!kind || view.kind === kind) && (archived === null || String(view.archived) === archived))
       .filter((view) => !needle || `${view.name} ${view.slug}`.toLowerCase().includes(needle))
       .sort((a, b) => (query.get('sort') === 'updated' ? b.updated_at.localeCompare(a.updated_at) : a.name.localeCompare(b.name)));

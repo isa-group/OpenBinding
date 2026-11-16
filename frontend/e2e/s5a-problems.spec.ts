@@ -1,12 +1,16 @@
+import { readFileSync } from 'node:fs';
 import JSZip from 'jszip';
 import { expect as baseExpect, test, type Page, type Route, type TestInfo } from '@playwright/test';
 import { failureBody } from './helpers/problems';
 import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
 import { checkoutFacts, compiledDocument, digestOf } from '../src/pages/Problems/fixtures';
+import type { CompositionVersionView } from '../src/shared/api/types';
 
-// S5a · the problems of an organization: problem-list (/app/:org/problems) and the problem page problem-detail with its tabs Overview,
-// Runs, Versions, Source and Settings. A problem is uploaded as a .bim.zip, a new version is another upload (or a save in the
-// problem editor), and every version is the package exactly as it was uploaded with its compilation by the installed toolchain.
+// S5a · the problems of an organization: problem-list (/app/:org/problems, filtered by origin and by linking composition) and the
+// problem page problem-detail with its tabs Overview, Candidates, Versions, Runs, Compositions, Source and Settings. A problem is
+// uploaded as a .bim.zip, a new version is another upload (or a save in the problem editor), and every version is the package exactly
+// as it was uploaded with its compilation by the installed toolchain. A composition that links a version is highlighted on its
+// candidates.
 // There is no backend: the API origin is answered by page.route(). Screenshots go to testInfo.outputPath()
 // (test-results/, ignored by git) so they can be looked at after a run.
 
@@ -47,24 +51,28 @@ const organizations = [
 interface Revision {
   id: string; problem_id: string; revision: number; package_digest: string; package_size: number; created_by_id: string; created_at: string;
 }
+type Origin = 'upload' | 'editor' | 'qacoforge';
 interface ProblemRow {
   item: { id: string; organization_id: string; slug: string; name: string; description: string; created_by_id: string; created_at: string; updated_at: string };
   revisions: Revision[];
+  /** Where its latest version came from. */
+  origin: Origin;
 }
 
-const problemRow = (orgId: string, slug: string, name: string, description: string, revisions: Array<[number, string, string]>): ProblemRow => ({
+const problemRow = (orgId: string, slug: string, name: string, description: string, revisions: Array<[number, string, string]>, origin: Origin = 'upload'): ProblemRow => ({
+  origin,
   item: { id: `case-${slug}`, organization_id: orgId, slug, name, description, created_by_id: 'user-1', created_at: '2026-08-01T00:00:00Z', updated_at: '2026-08-01T00:00:00Z' },
   revisions: revisions.map(([revision, char, createdAt]) => ({
     id: `rev-${slug}-${revision}`, problem_id: `case-${slug}`, revision, package_digest: digestOf(char), package_size: 48_213, created_by_id: 'user-1', created_at: createdAt,
   })),
 });
 
-const checkout = (orgId: string) => problemRow(orgId, 'flujo-checkout', 'Flujo de checkout', 'Payments with parallel stock and shipping.', [
+const checkout = (orgId: string, origin: Origin = 'upload') => problemRow(orgId, 'flujo-checkout', 'Flujo de checkout', 'Payments with parallel stock and shipping.', [
   [1, '1', '2026-08-01T09:00:00Z'], [2, '2', '2026-08-20T10:05:00Z'],
-]);
+], origin);
 
 const seedProblems = (): Record<string, ProblemRow[]> => ({
-  'isa-demo': [checkout('org-1'), problemRow('org-1', 'borrador', 'Borrador', '', [])],
+  'isa-demo': [checkout('org-1', 'editor'), problemRow('org-1', 'borrador', 'Borrador', '', [])],
   'consultora-demo': [checkout('org-3')],
 });
 
@@ -77,6 +85,30 @@ const compilationOf = (revision: number) => ({
   analysis: { tasks: 6, candidates: 24, constraints: 2, placement: false, bindingSpace: '125892' },
   resources: { application: { role: 'application', path: 'application.json', apiVersion: 'qos-binding/v1', kind: 'Application' } },
   compatible_modes: [{ compatible: true }, { compatible: true }],
+});
+
+// --- a composition of isa-demo whose version 1.0.0 links flujo-checkout@2 (the gateway's FMS fixture, rebound to the checkout)
+
+const COMPOSITION = { slug: 'fleet-plan', name: 'Fleet plan', version: 'fleet-plan-v1', label: '1.0.0' };
+/** What 1.0.0 chose for each task of the checkout, as `EvaluationView.binding` writes it. */
+const CHOSEN: Record<string, string> = {
+  authenticate: 'providers/authenticate-2', inventory: 'providers/inventory-1', shipping: 'providers/shipping-3', 'pay-card': 'providers/pay-card-4', 'pay-transfer': 'providers/pay-transfer-1',
+};
+
+function compositionVersion(): CompositionVersionView {
+  const fms = JSON.parse(readFileSync(new URL('../src/test/fixtures/core/fms.version.json', import.meta.url), 'utf8')) as CompositionVersionView;
+  const [evaluation] = fms.evaluations;
+  return {
+    ...fms, id: COMPOSITION.version, label: COMPOSITION.label, document: null,
+    problem: fms.problem && { ...fms.problem, problem: { id: 'case-flujo-checkout', slug: 'flujo-checkout', name: 'Flujo de checkout' }, revision: { id: 'rev-flujo-checkout-2', revision: 2 } },
+    evaluations: [{ ...evaluation, compilation: evaluation.compilation && { ...evaluation.compilation, id: 'compilation-2' }, binding: CHOSEN }],
+  };
+}
+
+const compositionView = (orgId: string) => ({
+  id: 'composition-fleet-plan', slug: COMPOSITION.slug, name: COMPOSITION.name, description: '', kind: 'workflow', archived: false, visibility: 'private',
+  organization: { id: orgId, slug: 'isa-demo', name: 'ISA Demo Group' }, created_by_id: 'user-1', created_at: '2026-09-01T00:00:00Z', updated_at: '2026-09-01T00:00:00Z',
+  version_count: 1, latest_version: { id: COMPOSITION.version, ordinal: 1, label: COMPOSITION.label, values_status: 'verified', verified: true, created_at: '2026-09-01T00:00:00Z' },
 });
 
 const researchUsage = () => ({
@@ -125,12 +157,27 @@ async function mockApi(page: Page): Promise<State> {
     if (!found) return detail(403, 'organization_forbidden', 'Not a member.')(route);
     if (section === 'members' || section === 'library') return json([])(route);
     if (section === 'runs') return json({ runs: [], total: 0 })(route);
+    if (section === 'compositions') {
+      // /v1/organizations/{org}/compositions[/{composition}[/versions/{version}]]: fleet-plan links checkout-flow@2 in isa-demo.
+      const [, , , , compositionSlug, versions, versionRef] = parts;
+      const pool = orgSlug === 'isa-demo' ? [compositionView(found.id)] : [];
+      if (!compositionSlug) {
+        const problem = url.searchParams.get('problem');
+        const listed = pool.filter(() => !problem || problem === 'flujo-checkout');
+        state.sent.compositions = url.searchParams.toString();
+        return json({ compositions: listed, total: listed.length, limit: 200, offset: 0 })(route);
+      }
+      if (compositionSlug !== COMPOSITION.slug || pool.length === 0) return detail(404, 'not_found', 'Composition not found.')(route);
+      if (!versions) return json(pool[0])(route);
+      if (versionRef === COMPOSITION.version || versionRef === COMPOSITION.label) return json(compositionVersion())(route);
+      return detail(404, 'not_found', 'Composition version not found.')(route);
+    }
     if (section !== 'problems') return json(found)(route);
 
     const rows = state.problems[orgSlug] ?? [];
     const latest = (row: ProblemRow) => {
       const newest = [...row.revisions].sort((a, b) => b.revision - a.revision)[0];
-      return newest ? { id: newest.id, revision: newest.revision, package_digest: newest.package_digest, created_at: newest.created_at } : null;
+      return newest ? { id: newest.id, revision: newest.revision, package_digest: newest.package_digest, created_at: newest.created_at, origin: row.origin } : null;
     };
     const upload = (row: ProblemRow, revision: Revision, created: boolean) => ({
       problem: { ...row.item, latest_revision: latest(row) }, revision, created, compilation: { ...compilationOf(revision.revision), compatible_modes: undefined },
@@ -146,7 +193,13 @@ async function mockApi(page: Page): Promise<State> {
         return json(upload(row, row.revisions[0], true), 201)(route);
       }
       if (state.refuse.list) return state.refuse.list(route);
-      return json({ problems: rows.map((row) => ({ ...row.item, latest_revision: latest(row) })), total: rows.length, limit: 200, offset: 0 })(route);
+      // The gateway's filters: the origin of the latest version, and the problems a version of the composition links.
+      const origin = url.searchParams.get('origin');
+      const composition = url.searchParams.get('composition');
+      const listed = rows
+        .filter((row) => !origin || (row.revisions.length > 0 && row.origin === origin))
+        .filter((row) => !composition || (composition === COMPOSITION.slug && row.item.slug === 'flujo-checkout'));
+      return json({ problems: listed.map((row) => ({ ...row.item, latest_revision: latest(row) })), total: listed.length, limit: 200, offset: 0 })(route);
     }
 
     const row = rows.find((candidate) => candidate.item.slug === problemSlug);
@@ -168,6 +221,7 @@ async function mockApi(page: Page): Promise<State> {
     if (!revisionRef) {
       if (method === 'POST') {
         if (state.refuse.revision) return state.refuse.revision(route);
+        state.sent.revision = url.searchParams.toString();
         const next: Revision = {
           id: `rev-${row.item.slug}-${row.revisions.length + 1}`, problem_id: row.item.id, revision: row.revisions.length + 1, package_digest: digestOf('8'),
           package_size: 49_000, created_by_id: 'user-1', created_at: '2026-10-09T09:00:00Z',
@@ -253,7 +307,26 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('link', { name: 'Write one in the problem editor' })).toHaveAttribute('href', '/app/isa-demo/problem-editor');
       await expect(main.getByRole('link', { name: 'Start from a template' })).toHaveAttribute('href', '/app/isa-demo/problem-editor?template=demo%2F01_simple_seq');
       await expect(main).not.toContainText(/sha256-|[0-9a-f]{12}/);
+      await expect(list.getByRole('listitem').filter({ hasText: 'Flujo de checkout' }).getByText('Problem editor', { exact: true })).toBeVisible();
       await capture(page, testInfo, `list-${name}`);
+
+      // The gateway narrows the list: by where the latest version came from, and to the problems a composition links.
+      const origins = main.getByRole('group', { name: 'Origin of the latest version' });
+      await origins.getByRole('button', { name: 'Uploaded' }).click();
+      await expect(page).toHaveURL(new RegExp(`${PROBLEMS}\\?origin=upload$`));
+      await expect(main.getByText('No problem matches these filters.')).toBeVisible();
+      await origins.getByRole('button', { name: 'Problem editor' }).click();
+      await expect(page).toHaveURL(new RegExp(`${PROBLEMS}\\?origin=editor$`));
+      await expect(list.getByRole('listitem')).toHaveCount(1);
+      await origins.getByRole('button', { name: 'All origins' }).click();
+      await expect(list.getByRole('listitem')).toHaveCount(2);
+      await main.getByRole('combobox', { name: 'Linked by composition' }).selectOption('fleet-plan');
+      await expect(page).toHaveURL(new RegExp(`${PROBLEMS}\\?composition=fleet-plan$`));
+      await expect(list.getByRole('listitem')).toHaveCount(1);
+      await expect(list.getByRole('link', { name: /Flujo de checkout/ })).toBeVisible();
+      await capture(page, testInfo, `list-${name}-filtered`);
+      await page.goto(PROBLEMS);
+      await expect(list.getByRole('listitem')).toHaveCount(2);
 
       // Upload a package as a new problem: a refused one lists where it is wrong, an accepted one opens the new problem.
       await main.getByRole('button', { name: 'Upload BIM package' }).click();
@@ -272,6 +345,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('heading', { level: 1, name: 'analisis-de-latencia' })).toBeVisible();
       await expect(main.getByText('Problem “analisis-de-latencia” created with version 1.')).toBeVisible();
       expect(state.sent.create).toContain('slug=analisis-de-latencia');
+      expect(state.sent.create).toContain('producer=openbinding-upload');
       await capture(page, testInfo, `upload-${name}-created`);
       if (isMobile) {
         expect(critical).toEqual([]);
@@ -290,9 +364,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('problem-detail /app/:org/problems/:case · overview, versions, source, settings and a new version', async ({ page }, testInfo) => {
+    test('problem-detail /app/:org/problems/:case · overview, candidates, compositions, versions, source, settings and a new version', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
-      await mockApi(page);
+      const state = await mockApi(page);
       await page.goto(`${PROBLEMS}/flujo-checkout`);
       const main = page.locator('#platform-main');
 
@@ -305,12 +379,39 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(drawing).toBeVisible();
       await expect(drawing).toHaveAccessibleDescription(/^Workflow: authenticate, then \(inventory and shipping in parallel\)/);
       await expect(drawing.getByRole('group', { name: 'Choice, 2 branches, probabilities 0.7, 0.3' })).toBeVisible();
-      // A table per task on a desktop, a card per candidate on a phone.
-      const candidates = main.getByRole('region', { name: 'Candidates of each task' });
-      if (isMobile) await expect(candidates.getByRole('list', { name: 'Candidates for authenticate' }).getByRole('listitem')).toHaveCount(4);
-      else await expect(candidates.getByRole('table', { name: /Task authenticate · 4 candidates/ })).toBeVisible();
+      // The rules and objectives, each rule with the file the package writes it in.
+      const rules = main.getByRole('region', { name: 'Rules and objectives' });
+      await expect(rules.getByRole('list', { name: 'Rules of this version' })).toContainText('features.latency ≤ 600');
+      await expect(rules.getByRole('list', { name: 'Rules of this version' })).toContainText('written in rules.json at /spec/constraints/sla-latency');
+      await expect(rules.getByRole('list', { name: 'What breaking a soft rule costs' })).toContainText('costs weight 5');
       await expect(main.getByRole('region', { name: 'Resources it’s built from' })).toHaveCount(0);
       await capture(page, testInfo, `overview-${name}`);
+
+      // The candidates: a table per task on a desktop, a card per candidate on a phone.
+      await main.getByRole('tab', { name: 'Candidates' }).click();
+      await expect(page).toHaveURL(new RegExp(`${PROBLEMS}/flujo-checkout/candidates`));
+      const candidates = main.getByRole('region', { name: 'Candidates of each task' });
+      const authenticate = (written: string) => (isMobile
+        ? candidates.getByRole('list', { name: 'Candidates for authenticate' }).getByRole('listitem').filter({ hasText: written })
+        : candidates.getByRole('table', { name: /Task authenticate · 4 candidates/ }).getByRole('row', { name: new RegExp(written) }));
+      await expect(authenticate('authenticate-2')).toBeVisible();
+      await expect(authenticate('authenticate-2')).not.toHaveAttribute('aria-current', 'true');
+      await capture(page, testInfo, `candidates-${name}`);
+
+      // The compositions that link it: one, whose choice shows on the candidates, with a way back to it.
+      await main.getByRole('tab', { name: 'Compositions' }).click();
+      const linking = main.getByRole('region', { name: 'Compositions that link this problem' });
+      await expect(linking.getByRole('link', { name: 'Fleet plan', exact: true })).toHaveAttribute('href', '/app/isa-demo/compositions/fleet-plan');
+      await expect(linking.getByRole('list', { name: 'Values of Fleet plan 1.0.0' })).toContainText('3,060 USD/month');
+      expect(state.sent.compositions).toContain('problem=flujo-checkout');
+      await capture(page, testInfo, `compositions-${name}`);
+      await linking.getByRole('link', { name: 'Show Fleet plan 1.0.0 on the problem' }).click();
+      await expect(page).toHaveURL(new RegExp(`${PROBLEMS}/flujo-checkout/candidates\\?version=2&composition=fleet-plan&compositionVersion=1\\.0\\.0$`));
+      await expect(main.getByText(/The candidates Fleet plan 1\.0\.0 chose are selected/)).toBeVisible();
+      await expect(authenticate('authenticate-2')).toHaveAttribute('aria-current', 'true');
+      await expect(authenticate('authenticate-1')).not.toHaveAttribute('aria-current', 'true');
+      await expect(main.getByRole('link', { name: 'Back to Fleet plan 1.0.0' })).toHaveAttribute('href', '/app/isa-demo/compositions/fleet-plan?version=1.0.0');
+      await capture(page, testInfo, `candidates-${name}-highlight`);
 
       // The versions as a timeline, and what changed between two of them.
       await main.getByRole('tab', { name: 'Versions' }).click();
