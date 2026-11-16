@@ -1,4 +1,8 @@
-import type { Organization, OrganizationRole } from '../../api/platform';
+// OpenBinding's organization model (moved from pages/Organization/orgModel.ts): roles, the forest of the organizations an
+// account sees, and where a role comes from. The `/me/orgs` tree reads the gateway's own `role_source`; the screens not yet
+// moved still work it out here.
+
+import type { Organization, OrganizationRole } from '../../../api/platform';
 
 /** Roles from the most to the least powerful, as the selects list them. */
 export const ROLES: readonly OrganizationRole[] = ['OWNER', 'ADMIN', 'MEMBER', 'VIEWER'];

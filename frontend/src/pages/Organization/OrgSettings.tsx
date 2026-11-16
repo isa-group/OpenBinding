@@ -9,7 +9,12 @@ import { FormField } from '../../modules/core/components/form-field';
 import { Modal } from '../../modules/core/components/modal';
 import { Notice } from '../../modules/core/components/notice';
 import { useResource } from '../../utils/useResource';
-import { ancestorsOf, atLeast, descendantsOf, pathOf } from './orgModel';
+import {
+  ancestorsOf,
+  atLeast,
+  descendantsOf,
+  pathOf,
+} from '../../modules/organization/utils/org-tree';
 import { generalFailure } from '../../features/workspace/errors';
 import { classifyAuthError, marker, type AuthFailure } from '../../modules/core/api/errors';
 import { Choice, NeutralGate, PageSkeleton, RoleChip } from './parts';

@@ -92,7 +92,7 @@ describe('buildCommands', () => {
 
     expect(
       commands.filter(command => command.label === 'New organization').map(command => command.href)
-    ).toEqual(['/app?create=organization']);
+    ).toEqual(['/orgs/new']);
     expect(
       commands.filter(command => /^\/app\/organizations\/new([/?#]|$)/.test(command.href))
     ).toEqual([]);

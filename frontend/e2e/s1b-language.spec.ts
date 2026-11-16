@@ -405,7 +405,7 @@ async function mockApi(page: Page, mocks: Mocks = {}) {
     await page.route(`${API}/v1/engine-registrations`, json({ registrations: [registration] }));
     await page.route(`${API}/v1/engine-registrations/edge-solver/report**`, json(edgeReport));
     await page.route(
-      `${API}/v1/organizations`,
+      url => url.origin + url.pathname === `${API}/v1/organizations`,
       json([
         {
           id: 'org-1',

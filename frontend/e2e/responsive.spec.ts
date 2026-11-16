@@ -141,7 +141,10 @@ async function openOrganizationSettings(page: Page) {
   await page.route(`${API}/v1/users/me/pricing-token`, route =>
     route.fulfill({ json: { pricing_token: 'responsive-token' } })
   );
-  await page.route(`${API}/v1/organizations`, route => route.fulfill({ json: [organization] }));
+  await page.route(
+    url => url.origin + url.pathname === `${API}/v1/organizations`,
+    route => route.fulfill({ json: [organization] })
+  );
   await page.route(`${API}/v1/organizations/isa-demo/members`, route =>
     route.fulfill({ json: [] })
   );

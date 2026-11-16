@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import type { Organization } from '../../api/platform';
 import { OrgNav, type OrgSection } from '../../components/PlatformShell/OrgNav';
-import { atLeast } from './orgModel';
+import { atLeast } from '../../modules/organization/utils/org-tree';
 import './Organization.css';
 
 interface OrgSettingsLayoutProps {

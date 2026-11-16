@@ -4,7 +4,7 @@ import { compositionsApi } from '../../modules/core/utils/composition/api';
 import { classifyAuthError, type AuthFailure } from '../../modules/core/api/errors';
 import type { CompositionVersionView, CompositionView } from '../../modules/core/api/types';
 import { useResource, type Resource } from '../../utils/useResource';
-import { atLeast } from '../Organization/orgModel';
+import { atLeast } from '../../modules/organization/utils/org-tree';
 import { useRouteOrganization, type RouteOrganization } from '../Organization/useRouteOrganization';
 
 /** What the account may do with the compositions of an organization. */

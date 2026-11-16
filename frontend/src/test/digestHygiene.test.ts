@@ -78,6 +78,8 @@ const EXEMPT_FILES: readonly string[] = [
   '/src/test/fixtures/resources.ts',
   '/src/test/fixtures/studies.ts',
   // test support under src/test/, not shipped behaviour
+  '/src/test/Where.tsx',
+  '/src/test/moduleKit.tsx',
   '/src/test/rawRenderingAllowList.ts',
   '/src/test/vocabulary.ts',
   // utils: the uuid helper itself

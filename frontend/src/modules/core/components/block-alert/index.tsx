@@ -1,6 +1,8 @@
-// Copied verbatim from SPHERE frontend/src/modules/core/components/block-alert/index.tsx (revision 73779a8a),
+// Adapted from SPHERE frontend/src/modules/core/components/block-alert/index.tsx (revision 73779a8a),
 // https://github.com/SCORELabUS/SPHERE. Copyright (c) 2024 Alejandro García Fernández.
 // MIT licence: the full text is in THIRD_PARTY_NOTICES.md.
+// Changes: the alert is announced (`alert` for errors and warnings, `status` otherwise); dismissing tells `onDismiss` once it
+// has left, and a new message shows again after a dismissed one (SPHERE's stayed hidden); the button reads "Dismiss".
 
 import { useState } from 'react';
 import type { ReactNode } from 'react';
@@ -40,20 +42,23 @@ export default function BlockAlert({
 }: BlockAlertProps) {
   const Icon = icons[variant];
   const content = message ?? children;
-  const [isExiting, setIsExiting] = useState(false);
+  // The message that was dismissed: the alert stays hidden until another one arrives.
+  const [dismissed, setDismissed] = useState<ReactNode>(null);
+  const isExiting = dismissed !== null && dismissed === content;
 
   const handleDismiss = () => {
-    setIsExiting(true);
+    setDismissed(content);
   };
 
   return (
-    <AnimatePresence>
+    <AnimatePresence onExitComplete={() => isExiting && onDismiss?.()}>
       {content && !isExiting && (
         <motion.div
           key="block-alert"
           initial={{ opacity: 0, y: -6, height: 0 }}
           animate={{ opacity: 1, y: 0, height: 'auto' }}
           exit={{ opacity: 0, y: -6, height: 0 }}
+          role={variant === 'error' || variant === 'warning' ? 'alert' : 'status'}
           className={`flex items-center gap-2.5 rounded-lg border px-3.5 py-2.5 text-justify text-sm ${variantStyles[variant]} ${className}`}
         >
           <Icon className="mt-px shrink-0" />
@@ -63,7 +68,7 @@ export default function BlockAlert({
               type="button"
               onClick={handleDismiss}
               className="ml-1 shrink-0 cursor-pointer rounded p-0.5 transition-colors hover:bg-black/5 dark:hover:bg-white/10"
-              aria-label="Cerrar aviso"
+              aria-label="Dismiss"
             >
               <MdClose className="h-4 w-4" />
             </button>

@@ -25,7 +25,7 @@ import {
   toCsv,
   type DetailValue,
 } from './auditModel';
-import { atLeast, personName } from './orgModel';
+import { atLeast, personName } from '../../modules/organization/utils/org-tree';
 import { isForbidden } from './orgErrors';
 import { generalFailure } from '../../features/workspace/errors';
 import { classifyAuthError, marker } from '../../modules/core/api/errors';

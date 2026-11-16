@@ -31,7 +31,7 @@ import {
   rankOf,
   ROLE_SUMMARY,
   ROLES,
-} from './orgModel';
+} from '../../modules/organization/utils/org-tree';
 import { isForbidden } from './orgErrors';
 import { generalFailure } from '../../features/workspace/errors';
 import { classifyAuthError, marker, type AuthFailure } from '../../modules/core/api/errors';

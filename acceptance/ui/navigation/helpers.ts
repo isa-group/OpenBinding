@@ -85,7 +85,7 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Re
   await page.route(`${API}/v1/users/me`, json(account(role)));
   await page.route(`${API}/v1/users/me/pricing-token`, json({ pricing_token: 'navigation-pricing' }));
   await page.route(`${API}/v1/notifications**`, json([]));
-  await page.route(`${API}/v1/organizations`, (route) => (route.request().method() === 'POST'
+  await page.route((url) => url.origin + url.pathname === `${API}/v1/organizations`, (route) => (route.request().method() === 'POST'
     ? route.fulfill({ status: 201, json: organization('lab-two', 'lab-two') })
     : route.fulfill({ json: [organization('acme', 'Acme')] })));
   await page.route(`${API}/v1/organizations/acme`, json(organization('acme', 'Acme')));

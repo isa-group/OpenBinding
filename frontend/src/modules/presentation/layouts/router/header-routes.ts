@@ -27,6 +27,7 @@ export const headerRoutes: HeaderRoute[] = [
     name: 'Explore',
     disabled: false,
     children: [
+      { name: 'Organizations', disabled: false, to: '/organizations', match: ['/orgs/'] },
       { name: 'Compositions', disabled: false, to: '/compositions', match: ['/c/'] },
       { name: 'Engines', disabled: false, to: '/engines' },
     ],
@@ -52,7 +53,7 @@ export function newEntries(organization: string | undefined): MenuEntry[] {
     : [];
   return [
     ...inOrganization,
-    { label: 'Organization', to: '/app?create=organization' },
+    { label: 'Organization', to: '/orgs/new' },
     { label: 'Engine', to: '/app/engines/new' },
   ];
 }
@@ -60,7 +61,7 @@ export function newEntries(organization: string | undefined): MenuEntry[] {
 /** The signed-in person's own places (SPHERE's user menu): Administration only for platform administrators. */
 export function userEntries(isAdmin: boolean): MenuEntry[] {
   return [
-    { label: 'Organizations', to: '/app' },
+    { label: 'Organizations', to: '/me/orgs' },
     { label: 'Notifications', to: '/app/account/notifications' },
     { label: 'Engines', to: '/app/engines/registrations' },
     { label: 'API keys', to: '/app/account/keys' },

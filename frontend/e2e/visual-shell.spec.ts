@@ -67,7 +67,10 @@ async function signIn(page: Page, persona: keyof typeof personas) {
   await page.route(`${API}/v1/users/me/pricing-token`, route =>
     route.fulfill({ json: { pricing_token: 'visual-token' } })
   );
-  await page.route(`${API}/v1/organizations`, route => route.fulfill({ json: [organization] }));
+  await page.route(
+    url => url.origin + url.pathname === `${API}/v1/organizations`,
+    route => route.fulfill({ json: [organization] })
+  );
   await page.route(`${API}/v1/notifications**`, route => route.fulfill({ json: notifications }));
 }
 
@@ -166,6 +169,10 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
           await expect(nav.getByRole('link', { name: 'About' })).toHaveAttribute('href', '/about');
           await expect(nav.locator('[aria-current="page"]')).toHaveCount(0);
           await nav.getByRole('button', { name: 'Explore' }).click();
+          await expect(nav.getByRole('link', { name: 'Organizations' })).toHaveAttribute(
+            'href',
+            '/organizations'
+          );
           await expect(nav.getByRole('link', { name: 'Compositions' })).toHaveAttribute(
             'href',
             '/compositions'
@@ -204,7 +211,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
           await account.click();
           await expect(
             header.getByRole('link', { name: 'Organizations', exact: true })
-          ).toHaveAttribute('href', '/app');
+          ).toHaveAttribute('href', '/me/orgs');
           await expect(header.getByRole('link', { name: 'Account', exact: true })).toHaveAttribute(
             'href',
             '/app/account'

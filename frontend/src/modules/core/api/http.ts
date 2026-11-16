@@ -92,6 +92,100 @@ function quotaFromProblem(value: unknown): NonNullable<QuotaError['quota']> | un
   };
 }
 
+/** The typed error a refused answer stands for (see `HttpTransport.errorFor`); module APIs over `fetchWithInterceptor` throw it. */
+export async function errorFromResponse(response: Response): Promise<Error> {
+  let problem: unknown = null;
+  try {
+    problem = await response.json();
+  } catch {
+    /* not JSON; fall through to the status-only error */
+  }
+
+  const problemObject = isRecord(problem) ? problem : undefined;
+  const rawDetail = problemObject?.detail;
+  const detail = isRecord(rawDetail) ? rawDetail : undefined;
+  // The canonical `code` sits at the top of every coded failure (and a 422 has nothing else); the old
+  // `detail.code` and the BIM routes' `title` (always equal to `code`) are what older bodies carry.
+  const code =
+    (typeof problemObject?.code === 'string' ? problemObject.code : undefined) ??
+    (typeof detail?.code === 'string' ? detail.code : undefined) ??
+    (typeof problemObject?.title === 'string' ? problemObject.title : undefined);
+  const message =
+    (typeof detail?.error === 'string' ? detail.error : undefined) ??
+    (typeof detail?.message === 'string' ? detail.message : undefined) ??
+    (typeof rawDetail === 'string' ? rawDetail : undefined) ??
+    response.statusText;
+
+  const rawQuota = detail?.quota ?? problemObject?.quota;
+  // Where the limit stands, and for a binding space how big it is: top level or inside `detail`, like the quota.
+  const notice = limitNoticeFrom(rawQuota);
+  const bindingSpace = bindingSpaceFrom(detail?.binding_space ?? problemObject?.binding_space);
+  if (response.status === 402) {
+    const quotaError = new QuotaError(
+      code ?? 'quota_exceeded',
+      message,
+      quotaFromProblem(rawQuota)
+    );
+    quotaError.notice = notice;
+    quotaError.bindingSpace = bindingSpace;
+    return quotaError;
+  }
+  if (response.status === 429) {
+    const rawConcurrency = detail?.concurrency ?? problemObject?.concurrency;
+    const retryAfterHeader = response.headers.get('Retry-After');
+    const err = new HttpError(429, message);
+    err.code = code ?? 'concurrency_limit_exceeded';
+    err.problem = problem;
+    if (
+      isRecord(rawConcurrency) &&
+      typeof rawConcurrency.limit_id === 'string' &&
+      typeof rawConcurrency.limit === 'number'
+    ) {
+      err.concurrency = {
+        limit_id: rawConcurrency.limit_id,
+        limit: rawConcurrency.limit,
+        used: typeof rawConcurrency.used === 'number' ? rawConcurrency.used : 0,
+        ...(typeof rawConcurrency.source === 'string' ? { source: rawConcurrency.source } : {}),
+        ...(typeof rawConcurrency.unit === 'string' ? { unit: rawConcurrency.unit } : {}),
+      };
+    }
+    if (retryAfterHeader) {
+      const parsed = parseInt(retryAfterHeader, 10);
+      if (!isNaN(parsed)) err.retryAfter = parsed;
+    }
+    return err;
+  }
+  if (response.status === 503 && code === 'pricing_unavailable') {
+    return new PricingUnavailableError(message);
+  }
+  const error = new HttpError(response.status, message);
+  error.code = code;
+  error.problem = problem;
+  const retryAfter = parseInt(response.headers.get('Retry-After') ?? '', 10);
+  if (!isNaN(retryAfter)) error.retryAfter = retryAfter;
+  const etag = response.status === 412 ? response.headers.get('ETag') : null;
+  if (etag) error.etag = etag;
+  error.notice = notice;
+  error.bindingSpace = bindingSpace;
+  error.diagnostics = Array.isArray(problemObject?.diagnostics)
+    ? problemObject.diagnostics
+    : Array.isArray(detail?.diagnostics)
+      ? detail.diagnostics
+      : [];
+  return error;
+}
+
+/**
+ * The body of an answer `fetchWithInterceptor` returned, as SPHERE's module APIs read it: JSON when it is a success (nothing for a
+ * 204), the typed error of `errorFromResponse` otherwise, so `readApiError` reads the refusal.
+ */
+export async function readResponse<T>(response: Response): Promise<T> {
+  if (!response.ok) throw await errorFromResponse(response);
+  if (response.status === 204) return undefined as T;
+  const text = await response.text();
+  return (text ? JSON.parse(text) : undefined) as T;
+}
+
 export class HttpTransport {
   protected baseUrl: string;
   /** In flight refresh, so that ten simultaneous 401s cause one refresh. */
@@ -171,85 +265,7 @@ export class HttpTransport {
    * offering an upgrade for and only one is worth retrying.
    */
   async errorFor(response: Response): Promise<Error> {
-    let problem: unknown = null;
-    try {
-      problem = await response.json();
-    } catch {
-      /* not JSON; fall through to the status-only error */
-    }
-
-    const problemObject = isRecord(problem) ? problem : undefined;
-    const rawDetail = problemObject?.detail;
-    const detail = isRecord(rawDetail) ? rawDetail : undefined;
-    // The canonical `code` sits at the top of every coded failure (and a 422 has nothing else); the old
-    // `detail.code` and the BIM routes' `title` (always equal to `code`) are what older bodies carry.
-    const code =
-      (typeof problemObject?.code === 'string' ? problemObject.code : undefined) ??
-      (typeof detail?.code === 'string' ? detail.code : undefined) ??
-      (typeof problemObject?.title === 'string' ? problemObject.title : undefined);
-    const message =
-      (typeof detail?.error === 'string' ? detail.error : undefined) ??
-      (typeof detail?.message === 'string' ? detail.message : undefined) ??
-      (typeof rawDetail === 'string' ? rawDetail : undefined) ??
-      response.statusText;
-
-    const rawQuota = detail?.quota ?? problemObject?.quota;
-    // Where the limit stands, and for a binding space how big it is: top level or inside `detail`, like the quota.
-    const notice = limitNoticeFrom(rawQuota);
-    const bindingSpace = bindingSpaceFrom(detail?.binding_space ?? problemObject?.binding_space);
-    if (response.status === 402) {
-      const quotaError = new QuotaError(
-        code ?? 'quota_exceeded',
-        message,
-        quotaFromProblem(rawQuota)
-      );
-      quotaError.notice = notice;
-      quotaError.bindingSpace = bindingSpace;
-      return quotaError;
-    }
-    if (response.status === 429) {
-      const rawConcurrency = detail?.concurrency ?? problemObject?.concurrency;
-      const retryAfterHeader = response.headers.get('Retry-After');
-      const err = new HttpError(429, message);
-      err.code = code ?? 'concurrency_limit_exceeded';
-      err.problem = problem;
-      if (
-        isRecord(rawConcurrency) &&
-        typeof rawConcurrency.limit_id === 'string' &&
-        typeof rawConcurrency.limit === 'number'
-      ) {
-        err.concurrency = {
-          limit_id: rawConcurrency.limit_id,
-          limit: rawConcurrency.limit,
-          used: typeof rawConcurrency.used === 'number' ? rawConcurrency.used : 0,
-          ...(typeof rawConcurrency.source === 'string' ? { source: rawConcurrency.source } : {}),
-          ...(typeof rawConcurrency.unit === 'string' ? { unit: rawConcurrency.unit } : {}),
-        };
-      }
-      if (retryAfterHeader) {
-        const parsed = parseInt(retryAfterHeader, 10);
-        if (!isNaN(parsed)) err.retryAfter = parsed;
-      }
-      return err;
-    }
-    if (response.status === 503 && code === 'pricing_unavailable') {
-      return new PricingUnavailableError(message);
-    }
-    const error = new HttpError(response.status, message);
-    error.code = code;
-    error.problem = problem;
-    const retryAfter = parseInt(response.headers.get('Retry-After') ?? '', 10);
-    if (!isNaN(retryAfter)) error.retryAfter = retryAfter;
-    const etag = response.status === 412 ? response.headers.get('ETag') : null;
-    if (etag) error.etag = etag;
-    error.notice = notice;
-    error.bindingSpace = bindingSpace;
-    error.diagnostics = Array.isArray(problemObject?.diagnostics)
-      ? problemObject.diagnostics
-      : Array.isArray(detail?.diagnostics)
-        ? detail.diagnostics
-        : [];
-    return error;
+    return errorFromResponse(response);
   }
 
   /**

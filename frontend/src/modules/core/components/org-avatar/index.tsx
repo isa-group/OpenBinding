@@ -2,7 +2,7 @@
 // https://github.com/SCORELabUS/SPHERE. Copyright (c) 2024 Alejandro García Fernández.
 // MIT licence: the full text is in THIRD_PARTY_NOTICES.md.
 // Changes: the default colours are theme tokens (and a named white) instead of hex values; avatars are served by the
-// gateway at OpenBinding's API base (`config.apiBaseUrl`), not at SPHERE's `VITE_API_URL`.
+// gateway at OpenBinding's API base (`config.apiBaseUrl`), not at SPHERE's `VITE_API_URL`, and named by their `/v1/` path.
 
 import { config } from '../../../../config';
 import { useEffect, useMemo, useState } from 'react';
@@ -46,6 +46,8 @@ function resolveAvatarUrl(avatar: string): string {
   if (avatar.startsWith('data:') || avatar.startsWith('blob:')) return avatar;
   try {
     const { pathname } = new URL(avatar, window.location.origin);
+    // OpenBinding's gateway names its avatars by path (`/v1/avatars/…`, `/v1/organizations/…/avatar/…`).
+    if (avatar.startsWith('/v1/')) return `${API_BASE}${avatar}`;
     return pathname.startsWith('/static/') ? `${API_BASE}${pathname}` : avatar;
   } catch {
     return avatar;

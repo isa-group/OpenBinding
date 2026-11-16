@@ -144,7 +144,7 @@ describe('Organization overview', () => {
     expect(within(child).getByText('Inherited from ISA Demo Group')).toBeInTheDocument();
     expect(within(subs).getByRole('link', { name: '+ Add' })).toHaveAttribute(
       'href',
-      '/app?create=organization'
+      '/orgs/new?parent=isa-demo'
     );
 
     // From the child, the breadcrumb leads back to the parent.

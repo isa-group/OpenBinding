@@ -19,9 +19,12 @@ const SCREENS: Array<[string, string, string]> = [
   ['auth-cas-callback', '/auth/cas/callback', 'public'],
   ['eng-catalog', '/engines', 'public'],
   ['eng-detail', '/engines/:namespace/:name/:version', 'public'],
+  ['org-explore', '/organizations', 'session'],
   ['org-invite-accept', '/invitations/accept', 'session'],
   ['pub-compositions', '/compositions', 'session'],
   ['pub-showcase', '/c/:org/:composition', 'session'],
+  ['org-list', '/me/orgs', 'protected'],
+  ['org-new', '/orgs/new', 'protected'],
   ['eng-register', '/app/engines/new', 'app'],
   ['eng-registrations', '/app/engines/registrations', 'app'],
   ['eng-registration-detail', '/app/engines/registrations/:name', 'app'],
@@ -46,7 +49,7 @@ const SCREENS: Array<[string, string, string]> = [
   ['admin-moderation', '/app/admin/moderation', 'app'],
 ];
 
-const CEILING = 36;
+const CEILING = 39;
 
 describe('screen budget', () => {
   it('serves exactly the listed screens, with their addresses and layouts, in table order', () => {
@@ -65,7 +68,7 @@ describe('screen budget', () => {
     const source = readFileSync(`${process.cwd()}/src/routes/router.tsx`, 'utf8');
     const lines =
       source.match(
-        /^\s*\{ id: '[a-z0-9-]+', path: '\/[^']*', layout: '(public|session|app)'.*\},$/gm
+        /^\s*\{ id: '[a-z0-9-]+', path: '\/[^']*', layout: '(public|session|protected|app)'.*\},$/gm
       ) ?? [];
     expect(lines).toHaveLength(screens.length);
   });

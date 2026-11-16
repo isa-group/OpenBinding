@@ -16,8 +16,12 @@ import { Skeleton } from '../../modules/core/components/skeleton';
 import { formatDate, formatDateTime } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import { ValueBadge } from '../../modules/core/components/value-badge/ValueBadge';
-import { createAddress } from './createDialog';
-import { ancestorsOf, atLeast, byName, roleSource } from './orgModel';
+import {
+  ancestorsOf,
+  atLeast,
+  byName,
+  roleSource,
+} from '../../modules/organization/utils/org-tree';
 import { classifyAuthError, marker } from '../../modules/core/api/errors';
 import { Breadcrumb } from '../../features/workspace/parts';
 import { NeutralGate, OrgTile, PageSkeleton, RoleChip } from './parts';
@@ -326,7 +330,7 @@ function OrgOverviewBody({ organization }: { organization: Organization }) {
             <div className="org-card-head">
               <h2 id="org-subs-title">Sub-organizations</h2>
               {canAdminister && (
-                <Link to={createAddress('/app', 'organization')} viewTransition>
+                <Link to={`/orgs/new?parent=${encodeURIComponent(slug)}`} viewTransition>
                   + Add
                 </Link>
               )}

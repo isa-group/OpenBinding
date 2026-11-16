@@ -7,7 +7,7 @@ import type { Organization, OrganizationMember } from '../../api/platform';
 import type { PlatformOutletContext } from '../../routes/LegacyOrgOutlet';
 import { AuthContext } from '../../modules/auth/hooks/useAuth';
 import { lucia } from '../../features/workspace/testKit';
-import { Where } from './Where';
+import { Where } from '../../test/Where';
 
 /** Shared by the tests of the organization screens: members, the plan's usage and a router with the workspace outlet. */
 export function member(

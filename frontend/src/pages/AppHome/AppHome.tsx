@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useLocation, useNavigate, useOutletContext } from 'react-router-dom';
+import { Link, useLocation, useOutletContext } from 'react-router-dom';
 import { Building2, FilePlus2, Layers, Play, type LucideIcon } from 'lucide-react';
 import { apiClient } from '../../api/client';
 import type { Notification } from '../../api/auth';
@@ -30,9 +30,12 @@ import { usageRows } from '../Account/usageModel';
 import { isForbidden } from '../Organization/orgErrors';
 import { generalFailure } from '../../features/workspace/errors';
 import { classifyAuthError, marker } from '../../modules/core/api/errors';
-import { atLeast, buildForest, roleSource, type TreeNode } from '../Organization/orgModel';
-import { createAddress, useCreateDialog } from '../Organization/createDialog';
-import { OrgCreate } from '../Organization/OrgCreate';
+import {
+  atLeast,
+  buildForest,
+  roleSource,
+  type TreeNode,
+} from '../../modules/organization/utils/org-tree';
 import { OrgTile, RoleChip } from '../Organization/parts';
 import './AppHome.css';
 
@@ -490,8 +493,6 @@ export function AppHome() {
   const context = useOutletContext<PlatformOutletContext>();
   const { user, isAdmin } = useAuth();
   const location = useLocation();
-  const navigate = useNavigate();
-  const dialog = useCreateDialog('organization', '/app');
   const [announcement, setAnnouncement] = useState('');
   const deleted = (location.state as { deletedOrganization?: string } | null)?.deletedOrganization;
 
@@ -533,10 +534,10 @@ export function AppHome() {
           <p>{subtitle}</p>
         </div>
         <div className="home-shortcuts">
-          <button type="button" data-create-opener="organization" onClick={dialog.openDialog}>
+          <Link to="/orgs/new" viewTransition>
             <Building2 aria-hidden="true" />
             New organization
-          </button>
+          </Link>
           {shortcuts.map(({ label, to, icon: Icon }) => (
             <Link key={label} to={to} viewTransition>
               <Icon aria-hidden="true" />
@@ -568,7 +569,7 @@ export function AppHome() {
               inherits the group’s roles.
             </span>
             <span className="home-first-actions">
-              <Action to={createAddress('/app', 'organization')} variant="primary">
+              <Action to="/orgs/new" variant="primary">
                 Create organization
               </Action>
               <Link to="/invitations/accept">I have an invitation</Link>
@@ -585,7 +586,7 @@ export function AppHome() {
         >
           <header className="home-card-head">
             <h2 id="home-orgs-title">Your organizations</h2>
-            <Link to={createAddress('/app', 'organization')} viewTransition>
+            <Link to="/orgs/new" viewTransition>
               + New
             </Link>
           </header>
@@ -649,12 +650,6 @@ export function AppHome() {
       <div className="sr-only" aria-live="polite">
         {announcement}
       </div>
-      {dialog.open && (
-        <OrgCreate
-          onClose={dialog.close}
-          onCreated={created => navigate(`/app/${created.slug}`, { replace: true })}
-        />
-      )}
     </div>
   );
 }

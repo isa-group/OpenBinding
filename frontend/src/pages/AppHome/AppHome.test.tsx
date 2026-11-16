@@ -4,7 +4,7 @@ import { PricingUnavailableError } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import { config } from '../../config';
 import { org } from '../../features/workspace/testKit';
-import { addressNow, renderScreen, researchUsage } from '../Organization/testKit';
+import { renderScreen, researchUsage } from '../Organization/testKit';
 import { AppHome } from './AppHome';
 
 const api = vi.hoisted(() => ({
@@ -382,7 +382,7 @@ describe('Home', () => {
     expect(screen.getByText('Let’s set up a place for your work.')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Create organization' })).toHaveAttribute(
       'href',
-      '/app?create=organization'
+      '/orgs/new'
     );
     expect(screen.getByRole('link', { name: 'I have an invitation' })).toHaveAttribute(
       'href',
@@ -398,78 +398,13 @@ describe('Home', () => {
     expect(screen.queryByRole('link', { name: 'New project' })).not.toBeInTheDocument();
   });
 
-  describe('the dialog New organization', () => {
-    beforeEach(() => {
-      platform.createOrganization.mockResolvedValue(org('lab-two', { name: 'lab-two' }));
-    });
-
-    it('opens from the New organization button with create=organization in the address', async () => {
-      renderHome();
-      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-
-      fireEvent.click(screen.getByRole('button', { name: 'New organization' }));
-
-      expect(await screen.findByRole('dialog', { name: 'New organization' })).toBeInTheDocument();
-      expect(addressNow()).toBe('/app?create=organization');
-    });
-
-    it('is open when the address holds create=organization', async () => {
-      renderScreen(<AppHome />, {
-        path: '/app',
-        url: '/app?create=organization',
-        organizations: [group, lab],
-      });
-
-      expect(await screen.findByRole('dialog', { name: 'New organization' })).toBeInTheDocument();
-    });
-
-    it('goes back to /app on Cancel, returns the focus to New organization and creates nothing', async () => {
-      renderScreen(<AppHome />, {
-        path: '/app',
-        url: '/app?create=organization',
-        organizations: [group, lab],
-      });
-      const dialog = await screen.findByRole('dialog', { name: 'New organization' });
-
-      fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
-
-      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-      expect(addressNow()).toBe('/app');
-      expect(screen.getByRole('button', { name: 'New organization' })).toHaveFocus();
-      expect(platform.createOrganization).not.toHaveBeenCalled();
-    });
-
-    it('closes on Escape too', async () => {
-      renderScreen(<AppHome />, {
-        path: '/app',
-        url: '/app?create=organization',
-        organizations: [group, lab],
-      });
-      const dialog = await screen.findByRole('dialog', { name: 'New organization' });
-
-      fireEvent.keyDown(dialog, { key: 'Escape' });
-
-      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-      expect(addressNow()).toBe('/app');
-    });
-
-    it('creating lab-two closes the dialog and opens /app/lab-two', async () => {
-      renderScreen(<AppHome />, {
-        path: '/app',
-        url: '/app?create=organization',
-        organizations: [group, lab],
-      });
-      const dialog = await screen.findByRole('dialog', { name: 'New organization' });
-
-      fireEvent.change(within(dialog).getByLabelText('Name'), { target: { value: 'lab-two' } });
-      fireEvent.click(within(dialog).getByRole('button', { name: 'Create organization' }));
-
-      await waitFor(() => expect(addressNow()).toBe('/app/lab-two'));
-      expect(platform.createOrganization).toHaveBeenCalledWith(
-        expect.objectContaining({ name: 'lab-two', slug: 'lab-two' })
-      );
-      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    });
+  it('creates an organization on its own page', async () => {
+    platform.organizations.mockResolvedValue([group, lab]);
+    renderHome();
+    expect(await screen.findByRole('link', { name: 'New organization' })).toHaveAttribute(
+      'href',
+      '/orgs/new'
+    );
   });
 
   it('confirms an organization that was just deleted', async () => {

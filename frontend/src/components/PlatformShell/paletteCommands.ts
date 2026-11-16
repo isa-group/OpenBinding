@@ -151,7 +151,7 @@ export function buildCommands({
       'Create',
       'New organization',
       'Problems, runs and studies with their members',
-      '/app?create=organization',
+      '/orgs/new',
       '+'
     ),
     command(

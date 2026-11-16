@@ -40,6 +40,7 @@ test('public menus lead to the language, the workbench, the compositions and the
   await expect(entry(primary(page), 'Composition2Yaml')).toHaveAttribute('href', '/language');
   await expect(entry(primary(page), 'Problem workbench')).toHaveAttribute('href', '/workbench');
   await primary(page).getByRole('button', { name: 'Explore' }).click();
+  await expect(entry(primary(page), 'Organizations')).toHaveAttribute('href', '/organizations');
   await expect(entry(primary(page), 'Compositions')).toHaveAttribute('href', '/compositions');
   await expect(entry(primary(page), 'Engines')).toHaveAttribute('href', '/engines');
 });
@@ -92,7 +93,7 @@ test('New creates in the organization the address names', async ({ page }) => {
     ['Problem', '/app/acme/problem-editor'],
     ['Run', RUN_NEW],
     ['Study', '/app/acme/studies/new'],
-    ['Organization', '/app?create=organization'],
+    ['Organization', '/orgs/new'],
     ['Engine', '/app/engines/new'],
   ];
   await expectInOrder(items.map(([name]) => entry(menuScope(page), name)));
@@ -109,7 +110,7 @@ test('account menu lists the person\'s places then Sign out, with Administration
   await signedIn(page, '/app');
   await banner(page).getByRole('button', { name: 'Account menu' }).click();
   const items: Array<[string, string]> = [
-    ['Organizations', '/app'],
+    ['Organizations', '/me/orgs'],
     ['Notifications', '/app/account/notifications'],
     ['Engines', '/app/engines/registrations'],
     ['API keys', '/app/account/keys'],

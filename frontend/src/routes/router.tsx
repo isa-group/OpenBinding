@@ -21,9 +21,10 @@ import { LegacyOrgOutlet } from './LegacyOrgOutlet';
 
 /**
  * Where a screen renders: `public` in the public layout, `session` in the layout of the session (the workspace chrome when
- * signed in, the public one otherwise), `app` in the workspace under /app, which needs an account.
+ * signed in, the public one otherwise), `protected` in SPHERE's authenticated layout (an account is needed), `app` in the old
+ * workspace under /app, which needs an account too and goes as its screens are poured into SPHERE's pages.
  */
-export type ScreenLayout = 'public' | 'session' | 'app';
+export type ScreenLayout = 'public' | 'session' | 'protected' | 'app';
 
 /** One screen of the application and the address that serves it. */
 export interface Screen {
@@ -39,6 +40,15 @@ export interface Screen {
 const named = <K extends string>(load: () => Promise<Record<K, ComponentType>>, name: K) =>
   lazy(() => load().then(module => ({ default: module[name] })));
 
+const PublicOrganizationsPage = lazy(
+  () => import('../modules/organization/pages/public-organizations-list')
+);
+const OrganizationsListPage = lazy(
+  () => import('../modules/organization/pages/organizations-list')
+);
+const CreateOrganizationPage = lazy(
+  () => import('../modules/organization/pages/create-organization')
+);
 const About = named(() => import('../pages/About/About'), 'About');
 const WorkbenchPage = named(() => import('../pages/Public/PublicPages'), 'WorkbenchPage');
 const Pricing = named(() => import('../pages/Pricing/Pricing'), 'Pricing');
@@ -118,12 +128,19 @@ export const screens: Screen[] = [
   // ═══════════════════════════════════════════════════════════
   // PUBLIC ROUTES (AppLayout: public or authenticated chrome, by session)
   // ═══════════════════════════════════════════════════════════
+  { id: 'org-explore', path: '/organizations', layout: 'session', element: <PublicOrganizationsPage /> },
   { id: 'org-invite-accept', path: '/invitations/accept', layout: 'session', element: <AcceptInvitation /> },
   { id: 'pub-compositions', path: '/compositions', layout: 'session', element: <PublicCompositionList /> },
   { id: 'pub-showcase', path: '/c/:org/:composition', layout: 'session', element: <Showcase /> },
 
   // ═══════════════════════════════════════════════════════════
-  // PROTECTED ROUTES (require auth + AuthenticatedLayout, under /app)
+  // PROTECTED ROUTES (require auth + AuthenticatedLayout)
+  // ═══════════════════════════════════════════════════════════
+  { id: 'org-list', path: '/me/orgs', layout: 'protected', element: <OrganizationsListPage /> },
+  { id: 'org-new', path: '/orgs/new', layout: 'protected', element: <CreateOrganizationPage /> },
+
+  // ═══════════════════════════════════════════════════════════
+  // PROTECTED ROUTES (the old workspace under /app, until its screens are poured into SPHERE's pages)
   // ═══════════════════════════════════════════════════════════
   { id: 'eng-register', path: '/app/engines/new', layout: 'app', element: <RegisterEngine /> },
   { id: 'eng-registrations', path: '/app/engines/registrations', layout: 'app', element: <EngRegistrations /> },
@@ -197,6 +214,16 @@ export default function Router({ table = screens }: { table?: Screen[] }) {
     // ═══════════════════════════════════════════════════════════
     // PROTECTED ROUTES (require auth + AuthenticatedLayout)
     // ═══════════════════════════════════════════════════════════
+    {
+      element: (
+        <ProtectedRoute>
+          <AuthenticatedLayout>
+            <LegacyOrgOutlet />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      ),
+      children: routesOf(table, 'protected'),
+    },
     {
       element: (
         <ProtectedRoute>

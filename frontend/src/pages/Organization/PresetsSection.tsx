@@ -21,7 +21,7 @@ import { classifyAuthError, marker } from '../../modules/core/api/errors';
 import type { RunPresetList, RunPresetView } from '../../modules/core/api/types';
 import { formatDate } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
-import { atLeast } from './orgModel';
+import { atLeast } from '../../modules/organization/utils/org-tree';
 import { NeutralGate, PageSkeleton, SelectField } from './parts';
 import {
   OPTIMIZATION_TYPES,

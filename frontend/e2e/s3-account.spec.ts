@@ -285,7 +285,7 @@ async function mockApi(
   await page.route(`${API}/v1/pricing/current`, json(CURRENT_FIXTURE));
   await page.route(`${API}/v1/engines`, json({ engines: [engine] }));
   await page.route(
-    `${API}/v1/organizations`,
+    url => url.origin + url.pathname === `${API}/v1/organizations`,
     json([
       {
         id: 'org-1',

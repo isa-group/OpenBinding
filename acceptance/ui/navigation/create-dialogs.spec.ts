@@ -6,30 +6,23 @@ test.use({ viewport: { width: 1280, height: 800 } });
 const opener = (page: import('@playwright/test').Page, name: string) => page.getByRole('button', { name, exact: true })
   .or(page.getByRole('link', { name, exact: true })).first();
 
-test('New organization opens a dialog on /app and creating lab-two opens the new organization', async ({ page }) => {
+test('New organization opens the creation page, and creating lab-two opens the new organization', async ({ page }) => {
   await mockApi(page);
   await page.goto('/app');
   await opener(page, 'New organization').click();
-  await expect.poll(() => pathAndSearch(page)).toBe('/app?create=organization');
-  const dialog = page.getByRole('dialog', { name: 'New organization' });
-  await expect(dialog).toBeVisible();
-  await dialog.getByLabel(/name/i).first().fill('lab-two');
-  const slug = dialog.getByLabel(/slug/i);
-  if (await slug.count()) await slug.first().fill('lab-two');
-  await dialog.getByRole('button', { name: /create/i }).click();
-  await expect(dialog).toHaveCount(0);
+  await expect.poll(() => pathAndSearch(page)).toBe('/orgs/new');
+  await page.getByLabel(/^Name/).fill('lab-two');
+  await page.getByRole('button', { name: 'Create organization' }).click();
   await expect.poll(() => pathAndSearch(page)).toBe('/app/lab-two');
 });
 
-test('cancelling the organization dialog returns to /app, restores focus and creates nothing', async ({ page }) => {
+test('cancelling the creation page goes back and creates nothing', async ({ page }) => {
   const requests = await mockApi(page);
-  await page.goto('/app?create=organization');
-  const dialog = page.getByRole('dialog', { name: 'New organization' });
-  await expect(dialog).toBeVisible();
-  await dialog.getByRole('button', { name: 'Cancel' }).click();
-  await expect(dialog).toHaveCount(0);
+  await page.goto('/app');
+  await opener(page, 'New organization').click();
+  await expect.poll(() => pathAndSearch(page)).toBe('/orgs/new');
+  await page.getByRole('button', { name: 'Cancel' }).click();
   await expect.poll(() => pathAndSearch(page)).toBe('/app');
-  await expect(opener(page, 'New organization')).toBeFocused();
   expect(requests.filter((request) => request.method === 'POST')).toEqual([]);
 });
 

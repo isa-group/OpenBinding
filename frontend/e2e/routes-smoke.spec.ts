@@ -46,7 +46,10 @@ async function mockApi(page: Page, role: 'user' | 'admin' | null) {
   await page.route(`${API}/v1/users/me/pricing-token`, route =>
     route.fulfill({ json: { pricing_token: 'smoke-token' } })
   );
-  await page.route(`${API}/v1/organizations`, route => route.fulfill({ json: [organization] }));
+  await page.route(
+    url => url.origin + url.pathname === `${API}/v1/organizations`,
+    route => route.fulfill({ json: [organization] })
+  );
   await page.route(`${API}/v1/notifications**`, route => route.fulfill({ json: [] }));
 }
 
@@ -173,7 +176,7 @@ test.describe.configure({ mode: 'serial' });
 for (const screen of screens) {
   test(`${screen.layout} ${screen.id} ${screen.path} loads`, async ({ page }) => {
     test.setTimeout(90_000);
-    const underApp = screen.path === '/app' || screen.path.startsWith('/app/');
+    const underApp = screen.layout === 'app' || screen.layout === 'protected';
     const critical = watchCriticalErrors(page);
     await mockApi(page, underApp ? (screen.requireAdmin ? 'admin' : 'user') : null);
 

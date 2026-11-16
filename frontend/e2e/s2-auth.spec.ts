@@ -86,10 +86,12 @@ async function mockApi(page: Page, mocks: Mocks = {}) {
   await page.route(`${API}/v1/users/me/pricing-token`, json({ pricing_token: 's2-pricing' }));
   await page.route(`${API}/v1/notifications**`, json([]));
   const organizations = mocks.organizations ?? [isaDemo];
-  await page.route(`${API}/v1/organizations`, route =>
-    route.fulfill({
-      json: typeof organizations === 'function' ? organizations() : organizations,
-    })
+  await page.route(
+    url => url.origin + url.pathname === `${API}/v1/organizations`,
+    route =>
+      route.fulfill({
+        json: typeof organizations === 'function' ? organizations() : organizations,
+      })
   );
   await page.route(`${API}/v1/auth/login`, json(tokens));
   await page.route(`${API}/v1/auth/register`, json(person(), 201));

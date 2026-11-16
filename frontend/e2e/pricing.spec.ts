@@ -76,7 +76,7 @@ async function mockApi(page: Page, mocks: Mocks = {}) {
       json({ pricing_token: mocks.pricingToken ?? token(3600) })
     );
     await page.route(`${API}/v1/notifications**`, json([]));
-    await page.route(`${API}/v1/organizations`, json([]));
+    await page.route(url => url.origin + url.pathname === `${API}/v1/organizations`, json([]));
   }
 }
 

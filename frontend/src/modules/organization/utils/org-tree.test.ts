@@ -11,11 +11,9 @@ import {
   pathOf,
   roleSource,
   tileColour,
-} from './orgModel';
-import { auditFixture } from './auditFixture';
-import { changesOf, describeEvent, kindOf, toCsv } from './auditModel';
-import { slugFromName } from '../../modules/core/utils/slug';
-import { org } from '../../features/workspace/testKit';
+} from './org-tree';
+import { slugFromName } from '../../core/utils/slug';
+import { org } from '../../../features/workspace/testKit';
 
 const group = org('isa-demo', { name: 'ISA Demo Group' });
 const lab = org('qos-lab', {
@@ -105,33 +103,5 @@ describe('names', () => {
       true
     );
     expect(TILE_COLOURS).not.toContain('var(--tp-sunshine-800)');
-  });
-});
-
-describe('the audit log', () => {
-  it('groups actions into kinds', () => {
-    expect(kindOf('organization.created')).toBe('organization');
-    expect(kindOf('organization.members.batch_updated')).toBe('members');
-    expect(kindOf('organization.invitation.created')).toBe('members');
-    expect(kindOf('problem.deleted')).toBe('problems');
-    expect(kindOf('binding_case.revision.created')).toBe('content');
-    expect(kindOf('something.new')).toBe('other');
-  });
-
-  it('describes a batch by how many changes it applied and exposes them', () => {
-    const [, batch] = auditFixture;
-    expect(describeEvent(batch)).toBe('2 member changes applied together');
-    expect(changesOf(batch)).toEqual([
-      { userId: 'user-marco', role: 'ADMIN' },
-      { userId: 'user-sofia', role: null },
-    ]);
-  });
-
-  it('exports plain CSV, quoting what needs it', () => {
-    const csv = toCsv(auditFixture);
-    const [head, first] = csv.split('\n');
-    expect(head).toBe('id,createdAt,actorId,action,targetType,targetId,detail');
-    expect(first.startsWith('ev-3,')).toBe(true);
-    expect(csv).toContain('"{""changes"":');
   });
 });

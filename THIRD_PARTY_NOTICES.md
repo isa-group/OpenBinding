@@ -109,7 +109,7 @@ Generated from the origin header of each file.
 | `frontend/src/modules/core/components/alert-modal/index.tsx` | `frontend/src/modules/core/components/alert-modal/index.tsx` | adapted |
 | `frontend/src/modules/core/components/alerts/index.tsx` | `frontend/src/modules/core/components/alerts/index.tsx` | adapted |
 | `frontend/src/modules/core/components/badge/index.tsx` | `frontend/src/modules/beta/components/beta-badge/index.tsx` | pattern-only |
-| `frontend/src/modules/core/components/block-alert/index.tsx` | `frontend/src/modules/core/components/block-alert/index.tsx` | verbatim |
+| `frontend/src/modules/core/components/block-alert/index.tsx` | `frontend/src/modules/core/components/block-alert/index.tsx` | adapted |
 | `frontend/src/modules/core/components/chip/index.tsx` | `frontend/src/modules/beta/components/beta-badge/index.tsx` | pattern-only |
 | `frontend/src/modules/core/components/command-palette/index.tsx` | `frontend/src/modules/core/components/command-palette/index.tsx` | adapted |
 | `frontend/src/modules/core/components/composition-renderer/modes/calculator.tsx` | `frontend/src/modules/pricing/components/configuration-space-view/index.tsx` | pattern-only |
@@ -172,8 +172,22 @@ Generated from the origin header of each file.
 | `frontend/src/modules/core/utils/motion-variants.ts` | `frontend/src/modules/core/utils/motion-variants.ts` | verbatim |
 | `frontend/src/modules/core/utils/offer-reload.ts` | `frontend/src/modules/pricing/pages/card/index.tsx` | adapted (extracted) |
 | `frontend/src/modules/core/utils/recentItems.ts` | `frontend/src/modules/core/utils/recentItems.ts` | adapted |
+| `frontend/src/modules/organization/api/organizationsApi.ts` | `frontend/src/modules/organization/api/organizationsApi.ts` | adapted |
+| `frontend/src/modules/organization/components/move-organization-modal/index.tsx` | `frontend/src/modules/organization/pages/organizations-list/index.tsx` | pattern-only |
+| `frontend/src/modules/organization/components/org-dnd/index.tsx` | `frontend/src/modules/organization/components/org-dnd/index.tsx` | adapted |
+| `frontend/src/modules/organization/components/org-dnd/row.ts` | `frontend/src/modules/organization/components/org-dnd/row.ts` | verbatim |
+| `frontend/src/modules/organization/components/org-dnd/tree.ts` | `frontend/src/modules/organization/components/org-dnd/tree.ts` | verbatim |
+| `frontend/src/modules/organization/components/organization-card/index.tsx` | `frontend/src/modules/organization/components/organization-card/index.tsx` | adapted |
+| `frontend/src/modules/organization/components/organization-selector/index.tsx` | `frontend/src/modules/pricing/components/organization-selector/index.tsx` | adapted |
+| `frontend/src/modules/organization/components/role-badge/index.tsx` | `frontend/src/modules/organization/pages/organization-detail/constants.ts`, `frontend/src/modules/organization/pages/organizations-list/index.tsx` | adapted |
+| `frontend/src/modules/organization/components/role-badge/roles.ts` | `frontend/src/modules/organization/pages/organization-detail/constants.ts` | adapted |
 | `frontend/src/modules/organization/contexts/organizationContext.ts` | `frontend/src/modules/organization/contexts/organizationContext.ts` | adapted |
+| `frontend/src/modules/organization/hooks/useOrgReparenting.ts` | `frontend/src/modules/organization/hooks/useOrgReparenting.ts` | adapted |
 | `frontend/src/modules/organization/hooks/useOrganization.ts` | `frontend/src/modules/organization/hooks/useOrganization.ts` | adapted |
+| `frontend/src/modules/organization/pages/create-organization/index.tsx` | `frontend/src/modules/organization/pages/create-organization/index.tsx` | adapted |
+| `frontend/src/modules/organization/pages/organizations-list/index.tsx` | `frontend/src/modules/organization/pages/organizations-list/index.tsx` | adapted |
+| `frontend/src/modules/organization/pages/public-organizations-list/index.tsx` | `frontend/src/modules/organization/pages/public-organizations-list/index.tsx` | adapted |
+| `frontend/src/modules/organization/utils/filter-tree.ts` | `frontend/src/modules/organization/pages/organizations-list/index.tsx` | adapted |
 | `frontend/src/modules/presentation/layouts/authenticated-layout/app-footer.tsx` | `frontend/src/modules/presentation/layouts/authenticated-layout/app-footer.tsx` | adapted |
 | `frontend/src/modules/presentation/layouts/authenticated-layout/app-header.tsx` | `frontend/src/modules/presentation/layouts/authenticated-layout/app-header.tsx` | adapted |
 | `frontend/src/modules/presentation/layouts/authenticated-layout/index.tsx` | `frontend/src/modules/presentation/layouts/authenticated-layout/index.tsx` | adapted |
