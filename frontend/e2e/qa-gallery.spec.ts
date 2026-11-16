@@ -36,6 +36,7 @@ const HEADING: Record<string, RegExp> = {
   'auth-cas-callback': /no code to finish sign-in/,
   'org-invite-accept': /Paste your invitation/,
   'pub-pricing': /Plans for every kind of binding work/,
+  'pub-language': /^Composition2Yaml$/,
   'acct-profile': /^Account$/,
   'app-home': /Hello, alex\.rivera/,
   'org-overview': /ISA Demo Group/,

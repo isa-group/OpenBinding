@@ -38,10 +38,9 @@ test('mobile navigation exposes the complete journey and closes after navigation
 
   const menu = header.getByRole('navigation', { name: 'Mobile navigation' });
   await expect(header.getByRole('button', { name: 'Close menu' })).toHaveAttribute('aria-expanded', 'true');
-  for (const label of ['Home', 'Compositions', 'Engines', 'Pricing', 'About', 'Log in', 'Sign up']) {
+  for (const label of ['Home', 'Compositions', 'Language', 'Engines', 'Pricing', 'About', 'Log in', 'Sign up']) {
     await expect(menu.getByRole('link', { name: label, exact: true })).toBeVisible();
   }
-  await expect(menu.getByRole('link', { name: 'Language', exact: true })).toHaveCount(0);
 
   await menu.getByRole('link', { name: 'About', exact: true }).click();
   await expect(page).toHaveURL(/\/about$/);
@@ -62,13 +61,13 @@ test('mobile menu closes with Escape and gives focus back to its button', async 
   await expect(header.getByRole('button', { name: 'Open menu' })).toBeFocused();
 });
 
-test('the seven public entries stay in the header row before the mobile breakpoint', async ({ page }) => {
+test('the eight public entries stay in the header row before the mobile breakpoint', async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 800 });
   await page.goto('/');
 
   const primaryNavigation = page.getByRole('navigation', { name: 'Primary navigation' });
   const header = page.locator('header.site-header');
-  for (const label of ['Home', 'Compositions', 'Engines', 'Pricing', 'About', 'Log in', 'Sign up']) {
+  for (const label of ['Home', 'Compositions', 'Language', 'Engines', 'Pricing', 'About', 'Log in', 'Sign up']) {
     await expect(header.getByRole('link', { name: label, exact: true }), label).toBeInViewport({ ratio: 1 });
   }
   expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);

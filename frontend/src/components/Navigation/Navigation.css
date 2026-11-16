@@ -226,7 +226,7 @@
   justify-content: flex-start;
 }
 
-/* Nine entries need about 930px inside the capsule: they stay in the row down to 1000px of viewport, and move into the phone menu below. */
+/* Ten entries need about 860px inside the capsule: they stay in the row down to 1000px of viewport, and move into the phone menu below. */
 @media (max-width: 1000px) {
   .public-nav, .public-actions { display: none; }
   .public-mobile-toggle { display: inline-flex; }

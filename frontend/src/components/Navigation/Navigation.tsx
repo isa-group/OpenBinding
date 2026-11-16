@@ -22,6 +22,8 @@ const publicLinks: readonly PublicLink[] = [
   { to: '/', label: 'Home', active: (pathname) => pathname === '/' },
   // The public compositions and the public page of each one.
   { to: '/compositions', label: 'Compositions', active: (pathname) => underPath(pathname, '/compositions') || pathname.startsWith('/c/') },
+  // The Composition2Yaml reference and playground.
+  { to: '/language', label: 'Language', active: (pathname) => underPath(pathname, '/language') },
   { to: '/engines', label: 'Engines', active: (pathname) => underPath(pathname, '/engines') },
   { to: '/pricing', label: 'Pricing', active: (pathname) => underPath(pathname, '/pricing') },
   { to: '/about', label: 'About', active: (pathname) => underPath(pathname, '/about') },
