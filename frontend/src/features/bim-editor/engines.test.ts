@@ -32,7 +32,7 @@ describe('the engines of an analysis', () => {
   it('gives a row to every mode with the reason it can or cannot run the package', () => {
     const modes: CompatibleMode[] = [
       { engine, registration, mode: 'seeded', compatible: true },
-      { engine: { ...engine, namespace: 'lucia-vega', name: 'edge-solver' }, registration, mode: 'placement', compatible: false, diagnostics: [{ message: 'No placement.' }, { detail: 'Needs pools.' }] },
+      { engine: { ...engine, namespace: 'edge-lab', name: 'edge-solver' }, registration, mode: 'placement', compatible: false, diagnostics: [{ message: 'No placement.' }, { detail: 'Needs pools.' }] },
       { engine, registration, mode: 'exact', compatible: false },
     ];
     const rows = engineRows(modes);

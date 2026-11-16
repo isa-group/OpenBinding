@@ -36,8 +36,8 @@ const ROOT = '/app/isa-demo';
 
 const MINIZINC = { namespace: 'bim.builtin', name: 'minizinc', version: '1.0.0', digest: digestOf('m') };
 const MINIZINC_REGISTRATION = { namespace: 'bim.builtin', name: 'minizinc-deployment', version: '1', digest: digestOf('n') };
-const EDGE = { namespace: 'lucia-vega', name: 'edge-solver', version: '0.3.1', digest: digestOf('e') };
-const EDGE_REGISTRATION = { namespace: 'lucia-vega', name: 'edge-solver-eu', version: '1', digest: digestOf('r') };
+const EDGE = { namespace: 'edge-lab', name: 'edge-solver', version: '0.3.1', digest: digestOf('e') };
+const EDGE_REGISTRATION = { namespace: 'edge-lab', name: 'edge-solver-eu', version: '1', digest: digestOf('r') };
 
 const mode = (id: string, properties: Record<string, Record<string, unknown>>): EngineMode => ({
   id, profile: 'qos-binding/v1', ir: { apiVersion: 'bim/v1', kind: 'BindingProblem' }, algorithm: id, capabilities: {} as EngineMode['capabilities'],
@@ -373,7 +373,7 @@ describe('Start a run', () => {
       fireEvent.click(await screen.findByRole('button', { name: 'Continue' }));
 
       const card = await screen.findByRole('region', { name: 'Run preset Edge deployment' });
-      expect(within(card).getByText('lucia-vega/edge-solver-eu 1')).toBeInTheDocument();
+      expect(within(card).getByText('edge-lab/edge-solver-eu 1')).toBeInTheDocument();
       expect(within(card).getByText('Can’t run this')).toBeInTheDocument();
       expect(within(card).getByText('It cannot read a RoutingOverlay.')).toBeInTheDocument();
       expect(await picker()).toHaveValue('edge-deployment');

@@ -58,7 +58,7 @@ describe('the run presets of an organization', () => {
     expect(within(fast).getByRole('link', { name: 'Start a run' })).toHaveAttribute('href', '/app/isa-demo/runs/new?preset=fast-sampling');
 
     const edge = await card('Edge deployment');
-    expect(within(edge).getByText('lucia-vega/edge-solver-eu 1')).toBeInTheDocument();
+    expect(within(edge).getByText('edge-lab/edge-solver-eu 1')).toBeInTheDocument();
     expect(within(edge).getByText('Runs on a federated deployment: presets of federated engines can’t join a study yet.')).toBeInTheDocument();
     expect(within(await card('No goal')).getByText('Names no optimization, which a study engine needs.')).toBeInTheDocument();
     expect(within(await card('No goal')).getByText('Chosen for the problem when a run starts')).toBeInTheDocument();
@@ -138,7 +138,7 @@ describe('the run presets of an organization', () => {
     fireEvent.click(within(await card('Edge deployment')).getByRole('button', { name: 'Edit Edge deployment' }));
     const dialog = await screen.findByRole('dialog', { name: 'Edit Edge deployment' });
 
-    expect(within(dialog).getByText(/Runs on the deployment lucia-vega\/edge-solver-eu 1/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/Runs on the deployment edge-lab\/edge-solver-eu 1/)).toBeInTheDocument();
     expect(within(dialog).getByRole('option', { name: 'edge-solver 0.3.1 (as the preset names it)' })).toBeInTheDocument();
     fireEvent.click(within(dialog).getByRole('button', { name: 'Save changes' }));
     await waitFor(() => expect(presets.update).toHaveBeenCalledTimes(1));

@@ -92,8 +92,8 @@ const detailTable: Record<string, (state: State) => ReturnType<typeof detailOf> 
 
 // --- what the gateway answers
 
-const EDGE = { namespace: 'lucia-vega', name: 'edge-solver', version: '0.3.1', digest: digestOf('e') };
-const EDGE_REGISTRATION = { namespace: 'lucia-vega', name: 'edge-solver-eu', version: '1', digest: digestOf('r') };
+const EDGE = { namespace: 'edge-lab', name: 'edge-solver', version: '0.3.1', digest: digestOf('e') };
+const EDGE_REGISTRATION = { namespace: 'edge-lab', name: 'edge-solver-eu', version: '1', digest: digestOf('r') };
 const MINIZINC = { namespace: 'bim.builtin', name: 'minizinc', version: '1.0.0', digest: digestOf('m') };
 const MINIZINC_REGISTRATION = { namespace: 'bim.builtin', name: 'minizinc-deployment', version: '1.0.0+builtin.m', digest: digestOf('n') };
 

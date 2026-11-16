@@ -10,7 +10,7 @@ import {
 
 const ENGINE = { namespace: 'bim.builtin', name: 'random-search', version: '1.0.0', digest: 'sha256-a' };
 const REGISTRATION = { namespace: 'bim.builtin', name: 'random-search-deployment', version: '1', digest: 'sha256-r' };
-const EDGE = { namespace: 'lucia-vega', name: 'edge-solver', version: '0.3.1', digest: 'sha256-e' };
+const EDGE = { namespace: 'edge-lab', name: 'edge-solver', version: '0.3.1', digest: 'sha256-e' };
 
 const revision = (n: number, over: Partial<ProblemRevision> = {}): ProblemRevision => ({
   id: `rev-${n}`, problem_id: 'case-1', revision: n, package_digest: `sha256-${String(n).repeat(64)}`, package_size: 1024, created_by_id: 'u',
@@ -63,7 +63,7 @@ describe('what to solve', () => {
 
 describe('engines', () => {
   const compatible = [
-    { engine: EDGE, registration: { ...REGISTRATION, namespace: 'lucia-vega', name: 'edge-eu' }, mode: 'placement', compatible: false, diagnostics: [{ message: 'It cannot read a RoutingOverlay.' }] },
+    { engine: EDGE, registration: { ...REGISTRATION, namespace: 'edge-lab', name: 'edge-eu' }, mode: 'placement', compatible: false, diagnostics: [{ message: 'It cannot read a RoutingOverlay.' }] },
     { engine: ENGINE, registration: REGISTRATION, mode: 'sampling', compatible: true },
     { nonsense: true },
   ];
@@ -240,7 +240,7 @@ describe('the request', () => {
 describe('run presets', () => {
   const modes = modeChoices([
     { engine: ENGINE, registration: REGISTRATION, mode: 'sampling', compatible: true },
-    { engine: EDGE, registration: { ...REGISTRATION, namespace: 'lucia-vega', name: 'edge-eu' }, mode: 'placement', compatible: false },
+    { engine: EDGE, registration: { ...REGISTRATION, namespace: 'edge-lab', name: 'edge-eu' }, mode: 'placement', compatible: false },
   ], catalog);
   const [sampling, placement] = modes;
 
@@ -248,7 +248,7 @@ describe('run presets', () => {
     expect(presetModeOf({ engine: ENGINE, mode: 'sampling', registration: null }, modes)).toBe(sampling);
     expect(presetModeOf({ engine: ENGINE, mode: null, registration: null }, modes)).toBe(sampling);
     expect(presetModeOf({ engine: 'random-search', mode: 'sampling', registration: null }, modes)).toBe(sampling);
-    expect(presetModeOf({ engine: EDGE, mode: 'placement', registration: { ...REGISTRATION, namespace: 'lucia-vega', name: 'edge-eu' } }, modes)).toBe(placement);
+    expect(presetModeOf({ engine: EDGE, mode: 'placement', registration: { ...REGISTRATION, namespace: 'edge-lab', name: 'edge-eu' } }, modes)).toBe(placement);
     // The same engine on a deployment the gateway did not list, another mode, or another revision: not offered.
     expect(presetModeOf({ engine: EDGE, mode: 'placement', registration: null }, modes)).toBeNull();
     expect(presetModeOf({ engine: ENGINE, mode: 'exhaustive', registration: null }, modes)).toBeNull();
@@ -267,7 +267,7 @@ describe('run presets', () => {
       engine: ENGINE, registration: null, mode: 'sampling', options: { iterations: 100 }, optimization,
     });
     expect(presetSettingsOf(placement, {}, null)).toEqual({
-      engine: EDGE, registration: { ...REGISTRATION, namespace: 'lucia-vega', name: 'edge-eu' }, mode: 'placement', options: {}, optimization: null,
+      engine: EDGE, registration: { ...REGISTRATION, namespace: 'edge-lab', name: 'edge-eu' }, mode: 'placement', options: {}, optimization: null,
     });
   });
 });

@@ -30,8 +30,8 @@ export function presetFixture(over: Partial<RunPresetView> = {}): RunPresetView 
 
 export const FEDERATED_PRESET = presetFixture({
   id: 'preset-edge-deployment', slug: 'edge-deployment', name: 'Edge deployment', description: '',
-  engine: { namespace: 'lucia-vega', name: 'edge-solver', version: '0.3.1', digest: digestOf('e') },
-  registration: { namespace: 'lucia-vega', name: 'edge-solver-eu', version: '1', digest: digestOf('r') }, mode: 'placement', options: {},
+  engine: { namespace: 'edge-lab', name: 'edge-solver', version: '0.3.1', digest: digestOf('e') },
+  registration: { namespace: 'edge-lab', name: 'edge-solver-eu', version: '1', digest: digestOf('r') }, mode: 'placement', options: {},
 });
 
 export const NO_GOAL_PRESET = presetFixture({

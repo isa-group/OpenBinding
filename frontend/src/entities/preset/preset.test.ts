@@ -31,7 +31,7 @@ describe('a run preset on screen', () => {
   it('names the deployment of a federated preset', () => {
     expect(isFederatedPreset(FEDERATED_PRESET)).toBe(true);
     expect(isFederatedPreset(presetFixture())).toBe(false);
-    expect(presetRegistrationText(FEDERATED_PRESET.registration)).toBe('lucia-vega/edge-solver-eu 1');
+    expect(presetRegistrationText(FEDERATED_PRESET.registration)).toBe('edge-lab/edge-solver-eu 1');
     expect(presetRegistrationText(null)).toBeNull();
   });
 
