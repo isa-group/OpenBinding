@@ -331,8 +331,8 @@ async def test_the_reset_email_links_to_the_frontend_reset_screen(api_client, re
     [body] = sent
     link = urlsplit(re.search(r"https?://\S+", body).group(0))
     assert (link.scheme, link.netloc, link.path) == ("https", "app.example.org", "/password-reset")
-    route_table = (REPO_ROOT / "frontend/src/routes/areas/auth.tsx").read_text(encoding="utf-8")
-    assert f"'{link.path}', <PasswordResetPage />" in route_table
+    route_table = (REPO_ROOT / "frontend/src/routes/router.tsx").read_text(encoding="utf-8")
+    assert f"path: '{link.path}', layout: 'public', element: <PasswordResetPage />" in route_table
     [token] = parse_qs(link.query)["token"]
 
     completed = await api_client.post(
