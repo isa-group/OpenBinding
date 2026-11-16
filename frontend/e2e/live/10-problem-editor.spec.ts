@@ -26,7 +26,7 @@ test.describe('live · J3 the problem editor on lab-main', () => {
     await signInByApi(page, 'owner');
     const stamp = Date.now().toString(36);
     const name = `j3-${stamp}`;
-    const main = page.locator('#platform-main');
+    const main = page.locator('main');
     const status = main.getByTestId('pe-check-status');
 
     // 1 · The template opens once the gateway has checked it.

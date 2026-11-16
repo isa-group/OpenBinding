@@ -548,7 +548,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto('/app');
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
 
       await expect(page.locator('header.app-header')).toBeVisible();
       await expect(
@@ -725,9 +725,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(dialog).toHaveCount(0);
       await expect(page).toHaveURL(/\/app\/distributed-systems-lab$/);
       await expect(
-        page
-          .locator('#platform-main')
-          .getByRole('heading', { level: 1, name: 'Distributed Systems Lab' })
+        page.locator('main').getByRole('heading', { level: 1, name: 'Distributed Systems Lab' })
       ).toBeVisible();
       expect(critical).toEqual([]);
     });
@@ -736,7 +734,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto('/app/isa-demo');
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
 
       const title = main.getByRole('heading', { level: 1, name: 'ISA Demo Group' });
       await expect(title).toBeVisible();
@@ -850,7 +848,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto('/app/isa-demo/settings');
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
 
       await expect(main.getByRole('heading', { level: 1, name: 'Settings' })).toBeVisible();
       await expectSettingsNav(main, 'isa-demo', 'General');
@@ -939,7 +937,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
     test('org-settings /app/:org/settings · deleting', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
 
       // Deleting asks for the address and the gateway refuses an organization with runs or study runs.
       await page.goto('/app/isa-demo/settings');
@@ -976,7 +974,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto('/app/isa-demo/settings/members');
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
 
       await expect(main.getByRole('heading', { level: 1, name: 'Members' })).toBeVisible();
       await expect(main.getByText('ISA Demo Group · 3 people with a role')).toBeVisible();
@@ -1156,7 +1154,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto('/app/isa-demo/settings/audit');
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
 
       await expect(main.getByRole('heading', { level: 1, name: 'Audit log' })).toBeVisible();
       await expect(main.getByText('Who did what in ISA Demo Group.')).toBeVisible();

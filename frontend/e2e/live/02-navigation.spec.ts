@@ -22,14 +22,14 @@ test.describe('live · the organization lab-main and its problems', () => {
     await expect(page).toHaveURL(new RegExp(`/app/${ORG}/?$`));
     await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
     // The header leads to the problems too: the panel's link is the one in the main area.
-    const problems = page.locator('#platform-main').getByRole('link', { name: 'All problems' });
+    const problems = page.locator('main').getByRole('link', { name: 'All problems' });
     await expect(problems).toHaveAttribute('href', `${ORG_PATH}/problems`);
     // The overview leads with the organization's compositions.
     await expect(
-      page.locator('#platform-main').getByRole('heading', { name: /^Compositions/ })
+      page.locator('main').getByRole('heading', { name: /^Compositions/ })
     ).toBeVisible();
     await expect(
-      page.locator('#platform-main').getByRole('link', { name: 'All compositions', exact: true })
+      page.locator('main').getByRole('link', { name: 'All compositions', exact: true })
     ).toHaveAttribute('href', `${ORG_PATH}/compositions`);
     await capture(page, testInfo, 'navigation-organization');
 

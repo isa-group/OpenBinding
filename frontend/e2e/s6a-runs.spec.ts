@@ -650,7 +650,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto(`${ROOT}/runs`);
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
       const table = main.getByRole('region', { name: 'Runs of the organization' });
 
       await expect(main.getByRole('heading', { level: 1, name: 'Runs' })).toBeVisible();
@@ -710,7 +710,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
     }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
 
       await page.goto('/app/empty-lab/runs');
       await expect(main.getByText('No runs yet')).toBeVisible();
@@ -752,7 +752,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const critical = watchCriticalErrors(page);
       await mockApi(page);
       await page.goto(`${ROOT}/runs/job-feasible-1`);
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
 
       await expect(
         main.getByRole('heading', { level: 1, name: 'random-search run' })
@@ -830,7 +830,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto(`${ROOT}/runs/job-feasible-1`);
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
 
       const keep = main.getByRole('region', { name: 'Keep it as a composition' });
       await keep.getByRole('button', { name: 'Derive composition' }).click();
@@ -893,12 +893,12 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const viewer = await page.context().newPage();
       await mockApi(viewer, { role: 'VIEWER' });
       await viewer.goto(`${ROOT}/runs/job-feasible-1`);
-      const result = viewer.locator('#platform-main').getByRole('region', { name: 'Run result' });
+      const result = viewer.locator('main').getByRole('region', { name: 'Run result' });
       await expect(
         result.getByRole('heading', { name: 'What if one task used another provider?' })
       ).toBeVisible();
       await expect(
-        viewer.locator('#platform-main').getByRole('button', { name: 'Derive composition' })
+        viewer.locator('main').getByRole('button', { name: 'Derive composition' })
       ).toHaveCount(0);
       await viewer.close();
     });
@@ -909,7 +909,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto(`${ROOT}/runs/job-live-10`);
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
 
       await expect(main.getByText('Live · connected')).toBeVisible();
       await expect(
@@ -937,7 +937,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
     }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
 
       // Cancelling a run that is going, and a run that had already finished (409).
       await page.goto(`${ROOT}/runs/job-running-2`);
@@ -1006,7 +1006,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
     }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
 
       // A teammate's run opens for every member, with who launched it.
       await page.goto(`${ROOT}/runs/job-theirs-8`);
@@ -1050,7 +1050,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto(`${ROOT}/runs/new?problem=checkout-flow&revision=2`);
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
       const next = main.getByRole('button', { name: 'Continue' });
 
       await expect(main.getByRole('heading', { level: 1, name: 'New run' })).toBeVisible();
@@ -1134,7 +1134,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto(`${ROOT}/runs/new`);
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
       const next = main.getByRole('button', { name: 'Continue' });
 
       const source = main.getByRole('radio', { name: /Checkout flow · version 2/ });
@@ -1272,7 +1272,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto(`${ROOT}/runs/new?problem=checkout-flow&revision=2`);
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
       const next = main.getByRole('button', { name: 'Continue' });
 
       // Start from a preset: the engine, mode, options and optimization come from it, read-only.
@@ -1367,7 +1367,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
     }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
 
       await page.goto('/app/read-lab/runs/new');
       await expect(main.getByRole('note')).toContainText(

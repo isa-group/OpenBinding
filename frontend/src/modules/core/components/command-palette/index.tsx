@@ -2,12 +2,13 @@
 // https://github.com/SCORELabUS/SPHERE. Copyright (c) 2024 Alejandro García Fernández.
 // MIT licence: the full text is in THIRD_PARTY_NOTICES.md.
 // Changes: the commands come as props (grouped under headings), so `core` imports no domain module; the theme
-// toggle and its ⌘J binding are gone (light only); combobox and listbox roles, a named dialog, focus returned on close.
+// toggle and its ⌘J binding are gone (light only); combobox and listbox roles, a named dialog, focus returned on close;
+// an optional controlled `open`, so a mobile drawer can open it.
 
 import {
   useState,
   useEffect,
-  useCallback,
+  useEffectEvent,
   useRef,
   useMemo,
   useId,
@@ -40,11 +41,21 @@ function formatKey(key: string): string {
 export default function CommandPalette({
   commands,
   placeholder = 'Search commands...',
+  open: controlledOpen,
+  onOpenChange,
 }: {
   commands: PaletteCommand[];
   placeholder?: string;
+  /** Opens the palette from elsewhere (a mobile drawer's Search); leave unset to let the palette keep its own state. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const [ownOpen, setOwnOpen] = useState(false);
+  const open = controlledOpen ?? ownOpen;
+  const setOpen = (next: boolean) => {
+    if (controlledOpen === undefined) setOwnOpen(next);
+    onOpenChange?.(next);
+  };
   const [search, setSearch] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -63,70 +74,69 @@ export default function CommandPalette({
     );
   }, [commands, search]);
 
-  const close = useCallback(() => {
+  const close = () => {
     setOpen(false);
     setSearch('');
     setSelectedIndex(0);
     if (opener.current?.isConnected) opener.current.focus();
-  }, []);
+  };
 
-  const show = useCallback(() => {
+  const show = () => {
     opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     setOpen(true);
-  }, []);
+  };
 
-  const executeCommand = useCallback((cmd: PaletteCommand) => {
+  const executeCommand = (cmd: PaletteCommand) => {
     setOpen(false);
     setSearch('');
     setSelectedIndex(0);
     cmd.action();
-  }, []);
+  };
 
-  const handleKeyDown = useCallback(
-    (e: KeyboardEvent) => {
-      if (e.key.toLowerCase() === 'k' && (e.metaKey || e.ctrlKey)) {
-        e.preventDefault();
-        if (open) close();
-        else show();
-        return;
+  // An effect event: the document listener is added once and always sees the latest state.
+  const handleKeyDown = useEffectEvent((e: KeyboardEvent) => {
+    if (e.key.toLowerCase() === 'k' && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      if (open) close();
+      else show();
+      return;
+    }
+
+    if (!open) return;
+
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      close();
+      return;
+    }
+
+    if (filtered.length === 0) return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setSelectedIndex(prev => (prev + 1) % filtered.length);
+      return;
+    }
+
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSelectedIndex(prev => (prev - 1 + filtered.length) % filtered.length);
+      return;
+    }
+
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (filtered[selectedIndex]) {
+        executeCommand(filtered[selectedIndex]);
       }
-
-      if (!open) return;
-
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        close();
-        return;
-      }
-
-      if (filtered.length === 0) return;
-
-      if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        setSelectedIndex(prev => (prev + 1) % filtered.length);
-        return;
-      }
-
-      if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        setSelectedIndex(prev => (prev - 1 + filtered.length) % filtered.length);
-        return;
-      }
-
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        if (filtered[selectedIndex]) {
-          executeCommand(filtered[selectedIndex]);
-        }
-      }
-    },
-    [open, filtered, selectedIndex, executeCommand, close, show]
-  );
+    }
+  });
 
   useEffect(() => {
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [handleKeyDown]);
+    const listener = (e: KeyboardEvent) => handleKeyDown(e);
+    document.addEventListener('keydown', listener);
+    return () => document.removeEventListener('keydown', listener);
+  }, []);
 
   useEffect(() => {
     if (open) {

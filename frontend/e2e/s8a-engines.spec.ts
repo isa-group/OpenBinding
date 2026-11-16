@@ -390,7 +390,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page, { registrations: [EDGE_SOLVER] });
       await page.goto('/app/engines/new');
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
 
       await expect(
         main.getByRole('heading', { level: 1, name: 'Register a private engine' })
@@ -495,7 +495,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         registrations: [EDGE_SOLVER, PAUSED_SOLVER, SOLVER_IN_REVIEW],
       });
       await page.goto('/app/engines/new');
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
       await expect(main.getByText('3 of 3 used')).toBeVisible();
       await expect(main.getByText(/Limit reached/)).toBeVisible();
 
@@ -623,7 +623,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page, { registrations: [EDGE_SOLVER] });
       await page.goto('/app/engines/new');
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
 
       await main.locator('summary', { hasText: 'Start from a manifest file' }).click();
       await main.getByLabel('Engine manifest JSON').fill(
@@ -686,7 +686,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page, { limit: 5 });
       await page.goto('/app/engines/registrations');
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
 
       await expect(main.getByRole('heading', { level: 1, name: 'My engines' })).toBeVisible();
       await expect(main.getByText('4 of 5 used')).toBeVisible();
@@ -792,7 +792,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
     }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page, { registrations: [] });
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
 
       await page.goto('/app/engines/registrations');
       await expect(main.getByText('You haven’t registered an engine')).toBeVisible();
@@ -837,7 +837,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const critical = watchCriticalErrors(page);
       await mockApi(page, { admin: true });
       await page.goto('/app/engines/registrations');
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
 
       await expect(main.getByRole('row', { name: 'edge-solver 0.3.1' })).toBeVisible();
       await main.getByLabel(/Only waiting for review/).click();
@@ -859,7 +859,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const critical = watchCriticalErrors(page);
       await mockApi(page);
       await page.goto(EDGE_ADDRESS);
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
 
       await expect(main.getByRole('heading', { level: 1, name: 'edge-solver' })).toBeVisible();
       await expect(
@@ -907,7 +907,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto(EDGE_ADDRESS);
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
       await expect(main.getByRole('heading', { level: 1, name: 'edge-solver' })).toBeVisible();
 
       // A check that fails leaves the registration inactive and says which check.
@@ -984,7 +984,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
     }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
 
       await page.goto(
         `/app/engines/registrations/shared-solver?namespace=${SHARED_SOLVER.namespace}&version=${SHARED_SOLVER.version}&digest=${SHARED_SOLVER.digest}`

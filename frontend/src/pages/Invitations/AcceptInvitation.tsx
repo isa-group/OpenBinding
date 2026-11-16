@@ -4,7 +4,7 @@ import { Check } from 'lucide-react';
 import { Link, useLocation, useNavigate, useOutletContext } from 'react-router-dom';
 import { platformApi } from '../../api/platform';
 import type { Organization, OrganizationMember, OrganizationRole } from '../../api/platform';
-import type { PlatformOutletContext } from '../../components/PlatformShell/PlatformShell';
+import type { PlatformOutletContext } from '../../routes/LegacyOrgOutlet';
 import { Chip } from '../../components/ui/Chip';
 import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';

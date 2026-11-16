@@ -7,6 +7,7 @@ export default function SunsetStripeBand() {
   return (
     <div
       className="w-full"
+      data-testid="sunset-stripe"
       aria-hidden="true"
       style={{
         height: '8px',

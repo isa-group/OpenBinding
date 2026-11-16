@@ -20,7 +20,7 @@ test.describe('live · J4 study front to a composition on lab-main', () => {
     await signInByApi(page, 'owner');
     const stamp = Date.now().toString(36);
     const slug = `j4-${stamp}`;
-    const main = page.locator('#platform-main');
+    const main = page.locator('main');
 
     // 1 · The study: the seeded version × random-search × seeds 1 and 2, two cells.
     await page.goto(`/app/${ORG}/studies/new`);

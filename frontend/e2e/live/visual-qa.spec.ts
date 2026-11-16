@@ -379,7 +379,7 @@ const OWNER_STOPS: Stop[] = [
   {
     slug: 'organization',
     path: `/app/${ORG}`,
-    ready: page => page.locator('#platform-main').getByRole('link', { name: 'All problems' }),
+    ready: page => page.locator('main').getByRole('link', { name: 'All problems' }),
   },
   {
     slug: 'cases',
@@ -400,12 +400,12 @@ const OWNER_STOPS: Stop[] = [
     slug: 'plan-permissions',
     path: '/app/account/usage',
     ready: page =>
-      page.locator('#platform-main').getByRole('heading', { level: 1, name: 'Plan & permissions' }),
+      page.locator('main').getByRole('heading', { level: 1, name: 'Plan & permissions' }),
   },
   {
     slug: 'team-organization',
     path: `/app/${ORG}/settings/members`,
-    ready: page => page.locator('#platform-main').getByRole('heading', { level: 1 }),
+    ready: page => page.locator('main').getByRole('heading', { level: 1 }),
   },
 ];
 
@@ -414,7 +414,7 @@ const COMPOSITION = `${ORG_PATH}/compositions/sequential-workflow`;
 const COMPOSITION_NAME = 'Sequential workflow';
 const PAIR = 'from=1.0.0&to=1.1.0';
 const composed = (page: Page) =>
-  page.locator('#platform-main').getByRole('heading', { level: 1, name: COMPOSITION_NAME });
+  page.locator('main').getByRole('heading', { level: 1, name: COMPOSITION_NAME });
 
 /** The problem editor on the seeded problem: its check has passed when the status says so. */
 const EDITOR = `${ORG_PATH}/problem-editor?problem=${CASE}`;
@@ -440,7 +440,7 @@ function problemStops(mobile: boolean): Stop[] {
         .toBeVisible({ timeout: 30_000 });
     },
   });
-  const main = (page: Page) => page.locator('#platform-main');
+  const main = (page: Page) => page.locator('main');
   return [
     {
       slug: 'problem-candidates',
@@ -519,7 +519,7 @@ async function studyFrontStop(page: Page, token: string): Promise<Stop | { why: 
         slug: 'study-front',
         path: `${ORG_PATH}/studies/${encodeURIComponent(study.slug)}/results?run=${finished.id}`,
         ready: target =>
-          target.locator('#platform-main').getByRole('heading', { level: 2, name: 'Pareto front' }),
+          target.locator('main').getByRole('heading', { level: 2, name: 'Pareto front' }),
       };
     }
   }
@@ -554,8 +554,7 @@ function compositionStops(mobile: boolean): Stop[] {
     {
       slug: 'compositions',
       path: `${ORG_PATH}/compositions`,
-      ready: page =>
-        page.locator('#platform-main').getByRole('heading', { level: 1, name: 'Compositions' }),
+      ready: page => page.locator('main').getByRole('heading', { level: 1, name: 'Compositions' }),
     },
     { slug: 'composition-overview', path: COMPOSITION, ready: page => composed(page) },
     editor,
@@ -597,8 +596,7 @@ function compositionStops(mobile: boolean): Stop[] {
     {
       slug: 'composition-settings',
       path: `${COMPOSITION}/settings`,
-      ready: page =>
-        page.locator('#platform-main').getByRole('heading', { level: 2, name: 'Visibility' }),
+      ready: page => page.locator('main').getByRole('heading', { level: 2, name: 'Visibility' }),
     },
   ];
 }
@@ -687,8 +685,7 @@ const VIEWER_STOPS: Stop[] = [
   {
     slug: 'viewer-compositions',
     path: `${ORG_PATH}/compositions`,
-    ready: page =>
-      page.locator('#platform-main').getByRole('heading', { level: 1, name: 'Compositions' }),
+    ready: page => page.locator('main').getByRole('heading', { level: 1, name: 'Compositions' }),
     extra: async (page, label) => {
       await expect
         .soft(

@@ -75,7 +75,7 @@ async function openWorkspace(page: Page) {
   // A screen whose data is not mocked (the API answers 404) keeps the page behind the header independent of any API data.
   await page.goto('/app/isa-demo/studies');
   await expect(page.locator('header.app-header')).toBeVisible();
-  await expect(page.getByRole('button', { name: '1 unread notifications' })).toBeVisible();
+  await expect(page.locator('header.app-header button[aria-label="Account menu"]')).toBeAttached();
   await page.evaluate(() => document.fonts.ready);
 }
 
@@ -111,7 +111,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         // Brand, co-brand and no horizontal overflow.
         await expect(header.getByRole('link', { name: 'OpenBinding home' })).toHaveAttribute(
           'href',
-          '/app'
+          '/'
         );
         const mark = header.getByRole('img', { name: 'Universidad de Sevilla' });
         if (persona === 'research') {
@@ -132,51 +132,21 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         });
 
         if (isMobile) {
+          // SPHERE's narrow header: the logo and a drawer; New, the palette, the bell and the account move into the drawer.
           await expect(header.getByRole('navigation', { name: 'Main' })).toBeHidden();
           await expect(header.getByRole('button', { name: /^New/ })).toBeHidden();
 
           const toggle = header.getByRole('button', { name: 'Open menu' });
           await toggle.click();
-          const menu = header.getByRole('navigation', { name: 'Mobile navigation' });
-          for (const label of [
-            'Home',
-            'Problems',
-            'Runs',
-            'Studies',
-            'Engines',
-            'Problem',
-            'Study',
-            'Run',
-          ]) {
-            await expect(
-              menu.getByRole('link', { name: label, exact: true }).first(),
-              label
-            ).toBeVisible();
-          }
-          for (const label of [
-            'Language',
-            'Jobs',
-            'Explore',
-            'Verifier',
-            'Engine catalog',
-            'Organization',
-            'API key',
-          ]) {
-            await expect(menu.getByRole('link', { name: label, exact: true }), label).toHaveCount(
-              0
-            );
-          }
-          await expect(menu.getByRole('link', { name: 'Admin', exact: true })).toHaveCount(0);
-          await expect(menu.getByRole('link', { name: 'Analysis', exact: true })).toHaveCount(0);
-          if (persona === 'research')
-            await expect(menu.getByRole('img', { name: 'Universidad de Sevilla' })).toHaveAttribute(
-              'src',
-              '/brands/universidad-sevilla.svg'
-            );
+          const menu = page.getByRole('navigation', { name: 'Mobile navigation' });
+          for (const label of ['Pricing', 'About', 'Organizations', 'Notifications', 'Account'])
+            await expect(menu.getByRole('link', { name: label, exact: true }), label).toBeVisible();
+          for (const label of ['Tools', 'Explore', 'Search'])
+            await expect(menu.getByRole('button', { name: label }), label).toBeVisible();
+          for (const label of ['Composition', 'Problem', 'Run', 'Study', 'Organization', 'Engine'])
+            await expect(page.getByRole('link', { name: label, exact: true }), label).toBeVisible();
+          await expect(menu.getByRole('link', { name: 'Administration' })).toHaveCount(0);
           await shot('menu-open');
-          // Scrolled to the end so the lower groups are on record too.
-          await menu.evaluate(element => element.scrollTo(0, element.scrollHeight));
-          await shot('menu-open-end');
 
           await page.keyboard.press('Escape');
           await expect(menu).toBeHidden();
@@ -187,54 +157,44 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
           await expect(menu).toBeHidden();
         } else {
           const nav = header.getByRole('navigation', { name: 'Main' });
-          await expect(nav.getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/app');
-          // The studies of the organization mark Studies, not Home.
-          await expect(nav.getByRole('link', { name: 'Home' })).not.toHaveAttribute(
-            'aria-current',
-            'page'
-          );
-          await expect(nav.getByRole('link', { name: 'Studies' })).toHaveAttribute(
-            'aria-current',
-            'page'
-          );
-          await expect(nav.getByRole('link', { name: 'Problems' })).toHaveAttribute(
+          // Tools before Explore, as in SPHERE; a workspace screen marks none of the site's entries.
+          await expect(nav.getByRole('button')).toHaveText(['Tools', 'Explore']);
+          await expect(nav.getByRole('link', { name: 'Pricing' })).toHaveAttribute(
             'href',
-            '/app/isa-demo/problems'
+            '/pricing'
           );
-          await expect(nav.getByRole('link', { name: 'Runs' })).toHaveAttribute(
+          await expect(nav.getByRole('link', { name: 'About' })).toHaveAttribute('href', '/about');
+          await expect(nav.locator('[aria-current="page"]')).toHaveCount(0);
+          await nav.getByRole('button', { name: 'Explore' }).click();
+          await expect(nav.getByRole('link', { name: 'Compositions' })).toHaveAttribute(
             'href',
-            '/app/isa-demo/runs'
-          );
-          await expect(nav.getByRole('link', { name: 'Studies' })).toHaveAttribute(
-            'href',
-            '/app/isa-demo/studies'
+            '/compositions'
           );
           await expect(nav.getByRole('link', { name: 'Engines' })).toHaveAttribute(
             'href',
             '/engines'
           );
-          for (const label of ['Language', 'Jobs', 'Analysis', 'Explore', 'Admin'])
-            await expect(nav.getByRole('link', { name: label })).toHaveCount(0);
-          await expect(nav.getByRole('button', { name: /Tools/ })).toHaveCount(0);
-          await expect(nav.getByRole('button', { name: /^Lab/ })).toHaveCount(0);
-          await expect(header.getByRole('link', { name: 'ISA Demo Group' })).toHaveAttribute(
-            'href',
-            '/app'
+          await shot('menu-explore');
+          await page.keyboard.press('Escape');
+          await expect(nav.getByRole('button', { name: 'Explore' })).toHaveAttribute(
+            'aria-expanded',
+            'false'
           );
           await expect(header.getByRole('button', { name: 'Open menu' })).toBeHidden();
 
-          // New.
+          // New creates in the organization the address names.
           const create = header.getByRole('button', { name: /^New/ });
           await create.focus();
           await page.keyboard.press('Enter');
           await expect(create).toHaveAttribute('aria-expanded', 'true');
-          for (const label of ['Composition', 'Problem', 'Study', 'Run']) {
+          await expect(
+            header.getByRole('link', { name: 'Composition', exact: true })
+          ).toHaveAttribute('href', '/app/isa-demo/compositions?create=composition');
+          for (const label of ['Problem', 'Run', 'Study', 'Organization', 'Engine'])
             await expect(
-              header.locator('#app-new-menu').getByRole('link', { name: label, exact: true }),
+              header.getByRole('link', { name: label, exact: true }),
               label
             ).toBeVisible();
-          }
-          await expect(header.locator('#app-new-menu').getByRole('link')).toHaveCount(4);
           await shot('menu-new');
           await page.keyboard.press('Escape');
           await expect(create).toHaveAttribute('aria-expanded', 'false');
@@ -242,69 +202,60 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
           // Account.
           const account = header.getByRole('button', { name: 'Account menu' });
           await account.click();
-          const accountMenu = header.locator('#app-account-menu');
           await expect(
-            accountMenu.getByRole('link', { name: 'Plan', exact: true })
-          ).toHaveAttribute('href', '/app/account/usage');
-          await expect(accountMenu.getByRole('button', { name: 'Sign out' })).toBeVisible();
-          await expect(accountMenu.getByRole('link', { name: 'Administration' })).toHaveCount(0);
-          if (persona === 'research')
-            await expect(
-              accountMenu.getByText('Universidad de Sevilla · Institutional account')
-            ).toBeVisible();
-          else await expect(accountMenu.getByText(/Institutional account/)).toHaveCount(0);
+            header.getByRole('link', { name: 'Organizations', exact: true })
+          ).toHaveAttribute('href', '/app');
+          await expect(header.getByRole('link', { name: 'Account', exact: true })).toHaveAttribute(
+            'href',
+            '/app/account'
+          );
+          await expect(header.getByRole('button', { name: 'Sign out' })).toBeVisible();
+          await expect(header.getByRole('link', { name: 'Administration' })).toHaveCount(0);
           await shot('menu-account');
           await page.keyboard.press('Escape');
-          await expect(accountMenu).toBeHidden();
+          await expect(header.getByRole('button', { name: 'Sign out' })).toBeHidden();
           await expect(account).toBeFocused();
 
           // Command palette, opened with the shortcut.
           await page.keyboard.press('Control+K');
         }
 
-        // Opened by the shortcut on desktop and by the mobile menu's Search button on mobile.
+        // Opened by the shortcut on desktop and by the drawer's Search on mobile.
         await expect(page.getByRole('dialog', { name: 'Command palette' })).toBeVisible();
-        const search = page.getByRole('textbox', { name: 'Search commands and loaded items' });
+        const search = page.getByRole('combobox', { name: 'Search commands' });
         await expect(search).toBeFocused();
         await shot('palette');
         await search.fill('isa');
         await expect(
-          page.getByRole('dialog').getByRole('link', { name: /^ISA Demo Group/ })
+          page
+            .getByRole('dialog')
+            .getByRole('option', { name: /ISA Demo Group/ })
+            .first()
         ).toBeVisible();
         await shot('palette-filtered');
         await search.fill('zzzz-nothing');
-        await expect(
-          page.getByText('Search only covers data already loaded on this device.')
-        ).toBeVisible();
+        await expect(page.getByText('No commands found')).toBeVisible();
         await shot('palette-empty');
         await page.keyboard.press('Escape');
         await expect(page.getByRole('dialog', { name: 'Command palette' })).toBeHidden();
 
-        // Notifications.
-        const bell = header.getByRole('button', { name: '1 unread notifications' });
-        await bell.click();
-        const panel = page.getByRole('dialog', { name: 'Notifications panel' });
-        await expect(panel).toBeVisible();
-        await expect(panel.getByText('Your OpenBinding agreement changed')).toBeVisible();
-        await expect(panel.getByRole('link', { name: 'View all notifications' })).toHaveAttribute(
-          'href',
-          '/app/account/notifications'
-        );
-        const panelBox = await panel.boundingBox();
-        expect(panelBox?.x).toBeGreaterThanOrEqual(0);
-        expect((panelBox?.x ?? 0) + (panelBox?.width ?? 0)).toBeLessThanOrEqual(viewport.width + 1);
-        await shot('notifications');
-
-        if (isMobile) {
-          // Account menu on a narrow screen.
-          await page.keyboard.press('Escape');
-          await header.getByRole('button', { name: 'Account menu' }).click();
-          const accountMenu = header.locator('#app-account-menu');
-          await expect(accountMenu).toBeVisible();
-          const box = await accountMenu.boundingBox();
-          expect(box?.x).toBeGreaterThanOrEqual(0);
-          expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(viewport.width + 1);
-          await shot('menu-account');
+        if (!isMobile) {
+          // Notifications.
+          const bell = header.getByRole('button', { name: '1 unread notifications' });
+          await bell.click();
+          const panel = page.getByRole('dialog', { name: 'Notifications panel' });
+          await expect(panel).toBeVisible();
+          await expect(panel.getByText('Your OpenBinding agreement changed')).toBeVisible();
+          await expect(panel.getByRole('link', { name: 'View all notifications' })).toHaveAttribute(
+            'href',
+            '/app/account/notifications'
+          );
+          const panelBox = await panel.boundingBox();
+          expect(panelBox?.x).toBeGreaterThanOrEqual(0);
+          expect((panelBox?.x ?? 0) + (panelBox?.width ?? 0)).toBeLessThanOrEqual(
+            viewport.width + 1
+          );
+          await shot('notifications');
         }
       });
     });

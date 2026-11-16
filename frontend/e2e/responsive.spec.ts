@@ -37,23 +37,18 @@ test('mobile navigation exposes the complete journey and closes after navigation
   await expect(header.getByRole('navigation', { name: 'Primary navigation' })).toBeHidden();
   await header.getByRole('button', { name: 'Open menu' }).click();
 
-  const menu = header.getByRole('navigation', { name: 'Mobile navigation' });
+  const menu = page.getByRole('navigation', { name: 'Mobile navigation' });
   await expect(header.getByRole('button', { name: 'Close menu' })).toHaveAttribute(
     'aria-expanded',
     'true'
   );
-  for (const label of [
-    'Home',
-    'Compositions',
-    'Language',
-    'Engines',
-    'Pricing',
-    'About',
-    'Log in',
-    'Sign up',
-  ]) {
-    await expect(menu.getByRole('link', { name: label, exact: true })).toBeVisible();
-  }
+  for (const label of ['Pricing', 'About', 'Log in', 'Sign up'])
+    await expect(menu.getByRole('link', { name: label, exact: true }), label).toBeVisible();
+  for (const label of ['Tools', 'Explore'])
+    await expect(menu.getByRole('button', { name: label }), label).toBeVisible();
+  await menu.getByRole('button', { name: 'Explore' }).click();
+  for (const label of ['Compositions', 'Engines'])
+    await expect(menu.getByRole('link', { name: label, exact: true }), label).toBeVisible();
 
   await menu.getByRole('link', { name: 'About', exact: true }).click();
   await expect(page).toHaveURL(/\/about$/);
@@ -70,52 +65,39 @@ test('mobile menu closes with Escape and gives focus back to its button', async 
 
   const header = page.locator('header.site-header');
   await header.getByRole('button', { name: 'Open menu' }).click();
-  await expect(header.getByRole('navigation', { name: 'Mobile navigation' })).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Mobile navigation' })).toBeVisible();
 
   await page.keyboard.press('Escape');
-  await expect(header.getByRole('navigation', { name: 'Mobile navigation' })).toBeHidden();
+  await expect(page.getByRole('navigation', { name: 'Mobile navigation' })).toBeHidden();
   await expect(header.getByRole('button', { name: 'Open menu' })).toBeFocused();
 });
 
-test('the eight public entries stay in the header row before the mobile breakpoint', async ({
-  page,
-}) => {
+test('the public entries stay in the header row before the mobile breakpoint', async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 800 });
   await page.goto('/');
 
   const primaryNavigation = page.getByRole('navigation', { name: 'Primary navigation' });
   const header = page.locator('header.site-header');
-  for (const label of [
-    'Home',
-    'Compositions',
-    'Language',
-    'Engines',
-    'Pricing',
-    'About',
-    'Log in',
-    'Sign up',
-  ]) {
+  for (const label of ['Tools', 'Explore'])
+    await expect(primaryNavigation.getByRole('button', { name: label }), label).toBeInViewport({
+      ratio: 1,
+    });
+  for (const label of ['Pricing', 'About', 'Log in', 'Sign up'])
     await expect(header.getByRole('link', { name: label, exact: true }), label).toBeInViewport({
       ratio: 1,
     });
-  }
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
   ).toBeLessThanOrEqual(1);
-  const row = await header.locator('.public-header').boundingBox();
-  const last = await header.getByRole('link', { name: 'Sign up', exact: true }).boundingBox();
-  expect((last?.x ?? 0) + (last?.width ?? 0)).toBeLessThanOrEqual(
-    (row?.x ?? 0) + (row?.width ?? 0)
-  );
+
+  await primaryNavigation.getByRole('button', { name: 'Explore' }).click();
   const engines = primaryNavigation.getByRole('link', { name: 'Engines' });
-  const pricing = primaryNavigation.getByRole('link', { name: 'Pricing' });
   await expect(engines).toBeVisible();
-  await expect(pricing).toBeVisible();
   await engines.click();
   await expect(page).toHaveURL(/\/engines$/);
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Engine catalog');
   await page.goto('/');
-  await pricing.click();
+  await primaryNavigation.getByRole('link', { name: 'Pricing' }).click();
   await expect(page).toHaveURL(/\/pricing$/);
 });
 
@@ -183,7 +165,7 @@ test('on a phone the organization settings keep the open section in view without
   ).toBeLessThanOrEqual(1);
 });
 
-test('the settings of an organization mark Home, and only Home, in the application header', async ({
+test('the settings of an organization mark their section, and nothing in the application header', async ({
   page,
 }) => {
   test.setTimeout(60_000);
@@ -195,9 +177,10 @@ test('the settings of an organization mark Home, and only Home, in the applicati
     'page',
     { timeout: 30_000 }
   );
+  // The header lists the site (Tools, Explore, Pricing, About); a workspace screen is none of them.
   const main = page.locator('header.app-header').getByRole('navigation', { name: 'Main' });
-  await expect(main.getByRole('link', { name: 'Home' })).toHaveAttribute('aria-current', 'page');
-  await expect(main.locator('[aria-current="page"]')).toHaveCount(1);
+  await expect(main.getByRole('button', { name: 'Explore' })).toBeVisible();
+  await expect(main.locator('[aria-current="page"]')).toHaveCount(0);
 });
 
 test('reduced motion removes entry animations', async ({ page }) => {
@@ -218,7 +201,7 @@ test('mobile problem editor: the panes, the engines and the problems are tabs, i
   await installMockApi(page, 'admin');
   await page.goto('/app/isa-demo/problem-editor');
 
-  const main = page.locator('#platform-main');
+  const main = page.locator('main');
   await expect(main.getByRole('heading', { level: 1, name: 'Problem editor' })).toBeVisible({
     timeout: 30_000,
   });

@@ -528,7 +528,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto(PROBLEMS);
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
 
       await expect(main.getByRole('heading', { level: 1, name: 'Problems' })).toBeVisible();
       const list = main.getByRole('list', { name: 'Problems' });
@@ -645,7 +645,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto(`${PROBLEMS}/flujo-checkout`);
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
 
       await expect(
         main.getByRole('heading', { level: 1, name: 'Flujo de checkout' })
@@ -773,7 +773,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
     }, testInfo) => {
       const critical = watchCriticalErrors(page);
       await mockApi(page);
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
       await page.goto('/app/consultora-demo/problems/flujo-checkout');
       await expect(
         main.getByRole('heading', { level: 1, name: 'Flujo de checkout' })

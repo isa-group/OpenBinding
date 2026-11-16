@@ -35,7 +35,7 @@ test.describe('live · upload, run and study on lab-main', () => {
     const token = await signInByApi(page, 'owner');
     const stamp = Date.now().toString(36);
     const name = `walk-${stamp}`;
-    const main = page.locator('#platform-main');
+    const main = page.locator('main');
 
     // The package the gateway serves as the template, uploaded through the dialog as a file.
     const template = await page.request.get(`${API}/v1/bim/templates/${TEMPLATE}`, {

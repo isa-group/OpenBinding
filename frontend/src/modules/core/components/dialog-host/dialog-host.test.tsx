@@ -77,6 +77,7 @@ describe('DialogHost', () => {
     expect(await screen.findByText('First?')).toBeInTheDocument();
     expect(screen.queryByText('Second?')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+    await waitFor(() => expect(screen.queryByText('First?')).not.toBeInTheDocument());
     expect(await screen.findByText('Second?')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
     await waitFor(() => expect(results).toEqual(['first', 'second']));

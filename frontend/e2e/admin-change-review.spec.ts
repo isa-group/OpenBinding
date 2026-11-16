@@ -225,7 +225,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const critical = watchCriticalErrors(page);
       const { sent } = await mockApi(page);
       await page.goto(`/app/admin/users/${SAM.id}`);
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
       await expect(
         main.getByRole('heading', { level: 1, name: 'sam.okafor', exact: true })
       ).toBeVisible();
@@ -346,7 +346,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const critical = watchCriticalErrors(page);
       const { sent } = await mockApi(page);
       await page.goto(`/app/admin/users/${SAM.id}`);
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
       const plans = main.getByRole('radiogroup', { name: 'New plan' });
       const review = main.locator('pricing-change-review');
 
@@ -402,7 +402,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const critical = watchCriticalErrors(page);
       const { sent, changeElsewhere } = await mockApi(page);
       await page.goto(`/app/admin/users/${SAM.id}`);
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
       const plans = main.getByRole('radiogroup', { name: 'New plan' });
       const review = main.locator('pricing-change-review');
       const plan = review.locator('[data-pr-part="review-plan"]');

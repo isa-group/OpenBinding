@@ -6,10 +6,10 @@
 /* eslint-disable react-refresh/only-export-components -- the table exports `screens` for the budget and route tests */
 import { lazy, type ComponentType, type ReactNode } from 'react';
 import { useRoutes, type RouteObject } from 'react-router-dom';
-import { AppLayout as WorkspaceLayout } from '../layouts/AppLayout';
-import { PublicLayout } from '../layouts/PublicLayout';
 import ProtectedRoute from '../modules/auth/components/protected-route';
 import NotFoundPage from '../modules/core/pages/page-not-found';
+import AuthenticatedLayout from '../modules/presentation/layouts/authenticated-layout';
+import PublicLayout from '../modules/presentation/layouts/public-layout';
 import { CasCallback } from '../pages/Auth/CasCallback';
 import { Login } from '../pages/Auth/Login';
 import { PasswordResetPage } from '../pages/Auth/PasswordReset';
@@ -17,6 +17,7 @@ import { Register } from '../pages/Auth/Register';
 import { Engines } from '../pages/Engines/Engines';
 import { Home } from '../pages/Home/Home';
 import AppLayout from './app-layout';
+import { LegacyOrgOutlet } from './LegacyOrgOutlet';
 
 /**
  * Where a screen renders: `public` in the public layout, `session` in the layout of the session (the workspace chrome when
@@ -122,7 +123,7 @@ export const screens: Screen[] = [
   { id: 'pub-showcase', path: '/c/:org/:composition', layout: 'session', element: <Showcase /> },
 
   // ═══════════════════════════════════════════════════════════
-  // PROTECTED ROUTES (require auth + the workspace layout under /app)
+  // PROTECTED ROUTES (require auth + AuthenticatedLayout, under /app)
   // ═══════════════════════════════════════════════════════════
   { id: 'eng-register', path: '/app/engines/new', layout: 'app', element: <RegisterEngine /> },
   { id: 'eng-registrations', path: '/app/engines/registrations', layout: 'app', element: <EngRegistrations /> },
@@ -172,28 +173,51 @@ export default function Router({ table = screens }: { table?: Screen[] }) {
     // ═══════════════════════════════════════════════════════════
     // PUBLIC ROUTES
     // ═══════════════════════════════════════════════════════════
-    { element: <PublicLayout />, children: routesOf(table, 'public') },
+    {
+      element: (
+        <PublicLayout>
+          <LegacyOrgOutlet />
+        </PublicLayout>
+      ),
+      children: routesOf(table, 'public'),
+    },
 
     // ═══════════════════════════════════════════════════════════
     // PUBLIC ROUTES (AppLayout: public or authenticated, by session)
     // ═══════════════════════════════════════════════════════════
-    { element: <AppLayout />, children: routesOf(table, 'session') },
+    {
+      element: (
+        <AppLayout>
+          <LegacyOrgOutlet />
+        </AppLayout>
+      ),
+      children: routesOf(table, 'session'),
+    },
 
     // ═══════════════════════════════════════════════════════════
-    // PROTECTED ROUTES (require auth + the workspace layout)
+    // PROTECTED ROUTES (require auth + AuthenticatedLayout)
     // ═══════════════════════════════════════════════════════════
     {
       element: (
         <ProtectedRoute>
-          <WorkspaceLayout />
+          <AuthenticatedLayout>
+            <LegacyOrgOutlet />
+          </AuthenticatedLayout>
         </ProtectedRoute>
       ),
       children: routesOf(table, 'app'),
     },
 
     // ═══════════════════════════════════════════════════════════
-    // ERROR / CATCH-ALL: the in-place 404, never a redirect
+    // ERROR / CATCH-ALL: the in-place 404 in the session's chrome, never a redirect
     // ═══════════════════════════════════════════════════════════
-    { element: <PublicLayout />, children: [{ path: '*', element: <NotFoundPage /> }] },
+    {
+      element: (
+        <AppLayout>
+          <LegacyOrgOutlet />
+        </AppLayout>
+      ),
+      children: [{ path: '*', element: <NotFoundPage /> }],
+    },
   ]);
 }

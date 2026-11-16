@@ -461,7 +461,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page, lucia);
       await page.goto('/app/account');
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
 
       await expect(page.locator('header.app-header')).toBeVisible();
       await expect(main.getByRole('heading', { level: 1, name: 'Account' })).toBeVisible();
@@ -592,7 +592,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         usage: json({ ...freeUsage(), contract_pending: true }),
       });
       await page.goto('/app/account');
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
 
       await expect(main.getByText('Contract pending')).toBeVisible();
       await expect(main.getByText('Universidad de Sevilla · verified')).toHaveCount(0);
@@ -618,7 +618,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page, lucia);
       await page.goto('/app/account/usage');
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
 
       await expect(
         main.getByRole('heading', { level: 1, name: 'Plan & permissions' })
@@ -734,7 +734,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page, lucia);
       await page.goto('/app/account/keys');
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
 
       await expect(main.getByRole('heading', { level: 1, name: 'API keys' })).toBeVisible();
       await expectAccountNav(main, 'API keys');
@@ -858,7 +858,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const next = () => main.getByRole('button', { name: 'Continue' }).click();
 
       await expect(main).toBeVisible();
-      await expectAccountNav(page.locator('#platform-main'), 'API keys');
+      await expectAccountNav(page.locator('main'), 'API keys');
       const steps = main.getByRole('list', { name: 'Steps' });
       await expect(steps.getByRole('button')).toHaveCount(5);
       await expect(steps.getByRole('button', { name: 'Name' })).toHaveAttribute(
@@ -1015,9 +1015,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await secret.getByLabel('I’ve stored the secret somewhere safe').check();
       await secret.getByRole('button', { name: 'Go to my keys' }).click();
       await expect(page).toHaveURL(/\/app\/account\/keys$/);
-      await expect(
-        page.locator('#platform-main').getByRole('article', { name: 'ci-nightly' })
-      ).toBeVisible();
+      await expect(page.locator('main').getByRole('article', { name: 'ci-nightly' })).toBeVisible();
       await expect(page.getByText('SECRETO-UNICO-DE-PRUEBA')).toHaveCount(0);
       expect(critical).toEqual([]);
     });
@@ -1049,7 +1047,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page, lucia);
       await page.goto('/app/account/identities');
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
       const header = page.locator('header.app-header');
 
       await expect(main.getByRole('heading', { level: 1, name: 'Identities' })).toBeVisible();
@@ -1167,7 +1165,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         ],
       });
       await page.goto('/app/account/identities');
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
 
       await expect(main.getByText('Verified · linked Sep 1, 2026 · mdiaz2')).toBeVisible();
       await expect(main.getByRole('img', { name: 'Universidad de Sevilla' })).toHaveCount(0);
@@ -1193,7 +1191,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page, lucia);
       await page.goto('/app/account/notifications');
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
       const list = main.getByRole('list', { name: 'Notifications' });
 
       await expect(main.getByRole('heading', { level: 1, name: 'Notifications' })).toBeVisible();

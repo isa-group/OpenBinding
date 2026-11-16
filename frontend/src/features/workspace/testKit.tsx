@@ -5,7 +5,7 @@ import { vi } from 'vitest';
 import type { UsageView, UserProfile } from '../../api/auth';
 import type { Organization, Study, StudyRun } from '../../api/platform';
 import type { Problem, ProblemRevision } from '../../api/problems';
-import type { PlatformOutletContext } from '../../components/PlatformShell/PlatformShell';
+import type { PlatformOutletContext } from '../../routes/LegacyOrgOutlet';
 import { AuthContext } from '../../modules/auth/hooks/useAuth';
 
 /** Accounts and organizations, shared by the tests of the workspace and of the organization screens. */

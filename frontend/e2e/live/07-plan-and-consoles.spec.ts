@@ -34,7 +34,7 @@ test.describe('live · plan, permissions and the native consoles', () => {
       await signInByApi(page, role);
       await page.goto('/app/account/usage');
 
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
       await expect(
         main.getByRole('heading', { level: 1, name: 'Plan & permissions' })
       ).toBeVisible();
@@ -84,7 +84,7 @@ test.describe('live · plan, permissions and the native consoles', () => {
     await signInByApi(page, 'owner');
     await page.goto('/app');
 
-    const plan = page.locator('#platform-main').getByRole('region', { name: 'Your plan' });
+    const plan = page.locator('main').getByRole('region', { name: 'Your plan' });
     await expect(plan).toBeVisible();
     await expect(plan.getByRole('link', { name: 'Plan', exact: true })).toHaveAttribute(
       'href',

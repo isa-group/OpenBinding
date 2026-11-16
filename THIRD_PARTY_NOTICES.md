@@ -151,11 +151,22 @@ Generated from the origin header of each file.
 | `frontend/src/modules/core/utils/motion-variants.ts` | `frontend/src/modules/core/utils/motion-variants.ts` | verbatim |
 | `frontend/src/modules/core/utils/offer-reload.ts` | `frontend/src/modules/pricing/pages/card/index.tsx` | adapted (extracted) |
 | `frontend/src/modules/core/utils/recentItems.ts` | `frontend/src/modules/core/utils/recentItems.ts` | adapted |
+| `frontend/src/modules/organization/contexts/organizationContext.ts` | `frontend/src/modules/organization/contexts/organizationContext.ts` | adapted |
+| `frontend/src/modules/organization/hooks/useOrganization.ts` | `frontend/src/modules/organization/hooks/useOrganization.ts` | adapted |
+| `frontend/src/modules/presentation/layouts/authenticated-layout/app-footer.tsx` | `frontend/src/modules/presentation/layouts/authenticated-layout/app-footer.tsx` | adapted |
+| `frontend/src/modules/presentation/layouts/authenticated-layout/app-header.tsx` | `frontend/src/modules/presentation/layouts/authenticated-layout/app-header.tsx` | adapted |
+| `frontend/src/modules/presentation/layouts/authenticated-layout/index.tsx` | `frontend/src/modules/presentation/layouts/authenticated-layout/index.tsx` | adapted |
+| `frontend/src/modules/presentation/layouts/authenticated-layout/mobile-nav.tsx` | `frontend/src/modules/presentation/layouts/authenticated-layout/mobile-nav.tsx` | adapted |
+| `frontend/src/modules/presentation/layouts/authenticated-layout/user-menu.tsx` | `frontend/src/modules/presentation/layouts/authenticated-layout/user-menu.tsx` | adapted |
+| `frontend/src/modules/presentation/layouts/public-layout/index.tsx` | `frontend/src/modules/presentation/layouts/public-layout/index.tsx` | adapted |
+| `frontend/src/modules/presentation/layouts/router/header-routes.ts` | `frontend/src/modules/presentation/layouts/router/header-routes.ts` | adapted |
+| `frontend/src/modules/presentation/pages/home/components/floating-morph-header.tsx` | `frontend/src/modules/presentation/pages/home/components/floating-morph-header.tsx` | adapted |
 | `frontend/src/pages/Compositions/CompositionDetail.tsx` | `frontend/src/modules/pricing/pages/card/index.tsx` | pattern-only |
 | `frontend/src/pages/Compositions/tabs/VersionsTab.tsx` | `frontend/src/modules/pricing/components/pricing-versions-tab/index.tsx` | pattern-only |
 | `frontend/src/pages/PublicCompositions/PublicCompositionList.tsx` | `frontend/src/modules/pricing/pages/list/index.tsx` | pattern-only |
 | `frontend/src/pages/PublicCompositions/Showcase.tsx` | `frontend/src/modules/pricing/pages/card/index.tsx` | pattern-only |
 | `frontend/src/pages/Studies/ParetoFront.tsx` | `frontend/src/modules/pricing/components/configuration-space-view/index.tsx` | pattern-only |
+| `frontend/src/routes/app-layout.tsx` | `frontend/src/routes/app-layout.tsx` | adapted |
 | `frontend/src/routes/router.tsx` | `frontend/src/routes/router.tsx` | pattern-only |
 | `frontend/src/styles/tailwind.css` | `frontend/src/styles/tailwind.css` | adapted |
 | `frontend/src/widgets/change-summary/ChangeSummary.tsx` | `frontend/src/modules/pricing/components/pricing-version-graph/change-summary-card.tsx` | pattern-only |

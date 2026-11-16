@@ -101,7 +101,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const critical = watchCriticalErrors(page);
       await installMockApi(page, 'admin');
       await answerCompilations(page);
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
 
       await page.goto(`${PROBLEMS}/checkout-flow/candidates?version=2`);
       // The candidates of a task: a table on a desktop, a card per candidate on a phone.
@@ -218,7 +218,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
             })
           : route.fallback()
       );
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
 
       await page.goto('/app/isa-demo/runs/new?problem=checkout-flow&revision=2');
       await main.getByRole('button', { name: 'Continue' }).click();
@@ -365,7 +365,7 @@ test.describe('desktop · candidate ranges in the problem editor and in a failed
         },
       });
     });
-    const main = page.locator('#platform-main');
+    const main = page.locator('main');
 
     await page.goto('/app/isa-demo/problem-editor');
     await main.getByRole('tab', { name: 'Candidates' }).click();
@@ -427,7 +427,7 @@ test.describe('desktop · candidate ranges in the problem editor and in a failed
         }),
       })
     );
-    const main = page.locator('#platform-main');
+    const main = page.locator('main');
 
     await page.goto('/app/isa-demo/runs/job-range-failed');
     const alert = main

@@ -1,6 +1,6 @@
 import { useOutletContext, useParams } from 'react-router-dom';
 import type { Organization } from '../../api/platform';
-import type { PlatformOutletContext } from '../../components/PlatformShell/PlatformShell';
+import type { PlatformOutletContext } from '../../routes/LegacyOrgOutlet';
 
 export interface RouteOrganization {
   context: PlatformOutletContext;

@@ -16,7 +16,7 @@ test.setTimeout(120_000);
 const ORG = '/app/isa-demo';
 const RUN = '7c1e5a90-0000-4000-8000-0000000000b1';
 const COMPOSITION = `${ORG}/compositions/fleet-plan`;
-const main = (page: Page) => page.locator('#platform-main');
+const main = (page: Page) => page.locator('main');
 
 const at = (id: string) => ({ resource: 'catalog', id });
 /** A solution of the run: a binding of the five service tasks, its features and its objectives as an engine reports them. */

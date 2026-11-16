@@ -13,7 +13,7 @@ import { installMockApi } from './helpers/mockApi';
 const expect = baseExpect.configure({ timeout: 15_000 });
 
 const LIST = '/app/isa-demo/compositions';
-const main = (page: Page) => page.locator('#platform-main');
+const main = (page: Page) => page.locator('main');
 const region = (page: Page, name: string) => main(page).getByRole('region', { name, exact: true });
 
 test.describe('S10a · compositions', () => {

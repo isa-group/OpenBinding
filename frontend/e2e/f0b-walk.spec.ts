@@ -58,7 +58,7 @@ test('the F0b walk: upload, edit in the problem editor, a template, a run and a 
   const critical = watchCriticalErrors(page);
   const template = examplePackage();
   const api = await installWalkApi(page, template);
-  const main = page.locator('#platform-main');
+  const main = page.locator('main');
 
   // 1 · Sign in.
   await page.goto('/login');

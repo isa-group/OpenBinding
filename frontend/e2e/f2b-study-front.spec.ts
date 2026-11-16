@@ -15,7 +15,7 @@ test.setTimeout(90_000);
 
 const RESULTS = `/app/isa-demo/studies/engines-vs-seeds/results?run=${RUN_ID}`;
 const CELLS = cellsFixture();
-const main = (page: Page) => page.locator('#platform-main');
+const main = (page: Page) => page.locator('main');
 const FMS_DIFF = JSON.parse(
   readFileSync(new URL('../src/test/fixtures/core/fms.diff.json', import.meta.url), 'utf8')
 ) as Record<string, unknown>;

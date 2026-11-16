@@ -400,7 +400,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto('/app/admin');
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
 
       await expect(
         main.getByRole('heading', { level: 1, name: 'Administration', exact: true })
@@ -465,7 +465,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await tools.getByRole('link', { name: /^Maintenance/ }).click();
       await expect(page).toHaveURL(/\/app\/admin\?section=maintenance$/);
       await expect(
-        page.locator('#platform-main').getByRole('heading', { level: 1, name: 'Maintenance' })
+        page.locator('main').getByRole('heading', { level: 1, name: 'Maintenance' })
       ).toBeVisible();
       await page.goBack();
       await expect(
@@ -474,7 +474,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await tools.getByRole('link', { name: /^Moderation/ }).click();
       await expect(page).toHaveURL(/\/app\/admin\/moderation$/);
       await expect(
-        page.locator('#platform-main').getByRole('heading', { level: 1, name: 'Moderation' })
+        page.locator('main').getByRole('heading', { level: 1, name: 'Moderation' })
       ).toBeVisible();
 
       // One block failing leaves the rest of the page as it was.
@@ -510,7 +510,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto('/app/admin/users');
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
 
       await expect(
         main.getByRole('heading', { level: 1, name: 'Accounts', exact: true })
@@ -639,7 +639,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto(`/app/admin/users/${SAM.id}`);
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
 
       await expect(
         main.getByRole('heading', { level: 1, name: 'sam.okafor', exact: true })
@@ -801,7 +801,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto('/app/admin?section=audit');
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
 
       await expect(
         main.getByRole('heading', { level: 1, name: 'Audit log', exact: true })
@@ -959,7 +959,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto('/app/admin?section=errors');
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
 
       await expect(
         main.getByRole('heading', { level: 1, name: 'Errors', exact: true })
@@ -1029,7 +1029,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto('/app/admin?section=queues');
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
 
       await expect(
         main.getByRole('heading', { level: 1, name: 'Queues', exact: true })

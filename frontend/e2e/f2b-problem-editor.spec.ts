@@ -17,7 +17,7 @@ test.setTimeout(90_000);
 const EDITOR = '/app/isa-demo/problem-editor';
 const TEMPLATE = 'demo/01_simple_seq';
 const POINTER = '/spec/candidates/service-a/features/latency';
-const main = (page: Page) => page.locator('#platform-main');
+const main = (page: Page) => page.locator('main');
 const core = (file: string) =>
   JSON.parse(
     readFileSync(new URL(`../src/test/fixtures/core/${file}`, import.meta.url), 'utf8')

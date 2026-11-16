@@ -64,35 +64,37 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       if (isMobile) {
         await expect(header.getByRole('navigation', { name: 'Primary navigation' })).toBeHidden();
         await header.getByRole('button', { name: 'Open menu' }).click();
-        const menu = header.getByRole('navigation', { name: 'Mobile navigation' });
-        for (const label of [
-          'Home',
-          'Compositions',
-          'Language',
-          'Engines',
-          'Pricing',
-          'About',
-          'Log in',
-          'Sign up',
-        ]) {
+        const menu = page.getByRole('navigation', { name: 'Mobile navigation' });
+        for (const label of ['Pricing', 'About', 'Log in', 'Sign up'])
           await expect(menu.getByRole('link', { name: label, exact: true })).toBeVisible();
-        }
+        await menu.getByRole('button', { name: 'Explore' }).click();
+        for (const label of ['Compositions', 'Engines'])
+          await expect(menu.getByRole('link', { name: label, exact: true })).toBeVisible();
         // The problem editor is a screen of an organization's workspace, never a link of the public site.
-        await expect(menu.getByRole('link', { name: /Workbench|Problem editor/ })).toHaveCount(0);
+        await expect(menu.getByRole('link', { name: /Problem editor/ })).toHaveCount(0);
         await page.screenshot({
           path: testInfo.outputPath(`header-${name}-visitor-menu-open.png`),
           animations: 'disabled',
         });
         await header.getByRole('button', { name: 'Close menu' }).click();
       } else {
+        // SPHERE's header: Tools and Explore open menus, Pricing and About are links, then Log in and Sign up.
         const nav = header.getByRole('navigation', { name: 'Primary navigation' });
-        await expect(nav.getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');
-        await expect(nav.getByRole('link', { name: 'Explore' })).toHaveCount(0);
+        await expect(nav.getByRole('button', { name: 'Tools' })).toHaveAttribute(
+          'aria-expanded',
+          'false'
+        );
+        await nav.getByRole('button', { name: 'Explore' }).click();
+        await expect(nav.getByRole('link', { name: 'Compositions' })).toHaveAttribute(
+          'href',
+          '/compositions'
+        );
         await expect(nav.getByRole('link', { name: 'Engines' })).toHaveAttribute(
           'href',
           '/engines'
         );
-        await expect(nav.getByRole('link', { name: 'Language' })).toHaveAttribute(
+        await nav.getByRole('button', { name: 'Tools' }).click();
+        await expect(nav.getByRole('link', { name: 'Composition2Yaml' })).toHaveAttribute(
           'href',
           '/language'
         );
@@ -109,9 +111,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
           'href',
           '/register'
         );
-
-        await expect(nav.getByRole('button', { name: 'Language' })).toHaveCount(0);
         await expect(header.getByRole('link', { name: /Schemas/ })).toHaveCount(0);
+        await page.keyboard.press('Escape');
       }
 
       await header.screenshot({
@@ -130,7 +131,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(footer.getByRole('link', { name: 'SCORE Lab' })).toBeVisible();
       await expect(footer.getByRole('link', { name: 'Universidad de Sevilla' })).toBeVisible();
       await expect(footer.getByRole('img', { name: 'Universidad de Sevilla' })).toHaveCount(0);
-      const band = await page.locator('.site-footer-band').boundingBox();
+      const band = await page.getByTestId('sunset-stripe').boundingBox();
       expect(band?.height).toBe(8);
 
       await footer.screenshot({
@@ -162,28 +163,15 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         animations: 'disabled',
       });
 
-      if (isMobile) {
-        await header.getByRole('button', { name: 'Open menu' }).click();
-        const menu = header.getByRole('navigation', { name: 'Mobile navigation' });
-        await expect(menu.getByRole('img', { name: 'Universidad de Sevilla' })).toHaveAttribute(
-          'src',
-          '/brands/universidad-sevilla.svg'
-        );
-        await page.screenshot({
-          path: testInfo.outputPath(`header-${name}-research-menu-open.png`),
-          animations: 'disabled',
-        });
-        await header.getByRole('button', { name: 'Close menu' }).click();
-      } else {
+      if (!isMobile) {
         await header.getByRole('button', { name: 'Account menu' }).click();
-        await expect(
-          header.getByText('Universidad de Sevilla · Institutional account')
-        ).toBeVisible();
+        await expect(header.getByRole('link', { name: 'Account', exact: true })).toBeVisible();
         await page.screenshot({
           path: testInfo.outputPath(`header-${name}-research-account-menu.png`),
           animations: 'disabled',
           clip: { x: 0, y: 0, width: viewport.width, height: 360 },
         });
+        await page.keyboard.press('Escape');
       }
 
       await footer.scrollIntoViewIfNeeded();

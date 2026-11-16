@@ -2,7 +2,7 @@ import { useId, useRef, useState, type FormEvent } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import type { Organization } from '../../api/platform';
 import { platformApi } from '../../api/platform';
-import type { PlatformOutletContext } from '../../components/PlatformShell/PlatformShell';
+import type { PlatformOutletContext } from '../../routes/LegacyOrgOutlet';
 import { Action } from '../../components/ui/Action';
 import { FormField } from '../../components/ui/FormField';
 import { Modal } from '../../components/ui/Modal';

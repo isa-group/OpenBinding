@@ -4,7 +4,7 @@ import { MemoryRouter, Outlet, parsePath, Route, Routes } from 'react-router-dom
 import { vi } from 'vitest';
 import type { UsageView, UserProfile } from '../../api/auth';
 import type { Organization, OrganizationMember } from '../../api/platform';
-import type { PlatformOutletContext } from '../../components/PlatformShell/PlatformShell';
+import type { PlatformOutletContext } from '../../routes/LegacyOrgOutlet';
 import { AuthContext } from '../../modules/auth/hooks/useAuth';
 import { lucia } from '../../features/workspace/testKit';
 import { Where } from './Where';

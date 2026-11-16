@@ -33,7 +33,7 @@ test.describe('live · J1 derive, seal and compare on lab-main', () => {
     const compositionName = `J1 ${stamp}`;
     const slug = `j1-${stamp}`;
     const composition = `${ORG_PATH}/compositions/${slug}`;
-    const main = page.locator('#platform-main');
+    const main = page.locator('main');
 
     // 1 · The problem: the template uploaded through the dialog, its workflow and the candidates of each task.
     const template = await page.request.get(`${API}/v1/bim/templates/${TEMPLATE}`, {

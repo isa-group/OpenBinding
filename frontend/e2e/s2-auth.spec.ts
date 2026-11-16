@@ -604,7 +604,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await page.getByRole('button', { name: 'Dismiss' }).click();
       await expect(planNote).toHaveCount(0);
       await page.reload();
-      await expect(page.locator('#platform-main')).toBeVisible();
+      await expect(page.locator('main')).toBeVisible();
       await expect(planNote).toHaveCount(0);
       expect(critical).toEqual([]);
     });
