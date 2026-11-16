@@ -1,5 +1,6 @@
 import type { ProblemOrigin } from '../shared/api/types';
-import { apiClient, type BimCompatibleMode } from './client';
+import type { BimEngineCompatibility } from './bim';
+import { apiClient } from './client';
 
 const enc = encodeURIComponent;
 const ZIP = { 'Content-Type': 'application/vnd.bim+zip' };
@@ -101,7 +102,7 @@ export interface ProblemCompilation extends CompilationSummary {
   toolchain: Record<string, unknown>;
   analysis: ProblemAnalysis;
   resources: Record<string, ResourceContract>;
-  compatible_modes: BimCompatibleMode[];
+  compatible_modes: BimEngineCompatibility[];
 }
 
 export interface CompilationIr {

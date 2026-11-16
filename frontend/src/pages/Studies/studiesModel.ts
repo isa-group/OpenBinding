@@ -1,6 +1,7 @@
 import type { ExactStudyEngine, PresetStudyEngine, Study, StudyCell, StudyEngine, StudyRun } from '../../api/platform';
 import type { ProblemRevision } from '../../api/problems';
-import type { BimResourceRef, EngineCatalogEntry, EngineMode } from '../../api/client';
+import type { EngineCatalogEntry, EngineMode } from '../../api/client';
+import type { ImmutableResourceRef } from '../../shared/api/types';
 import { bimResourceKey } from '../../api/client';
 import type { ExecutionOptimization } from '../../api/runs';
 import type { CaseContent } from '../../features/workspace/model';
@@ -144,7 +145,7 @@ export function describeParameters(parameters: Record<string, unknown> | undefin
 
 export interface EngineChoice {
   key: string;
-  ref: BimResourceRef;
+  ref: ImmutableResourceRef;
   mode: string;
   /** `random-search 1.0.0` */
   title: string;

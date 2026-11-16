@@ -51,9 +51,9 @@ describe('Workbench', () => {
     problems.revisions.mockResolvedValue([r1, r2]);
     problems.source.mockResolvedValue(packageArchive('from-version'));
     bim.templates.mockResolvedValue(['demo/01_simple_seq']);
-    // The analysis, with the compiled form and its facts when the screen asks for them (`include: 'ir,facts'`).
-    bim.validate.mockImplementation((_archive: Uint8Array, options?: { include?: string }) => Promise.resolve(
-      options?.include === 'ir,facts' ? analysis({ ir: compiledDocument(), facts: checkoutFacts(), sourceMap: {}, irDigest: 'sha256-ir' }) : analysis(),
+    // The analysis, with the compiled form and its facts when the screen asks for them (`include: ['ir', 'facts']`).
+    bim.validate.mockImplementation((_archive: Uint8Array, options?: { include?: string[] }) => Promise.resolve(
+      options?.include?.includes('facts') ? analysis({ ir: compiledDocument(), facts: checkoutFacts(), sourceMap: {}, irDigest: 'sha256-ir' }) : analysis(),
     ));
   });
 
@@ -213,7 +213,7 @@ describe('Workbench', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Draw the workflow' }));
       const drawing = await screen.findByRole('group', { name: 'Workflow' });
       expect(drawing).toHaveAccessibleDescription(/^Workflow: authenticate, then \(inventory and shipping in parallel\)/);
-      expect(bim.validate).toHaveBeenLastCalledWith(expect.any(Uint8Array), { include: 'ir,facts' });
+      expect(bim.validate).toHaveBeenLastCalledWith(expect.any(Uint8Array), { include: ['ir', 'facts'] });
     });
   });
 

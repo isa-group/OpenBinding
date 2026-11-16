@@ -1,8 +1,8 @@
 import type { UsageView } from '../../api/auth';
-import type { BimResourceRef, EngineCatalogEntry, EngineMode } from '../../api/client';
+import type { EngineCatalogEntry, EngineMode } from '../../api/client';
 import type { ExecutionOptimization, LaunchRequest } from '../../api/runs';
 import type { PresetSettings } from '../../entities/preset/api';
-import type { RunPresetView } from '../../shared/api/types';
+import type { ImmutableResourceRef, RunPresetView } from '../../shared/api/types';
 import type { ProblemRevision } from '../../api/problems';
 import type { CaseContent } from '../../features/workspace/model';
 import { planLimit } from '../../features/workspace/model';
@@ -71,9 +71,9 @@ export function initialChoice(choices: readonly SourceChoice[], revision: string
 
 export interface ModeChoice {
   key: string;
-  engine: BimResourceRef;
+  engine: ImmutableResourceRef;
   /** The deployment that serves the mode; `null` when the catalog did not name one (the gateway picks the installed built-in). */
-  registration: BimResourceRef | null;
+  registration: ImmutableResourceRef | null;
   mode: string;
   compat: 'yes' | 'no' | 'unknown';
   reason: string | null;
@@ -83,10 +83,10 @@ export interface ModeChoice {
   rangeRefusal?: boolean;
 }
 
-const isRef = (value: unknown): value is BimResourceRef => isRecord(value)
+const isRef = (value: unknown): value is ImmutableResourceRef => isRecord(value)
   && typeof value.namespace === 'string' && typeof value.name === 'string' && typeof value.version === 'string' && typeof value.digest === 'string';
 
-export const modeKey = (engine: BimResourceRef, mode: string, registration: BimResourceRef | null): string => (
+export const modeKey = (engine: ImmutableResourceRef, mode: string, registration: ImmutableResourceRef | null): string => (
   [engine.namespace, engine.name, engine.version, engine.digest, registration?.name ?? '', registration?.digest ?? '', mode].join('|')
 );
 
@@ -95,11 +95,11 @@ export const modeKey = (engine: BimResourceRef, mode: string, registration: BimR
  * offered as unchecked: the gateway decides when the run is sent.
  */
 export function modeChoices(compatible: unknown[] | null, catalog: readonly EngineCatalogEntry[], ranges = false): ModeChoice[] {
-  const catalogMode = (engine: BimResourceRef, mode: string): EngineMode | undefined => (
+  const catalogMode = (engine: ImmutableResourceRef, mode: string): EngineMode | undefined => (
     catalog.find((entry) => entry.namespace === engine.namespace && entry.name === engine.name && entry.version === engine.version)?.modes.find((item) => item.id === mode)
   );
   /** A package with ranges can only go to a mode that declares interval values; the gateway refuses it otherwise (`unsupported_capability_value`). */
-  const refusesRanges = (engine: BimResourceRef, mode: string) => ranges && acceptsIntervals(catalogMode(engine, mode)) === false;
+  const refusesRanges = (engine: ImmutableResourceRef, mode: string) => ranges && acceptsIntervals(catalogMode(engine, mode)) === false;
   if (compatible) {
     const rows: ModeChoice[] = [];
     for (const item of compatible) {
@@ -142,7 +142,7 @@ export function acceptsIntervals(mode: EngineMode | undefined): boolean | undefi
 }
 
 /** `isa/random-search@1.0.0#sha256-…`, the address `?engine=` carries (`bimResourceKey`). */
-export function parseEngineParam(value: string | null): BimResourceRef | null {
+export function parseEngineParam(value: string | null): ImmutableResourceRef | null {
   const match = value?.match(/^(.+?)\/(.+?)@(.+?)#(.+)$/);
   return match ? { namespace: match[1], name: match[2], version: match[3], digest: match[4] } : null;
 }
@@ -326,7 +326,7 @@ export function optimizationFor(mode: EngineMode | undefined, criteria: number |
 
 // --- run presets
 
-const sameRef = (a: BimResourceRef, b: BimResourceRef) => a.namespace === b.namespace && a.name === b.name && a.version === b.version && a.digest === b.digest;
+const sameRef = (a: ImmutableResourceRef, b: ImmutableResourceRef) => a.namespace === b.namespace && a.name === b.name && a.version === b.version && a.digest === b.digest;
 
 /**
  * The engine mode of the offered ones that a preset names: its exact engine (or the built-in one of that name), its mode (any of the

@@ -1,6 +1,6 @@
 import { useEffect, useEffectEvent, useMemo, useState } from 'react';
-import { bimApi } from '../../api/bim';
-import { HttpError, type BimAnalysisData, type BimAnalysisResponse } from '../../api/client';
+import { bimApi, type BimAnalysis, type BimValidateResponse } from '../../api/bim';
+import { HttpError } from '../../api/client';
 import { problemsApi, type ProblemUpload } from '../../api/problems';
 import { packageFiles, unzipPackage, zipStore } from '../../utils/bimZip';
 import { migrateFiles } from '../../utils/bimVocabulary';
@@ -48,7 +48,7 @@ export interface SavedRevision {
 export type SaveTarget = { kind: 'new'; slug?: string; name?: string } | { kind: 'version'; problem: string };
 
 /** Read a package and have the gateway check it. Throws for a package that isn't a bim/v1 Instance or isn't valid. */
-async function checkedPackage(archive: ArrayBuffer): Promise<{ files: WorkspaceFiles; response: BimAnalysisResponse }> {
+async function checkedPackage(archive: ArrayBuffer): Promise<{ files: WorkspaceFiles; response: BimValidateResponse }> {
   const candidateFiles = await unzipPackage(archive);
   const candidateRoot = parseJson(candidateFiles['instance.json']);
   if (candidateRoot?.apiVersion !== 'bim/v1' || candidateRoot?.kind !== 'Instance') {
@@ -58,15 +58,12 @@ async function checkedPackage(archive: ArrayBuffer): Promise<{ files: WorkspaceF
   }
   const canonicalFiles = packageFiles(candidateFiles);
   const response = await bimApi.validate(zipStore(canonicalFiles));
-  if (response.valid === false) {
-    throw Object.assign(new HttpError(422, 'The BIM package did not pass validation.'), { diagnostics: response.diagnostics ?? [] });
-  }
   return { files: canonicalFiles, response };
 }
 
 const bpmnPathOf = (files: WorkspaceFiles) => Object.keys(files).find((path) => path.endsWith('.bpmn'));
 
-const digestsOf = (response: BimAnalysisResponse): PackageDigests => ({
+const digestsOf = (response: BimValidateResponse): PackageDigests => ({
   instance: String(response.instanceDigest ?? ''),
   package: String(response.packageDigest ?? ''),
   compiled: String(response.irDigest ?? ''),
@@ -75,7 +72,7 @@ const digestsOf = (response: BimAnalysisResponse): PackageDigests => ({
 /** What opening the screen found for its address: the draft of the workspace, a problem version, a template, or nothing yet. */
 type Hydration =
   | { scope: string; kind: 'files'; files: WorkspaceFiles; migrated: string[] }
-  | { scope: string; kind: 'example'; files: WorkspaceFiles; response: BimAnalysisResponse }
+  | { scope: string; kind: 'example'; files: WorkspaceFiles; response: BimValidateResponse }
   | { scope: string; kind: 'example-refused'; failure: Refusal; diagnostics: Diagnostic[] }
   | { scope: string; kind: 'revision-refused'; failure: Refusal };
 
@@ -148,7 +145,7 @@ export function useWorkbench({ orgSlug, userId, problemRef, revisionRef, request
   const [diagnostics, setDiagnostics] = useState<Diagnostic[]>([]);
   const [allModes, setAllModes] = useState<CompatibleMode[]>([]);
   const [compatibleModes, setCompatibleModes] = useState<CompatibleMode[]>([]);
-  const [analysisData, setAnalysisData] = useState<BimAnalysisData | null>(null);
+  const [analysisData, setAnalysisData] = useState<BimAnalysis | null>(null);
   const [digests, setDigests] = useState<PackageDigests | null>(null);
 
   // The compiled form and the saved version
@@ -281,20 +278,13 @@ export function useWorkbench({ orgSlug, userId, problemRef, revisionRef, request
   // --- the check
 
   /** Have the gateway check the package. Answers with its analysis, or `null` when it refused. */
-  const validate = async (candidateFiles: WorkspaceFiles = draft.current()): Promise<BimAnalysisResponse | null> => {
+  const validate = async (candidateFiles: WorkspaceFiles = draft.current()): Promise<BimValidateResponse | null> => {
     setStatus('validating');
     setOrigin('package');
     setRefusal(null);
     setDiagnostics([]);
     try {
       const response = await bimApi.validate(zipStore(packageFiles(candidateFiles)));
-      if (response.valid === false) {
-        const problems = (response.diagnostics ?? []) as Diagnostic[];
-        setStatus('failed');
-        setRefusal({ kind: 'invalid', status: 422, message: 'The package is not valid.', diagnostics: problems });
-        setDiagnostics(problems);
-        return null;
-      }
       const modes = modesFromAnalysis(response);
       setAllModes(allModesFromAnalysis(response));
       setCompatibleModes(modes);
@@ -381,7 +371,7 @@ export function useWorkbench({ orgSlug, userId, problemRef, revisionRef, request
     setIrLoading(true);
     setIrError(null);
     try {
-      const response = await bimApi.validate(zipStore(packageFiles(draft.current())), { include: 'ir,facts' });
+      const response = await bimApi.validate(zipStore(packageFiles(draft.current())), { include: ['ir', 'facts'] });
       if (!response.ir || !response.facts) throw new HttpError(422, 'The gateway did not return the compiled form.');
       setCompiledIr({ digest: String(response.irDigest ?? ''), document: response.ir, facts: response.facts });
       return true;

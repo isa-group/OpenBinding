@@ -1,5 +1,5 @@
-import type { NeighborhoodResponse } from '../shared/api/types';
-import { apiClient, type BimResourceRef } from './client';
+import type { ImmutableResourceRef, NeighborhoodResponse } from '../shared/api/types';
+import { apiClient } from './client';
 import type { Job, JobCompilationRef, JobOrganizationRef, JobProblemRef, JobRevisionRef } from './platform';
 
 const enc = encodeURIComponent;
@@ -82,8 +82,8 @@ export type ExecutionOptimization = {
 /** What `createRun` takes for settings chosen by hand: a revision of the organization's problem and one exact engine mode with its options and optimization. */
 export interface EngineLaunchRequest {
   revision: string;
-  engine: BimResourceRef;
-  registration?: BimResourceRef;
+  engine: ImmutableResourceRef;
+  registration?: ImmutableResourceRef;
   mode: string;
   options: Record<string, unknown>;
   optimization?: ExecutionOptimization;

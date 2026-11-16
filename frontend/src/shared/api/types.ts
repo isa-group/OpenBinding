@@ -26,9 +26,6 @@ export type ProblemOrigin = Schemas['LatestRevision']['origin'];
 /** Where a value of a candidate is written in its package (`kind: package`; F3 adds the other origins). */
 export type ProblemValueOrigin = Schemas['ProblemValueOrigin'];
 
-/** What `POST /v1/bim/validate` answers for a valid package, with `facts` when `include=facts` asks for them. */
-export type AnalysisResult = Schemas['AnalysisResult'];
-
 /** One version of a composition as the gateway serves it (`GET …/compositions/{composition}/versions/{version}`). */
 export type CompositionVersionView = Schemas['CompositionVersionView'];
 

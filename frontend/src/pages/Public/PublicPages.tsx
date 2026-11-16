@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, type DragEvent } from 'react';
 import { CircleCheck, CircleAlert, FileArchive, Upload, X } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { bimApi } from '../../api/bim';
-import { HttpError, type PackageValidationOutcome } from '../../api/client';
+import { bimApi, type BimRefusal, type BimValidateResponse } from '../../api/bim';
+import { HttpError } from '../../api/client';
 import { Button } from '../../components/ui/Button';
 import { Notice } from '../../components/ui/Notice';
 import { OrganizationPicker } from '../../components/ui/OrganizationPicker';
@@ -28,7 +28,7 @@ interface Selected {
 type Run =
   | { status: 'idle' }
   | { status: 'loading' }
-  | { status: 'done'; outcome: PackageValidationOutcome; model: PackageModel | null }
+  | { status: 'done'; outcome: BimValidateResponse | BimRefusal; model: PackageModel | null }
   | { status: 'failed'; kind: 'too-large' | 'rate-limit' | 'unreadable' | 'unsupported' | 'unavailable'; message: string };
 
 const MiB = 1024 * 1024;
@@ -76,7 +76,7 @@ export function WorkbenchPage() {
       return;
     }
     try {
-      const outcome = await bimApi.check(target.bytes);
+      const outcome = await bimApi.validate(target.bytes, { acceptRefusal: true });
       if (id !== runId.current) return;
       setRun({ status: 'done', outcome, model });
       if (!outcome.valid) setTab('diagnostics');
@@ -142,10 +142,10 @@ export function WorkbenchPage() {
   const model = run.status === 'done' ? run.model : null;
   const files = model?.files ?? [];
   const diagnostics = outcome
-    ? readDiagnostics(outcome.valid ? outcome.result.diagnostics : outcome.refusal.diagnostics, files)
+    ? readDiagnostics(outcome.diagnostics, files)
     : [];
   const groups = groupDiagnostics(diagnostics);
-  const refusal = outcome && !outcome.valid ? outcome.refusal : null;
+  const refusal = outcome && !outcome.valid ? outcome : null;
   const errorCount = refusal ? Math.max(diagnostics.length, 1) : 0;
   const suggested = (examples.data ?? []).filter((path) => path !== 'demo/05_single_obj_various').slice(0, 3);
 
@@ -308,9 +308,9 @@ export function WorkbenchPage() {
               {outcome.valid && (
                 <div className="workbench-digests">
                   {([
-                    ['Instance digest', outcome.result.instanceDigest],
-                    ['Package digest', outcome.result.packageDigest],
-                    ['IR digest', outcome.result.irDigest],
+                    ['Instance digest', outcome.instanceDigest],
+                    ['Package digest', outcome.packageDigest],
+                    ['IR digest', outcome.irDigest],
                   ] as const).map(([label, digest]) => (
                     <div key={label}>
                       <span>

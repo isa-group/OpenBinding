@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { AnalysisResult, CompositionVersionView, ProblemFacts } from '../../shared/api/types';
+import type { BimValidateResponse } from '../../api/bim';
+import type { CompositionVersionView, ProblemFacts } from '../../shared/api/types';
 import { candidateMatrix } from './candidateMatrix';
 import { workflowGraph } from './workflowGraph';
 
@@ -22,7 +23,7 @@ describe('the same graph and the same matrix', () => {
 
   describe.each(NAMES)('%s', (name) => {
     const facts = fixture<ProblemFacts>(name, 'facts');
-    const validate = fixture<AnalysisResult>(name, 'validate');
+    const validate = fixture<BimValidateResponse>(name, 'validate');
     const version = fixture<CompositionVersionView>(name, 'version');
     const current = version.evaluations.find((evaluation) => evaluation.current);
 

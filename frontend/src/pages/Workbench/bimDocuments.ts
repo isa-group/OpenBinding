@@ -1,5 +1,4 @@
-import type { BimResourceRef } from '../../api/client';
-import type { ProblemFacts } from '../../shared/api/types';
+import type { ImmutableResourceRef, ProblemFacts } from '../../shared/api/types';
 import type { FeatureSlot } from '../../utils/featureRange';
 
 /** The documents of a BIM package as the workbench reads them: tolerant types over JSON, and the small readers the editor and the summaries share. */
@@ -131,8 +130,8 @@ export interface Diagnostic {
 }
 
 export interface CompatibleMode {
-  engine: BimResourceRef;
-  registration: BimResourceRef;
+  engine: ImmutableResourceRef;
+  registration: ImmutableResourceRef;
   mode: string;
   compatible: boolean;
   diagnostics?: Diagnostic[];
@@ -390,7 +389,7 @@ export function errorDiagnostics(error: unknown, fallbackCode: string): Diagnost
   return [{ code: fallbackCode, message: error instanceof Error ? error.message : String(error) }];
 }
 
-function isBimResourceRef(value: unknown): value is BimResourceRef {
+function isImmutableResourceRef(value: unknown): value is ImmutableResourceRef {
   return isRecord(value)
     && typeof value.namespace === 'string'
     && typeof value.name === 'string'
@@ -402,7 +401,7 @@ function isBimResourceRef(value: unknown): value is BimResourceRef {
 export function allModesFromAnalysis(value: unknown): CompatibleMode[] {
   if (!isRecord(value) || !Array.isArray(value.compatibleModes)) return [];
   return value.compatibleModes.filter((item): item is CompatibleMode => isRecord(item)
-    && isBimResourceRef(item.engine) && isBimResourceRef(item.registration) && typeof item.mode === 'string');
+    && isImmutableResourceRef(item.engine) && isImmutableResourceRef(item.registration) && typeof item.mode === 'string');
 }
 
 /** Only the modes the gateway says can run the package. */

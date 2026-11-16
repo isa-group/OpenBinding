@@ -2,8 +2,9 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom';
 import {
   apiClient, bimResourceKey, HttpError,
-  type BimResourceRef, type EngineRegistrationManifest, type EngineRegistrationReport, type EngineRegistrationRevision,
+  type EngineRegistrationManifest, type EngineRegistrationReport, type EngineRegistrationRevision,
 } from '../../api/client';
+import type { ImmutableResourceRef } from '../../shared/api/types';
 import { Action } from '../../components/ui/Action';
 import { DataTable } from '../../components/ui/DataTable';
 import { ErrorState, StateAction } from '../../components/ui/ErrorState';
@@ -25,7 +26,7 @@ import './Registrations.css';
 
 interface Loaded {
   forUser: string;
-  ref: BimResourceRef;
+  ref: ImmutableResourceRef;
   detail: EngineRegistrationReport;
   manifest: EngineRegistrationManifest | null;
   /** Every revision this account can see under the same namespace and name. */
@@ -36,7 +37,7 @@ type Resolved =
   | { kind: 'ready'; data: Loaded }
   | { kind: 'choose'; forUser: string; name: string; options: EngineRegistrationRevision[] };
 
-async function loadRegistration(username: string, name: string, addressed: BimResourceRef | null): Promise<Resolved> {
+async function loadRegistration(username: string, name: string, addressed: ImmutableResourceRef | null): Promise<Resolved> {
   const listing = apiClient.listEngineRegistrations().catch((): EngineRegistrationRevision[] => []);
   let found = addressed;
   if (!found) {
@@ -146,7 +147,7 @@ function CredentialPanel({ scheme, published, busy, autoOpen, onReplace }: {
   );
 }
 
-function RevisionHistory({ current, revisions }: { current: BimResourceRef; revisions: EngineRegistrationRevision[] }) {
+function RevisionHistory({ current, revisions }: { current: ImmutableResourceRef; revisions: EngineRegistrationRevision[] }) {
   const others = revisions.filter((item) => !sameRevision(item, current));
   return (
     <section className="reg-card" aria-labelledby="reg-history-title">

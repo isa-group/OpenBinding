@@ -28,16 +28,10 @@ import type {
 } from './auth';
 import type { AdminErrorOverview, AdminErrorListResponse } from '../pages/Admin/types';
 import { rememberCasFlow } from '../utils/authFlow';
+import type { ImmutableResourceRef } from '../shared/api/types';
 
 /** How a run ended, in BIM v1 terms. */
 export type Termination = 'OPTIMAL' | 'FEASIBLE' | 'INFEASIBLE' | 'UNKNOWN';
-
-export interface BimResourceRef {
-  namespace: string;
-  name: string;
-  version: string;
-  digest: string;
-}
 
 export interface BimMetadata {
   namespace: string;
@@ -146,9 +140,9 @@ export interface EngineMode {
 }
 
 /** One immutable Engine revision advertised by the BIM v1 catalogue. */
-export interface EngineCatalogEntry extends BimResourceRef {
+export interface EngineCatalogEntry extends ImmutableResourceRef {
   id: string;
-  ref: BimResourceRef;
+  ref: ImmutableResourceRef;
   modes: EngineMode[];
 }
 
@@ -167,7 +161,7 @@ export interface EngineRegistrationManifest {
   kind: 'EngineRegistration';
   metadata: BimMetadata;
   spec: {
-    engine: BimResourceRef;
+    engine: ImmutableResourceRef;
     endpoint: string;
     protocol: {
       id: 'bim-engine/v1';
@@ -191,12 +185,12 @@ export type EngineRevisionState = 'private' | 'published';
 export type EngineRegistrationState = 'private' | 'pending_review' | 'published' | 'rejected';
 
 /** Identity and lifecycle state returned after publishing an immutable Engine. */
-export interface EngineRevision extends BimResourceRef {
+export interface EngineRevision extends ImmutableResourceRef {
   status: EngineRevisionState;
 }
 
 /** Identity and lifecycle state of an immutable EngineRegistration revision. */
-export interface EngineRegistrationRevision extends BimResourceRef {
+export interface EngineRegistrationRevision extends ImmutableResourceRef {
   status: EngineRegistrationState;
   /** Whether this deployment is enabled for its owner's account. */
   active: boolean;
@@ -215,54 +209,8 @@ export interface EngineCatalogResult {
   fellBackToPublic: boolean;
 }
 
-/** 200 from POST /v1/bim/validate: the package compiled and is pinned by these digests. */
-export interface PackageValidation {
-  valid: true;
-  instanceDigest: string;
-  packageDigest: string;
-  fileDigests: Record<string, string>;
-  resourceDigests: Record<string, string>;
-  irDigest: string;
-  diagnostics: Array<Record<string, unknown>>;
-}
-
-/** 422 from the same endpoint: the package was read and found invalid; each diagnostic says where. */
-export interface PackageRefusal {
-  status: number;
-  code: string;
-  message: string;
-  diagnostics: Array<Record<string, unknown>>;
-}
-
-export type PackageValidationOutcome =
-  | { valid: true; result: PackageValidation }
-  | { valid: false; refusal: PackageRefusal };
-
-export function bimResourceKey(ref: BimResourceRef): string {
+export function bimResourceKey(ref: ImmutableResourceRef): string {
   return `${ref.namespace}/${ref.name}@${ref.version}#${ref.digest}`;
-}
-
-export interface BimAnalysisData {
-  tasks: number;
-  candidates: number;
-  constraints: number;
-  placement: boolean;
-  bindingSpace: string;
-}
-
-export interface BimAnalysisResponse extends Record<string, unknown> {
-  valid: boolean;
-  diagnostics?: Array<Record<string, unknown>>;
-  compatibleModes?: BimCompatibleMode[];
-  analysis?: BimAnalysisData;
-}
-
-export interface BimCompatibleMode {
-  engine: BimResourceRef;
-  registration: BimResourceRef;
-  mode: string;
-  compatible: boolean;
-  diagnostics?: Array<Record<string, unknown>>;
 }
 
 /**
@@ -993,13 +941,13 @@ export class ApiClient {
     });
   }
 
-  private requireExactResourceRef<T extends object>(body: T): T & BimResourceRef {
+  private requireExactResourceRef<T extends object>(body: T): T & ImmutableResourceRef {
     for (const field of ['namespace', 'name', 'version', 'digest'] as const) {
       if (typeof (body as Record<string, unknown>)[field] !== 'string' || !(body as Record<string, string>)[field]) {
         throw new Error(`The gateway response omitted the immutable resource pin ${field}.`);
       }
     }
-    return body as T & BimResourceRef;
+    return body as T & ImmutableResourceRef;
   }
 
   // -- Immutable Engine and EngineRegistration resources ---------------
@@ -1067,7 +1015,7 @@ export class ApiClient {
     return (body.registrations || []).map((registration) => this.requireExactResourceRef(registration));
   }
 
-  private engineRegistrationEndpoint(ref: BimResourceRef, action?: string): string {
+  private engineRegistrationEndpoint(ref: ImmutableResourceRef, action?: string): string {
     const query = new URLSearchParams({
       namespace: ref.namespace,
       version: ref.version,
@@ -1077,42 +1025,42 @@ export class ApiClient {
     return `/v1/engine-registrations/${encodeURIComponent(ref.name)}${suffix}?${query.toString()}`;
   }
 
-  async getEngineRegistration(ref: BimResourceRef): Promise<EngineRegistrationManifest> {
+  async getEngineRegistration(ref: ImmutableResourceRef): Promise<EngineRegistrationManifest> {
     return this.request<EngineRegistrationManifest>(this.engineRegistrationEndpoint(ref));
   }
 
-  async getEngineRegistrationReport(ref: BimResourceRef): Promise<EngineRegistrationReport> {
+  async getEngineRegistrationReport(ref: ImmutableResourceRef): Promise<EngineRegistrationReport> {
     return this.requireExactResourceRef(
       await this.request<EngineRegistrationReport>(this.engineRegistrationEndpoint(ref, 'report'))
     );
   }
 
-  async activateEngineRegistration(ref: BimResourceRef): Promise<EngineRegistrationRevision> {
+  async activateEngineRegistration(ref: ImmutableResourceRef): Promise<EngineRegistrationRevision> {
     return this.requireExactResourceRef(await this.request<EngineRegistrationRevision>(this.engineRegistrationEndpoint(ref, 'activate'), {
       method: 'POST',
     }));
   }
 
-  async deactivateEngineRegistration(ref: BimResourceRef): Promise<EngineRegistrationRevision> {
+  async deactivateEngineRegistration(ref: ImmutableResourceRef): Promise<EngineRegistrationRevision> {
     return this.requireExactResourceRef(await this.request<EngineRegistrationRevision>(this.engineRegistrationEndpoint(ref, 'deactivate'), {
       method: 'POST',
     }));
   }
 
-  async deleteEngineRegistration(ref: BimResourceRef): Promise<void> {
+  async deleteEngineRegistration(ref: ImmutableResourceRef): Promise<void> {
     await this.request<void>(this.engineRegistrationEndpoint(ref), {
       method: 'DELETE',
     });
   }
 
-  async requestEngineRegistrationPublication(ref: BimResourceRef): Promise<EngineRegistrationRevision> {
+  async requestEngineRegistrationPublication(ref: ImmutableResourceRef): Promise<EngineRegistrationRevision> {
     return this.requireExactResourceRef(await this.request<EngineRegistrationRevision>(this.engineRegistrationEndpoint(ref, 'publication-request'), {
       method: 'POST',
     }));
   }
 
   async setEngineRegistrationCredential(
-    ref: BimResourceRef,
+    ref: ImmutableResourceRef,
     secret: string,
   ): Promise<EngineRegistrationRevision> {
     return this.requireExactResourceRef(await this.request<EngineRegistrationRevision>(this.engineRegistrationEndpoint(ref, 'credential'), {
@@ -1126,13 +1074,13 @@ export class ApiClient {
     return (body.registrations || []).map((registration) => this.requireExactResourceRef(registration));
   }
 
-  async adminApproveEngineRegistration(ref: BimResourceRef): Promise<EngineRegistrationRevision> {
+  async adminApproveEngineRegistration(ref: ImmutableResourceRef): Promise<EngineRegistrationRevision> {
     return this.requireExactResourceRef(await this.request<EngineRegistrationRevision>(this.engineRegistrationEndpoint(ref, 'approve'), {
       method: 'POST',
     }));
   }
 
-  async adminRejectEngineRegistration(ref: BimResourceRef): Promise<EngineRegistrationRevision> {
+  async adminRejectEngineRegistration(ref: ImmutableResourceRef): Promise<EngineRegistrationRevision> {
     return this.requireExactResourceRef(await this.request<EngineRegistrationRevision>(this.engineRegistrationEndpoint(ref, 'reject'), {
       method: 'POST',
     }));

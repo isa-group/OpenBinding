@@ -1,5 +1,6 @@
 import { bimResourceKey, HttpError } from '../../api/client';
-import type { BimResourceRef, EngineRegistrationRevision, EngineRegistrationState } from '../../api/client';
+import type { EngineRegistrationRevision, EngineRegistrationState } from '../../api/client';
+import type { ImmutableResourceRef } from '../../shared/api/types';
 import { QuotaError } from '../../api/auth';
 import type { UsageView } from '../../api/auth';
 import { LIMIT } from '../../utils/limits';
@@ -15,13 +16,13 @@ export { bimResourceKey as registrationKey };
 // -- Addresses -----------------------------------------------------------------
 
 /** The detail address: the name is the path; the other three parts of the exact identity travel in the query. */
-export function registrationHref(ref: BimResourceRef, hash = ''): string {
+export function registrationHref(ref: ImmutableResourceRef, hash = ''): string {
   const query = new URLSearchParams({ namespace: ref.namespace, version: ref.version, digest: ref.digest });
   return `/app/engines/registrations/${encodeURIComponent(ref.name)}?${query.toString()}${hash}`;
 }
 
 /** The exact identity an address names, or `null` while one of its four parts is missing. */
-export function refFromAddress(name: string, params: URLSearchParams): BimResourceRef | null {
+export function refFromAddress(name: string, params: URLSearchParams): ImmutableResourceRef | null {
   const namespace = params.get('namespace');
   const version = params.get('version');
   const digest = params.get('digest');
@@ -29,11 +30,11 @@ export function refFromAddress(name: string, params: URLSearchParams): BimResour
 }
 
 /** `namespace/name@version digest`: what people paste into a job or a bug report. */
-export function exactReference(ref: BimResourceRef): string {
+export function exactReference(ref: ImmutableResourceRef): string {
   return `${ref.namespace}/${ref.name}@${ref.version} ${ref.digest}`;
 }
 
-export function sameRevision(a: BimResourceRef, b: BimResourceRef): boolean {
+export function sameRevision(a: ImmutableResourceRef, b: ImmutableResourceRef): boolean {
   return a.namespace === b.namespace && a.name === b.name && a.version === b.version && a.digest === b.digest;
 }
 
@@ -334,7 +335,7 @@ export function readDeployment(manifest: unknown, openapi: unknown, contractDige
 }
 
 /** The address that opens the registration form filled in from this one, to register it again under a new version. */
-export function newVersionHref(ref: BimResourceRef): string {
+export function newVersionHref(ref: ImmutableResourceRef): string {
   const query = new URLSearchParams({ from: ref.name, namespace: ref.namespace, version: ref.version, digest: ref.digest });
   return `/app/engines/new?${query.toString()}`;
 }

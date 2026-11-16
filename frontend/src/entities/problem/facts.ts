@@ -55,7 +55,7 @@ export const problemFactsApi = {
    * before saving. Throws as `bimApi.validate` does (a 422 carries the located diagnostics).
    */
   async validate(archive: Uint8Array, signal?: AbortSignal): Promise<ProblemFacts> {
-    const answer = await bimApi.validate(archive, { include: 'facts', signal });
+    const answer = await bimApi.validate(archive, { include: ['facts'], signal });
     if (!answer.facts) throw new HttpError(422, 'The gateway did not return the facts of the package.');
     return answer.facts;
   },
