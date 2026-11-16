@@ -514,7 +514,7 @@ function Wizard({
           {error.failure.status === 402 && (
             <>
               {' '}
-              <Link to="/app/account/usage">See your plan</Link>
+              <Link to="/me/settings?section=plan">See your plan</Link>
             </>
           )}
         </Notice>

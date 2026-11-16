@@ -36,7 +36,7 @@ export function countScreenLines(): number {
 
 /**
  * The route pattern without its optional segments (`:section?`), each dropped with its slash, so an example address visits the base
- * address of a screen that takes sections (`/app/account/:section?` is visited at `/app/account`). Fill the other parameters afterwards.
+ * address of a screen that takes sections (`/orgs/:org/:tab?` is visited at `/orgs/:org`). Fill the other parameters afterwards.
  * A `?` that starts a query (`/app/:org?create=organization`) is not an optional marker: the marker ends the segment.
  */
 export function dropOptionalSegments(path: string): string {

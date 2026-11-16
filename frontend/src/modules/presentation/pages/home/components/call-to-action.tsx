@@ -28,7 +28,7 @@ export default function CallToAction({ signedIn }: { signedIn: boolean }) {
           {signedIn ? (
             <IslandButton label="Open your dashboard" to="/" />
           ) : (
-            <IslandButton label="Start for free" to="/register" />
+            <IslandButton label="Start for free" to="/authentication?view=register" />
           )}
         </div>
       </section>

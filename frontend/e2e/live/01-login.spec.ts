@@ -43,7 +43,7 @@ test.describe('live · login', () => {
     await expect(
       page.getByText('That username or email and password don’t match an active account.')
     ).toBeVisible();
-    await expect(page).toHaveURL(/\/login/);
+    await expect(page).toHaveURL(/\/authentication/);
     await capture(page, testInfo, 'login-refused');
     expect(errors).toEqual([]);
   });
@@ -52,7 +52,7 @@ test.describe('live · login', () => {
     page,
   }) => {
     await page.goto('/me/orgs');
-    await expect(page).toHaveURL(/\/login/);
+    await expect(page).toHaveURL(/\/authentication/);
     await expect(page.getByRole('button', { name: 'Log in' })).toBeVisible();
   });
 });

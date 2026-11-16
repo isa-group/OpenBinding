@@ -158,7 +158,7 @@ function renderShowcase(url = '/c/lab-other/fleet-routing', user: UserProfile | 
               </>
             }
           />
-          <Route path="/login" element={<Where />} />
+          <Route path="/authentication" element={<Where />} />
           <Route path="/app/:org/compositions/:composition" element={<Where />} />
         </Routes>
       </AuthContext.Provider>
@@ -271,7 +271,9 @@ describe('Showcase', () => {
     renderShowcase('/c/lab-other/fleet-routing?version=1.0.0');
 
     fireEvent.click(await screen.findByRole('button', { name: 'Fork' }));
-    expect(where()).toBe('/login {"from":"/c/lab-other/fleet-routing?version=1.0.0&fork=1"}');
+    expect(where()).toBe(
+      '/authentication {"from":"/c/lab-other/fleet-routing?version=1.0.0&fork=1"}'
+    );
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 

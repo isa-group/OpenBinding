@@ -1005,6 +1005,8 @@ function userRoutes(request: Request): Reply {
       return ok(USAGE);
     case 'api-keys':
       return subId ? { status: 204 } : ok({ api_keys: API_KEYS });
+    case 'settings':
+      return subId === 'beta-features' ? ok({ enabled: false }) : notFound();
     case 'identities':
       return ok([
         { id: 'i1', provider: 'us-cas', subject: 'arivera1', verifiedAt: '2026-09-01T00:00:00Z' },
@@ -1184,6 +1186,13 @@ function route(request: Request): Reply | null {
           email_contract_changes: true,
           email_invitations: true,
           email_job_failures: false,
+          kinds: {
+            OrganizationInvitation: { inbox: true, email: true },
+            System: { inbox: true, email: true },
+            CompositionUpdated: { inbox: true, email: false },
+            RunFinished: { inbox: true, email: false },
+            RunFailed: { inbox: true, email: true },
+          },
         });
       return null;
     case 'pricing':

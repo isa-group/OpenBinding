@@ -1161,7 +1161,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(refusal).toContainText('You’ve used 50 of 50 storage. Nothing was started.');
       await expect(refusal.getByRole('link', { name: 'See your plan' })).toHaveAttribute(
         'href',
-        '/app/account/usage'
+        '/me/settings?section=plan'
       );
       await expect(send).toBeEnabled();
       await capture(page, testInfo, `launch-${name}-402`);

@@ -116,10 +116,13 @@ describe('public workbench', () => {
     expect(screen.getByLabelText('Package limits')).toHaveTextContent('≤ 64 MiB expanded');
     expect(screen.getByLabelText('Package limits')).toHaveTextContent('≤ 256 entries');
     expect(screen.getByText('No package yet')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Log in to run' })).toHaveAttribute('href', '/login');
+    expect(screen.getByRole('link', { name: 'Log in to run' })).toHaveAttribute(
+      'href',
+      '/authentication'
+    );
     expect(screen.getByRole('link', { name: 'Create account' })).toHaveAttribute(
       'href',
-      '/register'
+      '/authentication?view=register'
     );
     expect(screen.queryByRole('navigation', { name: 'Language sections' })).not.toBeInTheDocument();
     expect(await screen.findByRole('button', { name: /demo\/01_simple_seq/ })).toBeInTheDocument();

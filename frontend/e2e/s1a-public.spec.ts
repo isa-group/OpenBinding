@@ -208,7 +208,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       );
       await expect(main.getByRole('link', { name: /Create an account/ })).toHaveAttribute(
         'href',
-        '/register'
+        '/authentication?view=register'
       );
       await expect(main.getByRole('status', { name: 'Runtime catalogue status' })).toContainText(
         '3 public engine revisions'

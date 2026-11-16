@@ -366,7 +366,7 @@ async function report(testInfo: TestInfo, name: string, rows: Row[]): Promise<vo
 
 const LOGIN: Stop = {
   slug: 'login',
-  path: '/login',
+  path: '/authentication',
   ready: page => page.getByRole('heading', { level: 1, name: 'Welcome back' }),
 };
 
@@ -398,9 +398,9 @@ const OWNER_STOPS: Stop[] = [
   },
   {
     slug: 'plan-permissions',
-    path: '/app/account/usage',
+    path: '/me/settings?section=plan',
     ready: page =>
-      page.locator('main').getByRole('heading', { level: 1, name: 'Plan & permissions' }),
+      page.locator('main').getByRole('heading', { level: 2, name: 'Plan & permissions' }),
   },
   {
     slug: 'team-organization',

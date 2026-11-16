@@ -32,24 +32,25 @@ test.describe('live · plan, permissions and the native consoles', () => {
     }, testInfo) => {
       const errors = watchPageErrors(page);
       await signInByApi(page, role);
-      await page.goto('/app/account/usage');
+      await page.goto('/me/settings?section=plan');
 
       const main = page.locator('main');
       await expect(
-        main.getByRole('heading', { level: 1, name: 'Plan & permissions' })
+        main.getByRole('heading', { level: 2, name: 'Plan & permissions' })
       ).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Plan', exact: true })).toHaveAttribute(
-        'aria-current',
-        'page'
-      );
+      await expect(
+        main
+          .getByRole('navigation', { name: 'Settings' })
+          .getByRole('link', { name: 'Plan', exact: true })
+      ).toHaveAttribute('aria-current', 'page');
       // Either the plan is read, or the gateway says the pricing is unavailable (SPACE enabled and no contract for the lab user): both
       // are honest. The lab normally runs with SPACE disabled (the open gate): there is no plan name and no remote entitlement, and
       // the page says what it can ("Features", each one "Enabled" or "Can’t confirm"); it has no notice of its own for that mode.
       const plan = main.getByRole('region', { name: 'Your plan' });
       await expect(plan.or(main.getByRole('alert')).first()).toBeVisible();
       if (await plan.count()) {
-        await expect(main.getByRole('heading', { level: 2, name: 'Features' })).toBeVisible();
-        const named = (await plan.locator('.usage-plan-name strong').first().innerText()).trim();
+        await expect(main.getByRole('heading', { level: 3, name: 'Features' })).toBeVisible();
+        const named = (await plan.locator('strong').first().innerText()).trim();
         if (!named)
           testInfo.annotations.push({
             type: 'open-gate',

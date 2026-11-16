@@ -36,6 +36,7 @@ describe('route table', () => {
       'analysis-workspace',
       'rep-list',
       'rep-detail',
+      'acct-profile',
       'acct-usage',
       'acct-keys',
       'acct-key-new',
@@ -114,6 +115,10 @@ describe('route table', () => {
       '/app/acme/atlas/reports',
       '/app/acme/atlas/reports/engine-comparison',
       '/password-reset/complete',
+      '/password-reset',
+      '/login',
+      '/register',
+      '/auth/cas/callback',
     ])
       expect(matchRoutes(config, path), path).toBeNull();
   });

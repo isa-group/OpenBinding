@@ -211,7 +211,7 @@ def _frontend_redirect(settings: Settings, params: dict[str, str]) -> RedirectRe
     request (query, headers, stored state) ever contributes to it, so the
     callback cannot be used as an open redirect.
     """
-    location = f"{settings.frontend_url.rstrip('/')}/auth/cas/callback?{urlencode(params)}"
+    location = f"{settings.frontend_url.rstrip('/')}/sso/callback?{urlencode(params)}"
     return RedirectResponse(location, status_code=status.HTTP_303_SEE_OTHER)
 
 
@@ -233,7 +233,7 @@ def _redirect_error_code(error: BaseException) -> str:
     responses={
         303: {
             "description": (
-                "Always a redirect to `{FRONTEND_URL}/auth/cas/callback`. On success the query carries "
+                "Always a redirect to `{FRONTEND_URL}/sso/callback`. On success the query carries "
                 "`code` (one-time, exchange it at `POST /v1/auth/cas/exchange`) and, when linking CAS "
                 "raised the account's plan, `plan_changed=<new plan>` (e.g. `RESEARCH`; the full "
                 "`{from, to, extra_cost}` is in the exchange response). On failure the query carries "

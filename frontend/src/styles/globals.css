@@ -227,16 +227,7 @@
 
   /* The redesigned public screens sit on white, as in the prototype. */
   .app-container:has(
-    > .main-content
-      > :is(
-        .home-page,
-        .explore-page,
-        .resolve-page,
-        .status-page,
-        .about-page,
-        .auth-split,
-        .auth-card-page
-      )
+    > .main-content > :is(.home-page, .explore-page, .resolve-page, .status-page, .about-page)
   ) {
     background: var(--tp-canvas);
   }
@@ -623,7 +614,6 @@
   html:active-view-transition
     :where(.page-intro, .page-header, .pricing-hero, .playground-header)
     > *,
-  html:active-view-transition .auth-card,
   html:active-view-transition
     :where(
       .role-detail,

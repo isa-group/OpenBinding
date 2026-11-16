@@ -356,7 +356,7 @@ export default function HomePage() {
               {signedIn ? (
                 <IslandButton label="Open your dashboard" to="/" />
               ) : (
-                <IslandButton label="Create an account" to="/register" />
+                <IslandButton label="Create an account" to="/authentication?view=register" />
               )}
               <IslandButton label="Explore compositions" to="/compositions" outlined />
               <IslandButton label="Learn Composition2Yaml" to="/language" outlined />

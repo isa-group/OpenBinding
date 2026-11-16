@@ -34,7 +34,7 @@ describe('safeReturnPath', () => {
   it.each([
     '/pricing',
     '/account',
-    '/login',
+    '/authentication',
     '/appx',
     '//evil.example/app',
     '/\\evil.example',

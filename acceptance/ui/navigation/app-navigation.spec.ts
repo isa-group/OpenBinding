@@ -29,8 +29,8 @@ test('public header lists Tools, Explore, Pricing and About in order, then Log i
     entry(banner(page), 'Sign up'),
   ]);
   await expect(entry(primary(page), 'Pricing')).toHaveAttribute('aria-current', 'page');
-  await expect(entry(banner(page), 'Log in')).toHaveAttribute('href', '/login');
-  await expect(entry(banner(page), 'Sign up')).toHaveAttribute('href', '/register');
+  await expect(entry(banner(page), 'Log in')).toHaveAttribute('href', '/authentication');
+  await expect(entry(banner(page), 'Sign up')).toHaveAttribute('href', '/authentication?view=register');
 });
 
 test('public menus lead to the language, the workbench, the compositions and the engines', async ({ page }) => {
@@ -113,8 +113,8 @@ test('account menu lists the person\'s places then Sign out, with Administration
     ['Organizations', '/me/orgs'],
     ['Inbox', '/notifications'],
     ['Engines', '/app/engines/registrations'],
-    ['API keys', '/app/account/keys'],
-    ['Account', '/app/account'],
+    ['API keys', '/me/api-keys'],
+    ['Settings', '/me/settings'],
   ];
   const scope = menuScope(page);
   await expectInOrder([...items.map(([name]) => entry(scope, name)), scope.getByRole('button', { name: 'Sign out' })]);

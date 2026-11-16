@@ -13,14 +13,14 @@ const RESOLUTION: Array<[string, string | null]> = [
   ['/', 'pub-home'],
   ['/about', 'pub-about'],
   ['/app', null],
-  ['/app/account', 'acct-profile'],
-  ['/app/account/billing', 'acct-profile'],
-  ['/app/account/identities', 'acct-profile'],
-  ['/app/account/keys', 'acct-profile'],
+  ['/app/account', null],
+  ['/app/account/billing', null],
+  ['/app/account/identities', null],
+  ['/app/account/keys', null],
   ['/app/account/keys/new', null],
   ['/app/account/keys/other', null],
-  ['/app/account/notifications', 'acct-profile'],
-  ['/app/account/usage', 'acct-profile'],
+  ['/app/account/notifications', null],
+  ['/app/account/usage', null],
   ['/app/acme', null],
   ['/app/acme/atlas/cases', null],
   ['/app/acme/atlas/cases/c1', null],
@@ -55,6 +55,10 @@ const RESOLUTION: Array<[string, string | null]> = [
   ['/orgs/new', 'org-new'],
   ['/organizations', 'org-explore'],
   ['/me/orgs', 'org-list'],
+  ['/me/settings', 'acct-settings'],
+  ['/me/settings/account', null],
+  ['/me/api-keys', 'acct-api-keys'],
+  ['/me/api-keys/new', null],
   ['/app/acme/studies', 'study-list'],
   ['/app/acme/studies/new', 'study-builder'],
   ['/app/acme/studies/s1', 'study-detail'],
@@ -83,7 +87,12 @@ const RESOLUTION: Array<[string, string | null]> = [
   ['/language', 'pub-language'],
   ['/language/extensions', null],
   ['/language/schemas/Application', null],
-  ['/password-reset', 'auth-reset-request'],
+  ['/authentication', 'auth'],
+  ['/authentication/register', null],
+  ['/forgot-password', 'auth-forgot-password'],
+  ['/reset-password', 'auth-reset-password'],
+  ['/sso/callback', 'auth-sso-callback'],
+  ['/password-reset', null],
   ['/app/runs', null],
   ['/app/acme/zz-no-such-section', null],
   ['/app/acme/zz-no-such-section/zz', null],
@@ -100,7 +109,7 @@ describe('address resolution across the route table', () => {
     expect(resolve(path)).toBe(id);
   });
 
-  // A fixed segment under /app (`/app/account`, `/app/admin`, …): an unknown address one level below it resolves to no screen, or to a
+  // A fixed segment under /app (`/app/admin`, `/app/engines`, …): an unknown address one level below it resolves to no screen, or to a
   // screen that owns that segment.
   const fixedSegments = [
     ...new Set(
@@ -112,7 +121,7 @@ describe('address resolution across the route table', () => {
   ];
 
   it('finds fixed segments under /app', () => {
-    expect(fixedSegments).toEqual(expect.arrayContaining(['account', 'admin', 'engines']));
+    expect(fixedSegments).toEqual(expect.arrayContaining(['admin', 'engines']));
   });
 
   it.each(fixedSegments)(

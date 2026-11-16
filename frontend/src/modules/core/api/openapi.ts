@@ -8930,7 +8930,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Always a redirect to `{FRONTEND_URL}/auth/cas/callback`. On success the query carries `code` (one-time, exchange it at `POST /v1/auth/cas/exchange`) and, when linking CAS raised the account's plan, `plan_changed=<new plan>` (e.g. `RESEARCH`; the full `{from, to, extra_cost}` is in the exchange response). On failure the query carries `error=<code>` instead, where code is one of: `cas_unavailable`, `cas_state_invalid`, `cas_ticket_invalid`, `account_inactive`, `identity_in_use`, `account_collision`, `username_unavailable`, `pricing_unavailable`, `institutional_pricing_invalid`, `cas_error`. The destination comes from configuration only, never from the request. */
+            /** @description Always a redirect to `{FRONTEND_URL}/sso/callback`. On success the query carries `code` (one-time, exchange it at `POST /v1/auth/cas/exchange`) and, when linking CAS raised the account's plan, `plan_changed=<new plan>` (e.g. `RESEARCH`; the full `{from, to, extra_cost}` is in the exchange response). On failure the query carries `error=<code>` instead, where code is one of: `cas_unavailable`, `cas_state_invalid`, `cas_ticket_invalid`, `account_inactive`, `identity_in_use`, `account_collision`, `username_unavailable`, `pricing_unavailable`, `institutional_pricing_invalid`, `cas_error`. The destination comes from configuration only, never from the request. */
             303: {
                 headers: {
                     /** @description Frontend CAS callback URL. */

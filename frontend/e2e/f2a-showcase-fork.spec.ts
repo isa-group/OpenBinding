@@ -75,7 +75,7 @@ test.describe('J2 · showcase and fork', () => {
 
     // Fork asks the visitor to sign in, and the sign-in comes back to the page with the dialog open.
     await main.getByRole('button', { name: 'Fork', exact: true }).click();
-    await expect(page).toHaveURL('/login');
+    await expect(page).toHaveURL('/authentication');
     await page.getByLabel('Username or email').fill('alex.rivera');
     await page
       .getByLabel('Password', { exact: true })

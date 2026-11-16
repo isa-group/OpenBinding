@@ -152,11 +152,11 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(plans.getByText('institutional agreement')).toHaveCount(1);
       await expect(main.getByRole('link', { name: 'Sign up' })).toHaveAttribute(
         'href',
-        '/register'
+        '/authentication?view=register'
       );
       await expect(main.getByRole('link', { name: 'Log in with CAS' }).first()).toHaveAttribute(
         'href',
-        '/login'
+        '/authentication'
       );
       expect(await main.innerText()).not.toMatch(/[€$]\s?\d/);
 
@@ -321,7 +321,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('link', { name: 'Link CAS identity' })).toHaveCount(0);
       await expect(main.getByRole('link', { name: 'Manage identities' })).toHaveAttribute(
         'href',
-        '/app/account/identities'
+        '/me/settings?section=integrations'
       );
       const mine = main.getByRole('region', { name: 'Available to your account' });
       await expect(mine).toBeVisible();
@@ -330,7 +330,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       ).toBeVisible();
       await expect(mine.getByRole('link', { name: 'See your plan' })).toHaveAttribute(
         'href',
-        '/app/account/usage'
+        '/me/settings?section=plan'
       );
       await expect(mine.getByText('Runs', { exact: true }).locator('..')).toContainText('Enabled');
       await expect(mine.getByText('Studies', { exact: true }).locator('..')).toContainText(

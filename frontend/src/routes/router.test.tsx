@@ -135,8 +135,10 @@ describe('Router', () => {
     async (_name, address) => {
       renderAt(address(), null);
 
-      await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/login'));
-      await showing(screenAt('/login'));
+      await waitFor(() =>
+        expect(screen.getByTestId('location')).toHaveTextContent('/authentication')
+      );
+      await showing(screenAt('/authentication'));
     }
   );
 

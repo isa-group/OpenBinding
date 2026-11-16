@@ -128,7 +128,7 @@ export function FailureNotice({
       className={className}
       action={
         failure.status === 401 ? (
-          <Action size="sm" variant="secondary" to="/login">
+          <Action size="sm" variant="secondary" to="/authentication">
             Log in again
           </Action>
         ) : onRetry && failure.status !== 403 ? (

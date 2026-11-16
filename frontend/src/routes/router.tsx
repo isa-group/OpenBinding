@@ -10,10 +10,6 @@ import ProtectedRoute from '../modules/auth/components/protected-route';
 import NotFoundPage from '../modules/core/pages/page-not-found';
 import AuthenticatedLayout from '../modules/presentation/layouts/authenticated-layout';
 import PublicLayout from '../modules/presentation/layouts/public-layout';
-import { CasCallback } from '../pages/Auth/CasCallback';
-import { Login } from '../pages/Auth/Login';
-import { PasswordResetPage } from '../pages/Auth/PasswordReset';
-import { Register } from '../pages/Auth/Register';
 import { Engines } from '../pages/Engines/Engines';
 import AppLayout from './app-layout';
 import { LegacyOrgOutlet } from './LegacyOrgOutlet';
@@ -51,6 +47,12 @@ const OrganizationDetailPage = lazy(
 );
 const OrganizationJoinPage = lazy(() => import('../modules/organization/pages/organization-join'));
 const InboxPage = lazy(() => import('../modules/notification/pages/inbox'));
+const SettingsPage = lazy(() => import('../modules/settings/pages/settings-page'));
+const ApiKeysPage = lazy(() => import('../modules/api-keys/pages/api-keys-page'));
+const AuthenticationPage = lazy(() => import('../modules/auth/pages/authentication-page'));
+const ForgotPasswordPage = lazy(() => import('../modules/auth/pages/forgot-password'));
+const ResetPasswordPage = lazy(() => import('../modules/auth/pages/reset-password'));
+const SsoCallbackPage = lazy(() => import('../modules/auth/pages/sso-callback'));
 const CreateOrganizationPage = lazy(
   () => import('../modules/organization/pages/create-organization')
 );
@@ -71,7 +73,6 @@ const EngRegistrationDetail = named(
   () => import('../pages/Engines/EngRegistrationDetail'),
   'EngRegistrationDetail'
 );
-const AccountPage = named(() => import('../pages/Account/AccountPage'), 'AccountPage');
 const PublicCompositionList = named(
   () => import('../pages/PublicCompositions/PublicCompositionList'),
   'PublicCompositionList'
@@ -115,10 +116,10 @@ export const screens: Screen[] = [
   { id: 'pub-about', path: '/about', layout: 'public', element: <About /> },
   { id: 'pub-pricing', path: '/pricing', layout: 'public', element: <Pricing /> },
   { id: 'pub-language', path: '/language', layout: 'public', element: <LanguagePage /> },
-  { id: 'auth-login', path: '/login', layout: 'public', element: <Login /> },
-  { id: 'auth-register', path: '/register', layout: 'public', element: <Register /> },
-  { id: 'auth-reset-request', path: '/password-reset', layout: 'public', element: <PasswordResetPage /> },
-  { id: 'auth-cas-callback', path: '/auth/cas/callback', layout: 'public', element: <CasCallback /> },
+  { id: 'auth', path: '/authentication', layout: 'public', element: <AuthenticationPage /> },
+  { id: 'auth-forgot-password', path: '/forgot-password', layout: 'public', element: <ForgotPasswordPage /> },
+  { id: 'auth-reset-password', path: '/reset-password', layout: 'public', element: <ResetPasswordPage /> },
+  { id: 'auth-sso-callback', path: '/sso/callback', layout: 'public', element: <SsoCallbackPage /> },
   { id: 'eng-catalog', path: '/engines', layout: 'public', element: <Engines /> },
   { id: 'eng-detail', path: '/engines/:namespace/:name/:version', layout: 'public', element: <EngineDetail /> },
 
@@ -138,6 +139,8 @@ export const screens: Screen[] = [
   { id: 'org-new', path: '/orgs/new', layout: 'protected', element: <CreateOrganizationPage /> },
   { id: 'org-join', path: '/orgs/join/:code', layout: 'protected', element: <OrganizationJoinPage /> },
   { id: 'notifications', path: '/notifications', layout: 'protected', element: <InboxPage /> },
+  { id: 'acct-settings', path: '/me/settings', layout: 'protected', element: <SettingsPage /> },
+  { id: 'acct-api-keys', path: '/me/api-keys', layout: 'protected', element: <ApiKeysPage /> },
 
   // ═══════════════════════════════════════════════════════════
   // PROTECTED ROUTES (the old workspace under /app, until its screens are poured into SPHERE's pages)
@@ -145,7 +148,6 @@ export const screens: Screen[] = [
   { id: 'eng-register', path: '/app/engines/new', layout: 'app', element: <RegisterEngine /> },
   { id: 'eng-registrations', path: '/app/engines/registrations', layout: 'app', element: <EngRegistrations /> },
   { id: 'eng-registration-detail', path: '/app/engines/registrations/:name', layout: 'app', element: <EngRegistrationDetail /> },
-  { id: 'acct-profile', path: '/app/account/:section?', layout: 'app', element: <AccountPage /> },
   { id: 'composition-list', path: '/app/:org/compositions', layout: 'app', element: <CompositionList /> },
   { id: 'composition-detail', path: '/app/:org/compositions/:composition/:tab?', layout: 'app', element: <CompositionDetail /> },
   { id: 'problem-list', path: '/app/:org/problems', layout: 'app', element: <ProblemList /> },

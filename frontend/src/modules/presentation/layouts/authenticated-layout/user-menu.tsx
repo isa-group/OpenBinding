@@ -7,7 +7,15 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { FaBuilding, FaBell, FaCogs, FaKey, FaUserCircle, FaUserShield } from 'react-icons/fa';
+import {
+  FaBuilding,
+  FaBell,
+  FaCog,
+  FaCogs,
+  FaKey,
+  FaUserCircle,
+  FaUserShield,
+} from 'react-icons/fa';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../auth/hooks/useAuth';
 import UserAvatar from '../../../core/components/user-avatar';
@@ -20,7 +28,7 @@ const ICONS: Record<string, typeof FaKey> = {
   Inbox: FaBell,
   Engines: FaCogs,
   'API keys': FaKey,
-  Account: FaUserCircle,
+  Settings: FaCog,
   Administration: FaUserShield,
 };
 

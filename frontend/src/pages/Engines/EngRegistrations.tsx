@@ -265,7 +265,7 @@ export function EngRegistrations() {
                 : undefined
             }
           />
-          <Link to="/app/account/usage" viewTransition>
+          <Link to="/me/settings?section=plan" viewTransition>
             See all your limits
           </Link>
         </section>
@@ -330,7 +330,7 @@ export function EngRegistrations() {
                 Show my engines
               </Action>
             ) : (
-              <Link to="/app/account/keys">Manage API keys</Link>
+              <Link to="/me/api-keys">Manage API keys</Link>
             )
           }
         >

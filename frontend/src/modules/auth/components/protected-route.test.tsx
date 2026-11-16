@@ -43,7 +43,7 @@ function renderGuard(
           }}
         >
           <Routes>
-            <Route path="/login" element={<SignIn />} />
+            <Route path="/authentication" element={<SignIn />} />
             <Route path="/app/account" element={<h1>Account</h1>} />
             <Route
               path="/protected"

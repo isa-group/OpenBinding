@@ -105,11 +105,11 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         await expect(nav.getByRole('link', { name: 'About' })).toHaveAttribute('href', '/about');
         await expect(header.getByRole('link', { name: 'Log in' })).toHaveAttribute(
           'href',
-          '/login'
+          '/authentication'
         );
         await expect(header.getByRole('link', { name: /Sign up/ })).toHaveAttribute(
           'href',
-          '/register'
+          '/authentication?view=register'
         );
         await expect(header.getByRole('link', { name: /Schemas/ })).toHaveCount(0);
         await page.keyboard.press('Escape');
@@ -165,7 +165,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       if (!isMobile) {
         await header.getByRole('button', { name: 'Account menu' }).click();
-        await expect(header.getByRole('link', { name: 'Account', exact: true })).toBeVisible();
+        await expect(header.getByRole('link', { name: 'Settings', exact: true })).toBeVisible();
         await page.screenshot({
           path: testInfo.outputPath(`header-${name}-research-account-menu.png`),
           animations: 'disabled',

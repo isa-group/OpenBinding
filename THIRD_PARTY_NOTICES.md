@@ -96,6 +96,26 @@ Generated from the origin header of each file.
 
 | File | SPHERE origin | Class |
 |---|---|---|
+| `frontend/src/modules/api-keys/api/apiKeysApi.ts` | `frontend/src/modules/api-keys/api/apiKeysApi.ts` | adapted |
+| `frontend/src/modules/api-keys/components/ApiKeyCard.tsx` | `frontend/src/modules/api-keys/components/ApiKeyCard.tsx` | adapted |
+| `frontend/src/modules/api-keys/components/ApiKeyList.tsx` | `frontend/src/modules/api-keys/components/ApiKeyList.tsx` | adapted |
+| `frontend/src/modules/api-keys/components/CreateApiKeyDialog.tsx` | `frontend/src/modules/api-keys/components/CreateApiKeyDialog.tsx` | adapted |
+| `frontend/src/modules/api-keys/components/organization-search-input.tsx` | `frontend/src/modules/core/components/organization-search-input.tsx` | adapted |
+| `frontend/src/modules/api-keys/components/scope-selector.tsx` | `frontend/src/modules/core/components/scope-selector.tsx` | adapted |
+| `frontend/src/modules/api-keys/pages/api-keys-page/index.tsx` | `frontend/src/modules/api-keys/pages/ApiKeysPage.tsx` | adapted |
+| `frontend/src/modules/api-keys/utils/accessLevel.ts` | `frontend/src/modules/core/components/scope-selector.tsx` | adapted (extracted) |
+| `frontend/src/modules/auth/components/animated-logo/index.tsx` | `frontend/src/modules/auth/components/animated-logo/index.tsx` | adapted |
+| `frontend/src/modules/auth/components/auth-field/index.tsx` | `frontend/src/modules/auth/components/login-form/index.tsx` | pattern-only |
+| `frontend/src/modules/auth/components/auth-layout/index.tsx` | `frontend/src/modules/auth/components/auth-layout/index.tsx` | adapted |
+| `frontend/src/modules/auth/components/auth-layout/variants.ts` | `frontend/src/modules/auth/components/auth-layout/index.tsx` | verbatim |
+| `frontend/src/modules/auth/components/login-form/index.tsx` | `frontend/src/modules/auth/components/login-form/index.tsx` | adapted |
+| `frontend/src/modules/auth/components/register-form/index.tsx` | `frontend/src/modules/auth/components/register-form/index.tsx` | adapted |
+| `frontend/src/modules/auth/components/uvus-login-button/index.tsx` | `frontend/src/modules/auth/components/uvus-login-button/index.tsx` | adapted |
+| `frontend/src/modules/auth/pages/authentication-page/index.tsx` | `frontend/src/modules/auth/pages/authentication-page/index.tsx` | adapted |
+| `frontend/src/modules/auth/pages/forgot-password/index.tsx` | `frontend/src/modules/auth/pages/forgot-password/index.tsx` | adapted |
+| `frontend/src/modules/auth/pages/reset-password/index.tsx` | `frontend/src/modules/auth/pages/reset-password/index.tsx` | adapted |
+| `frontend/src/modules/auth/pages/sso-callback/index.tsx` | `frontend/src/modules/auth/pages/sso-callback/index.tsx` | adapted |
+| `frontend/src/modules/auth/utils/classes.ts` | `frontend/src/modules/auth/components/login-form/index.tsx`, `frontend/src/modules/auth/components/register-form/index.tsx` | pattern-only |
 | `frontend/src/modules/beta/components/beta-badge/index.tsx` | `frontend/src/modules/beta/components/beta-badge/index.tsx` | verbatim |
 | `frontend/src/modules/beta/components/beta-gate/index.tsx` | `frontend/src/modules/beta/components/beta-gate/index.tsx` | verbatim |
 | `frontend/src/modules/beta/config/betaFeatures.ts` | `frontend/src/modules/beta/config/betaFeatures.ts` | adapted |
@@ -235,6 +255,19 @@ Generated from the origin header of each file.
 | `frontend/src/modules/presentation/pages/home/components/reveal-block.tsx` | `frontend/src/modules/presentation/pages/home/components/reveal-block.tsx` | adapted |
 | `frontend/src/modules/presentation/pages/home/index.tsx` | `frontend/src/modules/presentation/pages/home/index.tsx`, `frontend/src/modules/presentation/pages/home/components/hero-section.tsx` | adapted |
 | `frontend/src/modules/presentation/pages/root/index.tsx` | `frontend/src/routes/router.tsx` | pattern-only |
+| `frontend/src/modules/settings/api/userSettingsApi.ts` | `frontend/src/modules/settings/api/userSettingsApi.ts` | adapted |
+| `frontend/src/modules/settings/components/AccountSection.tsx` | `frontend/src/modules/settings/components/AccountSection.tsx`, `frontend/src/modules/settings/components/IntegrationsSection.tsx` | adapted |
+| `frontend/src/modules/settings/components/AppearanceSection.tsx` | `frontend/src/modules/settings/components/NotificationsSection.tsx` | pattern-only |
+| `frontend/src/modules/settings/components/BetaFeaturesSection.tsx` | `frontend/src/modules/settings/components/BetaFeaturesSection.tsx` | adapted |
+| `frontend/src/modules/settings/components/DangerZoneSection.tsx` | `frontend/src/modules/settings/components/DangerZoneSection.tsx` | adapted |
+| `frontend/src/modules/settings/components/IntegrationsSection.tsx` | `frontend/src/modules/settings/components/IntegrationsSection.tsx` | adapted |
+| `frontend/src/modules/settings/components/NotificationsSection.tsx` | `frontend/src/modules/settings/components/NotificationsSection.tsx` | adapted |
+| `frontend/src/modules/settings/components/PlanSection.tsx` | `frontend/src/modules/settings/components/PaymentsSection.tsx` | adapted |
+| `frontend/src/modules/settings/components/SaveButton.tsx` | `frontend/src/modules/settings/components/AccountSection.tsx` | adapted (extracted) |
+| `frontend/src/modules/settings/components/UnsavedChangesDialog.tsx` | `frontend/src/modules/settings/components/UnsavedChangesDialog.tsx` | adapted |
+| `frontend/src/modules/settings/pages/settings-page/index.tsx` | `frontend/src/modules/settings/pages/SettingsPage.tsx` | adapted |
+| `frontend/src/modules/settings/pages/settings-page/sections.ts` | `frontend/src/modules/settings/pages/SettingsPage.tsx` | adapted (extracted) |
+| `frontend/src/modules/settings/utils/useSavedFlash.ts` | `frontend/src/modules/settings/components/AccountSection.tsx` | pattern-only |
 | `frontend/src/pages/Compositions/CompositionDetail.tsx` | `frontend/src/modules/pricing/pages/card/index.tsx` | pattern-only |
 | `frontend/src/pages/Compositions/tabs/VersionsTab.tsx` | `frontend/src/modules/pricing/components/pricing-versions-tab/index.tsx` | pattern-only |
 | `frontend/src/pages/PublicCompositions/PublicCompositionList.tsx` | `frontend/src/modules/pricing/pages/list/index.tsx` | pattern-only |

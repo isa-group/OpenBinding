@@ -295,13 +295,13 @@ export default function FloatingMorphHeader({ navItems }: Props) {
             ) : (
               <div className="flex items-center gap-3">
                 <Link
-                  to="/login"
+                  to="/authentication"
                   className={`inline-flex h-10 cursor-pointer items-center justify-center rounded-full border border-black/15 bg-white px-5 text-xs tracking-[0.14em] text-slate-700 uppercase ${ease} hover:text-slate-900`}
                 >
                   Log in
                 </Link>
                 <Link
-                  to="/register"
+                  to="/authentication?view=register"
                   className={`group inline-flex h-10 cursor-pointer items-center gap-2 rounded-full border border-black/10 bg-slate-900 px-5 text-xs tracking-[0.14em] text-white uppercase ${ease} hover:bg-slate-800 active:scale-[0.98]`}
                 >
                   Sign up
@@ -428,14 +428,14 @@ export default function FloatingMorphHeader({ navItems }: Props) {
           ) : (
             <div className="mt-2 flex flex-col gap-2">
               <Link
-                to="/login"
+                to="/authentication"
                 onClick={() => setIsMenuOpen(false)}
                 className={`inline-flex cursor-pointer items-center justify-center rounded-full border border-black/10 bg-white px-6 py-3 text-sm font-medium text-slate-700 ${ease} ${isMenuOpen ? 'translate-y-0 opacity-100' : 'translate-y-12 opacity-0'}`}
               >
                 Log in
               </Link>
               <Link
-                to="/register"
+                to="/authentication?view=register"
                 onClick={() => setIsMenuOpen(false)}
                 className={`inline-flex cursor-pointer items-center justify-between rounded-full border border-black/10 bg-slate-900 px-6 py-3 text-sm font-medium text-white ${ease} ${isMenuOpen ? 'translate-y-0 opacity-100' : 'translate-y-12 opacity-0'}`}
               >

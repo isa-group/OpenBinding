@@ -49,8 +49,8 @@ export function LegacyOrgOutlet({ workspace = false }: { workspace?: boolean }) 
           </p>
         </div>
       )}
-      {/* A plan changed by signing in is told once, on the workspace screen the person lands on; Identities tells it itself. */}
-      {workspace && location.pathname !== '/app/account/identities' && (
+      {/* A plan changed by signing in is told once, on the workspace screen the person lands on. */}
+      {workspace && (
         <div className="mx-auto w-full max-w-7xl px-4 md:px-6">
           <PlanChangedNotice className="platform-plan-notice" />
         </div>

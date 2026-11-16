@@ -823,7 +823,7 @@ describe('Start a run', () => {
       expect(alert).toHaveTextContent('You’ve used 50 of 50 storage. Nothing was started.');
       expect(within(alert).getByRole('link', { name: 'See your plan' })).toHaveAttribute(
         'href',
-        '/app/account/usage'
+        '/me/settings?section=plan'
       );
       expect(within(alert).getByRole('link', { name: 'Compare plans' })).toHaveAttribute(
         'href',

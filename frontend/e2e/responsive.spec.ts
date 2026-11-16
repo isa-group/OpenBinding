@@ -2,7 +2,15 @@ import { expect, test, type Page } from '@playwright/test';
 import { installMockApi } from './helpers/mockApi';
 
 // Public routes of the redesigned site. About holds the service-status note; there is no /status page.
-const PUBLIC_ROUTES = ['/', '/workbench', '/engines', '/pricing', '/about', '/login', '/register'];
+const PUBLIC_ROUTES = [
+  '/',
+  '/workbench',
+  '/engines',
+  '/pricing',
+  '/about',
+  '/authentication',
+  '/authentication?view=register',
+];
 
 for (const viewport of [
   { name: 'mobile', width: 390, height: 844 },

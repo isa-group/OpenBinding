@@ -61,7 +61,7 @@ test('the F0b walk: upload, edit in the problem editor, a template, a run and a 
   const main = page.locator('main');
 
   // 1 · Sign in.
-  await page.goto('/login');
+  await page.goto('/authentication');
   await page.getByLabel('Username or email').fill('alex.rivera');
   await page
     .getByLabel('Password', { exact: true })

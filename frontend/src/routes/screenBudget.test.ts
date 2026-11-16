@@ -12,10 +12,10 @@ const SCREENS: Array<[string, string, string]> = [
   ['pub-about', '/about', 'public'],
   ['pub-pricing', '/pricing', 'public'],
   ['pub-language', '/language', 'public'],
-  ['auth-login', '/login', 'public'],
-  ['auth-register', '/register', 'public'],
-  ['auth-reset-request', '/password-reset', 'public'],
-  ['auth-cas-callback', '/auth/cas/callback', 'public'],
+  ['auth', '/authentication', 'public'],
+  ['auth-forgot-password', '/forgot-password', 'public'],
+  ['auth-reset-password', '/reset-password', 'public'],
+  ['auth-sso-callback', '/sso/callback', 'public'],
   ['eng-catalog', '/engines', 'public'],
   ['eng-detail', '/engines/:namespace/:name/:version', 'public'],
   ['pub-home', '/', 'session'],
@@ -27,10 +27,11 @@ const SCREENS: Array<[string, string, string]> = [
   ['org-new', '/orgs/new', 'protected'],
   ['org-join', '/orgs/join/:code', 'protected'],
   ['notifications', '/notifications', 'protected'],
+  ['acct-settings', '/me/settings', 'protected'],
+  ['acct-api-keys', '/me/api-keys', 'protected'],
   ['eng-register', '/app/engines/new', 'app'],
   ['eng-registrations', '/app/engines/registrations', 'app'],
   ['eng-registration-detail', '/app/engines/registrations/:name', 'app'],
-  ['acct-profile', '/app/account/:section?', 'app'],
   ['composition-list', '/app/:org/compositions', 'app'],
   ['composition-detail', '/app/:org/compositions/:composition/:tab?', 'app'],
   ['problem-list', '/app/:org/problems', 'app'],
@@ -48,7 +49,7 @@ const SCREENS: Array<[string, string, string]> = [
   ['admin-moderation', '/app/admin/moderation', 'app'],
 ];
 
-const CEILING = 38;
+const CEILING = 39;
 
 describe('screen budget', () => {
   it('serves exactly the listed screens, with their addresses and layouts, in table order', () => {

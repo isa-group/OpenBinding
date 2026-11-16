@@ -383,8 +383,8 @@ async def request_password_reset(
         user_id=user.id, kind="password_reset", subject="Password reset requested",
         body="A password reset was requested. It expires in 30 minutes.", payload={},
     ))
-    # The frontend's one reset screen (frontend/src/routes/areas/auth.tsx) reads `token` from its query.
-    reset_url = f"{settings.frontend_url.rstrip('/')}/password-reset?{urlencode({'token': token})}"
+    # The frontend's reset screen (`/reset-password`, frontend/src/routes/router.tsx) reads `token` from its query.
+    reset_url = f"{settings.frontend_url.rstrip('/')}/reset-password?{urlencode({'token': token})}"
     await send_mail(
         settings, user.email, "Reset your OpenBinding password",
         f"Use this single-use link within 30 minutes:\n\n{reset_url}\n",

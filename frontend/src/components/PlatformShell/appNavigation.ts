@@ -33,12 +33,14 @@ export const mainLinks = {
   admin: { to: '/app/admin', label: 'Admin' },
 } as const satisfies Record<string, NavLinkItem>;
 
+/** The person's own places: the settings page and its sections (`/me/settings?section=`), and the API keys. */
 export const accountLinks: readonly NavLinkItem[] = [
-  { to: '/app/account', label: 'Profile' },
-  { to: '/app/account/usage', label: 'Plan' },
-  { to: '/app/account/keys', label: 'API keys' },
-  { to: '/app/account/identities', label: 'Identities' },
-  { to: '/app/account/notifications', label: 'Notifications' },
+  { to: '/me/settings', label: 'Settings' },
+  { to: '/me/settings?section=plan', label: 'Plan' },
+  { to: '/me/api-keys', label: 'API keys' },
+  { to: '/me/settings?section=integrations', label: 'Sign-in & Security' },
+  { to: '/me/settings?section=notifications', label: 'Notifications' },
+  { to: '/me/settings?section=appearance', label: 'Appearance' },
 ];
 
 /** An entry of the organization (the one the address names, else the first), disabled with `Needs an organization` when there is none. */
@@ -78,9 +80,7 @@ export function createItems(organization?: Organization): MenuEntry[] {
 }
 
 /** The first segments under `/app` that name a place of their own, not an organization. */
-const APP_PLACES = new Set(['admin', 'engines', 'account']);
-/** Of those, the places that belong to no entry of the header. */
-const UNMARKED_PLACES = new Set(['account']);
+const APP_PLACES = new Set(['admin', 'engines']);
 /** `/app/:org/…` screens of the organization itself, which Home marks. */
 const ORGANIZATION_SCREENS = new Set(['settings']);
 /** The second segment of each organization section, and the entry it belongs to (the problem editor edits problems). */
@@ -111,7 +111,7 @@ export function currentSection(pathname: string): MainSection {
   if (pathname === mainLinks.home.to) return 'home';
   if (under(pathname, mainLinks.admin.to)) return 'admin';
   if (under(pathname, '/app/engines') || under(pathname, mainLinks.engines.to)) return 'engines';
-  const [root, place] = pathname.split('/').filter(Boolean);
-  if (root !== 'app' || UNMARKED_PLACES.has(place)) return null;
+  const [root] = pathname.split('/').filter(Boolean);
+  if (root !== 'app') return null;
   return organizationSectionOf(pathname) ?? (isWorkspaceHome(pathname) ? 'home' : null);
 }

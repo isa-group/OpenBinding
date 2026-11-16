@@ -215,9 +215,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
           await expect(
             header.getByRole('link', { name: 'Organizations', exact: true })
           ).toHaveAttribute('href', '/me/orgs');
-          await expect(header.getByRole('link', { name: 'Account', exact: true })).toHaveAttribute(
+          await expect(header.getByRole('link', { name: 'Settings', exact: true })).toHaveAttribute(
             'href',
-            '/app/account'
+            '/me/settings'
           );
           await expect(header.getByRole('button', { name: 'Sign out' })).toBeVisible();
           await expect(header.getByRole('link', { name: 'Administration' })).toHaveCount(0);

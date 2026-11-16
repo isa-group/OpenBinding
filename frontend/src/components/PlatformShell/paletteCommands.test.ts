@@ -76,15 +76,13 @@ describe('buildCommands', () => {
     }
   });
 
-  it('opens the New API key dialog of the API keys section, not the moved address', () => {
+  it('opens the New API key dialog of the API keys page, not a page of its own', () => {
     const commands = buildCommands({ organizations: [organization], isAdmin: false });
 
     expect(
       commands.filter(command => command.label === 'New API key').map(command => command.href)
-    ).toEqual(['/app/account/keys?create=key']);
-    expect(
-      commands.filter(command => /^\/app\/account\/keys\/new([/?#]|$)/.test(command.href))
-    ).toEqual([]);
+    ).toEqual(['/me/api-keys?create=key']);
+    expect(commands.filter(command => /\/app\/account([/?#]|$)/.test(command.href))).toEqual([]);
   });
 
   it('opens the New organization dialog of the workspace home', () => {
@@ -183,11 +181,12 @@ describe('buildCommands', () => {
     const account = commands.filter(command => command.group === 'Account');
 
     expect(account.map(command => [command.label, command.href])).toEqual([
-      ['Profile', '/app/account'],
-      ['Plan', '/app/account/usage'],
-      ['API keys', '/app/account/keys'],
-      ['Identities', '/app/account/identities'],
-      ['Notifications', '/app/account/notifications'],
+      ['Settings', '/me/settings'],
+      ['Plan', '/me/settings?section=plan'],
+      ['API keys', '/me/api-keys'],
+      ['Sign-in & Security', '/me/settings?section=integrations'],
+      ['Notifications', '/me/settings?section=notifications'],
+      ['Appearance', '/me/settings?section=appearance'],
     ]);
     expect(
       commands.filter(

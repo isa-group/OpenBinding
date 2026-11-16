@@ -145,7 +145,10 @@ describe('engine revision detail', () => {
       await screen.findByRole('heading', { level: 1, name: 'bim.builtin/random-search@1.0.0' })
     ).toBeInTheDocument();
     expect(document.body.textContent).not.toMatch(/sha256-|\b[0-9a-f]{12}/);
-    expect(screen.getByRole('link', { name: 'Log in to run' })).toHaveAttribute('href', '/login');
+    expect(screen.getByRole('link', { name: 'Log in to run' })).toHaveAttribute(
+      'href',
+      '/authentication'
+    );
     expect(api.listEngineRegistrations).not.toHaveBeenCalled();
     expect(platform.engineRevision).not.toHaveBeenCalled();
     expect(screen.getByRole('navigation', { name: 'Breadcrumb' })).toHaveTextContent(

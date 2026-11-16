@@ -64,8 +64,8 @@ export function userEntries(isAdmin: boolean): MenuEntry[] {
     { label: 'Organizations', to: '/me/orgs' },
     { label: 'Inbox', to: '/notifications' },
     { label: 'Engines', to: '/app/engines/registrations' },
-    { label: 'API keys', to: '/app/account/keys' },
-    { label: 'Account', to: '/app/account' },
+    { label: 'API keys', to: '/me/api-keys' },
+    { label: 'Settings', to: '/me/settings' },
     ...(isAdmin ? [{ label: 'Administration', to: '/app/admin' }] : []),
   ];
 }
