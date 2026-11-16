@@ -5,8 +5,9 @@
 .cmp-search { min-width: 200px; max-width: 360px; flex: 1; }
 .cmp-skeletons { display: flex; flex-direction: column; gap: 10px; }
 
-.cmp-name { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; font-weight: 600; overflow-wrap: anywhere; }
-.cmp-slug { display: block; color: var(--tp-steel); font-family: var(--font-mono); font-size: 0.75rem; font-weight: 400; overflow-wrap: anywhere; }
+/* The name sits in the row's header cell, which the table sets small and grey like a column name: it is set back to the body size. */
+.cmp-name { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; color: var(--tp-ink); font-size: 0.875rem; font-weight: 600; overflow-wrap: anywhere; }
+.cmp-slug { display: block; width: fit-content; max-width: 100%; box-sizing: border-box; color: var(--tp-steel); font-family: var(--font-mono); font-size: 0.75rem; font-weight: 400; overflow-wrap: anywhere; }
 .cmp-number { font-variant-numeric: tabular-nums; }
 
 .cmp-select {
