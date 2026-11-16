@@ -152,6 +152,8 @@ def test_authentication_and_role_requirements_are_explicit(document):
         ("/v1/avatars", "get"),
         ("/v1/avatars/{name}", "get"),
         ("/v1/organizations/{org}/avatar/{digest}", "get"),
+        # The notification stream: opened with a single-use ticket, never with an account credential.
+        ("/v1/notifications/stream", "get"),
     }
     # The list of public compositions and the reads of one: a credential is optional (`{}`), and one that names
     # nobody is a 401.

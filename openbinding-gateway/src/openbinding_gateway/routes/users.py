@@ -6,6 +6,7 @@ import secrets
 import uuid
 
 from fastapi import APIRouter, Depends, Query, Request, Response, status
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy import delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -106,6 +107,49 @@ async def profile_of(session: AsyncSession, user: User) -> UserProfile:
         created_at=user.created_at,
         cas_verified=cas_verified,
     )
+
+
+class BetaFeatures(BaseModel):
+    """Whether the account sees the features still behind SPHERE's BetaGate."""
+
+    model_config = ConfigDict(extra="forbid")
+    enabled: bool = False
+
+
+@router.get(
+    "/me/settings/beta-features",
+    response_model=BetaFeatures,
+    operation_id="getBetaFeatures",
+    summary="Whether the account opted into beta features",
+    responses={**revision.ETAG_RESPONSE, 401: UNAUTHORIZED_RESPONSE},
+)
+async def get_beta_features(response: Response, user: User = Depends(get_current_user)) -> BetaFeatures:
+    revision.set_etag(response, user)
+    return BetaFeatures(enabled=bool((user.preferences or {}).get("beta_features", False)))
+
+
+@router.put(
+    "/me/settings/beta-features",
+    response_model=BetaFeatures,
+    operation_id="updateBetaFeatures",
+    summary="Opt into or out of beta features",
+    responses={**revision.EDIT_RESPONSES, 401: UNAUTHORIZED_RESPONSE},
+)
+async def update_beta_features(
+    payload: BetaFeatures,
+    response: Response,
+    if_match: str | None = revision.IF_MATCH_HEADER,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> BetaFeatures:
+    """Opt into or out of the beta features, as SPHERE's ``PUT /users/me/settings/beta-features``. The revision
+    is the account row's, shared with the profile and the notification preferences."""
+    await revision.guard(session, user, if_match)
+    user.preferences = {**(user.preferences or {}), "beta_features": payload.enabled}
+    await session.flush()
+    await session.refresh(user, ["updated_at"])
+    revision.set_etag(response, user)
+    return payload
 
 
 #: The shortest text a user search takes, and the most users it answers (SPHERE's user search).

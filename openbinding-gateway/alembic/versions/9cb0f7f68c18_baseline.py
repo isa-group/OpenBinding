@@ -12,7 +12,7 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision: str = 'd01cc5bfaa0d'
+revision: str = '9cb0f7f68c18'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -136,6 +136,17 @@ def upgrade() -> None:
     op.create_index(op.f('ix_auth_identities_provider'), 'auth_identities', ['provider'], unique=False)
     op.create_index(op.f('ix_auth_identities_subject'), 'auth_identities', ['subject'], unique=False)
     op.create_index(op.f('ix_auth_identities_user_id'), 'auth_identities', ['user_id'], unique=False)
+    op.create_table('notification_stream_tickets',
+    sa.Column('id', sa.Uuid(), nullable=False),
+    sa.Column('user_id', sa.Uuid(), nullable=False),
+    sa.Column('ticket_hash', sa.String(length=64), nullable=False),
+    sa.Column('expires_at', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], name=op.f('fk_notification_stream_tickets_user_id_users'), ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_notification_stream_tickets')),
+    sa.UniqueConstraint('ticket_hash', name=op.f('uq_notification_stream_tickets_ticket_hash'))
+    )
+    op.create_index(op.f('ix_notification_stream_tickets_user_id'), 'notification_stream_tickets', ['user_id'], unique=False)
     op.create_table('notifications',
     sa.Column('id', sa.Uuid(), nullable=False),
     sa.Column('user_id', sa.Uuid(), nullable=False),
@@ -806,6 +817,8 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_notifications_kind'), table_name='notifications')
     op.drop_index(op.f('ix_notifications_created_at'), table_name='notifications')
     op.drop_table('notifications')
+    op.drop_index(op.f('ix_notification_stream_tickets_user_id'), table_name='notification_stream_tickets')
+    op.drop_table('notification_stream_tickets')
     op.drop_index(op.f('ix_auth_identities_user_id'), table_name='auth_identities')
     op.drop_index(op.f('ix_auth_identities_subject'), table_name='auth_identities')
     op.drop_index(op.f('ix_auth_identities_provider'), table_name='auth_identities')

@@ -1086,7 +1086,7 @@ async def transfer_ownership(
         session, user, "organization.owner.transferred", organization, organization.id,
         to=str(recipient.id), stepped_down=sorted(set(stepped_down)),
     )
-    notify(
+    await notify(
         session, recipient.id, notifications.SYSTEM, "You are now an owner",
         f"@{user.username} handed you ownership of \"{organization.name}\"",
         organization_id=str(organization.id), organization_slug=organization.slug, previous_owner_id=str(user.id),
@@ -1176,7 +1176,7 @@ async def invite_users(
         raise api_error(status.HTTP_409_CONFLICT, "already_member", "Every user named is a member already.")
     invitation = await _new_code(session, organization, user, expires_in_days=7, max_uses=len(invited))
     for person in invited:
-        notify(
+        await notify(
             session, person.id, notifications.ORGANIZATION_INVITATION,
             f"You've been invited to join {organization.name}",
             f"@{user.username} has invited you to join \"{organization.name}\". Open the invitation to accept it.",

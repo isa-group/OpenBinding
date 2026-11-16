@@ -746,6 +746,27 @@ class Notification(Base):
     )
 
 
+class NotificationStreamTicket(Base):
+    """A single-use ticket that opens a user's notification stream (``GET /v1/notifications/stream``).
+
+    An ``EventSource`` sends no ``Authorization`` header, and an access token in a URL would be logged by every
+    proxy on the way, so the stream takes a ticket instead: minted by a signed-in request, kept as a hash, valid
+    for a minute, and deleted when the stream opens.
+    """
+
+    __tablename__ = "notification_stream_tickets"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    ticket_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
+    )
+
+
 class AuditEvent(Base):
     __tablename__ = "audit_events"
 
