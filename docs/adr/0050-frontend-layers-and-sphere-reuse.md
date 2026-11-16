@@ -1,6 +1,7 @@
 # 0050. Frontend layers, generated API types, and what is reused from SPHERE
 
-- Status: accepted
+- Status: accepted; the layers and the "design follows SPHERE, no code copied" rule are superseded by
+  [ADR 0053](0053-frontend-on-sphere-stack.md), which keeps the generated API types and `readApiError`
 - Date: 2026-11-16 (F2a, decisions D7, D12, D13 and D24 and overrides 14, 15 and 17 of the F2 implementation plan;
   owner decision of 2026-11-15: reuse SPHERE first)
 

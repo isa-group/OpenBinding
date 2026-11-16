@@ -199,7 +199,7 @@ cannot keep the compiler busy for everybody else, every client also has a budget
 ## Live checks from the browser
 
 The editors check what is typed as it is typed, inside the budgets above: nothing on the gateway changed for them.
-One scheduler (`frontend/src/shared/editor/lintScheduler.ts`) runs every live call. It waits for a pause in the
+One scheduler (`frontend/src/modules/core/editor/lintScheduler.ts`) runs every live call. It waits for a pause in the
 typing, aborts the request in flight when the text changes, never runs two checks of one kind at once, and never
 retries in a tight loop. On a `429` (`rate_limit_exceeded`, or `composition_busy` with `Retry-After: 1`) it pauses
 for `Retry-After` (at least 1 s, 5 s when the header is absent), says "Checks paused, resuming in N s", and then

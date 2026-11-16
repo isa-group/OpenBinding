@@ -180,59 +180,52 @@ openbinding-gateway/src/openbinding_gateway/
 
 ## 5. Frontend
 
-### 5.1 Layout and layers
+### 5.1 Layout and modules
 
-The tree F2 built ([ADR 0050](adr/0050-frontend-layers-and-sphere-reuse.md)). The layers exist where new code lives;
-the older folders are rewritten area by area.
+The frontend converges on SPHERE's ([ADR 0053](adr/0053-frontend-on-sphere-stack.md)): its stack (Tailwind 4 with the
+`tp` tokens, framer-motion, react-icons, react-helmet-async, Monaco), its folders and its shell. PR-A grafted the
+skeleton without changing an address; the screens move into it domain by domain. The older folders empty as they do.
 
 ```
 frontend/src/
-  routes/                 the route registry: one area file per part of the site (public, auth, account, organizations,
-                          compositions, problems, engines, admin), one live('id', '/path', …) per screen
-  shared/api/             openapi.ts (generated from docs/openapi.json by `pnpm gen:api`; never edited), types.ts (named
-                          schemas), errors.ts (readApiError: both error envelopes, 412 with the current ETag, 429 with
-                          Retry-After)
-  shared/diagnostics/     Located, fromC2y and fromBim (bim.ts): one shape for every finding on screen; jsonPointer.ts
-                          resolves a BIM pointer on the parsed JSON text to the range it names
-  shared/editor/          the draft store (drafts.ts, useDraftStore.ts, IndexedDB) and lintScheduler.ts (debounce, abort,
-                          one check of a kind at a time, Retry-After)
-  shared/sphere/          text-diff.ts, requested-version.ts (verbatim); change-summary.ts, composition-fragment.ts
-                          (adapted); each with its test
-  shared/lib/             identity labels (§5.4) and slugs
-  entities/problem/       facts.ts (the facts projection, with an ETag cache), expressions.ts
-  entities/binding/       workflowGraph.ts and candidateMatrix.ts, the shared view-models; comparison.ts (the gateway's
-                          comparison words)
-  entities/composition/   api.ts, document.ts, values.ts, viewModel.ts, changes.ts, evolution.ts, versionRef.ts, kinds.ts
-  widgets/                workflow-graph, candidate-matrix, value-badge, problems-panel, provider-map, pricing-card,
-                          change-summary, evolution-charts, rules-and-objectives, composition-renderer (CompositionRenderer,
-                          presets.ts and the modes)
-  features/               composition-editor (code and visual Composition2Yaml editor), bim-editor (the BIM problem editor:
-                          ProblemEditor, useProblemEditor, its panes, the resource forms, the BPMN modeler, matrix edits),
-                          derive (DeriveCompositionDialog, and the batch of a study front), fork (ForkCompositionDialog),
-                          workspace (the organization frame: breadcrumb, gate)
-  pages/                  route-level screens: Compositions (list, detail and its tabs), PublicCompositions (public list,
-                          showcase), Language (reference and playground), Problems (list, page and tabs, and the page
-                          that mounts the problem editor), Public (the anonymous Workbench), and the older Runs, Studies,
-                          Organization, Account, Admin, Engines, Home, About, Pricing, Auth
-  components/, api/, utils/, contexts/
-                          the older shared code: the design system (components/ui), the run-result catalogue
-                          (components/rendering), the shell, CodeEditor; api/bim.ts holds the BIM validation types
-                          (generated aliases, since F2b); api/client.ts keeps transport, auth, admin, engines (with
-                          the engine protocol's profile types) and pricing until those areas are rewritten
+  main.tsx                SPHERE's order: HelmetProvider > BrowserRouter > SkeletonThemeProvider > Suspense > App; the
+                          brand palette is applied before the first paint
+  App.tsx                 AuthProvider > SpaceProviderWrapper > OrganizationProvider > ToastProvider > DialogHost, Router
+  routes/                 router.tsx: one useRoutes table under SPHERE's banners and the exported `screens` (one line per
+                          screen, read by the screen budget and the end-to-end parsers); app-layout.tsx (the session's
+                          chrome); LegacyOrgOutlet.tsx (the old shell's outlet context, until its last reader goes);
+                          paths/ (address builders)
+  styles/                 tailwind.css (SPHERE's theme, both brand palettes, the layer order); globals.css (the legacy
+                          bridge, whole in @layer legacy)
+  modules/
+    core/                 SPHERE's kit (components, hooks, utils, pages: dialogs, toasts, avatars, skeletons, pagination,
+                          filters, the command palette, the 404), OpenBinding's primitives drawn with SPHERE's recipes
+                          (action-button with Action and Button, modal, tab-bar, notice, data-table…), the transport and
+                          generated types (api/: http.ts with fetchWithInterceptor, openapi.ts, types.ts, errors.ts with
+                          readApiError, refusals.ts), editor/ (draft store, lint scheduler), diagnostics/, theme/brand.ts,
+                          utils/ (the composition, binding and problem models; sphere/ for SPHERE's ported utilities;
+                          icon-map.ts) and the shared binding core in components/ (composition-renderer with its modes,
+                          workflow-graph, candidate-matrix, value-badge, rules-and-objectives, provider-map, pricing-card,
+                          problems-panel)
+    auth/                 the session context and provider, useAuth (with fetchWithInterceptor), protected-route
+    presentation/         SPHERE's layouts: authenticated (header, user menu, mobile drawer, footer) and public (the
+                          floating morph header), and the header menus (layouts/router/header-routes.ts)
+    organization/         OrganizationContext and useOrganization
+    composition/          fork, change summary, evolution charts
+    composition-editor/   the Composition2Yaml editor
+    problem-editor/       the BIM problem editor
+    run/                  the derive dialog, the presets
+    beta/                 BetaGate, BetaBadge and the registry of beta features
+  pages/                  the screens not yet poured into SPHERE's pages
+  components/, api/, utils/, contexts/, features/workspace/
+                          the older shared code, deleted with its last importer (D8)
 ```
 
-Dependency rules, checked by `eslint-plugin-boundaries` at **error** for the new layers (`boundariesLint.test.ts`):
+Dependency rule, checked by `eslint-plugin-boundaries` at **error** (`boundariesLint.test.ts`): `modules/core` imports
+no domain module, and a module imports another only through its `api/`, `types/`, `components/`, `hooks/` or
+`contexts/`. The older folders are not modules. The older page-to-page edges stay warnings until their screens move.
 
-- `shared` imports `shared`;
-- `entities` import other entities and `shared`, with no cycle;
-- `widgets` import other widgets, `entities` and `shared`, with no cycle;
-- `features` import `widgets`, `entities` and `shared`, never another feature; a widget that needs a feature's
-  dialog takes a callback and the page mounts the dialog;
-- `pages` import anything but another page. The older page-to-page edges stay warnings until their areas are
-  rewritten.
-
-The older `components/`, `api/`, `utils/` and `contexts/` count as shared. New code uses the generated types; a
-drift between the gateway and the frontend fails `pnpm gen:api --check` in CI.
+New code uses the generated types; a drift between the gateway and the frontend fails `pnpm gen:api --check` in CI.
 
 **One semantics.** BIM is the only problem language, and every number on screen comes from the gateway: values,
 validity and violations from evaluations and `evaluate`, deltas from `neighborhood`, the size of the binding space
@@ -243,7 +236,7 @@ groups by identical unit strings and compares identifiers; it never sums, ranks,
 **Deletion rule.** Nothing is in production: what a change replaces is deleted in that change, with no
 compatibility shim, alias, redirect, re-export or deprecation. F2a deleted the Workbench's dead chart, digest and
 diagnostics code, the client IR reader (`pages/Cases/bindingModel.ts`) and the client comparison words. F2b deleted
-the Workbench shell (`pages/Workbench`, replaced by `features/bim-editor`), the public Workbench's client reader of BIM
+the Workbench shell (`pages/Workbench`, replaced by the BIM editor, now `modules/problem-editor`), the public Workbench's client reader of BIM
 source files (`pages/Public/packageModel.ts`, its diagnostics wording and result panels), the BIM types of
 `api/client.ts` and the client Pareto check and CSV export ([ADR 0051](adr/0051-problem-editor-on-the-shared-core.md),
 [ADR 0052](adr/0052-study-front-export-and-presets-on-the-server.md)).
@@ -310,7 +303,7 @@ composition.
 | `configurator` | another binding chosen per task and what the toolchain makes of it | `POST …/evaluate` | Analysis |
 | `showcase` | the public page: header, what it does, value status, values, workflow, providers, plans, the problem's reference, offering, versions | the redacted public reads | `/c/:org/:composition` |
 
-The editor is a feature, not a mode: `features/composition-editor` (CodeMirror YAML with the gateway's lint and
+The editor is a feature, not a mode: `modules/composition-editor` (CodeMirror YAML with the gateway's lint and
 completion from the problem, the visual form, the Problems panel, the seal bar) on the draft store.
 
 | Component | Shows | Used in |
