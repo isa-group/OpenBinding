@@ -144,7 +144,7 @@ describe('Organization overview', () => {
         id: 'c1', slug: 'fleet-routing', name: 'Fleet routing', description: '', kind: 'workflow', archived: false, visibility: 'public',
         organization: { id: group.id, slug: 'isa-demo', name: 'ISA Demo Group' }, created_by_id: lucia.id, created_at: '2026-09-01T00:00:00Z',
         updated_at: '2026-10-02T00:00:00Z', version_count: 3,
-        latest_version: { id: 'v3', label: '1.2.0', ordinal: 3, values_status: 'declared', created_at: '2026-10-02T00:00:00Z' },
+        latest_version: { id: 'v3', label: '1.2.0', ordinal: 3, values_status: 'declared', verified: false, created_at: '2026-10-02T00:00:00Z' },
       }],
       total: 9, limit: 5, offset: 0,
     });
@@ -155,6 +155,7 @@ describe('Organization overview', () => {
     const row = await within(panel).findByRole('link', { name: /Fleet routing/ });
     expect(row).toHaveAttribute('href', '/app/isa-demo/compositions/fleet-routing');
     expect(row).toHaveTextContent('Workflow · version 1.2.0 · Oct 2, 2026');
+    expect(within(row).getByText('Declared')).toBeInTheDocument();
     expect(within(panel).getByText('9')).toBeInTheDocument();
     expect(within(panel).getByRole('link', { name: 'All compositions' })).toHaveAttribute('href', '/app/isa-demo/compositions');
     expect(within(panel).getByRole('link', { name: '+ New composition' })).toHaveAttribute('href', '/app/isa-demo/compositions?create=composition');

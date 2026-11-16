@@ -3439,7 +3439,7 @@
         "type": "object"
       },
       "CompositionVersionSummary": {
-        "description": "A version, named.",
+        "description": "A version, named, and the status of its values.",
         "properties": {
           "created_at": {
             "format": "date-time",
@@ -3469,6 +3469,11 @@
             ],
             "title": "Values Status",
             "type": "string"
+          },
+          "verified": {
+            "description": "Whether the current evaluation verified the binding and computed the values.",
+            "title": "Verified",
+            "type": "boolean"
           }
         },
         "required": [
@@ -3476,6 +3481,7 @@
           "ordinal",
           "label",
           "values_status",
+          "verified",
           "created_at"
         ],
         "title": "CompositionVersionSummary",

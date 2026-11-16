@@ -59,8 +59,6 @@ async def list_public_compositions(
         limit=limit, offset=offset,
     )
     found = await versions.summaries(session, [composition.id for composition, _ in page.compositions])
-    latest = [summary.latest for summary in found.values() if summary.latest is not None]
-    verified = await versions.verified_among(session, latest)
     response.headers["Vary"] = _VARY
     response.headers["Cache-Control"] = "private, no-cache"
     views = []
@@ -75,7 +73,7 @@ async def list_public_compositions(
             kind=composition.kind.value,
             latest_version=PublicVersionSummary(
                 label=version.label, ordinal=version.ordinal, values_status=version.values_status.value,
-                verified=version.id in verified, created_at=version.created_at,
+                verified=summary.verified, created_at=version.created_at,
             ),
             version_count=summary.count, updated_at=composition.updated_at,
         ))

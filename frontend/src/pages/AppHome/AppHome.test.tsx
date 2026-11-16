@@ -32,7 +32,7 @@ const composition = (slug: string, name: string, over: Record<string, unknown> =
   id: `composition-${slug}`, slug, name, description: '', kind: 'workflow', archived: false, visibility: 'private',
   organization: { id: group.id, slug: 'isa-demo', name: 'ISA Demo Group' }, created_by_id: 'u1', created_at: '2026-10-01T08:00:00Z',
   updated_at: '2026-10-07T08:00:00Z', version_count: 2,
-  latest_version: { id: 'v2', label: '1.1.0', ordinal: 2, values_status: 'verified', created_at: '2026-10-07T08:00:00Z' }, ...over,
+  latest_version: { id: 'v2', label: '1.1.0', ordinal: 2, values_status: 'verified', verified: true, created_at: '2026-10-07T08:00:00Z' }, ...over,
 });
 
 const contractNotice = {
@@ -131,7 +131,10 @@ describe('Home', () => {
     expect(fleet).toHaveAttribute('href', '/app/isa-demo/compositions/fleet-routing');
     expect(fleet).toHaveTextContent('version 1.1.0 · updated Oct 7, 2026');
     expect(fleet).toHaveTextContent('Workflow');
-    expect(within(recent).getByRole('link', { name: /Order desk/ })).toHaveTextContent('no version yet');
+    expect(within(fleet).getByText('Verified')).toBeInTheDocument();
+    const orderDesk = within(recent).getByRole('link', { name: /Order desk/ });
+    expect(orderDesk).toHaveTextContent('no version yet');
+    expect(orderDesk).not.toHaveTextContent(/Verified|Declared|Unverified/);
     expect(within(recent).getByRole('link', { name: 'All compositions of ISA Demo Group' })).toHaveAttribute('href', '/app/isa-demo/compositions');
     // The compositions come first, then the runs.
     expect(recent.compareDocumentPosition(screen.getByRole('region', { name: 'Recent activity' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();

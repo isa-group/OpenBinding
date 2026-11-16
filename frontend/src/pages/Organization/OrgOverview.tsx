@@ -3,6 +3,7 @@ import { platformApi } from '../../api/platform';
 import { problemsApi } from '../../api/problems';
 import { compositionsApi } from '../../entities/composition/api';
 import { kindLabel } from '../../entities/composition/kinds';
+import { valueStatus } from '../../entities/composition/values';
 import { compositionPath, compositionsPath } from '../../routes/paths/compositions';
 import { problemPath, problemsPath } from '../../routes/paths/problems';
 import { runsApi } from '../../api/runs';
@@ -14,6 +15,7 @@ import { Action } from '../../components/ui/Action';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { formatDate, formatDateTime } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
+import { ValueBadge } from '../../widgets/value-badge/ValueBadge';
 import { createAddress } from './createDialog';
 import { ancestorsOf, atLeast, byName, roleSource } from './orgModel';
 import { classifyAuthError, marker } from '../../shared/api/errors';
@@ -50,6 +52,7 @@ function CompositionsPanel({ slug, canCreate }: { slug: string; canCreate: boole
             <strong>{item.name}</strong>
             <small>{kindLabel(item.kind)} · {item.latest_version ? `version ${item.latest_version.label}` : 'no version yet'} · {formatDate(item.updated_at) ?? '—'}</small>
           </span>
+          {item.latest_version && <ValueBadge status={valueStatus(item.latest_version)} />}
         </Link>
       ))}
       <Link to={compositionsPath(slug)} viewTransition>All compositions</Link>

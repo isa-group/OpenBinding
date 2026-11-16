@@ -17,7 +17,7 @@ const composition = (slug: string, name: string, latest: string | null): Composi
   id: `composition-${slug}`, slug, name, description: '', kind: 'workflow', archived: false, visibility: 'private',
   organization: { id: 'org-isa-demo', slug: 'isa-demo', name: 'ISA Demo Group' }, created_by_id: null,
   created_at: '2026-09-01T00:00:00Z', updated_at: '2026-10-01T00:00:00Z', version_count: latest ? 3 : 0,
-  latest_version: latest ? { id: `${slug}-v3`, ordinal: 3, label: latest, values_status: 'verified', created_at: '2026-10-01T00:00:00Z' } : null,
+  latest_version: latest ? { id: `${slug}-v3`, ordinal: 3, label: latest, values_status: 'verified', verified: true, created_at: '2026-10-01T00:00:00Z' } : null,
 });
 
 const FLEET = composition('fleet-routing', 'Fleet routing', '1.2.0');

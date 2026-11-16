@@ -45,7 +45,7 @@ test.describe('S10a · compositions', () => {
     const fleet = table.getByRole('row', { name: /Fleet routing/ });
     await expect(fleet).toContainText('Workflow');
     await expect(fleet).toContainText('1.2.0');
-    await expect(fleet).toContainText('Linked to a problem');
+    await expect(fleet).toContainText('Verified');
     const order = table.getByRole('row', { name: /Order desk/ });
     await expect(order).toContainText('Declared');
     await expect(order).toContainText('Public');

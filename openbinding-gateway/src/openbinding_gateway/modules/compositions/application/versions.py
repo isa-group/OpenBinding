@@ -69,10 +69,12 @@ class Detail:
 
 @dataclass(frozen=True)
 class Summary:
-    """The latest version of a composition and how many it has."""
+    """The latest version of a composition, how many it has, and whether its current evaluation verified the
+    latest one (``verified_among``)."""
 
     latest: CompositionVersion | None
     count: int
+    verified: bool = False
 
 
 def installed_basis() -> str | None:
@@ -243,7 +245,8 @@ async def details(session: AsyncSession, versions: list[CompositionVersion], *, 
 
 
 async def summaries(session: AsyncSession, composition_ids: list[uuid.UUID]) -> dict[uuid.UUID, Summary]:
-    """The latest version and the version count of each composition, in two queries."""
+    """The latest version of each composition, its version count and whether the latest one is verified, in at most
+    three queries whatever the number of compositions."""
     if not composition_ids:
         return {}
     counted = (await session.execute(
@@ -265,8 +268,13 @@ async def summaries(session: AsyncSession, composition_ids: list[uuid.UUID]) -> 
             if (version.composition_id, version.ordinal) in latest_keys:
                 latest[version.composition_id] = version
     counts = {composition_id: int(count) for composition_id, count, _ in counted}
+    verified = await verified_among(session, list(latest.values()))
     return {
-        identifier: Summary(latest.get(identifier), counts.get(identifier, 0)) for identifier in composition_ids
+        identifier: Summary(
+            latest.get(identifier), counts.get(identifier, 0),
+            identifier in latest and latest[identifier].id in verified,
+        )
+        for identifier in composition_ids
     }
 
 

@@ -122,12 +122,13 @@ def _read_headers(headers, reader: compositions.Reader) -> None:
         headers["Cache-Control"] = "private, no-cache"
 
 
-def _summary(version: CompositionVersion | None) -> CompositionVersionSummary | None:
+def _summary(summary: versions.Summary) -> CompositionVersionSummary | None:
+    version = summary.latest
     if version is None:
         return None
     return CompositionVersionSummary(
         id=version.id, ordinal=version.ordinal, label=version.label, values_status=version.values_status.value,
-        created_at=version.created_at,
+        verified=summary.verified, created_at=version.created_at,
     )
 
 
@@ -138,7 +139,7 @@ def _view(
         id=composition.id, slug=composition.slug, name=composition.name, description=composition.description,
         kind=composition.kind.value, archived=composition.archived, visibility=composition.visibility,
         organization=CompositionOrganization(id=organization.id, slug=organization.slug, name=organization.name),
-        latest_version=_summary(summary.latest) if summary else None,
+        latest_version=_summary(summary) if summary else None,
         version_count=summary.count if summary else 0,
         created_by_id=composition.created_by_id, created_at=composition.created_at, updated_at=composition.updated_at,
     )
@@ -831,11 +832,12 @@ async def fork_composition_version(
         ).model_dump(mode="json", by_alias=True))
     created = outcome.composition
     (detail,) = await versions.details(session, [outcome.sealed.version])
+    forked = _version_view(detail)
     etags.set_etag(response, created)
     response.headers["Location"] = f"/v1/organizations/{target.slug}/compositions/{created.slug}"
     return ForkResult(
-        composition=_view(created, target, versions.Summary(outcome.sealed.version, 1)),
-        version=_version_view(detail),
+        composition=_view(created, target, versions.Summary(outcome.sealed.version, 1, forked.verified)),
+        version=forked,
         droppedProblem=outcome.dropped_problem,
     )
 

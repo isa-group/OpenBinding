@@ -29,7 +29,7 @@ function compositionOf(over: Partial<CompositionView> = {}): CompositionView {
     id: 'composition-fleet', slug: 'fleet-routing', name: 'Fleet routing', description: 'Plans the delivery routes of a fleet.', kind: 'workflow',
     archived: false, visibility: 'public', organization: { id: 'org-lab-other', slug: 'lab-other', name: 'Other Lab' }, created_by_id: null,
     created_at: '2026-08-20T09:00:00Z', updated_at: '2026-09-30T14:00:00Z', version_count: 2,
-    latest_version: { id: 'v2', ordinal: 2, label: '1.1.0', values_status: 'verified', created_at: '2026-09-30T14:00:00Z' },
+    latest_version: { id: 'v2', ordinal: 2, label: '1.1.0', values_status: 'verified', verified: true, created_at: '2026-09-30T14:00:00Z' },
     ...over,
   };
 }

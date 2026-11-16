@@ -11,7 +11,7 @@ const composition: CompositionView = {
   id: 'composition-fleet', slug: 'fleet-routing', name: 'Fleet routing', description: '', kind: 'application', archived: false,
   visibility: 'private', organization: { id: 'org-isa-demo', slug: 'isa-demo', name: 'ISA Demo Group' }, created_by_id: null,
   created_at: '2026-09-01T00:00:00Z', updated_at: '2026-10-01T00:00:00Z', version_count: 3,
-  latest_version: { id: 'v3', ordinal: 3, label: '1.2.0', values_status: 'verified', created_at: '2026-10-01T00:00:00Z' },
+  latest_version: { id: 'v3', ordinal: 3, label: '1.2.0', values_status: 'verified', verified: true, created_at: '2026-10-01T00:00:00Z' },
 };
 
 const later = { ...(structuredClone(fmsVersion) as CompositionVersionView), id: 'v2', label: '1.1.0', ordinal: 2 };

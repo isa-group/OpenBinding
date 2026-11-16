@@ -18,6 +18,7 @@ from sqlalchemy.exc import DBAPIError, IntegrityError
 from _b1_helpers import gate, make_account  # noqa: F401
 from _composition_helpers import (
     CountingPort,
+    SemanticChange,
     bim_binding,
     document_for,
     finished_run,
@@ -655,6 +656,37 @@ async def test_compositions_are_listed_by_name_or_the_latest_updated_first(api_c
     assert (await api_client.get(listing, params={"sort": "created"}, headers=headers)).status_code == 422
 
 
+async def test_the_list_names_the_status_of_each_latest_versions_values(api_client, registration, db_session, gate):  # noqa: F811
+    headers, linked, base = await owner_of(api_client, registration, db_session, gate)
+    listing = base.rsplit("/", 1)[0]
+    run = await finished_run(db_session, linked, [bim_binding(linked, SIMPLE_BINDING)])
+    for slug in ("stale", "menu", "draft"):
+        assert (await api_client.post(listing, headers=headers, json={"slug": slug, "name": slug.title()})).status_code == 201
+    for target in (base, f"{listing}/stale"):
+        derived = await api_client.post(f"{target}/derive", headers=headers, json={"run": str(run.id), "version": "1.0.0"})
+        assert derived.status_code == 201, derived.text
+    assert (await seal(api_client, headers, f"{listing}/menu", DECLARED.replace("composition: shop", "composition: menu"))).status_code == 201
+    # A toolchain release that reads the problem differently evaluates stale's version again: still linked, its current
+    # evaluation no longer verifies it. Shop has no evaluation by that release, so its current one stays verified.
+    with bim.bim_override(SemanticChange(bim.get_bim())):
+        assert (await api_client.post(f"{listing}/stale/versions/1/evaluations", headers=headers)).status_code == 201
+        listed = await api_client.get(listing, headers=headers)
+        own = {slug: (await api_client.get(f"{listing}/{slug}", headers=headers)).json() for slug in ("shop", "stale")}
+        version = {slug: (await api_client.get(f"{listing}/{slug}/versions/1", headers=headers)).json() for slug in own}
+
+    assert listed.status_code == 200, listed.text
+    latest = {item["slug"]: item["latest_version"] for item in listed.json()["compositions"]}
+    assert {slug: (item["values_status"], item["verified"]) for slug, item in latest.items() if item} == {
+        "shop": ("verified", True), "stale": ("verified", False), "menu": ("declared", False),
+    }
+    assert latest["draft"] is None
+    assert set(latest["shop"]) == {"id", "ordinal", "label", "values_status", "verified", "created_at"}
+    # The composition's own view says the same as the list, and as its latest version's view.
+    for slug in own:
+        assert own[slug]["latest_version"] == latest[slug]
+        assert version[slug]["verified"] is latest[slug]["verified"]
+
+
 @contextmanager
 def statements(db_session):
     """How many SQL statements the database runs inside the block."""
@@ -695,6 +727,40 @@ async def test_reading_versions_costs_the_same_queries_whatever_their_number(api
     three = await cost()
 
     assert all(found > 0 for found in one) and one == three
+
+
+async def test_listing_compositions_costs_the_same_queries_whatever_their_number(
+    api_client, registration, db_session, gate,  # noqa: F811
+):
+    headers, linked, base = await owner_of(api_client, registration, db_session, gate)
+    listing = base.rsplit("/", 1)[0]
+    run = await finished_run(db_session, linked, [bim_binding(linked, SIMPLE_BINDING)])
+
+    async def add(slug: str, *, derived: bool) -> None:
+        if slug != "shop":
+            assert (await api_client.post(listing, headers=headers, json={"slug": slug, "name": slug.title()})).status_code == 201
+        target = f"{listing}/{slug}"
+        if derived:
+            answer = await api_client.post(f"{target}/derive", headers=headers, json={"run": str(run.id), "version": "1.0.0"})
+        else:
+            answer = await seal(api_client, headers, target, DECLARED.replace("composition: shop", f"composition: {slug}"))
+        assert answer.status_code == 201, answer.text
+
+    async def cost() -> int:
+        with statements(db_session) as counted:
+            answer = await api_client.get(listing, headers=headers)
+        assert answer.status_code == 200, answer.text
+        return counted[0]
+
+    await add("shop", derived=True)
+    await cost()
+    one = await cost()
+    await add("menu", derived=False)
+    await add("stale", derived=True)
+    await add("draft", derived=False)
+    four = await cost()
+
+    assert one > 0 and one == four
 
 
 # --------------------------------------------------------------------------- the domain

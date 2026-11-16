@@ -158,7 +158,7 @@ function composition(n: number, slug: string, name: string, over: Partial<Compos
     id: uuid(0xb000 + n), slug, name, description: '', kind: 'application', archived: false, visibility: 'private',
     organization: ORGANIZATION, created_by_id: AUTHOR, created_at: versions[0]?.created_at ?? '2026-09-01T00:00:00Z',
     updated_at: latest?.created_at ?? '2026-09-01T00:00:00Z', version_count: versions.length,
-    latest_version: latest ? { id: latest.id, ordinal: latest.ordinal, label: latest.label, values_status: latest.values_status, created_at: latest.created_at } : null,
+    latest_version: latest ? { id: latest.id, ordinal: latest.ordinal, label: latest.label, values_status: latest.values_status, verified: latest.verified, created_at: latest.created_at } : null,
     ...over,
   };
 }
@@ -537,7 +537,7 @@ export function compositionStore(options: CompositionSeed = {}): CompositionStor
     texts.set(version.id, text);
     entry.view = {
       ...entry.view, updated_at: now, version_count: entry.versions.length,
-      latest_version: { id: version.id, ordinal: version.ordinal, label, values_status: version.values_status, created_at: now },
+      latest_version: { id: version.id, ordinal: version.ordinal, label, values_status: version.values_status, verified: version.verified, created_at: now },
     };
     return version;
   };

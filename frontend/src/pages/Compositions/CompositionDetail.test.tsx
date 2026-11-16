@@ -27,7 +27,7 @@ const composition: CompositionView = {
   id: 'composition-fleet', slug: 'fleet-routing', name: 'Fleet routing', description: 'Routes the fleet.', kind: 'application',
   archived: false, visibility: 'public', organization: { id: 'org-isa-demo', slug: 'isa-demo', name: 'ISA Demo Group' },
   created_by_id: null, created_at: '2026-09-01T00:00:00Z', updated_at: '2026-10-01T00:00:00Z', version_count: 3,
-  latest_version: { id: 'v3', ordinal: 3, label: '1.2.0', values_status: 'verified', created_at: '2026-10-01T00:00:00Z' },
+  latest_version: { id: 'v3', ordinal: 3, label: '1.2.0', values_status: 'verified', verified: true, created_at: '2026-10-01T00:00:00Z' },
 };
 
 /** One version of the fleet routing composition, from the gateway's fixture, under another id, label and ordinal. */

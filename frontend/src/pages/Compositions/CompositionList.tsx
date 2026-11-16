@@ -11,6 +11,7 @@ import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { compositionsApi } from '../../entities/composition/api';
 import { KIND_OPTIONS, isKind, kindLabel } from '../../entities/composition/kinds';
+import { valueStatus } from '../../entities/composition/values';
 import { OrgGate, OrgSkeleton } from '../../features/workspace/OrgFrame';
 import { compositionPath, compositionsPath } from '../../routes/paths/compositions';
 import { classifyAuthError, marker } from '../../shared/api/errors';
@@ -33,14 +34,11 @@ const SEARCH_DELAY = 300;
 const KIND_PILLS = [{ id: 'all', label: 'All kinds' }, ...KIND_OPTIONS];
 const STATE_PILLS = [{ id: 'active', label: 'Active' }, { id: 'archived', label: 'Archived' }];
 
-/**
- * The values of the latest version. A row names only the status the gateway stored: declared, or computed against a linked
- * problem. Whether the current evaluation still verifies a linked version is on the composition page.
- */
+/** The status of the latest version's values: declared, or verified or not by its current evaluation. */
 function LatestValues({ composition }: { composition: CompositionView }) {
   const latest = composition.latest_version;
   if (!latest) return <span className="org-muted">—</span>;
-  return latest.values_status === 'declared' ? <ValueBadge status="declared" /> : <span className="cmp-linked">Linked to a problem</span>;
+  return <ValueBadge status={valueStatus(latest)} />;
 }
 
 function Row({ org, composition }: { org: string; composition: CompositionView }) {

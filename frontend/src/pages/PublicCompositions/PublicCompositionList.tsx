@@ -10,7 +10,7 @@ import { PageHeader } from '../../components/ui/PageHeader';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { compositionsApi } from '../../entities/composition/api';
 import { KIND_OPTIONS, isKind, kindLabel } from '../../entities/composition/kinds';
-import type { ValueStatus } from '../../entities/composition/values';
+import { valueStatus } from '../../entities/composition/values';
 import { publicCompositionsPath, showcasePath } from '../../routes/paths/compositions';
 import { classifyAuthError, marker } from '../../shared/api/errors';
 import type { PublicCompositionList as PublicList } from '../../shared/api/types';
@@ -27,12 +27,6 @@ const SEARCH_DELAY = 300;
 const KIND_PILLS = [{ id: 'all', label: 'All kinds' }, ...KIND_OPTIONS];
 
 type Row = PublicList['compositions'][number];
-
-/** The status of the latest version's values, as the gateway stored it: declared, or verified by the current evaluation, or not. */
-function statusOf(row: Row): ValueStatus {
-  if (row.latest_version.values_status === 'declared') return 'declared';
-  return row.latest_version.verified ? 'verified' : 'unverified';
-}
 
 /** The page the address names: a whole number from 1, the first one otherwise. */
 function pageOf(value: string | null): number {
@@ -57,7 +51,7 @@ function CompositionCard({ row }: { row: Row }) {
           </div>
           <div>
             <dt>Values</dt>
-            <dd><ValueBadge status={statusOf(row)} /></dd>
+            <dd><ValueBadge status={valueStatus(row.latest_version)} /></dd>
           </div>
           {updated && (
             <div>

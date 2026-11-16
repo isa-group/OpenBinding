@@ -15,6 +15,7 @@ import { config } from '../../config';
 import { useAuth } from '../../contexts/auth';
 import { compositionsApi } from '../../entities/composition/api';
 import { kindLabel } from '../../entities/composition/kinds';
+import { valueStatus } from '../../entities/composition/values';
 import { lastOrganization } from '../../features/workspace/lastOrganization';
 import { compositionPath, compositionsPath } from '../../routes/paths/compositions';
 import { problemsPath } from '../../routes/paths/problems';
@@ -23,6 +24,7 @@ import { formatDate } from '../../utils/format';
 import { formatCount, formatDuration, LIMIT } from '../../utils/limits';
 import { runLabel } from '../../shared/lib/identity';
 import { useResource } from '../../utils/useResource';
+import { ValueBadge } from '../../widgets/value-badge/ValueBadge';
 import { contractChange } from '../Account/notificationsModel';
 import { usageRows } from '../Account/usageModel';
 import { isForbidden } from '../Organization/orgErrors';
@@ -140,6 +142,7 @@ function CompositionsBlock({ organization }: { organization: Organization | unde
                     {` · updated ${formatDate(composition.updated_at) ?? '—'}`}
                   </small>
                 </span>
+                {composition.latest_version && <ValueBadge status={valueStatus(composition.latest_version)} />}
                 <span className="home-status">{kindLabel(composition.kind)}</span>
               </Link>
             </li>

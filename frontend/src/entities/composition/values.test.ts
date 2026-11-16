@@ -25,6 +25,12 @@ describe('valueStatus', () => {
   it('is declared for the author values, whatever the evaluation says', () => {
     expect(valueStatus(withOutcome('declared', 'declared'))).toBe('declared');
   });
+
+  it('reads a list row summary by the gateway’s verified', () => {
+    expect(valueStatus({ values_status: 'verified', verified: true })).toBe('verified');
+    expect(valueStatus({ values_status: 'verified', verified: false })).toBe('unverified');
+    expect(valueStatus({ values_status: 'declared', verified: false })).toBe('declared');
+  });
 });
 
 describe('valueModels', () => {

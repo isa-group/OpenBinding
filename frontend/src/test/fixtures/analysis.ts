@@ -9,7 +9,7 @@ export const FMS_COMPOSITION: CompositionView = {
   id: 'composition-fms', slug: 'fleet-routing', name: 'Fleet routing', description: '', kind: 'workflow', archived: false, visibility: 'private',
   organization: { id: 'org-isa-demo', slug: 'isa-demo', name: 'ISA Demo Group' }, created_by_id: null, created_at: '2026-09-01T00:00:00Z',
   updated_at: '2026-10-01T00:00:00Z', version_count: 1,
-  latest_version: { id: fmsVersion.id, ordinal: 1, label: '1.0.0', values_status: 'verified', created_at: '2026-10-01T00:00:00Z' },
+  latest_version: { id: fmsVersion.id, ordinal: 1, label: '1.0.0', values_status: 'verified', verified: true, created_at: '2026-10-01T00:00:00Z' },
 };
 
 /** The fixture version, as `include=document` serves it. */

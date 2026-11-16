@@ -23,7 +23,7 @@ const composition: CompositionView = {
   id: 'composition-order', slug: 'order-desk', name: 'Order desk', description: '', kind: 'application', archived: false, visibility: 'private',
   organization: { id: 'org-isa-demo', slug: 'isa-demo', name: 'ISA Demo Group' }, created_by_id: null, created_at: '2026-09-01T00:00:00Z',
   updated_at: '2026-10-01T00:00:00Z', version_count: 1,
-  latest_version: { id: 'v1', ordinal: 1, label: '1.2.0', values_status: 'declared', created_at: '2026-10-01T00:00:00Z' },
+  latest_version: { id: 'v1', ordinal: 1, label: '1.2.0', values_status: 'declared', verified: false, created_at: '2026-10-01T00:00:00Z' },
 };
 
 const TEXT = 'syntaxVersion: "1.0"\ncomposition: order-desk\nversion: 1.2.0\nkind: application\nworkflow: pick\nbinding:\n  pick: {candidate: c_pick}\nvalues: {}\n';

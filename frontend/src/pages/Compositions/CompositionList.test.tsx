@@ -23,13 +23,17 @@ function compositionOf(slug: string, name: string, over: Partial<CompositionView
 
 const orderDesk = compositionOf('order-desk', 'Order desk', {
   visibility: 'public', version_count: 3,
-  latest_version: { id: 'v3', ordinal: 3, label: '1.2.0', values_status: 'declared', created_at: '2026-10-01T00:00:00Z' },
+  latest_version: { id: 'v3', ordinal: 3, label: '1.2.0', values_status: 'declared', verified: false, created_at: '2026-10-01T00:00:00Z' },
 });
 const fleet = compositionOf('fleet-routing', 'Fleet routing', {
   kind: 'workflow', version_count: 2,
-  latest_version: { id: 'v2', ordinal: 2, label: '1.1.0', values_status: 'verified', created_at: '2026-09-20T00:00:00Z' },
+  latest_version: { id: 'v2', ordinal: 2, label: '1.1.0', values_status: 'verified', verified: true, created_at: '2026-09-20T00:00:00Z' },
 });
 const empty = compositionOf('draft', 'Draft');
+const stale = compositionOf('legacy-intake', 'Legacy intake', {
+  kind: 'pipeline', version_count: 1,
+  latest_version: { id: 'v1', ordinal: 1, label: '1.0.0', values_status: 'verified', verified: false, created_at: '2026-09-02T00:00:00Z' },
+});
 
 const page = (compositions: CompositionView[]) => ({ compositions, total: compositions.length, limit: 200, offset: 0 });
 
@@ -69,10 +73,20 @@ describe('Composition list', () => {
     expect(first.getByText('3')).toBeInTheDocument();
     const second = within(rows[1]);
     expect(second.getByText('Workflow')).toBeInTheDocument();
-    expect(second.getByText('Linked to a problem')).toBeInTheDocument();
-    expect(second.queryByText('Verified')).toBeNull();
+    expect(second.getByText('Verified')).toBeInTheDocument();
     expect(second.getByText('Private')).toBeInTheDocument();
     expect(within(rows[2]).getByText('No version yet')).toBeInTheDocument();
+  });
+
+  it('shows the value status of each latest version: verified, declared or unverified, and none without a version', async () => {
+    api.list.mockResolvedValue(page([fleet, orderDesk, stale, empty]));
+    renderList();
+
+    const rows = within(await screen.findByRole('table')).getAllByRole('row').slice(1);
+    const values = rows.map((row) => within(row).getAllByRole('cell')[2]);
+    expect(values.map((cell) => cell.textContent)).toEqual(['Verified', 'Declared', 'Unverified', '—']);
+    // A linked version its current evaluation no longer verifies says so; it is not shown as verified.
+    expect(within(rows[2]).queryByText('Verified')).toBeNull();
   });
 
   it('filters by kind and state through the address, and asks the gateway for them', async () => {

@@ -321,6 +321,8 @@
 .org-sub:hover { border-color: var(--tp-hairline); color: var(--tp-ink); }
 .org-sub > span:nth-child(2) { display: flex; min-width: 0; flex: 1; flex-direction: column; }
 .org-sub small { color: var(--tp-steel); font-size: 0.75rem; }
+/* A composition row ends with the value status of its latest version. */
+.org-sub > span.vb { display: inline-flex; flex: none; flex-direction: row; margin-left: auto; }
 
 /* Members */
 .org-person { display: flex; align-items: center; gap: 10px; }

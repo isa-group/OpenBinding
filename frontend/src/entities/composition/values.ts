@@ -1,4 +1,4 @@
-import type { CompositionVersionView } from '../../shared/api/types';
+import type { CompositionVersionSummary, CompositionVersionView } from '../../shared/api/types';
 
 /**
  * The global values of a version and how far to trust them. Every number is the gateway's: the values of the current
@@ -17,10 +17,19 @@ export type ValueStatus = 'verified' | 'declared' | 'unverified';
 /** What a version view, a light row included, says about its values. */
 type Valued = Pick<CompositionVersionView, 'values_status' | 'current_evaluation' | 'values'>;
 
-/** The status of a version's values, from the gateway's `values_status` and the outcome of the current evaluation. */
-export function valueStatus(version: Pick<Valued, 'values_status' | 'current_evaluation'>): ValueStatus {
+/**
+ * What names a version's value status: a version view, with its current evaluation, or the latest version of a composition as a
+ * list row summarizes it (an organization's list and the public one), with the gateway's `verified` for the same evaluation.
+ */
+type StatusOf =
+  | Pick<Valued, 'values_status' | 'current_evaluation'>
+  | Pick<CompositionVersionSummary, 'values_status' | 'verified'>;
+
+/** The status of a version's values, from the gateway's `values_status` and whether the current evaluation verified it. */
+export function valueStatus(version: StatusOf): ValueStatus {
   if (version.values_status === 'declared') return 'declared';
-  return version.current_evaluation?.outcome === 'verified' ? 'verified' : 'unverified';
+  const verified = 'current_evaluation' in version ? version.current_evaluation?.outcome === 'verified' : version.verified;
+  return verified ? 'verified' : 'unverified';
 }
 
 export interface ValueModel {

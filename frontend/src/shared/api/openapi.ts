@@ -3463,7 +3463,7 @@ export interface components {
         };
         /**
          * CompositionVersionSummary
-         * @description A version, named.
+         * @description A version, named, and the status of its values.
          */
         CompositionVersionSummary: {
             /**
@@ -3491,6 +3491,11 @@ export interface components {
              * @enum {string}
              */
             values_status: "verified" | "declared";
+            /**
+             * Verified
+             * @description Whether the current evaluation verified the binding and computed the values.
+             */
+            verified: boolean;
         };
         /**
          * CompositionVersionView

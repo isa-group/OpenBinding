@@ -8,7 +8,6 @@
 .cmp-name { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; font-weight: 600; overflow-wrap: anywhere; }
 .cmp-slug { display: block; color: var(--tp-steel); font-family: var(--font-mono); font-size: 0.75rem; font-weight: 400; overflow-wrap: anywhere; }
 .cmp-number { font-variant-numeric: tabular-nums; }
-.cmp-linked { color: var(--tp-slate); font-size: 0.8125rem; }
 
 .cmp-select {
   height: 38px;

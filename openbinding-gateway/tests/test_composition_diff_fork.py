@@ -219,6 +219,7 @@ async def test_a_fork_copies_the_document_into_another_organization(api_client, 
     assert composition["name"] == "Shop copy" and composition["description"] == "The shop"
     assert composition["kind"] == "workflow" and composition["version_count"] == 1
     assert composition["latest_version"]["id"] == version["id"]
+    assert composition["latest_version"]["verified"] is version["verified"] is False
     assert response.headers["ETag"] and response.headers["Location"] == f"/v1/organizations/{target}/compositions/shop-copy"
     assert version["ordinal"] == 1 and version["label"] == source["label"] and version["values_status"] == "declared"
     assert version["values"] == source["values"]

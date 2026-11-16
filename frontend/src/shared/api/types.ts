@@ -32,6 +32,9 @@ export type CompositionVersionView = Schemas['CompositionVersionView'];
 /** A composition of an organization (`GET …/compositions/{composition}`); a public reader gets it with member ids removed. */
 export type CompositionView = Schemas['CompositionView'];
 
+/** The latest version of a composition as a composition view and its list name it, with whether its values are verified. */
+export type CompositionVersionSummary = Schemas['CompositionVersionSummary'];
+
 /** A page of an organization's compositions (`GET /v1/organizations/{org}/compositions`). */
 export type CompositionList = Schemas['CompositionList'];
 

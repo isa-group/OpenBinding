@@ -264,12 +264,13 @@ class PublicCompositionList(BaseModel):
 
 
 class CompositionVersionSummary(BaseModel):
-    """A version, named."""
+    """A version, named, and the status of its values."""
 
     id: uuid.UUID
     ordinal: int = Field(ge=1, description="1 for the first version sealed, then one more each time.")
     label: str = Field(description="The document's `version:` (Semantic Versioning).")
     values_status: ValuesStatusName
+    verified: bool = Field(description="Whether the current evaluation verified the binding and computed the values.")
     created_at: datetime
 
 

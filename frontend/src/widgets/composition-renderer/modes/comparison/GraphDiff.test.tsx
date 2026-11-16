@@ -12,7 +12,7 @@ const composition: CompositionView = {
   id: 'composition-fleet', slug: 'fleet-routing', name: 'Fleet routing', description: '', kind: 'application', archived: false,
   visibility: 'private', organization: { id: 'org-isa-demo', slug: 'isa-demo', name: 'ISA Demo Group' }, created_by_id: null,
   created_at: '2026-09-01T00:00:00Z', updated_at: '2026-10-01T00:00:00Z', version_count: 2,
-  latest_version: { id: 'v2', ordinal: 2, label: '1.1.0', values_status: 'verified', created_at: '2026-10-01T00:00:00Z' },
+  latest_version: { id: 'v2', ordinal: 2, label: '1.1.0', values_status: 'verified', verified: true, created_at: '2026-10-01T00:00:00Z' },
 };
 
 /** The later version: the fixture with T1 bound to Google Cloud, as the diff says. */
