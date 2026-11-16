@@ -572,7 +572,7 @@ export function AppHome() {
               <Action to="/orgs/new" variant="primary">
                 Create organization
               </Action>
-              <Link to="/invitations/accept">I have an invitation</Link>
+              <span>Have an invitation? Open the link someone shared with you.</span>
             </span>
           </div>
         </section>

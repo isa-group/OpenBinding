@@ -8,7 +8,21 @@ import { failureBody } from './helpers/problems';
 // One test per screen and viewport: each walks the states of its screen in order, on one page.
 
 const API = 'http://localhost:8000';
-const TOKEN = `obi_${'a1b2c3d4'.repeat(2)}_${'e5f6a7b8'.repeat(3)}`;
+const CODE = 'c0de0000c0de0000';
+/** What `GET /v1/invitations/{code}/preview` answers. */
+const preview = {
+  code: CODE,
+  organization: {
+    id: 'org-1',
+    slug: 'isa-demo',
+    name: 'ISA Demo Group',
+    description: '',
+    avatar: {},
+    public_compositions: 0,
+  },
+  expires_at: '2026-12-01T00:00:00Z',
+  invited_by: { id: 'user-nora', username: 'nora', avatar: null },
+};
 const RESET_TOKEN = 'obr_k3j9d8f7_h2g1s0a9q8w7e6r5t4y3u2i1o0p9';
 const CAS_CODE = 'c'.repeat(43);
 
@@ -46,16 +60,6 @@ const isaDemo = {
   created_at: '2026-09-01T00:00:00Z',
 };
 
-const membership = {
-  id: 'member-1',
-  organization_id: 'org-1',
-  user_id: 'user-1',
-  username: 'sofia',
-  email: 'sofia@example.org',
-  role: 'MEMBER',
-  created_at: '2026-10-09T10:00:00Z',
-};
-
 const json =
   (body: unknown, status = 200) =>
   (route: Route) =>
@@ -63,12 +67,9 @@ const json =
 const detail = (status: number, code: string, error: string, extra: Record<string, unknown> = {}) =>
   json(failureBody(status, code, error, extra), status);
 
-type Handler = (route: Route) => Promise<void> | void;
-
 interface Mocks {
   /** Signed in as this account from the first request. */
   account?: ReturnType<typeof person>;
-  accept?: Handler;
   /** What GET /v1/organizations answers; a function lets the answer change once something happened. */
   organizations?: unknown[] | (() => unknown[]);
 }
@@ -106,7 +107,6 @@ async function mockApi(page: Page, mocks: Mocks = {}) {
     current = researcher;
     return route.fulfill({ json: tokens });
   });
-  await page.route(`${API}/v1/invitations/accept`, mocks.accept ?? json(membership));
   await page.route(`${API}/health**`, json({ status: 'ok' }));
 }
 
@@ -611,94 +611,48 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('org-invite-accept /invitations/accept', async ({ page }, testInfo) => {
+    test('org-join /orgs/join/:code', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       let joined = false;
-      await mockApi(page, {
-        organizations: () => (joined ? [isaDemo] : []),
-        accept: route => {
-          joined = true;
-          return route.fulfill({ json: membership });
-        },
+      await mockApi(page, { organizations: () => (joined ? [isaDemo] : []) });
+      await page.route(`${API}/v1/invitations/${CODE}/preview`, json(preview));
+      await page.route(`${API}/v1/invitations/${CODE}/join`, route => {
+        joined = true;
+        return route.fulfill({ json: { ...isaDemo, effective_role: 'MEMBER' } });
       });
-      await page.goto(`/invitations/accept?token=${TOKEN}`);
+      await page.route(
+        `${API}/v1/invitations/unknown-code/preview`,
+        detail(404, 'not_found', 'Invitation not found.')
+      );
+      await page.goto(`/orgs/join/${CODE}`);
       const main = page.locator('main');
 
-      // No session: the public header, and a prompt that keeps the invitation.
-      await expect(page.locator('header.site-header')).toBeVisible();
-      await expect(page.locator('header.app-header')).toHaveCount(0);
-      await expect(main.getByRole('heading', { level: 1, name: 'Log in to accept' })).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Create an account' })).toBeVisible();
-      // The secret is no longer in the address bar.
-      await expect.poll(() => page.url()).not.toContain(TOKEN);
-      await capture(page, testInfo, `invite-${name}-log-in`);
-
-      // Logging in brings the page back, with the application header and the token in the field.
-      await main.getByRole('link', { name: 'Log in' }).click();
+      // No session: sign in first, then back to the invitation.
+      await expect(page).toHaveURL(/\/login$/);
       await main.getByLabel('Username or email').fill('sofia');
       await main.getByLabel('Password').fill('a-long-enough-password');
       await main.getByRole('button', { name: 'Log in' }).click();
-      await expect(page).toHaveURL(/\/invitations\/accept$/);
-      await expect(page.locator('header.app-header')).toBeVisible();
-      await expect(main.getByLabel('Invitation token')).toHaveValue(TOKEN);
-      await expect(
-        main.getByRole('heading', { level: 1, name: 'Join with this invitation' })
-      ).toBeVisible();
-      await expect(main.getByText('Signed in as sofia.')).toBeVisible();
-      await capture(page, testInfo, `invite-${name}-form`);
+      await expect(page).toHaveURL(new RegExp(`/orgs/join/${CODE}$`));
 
-      await main.getByRole('button', { name: 'Accept invitation' }).click();
-      await expect(
-        main.getByRole('heading', { level: 1, name: 'You joined ISA Demo Group' })
-      ).toBeVisible();
+      // SPHERE's join card: the organization, who invited, the role it joins with.
+      await expect(main.getByRole('heading', { level: 1, name: 'ISA Demo Group' })).toBeVisible();
       await expect(main.getByText('@isa-demo')).toBeVisible();
-      await expect(main.getByText('MEMBER', { exact: true })).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Open the organization' })).toHaveAttribute(
+      await expect(main.getByText('@nora invited you to join this organization.')).toBeVisible();
+      await capture(page, testInfo, `join-${name}-card`);
+      await main.getByRole('button', { name: 'Join ISA Demo Group' }).click();
+      await expect(main.getByRole('heading', { level: 1, name: 'You joined!' })).toBeVisible();
+      await expect(main.getByRole('link', { name: 'Open ISA Demo Group' })).toHaveAttribute(
         'href',
-        '/app/isa-demo'
+        '/orgs/isa-demo'
       );
-      await capture(page, testInfo, `invite-${name}-joined`);
+      await capture(page, testInfo, `join-${name}-joined`);
 
-      // Without a link: paste the token. A short one is refused locally; the gateway refuses the rest.
-      // (Opening the same address again would be a reload, which keeps the token in the entry's state on purpose.)
-      await page.goto('/about');
-      await page.goto('/invitations/accept');
-      // A full page load again, on a development server that is compiling for other workers: the session is read before the page shows.
+      // One neutral answer for any code that does not let anybody in.
+      await page.goto('/orgs/join/unknown-code');
       await expect(
-        main.getByRole('heading', { level: 1, name: 'Paste your invitation' })
-      ).toBeVisible({ timeout: 20_000 });
-      await expect(
-        main.getByText('the API has no endpoint to preview an invitation')
+        main.getByRole('heading', { level: 1, name: 'Invalid invitation' })
       ).toBeVisible();
-      await capture(page, testInfo, `invite-${name}-paste`);
-      await main.getByRole('button', { name: 'Accept invitation' }).click();
-      await expect(main.getByText('Paste the invitation token.')).toBeVisible();
-      await main.getByLabel('Invitation token').fill('obi_too_short');
-      await expect(main.getByText(/at least 32 characters/)).toBeVisible();
-      await capture(page, testInfo, `invite-${name}-short`);
-
-      await page.route(
-        `${API}/v1/invitations/accept`,
-        detail(404, 'not_found', 'Invitation is invalid or expired.')
-      );
-      await main.getByLabel('Invitation token').fill(TOKEN);
-      await main.getByRole('button', { name: 'Accept invitation' }).click();
-      await expect(main.getByRole('alert')).toContainText('This invitation can’t be used.');
-      await expect(main.getByRole('alert')).toContainText(
-        'different email address than sofia@example.org'
-      );
-      await capture(page, testInfo, `invite-${name}-invalid`);
-
-      // The account already belongs to the organization by now.
-      await page.route(`${API}/v1/invitations/accept`, json(membership));
-      await main.getByRole('button', { name: 'Accept invitation' }).click();
-      await expect(
-        main.getByRole('heading', { level: 1, name: 'You’re already a member of ISA Demo Group' })
-      ).toBeVisible();
-      await expect(
-        main.getByText('Nothing changed: your current role stays as it is.')
-      ).toBeVisible();
-      await capture(page, testInfo, `invite-${name}-already-member`);
+      await capture(page, testInfo, `join-${name}-invalid`);
       expect(critical).toEqual([]);
     });
   });

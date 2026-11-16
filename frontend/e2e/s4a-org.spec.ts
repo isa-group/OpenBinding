@@ -725,10 +725,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         'href',
         '/orgs/new'
       );
-      await expect(main.getByRole('link', { name: 'I have an invitation' })).toHaveAttribute(
-        'href',
-        '/invitations/accept'
-      );
+      await expect(main.getByText(/Open the link someone shared with you/)).toBeVisible();
       await expect(main.getByText('You’re not in any organization yet.')).toBeVisible();
       await expect(main.getByText(/No runs yet/)).toBeVisible();
       await capture(page, testInfo, `home-${name}-first-organization`);

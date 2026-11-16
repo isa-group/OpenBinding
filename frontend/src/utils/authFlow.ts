@@ -37,7 +37,8 @@ function isShowcasePath(path: string): boolean {
 /**
  * An internal address that a sign-in may send the person back to, or `null`.
  *
- * Only the workspace, the invitation page, the public compositions and the public page of one (where Fork asks for a session)
+ * Only the workspace, the account's own pages (`/me/…`), the organization pages (`/orgs/…`, the invitation link included), the
+ * public compositions and the public page of one (where Fork asks for a session)
  * qualify: the value travels through router state and sessionStorage, so it is never used as an arbitrary redirect target.
  */
 export function safeReturnPath(value: unknown): string | null {
@@ -49,7 +50,8 @@ export function safeReturnPath(value: unknown): string | null {
   )
     return null;
   const path = value.split(/[?#]/)[0];
-  if (path === '/app' || path.startsWith('/app/') || path === '/invitations/accept') return value;
+  if (path === '/app' || path.startsWith('/app/')) return value;
+  if (path.startsWith('/me/') || path.startsWith('/orgs/')) return value;
   if (path === '/compositions' || isShowcasePath(path)) return value;
   return null;
 }

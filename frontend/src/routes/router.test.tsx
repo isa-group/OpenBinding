@@ -151,7 +151,7 @@ describe('Router', () => {
     expect(screen.getByTestId('location')).toHaveTextContent(exampleOf(adminOnly.path));
   });
 
-  it('serves the invitation link inside the public layout when there is no session', async () => {
+  it('serves a public page of the session inside the public layout when there is no session', async () => {
     renderAt(exampleOf(invitation.path), null);
 
     await showing(invitation.id);
@@ -160,7 +160,7 @@ describe('Router', () => {
     expect(screen.getByTestId('location')).toHaveTextContent(exampleOf(invitation.path));
   });
 
-  it('serves the invitation link inside the application layout when signed in', async () => {
+  it('serves a public page of the session inside the application layout when signed in', async () => {
     renderAt(exampleOf(invitation.path));
 
     await showing(invitation.id);

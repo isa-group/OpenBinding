@@ -49,6 +49,7 @@ const OrganizationsListPage = lazy(
 const OrganizationDetailPage = lazy(
   () => import('../modules/organization/pages/organization-detail')
 );
+const OrganizationJoinPage = lazy(() => import('../modules/organization/pages/organization-join'));
 const CreateOrganizationPage = lazy(
   () => import('../modules/organization/pages/create-organization')
 );
@@ -56,10 +57,6 @@ const About = named(() => import('../pages/About/About'), 'About');
 const WorkbenchPage = named(() => import('../pages/Public/PublicPages'), 'WorkbenchPage');
 const Pricing = named(() => import('../pages/Pricing/Pricing'), 'Pricing');
 const LanguagePage = named(() => import('../pages/Language/LanguagePage'), 'LanguagePage');
-const AcceptInvitation = named(
-  () => import('../pages/Invitations/AcceptInvitation'),
-  'AcceptInvitation'
-);
 const EngineDetail = named(() => import('../pages/EngineDetail/EngineDetail'), 'EngineDetail');
 const RegisterEngine = named(
   () => import('../pages/RegisterEngine/RegisterEngine'),
@@ -131,7 +128,6 @@ export const screens: Screen[] = [
   // ═══════════════════════════════════════════════════════════
   { id: 'org-explore', path: '/organizations', layout: 'session', element: <PublicOrganizationsPage /> },
   { id: 'org-detail', path: '/orgs/:org/:tab?', layout: 'session', element: <OrganizationDetailPage /> },
-  { id: 'org-invite-accept', path: '/invitations/accept', layout: 'session', element: <AcceptInvitation /> },
   { id: 'pub-compositions', path: '/compositions', layout: 'session', element: <PublicCompositionList /> },
   { id: 'pub-showcase', path: '/c/:org/:composition', layout: 'session', element: <Showcase /> },
 
@@ -140,6 +136,7 @@ export const screens: Screen[] = [
   // ═══════════════════════════════════════════════════════════
   { id: 'org-list', path: '/me/orgs', layout: 'protected', element: <OrganizationsListPage /> },
   { id: 'org-new', path: '/orgs/new', layout: 'protected', element: <CreateOrganizationPage /> },
+  { id: 'org-join', path: '/orgs/join/:code', layout: 'protected', element: <OrganizationJoinPage /> },
 
   // ═══════════════════════════════════════════════════════════
   // PROTECTED ROUTES (the old workspace under /app, until its screens are poured into SPHERE's pages)

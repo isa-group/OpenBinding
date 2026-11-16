@@ -81,7 +81,7 @@ describe('Auth screens', () => {
             <Route path="/register" element={ui} />
             <Route path="/app" element={<h1>Platform Dashboard</h1>} />
             <Route path="/app/org/project" element={<h1>Project Workspace</h1>} />
-            <Route path="/invitations/accept" element={<h1>Invitation page</h1>} />
+            <Route path="/orgs/join/:code" element={<h1>Invitation page</h1>} />
             <Route path="/c/:org/:composition" element={<h1>Public composition</h1>} />
             <Route path="/account" element={<h1>Legacy Account</h1>} />
             <Route path="/app/account" element={<h1>Account Settings</h1>} />
@@ -151,17 +151,17 @@ describe('Auth screens', () => {
       expect(await screen.findByRole('heading', { name: 'Account Settings' })).toBeInTheDocument();
     });
 
-    it('returns to the invitation page, token included', async () => {
+    it('returns to the invitation link it was asked from', async () => {
       signInMock.mockResolvedValue(undefined);
       renderWithAuth(<Login />, {
         pathname: '/login',
-        state: { from: '/invitations/accept?token=obi_secret' },
+        state: { from: '/orgs/join/c0de0000c0de0000' },
       });
 
       fillLogin();
 
       expect(await screen.findByRole('heading', { name: 'Invitation page' })).toBeInTheDocument();
-      expect(screen.getByTestId('where')).toHaveTextContent('/invitations/accept?token=obi_secret');
+      expect(screen.getByTestId('where')).toHaveTextContent('/orgs/join/c0de0000c0de0000');
     });
 
     it('returns to the public page of a composition with the fork asked for there', async () => {

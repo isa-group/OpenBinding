@@ -1,7 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { PricingUnavailableError, QuotaError } from './auth';
 import { ApiClient, HttpError } from './client';
-import { platformApi } from './platform';
 import { forgetCasFlow, readCasFlow } from '../utils/authFlow';
 
 function jsonResponse(body: unknown, status = 200, headers: Record<string, string> = {}): Response {
@@ -185,90 +183,5 @@ describe('authentication requests', () => {
     await client.createCasLinkIntent();
 
     expect(readCasFlow()?.mode).toBe('link');
-  });
-});
-
-describe('invitation acceptance', () => {
-  const fetchMock = vi.fn<typeof fetch>();
-
-  beforeEach(() => {
-    localStorage.clear();
-    fetchMock.mockReset();
-    vi.stubGlobal('fetch', fetchMock);
-  });
-
-  it('posts the token in the body, never in the URL', async () => {
-    fetchMock.mockResolvedValueOnce(
-      jsonResponse({
-        id: 'm',
-        organization_id: 'o',
-        user_id: 'u',
-        role: 'MEMBER',
-        created_at: '2026-10-09T00:00:00Z',
-      })
-    );
-
-    const member = await platformApi.acceptInvitation('obi_secret_value');
-
-    const [url, request] = fetchMock.mock.calls[0];
-    expect(String(url)).toMatch(/\/v1\/invitations\/accept$/);
-    expect(String(url)).not.toContain('obi_secret_value');
-    expect(request?.method).toBe('POST');
-    expect(JSON.parse(String(request?.body))).toEqual({ token: 'obi_secret_value' });
-    expect(member.role).toBe('MEMBER');
-  });
-
-  it('turns a full quota into a QuotaError with its limit', async () => {
-    fetchMock.mockResolvedValueOnce(
-      jsonResponse(
-        {
-          detail: {
-            code: 'quota_exceeded',
-            error: 'The plan allows 15 problems.',
-            quota: { limit_id: 'maxProblems', limit: 15, used: 16 },
-          },
-        },
-        402
-      )
-    );
-
-    const error = await platformApi
-      .acceptInvitation('obi_secret_value')
-      .catch((caught: unknown) => caught);
-
-    expect(error).toBeInstanceOf(QuotaError);
-    expect(error).toMatchObject({ code: 'quota_exceeded', quota: { limit: 15, used: 16 } });
-  });
-
-  it('throws the 404 the gateway gives every unusable token, and the 422 of a short one', async () => {
-    fetchMock.mockResolvedValueOnce(
-      jsonResponse(
-        { detail: { code: 'not_found', error: 'Invitation is invalid or expired.' } },
-        404
-      )
-    );
-    await expect(platformApi.acceptInvitation('obi_secret_value')).rejects.toMatchObject({
-      status: 404,
-    });
-
-    fetchMock.mockResolvedValueOnce(
-      jsonResponse(
-        problem('validation_error', 'Request validation failed: /token: too short', [
-          { code: 'string_too_short', message: 'too short', pointer: '/token' },
-        ]),
-        422
-      )
-    );
-    await expect(platformApi.acceptInvitation('short')).rejects.toMatchObject({ status: 422 });
-  });
-
-  it('keeps a pricing outage apart from a refusal', async () => {
-    fetchMock.mockResolvedValueOnce(
-      jsonResponse({ detail: { code: 'pricing_unavailable', error: 'down' } }, 503)
-    );
-
-    await expect(platformApi.acceptInvitation('obi_secret_value')).rejects.toBeInstanceOf(
-      PricingUnavailableError
-    );
   });
 });

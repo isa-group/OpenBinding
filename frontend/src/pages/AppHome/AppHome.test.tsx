@@ -384,10 +384,7 @@ describe('Home', () => {
       'href',
       '/orgs/new'
     );
-    expect(screen.getByRole('link', { name: 'I have an invitation' })).toHaveAttribute(
-      'href',
-      '/invitations/accept'
-    );
+    expect(screen.getByText(/Open the link someone shared with you/)).toBeInTheDocument();
     expect(screen.getByText('You’re not in any organization yet.')).toBeInTheDocument();
     // With no jobs either, the activity block shows a way to the first run.
     expect(await screen.findByText(/No runs yet/)).toBeInTheDocument();

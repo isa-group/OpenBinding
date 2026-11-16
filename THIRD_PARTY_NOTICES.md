@@ -205,6 +205,7 @@ Generated from the origin header of each file.
 | `frontend/src/modules/organization/pages/organization-detail/hooks.ts` | `frontend/src/modules/organization/pages/organization-detail/hooks.ts` | verbatim |
 | `frontend/src/modules/organization/pages/organization-detail/index.tsx` | `frontend/src/modules/organization/pages/organization-detail/index.tsx` | adapted |
 | `frontend/src/modules/organization/pages/organization-detail/types.ts` | `frontend/src/modules/organization/pages/organization-detail/types.ts` | adapted |
+| `frontend/src/modules/organization/pages/organization-join/index.tsx` | `frontend/src/modules/organization/pages/organization-join/index.tsx` | adapted |
 | `frontend/src/modules/organization/pages/organizations-list/index.tsx` | `frontend/src/modules/organization/pages/organizations-list/index.tsx` | adapted |
 | `frontend/src/modules/organization/pages/public-organizations-list/index.tsx` | `frontend/src/modules/organization/pages/public-organizations-list/index.tsx` | adapted |
 | `frontend/src/modules/organization/utils/filter-tree.ts` | `frontend/src/modules/organization/pages/organizations-list/index.tsx` | adapted |
