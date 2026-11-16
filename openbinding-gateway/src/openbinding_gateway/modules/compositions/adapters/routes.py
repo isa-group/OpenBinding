@@ -69,7 +69,7 @@ from ..application import compositions, derive, evaluate, graph, language, listi
 from ..application.fork import NameTaken, fork_composition
 from ..application.language import diagnostic_view
 from ..domain.records import values_json
-from .list_query import ListQuery, facets_view, list_query
+from .list_query import BY_NAME, ListQuery, facets_view
 from .language_routes import MAX_DOCUMENT_BYTES, YAML_BODY, YAML_MEDIA_TYPES, document_body
 from .schemas import (
     CheckResult,
@@ -175,7 +175,7 @@ async def list_compositions(
         description="Only compositions with a version linking a revision of this problem (slug or id); none for an "
         "unknown one.",
     ),
-    query: ListQuery = Depends(list_query("name")),
+    query: ListQuery = Depends(BY_NAME),
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
     user: User | None = Depends(get_reader),

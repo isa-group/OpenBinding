@@ -63,5 +63,10 @@ def list_query(default_sort: listing.Sort):
     return read
 
 
+#: The dependencies of the lists: sorted by name by default, or the most recently updated first.
+BY_NAME = list_query("name")
+BY_UPDATE = list_query("updated")
+
+
 def facets_view(facets: dict) -> CompositionFacets:
     return CompositionFacets.model_validate(facets)

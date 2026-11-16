@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
-from typing import Literal
 
 from fastapi import HTTPException, status
 from sqlalchemy import delete, or_, select

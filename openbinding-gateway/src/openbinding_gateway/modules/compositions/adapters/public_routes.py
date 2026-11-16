@@ -21,7 +21,7 @@ from ....access.work_limits import charge_anonymous_read
 from ....db.models import CompositionKind, User
 from ....models.errors import UNAUTHORIZED_RESPONSE
 from ..application import compositions, listing
-from .list_query import ListQuery, facets_view, list_query
+from .list_query import BY_NAME, BY_UPDATE, ListQuery, facets_view
 from .routes import _view as member_view
 from .schemas import (
     CompositionKindName,
@@ -54,7 +54,7 @@ async def list_public_compositions(
     organization: str | None = Query(
         default=None, max_length=64, description="Only the public compositions of this organization (its slug).",
     ),
-    query: ListQuery = Depends(list_query("updated")),
+    query: ListQuery = Depends(BY_UPDATE),
     limit: int = Query(default=24, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     user: User | None = Depends(get_reader),
@@ -99,7 +99,7 @@ async def list_public_compositions(
 async def list_own_compositions(
     q: str | None = Query(default=None, max_length=160, description="Text in the name or the slug."),
     archived: bool | None = Query(default=None, description="Only archived (`true`) or only active (`false`) ones."),
-    query: ListQuery = Depends(list_query("name")),
+    query: ListQuery = Depends(BY_NAME),
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
     user: User = Depends(get_current_user),
