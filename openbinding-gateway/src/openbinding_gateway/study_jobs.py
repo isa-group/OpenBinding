@@ -31,13 +31,14 @@ from .job_dispatch import dispatch_persisted_job
 from .jobs import lifecycle
 from .jobs.leases import aware
 from .models.errors import api_error
-from .modules.execution.application import STUDY_CELL_KEY_PREFIX, RunRequest
+from .modules.execution.application import STUDY_CELL_KEY_PREFIX, PresetRef, RunRequest, preset_by_ref, settings_of
+from .security.apikeys import ENGINE_REF_FIELDS, allows_engine
 from .security.roles import require_work_role
-from .services.engines import engine_mode, manifest_async
+from .services.engines import engine_mode, engine_ref, manifest_async
 from .services.entitlements import entitlement_service
 from .services.job_submission import JobSubmission, discard_pending_launches, pending_launches
 from .modules.problems.application import compile_or_get
-from .models.platform import StudyDefinition
+from .models.platform import StudyDefinition, study_engine_identity, study_preset_ref
 from .studies import aggregate_metrics, expand_study, frozen_definition
 from bim_core.canonical import digest
 
@@ -52,6 +53,8 @@ class StudyLaunchError(RuntimeError):
 
 
 def metrics_from_job(job: Job, cell: StudyCell) -> dict[str, Any]:
+    """What a cell keeps of its run. ``objectives`` are those of the run's first solution, so ``solutionIndex``
+    is 0: the ``point`` a composition derived from this cell names (``deriveComposition``)."""
     result = job.result if isinstance(job.result, dict) else {}
     solutions = result.get("solutions") if isinstance(result.get("solutions"), list) else []
     first = solutions[0] if solutions and isinstance(solutions[0], dict) else {}
@@ -65,6 +68,7 @@ def metrics_from_job(job: Job, cell: StudyCell) -> dict[str, Any]:
         "feasible": job.state is JobState.COMPLETED and job.termination != "INFEASIBLE",
         "termination": job.termination,
         "objectives": objectives,
+        "solutionIndex": 0 if first else None,
         "runtimeSeconds": runtime,
         "engine": (
             f"{cell.engine_ref.get('namespace')}/{cell.engine_ref.get('name')}"
@@ -204,6 +208,85 @@ def study_binding_space_refusal(compilations: Iterable[ProblemCompilation]) -> R
     return None
 
 
+#: The fields of a study engine as a run freezes it.
+FROZEN_ENGINE_FIELDS = ("namespace", "name", "version", "digest", "mode", "optimization", "options", "preset")
+
+
+def _frozen_engine(engine: dict[str, Any]) -> dict[str, Any]:
+    """An exact study engine in its frozen shape: every field, ``options`` ``{}`` and ``preset`` ``None`` when
+    it has none."""
+    return {
+        **{key: engine.get(key) for key in FROZEN_ENGINE_FIELDS},
+        "options": dict(engine.get("options") or {}),
+    }
+
+
+async def _engine_of_preset(
+    session: AsyncSession, organization: Organization, user: User, ref: str
+) -> dict[str, Any]:
+    """The exact study engine a run preset of ``organization`` expands to, with the preset as provenance.
+
+    The engine is resolved to an exact revision and the mode to an id, as for an engine picked by hand.
+    422 ``preset_not_found`` (no preset of the organization by that slug or id), ``preset_federated`` (it
+    runs a registered engine), ``preset_incomplete`` (it names no optimization) or ``invalid_engine`` (its
+    engine, mode or options no longer resolve).
+    """
+    preset = await preset_by_ref(session, organization.id, ref)
+    if preset is None:
+        raise api_error(422, "preset_not_found", f"This organization has no run preset {ref!r}.")
+    settings = settings_of(preset)
+    if settings.registration is not None:
+        raise api_error(422, "preset_federated", "Presets of federated engines cannot join a study yet.")
+    if settings.optimization is None:
+        raise api_error(
+            422, "preset_incomplete", f"Run preset {preset.slug!r} names no optimization, which a study engine needs.",
+        )
+    exact = settings.engine if isinstance(settings.engine, dict) else {}
+    try:
+        manifest, mode, _ = await engine_mode(
+            exact.get("name", settings.engine), settings.mode, settings.options, session, caller=user,
+            namespace=exact.get("namespace"), version=exact.get("version"), manifest_digest=exact.get("digest"),
+        )
+    except HTTPException as exc:
+        raise api_error(
+            422, "invalid_engine", f"Run preset {preset.slug!r} does not resolve to an engine mode: {exc.detail}",
+        ) from exc
+    return {
+        **(dict(exact) if exact else engine_ref(manifest)),
+        "mode": mode["id"],
+        "optimization": dict(settings.optimization),
+        "options": dict(settings.options),
+        "preset": PresetRef(preset.id, preset.slug).as_json(),
+    }
+
+
+async def study_engines(
+    session: AsyncSession, organization: Organization, user: User, definition: StudyDefinition
+) -> list[dict[str, Any]]:
+    """The engines of ``definition`` as a run freezes them: each ``{preset}`` expanded (``_engine_of_preset``),
+    every engine in the frozen shape (``FROZEN_ENGINE_FIELDS``).
+
+    Two engines that come out the same (revision, mode, optimization and options) refuse the run, 422
+    ``duplicate_study_engines``; an engine an API key does not grant, 403 ``api_key_engine_forbidden``.
+    """
+    engines = []
+    for engine in definition.engines:
+        ref = study_preset_ref(engine)
+        engines.append(
+            await _engine_of_preset(session, organization, user, ref) if ref is not None else _frozen_engine(engine)
+        )
+    if len({study_engine_identity(engine) for engine in engines}) != len(engines):
+        raise api_error(
+            422, "duplicate_study_engines", "Two engines of the study (after its presets are expanded) are the same.",
+        )
+    if not all(allows_engine(user, {key: engine[key] for key in ENGINE_REF_FIELDS}) for engine in engines):
+        raise api_error(
+            403, "api_key_engine_forbidden",
+            "This API key does not grant every exact Engine revision the study's presets expand to.",
+        )
+    return engines
+
+
 async def create_study_run(
     session: AsyncSession,
     study: Study,
@@ -220,6 +303,7 @@ async def create_study_run(
     compilation of its revision. Plan checks (feature, cell limit) are the caller's.
     """
     definition = StudyDefinition.model_validate(study.definition)
+    engines = await study_engines(session, organization, user, definition)
     pinned = await pin_compilations(session, organization.id, definition.revision_ids)
     refusal = study_binding_space_refusal(compilation for _, _, compilation in pinned)
     if refusal is not None:
@@ -235,8 +319,10 @@ async def create_study_run(
             "irDigest": compilation.ir_digest,
         }
         for revision, problem, compilation in pinned
-    ])
-    expanded = expand_study(definition, {item["revisionId"]: item["compilationId"] for item in frozen["problems"]})
+    ], engines)
+    expanded = expand_study(
+        definition, {item["revisionId"]: item["compilationId"] for item in frozen["problems"]}, engines,
+    )
     await session.execute(select(Study.id).where(Study.id == study.id).with_for_update())
     number = int(await session.scalar(
         select(func.max(StudyRun.run_number)).where(StudyRun.study_id == study.id)
@@ -296,11 +382,14 @@ async def launch_study_cell(
     engine = dict(cell.engine_ref)
     requested_mode = engine.pop("mode", None)
     execution_optimization = engine.pop("optimization", None)
+    # The engine's options (a preset's) under the cell's parameter set, which wins a name both give.
+    base_options = engine.pop("options", None) or {}
+    provenance = engine.pop("preset", None)
     try:
         _, selected_mode, _ = await engine_mode(
             engine["name"],
             requested_mode,
-            cell.parameters,
+            {**base_options, **cell.parameters},
             session,
             caller=user,
             namespace=engine["namespace"],
@@ -311,7 +400,7 @@ async def launch_study_cell(
         detail = exc.detail if isinstance(exc, HTTPException) else "Invalid engine reference."
         raise StudyLaunchError("invalid_engine", str(detail)) from exc
 
-    options = dict(cell.parameters)
+    options = {**base_options, **cell.parameters}
     properties = selected_mode.get("optionsSchema", {}).get("properties", {})
     if isinstance(properties, dict) and "seed" in properties:
         options["seed"] = cell.seed
@@ -321,7 +410,7 @@ async def launch_study_cell(
     # job keeps its key, so the replacement goes without one.
     key: str | None = f"{STUDY_CELL_KEY_PREFIX}{cell.id}"
     held = await session.scalar(
-        select(Job.id).where(Job.owner_id == user.id, Job.idempotency_key == key).limit(1)
+        select(Job.id).where(Job.created_by_id == user.id, Job.idempotency_key == key).limit(1)
     )
     if held is not None:
         key = None
@@ -339,6 +428,7 @@ async def launch_study_cell(
         options=options,
         idempotency_key=key,
         compilation_id=cell.compilation_id,
+        preset=PresetRef(uuid.UUID(provenance["id"]), provenance["slug"]) if provenance else None,
     )
     pending = pending_launches(session)
     before = set(pending)

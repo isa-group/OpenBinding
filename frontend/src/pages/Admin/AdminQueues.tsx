@@ -113,7 +113,7 @@ export function QueuesSection() {
                     <Tag tone={job.state === 'running' ? 'info' : 'plain'}>{job.state === 'running' ? 'Running' : 'Queued'}</Tag>
                     <span className="adm-job-copy">
                       <span><strong className="is-mono">{job.engine}</strong>{' '}
-                        <span className="adm-muted">· {job.ownerId ? <Link to={`/app/admin/users/${job.ownerId}`} title={job.ownerId}>account {shortId(job.ownerId)}</Link> : 'no owner'} · run <span className="is-mono">{shortId(job.id)}</span></span>
+                        <span className="adm-muted">· {job.createdById ? <Link to={`/app/admin/users/${job.createdById}`} title={job.createdById}>account {shortId(job.createdById)}</Link> : 'no owner'} · run <span className="is-mono">{shortId(job.id)}</span></span>
                       </span>
                       <span className="adm-muted">Since {formatDateTime(job.createdAt) ?? job.createdAt} · budget {job.budgetSeconds > 0 ? formatDuration(job.budgetSeconds) : 'plan default'}</span>
                     </span>

@@ -215,7 +215,7 @@ async def test_a_problem_a_run_names_is_kept(api_client, registration, db_sessio
     compilation = await db_session.scalar(select(ProblemCompilation).where(ProblemCompilation.revision_id == revision_id))
     problem = await db_session.get(BindingCase, uuid.UUID(created["problem"]["id"]))
     db_session.add(Job(
-        owner_id=uuid.UUID(account["id"]), engine_id="random-search", engine_job_id="e", service_url="http://engine",
+        created_by_id=uuid.UUID(account["id"]), engine_id="random-search", engine_job_id="e", service_url="http://engine",
         state=JobState.COMPLETED, revision_id=revision_id, compilation_id=compilation.id,
         organization_id=problem.organization_id,
     ))
@@ -307,6 +307,50 @@ async def test_seeded_runs_reference_their_problem(db_session):
     db_session.add(user)
     await db_session.flush()
 
-    seeded = await seed_problem_run(db_session, owner_id=user.id)
+    seeded = await seed_problem_run(db_session, created_by_id=user.id)
 
     assert (await db_session.get(BindingCaseRevision, seeded["revision_id"])).binding_case_id == seeded["problem_id"]
+
+
+# -- Filtering by the composition that links a problem (F2b B3) -------------------------------------------
+
+
+async def test_the_list_filters_on_the_composition_that_links_a_problem(
+    api_client, registration, db_session, gate  # noqa: F811
+):
+    from _b3_links import an_organization_with_links
+
+    world = await an_organization_with_links(api_client, registration, db_session, gate)
+    url = f"/v1/organizations/{world.org}/problems"
+
+    async def listed(**params):
+        response = await api_client.get(url, params=params, headers=world.headers)
+        assert response.status_code == 200, response.text
+        return response.json()
+
+    every = await listed()
+    assert sorted(row["slug"] for row in every["problems"]) == sorted([world.linked.slug, world.other.slug])
+    assert {row["latest_revision"]["origin"] for row in every["problems"]} == {"upload"}
+    for ref in ("shop", world.shop["id"]):
+        found = await listed(composition=ref)
+        assert [row["slug"] for row in found["problems"]] == [world.linked.slug] and found["total"] == 1
+    assert (await listed(composition="plain")) == {"problems": [], "total": 0, "limit": 50, "offset": 0}
+    for unknown in ("nowhere", str(uuid.uuid4())):
+        assert (await listed(composition=unknown)) == {"problems": [], "total": 0, "limit": 50, "offset": 0}
+    assert (await listed(composition="shop", origin="editor"))["problems"] == []
+
+
+async def test_the_composition_filter_reads_only_the_callers_organization(
+    api_client, registration, db_session, gate  # noqa: F811
+):
+    from _b3_links import an_organization_with_links
+
+    world = await an_organization_with_links(api_client, registration, db_session, gate)
+    elsewhere = await make_org(api_client, world.headers)
+    await upload_problem(api_client, world.headers, elsewhere)
+
+    response = await api_client.get(
+        f"/v1/organizations/{elsewhere}/problems", params={"composition": world.shop["id"]}, headers=world.headers,
+    )
+
+    assert response.status_code == 200 and response.json()["problems"] == []

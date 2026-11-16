@@ -155,9 +155,9 @@ async def test_a_run_below_the_organization_keeps_everything(two_sessions):
     upload = await problem_for(session, user)
     organization = await session.get(Organization, upload.problem.organization_id)
     child = await _child(session, organization, user)
-    seeded = await seed_problem_run(session, owner_id=user.id, organization_id=child.id)
+    seeded = await seed_problem_run(session, created_by_id=user.id, organization_id=child.id)
     session.add(Job(
-        owner_id=user.id, engine_id="random-search", engine_job_id="", service_url="http://engine",
+        created_by_id=user.id, engine_id="random-search", engine_job_id="", service_url="http://engine",
         state=JobState.COMPLETED, **run_refs(seeded),
     ))
     await session.commit()
@@ -191,12 +191,12 @@ async def test_a_run_written_while_the_delete_starts_is_seen_by_the_check(two_se
     user = await _user(session)
     upload = await problem_for(session, user)
     organization = await session.get(Organization, upload.problem.organization_id)
-    seeded = await seed_problem_run(session, owner_id=user.id, organization_id=organization.id)
+    seeded = await seed_problem_run(session, created_by_id=user.id, organization_id=organization.id)
     await session.commit()
     ids, slug = [organization.id], organization.slug
     # The insert holds a key-share lock on the organization until it commits, as createRun's does.
     writer.add(Job(
-        owner_id=user.id, engine_id="random-search", engine_job_id="", service_url="http://engine",
+        created_by_id=user.id, engine_id="random-search", engine_job_id="", service_url="http://engine",
         state=JobState.QUEUED, **run_refs(seeded),
     ))
     await writer.flush()
@@ -241,9 +241,9 @@ async def test_a_run_the_check_misses_is_caught_by_the_foreign_key_with_the_same
     user = await _user(session)
     upload = await problem_for(session, user)
     organization = await session.get(Organization, upload.problem.organization_id)
-    seeded = await seed_problem_run(session, owner_id=user.id, organization_id=organization.id)
+    seeded = await seed_problem_run(session, created_by_id=user.id, organization_id=organization.id)
     session.add(Job(
-        owner_id=user.id, engine_id="random-search", engine_job_id="", service_url="http://engine",
+        created_by_id=user.id, engine_id="random-search", engine_job_id="", service_url="http://engine",
         state=JobState.COMPLETED, **run_refs(seeded),
     ))
     await session.commit()

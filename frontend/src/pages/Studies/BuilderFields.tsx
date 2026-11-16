@@ -6,6 +6,8 @@ import { Chip } from '../../components/ui/Chip';
 import { problemsPath } from '../../routes/paths/problems';
 import { formatDate } from '../../utils/format';
 import { engineLabel } from '../../shared/lib/identity';
+import { presetEngineText, presetOptionsText, studyPresetRefusal } from '../../entities/preset/preset';
+import type { RunPresetView } from '../../shared/api/types';
 import {
   MAX_SETTINGS, latestExecutable, offeredRevisions, plural, readVariant,
   describeParameters, type EngineChoice, type Variant,
@@ -54,9 +56,64 @@ export function CasesField({ cases, selected, onChange, org }: CasesFieldProps) 
   );
 }
 
-/** 2 · Engines: every engine revision with the modes it offers; a study pins both. */
-export function EnginesField({ choices, selected, onChange, failed }: {
-  choices: readonly EngineChoice[]; selected: readonly string[]; onChange: (keys: string[]) => void; failed: boolean;
+interface PresetRowsProps {
+  /** The organization's run presets; `null` when they could not be read. */
+  presets: readonly RunPresetView[] | null;
+  /** The slugs of the presets the study names. */
+  selected: readonly string[];
+  onChange: (slugs: string[]) => void;
+  /** Where the organization's presets are managed. */
+  manageHref: string;
+}
+
+/**
+ * "Add from a run preset": each preset picked becomes a `{preset}` engine row that every run expands into the preset's exact engine,
+ * mode, options and optimization. A preset no study can take is listed, turned off, with the reason.
+ */
+function PresetRows({ presets, selected, onChange, manageHref }: PresetRowsProps) {
+  const toggle = (slug: string) => onChange(selected.includes(slug) ? selected.filter((item) => item !== slug) : [...selected, slug]);
+  return (
+    <div className="st-presets">
+      <span className="st-subhead">Add from a run preset</span>
+      {presets === null && <p className="st-empty-line">The organization’s run presets couldn’t be loaded.</p>}
+      {presets !== null && presets.length === 0 && (
+        <p className="st-empty-line">This organization has no run preset yet. <Link to={manageHref} viewTransition>Create one</Link> to reuse its settings here.</p>
+      )}
+      {presets !== null && presets.length > 0 && (
+        <div className="st-options" role="group" aria-label="Run presets">
+          {presets.map((preset) => {
+            const refusal = studyPresetRefusal(preset);
+            const about = `st-preset-${preset.id}`;
+            return (
+              <label key={preset.id} className={`st-option${refusal ? ' is-disabled' : ''}`}>
+                <input
+                  type="checkbox"
+                  aria-label={`${preset.name} · run preset`}
+                  aria-describedby={about}
+                  checked={selected.includes(preset.slug)}
+                  disabled={refusal !== null}
+                  onChange={() => toggle(preset.slug)}
+                />
+                <span className="st-option-text">
+                  <span className="st-option-line">
+                    {preset.name}
+                    <Chip>preset</Chip>
+                  </span>
+                  <small id={about}>{presetEngineText(preset)} · {presetOptionsText(preset.options)}{refusal ? `. ${refusal}` : ''}</small>
+                </span>
+              </label>
+            );
+          })}
+        </div>
+      )}
+      <small className="org-muted">Each run copies the preset’s settings when it starts, so editing the preset changes only the runs after it.</small>
+    </div>
+  );
+}
+
+/** 2 · Engines: every engine revision with the modes it offers (a study pins both), and the organization's run presets. */
+export function EnginesField({ choices, selected, onChange, failed, presets }: {
+  choices: readonly EngineChoice[]; selected: readonly string[]; onChange: (keys: string[]) => void; failed: boolean; presets: PresetRowsProps;
 }) {
   const toggle = (key: string) => onChange(selected.includes(key) ? selected.filter((item) => item !== key) : [...selected, key]);
   return (
@@ -78,6 +135,7 @@ export function EnginesField({ choices, selected, onChange, failed }: {
           </label>
         ))}
       </div>
+      <PresetRows {...presets} />
     </fieldset>
   );
 }

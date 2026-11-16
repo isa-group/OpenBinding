@@ -19,6 +19,22 @@ and a loop) and ``ambiguous`` (``01_simple_seq`` with a second catalog that give
 a candidate of the same id, so a document must write it ``<resource>/<id>``). ``ambiguous`` is
 built here rather than checked in, because a checked-in package would join the BIM corpus.
 
+One package is refused on purpose, for the editor's located diagnostics:
+
+* ``refused.validate.json``: the 422 body of ``validateBimPackage?include=facts`` for
+  ``15_bpmn_complete`` broken in five places (see :func:`refused_files`): a candidate feature
+  value outside its declared domain, a constraint whose expression does not parse (a ``span``
+  inside the expression string), a BPMN task no Application task maps (``bpmnElement``),
+  a capacity rule naming an unknown dimension (a pointer into an array inside an array) and an
+  event latency entry naming an unknown pool (a pointer through an array to an object). Some
+  findings name the resource by its id (``placement``), not by its file;
+* ``refused.package.json``: that package's files, by path, as the text that was sent, so the
+  frontend resolves each pointer and span against the bytes the compiler read.
+
+The compiler stops before its semantic checks when a resource fails its schema or a BPMN file
+fails XML validation, so a schema finding (whose pointer may carry an unescaped ``/``) or a
+duplicate BPMN id (the only finding with ``related`` locations) cannot share this body.
+
 Every run mints fresh ids and instants, so the bodies are normalised before they are written:
 each distinct UUID becomes ``00000000-0000-4000-8000-<12-digit counter>`` in order of first
 appearance across the fixture set (files in a fixed order, keys sorted), and each ISO-8601
@@ -41,6 +57,7 @@ import re
 import sys
 import tempfile
 from datetime import datetime, timedelta, timezone
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -80,6 +97,42 @@ def ambiguous_files() -> dict[str, bytes]:
     return files
 
 
+#: The demo package :func:`refused_files` breaks.
+REFUSED_SOURCE = DEMO / "15_bpmn_complete"
+
+
+def _edited(files: dict[str, bytes], name: str, change: Callable[[dict[str, Any]], None]) -> None:
+    document = json.loads(files[name])
+    change(document["spec"])
+    files[name] = (json.dumps(document, indent=2) + "\n").encode("utf-8")
+
+
+def refused_files() -> dict[str, bytes]:
+    """``15_bpmn_complete`` with five findings the compiler reports together (see the module docstring)."""
+    files = {path.name: path.read_bytes() for path in sorted(REFUSED_SOURCE.iterdir()) if path.is_file()}
+
+    def out_of_domain(spec: dict[str, Any]) -> None:
+        spec["candidates"]["auth-edge"]["features"]["latency"] = 900  # the domain is [0, 500]
+
+    def unparsable(spec: dict[str, Any]) -> None:
+        spec["constraints"]["end_to_end_latency"]["assert"] = "features.latency <= "
+
+    def unknown_dimension_and_pool(spec: dict[str, Any]) -> None:
+        spec["capacityRules"][0]["resources"][1] = "gpu"
+        spec["events"]["client-request"]["latency"][1]["pool"]["id"] = "nowhere"
+
+    _edited(files, "candidates.json", out_of_domain)
+    _edited(files, "constraints.json", unparsable)
+    _edited(files, "placement.json", unknown_dimension_and_pool)
+    audit = b'<bpmn:serviceTask id="audit" name="Audit" />'
+    if audit not in files["workflow.bpmn"]:
+        raise SystemExit(f"{REFUSED_SOURCE.name}: workflow.bpmn no longer declares the task 'audit'")
+    files["workflow.bpmn"] = files["workflow.bpmn"].replace(
+        audit, audit + b'\n    <bpmn:serviceTask id="orphan" name="Orphan" />',
+    )
+    return files
+
+
 def _archive(directory: Path | None) -> bytes:
     from openbinding_gateway.integrations import packages
 
@@ -98,6 +151,7 @@ async def _bodies(work: Path) -> dict[str, Any]:
     from openbinding_gateway.core.ratelimit import AuthRateLimiter, set_auth_limiter
     from openbinding_gateway.core.settings import get_settings
     from openbinding_gateway.db.base import Base
+    from openbinding_gateway.integrations import packages
     from openbinding_gateway.main import app
     from openbinding_gateway.space_client import OpenGate
 
@@ -156,6 +210,12 @@ async def _bodies(work: Path) -> dict[str, Any]:
                     version, diff = await _versions(client, headers, name, bodies[f"{name}.facts.json"])
                     bodies[f"{name}.version.json"] = version
                     bodies[f"{name}.diff.json"] = diff
+                refused = refused_files()
+                answer = await client.post(
+                    "/v1/bim/validate", params={"include": "facts"}, content=packages.zip_files(refused), headers=ZIP,
+                )
+                bodies["refused.validate.json"] = _ok(answer, 422).json()
+                bodies["refused.package.json"] = {path: content.decode("utf-8") for path, content in refused.items()}
     finally:
         app.dependency_overrides.clear()
         space_client.set_gate(None)

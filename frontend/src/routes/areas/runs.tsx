@@ -4,12 +4,12 @@ import type { RouteDefinition } from '../types';
 
 // Area: runs. Launching and following the runs of an organization.
 
-const JobLaunch = lazy(() => import('../../pages/Jobs/JobLaunch').then((module) => ({ default: module.JobLaunch })));
-const JobList = lazy(() => import('../../pages/Jobs/JobList').then((module) => ({ default: module.JobList })));
-const JobDetail = lazy(() => import('../../pages/Jobs/JobDetail').then((module) => ({ default: module.JobDetail })));
+const RunLaunch = lazy(() => import('../../pages/Runs/RunLaunch').then((module) => ({ default: module.RunLaunch })));
+const RunList = lazy(() => import('../../pages/Runs/RunList').then((module) => ({ default: module.RunList })));
+const RunDetail = lazy(() => import('../../pages/Runs/RunDetail').then((module) => ({ default: module.RunDetail })));
 
 export const routes: RouteDefinition[] = [
-  live('job-launch', '/app/:org/runs/new', <JobLaunch />),
-  live('job-list', '/app/:org/runs', <JobList />),
-  live('job-detail', '/app/:org/runs/:job', <JobDetail />),
+  live('run-launch', '/app/:org/runs/new', <RunLaunch />),
+  live('run-list', '/app/:org/runs', <RunList />),
+  live('run-detail', '/app/:org/runs/:job', <RunDetail />),
 ];

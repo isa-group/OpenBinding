@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { CaseContent } from '../../features/workspace/model';
-import { axisOf, cellsCsv, engineRows, measureTitle, percentOf, rankEngines, scatterOf, seedGroups, spreadOf } from './analyticsModel';
-import { CHECKOUT, REVISION_1, REVISION_2, cellFixture, cellsFixture, RANDOM_SEARCH } from '../../test/fixtures/studies';
-import { measuresOf, revisionIndex } from './studiesModel';
+import { axisOf, engineRows, measureTitle, percentOf, rankEngines, scatterOf, seedGroups, spreadOf } from './analyticsModel';
+import { CHECKOUT, REVISION_1, REVISION_2, cellsFixture } from '../../test/fixtures/studies';
+import { revisionIndex } from './studiesModel';
 
 const cases: CaseContent[] = [{ item: CHECKOUT, revisions: [REVISION_1, REVISION_2] }];
 const index = revisionIndex(cases);
@@ -60,20 +60,20 @@ describe('engines side by side', () => {
 
 describe('trade-offs between two objectives', () => {
   const cells = cellsFixture();
+  const front = new Set([cells[0].id, cells[3].id, cells[4].id, cells[6].id]);
 
-  it('marks the cells nobody beats on both, one case at a time', () => {
-    const first = scatterOf(cells, REVISION_1.id, 'cost', 'latency');
+  it('marks the cells the gateway put on the front, one case at a time, and compares nothing itself', () => {
+    const first = scatterOf(cells, REVISION_1.id, 'cost', 'latency', front);
     expect(first).toHaveLength(3);
-    // 0.121 / 430 is beaten on both measures by 0.118 / 412; the other two each win on one.
-    expect(first.filter((point) => point.front).map((point) => point.cell.ordinal).sort()).toEqual([0, 3]);
-    expect(first.find((point) => point.cell.ordinal === 2)?.front).toBe(false);
-    const second = scatterOf(cells, REVISION_2.id, 'cost', 'latency');
-    expect(second.filter((point) => point.front).map((point) => point.cell.ordinal).sort()).toEqual([4, 6]);
-    expect(second.find((point) => point.cell.ordinal === 7)?.front).toBe(false);
+    expect(first.filter((point) => point.front).map((point) => point.cell.ordinal)).toEqual([0, 3]);
+    const second = scatterOf(cells, REVISION_2.id, 'cost', 'latency', front);
+    expect(second.filter((point) => point.front).map((point) => point.cell.ordinal)).toEqual([4, 6]);
+    // A cell the gateway left off its front stays off, whatever its values.
+    expect(scatterOf(cells, REVISION_2.id, 'cost', 'latency', new Set()).some((point) => point.front)).toBe(false);
   });
 
   it('leaves out the cells that lack either measure', () => {
-    expect(scatterOf(cells, REVISION_1.id, 'cost', 'nothing')).toEqual([]);
+    expect(scatterOf(cells, REVISION_1.id, 'cost', 'nothing', front)).toEqual([]);
   });
 });
 
@@ -86,17 +86,5 @@ describe('seed to seed', () => {
     expect(random?.spread).toBeCloseTo(0.003, 6);
     const failed = groups.find((group) => group.label === 'Checkout flow r1 · evolutionary');
     expect(failed?.spread).toBeNull();
-  });
-});
-
-describe('the CSV of a run', () => {
-  it('has one row per cell with the objectives as columns and quotes what needs it', () => {
-    const cells = [...cellsFixture().slice(0, 3), cellFixture(9, REVISION_2, RANDOM_SEARCH, 7, 'completed', { feasible: true, objectives: { cost: 1 }, runtimeSeconds: 2 }, { parameters: { note: 'a "b", c' } })];
-    const text = cellsCsv(cells, measuresOf(cells), index);
-    const lines = text.split('\n');
-    expect(lines[0]).toBe('cell,case_revision,engine,engine_version,mode,setting,seed,state,feasible,cost,latency,runtime_seconds,job_id,fingerprint');
-    expect(lines).toHaveLength(5);
-    expect(lines[1]).toContain('Checkout flow · version 1,evolutionary,1.0.0,genetic,Engine defaults,1,completed,true,0.112,440,120');
-    expect(lines[4]).toContain('"note a ""b"", c"');
   });
 });

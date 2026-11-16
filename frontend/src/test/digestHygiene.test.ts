@@ -54,7 +54,7 @@ const EXEMPT_FILES: readonly string[] = [
   '/src/components/rendering/SourceView.tsx',
   // fixtures: sample data for tests and demos, with realistic digests and ids
   '/src/components/rendering/runResultFixtures.ts',
-  '/src/pages/Cases/fixtures.ts',
+  '/src/pages/Problems/fixtures.ts',
   '/src/pages/Organization/auditFixture.ts',
   '/src/pages/Pricing/pricingFixture.ts',
   '/src/test/fixtures/admin.ts',
@@ -66,6 +66,7 @@ const EXEMPT_FILES: readonly string[] = [
   '/src/test/fixtures/boundaries/src/widgets/alpha/index.ts',
   '/src/test/fixtures/engines.ts',
   '/src/test/fixtures/jobs.ts',
+  '/src/test/fixtures/presets.ts',
   '/src/test/fixtures/resources.ts',
   '/src/test/fixtures/studies.ts',
   // test support under src/test/, not shipped behaviour

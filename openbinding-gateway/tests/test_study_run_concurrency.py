@@ -147,7 +147,7 @@ async def test_a_sync_locks_the_run_and_its_cells_before_it_launches_the_next_ce
         order.extend(first_locks(taken))
         order.append("launch")
         job = Job(
-            owner_id=user.id, engine_id="random-search", engine_job_id=str(uuid.uuid4()),
+            created_by_id=user.id, engine_id="random-search", engine_job_id=str(uuid.uuid4()),
             service_url="http://engine", state=JobState.QUEUED, study_cell_id=cell.id,
             organization_id=organization.id, **placeholder_refs('organization_id'),
         )

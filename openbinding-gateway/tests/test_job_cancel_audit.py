@@ -58,11 +58,11 @@ async def test_cancelling_a_queued_study_job_cancels_its_cell_and_is_audited(api
     run = await db_session.get(StudyRun, uuid.UUID(world.run["id"]))
     assert run.state is RunState.PARTIAL  # the other cell finished, so the run is over
     [event] = await events(db_session, "job.cancelled")
-    assert event.actor_id == job.owner_id
+    assert event.actor_id == job.created_by_id
     assert event.target_type == "Job" and event.target_id == job.id
     assert event.organization_id == job.organization_id
     assert event.detail == {
-        "jobId": str(job.id), "ownerId": str(job.owner_id),
+        "jobId": str(job.id), "createdById": str(job.created_by_id),
         "previousState": "queued", "result": "cancelled",
     }
 
@@ -106,11 +106,11 @@ async def test_retrying_a_job_is_audited_once(api_client, db_session, world):
     assert replay.status_code == 202, replay.text
     assert replay.json()["id"] == first.json()["id"]
     [event] = await events(db_session, "job.retried")
-    assert event.actor_id == original.owner_id
+    assert event.actor_id == original.created_by_id
     assert event.target_type == "Job" and event.target_id == uuid.UUID(first.json()["id"])
     assert event.organization_id == original.organization_id
     assert event.detail == {
-        "jobId": str(original.id), "ownerId": str(original.owner_id),
+        "jobId": str(original.id), "createdById": str(original.created_by_id),
         "replacementJobId": first.json()["id"], "result": "retried",
     }
 

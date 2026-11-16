@@ -29,7 +29,7 @@ const latest = VERSION_NUMBERS.length;
 const problem = {
   id: 'problem-routing', organization_id: 'org-acme', slug: PROBLEM_SLUG, name: 'Routing', description: 'A routing problem',
   created_by_id: 'user-1', created_at: NOW, updated_at: NOW,
-  latest_revision: { id: `rev-${latest}`, revision: latest, package_digest: revision(latest).package_digest, created_at: NOW },
+  latest_revision: { id: `rev-${latest}`, revision: latest, package_digest: revision(latest).package_digest, created_at: NOW, origin: 'upload' },
 };
 
 const revisionDetail = (n: number) => ({
@@ -120,10 +120,29 @@ const cell = {
   compilation_id: 'compilation-1', parameters: {}, seed: 1, fingerprint: 'fp-c7', job_id: 'j9', state: 'completed', metrics: {},
 };
 
-const analytics = (cells: number) => ({
+/** The gateway's Pareto front of r1: the one point of cell c7, which ran as the run j9. */
+const FRONT = [{
+  revision_id: 'rev-1', problem: { slug: PROBLEM_SLUG }, revision: 1, objectives: ['cost', 'latency'],
+  points: [{ cell_id: 'c7', job_id: 'j9', solution_index: 0, engine: 'multi-heuristic', objectives: { cost: 3, latency: 120 } }],
+}];
+
+const analytics = (cells: number, pareto: unknown[] = []) => ({
   cells, completed: cells, failed: 0, feasible: cells, infeasible: 0, objective_distributions: {}, runtimes_s: [],
-  pareto: [], stability: {}, binding_space: null,
+  pareto, stability: {}, binding_space: null,
 });
+
+/** The gateway's export of a study run: an attachment named `<study>-run-<n>.<format>` by its Content-Disposition. */
+async function answerExport(page: Page, path: string, name: string): Promise<void> {
+  await page.route((url) => url.origin + url.pathname === `${API}${path}`, (route) => {
+    const format = new URL(route.request().url()).searchParams.get('format') === 'json' ? 'json' : 'csv';
+    return route.fulfill({
+      status: 200,
+      contentType: format === 'csv' ? 'text/csv; charset=utf-8' : 'application/json',
+      body: format === 'csv' ? 'cell_id,problem,revision\nc7,routing,1\n' : '{"cells":[]}',
+      headers: { 'Content-Disposition': `attachment; filename="${name}.${format}"`, 'Access-Control-Expose-Headers': 'Content-Disposition' },
+    });
+  });
+}
 
 /** Study `s1` of acme with the study runs r1 and r2 (r2 the latest) and the cell c7 of r1 that ran as the run j9; study `s0` has none. */
 export async function mockStudies(page: Page, options: MockOptions = {}): Promise<Recorded[]> {
@@ -136,7 +155,8 @@ export async function mockStudies(page: Page, options: MockOptions = {}): Promis
   for (const run of STUDY_RUNS) {
     const base = `/v1/organizations/acme/studies/s1/runs/${run.id}`;
     await answer(page, base, run);
-    await answer(page, `${base}/analytics`, analytics(run.id === 'r1' ? 11 : 22));
+    await answer(page, `${base}/analytics`, run.id === 'r1' ? analytics(11, FRONT) : analytics(22));
+    await answerExport(page, `${base}/export`, `s1-run-${run.run_number}`);
     await answer(page, `${base}/cells`, [{ ...cell, study_run_id: run.id }]);
     await answer(page, `${base}/cells/c7`, { ...cell, study_run_id: run.id });
     await answer(page, `${base}/cells/c7/result`, { job_id: 'j9' });

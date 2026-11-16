@@ -42,7 +42,7 @@ async def create(session, owner: User, caps: PlanCaps):
     refusal = await limits.enforce_concurrency_limit(session, owner.id, limit=TECHNICAL_CAP, caps=caps)
     if refusal is None:
         session.add(Job(
-            owner_id=owner.id, engine_id="random-search", engine_job_id=str(uuid.uuid4()),
+            created_by_id=owner.id, engine_id="random-search", engine_job_id=str(uuid.uuid4()),
             service_url="http://engine", state=JobState.QUEUED, **owner.refs,
         ))
     await session.commit()

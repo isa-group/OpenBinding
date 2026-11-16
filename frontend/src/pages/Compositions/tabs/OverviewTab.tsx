@@ -1,7 +1,7 @@
 import { Action } from '../../../components/ui/Action';
 import { Notice } from '../../../components/ui/Notice';
 import type { CompositionViewModel } from '../../../entities/composition/viewModel';
-import { problemPath } from '../../../routes/paths/problems';
+import { problemEditorPath, problemPath } from '../../../routes/paths/problems';
 import { runPath } from '../../../routes/paths/runs';
 import type { CompositionVersionView } from '../../../shared/api/types';
 import { CompositionRenderer } from '../../../widgets/composition-renderer/CompositionRenderer';
@@ -17,7 +17,8 @@ export interface CandidatesState {
 /**
  * Overview: the composition in `catalog` mode, then its `architecture` (who serves it) and its `workflow` (how its tasks run,
  * with the linked problem's candidates for a member). The page header already names it, so the catalog leaves its identity
- * out; the problem and the runs it names open for a member.
+ * out; the problem and the runs it names open for a member, who can also show the version's choice on the problem's Candidates tab
+ * or in the problem editor.
  */
 export function OverviewTab({ org, model, version, candidates = null }: {
   org: string; model: CompositionViewModel; version: CompositionVersionView | null; candidates?: CandidatesState | null;
@@ -26,8 +27,23 @@ export function OverviewTab({ org, model, version, candidates = null }: {
   const problemHref = link && model.status.problemReadable
     ? problemPath(org, link.problem.slug, undefined, { version: link.revision.revision })
     : null;
+  // A member opens the linked problem's candidates with the ones this version chose selected.
+  const highlightHref = link && model.status.problemReadable && model.reader === 'member' && model.version
+    ? problemPath(org, link.problem.slug, 'candidates', { version: link.revision.revision, composition: model.identity.slug, compositionVersion: model.version.label })
+    : null;
+  // …or in the problem editor, on that problem version's package, with the same candidates selected.
+  const editorHref = highlightHref && link && model.version
+    ? problemEditorPath(org, { problem: link.problem.slug, revision: link.revision.revision, composition: model.identity.slug, compositionVersion: model.version.label })
+    : null;
   return (
     <div className="cmp-overview">
+      {highlightHref && (
+        <div className="cmp-overview-actions">
+          <Action to={highlightHref} variant="secondary" size="sm">Show on the problem</Action>
+          {editorHref && <Action to={editorHref} variant="secondary" size="sm">Open on its problem in the editor</Action>}
+          <span className="cmp-muted">Opens the problem version this one links, with the candidates it chose selected.</span>
+        </div>
+      )}
       <CompositionRenderer
         model={model}
         mode="catalog"

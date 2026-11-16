@@ -53,7 +53,7 @@ async def a_failed_job_with_evidence(session) -> tuple[User, Job, JobEngineEvide
     """A job that failed with ``bim_evaluation_failed`` and still has the engine's answer."""
     owner = await an_owner(session)
     job = Job(
-        owner_id=owner.id, engine_id="random-search", engine_job_id="engine-1", service_url="http://engine",
+        created_by_id=owner.id, engine_id="random-search", engine_job_id="engine-1", service_url="http://engine",
         state=JobState.FAILED, attempt=1,
         original_request={"mode": {"id": "seeded", "terminationGuarantees": ["FEASIBLE"]}},
         provenance={}, **await compiled_run_refs(session, owner.id),
@@ -78,7 +78,7 @@ async def a_running_job(session) -> tuple[User, Job]:
     """A job claimed by this worker: the lease token is in the session, as the worker keeps it."""
     owner = await an_owner(session)
     job = Job(
-        owner_id=owner.id, engine_id="random-search", engine_job_id="engine-1", service_url="http://engine",
+        created_by_id=owner.id, engine_id="random-search", engine_job_id="engine-1", service_url="http://engine",
         state=JobState.QUEUED, requested_budget_s=600.0, provenance={}, **await compiled_run_refs(session, owner.id),
     )
     session.add(job)

@@ -1,4 +1,5 @@
-import type { BimResourceRef, EngineRegistrationManifest } from '../../api/client';
+import type { EngineRegistrationManifest } from '../../api/client';
+import type { ImmutableResourceRef } from '../../shared/api/types';
 import { isRecord } from '../Engines/registrationModel';
 import { NAME_PATTERN, SEMVER_PATTERN, type Issue } from './engineDraft';
 
@@ -126,7 +127,7 @@ export function validateDeployment(draft: DeploymentDraft, reading: ContractRead
 
 export function buildRegistration(
   draft: DeploymentDraft,
-  engine: BimResourceRef,
+  engine: ImmutableResourceRef,
   namespace: string,
   protocol: { id: string; digest: string },
   openapi: Record<string, unknown>,

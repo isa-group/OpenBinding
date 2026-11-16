@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
+import type { ExactStudyEngine } from '../../api/platform';
 import type { CaseContent } from '../../features/workspace/model';
 import { CHECKOUT, REVISION_1, REVISION_2, cellsFixture, runFixture, studyFixture } from '../../test/fixtures/studies';
 import {
   MAX_SEEDS, defaultSelection, definitionGrid, definitionSize, describeParameters, emptyVariant, engineChoices, enginesOf, explainFailure,
   formatMeasure, formatSeconds, formulaOf, heatLevel, matrixView, measureValue, measuresOf, metricsOf, parametersKey, readSeeds, readVariant, revisionIndex,
   revisionLabel, rivalsOf, seedsOf, definitionOfRun, sameDefinition, breakdownText, slot, definitionEngines, studyCriteriaCount, studyOptimization,
+  engineIdentity, engineRowLabel, frozenEngineFacts, isPresetEngine,
 } from './studiesModel';
 
 const cases: CaseContent[] = [{ item: CHECKOUT, revisions: [REVISION_1, REVISION_2] }];
@@ -24,6 +26,48 @@ describe('the matrix of a study', () => {
     ]);
     expect(grid.numbered).toBe(true);
     expect(definitionGrid({ ...studyFixture().definition, parameter_sets: [{}, { time_budget_ms: 5000 }] }).numbered).toBe(false);
+  });
+
+  it('names a preset row by its preset and numbers no cell: each run expands it', () => {
+    const definition = { ...studyFixture().definition, engines: [...studyFixture().definition.engines, { preset: 'fast-sampling' }] };
+    const grid = definitionGrid(definition);
+    expect(grid.columns.map((column) => column.label).slice(-2)).toEqual(['preset fast-sampling · seed 1', 'preset fast-sampling · seed 2']);
+    expect(grid.numbered).toBe(false);
+    expect(definitionSize(definition).engines).toBe(3);
+  });
+});
+
+describe('the engines of a study', () => {
+  const exact: ExactStudyEngine = {
+    namespace: 'bim.builtin', name: 'random-search', version: '1.0.0', digest: 'sha256-a', mode: 'sampling', optimization: { type: 'SINGLE', scalarization: 'weighted-sum' },
+  };
+
+  it('tells a preset row from an exact engine', () => {
+    expect(isPresetEngine({ preset: 'fast-sampling' })).toBe(true);
+    expect(isPresetEngine(exact)).toBe(false);
+    expect(isPresetEngine({ ...exact, preset: { id: 'p-1', slug: 'fast-sampling' } })).toBe(false);
+    expect(engineRowLabel({ preset: 'fast-sampling' })).toBe('preset fast-sampling');
+    expect(engineRowLabel(exact)).toBe('random-search 1.0.0 (sampling)');
+  });
+
+  it('counts the options in an engine’s identity, in any key order, and not the preset it came from', () => {
+    expect(engineIdentity({ ...exact, options: { a: 1, b: 2 } })).toBe(engineIdentity({ ...exact, options: { b: 2, a: 1 } }));
+    expect(engineIdentity({ ...exact, options: { a: 1 } })).not.toBe(engineIdentity({ ...exact, options: { a: 2 } }));
+    expect(engineIdentity(exact)).toBe(engineIdentity({ ...exact, options: {} }));
+    expect(engineIdentity({ ...exact, preset: { id: 'p-1', slug: 'fast' } })).toBe(engineIdentity(exact));
+    expect(engineIdentity({ preset: 'fast' })).toBe('preset:fast');
+    expect(engineIdentity({ preset: 'fast' })).not.toBe(engineIdentity(exact));
+  });
+
+  it('adds one {preset} row per chosen preset after the exact engines', () => {
+    expect(definitionEngines([], null, ['fast-sampling', 'deep-search'])).toEqual([{ preset: 'fast-sampling' }, { preset: 'deep-search' }]);
+  });
+
+  it('says what a frozen engine ran with and the preset it came from', () => {
+    expect(frozenEngineFacts({ ...exact, options: { time_budget_ms: 30000 }, preset: { id: 'p-1', slug: 'fast-sampling' } })).toEqual({
+      options: 'time budget 30 s', optimization: 'SINGLE · weighted-sum', preset: 'fast-sampling',
+    });
+    expect(frozenEngineFacts({ ...exact, options: {}, preset: null })).toEqual({ options: 'Engine defaults', optimization: 'SINGLE · weighted-sum', preset: null });
   });
 });
 
@@ -128,8 +172,8 @@ describe('the optimization of each engine of a study', () => {
     const engines = definitionEngines(chosen, 4);
     expect(engines).toHaveLength(2);
     expect(engines[0]).toMatchObject({ name: 'random-search', mode: 'sampling', optimization: { type: 'MANY', scalarization: 'nsga' } });
-    expect(engines[1].optimization).toEqual({ type: 'MANY', scalarization: 'nsga' });
-    expect(definitionEngines(chosen, 1).map((engine) => engine.optimization?.type)).toEqual(['SINGLE', 'SINGLE']);
+    expect((engines[1] as ExactStudyEngine).optimization).toEqual({ type: 'MANY', scalarization: 'nsga' });
+    expect(definitionEngines(chosen, 1).map((engine) => (engine as ExactStudyEngine).optimization?.type)).toEqual(['SINGLE', 'SINGLE']);
   });
 });
 

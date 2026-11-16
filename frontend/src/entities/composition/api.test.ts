@@ -123,10 +123,12 @@ describe('compositionsApi', () => {
     await compositionsApi.version('isa-demo', 'fms', '1', { document: true });
     await compositionsApi.list('isa-demo', { sort: 'updated', q: '' });
     await compositionsApi.publicList({ organization: 'lab-other' });
+    await compositionsApi.list('isa-demo', { problem: 'checkout-flow', limit: 200 });
 
     expect(url(0)).toMatch(/\/compositions\/fms\/versions\/1\?include=document$/);
     expect(url(1)).toMatch(/\/v1\/organizations\/isa-demo\/compositions\?sort=updated$/);
     expect(url(2)).toMatch(/\/v1\/compositions\?organization=lab-other$/);
+    expect(url(3)).toMatch(/\/v1\/organizations\/isa-demo\/compositions\?problem=checkout-flow&limit=200$/);
   });
 
   it('caches the text of a version and revalidates it with If-None-Match', async () => {

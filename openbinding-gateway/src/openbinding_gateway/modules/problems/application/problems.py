@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from fastapi import HTTPException
-from sqlalchemy import func, select
+from sqlalchemy import ColumnElement, and_, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -27,6 +27,7 @@ from ....db.models import (
     BindingCase,
     BindingCaseRevision,
     Blob,
+    Composition,
     CompositionDerivation,
     CompositionEvaluation,
     CompositionVersion,
@@ -46,6 +47,7 @@ from ...plans.application import quotas
 from ...shared.application import audit, put_row, read_verified, write_file
 from ..domain.compilation import Compilation
 from ..domain.digests import is_digest
+from ..domain.origin import origin_of
 from .compile import compile_package, compile_refusal
 
 #: The slug pattern of the platform (``models/platform.SLUG``).
@@ -128,6 +130,52 @@ async def latest_revisions(session: AsyncSession, problem_ids: list[uuid.UUID]) 
         )
     )).all()
     return {row.binding_case_id: row for row in rows}
+
+
+def latest_origin_is(origin: str) -> ColumnElement[bool]:
+    """A condition on ``BindingCase``: its latest revision came from ``origin``."""
+    newest = (
+        select(BindingCaseRevision.binding_case_id, func.max(BindingCaseRevision.revision).label("revision"))
+        .group_by(BindingCaseRevision.binding_case_id)
+        .subquery()
+    )
+    matching = select(BindingCaseRevision.binding_case_id).join(
+        newest,
+        and_(
+            BindingCaseRevision.binding_case_id == newest.c.binding_case_id,
+            BindingCaseRevision.revision == newest.c.revision,
+        ),
+    ).where(BindingCaseRevision.origin == origin)
+    return BindingCase.id.in_(matching)
+
+
+async def linked_by_composition(
+    session: AsyncSession, organization_id: uuid.UUID, ref: str
+) -> ColumnElement[bool] | None:
+    """A condition on ``BindingCase``: some version of the organization's composition ``ref`` (slug or id) links
+    one of its revisions. ``None`` when the organization has no such composition.
+
+    The composition tables are read directly: this module may not import the compositions module.
+    """
+    composition_id = await session.scalar(
+        select(Composition.id).where(Composition.organization_id == organization_id, Composition.slug == ref)
+    )
+    if composition_id is None:
+        try:
+            parsed = uuid.UUID(ref)
+        except ValueError:
+            return None
+        composition_id = await session.scalar(
+            select(Composition.id).where(Composition.organization_id == organization_id, Composition.id == parsed)
+        )
+        if composition_id is None:
+            return None
+    linked = (
+        select(BindingCaseRevision.binding_case_id)
+        .join(CompositionVersion, CompositionVersion.revision_id == BindingCaseRevision.id)
+        .where(CompositionVersion.composition_id == composition_id)
+    )
+    return BindingCase.id.in_(linked)
 
 
 async def current_compilations(
@@ -322,6 +370,7 @@ def _new_revision(
         files=compilation.files,
         resource_digests=compilation.resource_digests,
         provenance=provenance or None,
+        origin=origin_of((provenance or {}).get("producer")),
         created_by_id=actor.id,
     )
 

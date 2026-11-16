@@ -284,11 +284,11 @@ async def find_registration_revision(
                 EngineRegistrationRevision.manifest_digest == registration_ref["digest"],
                 or_(
                     (
-                        (EngineRegistrationRevision.owner_id == job.owner_id)
+                        (EngineRegistrationRevision.owner_id == job.created_by_id)
                         & EngineRegistrationRevision.is_active.is_(True)
                     ),
                     (
-                        (EngineRegistrationRevision.owner_id != job.owner_id)
+                        (EngineRegistrationRevision.owner_id != job.created_by_id)
                         & (EngineRegistrationRevision.publication_status == "published")
                     ),
                 ),
@@ -923,7 +923,7 @@ async def run_claimed_job(parsed: uuid.UUID, session: AsyncSession) -> None:
             engine_ref,
             mode_contract,
             session,
-            job.owner_id,
+            job.created_by_id,
         )
         if (
             manifest is None

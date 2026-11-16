@@ -118,6 +118,15 @@ function currentEvaluation(version: CompositionVersionView): EvaluationView | nu
     ?? null;
 }
 
+/**
+ * The candidate a version chose for each task (task → `<resource>/<id>`), from its current evaluation's `binding`: what the
+ * candidate matrix of its problem highlights. Empty for a declared version, and for a public reader (the gateway sends no binding).
+ */
+export function bindingSelection(version: CompositionVersionView): Record<string, string> {
+  const binding = currentEvaluation(version)?.binding;
+  return binding ? { ...binding } : {};
+}
+
 function offeringModel(offering: Record<string, string> | null | undefined): OfferingModel | null {
   if (!offering) return null;
   if (offering.url) return { source: 'url', label: offering.url, href: offering.url };
@@ -151,7 +160,7 @@ export function compositionViewModel(input: CompositionViewModelInput): Composit
   const facts = input.facts ?? null;
   const member = reader === 'member';
   const evaluation = version ? currentEvaluation(version) : null;
-  const selection = member && evaluation?.binding ? { ...evaluation.binding } : {};
+  const selection = member && version ? bindingSelection(version) : {};
   const link = version?.problem ?? null;
   const problemReadable = member && link !== null && link.problem.id !== null;
 

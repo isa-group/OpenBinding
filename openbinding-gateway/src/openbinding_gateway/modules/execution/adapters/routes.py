@@ -304,7 +304,7 @@ async def cancel_run(
     cancelled = await lifecycle.request_cancellation(session, job)
     _audit(
         session, user, "job.cancelled", job,
-        jobId=str(job.id), ownerId=str(job.owner_id), previousState=previous.value,
+        jobId=str(job.id), createdById=str(job.created_by_id), previousState=previous.value,
         result="cancelled" if cancelled else "cancellation_requested",
     )
     await session.flush()
@@ -367,7 +367,7 @@ async def retry_run(
             **refusal.extra,
         )
     replacement = Job(
-        owner_id=user.id, engine_id=original.engine_id, engine_job_id=str(uuid.uuid4()),
+        created_by_id=user.id, engine_id=original.engine_id, engine_job_id=str(uuid.uuid4()),
         service_url=original.service_url, state=JobState.QUEUED,
         original_request=original.original_request, options=original.options, warnings=original.warnings,
         instance_complexity=original.instance_complexity,
@@ -381,7 +381,7 @@ async def retry_run(
     replacement.engine_job_id = str(replacement.id)
     _audit(
         session, user, "job.retried", replacement,
-        jobId=str(original.id), ownerId=str(original.owner_id), replacementJobId=str(replacement.id),
+        jobId=str(original.id), createdById=str(original.created_by_id), replacementJobId=str(replacement.id),
         result="retried",
     )
     await session.commit()
@@ -504,7 +504,7 @@ async def reevaluate_run(
     await job_evidence.delete_for_job(session, run)
     _audit(
         session, user, "job.reevaluated", job,
-        jobId=str(job.id), ownerId=str(job.owner_id), evidenceId=str(evidence_id), result="completed",
+        jobId=str(job.id), createdById=str(job.created_by_id), evidenceId=str(evidence_id), result="completed",
     )
     await session.commit()
     return await _view(session, job, user)

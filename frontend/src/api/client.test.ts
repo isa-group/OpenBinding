@@ -2,14 +2,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { QuotaError } from './auth';
 import { ApiClient, HttpError } from './client';
 import { problemField } from './problem';
+import type { ImmutableResourceRef } from '../shared/api/types';
 import type {
-  BimResourceRef,
   EngineManifest,
   EngineRegistrationManifest,
 } from './client';
 
 const DIGEST = `sha256-${'a'.repeat(64)}`;
-const REF: BimResourceRef = {
+const REF: ImmutableResourceRef = {
   namespace: 'research.team',
   name: 'solver-deployment',
   version: '2.1.0',

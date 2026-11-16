@@ -105,6 +105,7 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Re
   await page.route((url) => url.origin + url.pathname === `${API}/v1/organizations/acme/problems`, json({ problems: [], total: 0, limit: 200, offset: 0 }));
   await page.route((url) => url.origin + url.pathname === `${API}/v1/organizations/acme/runs`, json({ runs: [], total: 0 }));
   await page.route((url) => url.origin + url.pathname === `${API}/v1/organizations/acme/studies`, json([]));
+  await page.route((url) => url.origin + url.pathname === `${API}/v1/organizations/acme/presets`, json({ presets: [], total: 0, limit: 200, offset: 0 }));
   return requests;
 }
 

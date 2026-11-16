@@ -9,8 +9,10 @@ from __future__ import annotations
 import uuid
 import math
 from collections.abc import Mapping
+from typing import Literal
 
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, Query, Response, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -43,9 +45,11 @@ from ..models.platform import (
     StudyCellView,
     StudyCreate,
     StudyDefinition,
+    StudyRunExport,
     StudyRunView,
     StudyUpdate,
     StudyView,
+    study_preset_ref,
 )
 from ..modules.problems.application import ir_analysis
 from ..services.entitlements import EntitlementService, get_entitlements
@@ -63,8 +67,9 @@ from ..study_jobs import (
     launch_study_cell,
     lock_run,
     metrics_from_job,
+    study_engines,
 )
-from ..studies import aggregate_metrics
+from ..studies import aggregate_metrics, export_csv, export_json, pareto_fronts
 from bim_core.canonical import digest
 
 router = APIRouter(prefix="/v1/organizations/{org}", tags=["Studies"])
@@ -106,8 +111,11 @@ def _allows_study_engine(user: User, engine: Mapping) -> bool:
     """Whether the caller may use the exact Engine revision a study engine pins.
 
     A study engine also carries its ``mode`` and ``optimization``; an API key grants revisions, so
-    only the identity fields are checked.
+    only the identity fields are checked. A ``{preset}`` entry pins no revision until a run expands it,
+    and the expansion checks the revision it comes to (``study_engines``).
     """
+    if study_preset_ref(engine) is not None:
+        return True
     return allows_engine(user, {field: engine[field] for field in ENGINE_REF_FIELDS if field in engine})
 
 
@@ -186,16 +194,25 @@ async def _definition(
         )
     engines = []
     for engine in definition.engines:
+        if study_preset_ref(engine) is not None:
+            engines.append(dict(engine))
+            continue
         _, mode, _ = await engine_mode(
-            engine["name"], engine.get("mode"), definition.parameter_sets[0], session, caller=user,
+            engine["name"], engine.get("mode"), {**(engine.get("options") or {}), **definition.parameter_sets[0]},
+            session, caller=user,
             namespace=engine["namespace"], version=engine["version"], manifest_digest=engine["digest"],
         )
         engines.append({**engine, "mode": mode["id"]})
-    return {
+    stored = {
         **definition.model_dump(mode="json"),
         "revision_ids": [str(value) for value in sorted(revision_ids, key=str)],
         "engines": engines,
     }
+    # Each preset is expanded once here, to refuse what no run could expand (an unknown, federated or
+    # incomplete preset, or two engines that come out the same); the study keeps the ``{preset}`` entry,
+    # and every run expands it again.
+    await study_engines(session, organization, user, StudyDefinition.model_validate(stored))
+    return stored
 
 
 @router.get("/studies", response_model=list[StudyView], operation_id="listStudies")
@@ -645,6 +662,19 @@ async def get_study_analytics(
     run = await _run(session, found_study.id, run_id, user)
     cells = (await session.execute(select(StudyCell).where(StudyCell.study_run_id == run.id).order_by(StudyCell.ordinal))).scalars().all()
     metrics_data = aggregate_metrics([cell.metrics for cell in cells])
+    revisions = list(dict.fromkeys(cell.binding_case_revision_id for cell in cells))
+    named = (await session.execute(
+        select(BindingCaseRevision.id, BindingCaseRevision.revision, BindingCase.slug)
+        .join(BindingCase, BindingCase.id == BindingCaseRevision.binding_case_id)
+        .where(BindingCaseRevision.id.in_(revisions))
+    )).all() if revisions else []
+    pareto = pareto_fronts(
+        [
+            {"cellId": cell.id, "jobId": cell.job_id, "revisionId": cell.binding_case_revision_id, "metrics": cell.metrics}
+            for cell in cells
+        ],
+        {str(row.id): {"slug": row.slug, "revision": row.revision} for row in named},
+    )
 
     # The binding space of each problem as the compilation the run pinned reads it.
     compilation_ids = list(dict.fromkeys(cell.compilation_id for cell in cells))
@@ -699,4 +729,73 @@ async def get_study_analytics(
                 "cases": cases_detail,
             }
 
-    return AnalyticsView(**metrics_data, binding_space=binding_space_info)
+    return AnalyticsView(**metrics_data, pareto=pareto, binding_space=binding_space_info)
+
+
+_EXPORT_MEDIA_TYPES = {"csv": "text/csv; charset=utf-8", "json": "application/json"}
+
+
+@router.get(
+    "/studies/{study}/runs/{run_id}/export",
+    response_class=StreamingResponse,
+    operation_id="exportStudyRun",
+    responses={
+        200: {
+            "description": "The run as an attachment: a JSON document, or CSV with one row per cell.",
+            "model": StudyRunExport,
+            "content": {"text/csv": {"schema": {"type": "string"}}},
+        },
+    },
+)
+async def export_study_run(
+    org: str, study: str, run_id: uuid.UUID,
+    file_format: Literal["csv", "json"] = Query(
+        alias="format", description="`csv`: one row per cell; `json`: the frozen definition and every cell.",
+    ),
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> StreamingResponse:
+    """A study run as a file: every cell, in cell order, with no paging (a run has at most 10,000 cells).
+
+    CSV columns: ``cell_id, problem, revision, engine_namespace, engine_name, engine_version, mode, parameters``
+    (JSON), ``seed, status, feasible, runtime_seconds``, then ``objective.<name>`` and ``metric.<name>``, each
+    group sorted by name.
+    """
+    organization = await _organization(session, org, user, OrganizationRole.VIEWER)
+    found_study = await _study(session, organization.id, study, user, check_engines=False)
+    run = await _run(session, found_study.id, run_id, user)
+    rows = (await session.execute(
+        select(StudyCell, BindingCaseRevision.revision, BindingCase.slug)
+        .join(BindingCaseRevision, BindingCaseRevision.id == StudyCell.binding_case_revision_id)
+        .join(BindingCase, BindingCase.id == BindingCaseRevision.binding_case_id)
+        .where(StudyCell.study_run_id == run.id)
+        .order_by(StudyCell.ordinal)
+    )).all()
+    cells = [
+        {
+            "id": str(cell.id), "ordinal": cell.ordinal, "problem": slug, "revision": number,
+            "binding_case_revision_id": str(cell.binding_case_revision_id), "compilation_id": str(cell.compilation_id),
+            "engine": cell.engine_ref, "parameters": cell.parameters, "seed": cell.seed,
+            "fingerprint": cell.fingerprint, "job_id": str(cell.job_id) if cell.job_id else None,
+            "state": cell.state.value, "metrics": cell.metrics or {},
+        }
+        for cell, number, slug in rows
+    ]
+    if file_format == "csv":
+        body = export_csv(cells)
+    else:
+        body = export_json({
+            "study": {"id": str(found_study.id), "slug": found_study.slug, "name": found_study.name},
+            "run": {
+                "id": str(run.id), "run_number": run.run_number, "state": run.state.value,
+                "matrix_digest": run.matrix_digest, "definition_digest": run.definition_digest,
+                "created_at": run.created_at.isoformat(),
+                "finished_at": run.finished_at.isoformat() if run.finished_at else None,
+            },
+            "definition": run.definition,
+        }, cells)
+    filename = f"{found_study.slug}-run-{run.run_number}.{file_format}"
+    return StreamingResponse(
+        body, media_type=_EXPORT_MEDIA_TYPES[file_format],
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

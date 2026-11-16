@@ -98,7 +98,7 @@ async def test_solve_returns_429_on_concurrency_exceeded(api_client, db_session,
     # The account's only slot is taken by a job that is still queued.
     monkeypatch.setattr(get_settings(), "max_concurrent_jobs_per_user", 1)
     db_session.add(Job(
-        owner_id=user_id, engine_id="random-search", engine_job_id="busy",
+        created_by_id=user_id, engine_id="random-search", engine_job_id="busy",
         service_url="http://engine", state=JobState.QUEUED, **placeholder_refs(),
     ))
     await db_session.commit()

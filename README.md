@@ -212,6 +212,16 @@ reference and a playground. Every number shown comes from the gateway; the decis
 walks are `frontend/e2e/f2a-*.spec.ts` (mocked) and `frontend/e2e/live/08-derive-seal-compare.spec.ts` and
 `09-public-fork.spec.ts` (against the lab).
 
+Problems are written in the problem editor (`/app/<org>/problem-editor`): it opens a template, a problem version or a
+blank package, checks it with the gateway as it is edited, places each finding on the matrix cell, the file or the
+diagram element it is about, and saves the package as a problem version. Its candidate matrix, workflow graph and rules
+are the ones the problem page and the composition screens draw from the gateway's facts; a value edited in the matrix is
+written where the package declares it. The problem page adds Candidates and Compositions tabs, studies show the
+gateway's Pareto front of each problem version (one composition derived per point) and export their runs from the
+server, and runs and studies start from run presets. The decisions are ADRs 0051 and 0052, and the walks are
+`frontend/e2e/f2b-*.spec.ts` (mocked) and `frontend/e2e/live/10-problem-editor.spec.ts` and `11-study-front.spec.ts`
+(against the lab).
+
 ### Reset the dev database
 
 The schema is one Alembic revision, regenerated from the models

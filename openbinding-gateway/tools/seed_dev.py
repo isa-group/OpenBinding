@@ -676,7 +676,7 @@ async def ensure_standalone_jobs(
             identity = digest({"generator": 4, "package": revision.package_digest, "evaluator": bim.toolchain_digest(),
                                "engine": ref, "mode": mode, "optimization": optimization, "options": options})
             key = f"development-live-{org.id}-{identity}"
-            existing = (await session.execute(select(Job).where(Job.owner_id == user.id, Job.idempotency_key == key))).scalars().first()
+            existing = (await session.execute(select(Job).where(Job.created_by_id == user.id, Job.idempotency_key == key))).scalars().first()
             if existing is not None:
                 jobs.append(existing)
                 logger.info("Reused live scenario %s: %s (%s)", engine, existing.id, existing.state.value)

@@ -10,14 +10,15 @@ export const runsPath = (org: string): string => `/app/${encodeURIComponent(org)
 /** One run of an organization: `/app/<org>/runs/<run>`. */
 export const runPath = (org: string, run: string): string => `${runsPath(org)}/${encodeURIComponent(run)}`;
 
-/** What the launcher starts from: a problem revision, an engine (`namespace/name`), or both. */
+/** What the launcher starts from: a problem revision, an engine (`namespace/name`), a run preset of the organization (its slug), or several. */
 export interface LaunchTarget {
   problem?: string;
   revision?: number | string;
   engine?: string;
+  preset?: string;
 }
 
-/** The launcher of a run of an organization (`job-launch`): `/app/<org>/runs/new`, with `?problem=&revision=` and `?engine=`. */
+/** The launcher of a run of an organization (`run-launch`): `/app/<org>/runs/new`, with `?problem=&revision=`, `?engine=` and `?preset=`. */
 export function launchPath(org: string, target: LaunchTarget = {}): string {
   const query = new URLSearchParams();
   for (const [key, value] of Object.entries(target)) {

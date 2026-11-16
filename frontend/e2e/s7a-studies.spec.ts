@@ -3,12 +3,14 @@ import { failureBody } from './helpers/problems';
 import type { Job, Study, StudyCell, StudyRun } from '../src/api/platform';
 import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
 import { jobOf } from '../src/test/fixtures/jobs';
+import { presetPage } from '../src/test/fixtures/presets';
 import { usageOf } from '../src/test/fixtures/resources';
 import {
   CHECKOUT, EVOLUTIONARY, RANDOM_SEARCH, REVISION_1, REVISION_2, RUN_ID, analyticsFixture, cellFixture, cellsFixture, runFixture, studyFixture,
 } from '../src/test/fixtures/studies';
 
-// S7a · studies: study-list, study-builder and study-detail with its tabs Setup, Progress (the run) and Results (analytics, cells and the CSV export).
+// S7a · studies: study-list, study-builder and study-detail with its tabs Setup, Progress (the run) and Results (analytics, the Pareto front,
+// cells and the gateway's CSV and JSON export).
 // There is no backend: the API origin is answered by page.route(). Screenshots go to testInfo.outputPath() (test-results/, ignored by git)
 // so they can be looked at after a run. Every test walks a screen through its states on a desktop and on a phone.
 
@@ -85,13 +87,13 @@ const engineEntry = (ref: typeof RANDOM_SEARCH) => {
 };
 
 
-type Overridable = 'studies' | 'create' | 'run' | 'cancel' | 'retry' | 'attach' | 'update' | 'delete' | 'runs' | 'cells' | 'cell' | 'analytics' | 'report';
+type Overridable = 'studies' | 'create' | 'run' | 'cancel' | 'retry' | 'attach' | 'update' | 'delete' | 'runs' | 'cells' | 'cell' | 'analytics' | 'report' | 'export';
 
 interface State {
   /** A handler that replaces the default answer of one call. */
   refuse: Partial<Record<Overridable, Handler>>;
   /** What each write carried, to check what was sent. */
-  sent: { create?: unknown; run?: string; cancel?: string; retry: string[]; attach?: { cell: string; job: unknown }; update: unknown[]; ifMatch: Array<string | undefined>; deleted: string[]; report?: unknown };
+  sent: { create?: unknown; run?: string; cancel?: string; retry: string[]; attach?: { cell: string; job: unknown }; update: unknown[]; ifMatch: Array<string | undefined>; deleted: string[]; report?: unknown; exported: string[] };
   studies: Study[];
   runs: Record<string, StudyRun[]>;
   cells: Record<string, StudyCell[]>;
@@ -112,7 +114,7 @@ const analyticsBody = () => analyticsFixture();
 async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
   const state: State = {
     refuse: {},
-    sent: { retry: [], update: [], ifMatch: [], deleted: [] },
+    sent: { retry: [], update: [], ifMatch: [], deleted: [], exported: [] },
     studies: [studyFixture(), liveStudy, placement, oldStudy],
     runs: { 'engines-vs-seeds': [runFixture()], 'live-sweep': [liveRun(false)] },
     cells: { [RUN_ID]: cellsFixture(), [LIVE_RUN_ID]: liveCells(false) },
@@ -153,6 +155,8 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
 
     if (!orgSlug) return json(organizations)(route);
     if (section === 'members') return json([])(route);
+    // The run presets the builder offers as engines: one a study can take, a federated one and one without an optimization.
+    if (section === 'presets') return json(orgSlug === 'isa-demo' ? presetPage() : presetPage([]))(route);
     if (section === 'runs') {
       // The runs of the organization: the attach dialog offers the finished ones, whoever launched them; a cell's run opens here.
       if (!runId) return json({ runs: [...mineJobs, ...otherJobs], total: mineJobs.length + otherJobs.length })(route);
@@ -242,6 +246,19 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
     if (tail === 'analytics') {
       if (state.refuse.analytics) return state.refuse.analytics(route);
       return json(analyticsBody())(route);
+    }
+    if (tail === 'export') {
+      // The gateway's export of the whole run, as an attachment named by Content-Disposition.
+      const format = new URL(route.request().url()).searchParams.get('format') ?? '';
+      state.sent.exported.push(format);
+      if (state.refuse.export) return state.refuse.export(route);
+      const body = format === 'csv'
+        ? 'cell_id,problem,revision,engine_namespace,engine_name,engine_version,mode,parameters,seed,status,feasible,runtime_seconds,objective.cost,objective.latency\n'
+        : JSON.stringify({ study: { id: study.id, slug: study.slug, name: study.name }, run: { id: actionId }, definition: {}, cells: [] });
+      return route.fulfill({
+        status: 200, body, contentType: format === 'csv' ? 'text/csv; charset=utf-8' : 'application/json',
+        headers: { 'Content-Disposition': `attachment; filename="${study.slug}-run-${run?.run_number ?? 1}.${format}"`, 'Access-Control-Expose-Headers': 'Content-Disposition' },
+      });
     }
     if (tail === 'cancel') {
       state.sent.cancel = actionId;
@@ -424,7 +441,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByText('Pick the problems, engines, settings and seeds. Every combination becomes one cell.')).toBeVisible();
       await expect(main.getByRole('checkbox', { name: /Checkout flow · version 2/ })).toBeEnabled();
       await expect(create).toBeDisabled();
-      await expect(main.getByRole('list', { name: 'Still needed' })).toContainText('Choose at least one engine mode.');
+      await expect(main.getByRole('list', { name: 'Still needed' })).toContainText('Choose at least one engine mode or run preset.');
       await capture(page, testInfo, `builder-${name}-empty`);
 
       await main.getByRole('checkbox', { name: /Checkout flow · version 1/ }).check();
@@ -461,6 +478,51 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await main.getByRole('link', { name: 'Open the study' }).click();
       await expect(main.getByRole('heading', { level: 1, name: 'Budgets and seeds' })).toBeVisible();
       await expect(main.getByText('No runs yet. Running uses 1 study run from your month and runs up to 24 cells.')).toBeVisible();
+      expect(critical).toEqual([]);
+    });
+
+    test('study-builder /app/:org/studies/new · run presets as engines, the ones a study cannot take, and how a preset is refused', async ({ page }, testInfo) => {
+      const critical = watchCriticalErrors(page);
+      const state = await mockApi(page);
+      await page.goto(`${ROOT}/studies/new?case=checkout-flow&revision=2`);
+      const main = page.locator('#platform-main');
+      const create = main.getByRole('button', { name: 'Create study' });
+      const presets = main.getByRole('group', { name: 'Run presets' });
+
+      await expect(presets.getByRole('checkbox', { name: 'Fast sampling · run preset' })).toBeEnabled();
+      await expect(presets.getByRole('checkbox', { name: 'Edge deployment · run preset' })).toBeDisabled();
+      await expect(presets.getByRole('checkbox', { name: 'Edge deployment · run preset' })).toHaveAccessibleDescription(/presets of federated engines can’t join a study yet/);
+      await expect(presets.getByRole('checkbox', { name: 'No goal · run preset' })).toBeDisabled();
+      await expect(presets.getByRole('checkbox', { name: 'No goal · run preset' })).toHaveAccessibleDescription(/Names no optimization, which a study engine needs\./);
+
+      await main.getByRole('checkbox', { name: /random-search 1\.0\.0/ }).check();
+      await presets.getByRole('checkbox', { name: 'Fast sampling · run preset' }).check();
+      await main.getByLabel('Study name').fill('Engines and a preset');
+      const aside = main.getByRole('complementary', { name: 'Matrix and plan' });
+      await expect(aside.getByText('1 problem version × 2 engines × 1 setting × 2 seeds')).toBeVisible();
+      await capture(page, testInfo, `builder-${name}-presets`, { height: 1800 });
+
+      // The gateway expands each preset when the study is saved and refuses what no run could expand.
+      state.refuse.create = detail(422, 'preset_federated', 'Presets of federated engines cannot join a study yet.');
+      await create.click();
+      await expect(aside.getByText('A run preset runs on a federated deployment (422 · preset_federated)')).toBeVisible();
+      state.refuse.create = detail(422, 'duplicate_study_engines', 'Two engines of the study (after its presets are expanded) are the same.');
+      await create.click();
+      await expect(aside.getByText('Two engines of the study are the same (422 · duplicate_study_engines)')).toBeVisible();
+      await capture(page, testInfo, `builder-${name}-422-preset`, { area: aside });
+
+      state.refuse.create = undefined;
+      await create.click();
+      await expect(main.getByRole('heading', { name: 'Study created' })).toBeVisible();
+      expect((state.sent.create as { definition: { engines: unknown[] } }).definition.engines).toEqual([
+        { namespace: RANDOM_SEARCH.namespace, name: RANDOM_SEARCH.name, version: RANDOM_SEARCH.version, digest: RANDOM_SEARCH.digest, mode: RANDOM_SEARCH.mode, optimization: { type: 'SINGLE', scalarization: 'weighted-sum' } },
+        { preset: 'fast-sampling' },
+      ]);
+
+      // The new study names the preset in its matrix: each run expands it.
+      await main.getByRole('link', { name: 'Open the study' }).click();
+      await expect(main.getByRole('columnheader', { name: 'preset fast-sampling · seed 1' })).toBeVisible();
+      await expect(main.getByText(/Each run expands the run preset fast-sampling into the engine, mode and options it holds then\./)).toBeVisible();
       expect(critical).toEqual([]);
     });
 
@@ -670,7 +732,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('heading', { level: 2, name: 'Run #1' })).toBeVisible();
       // What the run froze when it started: its problem versions, each with the compilation it ran, and the matrix.
       const frozen = main.getByRole('region', { name: 'Frozen definition' });
-      await expect(frozen.getByRole('listitem')).toHaveCount(2);
+      await expect(frozen.getByRole('list', { name: 'Problem versions of the run' }).getByRole('listitem')).toHaveCount(2);
+      await expect(frozen.getByRole('list', { name: 'Engines of the run' }).getByRole('listitem')).toHaveCount(2);
+      await expect(frozen.getByRole('list', { name: 'Engines of the run' })).toContainText('random-search 1.0.0 (sampling)');
       await expect(frozen.getByRole('button', { name: 'Copy the digest of the frozen definition' })).toBeVisible();
       await expect(frozen).toContainText('The study’s current definition is this one.');
       await expect(frozen).not.toContainText('sha256-');
@@ -871,7 +935,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
     test('study-detail /app/:org/studies/:study/results · charts, rankings and seeds', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
-      await mockApi(page);
+      const state = await mockApi(page);
       await page.goto(RESULTS);
       const main = page.locator('#platform-main');
 
@@ -908,10 +972,23 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await main.getByRole('combobox', { name: 'Problem' }).selectOption(REVISION_2.id);
       await expect(main.getByText(/Best trade-offs:/)).toContainText('cell 4 (0.104, 420); cell 6 (0.109, 398).');
 
-      // Every cell goes into a CSV file, never onto the page.
+      // The gateway's front of each problem version, one table each.
+      const front = main.getByRole('region', { name: 'Pareto front' });
+      await expect(front.getByRole('region', { name: 'Front of checkout-flow · version 1' }).getByRole('row')).toHaveCount(3);
+      await expect(front.getByRole('region', { name: 'Front of checkout-flow · version 2' })).toContainText('P4');
+      await capture(page, testInfo, `analytics-${name}-front`, { area: front });
+
+      // Every cell goes into the gateway's CSV or JSON file, never onto the page, under the name the gateway gives it.
       const downloaded = page.waitForEvent('download');
       await main.getByRole('button', { name: 'Export CSV' }).click();
-      expect((await downloaded).suggestedFilename()).toBe('engines-vs-seeds-run-1-cells.csv');
+      expect((await downloaded).suggestedFilename()).toBe('engines-vs-seeds-run-1.csv');
+      const json = page.waitForEvent('download');
+      await main.getByRole('button', { name: 'Export JSON' }).click();
+      expect((await json).suggestedFilename()).toBe('engines-vs-seeds-run-1.json');
+      expect(state.sent.exported).toEqual(['csv', 'json']);
+      state.refuse.export = detail(403, 'api_key_permission_denied', 'The API key lacks studies:read.');
+      await main.getByRole('button', { name: 'Export CSV' }).click();
+      await expect(main.getByText('The CSV export couldn’t be made (403 · api_key_permission_denied).')).toBeVisible();
 
       // Provenance of each cell.
       const provenance = main.getByRole('region', { name: 'Provenance of every cell' });

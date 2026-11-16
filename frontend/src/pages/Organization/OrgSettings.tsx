@@ -17,6 +17,7 @@ import { NotFoundScreen } from '../../routes/NotFoundScreen';
 import { OrgAudit } from './OrgAudit';
 import { OrgMembers } from './OrgMembers';
 import { OrgSettingsLayout } from './OrgSettingsLayout';
+import { PresetsSection } from './PresetsSection';
 import { useRouteOrganization } from './useRouteOrganization';
 import './Organization.css';
 
@@ -326,13 +327,14 @@ function GeneralSection() {
 }
 
 /**
- * Organization settings (`org-settings`, `/app/:org/settings/:section?`): General, Members (`members`) and Audit (`audit`).
- * Any other section is a page that does not exist.
+ * Organization settings (`org-settings`, `/app/:org/settings/:section?`): General, Members (`members`), Run presets (`presets`)
+ * and Audit (`audit`). Any other section is a page that does not exist.
  */
 export function OrgSettings() {
   const { section } = useParams();
   if (section === undefined) return <GeneralSection />;
   if (section === 'members') return <OrgMembers />;
+  if (section === 'presets') return <PresetsSection />;
   if (section === 'audit') return <OrgAudit />;
   return <NotFoundScreen />;
 }

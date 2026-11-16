@@ -43,7 +43,7 @@ describe('mobile touch targets (max-width: 640px)', () => {
   });
 
   it('keeps the job-result links in a container that exists in the markup', () => {
-    const facts = read('pages/Jobs/JobFacts.tsx');
+    const facts = read('pages/Runs/RunFacts.tsx');
     expect(facts).toContain('className="job-fact"');
   });
 

@@ -24,7 +24,7 @@ test.describe('live · a random-search job and its result', () => {
     // 1 · what to solve: the case, at its latest revision.
     await expect(page.getByRole('heading', { level: 1, name: 'New run' })).toBeVisible();
     await expect(page.getByRole('radiogroup', { name: 'Source' })).toBeVisible({ timeout: 30_000 });
-    await capture(page, testInfo, 'job-launch-1-source');
+    await capture(page, testInfo, 'run-launch-1-source');
     await page.getByRole('button', { name: 'Continue' }).click();
 
     // 2 · the engine: random-search, from the modes the gateway says can run the problem.
@@ -36,7 +36,7 @@ test.describe('live · a random-search job and its result', () => {
     const randomSearch = engines.getByRole('radio', { name: /^random-search/, disabled: false }).first();
     await expect(randomSearch).toBeEnabled();
     await randomSearch.check({ force: true });
-    await capture(page, testInfo, 'job-launch-2-engine');
+    await capture(page, testInfo, 'run-launch-2-engine');
     await page.getByRole('button', { name: 'Continue' }).click();
 
     // 3 · the settings: a handful of iterations keeps the run short.
@@ -47,13 +47,13 @@ test.describe('live · a random-search job and its result', () => {
     // `seed` with default 0, which is valid (only a budget has to be above 0). Nothing is typed over a field except the iterations.
     await expect(page.locator('.job-options input[aria-invalid="true"]'), 'a default of the engine is marked invalid').toHaveCount(0);
     await expect(page.locator('.job-invalid'), 'a settings field is invalid').toHaveCount(0);
-    await capture(page, testInfo, 'job-launch-3-settings');
+    await capture(page, testInfo, 'run-launch-3-settings');
     await page.getByRole('button', { name: 'Continue' }).click();
 
     // 4 · review and send. The request carries the optimization the gateway requires; nothing here is metered.
     await expect(page.getByRole('heading', { name: 'Before you send' })).toBeVisible();
     await expect(page.getByText(/used \+ up to|study runs this month/)).toHaveCount(0);
-    await capture(page, testInfo, 'job-launch-4-review');
+    await capture(page, testInfo, 'run-launch-4-review');
     const send = page.getByRole('button', { name: 'Send run' });
     // A disabled button would make the click wait for 30 s and then look like a request that never left: say what the page shows instead.
     await expect(send, `"Send run" is disabled; the review says: ${(await page.locator('.job-review').innerText()).replace(/\s+/g, ' ')}`).toBeEnabled();

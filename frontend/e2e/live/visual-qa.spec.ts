@@ -25,6 +25,11 @@ import { API, CASE, ORG, ORG_PATH, OTHER_ORG, RESULTS_DIR, RUNS_PATH, signInByAp
  * derived from its problem) for the owner and the viewer, and lab-other's public `sequential-workflow` for a visitor. On mobile the
  * Editor is also looked at in its Visual and Problems tabs (on desktop the panes sit side by side).
  *
+ * The problem screens (F2b) read the seeded `simple-seq`: its Candidates and Compositions tabs, and the problem editor opened on it,
+ * once per pane (Workflow, Candidates, Rules, Files, Forms; on mobile also the Engines and Problems tabs; the package has no BPMN
+ * file, so there is no BPMN pane). The run presets section of lab-main's settings, and the Pareto front of the newest finished
+ * study run of lab-main (the one 11-study-front leaves; skipped when there is none), close the owner's walk.
+ *
  * One summary line per screen and size goes to the log (`VQA ...`, and `VQA_PROBLEM ...` for each finding): that log is all the
  * controller of the lab sees, because the screenshots stay in a volume it cannot open. A finding fails the test, but the walk goes on,
  * so one run reports every screen. The owner walks the screens in one test (one login per size: the gateway throttles logins).
@@ -262,6 +267,67 @@ const COMPOSITION_NAME = 'Sequential workflow';
 const PAIR = 'from=1.0.0&to=1.1.0';
 const composed = (page: Page) => page.locator('#platform-main').getByRole('heading', { level: 1, name: COMPOSITION_NAME });
 
+/** The problem editor on the seeded problem: its check has passed when the status says so. */
+const EDITOR = `${ORG_PATH}/problem-editor?problem=${CASE}`;
+const checked = (page: Page) => page.getByTestId('pe-check-status').filter({ hasText: 'Valid package' });
+
+/**
+ * The seeded problem's Candidates and Compositions tabs, the problem editor on it, pane by pane (on a phone the engines and the
+ * problems are panes too), and the run presets of lab-main.
+ */
+function problemStops(mobile: boolean): Stop[] {
+  const pane = (slug: string, tab: RegExp, ready: (page: Page) => Locator): Stop => ({
+    slug,
+    path: EDITOR,
+    ready: checked,
+    extra: async (page, label) => {
+      await page.getByRole('tablist', { name: 'Editor panes' }).getByRole('tab', { name: tab }).click();
+      await expect.soft(ready(page), `${label}: the pane did not open`).toBeVisible({ timeout: 30_000 });
+    },
+  });
+  const main = (page: Page) => page.locator('#platform-main');
+  return [
+    { slug: 'problem-candidates', path: `${ORG_PATH}/problems/${CASE}/candidates`, ready: (page) => page.getByRole('region', { name: 'Candidates of each task' }) },
+    { slug: 'problem-compositions', path: `${ORG_PATH}/problems/${CASE}/compositions`, ready: (page) => main(page).getByRole('heading', { level: 2, name: 'Compositions' }).first() },
+    { slug: 'problem-editor', path: EDITOR, ready: checked, extra: async (page, label) => {
+      await expect.soft(page.getByRole('group', { name: 'Workflow of the package' }), `${label}: the workflow did not show`).toBeVisible();
+    } },
+    pane('problem-editor-candidates', /^Candidates$/, (page) => page.getByRole('region', { name: 'Candidates of each task' })),
+    pane('problem-editor-rules', /^Rules$/, (page) => main(page).getByRole('heading', { name: 'Rules and objectives' }).first()),
+    pane('problem-editor-files', /^Files$/, (page) => page.getByRole('navigation', { name: 'Files of the package' })),
+    pane('problem-editor-forms', /^Forms$/, (page) => page.getByRole('navigation', { name: 'BIM resources' })),
+    ...(mobile ? [
+      pane('problem-editor-engines', /^Engines$/, (page) => main(page).getByRole('heading', { level: 2, name: 'Engines' }).first()),
+      pane('problem-editor-problems', /^Problems/, (page) => page.getByRole('tab', { name: /^Problems/, selected: true })),
+    ] : []),
+    { slug: 'presets', path: `/app/${ORG}/settings/presets`, ready: (page) => main(page).getByRole('heading', { level: 1, name: 'Run presets' }) },
+  ];
+}
+
+/** The results of the newest finished study run of lab-main (11-study-front leaves one), or why there is none. */
+async function studyFrontStop(page: Page, token: string): Promise<Stop | { why: string }> {
+  const headers = { Authorization: `Bearer ${token}` };
+  const listed = await page.request.get(`${API}/v1/organizations/${ORG}/studies`, { headers });
+  if (!listed.ok()) return { why: `listStudies answered ${listed.status()}` };
+  const studies = (await listed.json() as Array<{ slug: string; created_at: string }>)
+    .sort((a, b) => b.created_at.localeCompare(a.created_at));
+  for (const study of studies) {
+    const runs = await page.request.get(`${API}/v1/organizations/${ORG}/studies/${encodeURIComponent(study.slug)}/runs`, { headers });
+    if (!runs.ok()) continue;
+    const finished = (await runs.json() as Array<{ id: string; run_number: number; state: string }>)
+      .filter((run) => run.state === 'completed')
+      .sort((a, b) => b.run_number - a.run_number)[0];
+    if (finished) {
+      return {
+        slug: 'study-front',
+        path: `${ORG_PATH}/studies/${encodeURIComponent(study.slug)}/results?run=${finished.id}`,
+        ready: (target) => target.locator('#platform-main').getByRole('heading', { level: 2, name: 'Pareto front' }),
+      };
+    }
+  }
+  return { why: `lab-main has no finished study run (${studies.length} studies); run 11-study-front first` };
+}
+
 /** The compositions of lab-main as its owner reads and edits them: the list and every tab of the detail. */
 function compositionStops(mobile: boolean): Stop[] {
   const editor: Stop = { slug: 'composition-editor', path: `${COMPOSITION}/editor`, ready: (page) => page.getByRole('textbox', { name: 'composition.yaml source' }) };
@@ -327,7 +393,7 @@ const VIEWER_STOPS: Stop[] = [
     },
   },
   {
-    slug: 'viewer-job-launch',
+    slug: 'viewer-run-launch',
     path: `${RUNS_PATH}/new?problem=${CASE}`,
     ready: (page) => page.getByRole('heading', { level: 1, name: 'New run' }),
     extra: async (page, label) => {
@@ -368,8 +434,16 @@ test.describe('live · visual QA', () => {
     const listed = await page.request.get(`${API}/v1/organizations/${ORG}/runs?limit=100`, { headers: { Authorization: `Bearer ${token}` } });
     const jobs = listed.ok() ? (await listed.json() as { runs: Array<{ id: string; status: string }> }).runs : [];
     const finished = jobs.find((job) => String(job.status).toLowerCase() === 'completed');
-    const stops = [...OWNER_STOPS, ...compositionStops(testInfo.project.name === 'mobile')];
+    const mobile = testInfo.project.name === 'mobile';
+    const stops = [...OWNER_STOPS, ...compositionStops(mobile), ...problemStops(mobile)];
     const skipped: Array<{ slug: string; why: string }> = [];
+    const front = await studyFrontStop(page, token);
+    if ('why' in front) {
+      skipped.push({ slug: 'study-front', why: front.why });
+      testInfo.annotations.push({ type: 'skipped-screen', description: 'study-front: no finished study run' });
+    } else {
+      stops.push(front);
+    }
     if (finished) {
       stops.splice(6, 0, {
         slug: 'job-result',

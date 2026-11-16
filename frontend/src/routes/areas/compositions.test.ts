@@ -54,7 +54,7 @@ describe('area compositions', () => {
       ['/app/acme/compositions/order-desk', 'composition-detail'],
       ['/app/acme/compositions/order-desk/editor', 'composition-detail'],
       ['/app/acme/compositions/order-desk/versions/2', null],
-      ['/app/acme/problems', 'case-list'],
+      ['/app/acme/problems', 'problem-list'],
     ])('%s -> %s', (path, id) => {
       expect(resolve(path)).toBe(id);
     });

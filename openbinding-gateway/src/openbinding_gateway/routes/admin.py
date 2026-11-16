@@ -808,7 +808,7 @@ async def queue_status(
         "oldestInFlight": [
             {
                 "id": str(job.id),
-                "ownerId": str(job.owner_id) if job.owner_id else None,
+                "createdById": str(job.created_by_id) if job.created_by_id else None,
                 "engine": job.engine_id,
                 "state": job.state.value,
                 "createdAt": job.created_at.isoformat(),

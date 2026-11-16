@@ -14,7 +14,7 @@ patterns from the following MIT-licensed projects:
 
 | Project | Revision inspected | Use in OpenBinding |
 |---|---|---|
-| [SPHERE](https://github.com/SCORELabUS/SPHERE) | `73779a8af260adb4c7de981bd479327d7b82f97a` | Navigation, resource lifecycle, administration and pricing-management patterns; the composition screens rewritten after SPHERE's pricing screens follow its patterns (no code copied). The files that port SPHERE code are listed under "Code ported from SPHERE" |
+| [SPHERE](https://github.com/SCORELabUS/SPHERE) | `73779a8af260adb4c7de981bd479327d7b82f97a` | Navigation, resource lifecycle, administration and pricing-management patterns; the composition screens and the study front rewritten after SPHERE's pricing screens follow its patterns (no code copied). The files that port SPHERE code are listed under "Code ported from SPHERE" |
 | [SPHERE docs](https://github.com/isa-group/sphere-docs) | `107c5451e464e77a87a1f8b72dd71fa9d9e93231` | Documentation structure, API explorer and deployment patterns |
 | [SPACE](https://github.com/isa-group/SPACE) | `79aea10c9acff1d85e4931d09aa21d3a253d1ce1` (`v1.5.0`) | Contract and pricing deployment integration |
 | [space-python-client](https://github.com/Alex-GF/space-python-client) | `1a61898adca73ca500eca4758c24d32f673dd790` (`v1.1.0`) | Official SPACE Python client integration |
@@ -23,6 +23,7 @@ patterns from the following MIT-licensed projects:
 | [pricing-renderer](https://github.com/javiercavlop/pricing-renderer) | `0.2.0` | Public rendering of the active iPricing for the web |
 | [lz-string](https://github.com/pieroxy/lz-string) | `1.5.0` | Compressing a composition into the `#composition=` fragment of a share link |
 | [openapi-typescript](https://github.com/openapi-ts/openapi-typescript) | `7.13.0` (development only) | Generating the frontend's API types from `docs/openapi.json` |
+| [@codemirror/lang-xml](https://github.com/codemirror/lang-xml) | `6.1.0` | Highlighting the BPMN (XML) files of a package in the problem editor's code view |
 
 The MIT notice applying to those projects follows:
 

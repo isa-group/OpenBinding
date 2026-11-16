@@ -46,7 +46,7 @@ async def lock_owner(session: AsyncSession, user_id: uuid.UUID) -> None:
 async def count_in_flight(session: AsyncSession, user_id: uuid.UUID) -> int:
     return int(
         await session.scalar(
-            select(func.count()).select_from(Job).where(Job.owner_id == user_id, Job.state.in_(IN_FLIGHT))
+            select(func.count()).select_from(Job).where(Job.created_by_id == user_id, Job.state.in_(IN_FLIGHT))
         )
         or 0
     )

@@ -99,7 +99,7 @@ export function runOf(study: Study, runNumber: number, over: Partial<StudyRun> =
     id: `run-${study.slug}-${runNumber}`, study_id: study.id, run_number: runNumber, state: 'partial',
     matrix_digest: `sha256-${'d'.repeat(64)}`, cells: 8, summary: {}, created_at: '2026-09-21T00:00:00Z', finished_at: null,
     definition: {
-      apiVersion: 'openbinding/study-run/v1', problems: [], engines: study.definition.engines,
+      apiVersion: 'openbinding/study-run/v1', problems: [], engines: study.definition.engines as StudyRun['definition']['engines'],
       parameterSets: study.definition.parameter_sets, seeds: study.definition.seeds,
     },
     definition_digest: `sha256-${'9'.repeat(64)}`, ...over,

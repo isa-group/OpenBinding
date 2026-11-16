@@ -234,7 +234,7 @@ async def test_a_retry_whose_dispatch_fails_keeps_its_committed_job(
 ) -> None:
     user_id, headers = await _account(api_client, registration)
     original = Job(
-        owner_id=user_id, engine_id="random-search", engine_job_id="failed", service_url="http://engine",
+        created_by_id=user_id, engine_id="random-search", engine_job_id="failed", service_url="http://engine",
         state=JobState.FAILED, original_request={}, options={}, provenance={},
         **await compiled_run_refs(db_session, user_id),
     )
@@ -254,7 +254,7 @@ async def test_a_retry_whose_dispatch_fails_keeps_its_committed_job(
 
 async def _attach_job(db_session, cell, user, organization, state=JobState.QUEUED) -> Job:
     job = Job(
-        owner_id=user.id, engine_id="random-search", engine_job_id=str(uuid.uuid4()), service_url="http://engine",
+        created_by_id=user.id, engine_id="random-search", engine_job_id=str(uuid.uuid4()), service_url="http://engine",
         state=state, original_request={}, options={}, provenance={}, result={"termination": "FEASIBLE", "solutions": []},
         organization_id=organization.id, study_cell_id=cell.id,
         revision_id=cell.binding_case_revision_id, compilation_id=uuid.uuid4(),
@@ -333,7 +333,7 @@ async def _launched_run(api_client, db_session, registration, monkeypatch, code)
         if cell.ordinal == second.ordinal:
             raise study_jobs.StudyLaunchError(code, "refused")
         job = Job(
-            owner_id=user_.id, engine_id="random-search", engine_job_id=str(uuid.uuid4()),
+            created_by_id=user_.id, engine_id="random-search", engine_job_id=str(uuid.uuid4()),
             service_url="http://engine", state=JobState.QUEUED, study_cell_id=cell.id,
             organization_id=organization_.id,
             revision_id=cell.binding_case_revision_id, compilation_id=uuid.uuid4(),

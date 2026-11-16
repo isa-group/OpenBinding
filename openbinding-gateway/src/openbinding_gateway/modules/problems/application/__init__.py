@@ -6,6 +6,7 @@ Code outside ``modules/problems`` reaches the module through this package only
 
 from ..domain.compilation import Compilation, analysis_summary, ir_analysis, package_file_digests, semantic_digest
 from ..domain.digests import is_digest, revision_digest
+from ..domain.origin import ORIGINS, ProblemOrigin, origin_of
 from .compile import CompileRefusal, compile_package, compile_refusal
 from .package import BIM_ZIP_TYPES, PackageRequest, read_package
 from .problems import (
@@ -17,7 +18,9 @@ from .problems import (
     create_problem,
     current_compilations,
     delete_problem,
+    latest_origin_is,
     latest_revisions,
+    linked_by_composition,
     problem_by_ref,
     revision_by_ref,
     slug_from_name,
@@ -27,6 +30,9 @@ from .templates import TemplatePackage, TemplateProblem, template_package, templ
 from .validate import validate_package
 
 __all__ = [
+    "ORIGINS",
+    "ProblemOrigin",
+    "origin_of",
     "BIM_ZIP_TYPES",
     "Compilation",
     "CompileRefusal",
@@ -46,7 +52,9 @@ __all__ = [
     "delete_problem",
     "ir_analysis",
     "is_digest",
+    "latest_origin_is",
     "latest_revisions",
+    "linked_by_composition",
     "package_file_digests",
     "problem_by_ref",
     "read_package",

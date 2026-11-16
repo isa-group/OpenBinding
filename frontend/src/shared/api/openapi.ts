@@ -2043,6 +2043,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/organizations/{org}/studies/{study}/runs/{run_id}/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export Study Run
+         * @description A study run as a file: every cell, in cell order, with no paging (a run has at most 10,000 cells).
+         *
+         *     CSV columns: ``cell_id, problem, revision, engine_namespace, engine_name, engine_version, mode, parameters``
+         *     (JSON), ``seed, status, feasible, runtime_seconds``, then ``objective.<name>`` and ``metric.<name>``, each
+         *     group sorted by name.
+         */
+        get: operations["exportStudyRun"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/pricing/catalog": {
         parameters: {
             query?: never;
@@ -2410,7 +2434,9 @@ export interface components {
                 tasks: number;
             };
             compatibleModes: components["schemas"]["EngineCompatibility"][];
-            diagnostics: Record<string, never>[];
+            diagnostics: {
+                [key: string]: unknown;
+            }[];
             facts?: components["schemas"]["ProblemFactsView"];
             fileDigests: {
                 [key: string]: string;
@@ -2422,7 +2448,9 @@ export interface components {
             resourceDigests: {
                 [key: string]: string;
             };
-            sourceMap?: Record<string, never>;
+            sourceMap?: {
+                [key: string]: unknown;
+            };
             /** @constant */
             valid: true;
         };
@@ -2446,10 +2474,11 @@ export interface components {
             objective_distributions: {
                 [key: string]: number[];
             };
-            /** Pareto */
-            pareto: {
-                [key: string]: unknown;
-            }[];
+            /**
+             * Pareto
+             * @description One front per problem revision and objective-name set, from the feasible solutions of completed cells.
+             */
+            pareto?: components["schemas"]["ParetoFront"][];
             /** Runtimes S */
             runtimes_s: number[];
             /** Stability */
@@ -3893,7 +3922,9 @@ export interface components {
             /** @description Stable identifier of this particular finding. */
             code: string;
             /** @description Limits that were exceeded (`gt`, `max_length`, ...). */
-            context?: Record<string, never>;
+            context?: {
+                [key: string]: unknown;
+            };
             /**
              * @description On a refused diff: which of the two documents the finding is about.
              * @enum {string}
@@ -3919,7 +3950,9 @@ export interface components {
             path?: string;
             /** @description RFC 6901 JSON Pointer to the offending field (inside the request body, or the document named by `resource`). */
             pointer?: string;
-            related?: Record<string, never>[];
+            related?: {
+                [key: string]: unknown;
+            }[];
             /** @description The package file or resource the finding is about. */
             resource?: string;
             /**
@@ -3998,7 +4031,9 @@ export interface components {
         };
         EngineCompatibility: {
             compatible: boolean;
-            diagnostics: Record<string, never>[];
+            diagnostics: {
+                [key: string]: unknown;
+            }[];
             engine: components["schemas"]["ImmutableResourceRef"];
             mode: string;
             registration: components["schemas"]["ImmutableResourceRef"];
@@ -4211,7 +4246,9 @@ export interface components {
             version: string;
         };
         EngineVerificationReport: {
-            checks: Record<string, never>[];
+            checks: {
+                [key: string]: unknown;
+            }[];
             durationMs?: number;
             /** @constant */
             protocol: "bim-engine/v1";
@@ -4552,8 +4589,12 @@ export interface components {
             code?: string;
             correlationId?: string;
             error?: string;
-            provenance?: Record<string, never>;
-            solutions: Record<string, never>[];
+            provenance?: {
+                [key: string]: unknown;
+            };
+            solutions: {
+                [key: string]: unknown;
+            }[];
             /** @enum {string} */
             termination: "OPTIMAL" | "FEASIBLE" | "INFEASIBLE" | "UNKNOWN";
         };
@@ -4729,8 +4770,12 @@ export interface components {
         JobRequest: {
             engine?: string | components["schemas"]["ImmutableResourceRef"];
             mode?: string;
-            optimization?: Record<string, never>;
-            options?: Record<string, never>;
+            optimization?: {
+                [key: string]: unknown;
+            };
+            options?: {
+                [key: string]: unknown;
+            };
             /** @description A run preset of the organization (`listRunPresets`), by slug or id, whose settings the run copies; not together with `engine`, `registration`, `mode`, `options` or `optimization`. */
             preset?: string;
             registration?: components["schemas"]["ImmutableResourceRef"];
@@ -4822,6 +4867,12 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            /**
+             * Origin
+             * @description Where the revision came from: `upload`, `editor` (the problem editor), `qacoforge` or `sphere`; read from the upload's producer when it was stored.
+             * @enum {string}
+             */
+            origin: "upload" | "editor" | "qacoforge" | "sphere";
             /** Package Digest */
             package_digest: string;
             /** Revision */
@@ -5086,6 +5137,56 @@ export interface components {
             resource_id?: string | null;
             /** Role */
             role: string;
+        };
+        /**
+         * ParetoFront
+         * @description The non-dominated points of one problem revision and one set of objective names (minimisation).
+         */
+        ParetoFront: {
+            /** Objectives */
+            objectives: string[];
+            /** Points */
+            points: components["schemas"]["ParetoPoint"][];
+            problem: components["schemas"]["ParetoProblem"];
+            /** Revision */
+            revision: number;
+            /**
+             * Revision Id
+             * Format: uuid
+             */
+            revision_id: string;
+        };
+        /**
+         * ParetoPoint
+         * @description A feasible solution no other solution of its front dominates.
+         */
+        ParetoPoint: {
+            /**
+             * Cell Id
+             * Format: uuid
+             */
+            cell_id: string;
+            /** Engine */
+            engine: string;
+            /**
+             * Job Id
+             * Format: uuid
+             */
+            job_id: string;
+            /** Objectives */
+            objectives: {
+                [key: string]: number;
+            };
+            /**
+             * Solution Index
+             * @description The run solution the point is: the `point` to derive a composition from.
+             */
+            solution_index: number;
+        };
+        /** ParetoProblem */
+        ParetoProblem: {
+            /** Slug */
+            slug: string;
         };
         /**
          * ParseResult
@@ -5459,12 +5560,18 @@ export interface components {
             id: string;
             /** @constant */
             kind: "Profile";
-            metadata: Record<string, never>;
-            output: Record<string, never>;
+            metadata: {
+                [key: string]: unknown;
+            };
+            output: {
+                [key: string]: unknown;
+            };
             /** @constant */
             protocol: "bim-engine/v1";
             protocolDigest: string;
-            spec: Record<string, never>;
+            spec: {
+                [key: string]: unknown;
+            };
         };
         ProfileList: {
             profiles: components["schemas"]["ProfileCatalogEntry"][];
@@ -5776,6 +5883,12 @@ export interface components {
             id: string;
             /** Instance Digest */
             instance_digest?: string | null;
+            /**
+             * Origin
+             * @description Where the revision came from: `upload`, `editor` (the problem editor), `qacoforge` or `sphere`; read from the upload's producer when it was stored.
+             * @enum {string}
+             */
+            origin: "upload" | "editor" | "qacoforge" | "sphere";
             /** Package Digest */
             package_digest: string;
             /** Package Size */
@@ -5815,6 +5928,12 @@ export interface components {
             id: string;
             /** Instance Digest */
             instance_digest?: string | null;
+            /**
+             * Origin
+             * @description Where the revision came from: `upload`, `editor` (the problem editor), `qacoforge` or `sphere`; read from the upload's producer when it was stored.
+             * @enum {string}
+             */
+            origin: "upload" | "editor" | "qacoforge" | "sphere";
             /** Package Digest */
             package_digest: string;
             /** Package Size */
@@ -5872,12 +5991,16 @@ export interface components {
              * Optimization
              * @description `{type: SINGLE|MULTI|MANY, scalarization, weights?: [{criteria, value}]}`, resolved against the problem's criteria when a run uses the preset.
              */
-            optimization?: Record<string, never> | null;
+            optimization?: {
+                [key: string]: unknown;
+            } | null;
             /**
              * Options
              * @description The engine options, as a run request's (at most 65536 bytes as JSON).
              */
-            options?: Record<string, never>;
+            options?: {
+                [key: string]: unknown;
+            };
             /**
              * Registration
              * @description The deployment to run on, an immutable reference; null for the engine's installed one.
@@ -5926,12 +6049,16 @@ export interface components {
              * Optimization
              * @description `{type: SINGLE|MULTI|MANY, scalarization, weights?: [{criteria, value}]}`, resolved against the problem's criteria when a run uses the preset.
              */
-            optimization?: Record<string, never> | null;
+            optimization?: {
+                [key: string]: unknown;
+            } | null;
             /**
              * Options
              * @description The engine options, as a run request's (at most 65536 bytes as JSON).
              */
-            options?: Record<string, never>;
+            options?: {
+                [key: string]: unknown;
+            };
             /**
              * Registration
              * @description The deployment to run on, an immutable reference; null for the engine's installed one.
@@ -6088,6 +6215,56 @@ export interface components {
             /** Label */
             label: string;
         };
+        /** StudyCellExport */
+        StudyCellExport: {
+            /**
+             * Binding Case Revision Id
+             * Format: uuid
+             */
+            binding_case_revision_id: string;
+            /**
+             * Compilation Id
+             * Format: uuid
+             */
+            compilation_id: string;
+            /**
+             * Engine
+             * @description The exact engine, mode and optimization the cell ran.
+             */
+            engine: {
+                [key: string]: unknown;
+            };
+            /** Fingerprint */
+            fingerprint: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Job Id */
+            job_id: string | null;
+            /** Metrics */
+            metrics: {
+                [key: string]: unknown;
+            };
+            /** Ordinal */
+            ordinal: number;
+            /** Parameters */
+            parameters: {
+                [key: string]: unknown;
+            };
+            /**
+             * Problem
+             * @description The slug of the problem the cell's revision belongs to.
+             */
+            problem: string;
+            /** Revision */
+            revision: number;
+            /** Seed */
+            seed: number;
+            /** State */
+            state: string;
+        };
         /** StudyCellResult */
         StudyCellResult: {
             /**
@@ -6157,7 +6334,11 @@ export interface components {
         /**
          * StudyDefinition
          * @description The reproducible Cartesian product behind a comparative study: problem revisions of the study's
-         *     organization, exact engine revisions with a mode, parameter sets and seeds.
+         *     organization, engines, parameter sets and seeds.
+         *
+         *     An engine is an exact engine revision with a mode, an optimization and, optionally, ``options``; or
+         *     ``{"preset": <slug or id>}``, a run preset of the organization that each run expands into one (and records
+         *     as ``preset: {id, slug}``, which an exact entry copied from a run may keep).
          */
         StudyDefinition: {
             /** Engines */
@@ -6172,6 +6353,18 @@ export interface components {
             revision_ids?: string[];
             /** Seeds */
             seeds?: number[];
+        };
+        /** StudyExportRef */
+        StudyExportRef: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Slug */
+            slug: string;
         };
         /**
          * StudyRunDefinition
@@ -6192,6 +6385,40 @@ export interface components {
             problems: components["schemas"]["StudyRunProblem"][];
             /** Seeds */
             seeds: number[];
+        };
+        /**
+         * StudyRunExport
+         * @description A study run exported whole (``exportStudyRun?format=json``): the frozen definition and every cell.
+         */
+        StudyRunExport: {
+            /** Cells */
+            cells: components["schemas"]["StudyCellExport"][];
+            definition: components["schemas"]["StudyRunDefinition"];
+            run: components["schemas"]["StudyRunExportRef"];
+            study: components["schemas"]["StudyExportRef"];
+        };
+        /** StudyRunExportRef */
+        StudyRunExportRef: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Definition Digest */
+            definition_digest: string;
+            /** Finished At */
+            finished_at: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Matrix Digest */
+            matrix_digest: string;
+            /** Run Number */
+            run_number: number;
+            /** State */
+            state: string;
         };
         /**
          * StudyRunProblem
@@ -6425,7 +6652,9 @@ export interface components {
             valid: boolean;
         };
         ValidationResult: {
-            diagnostics: Record<string, never>[];
+            diagnostics: {
+                [key: string]: unknown;
+            }[];
             fileDigests: {
                 [key: string]: string;
             };
@@ -8497,7 +8726,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/schema+json": Record<string, never>;
+                    "application/schema+json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description The request does not satisfy the contract; `diagnostics` says where. */
@@ -8521,7 +8752,9 @@ export interface operations {
         /** @description A Composition2Yaml document as JSON, at most 524288 bytes. */
         requestBody: {
             content: {
-                "application/json": Record<string, never>;
+                "application/json": {
+                    [key: string]: unknown;
+                };
             };
         };
         responses: {
@@ -10547,6 +10780,8 @@ export interface operations {
                 q?: string | null;
                 /** @description Only archived (`true`) or only active (`false`) ones. */
                 archived?: boolean | null;
+                /** @description Only compositions with a version linking a revision of this problem (slug or id); none for an unknown one. */
+                problem?: string | null;
                 /** @description By `name` (the default), or the most recently `updated` first. */
                 sort?: "name" | "updated";
                 limit?: number;
@@ -12701,6 +12936,10 @@ export interface operations {
         parameters: {
             query?: {
                 q?: string | null;
+                /** @description Only problems whose latest revision came from here. */
+                origin?: ("upload" | "editor" | "qacoforge" | "sphere") | null;
+                /** @description Only problems a version of this composition (slug or id) links; none for an unknown one. */
+                composition?: string | null;
                 limit?: number;
                 offset?: number;
             };
@@ -15132,6 +15371,70 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Missing or invalid account credential. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The account role, API-key permission, or Engine allow-list does not permit this request. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The request does not satisfy the contract; `diagnostics` says where. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Account authentication is not configured on this deployment. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    exportStudyRun: {
+        parameters: {
+            query: {
+                /** @description `csv`: one row per cell; `json`: the frozen definition and every cell. */
+                format: "csv" | "json";
+            };
+            header?: never;
+            path: {
+                org: string;
+                study: string;
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The run as an attachment: a JSON document, or CSV with one row per cell. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudyRunExport"];
+                    "text/csv": string;
                 };
             };
             /** @description Missing or invalid account credential. */

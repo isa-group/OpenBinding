@@ -77,9 +77,10 @@ test.describe('J1 · derive, seal and compare', () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     const sent = derivations(page);
 
-    // The problem page: version 1's workflow and the candidates of each task.
+    // The problem page: version 1's workflow, then the candidates of each task.
     await page.goto(`${ORG}/problems/checkout-flow?version=1`);
     await expect(main(page).getByRole('group', { name: 'Workflow' })).toBeVisible();
+    await main(page).getByRole('tab', { name: 'Candidates' }).click();
     const candidates = main(page).getByRole('region', { name: 'Candidates of each task' });
     await expect(candidates.getByRole('region', { name: 'Candidates for T1' })).toContainText('cand_t1_google_cloud');
 

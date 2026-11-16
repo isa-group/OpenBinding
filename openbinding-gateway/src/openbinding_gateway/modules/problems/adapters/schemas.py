@@ -8,6 +8,15 @@ from typing import Any, Literal, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from ..domain.origin import ProblemOrigin
+
+
+def _origin() -> Any:
+    return Field(
+        description="Where the revision came from: `upload`, `editor` (the problem editor), `qacoforge` or `sphere`; "
+        "read from the upload's producer when it was stored.",
+    )
+
 
 class ProblemUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -34,6 +43,7 @@ class LatestRevision(BaseModel):
     id: uuid.UUID
     revision: int
     package_digest: str
+    origin: ProblemOrigin = _origin()
     created_at: datetime
     current_compilation: Optional[CompilationSummary] = None
 
@@ -73,6 +83,7 @@ class RevisionView(BaseModel):
     instance_digest: Optional[str] = None
     package_size: int
     provenance: Optional[dict[str, Any]] = None
+    origin: ProblemOrigin = _origin()
     created_by_id: uuid.UUID
     created_at: datetime
 

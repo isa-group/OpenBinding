@@ -59,3 +59,11 @@
 .dc-refusal p { margin: 0; }
 .dc-refusal ul { margin: 4px 0 0; padding-left: 1.1rem; overflow-wrap: anywhere; }
 .dc-refusal code { font-family: var(--tp-font-mono); font-size: 0.75rem; }
+
+/* Batch mode: one card per point of a study front, its address and its own result. */
+.dc-batch { display: flex; flex-direction: column; gap: var(--tp-spacing-sm); margin: 0; padding: 0; list-style: none; }
+.dc-batch-row { display: flex; min-width: 0; flex-direction: column; gap: 6px; padding: var(--tp-spacing-sm); border: 1px solid var(--tp-hairline); border-radius: var(--tp-radius-md); }
+.dc-batch-row.is-done { border-color: var(--tp-severity-success-border); }
+.dc-batch-row.is-failed { border-color: var(--tp-severity-error-border); background: var(--tp-severity-error-bg); }
+.dc-batch-head { margin: 0; overflow-wrap: anywhere; font-size: 0.875rem; }
+.dc-batch-state { margin: 0; color: var(--tp-ink); font-size: 0.8125rem; overflow-wrap: anywhere; }

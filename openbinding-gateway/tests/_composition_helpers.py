@@ -181,7 +181,7 @@ async def finished_run(
         for binding in bindings
     ]
     job = Job(
-        owner_id=linked.upload.problem.created_by_id,
+        created_by_id=linked.upload.problem.created_by_id,
         engine_id="random-search",
         engine_job_id=f"e-{uuid.uuid4().hex[:8]}",
         service_url="http://engine",

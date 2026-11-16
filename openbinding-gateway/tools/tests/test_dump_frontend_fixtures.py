@@ -38,7 +38,8 @@ def test_two_runs_write_byte_identical_trees(two_runs) -> None:
     first, second = two_runs
     assert _tree(first) == _tree(second)
     assert sorted(_tree(first)) == sorted(
-        f"{name}.{kind}.json" for name, _ in tool.PACKAGES for kind in ("facts", "validate", "version", "diff")
+        [f"{name}.{kind}.json" for name, _ in tool.PACKAGES for kind in ("facts", "validate", "version", "diff")]
+        + ["refused.package.json", "refused.validate.json"]
     )
 
 
@@ -70,6 +71,24 @@ def test_each_package_has_a_derived_version_and_a_diff_of_one_candidate(two_runs
             ("changed", ["candidate"]),
         ]
         assert diff["from"]["label"] == "1.0.0" and diff["to"]["label"] == "1.1.0"
+
+
+def test_the_refused_package_is_located_in_every_shape_the_editor_reads(two_runs) -> None:
+    first, _ = two_runs
+    body = json.loads((first / "refused.validate.json").read_text(encoding="utf-8"))
+    assert body["status"] == 422 and body["code"] == "invalid_instance"
+    found = {(item["code"], item["resource"], item.get("pointer")): item for item in body["diagnostics"]}
+    assert ("feature_value_domain", "candidates.json", "/spec/candidates/auth-edge/features/latency") in found
+    expression = found["expression", "constraints.json", "/spec/constraints/end_to_end_latency/assert"]
+    assert set(expression["span"]) == {"start", "end"}
+    assert found["bpmn_task_ref", "workflow.bpmn", "/process/orphan"]["bpmnElement"] == "orphan"
+    assert ("placement_capacity_rule", "placement.json", "/spec/capacityRules/0/resources") in found
+    assert ("placement_event_pool", "placement.json", "/spec/events/client-request/latency/1/pool") in found
+    # A finding that names its resource by id rather than by file.
+    assert any(resource == "placement" for _, resource, _ in found)
+    files = json.loads((first / "refused.package.json").read_text(encoding="utf-8"))
+    assert set(files) == {path.name for path in tool.REFUSED_SOURCE.iterdir() if path.is_file()}
+    assert '"features.latency <= "' in files["constraints.json"] and 'id="orphan"' in files["workflow.bpmn"]
 
 
 def test_the_checked_in_fixtures_are_up_to_date() -> None:

@@ -1,92 +1,95 @@
-import { apiClient, type BimAnalysisResponse, type PackageValidationOutcome } from './client';
-import type { ProblemFacts } from '../shared/api/types';
+import { apiClient, HttpError } from './client';
+import type { components } from '../shared/api/openapi';
+
+type Schemas = components['schemas'];
+
+/**
+ * `POST /v1/bim/validate` for a package it compiled: digests, the analysis, the engine modes visible to the caller and their
+ * diagnostics; with `include: ['ir']` the IR and its source map, with `include: ['facts']` the facts (what the workflow graph and
+ * the candidate matrix read). Nothing is stored.
+ */
+export type BimValidateResponse = Schemas['AnalysisResult'];
+
+/** The analysis of a compiled package: task, candidate and constraint counts, placement, and the binding-space size as text. */
+export type BimAnalysis = BimValidateResponse['analysis'];
+
+/** One engine mode the analysis lists for a package: the engine, its deployment, the mode, whether it can run it and why not. */
+export type BimEngineCompatibility = Schemas['EngineCompatibility'];
+
+/** One finding of the gateway, located by resource, pointer, BPMN element or span. */
+export type BimDiagnostic = Schemas['Diagnostic'];
+
+/** The template packages a problem can start from (`GET /v1/bim/templates`). */
+export type BimTemplateList = Schemas['TemplateList'];
+
+/** What `include` may ask the validation for besides the analysis. */
+export type BimValidateInclude = 'ir' | 'facts';
+
+/**
+ * A package the gateway read and refused (422), as a result: `invalid_instance` with the compiler's located diagnostics, or
+ * another 422 code (an archive the toolchain cannot read, a binding space past the limit) with its message.
+ */
+export interface BimRefusal {
+  valid: false;
+  status: number;
+  code: string;
+  message: string;
+  diagnostics: BimDiagnostic[];
+}
+
+export interface BimValidateOptions {
+  include?: BimValidateInclude[];
+  signal?: AbortSignal;
+  /** Answer a 422 as a `BimRefusal` instead of throwing it. */
+  acceptRefusal?: boolean;
+}
 
 const ZIP = { 'Content-Type': 'application/vnd.bim+zip' };
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
+const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const validateEndpoint = (include: BimValidateInclude[] = []) => {
+  const asked = [...new Set(include)];
+  return `/v1/bim/validate${asked.length ? `?include=${asked.join(',')}` : ''}`;
+};
+
+function refusalOf(error: HttpError): BimRefusal {
+  return {
+    valid: false,
+    status: error.status,
+    code: error.code ?? 'invalid_request',
+    message: error.message.replace(/^HTTP \d+:\s*/, '').trim() || 'The package could not be validated.',
+    diagnostics: (error.diagnostics ?? []).filter(isRecord) as BimDiagnostic[],
+  };
 }
 
 /**
- * `POST /v1/bim/validate`: the analysis of a package, with `include: 'ir'` its IR and source map, and with `include: 'facts'` its
- * facts (what the workflow graph and the candidate matrix read). Nothing is stored.
+ * Check a package and say which engine modes can run it. A refusal throws (HttpError for 413, 415, 422, 429…) so the screen words
+ * each one, and a 422 carries the located diagnostics; with `acceptRefusal`, a 422 comes back as a `BimRefusal` instead.
  */
-export interface BimValidation extends BimAnalysisResponse {
-  instanceDigest?: string;
-  packageDigest?: string;
-  irDigest?: string;
-  fileDigests?: Record<string, string>;
-  resourceDigests?: Record<string, string>;
-  ir?: Record<string, unknown>;
-  sourceMap?: Record<string, unknown>;
-  facts?: ProblemFacts;
+function validate(archive: Uint8Array, options: BimValidateOptions & { acceptRefusal: true }): Promise<BimValidateResponse | BimRefusal>;
+function validate(archive: Uint8Array, options?: BimValidateOptions & { acceptRefusal?: false }): Promise<BimValidateResponse>;
+async function validate(archive: Uint8Array, options: BimValidateOptions = {}): Promise<BimValidateResponse | BimRefusal> {
+  try {
+    return await apiClient.request<BimValidateResponse>(validateEndpoint(options.include), {
+      method: 'POST', headers: ZIP, body: archive as unknown as BodyInit, signal: options.signal,
+    });
+  } catch (caught) {
+    if (options.acceptRefusal && caught instanceof HttpError && caught.status === 422) return refusalOf(caught);
+    throw caught;
+  }
 }
-
-/** What `include` may ask for besides the analysis: the IR, the facts, or both. */
-export type ValidateInclude = 'ir' | 'facts' | 'ir,facts';
-
-const validateEndpoint = (include?: ValidateInclude) => `/v1/bim/validate${include ? `?include=${include}` : ''}`;
 
 /**
  * The stateless BIM language services (`/v1/bim/*`): checking a package and the package templates. None needs an account; a
  * signed-in caller is charged to the account, an anonymous one to the address.
  */
 export const bimApi = {
-  /**
-   * Check a package and say which engine modes can run it. Throws on a refusal (HttpError for 413, 415, 422, 429…) so the screen
-   * words each one; a 422 carries the located diagnostics.
-   */
-  validate: (archive: Uint8Array, options: { include?: ValidateInclude; signal?: AbortSignal } = {}) =>
-    apiClient.request<BimValidation>(validateEndpoint(options.include), {
-      method: 'POST', headers: ZIP, body: archive as unknown as BodyInit, signal: options.signal,
-    }, undefined, true, true),
-
-  /**
-   * The same check, where a package the gateway reads and refuses (422) is a result, not a failure: it comes back as
-   * `{ valid: false }` with its diagnostics. Too large (413), wrong media type (415) and rate limits (429) throw HttpError.
-   */
-  async check(archive: Uint8Array, signal?: AbortSignal): Promise<PackageValidationOutcome> {
-    const body = await apiClient.request<Record<string, unknown>>(validateEndpoint(), {
-      method: 'POST', headers: ZIP, body: archive as unknown as BodyInit, signal,
-    }, undefined, true, false);
-    if (isRecord(body) && body.valid === true) {
-      return {
-        valid: true,
-        result: {
-          valid: true,
-          instanceDigest: String(body.instanceDigest ?? ''),
-          packageDigest: String(body.packageDigest ?? ''),
-          fileDigests: isRecord(body.fileDigests) ? body.fileDigests as Record<string, string> : {},
-          resourceDigests: isRecord(body.resourceDigests) ? body.resourceDigests as Record<string, string> : {},
-          irDigest: String(body.irDigest ?? ''),
-          diagnostics: Array.isArray(body.diagnostics) ? body.diagnostics.filter(isRecord) : [],
-        },
-      };
-    }
-    const detail = isRecord(body) ? body.detail : undefined;
-    const detailRecord = isRecord(detail) ? detail : undefined;
-    const diagnostics = isRecord(body) && Array.isArray(body.diagnostics)
-      ? body.diagnostics
-      : Array.isArray(detailRecord?.diagnostics) ? detailRecord.diagnostics : [];
-    return {
-      valid: false,
-      refusal: {
-        status: typeof body?.status === 'number' ? body.status : 422,
-        code: (typeof body?.code === 'string' ? body.code : undefined)
-          ?? (typeof body?.title === 'string' ? body.title : undefined)
-          ?? (typeof detailRecord?.code === 'string' ? detailRecord.code : undefined) ?? 'invalid_request',
-        message: (typeof detail === 'string' ? detail : undefined)
-          ?? (typeof detailRecord?.message === 'string' ? detailRecord.message : undefined)
-          ?? (typeof detailRecord?.error === 'string' ? detailRecord.error : undefined)
-          ?? 'The package could not be validated.',
-        diagnostics: diagnostics.filter(isRecord),
-      },
-    };
-  },
+  validate,
 
   /** The template packages (`demo/01_simple_seq`, …). */
   async templates(): Promise<string[]> {
-    const body = await apiClient.request<{ templates: string[] }>('/v1/bim/templates');
+    const body = await apiClient.request<BimTemplateList>('/v1/bim/templates');
     return body.templates || [];
   },
 

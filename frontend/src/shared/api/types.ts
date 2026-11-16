@@ -20,11 +20,11 @@ export type ProblemFactsCandidate = Schemas['ProblemFactsCandidate'];
 /** One constraint of a problem's facts: `<resource>/<id>`, its enforcement and its IR expressions. */
 export type ProblemFactsConstraint = Schemas['ProblemFactsConstraint'];
 
+/** Where the latest version of a problem came from: an upload, the problem editor, QACOForge or (F3) SPHERE. */
+export type ProblemOrigin = Schemas['LatestRevision']['origin'];
+
 /** Where a value of a candidate is written in its package (`kind: package`; F3 adds the other origins). */
 export type ProblemValueOrigin = Schemas['ProblemValueOrigin'];
-
-/** What `POST /v1/bim/validate` answers for a valid package, with `facts` when `include=facts` asks for them. */
-export type AnalysisResult = Schemas['AnalysisResult'];
 
 /** One version of a composition as the gateway serves it (`GET …/compositions/{composition}/versions/{version}`). */
 export type CompositionVersionView = Schemas['CompositionVersionView'];
@@ -112,3 +112,27 @@ export type ParseResult = Schemas['ParseResult'];
 
 /** What changed between two Composition2Yaml texts (`POST /v1/compositions/diff`). */
 export type DiffResult = Schemas['DiffResult'];
+
+/** A run preset of an organization (`GET …/presets/{preset}`); below MEMBER its options are redacted, as a run's are. */
+export type RunPresetView = Schemas['RunPresetView'];
+
+/** A page of an organization's run presets, by name (`GET …/presets`). */
+export type RunPresetList = Schemas['RunPresetList'];
+
+/** What creating a run preset takes (`POST …/presets`). */
+export type RunPresetCreate = Schemas['RunPresetCreate'];
+
+/** What a change of a run preset may name (`PATCH …/presets/{preset}`); absent fields stay. */
+export type RunPresetUpdate = Schemas['RunPresetUpdate'];
+
+/** An exact engine or deployment reference: namespace, name, version and digest. */
+export type ImmutableResourceRef = Schemas['ImmutableResourceRef'];
+
+/** The analytics of a study run (`GET …/studies/{study}/runs/{run}/analytics`), with the Pareto front of each problem revision. */
+export type AnalyticsView = Schemas['AnalyticsView'];
+
+/** The non-dominated points of one problem revision and one set of objective names, as the gateway computed them. */
+export type ParetoFront = Schemas['ParetoFront'];
+
+/** One point of a Pareto front: its cell, the run it ran as and the solution of that run (`point` of a derivation). */
+export type ParetoPoint = Schemas['ParetoPoint'];

@@ -80,7 +80,7 @@ async def test_an_update_of_a_case_revision_is_refused(pg) -> None:
         user = User(username=f"u{suffix}", email=f"u{suffix}@example.com", password_hash="x", plan_cache="free")
         session.add(user)
         await session.flush()
-        revision_id = (await seed_problem_run(session, owner_id=user.id))["revision_id"]
+        revision_id = (await seed_problem_run(session, created_by_id=user.id))["revision_id"]
         await session.commit()
 
     async with pg.session() as session:
@@ -100,7 +100,7 @@ async def test_an_update_of_a_compilation_is_refused_and_an_unused_one_may_go(pg
         user = User(username=f"u{suffix}", email=f"u{suffix}@example.com", password_hash="x", plan_cache="free")
         session.add(user)
         await session.flush()
-        compilation_id = (await seed_problem_run(session, owner_id=user.id))["compilation_id"]
+        compilation_id = (await seed_problem_run(session, created_by_id=user.id))["compilation_id"]
         await session.commit()
 
     async with pg.session() as session:

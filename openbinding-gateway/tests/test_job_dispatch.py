@@ -107,14 +107,14 @@ async def test_reconciler_redelivers_only_persisted_queued_jobs(db_session, monk
     db_session.add(user)
     await db_session.flush()
     queued = Job(
-        owner_id=user.id,
+        created_by_id=user.id,
         engine_id="random-search",
         engine_job_id="queued",
         service_url="http://engine",
         state=JobState.QUEUED, **placeholder_refs(),
     )
     completed = Job(
-        owner_id=user.id,
+        created_by_id=user.id,
         engine_id="random-search",
         engine_job_id="completed",
         service_url="http://engine",
@@ -145,7 +145,7 @@ async def test_job_retry_is_idempotent_and_creates_only_one_replacement(
 ):
     user_id, headers = await _account(api_client, registration)
     original = Job(
-        owner_id=user_id,
+        created_by_id=user_id,
         engine_id="random-search",
         engine_job_id="failed-original",
         service_url="http://engine",
@@ -177,7 +177,7 @@ async def test_job_cancel_is_terminal_and_its_sse_stream_closes(
 ):
     user_id, headers = await _account(api_client, registration)
     job = Job(
-        owner_id=user_id,
+        created_by_id=user_id,
         engine_id="random-search",
         engine_job_id="queued-to-cancel",
         service_url="http://engine",

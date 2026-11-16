@@ -150,8 +150,7 @@ def test_pareto_and_stability_aggregates_are_deterministic() -> None:
     assert aggregate["cells"] == 4
     assert aggregate["completed"] == 3
     assert aggregate["failed"] == 1
-    assert aggregate["pareto"] == []
-    assert "incompatible" in aggregate["paretoStatus"]
+    assert "pareto" not in aggregate and "paretoStatus" not in aggregate
     assert aggregate["runtimes_s"] == [1.0, 2.0, 3.0]
 
 
@@ -432,7 +431,7 @@ async def test_study_cancel_and_cell_retry_are_http_idempotent(
 ) -> None:
     async def leave_queued(session, cell, user, organization):
         job = Job(
-            owner_id=user.id,
+            created_by_id=user.id,
             engine_id=cell.engine_ref["name"],
             engine_job_id=str(uuid.uuid4()),
             service_url="http://engine",

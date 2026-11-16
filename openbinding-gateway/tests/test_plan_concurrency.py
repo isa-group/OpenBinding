@@ -232,7 +232,7 @@ async def test_an_idempotent_replay_at_the_plan_limit_returns_the_job_and_takes_
     assert first.status_code == replay.status_code == 202, replay.text
     assert replay.json()["id"] == first.json()["id"] and replay.json()["idempotent"] is True
     assert await jobs_in_the_database(db_session) == 1
-    assert await limits.count_in_flight(db_session, await db_session.scalar(select(Job.owner_id))) == 1
+    assert await limits.count_in_flight(db_session, await db_session.scalar(select(Job.created_by_id))) == 1
 
 
 async def test_the_plan_limit_is_per_account(api_client, db_session, registration, no_dispatch, monkeypatch):

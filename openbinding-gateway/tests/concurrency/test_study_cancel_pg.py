@@ -71,7 +71,7 @@ def _launcher(launched: list[uuid.UUID], entered: asyncio.Event | None = None, p
             entered.set()
         await asyncio.sleep(pause)  # long enough for the other session to arrive
         job = Job(
-            owner_id=user.id, engine_id="random-search", engine_job_id=str(uuid.uuid4()),
+            created_by_id=user.id, engine_id="random-search", engine_job_id=str(uuid.uuid4()),
             service_url="http://engine", state=JobState.QUEUED, study_cell_id=cell.id,
             organization_id=organization.id, **await cell_refs(session, cell),
         )
@@ -213,7 +213,7 @@ async def test_two_syncs_of_the_last_two_jobs_leave_the_run_finished(two_session
     first, second = two_sessions
     world = await _world(first)
     running = Job(
-        owner_id=world.user_id, engine_id="random-search", engine_job_id="engine-2", service_url="http://engine",
+        created_by_id=world.user_id, engine_id="random-search", engine_job_id="engine-2", service_url="http://engine",
         state=JobState.RUNNING, organization_id=world.organization_id,
         study_cell_id=world.waiting_id, **await cell_refs(first, await first.get(StudyCell, world.waiting_id)),
     )
@@ -252,7 +252,7 @@ async def test_cancelling_a_study_job_and_its_run_at_once_does_not_deadlock(two_
     first, second = two_sessions
     world = await _world(first)
     queued = Job(
-        owner_id=world.user_id, engine_id="random-search", engine_job_id="engine-2", service_url="http://engine",
+        created_by_id=world.user_id, engine_id="random-search", engine_job_id="engine-2", service_url="http://engine",
         state=JobState.QUEUED, organization_id=world.organization_id,
         study_cell_id=world.waiting_id, **await cell_refs(first, await first.get(StudyCell, world.waiting_id)),
     )

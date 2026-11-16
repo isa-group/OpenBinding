@@ -64,14 +64,23 @@ describe('the Playwright specs', () => {
     for (const name of journeys) expect(read(`${e2e}/${name}`), name).toMatch(/\btest\.describe\('J\d+ · /);
   });
 
+  it('walks each F2b journey in a mocked spec of its own: J3 the problem editor; J4 study front to compositions', () => {
+    const journeys = ts.sys.readDirectory(e2e, ['.ts'], undefined, undefined, 1)
+      .map((name) => name.replace(`${e2e}/`, ''))
+      .filter((name) => name.startsWith('f2b-'));
+    expect(journeys.sort()).toEqual(['f2b-problem-editor.spec.ts', 'f2b-study-front.spec.ts']);
+    for (const name of journeys) expect(read(`${e2e}/${name}`), name).toMatch(/\btest\.describe\('J\d+ · /);
+  });
+
   describe('the live project', () => {
     const specs = liveFiles.filter((name) => name.endsWith('.spec.ts'));
 
-    it('covers login, navigation, the upload-run-study walk, a job, the viewer, the outsider, the plan page, J1, J2 and the visual QA', () => {
+    it('covers login, navigation, the upload-run-study walk, a job, the viewer, the outsider, the plan page, J1 to J4 and the visual QA', () => {
       expect(specs.map((name) => name.replace(`${live}/`, ''))).toEqual([
         '01-login.spec.ts', '02-navigation.spec.ts', '03-upload-run-study.spec.ts', '04-job-random-search.spec.ts',
         '05-viewer-read-only.spec.ts', '06-outsider-no-access.spec.ts', '07-plan-and-consoles.spec.ts',
-        '08-derive-seal-compare.spec.ts', '09-public-fork.spec.ts', 'visual-qa.spec.ts',
+        '08-derive-seal-compare.spec.ts', '09-public-fork.spec.ts', '10-problem-editor.spec.ts', '11-study-front.spec.ts',
+        'visual-qa.spec.ts',
       ]);
       for (const name of specs) expect(read(name), name).toMatch(/\btest\(|\btest\.describe\(/);
     });
@@ -86,6 +95,20 @@ describe('the Playwright specs', () => {
       expect(j2).toMatch(/test\.describe\('live · J2 /);
       for (const step of ["'/compositions'", "'Fork this composition'", '/Fork without the problem/', "'Fork as a new composition'", "'No composition here, or you cannot see it'"]) {
         expect(j2, step).toContain(step);
+      }
+    });
+
+    it('walks J3 and J4 against the lab: a template edited in the matrix, refused by the compiler, fixed and saved; a study front derived into a composition', () => {
+      const j3 = read(`${live}/10-problem-editor.spec.ts`);
+      expect(j3).toMatch(/test\.describe\('live · J3 /);
+      for (const step of ["'demo/16_json_complete'", "'Candidates of each task'", "'pe-check-status'", "'candidates.json source'",
+        "'Save as a new problem'", "'Run this version'"]) {
+        expect(j3, step).toContain(step);
+      }
+      const j4 = read(`${live}/11-study-front.spec.ts`);
+      expect(j4).toMatch(/test\.describe\('live · J4 /);
+      for (const step of ["'Problem versions'", "'Run study'", "'Pareto front'", "'Derive this point'", "'Derive 1 composition'"]) {
+        expect(j4, step).toContain(step);
       }
     });
 
@@ -177,6 +200,13 @@ describe('the Playwright specs', () => {
         "slug: 'composition-versions-compare'", "slug: 'composition-versions-file'", "slug: 'composition-versions-evolution'",
         "slug: 'composition-analysis'", "slug: 'composition-settings'", "slug: 'public-compositions'", "slug: 'showcase'",
         "slug: 'language'", "slug: 'viewer-compositions'", "slug: 'viewer-composition'"]) {
+        expect(qa, screen).toContain(screen);
+      }
+      // The problem screens (F2b): the Candidates and Compositions tabs, the problem editor pane by pane (and on mobile its
+      // Engines and Problems tabs), the run presets section and the study front.
+      for (const screen of ["slug: 'problem-candidates'", "slug: 'problem-compositions'", "slug: 'problem-editor'",
+        "pane('problem-editor-candidates'", "pane('problem-editor-rules'", "pane('problem-editor-files'", "pane('problem-editor-forms'",
+        "pane('problem-editor-engines'", "pane('problem-editor-problems'", "slug: 'presets'", "slug: 'study-front'"]) {
         expect(qa, screen).toContain(screen);
       }
       // A viewer is not offered a way to start a run.

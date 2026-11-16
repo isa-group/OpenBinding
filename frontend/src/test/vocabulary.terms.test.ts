@@ -23,11 +23,11 @@ const application = Object.fromEntries(Object.entries(sources).filter(([path]) =
 
 /**
  * The composition and problem vocabulary scope: the screens of compositions (list, detail and its tabs, the public list, the
- * showcase, Language), the problem screens (`pages/Cases`, `pages/Problems` after B2), and the layers they are built from.
+ * showcase, Language), the problem screens (`pages/Problems`), and the layers they are built from.
  */
-const SCOPE = /^\/src\/(pages\/(Compositions|PublicCompositions|Language|Cases)\/|widgets\/|entities\/(composition|binding)\/|features\/(composition-editor|derive|fork)\/)/;
+const SCOPE = /^\/src\/(pages\/(Compositions|PublicCompositions|Language|Problems)\/|widgets\/|entities\/(composition|binding)\/|features\/(composition-editor|derive|fork)\/)/;
 const SCOPE_AREAS = [
-  '/src/pages/Compositions/', '/src/pages/PublicCompositions/', '/src/pages/Language/', '/src/pages/Cases/', '/src/widgets/',
+  '/src/pages/Compositions/', '/src/pages/PublicCompositions/', '/src/pages/Language/', '/src/pages/Problems/', '/src/widgets/',
   '/src/entities/composition/', '/src/entities/binding/', '/src/features/composition-editor/', '/src/features/derive/', '/src/features/fork/',
 ];
 
@@ -62,7 +62,7 @@ const PLAN_WITH_PROPOSAL = /^(?=[\s\S]*\bproposals?\b)[\s\S]*\bplans?\b/i;
 const OUTSIDE: Readonly<Record<string, string>> = {
   '/src/pages/RegisterEngine/DeploymentForm.tsx': 'an engine deployment, registered with the platform',
   '/src/pages/Engines/EngineParts.tsx': 'an engine deployment, and "Verified" for the outcome of its conformance probe',
-  '/src/pages/Jobs/JobLaunch.tsx': 'the engine deployment a federated run is sent to',
+  '/src/pages/Runs/RunLaunch.tsx': 'the engine deployment a federated run is sent to',
   '/src/pages/Auth/Login.tsx': 'this OpenBinding installation',
   '/src/pages/Account/AccountIdentities.tsx': '"Verified" for a linked identity',
   '/src/pages/About/AboutPanels.tsx': 'the related projects of About',
@@ -82,8 +82,8 @@ const LABELS: ReadonlySet<string> = new Set(['Application', 'Workflow', 'Pipelin
 const WORKFLOW_TITLES: Readonly<Record<string, string>> = {
   '/src/widgets/composition-renderer/modes/workflow.tsx': 'the section of the renderer that draws the workflow',
   '/src/features/composition-editor/VisualPane.tsx': 'the part of the visual editor that shows the workflow',
-  '/src/pages/Cases/CaseRevision.tsx': 'the workflow of a problem version',
-  '/src/pages/Cases/casesModel.ts': 'the row of a problem comparison that compares the workflows',
+  '/src/pages/Problems/ProblemRevision.tsx': 'the workflow of a problem version',
+  '/src/pages/Problems/problemsModel.ts': 'the row of a problem comparison that compares the workflows',
 };
 
 /** Every text written whole, as a string literal or as JSX text: `file:line  text`, in the files given. */

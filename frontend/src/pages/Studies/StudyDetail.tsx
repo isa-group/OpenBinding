@@ -13,7 +13,7 @@ import { TabBar, TabPanel } from '../../components/ui/TabBar';
 import { formatDateTime } from '../../utils/format';
 import { useResource, type Resource } from '../../utils/useResource';
 import { classifyAuthError, marker } from '../../shared/api/errors';
-import { RefusalNotice } from '../Jobs/parts';
+import { RefusalNotice } from '../Runs/parts';
 import { NotFoundScreen } from '../../routes/NotFoundScreen';
 import { studiesPath } from '../../routes/paths/studies';
 import { CellBar, StateChip, StudyFrame } from './parts';
@@ -23,8 +23,8 @@ import { StudyScope, type StudyScopeValue } from './StudyScope';
 import { RunResults } from './StudyAnalytics';
 import { RunProgress } from './StudyRun';
 import {
-  STUDY_TABS, definitionGrid, definitionOfRun, definitionSize, describeParameters, formulaOf, isStudyTab, plural, revisionLabel, sameDefinition, stateWord,
-  studyPageHref, type StudyTabId,
+  STUDY_TABS, definitionGrid, definitionOfRun, definitionSize, describeParameters, engineRowLabel, formulaOf, frozenEngineFacts, isPresetEngine, isStudyTab,
+  plural, revisionLabel, sameDefinition, stateWord, studyPageHref, type StudyTabId,
 } from './studiesModel';
 import { studyRefusal, type Refusal } from './studyErrors';
 import { useRevisionIndex } from './useRevisionIndex';
@@ -44,6 +44,7 @@ function DefinitionMatrix({ definition, org }: { definition: Study['definition']
   const size = definitionSize(definition);
   const seeds = [...definition.seeds].sort((a, b) => a - b);
   const settings = definition.parameter_sets ?? [];
+  const presets = (definition.engines ?? []).filter(isPresetEngine).map((engine) => engine.preset);
   return (
     <section className="st-card" aria-labelledby="st-matrix-title">
       <h2 id="st-matrix-title">The matrix</h2>
@@ -76,7 +77,9 @@ function DefinitionMatrix({ definition, org }: { definition: Study['definition']
       <span className="st-caption">
         {formulaOf(size)} = {plural(size.cells, 'cell')}.
         {settings.length > 0 && ` Settings: ${settings.map((item, position) => `${position + 1} · ${describeParameters(item).toLowerCase()}`).join('; ')}.`}
-        {seeds.length > 0 && ` Seeds: ${seeds.join(', ')}.`} Every run repeats exactly these cells.
+        {seeds.length > 0 && ` Seeds: ${seeds.join(', ')}.`}
+        {presets.length > 0 && ` Each run expands the run preset${presets.length === 1 ? '' : 's'} ${presets.join(', ')} into the engine, mode and options it holds then.`}
+        {' '}Every run repeats exactly these cells.
       </span>
     </section>
   );
@@ -193,6 +196,20 @@ function FrozenDefinition({ scope, run, onRestore, busy }: { scope: StudyScopeVa
             <CopyDigest value={problem.compilationDigest} label={`Copy the compilation digest of ${revisionLabel(index, problem.revisionId, true)}`} />
           </li>
         ))}
+      </ul>
+      <ul className="st-frozen-engines" aria-label="Engines of the run">
+        {run.definition.engines.map((engine, position) => {
+          const facts = frozenEngineFacts(engine);
+          return (
+            <li key={`${engineRowLabel(engine)}-${position}`}>
+              <span>{engineRowLabel(engine)}</span>
+              <small className="org-muted">
+                Options: {facts.options}{facts.optimization ? ` · optimization ${facts.optimization}` : ''}
+                {facts.preset ? ` · from the run preset ${facts.preset}, as it was when the run started` : ''}
+              </small>
+            </li>
+          );
+        })}
       </ul>
       <span className="st-caption">{formulaOf(definitionSize(definition))}: this run expanded exactly these cells.</span>
       {access.canCreate && !same && (

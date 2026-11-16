@@ -28,7 +28,7 @@ async def _user(session) -> User:
 def _job(owner: User, age_s: int = 0, **kwargs) -> Job:
     kwargs.setdefault("state", JobState.QUEUED)
     return Job(
-        owner_id=owner.id,
+        created_by_id=owner.id,
         engine_job_id=uuid.uuid4().hex,
         service_url="http://engine",
         created_at=utcnow() - timedelta(seconds=age_s),
@@ -107,9 +107,9 @@ async def test_list_in_org_filters_by_revision_and_problem(db_session):
     from _problem_helpers import seed_problem_run
 
     owner = await _user(db_session)
-    seeded = await seed_problem_run(db_session, owner_id=owner.id)
+    seeded = await seed_problem_run(db_session, created_by_id=owner.id)
     org = seeded["organization_id"]
-    other = await seed_problem_run(db_session, owner_id=owner.id, organization_id=org)
+    other = await seed_problem_run(db_session, created_by_id=owner.id, organization_id=org)
     mine = _job(owner, 10, **{key: seeded[key] for key in ("organization_id", "revision_id", "compilation_id")})
     theirs = _job(owner, 5, **{key: other[key] for key in ("organization_id", "revision_id", "compilation_id")})
     db_session.add_all([mine, theirs])

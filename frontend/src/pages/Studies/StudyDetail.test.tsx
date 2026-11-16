@@ -10,7 +10,7 @@ import { StudyDetail } from './StudyDetail';
 
 const platform = vi.hoisted(() => ({
   study: vi.fn(), studyRuns: vi.fn(), studyRun: vi.fn(), studyCells: vi.fn(), runStudy: vi.fn(), updateStudy: vi.fn(), deleteStudy: vi.fn(),
-  analytics: vi.fn(),
+  analytics: vi.fn(), exportStudyRun: vi.fn(),
 }));
 const download = vi.hoisted(() => ({ saveBytes: vi.fn() }));
 
@@ -18,11 +18,6 @@ const problems = vi.hoisted(() => ({ list: vi.fn(), revisions: vi.fn(), compilat
 vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'), platformApi: platform }));
 vi.mock('../../api/problems', () => ({ problemsApi: problems }));
 vi.mock('../../features/workspace/download', () => download);
-// The decision workspace is not what is under test here.
-vi.mock('../../components/BindingAnalysis/BindingAnalysis', async () => {
-  const { createElement } = await import('react');
-  return { BindingAnalysis: ({ jobId }: { jobId?: string }) => createElement('div', null, `Binding analysis of ${jobId}`) };
-});
 
 const group = org('isa-demo', { name: 'ISA Demo Group' });
 const viewing = org('read-lab', { name: 'Read Lab', effective_role: 'VIEWER' });
@@ -114,17 +109,17 @@ describe('One study', () => {
     expect(await screen.findByRole('heading', { name: 'Run not found' })).toBeInTheDocument();
   });
 
-  it('holds the CSV export of the study run in Results', async () => {
+  it('holds the gateway’s CSV export of the study run in Results, saved under the name the gateway gives it', async () => {
     withRuns([runFixture(), runTwo()]);
+    const bytes = new TextEncoder().encode('cell_id,problem\n').buffer;
+    platform.exportStudyRun.mockResolvedValue({ bytes, fileName: 'engines-vs-seeds-run-1.csv', mediaType: 'text/csv; charset=utf-8' });
     renderDetail('isa-demo', 'engines-vs-seeds', `/results?run=${RUN_ID}`);
 
     fireEvent.click(await screen.findByRole('button', { name: 'Export CSV' }));
 
-    expect(download.saveBytes).toHaveBeenCalledTimes(1);
-    const [bytes, name, type] = download.saveBytes.mock.calls[0] as [ArrayBuffer, string, string];
-    expect(name).toBe('engines-vs-seeds-run-1-cells.csv');
-    expect(type).toBe('text/csv');
-    expect(new TextDecoder().decode(bytes).split('\n')[0]).toBe('cell,case_revision,engine,engine_version,mode,setting,seed,state,feasible,cost,latency,runtime_seconds,job_id,fingerprint');
+    await waitFor(() => expect(download.saveBytes).toHaveBeenCalledTimes(1));
+    expect(platform.exportStudyRun).toHaveBeenCalledWith('isa-demo', 'engines-vs-seeds', RUN_ID, 'csv');
+    expect(download.saveBytes).toHaveBeenCalledWith(bytes, 'engines-vs-seeds-run-1.csv', 'text/csv; charset=utf-8');
     expect(screen.queryByRole('tab', { name: 'Publish' })).not.toBeInTheDocument();
   });
 
@@ -284,13 +279,44 @@ describe('One study', () => {
 
     const card = await screen.findByRole('region', { name: 'Frozen definition' });
     expect(within(card).getByRole('button', { name: 'Copy the digest of the frozen definition' })).toBeInTheDocument();
-    expect(within(card).getAllByRole('listitem')).toHaveLength(2);
+    expect(within(within(card).getByRole('list', { name: 'Problem versions of the run' })).getAllByRole('listitem')).toHaveLength(2);
     expect(await within(card).findByRole('button', { name: 'Copy the compilation digest of Checkout flow r2' })).toBeInTheDocument();
     expect(card.textContent).not.toMatch(/sha256-/);
     fireEvent.click(within(card).getByRole('button', { name: 'Use it for the next runs' }));
 
     expect(await screen.findByText(/The study’s definition is now the one run #1 froze/)).toBeInTheDocument();
     expect(platform.updateStudy).toHaveBeenCalledWith('isa-demo', 'engines-vs-seeds', { definition: studyFixture().definition }, ETAG);
+  });
+
+  it('shows the options and the run preset each frozen engine ran with', async () => {
+    const frozen = runFixture();
+    frozen.definition.engines = [
+      { ...frozen.definition.engines[0], optimization: { type: 'SINGLE', scalarization: 'weighted-sum' }, options: { time_budget_ms: 30000 }, preset: { id: 'p-1', slug: 'fast-sampling' } },
+      { ...frozen.definition.engines[1], options: {}, preset: null },
+    ];
+    withRuns([frozen]);
+    renderDetail('isa-demo', 'engines-vs-seeds', `/progress?run=${RUN_ID}`);
+
+    const card = await screen.findByRole('region', { name: 'Frozen definition' });
+    const engines = within(card).getByRole('list', { name: 'Engines of the run' });
+    const [first, second] = within(engines).getAllByRole('listitem');
+    expect(first).toHaveTextContent('random-search 1.0.0 (sampling)');
+    expect(first).toHaveTextContent('Options: time budget 30 s · optimization SINGLE · weighted-sum · from the run preset fast-sampling, as it was when the run started');
+    expect(second).toHaveTextContent('evolutionary 1.0.0 (genetic)');
+    expect(second).toHaveTextContent('Options: Engine defaults');
+    expect(second).not.toHaveTextContent('run preset');
+  });
+
+  it('names a preset row of the definition in the matrix and says each run expands it', async () => {
+    platform.study.mockResolvedValue({
+      value: studyFixture({ definition: { ...studyFixture().definition, engines: [studyFixture().definition.engines[0], { preset: 'fast-sampling' }] } }), etag: ETAG,
+    });
+    renderDetail();
+
+    const matrix = await screen.findByRole('region', { name: 'The cells of the matrix' });
+    expect(within(matrix).getByRole('columnheader', { name: 'preset fast-sampling · seed 1' })).toBeInTheDocument();
+    expect(within(matrix).queryByText('cell 0')).not.toBeInTheDocument();
+    expect(screen.getByText(/Each run expands the run preset fast-sampling into the engine, mode and options it holds then\./)).toBeInTheDocument();
   });
 
   it('edits the name and the description', async () => {

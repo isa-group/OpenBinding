@@ -5,7 +5,7 @@
  */
 export const RESERVED_SLUGS: ReadonlySet<string> = new Set([
   'admin', 'account', 'engines', 'organizations', 'invitations',
-  'compositions', 'presets', 'runs', 'problems', 'studies', 'settings', 'workbench', 'new',
+  'compositions', 'presets', 'runs', 'problems', 'studies', 'settings', 'problem-editor', 'new',
 ]);
 
 export interface WorkspaceSlugs {

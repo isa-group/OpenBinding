@@ -79,7 +79,7 @@ export function TimeBars({ cells, rows }: { cells: readonly StudyCell[]; rows: r
   );
 }
 
-/** Two measures plotted against each other for one case revision; the cells nobody beats on both are the best trade-offs. */
+/** Two measures plotted against each other for one case revision; the cells on the gateway's front of it are the best trade-offs. */
 export function TradeoffPlot({ points, xName, yName }: { points: readonly Point[]; xName: string; yName: string }) {
   const xAxis = axisOf(points.map((point) => point.x));
   const yAxis = axisOf(points.map((point) => point.y));
@@ -101,7 +101,7 @@ export function TradeoffPlot({ points, xName, yName }: { points: readonly Point[
         </div>
         <span className="st-axis"><span>{formatMeasure(xAxis.low)}</span><span>{measureLabel(xName)} →</span><span>{formatMeasure(xAxis.high)}</span></span>
       </div>
-      <span className="st-legend"><span><i className="is-front" aria-hidden="true" />best trade-off</span><span><i aria-hidden="true" />beaten on both</span></span>
+      <span className="st-legend"><span><i className="is-front" aria-hidden="true" />best trade-off (on the gateway’s front)</span><span><i aria-hidden="true" />not on the front</span></span>
     </>
   );
 }

@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { RESULT, S1, S2 } from '../../test/fixtures/jobs';
+import { SLUG_PATTERN } from '../../shared/lib/slug';
 import {
-  FIRST_LABEL, LABEL_PATTERN, bindingDerivation, criteriaOf, isRunSource, nextMinor, pointsOf, previewValues, runDerivation,
+  FIRST_LABEL, LABEL_PATTERN, batchSlugErrors, bindingDerivation, criteriaOf, isPointsSource, isRunSource, nextMinor, pointSlug, pointsOf, previewValues,
+  runDerivation,
 } from './deriveModel';
 
 describe('the label of a derived version', () => {
@@ -78,5 +80,27 @@ describe('the requests', () => {
       { name: 'cost', value: 3060, unit: 'USD/month' },
       { name: 'availability', value: 0.99, unit: '1' },
     ]);
+  });
+});
+
+describe('the points of a study front, derived in a batch', () => {
+  it('addresses point n of a problem as <problem>-p<n>, within the length of a slug', () => {
+    expect(pointSlug('checkout-flow', 3)).toBe('checkout-flow-p3');
+    const long = pointSlug('a'.repeat(70), 12);
+    expect(long).toHaveLength(64);
+    expect(long.endsWith('-p12')).toBe(true);
+    expect(pointSlug(`${'a'.repeat(59)}-tail`, 12)).toBe(`${'a'.repeat(59)}-p12`);
+    expect(SLUG_PATTERN.test(pointSlug('x-', 1))).toBe(true);
+  });
+
+  it('refuses an address that is not a slug, and one two points share', () => {
+    const errors = batchSlugErrors([{ key: 'a', slug: 'same' }, { key: 'b', slug: 'same' }, { key: 'c', slug: 'Not A Slug' }, { key: 'd', slug: 'fine' }], SLUG_PATTERN);
+    expect(errors).toEqual({ a: 'Another point has same too.', b: 'Another point has same too.', c: 'Lowercase letters, numbers and hyphens, at most 64.' });
+  });
+
+  it('tells a batch of points from a run and from a binding', () => {
+    expect(isPointsSource({ points: [] })).toBe(true);
+    expect(isPointsSource({ run: 'r', solutions: [] })).toBe(false);
+    expect(isRunSource({ points: [] })).toBe(false);
   });
 });

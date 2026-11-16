@@ -1,10 +1,10 @@
-import { ChevronLeft, History, Settings, Users, type LucideIcon } from 'lucide-react';
+import { ChevronLeft, History, Settings, SlidersHorizontal, Users, type LucideIcon } from 'lucide-react';
 import { useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useCurrentIntoView } from './useCurrentIntoView';
 import './SectionNav.css';
 
-export type OrgSection = 'general' | 'members' | 'audit';
+export type OrgSection = 'general' | 'members' | 'presets' | 'audit';
 
 interface OrgNavProps {
   active?: OrgSection;
@@ -22,6 +22,7 @@ export function OrgNav({ active = 'general', orgName, orgSlug, canAudit = true }
   const sections: ReadonlyArray<{ key: OrgSection; label: string; to: string; icon: LucideIcon; locked: boolean }> = [
     { key: 'general', label: 'General', to: `${base}/settings`, icon: Settings, locked: false },
     { key: 'members', label: 'Members', to: `${base}/settings/members`, icon: Users, locked: false },
+    { key: 'presets', label: 'Run presets', to: `${base}/settings/presets`, icon: SlidersHorizontal, locked: false },
     { key: 'audit', label: 'Audit', to: `${base}/settings/audit`, icon: History, locked: !canAudit },
   ];
 

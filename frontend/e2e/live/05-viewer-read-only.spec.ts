@@ -15,7 +15,7 @@ test.describe('live · lab-viewer reads and edits nothing', () => {
     await expect(note).toContainText('VIEWER');
     await expect(page.getByRole('button', { name: 'Upload BIM package' })).toHaveCount(0);
     await expect(page.getByRole('button', { name: /^Delete / })).toHaveCount(0);
-    await capture(page, testInfo, 'viewer-case-list');
+    await capture(page, testInfo, 'viewer-problem-list');
 
     await page.goto(`${ORG_PATH}/problems/${CASE}`);
     await expect(page.locator('code.case-slug')).toHaveText(CASE);
@@ -37,7 +37,7 @@ test.describe('live · lab-viewer reads and edits nothing', () => {
     await expect(page.getByText(/VIEWER/).first()).toBeVisible();
     // Whatever step is on screen, there is no enabled button that sends the run (the gateway refuses it below MEMBER as well).
     await expect(page.locator('button:not([disabled])', { hasText: 'Send run' })).toHaveCount(0);
-    await capture(page, testInfo, 'viewer-job-launch');
+    await capture(page, testInfo, 'viewer-run-launch');
     expect(errors).toEqual([]);
   });
 

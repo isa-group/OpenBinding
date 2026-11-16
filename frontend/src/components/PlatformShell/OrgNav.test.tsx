@@ -14,6 +14,7 @@ describe('OrgNav', () => {
       ['ISA Demo Group', '/app/isa-demo'],
       ['General', '/app/isa-demo/settings'],
       ['Members', '/app/isa-demo/settings/members'],
+      ['Run presets', '/app/isa-demo/settings/presets'],
       ['Audit', '/app/isa-demo/settings/audit'],
     ]);
     expect(within(nav).queryByText('ADMIN')).toBeNull();
@@ -22,6 +23,7 @@ describe('OrgNav', () => {
   it.each([
     ['general', 'General'],
     ['members', 'Members'],
+    ['presets', 'Run presets'],
     ['audit', 'Audit'],
   ] as Array<[OrgSection, string]>)('marks only %s as the current page', (active, label) => {
     render(<MemoryRouter><OrgNav active={active} orgName="ISA Demo Group" orgSlug="isa-demo" /></MemoryRouter>);

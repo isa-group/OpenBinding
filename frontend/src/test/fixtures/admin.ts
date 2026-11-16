@@ -94,8 +94,8 @@ export function queuesAt(now: number): AdminQueueStatus {
   return {
     counts: { queued: 1, running: 1, completed: 2, failed: 1, cancelled: 1 },
     oldestInFlight: [
-      { id: id(701), ownerId: MARIA.id, engine: 'minizinc', state: 'running', createdAt: ago(26 * 3600), budgetSeconds: 300 },
-      { id: id(702), ownerId: SAM.id, engine: 'random-search', state: 'queued', createdAt: ago(30), budgetSeconds: 60 },
+      { id: id(701), createdById: MARIA.id, engine: 'minizinc', state: 'running', createdAt: ago(26 * 3600), budgetSeconds: 300 },
+      { id: id(702), createdById: SAM.id, engine: 'random-search', state: 'queued', createdAt: ago(30), budgetSeconds: 60 },
     ],
   };
 }

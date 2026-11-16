@@ -105,7 +105,7 @@ async def test_launching_the_same_cell_again_returns_the_same_job(
     assert job.study_cell_id == cell.id
     assert job.idempotency_key == f"study-cell:{cell.id}"
 
-    user = await db_session.get(User, job.owner_id)
+    user = await db_session.get(User, job.created_by_id)
     organization = await db_session.get(Organization, job.organization_id)
     jobs_before = await _job_count(db_session)
 

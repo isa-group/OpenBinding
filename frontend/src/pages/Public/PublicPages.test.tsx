@@ -2,18 +2,27 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { UserProfile } from '../../api/auth';
-import { HttpError, type PackageValidationOutcome } from '../../api/client';
+import type { BimDiagnostic, BimRefusal, BimValidateResponse } from '../../api/bim';
+import { HttpError } from '../../api/client';
 import { AuthContext } from '../../contexts/auth';
+import refusedPackage from '../../test/fixtures/core/refused.package.json';
+import refusedBody from '../../test/fixtures/core/refused.validate.json';
+import simpleSeq from '../../test/fixtures/core/simple-seq.validate.json';
 import { zipStore } from '../../utils/bimZip';
 import { WorkbenchPage } from './PublicPages';
 
-const api = vi.hoisted(() => ({ templates: vi.fn(), template: vi.fn(), check: vi.fn() }));
+const api = vi.hoisted(() => ({ templates: vi.fn(), template: vi.fn(), validate: vi.fn() }));
 const platform = vi.hoisted(() => ({ organizations: vi.fn() }));
 
 vi.mock('../../api/bim', () => ({ bimApi: api }));
 vi.mock('../../api/platform', () => ({ platformApi: platform }));
 
-const D = (seed: string) => `sha256-${seed.repeat(8)}`;
+// The gateway's own answers (dump_frontend_fixtures.py): a valid package with its facts, and a refused package with the files it checked.
+const valid = simpleSeq as unknown as BimValidateResponse;
+const refusedFiles = refusedPackage as Record<string, string>;
+const refused: BimRefusal = {
+  valid: false, status: 422, code: refusedBody.code, message: refusedBody.detail, diagnostics: refusedBody.diagnostics as BimDiagnostic[],
+};
 
 const files = {
   'instance.json': {
@@ -21,18 +30,8 @@ const files = {
     metadata: { name: 'checkout' },
     spec: { profile: 'qos-binding/v1', resources: { application: { application: 'application.json' }, candidateCatalog: { catalog: 'candidates.json' } } },
   },
-  'application.json': {
-    kind: 'Application',
-    spec: {
-      tasks: { t1: 'service/auth', t2: 'service/stock', t3: 'service/pay' },
-      features: { latency: { unit: 'ms' } },
-      workflow: { sequence: [{ task: { resource: 'application', id: 't1' } }, { task: { resource: 'application', id: 't2' } }, { task: { resource: 'application', id: 't3' } }] },
-    },
-  },
-  'candidates.json': {
-    kind: 'CandidateCatalog',
-    spec: { candidates: { a: { provides: 'service/auth', features: { latency: 10 } }, b: { provides: 'service/stock', features: { latency: 20 } }, c: { provides: 'service/pay', features: { latency: 7 } } } },
-  },
+  'application.json': { kind: 'Application', spec: { tasks: { t1: 'service/auth' } } },
+  'candidates.json': { kind: 'CandidateCatalog', spec: { candidates: { a: { provides: 'service/auth', features: { latency: 10 } } } } },
 };
 
 function packageBytes(): Uint8Array {
@@ -45,27 +44,6 @@ function asFile(bytes: Uint8Array, name = 'checkout.bim.zip'): File {
   Object.defineProperty(file, 'arrayBuffer', { value: async () => bytes.slice().buffer });
   return file;
 }
-
-const valid: PackageValidationOutcome = {
-  valid: true,
-  result: { valid: true, instanceDigest: D('a1b2c3d4'), packageDigest: D('b2c3d4e5'), irDigest: D('c3d4e5f6'), fileDigests: { 'candidates.json': D('11223344') }, resourceDigests: {}, diagnostics: [] },
-};
-
-const invalid: PackageValidationOutcome = {
-  valid: false,
-  refusal: {
-    status: 422,
-    code: 'invalid_request',
-    message: 'The package is invalid.',
-    diagnostics: [{
-      code: 'missing_metric',
-      resource: 'candidateCatalog',
-      pointer: '/spec/candidates/1/features/latency',
-      message: 'Candidate 2 does not declare latency, required by the optimization.',
-      fix: 'Add a finite value in ms.',
-    }],
-  },
-};
 
 const lucia: UserProfile = { id: 'u', username: 'lucia', email: 'l@example.test', role: 'user', is_active: true, plan: 'RESEARCH', created_at: '2026-01-01T00:00:00Z' };
 
@@ -88,7 +66,7 @@ describe('public workbench', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     api.templates.mockResolvedValue(['demo/01_simple_seq', 'demo/02_parallel', 'placement/01_small_placement', 'literature/zhang']);
-    api.check.mockResolvedValue(valid);
+    api.validate.mockResolvedValue(valid);
   });
 
   it('invites a visitor to choose a package, shows the limits and asks them to log in to run', async () => {
@@ -107,7 +85,7 @@ describe('public workbench', () => {
     expect(screen.queryByRole('button', { name: 'Validate package' })).not.toBeInTheDocument();
   });
 
-  it('validates an uploaded package: verdict, digests, files and tables', async () => {
+  it('validates an uploaded package and draws what the gateway compiled: counts, workflow, candidates and rules', async () => {
     const bytes = packageBytes();
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
@@ -118,61 +96,83 @@ describe('public workbench', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Validate package' }));
 
     expect(await screen.findByText('Valid package')).toBeInTheDocument();
-    expect(api.check).toHaveBeenCalledTimes(1);
-    expect(api.check.mock.calls[0][0]).toEqual(bytes);
-    expect(screen.getByText('checkout.bim.zip · profile qos-binding/v1 · 3 tasks')).toBeInTheDocument();
+    expect(api.validate).toHaveBeenCalledTimes(1);
+    expect(api.validate.mock.calls[0][0]).toEqual(bytes);
+    expect(api.validate.mock.calls[0][1]).toEqual({ include: ['facts'], acceptRefusal: true });
+    expect(screen.getByText('checkout.bim.zip · 3 tasks')).toBeInTheDocument();
     const digests = document.querySelector('.workbench-digests') as HTMLElement;
     expect(digests).toHaveTextContent('Instance digest');
-    expect(digests).toHaveTextContent('computed');
     fireEvent.click(within(digests).getByRole('button', { name: 'Copy ir digest' }));
-    await waitFor(() => expect(writeText).toHaveBeenCalledWith(D('c3d4e5f6')));
-
-    expect(screen.getByRole('tab', { name: 'Structure' })).toHaveAttribute('aria-selected', 'true');
-    const filesCard = screen.getByRole('region', { name: 'Package files' });
-    expect(filesCard).toHaveTextContent('candidates.json');
-    expect(filesCard).toHaveTextContent('Candidate catalog');
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(valid.irDigest));
     expect(document.body.textContent).not.toMatch(/sha256-|\b[0-9a-f]{12}/);
-    const workflow = screen.getByRole('region', { name: 'Workflow' });
-    expect(workflow).toHaveTextContent('SEQUENCE');
-    expect(workflow).toHaveTextContent('Binding space ≈ 100.0 combinations');
-    const tasks = screen.getByRole('region', { name: 'Choices per task' });
-    expect(within(tasks).getByRole('row', { name: /t1 service\/auth 1 latency 10–10 ms/ })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Diagnostics (0)' }));
-    expect(screen.getByText('No diagnostics. Every resource passed validation.')).toBeInTheDocument();
+    const holds = screen.getByRole('region', { name: 'What the package holds' });
+    expect(holds).toHaveTextContent('3tasks');
+    expect(holds).toHaveTextContent('4candidates');
+    expect(holds).toHaveTextContent('0rules');
+    expect(within(holds).getByRole('status', { name: /Binding space size: 2 combinations/i })).toBeInTheDocument();
+    const workflow = screen.getByRole('group', { name: 'Workflow of the package' });
+    for (const task of valid.facts!.tasks) expect(workflow).toHaveTextContent(task.id);
+    const candidates = screen.getByRole('region', { name: 'Candidates' });
+    expect(within(candidates).getByRole('row', { name: /c1a/ })).toHaveTextContent('10 ms');
+    expect(within(candidates).queryByRole('textbox')).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: 'Rules and objectives' })).toBeInTheDocument();
+    // A valid package without findings has no problems list.
+    expect(screen.queryByRole('region', { name: 'Problems' })).not.toBeInTheDocument();
   });
 
-  it('turns diagnostics into grouped, located problems that lead back to the file', async () => {
-    api.check.mockResolvedValue(invalid);
-    const writeText = vi.fn().mockResolvedValue(undefined);
-    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+  it('lists the warnings of a valid package beside its structure', async () => {
+    api.validate.mockResolvedValue({ ...valid, diagnostics: [{ code: 'unused_feature', message: 'Feature cost is declared but never used.', resource: 'candidates.json' }] });
+    renderPage();
+    await choose(asFile(packageBytes()));
+    fireEvent.click(screen.getByRole('button', { name: 'Validate package' }));
+
+    expect(await screen.findByText('Valid package')).toBeInTheDocument();
+    const problems = screen.getByRole('region', { name: 'Problems' });
+    expect(problems).toHaveTextContent('1 warning');
+    expect(problems).toHaveTextContent('Feature cost is declared but never used.');
+    expect(screen.getByRole('region', { name: 'Candidates' })).toBeInTheDocument();
+  });
+
+  it('places the findings of a refused package in its files and draws no structure', async () => {
+    api.validate.mockResolvedValue(refused);
+    renderPage();
+    await choose(asFile(zipStore(refusedFiles)));
+    fireEvent.click(screen.getByRole('button', { name: 'Validate package' }));
+
+    expect(await screen.findByText(/^Not valid · \d+ errors$/)).toBeInTheDocument();
+    expect(screen.getByText(/^422 invalid_instance\. Each problem names the file and the place to fix\./)).toBeInTheDocument();
+    expect(screen.queryByText('Instance digest')).not.toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: 'Workflow of the package' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Candidates' })).not.toBeInTheDocument();
+
+    const problems = screen.getByRole('region', { name: 'Problems' });
+    // Grouped by file: the value out of its domain is placed on its line in candidates.json, the orphan task in the diagram.
+    const groups = [...problems.querySelectorAll('.pp-group-name')].map((element) => element.textContent);
+    expect(groups).toEqual(expect.arrayContaining(['candidates.json', 'workflow.bpmn']));
+    const domain = within(problems).getByText('candidate feature value is above its declared domain').closest('.pp-item') as HTMLElement;
+    expect(domain).toHaveTextContent(/Line \d+, column \d+/);
+    expect(domain).toHaveTextContent('/spec/candidates/auth-edge/features/latency');
+    expect(within(problems).getByText("BPMN task 'orphan' has no Application task").closest('.pp-item')).toHaveTextContent('Diagram element orphan');
+    // Read-only: the public page has no file to open.
+    expect(within(problems).queryByRole('button', { name: /declared domain/ })).not.toBeInTheDocument();
+  });
+
+  it('says what the gateway said when it refuses a package without itemising why', async () => {
+    api.validate.mockResolvedValue({ valid: false, status: 422, code: 'invalid_request', message: 'The archive is not a BIM package.', diagnostics: [] } satisfies BimRefusal);
     renderPage();
     await choose(asFile(packageBytes()));
     fireEvent.click(screen.getByRole('button', { name: 'Validate package' }));
 
     expect(await screen.findByText('Not valid · 1 error')).toBeInTheDocument();
-    expect(screen.getByText('422 invalid_request. Each diagnostic points at the resource and location to fix.')).toBeInTheDocument();
-    expect(screen.queryByText('Instance digest')).not.toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Diagnostics (1)' })).toHaveAttribute('aria-selected', 'true');
-    const group = screen.getByRole('region', { name: 'Problems in Candidate catalog · candidates.json' });
-    expect(group).toHaveTextContent('ERROR');
-    expect(group).toHaveTextContent('missing_metric');
-    expect(group).toHaveTextContent('candidates › item 2 › features › latency');
-    expect(group).toHaveTextContent('Candidate 2 does not declare latency, required by the optimization.');
-    expect(group).toHaveTextContent('Fix: Add a finite value in ms.');
-    fireEvent.click(within(group).getByRole('button', { name: 'Copy location' }));
-    await waitFor(() => expect(writeText).toHaveBeenCalledWith('candidates.json /spec/candidates/1/features/latency'));
-
-    fireEvent.click(within(group).getByRole('button', { name: 'Show in package' }));
-    expect(screen.getByRole('tab', { name: 'Structure' })).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByText(/The package did not validate/)).toBeInTheDocument();
-    await waitFor(() => expect(document.getElementById('wb-file-candidates.json')).toHaveFocus());
-    fireEvent.click(screen.getByRole('button', { name: '1 problem' }));
-    expect(screen.getByRole('tab', { name: 'Diagnostics (1)' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByText('422 invalid_request. The archive is not a BIM package.')).toBeInTheDocument();
+    const problems = screen.getByRole('region', { name: 'Problems' });
+    expect(problems).toHaveTextContent('The archive is not a BIM package.');
+    expect(problems).toHaveTextContent('Package');
   });
 
   it('explains a package that is too large (413)', async () => {
-    api.check.mockRejectedValue(new HttpError(413, 'too large'));
+    api.validate.mockRejectedValue(new HttpError(413, 'too large'));
     renderPage();
     await choose(asFile(packageBytes()));
     fireEvent.click(screen.getByRole('button', { name: 'Validate package' }));
@@ -186,7 +186,7 @@ describe('public workbench', () => {
   it('asks to wait on a rate limit (429) and keeps the file for another try', async () => {
     const limited = new HttpError(429, 'slow down');
     limited.retryAfter = 5;
-    api.check.mockRejectedValueOnce(limited);
+    api.validate.mockRejectedValueOnce(limited);
     renderPage();
     await choose(asFile(packageBytes()));
     fireEvent.click(screen.getByRole('button', { name: 'Validate package' }));
@@ -195,11 +195,11 @@ describe('public workbench', () => {
     expect(screen.getByText(/Try again in 5 s\. Your file is still selected\./)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
     expect(await screen.findByText('Valid package')).toBeInTheDocument();
-    expect(api.check).toHaveBeenCalledTimes(2);
+    expect(api.validate).toHaveBeenCalledTimes(2);
   });
 
   it('reports a gateway failure and offers a retry', async () => {
-    api.check.mockRejectedValueOnce(new HttpError(503, 'unavailable'));
+    api.validate.mockRejectedValueOnce(new HttpError(503, 'unavailable'));
     renderPage();
     await choose(asFile(packageBytes()));
     fireEvent.click(screen.getByRole('button', { name: 'Validate package' }));
@@ -216,7 +216,7 @@ describe('public workbench', () => {
 
     expect(await screen.findByText('This file can’t be read as a BIM package')).toBeInTheDocument();
     expect(screen.getByRole('alert')).toHaveTextContent('not a complete ZIP archive');
-    expect(api.check).not.toHaveBeenCalled();
+    expect(api.validate).not.toHaveBeenCalled();
   });
 
   it('opens an official example from the address and validates it', async () => {
@@ -226,7 +226,7 @@ describe('public workbench', () => {
     expect(await screen.findByText('Valid package')).toBeInTheDocument();
     expect(api.template).toHaveBeenCalledWith('demo/01_simple_seq');
     expect(screen.getByText('01_simple_seq.bim.zip')).toBeInTheDocument();
-    expect(api.check).toHaveBeenCalledTimes(1);
+    expect(api.validate).toHaveBeenCalledTimes(1);
   });
 
   it('says so when an example from the address cannot be loaded', async () => {
@@ -245,7 +245,7 @@ describe('public workbench', () => {
     expect(screen.queryByText('checkout.bim.zip')).not.toBeInTheDocument();
   });
 
-  it('offers a signed-in account to save the package in one of its organizations instead of the login prompt', async () => {
+  it('offers a signed-in account the problem editor of one of its organizations instead of the login prompt', async () => {
     platform.organizations.mockResolvedValue([{ id: 'o', slug: 'isa-demo', name: 'ISA Demo Group' }]);
     api.template.mockResolvedValue(packageBytes().slice().buffer);
     renderPage('/workbench?template=demo%2F01_simple_seq', lucia);
@@ -253,7 +253,18 @@ describe('public workbench', () => {
     expect(await screen.findByText('Signed in as lucia')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Log in to run' })).not.toBeInTheDocument();
     await screen.findByText('Valid package');
-    fireEvent.click(screen.getByRole('button', { name: 'Save to an organization' }));
-    expect(await screen.findByRole('link', { name: 'ISA Demo Group' })).toHaveAttribute('href', '/app/isa-demo/workbench?template=demo%2F01_simple_seq');
+    fireEvent.click(screen.getByRole('button', { name: 'Open in the problem editor' }));
+    expect(await screen.findByRole('link', { name: 'ISA Demo Group' })).toHaveAttribute('href', '/app/isa-demo/problem-editor?template=demo%2F01_simple_seq');
+    expect(screen.queryByText(/An uploaded file isn’t carried across/)).not.toBeInTheDocument();
+  });
+
+  it('tells a signed-in account that an uploaded file is not carried into the editor', async () => {
+    platform.organizations.mockResolvedValue([{ id: 'o', slug: 'isa-demo', name: 'ISA Demo Group' }]);
+    renderPage('/workbench', lucia);
+    await choose(asFile(packageBytes()));
+
+    expect(screen.getByText(/An uploaded file isn’t carried across: upload it on the organization’s problem list/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Open in the problem editor' }));
+    expect(await screen.findByRole('link', { name: 'ISA Demo Group' })).toHaveAttribute('href', '/app/isa-demo/problem-editor');
   });
 });

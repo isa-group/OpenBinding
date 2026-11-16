@@ -1,5 +1,6 @@
 import type { Analytics, Study, StudyCell, StudyRun } from '../../api/platform';
 import type { Problem, ProblemRevision } from '../../api/problems';
+import type { ParetoFront } from '../../shared/api/types';
 
 // Shared by the tests of the study screens and the S7a browser spec: the "Engines × seeds" study of the design prototype,
 // 2 case revisions × 2 engines × 1 setting × 2 seeds = 8 cells, six completed, one failed, one cancelled.
@@ -119,6 +120,26 @@ export function cellsFixture(): StudyCell[] {
   ];
 }
 
+/** A point of a front: the cell `ordinal` of `cellsFixture()`, its run's first solution and its objectives. */
+function frontPoint(ordinal: number, engine: typeof RANDOM_SEARCH, cost: number, latency: number): ParetoFront['points'][number] {
+  const cell = String(ordinal).padStart(2, '0');
+  return {
+    cell_id: `00000000-0000-4000-8000-0000000002${cell}`, job_id: `00000000-0000-4000-8000-0000000003${cell}`, solution_index: 0,
+    engine: `${engine.namespace}/${engine.name}@${engine.version}`, objectives: { cost, latency },
+  };
+}
+
+/**
+ * The gateway's front of each problem version of `cellsFixture()`: cells 0 and 3 of version 1 (cell 2 is dominated by 3), cells 4
+ * and 6 of version 2 (cell 7 is dominated by 6), points in the gateway's order (by cost, then latency).
+ */
+export function frontsFixture(): ParetoFront[] {
+  return [
+    { revision_id: REVISION_1.id, problem: { slug: CHECKOUT.slug }, revision: 1, objectives: ['cost', 'latency'], points: [frontPoint(0, EVOLUTIONARY, 0.112, 440), frontPoint(3, RANDOM_SEARCH, 0.118, 412)] },
+    { revision_id: REVISION_2.id, problem: { slug: CHECKOUT.slug }, revision: 2, objectives: ['cost', 'latency'], points: [frontPoint(4, EVOLUTIONARY, 0.104, 420), frontPoint(6, RANDOM_SEARCH, 0.109, 398)] },
+  ];
+}
+
 export function analyticsFixture(over: Partial<Analytics> = {}): Analytics {
   return {
     cells: 8,
@@ -128,7 +149,7 @@ export function analyticsFixture(over: Partial<Analytics> = {}): Analytics {
     infeasible: 0,
     objective_distributions: { cost: [0.104, 0.109, 0.111, 0.112, 0.118, 0.121], latency: [398, 405, 412, 420, 430, 440] },
     runtimes_s: [58, 59, 60, 60, 118, 120],
-    pareto: [],
+    pareto: frontsFixture(),
     stability: {
       'bim.builtin/random-search@1.0.0': { samples: 4, distinct: 4, repeatability: 0.25 },
       'bim.builtin/evolutionary@1.0.0': { samples: 2, distinct: 2, repeatability: 0.5 },

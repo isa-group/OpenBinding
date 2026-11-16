@@ -29,7 +29,7 @@ async def _user(session) -> User:
 
 def _job(user, refs) -> Job:
     return Job(
-        owner_id=user.id, engine_id="random-search", engine_job_id="", service_url="http://engine",
+        created_by_id=user.id, engine_id="random-search", engine_job_id="", service_url="http://engine",
         state=JobState.QUEUED, **refs,
     )
 
@@ -45,7 +45,7 @@ async def _refused(session, problem_id, user) -> HTTPException:
 async def test_a_problem_named_by_a_run_is_kept(two_sessions):
     session, _ = two_sessions
     user = await _user(session)
-    seeded = await seed_problem_run(session, owner_id=user.id)
+    seeded = await seed_problem_run(session, created_by_id=user.id)
     session.add(_job(user, run_refs(seeded)))
     await session.commit()
 
@@ -60,7 +60,7 @@ async def test_a_run_committed_after_the_check_is_caught_by_the_foreign_key(two_
     """The check and the delete are not atomic: the RESTRICT foreign key catches the run in between."""
     first, second = two_sessions
     user = await _user(first)
-    seeded = await seed_problem_run(first, owner_id=user.id)
+    seeded = await seed_problem_run(first, created_by_id=user.id)
     await first.commit()
     refs = run_refs(seeded)
 

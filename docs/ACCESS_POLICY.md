@@ -33,10 +33,10 @@ malformed, and a malformed boundary denies everything.
 |---|---|---|---|
 | `` (the organization), `/members`, `/members/batch`, `/members/{member}`, `/invitations` | VIEWER (members list) | ADMIN; owner changes need OWNER; deleting needs ADMIN (below) | `organizations:read` / `organizations:write` |
 | `/audit` | ADMIN | — | `organizations:read` |
-| `/problems`, `/problems/{problem}`, `/problems/{problem}/revisions/...` | VIEWER | MEMBER uploads, adds revisions and edits; ADMIN deletes | `problems:read` / `problems:write` |
+| `/problems`, `/problems/{problem}`, `/problems/{problem}/revisions/...` (the facts of a compilation, `…/revisions/{revision}/compilations/{compilation}/facts`, included) | VIEWER | MEMBER uploads, adds revisions and edits; ADMIN deletes | `problems:read` / `problems:write` |
 | `/runs/...` | VIEWER (redacted below MEMBER) | MEMBER | `jobs:read` / `engines:execute` |
 | `/presets`, `/presets/{preset}` | VIEWER (options redacted below MEMBER; a non-member gets `404`) | MEMBER creates, edits and deletes | `jobs:read` / `engines:execute` |
-| `/studies/...` (study runs and cells included) | VIEWER | MEMBER creates, edits and runs; ADMIN deletes | `studies:read` / `studies:write` |
+| `/studies/...` (study runs and cells included; the export of a run, `GET …/studies/{study}/runs/{run}/export?format=csv\|json`, too) | VIEWER | MEMBER creates, edits and runs; ADMIN deletes | `studies:read` / `studies:write` |
 | `/compositions`, `/compositions/{composition}`, `/compositions/{composition}/versions/...`, `/compositions/{composition}/diff`, `/compositions/{composition}/fork`, `/compositions/{composition}/evaluate`, `/compositions/{composition}/neighborhood`, `/compositions/{composition}/derive` | VIEWER (a non-member gets `404`; anybody reads a public composition, redacted, below); VIEWER also checks a document (`POST …/versions/check`), compares versions, evaluates another binding of a version (`POST …/evaluate`) and explores its neighbourhood | MEMBER creates, edits, seals, re-evaluates (`POST …/versions/{version}/evaluations`) and derives versions (`POST …/derive`, from a run of the organization or a binding of one of its problems); ADMIN deletes and changes `visibility`. A fork needs read on the source (member, or the source is public) and MEMBER on the target organization, which must be another one | `compositions:read` / `compositions:write` |
 
 ## Public compositions
@@ -119,7 +119,7 @@ An organization slug is the first segment of its screens (`/app/<slug>`), so the
 slugs of the fixed places and of the sections under an organization are refused at
 creation with `422 slug_reserved`: `admin`, `account`, `engines`, `organizations`,
 `invitations`, `compositions`, `presets`, `runs`, `problems`, `studies`, `settings`,
-`workbench` and `new` (`RESERVED_ORGANIZATION_SLUGS` in `models/platform.py`, mirrored by
+`problem-editor` and `new` (`RESERVED_ORGANIZATION_SLUGS` in `models/platform.py`, mirrored by
 `frontend/src/components/PlatformShell/workspacePath.ts`, whose test reads the Python
 list and keeps the two equal). A slug cannot be changed after creation.
 
@@ -210,7 +210,7 @@ checks the latest text once. Any other refusal is shown, not retried.
 | `POST /v1/compositions/validate` | `read` (60 / 300) | 600 ms after the last keystroke in the composition editor; 800 ms on the anonymous Language page |
 | `POST …/compositions/{composition}/versions/check` | `evaluate` (30 / 150) | 1500 ms after the last keystroke, only when the text has a top-level `problem:`, its last lint was valid, and the reader is a member |
 | `POST …/compositions/{composition}/evaluate` | `evaluate` | the configurator (Analysis), 800 ms after the last change of a task's candidate |
-| `POST /v1/bim/validate?include=facts` | `compile` (10 / 50) | the BIM problem editor (F2b), 2000 ms after the last edit, only when every JSON file of the package parses |
+| `POST /v1/bim/validate?include=facts` | `compile` (10 / 50) | the BIM problem editor (F2b), 2000 ms after the last edit, only when every JSON file of the package parses; the public Workbench (`/workbench`) once per press of Validate package, never live |
 
 Parsing for the visual form and the canonical form (`/parse`, `/serialise`) runs through the same scheduler, at
 600 ms in the editor (only while the visual form is shown) and 800 ms on Language (only while the canonical form is

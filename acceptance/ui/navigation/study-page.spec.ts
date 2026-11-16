@@ -54,7 +54,8 @@ test('the Progress tab shows the definition the selected run froze', async ({ pa
   await page.goto(`${STUDY}/progress?run=r1`);
   const frozen = page.getByRole('region', { name: 'Frozen definition' });
   await expect(frozen).toBeVisible();
-  await expect(frozen.getByRole('listitem')).toHaveCount(1);
+  await expect(frozen.getByRole('list', { name: 'Problem versions of the run' }).getByRole('listitem')).toHaveCount(1);
+  await expect(frozen.getByRole('list', { name: 'Engines of the run' }).getByRole('listitem')).not.toHaveCount(0);
 });
 
 test('a study has no address below another segment of the organization', async ({ page }) => {
@@ -67,4 +68,28 @@ test('an unknown study tab shows Page not found', async ({ page }) => {
   await mockStudies(page);
   await page.goto(`${STUDY}/runs`);
   await expect(page.getByRole('heading', { name: 'Page not found' })).toBeVisible();
+});
+
+test('Results lists the gateway’s Pareto front of the run, one table per problem version', async ({ page }) => {
+  await mockStudies(page);
+  await page.goto(`${STUDY}/results?run=r1`);
+  const front = page.getByRole('region', { name: 'Pareto front' });
+  await expect(front).toBeVisible();
+  const table = front.getByRole('region', { name: 'Front of routing · version 1' });
+  await expect(table.getByRole('row')).toHaveCount(2);
+  await expect(table).toContainText('P1');
+});
+
+test('Export CSV and Export JSON download the gateway’s export of the run under the name it gives', async ({ page }) => {
+  await mockStudies(page);
+  const gets = trackGets(page);
+  await page.goto(`${STUDY}/results?run=r1`);
+  const csv = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Export CSV' }).click();
+  expect((await csv).suggestedFilename()).toBe('s1-run-1.csv');
+  const json = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Export JSON' }).click();
+  expect((await json).suggestedFilename()).toBe('s1-run-1.json');
+  expect(gets).toContain('/v1/organizations/acme/studies/s1/runs/r1/export?format=csv');
+  expect(gets).toContain('/v1/organizations/acme/studies/s1/runs/r1/export?format=json');
 });

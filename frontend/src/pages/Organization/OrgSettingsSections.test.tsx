@@ -5,7 +5,7 @@ import { org } from '../../features/workspace/testKit';
 import { member, renderScreen } from './testKit';
 import { OrgSettings } from './OrgSettings';
 
-const api = vi.hoisted(() => ({ adminListUsers: vi.fn() }));
+const api = vi.hoisted(() => ({ adminListUsers: vi.fn(), getEngines: vi.fn() }));
 const platform = vi.hoisted(() => ({
   members: vi.fn(), studies: vi.fn(), organizationAudit: vi.fn(), invitations: vi.fn(), organizationInvitations: vi.fn(),
 }));
@@ -13,6 +13,10 @@ const platform = vi.hoisted(() => ({
 vi.mock('../../api/client', async () => ({ ...await vi.importActual<typeof import('../../api/client')>('../../api/client'), apiClient: api }));
 vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'), platformApi: platform }));
 vi.mock('../../api/problems', () => ({ problemsApi: { list: vi.fn().mockResolvedValue({ problems: [], total: 0, limit: 1, offset: 0 }) } }));
+vi.mock('../../entities/preset/api', async (actual) => ({
+  ...await actual<typeof import('../../entities/preset/api')>(),
+  presetsApi: { list: vi.fn().mockResolvedValue({ presets: [], total: 0, limit: 200, offset: 0 }) },
+}));
 
 const group = org('isa-demo', { name: 'ISA Demo Group' });
 const readOnly = org('read-only', { name: 'Read Only Lab', effective_role: 'MEMBER' });
@@ -36,6 +40,7 @@ describe('org-settings sections', () => {
     platform.organizationInvitations.mockResolvedValue([]);
     platform.organizationAudit.mockResolvedValue({ events: auditFixture, total: auditFixture.length, offset: 0, limit: 50 });
     api.adminListUsers.mockResolvedValue({ users: [] });
+    api.getEngines.mockResolvedValue([]);
   });
 
   it('renders General at /settings with General as the current link', async () => {
@@ -51,6 +56,14 @@ describe('org-settings sections', () => {
 
     expect(await screen.findByRole('heading', { level: 1, name: /Members/ })).toBeInTheDocument();
     expect(within(navOf()).getByRole('link', { name: 'Members' })).toHaveAttribute('aria-current', 'page');
+    expect(navOf().querySelectorAll('[aria-current="page"]')).toHaveLength(1);
+  });
+
+  it('renders Run presets at /settings/presets with Run presets as the current link', async () => {
+    renderSection('presets');
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Run presets' })).toBeInTheDocument();
+    expect(within(navOf()).getByRole('link', { name: 'Run presets' })).toHaveAttribute('aria-current', 'page');
     expect(navOf().querySelectorAll('[aria-current="page"]')).toHaveLength(1);
   });
 

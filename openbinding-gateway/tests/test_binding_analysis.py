@@ -123,12 +123,12 @@ async def test_endpoint_requires_owner_and_validates_budget(api_client, db_sessi
     owner = (await db_session.execute(select(User).where(User.username == details["username"]))).scalar_one()
     problem, binding = problem_and_binding()
     solution = {"decision": {"kind": "binding", "binding": binding}, **problem.evaluate(binding)}
-    seeded = await seed_problem_run(db_session, owner_id=owner.id, ir=problem.document, ir_digest=problem.digest)
+    seeded = await seed_problem_run(db_session, created_by_id=owner.id, ir=problem.document, ir_digest=problem.digest)
     # Runs are read by the members of their organization.
     db_session.add(OrganizationMembership(
         organization_id=seeded["organization_id"], user_id=owner.id, role=OrganizationRole.OWNER,
     ))
-    job = Job(owner_id=owner.id, engine_id="analysis-test", engine_job_id="analysis-test", service_url="https://example.invalid", state=JobState.COMPLETED,
+    job = Job(created_by_id=owner.id, engine_id="analysis-test", engine_job_id="analysis-test", service_url="https://example.invalid", state=JobState.COMPLETED,
               original_request={"optimization": {"type": "MULTI", "scalarization": "pareto", "weights": []}},
               provenance={"irDigest": problem.digest}, result={"solutions": [solution]}, **run_refs(seeded))
     db_session.add(job)

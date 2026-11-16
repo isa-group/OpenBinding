@@ -9,7 +9,7 @@ checked and where. Distributed exactly-once execution is **not** claimed.
 
 | | Guarantee | Mechanism |
 |---|---|---|
-| **G1** | At most one job per `(account, Idempotency-Key)` | Unique constraint `uq_jobs_owner_idempotency_key` on `(owner_id, idempotency_key)` (`db/models.py`) plus the `v2:` request fingerprint |
+| **G1** | At most one job per `(account, Idempotency-Key)` | Unique constraint `uq_jobs_created_by_idempotency_key` on `(created_by_id, idempotency_key)` (`db/models.py`) plus the `v2:` request fingerprint |
 | **G2** | One *current* execution per lease | A single conditional `UPDATE ... WHERE state = 'queued'` claims the job under a 60 s lease renewed every 20 s (`jobs/leases.py`). **Two solves can run in parallel** (a worker presumed dead that is in fact alive, and its replacement) until the old holder's next `hold_lease`; its result is then **discarded** |
 | **G3** | The queue is at-least-once | The `queued` row is the outbox. Messages may be duplicated or lost; the publisher republishes due rows (`jobs/publisher.py`) and the claim makes duplicates harmless |
 | **G4** | Effects on remote Engines are at-least-once | An Engine can see the same job again after a crash or a lost lease. Mitigated, not removed: idempotency *hints* in request headers and, **only for an Engine whose registration declares the capability**, best-effort cancellation of the remote job of an attempt that was lost (never of the one that runs the job) |

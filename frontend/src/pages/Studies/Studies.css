@@ -143,6 +143,10 @@
 .st-option-text { display: flex; min-width: 0; flex-direction: column; gap: 2px; overflow-wrap: anywhere; }
 .st-option-text small { color: var(--tp-steel); font-size: 0.75rem; }
 .st-option-line { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.st-presets { display: flex; flex-direction: column; gap: 6px; margin-top: var(--tp-spacing-sm); padding-top: var(--tp-spacing-sm); border-top: 1px solid var(--tp-hairline-soft); }
+.st-subhead { color: var(--tp-slate); font-size: 0.8125rem; font-weight: 500; }
+.st-frozen-engines { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.st-frozen-engines li { display: flex; flex-direction: column; gap: 2px; overflow-wrap: anywhere; }
 .st-tools { display: flex; flex-wrap: wrap; gap: var(--tp-spacing-xs); }
 .st-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: var(--tp-spacing-sm); }
 .st-pair label, .st-variant-fields label, .st-seeds, .st-more label { display: flex; min-width: 0; flex-direction: column; gap: 6px; color: var(--tp-steel); font-size: 0.75rem; font-weight: 500; }
@@ -303,7 +307,6 @@
 .st-space-cases { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
 .st-space-cases li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; border: 1px solid var(--tp-hairline-soft); border-radius: var(--tp-radius-md); background: var(--tp-surface); }
 .st-space-cases small { display: block; color: var(--tp-steel); font-family: var(--font-mono); font-size: 0.75rem; }
-.st-explore-pick { display: flex; flex-wrap: wrap; align-items: center; gap: var(--tp-spacing-xs) var(--tp-spacing-sm); }
 
 @keyframes st-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 @keyframes st-growy { from { transform: scaleY(0); } to { transform: scaleY(1); } }
@@ -334,3 +337,27 @@
 .st-frozen-problems { margin: 0; padding-left: 1.25rem; display: flex; flex-direction: column; gap: 4px; }
 .st-frozen code, .st-card code { overflow-wrap: anywhere; }
 .st-definition-text { font-family: var(--tp-font-mono, ui-monospace, monospace); font-size: 0.8125rem; }
+
+/* The study front: its tools, the focused point and the tables of each front. */
+.st-front .ui-table-wrap { margin-top: var(--tp-spacing-xs); }
+.st-front-search input {
+  height: 32px;
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+  padding: 0 8px;
+  border: 1px solid var(--tp-input-border);
+  border-radius: var(--tp-radius-md);
+  background: var(--tp-input-bg);
+  color: var(--tp-ink);
+  font: inherit;
+}
+.st-front-focus { display: flex; min-width: 0; flex-direction: column; gap: 4px; padding: var(--tp-spacing-sm); border: 1px solid var(--tp-hairline); border-radius: var(--tp-radius-md); background: var(--tp-surface); font-size: 0.875rem; }
+.st-front-focus p { margin: 0; overflow-wrap: anywhere; }
+.st-front-nav, .st-front-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--tp-spacing-xs) var(--tp-spacing-sm); }
+.st-front-point { min-height: 24px; padding: 0; border: 0; background: none; color: var(--tp-link); font: inherit; font-weight: 600; cursor: pointer; text-decoration: underline; }
+.st-front tr.is-focused > * { background: var(--tp-surface); }
+.st-front input[type='checkbox'] { width: 18px; height: 18px; margin: 3px; }
+.st-number { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.st-compare { display: flex; min-width: 0; flex-direction: column; gap: var(--tp-spacing-sm); }
+.st-compare > p { margin: 0; overflow-wrap: anywhere; }

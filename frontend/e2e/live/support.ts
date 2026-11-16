@@ -24,7 +24,7 @@ export const OTHER_ORG = 'lab-other';
 export const CASE = 'simple-seq';
 /** The organization's own screens: its overview, and its problems below `${ORG_PATH}/problems`. */
 export const ORG_PATH = `/app/${ORG}`;
-/** The runs of the lab organization (`job-list`); a run is `${RUNS_PATH}/<id>` and the launcher `${RUNS_PATH}/new`. */
+/** The runs of the lab organization (`run-list`); a run is `${RUNS_PATH}/<id>` and the launcher `${RUNS_PATH}/new`. */
 export const RUNS_PATH = `/app/${ORG}/runs`;
 
 /** The addresses of the native consoles the interface links to; the lab build does not override the defaults. */
@@ -51,9 +51,13 @@ const REFRESH_TOKEN_KEY = 'openbinding-refresh-token';
 /** Where the API is: under `/api` of the same origin through the lab proxy; `PLAYWRIGHT_API_URL` names another one. */
 export const API = process.env.PLAYWRIGHT_API_URL ?? '/api';
 
-/** The login of the gateway lets a user try 10 times in 5 minutes; a spec that meets the limit waits for it instead of failing. */
+/**
+ * The login of the gateway lets a user try 10 times in 5 minutes; a spec that meets the limit waits for it instead of failing. The
+ * wait follows `Retry-After` up to the whole window, so one wait always clears it: the walks repeated in one run sign the owner in
+ * more than 10 times in 5 minutes.
+ */
 const LOGIN_TRIES = 3;
-const LONGEST_WAIT_S = 120;
+const LONGEST_WAIT_S = 300;
 
 /**
  * Signs in through the API and hands the session to the page before it loads, so a spec does not spend a login of the (throttled)

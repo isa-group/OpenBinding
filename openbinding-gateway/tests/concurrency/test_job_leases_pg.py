@@ -31,7 +31,7 @@ async def an_abandoned_job(session) -> Job:
     session.add(owner)
     await session.flush()
     job = Job(
-        owner_id=owner.id,
+        created_by_id=owner.id,
         engine_id="random-search",
         engine_job_id="engine-1",
         service_url="http://engine",
@@ -239,7 +239,7 @@ async def test_two_concurrent_creations_cannot_pass_the_last_slot(two_sessions):
         refusal = await limits.enforce_concurrency_limit(session, owner.id, limit=1)
         if refusal is None:
             session.add(Job(
-                owner_id=owner.id, engine_id="random-search", engine_job_id=str(uuid.uuid4()),
+                created_by_id=owner.id, engine_id="random-search", engine_job_id=str(uuid.uuid4()),
                 service_url="http://engine", state=JobState.QUEUED, **refs,
             ))
         await session.commit()

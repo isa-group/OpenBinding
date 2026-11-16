@@ -13,7 +13,8 @@ model needed.
 - `original_request` stays, minus `bindingProblem`.
 - `organization_id` is NOT NULL: every revision has an organization.
 - `owner_id` keeps its name and becomes `RESTRICT`. Renaming it to `created_by_id` would touch hundreds of test lines
-  for no behaviour, so it waits for F2.
+  for no behaviour, so it waits for F2. (F2b renamed it to `created_by_id`, with the unique key
+  `uq_jobs_created_by_idempotency_key`.)
 - `jobs.project_id` is dropped, and so is the `v1_job_provenance` table (ADR 0039): it was write-only and duplicated
   `jobs.provenance`.
 - Under `/v1/organizations/{org}/runs` the errors use the platform JSON envelope, not `application/problem+json`; the

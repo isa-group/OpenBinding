@@ -212,6 +212,9 @@ class BindingCaseRevision(Base):
         UniqueConstraint("binding_case_id", "revision", name="uq_binding_case_revision"),
         UniqueConstraint("binding_case_id", "package_digest", name="uq_binding_case_package_digest"),
         CheckConstraint("revision > 0", name="binding_case_revision_positive"),
+        CheckConstraint(
+            "origin IN ('upload', 'editor', 'qacoforge', 'sphere')", name="binding_case_revision_origin",
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
@@ -234,6 +237,8 @@ class BindingCaseRevision(Base):
     resource_digests: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     #: Who produced the package (an upload's file name, the Workbench, a producer); free form.
     provenance: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    #: Where the revision came from, read from its producer when stored (``modules/problems/domain/origin.py``).
+    origin: Mapped[str] = mapped_column(String(16), nullable=False, default="upload", server_default="upload")
     created_by_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="RESTRICT"), nullable=False, index=True
     )

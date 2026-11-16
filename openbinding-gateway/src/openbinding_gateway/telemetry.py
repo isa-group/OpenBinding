@@ -285,7 +285,7 @@ async def record_job_failure(
             "error": reason or "Solver job failed",
             "state": "failed",
         },
-        user_id=job.owner_id,
+        user_id=job.created_by_id,
         organization_id=job.organization_id,
         session=session,
     )

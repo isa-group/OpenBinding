@@ -75,7 +75,7 @@ async def build_world(api_client, db_session, registration, gate, monkeypatch, *
     )
 
 
-async def clone_job(db_session, source: Job, *, owner_id=None, patch=None, **fields) -> Job:
+async def clone_job(db_session, source: Job, *, created_by_id=None, patch=None, **fields) -> Job:
     """A fresh terminal job with the source's recorded identity, optionally altered."""
     provenance = copy.deepcopy(source.provenance)
     options = copy.deepcopy(source.options)
@@ -89,7 +89,7 @@ async def clone_job(db_session, source: Job, *, owner_id=None, patch=None, **fie
         else:
             target[keys[-1]] = value
     values = dict(
-        owner_id=owner_id or source.owner_id, engine_id=source.engine_id,
+        created_by_id=created_by_id or source.created_by_id, engine_id=source.engine_id,
         engine_job_id=str(uuid.uuid4()), service_url=source.service_url,
         state=source.state, original_request=source.original_request, options=options,
         provenance=provenance, result=source.result, termination=source.termination,
@@ -110,7 +110,7 @@ OTHER_REVISION = "revision"
 
 
 async def another_revision(db_session, job: Job) -> dict:
-    seeded = await seed_problem_run(db_session, owner_id=job.owner_id, organization_id=job.organization_id)
+    seeded = await seed_problem_run(db_session, created_by_id=job.created_by_id, organization_id=job.organization_id)
     return run_refs(seeded)
 
 
@@ -260,8 +260,8 @@ async def test_a_job_of_another_revision_with_the_same_package_is_a_case_mismatc
 
 async def test_a_job_of_another_organization_is_not_found(api_client, db_session, registration, gate, world):  # noqa: F811
     stranger, _ = await make_account(api_client, registration, db_session, gate)
-    elsewhere = run_refs(await seed_problem_run(db_session, owner_id=uuid.UUID(stranger["id"])))
-    foreign = await clone_job(db_session, world.jobs[0], owner_id=uuid.UUID(stranger["id"]), **elsewhere)
+    elsewhere = run_refs(await seed_problem_run(db_session, created_by_id=uuid.UUID(stranger["id"])))
+    foreign = await clone_job(db_session, world.jobs[0], created_by_id=uuid.UUID(stranger["id"]), **elsewhere)
 
     response = await attach(api_client, world, world.cells[0], foreign)
     missing = await api_client.post(
@@ -312,7 +312,7 @@ async def test_roles_and_credentials_decide_who_may_attach(api_client, db_sessio
         added = await put_member(api_client, world.headers, "lab", account["id"], role)
         assert added.status_code == 200, added.text
     cell = world.cells[0]
-    own = await clone_job(db_session, world.jobs[0], owner_id=uuid.UUID(member["id"]))
+    own = await clone_job(db_session, world.jobs[0], created_by_id=uuid.UUID(member["id"]))
     owners = await clone_job(db_session, world.jobs[0])
     teammates = await clone_job(db_session, world.jobs[0])
 

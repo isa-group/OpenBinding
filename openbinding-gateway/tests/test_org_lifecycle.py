@@ -61,9 +61,9 @@ async def _child(client, headers, parent_id: str) -> dict:
     return created.json()
 
 
-def _a_run(owner_id: uuid.UUID, refs: dict) -> Job:
+def _a_run(created_by_id: uuid.UUID, refs: dict) -> Job:
     return Job(
-        owner_id=owner_id, engine_id="random-search", engine_job_id=str(uuid.uuid4()), service_url="http://engine",
+        created_by_id=created_by_id, engine_id="random-search", engine_job_id=str(uuid.uuid4()), service_url="http://engine",
         state=JobState.COMPLETED, original_request={}, options={}, provenance={},
         organization_id=refs["organization_id"], revision_id=refs["revision_id"], compilation_id=refs["compilation_id"],
     )
@@ -102,7 +102,7 @@ async def test_a_run_below_the_organization_keeps_the_whole_subtree(
     )).json()
     child = await _child(api_client, headers, parent["id"])
     owner_id = await _user_id(api_client, headers)
-    refs = await seed_problem_run(db_session, owner_id=owner_id, organization_id=uuid.UUID(child["id"]))
+    refs = await seed_problem_run(db_session, created_by_id=owner_id, organization_id=uuid.UUID(child["id"]))
     db_session.add(_a_run(owner_id, refs))
     await db_session.flush()
 
@@ -208,7 +208,7 @@ async def test_only_an_admin_or_owner_deletes(api_client, db_session, registrati
 def test_the_reserved_slugs_are_the_fixed_places_and_the_organization_sections():
     assert RESERVED_ORGANIZATION_SLUGS == {
         "admin", "account", "engines", "organizations", "invitations",
-        "compositions", "presets", "runs", "problems", "studies", "settings", "workbench", "new",
+        "compositions", "presets", "runs", "problems", "studies", "settings", "problem-editor", "new",
     }
 
 

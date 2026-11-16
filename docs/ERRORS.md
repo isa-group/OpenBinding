@@ -179,6 +179,26 @@ The run presets of an organization (`/v1/organizations/{org}/presets`) follow th
 | `slug_conflict` | 409 | the preset slug is in use in the organization |
 | `invalid_request_fields` | 422 | a setting of the wrong shape: `engine` not a name or an immutable reference, `registration` not an immutable reference, `mode` not a mode id, `options` not an object of at most 65 536 bytes as JSON, `optimization` not `{type: SINGLE\|MULTI\|MANY, scalarization, weights?: [{criteria, value}]}`; its one diagnostic's `pointer` names the setting (`/optimization/weights/0`). Whether the engine runs the problem is checked when a run uses the preset |
 
+## Studies
+
+A study names its engines exactly or by run preset (`{preset: <slug or id>}`). Writing a study (`createStudy`,
+`updateStudy`) expands each preset once to refuse what no run could run, and stores it as given; each `runStudy`
+expands it again and freezes the exact engine, mode, optimization, options and the preset's `{id, slug}`
+([ADR 0052](adr/0052-study-front-export-and-presets-on-the-server.md)).
+
+| `code` | Status | Meaning |
+|---|---|---|
+| `preset_not_found` | 422 | a study engine names a preset the study's organization has no run preset by (slug or id) |
+| `preset_federated` | 422 | the preset runs a registered (federated) engine, which a study cell cannot run yet |
+| `preset_incomplete` | 422 | the preset names no optimization, which a study engine needs |
+| `invalid_engine` | 422 | an engine of the study, or the one a preset holds, no longer resolves to an engine mode with those options |
+| `duplicate_study_engines` | 422 | two engines of the study are the same once its presets are expanded (revision, mode, optimization and options) |
+| `api_key_engine_forbidden` | 403 | an API key does not grant every exact engine revision the study's presets expand to |
+
+`exportStudyRun` (`GET …/studies/{study}/runs/{run}/export?format=csv|json`) refuses a `format` other than `csv` and
+`json` with `422 validation_error`; a missing study or run, or a caller who may not read the study, is answered as by
+the other study reads.
+
 ## Composition2Yaml
 
 The stateless services `/v1/compositions/{validate,parse,serialise,diff}` answer

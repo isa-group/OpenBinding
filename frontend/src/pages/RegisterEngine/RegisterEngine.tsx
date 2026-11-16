@@ -3,8 +3,9 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { Check } from 'lucide-react';
 import {
   apiClient, bimResourceKey,
-  type BimResourceRef, type EngineRegistrationRevision, type EngineRevision,
+  type EngineRegistrationRevision, type EngineRevision,
 } from '../../api/client';
+import type { ImmutableResourceRef } from '../../shared/api/types';
 import { Action } from '../../components/ui/Action';
 import { Notice } from '../../components/ui/Notice';
 import { PageHeader } from '../../components/ui/PageHeader';
@@ -46,7 +47,7 @@ interface Setup {
   prefillFailed: boolean;
 }
 
-async function loadSetup(from: BimResourceRef | null): Promise<Setup> {
+async function loadSetup(from: ImmutableResourceRef | null): Promise<Setup> {
   let vocabularies: Vocabulary[] = [BUILTIN_VOCABULARY];
   let protocolDigest: string | null = null;
   try {

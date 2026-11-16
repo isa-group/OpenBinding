@@ -61,7 +61,7 @@ async def a_run(db_session, lab: Lab, owner: Person, run_number: int) -> tuple[S
         cells.append(cell)
     await db_session.flush()
     finished = Job(
-        owner_id=owner.id, engine_id="random-search", engine_job_id=str(uuid.uuid4()), service_url="http://engine",
+        created_by_id=owner.id, engine_id="random-search", engine_job_id=str(uuid.uuid4()), service_url="http://engine",
         state=JobState.COMPLETED, organization_id=lab.org_id, study_cell_id=cells[0].id,
         revision_id=uuid.UUID(lab.snapshot), compilation_id=lab.compilation_id,
         original_request={}, provenance={}, result={"solutions": []}, finished_at=utcnow(),
@@ -133,7 +133,7 @@ async def test_another_run_of_the_same_cycle_with_a_member_owner_still_launches(
     assert revoked_waiting.job_id is None and revoked_waiting.state is RunState.FAILED
     assert kept_waiting.job_id is not None and kept_waiting.state is not RunState.FAILED
     launched = await db_session.get(Job, kept_waiting.job_id)
-    assert launched.owner_id == member.id and launched.study_cell_id == kept_waiting.id
+    assert launched.created_by_id == member.id and launched.study_cell_id == kept_waiting.id
     assert kept_run.state is not RunState.PARTIAL
     assert await audits(db_session, kept_run) == []
     assert len(await audits(db_session, revoked_run)) == 1
@@ -156,7 +156,7 @@ async def test_a_run_whose_owner_is_still_a_member_behaves_as_before(db_session,
 async def shared_snapshot_job(db_session, lab: Lab, person: Person) -> Job:
     """A failed run of ``person`` of the organization's problem (the author's upload)."""
     row = Job(
-        owner_id=person.id, engine_id="random-search", engine_job_id=str(uuid.uuid4()), service_url="http://engine",
+        created_by_id=person.id, engine_id="random-search", engine_job_id=str(uuid.uuid4()), service_url="http://engine",
         state=JobState.FAILED, organization_id=lab.org_id,
         revision_id=uuid.UUID(lab.snapshot), compilation_id=lab.compilation_id,
         original_request={}, provenance={},
@@ -209,7 +209,7 @@ async def test_a_viewer_here_retries_a_run_in_an_organization_of_their_own(api_c
     await free_slots(db_session, lab)
     viewer = lab.people["VIEWER"]
     job = Job(
-        owner_id=viewer.id, engine_id="random-search", engine_job_id=str(uuid.uuid4()), service_url="http://engine",
+        created_by_id=viewer.id, engine_id="random-search", engine_job_id=str(uuid.uuid4()), service_url="http://engine",
         state=JobState.FAILED, original_request={}, provenance={},
         **await compiled_run_refs(db_session, viewer.id),
     )

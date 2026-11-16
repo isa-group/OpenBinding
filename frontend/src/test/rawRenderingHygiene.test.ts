@@ -233,7 +233,7 @@ describe('the detector of raw rendering', () => {
     for (const file of EXEMPT_FILES) expect(hits(file), file).toBe(0);
     expect(hits('components/rendering/SourceViewer.tsx')).toBe(1);
     expect(hits('pages/components/rendering/SourceView.tsx')).toBe(1);
-    expect(hits('pages/Jobs/JobResult.tsx')).toBe(1);
+    expect(hits('pages/Runs/RunOutcome.tsx')).toBe(1);
   });
 
   it('exempts exactly the two catalogue components', () => {
@@ -356,11 +356,12 @@ describe('the allow-list', () => {
     expect(wrongLineNumbers(sources, [])).toEqual([]);
   });
 
-  it('renders the workbench diff through SourceView, with no <pre> of its own', () => {
-    const panel = Object.entries(sources).find(([path]) => path.endsWith('/pages/Workbench/SourcePanel.tsx'))?.[1];
-    expect(panel).toBeDefined();
-    expect(panel).toContain('<SourceView');
-    expect(panel).not.toMatch(/<pre[\s>]/);
+  it('renders the changes of a file in the problem editor through FileDiff, with no <pre> of its own', () => {
+    const pane = Object.entries(sources).find(([path]) => path.endsWith('/features/bim-editor/FilesPane.tsx'))?.[1];
+    expect(pane).toBeDefined();
+    expect(pane).toContain('<FileDiff');
+    expect(pane).not.toMatch(/<pre[\s>]/);
+    expect(Object.keys(sources).filter((path) => path.includes('/pages/Workbench/'))).toEqual([]);
   });
 
   it('has no entry for the report editor, which slice 2 retires', () => {
@@ -368,8 +369,8 @@ describe('the allow-list', () => {
     expect(Object.keys(sources).filter((path) => path.endsWith('/pages/Reports/RepDetail.tsx'))).toEqual([]);
   });
 
-  it('has no entry for the library content view, which slice 3 retires, nor for the feature cell the Workbench took over', () => {
-    expect([...RAW_RENDERING_ALLOW_LIST, ...UNLISTED_FINDINGS].filter((entry) => entry.file.startsWith('pages/Workbench/FeatureCell'))).toEqual([]);
+  it('has no entry for the library content view, which slice 3 retires, nor for the feature cell the problem editor took over', () => {
+    expect([...RAW_RENDERING_ALLOW_LIST, ...UNLISTED_FINDINGS].filter((entry) => entry.file.startsWith('features/bim-editor/FeatureCell'))).toEqual([]);
     expect(Object.keys(sources).filter((path) => path.includes('/pages/Library/'))).toEqual([]);
   });
 

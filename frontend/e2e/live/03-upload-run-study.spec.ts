@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { API, CASE, ORG, ORG_PATH, RUNS_PATH, capture, signInByApi, watchPageErrors } from './support';
 
 // The F0b walk against the lab (the mocked twin is e2e/f0b-walk.spec.ts): the owner of lab-main uploads the demo package as a new
-// problem, edits it in the Workbench into version 2, starts another problem from a template, runs version 2 on random-search and
+// problem, edits it in the problem editor into version 2, starts another problem from a template, runs version 2 on random-search and
 // follows it to its result, then runs a study of that version × 2 engine modes × 2 seeds. Every run of this spec adds two problems and
 // one study to lab-main, named after the moment it ran; nothing is deleted (runs keep their problem).
 
@@ -49,16 +49,21 @@ test.describe('live · upload, run and study on lab-main', () => {
     await expect(main.getByRole('list', { name: 'Files in the package' })).toContainText('candidates.json');
     await capture(page, testInfo, 'walk-2-source');
 
-    // 3 · Edit in the Workbench, check, save as version 2.
+    // 3 · Edit in the problem editor: the live check passes the edit, and it is saved as version 2.
     await main.getByRole('tab', { name: 'Overview' }).click();
-    await main.getByRole('link', { name: 'Edit in the Workbench' }).click();
-    await expect(main.getByText('Loaded version 1')).toBeVisible({ timeout: 60_000 });
+    await main.getByRole('link', { name: 'Edit in the problem editor' }).click();
+    await expect(main.getByText(`Loaded version 1 of ${name}`)).toBeVisible({ timeout: 60_000 });
+    const status = main.getByTestId('pe-check-status');
+    await expect(status).toHaveText('Valid package', { timeout: 60_000 });
+    await main.getByRole('tab', { name: 'Forms' }).click();
     await main.getByRole('navigation', { name: 'BIM resources' }).getByRole('button', { name: /candidates\.json/ }).click();
     await main.getByLabel('c1b QoS latency').fill('12');
-    await main.getByRole('button', { name: 'Validate', exact: true }).click();
-    await expect(main.getByRole('heading', { name: 'Valid package' })).toBeVisible({ timeout: 60_000 });
-    const bar = main.getByRole('region', { name: 'Package actions' });
-    await bar.getByRole('button', { name: `Save as a new version of ${name}` }).click();
+    await expect(status).toHaveText('Valid package', { timeout: 60_000 });
+    const save = main.getByRole('button', { name: 'Save as version…' });
+    await expect(save).toBeEnabled({ timeout: 60_000 });
+    await save.click();
+    const saveDialog = page.getByRole('dialog', { name: 'Save the package' });
+    await saveDialog.getByRole('button', { name: `Save as a new version of ${name}` }).click();
     await expect(main.getByText(`Saved as version 2 of ${name}. Run it from its page.`)).toBeVisible({ timeout: 60_000 });
     await capture(page, testInfo, 'walk-3-saved');
     await main.getByRole('link', { name: 'Open the problem' }).click();
@@ -67,9 +72,10 @@ test.describe('live · upload, run and study on lab-main', () => {
     // 4 · A template, checked as it opens and saved as a new problem under a name of this run, offers a run.
     await page.goto(PROBLEMS);
     await main.getByRole('link', { name: 'Start from a template' }).click();
-    await expect(main.getByRole('heading', { name: 'Valid package' })).toBeVisible({ timeout: 60_000 });
-    await bar.getByRole('textbox', { name: 'Name of the new problem' }).fill(`${name}-template`);
-    await bar.getByRole('button', { name: 'Save as a new problem' }).click();
+    await expect(main.getByTestId('pe-check-status')).toHaveText('Valid package', { timeout: 60_000 });
+    await main.getByRole('button', { name: 'Save as version…' }).click();
+    await saveDialog.getByRole('textbox', { name: 'Name of the new problem' }).fill(`${name}-template`);
+    await saveDialog.getByRole('button', { name: 'Save as a new problem' }).click();
     await expect(main.getByText(`Saved as version 1 of ${name}-template. Run it from its page.`)).toBeVisible({ timeout: 60_000 });
     await main.getByRole('link', { name: 'Open the problem' }).click();
     await expect(main.getByRole('link', { name: 'Run this version' })).toHaveAttribute('href', `${RUNS_PATH}/new?problem=${name}-template&revision=1`);
@@ -120,13 +126,13 @@ test.describe('live · upload, run and study on lab-main', () => {
     expect(errors).toEqual([]);
   });
 
-  test('a member opens the seeded problem simple-seq and can open it in the Workbench, but not delete it', async ({ page }, testInfo) => {
+  test('a member opens the seeded problem simple-seq and can open it in the problem editor, but not delete it', async ({ page }, testInfo) => {
     const errors = watchPageErrors(page);
     await signInByApi(page, 'member');
     await page.goto(`${PROBLEMS}/${CASE}`);
 
     await expect(page.locator('code.case-slug')).toHaveText(CASE);
-    await expect(page.getByRole('link', { name: 'Edit in the Workbench' })).toHaveAttribute('href', new RegExp(`^${ORG_PATH}/workbench\\?problem=${CASE}&revision=\\d+$`));
+    await expect(page.getByRole('link', { name: 'Edit in the problem editor' })).toHaveAttribute('href', new RegExp(`^${ORG_PATH}/problem-editor\\?problem=${CASE}&revision=\\d+$`));
     await expect(page.getByRole('link', { name: 'Run this version' })).toHaveAttribute('href', new RegExp(`^${RUNS_PATH}/new\\?problem=${CASE}&revision=\\d+$`));
     // Deleting needs ADMIN: a member has no such control, in the Settings tab either.
     await page.getByRole('tab', { name: 'Settings' }).click();

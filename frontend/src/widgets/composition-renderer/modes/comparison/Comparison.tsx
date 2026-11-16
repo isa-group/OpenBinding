@@ -132,7 +132,12 @@ function SectionList({ title, count, children }: { title: string; count?: number
   );
 }
 
-function Changes({ diff }: { diff: Diff }) {
+/**
+ * What the gateway's diff says changed: kind tiles that filter, the general changes and the sections of entries. The Versions tab shows
+ * it for two versions of a composition; a study front shows it for the first versions of two compositions (the server's document
+ * diff, named as a version diff).
+ */
+export function Changes({ diff }: { diff: Diff }) {
   const [chosen, setChosen] = useState<ChangeKind | null>(null);
   const filter = activeFilter(diff, chosen);
   const sections = filteredSections(diff, filter);

@@ -168,7 +168,7 @@ async def parse_composition(request: Request, caller: User | None = Depends(coun
         "requestBody": {
             "required": True,
             "description": f"A Composition2Yaml document as JSON, at most {MAX_JSON_DOCUMENT_BYTES} bytes.",
-            "content": {JSON_MEDIA_TYPE: {"schema": {"type": "object"}}},
+            "content": {JSON_MEDIA_TYPE: {"schema": {"type": "object", "additionalProperties": True}}},
         }
     },
 )
@@ -250,7 +250,7 @@ def _etag(content: bytes) -> str:
     responses={200: {
         "description": "The schema. `ETag` is the digest of these bytes.",
         "headers": {"ETag": {"description": "Digest of the schema's bytes.", "schema": {"type": "string"}}},
-        "content": {SCHEMA_MEDIA_TYPE: {"schema": {"type": "object"}}},
+        "content": {SCHEMA_MEDIA_TYPE: {"schema": {"type": "object", "additionalProperties": True}}},
     }},
 )
 async def get_composition_schema(

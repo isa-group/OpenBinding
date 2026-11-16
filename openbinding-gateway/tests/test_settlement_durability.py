@@ -48,7 +48,7 @@ async def owner(db_session) -> User:
 
 async def a_job(session, owner, *, state=JobState.RUNNING, age_s=OVERDUE_S, **extra) -> Job:
     job = Job(
-        owner_id=owner.id,
+        created_by_id=owner.id,
         engine_id="random-search",
         engine_job_id="engine-1",
         service_url="http://engine",

@@ -91,7 +91,7 @@ async def test_a_valid_request_creates_a_queued_job(db_session, user, revision_i
     assert set(result.body) == {"id", "status", "profile", "irDigest"}
     assert result.body["status"] == "queued"
     stored = await db_session.get(Job, uuid.UUID(result.body["id"]))
-    assert stored.owner_id == user.id
+    assert stored.created_by_id == user.id
     assert stored.idempotency_key == KEY
     assert stored.provenance["irDigest"] == result.body["irDigest"]
     assert pending_launches(db_session) == []
@@ -153,9 +153,9 @@ def hide_lookups(monkeypatch, hidden: int) -> None:
     real = job_submission._find_idempotent_job
     seen: list[str] = []
 
-    async def find(session, owner_id, key):
+    async def find(session, created_by_id, key):
         seen.append(key)
-        return None if len(seen) <= hidden else await real(session, owner_id, key)
+        return None if len(seen) <= hidden else await real(session, created_by_id, key)
 
     monkeypatch.setattr(job_submission, "_find_idempotent_job", find)
 

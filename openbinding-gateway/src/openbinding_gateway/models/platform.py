@@ -25,7 +25,7 @@ DIGEST = r"^sha256-[0-9a-f]{64}$"
 #: section under an organization; the frontend mirrors them in ``PlatformShell/workspacePath.ts``.
 RESERVED_ORGANIZATION_SLUGS = frozenset({
     "admin", "account", "engines", "organizations", "invitations",
-    "compositions", "presets", "runs", "problems", "studies", "settings", "workbench", "new",
+    "compositions", "presets", "runs", "problems", "studies", "settings", "problem-editor", "new",
 })
 
 
@@ -105,9 +105,36 @@ class InvitationAccept(BaseModel):
     token: str = Field(..., min_length=32)
 
 
+def study_preset_ref(engine: Mapping[str, Any]) -> str | None:
+    """The run preset a study engine entry starts from (``{"preset": <slug or id>}``), else ``None``."""
+    if set(engine) == {"preset"} and isinstance(engine["preset"], str) and engine["preset"]:
+        return engine["preset"]
+    return None
+
+
+def study_engine_identity(engine: Mapping[str, Any]) -> tuple[Any, ...]:
+    """What makes two study engines the same: the exact revision, the mode, the optimization and the options.
+
+    A preset entry not yet expanded is named by its reference; ``preset`` provenance is not part of it.
+    """
+    ref = study_preset_ref(engine)
+    if ref is not None:
+        return ("preset", ref)
+    return (
+        tuple(engine.get(key, "") for key in ("namespace", "name", "version", "digest", "mode")),
+        json.dumps(engine.get("optimization", {}), sort_keys=True, separators=(",", ":")),
+        json.dumps(engine.get("options") or {}, sort_keys=True, separators=(",", ":")),
+    )
+
+
 class StudyDefinition(BaseModel):
     """The reproducible Cartesian product behind a comparative study: problem revisions of the study's
-    organization, exact engine revisions with a mode, parameter sets and seeds."""
+    organization, engines, parameter sets and seeds.
+
+    An engine is an exact engine revision with a mode, an optimization and, optionally, ``options``; or
+    ``{"preset": <slug or id>}``, a run preset of the organization that each run expands into one (and records
+    as ``preset: {id, slug}``, which an exact entry copied from a run may keep).
+    """
 
     model_config = ConfigDict(extra="forbid")
     revision_ids: list[uuid.UUID] = Field(default_factory=list, max_length=250)
@@ -125,26 +152,32 @@ class StudyDefinition(BaseModel):
             raise ValueError("seeds contains duplicates")
         if len({json.dumps(value, sort_keys=True, separators=(",", ":")) for value in self.parameter_sets}) != len(self.parameter_sets):
             raise ValueError("parameter_sets contains duplicates")
-        identities = {
-            (tuple(engine.get(key, "") for key in ("namespace", "name", "version", "digest", "mode")), json.dumps(engine.get("optimization", {}), sort_keys=True, separators=(",", ":")))
-            for engine in self.engines
-        }
-        if len(identities) != len(self.engines):
+        if len({study_engine_identity(engine) for engine in self.engines}) != len(self.engines):
             raise ValueError("engines contains duplicate revisions")
         cells = max(1, len(self.revision_ids)) * len(self.engines) * len(self.parameter_sets) * len(self.seeds)
         if self.revision_ids and cells > 10_000:
             raise ValueError("a study run may contain at most 10,000 cells")
+        exact = [engine for engine in self.engines if study_preset_ref(engine) is None]
         required = {"namespace", "name", "version", "digest"}
-        allowed = required | {"mode", "optimization"}
-        if any(not required <= set(engine) or not set(engine) <= allowed for engine in self.engines):
-            raise ValueError("every engine must be an exact immutable reference with mode and optimization")
-        for engine in self.engines:
+        allowed = required | {"mode", "optimization", "options", "preset"}
+        if any(not required <= set(engine) or not set(engine) <= allowed for engine in exact):
+            raise ValueError(
+                "every engine must be an exact immutable reference with mode and optimization, or {preset}"
+            )
+        for engine in exact:
+            if not isinstance(engine.get("options", {}), dict):
+                raise ValueError("an engine's options is an object")
+            provenance = engine.get("preset")
+            if provenance is not None and (
+                not isinstance(provenance, dict) or set(provenance) != {"id", "slug"}
+            ):
+                raise ValueError("an engine's preset is the {id, slug} of the preset it came from")
             optimization = engine.get("optimization")
             if not engine.get("mode"):
                 raise ValueError("every study engine must select an explicit mode")
             if not isinstance(optimization, dict) or not isinstance(optimization.get("type"), str) or not isinstance(optimization.get("scalarization"), str):
                 raise ValueError("every study engine must define an optimization type and scalarization")
-        if any(not re.fullmatch(DIGEST, engine.get("digest", "")) for engine in self.engines):
+        if any(not re.fullmatch(DIGEST, engine.get("digest", "")) for engine in exact):
             raise ValueError("every engine digest must be sha256- followed by 64 lowercase hex characters")
         return self
 
@@ -214,6 +247,47 @@ class StudyRunView(BaseModel):
     summary: dict[str, Any]
     created_at: datetime
     finished_at: Optional[datetime]
+
+
+class StudyExportRef(BaseModel):
+    id: uuid.UUID
+    slug: str
+    name: str
+
+
+class StudyRunExportRef(BaseModel):
+    id: uuid.UUID
+    run_number: int
+    state: str
+    matrix_digest: str
+    definition_digest: str
+    created_at: datetime
+    finished_at: Optional[datetime]
+
+
+class StudyCellExport(BaseModel):
+    id: uuid.UUID
+    ordinal: int
+    problem: str = Field(description="The slug of the problem the cell's revision belongs to.")
+    revision: int
+    binding_case_revision_id: uuid.UUID
+    compilation_id: uuid.UUID
+    engine: dict[str, Any] = Field(description="The exact engine, mode and optimization the cell ran.")
+    parameters: dict[str, Any]
+    seed: int
+    fingerprint: str
+    job_id: Optional[uuid.UUID]
+    state: str
+    metrics: dict[str, Any]
+
+
+class StudyRunExport(BaseModel):
+    """A study run exported whole (``exportStudyRun?format=json``): the frozen definition and every cell."""
+
+    study: StudyExportRef
+    run: StudyRunExportRef
+    definition: StudyRunDefinition
+    cells: list[StudyCellExport]
 
 
 class StudyCellResult(BaseModel):
@@ -362,14 +436,28 @@ def run_view(job: Any, viewer: Any, *, redact: bool = False, refs: Optional[Mapp
     return RunView(**base.model_dump(), error=error, remote=dict(remote))
 
 
-class SnapshotView(BaseModel):
-    id: uuid.UUID
-    owner_id: Optional[uuid.UUID] = None
-    instance_digest: str
-    package_digest: str
-    archive_size: int
-    created_at: datetime
-    ir: Optional[dict[str, Any]] = None
+class ParetoProblem(BaseModel):
+    slug: str
+
+
+class ParetoPoint(BaseModel):
+    """A feasible solution no other solution of its front dominates."""
+
+    cell_id: uuid.UUID
+    job_id: uuid.UUID
+    solution_index: int = Field(description="The run solution the point is: the `point` to derive a composition from.")
+    engine: str
+    objectives: dict[str, float]
+
+
+class ParetoFront(BaseModel):
+    """The non-dominated points of one problem revision and one set of objective names (minimisation)."""
+
+    revision_id: uuid.UUID
+    problem: ParetoProblem
+    revision: int
+    objectives: list[str]
+    points: list[ParetoPoint]
 
 
 class AnalyticsView(BaseModel):
@@ -380,6 +468,10 @@ class AnalyticsView(BaseModel):
     infeasible: int
     objective_distributions: dict[str, list[float]]
     runtimes_s: list[float]
-    pareto: list[dict[str, Any]]
+    pareto: list[ParetoFront] = Field(
+        default_factory=list,
+        description="One front per problem revision and objective-name set, from the feasible solutions of "
+        "completed cells.",
+    )
     stability: dict[str, Any]
     binding_space: Optional[dict[str, Any]] = None

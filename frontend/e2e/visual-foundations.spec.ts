@@ -57,7 +57,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         for (const label of ['Home', 'Compositions', 'Language', 'Engines', 'Pricing', 'About', 'Log in', 'Sign up']) {
           await expect(menu.getByRole('link', { name: label, exact: true })).toBeVisible();
         }
-        await expect(menu.getByRole('link', { name: 'Workbench' })).toHaveCount(0);
+        // The problem editor is a screen of an organization's workspace, never a link of the public site.
+        await expect(menu.getByRole('link', { name: /Workbench|Problem editor/ })).toHaveCount(0);
         await page.screenshot({ path: testInfo.outputPath(`header-${name}-visitor-menu-open.png`), animations: 'disabled' });
         await header.getByRole('button', { name: 'Close menu' }).click();
       } else {

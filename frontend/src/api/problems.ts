@@ -1,4 +1,6 @@
-import { apiClient, type BimCompatibleMode } from './client';
+import type { ProblemOrigin } from '../shared/api/types';
+import type { BimEngineCompatibility } from './bim';
+import { apiClient } from './client';
 
 const enc = encodeURIComponent;
 const ZIP = { 'Content-Type': 'application/vnd.bim+zip' };
@@ -13,6 +15,8 @@ export interface LatestRevision {
   revision: number;
   package_digest: string;
   created_at: string;
+  /** Where it came from: the gateway reads it from the producer the upload named. */
+  origin: ProblemOrigin;
 }
 
 /** A problem of an organization (`BindingCase`): its address, its words and its newest revision. */
@@ -98,7 +102,7 @@ export interface ProblemCompilation extends CompilationSummary {
   toolchain: Record<string, unknown>;
   analysis: ProblemAnalysis;
   resources: Record<string, ResourceContract>;
-  compatible_modes: BimCompatibleMode[];
+  compatible_modes: BimEngineCompatibility[];
 }
 
 export interface CompilationIr {
@@ -121,6 +125,16 @@ export interface ProblemCreate {
   slug?: string;
   name?: string;
   description?: string;
+  /** Who made the package (`openbinding-upload`, `openbinding-problem-editor`): the gateway records the version's origin from it. */
+  producer?: string;
+}
+
+/** What the problem list asks the gateway for: a page, and the problems whose latest version came from `origin` or a version of `composition` links. */
+export interface ProblemListQuery {
+  limit?: number;
+  offset?: number;
+  origin?: ProblemOrigin;
+  composition?: string;
 }
 
 function query(values: Record<string, string | number | undefined>): string {
@@ -143,8 +157,8 @@ const zipBody = (archive: Uint8Array | Blob): RequestInit => ({
  * deleting ADMIN. The writes throw on a refusal (HttpError for 409, 413, 415, 422…, QuotaError for 402) so the screens word each one.
  */
 export const problemsApi = {
-  list: (org: string, params: { limit?: number; offset?: number } = {}) =>
-    apiClient.request<ProblemList>(`${problemsRoot(org)}${query(params)}`),
+  list: (org: string, params: ProblemListQuery = {}) =>
+    apiClient.request<ProblemList>(`${problemsRoot(org)}${query({ ...params })}`),
   get: (org: string, problem: string) => apiClient.request<Problem>(problemRoot(org, problem)),
   /**
    * Upload a `.bim.zip` as a new problem: 201 with its first revision and compilation. 409 `slug_conflict`, 402 `quota_exceeded`,
@@ -152,7 +166,7 @@ export const problemsApi = {
    */
   create: (org: string, archive: Uint8Array | Blob, value: ProblemCreate = {}) =>
     apiClient.request<ProblemUpload>(
-      `${problemsRoot(org)}${query({ slug: value.slug, name: value.name, description: value.description })}`,
+      `${problemsRoot(org)}${query({ slug: value.slug, name: value.name, description: value.description, producer: value.producer })}`,
       zipBody(archive), undefined, true, true,
     ),
   update: (org: string, problem: string, value: { name?: string; description?: string }) =>
@@ -164,8 +178,8 @@ export const problemsApi = {
   revisions: (org: string, problem: string) =>
     apiClient.request<ProblemRevision[]>(`${problemRoot(org, problem)}/revisions`),
   /** Upload a package as a revision: `created` is false (200) when the package already is a revision of the problem. */
-  createRevision: (org: string, problem: string, archive: Uint8Array | Blob) =>
-    apiClient.request<ProblemUpload>(`${problemRoot(org, problem)}/revisions`, zipBody(archive), undefined, true, true),
+  createRevision: (org: string, problem: string, archive: Uint8Array | Blob, value: { producer?: string } = {}) =>
+    apiClient.request<ProblemUpload>(`${problemRoot(org, problem)}/revisions${query({ producer: value.producer })}`, zipBody(archive), undefined, true, true),
   /** One revision by its number, id or package digest. */
   revision: (org: string, problem: string, revision: number | string) =>
     apiClient.request<ProblemRevisionDetail>(revisionRoot(org, problem, revision)),

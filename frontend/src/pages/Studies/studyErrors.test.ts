@@ -28,6 +28,23 @@ describe('why the gateway refuses a study', () => {
     expect(refusal.text).toContain('You can have 3 runs going at once.');
   });
 
+  it('says how the gateway refused a run preset of the study', () => {
+    expect(studyRefusal(refused(422, 'preset_not_found', 'This organization has no run preset \'fast\'.'), 'create')).toMatchObject({
+      kind: 'not-found', title: 'A run preset of the study no longer exists (422 · preset_not_found)',
+    });
+    expect(studyRefusal(refused(422, 'preset_not_found', 'This organization has no run preset \'fast\'.'), 'create').text).toContain('This organization has no run preset \'fast\'.');
+    expect(studyRefusal(refused(422, 'preset_federated'), 'run').text).toBe(
+      'Presets of federated engines can’t join a study yet. Remove it from the engines, or pick the engine itself. Nothing was started.',
+    );
+    expect(studyRefusal(refused(422, 'preset_incomplete'), 'update').title).toBe('A run preset names no optimization (422 · preset_incomplete)');
+    expect(studyRefusal(refused(422, 'duplicate_study_engines'), 'run')).toMatchObject({
+      kind: 'conflict', title: 'Two engines of the study are the same (422 · duplicate_study_engines)',
+    });
+    expect(studyRefusal(refused(422, 'invalid_engine', 'Run preset \'fast\' does not resolve to an engine mode.'), 'run')).toMatchObject({
+      kind: 'incompatible', title: 'An engine can’t run this (422 · invalid_engine)',
+    });
+  });
+
   it('tells a plan without studies from a key that lacks an engine or a permission', () => {
     expect(studyRefusal(refused(403, 'feature_not_entitled', 'No studies in this plan.'), 'run').kind).toBe('plan');
     const key = studyRefusal(refused(403, 'api_key_engine_forbidden', 'The key does not grant Evolutionary.'), 'run');

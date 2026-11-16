@@ -95,9 +95,9 @@ async def a_job(session, owner, *, state=JobState.QUEUED, registration=None, **e
         extra.setdefault("original_request", {"registration": registration_reference(registration)})
         extra.setdefault("service_url", registration.endpoint)
     if "revision_id" not in extra:
-        extra.update(run_refs(await seed_problem_run(session, owner_id=owner.id)))
+        extra.update(run_refs(await seed_problem_run(session, created_by_id=owner.id)))
     job = Job(
-        owner_id=owner.id,
+        created_by_id=owner.id,
         engine_id="random-search",
         engine_job_id="engine-1",
         state=state,

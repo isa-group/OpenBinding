@@ -1,10 +1,11 @@
-import type { Study, StudyCell, StudyRun } from '../../api/platform';
+import type { ExactStudyEngine, PresetStudyEngine, Study, StudyCell, StudyEngine, StudyRun } from '../../api/platform';
 import type { ProblemRevision } from '../../api/problems';
-import type { BimResourceRef, EngineCatalogEntry, EngineMode } from '../../api/client';
+import type { EngineCatalogEntry, EngineMode } from '../../api/client';
+import type { ImmutableResourceRef } from '../../shared/api/types';
 import { bimResourceKey } from '../../api/client';
 import type { ExecutionOptimization } from '../../api/runs';
 import type { CaseContent } from '../../features/workspace/model';
-import { criteriaCountOf, optimizationFor, optimizationTypeOf } from '../Jobs/launchModel';
+import { criteriaCountOf, optimizationFor, optimizationTypeOf } from '../Runs/launchModel';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -144,7 +145,7 @@ export function describeParameters(parameters: Record<string, unknown> | undefin
 
 export interface EngineChoice {
   key: string;
-  ref: BimResourceRef;
+  ref: ImmutableResourceRef;
   mode: string;
   /** `random-search 1.0.0` */
   title: string;
@@ -192,9 +193,49 @@ export function studyOptimization(mode: EngineMode | undefined, criteria: number
   return optimizationFor(mode, count) ?? { type: optimizationTypeOf(count), scalarization: count === 0 ? 'feasibility' : 'weighted-sum' };
 }
 
-/** The `definition.engines[]` entries for the chosen engine modes: the pinned revision, the mode and its optimization. */
-export function definitionEngines(chosen: readonly EngineChoice[], criteria: number | null): Study['definition']['engines'] {
-  return chosen.map((choice) => ({ ...choice.ref, mode: choice.mode, optimization: studyOptimization(choice.declared, criteria) }));
+/**
+ * The `definition.engines[]` entries: for each chosen engine mode the pinned revision, the mode and its optimization; then one
+ * `{preset}` row for each chosen run preset, which every run expands into an exact engine with the preset's options.
+ */
+export function definitionEngines(chosen: readonly EngineChoice[], criteria: number | null, presets: readonly string[] = []): StudyEngine[] {
+  return [
+    ...chosen.map((choice) => ({ ...choice.ref, mode: choice.mode, optimization: studyOptimization(choice.declared, criteria) })),
+    ...presets.map((preset): PresetStudyEngine => ({ preset })),
+  ];
+}
+
+/** An engine row named by a run preset (`{preset: <slug or id>}`), rather than an exact engine. */
+export function isPresetEngine(engine: StudyEngine): engine is PresetStudyEngine {
+  return typeof (engine as { preset?: unknown }).preset === 'string';
+}
+
+/**
+ * What makes two engines of a study the same, as the gateway compares them: a preset row by its reference; an exact one by its
+ * revision and mode, its optimization and its options (the preset it came from is provenance, not identity).
+ */
+export function engineIdentity(engine: StudyEngine): string {
+  if (isPresetEngine(engine)) return `preset:${engine.preset}`;
+  return stable([
+    [engine.namespace ?? '', engine.name ?? '', engine.version ?? '', engine.digest ?? '', engine.mode ?? ''],
+    engine.optimization ?? {},
+    engine.options ?? {},
+  ]);
+}
+
+/** `random-search 1.0.0 (sampling)`, or `preset fast-sampling` for a row a run expands. */
+export function engineRowLabel(engine: StudyEngine): string {
+  if (isPresetEngine(engine)) return `preset ${engine.preset}`;
+  return `${engine.name ?? 'engine'}${engine.version ? ` ${engine.version}` : ''}${engine.mode ? ` (${engine.mode})` : ''}`;
+}
+
+/** What one frozen engine ran with: the options of its cells (before each setting's own), the optimization and the preset it came from. */
+export function frozenEngineFacts(engine: ExactStudyEngine): { options: string; optimization: string | null; preset: string | null } {
+  const optimization = engine.optimization ? `${engine.optimization.type} · ${engine.optimization.scalarization}` : null;
+  return {
+    options: describeParameters(engine.options),
+    optimization,
+    preset: engine.preset?.slug ?? null,
+  };
 }
 
 // --- case revisions
@@ -488,12 +529,17 @@ export interface DefinitionGrid {
   numbered: boolean;
 }
 
-/** The matrix a definition spells out, in the order the gateway expands it: case revisions by id, engines by identity, settings, seeds ascending. */
+/**
+ * The matrix a definition spells out, in the order the gateway expands it: case revisions by id, engines by identity, settings, seeds
+ * ascending. A preset row is expanded by each run, so with one the cells can't be numbered from the definition alone.
+ */
 export function definitionGrid(definition: Study['definition']): DefinitionGrid {
   const rows = [...(definition.revision_ids ?? [])].sort();
-  const engines = [...(definition.engines ?? [])].sort((a, b) => (
-    [a.namespace, a.name, a.version, a.digest, a.mode ?? ''].join('\u0000').localeCompare([b.namespace, b.name, b.version, b.digest, b.mode ?? ''].join('\u0000'))
-  ));
+  const sortKey = (engine: StudyEngine) => (isPresetEngine(engine)
+    ? `\u0001${engine.preset}`
+    : [engine.namespace, engine.name, engine.version, engine.digest, engine.mode ?? ''].join('\u0000'));
+  const engines = [...(definition.engines ?? [])].sort((a, b) => sortKey(a).localeCompare(sortKey(b)));
+  const presets = engines.some(isPresetEngine);
   const settings = definition.parameter_sets?.length ?? 0;
   const seeds = [...(definition.seeds ?? [])].sort((a, b) => a - b);
   const columns: DefinitionGrid['columns'] = [];
@@ -502,12 +548,12 @@ export function definitionGrid(definition: Study['definition']): DefinitionGrid 
       for (const seed of seeds) {
         columns.push({
           key: `${enginePosition}|${setting}|${seed}`,
-          label: `${engine.name ?? 'engine'}${engine.mode ? ` (${engine.mode})` : ''}${settings > 1 ? ` · set ${setting + 1}` : ''} · seed ${seed}`,
+          label: `${isPresetEngine(engine) ? `preset ${engine.preset}` : `${engine.name ?? 'engine'}${engine.mode ? ` (${engine.mode})` : ''}`}${settings > 1 ? ` · set ${setting + 1}` : ''} · seed ${seed}`,
         });
       }
     }
   });
-  return { rows, columns, numbered: settings <= 1 };
+  return { rows, columns, numbered: settings <= 1 && !presets };
 }
 
 /** The cells that got the same input as this one (same case revision, same setting, same seed), one per engine: the fair comparison. */

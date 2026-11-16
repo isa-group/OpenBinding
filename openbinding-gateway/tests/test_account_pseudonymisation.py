@@ -106,7 +106,7 @@ async def test_deletion_pseudonymises_the_row_and_removes_what_was_the_accounts_
     user.preferences = {"email": {"jobs": False}}
     engine, engine_registration = engine_rows(user)
     job = Job(
-        owner_id=user_id, engine_id="random-search", engine_job_id=str(uuid.uuid4()), service_url="inline",
+        created_by_id=user_id, engine_id="random-search", engine_job_id=str(uuid.uuid4()), service_url="inline",
         state=JobState.COMPLETED, original_request={}, options={}, provenance={}, **placeholder_refs(),
     )
     db_session.add_all([
@@ -137,7 +137,7 @@ async def test_deletion_pseudonymises_the_row_and_removes_what_was_the_accounts_
         assert await count(db_session, model, column == user_id) == 0, model.__name__
     assert await count(db_session, OrganizationInvitation) == 0  # the one they sent and the one sent to them
     # Shared history stays and still names the account; the engines no longer serve new runs.
-    assert (await db_session.get(Job, job_id)).owner_id == user_id
+    assert (await db_session.get(Job, job_id)).created_by_id == user_id
     assert (await db_session.get(EngineRevision, engine_id)) is not None
     stored_registration = await db_session.get(EngineRegistrationRevision, registration_id)
     assert stored_registration is not None and stored_registration.is_active is False

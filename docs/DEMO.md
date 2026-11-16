@@ -338,9 +338,17 @@ Things to know before reading the result:
   run only in the `desktop` project, `mobile` runs only the visual QA, and the
   helper waits out a `429`; still, two complete runs within five minutes can wait.
 - `03-upload-run-study` is the F0b walk as `lab-owner`: it uploads the template as a new problem `walk-<time>`, saves an
-  edit from the Workbench as version 2, saves a template as `walk-<time>-template`, runs version 2 on `random-search`
+  edit from the problem editor as version 2, saves a template as `walk-<time>-template`, runs version 2 on `random-search`
   and runs a study of it (version 2 × `random-search` and `evolutionary-heuristics` × seeds 1 and 2). Each run adds two
   problems and one study to `lab-main`; nothing is deleted.
+- `10-problem-editor` is J3 as `lab-owner`: it opens the template `demo/16_json_complete` in the problem editor, puts
+  `auth-edge`'s latency outside its declared domain in the candidate matrix, waits for the real compiler's finding on
+  the cell and in `candidates.json`, fixes the value, saves the package as a new problem `j3-<time>` and opens its run
+  launcher. Each run adds one problem to `lab-main`.
+- `11-study-front` is J4 as `lab-owner`: it runs a study of the seeded `simple-seq` version 1 × `random-search` ×
+  seeds 1 and 2, opens the gateway's Pareto front in the study's Results and derives the focused point into a new
+  composition `j4-<time>` (version 1.0.0, sealed). Each run adds one study and one composition to `lab-main`; the
+  visual QA opens the newest finished study run's front.
 - `04-job-random-search` starts one real job as `lab-owner` (so the lab keeps it) and
   the visual QA opens a finished job of `lab-owner` as "a result". With
   `DEMO_SPACE_ENABLED=true` and no contract the launch is `503 pricing_unavailable` and
@@ -400,8 +408,8 @@ through the platform's own derivation and seal:
 The public list (`/compositions`) therefore holds two compositions. Counted by
 `seed_lab.py --verbose`: 6 users, 2 organizations, 5 memberships, 2 problems with 1
 revision and 1 compilation each, 4 compositions with 5 versions, and 6 API keys. The
-live walks `08-derive-seal-compare` (J1) and `09-public-fork` (J2) and the composition
-stops of the visual QA read this data. With `SPACE_ENABLED=true`
+live walks `08-derive-seal-compare` (J1), `09-public-fork` (J2) and `11-study-front` (J4, a study of
+`simple-seq` version 1) and the composition, problem and problem-editor stops of the visual QA read this data. With `SPACE_ENABLED=true`
 the users also need a contract on the development service
 (`DEMO_SEED_ARGS='--space-contracts'`).
 
@@ -485,8 +493,8 @@ Playwright run (30 passed, 0 failed, 0 skipped at `b2780381`; the number of visu
 here). What follows is the by-eye check that stays manual, in the browser on
 the Mac (DevTools, device toolbar), and is not recorded as done:
 
-- Mobile: 390 x 844 (iPhone 14 class). Navigate home, login, cases, a job, the
-  workbench; check the navigation, tables that scroll horizontally and the
+- Mobile: 390 x 844 (iPhone 14 class). Navigate home, login, problems, a run, the
+  problem editor; check the navigation, tables that scroll horizontally and the
   touch targets.
 - Desktop: 1440 x 900.
 

@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { installMockApi } from './helpers/mockApi';
 
 // Public routes of the redesigned site. About holds the service-status note; there is no /status page.
 const PUBLIC_ROUTES = [
@@ -142,4 +143,23 @@ test('reduced motion removes entry animations', async ({ page }) => {
   await expect(card).toHaveCSS('animation-name', 'home-in');
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await expect(card).toHaveCSS('animation-name', 'none');
+});
+
+test('mobile problem editor: the panes, the engines and the problems are tabs, inside the viewport', async ({ page }) => {
+  test.setTimeout(60_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await installMockApi(page, 'admin');
+  await page.goto('/app/isa-demo/problem-editor');
+
+  const main = page.locator('#platform-main');
+  await expect(main.getByRole('heading', { level: 1, name: 'Problem editor' })).toBeVisible({ timeout: 30_000 });
+  const panes = main.getByRole('tablist', { name: 'Editor panes' });
+  await expect(panes.getByRole('tab')).toHaveText(['Workflow', 'Candidates', 'Rules', 'Files', 'Forms', 'BPMN', 'Engines', 'Problems']);
+  await expect(main.getByTestId('pe-check-status')).toHaveText('Valid package', { timeout: 15_000 });
+  await panes.getByRole('tab', { name: 'Engines' }).click();
+  await expect(main.getByRole('heading', { name: 'Engines' })).toBeVisible();
+  await panes.getByRole('tab', { name: 'Files' }).click();
+  await expect(main.getByRole('navigation', { name: 'Files of the package' })).toBeVisible();
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  expect(overflow, 'the problem editor should not create horizontal page overflow').toBeLessThanOrEqual(1);
 });

@@ -83,9 +83,9 @@ const PARAMS_OF: Record<string, Record<string, string>> = {
 /** The query string that makes a screen show something instead of its starting point. */
 const QUERY_OF: Record<string, string> = {
   'eng-registration-detail': `?namespace=alex.rivera&version=0.3.1&digest=sha256-${'e5f6'.repeat(16)}`,
-  'job-launch': '?problem=checkout-flow&revision=2',
+  'run-launch': '?problem=checkout-flow&revision=2',
   'study-builder': '?case=checkout-flow&revision=2',
-  'wb-workbench': '?problem=checkout-flow&revision=2',
+  'problem-editor': '?problem=checkout-flow&revision=2',
 };
 
 export function readGalleryScreens(): GalleryScreen[] {

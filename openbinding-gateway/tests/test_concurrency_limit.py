@@ -38,10 +38,10 @@ def set_limit(monkeypatch, value: int) -> None:
     monkeypatch.setattr(get_settings(), "max_concurrent_jobs_per_user", value)
 
 
-def a_job(owner_id, state=JobState.QUEUED, **extra) -> Job:
+def a_job(created_by_id, state=JobState.QUEUED, **extra) -> Job:
     """A job row; without references of its own it names a revision nothing reads (``placeholder_refs``)."""
     return Job(
-        owner_id=owner_id, engine_id="random-search", engine_job_id=str(uuid.uuid4()),
+        created_by_id=created_by_id, engine_id="random-search", engine_job_id=str(uuid.uuid4()),
         service_url="http://engine", state=state, original_request={}, options={}, provenance={},
         **{**placeholder_refs(), **extra},
     )

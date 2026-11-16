@@ -32,13 +32,13 @@ describe('workspaceSlugs', () => {
 
   it('reserves the slugs the gateway refuses (slug_reserved), and only those', () => {
     expect([...RESERVED_SLUGS].sort()).toEqual([
-      'account', 'admin', 'compositions', 'engines', 'invitations', 'new', 'organizations', 'presets', 'problems', 'runs', 'settings',
-      'studies', 'workbench',
+      'account', 'admin', 'compositions', 'engines', 'invitations', 'new', 'organizations', 'presets', 'problem-editor', 'problems', 'runs',
+      'settings', 'studies',
     ]);
     expect([...RESERVED_SLUGS].sort()).toEqual(gatewayReservedSlugs());
   });
 
-  it.each(['compositions', 'presets', 'runs', 'problems', 'studies', 'workbench'])('never reads the section name %s as an organization', (segment) => {
+  it.each(['compositions', 'presets', 'runs', 'problems', 'studies', 'problem-editor'])('never reads the section name %s as an organization', (segment) => {
     expect(workspaceSlugs(`/app/${segment}`)).toEqual({});
     expect(workspaceSlugs(`/app/${segment}/new`)).toEqual({});
   });
