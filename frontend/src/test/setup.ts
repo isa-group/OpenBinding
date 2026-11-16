@@ -28,7 +28,10 @@ class ResizeObserverStub {
   disconnect() {}
 }
 
-Object.defineProperty(globalThis, 'ResizeObserver', { value: ResizeObserverStub, configurable: true });
+Object.defineProperty(globalThis, 'ResizeObserver', {
+  value: ResizeObserverStub,
+  configurable: true,
+});
 
 Object.defineProperty(window, 'matchMedia', {
   configurable: true,

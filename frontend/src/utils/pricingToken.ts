@@ -15,7 +15,10 @@ function expiryOf(token: string): number | null | 'unreadable' {
   const payload = token.split('.')[1];
   if (!payload) return 'unreadable';
   try {
-    const padded = payload.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(payload.length / 4) * 4, '=');
+    const padded = payload
+      .replace(/-/g, '+')
+      .replace(/_/g, '/')
+      .padEnd(Math.ceil(payload.length / 4) * 4, '=');
     const claims: unknown = JSON.parse(atob(padded));
     if (typeof claims !== 'object' || claims === null) return 'unreadable';
     const exp = (claims as { exp?: unknown }).exp;
@@ -26,7 +29,10 @@ function expiryOf(token: string): number | null | 'unreadable' {
 }
 
 /** The status of a token at `now` (ms). A token without an expiry claim does not expire. */
-export function pricingTokenStatus(token: string | null | undefined, now: number): PricingTokenStatus {
+export function pricingTokenStatus(
+  token: string | null | undefined,
+  now: number
+): PricingTokenStatus {
   if (!token) return 'missing';
   const expiry = expiryOf(token);
   if (expiry === 'unreadable') return 'stale';

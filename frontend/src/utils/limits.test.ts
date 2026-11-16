@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { formatByteSize } from './format';
-import { describeLimit, formatDuration, formatPowerOfTen, LIMIT, LIMIT_GROUPS, limitInfo } from './limits';
+import {
+  describeLimit,
+  formatDuration,
+  formatPowerOfTen,
+  LIMIT,
+  LIMIT_GROUPS,
+  limitInfo,
+} from './limits';
 
 describe('describeLimit', () => {
   it('rounds durations and keeps the exact seconds underneath', () => {
@@ -14,8 +21,14 @@ describe('describeLimit', () => {
 
   it('writes sizes in binary units with the exact bytes underneath', () => {
     expect(describeLimit('bytes', 8_388_608)).toEqual({ text: '8 MiB', exact: '8,388,608 bytes' });
-    expect(describeLimit('bytes', 104_857_600)).toEqual({ text: '100 MiB', exact: '104,857,600 bytes' });
-    expect(describeLimit('bytes', 5_368_709_120)).toEqual({ text: '5 GiB', exact: '5,368,709,120 bytes' });
+    expect(describeLimit('bytes', 104_857_600)).toEqual({
+      text: '100 MiB',
+      exact: '104,857,600 bytes',
+    });
+    expect(describeLimit('bytes', 5_368_709_120)).toEqual({
+      text: '5 GiB',
+      exact: '5,368,709,120 bytes',
+    });
     expect(formatByteSize(512)).toBe('512 bytes');
   });
 
@@ -44,15 +57,35 @@ describe('describeLimit', () => {
 
 describe('limitInfo', () => {
   it('knows the limits of pricing 0.2.0', () => {
-    expect(limitInfo(LIMIT.solverHours)).toMatchObject({ label: 'Solver hours', group: 'monthly', kind: 'hours' });
-    expect(limitInfo(LIMIT.maxConcurrentRuns)).toMatchObject({ label: 'Concurrent runs', group: 'capacity', kind: 'count' });
-    for (const id of [LIMIT.maxFederatedEngines, LIMIT.maxApiKeys, LIMIT.maxProblems, LIMIT.maxRepositoryStorage]) {
+    expect(limitInfo(LIMIT.solverHours)).toMatchObject({
+      label: 'Solver hours',
+      group: 'monthly',
+      kind: 'hours',
+    });
+    expect(limitInfo(LIMIT.maxConcurrentRuns)).toMatchObject({
+      label: 'Concurrent runs',
+      group: 'capacity',
+      kind: 'count',
+    });
+    for (const id of [
+      LIMIT.maxFederatedEngines,
+      LIMIT.maxApiKeys,
+      LIMIT.maxProblems,
+      LIMIT.maxRepositoryStorage,
+    ]) {
       expect(limitInfo(id).group).toBe('capacity');
     }
-    expect(limitInfo(LIMIT.maxRepositoryStorage)).toMatchObject({ label: 'Repository storage', kind: 'megabytes' });
-    expect(limitInfo(LIMIT.maxRunMinutes)).toMatchObject({ label: 'Max time per run', group: 'ceiling', kind: 'minutes' });
+    expect(limitInfo(LIMIT.maxRepositoryStorage)).toMatchObject({
+      label: 'Repository storage',
+      kind: 'megabytes',
+    });
+    expect(limitInfo(LIMIT.maxRunMinutes)).toMatchObject({
+      label: 'Max time per run',
+      group: 'ceiling',
+      kind: 'minutes',
+    });
     expect(limitInfo(LIMIT.maxStudyCells)).toMatchObject({ group: 'ceiling', kind: 'count' });
-    expect(LIMIT_GROUPS.map((group) => group.id)).toEqual(['monthly', 'capacity', 'ceiling']);
+    expect(LIMIT_GROUPS.map(group => group.id)).toEqual(['monthly', 'capacity', 'ceiling']);
   });
 
   it('words minutes, hours and decimal megabytes', () => {
@@ -65,11 +98,21 @@ describe('limitInfo', () => {
 
   it('places a limit it has never seen by its type and unit, so a new one needs no code', () => {
     expect(limitInfo('reportExports', { type: 'RENEWABLE', unit: 'export/month' })).toEqual({
-      label: 'Report exports', short: 'report exports', group: 'monthly', kind: 'count',
+      label: 'Report exports',
+      short: 'report exports',
+      group: 'monthly',
+      kind: 'count',
     });
-    expect(limitInfo('gpuSeconds', { type: 'RENEWABLE', unit: 'second/month' })).toMatchObject({ group: 'monthly', kind: 'seconds' });
-    expect(limitInfo('seats', { type: 'NON_RENEWABLE', trackable: true, unit: 'seat' })).toMatchObject({ group: 'capacity' });
-    expect(limitInfo('maxRows', { type: 'NON_RENEWABLE', trackable: false, unit: 'row' })).toMatchObject({ group: 'ceiling' });
+    expect(limitInfo('gpuSeconds', { type: 'RENEWABLE', unit: 'second/month' })).toMatchObject({
+      group: 'monthly',
+      kind: 'seconds',
+    });
+    expect(
+      limitInfo('seats', { type: 'NON_RENEWABLE', trackable: true, unit: 'seat' })
+    ).toMatchObject({ group: 'capacity' });
+    expect(
+      limitInfo('maxRows', { type: 'NON_RENEWABLE', trackable: false, unit: 'row' })
+    ).toMatchObject({ group: 'ceiling' });
     expect(limitInfo('mystery')).toMatchObject({ group: 'ceiling', kind: 'count' });
   });
 });

@@ -1,4 +1,4 @@
-import { DataTable } from '../ui/DataTable';
+import { DataTable } from '../../modules/core/components/data-table';
 import type { ObjectiveBreakdownData, ObjectiveTerm } from './objectiveModel';
 import './ObjectiveBreakdown.css';
 
@@ -32,17 +32,27 @@ function scoreItemName(terms: ObjectiveTerm[], index: number): string {
 }
 
 /** One solution's objective evaluation: score and penalty as the gateway gave them, and one row per objective term. */
-export function ObjectiveBreakdown({ terms, penalty, score, scalarization, label = 'Objective breakdown' }: ObjectiveBreakdownProps) {
+export function ObjectiveBreakdown({
+  terms,
+  penalty,
+  score,
+  scalarization,
+  label = 'Objective breakdown',
+}: ObjectiveBreakdownProps) {
   const weighted = scalarization === 'weighted-sum';
   const showTotal = weighted && !Array.isArray(score);
   const columns = weighted ? 7 : 5;
-  const total = terms.some((t) => t.weighted === null) ? null : terms.reduce((sum, t) => sum + (t.weighted ?? 0), 0);
+  const total = terms.some(t => t.weighted === null)
+    ? null
+    : terms.reduce((sum, t) => sum + (t.weighted ?? 0), 0);
 
   return (
     <section aria-label={label} className="rendering-objective">
       <dl className="rendering-objective__summary">
         <dt>Scalarization</dt>
-        <dd><Text value={scalarization} /></dd>
+        <dd>
+          <Text value={scalarization} />
+        </dd>
         <dt>Score</dt>
         <dd>
           {Array.isArray(score) ? (
@@ -58,7 +68,9 @@ export function ObjectiveBreakdown({ terms, penalty, score, scalarization, label
           )}
         </dd>
         <dt>Penalty</dt>
-        <dd><Num value={penalty} /></dd>
+        <dd>
+          <Num value={penalty} />
+        </dd>
       </dl>
 
       {terms.length === 0 ? (
@@ -70,33 +82,63 @@ export function ObjectiveBreakdown({ terms, penalty, score, scalarization, label
               <th scope="col">Criterion</th>
               <th scope="col">Feature</th>
               <th scope="col">Direction</th>
-              <th scope="col" className="is-number">Value</th>
-              <th scope="col" className="is-number">Loss</th>
-              {weighted && <th scope="col" className="is-number">Weight</th>}
-              {weighted && <th scope="col" className="is-number">Weighted loss</th>}
+              <th scope="col" className="is-number">
+                Value
+              </th>
+              <th scope="col" className="is-number">
+                Loss
+              </th>
+              {weighted && (
+                <th scope="col" className="is-number">
+                  Weight
+                </th>
+              )}
+              {weighted && (
+                <th scope="col" className="is-number">
+                  Weighted loss
+                </th>
+              )}
             </tr>
           </thead>
           <tbody>
             {terms.map((t, index) => (
               <tr key={`${t.criterion}-${index}`}>
                 <th scope="row">{t.criterion}</th>
-                <td><Text value={t.feature} /></td>
-                <td><Text value={t.direction === null ? null : DIRECTION[t.direction]} /></td>
+                <td>
+                  <Text value={t.feature} />
+                </td>
+                <td>
+                  <Text value={t.direction === null ? null : DIRECTION[t.direction]} />
+                </td>
                 <td className="is-number">
                   <Num value={t.value} />
                   {t.value !== null && t.unit && <> {t.unit}</>}
                 </td>
-                <td className="is-number"><Num value={t.loss} /></td>
-                {weighted && <td className="is-number"><Num value={t.weight} /></td>}
-                {weighted && <td className="is-number"><Num value={t.weighted} /></td>}
+                <td className="is-number">
+                  <Num value={t.loss} />
+                </td>
+                {weighted && (
+                  <td className="is-number">
+                    <Num value={t.weight} />
+                  </td>
+                )}
+                {weighted && (
+                  <td className="is-number">
+                    <Num value={t.weighted} />
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
           {showTotal && (
             <tfoot>
               <tr>
-                <th scope="row" colSpan={columns - 1}>Total weighted loss</th>
-                <td className="is-number"><Num value={total} /></td>
+                <th scope="row" colSpan={columns - 1}>
+                  Total weighted loss
+                </th>
+                <td className="is-number">
+                  <Num value={total} />
+                </td>
               </tr>
             </tfoot>
           )}

@@ -8,7 +8,9 @@ vi.mock('./Account', () => ({ Account: () => <h1>Profile body</h1> }));
 vi.mock('./AccountUsage', () => ({ AccountUsage: () => <h1>Plan body</h1> }));
 vi.mock('./AccountKeys', () => ({ AccountKeys: () => <h1>API keys body</h1> }));
 vi.mock('./AccountIdentities', () => ({ AccountIdentities: () => <h1>Identities body</h1> }));
-vi.mock('./AccountNotifications', () => ({ AccountNotifications: () => <h1>Notifications body</h1> }));
+vi.mock('./AccountNotifications', () => ({
+  AccountNotifications: () => <h1>Notifications body</h1>,
+}));
 
 function renderAt(address: string) {
   render(
@@ -16,7 +18,7 @@ function renderAt(address: string) {
       <Routes>
         <Route path="/app/account/:section?" element={<AccountPage />} />
       </Routes>
-    </MemoryRouter>,
+    </MemoryRouter>
   );
 }
 
@@ -34,10 +36,13 @@ describe('AccountPage', () => {
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
   });
 
-  it.each(['/app/account/billing', '/app/account/Keys', '/app/account/usage-2'])('%s shows Page not found', (address) => {
-    renderAt(address);
+  it.each(['/app/account/billing', '/app/account/Keys', '/app/account/usage-2'])(
+    '%s shows Page not found',
+    address => {
+      renderAt(address);
 
-    expect(screen.getByRole('heading', { level: 1, name: 'Page not found' })).toBeInTheDocument();
-    expect(screen.queryByText(/ body$/)).not.toBeInTheDocument();
-  });
+      expect(screen.getByRole('heading', { level: 1, name: 'Page not found' })).toBeInTheDocument();
+      expect(screen.queryByText(/ body$/)).not.toBeInTheDocument();
+    }
+  );
 });

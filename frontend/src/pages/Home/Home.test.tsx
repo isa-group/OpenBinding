@@ -12,13 +12,28 @@ const api = vi.hoisted(() => ({
 }));
 const auth = vi.hoisted(() => ({ user: null as UserProfile | null }));
 
-vi.mock('../../api/client', async () => ({ ...await vi.importActual<typeof import('../../api/client')>('../../api/client'), apiClient: api }));
-vi.mock('../../contexts/auth', () => ({ useAuth: () => auth }));
+vi.mock('../../api/client', async () => ({
+  ...(await vi.importActual<typeof import('../../api/client')>('../../api/client')),
+  apiClient: api,
+}));
+vi.mock('../../modules/auth/hooks/useAuth', () => ({ useAuth: () => auth }));
 
-const engine = (name: string) => ({ id: name, namespace: 'bim.builtin', name, version: '1.0.0', digest: `sha256-${'cd'.repeat(32)}`, ref: {}, modes: [] });
+const engine = (name: string) => ({
+  id: name,
+  namespace: 'bim.builtin',
+  name,
+  version: '1.0.0',
+  digest: `sha256-${'cd'.repeat(32)}`,
+  ref: {},
+  modes: [],
+});
 
 function renderHome() {
-  return render(<MemoryRouter><Home /></MemoryRouter>);
+  return render(
+    <MemoryRouter>
+      <Home />
+    </MemoryRouter>
+  );
 }
 
 describe('Home', () => {
@@ -34,12 +49,29 @@ describe('Home', () => {
     it('leads with compositions, invites a visitor to create an account and reads the public catalogue only', async () => {
       renderHome();
 
-      expect(screen.getByRole('heading', { level: 1, name: 'Describe. Bind. Reproduce.' })).toBeInTheDocument();
-      expect(screen.getByText(/^Define, version, evaluate, render and compare compositions; problems, written in BIM, say what was possible\./)).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: /Explore compositions/ })).toHaveAttribute('href', '/compositions');
-      expect(screen.getByRole('link', { name: /Learn Composition2Yaml/ })).toHaveAttribute('href', '/language');
-      expect(screen.getByRole('link', { name: /Create an account/ })).toHaveAttribute('href', '/register');
-      expect(screen.getByRole('link', { name: /Create an account/ })).toHaveTextContent('define compositions');
+      expect(
+        screen.getByRole('heading', { level: 1, name: 'Describe. Bind. Reproduce.' })
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          /^Define, version, evaluate, render and compare compositions; problems, written in BIM, say what was possible\./
+        )
+      ).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: /Explore compositions/ })).toHaveAttribute(
+        'href',
+        '/compositions'
+      );
+      expect(screen.getByRole('link', { name: /Learn Composition2Yaml/ })).toHaveAttribute(
+        'href',
+        '/language'
+      );
+      expect(screen.getByRole('link', { name: /Create an account/ })).toHaveAttribute(
+        'href',
+        '/register'
+      );
+      expect(screen.getByRole('link', { name: /Create an account/ })).toHaveTextContent(
+        'define compositions'
+      );
       const runtime = screen.getByRole('status', { name: 'Runtime catalogue status' });
       expect(await within(runtime).findByText('2 public engine revisions')).toBeInTheDocument();
       expect(within(runtime).getByText('1 executable profile')).toBeInTheDocument();
@@ -47,12 +79,22 @@ describe('Home', () => {
     });
 
     it('sends a signed-in account to its workspace and counts the engines it can see', async () => {
-      auth.user = { id: 'u1', username: 'alice', email: 'alice@example.test', role: 'user', plan: 'RESEARCH', is_active: true, created_at: '2026-01-01T00:00:00Z' };
+      auth.user = {
+        id: 'u1',
+        username: 'alice',
+        email: 'alice@example.test',
+        role: 'user',
+        plan: 'RESEARCH',
+        is_active: true,
+        created_at: '2026-01-01T00:00:00Z',
+      };
       renderHome();
 
       const card = screen.getByRole('link', { name: /Go to your workspace/ });
       expect(card).toHaveAttribute('href', '/app');
-      expect(card).toHaveTextContent('Signed in as alice · RESEARCH plan. Organizations, compositions, problems and runs live there.');
+      expect(card).toHaveTextContent(
+        'Signed in as alice · RESEARCH plan. Organizations, compositions, problems and runs live there.'
+      );
       expect(screen.queryByRole('link', { name: /Create an account/ })).not.toBeInTheDocument();
       const runtime = screen.getByRole('status', { name: 'Runtime catalogue status' });
       expect(await within(runtime).findByText('2 engine revisions')).toBeInTheDocument();
@@ -69,19 +111,31 @@ describe('Home', () => {
     it('keeps the shortcuts the previous home offered', () => {
       renderHome();
 
-      expect(screen.getByRole('link', { name: /Learn with an example/ })).toHaveAttribute('href', '/workbench');
+      expect(screen.getByRole('link', { name: /Learn with an example/ })).toHaveAttribute(
+        'href',
+        '/workbench'
+      );
       expect(screen.queryByRole('link', { name: /Explore extensibility/ })).not.toBeInTheDocument();
-      expect(screen.getByRole('heading', { name: 'A stable core, plural problem families.' })).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: /Inspect engine modes/ })).toHaveAttribute('href', '/engines');
+      expect(
+        screen.getByRole('heading', { name: 'A stable core, plural problem families.' })
+      ).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: /Inspect engine modes/ })).toHaveAttribute(
+        'href',
+        '/engines'
+      );
     });
 
     it('tells a visitor whose session just ended that nothing private is shown', () => {
       renderHome();
       expect(screen.queryByText(/Your session expired/)).not.toBeInTheDocument();
 
-      act(() => { window.dispatchEvent(new CustomEvent(SESSION_ENDED_EVENT)); });
+      act(() => {
+        window.dispatchEvent(new CustomEvent(SESSION_ENDED_EVENT));
+      });
 
-      expect(screen.getByText(/Your session expired, so you’re browsing as a visitor/)).toBeInTheDocument();
+      expect(
+        screen.getByText(/Your session expired, so you’re browsing as a visitor/)
+      ).toBeInTheDocument();
       expect(screen.getByRole('link', { name: 'Log in again' })).toHaveAttribute('href', '/login');
     });
   });
@@ -89,19 +143,38 @@ describe('Home', () => {
   describe('how it works', () => {
     it('walks the seven stages, from a package to a composition, and links each to where it is explained', () => {
       renderHome();
-      const tabs = within(screen.getByRole('tablist', { name: 'Pipeline stages' })).getAllByRole('tab');
+      const tabs = within(screen.getByRole('tablist', { name: 'Pipeline stages' })).getAllByRole(
+        'tab'
+      );
 
-      expect(screen.getByRole('heading', { name: 'From a problem to a composition anyone can verify' })).toBeInTheDocument();
+      expect(
+        screen.getByRole('heading', { name: 'From a problem to a composition anyone can verify' })
+      ).toBeInTheDocument();
       expect(tabs).toHaveLength(7);
-      expect(screen.getByRole('link', { name: 'Try an example package' })).toHaveAttribute('href', '/workbench');
+      expect(screen.getByRole('link', { name: 'Try an example package' })).toHaveAttribute(
+        'href',
+        '/workbench'
+      );
       fireEvent.click(screen.getByRole('tab', { name: /Engine/ }));
       expect(screen.getByRole('tab', { name: /Engine/ })).toHaveAttribute('aria-selected', 'true');
-      expect(screen.getByRole('link', { name: 'Browse engines' })).toHaveAttribute('href', '/engines');
+      expect(screen.getByRole('link', { name: 'Browse engines' })).toHaveAttribute(
+        'href',
+        '/engines'
+      );
       fireEvent.keyDown(screen.getByRole('tab', { name: /Engine/ }), { key: 'ArrowRight' });
-      expect(screen.getByRole('link', { name: 'About OpenBinding' })).toHaveAttribute('href', '/about');
+      expect(screen.getByRole('link', { name: 'About OpenBinding' })).toHaveAttribute(
+        'href',
+        '/about'
+      );
       fireEvent.keyDown(screen.getByRole('tab', { name: /Re-evaluation/ }), { key: 'End' });
-      expect(screen.getByRole('tab', { name: /Composition/ })).toHaveAttribute('aria-selected', 'true');
-      expect(screen.getByRole('link', { name: 'Explore compositions' })).toHaveAttribute('href', '/compositions');
+      expect(screen.getByRole('tab', { name: /Composition/ })).toHaveAttribute(
+        'aria-selected',
+        'true'
+      );
+      expect(screen.getByRole('link', { name: 'Explore compositions' })).toHaveAttribute(
+        'href',
+        '/compositions'
+      );
     });
   });
 
@@ -120,7 +193,12 @@ describe('Home', () => {
       expect(engines).toHaveAttribute('href', '/engines');
       expect(engines).toHaveTextContent('random-search · evolutionary');
       expect(screen.getByRole('link', { name: 'All engines' })).toHaveAttribute('href', '/engines');
-      expect(screen.getAllByRole('link').map((link) => link.getAttribute('href') ?? '').filter((href) => href.startsWith('/explore'))).toEqual([]);
+      expect(
+        screen
+          .getAllByRole('link')
+          .map(link => link.getAttribute('href') ?? '')
+          .filter(href => href.startsWith('/explore'))
+      ).toEqual([]);
     });
 
     it('explains an empty catalogue instead of leaving a gap', async () => {
@@ -128,7 +206,10 @@ describe('Home', () => {
       renderHome();
 
       expect(await screen.findByText('No public engines yet')).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: 'Open the Workbench' })).toHaveAttribute('href', '/workbench');
+      expect(screen.getByRole('link', { name: 'Open the Workbench' })).toHaveAttribute(
+        'href',
+        '/workbench'
+      );
     });
 
     it('reports a failure with its status, keeps the page and retries on request', async () => {
@@ -137,12 +218,16 @@ describe('Home', () => {
 
       const alert = await screen.findByRole('alert');
       expect(alert).toHaveTextContent('The public engines couldn’t be loaded (HTTP 503)');
-      expect(screen.getByRole('heading', { name: 'Free to start, institutional when you scale' })).toBeInTheDocument();
+      expect(
+        screen.getByRole('heading', { name: 'Free to start, institutional when you scale' })
+      ).toBeInTheDocument();
 
       api.getPublicEngines.mockResolvedValue([engine('random-search')]);
       fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
 
-      expect(await screen.findByRole('link', { name: /1 public engine revision/ })).toBeInTheDocument();
+      expect(
+        await screen.findByRole('link', { name: /1 public engine revision/ })
+      ).toBeInTheDocument();
     });
   });
 
@@ -150,10 +235,14 @@ describe('Home', () => {
     it('summarises the three plans and points to the live pricing', () => {
       renderHome();
 
-      for (const name of ['Free', 'Research', 'Lab']) expect(screen.getByText(name, { selector: '.home-kicker' })).toBeInTheDocument();
+      for (const name of ['Free', 'Research', 'Lab'])
+        expect(screen.getByText(name, { selector: '.home-kicker' })).toBeInTheDocument();
       expect(screen.getByText('1 concurrent run')).toBeInTheDocument();
       expect(screen.getByText('200 API keys')).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: 'Compare plans' })).toHaveAttribute('href', '/pricing');
+      expect(screen.getByRole('link', { name: 'Compare plans' })).toHaveAttribute(
+        'href',
+        '/pricing'
+      );
       expect(screen.getByText(/Headline limits from pricing 0\.2\.0/)).toBeInTheDocument();
     });
 
@@ -161,9 +250,15 @@ describe('Home', () => {
       renderHome();
       await screen.findByRole('link', { name: /2 public engine revisions/ });
 
-      const hrefs = screen.getAllByRole('link').map((link) => link.getAttribute('href') ?? '');
-      expect(hrefs.filter((href) => /^\/(playground|profiles|schemas|team|research|funding|contributions|changelog|engines\/new|analytics|artifacts)(\/|\?|$)/.test(href))).toEqual([]);
-      expect(hrefs.filter((href) => href.startsWith('/language/'))).toEqual([]);
+      const hrefs = screen.getAllByRole('link').map(link => link.getAttribute('href') ?? '');
+      expect(
+        hrefs.filter(href =>
+          /^\/(playground|profiles|schemas|team|research|funding|contributions|changelog|engines\/new|analytics|artifacts)(\/|\?|$)/.test(
+            href
+          )
+        )
+      ).toEqual([]);
+      expect(hrefs.filter(href => href.startsWith('/language/'))).toEqual([]);
       expect(hrefs).toEqual(expect.arrayContaining(['/compositions', '/language']));
     });
   });

@@ -1,6 +1,17 @@
-const dateFormat = new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' });
+const dateFormat = new Intl.DateTimeFormat('en-US', {
+  year: 'numeric',
+  month: 'short',
+  day: 'numeric',
+  timeZone: 'UTC',
+});
 const dateTimeFormat = new Intl.DateTimeFormat('en-US', {
-  year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'UTC',
+  year: 'numeric',
+  month: 'short',
+  day: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+  timeZone: 'UTC',
 });
 
 function parse(value: string | null | undefined): Date | null {
@@ -9,7 +20,11 @@ function parse(value: string | null | undefined): Date | null {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
-const monthDayFormat = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+const monthDayFormat = new Intl.DateTimeFormat('en-US', {
+  month: 'short',
+  day: 'numeric',
+  timeZone: 'UTC',
+});
 
 /** `Sep 25` in UTC, or `null` when the value is missing or not a date. */
 export function formatMonthDay(value: string | null | undefined): string | null {
@@ -35,7 +50,11 @@ export function yearOf(value: string | null | undefined): number | null {
 
 /** `8 MiB`, `5 GiB`, `512 bytes`: binary units, one decimal at most. */
 export function formatByteSize(bytes: number): string {
-  const units: Array<[number, string]> = [[1024 ** 3, 'GiB'], [1024 ** 2, 'MiB'], [1024, 'KiB']];
+  const units: Array<[number, string]> = [
+    [1024 ** 3, 'GiB'],
+    [1024 ** 2, 'MiB'],
+    [1024, 'KiB'],
+  ];
   for (const [size, unit] of units) {
     if (bytes >= size) return `${formatNumber(Math.round((bytes / size) * 10) / 10)} ${unit}`;
   }

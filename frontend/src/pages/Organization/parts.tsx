@@ -1,22 +1,46 @@
 import { useId, type ReactNode } from 'react';
 import type { Organization, OrganizationRole } from '../../api/platform';
-import { Action } from '../../components/ui/Action';
-import { Skeleton } from '../../components/ui/Skeleton';
+import { Action } from '../../modules/core/components/action-button';
+import { Skeleton } from '../../modules/core/components/skeleton';
 import { Gate } from '../../features/workspace/parts';
 import { initialsOf, tileColour } from './orgModel';
-import '../../components/ui/FormField.css';
 import './Organization.css';
 
 /** A role as a small coloured label. `PLATFORM ADMIN` is not an organization role; it is shown to administrators. */
-export function RoleChip({ role, title }: { role: OrganizationRole | 'PLATFORM ADMIN' | null; title?: string }) {
-  if (!role) return <span className="org-role is-none" title={title}>No role</span>;
-  return <span className={`org-role is-${role.toLowerCase().replace(' ', '-')}`} title={title}>{role}</span>;
+export function RoleChip({
+  role,
+  title,
+}: {
+  role: OrganizationRole | 'PLATFORM ADMIN' | null;
+  title?: string;
+}) {
+  if (!role)
+    return (
+      <span className="org-role is-none" title={title}>
+        No role
+      </span>
+    );
+  return (
+    <span className={`org-role is-${role.toLowerCase().replace(' ', '-')}`} title={title}>
+      {role}
+    </span>
+  );
 }
 
 /** The square initials of an organization. */
-export function OrgTile({ organization, size = 'md' }: { organization: Pick<Organization, 'name' | 'slug'>; size?: 'xs' | 'sm' | 'md' | 'lg' }) {
+export function OrgTile({
+  organization,
+  size = 'md',
+}: {
+  organization: Pick<Organization, 'name' | 'slug'>;
+  size?: 'xs' | 'sm' | 'md' | 'lg';
+}) {
   return (
-    <span className={`org-tile is-${size}`} style={{ background: tileColour(organization.slug) }} aria-hidden="true">
+    <span
+      className={`org-tile is-${size}`}
+      style={{ background: tileColour(organization.slug) }}
+      aria-hidden="true"
+    >
       {initialsOf(organization.name)}
     </span>
   );
@@ -30,9 +54,14 @@ export function NeutralGate() {
   return (
     <Gate
       title="Organization not available"
-      action={<Action to="/app" variant="primary">Back to Home</Action>}
+      action={
+        <Action to="/app" variant="primary">
+          Back to Home
+        </Action>
+      }
     >
-      It doesn’t exist, or you’re not a member. We show the same message either way so organization names stay private.
+      It doesn’t exist, or you’re not a member. We show the same message either way so organization
+      names stay private.
     </Gate>
   );
 }
@@ -51,10 +80,27 @@ interface ChoiceProps {
 }
 
 /** One option of a radio group, drawn as a card: a native radio, so arrow keys and screen readers work as usual. */
-export function Choice({ name, value, checked, disabled, onChange, label, sub, warn, trailing }: ChoiceProps) {
+export function Choice({
+  name,
+  value,
+  checked,
+  disabled,
+  onChange,
+  label,
+  sub,
+  warn,
+  trailing,
+}: ChoiceProps) {
   return (
     <label className={`org-choice${checked ? ' is-checked' : ''}${disabled ? ' is-disabled' : ''}`}>
-      <input type="radio" name={name} value={value} checked={checked} disabled={disabled} onChange={() => onChange(value)} />
+      <input
+        type="radio"
+        name={name}
+        value={value}
+        checked={checked}
+        disabled={disabled}
+        onChange={() => onChange(value)}
+      />
       <span className="org-choice-body">
         <strong>{label}</strong>
         {sub && <small className={warn ? 'is-warn' : undefined}>{sub}</small>}
@@ -75,15 +121,33 @@ interface SelectFieldProps {
 }
 
 /** A labelled select that looks like the text fields of `FormField`. */
-export function SelectField({ label, value, onChange, children, disabled, hint, maxWidth }: SelectFieldProps) {
+export function SelectField({
+  label,
+  value,
+  onChange,
+  children,
+  disabled,
+  hint,
+  maxWidth,
+}: SelectFieldProps) {
   const id = useId();
   return (
     <div className="ui-field" style={maxWidth ? { maxWidth } : undefined}>
       <label htmlFor={id}>{label}</label>
-      <select id={id} value={value} disabled={disabled} onChange={(event) => onChange(event.target.value)} aria-describedby={hint ? `${id}-hint` : undefined}>
+      <select
+        id={id}
+        value={value}
+        disabled={disabled}
+        onChange={event => onChange(event.target.value)}
+        aria-describedby={hint ? `${id}-hint` : undefined}
+      >
         {children}
       </select>
-      {hint && <span id={`${id}-hint`} className="ui-field-note">{hint}</span>}
+      {hint && (
+        <span id={`${id}-hint`} className="ui-field-note">
+          {hint}
+        </span>
+      )}
     </div>
   );
 }

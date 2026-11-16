@@ -21,7 +21,16 @@ interface OrgSettingsLayoutProps {
  * The frame of the settings screens of one organization: title and lede, the settings side navigation and the
  * content column. The content column is one live region, so a message that appears in it is read out.
  */
-export function OrgSettingsLayout({ organization, section, title, lede, actions, aside, width = 'md', children }: OrgSettingsLayoutProps) {
+export function OrgSettingsLayout({
+  organization,
+  section,
+  title,
+  lede,
+  actions,
+  aside,
+  width = 'md',
+  children,
+}: OrgSettingsLayoutProps) {
   return (
     <div className={`org-page${width === 'lg' ? ' is-lg' : ''}`}>
       <header className="org-head">
@@ -33,9 +42,16 @@ export function OrgSettingsLayout({ organization, section, title, lede, actions,
       </header>
       <div className="org-frame">
         <div className="org-side">
-          <OrgNav active={section} orgName={organization.name} orgSlug={organization.slug} canAudit={atLeast(organization.effective_role, 'ADMIN')} />
+          <OrgNav
+            active={section}
+            orgName={organization.name}
+            orgSlug={organization.slug}
+            canAudit={atLeast(organization.effective_role, 'ADMIN')}
+          />
         </div>
-        <div className="org-content" aria-live="polite">{children}</div>
+        <div className="org-content" aria-live="polite">
+          {children}
+        </div>
         {aside}
       </div>
     </div>

@@ -1,12 +1,50 @@
 import { describe, expect, it } from 'vitest';
 import type { ExactStudyEngine } from '../../api/platform';
 import type { CaseContent } from '../../features/workspace/model';
-import { CHECKOUT, REVISION_1, REVISION_2, cellsFixture, runFixture, studyFixture } from '../../test/fixtures/studies';
 import {
-  MAX_SEEDS, defaultSelection, definitionGrid, definitionSize, describeParameters, emptyVariant, engineChoices, enginesOf, explainFailure,
-  formatMeasure, formatSeconds, formulaOf, heatLevel, matrixView, measureValue, measuresOf, metricsOf, parametersKey, readSeeds, readVariant, revisionIndex,
-  revisionLabel, rivalsOf, seedsOf, definitionOfRun, sameDefinition, breakdownText, slot, definitionEngines, studyCriteriaCount, studyOptimization,
-  engineIdentity, engineRowLabel, frozenEngineFacts, isPresetEngine,
+  CHECKOUT,
+  REVISION_1,
+  REVISION_2,
+  cellsFixture,
+  runFixture,
+  studyFixture,
+} from '../../test/fixtures/studies';
+import {
+  MAX_SEEDS,
+  defaultSelection,
+  definitionGrid,
+  definitionSize,
+  describeParameters,
+  emptyVariant,
+  engineChoices,
+  enginesOf,
+  explainFailure,
+  formatMeasure,
+  formatSeconds,
+  formulaOf,
+  heatLevel,
+  matrixView,
+  measureValue,
+  measuresOf,
+  metricsOf,
+  parametersKey,
+  readSeeds,
+  readVariant,
+  revisionIndex,
+  revisionLabel,
+  rivalsOf,
+  seedsOf,
+  definitionOfRun,
+  sameDefinition,
+  breakdownText,
+  slot,
+  definitionEngines,
+  studyCriteriaCount,
+  studyOptimization,
+  engineIdentity,
+  engineRowLabel,
+  frozenEngineFacts,
+  isPresetEngine,
 } from './studiesModel';
 
 const cases: CaseContent[] = [{ item: CHECKOUT, revisions: [REVISION_1, REVISION_2] }];
@@ -21,17 +59,31 @@ describe('the matrix of a study', () => {
   it('lays the definition out in the order the gateway expands it', () => {
     const grid = definitionGrid(studyFixture().definition);
     expect(grid.rows).toEqual([REVISION_1.id, REVISION_2.id]);
-    expect(grid.columns.map((column) => column.label)).toEqual([
-      'evolutionary (genetic) · seed 1', 'evolutionary (genetic) · seed 2', 'random-search (sampling) · seed 1', 'random-search (sampling) · seed 2',
+    expect(grid.columns.map(column => column.label)).toEqual([
+      'evolutionary (genetic) · seed 1',
+      'evolutionary (genetic) · seed 2',
+      'random-search (sampling) · seed 1',
+      'random-search (sampling) · seed 2',
     ]);
     expect(grid.numbered).toBe(true);
-    expect(definitionGrid({ ...studyFixture().definition, parameter_sets: [{}, { time_budget_ms: 5000 }] }).numbered).toBe(false);
+    expect(
+      definitionGrid({
+        ...studyFixture().definition,
+        parameter_sets: [{}, { time_budget_ms: 5000 }],
+      }).numbered
+    ).toBe(false);
   });
 
   it('names a preset row by its preset and numbers no cell: each run expands it', () => {
-    const definition = { ...studyFixture().definition, engines: [...studyFixture().definition.engines, { preset: 'fast-sampling' }] };
+    const definition = {
+      ...studyFixture().definition,
+      engines: [...studyFixture().definition.engines, { preset: 'fast-sampling' }],
+    };
     const grid = definitionGrid(definition);
-    expect(grid.columns.map((column) => column.label).slice(-2)).toEqual(['preset fast-sampling · seed 1', 'preset fast-sampling · seed 2']);
+    expect(grid.columns.map(column => column.label).slice(-2)).toEqual([
+      'preset fast-sampling · seed 1',
+      'preset fast-sampling · seed 2',
+    ]);
     expect(grid.numbered).toBe(false);
     expect(definitionSize(definition).engines).toBe(3);
   });
@@ -39,7 +91,12 @@ describe('the matrix of a study', () => {
 
 describe('the engines of a study', () => {
   const exact: ExactStudyEngine = {
-    namespace: 'bim.builtin', name: 'random-search', version: '1.0.0', digest: 'sha256-a', mode: 'sampling', optimization: { type: 'SINGLE', scalarization: 'weighted-sum' },
+    namespace: 'bim.builtin',
+    name: 'random-search',
+    version: '1.0.0',
+    digest: 'sha256-a',
+    mode: 'sampling',
+    optimization: { type: 'SINGLE', scalarization: 'weighted-sum' },
   };
 
   it('tells a preset row from an exact engine', () => {
@@ -51,23 +108,44 @@ describe('the engines of a study', () => {
   });
 
   it('counts the options in an engine’s identity, in any key order, and not the preset it came from', () => {
-    expect(engineIdentity({ ...exact, options: { a: 1, b: 2 } })).toBe(engineIdentity({ ...exact, options: { b: 2, a: 1 } }));
-    expect(engineIdentity({ ...exact, options: { a: 1 } })).not.toBe(engineIdentity({ ...exact, options: { a: 2 } }));
+    expect(engineIdentity({ ...exact, options: { a: 1, b: 2 } })).toBe(
+      engineIdentity({ ...exact, options: { b: 2, a: 1 } })
+    );
+    expect(engineIdentity({ ...exact, options: { a: 1 } })).not.toBe(
+      engineIdentity({ ...exact, options: { a: 2 } })
+    );
     expect(engineIdentity(exact)).toBe(engineIdentity({ ...exact, options: {} }));
-    expect(engineIdentity({ ...exact, preset: { id: 'p-1', slug: 'fast' } })).toBe(engineIdentity(exact));
+    expect(engineIdentity({ ...exact, preset: { id: 'p-1', slug: 'fast' } })).toBe(
+      engineIdentity(exact)
+    );
     expect(engineIdentity({ preset: 'fast' })).toBe('preset:fast');
     expect(engineIdentity({ preset: 'fast' })).not.toBe(engineIdentity(exact));
   });
 
   it('adds one {preset} row per chosen preset after the exact engines', () => {
-    expect(definitionEngines([], null, ['fast-sampling', 'deep-search'])).toEqual([{ preset: 'fast-sampling' }, { preset: 'deep-search' }]);
+    expect(definitionEngines([], null, ['fast-sampling', 'deep-search'])).toEqual([
+      { preset: 'fast-sampling' },
+      { preset: 'deep-search' },
+    ]);
   });
 
   it('says what a frozen engine ran with and the preset it came from', () => {
-    expect(frozenEngineFacts({ ...exact, options: { time_budget_ms: 30000 }, preset: { id: 'p-1', slug: 'fast-sampling' } })).toEqual({
-      options: 'time budget 30 s', optimization: 'SINGLE · weighted-sum', preset: 'fast-sampling',
+    expect(
+      frozenEngineFacts({
+        ...exact,
+        options: { time_budget_ms: 30000 },
+        preset: { id: 'p-1', slug: 'fast-sampling' },
+      })
+    ).toEqual({
+      options: 'time budget 30 s',
+      optimization: 'SINGLE · weighted-sum',
+      preset: 'fast-sampling',
     });
-    expect(frozenEngineFacts({ ...exact, options: {}, preset: null })).toEqual({ options: 'Engine defaults', optimization: 'SINGLE · weighted-sum', preset: null });
+    expect(frozenEngineFacts({ ...exact, options: {}, preset: null })).toEqual({
+      options: 'Engine defaults',
+      optimization: 'SINGLE · weighted-sum',
+      preset: null,
+    });
   });
 });
 
@@ -92,8 +170,13 @@ describe('seeds', () => {
 describe('settings', () => {
   it('turns what is typed into the parameter set an engine takes', () => {
     expect(readVariant(emptyVariant('a'))).toEqual({ parameters: {} });
-    expect(readVariant({ ...emptyVariant('a'), seconds: '30', iterations: '1,000' }).parameters).toEqual({ time_budget_ms: 30000, iterations: 1000 });
-    expect(readVariant({ ...emptyVariant('a'), extra: '{"population_size": 40}', seconds: '2.5' }).parameters).toEqual({ population_size: 40, time_budget_ms: 2500 });
+    expect(
+      readVariant({ ...emptyVariant('a'), seconds: '30', iterations: '1,000' }).parameters
+    ).toEqual({ time_budget_ms: 30000, iterations: 1000 });
+    expect(
+      readVariant({ ...emptyVariant('a'), extra: '{"population_size": 40}', seconds: '2.5' })
+        .parameters
+    ).toEqual({ population_size: 40, time_budget_ms: 2500 });
   });
 
   it('says what is wrong with a setting', () => {
@@ -104,41 +187,88 @@ describe('settings', () => {
   });
 
   it('tells equal parameter sets apart from different ones whatever the key order', () => {
-    expect(parametersKey({ a: 1, b: { c: 2, d: 3 } })).toBe(parametersKey({ b: { d: 3, c: 2 }, a: 1 }));
+    expect(parametersKey({ a: 1, b: { c: 2, d: 3 } })).toBe(
+      parametersKey({ b: { d: 3, c: 2 }, a: 1 })
+    );
     expect(parametersKey({ a: 1 })).not.toBe(parametersKey({ a: 2 }));
     expect(parametersKey(undefined)).toBe('{}');
   });
 
   it('describes parameters for people', () => {
     expect(describeParameters({})).toBe('Engine defaults');
-    expect(describeParameters({ time_budget_ms: 30000, population_size: 40 })).toBe('time budget 30 s · population size 40');
+    expect(describeParameters({ time_budget_ms: 30000, population_size: 40 })).toBe(
+      'time budget 30 s · population size 40'
+    );
   });
 });
 
 describe('the engine choices of a study', () => {
   it('reads the budget of a mode from its options schema', () => {
-    const choices = engineChoices([{
-      id: 'e1', namespace: 'bim.builtin', name: 'random-search', version: '1.0.0', digest: 'sha256-x', ref: { namespace: 'bim.builtin', name: 'random-search', version: '1.0.0', digest: 'sha256-x' },
-      modes: [{ id: 'sampling', optionsSchema: { type: 'object', properties: { time_budget_ms: { type: 'integer', default: 30000 } }, additionalProperties: false } } as never],
-    }]);
+    const choices = engineChoices([
+      {
+        id: 'e1',
+        namespace: 'bim.builtin',
+        name: 'random-search',
+        version: '1.0.0',
+        digest: 'sha256-x',
+        ref: {
+          namespace: 'bim.builtin',
+          name: 'random-search',
+          version: '1.0.0',
+          digest: 'sha256-x',
+        },
+        modes: [
+          {
+            id: 'sampling',
+            optionsSchema: {
+              type: 'object',
+              properties: { time_budget_ms: { type: 'integer', default: 30000 } },
+              additionalProperties: false,
+            },
+          } as never,
+        ],
+      },
+    ]);
     expect(choices).toHaveLength(1);
-    expect(choices[0]).toMatchObject({ mode: 'sampling', title: 'random-search 1.0.0', defaultSeconds: 30, federated: false });
+    expect(choices[0]).toMatchObject({
+      mode: 'sampling',
+      title: 'random-search 1.0.0',
+      defaultSeconds: 30,
+      federated: false,
+    });
     expect(choices[0].key).toBe('bim.builtin/random-search@1.0.0#sha256-x#sampling');
   });
 });
 
 describe('the optimization of each engine of a study', () => {
-  const declaring = (values: unknown[]) => ({ capabilities: { scalarizations: { selector: 'only', values } } }) as never;
+  const declaring = (values: unknown[]) =>
+    ({ capabilities: { scalarizations: { selector: 'only', values } } }) as never;
   const mode = declaring([
     { id: 'weighted-sum', objectiveTypes: ['SINGLE', 'MULTI'] },
     { id: 'nsga', objectiveTypes: ['MULTI', 'MANY'] },
     { id: 'feasibility', objectiveTypes: ['SINGLE'] },
   ]);
-  const goal = (criteria: number) => ({ spec: { optimization: { criteria: Array.from({ length: criteria }, () => ({})) } } });
-  const choice = (declared: never) => ({ ...engineChoices([{
-    id: 'e1', namespace: 'bim.builtin', name: 'random-search', version: '1.0.0', digest: 'sha256-x', ref: { namespace: 'bim.builtin', name: 'random-search', version: '1.0.0', digest: 'sha256-x' },
-    modes: [{ id: 'sampling', ...(declared as object) } as never],
-  }])[0] });
+  const goal = (criteria: number) => ({
+    spec: { optimization: { criteria: Array.from({ length: criteria }, () => ({})) } },
+  });
+  const choice = (declared: never) => ({
+    ...engineChoices([
+      {
+        id: 'e1',
+        namespace: 'bim.builtin',
+        name: 'random-search',
+        version: '1.0.0',
+        digest: 'sha256-x',
+        ref: {
+          namespace: 'bim.builtin',
+          name: 'random-search',
+          version: '1.0.0',
+          digest: 'sha256-x',
+        },
+        modes: [{ id: 'sampling', ...(declared as object) } as never],
+      },
+    ])[0],
+  });
 
   it('is SINGLE with the first scalarization the mode declares for one criterion', () => {
     expect(studyOptimization(mode, 1)).toEqual({ type: 'SINGLE', scalarization: 'weighted-sum' });
@@ -152,12 +282,21 @@ describe('the optimization of each engine of a study', () => {
 
   it('asks for feasibility when the goal has no criteria', () => {
     expect(studyOptimization(mode, 0)).toEqual({ type: 'SINGLE', scalarization: 'feasibility' });
-    expect(studyOptimization(declaring([]), 0)).toEqual({ type: 'SINGLE', scalarization: 'feasibility' });
+    expect(studyOptimization(declaring([]), 0)).toEqual({
+      type: 'SINGLE',
+      scalarization: 'feasibility',
+    });
   });
 
   it('still sends one when the mode declares none that fits, or the goal cannot be read', () => {
-    expect(studyOptimization(declaring([]), 5)).toEqual({ type: 'MANY', scalarization: 'weighted-sum' });
-    expect(studyOptimization(undefined, null)).toEqual({ type: 'SINGLE', scalarization: 'weighted-sum' });
+    expect(studyOptimization(declaring([]), 5)).toEqual({
+      type: 'MANY',
+      scalarization: 'weighted-sum',
+    });
+    expect(studyOptimization(undefined, null)).toEqual({
+      type: 'SINGLE',
+      scalarization: 'weighted-sum',
+    });
   });
 
   it('counts the criteria of the most demanding chosen version, from its compiled form', () => {
@@ -171,9 +310,18 @@ describe('the optimization of each engine of a study', () => {
     const chosen = [choice(mode), choice(declaring([{ id: 'nsga', objectiveTypes: ['MANY'] }]))];
     const engines = definitionEngines(chosen, 4);
     expect(engines).toHaveLength(2);
-    expect(engines[0]).toMatchObject({ name: 'random-search', mode: 'sampling', optimization: { type: 'MANY', scalarization: 'nsga' } });
-    expect((engines[1] as ExactStudyEngine).optimization).toEqual({ type: 'MANY', scalarization: 'nsga' });
-    expect(definitionEngines(chosen, 1).map((engine) => (engine as ExactStudyEngine).optimization?.type)).toEqual(['SINGLE', 'SINGLE']);
+    expect(engines[0]).toMatchObject({
+      name: 'random-search',
+      mode: 'sampling',
+      optimization: { type: 'MANY', scalarization: 'nsga' },
+    });
+    expect((engines[1] as ExactStudyEngine).optimization).toEqual({
+      type: 'MANY',
+      scalarization: 'nsga',
+    });
+    expect(
+      definitionEngines(chosen, 1).map(engine => (engine as ExactStudyEngine).optimization?.type)
+    ).toEqual(['SINGLE', 'SINGLE']);
   });
 });
 
@@ -186,8 +334,12 @@ describe('case revisions', () => {
   });
 
   it('starts the builder from the case or revision another screen named', () => {
-    expect(defaultSelection({ cases, caseSlug: 'checkout-flow', revision: '1' })).toEqual([REVISION_1.id]);
-    expect(defaultSelection({ cases, caseSlug: 'checkout-flow', revision: null })).toEqual([REVISION_2.id]);
+    expect(defaultSelection({ cases, caseSlug: 'checkout-flow', revision: '1' })).toEqual([
+      REVISION_1.id,
+    ]);
+    expect(defaultSelection({ cases, caseSlug: 'checkout-flow', revision: null })).toEqual([
+      REVISION_2.id,
+    ]);
     expect(defaultSelection({ cases, caseSlug: 'checkout-flow', revision: '3' })).toEqual([]);
     expect(defaultSelection({ cases, caseSlug: null, revision: null })).toEqual([]);
     expect(defaultSelection({ cases, caseSlug: 'ghost', revision: null })).toEqual([]);
@@ -196,7 +348,12 @@ describe('case revisions', () => {
   it('reads the definition a run froze back as the study definition it came from', () => {
     expect(definitionOfRun(runFixture())).toEqual(studyFixture().definition);
     const definition = studyFixture().definition;
-    const reordered = { seeds: definition.seeds, parameter_sets: definition.parameter_sets, engines: definition.engines, revision_ids: [...definition.revision_ids].reverse() };
+    const reordered = {
+      seeds: definition.seeds,
+      parameter_sets: definition.parameter_sets,
+      engines: definition.engines,
+      revision_ids: [...definition.revision_ids].reverse(),
+    };
     expect(sameDefinition(definitionOfRun(runFixture()), reordered)).toBe(true);
     expect(sameDefinition(definition, { ...definition, seeds: [9] })).toBe(false);
   });
@@ -206,9 +363,16 @@ describe('the cells of a run', () => {
   const cells = cellsFixture();
 
   it('reads the metrics the gateway records and tolerates the ones it does not', () => {
-    expect(metricsOf(cells[2])).toMatchObject({ feasible: true, objectives: { cost: 0.121, latency: 430 }, runtimeSeconds: 58 });
+    expect(metricsOf(cells[2])).toMatchObject({
+      feasible: true,
+      objectives: { cost: 0.121, latency: 430 },
+      runtimeSeconds: 58,
+    });
     expect(metricsOf({ metrics: {} })).toEqual({ objectives: {} });
-    expect(metricsOf({ metrics: { objectives: { cost: 'x', ok: 2 }, runtimeSeconds: Number.NaN } }).objectives).toEqual({ ok: 2 });
+    expect(
+      metricsOf({ metrics: { objectives: { cost: 'x', ok: 2 }, runtimeSeconds: Number.NaN } })
+        .objectives
+    ).toEqual({ ok: 2 });
   });
 
   it('offers the objectives and the time as the measures, and values only completed cells', () => {
@@ -222,20 +386,27 @@ describe('the cells of a run', () => {
   it('lays the cells out as a matrix of case revisions by engine and seed', () => {
     const view = matrixView(cells);
     expect(view.rows).toEqual([REVISION_1.id, REVISION_2.id]);
-    expect(view.columns.map((column) => column.label)).toEqual(['evolutionary · seed 1', 'evolutionary · seed 2', 'random-search · seed 1', 'random-search · seed 2']);
+    expect(view.columns.map(column => column.label)).toEqual([
+      'evolutionary · seed 1',
+      'evolutionary · seed 2',
+      'random-search · seed 1',
+      'random-search · seed 2',
+    ]);
     expect(view.at.get(slot(REVISION_2.id, view.columns[3].key))?.ordinal).toBe(7);
     expect(view.settings).toBe(1);
   });
 
   it('colours by quarter of the range, lower is better', () => {
-    expect([0.104, 0.11, 0.113, 0.121].map((value) => heatLevel(value, 0.104, 0.121))).toEqual([0, 1, 2, 3]);
+    expect([0.104, 0.11, 0.113, 0.121].map(value => heatLevel(value, 0.104, 0.121))).toEqual([
+      0, 1, 2, 3,
+    ]);
     expect(heatLevel(5, 5, 5)).toBe(0);
   });
 
   it('finds the cells that got the same input and the other seeds of one engine', () => {
-    expect(rivalsOf(cells[2], cells).map((cell) => cell.ordinal)).toEqual([0, 2]);
-    expect(seedsOf(cells[2], cells).map((cell) => cell.seed)).toEqual([1, 2]);
-    expect(enginesOf(cells).map((engine) => engine.label)).toEqual(['evolutionary', 'random-search']);
+    expect(rivalsOf(cells[2], cells).map(cell => cell.ordinal)).toEqual([0, 2]);
+    expect(seedsOf(cells[2], cells).map(cell => cell.seed)).toEqual([1, 2]);
+    expect(enginesOf(cells).map(engine => engine.label)).toEqual(['evolutionary', 'random-search']);
   });
 
   it('counts how a run ended in words', () => {
@@ -244,8 +415,13 @@ describe('the cells of a run', () => {
   });
 
   it('explains a failed cell by the code the gateway recorded', () => {
-    expect(explainFailure({ code: 'engine_unreachable', detail: 'timeout' })).toEqual({ title: 'The engine deployment didn’t answer in time.', detail: 'timeout' });
-    expect(explainFailure({ code: 'something_new' }).title).toBe('The engine could not produce a result for this cell.');
+    expect(explainFailure({ code: 'engine_unreachable', detail: 'timeout' })).toEqual({
+      title: 'The engine deployment didn’t answer in time.',
+      detail: 'timeout',
+    });
+    expect(explainFailure({ code: 'something_new' }).title).toBe(
+      'The engine could not produce a result for this cell.'
+    );
     expect(explainFailure({}).detail).toBeNull();
   });
 

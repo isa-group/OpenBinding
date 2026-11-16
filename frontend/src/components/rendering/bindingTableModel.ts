@@ -35,7 +35,8 @@ export interface BindingProblemShape {
   features: Record<string, { unit: string | null }>;
 }
 
-const isPlainObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
 
 /** The features of the problem in declaration order, each with its unit; `[]` without a problem. */
 export function bindingFeaturesOf(problem: BindingProblemShape | null): BindingFeature[] {
@@ -51,19 +52,26 @@ export function bindingRowsOf(binding: unknown, problem: BindingProblemShape | n
   if (!isPlainObject(binding)) return [];
   const chosen = new Map<string, string>();
   for (const [task, reference] of Object.entries(binding)) {
-    if (isPlainObject(reference) && typeof reference.id === 'string' && reference.id !== '') chosen.set(task, reference.id);
+    if (isPlainObject(reference) && typeof reference.id === 'string' && reference.id !== '')
+      chosen.set(task, reference.id);
   }
-  const names = bindingFeaturesOf(problem).map((feature) => feature.name);
-  const known = problem ? problem.tasks.filter((task) => chosen.has(task.id)) : [];
-  const knownIds = new Set(known.map((task) => task.id));
-  const order = [...known.map((task) => task.id), ...[...chosen.keys()].filter((task) => !knownIds.has(task))];
+  const names = bindingFeaturesOf(problem).map(feature => feature.name);
+  const known = problem ? problem.tasks.filter(task => chosen.has(task.id)) : [];
+  const knownIds = new Set(known.map(task => task.id));
+  const order = [
+    ...known.map(task => task.id),
+    ...[...chosen.keys()].filter(task => !knownIds.has(task)),
+  ];
 
-  return order.map((task) => {
+  return order.map(task => {
     const candidateId = chosen.get(task) as string;
-    const info = known.find((entry) => entry.id === task);
-    const candidate = info?.candidates.find((entry) => entry.id === candidateId);
+    const info = known.find(entry => entry.id === task);
+    const candidate = info?.candidates.find(entry => entry.id === candidateId);
     const values: Record<string, BindingValue | null> = {};
-    if (problem) for (const name of names) values[name] = candidate && Object.hasOwn(candidate.features, name) ? candidate.features[name] : null;
+    if (problem)
+      for (const name of names)
+        values[name] =
+          candidate && Object.hasOwn(candidate.features, name) ? candidate.features[name] : null;
     return {
       task,
       taskName: info?.name ?? task,

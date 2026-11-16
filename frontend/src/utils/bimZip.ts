@@ -95,7 +95,8 @@ function assertUnicodeScalar(value: string): void {
     const unit = value.charCodeAt(index);
     if (unit >= 0xd800 && unit <= 0xdbff) {
       const next = value.charCodeAt(index + 1);
-      if (!(next >= 0xdc00 && next <= 0xdfff)) throw new BimPackageError('BIM JSON contains an unpaired Unicode surrogate.');
+      if (!(next >= 0xdc00 && next <= 0xdfff))
+        throw new BimPackageError('BIM JSON contains an unpaired Unicode surrogate.');
       index += 1;
     } else if (unit >= 0xdc00 && unit <= 0xdfff) {
       throw new BimPackageError('BIM JSON contains an unpaired Unicode surrogate.');
@@ -104,7 +105,8 @@ function assertUnicodeScalar(value: string): void {
 }
 
 function canonicalNumber(value: number): string {
-  if (!Number.isFinite(value)) throw new BimPackageError('BIM JSON cannot contain a non-finite number.');
+  if (!Number.isFinite(value))
+    throw new BimPackageError('BIM JSON cannot contain a non-finite number.');
   const rendered = JSON.stringify(value);
   if (rendered === undefined) throw new BimPackageError('BIM JSON number cannot be serialized.');
   return rendered;
@@ -124,12 +126,12 @@ export function canonicalJson(value: unknown): string {
   if (typeof value === 'object') {
     const object = value as Record<string, unknown>;
     const entries = Object.keys(object)
-      .map((key) => {
+      .map(key => {
         assertUnicodeScalar(key);
         return key;
       })
       .sort(utf16Compare)
-      .map((key) => `${JSON.stringify(key)}:${canonicalJson(object[key])}`);
+      .map(key => `${JSON.stringify(key)}:${canonicalJson(object[key])}`);
     return `{${entries.join(',')}}`;
   }
   throw new BimPackageError(`BIM JSON contains an unsupported ${typeof value} value.`);
@@ -140,7 +142,8 @@ function assertNoDuplicateJsonMembers(source: string, path: string): void {
   const whitespace = () => {
     while (cursor < source.length) {
       const codePoint = source.charCodeAt(cursor);
-      if (codePoint !== 0x09 && codePoint !== 0x0a && codePoint !== 0x0d && codePoint !== 0x20) return;
+      if (codePoint !== 0x09 && codePoint !== 0x0a && codePoint !== 0x0d && codePoint !== 0x20)
+        return;
       cursor += 1;
     }
   };
@@ -173,11 +176,17 @@ function assertNoDuplicateJsonMembers(source: string, path: string): void {
       cursor += 1;
       whitespace();
       const members = new Set<string>();
-      if (source[cursor] === '}') { cursor += 1; return; }
+      if (source[cursor] === '}') {
+        cursor += 1;
+        return;
+      }
       for (;;) {
         whitespace();
         const member = stringToken();
-        if (members.has(member)) throw new BimPackageError(`${path} contains duplicate JSON member ${JSON.stringify(member)}.`);
+        if (members.has(member))
+          throw new BimPackageError(
+            `${path} contains duplicate JSON member ${JSON.stringify(member)}.`
+          );
         members.add(member);
         whitespace();
         if (source[cursor++] !== ':') throw new BimPackageError(`${path} is not valid JSON.`);
@@ -191,7 +200,10 @@ function assertNoDuplicateJsonMembers(source: string, path: string): void {
     if (source[cursor] === '[') {
       cursor += 1;
       whitespace();
-      if (source[cursor] === ']') { cursor += 1; return; }
+      if (source[cursor] === ']') {
+        cursor += 1;
+        return;
+      }
       for (;;) {
         value();
         whitespace();
@@ -200,8 +212,13 @@ function assertNoDuplicateJsonMembers(source: string, path: string): void {
         if (delimiter !== ',') throw new BimPackageError(`${path} is not valid JSON.`);
       }
     }
-    if (source[cursor] === '"') { stringToken(); return; }
-    const primitive = source.slice(cursor).match(/^(?:true|false|null|-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?)/)?.[0];
+    if (source[cursor] === '"') {
+      stringToken();
+      return;
+    }
+    const primitive = source
+      .slice(cursor)
+      .match(/^(?:true|false|null|-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?)/)?.[0];
     if (!primitive) throw new BimPackageError(`${path} is not valid JSON.`);
     cursor += primitive.length;
   };
@@ -237,18 +254,27 @@ function caseFold(value: string): string {
 }
 
 function normalizePath(supplied: string): string {
-  if (!supplied || supplied.includes('\0')) throw new BimPackageError('A BIM package path is empty or contains NUL.');
-  if (supplied.length > 4096) throw new BimPackageError(`BIM package path is too long: ${supplied}`);
-  if (supplied.includes('\\') || supplied.startsWith('/') || supplied.startsWith('~') || /^[A-Za-z]:[\\/]/.test(supplied)) {
+  if (!supplied || supplied.includes('\0'))
+    throw new BimPackageError('A BIM package path is empty or contains NUL.');
+  if (supplied.length > 4096)
+    throw new BimPackageError(`BIM package path is too long: ${supplied}`);
+  if (
+    supplied.includes('\\') ||
+    supplied.startsWith('/') ||
+    supplied.startsWith('~') ||
+    /^[A-Za-z]:[\\/]/.test(supplied)
+  ) {
     throw new BimPackageError(`Unsafe BIM package path: ${supplied}`);
   }
   const normalized = supplied.normalize('NFC');
   const parts = normalized.split('/');
-  if (parts.some((part) => part === '' || part === '.' || part === '..')) {
+  if (parts.some(part => part === '' || part === '.' || part === '..')) {
     throw new BimPackageError(`Traversal or empty component in BIM package path: ${supplied}`);
   }
   if (parts.length > BIM_PACKAGE_LIMITS.pathDepth) {
-    throw new BimPackageError(`BIM package path exceeds depth ${BIM_PACKAGE_LIMITS.pathDepth}: ${supplied}`);
+    throw new BimPackageError(
+      `BIM package path exceeds depth ${BIM_PACKAGE_LIMITS.pathDepth}: ${supplied}`
+    );
   }
   return normalized;
 }
@@ -256,24 +282,31 @@ function normalizePath(supplied: string): string {
 function validatedTextFiles(files: Record<string, string>): Record<string, string> {
   const entries = Object.entries(files);
   if (entries.length > BIM_PACKAGE_LIMITS.entries) {
-    throw new BimPackageError(`BIM package contains more than ${BIM_PACKAGE_LIMITS.entries} entries.`);
+    throw new BimPackageError(
+      `BIM package contains more than ${BIM_PACKAGE_LIMITS.entries} entries.`
+    );
   }
   const result: Record<string, string> = {};
   const folded = new Set<string>();
   let total = 0;
   for (const [suppliedPath, source] of entries) {
-    if (typeof source !== 'string') throw new BimPackageError(`BIM package entry is not UTF-8 text: ${suppliedPath}`);
+    if (typeof source !== 'string')
+      throw new BimPackageError(`BIM package entry is not UTF-8 text: ${suppliedPath}`);
     const path = normalizePath(suppliedPath);
     const key = caseFold(path);
-    if (Object.hasOwn(result, path) || folded.has(key)) throw new BimPackageError(`Duplicate BIM package path: ${path}`);
+    if (Object.hasOwn(result, path) || folded.has(key))
+      throw new BimPackageError(`Duplicate BIM package path: ${path}`);
     folded.add(key);
     const size = encoder.encode(source).length;
-    if (size > BIM_PACKAGE_LIMITS.entryBytes) throw new BimPackageError(`BIM package entry is too large: ${path}`);
+    if (size > BIM_PACKAGE_LIMITS.entryBytes)
+      throw new BimPackageError(`BIM package entry is too large: ${path}`);
     total += size;
-    if (total > BIM_PACKAGE_LIMITS.expandedBytes) throw new BimPackageError('Expanded BIM package is too large.');
+    if (total > BIM_PACKAGE_LIMITS.expandedBytes)
+      throw new BimPackageError('Expanded BIM package is too large.');
     result[path] = source;
   }
-  if (!Object.hasOwn(result, 'instance.json')) throw new BimPackageError('BIM package does not contain instance.json.');
+  if (!Object.hasOwn(result, 'instance.json'))
+    throw new BimPackageError('BIM package does not contain instance.json.');
   return result;
 }
 
@@ -289,15 +322,42 @@ export function zipStore(sourceFiles: Record<string, string>): Uint8Array {
     const flags = nameBytes.length === path.length ? 0 : UTF8_FLAG;
     const checksum = crc32(data);
     const header = join(
-      u32(LOCAL_SIGNATURE), u16(20), u16(flags), u16(STORE), u16(0), u16(DOS_1980_01_01),
-      u32(checksum), u32(data.length), u32(data.length), u16(nameBytes.length), u16(0), nameBytes,
+      u32(LOCAL_SIGNATURE),
+      u16(20),
+      u16(flags),
+      u16(STORE),
+      u16(0),
+      u16(DOS_1980_01_01),
+      u32(checksum),
+      u32(data.length),
+      u32(data.length),
+      u16(nameBytes.length),
+      u16(0),
+      nameBytes
     );
     local.push(header, data);
-    central.push(join(
-      u32(CENTRAL_SIGNATURE), u16((3 << 8) | 20), u16(20), u16(flags), u16(STORE), u16(0),
-      u16(DOS_1980_01_01), u32(checksum), u32(data.length), u32(data.length), u16(nameBytes.length),
-      u16(0), u16(0), u16(0), u16(0), u32(UNIX_REGULAR_0644), u32(offset), nameBytes,
-    ));
+    central.push(
+      join(
+        u32(CENTRAL_SIGNATURE),
+        u16((3 << 8) | 20),
+        u16(20),
+        u16(flags),
+        u16(STORE),
+        u16(0),
+        u16(DOS_1980_01_01),
+        u32(checksum),
+        u32(data.length),
+        u32(data.length),
+        u16(nameBytes.length),
+        u16(0),
+        u16(0),
+        u16(0),
+        u16(0),
+        u32(UNIX_REGULAR_0644),
+        u32(offset),
+        nameBytes
+      )
+    );
     offset += header.length + data.length;
   }
   const localBytes = join(...local);
@@ -305,10 +365,17 @@ export function zipStore(sourceFiles: Record<string, string>): Uint8Array {
   const archive = join(
     localBytes,
     centralBytes,
-    u32(EOCD_SIGNATURE), u16(0), u16(0), u16(Object.keys(files).length), u16(Object.keys(files).length),
-    u32(centralBytes.length), u32(localBytes.length), u16(0),
+    u32(EOCD_SIGNATURE),
+    u16(0),
+    u16(0),
+    u16(Object.keys(files).length),
+    u16(Object.keys(files).length),
+    u32(centralBytes.length),
+    u32(localBytes.length),
+    u16(0)
   );
-  if (archive.length > BIM_PACKAGE_LIMITS.compressedBytes) throw new BimPackageError('BIM package is too large.');
+  if (archive.length > BIM_PACKAGE_LIMITS.compressedBytes)
+    throw new BimPackageError('BIM package is too large.');
   return archive;
 }
 
@@ -321,7 +388,9 @@ function findEocd(bytes: Uint8Array, view: DataView): number {
 
 async function inflateRaw(data: Uint8Array): Promise<Uint8Array> {
   if (typeof DecompressionStream === 'undefined') {
-    throw new BimPackageError('This browser cannot import compressed ZIP entries; export a deterministic STORE .bim.zip.');
+    throw new BimPackageError(
+      'This browser cannot import compressed ZIP entries; export a deterministic STORE .bim.zip.'
+    );
   }
   try {
     const copy = data.slice();
@@ -329,7 +398,9 @@ async function inflateRaw(data: Uint8Array): Promise<Uint8Array> {
     const output = input.pipeThrough(new DecompressionStream('deflate-raw' as CompressionFormat));
     return new Uint8Array(await new Response(output).arrayBuffer());
   } catch (error) {
-    throw new BimPackageError(`A compressed BIM package entry could not be expanded: ${String(error)}`);
+    throw new BimPackageError(
+      `A compressed BIM package entry could not be expanded: ${String(error)}`
+    );
   }
 }
 
@@ -345,12 +416,14 @@ interface CentralEntry {
 
 /** Read a bounded STORE/DEFLATE ZIP without extracting it to a filesystem. */
 export async function unzipPackage(buffer: ArrayBuffer): Promise<Record<string, string>> {
-  if (buffer.byteLength > BIM_PACKAGE_LIMITS.compressedBytes) throw new BimPackageError('Compressed BIM package is too large.');
+  if (buffer.byteLength > BIM_PACKAGE_LIMITS.compressedBytes)
+    throw new BimPackageError('Compressed BIM package is too large.');
   const bytes = new Uint8Array(buffer);
   const view = new DataView(buffer);
   const eocd = findEocd(bytes, view);
   const eocdCommentLength = view.getUint16(eocd + 20, true);
-  if (eocd + 22 + eocdCommentLength !== bytes.length) throw new BimPackageError('BIM ZIP has trailing or truncated data.');
+  if (eocd + 22 + eocdCommentLength !== bytes.length)
+    throw new BimPackageError('BIM ZIP has trailing or truncated data.');
   const disk = view.getUint16(eocd + 4, true);
   const centralDisk = view.getUint16(eocd + 6, true);
   const diskEntries = view.getUint16(eocd + 8, true);
@@ -358,9 +431,14 @@ export async function unzipPackage(buffer: ArrayBuffer): Promise<Record<string, 
   const centralSize = view.getUint32(eocd + 12, true);
   let cursor = view.getUint32(eocd + 16, true);
   const centralStart = cursor;
-  if (disk !== 0 || centralDisk !== 0 || diskEntries !== count) throw new BimPackageError('Multi-disk BIM ZIP packages are not supported.');
-  if (count > BIM_PACKAGE_LIMITS.entries) throw new BimPackageError(`BIM package contains more than ${BIM_PACKAGE_LIMITS.entries} entries.`);
-  if (cursor + centralSize > eocd) throw new BimPackageError('BIM ZIP central directory is out of bounds.');
+  if (disk !== 0 || centralDisk !== 0 || diskEntries !== count)
+    throw new BimPackageError('Multi-disk BIM ZIP packages are not supported.');
+  if (count > BIM_PACKAGE_LIMITS.entries)
+    throw new BimPackageError(
+      `BIM package contains more than ${BIM_PACKAGE_LIMITS.entries} entries.`
+    );
+  if (cursor + centralSize > eocd)
+    throw new BimPackageError('BIM ZIP central directory is out of bounds.');
 
   const entries: CentralEntry[] = [];
   const names = new Set<string>();
@@ -382,14 +460,21 @@ export async function unzipPackage(buffer: ArrayBuffer): Promise<Record<string, 
     const localOffset = view.getUint32(cursor + 42, true);
     const end = cursor + 46 + nameLength + extraLength + commentLength;
     if (end > bytes.length) throw new BimPackageError('Truncated BIM ZIP central entry.');
-    if (flags & ENCRYPTED_FLAG) throw new BimPackageError('Encrypted BIM ZIP entries are forbidden.');
-    if (method !== STORE && method !== DEFLATE) throw new BimPackageError(`Unsupported BIM ZIP compression method: ${method}`);
-    if (size > BIM_PACKAGE_LIMITS.entryBytes) throw new BimPackageError('A BIM package entry is too large.');
+    if (flags & ENCRYPTED_FLAG)
+      throw new BimPackageError('Encrypted BIM ZIP entries are forbidden.');
+    if (method !== STORE && method !== DEFLATE)
+      throw new BimPackageError(`Unsupported BIM ZIP compression method: ${method}`);
+    if (size > BIM_PACKAGE_LIMITS.entryBytes)
+      throw new BimPackageError('A BIM package entry is too large.');
     expanded += size;
-    if (expanded > BIM_PACKAGE_LIMITS.expandedBytes) throw new BimPackageError('Expanded BIM package is too large.');
-    if (compressedSize === 0 && size !== 0) throw new BimPackageError('Invalid zero-sized compressed BIM entry.');
-    if (compressedSize > 0 && size / compressedSize > BIM_PACKAGE_LIMITS.ratio) throw new BimPackageError('BIM ZIP compression ratio is too high.');
-    if (((externalAttributes >>> 16) & 0o170000) === UNIX_SYMLINK) throw new BimPackageError('BIM ZIP symlinks are forbidden.');
+    if (expanded > BIM_PACKAGE_LIMITS.expandedBytes)
+      throw new BimPackageError('Expanded BIM package is too large.');
+    if (compressedSize === 0 && size !== 0)
+      throw new BimPackageError('Invalid zero-sized compressed BIM entry.');
+    if (compressedSize > 0 && size / compressedSize > BIM_PACKAGE_LIMITS.ratio)
+      throw new BimPackageError('BIM ZIP compression ratio is too high.');
+    if (((externalAttributes >>> 16) & 0o170000) === UNIX_SYMLINK)
+      throw new BimPackageError('BIM ZIP symlinks are forbidden.');
     let suppliedPath: string;
     try {
       suppliedPath = decoder.decode(bytes.slice(cursor + 46, cursor + 46 + nameLength));
@@ -398,17 +483,22 @@ export async function unzipPackage(buffer: ArrayBuffer): Promise<Record<string, 
     }
     const path = normalizePath(suppliedPath);
     const foldedPath = caseFold(path);
-    if (names.has(path) || folded.has(foldedPath)) throw new BimPackageError(`Duplicate BIM package path: ${path}`);
+    if (names.has(path) || folded.has(foldedPath))
+      throw new BimPackageError(`Duplicate BIM package path: ${path}`);
     names.add(path);
     folded.add(foldedPath);
     entries.push({ path, flags, method, checksum, compressedSize, size, localOffset });
     cursor = end;
   }
-  if (cursor !== centralStart + centralSize) throw new BimPackageError('BIM ZIP central directory size is inconsistent.');
+  if (cursor !== centralStart + centralSize)
+    throw new BimPackageError('BIM ZIP central directory size is inconsistent.');
 
   const result: Record<string, string> = {};
   for (const entry of entries) {
-    if (entry.localOffset + 30 > bytes.length || view.getUint32(entry.localOffset, true) !== LOCAL_SIGNATURE) {
+    if (
+      entry.localOffset + 30 > bytes.length ||
+      view.getUint32(entry.localOffset, true) !== LOCAL_SIGNATURE
+    ) {
       throw new BimPackageError(`Invalid BIM ZIP local header for ${entry.path}.`);
     }
     const localFlags = view.getUint16(entry.localOffset + 6, true);
@@ -420,22 +510,38 @@ export async function unzipPackage(buffer: ArrayBuffer): Promise<Record<string, 
     const localExtraLength = view.getUint16(entry.localOffset + 28, true);
     let localPath: string;
     try {
-      localPath = normalizePath(decoder.decode(bytes.slice(entry.localOffset + 30, entry.localOffset + 30 + localNameLength)));
+      localPath = normalizePath(
+        decoder.decode(
+          bytes.slice(entry.localOffset + 30, entry.localOffset + 30 + localNameLength)
+        )
+      );
     } catch {
       throw new BimPackageError(`Invalid BIM ZIP local filename for ${entry.path}.`);
     }
     const dataStart = entry.localOffset + 30 + localNameLength + localExtraLength;
     const dataEnd = dataStart + entry.compressedSize;
-    if (dataEnd > bytes.length || localPath !== entry.path || localMethod !== entry.method || (localFlags & ~DATA_DESCRIPTOR_FLAG) !== (entry.flags & ~DATA_DESCRIPTOR_FLAG)) {
+    if (
+      dataEnd > bytes.length ||
+      localPath !== entry.path ||
+      localMethod !== entry.method ||
+      (localFlags & ~DATA_DESCRIPTOR_FLAG) !== (entry.flags & ~DATA_DESCRIPTOR_FLAG)
+    ) {
       throw new BimPackageError(`Inconsistent BIM ZIP local header for ${entry.path}.`);
     }
-    if (!(localFlags & DATA_DESCRIPTOR_FLAG) && (localChecksum !== entry.checksum || localCompressedSize !== entry.compressedSize || localSize !== entry.size)) {
+    if (
+      !(localFlags & DATA_DESCRIPTOR_FLAG) &&
+      (localChecksum !== entry.checksum ||
+        localCompressedSize !== entry.compressedSize ||
+        localSize !== entry.size)
+    ) {
       throw new BimPackageError(`Inconsistent BIM ZIP local sizes or checksum for ${entry.path}.`);
     }
     const compressed = bytes.slice(dataStart, dataEnd);
     const content = entry.method === STORE ? compressed : await inflateRaw(compressed);
-    if (content.length !== entry.size) throw new BimPackageError(`Truncated BIM package entry: ${entry.path}`);
-    if (crc32(content) !== entry.checksum) throw new BimPackageError(`CRC mismatch in BIM package entry: ${entry.path}`);
+    if (content.length !== entry.size)
+      throw new BimPackageError(`Truncated BIM package entry: ${entry.path}`);
+    if (crc32(content) !== entry.checksum)
+      throw new BimPackageError(`CRC mismatch in BIM package entry: ${entry.path}`);
     try {
       result[entry.path] = decoder.decode(content);
     } catch {
@@ -448,5 +554,7 @@ export async function unzipPackage(buffer: ArrayBuffer): Promise<Record<string, 
 /** Canonicalize a workspace before its deterministic ZIP package is built. */
 export function packageFiles(files: Record<string, string>): Record<string, string> {
   const validated = validatedTextFiles(files);
-  return Object.fromEntries(Object.entries(validated).map(([path, source]) => [path, canonicalFile(path, source)]));
+  return Object.fromEntries(
+    Object.entries(validated).map(([path, source]) => [path, canonicalFile(path, source)])
+  );
 }

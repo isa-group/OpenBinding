@@ -46,7 +46,9 @@ export function noticeOf(caught: unknown): LimitNotice | undefined {
 
 /** The measured size a refusal carries, if any. */
 export function bindingSpaceOf(caught: unknown): BindingSpaceReport | undefined {
-  return caught instanceof QuotaError || caught instanceof HttpError ? caught.bindingSpace : undefined;
+  return caught instanceof QuotaError || caught instanceof HttpError
+    ? caught.bindingSpace
+    : undefined;
 }
 
 /** `10⁹` for a whole exponent, `10^4.3` otherwise: the size of a binding space as a power of ten. */
@@ -62,27 +64,32 @@ export function sizeOf(space?: BindingSpaceReport, notice?: LimitNotice): string
   if (space?.cardinality) return `${grouped(space.cardinality)} combinations`;
   const log10 = space?.log10 ?? (notice?.state === 'exhausted' ? notice.used : undefined);
   if (log10 !== undefined) return `about ${combinations(log10)} combinations`;
-  if (space?.digits !== undefined) return `a number of combinations with ${space.digits.toLocaleString('en-US')} digits`;
+  if (space?.digits !== undefined)
+    return `a number of combinations with ${space.digits.toLocaleString('en-US')} digits`;
   return null;
 }
 
 /** The refusals about a limit that is unmeasurable, technical or unappliable; `null` for any other answer. */
 export function limitProblemOf(caught: unknown, nothing: string, at: string): LimitProblem | null {
-  const code = caught instanceof QuotaError || caught instanceof HttpError ? caught.code : undefined;
+  const code =
+    caught instanceof QuotaError || caught instanceof HttpError ? caught.code : undefined;
   const notice = noticeOf(caught);
   switch (code) {
     case OVER_TECHNICAL_CODE: {
       const size = sizeOf(bindingSpaceOf(caught), notice);
       const ceiling = notice?.limit;
       return {
-        kind: 'technical', limitId: notice?.limit_id ?? BINDING_SPACE_LIMIT_ID, source: 'technical',
+        kind: 'technical',
+        limitId: notice?.limit_id ?? BINDING_SPACE_LIMIT_ID,
+        source: 'technical',
         title: `Over this deployment’s size limit${at}`,
         text: `This deployment limits how large a problem can be${ceiling !== undefined ? ` (up to ${combinations(ceiling)} combinations)` : ''}, whatever the plan, so a larger plan won’t change it.${size ? ` This problem has ${size}.` : ''} Reduce the candidates. ${nothing}`,
       };
     }
     case UNMEASURED_CODE:
       return {
-        kind: 'unmeasured', limitId: notice?.limit_id ?? BINDING_SPACE_LIMIT_ID,
+        kind: 'unmeasured',
+        limitId: notice?.limit_id ?? BINDING_SPACE_LIMIT_ID,
         title: `The problem’s size couldn’t be measured${at}`,
         text: `OpenBinding couldn’t work out how large this problem is, so it can’t check it against the limit. This is a fault on the service’s side, not a mistake in your package. Try again; if it keeps happening, report it with the code shown. ${nothing}`,
       };
@@ -102,7 +109,8 @@ export function slotsText(concurrency?: { limit: number; source?: string }): str
   if (!concurrency) return 'You have no free run slot.';
   const n = concurrency.limit;
   const s = n === 1 ? '' : 's';
-  if (concurrency.source === 'technical') return `This deployment allows one account ${n} run${s} going at once, whatever its plan.`;
+  if (concurrency.source === 'technical')
+    return `This deployment allows one account ${n} run${s} going at once, whatever its plan.`;
   if (concurrency.source === 'plan') return `Your plan allows ${n} run${s} going at once.`;
   return `You can have ${n} run${s} going at once.`;
 }

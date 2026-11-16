@@ -2,34 +2,74 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError, type EngineCatalogEntry, type EngineMode } from '../../api/client';
 import { org } from '../../features/workspace/testKit';
-import { FEDERATED_PRESET, NO_GOAL_PRESET, PRESET_ENGINE, presetFixture, presetPage } from '../../test/fixtures/presets';
+import {
+  FEDERATED_PRESET,
+  NO_GOAL_PRESET,
+  PRESET_ENGINE,
+  presetFixture,
+  presetPage,
+} from '../../test/fixtures/presets';
 import { renderScreen } from './testKit';
 import { OrgSettings } from './OrgSettings';
 
-const presets = vi.hoisted(() => ({ list: vi.fn(), create: vi.fn(), update: vi.fn(), remove: vi.fn() }));
+const presets = vi.hoisted(() => ({
+  list: vi.fn(),
+  create: vi.fn(),
+  update: vi.fn(),
+  remove: vi.fn(),
+}));
 const client = vi.hoisted(() => ({ getEngines: vi.fn() }));
 
-vi.mock('../../entities/preset/api', async (actual) => ({ ...await actual<typeof import('../../entities/preset/api')>(), presetsApi: presets }));
-vi.mock('../../api/client', async () => ({ ...await vi.importActual<typeof import('../../api/client')>('../../api/client'), apiClient: client }));
+vi.mock('../../modules/run/api/presetsApi', async actual => ({
+  ...(await actual<typeof import('../../modules/run/api/presetsApi')>()),
+  presetsApi: presets,
+}));
+vi.mock('../../api/client', async () => ({
+  ...(await vi.importActual<typeof import('../../api/client')>('../../api/client')),
+  apiClient: client,
+}));
 
 const group = org('isa-demo', { name: 'ISA Demo Group' });
 const viewing = org('read-lab', { name: 'Read Lab', effective_role: 'VIEWER' });
 
 const mode = (id: string, scalarizations: string[]): EngineMode => ({
-  id, profile: 'qos-binding/v1', ir: { apiVersion: 'bim/v1', kind: 'BindingProblem' }, algorithm: id,
-  capabilities: { scalarizations: { selector: 'only', values: scalarizations.map((value) => ({ id: value, objectiveTypes: ['SINGLE', 'MULTI'] })) } } as unknown as EngineMode['capabilities'],
-  optionsSchema: { type: 'object', properties: { time_budget_ms: { type: 'integer' }, iterations: { type: 'integer' } }, additionalProperties: false },
-  limits: {}, guarantees: { termination: ['FEASIBLE'], exact: false },
+  id,
+  profile: 'qos-binding/v1',
+  ir: { apiVersion: 'bim/v1', kind: 'BindingProblem' },
+  algorithm: id,
+  capabilities: {
+    scalarizations: {
+      selector: 'only',
+      values: scalarizations.map(value => ({ id: value, objectiveTypes: ['SINGLE', 'MULTI'] })),
+    },
+  } as unknown as EngineMode['capabilities'],
+  optionsSchema: {
+    type: 'object',
+    properties: { time_budget_ms: { type: 'integer' }, iterations: { type: 'integer' } },
+    additionalProperties: false,
+  },
+  limits: {},
+  guarantees: { termination: ['FEASIBLE'], exact: false },
 });
 
 const engines: EngineCatalogEntry[] = [
-  { ...PRESET_ENGINE, id: 'engine-1', ref: PRESET_ENGINE, modes: [mode('sampling', ['weighted-sum']), mode('exhaustive', [])] },
+  {
+    ...PRESET_ENGINE,
+    id: 'engine-1',
+    ref: PRESET_ENGINE,
+    modes: [mode('sampling', ['weighted-sum']), mode('exhaustive', [])],
+  },
 ];
 
-const refused = (status: number, code: string, message = 'refused') => Object.assign(new HttpError(status, message), { code });
+const refused = (status: number, code: string, message = 'refused') =>
+  Object.assign(new HttpError(status, message), { code });
 
 function renderPresets(slug = 'isa-demo') {
-  return renderScreen(<OrgSettings />, { path: '/app/:org/settings/:section?', url: `/app/${slug}/settings/presets`, organizations: [group, viewing] });
+  return renderScreen(<OrgSettings />, {
+    path: '/app/:org/settings/:section?',
+    url: `/app/${slug}/settings/presets`,
+    organizations: [group, viewing],
+  });
 }
 
 const card = (name: string) => screen.findByRole('listitem', { name });
@@ -38,8 +78,18 @@ describe('the run presets of an organization', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     presets.list.mockResolvedValue(presetPage());
-    presets.create.mockImplementation(async (_org: string, body: { slug: string; name: string }) => ({ value: presetFixture({ id: 'p-new', slug: body.slug, name: body.name }), etag: null }));
-    presets.update.mockImplementation(async (_org: string, slug: string, body: { name: string }) => ({ value: presetFixture({ slug, name: body.name }), etag: null }));
+    presets.create.mockImplementation(
+      async (_org: string, body: { slug: string; name: string }) => ({
+        value: presetFixture({ id: 'p-new', slug: body.slug, name: body.name }),
+        etag: null,
+      })
+    );
+    presets.update.mockImplementation(
+      async (_org: string, slug: string, body: { name: string }) => ({
+        value: presetFixture({ slug, name: body.name }),
+        etag: null,
+      })
+    );
     presets.remove.mockResolvedValue(undefined);
     client.getEngines.mockResolvedValue(engines);
   });
@@ -47,7 +97,9 @@ describe('the run presets of an organization', () => {
   it('lists each preset with its engine, options, optimization and whether a study can take it', async () => {
     renderPresets();
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Run presets' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Run presets' })
+    ).toBeInTheDocument();
     expect(presets.list).toHaveBeenCalledWith('isa-demo', { limit: 200 });
     const fast = await card('Fast sampling');
     expect(within(fast).getByText('fast-sampling')).toBeInTheDocument();
@@ -55,14 +107,29 @@ describe('the run presets of an organization', () => {
     expect(within(fast).getByText('time budget 30 s · iterations 5,000')).toBeInTheDocument();
     expect(within(fast).getByText('SINGLE · weighted-sum')).toBeInTheDocument();
     expect(within(fast).getByText('Can be an engine of a study')).toBeInTheDocument();
-    expect(within(fast).getByRole('link', { name: 'Start a run' })).toHaveAttribute('href', '/app/isa-demo/runs/new?preset=fast-sampling');
+    expect(within(fast).getByRole('link', { name: 'Start a run' })).toHaveAttribute(
+      'href',
+      '/app/isa-demo/runs/new?preset=fast-sampling'
+    );
 
     const edge = await card('Edge deployment');
     expect(within(edge).getByText('edge-lab/edge-solver-eu 1')).toBeInTheDocument();
-    expect(within(edge).getByText('Runs on a federated deployment: presets of federated engines can’t join a study yet.')).toBeInTheDocument();
-    expect(within(await card('No goal')).getByText('Names no optimization, which a study engine needs.')).toBeInTheDocument();
-    expect(within(await card('No goal')).getByText('Chosen for the problem when a run starts')).toBeInTheDocument();
-    expect(within(screen.getByRole('navigation', { name: 'Organization settings' })).getByRole('link', { name: 'Run presets' })).toHaveAttribute('aria-current', 'page');
+    expect(
+      within(edge).getByText(
+        'Runs on a federated deployment: presets of federated engines can’t join a study yet.'
+      )
+    ).toBeInTheDocument();
+    expect(
+      within(await card('No goal')).getByText('Names no optimization, which a study engine needs.')
+    ).toBeInTheDocument();
+    expect(
+      within(await card('No goal')).getByText('Chosen for the problem when a run starts')
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByRole('navigation', { name: 'Organization settings' })).getByRole('link', {
+        name: 'Run presets',
+      })
+    ).toHaveAttribute('aria-current', 'page');
   });
 
   it('creates a preset from the engine catalogue, the mode, the options and the optimization', async () => {
@@ -72,18 +139,37 @@ describe('the run presets of an organization', () => {
 
     fireEvent.change(within(dialog).getByLabelText('Name'), { target: { value: 'Long search' } });
     expect(within(dialog).getByLabelText('Address')).toHaveValue('long-search');
-    fireEvent.change(within(dialog).getByLabelText('Engine'), { target: { value: `bim.builtin/random-search@1.0.0#${PRESET_ENGINE.digest}` } });
+    fireEvent.change(within(dialog).getByLabelText('Engine'), {
+      target: { value: `bim.builtin/random-search@1.0.0#${PRESET_ENGINE.digest}` },
+    });
     fireEvent.change(within(dialog).getByLabelText('Mode'), { target: { value: 'sampling' } });
-    expect(within(dialog).getByText('This mode declares time_budget_ms, iterations. A time budget is in milliseconds.')).toBeInTheDocument();
-    fireEvent.change(within(dialog).getByLabelText('Options (JSON object, optional)'), { target: { value: '{"time_budget_ms": 120000}' } });
-    fireEvent.change(within(dialog).getByLabelText('Optimization'), { target: { value: 'SINGLE' } });
-    fireEvent.change(within(dialog).getByLabelText('Scalarization'), { target: { value: 'weighted-sum' } });
+    expect(
+      within(dialog).getByText(
+        'This mode declares time_budget_ms, iterations. A time budget is in milliseconds.'
+      )
+    ).toBeInTheDocument();
+    fireEvent.change(within(dialog).getByLabelText('Options (JSON object, optional)'), {
+      target: { value: '{"time_budget_ms": 120000}' },
+    });
+    fireEvent.change(within(dialog).getByLabelText('Optimization'), {
+      target: { value: 'SINGLE' },
+    });
+    fireEvent.change(within(dialog).getByLabelText('Scalarization'), {
+      target: { value: 'weighted-sum' },
+    });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Create preset' }));
 
-    await waitFor(() => expect(presets.create).toHaveBeenCalledWith('isa-demo', {
-      name: 'Long search', description: '', slug: 'long-search', engine: PRESET_ENGINE, mode: 'sampling',
-      options: { time_budget_ms: 120000 }, optimization: { type: 'SINGLE', scalarization: 'weighted-sum' },
-    }));
+    await waitFor(() =>
+      expect(presets.create).toHaveBeenCalledWith('isa-demo', {
+        name: 'Long search',
+        description: '',
+        slug: 'long-search',
+        engine: PRESET_ENGINE,
+        mode: 'sampling',
+        options: { time_budget_ms: 120000 },
+        optimization: { type: 'SINGLE', scalarization: 'weighted-sum' },
+      })
+    );
     expect(await screen.findByText('Created the run preset Long search.')).toBeInTheDocument();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(presets.list).toHaveBeenCalledTimes(2);
@@ -99,51 +185,96 @@ describe('the run presets of an organization', () => {
     expect(within(dialog).getByText('Give the preset a name.')).toBeInTheDocument();
     expect(within(dialog).getByText('Choose the engine the preset runs.')).toBeInTheDocument();
     fireEvent.change(within(dialog).getByLabelText('Name'), { target: { value: 'Fast sampling' } });
-    fireEvent.change(within(dialog).getByLabelText('Engine'), { target: { value: `bim.builtin/random-search@1.0.0#${PRESET_ENGINE.digest}` } });
-    fireEvent.change(within(dialog).getByLabelText('Options (JSON object, optional)'), { target: { value: '[1, 2]' } });
+    fireEvent.change(within(dialog).getByLabelText('Engine'), {
+      target: { value: `bim.builtin/random-search@1.0.0#${PRESET_ENGINE.digest}` },
+    });
+    fireEvent.change(within(dialog).getByLabelText('Options (JSON object, optional)'), {
+      target: { value: '[1, 2]' },
+    });
     fireEvent.change(within(dialog).getByLabelText('Optimization'), { target: { value: 'MULTI' } });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Create preset' }));
-    expect(within(dialog).getByText('Options are a JSON object, like {"time_budget_ms": 30000}.')).toBeInTheDocument();
-    expect(within(dialog).getByText('Name the scalarization, or leave the optimization to the run.')).toBeInTheDocument();
+    expect(
+      within(dialog).getByText('Options are a JSON object, like {"time_budget_ms": 30000}.')
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).getByText('Name the scalarization, or leave the optimization to the run.')
+    ).toBeInTheDocument();
     expect(presets.create).not.toHaveBeenCalled();
 
-    fireEvent.change(within(dialog).getByLabelText('Options (JSON object, optional)'), { target: { value: '' } });
+    fireEvent.change(within(dialog).getByLabelText('Options (JSON object, optional)'), {
+      target: { value: '' },
+    });
     fireEvent.change(within(dialog).getByLabelText('Optimization'), { target: { value: '' } });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Create preset' }));
-    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Another preset of this organization has that address (409 · slug_conflict). Change it. Nothing was saved.');
-    expect(presets.create).toHaveBeenCalledWith('isa-demo', expect.objectContaining({ slug: 'fast-sampling', mode: null, options: {}, optimization: null }));
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+      'Another preset of this organization has that address (409 · slug_conflict). Change it. Nothing was saved.'
+    );
+    expect(presets.create).toHaveBeenCalledWith(
+      'isa-demo',
+      expect.objectContaining({
+        slug: 'fast-sampling',
+        mode: null,
+        options: {},
+        optimization: null,
+      })
+    );
   });
 
   it('edits a preset in place: the address stays and the settings are sent whole', async () => {
     renderPresets();
-    fireEvent.click(within(await card('Fast sampling')).getByRole('button', { name: 'Edit Fast sampling' }));
+    fireEvent.click(
+      within(await card('Fast sampling')).getByRole('button', { name: 'Edit Fast sampling' })
+    );
     const dialog = await screen.findByRole('dialog', { name: 'Edit Fast sampling' });
 
     expect(within(dialog).getByLabelText('Address')).toBeDisabled();
-    expect(within(dialog).getByLabelText('Engine')).toHaveValue(`bim.builtin/random-search@1.0.0#${PRESET_ENGINE.digest}`);
+    expect(within(dialog).getByLabelText('Engine')).toHaveValue(
+      `bim.builtin/random-search@1.0.0#${PRESET_ENGINE.digest}`
+    );
     expect(within(dialog).getByLabelText('Mode')).toHaveValue('sampling');
     expect(within(dialog).getByLabelText('Scalarization')).toHaveValue('weighted-sum');
-    fireEvent.change(within(dialog).getByLabelText('Name'), { target: { value: 'Faster sampling' } });
+    fireEvent.change(within(dialog).getByLabelText('Name'), {
+      target: { value: 'Faster sampling' },
+    });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Save changes' }));
 
-    await waitFor(() => expect(presets.update).toHaveBeenCalledWith('isa-demo', 'fast-sampling', {
-      name: 'Faster sampling', description: 'Thirty seconds of random search.', engine: PRESET_ENGINE, mode: 'sampling',
-      options: { time_budget_ms: 30000, iterations: 5000 }, optimization: { type: 'SINGLE', scalarization: 'weighted-sum' },
-    }));
-    expect(await screen.findByText('Saved the changes to Faster sampling. Runs already started keep the settings they copied.')).toBeInTheDocument();
+    await waitFor(() =>
+      expect(presets.update).toHaveBeenCalledWith('isa-demo', 'fast-sampling', {
+        name: 'Faster sampling',
+        description: 'Thirty seconds of random search.',
+        engine: PRESET_ENGINE,
+        mode: 'sampling',
+        options: { time_budget_ms: 30000, iterations: 5000 },
+        optimization: { type: 'SINGLE', scalarization: 'weighted-sum' },
+      })
+    );
+    expect(
+      await screen.findByText(
+        'Saved the changes to Faster sampling. Runs already started keep the settings they copied.'
+      )
+    ).toBeInTheDocument();
   });
 
   it('keeps the deployment of a federated preset and names it in the form', async () => {
     renderPresets();
-    fireEvent.click(within(await card('Edge deployment')).getByRole('button', { name: 'Edit Edge deployment' }));
+    fireEvent.click(
+      within(await card('Edge deployment')).getByRole('button', { name: 'Edit Edge deployment' })
+    );
     const dialog = await screen.findByRole('dialog', { name: 'Edit Edge deployment' });
 
-    expect(within(dialog).getByText(/Runs on the deployment edge-lab\/edge-solver-eu 1/)).toBeInTheDocument();
-    expect(within(dialog).getByRole('option', { name: 'edge-solver 0.3.1 (as the preset names it)' })).toBeInTheDocument();
+    expect(
+      within(dialog).getByText(/Runs on the deployment edge-lab\/edge-solver-eu 1/)
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).getByRole('option', { name: 'edge-solver 0.3.1 (as the preset names it)' })
+    ).toBeInTheDocument();
     fireEvent.click(within(dialog).getByRole('button', { name: 'Save changes' }));
     await waitFor(() => expect(presets.update).toHaveBeenCalledTimes(1));
     expect(presets.update.mock.calls[0][2]).not.toHaveProperty('registration');
-    expect(presets.update.mock.calls[0][2]).toMatchObject({ engine: FEDERATED_PRESET.engine, mode: 'placement' });
+    expect(presets.update.mock.calls[0][2]).toMatchObject({
+      engine: FEDERATED_PRESET.engine,
+      mode: 'placement',
+    });
   });
 
   it('deletes a preset after asking, and says what happens to runs and studies', async () => {
@@ -151,9 +282,13 @@ describe('the run presets of an organization', () => {
     fireEvent.click(within(await card('No goal')).getByRole('button', { name: 'Delete No goal' }));
     const dialog = await screen.findByRole('dialog', { name: 'Delete No goal?' });
 
-    expect(within(dialog).getByText(/Runs started from it keep the settings they copied\./)).toBeInTheDocument();
+    expect(
+      within(dialog).getByText(/Runs started from it keep the settings they copied\./)
+    ).toBeInTheDocument();
     fireEvent.click(within(dialog).getByRole('button', { name: 'Delete preset' }));
-    await waitFor(() => expect(presets.remove).toHaveBeenCalledWith('isa-demo', NO_GOAL_PRESET.slug));
+    await waitFor(() =>
+      expect(presets.remove).toHaveBeenCalledWith('isa-demo', NO_GOAL_PRESET.slug)
+    );
     expect(await screen.findByText('Deleted the run preset No goal.')).toBeInTheDocument();
   });
 
@@ -163,7 +298,11 @@ describe('the run presets of an organization', () => {
 
     const fast = await card('Fast sampling');
     expect(within(fast).getByText('iterations 5,000')).toBeInTheDocument();
-    expect(screen.getByText(/you can read the presets, with only the options every member may see\. Creating and changing them needs MEMBER\./)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /you can read the presets, with only the options every member may see\. Creating and changing them needs MEMBER\./
+      )
+    ).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'New preset' })).not.toBeInTheDocument();
     expect(within(fast).queryByRole('button', { name: /Edit|Delete/ })).not.toBeInTheDocument();
     expect(within(fast).queryByRole('link', { name: 'Start a run' })).not.toBeInTheDocument();

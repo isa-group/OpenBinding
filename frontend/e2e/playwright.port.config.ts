@@ -14,7 +14,8 @@ const frontendDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '
 const portGiven = Boolean(process.env.E2E_PORT);
 const port = process.env.E2E_PORT ?? '4177';
 
-const absolute = (p: string | undefined) => (p === undefined ? undefined : path.resolve(frontendDir, p));
+const absolute = (p: string | undefined) =>
+  p === undefined ? undefined : path.resolve(frontendDir, p);
 const withPort = (url: string | undefined) => url?.replace(':4177', `:${port}`);
 
 type PathOptions = { testDir?: string; outputDir?: string; snapshotDir?: string };
@@ -27,7 +28,7 @@ function withAbsolutePaths<T extends PathOptions>(options: T): T {
   return resolved;
 }
 
-const projects: PlaywrightTestProject[] = (base.projects ?? []).map((project) => {
+const projects: PlaywrightTestProject[] = (base.projects ?? []).map(project => {
   const resolved = withAbsolutePaths(project);
   const baseURL = withPort(project.use?.baseURL);
   return baseURL === undefined ? resolved : { ...resolved, use: { ...project.use, baseURL } };
@@ -37,15 +38,16 @@ const webServer = base.webServer;
 const config: PlaywrightTestConfig = {
   ...withAbsolutePaths(base),
   projects,
-  webServer: webServer && !Array.isArray(webServer)
-    ? {
-        ...webServer,
-        command: webServer.command.replace('--port 4177', `--port ${port}`),
-        url: withPort(webServer.url),
-        cwd: frontendDir,
-        reuseExistingServer: portGiven ? false : webServer.reuseExistingServer,
-      }
-    : webServer,
+  webServer:
+    webServer && !Array.isArray(webServer)
+      ? {
+          ...webServer,
+          command: webServer.command.replace('--port 4177', `--port ${port}`),
+          url: withPort(webServer.url),
+          cwd: frontendDir,
+          reuseExistingServer: portGiven ? false : webServer.reuseExistingServer,
+        }
+      : webServer,
 };
 
 export default config;

@@ -45,7 +45,15 @@ const NO_PROBLEM =
   'The compiled problem of this run is not available, so tasks and candidates are shown by id, without feature values, bounds or units.';
 
 /** The whole run: verdict, summary, the shown solution's parts, claims, trade-offs, sources and log, in that order. */
-export function RunResult({ result, problem, constraints, report, notice, children, label = 'Run result' }: RunResultProps) {
+export function RunResult({
+  result,
+  problem,
+  constraints,
+  report,
+  notice,
+  children,
+  label = 'Run result',
+}: RunResultProps) {
   const [chosen, setChosen] = useState(0);
   const solutions = solutionsOf(result);
   const n = solutions.length;
@@ -61,7 +69,8 @@ export function RunResult({ result, problem, constraints, report, notice, childr
   const logs = typeof result.logs === 'string' && result.logs !== '' ? result.logs : null;
   const figures = solution ? figuresOf(solution) : [];
   const data = solution ? objectiveTermsOf(solution.objectives, known) : null;
-  const termination = typeof result.termination === 'string' && result.termination !== '' ? result.termination : null;
+  const termination =
+    typeof result.termination === 'string' && result.termination !== '' ? result.termination : null;
   const k = index + 1;
 
   return (
@@ -79,7 +88,7 @@ export function RunResult({ result, problem, constraints, report, notice, childr
       {n > 1 && (
         <label className="rendering-run__choice">
           Show solution
-          <select value={index} onChange={(e) => setChosen(Number(e.target.value))}>
+          <select value={index} onChange={e => setChosen(Number(e.target.value))}>
             {solutions.map((_, i) => (
               <option key={i} value={i}>{`Solution ${i + 1}`}</option>
             ))}
@@ -89,27 +98,57 @@ export function RunResult({ result, problem, constraints, report, notice, childr
       {solution && figures.length > 0 && (
         <MetricCards
           label="Quality of this combination"
-          metrics={figures.map(([name, value]) => ({ id: name, label: name, value, unit: units[name] ?? undefined }))}
+          metrics={figures.map(([name, value]) => ({
+            id: name,
+            label: name,
+            value,
+            unit: units[name] ?? undefined,
+          }))}
         />
       )}
       {solution && (
         <>
           <BindingTable
-            rows={bindingRowsOf((solution.decision as { binding?: unknown } | undefined)?.binding, known)}
+            rows={bindingRowsOf(
+              (solution.decision as { binding?: unknown } | undefined)?.binding,
+              known
+            )}
             features={bindingFeaturesOf(known)}
           />
-          <QoSAgainstBounds {...qosBoundsOf(constraints ?? [], Object.fromEntries(figures), solution.violations, units)} />
+          <QoSAgainstBounds
+            {...qosBoundsOf(
+              constraints ?? [],
+              Object.fromEntries(figures),
+              solution.violations,
+              units
+            )}
+          />
           {data && <ObjectiveBreakdown {...data} />}
         </>
       )}
-      <EvaluationDiff evaluated={{ termination, solutions: solutions as RunValues['solutions'] }} notes={notesOf(report)} />
+      <EvaluationDiff
+        evaluated={{ termination, solutions: solutions as RunValues['solutions'] }}
+        notes={notesOf(report)}
+      />
       {objectives.length >= 2 && <TradeOffChart points={points} objectives={objectives} />}
       {children}
       {(n > 0 || remote !== null) && (
         <details className="rendering-run__source">
           <summary>View source</summary>
-          {solution && <SourceView source={solution} label={`Solution ${k} source`} filename={`solution-${k}.json`} />}
-          {remote !== null && <SourceView source={remote} label="Engine report source" filename="engine-report.json" />}
+          {solution && (
+            <SourceView
+              source={solution}
+              label={`Solution ${k} source`}
+              filename={`solution-${k}.json`}
+            />
+          )}
+          {remote !== null && (
+            <SourceView
+              source={remote}
+              label="Engine report source"
+              filename="engine-report.json"
+            />
+          )}
         </details>
       )}
       {logs !== null && <LogPanel log={logs} title="Engine log" filename="engine.log" />}

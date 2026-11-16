@@ -3,7 +3,9 @@ import { safeExternalHref } from './url';
 
 describe('safeExternalHref', () => {
   it('lets web addresses through as they were written', () => {
-    expect(safeExternalHref('https://sphere.example/pricing/0.1.0')).toBe('https://sphere.example/pricing/0.1.0');
+    expect(safeExternalHref('https://sphere.example/pricing/0.1.0')).toBe(
+      'https://sphere.example/pricing/0.1.0'
+    );
     expect(safeExternalHref('  http://localhost:8080/x ')).toBe('http://localhost:8080/x');
   });
 
@@ -17,7 +19,7 @@ describe('safeExternalHref', () => {
     '/app/account',
     'sphere.example/pricing',
     '',
-  ])('refuses %j', (address) => {
+  ])('refuses %j', address => {
     expect(safeExternalHref(address)).toBeUndefined();
   });
 

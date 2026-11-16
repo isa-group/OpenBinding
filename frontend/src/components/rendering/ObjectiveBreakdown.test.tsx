@@ -3,36 +3,81 @@ import { join } from 'node:path';
 import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { ObjectiveBreakdown } from './ObjectiveBreakdown';
-import { objectiveTermsOf, type ObjectiveBreakdownData, type ObjectiveTerm } from './objectiveModel';
+import {
+  objectiveTermsOf,
+  type ObjectiveBreakdownData,
+  type ObjectiveTerm,
+} from './objectiveModel';
 
 const OBJ_SINGLE = {
-  type: 'SINGLE', scalarization: 'weighted-sum', penalty: 2, score: 2.375,
+  type: 'SINGLE',
+  scalarization: 'weighted-sum',
+  penalty: 2,
+  score: 2.375,
   components: [
-    { criteria: 'fast', feature: { resource: 'app', id: 'latency' }, value: 350, loss: 0.25, weight: 0.5 },
-    { criteria: 'reliable', feature: { resource: 'app', id: 'availability' }, value: 99.5, loss: 0.5, weight: 0.5 },
+    {
+      criteria: 'fast',
+      feature: { resource: 'app', id: 'latency' },
+      value: 350,
+      loss: 0.25,
+      weight: 0.5,
+    },
+    {
+      criteria: 'reliable',
+      feature: { resource: 'app', id: 'availability' },
+      value: 99.5,
+      loss: 0.5,
+      weight: 0.5,
+    },
   ],
 };
 const OBJ_LEX = {
-  ...OBJ_SINGLE, type: 'MULTI', scalarization: 'lexicographic', penalty: 0, score: [0.25, 0.5, 0],
-  components: OBJ_SINGLE.components.map((c) => ({ ...c, weight: 0 })),
+  ...OBJ_SINGLE,
+  type: 'MULTI',
+  scalarization: 'lexicographic',
+  penalty: 0,
+  score: [0.25, 0.5, 0],
+  components: OBJ_SINGLE.components.map(c => ({ ...c, weight: 0 })),
 };
 const PROBLEM = {
-  criteria: [{ id: 'fast', direction: 'minimize' as const }, { id: 'reliable', direction: 'maximize' as const }],
+  criteria: [
+    { id: 'fast', direction: 'minimize' as const },
+    { id: 'reliable', direction: 'maximize' as const },
+  ],
   features: { latency: { unit: 'ms' }, availability: { unit: '%' } },
 };
 const single = () => objectiveTermsOf(OBJ_SINGLE, PROBLEM) as ObjectiveBreakdownData;
 const lex = () => objectiveTermsOf(OBJ_LEX, PROBLEM) as ObjectiveBreakdownData;
 const term = (over: Partial<ObjectiveTerm> = {}): ObjectiveTerm => ({
-  criterion: 'c', feature: null, direction: null, unit: null, value: null, loss: null, weight: null, weighted: null, ...over,
+  criterion: 'c',
+  feature: null,
+  direction: null,
+  unit: null,
+  value: null,
+  loss: null,
+  weight: null,
+  weighted: null,
+  ...over,
 });
-const cells = (row: HTMLElement) => within(row).getAllByRole('cell').map((c) => c.textContent);
+const cells = (row: HTMLElement) =>
+  within(row)
+    .getAllByRole('cell')
+    .map(c => c.textContent);
 
 describe('ObjectiveBreakdown', () => {
   it('renders a region named by label with the summary', () => {
     const { unmount, container } = render(<ObjectiveBreakdown {...single()} />);
     const region = screen.getByRole('region', { name: 'Objective breakdown' });
-    expect(Array.from(region.querySelectorAll('dt')).map((e) => e.textContent)).toEqual(['Scalarization', 'Score', 'Penalty']);
-    expect(Array.from(container.querySelectorAll('dd')).map((e) => e.textContent)).toEqual(['weighted-sum', '2.375', '2']);
+    expect(Array.from(region.querySelectorAll('dt')).map(e => e.textContent)).toEqual([
+      'Scalarization',
+      'Score',
+      'Penalty',
+    ]);
+    expect(Array.from(container.querySelectorAll('dd')).map(e => e.textContent)).toEqual([
+      'weighted-sum',
+      '2.375',
+      '2',
+    ]);
     unmount();
 
     render(<ObjectiveBreakdown {...single()} label="Solution 1 objective" />);
@@ -42,17 +87,35 @@ describe('ObjectiveBreakdown', () => {
   it('renders the terms table of a weighted sum with its total', () => {
     render(<ObjectiveBreakdown {...single()} />);
     const region = screen.getByRole('region', { name: 'Objective terms' });
-    expect(within(region).getAllByRole('columnheader').map((h) => h.textContent)).toEqual([
-      'Criterion', 'Feature', 'Direction', 'Value', 'Loss', 'Weight', 'Weighted loss',
-    ]);
+    expect(
+      within(region)
+        .getAllByRole('columnheader')
+        .map(h => h.textContent)
+    ).toEqual(['Criterion', 'Feature', 'Direction', 'Value', 'Loss', 'Weight', 'Weighted loss']);
     const rows = within(region).getAllByRole('row');
     expect(within(rows[1]).getByRole('rowheader')).toHaveTextContent('fast');
-    expect(cells(rows[1])).toEqual(['latency', 'lower is better', '350 ms', '0.25', '0.5', '0.125']);
+    expect(cells(rows[1])).toEqual([
+      'latency',
+      'lower is better',
+      '350 ms',
+      '0.25',
+      '0.5',
+      '0.125',
+    ]);
     expect(within(rows[2]).getByRole('rowheader')).toHaveTextContent('reliable');
-    expect(cells(rows[2])).toEqual(['availability', 'higher is better', '99.5 %', '0.5', '0.5', '0.25']);
+    expect(cells(rows[2])).toEqual([
+      'availability',
+      'higher is better',
+      '99.5 %',
+      '0.5',
+      '0.5',
+      '0.25',
+    ]);
     const footer = region.querySelectorAll('tfoot tr');
     expect(footer).toHaveLength(1);
-    expect(within(footer[0] as HTMLElement).getByRole('rowheader')).toHaveTextContent('Total weighted loss');
+    expect(within(footer[0] as HTMLElement).getByRole('rowheader')).toHaveTextContent(
+      'Total weighted loss'
+    );
     expect(footer[0]).toHaveTextContent('0.375');
   });
 
@@ -60,7 +123,11 @@ describe('ObjectiveBreakdown', () => {
     const { container } = render(<ObjectiveBreakdown {...lex()} />);
     const list = screen.getByRole('list', { name: 'Score' });
     expect(container.querySelectorAll('dd')[1]).toContainElement(list);
-    expect(within(list).getAllByRole('listitem').map((i) => i.textContent)).toEqual(['fast: 0.25', 'reliable: 0.5', 'Penalty: 0']);
+    expect(
+      within(list)
+        .getAllByRole('listitem')
+        .map(i => i.textContent)
+    ).toEqual(['fast: 0.25', 'reliable: 0.5', 'Penalty: 0']);
     const region = screen.getByRole('region', { name: 'Objective terms' });
     expect(within(region).queryByRole('columnheader', { name: 'Weight' })).toBeNull();
     expect(within(region).queryByRole('columnheader', { name: 'Weighted loss' })).toBeNull();
@@ -69,13 +136,19 @@ describe('ObjectiveBreakdown', () => {
 
   it('names list score positions for lists of another length', () => {
     const { unmount } = render(<ObjectiveBreakdown {...lex()} score={[0.25]} />);
-    expect(within(screen.getByRole('list', { name: 'Score' })).getAllByRole('listitem').map((i) => i.textContent)).toEqual(['fast: 0.25']);
+    expect(
+      within(screen.getByRole('list', { name: 'Score' }))
+        .getAllByRole('listitem')
+        .map(i => i.textContent)
+    ).toEqual(['fast: 0.25']);
     unmount();
 
     render(<ObjectiveBreakdown {...lex()} score={[1, 2, 3, 4]} />);
-    expect(within(screen.getByRole('list', { name: 'Score' })).getAllByRole('listitem').map((i) => i.textContent)).toEqual([
-      'fast: 1', 'reliable: 2', 'Penalty: 3', 'Entry 4: 4',
-    ]);
+    expect(
+      within(screen.getByRole('list', { name: 'Score' }))
+        .getAllByRole('listitem')
+        .map(i => i.textContent)
+    ).toEqual(['fast: 1', 'reliable: 2', 'Penalty: 3', 'Entry 4: 4']);
   });
 
   it('keeps the weight columns but drops the total for a weighted sum with a list score', () => {
@@ -87,7 +160,9 @@ describe('ObjectiveBreakdown', () => {
 
   it('shows a dash read as no value for missing data', () => {
     const props = { terms: [term({ unit: 'ms' })], score: null, penalty: null };
-    const { container, unmount } = render(<ObjectiveBreakdown {...props} scalarization="weighted-sum" />);
+    const { container, unmount } = render(
+      <ObjectiveBreakdown {...props} scalarization="weighted-sum" />
+    );
     const expectMissing = (el: Element) => {
       expect(el.querySelector('[aria-hidden="true"]')).toHaveTextContent('—');
       expect(el.querySelector('.sr-only')).toHaveTextContent('no value');
@@ -119,17 +194,31 @@ describe('ObjectiveBreakdown', () => {
 
   it('formats numbers in en-US with at most three decimals', () => {
     const terms = [0, 1234.5678, -99.5].map((value, i) => term({ criterion: `c${i}`, value }));
-    const { container } = render(<ObjectiveBreakdown terms={terms} score={1} penalty={0} scalarization="feasibility" />);
-    const values = Array.from(container.querySelectorAll('tbody tr')).map((r) => r.querySelectorAll('td')[2].textContent);
+    const { container } = render(
+      <ObjectiveBreakdown terms={terms} score={1} penalty={0} scalarization="feasibility" />
+    );
+    const values = Array.from(container.querySelectorAll('tbody tr')).map(
+      r => r.querySelectorAll('td')[2].textContent
+    );
     expect(values).toEqual(['0', '1,234.568', '-99.5']);
   });
 
   it('shows a note and no table without terms', () => {
-    const { container } = render(<ObjectiveBreakdown terms={[]} scalarization="feasibility" score={0} penalty={0} />);
+    const { container } = render(
+      <ObjectiveBreakdown terms={[]} scalarization="feasibility" score={0} penalty={0} />
+    );
     expect(screen.getByText('No objective terms')).toBeInTheDocument();
     expect(container.querySelector('table')).toBeNull();
-    expect(Array.from(container.querySelectorAll('dt')).map((e) => e.textContent)).toEqual(['Scalarization', 'Score', 'Penalty']);
-    expect(Array.from(container.querySelectorAll('dd')).map((e) => e.textContent)).toEqual(['feasibility', '0', '0']);
+    expect(Array.from(container.querySelectorAll('dt')).map(e => e.textContent)).toEqual([
+      'Scalarization',
+      'Score',
+      'Penalty',
+    ]);
+    expect(Array.from(container.querySelectorAll('dd')).map(e => e.textContent)).toEqual([
+      'feasibility',
+      '0',
+      '0',
+    ]);
   });
 
   it('renders strings as text only', () => {

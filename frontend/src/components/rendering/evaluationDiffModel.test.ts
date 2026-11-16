@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { MAX_TEXT, TOLERANCE, evaluationDiffOf, shortText, type RunValues } from './evaluationDiffModel';
+import {
+  MAX_TEXT,
+  TOLERANCE,
+  evaluationDiffOf,
+  shortText,
+  type RunValues,
+} from './evaluationDiffModel';
 
 const EVAL = (): RunValues => ({
   termination: 'FEASIBLE',
@@ -9,7 +15,7 @@ const EVAL = (): RunValues => ({
   ],
 });
 
-const deepFreeze = <T,>(o: T): T => {
+const deepFreeze = <T>(o: T): T => {
   if (typeof o === 'object' && o !== null) {
     Object.values(o).forEach(deepFreeze);
     Object.freeze(o);
@@ -39,7 +45,12 @@ describe('evaluationDiffOf', () => {
     const view = evaluationDiffOf(EVAL(), far);
     expect(view.status).toBe('differs');
     expect(view.rows).toEqual([
-      { solution: 1, field: { kind: 'feature', name: 'latency' }, claimed: { kind: 'number', value: 100 }, evaluated: { kind: 'number', value: 120 } },
+      {
+        solution: 1,
+        field: { kind: 'feature', name: 'latency' },
+        claimed: { kind: 'number', value: 100 },
+        evaluated: { kind: 'number', value: 120 },
+      },
     ]);
   });
 
@@ -52,7 +63,7 @@ describe('evaluationDiffOf', () => {
       ],
     };
     const rows = evaluationDiffOf(EVAL(), claim).rows;
-    expect(rows.map((r) => [r.solution, r.field])).toEqual([
+    expect(rows.map(r => [r.solution, r.field])).toEqual([
       [null, { kind: 'termination' }],
       [1, { kind: 'feature', name: 'latency' }],
       [1, { kind: 'feature', name: 'cost' }],
@@ -80,7 +91,12 @@ describe('evaluationDiffOf', () => {
     const view = evaluationDiffOf(EVAL(), claim);
     expect(view.paired).toBe(false);
     expect(view.rows).toEqual([
-      { solution: null, field: { kind: 'solutions' }, claimed: { kind: 'number', value: 3 }, evaluated: { kind: 'number', value: 2 } },
+      {
+        solution: null,
+        field: { kind: 'solutions' },
+        claimed: { kind: 'number', value: 3 },
+        evaluated: { kind: 'number', value: 2 },
+      },
     ]);
   });
 
@@ -90,11 +106,21 @@ describe('evaluationDiffOf', () => {
     const claim = EVAL();
     claim.solutions[0].score = [0.4, 0.5];
     expect(evaluationDiffOf(ev, claim).rows).toEqual([
-      { solution: 1, field: { kind: 'score', component: 2 }, claimed: { kind: 'number', value: 0.5 }, evaluated: { kind: 'number', value: 0.6 } },
+      {
+        solution: 1,
+        field: { kind: 'score', component: 2 },
+        claimed: { kind: 'number', value: 0.5 },
+        evaluated: { kind: 'number', value: 0.6 },
+      },
     ]);
     claim.solutions[0].score = 0.4;
     expect(evaluationDiffOf(ev, claim).rows).toEqual([
-      { solution: 1, field: { kind: 'score', component: null }, claimed: { kind: 'number', value: 0.4 }, evaluated: { kind: 'list', values: [0.4, 0.6] } },
+      {
+        solution: 1,
+        field: { kind: 'score', component: null },
+        claimed: { kind: 'number', value: 0.4 },
+        evaluated: { kind: 'list', values: [0.4, 0.6] },
+      },
     ]);
     claim.solutions[0].score = [0.4];
     expect(evaluationDiffOf(ev, claim).rows[0].field).toEqual({ kind: 'score', component: null });
@@ -103,31 +129,44 @@ describe('evaluationDiffOf', () => {
   });
 
   it('reads metrics and objectives.score as fallbacks', () => {
-    const ev: RunValues = { termination: 'FEASIBLE', solutions: [{ metrics: { latency: 120 }, objectives: { score: 0.42 } }] };
-    const claim: RunValues = { termination: 'FEASIBLE', solutions: [{ features: { latency: 120 }, score: 0.42 }] };
+    const ev: RunValues = {
+      termination: 'FEASIBLE',
+      solutions: [{ metrics: { latency: 120 }, objectives: { score: 0.42 } }],
+    };
+    const claim: RunValues = {
+      termination: 'FEASIBLE',
+      solutions: [{ features: { latency: 120 }, score: 0.42 }],
+    };
     expect(evaluationDiffOf(ev, claim).status).toBe('agrees');
   });
 
   it('survives a malformed claim', () => {
     const claim = { termination: 7, solutions: 'many' } as unknown as RunValues;
     const view = evaluationDiffOf(EVAL(), claim);
-    expect(view.rows.map((r) => r.field.kind)).toEqual(['termination', 'solutions']);
+    expect(view.rows.map(r => r.field.kind)).toEqual(['termination', 'solutions']);
     expect(view.rows[0].claimed).toEqual({ kind: 'text', text: null });
     expect(view.rows[1].claimed).toEqual({ kind: 'number', value: 0 });
     const junk = { termination: null, solutions: [null, 5, 'x'] } as unknown as RunValues;
     expect(() => evaluationDiffOf(junk, junk)).not.toThrow();
-    expect(() => evaluationDiffOf(null as unknown as RunValues, 5 as unknown as RunValues)).not.toThrow();
+    expect(() =>
+      evaluationDiffOf(null as unknown as RunValues, 5 as unknown as RunValues)
+    ).not.toThrow();
   });
 
   it('treats constructor and __proto__ as ordinary feature names', () => {
     const claim = EVAL();
-    claim.solutions[0].features = JSON.parse('{"latency":120,"cost":3.5,"constructor":1,"__proto__":2}');
+    claim.solutions[0].features = JSON.parse(
+      '{"latency":120,"cost":3.5,"constructor":1,"__proto__":2}'
+    );
     const rows = evaluationDiffOf(EVAL(), claim).rows;
-    expect(rows.map((r) => r.field)).toEqual([
+    expect(rows.map(r => r.field)).toEqual([
       { kind: 'feature', name: 'constructor' },
       { kind: 'feature', name: '__proto__' },
     ]);
-    expect(rows.map((r) => r.claimed)).toEqual([{ kind: 'number', value: 1 }, { kind: 'number', value: 2 }]);
+    expect(rows.map(r => r.claimed)).toEqual([
+      { kind: 'number', value: 1 },
+      { kind: 'number', value: 2 },
+    ]);
     expect(({} as Record<string, unknown>).polluted).toBeUndefined();
     // a feature the claim lacks is not found on the prototype chain
     const ev = EVAL();

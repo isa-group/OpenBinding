@@ -23,7 +23,7 @@ const api = vi.hoisted(() => ({
 }));
 
 vi.mock('../../api/client', async () => ({
-  ...await vi.importActual<typeof import('../../api/client')>('../../api/client'),
+  ...(await vi.importActual<typeof import('../../api/client')>('../../api/client')),
   apiClient: api,
 }));
 
@@ -35,8 +35,19 @@ describe('the administration console, now the overview', { timeout: 30000 }, () 
     api.adminOverview.mockResolvedValue({ counts: {}, jobs: {}, contracts: {}, recentAudit: [] });
     api.adminQueues.mockImplementation(async () => queuesAt(Date.now()));
     api.adminModeration.mockResolvedValue({ engines: {}, registrations: { pending_review: 1 } });
-    api.adminErrorOverview.mockResolvedValue({ total_errors_24h: 0, by_category_24h: {}, by_status_code_24h: {}, top_users_quota: [], top_solvers_failed: [], timeline: [] });
-    api.getCurrentPricing.mockResolvedValue({ version: '0.1.0', digest: 'sha256-x', url: 'https://sphere.example.test/0.1.0' });
+    api.adminErrorOverview.mockResolvedValue({
+      total_errors_24h: 0,
+      by_category_24h: {},
+      by_status_code_24h: {},
+      top_users_quota: [],
+      top_solvers_failed: [],
+      timeline: [],
+    });
+    api.getCurrentPricing.mockResolvedValue({
+      version: '0.1.0',
+      digest: 'sha256-x',
+      url: 'https://sphere.example.test/0.1.0',
+    });
   });
 
   afterEach(() => {
@@ -47,8 +58,13 @@ describe('the administration console, now the overview', { timeout: 30000 }, () 
     renderAdmin(<Admin />);
     const moderation = await screen.findByRole('region', { name: 'Moderation' });
     const lines = await within(moderation).findByRole('list', { name: 'Waiting for review' });
-    expect(within(within(lines).getByText('Engine catalogue requests').closest('li')!).getByText('1')).toBeInTheDocument();
-    expect(within(moderation).getByRole('link', { name: 'Open' })).toHaveAttribute('href', '/app/admin/moderation');
+    expect(
+      within(within(lines).getByText('Engine catalogue requests').closest('li')!).getByText('1')
+    ).toBeInTheDocument();
+    expect(within(moderation).getByRole('link', { name: 'Open' })).toHaveAttribute(
+      'href',
+      '/app/admin/moderation'
+    );
     expect(screen.queryByRole('row', { name: /pending/ })).not.toBeInTheDocument();
     expect(api.adminListEngineRegistrations).not.toHaveBeenCalled();
     expect(api.getEngineRegistrationReport).not.toHaveBeenCalled();
@@ -60,8 +76,14 @@ describe('the administration console, now the overview', { timeout: 30000 }, () 
     renderAdmin(<Admin />);
     const pricing = await screen.findByRole('region', { name: 'Pricing' });
     expect(await within(pricing).findByText('0.1.0')).toBeInTheDocument();
-    expect(within(pricing).getByRole('link', { name: 'Open SPACE console' })).toHaveAttribute('href', config.spaceFrontendUrl);
-    expect(within(pricing).getByRole('link', { name: 'Open SPHERE console' })).toHaveAttribute('href', config.sphereUrl);
+    expect(within(pricing).getByRole('link', { name: 'Open SPACE console' })).toHaveAttribute(
+      'href',
+      config.spaceFrontendUrl
+    );
+    expect(within(pricing).getByRole('link', { name: 'Open SPHERE console' })).toHaveAttribute(
+      'href',
+      config.sphereUrl
+    );
   });
 
   it('shows a person who is not an administrator nothing', async () => {

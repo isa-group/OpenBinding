@@ -36,9 +36,12 @@ export default defineConfig({
       use: { baseURL: liveBaseUrl, viewport: { width: 1440, height: 900 } },
     },
   ],
-  webServer: analysisLive || stackGiven ? undefined : {
-    command: `"${process.execPath}" node_modules/vite/bin/vite.js --host 127.0.0.1 --port 4177`,
-    url: 'http://127.0.0.1:4177',
-    reuseExistingServer: true,
-  },
+  webServer:
+    analysisLive || stackGiven
+      ? undefined
+      : {
+          command: `"${process.execPath}" node_modules/vite/bin/vite.js --host 127.0.0.1 --port 4177`,
+          url: 'http://127.0.0.1:4177',
+          reuseExistingServer: true,
+        },
 });

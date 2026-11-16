@@ -3,7 +3,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { UserProfile } from '../../api/auth';
 import { HttpError } from '../../api/client';
-import { AuthContext } from '../../contexts/auth';
+import { AuthContext } from '../../modules/auth/hooks/useAuth';
 import { Account } from './Account';
 
 const api = vi.hoisted(() => ({
@@ -14,11 +14,20 @@ const api = vi.hoisted(() => ({
 }));
 const navigation = vi.hoisted(() => ({ leaveTo: vi.fn() }));
 
-vi.mock('../../api/client', async () => ({ ...await vi.importActual<typeof import('../../api/client')>('../../api/client'), apiClient: api }));
+vi.mock('../../api/client', async () => ({
+  ...(await vi.importActual<typeof import('../../api/client')>('../../api/client')),
+  apiClient: api,
+}));
 vi.mock('../../utils/navigation', () => navigation);
 
 const alice: UserProfile = {
-  id: 'user-id', username: 'alice', email: 'alice@example.test', role: 'user', is_active: true, plan: 'BASIC', created_at: '2026-03-02T00:00:00Z',
+  id: 'user-id',
+  username: 'alice',
+  email: 'alice@example.test',
+  role: 'user',
+  is_active: true,
+  plan: 'BASIC',
+  created_at: '2026-03-02T00:00:00Z',
 };
 
 const refusal = (status: number, code: string) => {
@@ -28,7 +37,16 @@ const refusal = (status: number, code: string) => {
 };
 
 function renderAccount(user: UserProfile = alice, entry = '/app/account') {
-  const auth = { user, loading: false, signIn: vi.fn(), register: vi.fn(), signOut: vi.fn().mockResolvedValue(undefined), refresh: vi.fn().mockResolvedValue(undefined), isAdmin: user.role === 'admin' };
+  const auth = {
+    user,
+    loading: false,
+    signIn: vi.fn(),
+    register: vi.fn(),
+    signOut: vi.fn().mockResolvedValue(undefined),
+    refresh: vi.fn().mockResolvedValue(undefined),
+    isAdmin: user.role === 'admin',
+    fetchWithInterceptor: vi.fn(),
+  };
   render(
     <MemoryRouter initialEntries={[entry]}>
       <AuthContext.Provider value={auth}>
@@ -39,7 +57,7 @@ function renderAccount(user: UserProfile = alice, entry = '/app/account') {
           <Route path="/login" element={<h1>Sign in screen</h1>} />
         </Routes>
       </AuthContext.Provider>
-    </MemoryRouter>,
+    </MemoryRouter>
   );
   return auth;
 }
@@ -50,7 +68,12 @@ const type = (label: string | RegExp, value: string, index = 0) =>
 describe('Profile & security', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    api.getOwnUsage.mockResolvedValue({ plan: 'BASIC', contract_pending: false, features: {}, capabilities: {} });
+    api.getOwnUsage.mockResolvedValue({
+      plan: 'BASIC',
+      contract_pending: false,
+      features: {},
+      capabilities: {},
+    });
     api.updateOwnProfile.mockResolvedValue(alice);
     api.deleteOwnAccount.mockResolvedValue(undefined);
   });
@@ -65,7 +88,10 @@ describe('Profile & security', () => {
     expect(screen.getByText('Plan · BASIC')).toBeInTheDocument();
     expect(screen.getByRole('navigation', { name: 'Account' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Profile' })).toHaveAttribute('aria-current', 'page');
-    expect(screen.getByRole('link', { name: 'API keys' })).toHaveAttribute('href', '/app/account/keys');
+    expect(screen.getByRole('link', { name: 'API keys' })).toHaveAttribute(
+      'href',
+      '/app/account/keys'
+    );
     expect(screen.queryByText(/Universidad de Sevilla/)).not.toBeInTheDocument();
   });
 
@@ -81,7 +107,12 @@ describe('Profile & security', () => {
   });
 
   it('says when the contract is still pending', async () => {
-    api.getOwnUsage.mockResolvedValue({ plan: 'BASIC', contract_pending: true, features: {}, capabilities: {} });
+    api.getOwnUsage.mockResolvedValue({
+      plan: 'BASIC',
+      contract_pending: true,
+      features: {},
+      capabilities: {},
+    });
     renderAccount();
     expect(await screen.findByText('Contract pending')).toBeInTheDocument();
   });
@@ -113,7 +144,9 @@ describe('Profile & security', () => {
       expect(screen.getByText('You have unsaved changes')).toBeInTheDocument();
 
       fireEvent.click(save);
-      expect(await screen.findByText('Enter your current password to change your email.')).toBeInTheDocument();
+      expect(
+        await screen.findByText('Enter your current password to change your email.')
+      ).toBeInTheDocument();
       expect(api.updateOwnProfile).not.toHaveBeenCalled();
     });
 
@@ -125,7 +158,12 @@ describe('Profile & security', () => {
       type('Current password', 'old-password-123', 0);
       fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
 
-      await waitFor(() => expect(api.updateOwnProfile).toHaveBeenCalledWith({ email: 'new@example.test', current_password: 'old-password-123' }));
+      await waitFor(() =>
+        expect(api.updateOwnProfile).toHaveBeenCalledWith({
+          email: 'new@example.test',
+          current_password: 'old-password-123',
+        })
+      );
       expect(await screen.findByText('Email updated to new@example.test.')).toBeInTheDocument();
       expect(auth.refresh).toHaveBeenCalled();
     });
@@ -141,7 +179,9 @@ describe('Profile & security', () => {
 
       const field = await screen.findByLabelText('Email address');
       await waitFor(() => expect(field).toHaveAttribute('aria-invalid', 'true'));
-      expect(field).toHaveAccessibleDescription('That email is already used by another account (409 · already_registered).');
+      expect(field).toHaveAccessibleDescription(
+        'That email is already used by another account (409 · already_registered).'
+      );
     });
 
     it('reports a wrong current password (401) on the password field', async () => {
@@ -153,8 +193,15 @@ describe('Profile & security', () => {
       type('Current password', 'wrong', 0);
       fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
 
-      await waitFor(() => expect(screen.getAllByLabelText('Current password')[0]).toHaveAttribute('aria-invalid', 'true'));
-      expect(screen.getAllByLabelText('Current password')[0]).toHaveAccessibleDescription('That isn’t your current password (401 · invalid_credentials).');
+      await waitFor(() =>
+        expect(screen.getAllByLabelText('Current password')[0]).toHaveAttribute(
+          'aria-invalid',
+          'true'
+        )
+      );
+      expect(screen.getAllByLabelText('Current password')[0]).toHaveAccessibleDescription(
+        'That isn’t your current password (401 · invalid_credentials).'
+      );
     });
   });
 
@@ -168,7 +215,9 @@ describe('Profile & security', () => {
       type('Confirm new password', 'something-different');
       fireEvent.click(screen.getByRole('button', { name: 'Change password' }));
 
-      expect(await screen.findByText('New password and confirm password do not match.')).toBeInTheDocument();
+      expect(
+        await screen.findByText('New password and confirm password do not match.')
+      ).toBeInTheDocument();
       expect(api.updateOwnProfile).not.toHaveBeenCalled();
     });
 
@@ -182,7 +231,9 @@ describe('Profile & security', () => {
       type('Confirm new password', 'short');
       fireEvent.click(screen.getByRole('button', { name: 'Change password' }));
 
-      expect(await screen.findAllByText('Password must be at least 10 characters long.')).not.toHaveLength(0);
+      expect(
+        await screen.findAllByText('Password must be at least 10 characters long.')
+      ).not.toHaveLength(0);
       expect(api.updateOwnProfile).not.toHaveBeenCalled();
     });
 
@@ -195,7 +246,12 @@ describe('Profile & security', () => {
       type('Confirm new password', 'new-secure-password');
       fireEvent.click(screen.getByRole('button', { name: 'Change password' }));
 
-      await waitFor(() => expect(api.updateOwnProfile).toHaveBeenCalledWith({ current_password: 'old-password-123', new_password: 'new-secure-password' }));
+      await waitFor(() =>
+        expect(api.updateOwnProfile).toHaveBeenCalledWith({
+          current_password: 'old-password-123',
+          new_password: 'new-secure-password',
+        })
+      );
       expect(await screen.findByText('Password changed.')).toBeInTheDocument();
       expect(screen.getByLabelText('New password')).toHaveValue('');
       expect(screen.getByLabelText('Confirm new password')).toHaveValue('');
@@ -213,8 +269,12 @@ describe('Profile & security', () => {
       type('Confirm new password', 'password1234');
       fireEvent.click(screen.getByRole('button', { name: 'Change password' }));
 
-      await waitFor(() => expect(screen.getByLabelText('New password')).toHaveAttribute('aria-invalid', 'true'));
-      expect(screen.getByLabelText('New password')).toHaveAccessibleDescription('That password is on the list of common passwords.');
+      await waitFor(() =>
+        expect(screen.getByLabelText('New password')).toHaveAttribute('aria-invalid', 'true')
+      );
+      expect(screen.getByLabelText('New password')).toHaveAccessibleDescription(
+        'That password is on the list of common passwords.'
+      );
     });
   });
 
@@ -238,20 +298,30 @@ describe('Profile & security', () => {
       const submit = dialog.getByRole('button', { name: 'Delete account' });
       expect(submit).toBeDisabled();
 
-      fireEvent.change(dialog.getByLabelText('Type alice to confirm'), { target: { value: 'Alice' } });
+      fireEvent.change(dialog.getByLabelText('Type alice to confirm'), {
+        target: { value: 'Alice' },
+      });
       expect(submit).toBeDisabled();
-      fireEvent.change(dialog.getByLabelText('Type alice to confirm'), { target: { value: 'alice' } });
+      fireEvent.change(dialog.getByLabelText('Type alice to confirm'), {
+        target: { value: 'alice' },
+      });
       expect(submit).toBeEnabled();
       expect(api.deleteOwnAccount).not.toHaveBeenCalled();
     });
 
     it('deletes the account, forgets the session and leaves', async () => {
       const dialog = within(await openDeletion());
-      fireEvent.change(dialog.getByLabelText('Type alice to confirm'), { target: { value: 'alice' } });
-      fireEvent.change(dialog.getByLabelText('Current password (if your account has one)'), { target: { value: 'secret-password' } });
+      fireEvent.change(dialog.getByLabelText('Type alice to confirm'), {
+        target: { value: 'alice' },
+      });
+      fireEvent.change(dialog.getByLabelText('Current password (if your account has one)'), {
+        target: { value: 'secret-password' },
+      });
       fireEvent.click(dialog.getByRole('button', { name: 'Delete account' }));
 
-      await waitFor(() => expect(api.deleteOwnAccount).toHaveBeenCalledWith('alice', 'secret-password'));
+      await waitFor(() =>
+        expect(api.deleteOwnAccount).toHaveBeenCalledWith('alice', 'secret-password')
+      );
       await waitFor(() => expect(navigation.leaveTo).toHaveBeenCalledWith('/'));
       expect(api.clearTokens).toHaveBeenCalled();
     });
@@ -262,7 +332,9 @@ describe('Profile & security', () => {
     ])('explains why a %s refusal (409) stops the deletion', async (code, marker) => {
       api.deleteOwnAccount.mockRejectedValue(refusal(409, code));
       const dialog = within(await openDeletion());
-      fireEvent.change(dialog.getByLabelText('Type alice to confirm'), { target: { value: 'alice' } });
+      fireEvent.change(dialog.getByLabelText('Type alice to confirm'), {
+        target: { value: 'alice' },
+      });
       fireEvent.click(dialog.getByRole('button', { name: 'Delete account' }));
 
       expect(await dialog.findByRole('alert')).toHaveTextContent(marker);
@@ -273,10 +345,17 @@ describe('Profile & security', () => {
     it('reports a wrong password (401) on the password field and keeps the dialog open', async () => {
       api.deleteOwnAccount.mockRejectedValue(refusal(401, 'invalid_credentials'));
       const dialog = within(await openDeletion());
-      fireEvent.change(dialog.getByLabelText('Type alice to confirm'), { target: { value: 'alice' } });
+      fireEvent.change(dialog.getByLabelText('Type alice to confirm'), {
+        target: { value: 'alice' },
+      });
       fireEvent.click(dialog.getByRole('button', { name: 'Delete account' }));
 
-      await waitFor(() => expect(dialog.getByLabelText('Current password (if your account has one)')).toHaveAttribute('aria-invalid', 'true'));
+      await waitFor(() =>
+        expect(dialog.getByLabelText('Current password (if your account has one)')).toHaveAttribute(
+          'aria-invalid',
+          'true'
+        )
+      );
       expect(navigation.leaveTo).not.toHaveBeenCalled();
     });
 

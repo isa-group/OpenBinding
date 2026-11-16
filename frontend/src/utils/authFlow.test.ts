@@ -1,7 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  afterSignInTarget, casFlowFor, clearSessionEnded, clearSignInNote, exchangeCasOnce, forgetCasExchanges, forgetCasFlow, hasRecentSignIn,
-  hasSessionEnded, markSessionEnded, noteSignInStarted, readCasFlow, rememberCasFlow, safeReturnPath,
+  afterSignInTarget,
+  casFlowFor,
+  clearSessionEnded,
+  clearSignInNote,
+  exchangeCasOnce,
+  forgetCasExchanges,
+  forgetCasFlow,
+  hasRecentSignIn,
+  hasSessionEnded,
+  markSessionEnded,
+  noteSignInStarted,
+  readCasFlow,
+  rememberCasFlow,
+  safeReturnPath,
 } from './authFlow';
 
 describe('safeReturnPath', () => {
@@ -15,15 +27,36 @@ describe('safeReturnPath', () => {
     '/compositions?kind=workflow&q=fleet&page=2',
     '/c/lab-other/fleet-routing',
     '/c/lab-other/fleet-routing?version=1.2.0&fork=1',
-  ])('lets a sign-in return to %s', (path) => {
+  ])('lets a sign-in return to %s', path => {
     expect(safeReturnPath(path)).toBe(path);
   });
 
   it.each([
-    '/pricing', '/account', '/login', '/appx', '//evil.example/app', '/\\evil.example', 'https://evil.example/app',
-    'app', '', undefined, null, 42, { path: '/app' },
-    '/c/x', '/c/x/y/z', '//c/x/y', '/c/x/y/', '/c//y', '/c/X/y', '/c/-x/y', '/c/x/y%2Fz', '/compositions/x', '/compositionsx', '/c',
-  ])('refuses %j', (value) => {
+    '/pricing',
+    '/account',
+    '/login',
+    '/appx',
+    '//evil.example/app',
+    '/\\evil.example',
+    'https://evil.example/app',
+    'app',
+    '',
+    undefined,
+    null,
+    42,
+    { path: '/app' },
+    '/c/x',
+    '/c/x/y/z',
+    '//c/x/y',
+    '/c/x/y/',
+    '/c//y',
+    '/c/X/y',
+    '/c/-x/y',
+    '/c/x/y%2Fz',
+    '/compositions/x',
+    '/compositionsx',
+    '/c',
+  ])('refuses %j', value => {
     expect(safeReturnPath(value)).toBeNull();
   });
 
@@ -34,7 +67,9 @@ describe('safeReturnPath', () => {
   });
 
   it('returns to the public page of a composition, with its query, so the fork asked for there opens', () => {
-    expect(afterSignInTarget('/c/lab-other/fleet-routing?version=1.2.0&fork=1')).toBe('/c/lab-other/fleet-routing?version=1.2.0&fork=1');
+    expect(afterSignInTarget('/c/lab-other/fleet-routing?version=1.2.0&fork=1')).toBe(
+      '/c/lab-other/fleet-routing?version=1.2.0&fork=1'
+    );
     expect(afterSignInTarget('/compositions?kind=workflow')).toBe('/compositions?kind=workflow');
     expect(afterSignInTarget('/c/lab-other')).toBe('/app');
   });
@@ -156,7 +191,10 @@ describe('CAS flow memory', () => {
   it('ignores a malformed entry', () => {
     sessionStorage.setItem('openbinding-cas-flow', '{not json');
     expect(readCasFlow()).toBeNull();
-    sessionStorage.setItem('openbinding-cas-flow', JSON.stringify({ mode: 'admin', at: Date.now() }));
+    sessionStorage.setItem(
+      'openbinding-cas-flow',
+      JSON.stringify({ mode: 'admin', at: Date.now() })
+    );
     expect(readCasFlow()).toBeNull();
   });
 });

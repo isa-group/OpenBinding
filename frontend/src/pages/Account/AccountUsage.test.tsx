@@ -4,44 +4,82 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PricingUnavailableError, type UsageView, type UserProfile } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import { config } from '../../config';
-import { AuthContext } from '../../contexts/auth';
+import { AuthContext } from '../../modules/auth/hooks/useAuth';
 import { CURRENT_FIXTURE, catalogFixture } from '../Pricing/pricingFixture';
 import { AccountUsage } from './AccountUsage';
 
-const api = vi.hoisted(() => ({ getOwnUsage: vi.fn(), getPricingCatalog: vi.fn(), getCurrentPricing: vi.fn() }));
+const api = vi.hoisted(() => ({
+  getOwnUsage: vi.fn(),
+  getPricingCatalog: vi.fn(),
+  getCurrentPricing: vi.fn(),
+}));
 const stored = vi.hoisted(() => ({ token: null as string | null }));
 
 vi.mock('../../api/client', async () => ({
-  ...await vi.importActual<typeof import('../../api/client')>('../../api/client'),
+  ...(await vi.importActual<typeof import('../../api/client')>('../../api/client')),
   apiClient: api,
   getStoredPricingToken: () => stored.token,
 }));
 
 const lucia: UserProfile = {
-  id: 'user-id', username: 'lucia', email: 'lucia@example.test', role: 'user', is_active: true, plan: 'FREE', created_at: '2026-03-02T00:00:00Z',
+  id: 'user-id',
+  username: 'lucia',
+  email: 'lucia@example.test',
+  role: 'user',
+  is_active: true,
+  plan: 'FREE',
+  created_at: '2026-03-02T00:00:00Z',
 };
 
 const basicUsage = (): UsageView => ({
   plan: 'FREE',
   contract_pending: false,
-  features: { repository: true, runs: true, studies: true, generator: false, federatedEngines: true, collaboration: true, apiAccess: true },
+  features: {
+    repository: true,
+    runs: true,
+    studies: true,
+    generator: false,
+    federatedEngines: true,
+    collaboration: true,
+    apiAccess: true,
+  },
   capabilities: {
-    maxProblems: 25, maxRepositoryStorage: 500, maxConcurrentRuns: 1, maxFederatedEngines: 1, maxApiKeys: 2,
-    maxRunMinutes: 5, maxStudyCells: 500,
+    maxProblems: 25,
+    maxRepositoryStorage: 500,
+    maxConcurrentRuns: 1,
+    maxFederatedEngines: 1,
+    maxApiKeys: 2,
+    maxRunMinutes: 5,
+    maxStudyCells: 500,
   },
 });
 
 /** A pricing token the browser could hold: three parts, the middle one a JSON payload. */
 const token = (expiresInSeconds: number) =>
-  ['header', btoa(JSON.stringify({ sub: 'user-id', exp: Math.floor(Date.now() / 1000) + expiresInSeconds })), 'signature'].join('.');
+  [
+    'header',
+    btoa(JSON.stringify({ sub: 'user-id', exp: Math.floor(Date.now() / 1000) + expiresInSeconds })),
+    'signature',
+  ].join('.');
 
 function renderPlan(user: UserProfile = lucia) {
   render(
     <MemoryRouter>
-      <AuthContext.Provider value={{ user, loading: false, signIn: vi.fn(), register: vi.fn(), signOut: vi.fn(), refresh: vi.fn(), isAdmin: false }}>
+      <AuthContext.Provider
+        value={{
+          user,
+          loading: false,
+          signIn: vi.fn(),
+          register: vi.fn(),
+          signOut: vi.fn(),
+          refresh: vi.fn(),
+          isAdmin: false,
+          fetchWithInterceptor: vi.fn(),
+        }}
+      >
         <AccountUsage />
       </AuthContext.Provider>
-    </MemoryRouter>,
+    </MemoryRouter>
   );
 }
 
@@ -57,11 +95,17 @@ describe('Plan & permissions', () => {
   it('shows the plan, what it costs (nothing, or an agreement) and the published pricing version', async () => {
     renderPlan();
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Plan & permissions' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Plan & permissions' })
+    ).toBeInTheDocument();
     const plan = within(await screen.findByRole('region', { name: 'Your plan' }));
     expect(plan.getByText('FREE')).toBeInTheDocument();
     expect(await plan.findByText('Free')).toBeInTheDocument();
-    expect(await plan.findByText(/Published pricing 0\.2\.0 · A new pricing version applies when your contract is renewed in SPACE/)).toBeInTheDocument();
+    expect(
+      await plan.findByText(
+        /Published pricing 0\.2\.0 · A new pricing version applies when your contract is renewed in SPACE/
+      )
+    ).toBeInTheDocument();
     expect(plan.getByRole('link', { name: 'See plans' })).toHaveAttribute('href', '/pricing');
     expect(screen.getByRole('link', { name: 'Plan' })).toHaveAttribute('aria-current', 'page');
   });
@@ -70,7 +114,7 @@ describe('Plan & permissions', () => {
     api.getOwnUsage.mockResolvedValue({ ...basicUsage(), plan: '' });
     renderPlan();
 
-    const section = (await screen.findByRole('region', { name: 'Your plan' }));
+    const section = await screen.findByRole('region', { name: 'Your plan' });
     expect(await within(section).findByText('No remote plan (local demo)')).toBeInTheDocument();
     expect(section.querySelector('.usage-plan-tile')).toBeNull();
   });
@@ -78,14 +122,18 @@ describe('Plan & permissions', () => {
   it('shows the first letter of the plan in the tile when there is a plan', async () => {
     renderPlan();
 
-    const section = (await screen.findByRole('region', { name: 'Your plan' }));
+    const section = await screen.findByRole('region', { name: 'Your plan' });
     expect(await within(section).findByText('FREE')).toBeInTheDocument();
     expect(section.querySelector('.usage-plan-tile')).toHaveTextContent('F');
   });
 
   it('links to the native SPACE and SPHERE consoles and manages no price, version or contract itself', async () => {
     renderPlan();
-    const section = within((await screen.findByRole('heading', { name: 'Plans, prices and contracts' })).closest('section') as HTMLElement);
+    const section = within(
+      (await screen.findByRole('heading', { name: 'Plans, prices and contracts' })).closest(
+        'section'
+      ) as HTMLElement
+    );
 
     const space = section.getByRole('link', { name: 'Open SPACE console' });
     const sphere = section.getByRole('link', { name: 'Open SPHERE console' });
@@ -95,16 +143,28 @@ describe('Plan & permissions', () => {
       expect(link).toHaveAttribute('target', '_blank');
       expect(link.getAttribute('rel')).toContain('noopener');
     }
-    expect(screen.queryByRole('button', { name: /request a change|change plan|publish|upgrade/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /request a change|change plan|publish|upgrade/i })
+    ).not.toBeInTheDocument();
   });
 
   it('says what the account may do: the platform role and where the organization roles are', async () => {
     renderPlan();
-    const section = within((await screen.findByRole('heading', { name: 'Your permissions' })).closest('section') as HTMLElement);
+    const section = within(
+      (await screen.findByRole('heading', { name: 'Your permissions' })).closest(
+        'section'
+      ) as HTMLElement
+    );
 
     expect(section.getByText('user')).toBeInTheDocument();
-    expect(section.getByRole('link', { name: 'Your organizations and roles' })).toHaveAttribute('href', '/app');
-    expect(section.getByRole('link', { name: 'Your API keys' })).toHaveAttribute('href', '/app/account/keys');
+    expect(section.getByRole('link', { name: 'Your organizations and roles' })).toHaveAttribute(
+      'href',
+      '/app'
+    );
+    expect(section.getByRole('link', { name: 'Your API keys' })).toHaveAttribute(
+      'href',
+      '/app/account/keys'
+    );
   });
 
   it('draws no meter and no monthly or consumed figure: nothing is counted per account', async () => {
@@ -113,17 +173,29 @@ describe('Plan & permissions', () => {
 
     expect(screen.queryByRole('meter')).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'This month' })).not.toBeInTheDocument();
-    expect(document.body.textContent).not.toMatch(/\bused\b|\bleft\b|renews \w+ \d|credits?|compute units?/i);
+    expect(document.body.textContent).not.toMatch(
+      /\bused\b|\bleft\b|renews \w+ \d|credits?|compute units?/i
+    );
   });
 
   it('shows what the plan allows at a time, with the way to manage it', async () => {
     renderPlan();
-    const section = within((await screen.findByRole('heading', { name: 'What your plan allows' })).closest('section') as HTMLElement);
+    const section = within(
+      (await screen.findByRole('heading', { name: 'What your plan allows' })).closest(
+        'section'
+      ) as HTMLElement
+    );
 
     const keys = section.getByText('API keys').closest('.usage-card') as HTMLElement;
     expect(within(keys).getByText('2')).toBeInTheDocument();
-    expect(within(keys).getByRole('link', { name: 'Manage keys' })).toHaveAttribute('href', '/app/account/keys');
-    expect(section.getByRole('link', { name: 'My engines' })).toHaveAttribute('href', '/app/engines/registrations');
+    expect(within(keys).getByRole('link', { name: 'Manage keys' })).toHaveAttribute(
+      'href',
+      '/app/account/keys'
+    );
+    expect(section.getByRole('link', { name: 'My engines' })).toHaveAttribute(
+      'href',
+      '/app/engines/registrations'
+    );
     expect(section.getByText('Runs that may run at once')).toBeInTheDocument();
     expect(section.queryByText('Jobs that may run at once')).not.toBeInTheDocument();
   });
@@ -132,8 +204,12 @@ describe('Plan & permissions', () => {
     renderPlan();
     const table = within(await screen.findByRole('region', { name: 'Ceilings table' }));
 
-    expect(within(table.getByRole('row', { name: /Max time per run/ })).getAllByText('5 min')).toHaveLength(2);
-    expect(within(table.getByRole('row', { name: /Cells per study run/ })).getAllByText('500')).toHaveLength(2);
+    expect(
+      within(table.getByRole('row', { name: /Max time per run/ })).getAllByText('5 min')
+    ).toHaveLength(2);
+    expect(
+      within(table.getByRole('row', { name: /Cells per study run/ })).getAllByText('500')
+    ).toHaveLength(2);
     expect(screen.queryByText(/Finished runs are kept/)).not.toBeInTheDocument();
   });
 
@@ -154,7 +230,8 @@ describe('Plan & permissions', () => {
     }
     // The technical list shows the same words for the same limit, finite ones as plain figures.
     fireEvent.click(screen.getByText('All entitlement values'));
-    const value = (id: string) => screen.getByText(id).closest('div')?.querySelector('dd')?.textContent;
+    const value = (id: string) =>
+      screen.getByText(id).closest('div')?.querySelector('dd')?.textContent;
     expect(value('maxApiKeys')).toBe('No limit');
     expect(value('maxRunMinutes')).toBe('No limit');
     expect(value('maxProblems')).toBe('25');
@@ -172,7 +249,9 @@ describe('Plan & permissions', () => {
     renderPlan();
     await screen.findByRole('heading', { name: 'What your plan allows' });
 
-    expect(screen.queryByRole('heading', { name: 'Organizations you sponsor' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('heading', { name: 'Organizations you sponsor' })
+    ).not.toBeInTheDocument();
     expect(screen.getByText('Repository storage')).toBeInTheDocument();
   });
 
@@ -183,7 +262,11 @@ describe('Plan & permissions', () => {
     api.getOwnUsage.mockResolvedValue(usage);
     renderPlan();
 
-    const section = within((await screen.findByRole('heading', { name: 'What your plan allows' })).closest('section') as HTMLElement);
+    const section = within(
+      (await screen.findByRole('heading', { name: 'What your plan allows' })).closest(
+        'section'
+      ) as HTMLElement
+    );
     const card = section.getByText('API keys').closest('.usage-card') as HTMLElement;
     expect(within(card).getByText('Unlimited')).toBeInTheDocument();
   });
@@ -197,7 +280,9 @@ describe('Plan & permissions', () => {
   describe('features and the pricing token', () => {
     it('shows each feature as enabled or not in the plan when the token is valid', async () => {
       renderPlan();
-      const section = within((await screen.findByRole('heading', { name: 'Features' })).closest('section') as HTMLElement);
+      const section = within(
+        (await screen.findByRole('heading', { name: 'Features' })).closest('section') as HTMLElement
+      );
 
       expect(section.getByText('Confirmed by your plan check')).toBeInTheDocument();
       expect(section.getByText('Repository').closest('li')).toHaveTextContent('Enabled');
@@ -208,10 +293,14 @@ describe('Plan & permissions', () => {
     it('warns in plain words that an expired token cannot confirm features, and never shows the token', async () => {
       stored.token = token(-60);
       renderPlan();
-      const section = within((await screen.findByRole('heading', { name: 'Features' })).closest('section') as HTMLElement);
+      const section = within(
+        (await screen.findByRole('heading', { name: 'Features' })).closest('section') as HTMLElement
+      );
 
       expect(section.getByText('Plan check expired · can’t confirm')).toBeInTheDocument();
-      expect(section.getByRole('status')).toHaveTextContent('Your plan check has expired, so features can’t be confirmed from it right now');
+      expect(section.getByRole('status')).toHaveTextContent(
+        'Your plan check has expired, so features can’t be confirmed from it right now'
+      );
       expect(section.getByText('Repository').closest('li')).toHaveTextContent('Can’t confirm');
       expect(document.body.textContent).not.toContain(stored.token);
       expect(document.body.textContent).not.toMatch(/\bsignature\b/);
@@ -220,7 +309,9 @@ describe('Plan & permissions', () => {
     it('warns that a missing token cannot confirm features', async () => {
       stored.token = null;
       renderPlan();
-      const section = within((await screen.findByRole('heading', { name: 'Features' })).closest('section') as HTMLElement);
+      const section = within(
+        (await screen.findByRole('heading', { name: 'Features' })).closest('section') as HTMLElement
+      );
 
       expect(section.getByText('Can’t confirm features')).toBeInTheDocument();
       expect(section.getByRole('status')).toHaveTextContent('No plan check is available yet');
@@ -236,7 +327,9 @@ describe('Plan & permissions', () => {
       expect(await screen.findByText('Your contract is pending.')).toBeInTheDocument();
       expect(screen.getByText('Contract pending')).toBeInTheDocument();
       expect(screen.getByText('Repository').closest('li')).toHaveTextContent('Can’t confirm');
-      expect(screen.queryByRole('heading', { name: 'What your plan allows' })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('heading', { name: 'What your plan allows' })
+      ).not.toBeInTheDocument();
     });
   });
 
@@ -257,13 +350,22 @@ describe('Plan & permissions', () => {
     renderPlan();
 
     const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent('We can’t read your plan right now (503 · pricing_unavailable).');
+    expect(alert).toHaveTextContent(
+      'We can’t read your plan right now (503 · pricing_unavailable).'
+    );
     expect(alert).toHaveTextContent('this doesn’t mean your plan has changed');
-    expect(screen.queryByRole('heading', { name: 'What your plan allows' })).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Open SPACE console' })).toHaveAttribute('href', config.spaceFrontendUrl);
+    expect(
+      screen.queryByRole('heading', { name: 'What your plan allows' })
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Open SPACE console' })).toHaveAttribute(
+      'href',
+      config.spaceFrontendUrl
+    );
 
     fireEvent.click(within(alert).getByRole('button', { name: 'Try again' }));
-    expect(await screen.findByRole('heading', { name: 'What your plan allows' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: 'What your plan allows' })
+    ).toBeInTheDocument();
   });
 
   it('explains a refused read (403)', async () => {
@@ -278,14 +380,18 @@ describe('Plan & permissions', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Refresh plan' }));
 
     await waitFor(() => expect(api.getOwnUsage).toHaveBeenCalledTimes(2));
-    expect(await screen.findByRole('heading', { name: 'What your plan allows' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: 'What your plan allows' })
+    ).toBeInTheDocument();
   });
 
   it('still works when the pricing catalog cannot be read', async () => {
     api.getPricingCatalog.mockRejectedValue(new HttpError(503, 'down'));
     renderPlan();
 
-    expect(await screen.findByRole('heading', { name: 'What your plan allows' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: 'What your plan allows' })
+    ).toBeInTheDocument();
     expect(screen.getByText('Repository')).toBeInTheDocument();
     expect(screen.queryByText('Free')).not.toBeInTheDocument();
   });

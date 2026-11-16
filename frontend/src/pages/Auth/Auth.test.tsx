@@ -4,9 +4,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PricingUnavailableError } from '../../api/auth';
 import type { UserProfile } from '../../api/auth';
 import { HttpError } from '../../api/client';
-import { AuthContext } from '../../contexts/auth';
+import { AuthContext } from '../../modules/auth/hooks/useAuth';
 import {
-  clearSessionEnded, clearSignInNote, forgetCasFlow, hasRecentSignIn, markSessionEnded, noteSignInStarted, readCasFlow,
+  clearSessionEnded,
+  clearSignInNote,
+  forgetCasFlow,
+  hasRecentSignIn,
+  markSessionEnded,
+  noteSignInStarted,
+  readCasFlow,
 } from '../../utils/authFlow';
 import { Login } from './Login';
 import { Register } from './Register';
@@ -29,7 +35,12 @@ function problem(status: number, code?: string, message = 'refused') {
 
 function Where() {
   const location = useLocation();
-  return <output data-testid="where">{location.pathname}{location.search}</output>;
+  return (
+    <output data-testid="where">
+      {location.pathname}
+      {location.search}
+    </output>
+  );
 }
 
 describe('Auth screens', () => {
@@ -48,7 +59,7 @@ describe('Auth screens', () => {
     ui: React.ReactElement,
     initialPath: string | { pathname: string; state?: unknown },
     user: UserProfile | null = null,
-    loading = false,
+    loading = false
   ) {
     const entry = typeof initialPath === 'string' ? { pathname: initialPath } : initialPath;
     return render(
@@ -62,6 +73,7 @@ describe('Auth screens', () => {
             signOut: signOutMock,
             refresh: vi.fn(),
             isAdmin: false,
+            fetchWithInterceptor: vi.fn(),
           }}
         >
           <Routes>
@@ -78,7 +90,7 @@ describe('Auth screens', () => {
           </Routes>
           <Where />
         </AuthContext.Provider>
-      </MemoryRouter>,
+      </MemoryRouter>
     );
   }
 
@@ -96,9 +108,15 @@ describe('Auth screens', () => {
       const cas = screen.getByRole('link', { name: 'Continue with Universidad de Sevilla (CAS)' });
       expect(cas).toHaveAttribute('href', expect.stringContaining('/v1/auth/cas/start?mode=login'));
       expect(cas.querySelector('img')).toHaveAttribute('src', '/brands/us-fama.png');
-      expect(screen.getByRole('link', { name: 'Forgot password?' })).toHaveAttribute('href', '/password-reset');
+      expect(screen.getByRole('link', { name: 'Forgot password?' })).toHaveAttribute(
+        'href',
+        '/password-reset'
+      );
       expect(screen.getByRole('link', { name: 'Create one' })).toHaveAttribute('href', '/register');
-      expect(screen.getByLabelText('Username or email')).toHaveAttribute('autocomplete', 'username');
+      expect(screen.getByLabelText('Username or email')).toHaveAttribute(
+        'autocomplete',
+        'username'
+      );
       expect(screen.getByLabelText('Password')).toHaveAttribute('autocomplete', 'current-password');
     });
 
@@ -109,7 +127,9 @@ describe('Auth screens', () => {
       fillLogin();
 
       expect(signInMock).toHaveBeenCalledWith('alice', 'password123');
-      expect(await screen.findByRole('heading', { name: 'Platform Dashboard' })).toBeInTheDocument();
+      expect(
+        await screen.findByRole('heading', { name: 'Platform Dashboard' })
+      ).toBeInTheDocument();
       expect(screen.queryByRole('heading', { name: 'Account Settings' })).not.toBeInTheDocument();
     });
 
@@ -133,7 +153,10 @@ describe('Auth screens', () => {
 
     it('returns to the invitation page, token included', async () => {
       signInMock.mockResolvedValue(undefined);
-      renderWithAuth(<Login />, { pathname: '/login', state: { from: '/invitations/accept?token=obi_secret' } });
+      renderWithAuth(<Login />, {
+        pathname: '/login',
+        state: { from: '/invitations/accept?token=obi_secret' },
+      });
 
       fillLogin();
 
@@ -143,21 +166,36 @@ describe('Auth screens', () => {
 
     it('returns to the public page of a composition with the fork asked for there', async () => {
       signInMock.mockResolvedValue(undefined);
-      renderWithAuth(<Login />, { pathname: '/login', state: { from: '/c/lab-other/fleet-routing?version=1.1.0&fork=1' } });
+      renderWithAuth(<Login />, {
+        pathname: '/login',
+        state: { from: '/c/lab-other/fleet-routing?version=1.1.0&fork=1' },
+      });
 
       fillLogin();
 
-      expect(await screen.findByRole('heading', { name: 'Public composition' })).toBeInTheDocument();
-      expect(screen.getByTestId('where')).toHaveTextContent('/c/lab-other/fleet-routing?version=1.1.0&fork=1');
+      expect(
+        await screen.findByRole('heading', { name: 'Public composition' })
+      ).toBeInTheDocument();
+      expect(screen.getByTestId('where')).toHaveTextContent(
+        '/c/lab-other/fleet-routing?version=1.1.0&fork=1'
+      );
     });
 
-    it.each(['/pricing', '/account', '//evil.example/app', '/appx', '/c/lab-other/fleet-routing/settings'])('ignores %s as an origin and goes to /app', async (from) => {
+    it.each([
+      '/pricing',
+      '/account',
+      '//evil.example/app',
+      '/appx',
+      '/c/lab-other/fleet-routing/settings',
+    ])('ignores %s as an origin and goes to /app', async from => {
       signInMock.mockResolvedValue(undefined);
       renderWithAuth(<Login />, { pathname: '/login', state: { from } });
 
       fillLogin();
 
-      expect(await screen.findByRole('heading', { name: 'Platform Dashboard' })).toBeInTheDocument();
+      expect(
+        await screen.findByRole('heading', { name: 'Platform Dashboard' })
+      ).toBeInTheDocument();
     });
 
     it('tells a signed-in visitor so, instead of showing the form', () => {
@@ -165,7 +203,10 @@ describe('Auth screens', () => {
 
       expect(screen.getByRole('heading', { name: 'You’re already signed in' })).toBeInTheDocument();
       expect(screen.getByText('Signed in as alice (alice@example.test).')).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: 'Continue to your workspace' })).toHaveAttribute('href', '/app');
+      expect(screen.getByRole('link', { name: 'Continue to your workspace' })).toHaveAttribute(
+        'href',
+        '/app'
+      );
       expect(screen.queryByLabelText('Password')).not.toBeInTheDocument();
 
       fireEvent.click(screen.getByRole('button', { name: 'Log in as someone else' }));
@@ -173,36 +214,71 @@ describe('Auth screens', () => {
     });
 
     it('sends the already signed-in visitor on to the page they asked for', () => {
-      renderWithAuth(<Login />, { pathname: '/login', state: { from: '/app/org/project' } }, sampleUser);
+      renderWithAuth(
+        <Login />,
+        { pathname: '/login', state: { from: '/app/org/project' } },
+        sampleUser
+      );
 
-      expect(screen.getByRole('link', { name: 'Continue to your workspace' })).toHaveAttribute('href', '/app/org/project');
+      expect(screen.getByRole('link', { name: 'Continue to your workspace' })).toHaveAttribute(
+        'href',
+        '/app/org/project'
+      );
     });
 
     it('does not flash the already-signed-in notice while its own sign-in is finishing', async () => {
       let finish: () => void = () => undefined;
-      signInMock.mockReturnValue(new Promise<void>((resolve) => { finish = resolve; }));
+      signInMock.mockReturnValue(
+        new Promise<void>(resolve => {
+          finish = resolve;
+        })
+      );
       const view = renderWithAuth(<Login />, '/login');
 
       fillLogin();
       // The context now has a user, as it does while the profile loads, but the sign-in has not returned.
       view.rerender(
         <MemoryRouter initialEntries={['/login']}>
-          <AuthContext.Provider value={{ user: sampleUser, loading: false, signIn: signInMock, register: registerMock, signOut: signOutMock, refresh: vi.fn(), isAdmin: false }}>
-            <Routes><Route path="/login" element={<Login />} /><Route path="/app" element={<h1>Platform Dashboard</h1>} /></Routes>
+          <AuthContext.Provider
+            value={{
+              user: sampleUser,
+              loading: false,
+              signIn: signInMock,
+              register: registerMock,
+              signOut: signOutMock,
+              refresh: vi.fn(),
+              isAdmin: false,
+              fetchWithInterceptor: vi.fn(),
+            }}
+          >
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route path="/app" element={<h1>Platform Dashboard</h1>} />
+            </Routes>
           </AuthContext.Provider>
-        </MemoryRouter>,
+        </MemoryRouter>
       );
-      expect(screen.queryByRole('heading', { name: 'You’re already signed in' })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('heading', { name: 'You’re already signed in' })
+      ).not.toBeInTheDocument();
       finish();
-      expect(await screen.findByRole('heading', { name: 'Platform Dashboard' })).toBeInTheDocument();
+      expect(
+        await screen.findByRole('heading', { name: 'Platform Dashboard' })
+      ).toBeInTheDocument();
     });
 
     it('continues to the asked-for page when this screen replaces the one that just signed the person in', async () => {
       // The interface restarts when the account changes: the new instance finds a user it did not see sign in.
       noteSignInStarted();
-      renderWithAuth(<Login />, { pathname: '/login', state: { from: '/app/org/project' } }, sampleUser);
+      renderWithAuth(
+        <Login />,
+        { pathname: '/login', state: { from: '/app/org/project' } },
+        sampleUser
+      );
 
-      expect(screen.queryByRole('heading', { name: 'You’re already signed in' })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('heading', { name: 'You’re already signed in' })
+      ).not.toBeInTheDocument();
       expect(await screen.findByRole('heading', { name: 'Project Workspace' })).toBeInTheDocument();
       expect(hasRecentSignIn()).toBe(false);
     });
@@ -246,7 +322,9 @@ describe('Auth screens', () => {
       fillLogin('ghost', 'wrong-password');
 
       const alert = await screen.findByRole('alert');
-      expect(alert).toHaveTextContent('That username or email and password don’t match an active account.');
+      expect(alert).toHaveTextContent(
+        'That username or email and password don’t match an active account.'
+      );
       expect(screen.getByLabelText('Username or email')).toHaveAttribute('aria-invalid', 'true');
       expect(screen.getByLabelText('Password')).toHaveAttribute('aria-invalid', 'true');
       expect(screen.queryByRole('heading', { name: 'Platform Dashboard' })).not.toBeInTheDocument();
@@ -258,8 +336,13 @@ describe('Auth screens', () => {
 
       fillLogin();
 
-      expect(await screen.findByRole('alert')).toHaveTextContent('Sign-in is unavailable right now (503)');
-      expect(screen.getByRole('link', { name: 'Service status' })).toHaveAttribute('href', '/about');
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'Sign-in is unavailable right now (503)'
+      );
+      expect(screen.getByRole('link', { name: 'Service status' })).toHaveAttribute(
+        'href',
+        '/about'
+      );
     });
 
     it('treats an unreachable pricing service as unavailable, not as a wrong password', async () => {
@@ -268,7 +351,9 @@ describe('Auth screens', () => {
 
       fillLogin();
 
-      expect(await screen.findByRole('alert')).toHaveTextContent('Sign-in is unavailable right now');
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'Sign-in is unavailable right now'
+      );
     });
 
     it('says when OpenBinding cannot be reached at all', async () => {
@@ -277,7 +362,9 @@ describe('Auth screens', () => {
 
       fillLogin();
 
-      expect(await screen.findByRole('alert')).toHaveTextContent('OpenBinding couldn’t be reached.');
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'OpenBinding couldn’t be reached.'
+      );
     });
 
     it('disables the form while the request is in flight', async () => {
@@ -286,7 +373,9 @@ describe('Auth screens', () => {
 
       fillLogin();
 
-      await waitFor(() => expect(screen.getByRole('button', { name: 'Signing in…' })).toBeDisabled());
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: 'Signing in…' })).toBeDisabled()
+      );
       expect(screen.getByLabelText('Username or email')).toBeDisabled();
     });
 
@@ -304,15 +393,20 @@ describe('Auth screens', () => {
     });
 
     it('shows the notice handed over by another screen', () => {
-      renderWithAuth(<Login />, { pathname: '/login', state: { notice: 'Password changed. Log in with the new password.' } });
+      renderWithAuth(<Login />, {
+        pathname: '/login',
+        state: { notice: 'Password changed. Log in with the new password.' },
+      });
 
-      expect(screen.getByText('Password changed. Log in with the new password.')).toBeInTheDocument();
+      expect(
+        screen.getByText('Password changed. Log in with the new password.')
+      ).toBeInTheDocument();
     });
 
     it('remembers that the CAS flow is a login, and where the person was heading', () => {
       renderWithAuth(<Login />, { pathname: '/login', state: { from: '/app/org/project' } });
       const cas = screen.getByRole('link', { name: 'Continue with Universidad de Sevilla (CAS)' });
-      cas.addEventListener('click', (event) => event.preventDefault());
+      cas.addEventListener('click', event => event.preventDefault());
 
       fireEvent.click(cas);
 
@@ -346,7 +440,9 @@ describe('Auth screens', () => {
         email: 'alice@example.test',
         password: 'password123',
       });
-      expect(await screen.findByRole('heading', { name: 'Platform Dashboard' })).toBeInTheDocument();
+      expect(
+        await screen.findByRole('heading', { name: 'Platform Dashboard' })
+      ).toBeInTheDocument();
       expect(screen.queryByRole('heading', { name: 'Account Settings' })).not.toBeInTheDocument();
     });
 
@@ -374,22 +470,32 @@ describe('Auth screens', () => {
 
       fillRegister();
 
-      expect(await screen.findByRole('heading', { name: 'Platform Dashboard' })).toBeInTheDocument();
+      expect(
+        await screen.findByRole('heading', { name: 'Platform Dashboard' })
+      ).toBeInTheDocument();
       expect(screen.queryByRole('heading', { name: 'Account Settings' })).not.toBeInTheDocument();
     });
 
     it('continues to the asked-for page when this screen replaces the one that just created the account', async () => {
       noteSignInStarted();
-      renderWithAuth(<Register />, { pathname: '/register', state: { from: '/app/account' } }, sampleUser);
+      renderWithAuth(
+        <Register />,
+        { pathname: '/register', state: { from: '/app/account' } },
+        sampleUser
+      );
 
-      expect(screen.queryByRole('heading', { name: 'You already have an account' })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('heading', { name: 'You already have an account' })
+      ).not.toBeInTheDocument();
       expect(await screen.findByRole('heading', { name: 'Account Settings' })).toBeInTheDocument();
     });
 
     it('tells a signed-in visitor they already have an account', () => {
       renderWithAuth(<Register />, '/register', sampleUser);
 
-      expect(screen.getByRole('heading', { name: 'You already have an account' })).toBeInTheDocument();
+      expect(
+        screen.getByRole('heading', { name: 'You already have an account' })
+      ).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'Create account' })).not.toBeInTheDocument();
       fireEvent.click(screen.getByRole('button', { name: 'Log out' }));
       expect(signOutMock).toHaveBeenCalled();
@@ -414,7 +520,9 @@ describe('Auth screens', () => {
       renderWithAuth(<Register />, '/register');
       const password = screen.getByLabelText('Password');
 
-      expect(password).toHaveAccessibleDescription('At least 10 characters. Length is the only rule.');
+      expect(password).toHaveAccessibleDescription(
+        'At least 10 characters. Length is the only rule.'
+      );
       fireEvent.change(password, { target: { value: 'abcd' } });
       expect(password).toHaveAccessibleDescription('6 more characters needed');
       fireEvent.change(password, { target: { value: 'abcdefghij' } });
@@ -430,16 +538,23 @@ describe('Auth screens', () => {
       const alert = await screen.findByRole('alert');
       expect(alert).toHaveTextContent('That username or email is already registered (409).');
       expect(within(alert).getByRole('link', { name: 'Log in' })).toHaveAttribute('href', '/login');
-      expect(within(alert).getByRole('link', { name: 'reset your password' })).toHaveAttribute('href', '/password-reset');
+      expect(within(alert).getByRole('link', { name: 'reset your password' })).toHaveAttribute(
+        'href',
+        '/password-reset'
+      );
     });
 
     it('puts the gateway’s weak-password complaint on the password field', async () => {
-      registerMock.mockRejectedValue(problem(422, 'weak_password', 'Password is on the common-passwords list.'));
+      registerMock.mockRejectedValue(
+        problem(422, 'weak_password', 'Password is on the common-passwords list.')
+      );
       renderWithAuth(<Register />, '/register');
 
       fillRegister();
 
-      expect(await screen.findByText('Password is on the common-passwords list.')).toBeInTheDocument();
+      expect(
+        await screen.findByText('Password is on the common-passwords list.')
+      ).toBeInTheDocument();
       expect(screen.getByLabelText('Password')).toHaveAttribute('aria-invalid', 'true');
     });
 
@@ -448,7 +563,15 @@ describe('Auth screens', () => {
       refused.problem = {
         code: 'validation_error',
         detail: 'Request validation failed: /email: value is not a valid email address',
-        diagnostics: [{ code: 'value_error', message: 'value is not a valid email address', in: 'body', pointer: '/email', loc: ['body', 'email'] }],
+        diagnostics: [
+          {
+            code: 'value_error',
+            message: 'value is not a valid email address',
+            in: 'body',
+            pointer: '/email',
+            loc: ['body', 'email'],
+          },
+        ],
       };
       registerMock.mockRejectedValue(refused);
       renderWithAuth(<Register />, '/register');
@@ -465,14 +588,19 @@ describe('Auth screens', () => {
 
       fillRegister();
 
-      expect(await screen.findByRole('alert')).toHaveTextContent('Accounts can’t be created right now (503). Nothing was saved');
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'Accounts can’t be created right now (503). Nothing was saved'
+      );
     });
 
     it('offers the way back to log in and the plans', () => {
       renderWithAuth(<Register />, '/register');
 
       expect(screen.getByRole('link', { name: 'Log in' })).toHaveAttribute('href', '/login');
-      expect(screen.getByRole('link', { name: 'Compare plans' })).toHaveAttribute('href', '/pricing');
+      expect(screen.getByRole('link', { name: 'Compare plans' })).toHaveAttribute(
+        'href',
+        '/pricing'
+      );
     });
   });
 });

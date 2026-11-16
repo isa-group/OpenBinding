@@ -1,13 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  Bell,
-  BellDot,
-  CheckCheck,
-  Clock,
-  ExternalLink,
-  Maximize2,
-  Minimize2,
-} from 'lucide-react';
+import { Bell, BellDot, CheckCheck, Clock, ExternalLink, Maximize2, Minimize2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { apiClient } from '../../api/client';
 import type { Notification } from '../../api/auth';
@@ -92,11 +84,11 @@ export function NotificationDropdown() {
     };
   }, [isOpen]);
 
-  const unreadNotifications = notifications.filter((item) => !item.read_at);
+  const unreadNotifications = notifications.filter(item => !item.read_at);
   const unreadCount = unreadNotifications.length;
 
   const toggleOpen = () => {
-    setIsOpen((current) => {
+    setIsOpen(current => {
       const next = !current;
       if (next) {
         void reload();
@@ -106,7 +98,7 @@ export function NotificationDropdown() {
   };
 
   const handleEnlargeToggle = () => {
-    setIsEnlarged((current) => {
+    setIsEnlarged(current => {
       const next = !current;
       if (next) {
         // When enlarging to view all, switch tab to 'all' if on 'unread'
@@ -121,9 +113,7 @@ export function NotificationDropdown() {
     setBusyItem(notification.id);
     try {
       const updated = await apiClient.markNotificationRead(notification.id);
-      setNotifications((current) =>
-        current.map((item) => (item.id === updated.id ? updated : item))
-      );
+      setNotifications(current => current.map(item => (item.id === updated.id ? updated : item)));
       window.dispatchEvent(new CustomEvent('openbinding:notifications-updated'));
     } catch {
       // Ignored; notification read failure is not blocking
@@ -137,9 +127,15 @@ export function NotificationDropdown() {
     setMarkingAll(true);
     try {
       const updated = await apiClient.markAllNotificationsRead();
-      const updatedMap = new Map(updated.map((item) => [item.id, item]));
-      setNotifications((current) =>
-        current.map((item) => updatedMap.get(item.id) || { ...item, read_at: item.read_at || new Date().toISOString() })
+      const updatedMap = new Map(updated.map(item => [item.id, item]));
+      setNotifications(current =>
+        current.map(
+          item =>
+            updatedMap.get(item.id) || {
+              ...item,
+              read_at: item.read_at || new Date().toISOString(),
+            }
+        )
       );
       window.dispatchEvent(new CustomEvent('openbinding:notifications-updated'));
     } catch {
@@ -236,9 +232,14 @@ export function NotificationDropdown() {
             </button>
           </div>
 
-          <div className="notification-panel-list" tabIndex={0} role="region" aria-label="Notification list">
+          <div
+            className="notification-panel-list"
+            tabIndex={0}
+            role="region"
+            aria-label="Notification list"
+          >
             {displayedList.length > 0 ? (
-              displayedList.map((item) => {
+              displayedList.map(item => {
                 const isUnread = !item.read_at;
                 return (
                   <button
@@ -248,16 +249,16 @@ export function NotificationDropdown() {
                     onClick={() => void markRead(item)}
                     disabled={busyItem === item.id}
                     aria-label={
-                      isUnread
-                        ? `Mark as read: ${item.subject}`
-                        : `${item.subject}, read`
+                      isUnread ? `Mark as read: ${item.subject}` : `${item.subject}, read`
                     }
                   >
                     {isUnread && <span className="notification-unread-dot" aria-hidden="true" />}
                     <div className="notification-item-main">
                       <div className="notification-item-header">
                         <strong>{item.subject}</strong>
-                        <span className="notification-item-time">{formatTimeAgo(item.created_at)}</span>
+                        <span className="notification-item-time">
+                          {formatTimeAgo(item.created_at)}
+                        </span>
                       </div>
                       <p className="notification-item-body">{item.body}</p>
                     </div>
@@ -287,7 +288,10 @@ export function NotificationDropdown() {
           </div>
 
           <footer className="notification-panel-footer">
-            <span className="notification-retention-badge" title="Notifications expire automatically after 7 days">
+            <span
+              className="notification-retention-badge"
+              title="Notifications expire automatically after 7 days"
+            >
               <Clock aria-hidden="true" />
               <span>Lifetime: 7 days</span>
             </span>

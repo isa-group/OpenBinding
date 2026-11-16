@@ -23,7 +23,8 @@ export function useCreateDialog(kind: CreateKind, closeTo: string) {
   useEffect(() => {
     // The Modal has already given the focus back to what held it when it opened; only a dialog opened by the address leaves it on the page.
     const lost = document.activeElement === null || document.activeElement === document.body;
-    if (wasOpen.current && !open && lost) document.querySelector<HTMLElement>(`[${OPENER}="${kind}"]`)?.focus();
+    if (wasOpen.current && !open && lost)
+      document.querySelector<HTMLElement>(`[${OPENER}="${kind}"]`)?.focus();
     wasOpen.current = open;
   }, [open, kind]);
 

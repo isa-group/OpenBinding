@@ -1,21 +1,52 @@
-/* The breadcrumb and the gate of the workspace frame. */
-.org-crumbs ol { display: flex; flex-wrap: wrap; gap: var(--tp-spacing-xs); margin: 0; padding: 0; color: var(--tp-steel); font-size: 0.75rem; list-style: none; }
-.org-crumbs li { display: inline-flex; gap: var(--tp-spacing-xs); }
-.org-crumbs [aria-current='page'] { color: var(--tp-ink); }
+@layer legacy {
+  /* The breadcrumb and the gate of the workspace frame. */
+  .org-crumbs ol {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--tp-spacing-xs);
+    margin: 0;
+    padding: 0;
+    color: var(--tp-steel);
+    font-size: 0.75rem;
+    list-style: none;
+  }
+  .org-crumbs li {
+    display: inline-flex;
+    gap: var(--tp-spacing-xs);
+  }
+  .org-crumbs [aria-current='page'] {
+    color: var(--tp-ink);
+  }
 
-.org-gate {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  padding: 48px var(--tp-spacing-xl);
-  border: 1px solid var(--tp-hairline);
-  border-radius: var(--tp-radius-xl);
-  background: var(--tp-canvas);
-  color: var(--tp-muted);
-  text-align: center;
+  .org-gate {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 48px var(--tp-spacing-xl);
+    border: 1px solid var(--tp-hairline);
+    border-radius: var(--tp-radius-xl);
+    background: var(--tp-canvas);
+    color: var(--tp-muted);
+    text-align: center;
+  }
+
+  .org-gate h2 {
+    margin: 0;
+    color: var(--tp-ink);
+    font-size: 1rem;
+    font-weight: 500;
+  }
+  .org-gate p {
+    max-width: 480px;
+    margin: 0;
+    color: var(--tp-steel);
+  }
+  .org-gate-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: var(--tp-spacing-sm);
+  }
 }
-
-.org-gate h2 { margin: 0; color: var(--tp-ink); font-size: 1rem; font-weight: 500; }
-.org-gate p { max-width: 480px; margin: 0; color: var(--tp-steel); }
-.org-gate-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: var(--tp-spacing-sm); }

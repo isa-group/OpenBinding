@@ -3,21 +3,44 @@ import { Check } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { apiClient } from '../../api/client';
 import { InstitutionMark } from '../../components/InstitutionMark';
-import { INSTITUTION_NAME, useInstitutionalBranding } from '../../components/InstitutionMark/institution';
-import { Notice } from '../../components/ui/Notice';
-import { useAuth } from '../../contexts/auth';
-import { casFlowFor, exchangeCasOnce, forgetCasFlow, notePlanChanged, rememberCasFlow, type CasMode } from '../../utils/authFlow';
-import { classifyAuthError } from '../../shared/api/errors';
+import {
+  INSTITUTION_NAME,
+  useInstitutionalBranding,
+} from '../../components/InstitutionMark/institution';
+import { Notice } from '../../modules/core/components/notice';
+import { useAuth } from '../../modules/auth/hooks/useAuth';
+import {
+  casFlowFor,
+  exchangeCasOnce,
+  forgetCasFlow,
+  notePlanChanged,
+  rememberCasFlow,
+  type CasMode,
+} from '../../utils/authFlow';
+import { classifyAuthError } from '../../modules/core/api/errors';
 
 /**
  * What stopped the CAS round trip. The gateway answers every failure of its own callback step with `?error=<code>` (a closed list,
  * so nothing from the address is ever shown) and some on the code exchange; both end here.
  */
 type CasFailure =
-  | 'code' | 'unavailable' | 'pricing' | 'pricing-down' | 'state' | 'ticket' | 'inactive' | 'error' | 'linked-elsewhere' | 'collision'
+  | 'code'
+  | 'unavailable'
+  | 'pricing'
+  | 'pricing-down'
+  | 'state'
+  | 'ticket'
+  | 'inactive'
+  | 'error'
+  | 'linked-elsewhere'
+  | 'collision'
   | 'username';
 
-type Phase = { name: 'loading' } | { name: 'empty' } | { name: 'error'; failure: CasFailure } | { name: 'success' };
+type Phase =
+  | { name: 'loading' }
+  | { name: 'empty' }
+  | { name: 'error'; failure: CasFailure }
+  | { name: 'success' };
 
 /** The `?error=` codes of the callback (docs/ACCOUNTS_AND_PLANS.md), and what each one means for the person. */
 const REPORTED = new Map<string, CasFailure>([
@@ -42,7 +65,14 @@ function failureFor(code: string | undefined, status: number | undefined): CasFa
 }
 
 /** Failures after which starting the CAS sign-in again can work. */
-const RETRYABLE = new Set<CasFailure>(['code', 'unavailable', 'pricing-down', 'state', 'ticket', 'error']);
+const RETRYABLE = new Set<CasFailure>([
+  'code',
+  'unavailable',
+  'pricing-down',
+  'state',
+  'ticket',
+  'error',
+]);
 /** Failures that say something about the service rather than about the person. */
 const SERVICE = new Set<CasFailure>(['code', 'unavailable', 'pricing', 'pricing-down', 'error']);
 
@@ -59,10 +89,12 @@ export function CasCallback() {
   // The screen is mounted again once the exchange signs the person in (the interface below the account
   // provider restarts when the account changes), so the flow and the exchange are kept against the code.
   const [flow] = useState(() => casFlowFor(code));
-  const mode: CasMode = params.get('mode') === 'link' ? 'link' : flow?.mode ?? 'login';
+  const mode: CasMode = params.get('mode') === 'link' ? 'link' : (flow?.mode ?? 'login');
   const [phase, setPhase] = useState<Phase>(() => {
     if (code) return { name: 'loading' };
-    return reported ? { name: 'error', failure: failureFor(reported, undefined) } : { name: 'empty' };
+    return reported
+      ? { name: 'error', failure: failureFor(reported, undefined) }
+      : { name: 'empty' };
   });
 
   useEffect(() => {
@@ -72,11 +104,14 @@ export function CasCallback() {
     forgetCasFlow();
     if (!code) return;
     // Linking CAS raises FREE to RESEARCH at no cost. The exchange says so; the redirect's `plan_changed` is the same news a step earlier.
-    void exchangeCasOnce(code, () => apiClient.exchangeCasCode(code).then((change) => {
-      if (change) notePlanChanged({ from: change.from, to: change.to, extraCost: change.extra_cost });
-      else if (announced) notePlanChanged({ to: announced, extraCost: false });
-      return refresh();
-    }))
+    void exchangeCasOnce(code, () =>
+      apiClient.exchangeCasCode(code).then(change => {
+        if (change)
+          notePlanChanged({ from: change.from, to: change.to, extraCost: change.extra_cost });
+        else if (announced) notePlanChanged({ to: announced, extraCost: false });
+        return refresh();
+      })
+    )
       .then(() => setPhase({ name: 'success' }))
       .catch((caught: unknown) => {
         const result = classifyAuthError(caught);
@@ -92,7 +127,9 @@ export function CasCallback() {
   return (
     <div className="auth-card-page">
       <div className="auth-card" aria-live="polite">
-        <span className="auth-card-eyebrow">{INSTITUTION_NAME} · CAS · {modeLabel}</span>
+        <span className="auth-card-eyebrow">
+          {INSTITUTION_NAME} · CAS · {modeLabel}
+        </span>
 
         {phase.name === 'loading' && (
           <div className="auth-card-row" role="status">
@@ -108,11 +145,13 @@ export function CasCallback() {
           <>
             <h1>There’s no code to finish sign-in</h1>
             <p>
-              This page is opened by the {INSTITUTION_NAME} sign-in. Without its one-time code there’s nothing to exchange.
-              Start again from the log in page.
+              This page is opened by the {INSTITUTION_NAME} sign-in. Without its one-time code
+              there’s nothing to exchange. Start again from the log in page.
             </p>
             <div className="auth-card-actions">
-              <Link className="auth-btn auth-btn-primary" to="/login" viewTransition>Back to log in</Link>
+              <Link className="auth-btn auth-btn-primary" to="/login" viewTransition>
+                Back to log in
+              </Link>
             </div>
           </>
         )}
@@ -120,73 +159,131 @@ export function CasCallback() {
         {phase.name === 'error' && (
           <>
             <h1>
-              {phase.failure === 'linked-elsewhere' || phase.failure === 'collision' || phase.failure === 'username'
+              {phase.failure === 'linked-elsewhere' ||
+              phase.failure === 'collision' ||
+              phase.failure === 'username'
                 ? 'This identity can’t be used here'
-                : phase.failure === 'inactive' ? 'This account can’t sign in' : 'Sign-in stopped'}
+                : phase.failure === 'inactive'
+                  ? 'This account can’t sign in'
+                  : 'Sign-in stopped'}
             </h1>
             {phase.failure === 'code' && (
               <Notice tone="error" title="This code can’t be used.">
-                It’s invalid or was already used; each code works once and expires quickly. Start the CAS sign-in again.
+                It’s invalid or was already used; each code works once and expires quickly. Start
+                the CAS sign-in again.
               </Notice>
             )}
             {phase.failure === 'pricing' && (
-              <Notice tone="error" title="Institutional sign-in is paused (503 · institutional_pricing_invalid).">
-                The current pricing has no valid RESEARCH plan, so CAS accounts can’t be set up right now. You can still log in with a password.
+              <Notice
+                tone="error"
+                title="Institutional sign-in is paused (503 · institutional_pricing_invalid)."
+              >
+                The current pricing has no valid RESEARCH plan, so CAS accounts can’t be set up
+                right now. You can still log in with a password.
               </Notice>
             )}
             {phase.failure === 'pricing-down' && (
-              <Notice tone="error" title="The pricing service didn’t answer (503 · pricing_unavailable).">
-                Your plan’s limits couldn’t be read, so the sign-in stopped before changing anything. Try again in a moment, or log in with a password.
+              <Notice
+                tone="error"
+                title="The pricing service didn’t answer (503 · pricing_unavailable)."
+              >
+                Your plan’s limits couldn’t be read, so the sign-in stopped before changing
+                anything. Try again in a moment, or log in with a password.
               </Notice>
             )}
             {phase.failure === 'unavailable' && (
               <Notice tone="error" title="Institutional sign-in is unavailable right now (503).">
-                The university’s sign-in or the pricing service didn’t answer. Nothing was changed on your account. You can still log in with a password.
+                The university’s sign-in or the pricing service didn’t answer. Nothing was changed
+                on your account. You can still log in with a password.
               </Notice>
             )}
             {phase.failure === 'state' && (
               <Notice tone="error" title="This sign-in attempt has expired (cas_state_invalid).">
-                The sign-in was started a while ago, was already used, or didn’t start from here. Nothing was changed. Start it again and finish it without delay.
+                The sign-in was started a while ago, was already used, or didn’t start from here.
+                Nothing was changed. Start it again and finish it without delay.
               </Notice>
             )}
             {phase.failure === 'ticket' && (
-              <Notice tone="error" title="The university didn’t accept this sign-in (cas_ticket_invalid).">
-                Its ticket was missing or refused, which happens when the page is reloaded or the sign-in takes too long. Nothing was changed. Try again.
+              <Notice
+                tone="error"
+                title="The university didn’t accept this sign-in (cas_ticket_invalid)."
+              >
+                Its ticket was missing or refused, which happens when the page is reloaded or the
+                sign-in takes too long. Nothing was changed. Try again.
               </Notice>
             )}
             {phase.failure === 'inactive' && (
               <Notice tone="warning" title="This account is deactivated (account_inactive).">
-                The account being signed in or linked is deactivated or no longer exists, so nothing was changed. If you think this is a mistake, ask an administrator to reactivate it.
+                The account being signed in or linked is deactivated or no longer exists, so nothing
+                was changed. If you think this is a mistake, ask an administrator to reactivate it.
               </Notice>
             )}
             {phase.failure === 'error' && (
               <Notice tone="error" title="The sign-in couldn’t be finished (cas_error).">
-                Something went wrong on our side while finishing it. Nothing was changed. Try again; if it keeps failing, check the service status.
+                Something went wrong on our side while finishing it. Nothing was changed. Try again;
+                if it keeps failing, check the service status.
               </Notice>
             )}
             {phase.failure === 'linked-elsewhere' && (
               <Notice tone="warning" title="This identity is already linked to another account.">
-                A CAS identity can belong to one OpenBinding account only. Log in to that account, or unlink it there first.
+                A CAS identity can belong to one OpenBinding account only. Log in to that account,
+                or unlink it there first.
               </Notice>
             )}
             {phase.failure === 'collision' && (
               <Notice tone="warning" title="An account with these details already exists.">
-                Log in to the existing account and link CAS from Account › Identities. Identities are never linked by email automatically.
+                Log in to the existing account and link CAS from Account › Identities. Identities
+                are never linked by email automatically.
               </Notice>
             )}
             {phase.failure === 'username' && (
-              <Notice tone="warning" title="Your university username is reserved here (username_unavailable).">
-                An OpenBinding account can’t take this name: it names engines published under it, or belonged to an account that was deleted. Signing in again won’t change that. Create an account with a password and another username, then link CAS from Account › Identities, or contact the administrator.
+              <Notice
+                tone="warning"
+                title="Your university username is reserved here (username_unavailable)."
+              >
+                An OpenBinding account can’t take this name: it names engines published under it, or
+                belonged to an account that was deleted. Signing in again won’t change that. Create
+                an account with a password and another username, then link CAS from Account ›
+                Identities, or contact the administrator.
               </Notice>
             )}
             <div className="auth-card-actions">
-              <Link className="auth-btn auth-btn-primary" to="/login" viewTransition>Back to log in</Link>
-              {RETRYABLE.has(phase.failure) && (linking
-                ? <Link className="auth-btn auth-btn-secondary" to="/app/account/identities" viewTransition>Try again from Account › Identities</Link>
-                : <a className="auth-btn auth-btn-secondary" href={apiClient.casStartUrl('login')} onClick={() => rememberCasFlow('login', flow?.returnTo)}>Try again</a>)}
-              {phase.failure === 'linked-elsewhere' || phase.failure === 'collision'
-                ? <Link className="auth-btn auth-btn-secondary" to="/app/account/identities" viewTransition>Go to Account › Identities</Link>
-                : SERVICE.has(phase.failure) && <Link className="auth-btn auth-btn-secondary" to="/about" viewTransition>Service status</Link>}
+              <Link className="auth-btn auth-btn-primary" to="/login" viewTransition>
+                Back to log in
+              </Link>
+              {RETRYABLE.has(phase.failure) &&
+                (linking ? (
+                  <Link
+                    className="auth-btn auth-btn-secondary"
+                    to="/app/account/identities"
+                    viewTransition
+                  >
+                    Try again from Account › Identities
+                  </Link>
+                ) : (
+                  <a
+                    className="auth-btn auth-btn-secondary"
+                    href={apiClient.casStartUrl('login')}
+                    onClick={() => rememberCasFlow('login', flow?.returnTo)}
+                  >
+                    Try again
+                  </a>
+                ))}
+              {phase.failure === 'linked-elsewhere' || phase.failure === 'collision' ? (
+                <Link
+                  className="auth-btn auth-btn-secondary"
+                  to="/app/account/identities"
+                  viewTransition
+                >
+                  Go to Account › Identities
+                </Link>
+              ) : (
+                SERVICE.has(phase.failure) && (
+                  <Link className="auth-btn auth-btn-secondary" to="/about" viewTransition>
+                    Service status
+                  </Link>
+                )
+              )}
             </div>
           </>
         )}
@@ -194,7 +291,9 @@ export function CasCallback() {
         {phase.name === 'success' && (
           <>
             <div className="auth-card-result" role="status">
-              <span className="auth-check" aria-hidden="true"><Check /></span>
+              <span className="auth-check" aria-hidden="true">
+                <Check />
+              </span>
               <h1>{linking ? 'Identity linked' : 'You’re signed in'}</h1>
             </div>
             <p>
@@ -209,20 +308,39 @@ export function CasCallback() {
                 <InstitutionMark variant="compact" />
                 <div>
                   <strong>{INSTITUTION_NAME} · verified</strong>
-                  <span>Your plan is {user?.plan ?? 'RESEARCH'}. This badge reflects your institution, not a role: it doesn’t give admin or organization permissions.</span>
+                  <span>
+                    Your plan is {user?.plan ?? 'RESEARCH'}. This badge reflects your institution,
+                    not a role: it doesn’t give admin or organization permissions.
+                  </span>
                 </div>
               </div>
             )}
             <div className="auth-card-actions">
               {linking ? (
                 <>
-                  <Link className="auth-btn auth-btn-primary" to="/app/account/identities" viewTransition>Back to my account</Link>
-                  <Link className="auth-btn auth-btn-secondary" to="/app" viewTransition>Workspace</Link>
+                  <Link
+                    className="auth-btn auth-btn-primary"
+                    to="/app/account/identities"
+                    viewTransition
+                  >
+                    Back to my account
+                  </Link>
+                  <Link className="auth-btn auth-btn-secondary" to="/app" viewTransition>
+                    Workspace
+                  </Link>
                 </>
               ) : (
                 <>
-                  <Link className="auth-btn auth-btn-primary" to={workspace} viewTransition>Continue to your workspace</Link>
-                  <Link className="auth-btn auth-btn-secondary" to="/app/account/identities" viewTransition>Account › Identities</Link>
+                  <Link className="auth-btn auth-btn-primary" to={workspace} viewTransition>
+                    Continue to your workspace
+                  </Link>
+                  <Link
+                    className="auth-btn auth-btn-secondary"
+                    to="/app/account/identities"
+                    viewTransition
+                  >
+                    Account › Identities
+                  </Link>
                 </>
               )}
             </div>

@@ -32,22 +32,36 @@ export function useResource<T>(key: string, load: () => Promise<T>): Resource<T>
   useEffect(() => {
     let cancelled = false;
     run().then(
-      (value) => {
-        if (!cancelled) setSettled((current) => ({ key: fullKey, value, failed: false, previous: current?.value ?? current?.previous }));
+      value => {
+        if (!cancelled)
+          setSettled(current => ({
+            key: fullKey,
+            value,
+            failed: false,
+            previous: current?.value ?? current?.previous,
+          }));
       },
       (error: unknown) => {
-        if (!cancelled) setSettled((current) => ({ key: fullKey, error, failed: true, previous: current?.value ?? current?.previous }));
-      },
+        if (!cancelled)
+          setSettled(current => ({
+            key: fullKey,
+            error,
+            failed: true,
+            previous: current?.value ?? current?.previous,
+          }));
+      }
     );
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [fullKey]);
 
-  const reload = useCallback(() => setNonce((value) => value + 1), []);
+  const reload = useCallback(() => setNonce(value => value + 1), []);
   const current = settled?.key === fullKey ? settled : null;
   return {
     status: !current ? 'loading' : current.failed ? 'error' : 'ready',
     data: current && !current.failed ? current.value : undefined,
-    stale: current && !current.failed ? current.value : settled?.value ?? settled?.previous,
+    stale: current && !current.failed ? current.value : (settled?.value ?? settled?.previous),
     error: current?.error,
     reload,
   };

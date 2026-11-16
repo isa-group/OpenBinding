@@ -8,7 +8,8 @@ export const RUNS_SEGMENT = 'runs';
 export const runsPath = (org: string): string => `/app/${encodeURIComponent(org)}/${RUNS_SEGMENT}`;
 
 /** One run of an organization: `/app/<org>/runs/<run>`. */
-export const runPath = (org: string, run: string): string => `${runsPath(org)}/${encodeURIComponent(run)}`;
+export const runPath = (org: string, run: string): string =>
+  `${runsPath(org)}/${encodeURIComponent(run)}`;
 
 /** What the launcher starts from: a problem revision, an engine (`namespace/name`), a run preset of the organization (its slug), or several. */
 export interface LaunchTarget {

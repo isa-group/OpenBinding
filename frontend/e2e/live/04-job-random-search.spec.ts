@@ -15,7 +15,9 @@ const finishedResult = (page: Page) =>
   });
 
 test.describe('live · a random-search job and its result', () => {
-  test('the owner launches random-search on simple-seq, follows the run and reads the result', async ({ page }, testInfo) => {
+  test('the owner launches random-search on simple-seq, follows the run and reads the result', async ({
+    page,
+  }, testInfo) => {
     test.setTimeout(300_000);
     const errors = watchPageErrors(page);
     await signInByApi(page, 'owner');
@@ -33,19 +35,26 @@ test.describe('live · a random-search job and its result', () => {
     await expect(engines).toBeVisible({ timeout: 60_000 });
     // The radios are named by the engine and its mode ("random-search 1.0 · mode seeded Can run this"); a mode that cannot run the
     // problem is disabled, so the first one that can is the one to pick.
-    const randomSearch = engines.getByRole('radio', { name: /^random-search/, disabled: false }).first();
+    const randomSearch = engines
+      .getByRole('radio', { name: /^random-search/, disabled: false })
+      .first();
     await expect(randomSearch).toBeEnabled();
     await randomSearch.check({ force: true });
     await capture(page, testInfo, 'run-launch-2-engine');
     await page.getByRole('button', { name: 'Continue' }).click();
 
     // 3 · the settings: a handful of iterations keeps the run short.
-    await expect(page.getByRole('heading', { level: 2, name: 'Settings', exact: true })).toBeVisible();
+    await expect(
+      page.getByRole('heading', { level: 2, name: 'Settings', exact: true })
+    ).toBeVisible();
     const iterations = page.getByLabel('Iterations').first();
     if (await iterations.count()) await iterations.fill('50');
     // The form fills each field with the default the manifest declares and must accept all of them as they are: random-search declares
     // `seed` with default 0, which is valid (only a budget has to be above 0). Nothing is typed over a field except the iterations.
-    await expect(page.locator('.job-options input[aria-invalid="true"]'), 'a default of the engine is marked invalid').toHaveCount(0);
+    await expect(
+      page.locator('.job-options input[aria-invalid="true"]'),
+      'a default of the engine is marked invalid'
+    ).toHaveCount(0);
     await expect(page.locator('.job-invalid'), 'a settings field is invalid').toHaveCount(0);
     await capture(page, testInfo, 'run-launch-3-settings');
     await page.getByRole('button', { name: 'Continue' }).click();
@@ -56,13 +65,24 @@ test.describe('live · a random-search job and its result', () => {
     await capture(page, testInfo, 'run-launch-4-review');
     const send = page.getByRole('button', { name: 'Send run' });
     // A disabled button would make the click wait for 30 s and then look like a request that never left: say what the page shows instead.
-    await expect(send, `"Send run" is disabled; the review says: ${(await page.locator('.job-review').innerText()).replace(/\s+/g, ' ')}`).toBeEnabled();
+    await expect(
+      send,
+      `"Send run" is disabled; the review says: ${(await page.locator('.job-review').innerText()).replace(/\s+/g, ' ')}`
+    ).toBeEnabled();
     // The API is under /api of the same origin (`API` in support.ts), so the path ends in the organization's runs; a query or a prefix does not matter.
-    const isLaunch = (response: { url(): string; request(): { method(): string } }) => response.request().method() === 'POST' && new URL(response.url()).pathname.endsWith(`/v1/organizations/${ORG}/runs`);
+    const isLaunch = (response: { url(): string; request(): { method(): string } }) =>
+      response.request().method() === 'POST' &&
+      new URL(response.url()).pathname.endsWith(`/v1/organizations/${ORG}/runs`);
     const [response] = await Promise.all([page.waitForResponse(isLaunch), send.click()]);
-    expect(response.status(), `createRun answered ${response.status()}: ${await response.text()}`).toBe(202);
+    expect(
+      response.status(),
+      `createRun answered ${response.status()}: ${await response.text()}`
+    ).toBe(202);
     const sent = response.request().postDataJSON() as Record<string, unknown>;
-    expect(sent.optimization, 'the launch must carry the execution optimization').toMatchObject({ type: expect.stringMatching(/^(SINGLE|MULTI|MANY)$/), scalarization: expect.any(String) });
+    expect(sent.optimization, 'the launch must carry the execution optimization').toMatchObject({
+      type: expect.stringMatching(/^(SINGLE|MULTI|MANY)$/),
+      scalarization: expect.any(String),
+    });
 
     await expect(page.getByRole('heading', { level: 1, name: /^Run accepted/ })).toBeVisible();
     await page.getByRole('link', { name: 'Follow the run' }).click();

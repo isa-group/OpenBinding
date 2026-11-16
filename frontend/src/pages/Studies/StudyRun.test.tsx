@@ -4,25 +4,47 @@ import { QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import type { StudyCell } from '../../api/platform';
 import { org, renderOrgScreen } from '../../features/workspace/testKit';
-import { CHECKOUT, EVOLUTIONARY, REVISION_1, REVISION_2, RUN_ID, cellFixture, cellsFixture, runFixture, studyFixture } from '../../test/fixtures/studies';
+import {
+  CHECKOUT,
+  EVOLUTIONARY,
+  REVISION_1,
+  REVISION_2,
+  RUN_ID,
+  cellFixture,
+  cellsFixture,
+  runFixture,
+  studyFixture,
+} from '../../test/fixtures/studies';
 import { StudyDetail } from './StudyDetail';
 
 const platform = vi.hoisted(() => ({
-  study: vi.fn(), studyRuns: vi.fn(), studyRun: vi.fn(), studyCells: vi.fn(), cancelStudyRun: vi.fn(), retryStudyCell: vi.fn(),
- 
+  study: vi.fn(),
+  studyRuns: vi.fn(),
+  studyRun: vi.fn(),
+  studyCells: vi.fn(),
+  cancelStudyRun: vi.fn(),
+  retryStudyCell: vi.fn(),
 }));
 
-
-const problems = vi.hoisted(() => ({ list: vi.fn(), revisions: vi.fn(), compilation: vi.fn(), ir: vi.fn() }));
-vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'), platformApi: platform }));
+const problems = vi.hoisted(() => ({
+  list: vi.fn(),
+  revisions: vi.fn(),
+  compilation: vi.fn(),
+  ir: vi.fn(),
+}));
+vi.mock('../../api/platform', async () => ({
+  ...(await vi.importActual<typeof import('../../api/platform')>('../../api/platform')),
+  platformApi: platform,
+}));
 vi.mock('../../api/problems', () => ({ problemsApi: problems }));
 
 /** The one-run read answers from what the study's run list answers. */
 function oneRunFromList() {
   platform.studyRun.mockImplementation(async (_org: string, _study: string, id: string) => {
     const runs = (await platform.studyRuns()) as Array<{ id: string }>;
-    const found = runs.find((run) => run.id === id);
-    if (!found) throw Object.assign(new HttpError(404, 'Study run not found.'), { code: 'not_found' });
+    const found = runs.find(run => run.id === id);
+    if (!found)
+      throw Object.assign(new HttpError(404, 'Study run not found.'), { code: 'not_found' });
     return found;
   });
 }
@@ -33,16 +55,19 @@ const ROOT = '/app/isa-demo';
 const STUDY = `${ROOT}/studies/engines-vs-seeds`;
 const RESULTS = `${STUDY}/results?run=${RUN_ID}`;
 
-const refusal = (status: number, code: string, message = 'refused') => Object.assign(new HttpError(status, message), { code });
-const running = (cells: StudyCell[]) => cells.map((cell) => (cell.state === 'cancelled' ? { ...cell, state: 'running' as const } : cell));
+const refusal = (status: number, code: string, message = 'refused') =>
+  Object.assign(new HttpError(status, message), { code });
+const running = (cells: StudyCell[]) =>
+  cells.map(cell => (cell.state === 'cancelled' ? { ...cell, state: 'running' as const } : cell));
 
 /** The Progress tab of the study page, on the study run named by `?run=`. */
 function renderRun(options: { slug?: string; run?: string } = {}) {
   return renderOrgScreen(<StudyDetail />, {
-    path: '/app/:org/studies/:study/:tab?', url: `/app/${options.slug ?? 'isa-demo'}/studies/engines-vs-seeds/progress?run=${options.run ?? RUN_ID}`, organizations: [group, viewing],
+    path: '/app/:org/studies/:study/:tab?',
+    url: `/app/${options.slug ?? 'isa-demo'}/studies/engines-vs-seeds/progress?run=${options.run ?? RUN_ID}`,
+    organizations: [group, viewing],
   });
 }
-
 
 describe('One run of a study, in the Progress tab', () => {
   beforeEach(() => {
@@ -64,34 +89,60 @@ describe('One run of a study, in the Progress tab', () => {
 
     expect(await screen.findByRole('heading', { level: 2, name: 'Run #1' })).toBeInTheDocument();
     expect(screen.getAllByText('Partial').length).toBeGreaterThan(0);
-    expect(screen.getByText(/Sep 20, 2026, 09:00 UTC → Sep 20, 2026, 09:20 UTC/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Sep 20, 2026, 09:00 UTC → Sep 20, 2026, 09:20 UTC/)
+    ).toBeInTheDocument();
     const progress = screen.getByRole('region', { name: 'Progress of the run' });
-    expect(within(progress).getByRole('img', { name: '6 completed, 1 failed, 1 cancelled of 8 cells' })).toBeInTheDocument();
+    expect(
+      within(progress).getByRole('img', { name: '6 completed, 1 failed, 1 cancelled of 8 cells' })
+    ).toBeInTheDocument();
     expect(within(progress).getByText('6 of 6 completed are feasible')).toBeInTheDocument();
     expect(within(progress).getByText('Finished · not live')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Compare results' })).toHaveAttribute('href', RESULTS);
     expect(screen.getByRole('button', { name: 'Copy matrix digest' })).toBeInTheDocument();
     expect(document.body.textContent).not.toMatch(/sha256-|[0-9a-f]{12}|matrix [0-9a-f]/);
 
-    expect(screen.getByRole('heading', { name: 'Cells · cost (lower is better)' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Cells · cost (lower is better)' })
+    ).toBeInTheDocument();
     const heat = screen.getByRole('region', { name: 'Cells of the run as a matrix' });
     expect(within(heat).getAllByRole('link')).toHaveLength(8);
-    const best = within(heat).getByRole('link', { name: 'Cell 4, Checkout flow r2, evolutionary · seed 1: completed, Cost 0.104' });
+    const best = within(heat).getByRole('link', {
+      name: 'Cell 4, Checkout flow r2, evolutionary · seed 1: completed, Cost 0.104',
+    });
     expect(best).toHaveAttribute('href', `${RESULTS}&cell=00000000-0000-4000-8000-000000000204`);
     expect(best).toHaveClass('is-level-0');
-    expect(within(heat).getByRole('link', { name: /Cell 2, .* completed, Cost 0\.121/ })).toHaveClass('is-level-3');
-    expect(within(heat).getByRole('link', { name: /Cell 1, .* failed$/ })).toHaveTextContent('engine_unreachable');
-    expect(within(heat).getByRole('link', { name: /Cell 5, .* cancelled$/ })).toHaveClass('is-cancelled');
+    expect(
+      within(heat).getByRole('link', { name: /Cell 2, .* completed, Cost 0\.121/ })
+    ).toHaveClass('is-level-3');
+    expect(within(heat).getByRole('link', { name: /Cell 1, .* failed$/ })).toHaveTextContent(
+      'engine_unreachable'
+    );
+    expect(within(heat).getByRole('link', { name: /Cell 5, .* cancelled$/ })).toHaveClass(
+      'is-cancelled'
+    );
     expect(screen.queryByRole('navigation', { name: 'Project sections' })).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Studies' })).toHaveAttribute('href', '/app/isa-demo/studies');
+    expect(screen.getByRole('link', { name: 'Studies' })).toHaveAttribute(
+      'href',
+      '/app/isa-demo/studies'
+    );
   });
 
   it('colours the matrix by another measure on request', async () => {
     renderRun();
 
-    fireEvent.change(await screen.findByRole('combobox', { name: 'Colour by' }), { target: { value: 'runtime' } });
-    expect(screen.getByRole('heading', { name: 'Cells · time taken (lower is better)' })).toBeInTheDocument();
-    expect(within(screen.getByRole('region', { name: 'Cells of the run as a matrix' })).getByRole('link', { name: /Cell 2, .* completed, Time taken 58/ })).toHaveClass('is-level-0');
+    fireEvent.change(await screen.findByRole('combobox', { name: 'Colour by' }), {
+      target: { value: 'runtime' },
+    });
+    expect(
+      screen.getByRole('heading', { name: 'Cells · time taken (lower is better)' })
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByRole('region', { name: 'Cells of the run as a matrix' })).getByRole(
+        'link',
+        { name: /Cell 2, .* completed, Time taken 58/ }
+      )
+    ).toHaveClass('is-level-0');
   });
 
   it('lists every cell and narrows the list by engine and by state', async () => {
@@ -116,16 +167,25 @@ describe('One run of a study, in the Progress tab', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Retry cell 1' }));
 
     expect(await screen.findByText('Cell 1 queued again.')).toBeInTheDocument();
-    expect(platform.retryStudyCell).toHaveBeenCalledWith('isa-demo', 'engines-vs-seeds', RUN_ID, '00000000-0000-4000-8000-000000000201');
+    expect(platform.retryStudyCell).toHaveBeenCalledWith(
+      'isa-demo',
+      'engines-vs-seeds',
+      RUN_ID,
+      '00000000-0000-4000-8000-000000000201'
+    );
   });
 
   it('retries every failed or cancelled cell, and says when it stopped', async () => {
-    platform.retryStudyCell.mockResolvedValueOnce({ id: 'x', state: 'queued', fingerprint: 'f' }).mockRejectedValueOnce(refusal(429, 'concurrency_limit_exceeded', 'busy'));
+    platform.retryStudyCell
+      .mockResolvedValueOnce({ id: 'x', state: 'queued', fingerprint: 'f' })
+      .mockRejectedValueOnce(refusal(429, 'concurrency_limit_exceeded', 'busy'));
     renderRun();
 
     fireEvent.click(await screen.findByRole('button', { name: 'Retry 2 unfinished cells' }));
 
-    expect(await screen.findByText(/All your run slots are busy \(429 · concurrency_limit_exceeded\)/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/All your run slots are busy \(429 · concurrency_limit_exceeded\)/)
+    ).toBeInTheDocument();
     expect(screen.getByText(/1 cell queued again before this stopped\./)).toBeInTheDocument();
     expect(platform.retryStudyCell).toHaveBeenCalledTimes(2);
   });
@@ -136,7 +196,9 @@ describe('One run of a study, in the Progress tab', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Retry cell 5' }));
 
-    expect(await screen.findByText('This cell can’t be retried (409 · cell_not_retryable)')).toBeInTheDocument();
+    expect(
+      await screen.findByText('This cell can’t be retried (409 · cell_not_retryable)')
+    ).toBeInTheDocument();
   });
 
   it('follows a run that is still going and stops when asked to', async () => {
@@ -148,13 +210,17 @@ describe('One run of a study, in the Progress tab', () => {
     expect(await screen.findByText('Live · every 3 s')).toBeInTheDocument();
     expect(screen.getByRole('checkbox', { name: 'Keep updating' })).toBeChecked();
     const before = platform.studyCells.mock.calls.length;
-    await act(async () => { await vi.advanceTimersByTimeAsync(3100); });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3100);
+    });
     await waitFor(() => expect(platform.studyCells.mock.calls.length).toBeGreaterThan(before));
 
     fireEvent.click(screen.getByRole('checkbox', { name: 'Keep updating' }));
     expect(screen.queryByText('Live · every 3 s')).not.toBeInTheDocument();
     const stopped = platform.studyCells.mock.calls.length;
-    await act(async () => { await vi.advanceTimersByTimeAsync(9000); });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(9000);
+    });
     expect(platform.studyCells.mock.calls.length).toBe(stopped);
   });
 
@@ -165,7 +231,11 @@ describe('One run of a study, in the Progress tab', () => {
     const view = renderRun();
 
     fireEvent.click(await screen.findByRole('button', { name: 'Cancel run' }));
-    expect(await screen.findByText('Run cancelled. Cells that hadn’t finished are cancelled; you can retry them.')).toBeInTheDocument();
+    expect(
+      await screen.findByText(
+        'Run cancelled. Cells that hadn’t finished are cancelled; you can retry them.'
+      )
+    ).toBeInTheDocument();
     expect(platform.cancelStudyRun).toHaveBeenCalledWith('isa-demo', 'engines-vs-seeds', RUN_ID);
     view.unmount();
 
@@ -183,7 +253,9 @@ describe('One run of a study, in the Progress tab', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Cancel run' }));
 
-    expect(await screen.findByText('This run already finished (409 · terminal_run)')).toBeInTheDocument();
+    expect(
+      await screen.findByText('This run already finished (409 · terminal_run)')
+    ).toBeInTheDocument();
     expect(screen.getByText(/There’s nothing left to cancel\./)).toBeInTheDocument();
   });
 
@@ -193,7 +265,8 @@ describe('One run of a study, in the Progress tab', () => {
     await screen.findByRole('heading', { level: 2, name: 'Run #1' });
     expect(screen.getByRole('link', { name: 'Compare results' })).toBeInTheDocument();
     expect(screen.getAllByRole('link', { name: /^Open cell/ })).toHaveLength(8);
-    for (const name of ['Cancel run', 'Retry cell 1', 'Retry 2 unfinished cells']) expect(screen.queryByRole('button', { name })).not.toBeInTheDocument();
+    for (const name of ['Cancel run', 'Retry cell 1', 'Retry 2 unfinished cells'])
+      expect(screen.queryByRole('button', { name })).not.toBeInTheDocument();
   });
 
   it('answers a run that is not the study’s with a neutral 404', async () => {
@@ -201,14 +274,21 @@ describe('One run of a study, in the Progress tab', () => {
 
     expect(await screen.findByRole('heading', { name: 'Run not found' })).toBeInTheDocument();
     expect(screen.getByText(/This run doesn’t exist \(404\)/)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Back to the study' })).toHaveAttribute('href', `${ROOT}/studies/engines-vs-seeds`);
+    expect(screen.getByRole('link', { name: 'Back to the study' })).toHaveAttribute(
+      'href',
+      `${ROOT}/studies/engines-vs-seeds`
+    );
   });
 
   it('says a key without one of the engines cannot show the run', async () => {
-    platform.studyCells.mockRejectedValue(refusal(403, 'api_key_engine_forbidden', 'This key does not grant Evolutionary.'));
+    platform.studyCells.mockRejectedValue(
+      refusal(403, 'api_key_engine_forbidden', 'This key does not grant Evolutionary.')
+    );
     renderRun();
 
-    expect(await screen.findByText(/This API key can’t show this run \(403 · api_key_engine_forbidden\)/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/This API key can’t show this run \(403 · api_key_engine_forbidden\)/)
+    ).toBeInTheDocument();
     expect(screen.getByText(/This key does not grant Evolutionary\./)).toBeInTheDocument();
   });
 
@@ -216,7 +296,9 @@ describe('One run of a study, in the Progress tab', () => {
     platform.studyCells.mockRejectedValueOnce(refusal(503, 'unavailable'));
     renderRun();
 
-    expect(await screen.findByText(/The run couldn’t be loaded \(503 · unavailable\)/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/The run couldn’t be loaded \(503 · unavailable\)/)
+    ).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     expect(await screen.findByRole('heading', { level: 2, name: 'Run #1' })).toBeInTheDocument();
   });
@@ -225,25 +307,43 @@ describe('One run of a study, in the Progress tab', () => {
     platform.studyCells.mockResolvedValue([]);
     renderRun();
 
-    expect(await screen.findByText(/This run has no cells, which shouldn’t happen\./)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/This run has no cells, which shouldn’t happen\./)
+    ).toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'Cells of the run' })).not.toBeInTheDocument();
   });
 
   it('leaves the squares out of a very large run and pages the table', async () => {
-    const many = Array.from({ length: 700 }, (_, n) => cellFixture(n, REVISION_1, EVOLUTIONARY, n, 'completed', { feasible: true, objectives: { cost: n / 1000 }, runtimeSeconds: 1 }));
+    const many = Array.from({ length: 700 }, (_, n) =>
+      cellFixture(n, REVISION_1, EVOLUTIONARY, n, 'completed', {
+        feasible: true,
+        objectives: { cost: n / 1000 },
+        runtimeSeconds: 1,
+      })
+    );
     platform.studyCells.mockResolvedValue(many);
     platform.studyRuns.mockResolvedValue([runFixture({ cells: 700 })]);
     renderRun();
 
-    expect(await screen.findByText(/This run has 700 cells, too many to draw as squares/)).toBeInTheDocument();
-    expect(screen.queryByRole('region', { name: 'Cells of the run as a matrix' })).not.toBeInTheDocument();
+    expect(
+      await screen.findByText(/This run has 700 cells, too many to draw as squares/)
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('region', { name: 'Cells of the run as a matrix' })
+    ).not.toBeInTheDocument();
     expect(screen.getByText('Showing 1–50 of 700')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     expect(screen.getByText('Showing 51–100 of 700')).toBeInTheDocument();
   });
 
   it('keeps the quota in the words of a retry that is refused for a plan limit', async () => {
-    platform.retryStudyCell.mockRejectedValue(new QuotaError('quota_exceeded', 'full', { limit_id: 'maxRepositoryStorage', limit: 50, used: 50 }));
+    platform.retryStudyCell.mockRejectedValue(
+      new QuotaError('quota_exceeded', 'full', {
+        limit_id: 'maxRepositoryStorage',
+        limit: 50,
+        used: 50,
+      })
+    );
     renderRun();
 
     fireEvent.click(await screen.findByRole('button', { name: 'Retry cell 1' }));

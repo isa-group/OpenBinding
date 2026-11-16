@@ -2,7 +2,9 @@ import type { JobDetail } from '../../api/runs';
 import type { Origin } from './RunOutcome';
 
 /** What a run is of, from the references it names: its organization, problem, version and compilation. `null` when it names none. */
-export function originOf(detail: Pick<JobDetail, 'organization' | 'problem' | 'revision' | 'compilation'> | undefined): Origin | null {
+export function originOf(
+  detail: Pick<JobDetail, 'organization' | 'problem' | 'revision' | 'compilation'> | undefined
+): Origin | null {
   if (!detail?.organization || !detail.problem || !detail.revision) return null;
   return {
     org: detail.organization.slug,

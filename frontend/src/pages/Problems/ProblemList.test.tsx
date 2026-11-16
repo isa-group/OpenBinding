@@ -7,11 +7,16 @@ import type { ProblemUpload } from '../../api/problems';
 import { caseOf, org, renderOrgScreen, revisionOf } from '../../features/workspace/testKit';
 import { ProblemList } from './ProblemList';
 
-const problems = vi.hoisted(() => ({ list: vi.fn(), revisions: vi.fn(), create: vi.fn(), remove: vi.fn() }));
+const problems = vi.hoisted(() => ({
+  list: vi.fn(),
+  revisions: vi.fn(),
+  create: vi.fn(),
+  remove: vi.fn(),
+}));
 const compositions = vi.hoisted(() => ({ list: vi.fn() }));
 
 vi.mock('../../api/problems', () => ({ problemsApi: problems }));
-vi.mock('../../entities/composition/api', () => ({ compositionsApi: compositions }));
+vi.mock('../../modules/core/utils/composition/api', () => ({ compositionsApi: compositions }));
 
 const group = org('isa-demo', { name: 'ISA Demo Group', effective_role: 'MEMBER' });
 const admin = org('qos-lab', { name: 'QoS Lab', effective_role: 'ADMIN' });
@@ -19,7 +24,13 @@ const viewing = org('read-lab', { name: 'Read Lab', effective_role: 'VIEWER' });
 
 const checkout = caseOf('flujo-checkout', 'Flujo de checkout', {
   description: 'Payments with parallel stock and shipping.',
-  latest_revision: { id: 'case-flujo-checkout-r2', revision: 2, package_digest: `sha256-${'2'.repeat(64)}`, created_at: '2026-04-02T00:00:00Z', origin: 'editor' },
+  latest_revision: {
+    id: 'case-flujo-checkout-r2',
+    revision: 2,
+    package_digest: `sha256-${'2'.repeat(64)}`,
+    created_at: '2026-04-02T00:00:00Z',
+    origin: 'editor',
+  },
 });
 const draft = caseOf('borrador', 'Borrador', { created_at: '2026-03-01T00:00:00Z' });
 const root = '/app/isa-demo';
@@ -31,7 +42,9 @@ function Where() {
   return (
     <>
       <output data-testid="where">{where.pathname + where.search}</output>
-      <button type="button" onClick={() => void navigate(-1)}>Browser back</button>
+      <button type="button" onClick={() => void navigate(-1)}>
+        Browser back
+      </button>
     </>
   );
 }
@@ -39,31 +52,65 @@ function Where() {
 const where = () => screen.getByTestId('where').textContent;
 
 function renderList(organization = group, search = '') {
-  return renderOrgScreen(<><ProblemList /><Where /></>, {
-    path: '/app/:org/problems', url: `/app/${organization.slug}/problems${search}`, organizations: [organization],
-  });
+  return renderOrgScreen(
+    <>
+      <ProblemList />
+      <Where />
+    </>,
+    {
+      path: '/app/:org/problems',
+      url: `/app/${organization.slug}/problems${search}`,
+      organizations: [organization],
+    }
+  );
 }
 
-const refusal = (status: number, code: string, extra: Record<string, unknown> = {}) => Object.assign(new HttpError(status, 'refused'), { code, ...extra });
+const refusal = (status: number, code: string, extra: Record<string, unknown> = {}) =>
+  Object.assign(new HttpError(status, 'refused'), { code, ...extra });
 
 const upload = (slug: string, name: string): ProblemUpload => {
   const item = caseOf(slug, name);
   return {
-    problem: item, revision: revisionOf(item, 1), created: true,
-    compilation: { id: 'c1', compilation_digest: 'sha256-c', compiler_digest: 'sha256-k', ir_digest: 'sha256-i', binding_space: '4', created_at: '2026-04-02T00:00:00Z', current: true },
+    problem: item,
+    revision: revisionOf(item, 1),
+    created: true,
+    compilation: {
+      id: 'c1',
+      compilation_digest: 'sha256-c',
+      compiler_digest: 'sha256-k',
+      ir_digest: 'sha256-i',
+      binding_space: '4',
+      created_at: '2026-04-02T00:00:00Z',
+      current: true,
+    },
   };
 };
 
-const file = () => new File([new Uint8Array([80, 75, 3, 4])], 'analisis-de-latencia.bim.zip', { type: 'application/vnd.bim+zip' });
+const file = () =>
+  new File([new Uint8Array([80, 75, 3, 4])], 'analisis-de-latencia.bim.zip', {
+    type: 'application/vnd.bim+zip',
+  });
 
 describe('Problem list', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    problems.list.mockResolvedValue({ problems: [checkout, draft], total: 2, limit: 200, offset: 0 });
-    problems.revisions.mockImplementation(async (_org: string, slug: string) => (slug === 'flujo-checkout' ? [revisionOf(checkout, 1), revisionOf(checkout, 2)] : []));
+    problems.list.mockResolvedValue({
+      problems: [checkout, draft],
+      total: 2,
+      limit: 200,
+      offset: 0,
+    });
+    problems.revisions.mockImplementation(async (_org: string, slug: string) =>
+      slug === 'flujo-checkout' ? [revisionOf(checkout, 1), revisionOf(checkout, 2)] : []
+    );
     compositions.list.mockResolvedValue({
-      compositions: [{ id: 'composition-fleet', slug: 'fleet-plan', name: 'Fleet plan' }, { id: 'composition-desk', slug: 'order-desk', name: 'Order desk' }],
-      total: 2, limit: 200, offset: 0,
+      compositions: [
+        { id: 'composition-fleet', slug: 'fleet-plan', name: 'Fleet plan' },
+        { id: 'composition-desk', slug: 'order-desk', name: 'Order desk' },
+      ],
+      total: 2,
+      limit: 200,
+      offset: 0,
     });
   });
 
@@ -71,20 +118,33 @@ describe('Problem list', () => {
     renderList();
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Problems' })).toBeInTheDocument();
-    expect(problems.list).toHaveBeenCalledWith('isa-demo', { limit: 200, origin: undefined, composition: undefined });
+    expect(problems.list).toHaveBeenCalledWith('isa-demo', {
+      limit: 200,
+      origin: undefined,
+      composition: undefined,
+    });
     const list = await screen.findByRole('list', { name: 'Problems' });
     const rows = within(list).getAllByRole('listitem');
     expect(rows).toHaveLength(2);
     const first = within(rows[0]);
-    expect(first.getByRole('link', { name: /Flujo de checkout/ })).toHaveAttribute('href', `${root}/problems/flujo-checkout`);
+    expect(first.getByRole('link', { name: /Flujo de checkout/ })).toHaveAttribute(
+      'href',
+      `${root}/problems/flujo-checkout`
+    );
     expect(first.getByText('Ready to run')).toBeInTheDocument();
     expect(first.getByText('Problem editor')).toBeInTheDocument();
     expect(first.getByText('2 versions')).toBeInTheDocument();
     expect(first.getByText(/latest v2 · /)).toBeInTheDocument();
     expect(document.body.textContent).not.toMatch(/sha256-|[0-9a-f]{12}/);
     expect(first.getByText('Payments with parallel stock and shipping.')).toBeInTheDocument();
-    expect(first.getByRole('link', { name: 'Run latest' })).toHaveAttribute('href', '/app/isa-demo/runs/new?problem=flujo-checkout&revision=2');
-    expect(first.getByRole('link', { name: 'New version' })).toHaveAttribute('href', `${root}/problem-editor?problem=flujo-checkout`);
+    expect(first.getByRole('link', { name: 'Run latest' })).toHaveAttribute(
+      'href',
+      '/app/isa-demo/runs/new?problem=flujo-checkout&revision=2'
+    );
+    expect(first.getByRole('link', { name: 'New version' })).toHaveAttribute(
+      'href',
+      `${root}/problem-editor?problem=flujo-checkout`
+    );
     const second = within(rows[1]);
     expect(second.getByText('No version yet')).toBeInTheDocument();
     expect(second.getByText('0 versions')).toBeInTheDocument();
@@ -98,17 +158,29 @@ describe('Problem list', () => {
     await screen.findByRole('list', { name: 'Problems' });
 
     expect(screen.getByRole('button', { name: 'Upload BIM package' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Write one in the problem editor' })).toHaveAttribute('href', `${root}/problem-editor`);
-    expect(screen.getByRole('link', { name: 'Start from a template' })).toHaveAttribute('href', `${root}/problem-editor?template=demo%2F01_simple_seq`);
+    expect(screen.getByRole('link', { name: 'Write one in the problem editor' })).toHaveAttribute(
+      'href',
+      `${root}/problem-editor`
+    );
+    expect(screen.getByRole('link', { name: 'Start from a template' })).toHaveAttribute(
+      'href',
+      `${root}/problem-editor?template=demo%2F01_simple_seq`
+    );
   });
 
   it('finds a problem by name or address and says when none matches', async () => {
     renderList();
     await screen.findByRole('list', { name: 'Problems' });
 
-    fireEvent.change(screen.getByRole('searchbox', { name: 'Search problems' }), { target: { value: 'borr' } });
-    expect(within(screen.getByRole('list', { name: 'Problems' })).getAllByRole('listitem')).toHaveLength(1);
-    fireEvent.change(screen.getByRole('searchbox', { name: 'Search problems' }), { target: { value: 'zzz' } });
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search problems' }), {
+      target: { value: 'borr' },
+    });
+    expect(
+      within(screen.getByRole('list', { name: 'Problems' })).getAllByRole('listitem')
+    ).toHaveLength(1);
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search problems' }), {
+      target: { value: 'zzz' },
+    });
     expect(screen.getByText('No problem matches “zzz”.')).toBeInTheDocument();
   });
 
@@ -118,15 +190,35 @@ describe('Problem list', () => {
       await screen.findByRole('list', { name: 'Problems' });
 
       const origins = screen.getByRole('group', { name: 'Origin of the latest version' });
-      expect(within(origins).getAllByRole('button').map((button) => button.textContent)).toEqual(['All origins', 'Uploaded', 'Problem editor', 'QACOForge']);
-      expect(within(origins).getByRole('button', { name: 'All origins' })).toHaveAttribute('aria-pressed', 'true');
+      expect(
+        within(origins)
+          .getAllByRole('button')
+          .map(button => button.textContent)
+      ).toEqual(['All origins', 'Uploaded', 'Problem editor', 'QACOForge']);
+      expect(within(origins).getByRole('button', { name: 'All origins' })).toHaveAttribute(
+        'aria-pressed',
+        'true'
+      );
       problems.list.mockResolvedValue({ problems: [checkout], total: 1, limit: 200, offset: 0 });
       fireEvent.click(within(origins).getByRole('button', { name: 'Problem editor' }));
 
       await waitFor(() => expect(where()).toBe(`${root}/problems?origin=editor`));
-      await waitFor(() => expect(problems.list).toHaveBeenLastCalledWith('isa-demo', { limit: 200, origin: 'editor', composition: undefined }));
-      await waitFor(() => expect(within(screen.getByRole('list', { name: 'Problems' })).getAllByRole('listitem')).toHaveLength(1));
-      expect(within(origins).getByRole('button', { name: 'Problem editor' })).toHaveAttribute('aria-pressed', 'true');
+      await waitFor(() =>
+        expect(problems.list).toHaveBeenLastCalledWith('isa-demo', {
+          limit: 200,
+          origin: 'editor',
+          composition: undefined,
+        })
+      );
+      await waitFor(() =>
+        expect(
+          within(screen.getByRole('list', { name: 'Problems' })).getAllByRole('listitem')
+        ).toHaveLength(1)
+      );
+      expect(within(origins).getByRole('button', { name: 'Problem editor' })).toHaveAttribute(
+        'aria-pressed',
+        'true'
+      );
     });
 
     it('narrows the list to the problems a composition links, and offers the organization’s compositions', async () => {
@@ -134,12 +226,24 @@ describe('Problem list', () => {
       await screen.findByRole('list', { name: 'Problems' });
 
       const select = screen.getByRole('combobox', { name: 'Linked by composition' });
-      await waitFor(() => expect(within(select).getAllByRole('option').map((option) => option.textContent)).toEqual(['Any composition', 'Fleet plan', 'Order desk']));
+      await waitFor(() =>
+        expect(
+          within(select)
+            .getAllByRole('option')
+            .map(option => option.textContent)
+        ).toEqual(['Any composition', 'Fleet plan', 'Order desk'])
+      );
       expect(compositions.list).toHaveBeenCalledWith('isa-demo', { sort: 'name', limit: 200 });
       fireEvent.change(select, { target: { value: 'fleet-plan' } });
 
       await waitFor(() => expect(where()).toBe(`${root}/problems?composition=fleet-plan`));
-      await waitFor(() => expect(problems.list).toHaveBeenLastCalledWith('isa-demo', { limit: 200, origin: undefined, composition: 'fleet-plan' }));
+      await waitFor(() =>
+        expect(problems.list).toHaveBeenLastCalledWith('isa-demo', {
+          limit: 200,
+          origin: undefined,
+          composition: 'fleet-plan',
+        })
+      );
     });
 
     it('reads both filters from the address, and says when nothing matches them', async () => {
@@ -147,10 +251,19 @@ describe('Problem list', () => {
       renderList(group, '?origin=qacoforge&composition=fleet-plan');
 
       expect(await screen.findByText(/No problem matches these filters\./)).toBeInTheDocument();
-      expect(problems.list).toHaveBeenCalledWith('isa-demo', { limit: 200, origin: 'qacoforge', composition: 'fleet-plan' });
+      expect(problems.list).toHaveBeenCalledWith('isa-demo', {
+        limit: 200,
+        origin: 'qacoforge',
+        composition: 'fleet-plan',
+      });
       expect(screen.queryByRole('heading', { name: 'No problems yet' })).not.toBeInTheDocument();
-      expect(screen.getByRole('link', { name: 'Show every problem' })).toHaveAttribute('href', `${root}/problems`);
-      expect(screen.getByRole('combobox', { name: 'Linked by composition' })).toHaveValue('fleet-plan');
+      expect(screen.getByRole('link', { name: 'Show every problem' })).toHaveAttribute(
+        'href',
+        `${root}/problems`
+      );
+      expect(screen.getByRole('combobox', { name: 'Linked by composition' })).toHaveValue(
+        'fleet-plan'
+      );
     });
 
     it('keeps the list when the compositions cannot be read: the select offers only any composition', async () => {
@@ -158,20 +271,50 @@ describe('Problem list', () => {
       renderList();
 
       await screen.findByRole('list', { name: 'Problems' });
-      expect(within(screen.getByRole('combobox', { name: 'Linked by composition' })).getAllByRole('option').map((option) => option.textContent)).toEqual(['Any composition']);
+      expect(
+        within(screen.getByRole('combobox', { name: 'Linked by composition' }))
+          .getAllByRole('option')
+          .map(option => option.textContent)
+      ).toEqual(['Any composition']);
     });
 
     it('names where each latest version came from', async () => {
-      const uploaded = caseOf('subido', 'Subido', { latest_revision: { id: 'r1', revision: 1, package_digest: `sha256-${'1'.repeat(64)}`, created_at: '2026-04-02T00:00:00Z', origin: 'upload' } });
-      const forged = caseOf('forjado', 'Forjado', { latest_revision: { id: 'r1', revision: 1, package_digest: `sha256-${'1'.repeat(64)}`, created_at: '2026-04-01T00:00:00Z', origin: 'qacoforge' } });
-      problems.list.mockResolvedValue({ problems: [uploaded, forged, draft], total: 3, limit: 200, offset: 0 });
+      const uploaded = caseOf('subido', 'Subido', {
+        latest_revision: {
+          id: 'r1',
+          revision: 1,
+          package_digest: `sha256-${'1'.repeat(64)}`,
+          created_at: '2026-04-02T00:00:00Z',
+          origin: 'upload',
+        },
+      });
+      const forged = caseOf('forjado', 'Forjado', {
+        latest_revision: {
+          id: 'r1',
+          revision: 1,
+          package_digest: `sha256-${'1'.repeat(64)}`,
+          created_at: '2026-04-01T00:00:00Z',
+          origin: 'qacoforge',
+        },
+      });
+      problems.list.mockResolvedValue({
+        problems: [uploaded, forged, draft],
+        total: 3,
+        limit: 200,
+        offset: 0,
+      });
       renderList();
 
       const list = await screen.findByRole('list', { name: 'Problems' });
-      const row = (name: string) => within(list).getAllByRole('listitem').find((item) => item.textContent?.includes(name)) as HTMLElement;
+      const row = (name: string) =>
+        within(list)
+          .getAllByRole('listitem')
+          .find(item => item.textContent?.includes(name)) as HTMLElement;
       expect(within(row('Subido')).getByText('Uploaded')).toBeInTheDocument();
       expect(within(row('Forjado')).getByText('QACOForge')).toBeInTheDocument();
-      expect(within(row('Borrador')).queryByText(/Uploaded|Problem editor|QACOForge/)).not.toBeInTheDocument();
+      expect(
+        within(row('Borrador')).queryByText(/Uploaded|Problem editor|QACOForge/)
+      ).not.toBeInTheDocument();
     });
   });
 
@@ -179,16 +322,23 @@ describe('Problem list', () => {
     problems.list.mockResolvedValue({ problems: [], total: 0, limit: 200, offset: 0 });
     renderList();
 
-    const guide = (await screen.findByRole('heading', { name: 'No problems yet' })).closest('section') as HTMLElement;
+    const guide = (await screen.findByRole('heading', { name: 'No problems yet' })).closest(
+      'section'
+    ) as HTMLElement;
     expect(within(guide).getByRole('button', { name: 'Upload BIM package' })).toBeInTheDocument();
-    expect(within(guide).getByRole('link', { name: 'Start from a template' })).toHaveAttribute('href', `${root}/problem-editor?template=demo%2F01_simple_seq`);
+    expect(within(guide).getByRole('link', { name: 'Start from a template' })).toHaveAttribute(
+      'href',
+      `${root}/problem-editor?template=demo%2F01_simple_seq`
+    );
   });
 
   it('keeps the page and offers a retry when the list fails', async () => {
     problems.list.mockRejectedValueOnce(refusal(503, 'unavailable'));
     renderList();
 
-    expect(await screen.findByText(/Problems couldn’t be loaded \(503 · unavailable\)/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/Problems couldn’t be loaded \(503 · unavailable\)/)
+    ).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     expect(await screen.findByRole('list', { name: 'Problems' })).toBeInTheDocument();
   });
@@ -197,7 +347,9 @@ describe('Problem list', () => {
     renderList(viewing);
     const list = await screen.findByRole('list', { name: 'Problems' });
 
-    expect(screen.getByRole('note')).toHaveTextContent('You can open and compare problems here; uploading and editing need MEMBER.');
+    expect(screen.getByRole('note')).toHaveTextContent(
+      'You can open and compare problems here; uploading and editing need MEMBER.'
+    );
     expect(screen.queryByRole('button', { name: 'Upload BIM package' })).not.toBeInTheDocument();
     expect(within(list).queryByRole('link', { name: 'New version' })).not.toBeInTheDocument();
     expect(within(list).queryByRole('link', { name: 'Run latest' })).not.toBeInTheDocument();
@@ -216,15 +368,24 @@ describe('Problem list', () => {
       problems.create.mockResolvedValue(upload('analisis-de-latencia', 'analisis-de-latencia'));
       const dialog = await openDialog();
 
-      fireEvent.change(within(dialog).getByLabelText('BIM package'), { target: { files: [file()] } });
+      fireEvent.change(within(dialog).getByLabelText('BIM package'), {
+        target: { files: [file()] },
+      });
       expect(within(dialog).getByLabelText('Name')).toHaveValue('analisis-de-latencia');
       expect(within(dialog).getByLabelText('Address')).toHaveValue('analisis-de-latencia');
-      fireEvent.change(within(dialog).getByLabelText(/Description/), { target: { value: 'Edge pools' } });
+      fireEvent.change(within(dialog).getByLabelText(/Description/), {
+        target: { value: 'Edge pools' },
+      });
       fireEvent.click(within(dialog).getByRole('button', { name: 'Upload problem' }));
 
-      await waitFor(() => expect(problems.create).toHaveBeenCalledWith('isa-demo', expect.any(File), {
-        slug: 'analisis-de-latencia', name: 'analisis-de-latencia', description: 'Edge pools', producer: 'openbinding-upload',
-      }));
+      await waitFor(() =>
+        expect(problems.create).toHaveBeenCalledWith('isa-demo', expect.any(File), {
+          slug: 'analisis-de-latencia',
+          name: 'analisis-de-latencia',
+          description: 'Edge pools',
+          producer: 'openbinding-upload',
+        })
+      );
       // The problem page is another route: the list is left for it.
       expect(await screen.findByText('elsewhere')).toBeInTheDocument();
     });
@@ -232,30 +393,59 @@ describe('Problem list', () => {
     it('does not send without a file', async () => {
       const dialog = await openDialog();
       fireEvent.click(within(dialog).getByRole('button', { name: 'Upload problem' }));
-      expect(within(dialog).getByRole('alert')).toHaveTextContent('Choose the .bim.zip package to upload.');
+      expect(within(dialog).getByRole('alert')).toHaveTextContent(
+        'Choose the .bim.zip package to upload.'
+      );
       expect(problems.create).not.toHaveBeenCalled();
     });
 
     it('lists where a refused package is wrong (422), and keeps the dialog open', async () => {
-      problems.create.mockRejectedValue(refusal(422, 'invalid_instance', { diagnostics: [{ code: 'missing_role', message: 'The application is missing.', resource: 'instance.json' }] }));
+      problems.create.mockRejectedValue(
+        refusal(422, 'invalid_instance', {
+          diagnostics: [
+            {
+              code: 'missing_role',
+              message: 'The application is missing.',
+              resource: 'instance.json',
+            },
+          ],
+        })
+      );
       const dialog = await openDialog();
-      fireEvent.change(within(dialog).getByLabelText('BIM package'), { target: { files: [file()] } });
+      fireEvent.change(within(dialog).getByLabelText('BIM package'), {
+        target: { files: [file()] },
+      });
       fireEvent.click(within(dialog).getByRole('button', { name: 'Upload problem' }));
 
       const alert = await within(dialog).findByRole('alert');
-      expect(alert).toHaveTextContent('The package was read and refused (422 · invalid_instance), so nothing was created.');
-      expect(within(alert).getByRole('list', { name: 'What the compiler found' })).toHaveTextContent('instance.json The application is missing.');
+      expect(alert).toHaveTextContent(
+        'The package was read and refused (422 · invalid_instance), so nothing was created.'
+      );
+      expect(
+        within(alert).getByRole('list', { name: 'What the compiler found' })
+      ).toHaveTextContent('instance.json The application is missing.');
       expect(where()).toBe(`${root}/problems?create=problem`);
     });
 
     it.each([
-      [refusal(409, 'slug_conflict'), 'That address is already used by another problem in this organization (409 · slug_conflict). Pick another one.'],
-      [new QuotaError('quota_exceeded', 'full', { limit_id: 'maxProblems', limit: 3 }), 'Your plan has no room for this (402 · quota_exceeded)'],
-      [refusal(413, 'payload_too_large'), 'The package is larger than you can upload (413 · payload_too_large), so nothing was created.'],
+      [
+        refusal(409, 'slug_conflict'),
+        'That address is already used by another problem in this organization (409 · slug_conflict). Pick another one.',
+      ],
+      [
+        new QuotaError('quota_exceeded', 'full', { limit_id: 'maxProblems', limit: 3 }),
+        'Your plan has no room for this (402 · quota_exceeded)',
+      ],
+      [
+        refusal(413, 'payload_too_large'),
+        'The package is larger than you can upload (413 · payload_too_large), so nothing was created.',
+      ],
     ])('says why nothing was created (%#)', async (caught, text) => {
       problems.create.mockRejectedValue(caught);
       const dialog = await openDialog();
-      fireEvent.change(within(dialog).getByLabelText('BIM package'), { target: { files: [file()] } });
+      fireEvent.change(within(dialog).getByLabelText('BIM package'), {
+        target: { files: [file()] },
+      });
       fireEvent.click(within(dialog).getByRole('button', { name: 'Upload problem' }));
 
       expect(await within(dialog).findByRole('alert')).toHaveTextContent(text);
@@ -266,7 +456,9 @@ describe('Problem list', () => {
     it('is open when the address holds create=problem, over the list', async () => {
       renderList(group, '?create=problem');
 
-      expect(await screen.findByRole('dialog', { name: 'Upload a BIM package' })).toBeInTheDocument();
+      expect(
+        await screen.findByRole('dialog', { name: 'Upload a BIM package' })
+      ).toBeInTheDocument();
       expect(screen.getByRole('heading', { level: 1, name: 'Problems' })).toBeInTheDocument();
     });
 
@@ -299,7 +491,9 @@ describe('Problem list', () => {
 
   describe('delete', () => {
     it('deletes a problem once its address is typed', async () => {
-      problems.list.mockResolvedValueOnce({ problems: [checkout, draft], total: 2, limit: 200, offset: 0 }).mockResolvedValue({ problems: [checkout], total: 1, limit: 200, offset: 0 });
+      problems.list
+        .mockResolvedValueOnce({ problems: [checkout, draft], total: 2, limit: 200, offset: 0 })
+        .mockResolvedValue({ problems: [checkout], total: 1, limit: 200, offset: 0 });
       problems.remove.mockResolvedValue(undefined);
       renderList(admin);
       const list = await screen.findByRole('list', { name: 'Problems' });
@@ -308,12 +502,18 @@ describe('Problem list', () => {
       const dialog = await screen.findByRole('dialog', { name: 'Delete Borrador?' });
       const confirm = within(dialog).getByRole('button', { name: 'Delete problem' });
       expect(confirm).toBeDisabled();
-      fireEvent.change(within(dialog).getByLabelText('Type borrador to confirm'), { target: { value: 'borrador' } });
+      fireEvent.change(within(dialog).getByLabelText('Type borrador to confirm'), {
+        target: { value: 'borrador' },
+      });
       fireEvent.click(confirm);
 
       await waitFor(() => expect(problems.remove).toHaveBeenCalledWith('qos-lab', 'borrador'));
       expect(await screen.findByText('Problem “Borrador” deleted.')).toBeInTheDocument();
-      await waitFor(() => expect(within(screen.getByRole('list', { name: 'Problems' })).getAllByRole('listitem')).toHaveLength(1));
+      await waitFor(() =>
+        expect(
+          within(screen.getByRole('list', { name: 'Problems' })).getAllByRole('listitem')
+        ).toHaveLength(1)
+      );
     });
 
     it('says a problem that runs used is kept (409 problem_has_runs)', async () => {
@@ -323,10 +523,14 @@ describe('Problem list', () => {
 
       fireEvent.click(within(list).getByRole('button', { name: 'Delete Flujo de checkout' }));
       const dialog = await screen.findByRole('dialog', { name: 'Delete Flujo de checkout?' });
-      fireEvent.change(within(dialog).getByLabelText('Type flujo-checkout to confirm'), { target: { value: 'flujo-checkout' } });
+      fireEvent.change(within(dialog).getByLabelText('Type flujo-checkout to confirm'), {
+        target: { value: 'flujo-checkout' },
+      });
       fireEvent.click(within(dialog).getByRole('button', { name: 'Delete problem' }));
 
-      expect(await within(dialog).findByRole('alert')).toHaveTextContent('Runs or studies name a version of this problem, so it can’t be deleted (409 · problem_has_runs).');
+      expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+        'Runs or studies name a version of this problem, so it can’t be deleted (409 · problem_has_runs).'
+      );
     });
 
     it('is not offered to a MEMBER', async () => {
@@ -337,7 +541,13 @@ describe('Problem list', () => {
   });
 
   it('shows the organization gate when the address names an organization the account is not in', async () => {
-    renderOrgScreen(<ProblemList />, { path: '/app/:org/problems', url: '/app/elsewhere/problems', organizations: [group] });
-    expect(await screen.findByRole('heading', { name: 'Organization not available' })).toBeInTheDocument();
+    renderOrgScreen(<ProblemList />, {
+      path: '/app/:org/problems',
+      url: '/app/elsewhere/problems',
+      organizations: [group],
+    });
+    expect(
+      await screen.findByRole('heading', { name: 'Organization not available' })
+    ).toBeInTheDocument();
   });
 });

@@ -7,11 +7,22 @@ import { member, renderScreen } from './testKit';
 import { OrgSettings } from './OrgSettings';
 
 const api = vi.hoisted(() => ({ adminListUsers: vi.fn() }));
-const platform = vi.hoisted(() => ({ updateOrganization: vi.fn(), deleteOrganization: vi.fn(), members: vi.fn(), studies: vi.fn() }));
+const platform = vi.hoisted(() => ({
+  updateOrganization: vi.fn(),
+  deleteOrganization: vi.fn(),
+  members: vi.fn(),
+  studies: vi.fn(),
+}));
 const problems = vi.hoisted(() => ({ list: vi.fn() }));
 
-vi.mock('../../api/client', async () => ({ ...await vi.importActual<typeof import('../../api/client')>('../../api/client'), apiClient: api }));
-vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'), platformApi: platform }));
+vi.mock('../../api/client', async () => ({
+  ...(await vi.importActual<typeof import('../../api/client')>('../../api/client')),
+  apiClient: api,
+}));
+vi.mock('../../api/platform', async () => ({
+  ...(await vi.importActual<typeof import('../../api/platform')>('../../api/platform')),
+  platformApi: platform,
+}));
 vi.mock('../../api/problems', () => ({ problemsApi: problems }));
 
 const group = org('isa-demo', { name: 'ISA Demo Group' });
@@ -20,15 +31,23 @@ const consultora = org('consultora-demo', { name: 'Consultora Demo', effective_r
 const readOnly = org('read-only', { name: 'Read Only Lab', effective_role: 'MEMBER' });
 
 function renderSettings(organizations = [group, lab, consultora, readOnly], slug = 'isa-demo') {
-  return renderScreen(<OrgSettings />, { path: '/app/:org/settings/:section?', url: `/app/${slug}/settings`, organizations });
+  return renderScreen(<OrgSettings />, {
+    path: '/app/:org/settings/:section?',
+    url: `/app/${slug}/settings`,
+    organizations,
+  });
 }
 
-const refusal = (status: number, code: string, problem?: unknown) => Object.assign(new HttpError(status, 'refused'), { code, problem });
+const refusal = (status: number, code: string, problem?: unknown) =>
+  Object.assign(new HttpError(status, 'refused'), { code, problem });
 
 describe('Organization settings', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    platform.members.mockResolvedValue([member('lucia.vega', 'OWNER', { user_id: lucia.id }), member('marco', 'MEMBER')]);
+    platform.members.mockResolvedValue([
+      member('lucia.vega', 'OWNER', { user_id: lucia.id }),
+      member('marco', 'MEMBER'),
+    ]);
     problems.list.mockResolvedValue({ problems: [], total: 3, limit: 1, offset: 0 });
     platform.studies.mockResolvedValue([{ id: 's1' }, { id: 's2' }]);
     platform.updateOrganization.mockResolvedValue(group);
@@ -42,9 +61,18 @@ describe('Organization settings', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Settings' })).toBeInTheDocument();
     expect(screen.getByText(/ISA Demo Group · your role/)).toBeInTheDocument();
     const nav = screen.getByRole('navigation', { name: 'Organization settings' });
-    expect(within(nav).getByRole('link', { name: 'General' })).toHaveAttribute('aria-current', 'page');
-    expect(within(nav).getByRole('link', { name: 'Members' })).toHaveAttribute('href', '/app/isa-demo/settings/members');
-    expect(within(nav).getByRole('link', { name: 'Audit' })).toHaveAttribute('href', '/app/isa-demo/settings/audit');
+    expect(within(nav).getByRole('link', { name: 'General' })).toHaveAttribute(
+      'aria-current',
+      'page'
+    );
+    expect(within(nav).getByRole('link', { name: 'Members' })).toHaveAttribute(
+      'href',
+      '/app/isa-demo/settings/members'
+    );
+    expect(within(nav).getByRole('link', { name: 'Audit' })).toHaveAttribute(
+      'href',
+      '/app/isa-demo/settings/audit'
+    );
     expect(screen.getByText('/app/isa-demo')).toBeInTheDocument();
   });
 
@@ -57,10 +85,19 @@ describe('Organization settings', () => {
     fireEvent.change(name, { target: { value: 'ISA Research Group' } });
     fireEvent.click(save);
 
-    await waitFor(() => expect(platform.updateOrganization).toHaveBeenCalledWith('isa-demo', { name: 'ISA Research Group' }));
-    expect(await screen.findByText('Name saved as “ISA Research Group”. An audit entry was recorded.')).toBeInTheDocument();
+    await waitFor(() =>
+      expect(platform.updateOrganization).toHaveBeenCalledWith('isa-demo', {
+        name: 'ISA Research Group',
+      })
+    );
+    expect(
+      await screen.findByText('Name saved as “ISA Research Group”. An audit entry was recorded.')
+    ).toBeInTheDocument();
     expect(reload).toHaveBeenCalledOnce();
-    expect(screen.getByRole('link', { name: 'See it in the audit log' })).toHaveAttribute('href', '/app/isa-demo/settings/audit');
+    expect(screen.getByRole('link', { name: 'See it in the audit log' })).toHaveAttribute(
+      'href',
+      '/app/isa-demo/settings/audit'
+    );
   });
 
   it('says a rename could not be saved when pricing is down (503)', async () => {
@@ -70,7 +107,11 @@ describe('Organization settings', () => {
     fireEvent.change(await screen.findByLabelText('Name'), { target: { value: 'Another' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save name' }));
 
-    expect(await screen.findByText('The name couldn’t be saved right now (503 · pricing_unavailable). Try again in a moment.')).toBeInTheDocument();
+    expect(
+      await screen.findByText(
+        'The name couldn’t be saved right now (503 · pricing_unavailable). Try again in a moment.'
+      )
+    ).toBeInTheDocument();
   });
 
   describe('where it sits', () => {
@@ -80,15 +121,23 @@ describe('Organization settings', () => {
 
       expect(places.getByRole('radio', { name: /Top level · current/ })).toBeChecked();
       expect(places.getByRole('radio', { name: /QoS Lab/ })).toBeDisabled();
-      expect(places.getByText('It sits inside this organization: moving here would make a loop')).toBeInTheDocument();
+      expect(
+        places.getByText('It sits inside this organization: moving here would make a loop')
+      ).toBeInTheDocument();
       expect(places.getByRole('radio', { name: /Read Only Lab/ })).toBeDisabled();
       expect(places.getByText('Needs ADMIN there; you’re MEMBER')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Move organization' })).toBeDisabled();
 
       fireEvent.click(places.getByRole('radio', { name: /Consultora Demo/ }));
       const tree = screen.getByRole('list', { name: 'Organization tree after the move' });
-      expect(within(tree).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['Consultora Demo', 'ISA Demo Group', 'QoS Lab']);
-      expect(screen.getByText('Members of Consultora Demo will inherit their roles here.')).toBeInTheDocument();
+      expect(
+        within(tree)
+          .getAllByRole('listitem')
+          .map(item => item.textContent)
+      ).toEqual(['Consultora Demo', 'ISA Demo Group', 'QoS Lab']);
+      expect(
+        screen.getByText('Members of Consultora Demo will inherit their roles here.')
+      ).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Move organization' })).toBeEnabled();
     });
 
@@ -97,8 +146,14 @@ describe('Organization settings', () => {
       fireEvent.click(await screen.findByRole('radio', { name: /Consultora Demo/ }));
       fireEvent.click(screen.getByRole('button', { name: 'Move organization' }));
 
-      await waitFor(() => expect(platform.updateOrganization).toHaveBeenCalledWith('isa-demo', { parent_id: consultora.id }));
-      expect(await screen.findByText('Moved ISA Demo Group inside Consultora Demo.')).toBeInTheDocument();
+      await waitFor(() =>
+        expect(platform.updateOrganization).toHaveBeenCalledWith('isa-demo', {
+          parent_id: consultora.id,
+        })
+      );
+      expect(
+        await screen.findByText('Moved ISA Demo Group inside Consultora Demo.')
+      ).toBeInTheDocument();
       expect(reload).toHaveBeenCalledOnce();
     });
 
@@ -108,13 +163,23 @@ describe('Organization settings', () => {
       expect(screen.getByText('Only direct members will have roles here.')).toBeInTheDocument();
       fireEvent.click(screen.getByRole('button', { name: 'Move organization' }));
 
-      await waitFor(() => expect(platform.updateOrganization).toHaveBeenCalledWith('qos-lab', { move_to_root: true }));
+      await waitFor(() =>
+        expect(platform.updateOrganization).toHaveBeenCalledWith('qos-lab', { move_to_root: true })
+      );
       expect(await screen.findByText('Moved QoS Lab to the top level.')).toBeInTheDocument();
     });
 
     it.each([
-      ['409 cycle', refusal(409, 'organization_cycle'), 'That move would put the organization inside itself (409 · organization_cycle). Choose another parent.'],
-      ['422 ambiguous parent', refusal(422, 'ambiguous_parent'), 'Choose either a new parent or the top level, not both (422 · ambiguous_parent).'],
+      [
+        '409 cycle',
+        refusal(409, 'organization_cycle'),
+        'That move would put the organization inside itself (409 · organization_cycle). Choose another parent.',
+      ],
+      [
+        '422 ambiguous parent',
+        refusal(422, 'ambiguous_parent'),
+        'Choose either a new parent or the top level, not both (422 · ambiguous_parent).',
+      ],
     ])('explains a refusal: %s', async (_name, error, text) => {
       platform.updateOrganization.mockRejectedValue(error);
       renderSettings();
@@ -143,7 +208,9 @@ describe('Organization settings', () => {
     expect(screen.queryByRole('button', { name: 'Delete organization' })).not.toBeInTheDocument();
     expect(screen.getByRole('radio', { name: /Top level/ })).toBeDisabled();
     // The audit log is flagged, not hidden.
-    expect(within(screen.getByRole('navigation', { name: 'Organization settings' })).getByText('ADMIN')).toHaveAttribute('title', 'Needs ADMIN');
+    expect(
+      within(screen.getByRole('navigation', { name: 'Organization settings' })).getByText('ADMIN')
+    ).toHaveAttribute('title', 'Needs ADMIN');
   });
 
   describe('deleting', () => {
@@ -160,9 +227,13 @@ describe('Organization settings', () => {
       const dialog = await screen.findByRole('dialog', { name: 'Delete ISA Demo Group?' });
       const confirm = within(dialog).getByRole('button', { name: 'Delete permanently' });
       expect(confirm).toBeDisabled();
-      fireEvent.change(within(dialog).getByLabelText('Type isa-demo to confirm'), { target: { value: 'isa-dem' } });
+      fireEvent.change(within(dialog).getByLabelText('Type isa-demo to confirm'), {
+        target: { value: 'isa-dem' },
+      });
       expect(confirm).toBeDisabled();
-      fireEvent.change(within(dialog).getByLabelText('Type isa-demo to confirm'), { target: { value: 'isa-demo' } });
+      fireEvent.change(within(dialog).getByLabelText('Type isa-demo to confirm'), {
+        target: { value: 'isa-demo' },
+      });
       fireEvent.click(confirm);
 
       await waitFor(() => expect(platform.deleteOrganization).toHaveBeenCalledWith('isa-demo'));
@@ -176,10 +247,14 @@ describe('Organization settings', () => {
 
       fireEvent.click(await screen.findByRole('button', { name: 'Delete organization' }));
       const dialog = await screen.findByRole('dialog', { name: 'Delete ISA Demo Group?' });
-      fireEvent.change(within(dialog).getByLabelText('Type isa-demo to confirm'), { target: { value: 'isa-demo' } });
+      fireEvent.change(within(dialog).getByLabelText('Type isa-demo to confirm'), {
+        target: { value: 'isa-demo' },
+      });
       fireEvent.click(within(dialog).getByRole('button', { name: 'Delete permanently' }));
 
-      expect(await within(dialog).findByRole('alert')).toHaveTextContent('It has runs or study runs, so it can’t be deleted (409 · historical_references).');
+      expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+        'It has runs or study runs, so it can’t be deleted (409 · historical_references).'
+      );
       expect(screen.queryByText('elsewhere')).not.toBeInTheDocument();
       fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
@@ -189,7 +264,11 @@ describe('Organization settings', () => {
   it('answers the neutral message for an organization the account cannot see', async () => {
     renderSettings([group], 'ghost');
 
-    expect(await screen.findByRole('heading', { name: 'Organization not available' })).toBeInTheDocument();
-    expect(screen.queryByRole('navigation', { name: 'Organization settings' })).not.toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: 'Organization not available' })
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('navigation', { name: 'Organization settings' })
+    ).not.toBeInTheDocument();
   });
 });

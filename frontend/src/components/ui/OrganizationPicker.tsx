@@ -29,15 +29,16 @@ interface SelectProps {
 
 export type OrganizationPickerProps = LinkListProps | SelectProps;
 
-type Load = { status: 'idle' | 'loading' | 'failed' } | { status: 'ready'; options: Organization[] };
+type Load =
+  { status: 'idle' | 'loading' | 'failed' } | { status: 'ready'; options: Organization[] };
 
 function useOrganizations() {
   const [load, setLoad] = useState<Load>({ status: 'idle' });
   const fetchOrganizations = () => {
     setLoad({ status: 'loading' });
     platformApi.organizations().then(
-      (options) => setLoad({ status: 'ready', options }),
-      () => setLoad({ status: 'failed' }),
+      options => setLoad({ status: 'ready', options }),
+      () => setLoad({ status: 'failed' })
     );
   };
   return { load, fetchOrganizations };
@@ -46,12 +47,19 @@ function useOrganizations() {
 function Failed({ onRetry }: { onRetry: () => void }) {
   return (
     <span role="alert">
-      Your organizations couldn’t be loaded. <button type="button" onClick={onRetry}>Retry</button>
+      Your organizations couldn’t be loaded.{' '}
+      <button type="button" onClick={onRetry}>
+        Retry
+      </button>
     </span>
   );
 }
 
-const NONE = <span>You’re in no organization yet. <Link to="/app">Open your workspace</Link> to create one.</span>;
+const NONE = (
+  <span>
+    You’re in no organization yet. <Link to="/app">Open your workspace</Link> to create one.
+  </span>
+);
 
 /**
  * A button that opens a short list of the organizations the signed-in account belongs to, each a link to `destination(organization)`.
@@ -70,20 +78,33 @@ function OrganizationLinks({ label, destination, variant = 'secondary' }: LinkLi
 
   return (
     <div className="ui-org-picker">
-      <button type="button" className={`ui-org-picker-button is-${variant}`} aria-expanded={open} aria-controls={panelId} onClick={toggle}>
+      <button
+        type="button"
+        className={`ui-org-picker-button is-${variant}`}
+        aria-expanded={open}
+        aria-controls={panelId}
+        onClick={toggle}
+      >
         {label}
       </button>
       {open && (
-        <div className="ui-org-picker-panel" id={panelId} role="group" aria-label={`${label}: choose an organization`}>
+        <div
+          className="ui-org-picker-panel"
+          id={panelId}
+          role="group"
+          aria-label={`${label}: choose an organization`}
+        >
           <span className="ui-org-picker-title">Choose an organization</span>
           {load.status === 'loading' && <span role="status">Loading your organizations…</span>}
           {load.status === 'failed' && <Failed onRetry={fetchOrganizations} />}
           {load.status === 'ready' && load.options.length === 0 && NONE}
           {load.status === 'ready' && load.options.length > 0 && (
             <ul>
-              {load.options.map((organization) => (
+              {load.options.map(organization => (
                 <li key={organization.slug}>
-                  <Link to={destination(organization.slug)}><strong>{organization.name}</strong></Link>
+                  <Link to={destination(organization.slug)}>
+                    <strong>{organization.name}</strong>
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -115,7 +136,12 @@ function OrganizationSelect({ label, value, onChange, disabledReason }: SelectPr
             const reason = disabledReason?.(organization) ?? null;
             const reasonId = `${ids}-${index}`;
             return (
-              <li key={organization.slug} className={reason ? 'is-disabled' : value === organization.slug ? 'is-checked' : undefined}>
+              <li
+                key={organization.slug}
+                className={
+                  reason ? 'is-disabled' : value === organization.slug ? 'is-checked' : undefined
+                }
+              >
                 <label>
                   <input
                     type="radio"
@@ -143,5 +169,9 @@ function OrganizationSelect({ label, value, onChange, disabledReason }: SelectPr
  * reason each unavailable one cannot be chosen.
  */
 export function OrganizationPicker(props: OrganizationPickerProps) {
-  return props.mode === 'select' ? <OrganizationSelect {...props} /> : <OrganizationLinks {...props} />;
+  return props.mode === 'select' ? (
+    <OrganizationSelect {...props} />
+  ) : (
+    <OrganizationLinks {...props} />
+  );
 }

@@ -12,32 +12,53 @@ describe('ErrorState', () => {
 
   it.each<[ErrorVariant, string, string, string, string]>([
     ['401', 'Your session ended', 'Log in again', '/login', 'unauthorized · invalid_token'],
-    ['402', 'You’ve used all of an allowance', 'See your plan', '/app/account/usage', 'quota_exceeded'],
+    [
+      '402',
+      'You’ve used all of an allowance',
+      'See your plan',
+      '/app/account/usage',
+      'quota_exceeded',
+    ],
     ['403', 'You can’t do this', 'Back to the workspace', '/app', 'forbidden'],
     ['404', 'Not found', 'Back to the workspace', '/app', 'not_found'],
     ['503', 'This isn’t available right now', 'Service status', '/about', 'unavailable'],
-  ])('says what the %s variant means by default and where to go next', (variant, title, action, href, code) => {
-    renderState(<ErrorState variant={variant} />);
+  ])(
+    'says what the %s variant means by default and where to go next',
+    (variant, title, action, href, code) => {
+      renderState(<ErrorState variant={variant} />);
 
-    expect(screen.getByRole('article', { name: title })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 2, name: title })).toBeInTheDocument();
-    expect(screen.getByText(variant)).toBeInTheDocument();
-    expect(screen.getByText(code)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: action })).toHaveAttribute('href', href);
-  });
+      expect(screen.getByRole('article', { name: title })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { level: 2, name: title })).toBeInTheDocument();
+      expect(screen.getByText(variant)).toBeInTheDocument();
+      expect(screen.getByText(code)).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: action })).toHaveAttribute('href', href);
+    }
+  );
 
   it('lets a screen replace the wording and the actions', () => {
     renderState(
-      <ErrorState variant="404" code="job_not_found" title="Job not found" actions={<StateAction to="/app/acme/atlas/runs" tone="link">Go to the runs</StateAction>}>
+      <ErrorState
+        variant="404"
+        code="job_not_found"
+        title="Job not found"
+        actions={
+          <StateAction to="/app/acme/atlas/runs" tone="link">
+            Go to the runs
+          </StateAction>
+        }
+      >
         Nothing to open here.
-      </ErrorState>,
+      </ErrorState>
     );
 
     expect(screen.getByRole('heading', { name: 'Job not found' })).toBeInTheDocument();
     expect(screen.getByText('job_not_found')).toBeInTheDocument();
     expect(screen.getByText('Nothing to open here.')).toBeInTheDocument();
     expect(screen.queryByText('Back to the workspace')).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Go to the runs' })).toHaveAttribute('href', '/app/acme/atlas/runs');
+    expect(screen.getByRole('link', { name: 'Go to the runs' })).toHaveAttribute(
+      'href',
+      '/app/acme/atlas/runs'
+    );
   });
 
   it('shows no actions when told to', () => {
@@ -51,11 +72,19 @@ describe('ErrorState', () => {
     const { rerender } = renderState(<ErrorState variant="503" />);
     expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
 
-    rerender(<MemoryRouter><ErrorState variant="503" onRetry={retry} /></MemoryRouter>);
+    rerender(
+      <MemoryRouter>
+        <ErrorState variant="503" onRetry={retry} />
+      </MemoryRouter>
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
     expect(retry).toHaveBeenCalledTimes(1);
 
-    rerender(<MemoryRouter><ErrorState variant="503" onRetry={retry} checking /></MemoryRouter>);
+    rerender(
+      <MemoryRouter>
+        <ErrorState variant="503" onRetry={retry} checking />
+      </MemoryRouter>
+    );
     expect(screen.getByRole('button', { name: 'Try again' })).toBeDisabled();
     expect(screen.getByRole('status')).toHaveTextContent('Checking…');
   });
@@ -69,7 +98,10 @@ describe('ErrorState', () => {
     expect(button).toBeDisabled();
     expect(screen.getByText('3s')).toBeInTheDocument();
 
-    for (let second = 0; second < 3; second += 1) act(() => { vi.advanceTimersByTime(1000); });
+    for (let second = 0; second < 3; second += 1)
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
     expect(screen.getByText('0s')).toBeInTheDocument();
     expect(screen.getByText('A slot may be free now.')).toBeInTheDocument();
     expect(button).toBeEnabled();
@@ -88,7 +120,17 @@ describe('ErrorState', () => {
   });
 
   it('renders a free-form card for things that are not status codes', () => {
-    renderState(<ErrorState status="OPTION_CLAMPED" tone="warning" code="warning, not an error" title="Smaller budget" actions={null}>Reduced.</ErrorState>);
+    renderState(
+      <ErrorState
+        status="OPTION_CLAMPED"
+        tone="warning"
+        code="warning, not an error"
+        title="Smaller budget"
+        actions={null}
+      >
+        Reduced.
+      </ErrorState>
+    );
 
     expect(screen.getByText('OPTION_CLAMPED')).toBeInTheDocument();
     expect(screen.getByText('warning, not an error')).toBeInTheDocument();

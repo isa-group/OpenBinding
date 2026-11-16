@@ -104,18 +104,31 @@ const KEPT_BINDINGS = [
 
 const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const PATTERNS: [string, RegExp][] = [
-  ...REMOVED_BINDINGS.map((binding): [string, RegExp] => [binding, new RegExp(`(?<![\\w$])${escapeRegExp(binding)}\\b`)]),
+  ...REMOVED_BINDINGS.map((binding): [string, RegExp] => [
+    binding,
+    new RegExp(`(?<![\\w$])${escapeRegExp(binding)}\\b`),
+  ]),
   ...REMOVED_PATHS,
 ];
 
 /** Every line of the sources that names a removed binding or path, as `file:line  name`. */
 function findings(files: Record<string, string>): string[] {
   return Object.entries(files).flatMap(([file, text]) =>
-    text.split('\n').flatMap((line, index) =>
-      PATTERNS.filter(([, pattern]) => pattern.test(line)).map(([name]) => `${file}:${index + 1}  ${name}`)));
+    text
+      .split('\n')
+      .flatMap((line, index) =>
+        PATTERNS.filter(([, pattern]) => pattern.test(line)).map(
+          ([name]) => `${file}:${index + 1}  ${name}`
+        )
+      )
+  );
 }
 
-const sources = import.meta.glob(['/src/**/*.{ts,tsx}', '!/src/**/*.test.*', '!/src/test/**'], { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
+const sources = import.meta.glob(['/src/**/*.{ts,tsx}', '!/src/**/*.test.*', '!/src/test/**'], {
+  query: '?raw',
+  import: 'default',
+  eager: true,
+}) as Record<string, string>;
 
 describe('removed operations (M9.6, F0b)', () => {
   it('lists the bindings and paths of M9.6 and F0b (B4, B5, B6 and B7)', () => {
@@ -131,22 +144,31 @@ describe('removed operations (M9.6, F0b)', () => {
   });
 
   it('names the file and the binding when one comes back', () => {
-    const client = 'export class ApiClient {\n  listMySponsorProposals() {\n    return this.request(`/v1/users/me/sponsor-proposals`);\n  }\n}\n';
+    const client =
+      'export class ApiClient {\n  listMySponsorProposals() {\n    return this.request(`/v1/users/me/sponsor-proposals`);\n  }\n}\n';
     expect(findings({ '/src/api/client.ts': client })).toEqual([
       '/src/api/client.ts:2  listMySponsorProposals',
       '/src/api/client.ts:3  sponsor-proposals',
     ]);
-    expect(findings({ '/src/pages/Admin/Transfer.tsx': 'fetch(`/v1/admin/organizations/${org}/sponsor`)' })).toEqual([
-      '/src/pages/Admin/Transfer.tsx:1  /v1/admin/organizations/…/sponsor',
-    ]);
+    expect(
+      findings({
+        '/src/pages/Admin/Transfer.tsx': 'fetch(`/v1/admin/organizations/${org}/sponsor`)',
+      })
+    ).toEqual(['/src/pages/Admin/Transfer.tsx:1  /v1/admin/organizations/…/sponsor']);
   });
 
   it('does not report the kept bindings', () => {
-    expect(findings({ '/src/kept.ts': KEPT_BINDINGS.map((binding) => `${binding}(org);`).join('\n') })).toEqual([]);
+    expect(
+      findings({ '/src/kept.ts': KEPT_BINDINGS.map(binding => `${binding}(org);`).join('\n') })
+    ).toEqual([]);
   });
 
   it('leaves none of the removed members on the client objects', () => {
-    const objects = new Map<string, object>([['platformApi', platformApi], ['apiClient', apiClient], ['runsApi', runsApi]]);
+    const objects = new Map<string, object>([
+      ['platformApi', platformApi],
+      ['apiClient', apiClient],
+      ['runsApi', runsApi],
+    ]);
     for (const binding of REMOVED_BINDINGS) {
       const dot = binding.indexOf('.');
       const owner = binding.slice(0, Math.max(dot, 0));
@@ -162,6 +184,16 @@ describe('removed operations (M9.6, F0b)', () => {
   });
 
   it('has no analysis archive module, no library item editor module and no library module', () => {
-    expect(Object.keys(import.meta.glob(['/src/analysis/archive.ts', '/src/api/analysis/**', '/src/api/libraryItems.ts', '/src/api/library.ts', '/src/components/Artifacts/**']))).toEqual([]);
+    expect(
+      Object.keys(
+        import.meta.glob([
+          '/src/analysis/archive.ts',
+          '/src/api/analysis/**',
+          '/src/api/libraryItems.ts',
+          '/src/api/library.ts',
+          '/src/components/Artifacts/**',
+        ])
+      )
+    ).toEqual([]);
   });
 });

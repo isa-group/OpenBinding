@@ -1172,7 +1172,7 @@ declared; it is never done silently.
   not the document's.
 
 **Rendering.** How a composition is shown is the renderer's, not the document's. The web renderer
-(`frontend/src/widgets/composition-renderer`, [ADR 0049](adr/0049-composition-renderer-core.md)) draws a version in
+(`frontend/src/modules/core/components/composition-renderer`, [ADR 0049](adr/0049-composition-renderer-core.md)) draws a version in
 modes (catalog, architecture, workflow, comparison, calculator, configurator, showcase) whose sections are presets in
 its code; each screen chooses which to hide and how dense to be, and a viewer's preferences (a chart's axis, the
 series hidden, the columns of a matrix) stay in that viewer's browser. None of it is written in a document, so two

@@ -13,11 +13,11 @@ const api = vi.hoisted(() => ({
   getPricingToken: vi.fn(),
 }));
 
-vi.mock('./auth', () => ({
+vi.mock('../modules/auth/hooks/useAuth', () => ({
   useAuth: () => auth,
 }));
 
-vi.mock('../api/client', async (importOriginal) => {
+vi.mock('../api/client', async importOriginal => {
   const actual = await importOriginal<typeof import('../api/client')>();
   return {
     ...actual,
@@ -64,8 +64,12 @@ describe('SpaceProviderWrapper', () => {
     render(
       <SpaceProviderWrapper>
         <Feature id="openbinding-authoring">
-          <On><span>Feature Active</span></On>
-          <Default><span>Feature Inactive</span></Default>
+          <On>
+            <span>Feature Active</span>
+          </On>
+          <Default>
+            <span>Feature Inactive</span>
+          </Default>
         </Feature>
       </SpaceProviderWrapper>
     );
@@ -87,8 +91,12 @@ describe('SpaceProviderWrapper', () => {
     render(
       <SpaceProviderWrapper>
         <Feature id="openbinding-solve">
-          <On><span>Solve Active</span></On>
-          <Default><span>Solve Inactive</span></Default>
+          <On>
+            <span>Solve Active</span>
+          </On>
+          <Default>
+            <span>Solve Inactive</span>
+          </Default>
         </Feature>
       </SpaceProviderWrapper>
     );
@@ -97,9 +105,7 @@ describe('SpaceProviderWrapper', () => {
       'openbinding-solve': { eval: true },
     });
 
-    window.dispatchEvent(
-      new CustomEvent(PRICING_TOKEN_UPDATED_EVENT, { detail: freshToken })
-    );
+    window.dispatchEvent(new CustomEvent(PRICING_TOKEN_UPDATED_EVENT, { detail: freshToken }));
 
     await waitFor(() => {
       expect(screen.getByText('Solve Active')).toBeInTheDocument();

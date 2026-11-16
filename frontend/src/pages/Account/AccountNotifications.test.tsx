@@ -3,7 +3,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Notification, NotificationPreferences, UserProfile } from '../../api/auth';
 import { HttpError } from '../../api/client';
-import { AuthContext } from '../../contexts/auth';
+import { AuthContext } from '../../modules/auth/hooks/useAuth';
 import { AccountNotifications } from './AccountNotifications';
 
 const api = vi.hoisted(() => ({
@@ -14,36 +14,79 @@ const api = vi.hoisted(() => ({
   markAllNotificationsRead: vi.fn(),
 }));
 
-vi.mock('../../api/client', async () => ({ ...await vi.importActual<typeof import('../../api/client')>('../../api/client'), apiClient: api }));
+vi.mock('../../api/client', async () => ({
+  ...(await vi.importActual<typeof import('../../api/client')>('../../api/client')),
+  apiClient: api,
+}));
 
 const lucia: UserProfile = {
-  id: 'user-id', username: 'lucia', email: 'lucia@example.test', role: 'user', is_active: true, plan: 'RESEARCH', created_at: '2026-03-02T00:00:00Z',
+  id: 'user-id',
+  username: 'lucia',
+  email: 'lucia@example.test',
+  role: 'user',
+  is_active: true,
+  plan: 'RESEARCH',
+  created_at: '2026-03-02T00:00:00Z',
 };
 
 const contract: Notification = {
-  id: 'n1', kind: 'contract.changed', subject: 'Your OpenBinding agreement changed',
+  id: 'n1',
+  kind: 'contract.changed',
+  subject: 'Your OpenBinding agreement changed',
   body: 'Plan: BASIC → RESEARCH. Reason: institutional_agreement.',
-  payload: { reason: 'institutional_agreement', previous: { plan: 'BASIC', addOns: {} }, current: { plan: 'RESEARCH', addOns: {} }, pricingVersion: '0.1.0' },
-  read_at: null, created_at: '2026-09-01T10:00:00Z',
+  payload: {
+    reason: 'institutional_agreement',
+    previous: { plan: 'BASIC', addOns: {} },
+    current: { plan: 'RESEARCH', addOns: {} },
+    pricingVersion: '0.1.0',
+  },
+  read_at: null,
+  created_at: '2026-09-01T10:00:00Z',
 };
 const job: Notification = {
-  id: 'n2', kind: 'job.finished', subject: 'Job completed', body: 'Job 0000…f1 finished FEASIBLE.', payload: {},
-  read_at: '2026-09-30T10:00:00Z', created_at: '2026-09-30T09:00:00Z',
+  id: 'n2',
+  kind: 'job.finished',
+  subject: 'Job completed',
+  body: 'Job 0000…f1 finished FEASIBLE.',
+  payload: {},
+  read_at: '2026-09-30T10:00:00Z',
+  created_at: '2026-09-30T09:00:00Z',
 };
 const invitation: Notification = {
-  id: 'n3', kind: 'organization.invitation', subject: 'You were invited', body: 'ISA Demo Group invited you.', payload: {},
-  read_at: null, created_at: '2026-10-01T10:00:00Z',
+  id: 'n3',
+  kind: 'organization.invitation',
+  subject: 'You were invited',
+  body: 'ISA Demo Group invited you.',
+  payload: {},
+  read_at: null,
+  created_at: '2026-10-01T10:00:00Z',
 };
 
-const preferences: NotificationPreferences = { inbox: true, email_contract_changes: true, email_invitations: true, email_job_failures: false };
+const preferences: NotificationPreferences = {
+  inbox: true,
+  email_contract_changes: true,
+  email_invitations: true,
+  email_job_failures: false,
+};
 
 function renderNotifications() {
   render(
     <MemoryRouter>
-      <AuthContext.Provider value={{ user: lucia, loading: false, signIn: vi.fn(), register: vi.fn(), signOut: vi.fn(), refresh: vi.fn(), isAdmin: false }}>
+      <AuthContext.Provider
+        value={{
+          user: lucia,
+          loading: false,
+          signIn: vi.fn(),
+          register: vi.fn(),
+          signOut: vi.fn(),
+          refresh: vi.fn(),
+          isAdmin: false,
+          fetchWithInterceptor: vi.fn(),
+        }}
+      >
         <AccountNotifications />
       </AuthContext.Provider>
-    </MemoryRouter>,
+    </MemoryRouter>
   );
 }
 
@@ -54,7 +97,9 @@ describe('Notifications', () => {
     vi.clearAllMocks();
     api.listNotifications.mockResolvedValue([contract, job, invitation]);
     api.getNotificationPreferences.mockResolvedValue(preferences);
-    api.updateNotificationPreferences.mockImplementation(async (value: NotificationPreferences) => value);
+    api.updateNotificationPreferences.mockImplementation(
+      async (value: NotificationPreferences) => value
+    );
     api.markNotificationRead.mockResolvedValue({ ...contract, read_at: '2026-10-09T12:00:00Z' });
     api.markAllNotificationsRead.mockResolvedValue([]);
   });
@@ -62,9 +107,13 @@ describe('Notifications', () => {
   it('lists the notices, says how many are unread and marks them', async () => {
     renderNotifications();
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Notifications' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Notifications' })
+    ).toBeInTheDocument();
     expect(await screen.findByText('You have 2 unread notifications')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Notifications', current: 'page' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: 'Notifications', current: 'page' })
+    ).toBeInTheDocument();
     expect(await screen.findAllByRole('img', { name: 'Unread' })).toHaveLength(2);
     expect(screen.getByRole('list', { name: 'Notifications' }).children).toHaveLength(3);
     // No sponsor requests since M9.6: the client mock has no such call, and the screen has no such section.
@@ -80,7 +129,10 @@ describe('Notifications', () => {
     const list = () => screen.getByRole('list', { name: 'Notifications' });
 
     fireEvent.click(screen.getByRole('button', { name: 'Contract changes' }));
-    expect(screen.getByRole('button', { name: 'Contract changes' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Contract changes' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
     expect(within(list()).getAllByRole('listitem')).toHaveLength(1);
     expect(within(list()).getByText('Your OpenBinding agreement changed')).toBeInTheDocument();
 
@@ -109,8 +161,13 @@ describe('Notifications', () => {
     expect(change.getByText('After')).toBeInTheDocument();
     expect(change.getByText('RESEARCH')).toBeInTheDocument();
     expect(change.getAllByText('Add-ons: none')).toHaveLength(2);
-    expect(screen.getByText('Reason: institutional agreement · pricing version 0.1.0')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'See your plan' })).toHaveAttribute('href', '/app/account/usage');
+    expect(
+      screen.getByText('Reason: institutional agreement · pricing version 0.1.0')
+    ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'See your plan' })).toHaveAttribute(
+      'href',
+      '/app/account/usage'
+    );
   });
 
   it('marks one as read and tells the header bell', async () => {
@@ -150,7 +207,9 @@ describe('Notifications', () => {
     renderNotifications();
 
     expect(await screen.findByText('No notifications found')).toBeInTheDocument();
-    expect(screen.getByText('Contract changes and other notices will show up here.')).toBeInTheDocument();
+    expect(
+      screen.getByText('Contract changes and other notices will show up here.')
+    ).toBeInTheDocument();
     expect(screen.getByText('All caught up!')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Mark all read' })).toBeDisabled();
   });
@@ -188,9 +247,17 @@ describe('Notifications', () => {
 
       const first = await switchFor('Email me about contract changes');
       expect(first).toHaveAttribute('aria-checked', 'true');
-      expect(screen.getByRole('switch', { name: 'Email me about invitations' })).toHaveAttribute('aria-checked', 'true');
-      expect(screen.getByRole('switch', { name: 'Email me about failed runs' })).toHaveAttribute('aria-checked', 'false');
-      expect(screen.getByRole('switch', { name: 'Keep notifications in the account inbox' })).toHaveAttribute('aria-checked', 'true');
+      expect(screen.getByRole('switch', { name: 'Email me about invitations' })).toHaveAttribute(
+        'aria-checked',
+        'true'
+      );
+      expect(screen.getByRole('switch', { name: 'Email me about failed runs' })).toHaveAttribute(
+        'aria-checked',
+        'false'
+      );
+      expect(
+        screen.getByRole('switch', { name: 'Keep notifications in the account inbox' })
+      ).toHaveAttribute('aria-checked', 'true');
       expect(screen.getAllByRole('switch')[0]).toBe(first);
       expect(screen.getByText('In-app notifications are always on.')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Save preferences' })).toBeDisabled();
@@ -203,11 +270,18 @@ describe('Notifications', () => {
       expect(screen.getByText('You have unsaved changes')).toBeInTheDocument();
       fireEvent.click(screen.getByRole('button', { name: 'Save preferences' }));
 
-      await waitFor(() => expect(api.updateNotificationPreferences).toHaveBeenCalledWith({
-        inbox: true, email_contract_changes: false, email_invitations: true, email_job_failures: false,
-      }));
+      await waitFor(() =>
+        expect(api.updateNotificationPreferences).toHaveBeenCalledWith({
+          inbox: true,
+          email_contract_changes: false,
+          email_invitations: true,
+          email_job_failures: false,
+        })
+      );
       expect(await screen.findByRole('button', { name: 'Saved' })).toBeDisabled();
-      expect(screen.getByRole('switch', { name: 'Email me about contract changes' })).toHaveAttribute('aria-checked', 'false');
+      expect(
+        screen.getByRole('switch', { name: 'Email me about contract changes' })
+      ).toHaveAttribute('aria-checked', 'false');
 
       fireEvent.click(screen.getByRole('switch', { name: 'Email me about contract changes' }));
       expect(screen.getByRole('button', { name: 'Save preferences' })).toBeEnabled();

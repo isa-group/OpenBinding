@@ -23,7 +23,8 @@ export interface ObjectiveBreakdownData {
   scalarization: string | null;
 }
 
-const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
+const isRecord = (v: unknown): v is Record<string, unknown> =>
+  typeof v === 'object' && v !== null && !Array.isArray(v);
 const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
 
 function featureOf(raw: unknown): string | null {
@@ -33,19 +34,29 @@ function featureOf(raw: unknown): string | null {
 }
 
 /** Reads the canonical objective evaluation of a solution; `null` when it is not canonical (nothing is guessed). */
-export function objectiveTermsOf(objectives: unknown, problem: ObjectiveProblem | null): ObjectiveBreakdownData | null {
+export function objectiveTermsOf(
+  objectives: unknown,
+  problem: ObjectiveProblem | null
+): ObjectiveBreakdownData | null {
   if (!isRecord(objectives) || !Array.isArray(objectives.components)) return null;
 
   const terms = objectives.components.map((raw: unknown, index): ObjectiveTerm => {
     const c = isRecord(raw) ? raw : {};
-    const criterion = typeof c.criteria === 'string' && c.criteria !== '' ? c.criteria : `criterion ${index + 1}`;
+    const criterion =
+      typeof c.criteria === 'string' && c.criteria !== '' ? c.criteria : `criterion ${index + 1}`;
     const feature = featureOf(c.feature);
-    const direction = problem?.criteria.find((k) => k.id === criterion)?.direction ?? null;
+    const direction = problem?.criteria.find(k => k.id === criterion)?.direction ?? null;
     const unit = (feature !== null && problem?.features?.[feature]?.unit) || null;
     const loss = num(c.loss);
     const weight = num(c.weight);
     return {
-      criterion, feature, direction, unit, value: num(c.value), loss, weight,
+      criterion,
+      feature,
+      direction,
+      unit,
+      value: num(c.value),
+      loss,
+      weight,
       weighted: loss !== null && weight !== null ? loss * weight : null,
     };
   });

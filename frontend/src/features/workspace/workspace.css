@@ -1,47 +1,101 @@
-/* The frame of every screen of an organization's workspace (features/workspace/OrgFrame.tsx): the band with the breadcrumb, the body column
+@layer legacy {
+  /* The frame of every screen of an organization's workspace (features/workspace/OrgFrame.tsx): the band with the breadcrumb, the body column
    and the page title. The class names keep the `proj-` prefix the screens already use. */
 
-.proj-frame { display: flex; flex-direction: column; }
+  .proj-frame {
+    display: flex;
+    flex-direction: column;
+  }
 
-/* The band at the top: breadcrumb and, when the screen has one, its title */
-.proj-band { background: var(--tp-canvas); border-bottom: 1px solid var(--tp-hairline-soft); }
-.proj-band.has-header { border-bottom: 1px solid var(--tp-hairline-soft); }
+  /* The band at the top: breadcrumb and, when the screen has one, its title */
+  .proj-band {
+    background: var(--tp-canvas);
+    border-bottom: 1px solid var(--tp-hairline-soft);
+  }
+  .proj-band.has-header {
+    border-bottom: 1px solid var(--tp-hairline-soft);
+  }
 
-.proj-band-inner {
-  display: flex;
-  max-width: 1280px;
-  box-sizing: border-box;
-  flex-direction: column;
-  gap: 10px;
-  margin: 0 auto;
-  padding: var(--tp-spacing-lg) var(--tp-spacing-md) 12px;
-}
+  .proj-band-inner {
+    display: flex;
+    max-width: 1280px;
+    box-sizing: border-box;
+    flex-direction: column;
+    gap: 10px;
+    margin: 0 auto;
+    padding: var(--tp-spacing-lg) var(--tp-spacing-md) 12px;
+  }
 
-.proj-band.has-header .proj-band-inner { padding-bottom: var(--tp-spacing-md); }
+  .proj-band.has-header .proj-band-inner {
+    padding-bottom: var(--tp-spacing-md);
+  }
 
-.proj-body {
-  display: flex;
-  width: 100%;
-  max-width: 1280px;
-  box-sizing: border-box;
-  flex-direction: column;
-  gap: var(--tp-spacing-xl);
-  margin: 0 auto;
-  padding: var(--tp-spacing-xl) var(--tp-spacing-md) var(--tp-spacing-section);
-}
+  .proj-body {
+    display: flex;
+    width: 100%;
+    max-width: 1280px;
+    box-sizing: border-box;
+    flex-direction: column;
+    gap: var(--tp-spacing-xl);
+    margin: 0 auto;
+    padding: var(--tp-spacing-xl) var(--tp-spacing-md) var(--tp-spacing-section);
+  }
 
-.proj-body.is-md { max-width: 880px; }
-.proj-body.is-lg { max-width: 1152px; }
+  .proj-body.is-md {
+    max-width: 880px;
+  }
+  .proj-body.is-lg {
+    max-width: 1152px;
+  }
 
-.proj-title-row { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: var(--tp-spacing-md); }
-.proj-title { display: flex; min-width: 260px; flex: 1; flex-direction: column; gap: 6px; }
-.proj-title-line { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
-.proj-title h1 { margin: 0; font-family: var(--font-display); font-size: 1.875rem; font-weight: 400; line-height: 1.2; overflow-wrap: anywhere; }
-.proj-title p { max-width: 720px; margin: 0; color: var(--tp-slate); }
-.proj-actions { display: flex; flex-wrap: wrap; gap: var(--tp-spacing-xs); }
-.proj-lede { max-width: 720px; }
+  .proj-title-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--tp-spacing-md);
+  }
+  .proj-title {
+    display: flex;
+    min-width: 260px;
+    flex: 1;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .proj-title-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+  }
+  .proj-title h1 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 1.875rem;
+    font-weight: 400;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+  }
+  .proj-title p {
+    max-width: 720px;
+    margin: 0;
+    color: var(--tp-slate);
+  }
+  .proj-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--tp-spacing-xs);
+  }
+  .proj-lede {
+    max-width: 720px;
+  }
 
-@media (max-width: 760px) {
-  .proj-title h1 { font-size: 1.625rem; }
-  .proj-actions { width: 100%; }
+  @media (max-width: 760px) {
+    .proj-title h1 {
+      font-size: 1.625rem;
+    }
+    .proj-actions {
+      width: 100%;
+    }
+  }
 }

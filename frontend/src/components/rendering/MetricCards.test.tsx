@@ -16,7 +16,14 @@ describe('MetricCards', () => {
   });
 
   it('renders each metric as a list item with the label as dt and the value as dd', () => {
-    const { container } = render(<MetricCards metrics={[{ label: 'Cost', value: 7 }, { label: 'Latency', value: 9, unit: 'ms' }]} />);
+    const { container } = render(
+      <MetricCards
+        metrics={[
+          { label: 'Cost', value: 7 },
+          { label: 'Latency', value: 9, unit: 'ms' },
+        ]}
+      />
+    );
 
     const items = screen.getAllByRole('listitem');
     expect(items).toHaveLength(2);
@@ -28,7 +35,14 @@ describe('MetricCards', () => {
   });
 
   it('formats numbers in en-US with at most three decimals, including 0', () => {
-    render(<MetricCards metrics={[{ label: 'Zero', value: 0 }, { label: 'Big', value: 1234.5678 }]} />);
+    render(
+      <MetricCards
+        metrics={[
+          { label: 'Zero', value: 0 },
+          { label: 'Big', value: 1234.5678 },
+        ]}
+      />
+    );
 
     const [zero, big] = screen.getAllByRole('listitem');
     expect(zero.querySelector('dd')).toHaveTextContent(/^0$/);
@@ -58,7 +72,14 @@ describe('MetricCards', () => {
 
   it('renders same-label metrics without ids without a key warning', () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
-    render(<MetricCards metrics={[{ label: 'Cost', value: 1 }, { label: 'Cost', value: 2 }]} />);
+    render(
+      <MetricCards
+        metrics={[
+          { label: 'Cost', value: 1 },
+          { label: 'Cost', value: 2 },
+        ]}
+      />
+    );
 
     expect(screen.getAllByRole('listitem')).toHaveLength(2);
     expect(spy).not.toHaveBeenCalled();
@@ -73,11 +94,15 @@ describe('MetricCards', () => {
           { label: 'B', value: 1, trend: { direction: 'down', label: '-2%' } },
           { label: 'C', value: 1, trend: { direction: 'flat', label: 'no change' } },
         ]}
-      />,
+      />
     );
 
     const items = screen.getAllByRole('listitem');
-    for (const [i, arrow, text] of [[0, '↑', '+5% vs last run'], [1, '↓', '-2%'], [2, '→', 'no change']] as const) {
+    for (const [i, arrow, text] of [
+      [0, '↑', '+5% vs last run'],
+      [1, '↓', '-2%'],
+      [2, '→', 'no change'],
+    ] as const) {
       expect(within(items[i]).getByText(text).textContent).toBe(text);
       const glyph = within(items[i]).getByText(arrow);
       expect(glyph).toHaveAttribute('aria-hidden', 'true');
@@ -85,7 +110,14 @@ describe('MetricCards', () => {
   });
 
   it('shows the hint as small text and omits it when absent', () => {
-    render(<MetricCards metrics={[{ label: 'A', value: 1, hint: 'lower is better' }, { label: 'B', value: 2 }]} />);
+    render(
+      <MetricCards
+        metrics={[
+          { label: 'A', value: 1, hint: 'lower is better' },
+          { label: 'B', value: 2 },
+        ]}
+      />
+    );
 
     const [a, b] = screen.getAllByRole('listitem');
     expect(within(a).getByText('lower is better').tagName).toBe('SMALL');
@@ -93,7 +125,14 @@ describe('MetricCards', () => {
   });
 
   it('accepts metrics with the same label when ids differ', () => {
-    render(<MetricCards metrics={[{ id: 'x', label: 'Cost', value: 1 }, { id: 'y', label: 'Cost', value: 2 }]} />);
+    render(
+      <MetricCards
+        metrics={[
+          { id: 'x', label: 'Cost', value: 1 },
+          { id: 'y', label: 'Cost', value: 2 },
+        ]}
+      />
+    );
 
     expect(screen.getAllByRole('listitem')).toHaveLength(2);
   });
@@ -105,7 +144,10 @@ describe('MetricCards', () => {
   });
 
   it('has no hard-coded hex colour in its stylesheet', () => {
-    const css = readFileSync(join(process.cwd(), 'src/components/rendering/MetricCards.css'), 'utf8');
+    const css = readFileSync(
+      join(process.cwd(), 'src/components/rendering/MetricCards.css'),
+      'utf8'
+    );
 
     expect(css).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
   });

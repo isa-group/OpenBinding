@@ -1,12 +1,12 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
-/** jsdom cannot measure pixels; this checks that the phone rule of globals.css names the selectors the visual QA reported. */
+/** jsdom cannot measure pixels; this checks that the phone rule of styles/tailwind.css names the selectors the visual QA reported. */
 const read = (path: string) => readFileSync(`${process.cwd()}/src/${path}`, 'utf8');
-const css = read('styles/globals.css');
+const css = read('styles/tailwind.css');
 
 function mobileBlock(): string {
-  const start = css.indexOf('@media (max-width: 640px) {\n  button, summary');
+  const start = css.indexOf('@media (max-width: 640px) {\n    button,\n    summary');
   expect(start).toBeGreaterThan(-1);
   let depth = 0;
   for (let i = css.indexOf('{', start); i < css.length; i += 1) {
@@ -20,26 +20,43 @@ describe('mobile touch targets (max-width: 640px)', () => {
   const block = mobileBlock();
 
   it('gives interactive controls a 24px minimum height', () => {
-    for (const selector of ['button', 'summary', "[role='button']", "[role='tab']"]) expect(block).toContain(selector);
+    for (const selector of ['button', 'summary', "[role='button']", "[role='tab']"])
+      expect(block).toContain(selector);
     expect(block).toMatch(/min-height: 24px/);
   });
 
   it('covers every link outside running text, with zero specificity', () => {
-    expect(block).toMatch(/:where\(a\[href\]:not\(:is\(p, h1, h2, h3, h4, h5, h6, dd, small, label, \.prose/);
+    expect(block).toMatch(
+      /:where\(\s*a\[href\]:not\(:is\(p, h1, h2, h3, h4, h5, h6, dd, small, label, \.prose/
+    );
     expect(block).toMatch(/display: inline-flex;\s*min-height: 24px;\s*align-items: center;/);
   });
 
   it('names the containers where the real run found short links', () => {
-    for (const selector of ['.ui-action', '.ui-action.is-link', '.case-rev-links a', '.usage-consoles a', '.proj-job a', '.job-wizard a', '.job-fact a', '.cr-muted a', '.pcl-card-title a']) {
+    for (const selector of [
+      '.ui-action',
+      '.ui-action.is-link',
+      '.case-rev-links a',
+      '.usage-consoles a',
+      '.proj-job a',
+      '.job-wizard a',
+      '.job-fact a',
+      '.cr-muted a',
+      '.pcl-card-title a',
+    ]) {
       expect(block).toContain(selector);
     }
   });
 
-  it('beats the min-height: 0 of the link action with a specific selector, on phones only', () => {
-    const rule = /:is\(a, button\)\.ui-action\.is-link \{\s*min-height: 24px;\s*align-items: center;\s*vertical-align: middle;\s*\}/;
-    expect(block).toMatch(rule);
-    expect(read('components/ui/Action.css')).toMatch(/\.ui-action\.is-link \{ min-height: 0;/);
-    expect(css.slice(0, css.indexOf(block))).not.toMatch(rule);
+  it('sits in the base layer, under every component and legacy rule', () => {
+    const layer = css.lastIndexOf('@layer base {', css.indexOf(block));
+    expect(layer).toBeGreaterThan(-1);
+    expect(css.slice(layer, css.indexOf(block))).not.toMatch(/\n\}\n/);
+  });
+
+  it('keeps the link action a 24 px touch target on phones, in its own classes', () => {
+    const action = read('modules/core/components/action-button/index.tsx');
+    expect(action).toMatch(/link: '[^']*max-sm:!min-h-6/);
   });
 
   it('keeps the job-result links in a container that exists in the markup', () => {

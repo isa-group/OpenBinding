@@ -1,7 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import {
-  canRetryState, formatOption, formatTook, isActive, normalizeStatus, optionRows, outcomeOf,
-  readPins, secondsBetween, statusCounts, timelineOf, tookPercent,
+  canRetryState,
+  formatOption,
+  formatTook,
+  isActive,
+  normalizeStatus,
+  optionRows,
+  outcomeOf,
+  readPins,
+  secondsBetween,
+  statusCounts,
+  timelineOf,
+  tookPercent,
 } from './runsModel';
 
 describe('states', () => {
@@ -14,8 +24,18 @@ describe('states', () => {
   });
 
   it('counts runs by status, with the total under the empty key', () => {
-    expect(statusCounts([{ status: 'queued' }, { status: 'completed' }, { status: 'completed' }, { status: 'canceled' }])).toEqual({
-      '': 4, queued: 1, completed: 2, cancelled: 1,
+    expect(
+      statusCounts([
+        { status: 'queued' },
+        { status: 'completed' },
+        { status: 'completed' },
+        { status: 'canceled' },
+      ])
+    ).toEqual({
+      '': 4,
+      queued: 1,
+      completed: 2,
+      cancelled: 1,
     });
   });
 });
@@ -23,7 +43,10 @@ describe('states', () => {
 describe('outcomes and time', () => {
   it('words how a run ended', () => {
     expect(outcomeOf('FEASIBLE')).toMatchObject({ label: 'Feasible', tone: 'success' });
-    expect(outcomeOf('INFEASIBLE')).toMatchObject({ label: 'No feasible binding', tone: 'warning' });
+    expect(outcomeOf('INFEASIBLE')).toMatchObject({
+      label: 'No feasible binding',
+      tone: 'warning',
+    });
     expect(outcomeOf('UNKNOWN')).toMatchObject({ label: 'No conclusion' });
     expect(outcomeOf(null)).toBeNull();
   });
@@ -51,11 +74,30 @@ describe('settings asked and used', () => {
     const rows = optionRows({
       requestedOptions: { time_budget_ms: 600000, iterations: 100000 },
       options: { time_budget_ms: 60000, iterations: 100000 },
-      warnings: [{ code: 'OPTION_CLAMPED', message: "'time_budget_ms' was reduced from 600000 to 60000 milliseconds, which is what this plan allows.", details: { option: 'time_budget_ms' } }],
+      warnings: [
+        {
+          code: 'OPTION_CLAMPED',
+          message:
+            "'time_budget_ms' was reduced from 600000 to 60000 milliseconds, which is what this plan allows.",
+          details: { option: 'time_budget_ms' },
+        },
+      ],
     });
     expect(rows).toEqual([
-      expect.objectContaining({ key: 'time_budget_ms', label: 'Time budget', asked: '600 s', used: '60 s', reduced: true }),
-      expect.objectContaining({ key: 'iterations', asked: '100,000', used: '100,000', reduced: false, note: null }),
+      expect.objectContaining({
+        key: 'time_budget_ms',
+        label: 'Time budget',
+        asked: '600 s',
+        used: '60 s',
+        reduced: true,
+      }),
+      expect.objectContaining({
+        key: 'iterations',
+        asked: '100,000',
+        used: '100,000',
+        reduced: false,
+        note: null,
+      }),
     ]);
     expect(rows[0].note).toContain('reduced from 600000');
     expect(optionRows(null)).toEqual([]);
@@ -65,32 +107,69 @@ describe('settings asked and used', () => {
 describe('provenance', () => {
   it('reads the pins of a run', () => {
     const pins = readPins({
-      engine: { namespace: 'bim.builtin', name: 'random-search', version: '1.0.0', digest: 'sha256-a' },
-      registration: { namespace: 'bim.builtin', name: 'random-search-deployment', version: '1', digest: 'sha256-r' },
-      mode: 'sampling', irDigest: 'sha256-c', instanceDigest: 'sha256-i', evaluator: 'bim-reference-evaluator/v1',
-      configuration: { name: 'rs-60s', version: '1' }, limits: { effectiveTimeoutSeconds: 60 },
+      engine: {
+        namespace: 'bim.builtin',
+        name: 'random-search',
+        version: '1.0.0',
+        digest: 'sha256-a',
+      },
+      registration: {
+        namespace: 'bim.builtin',
+        name: 'random-search-deployment',
+        version: '1',
+        digest: 'sha256-r',
+      },
+      mode: 'sampling',
+      irDigest: 'sha256-c',
+      instanceDigest: 'sha256-i',
+      evaluator: 'bim-reference-evaluator/v1',
+      configuration: { name: 'rs-60s', version: '1' },
+      limits: { effectiveTimeoutSeconds: 60 },
     });
     expect(pins.engine).toMatchObject({ name: 'random-search', version: '1.0.0' });
-    expect(pins).toMatchObject({ mode: 'sampling', compiledForm: 'sha256-c', instance: 'sha256-i', checkedBy: 'bim-reference-evaluator/v1', configuration: 'rs-60s@1' });
+    expect(pins).toMatchObject({
+      mode: 'sampling',
+      compiledForm: 'sha256-c',
+      instance: 'sha256-i',
+      checkedBy: 'bim-reference-evaluator/v1',
+      configuration: 'rs-60s@1',
+    });
     expect(pins.limits).toEqual(['60 s per run']);
     expect(readPins(undefined).engine).toBeNull();
   });
-
 });
 
 describe('timeline', () => {
   it('has the steps a finished run went through', () => {
-    const steps = timelineOf('failed', { created: '2026-10-07T15:00:00Z', finished: '2026-10-07T15:00:20Z' });
-    expect(steps.map((step) => [step.label, step.state])).toEqual([['Queued', 'done'], ['Running', 'done'], ['Failed', 'bad']]);
+    const steps = timelineOf('failed', {
+      created: '2026-10-07T15:00:00Z',
+      finished: '2026-10-07T15:00:20Z',
+    });
+    expect(steps.map(step => [step.label, step.state])).toEqual([
+      ['Queued', 'done'],
+      ['Running', 'done'],
+      ['Failed', 'bad'],
+    ]);
   });
 
   it('does not claim a cancelled run ever ran when it ended within seconds', () => {
-    const steps = timelineOf('cancelled', { created: '2026-10-06T12:00:00Z', finished: '2026-10-06T12:00:03Z' });
+    const steps = timelineOf('cancelled', {
+      created: '2026-10-06T12:00:00Z',
+      finished: '2026-10-06T12:00:03Z',
+    });
     expect(steps[1]).toMatchObject({ label: 'Running', when: 'never started', state: 'waiting' });
   });
 
   it('shows where a live run stands', () => {
-    expect(timelineOf('queued', {}).map((step) => step.state)).toEqual(['current', 'waiting', 'waiting']);
-    expect(timelineOf('running', {}).map((step) => step.state)).toEqual(['done', 'current', 'waiting']);
+    expect(timelineOf('queued', {}).map(step => step.state)).toEqual([
+      'current',
+      'waiting',
+      'waiting',
+    ]);
+    expect(timelineOf('running', {}).map(step => step.state)).toEqual([
+      'done',
+      'current',
+      'waiting',
+    ]);
   });
 });

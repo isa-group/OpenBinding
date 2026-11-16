@@ -37,6 +37,7 @@ and `tests/` and `tools/` without a prefix to `openbinding-gateway/`.
 | [0047](0047-public-compositions.md) | F2 C1-C3, D3, D19-D22 | Public compositions: visibility, the read rule, redaction by the bytes and the catalog (supersedes 0034 for compositions) |
 | [0048](0048-problem-facts-projection.md) | F2 D4, D9, D25 | One facts projection of a compiled problem, with the workflow in Composition2Yaml's shape |
 | [0049](0049-composition-renderer-core.md) | F2 D5, D6, D14 | The composition renderer: a headless core, modes over gateway data, and no client semantics |
-| [0050](0050-frontend-layers-and-sphere-reuse.md) | F2 D7, D12, D13, D24 | Frontend layers, generated API types, and what is reused from SPHERE |
+| [0050](0050-frontend-layers-and-sphere-reuse.md) | F2 D7, D12, D13, D24 | Frontend layers, generated API types, and what is reused from SPHERE (layers and reuse rule superseded by 0053) |
 | [0051](0051-problem-editor-on-the-shared-core.md) | F2 D9, D11, D15 | The BIM problem editor on the shared core (supersedes 0025) |
 | [0052](0052-study-front-export-and-presets-on-the-server.md) | F2 D14, D16, D18 | The study front, the export and study presets on the server |
+| [0053](0053-frontend-on-sphere-stack.md) | F2c PR-A | The frontend on SPHERE's stack, structure and conventions (supersedes the layers and reuse rule of 0050) |

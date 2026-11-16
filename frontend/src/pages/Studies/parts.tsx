@@ -53,20 +53,40 @@ function bucketed(counts: Record<string, number>): Record<(typeof SEGMENTS)[numb
 }
 
 /** How the cells of a run ended, as one stacked bar. The words for assistive technology are the same figures. */
-export function CellBar({ cells, size = 'md', legend = false, note }: { cells: readonly StudyCell[]; size?: 'sm' | 'md' | 'lg'; legend?: boolean; note?: string }) {
+export function CellBar({
+  cells,
+  size = 'md',
+  legend = false,
+  note,
+}: {
+  cells: readonly StudyCell[];
+  size?: 'sm' | 'md' | 'lg';
+  legend?: boolean;
+  note?: string;
+}) {
   const buckets = bucketed(countStates(cells));
   const total = cells.length;
   return (
     <div className="st-bar-wrap">
       <span className={`st-bar is-${size}`} role="img" aria-label={breakdownText(cells)}>
-        {SEGMENTS.map((segment) => buckets[segment.id] > 0 && (
-          <span key={segment.id} className={`is-${segment.id}`} style={{ width: `${(buckets[segment.id] / total) * 100}%` }} />
-        ))}
+        {SEGMENTS.map(
+          segment =>
+            buckets[segment.id] > 0 && (
+              <span
+                key={segment.id}
+                className={`is-${segment.id}`}
+                style={{ width: `${(buckets[segment.id] / total) * 100}%` }}
+              />
+            )
+        )}
       </span>
       {legend && (
         <span className="st-legend">
-          {SEGMENTS.filter((segment) => buckets[segment.id] > 0).map((segment) => (
-            <span key={segment.id}><i className={`is-${segment.id}`} aria-hidden="true" />{buckets[segment.id].toLocaleString('en-US')} {segment.label}</span>
+          {SEGMENTS.filter(segment => buckets[segment.id] > 0).map(segment => (
+            <span key={segment.id}>
+              <i className={`is-${segment.id}`} aria-hidden="true" />
+              {buckets[segment.id].toLocaleString('en-US')} {segment.label}
+            </span>
           ))}
           {note && <span>{note}</span>}
         </span>
@@ -76,6 +96,18 @@ export function CellBar({ cells, size = 'md', legend = false, note }: { cells: r
 }
 
 /** A card that says why a study, a run or a cell is not shown. */
-export function StudyGate({ title, children, action }: { title: string; children: ReactNode; action?: ReactNode }) {
-  return <Gate title={title} action={action}>{children}</Gate>;
+export function StudyGate({
+  title,
+  children,
+  action,
+}: {
+  title: string;
+  children: ReactNode;
+  action?: ReactNode;
+}) {
+  return (
+    <Gate title={title} action={action}>
+      {children}
+    </Gate>
+  );
 }

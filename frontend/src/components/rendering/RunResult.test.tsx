@@ -8,23 +8,25 @@ const NO_PROBLEM_NOTE =
 
 type Props = Parameters<typeof RunResult>[0];
 
-const show = (props: Partial<Props> = {}) => render(<RunResult result={RESULT} problem={PROBLEM} constraints={CONSTRAINTS} {...props} />);
+const show = (props: Partial<Props> = {}) =>
+  render(<RunResult result={RESULT} problem={PROBLEM} constraints={CONSTRAINTS} {...props} />);
 const run = () => screen.getByRole('region', { name: 'Run result' });
 const resultWith = (extra: Record<string, unknown>) => ({ ...RESULT, ...extra });
 const region = (name: string, hidden = false) => screen.getByRole('region', { name, hidden });
-const maybeRegion = (name: string, hidden = false) => screen.queryByRole('region', { name, hidden });
+const maybeRegion = (name: string, hidden = false) =>
+  screen.queryByRole('region', { name, hidden });
 
 /** The text of the region without the `View source` disclosure. */
 function textOutsideSource(): string {
   const copy = run().cloneNode(true) as HTMLElement;
-  copy.querySelectorAll('details').forEach((details) => {
+  copy.querySelectorAll('details').forEach(details => {
     if (details.querySelector('summary')?.textContent === 'View source') details.remove();
   });
   return copy.textContent ?? '';
 }
 
 const detailsOf = (summary: string | RegExp) => {
-  const found = [...run().querySelectorAll('details')].find((d) => {
+  const found = [...run().querySelectorAll('details')].find(d => {
     const text = d.querySelector('summary')?.textContent ?? '';
     return typeof summary === 'string' ? text === summary : summary.test(text);
   });
@@ -32,13 +34,15 @@ const detailsOf = (summary: string | RegExp) => {
   return found;
 };
 
-const follows = (before: Element, after: Element) => Boolean(before.compareDocumentPosition(after) & Node.DOCUMENT_POSITION_FOLLOWING);
+const follows = (before: Element, after: Element) =>
+  Boolean(before.compareDocumentPosition(after) & Node.DOCUMENT_POSITION_FOLLOWING);
 const expectInOrder = (nodes: Element[]) => {
   for (let i = 1; i < nodes.length; i += 1) expect(follows(nodes[i - 1], nodes[i])).toBe(true);
 };
 
 const qualityList = () => screen.getByRole('list', { name: 'Quality of this combination' });
-const boundRow = (rule: string) => within(region('QoS against bounds')).getByText(rule).closest('tr') as HTMLElement;
+const boundRow = (rule: string) =>
+  within(region('QoS against bounds')).getByText(rule).closest('tr') as HTMLElement;
 
 describe('RunResult', () => {
   describe('composition order', () => {
@@ -74,11 +78,18 @@ describe('RunResult', () => {
       expect(scope.getByText('FEASIBLE')).toBeInTheDocument();
       expect(scope.getByText('0 solutions')).toBeInTheDocument();
       expect(scope.getByText('This run finished without producing a binding.')).toBeInTheDocument();
-      expect(scope.getByRole('region', { name: 'Claimed and evaluated values' })).toBeInTheDocument();
+      expect(
+        scope.getByRole('region', { name: 'Claimed and evaluated values' })
+      ).toBeInTheDocument();
 
       expect(scope.queryByRole('combobox', { name: /Show solution/ })).toBeNull();
       expect(scope.queryByRole('list', { name: 'Quality of this combination' })).toBeNull();
-      for (const name of ['Chosen providers', 'QoS against bounds', 'Objective breakdown', 'Trade-off set']) {
+      for (const name of [
+        'Chosen providers',
+        'QoS against bounds',
+        'Objective breakdown',
+        'Trade-off set',
+      ]) {
         expect(scope.queryByRole('region', { name, hidden: true })).toBeNull();
       }
       expect(scope.queryByText('View source')).toBeNull();
@@ -126,13 +137,17 @@ describe('RunResult', () => {
       const select = screen.getByRole('combobox', { name: /Show solution/ });
       const options = within(select).getAllByRole('option');
 
-      expect(options.map((o) => o.textContent)).toEqual(['Solution 1', 'Solution 2']);
-      expect(within(qualityList()).getByText('latency').closest('li')).toHaveTextContent(/latency.*420/);
+      expect(options.map(o => o.textContent)).toEqual(['Solution 1', 'Solution 2']);
+      expect(within(qualityList()).getByText('latency').closest('li')).toHaveTextContent(
+        /latency.*420/
+      );
 
-      const second = options.find((o) => o.textContent === 'Solution 2') as HTMLOptionElement;
+      const second = options.find(o => o.textContent === 'Solution 2') as HTMLOptionElement;
       fireEvent.change(select, { target: { value: second.value } });
 
-      expect(within(qualityList()).getByText('latency').closest('li')).toHaveTextContent(/latency.*560/);
+      expect(within(qualityList()).getByText('latency').closest('li')).toHaveTextContent(
+        /latency.*560/
+      );
       expect(within(qualityList()).getByText('latency').closest('li')).not.toHaveTextContent('420');
       expect(region('Solution 2 source', true)).toBeInTheDocument();
       expect(maybeRegion('Solution 1 source', true)).toBeNull();
@@ -152,7 +167,9 @@ describe('RunResult', () => {
 
   describe('canonical shape', () => {
     it('lets features win over metrics', () => {
-      show({ result: resultWith({ solutions: [{ ...S1, metrics: { latency: 999, cost: 1 } }, S2] }) });
+      show({
+        result: resultWith({ solutions: [{ ...S1, metrics: { latency: 999, cost: 1 } }, S2] }),
+      });
 
       const items = within(qualityList()).getAllByRole('listitem');
       expect(items[0]).toHaveTextContent(/latency.*420.*ms/);
@@ -166,16 +183,23 @@ describe('RunResult', () => {
       delete rest.features;
       show({ result: resultWith({ solutions: [rest] }) });
 
-      expect(within(qualityList()).getAllByRole('listitem')[0]).toHaveTextContent(/latency.*300.*ms/);
+      expect(within(qualityList()).getAllByRole('listitem')[0]).toHaveTextContent(
+        /latency.*300.*ms/
+      );
       expect(within(boundRow('rules/max-latency')).getByText('300 ms')).toBeInTheDocument();
     });
 
     it('reads type and scalarization, not mode', () => {
-      const withMode = (s: typeof S1) => ({ ...s, objectives: { ...s.objectives, mode: 'legacy-mode' } });
+      const withMode = (s: typeof S1) => ({
+        ...s,
+        objectives: { ...s.objectives, mode: 'legacy-mode' },
+      });
       show({ result: resultWith({ solutions: [withMode(S1), withMode(S2)] }) });
 
       expect(within(run()).getByText('2 solutions · optimization MULTI')).toBeInTheDocument();
-      const dd = within(region('Objective breakdown')).getByText('Scalarization').nextElementSibling;
+      const dd = within(region('Objective breakdown')).getByText(
+        'Scalarization'
+      ).nextElementSibling;
       expect(dd).toHaveTextContent('pareto');
       expect(textOutsideSource()).not.toContain('legacy-mode');
     });
@@ -199,7 +223,13 @@ describe('RunResult', () => {
       const cells = within(row).getAllByRole('cell');
       expect(cells[0]).toHaveTextContent('Stripe EU');
       expect(cells[1]).toHaveTextContent('Stripe');
-      expect(table.getAllByRole('columnheader').map((h) => h.textContent)).toEqual(['Task', 'Candidate', 'Provider', 'latency (ms)', 'cost (EUR)']);
+      expect(table.getAllByRole('columnheader').map(h => h.textContent)).toEqual([
+        'Task',
+        'Candidate',
+        'Provider',
+        'latency (ms)',
+        'cost (EUR)',
+      ]);
     });
 
     it('shows no digest outside the source', () => {
@@ -223,10 +253,15 @@ describe('RunResult', () => {
       const table = within(region('Chosen providers'));
       expect(table.getByText('t1')).toBeInTheDocument();
       expect(table.getByText('c1')).toBeInTheDocument();
-      expect(table.getAllByRole('columnheader').map((h) => h.textContent)).toEqual(['Task', 'Candidate']);
+      expect(table.getAllByRole('columnheader').map(h => h.textContent)).toEqual([
+        'Task',
+        'Candidate',
+      ]);
       const qos = within(region('QoS against bounds'));
       expect(qos.queryByRole('region', { name: 'Bounds' })).toBeNull();
-      expect(within(qos.getByRole('list', { name: 'Other rules' })).getByText('rules/prefer-eu')).toBeInTheDocument();
+      expect(
+        within(qos.getByRole('list', { name: 'Other rules' })).getByText('rules/prefer-eu')
+      ).toBeInTheDocument();
     });
 
     it('shows no note while the problem is loading', () => {
@@ -243,19 +278,31 @@ describe('RunResult', () => {
     it('shows the set for two objectives', () => {
       show();
 
-      const table = within(region('Trade-off set')).getByRole('region', { name: 'Non-dominated solutions' });
-      expect(within(table).getAllByRole('columnheader').map((h) => h.textContent)).toEqual(['Solution', 'cost', 'latency']);
+      const table = within(region('Trade-off set')).getByRole('region', {
+        name: 'Non-dominated solutions',
+      });
+      expect(
+        within(table)
+          .getAllByRole('columnheader')
+          .map(h => h.textContent)
+      ).toEqual(['Solution', 'cost', 'latency']);
     });
 
     it('shows nothing for one objective', () => {
-      const onlyCost = (s: typeof S1) => ({ ...s, objectives: { ...s.objectives, components: s.objectives.components.slice(0, 1) } });
+      const onlyCost = (s: typeof S1) => ({
+        ...s,
+        objectives: { ...s.objectives, components: s.objectives.components.slice(0, 1) },
+      });
       show({ result: resultWith({ solutions: [onlyCost(S1), onlyCost(S2)] }) });
 
       expect(maybeRegion('Trade-off set')).toBeNull();
     });
 
     it('shows nothing when the objectives are not shared by every solution', () => {
-      const onlyCost = { ...S2, objectives: { ...S2.objectives, components: S2.objectives.components.slice(0, 1) } };
+      const onlyCost = {
+        ...S2,
+        objectives: { ...S2.objectives, components: S2.objectives.components.slice(0, 1) },
+      };
       show({ result: resultWith({ solutions: [S1, onlyCost] }) });
 
       expect(maybeRegion('Trade-off set')).toBeNull();
@@ -263,7 +310,8 @@ describe('RunResult', () => {
   });
 
   describe('engine claims', () => {
-    const SENTENCE = 'The values the engine claimed are not kept for this run. Gateway evaluation: FEASIBLE, 2 solutions.';
+    const SENTENCE =
+      'The values the engine claimed are not kept for this run. Gateway evaluation: FEASIBLE, 2 solutions.';
 
     it('keeps no claim', () => {
       show();
@@ -285,7 +333,11 @@ describe('RunResult', () => {
       expect(claims).toHaveTextContent(SENTENCE);
       expect(within(claims).queryByRole('region', { name: 'Differences' })).toBeNull();
       const notes = within(claims).getByRole('list', { name: 'Engine notes' });
-      expect(within(notes).getAllByRole('listitem').map((li) => li.textContent)).toEqual(['Solved with presolve']);
+      expect(
+        within(notes)
+          .getAllByRole('listitem')
+          .map(li => li.textContent)
+      ).toEqual(['Solved with presolve']);
     });
 
     it('shows no notes without a report', () => {
@@ -303,22 +355,35 @@ describe('RunResult', () => {
       const source = detailsOf('View source');
 
       expect(source.open).toBe(false);
-      const solution = within(source).getByRole('region', { name: 'Solution 1 source', hidden: true });
-      expect(within(solution).getByRole('button', { name: 'Download Solution 1 source', hidden: true })).toBeInTheDocument();
-      const engine = within(source).getByRole('region', { name: 'Engine report source', hidden: true });
+      const solution = within(source).getByRole('region', {
+        name: 'Solution 1 source',
+        hidden: true,
+      });
+      expect(
+        within(solution).getByRole('button', { name: 'Download Solution 1 source', hidden: true })
+      ).toBeInTheDocument();
+      const engine = within(source).getByRole('region', {
+        name: 'Engine report source',
+        hidden: true,
+      });
       expect(follows(solution, engine)).toBe(true);
 
       const pres = [...run().querySelectorAll('pre')];
       expect(pres.length).toBeGreaterThan(0);
-      for (const pre of pres) expect(pre.closest('.rendering-source, .rendering-log')).not.toBeNull();
+      for (const pre of pres)
+        expect(pre.closest('.rendering-source, .rendering-log')).not.toBeNull();
     });
 
     it('shows no engine report source for an empty remote or no report', () => {
       for (const report of [{ ...REPORT, remote: {} }, undefined]) {
         show({ report });
         const source = detailsOf('View source');
-        expect(within(source).getByRole('region', { name: 'Solution 1 source', hidden: true })).toBeInTheDocument();
-        expect(within(source).queryByRole('region', { name: 'Engine report source', hidden: true })).toBeNull();
+        expect(
+          within(source).getByRole('region', { name: 'Solution 1 source', hidden: true })
+        ).toBeInTheDocument();
+        expect(
+          within(source).queryByRole('region', { name: 'Engine report source', hidden: true })
+        ).toBeNull();
         cleanup();
       }
     });
@@ -332,7 +397,9 @@ describe('RunResult', () => {
       expect(last.tagName).toBe('DETAILS');
       expect(last.open).toBe(false);
       expect(last.querySelector('summary')).toHaveTextContent('Engine log (2 lines)');
-      expect(within(last).getByRole('button', { name: 'Download Engine log', hidden: true })).toBeInTheDocument();
+      expect(
+        within(last).getByRole('button', { name: 'Download Engine log', hidden: true })
+      ).toBeInTheDocument();
     });
 
     it('shows no log when logs is not a non-empty string', () => {

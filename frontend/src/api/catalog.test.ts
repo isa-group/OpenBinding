@@ -18,9 +18,20 @@ describe('public catalog endpoints', () => {
   });
 
   it('lists the engines of the account, and says when it had to fall back to the public list', async () => {
-    const engine = { id: 'x', name: 'x', namespace: 'bim.builtin', version: '1.0.0', digest: DIGEST, ref: {}, modes: [] };
+    const engine = {
+      id: 'x',
+      name: 'x',
+      namespace: 'bim.builtin',
+      version: '1.0.0',
+      digest: DIGEST,
+      ref: {},
+      modes: [],
+    };
     fetchMock.mockResolvedValueOnce(json({ engines: [engine] }));
-    expect(await client.getCatalogEngines()).toEqual({ engines: [engine], fellBackToPublic: false });
+    expect(await client.getCatalogEngines()).toEqual({
+      engines: [engine],
+      fellBackToPublic: false,
+    });
     expect(fetchMock.mock.calls[0][0]).toBe('https://gateway.example/v1/engines');
 
     fetchMock.mockResolvedValueOnce(json({ detail: 'Not authenticated' }, 401));

@@ -1,6 +1,6 @@
 import { diagnosticsOf, type Diagnostic } from '../../api/problem';
 import { generalFailure } from '../../features/workspace/errors';
-import { classifyAuthError, marker, type AuthFailure } from '../../shared/api/errors';
+import { classifyAuthError, marker, type AuthFailure } from '../../modules/core/api/errors';
 
 export interface Refusal {
   kind: 'address' | 'invalid' | 'forbidden' | 'gone' | 'sealed' | 'quota' | 'size' | 'other';
@@ -17,27 +17,70 @@ export interface Refusal {
 export function uploadRefusal(caught: unknown, what: 'problem' | 'version' = 'problem'): Refusal {
   const failure = classifyAuthError(caught);
   const nothing = what === 'problem' ? 'nothing was created' : 'no version was saved';
-  if (failure.status === 409 && failure.code === 'slug_conflict') return { kind: 'address', text: `That address is already used by another problem in this organization${marker(failure)}. Pick another one.` };
-  if (failure.status === 402) return { kind: 'quota', text: `Your plan has no room for this${marker(failure)}: it counts your problems and the size of the packages you upload. Nothing was saved.` };
-  if (failure.status === 413) return { kind: 'size', text: `The package is larger than you can upload${marker(failure)}, so ${nothing}.` };
-  if (failure.status === 415) return { kind: 'invalid', text: `That file isn’t a .bim.zip package${marker(failure)}, so ${nothing}.` };
+  if (failure.status === 409 && failure.code === 'slug_conflict')
+    return {
+      kind: 'address',
+      text: `That address is already used by another problem in this organization${marker(failure)}. Pick another one.`,
+    };
+  if (failure.status === 402)
+    return {
+      kind: 'quota',
+      text: `Your plan has no room for this${marker(failure)}: it counts your problems and the size of the packages you upload. Nothing was saved.`,
+    };
+  if (failure.status === 413)
+    return {
+      kind: 'size',
+      text: `The package is larger than you can upload${marker(failure)}, so ${nothing}.`,
+    };
+  if (failure.status === 415)
+    return {
+      kind: 'invalid',
+      text: `That file isn’t a .bim.zip package${marker(failure)}, so ${nothing}.`,
+    };
   if (failure.kind === 'invalid') {
     const diagnostics = diagnosticsOf(caught);
     return failure.code === 'invalid_slug'
-      ? { kind: 'invalid', text: `The address can only have lowercase letters, numbers and hyphens${marker(failure)}.` }
-      : { kind: 'invalid', text: `The package was read and refused${marker(failure)}, so ${nothing}. Fix what is listed and upload it again.`, diagnostics };
+      ? {
+          kind: 'invalid',
+          text: `The address can only have lowercase letters, numbers and hyphens${marker(failure)}.`,
+        }
+      : {
+          kind: 'invalid',
+          text: `The package was read and refused${marker(failure)}, so ${nothing}. Fix what is listed and upload it again.`,
+          diagnostics,
+        };
   }
-  if (failure.status === 403) return { kind: 'forbidden', text: `You need MEMBER in the organization to upload problems${marker(failure)}. Nothing was saved.` };
-  if (failure.kind === 'not-found') return { kind: 'gone', text: `The ${what === 'problem' ? 'organization' : 'problem'} no longer exists, or you’re not in its organization${marker(failure)}. Nothing was saved.` };
+  if (failure.status === 403)
+    return {
+      kind: 'forbidden',
+      text: `You need MEMBER in the organization to upload problems${marker(failure)}. Nothing was saved.`,
+    };
+  if (failure.kind === 'not-found')
+    return {
+      kind: 'gone',
+      text: `The ${what === 'problem' ? 'organization' : 'problem'} no longer exists, or you’re not in its organization${marker(failure)}. Nothing was saved.`,
+    };
   return { kind: 'other', text: generalFailure(failure, nothing) };
 }
 
 /** Saving the description (or the name) of a case. */
 export function updateRefusal(caught: unknown): Refusal {
   const failure = classifyAuthError(caught);
-  if (failure.kind === 'invalid') return { kind: 'invalid', text: `The gateway refused that text${marker(failure)}. A description can have up to 2,000 characters.` };
-  if (failure.status === 403) return { kind: 'forbidden', text: `You need MEMBER in the organization to edit a problem${marker(failure)}. Nothing changed.` };
-  if (failure.kind === 'not-found') return { kind: 'gone', text: `The problem no longer exists${marker(failure)}. Nothing changed.` };
+  if (failure.kind === 'invalid')
+    return {
+      kind: 'invalid',
+      text: `The gateway refused that text${marker(failure)}. A description can have up to 2,000 characters.`,
+    };
+  if (failure.status === 403)
+    return {
+      kind: 'forbidden',
+      text: `You need MEMBER in the organization to edit a problem${marker(failure)}. Nothing changed.`,
+    };
+  if (failure.kind === 'not-found')
+    return {
+      kind: 'gone',
+      text: `The problem no longer exists${marker(failure)}. Nothing changed.`,
+    };
   return { kind: 'other', text: generalFailure(failure, 'nothing changed') };
 }
 
@@ -50,8 +93,13 @@ export function deleteRefusal(caught: unknown): Refusal {
       text: `Runs or studies name a version of this problem, so it can’t be deleted${marker(failure)}. It stays as their evidence.`,
     };
   }
-  if (failure.status === 403) return { kind: 'forbidden', text: `You need ADMIN in the organization to delete a problem${marker(failure)}. Nothing was deleted.` };
-  if (failure.kind === 'not-found') return { kind: 'gone', text: `The problem no longer exists${marker(failure)}.` };
+  if (failure.status === 403)
+    return {
+      kind: 'forbidden',
+      text: `You need ADMIN in the organization to delete a problem${marker(failure)}. Nothing was deleted.`,
+    };
+  if (failure.kind === 'not-found')
+    return { kind: 'gone', text: `The problem no longer exists${marker(failure)}.` };
   return { kind: 'other', text: generalFailure(failure, 'nothing was deleted') };
 }
 

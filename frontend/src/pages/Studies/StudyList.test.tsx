@@ -6,23 +6,36 @@ import { cellsFixture, runFixture, studyFixture } from '../../test/fixtures/stud
 import { StudyList } from './StudyList';
 
 const platform = vi.hoisted(() => ({
-  studies: vi.fn(), studyRuns: vi.fn(), studyCells: vi.fn(), updateStudy: vi.fn(), deleteStudy: vi.fn(),
+  studies: vi.fn(),
+  studyRuns: vi.fn(),
+  studyCells: vi.fn(),
+  updateStudy: vi.fn(),
+  deleteStudy: vi.fn(),
 }));
 const client = vi.hoisted(() => ({ getOwnUsage: vi.fn() }));
 
-vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'), platformApi: platform }));
-vi.mock('../../api/client', async () => ({ ...await vi.importActual<typeof import('../../api/client')>('../../api/client'), apiClient: client }));
+vi.mock('../../api/platform', async () => ({
+  ...(await vi.importActual<typeof import('../../api/platform')>('../../api/platform')),
+  platformApi: platform,
+}));
+vi.mock('../../api/client', async () => ({
+  ...(await vi.importActual<typeof import('../../api/client')>('../../api/client')),
+  apiClient: client,
+}));
 
 const group = org('isa-demo', { name: 'ISA Demo Group' });
 const viewing = org('read-lab', { name: 'Read Lab', effective_role: 'VIEWER' });
 const member = org('team-lab', { name: 'Team Lab', effective_role: 'MEMBER' });
 const ROOT = '/app/isa-demo';
 
-const refusal = (status: number, code: string) => Object.assign(new HttpError(status, 'refused'), { code });
+const refusal = (status: number, code: string) =>
+  Object.assign(new HttpError(status, 'refused'), { code });
 
 function renderList(options: { organizations?: ReturnType<typeof org>[]; slug?: string } = {}) {
   return renderOrgScreen(<StudyList />, {
-    path: '/app/:org/studies', url: `/app/${options.slug ?? 'isa-demo'}/studies`, organizations: options.organizations ?? [group, viewing, member],
+    path: '/app/:org/studies',
+    url: `/app/${options.slug ?? 'isa-demo'}/studies`,
+    organizations: options.organizations ?? [group, viewing, member],
   });
 }
 
@@ -38,12 +51,24 @@ describe('Studies of an organization', () => {
     renderList();
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Studies' })).toBeInTheDocument();
-    expect(screen.getByText(/A study runs every combination of problems × engines × settings × seeds/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/A study runs every combination of problems × engines × settings × seeds/)
+    ).toBeInTheDocument();
     const list = await screen.findByRole('list', { name: 'Studies of the organization' });
-    expect(within(list).getByRole('link', { name: /Engines × seeds/ })).toHaveAttribute('href', `${ROOT}/studies/engines-vs-seeds`);
-    expect(within(list).getByText('2 problem versions × 2 engines × 1 setting × 2 seeds = 8 cells')).toBeInTheDocument();
-    expect(within(list).getByRole('link', { name: 'Last run #1' })).toHaveAttribute('href', `${ROOT}/studies/engines-vs-seeds/progress?run=00000000-0000-4000-8000-000000000101`);
-    expect(within(list).getByRole('img', { name: '6 completed, 1 failed, 1 cancelled of 8 cells' })).toBeInTheDocument();
+    expect(within(list).getByRole('link', { name: /Engines × seeds/ })).toHaveAttribute(
+      'href',
+      `${ROOT}/studies/engines-vs-seeds`
+    );
+    expect(
+      within(list).getByText('2 problem versions × 2 engines × 1 setting × 2 seeds = 8 cells')
+    ).toBeInTheDocument();
+    expect(within(list).getByRole('link', { name: 'Last run #1' })).toHaveAttribute(
+      'href',
+      `${ROOT}/studies/engines-vs-seeds/progress?run=00000000-0000-4000-8000-000000000101`
+    );
+    expect(
+      within(list).getByRole('img', { name: '6 completed, 1 failed, 1 cancelled of 8 cells' })
+    ).toBeInTheDocument();
     expect(screen.queryByRole('navigation', { name: 'Project sections' })).not.toBeInTheDocument();
     expect(platform.studies).toHaveBeenCalledWith('isa-demo', true);
   });
@@ -53,7 +78,9 @@ describe('Studies of an organization', () => {
 
     await screen.findByRole('list', { name: 'Studies of the organization' });
     expect(client.getOwnUsage).not.toHaveBeenCalled();
-    expect(screen.queryByText(/study runs this month|Study definitions \(sponsor\)|renews/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/study runs this month|Study definitions \(sponsor\)|renews/i)
+    ).not.toBeInTheDocument();
     expect(screen.queryByText(/\d+ of \d+/)).not.toBeInTheDocument();
   });
 
@@ -62,16 +89,28 @@ describe('Studies of an organization', () => {
     renderList();
 
     expect(await screen.findByText('No studies yet')).toBeInTheDocument();
-    expect(screen.getByText('2 problem versions × 2 engines × 2 seeds = 8 runs, all with the same rules. That’s a study.')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Build a study' })).toHaveAttribute('href', `${ROOT}/studies/new`);
-    expect(screen.getByRole('link', { name: 'New study' })).toHaveAttribute('href', `${ROOT}/studies/new`);
+    expect(
+      screen.getByText(
+        '2 problem versions × 2 engines × 2 seeds = 8 runs, all with the same rules. That’s a study.'
+      )
+    ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Build a study' })).toHaveAttribute(
+      'href',
+      `${ROOT}/studies/new`
+    );
+    expect(screen.getByRole('link', { name: 'New study' })).toHaveAttribute(
+      'href',
+      `${ROOT}/studies/new`
+    );
   });
 
   it('lets a viewer read: no new study, no archive, no delete', async () => {
     renderList({ slug: 'read-lab' });
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Studies' })).toBeInTheDocument();
-    expect(await screen.findByRole('list', { name: 'Studies of the organization' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('list', { name: 'Studies of the organization' })
+    ).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'New study' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Archive' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument();
@@ -90,12 +129,19 @@ describe('Studies of an organization', () => {
     renderList();
 
     fireEvent.click(await screen.findByRole('button', { name: 'Archive' }));
-    expect(await screen.findByText('Archived: it can’t start new runs, and existing results stay.')).toBeInTheDocument();
-    expect(platform.updateStudy).toHaveBeenCalledWith('isa-demo', 'engines-vs-seeds', { archived: true });
+    expect(
+      await screen.findByText('Archived: it can’t start new runs, and existing results stay.')
+    ).toBeInTheDocument();
+    expect(platform.updateStudy).toHaveBeenCalledWith('isa-demo', 'engines-vs-seeds', {
+      archived: true,
+    });
   });
 
   it('keeps archived studies out of sight until asked', async () => {
-    platform.studies.mockResolvedValue([studyFixture(), studyFixture({ id: 'study-old', slug: 'old', name: 'Old study', archived: true })]);
+    platform.studies.mockResolvedValue([
+      studyFixture(),
+      studyFixture({ id: 'study-old', slug: 'old', name: 'Old study', archived: true }),
+    ]);
     renderList();
 
     const list = await screen.findByRole('list', { name: 'Studies of the organization' });
@@ -115,9 +161,15 @@ describe('Studies of an organization', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Delete Engines × seeds?' });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Delete study' }));
 
-    expect(await screen.findByText('This study has runs, so it was archived instead of deleted. Its runs and results stay intact.')).toBeInTheDocument();
+    expect(
+      await screen.findByText(
+        'This study has runs, so it was archived instead of deleted. Its runs and results stay intact.'
+      )
+    ).toBeInTheDocument();
     expect(platform.deleteStudy).toHaveBeenCalledWith('isa-demo', 'engines-vs-seeds');
-    expect(platform.updateStudy).toHaveBeenCalledWith('isa-demo', 'engines-vs-seeds', { archived: true });
+    expect(platform.updateStudy).toHaveBeenCalledWith('isa-demo', 'engines-vs-seeds', {
+      archived: true,
+    });
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
 
@@ -126,9 +178,13 @@ describe('Studies of an organization', () => {
     renderList();
 
     fireEvent.click(await screen.findByRole('button', { name: 'Delete' }));
-    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete study' }));
+    fireEvent.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete study' })
+    );
 
-    expect(await screen.findByText(/This account or key can’t do that \(403 · forbidden\)/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/This account or key can’t do that \(403 · forbidden\)/)
+    ).toBeInTheDocument();
     expect(platform.updateStudy).not.toHaveBeenCalled();
   });
 
@@ -136,16 +192,22 @@ describe('Studies of an organization', () => {
     platform.studies.mockRejectedValueOnce(refusal(503, 'unavailable'));
     renderList();
 
-    expect(await screen.findByText(/Studies couldn’t be loaded \(503 · unavailable\)/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/Studies couldn’t be loaded \(503 · unavailable\)/)
+    ).toBeInTheDocument();
     expect(screen.queryByText('No studies yet')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
-    expect(await screen.findByRole('list', { name: 'Studies of the organization' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('list', { name: 'Studies of the organization' })
+    ).toBeInTheDocument();
   });
 
   it('reads an organization that is not the account’s like one that does not exist', async () => {
     renderList({ slug: 'ghost-lab' });
 
-    expect(await screen.findByRole('heading', { name: /not available|not found/i })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: /not available|not found/i })
+    ).toBeInTheDocument();
     expect(platform.studies).not.toHaveBeenCalled();
   });
 });

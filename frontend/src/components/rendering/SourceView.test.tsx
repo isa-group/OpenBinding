@@ -72,7 +72,10 @@ describe('SourceView', () => {
   it('exposes the language as a data attribute', () => {
     render(<SourceView source="x" label="Problem" language="json" />);
 
-    expect(screen.getByRole('region', { name: 'Problem' })).toHaveAttribute('data-language', 'json');
+    expect(screen.getByRole('region', { name: 'Problem' })).toHaveAttribute(
+      'data-language',
+      'json'
+    );
   });
 
   it('copies the full text and announces it in a status region', async () => {
@@ -91,7 +94,9 @@ describe('SourceView', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Copy Problem' }));
 
-    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Could not copy the Problem'));
+    await waitFor(() =>
+      expect(screen.getByRole('status')).toHaveTextContent('Could not copy the Problem')
+    );
   });
 
   it('offers no download without a filename', () => {
@@ -114,7 +119,9 @@ describe('SourceView', () => {
     expect(revokeObjectURL).not.toHaveBeenCalled();
     vi.runAllTimers();
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:test');
-    expect(anchorClick.mock.invocationCallOrder[0]).toBeLessThan(revokeObjectURL.mock.invocationCallOrder[0]);
+    expect(anchorClick.mock.invocationCallOrder[0]).toBeLessThan(
+      revokeObjectURL.mock.invocationCallOrder[0]
+    );
   });
 
   it('downloads an object source as pretty-printed application/json', async () => {
@@ -144,7 +151,9 @@ describe('SourceView', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Copy Problem' }));
 
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Copy Problem' })).toHaveTextContent('Copied'));
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Copy Problem' })).toHaveTextContent('Copied')
+    );
   });
 
   it('applies maxHeight to the scrolling area', () => {
@@ -154,7 +163,10 @@ describe('SourceView', () => {
   });
 
   it('has no hard-coded hex colour in its stylesheet', () => {
-    const css = readFileSync(join(process.cwd(), 'src/components/rendering/SourceView.css'), 'utf8');
+    const css = readFileSync(
+      join(process.cwd(), 'src/components/rendering/SourceView.css'),
+      'utf8'
+    );
 
     expect(css).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
   });

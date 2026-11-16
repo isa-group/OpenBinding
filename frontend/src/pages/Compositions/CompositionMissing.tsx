@@ -1,4 +1,4 @@
-import { Action } from '../../components/ui/Action';
+import { Action } from '../../modules/core/components/action-button';
 import { Gate } from '../../features/workspace/parts';
 import { compositionsPath } from '../../routes/paths/compositions';
 
@@ -8,8 +8,16 @@ import { compositionsPath } from '../../routes/paths/compositions';
  */
 export function CompositionMissing({ org }: { org: string }) {
   return (
-    <Gate title="No composition here, or you cannot see it" action={<Action to={compositionsPath(org)} variant="primary">All compositions</Action>}>
-      The address may be mistyped, the composition may have been deleted, or it is not shared with you. We answer the same way in every one of these.
+    <Gate
+      title="No composition here, or you cannot see it"
+      action={
+        <Action to={compositionsPath(org)} variant="primary">
+          All compositions
+        </Action>
+      }
+    >
+      The address may be mistyped, the composition may have been deleted, or it is not shared with
+      you. We answer the same way in every one of these.
     </Gate>
   );
 }

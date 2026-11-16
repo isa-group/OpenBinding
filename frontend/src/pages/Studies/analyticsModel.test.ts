@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import type { CaseContent } from '../../features/workspace/model';
-import { axisOf, engineRows, measureTitle, percentOf, rankEngines, scatterOf, seedGroups, spreadOf } from './analyticsModel';
+import {
+  axisOf,
+  engineRows,
+  measureTitle,
+  percentOf,
+  rankEngines,
+  scatterOf,
+  seedGroups,
+  spreadOf,
+} from './analyticsModel';
 import { CHECKOUT, REVISION_1, REVISION_2, cellsFixture } from '../../test/fixtures/studies';
 import { revisionIndex } from './studiesModel';
 
@@ -35,7 +44,7 @@ describe('engines side by side', () => {
 
   it('counts what each engine ran and where its values fall', () => {
     const rows = engineRows(cells, 'cost');
-    expect(rows.map((row) => row.label)).toEqual(['evolutionary', 'random-search']);
+    expect(rows.map(row => row.label)).toEqual(['evolutionary', 'random-search']);
     const evolutionary = rows[0];
     expect(evolutionary.cells).toHaveLength(4);
     expect(evolutionary.completed).toHaveLength(2);
@@ -47,9 +56,16 @@ describe('engines side by side', () => {
 
   it('ranks by the lowest mean first, and puts an engine with nothing to rank last', () => {
     const ranked = rankEngines(engineRows(cells, 'cost'));
-    expect(ranked.map((row) => row.label)).toEqual(['evolutionary', 'random-search']);
-    const none = rankEngines(engineRows(cells.filter((cell) => cell.engine_ref.name === 'random-search' || cell.state !== 'completed'), 'cost'));
-    expect(none.map((row) => row.label)).toEqual(['random-search', 'evolutionary']);
+    expect(ranked.map(row => row.label)).toEqual(['evolutionary', 'random-search']);
+    const none = rankEngines(
+      engineRows(
+        cells.filter(
+          cell => cell.engine_ref.name === 'random-search' || cell.state !== 'completed'
+        ),
+        'cost'
+      )
+    );
+    expect(none.map(row => row.label)).toEqual(['random-search', 'evolutionary']);
   });
 
   it('names a measure for a chart title', () => {
@@ -65,11 +81,13 @@ describe('trade-offs between two objectives', () => {
   it('marks the cells the gateway put on the front, one case at a time, and compares nothing itself', () => {
     const first = scatterOf(cells, REVISION_1.id, 'cost', 'latency', front);
     expect(first).toHaveLength(3);
-    expect(first.filter((point) => point.front).map((point) => point.cell.ordinal)).toEqual([0, 3]);
+    expect(first.filter(point => point.front).map(point => point.cell.ordinal)).toEqual([0, 3]);
     const second = scatterOf(cells, REVISION_2.id, 'cost', 'latency', front);
-    expect(second.filter((point) => point.front).map((point) => point.cell.ordinal)).toEqual([4, 6]);
+    expect(second.filter(point => point.front).map(point => point.cell.ordinal)).toEqual([4, 6]);
     // A cell the gateway left off its front stays off, whatever its values.
-    expect(scatterOf(cells, REVISION_2.id, 'cost', 'latency', new Set()).some((point) => point.front)).toBe(false);
+    expect(
+      scatterOf(cells, REVISION_2.id, 'cost', 'latency', new Set()).some(point => point.front)
+    ).toBe(false);
   });
 
   it('leaves out the cells that lack either measure', () => {
@@ -81,10 +99,10 @@ describe('seed to seed', () => {
   it('groups the cells of one case, engine and setting and measures how far the seeds are apart', () => {
     const groups = seedGroups(cellsFixture(), 'cost', index);
     expect(groups).toHaveLength(4);
-    const random = groups.find((group) => group.label === 'Checkout flow r1 · random-search');
-    expect(random?.seeds.map((item) => item.seed)).toEqual([1, 2]);
+    const random = groups.find(group => group.label === 'Checkout flow r1 · random-search');
+    expect(random?.seeds.map(item => item.seed)).toEqual([1, 2]);
     expect(random?.spread).toBeCloseTo(0.003, 6);
-    const failed = groups.find((group) => group.label === 'Checkout flow r1 · evolutionary');
+    const failed = groups.find(group => group.label === 'Checkout flow r1 · evolutionary');
     expect(failed?.spread).toBeNull();
   });
 });

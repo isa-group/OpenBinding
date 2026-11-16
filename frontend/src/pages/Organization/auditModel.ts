@@ -45,7 +45,7 @@ function humanize(action: string): string {
 }
 
 export function actionLabel(action: string): string {
-  return KNOWN_ACTIONS.find((item) => item.action === action)?.label ?? humanize(action);
+  return KNOWN_ACTIONS.find(item => item.action === action)?.label ?? humanize(action);
 }
 
 interface Change {
@@ -54,10 +54,16 @@ interface Change {
 }
 
 /** `[{ user_id, role }]` as the batch event keeps it; anything else is ignored. */
-export function changesOf(event: OrganizationAuditEvent): Array<{ userId: string; role: string | null }> {
+export function changesOf(
+  event: OrganizationAuditEvent
+): Array<{ userId: string; role: string | null }> {
   const raw = event.detail?.changes;
   if (!Array.isArray(raw)) return [];
-  return raw.flatMap((item: Change) => (typeof item?.user_id === 'string' ? [{ userId: item.user_id, role: typeof item.role === 'string' ? item.role : null }] : []));
+  return raw.flatMap((item: Change) =>
+    typeof item?.user_id === 'string'
+      ? [{ userId: item.user_id, role: typeof item.role === 'string' ? item.role : null }]
+      : []
+  );
 }
 
 /** The sentence a row of the timeline reads as. */
@@ -65,10 +71,14 @@ export function describeEvent(event: OrganizationAuditEvent): string {
   switch (event.action) {
     case 'organization.members.batch_updated': {
       const count = changesOf(event).length;
-      return count > 0 ? `${count} member change${count === 1 ? '' : 's'} applied together` : 'Member changes applied together';
+      return count > 0
+        ? `${count} member change${count === 1 ? '' : 's'} applied together`
+        : 'Member changes applied together';
     }
     case 'organization.member.upserted':
-      return typeof event.detail?.role === 'string' ? `A member was added or set to ${event.detail.role}` : 'A member was added or changed';
+      return typeof event.detail?.role === 'string'
+        ? `A member was added or set to ${event.detail.role}`
+        : 'A member was added or changed';
     default:
       return actionLabel(event.action);
   }
@@ -87,25 +97,37 @@ export interface DetailRow {
 
 /** `max_projects` and `maxProjects` both read “Max projects”. */
 function sentenceCase(key: string): string {
-  const words = inInterfaceWords(key.replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/[_\-.\s]+/g, ' ').trim().toLowerCase());
+  const words = inInterfaceWords(
+    key
+      .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+      .replace(/[_\-.\s]+/g, ' ')
+      .trim()
+      .toLowerCase()
+  );
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
 /** A content digest (`sha256-` plus hex), a bare run of 32 or more hex digits, or a UUID: never drawn as text. */
-const IDENTIFIER = /^(sha256-[0-9a-f]+|[0-9a-f]{32,}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
+const IDENTIFIER =
+  /^(sha256-[0-9a-f]+|[0-9a-f]{32,}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
 
 function detailValue(value: unknown): DetailValue {
   if (value === null || value === undefined) return { kind: 'text', text: 'none' };
-  if (typeof value === 'string') return { kind: 'text', text: IDENTIFIER.test(value.trim()) ? 'identifier' : value };
+  if (typeof value === 'string')
+    return { kind: 'text', text: IDENTIFIER.test(value.trim()) ? 'identifier' : value };
   if (typeof value === 'boolean') return { kind: 'text', text: value ? 'Yes' : 'No' };
   if (typeof value === 'number') return { kind: 'text', text: value.toLocaleString('en-US') };
   if (Array.isArray(value)) return { kind: 'list', items: value.map(detailValue) };
-  if (typeof value === 'object') return { kind: 'fields', rows: detailRows(value as Record<string, unknown>) };
+  if (typeof value === 'object')
+    return { kind: 'fields', rows: detailRows(value as Record<string, unknown>) };
   return { kind: 'text', text: String(value) };
 }
 
 /** The detail of an event as typed rows, so the page draws it without ever stringifying a value. */
-export function detailRows(detail: Record<string, unknown> | null | undefined, skip: readonly string[] = []): DetailRow[] {
+export function detailRows(
+  detail: Record<string, unknown> | null | undefined,
+  skip: readonly string[] = []
+): DetailRow[] {
   return Object.entries(detail ?? {})
     .filter(([key]) => !skip.includes(key))
     .map(([key, value]) => ({ label: sentenceCase(key), value: detailValue(value) }));
@@ -118,8 +140,18 @@ function cell(value: string): string {
 /** The loaded events as CSV, for the export button. Plain text; nothing here is ever rendered as HTML. */
 export function toCsv(events: readonly OrganizationAuditEvent[]): string {
   const head = ['id', 'createdAt', 'actorId', 'action', 'targetType', 'targetId', 'detail'];
-  const lines = events.map((event) => [
-    event.id, event.createdAt, event.actorId ?? '', event.action, event.targetType, event.targetId ?? '', JSON.stringify(event.detail ?? {}),
-  ].map(cell).join(','));
+  const lines = events.map(event =>
+    [
+      event.id,
+      event.createdAt,
+      event.actorId ?? '',
+      event.action,
+      event.targetType,
+      event.targetId ?? '',
+      JSON.stringify(event.detail ?? {}),
+    ]
+      .map(cell)
+      .join(',')
+  );
   return [head.join(','), ...lines].join('\n');
 }

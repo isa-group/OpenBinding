@@ -1,4 +1,11 @@
-import { expect as baseExpect, test, type Locator, type Page, type Route, type TestInfo } from '@playwright/test';
+import {
+  expect as baseExpect,
+  test,
+  type Locator,
+  type Page,
+  type Route,
+  type TestInfo,
+} from '@playwright/test';
 import { failureBody } from './helpers/problems';
 import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
 
@@ -13,35 +20,82 @@ const API = 'http://localhost:8000';
 const expect = baseExpect.configure({ timeout: 15_000 });
 
 type Handler = (route: Route) => Promise<void> | void;
-const json = (body: unknown, status = 200): Handler => (route) => route.fulfill({ status, json: body });
-const detail = (status: number, code: string, error: string, extra: Record<string, unknown> = {}): Handler => json(failureBody(status, code, error, extra), status);
-const noContent: Handler = (route) => route.fulfill({ status: 204 });
+const json =
+  (body: unknown, status = 200): Handler =>
+  route =>
+    route.fulfill({ status, json: body });
+const detail = (
+  status: number,
+  code: string,
+  error: string,
+  extra: Record<string, unknown> = {}
+): Handler => json(failureBody(status, code, error, extra), status);
+const noContent: Handler = route => route.fulfill({ status: 204 });
 
 /** A pricing token shaped like the gateway's: three dot-separated parts, the middle one a JSON payload. */
-const token = (expiresInSeconds: number) => [
-  'header',
-  Buffer.from(JSON.stringify({ sub: 'user-1', exp: Math.floor(Date.now() / 1000) + expiresInSeconds })).toString('base64'),
-  'signature',
-].join('.');
+const token = (expiresInSeconds: number) =>
+  [
+    'header',
+    Buffer.from(
+      JSON.stringify({ sub: 'user-1', exp: Math.floor(Date.now() / 1000) + expiresInSeconds })
+    ).toString('base64'),
+    'signature',
+  ].join('.');
 
 const hoursAgo = (hours: number) => new Date(Date.now() - hours * 3_600_000).toISOString();
 
 const lucia = {
-  id: 'user-1', username: 'lucia.vega', email: 'lucia@example.org', role: 'user', is_active: true, plan: 'RESEARCH',
-  created_at: '2026-03-02T00:00:00Z', cas_verified: true,
+  id: 'user-1',
+  username: 'lucia.vega',
+  email: 'lucia@example.org',
+  role: 'user',
+  is_active: true,
+  plan: 'RESEARCH',
+  created_at: '2026-03-02T00:00:00Z',
+  cas_verified: true,
 };
-const marco = { ...lucia, username: 'marco.diaz', email: 'marco@example.org', plan: 'FREE', cas_verified: false };
-const iker = { ...marco, username: 'iker.mora', email: 'iker@example.org', role: 'admin', plan: 'LAB' };
+const marco = {
+  ...lucia,
+  username: 'marco.diaz',
+  email: 'marco@example.org',
+  plan: 'FREE',
+  cas_verified: false,
+};
+const iker = {
+  ...marco,
+  username: 'iker.mora',
+  email: 'iker@example.org',
+  role: 'admin',
+  plan: 'LAB',
+};
 type Account = typeof lucia;
 
 /** What the gateway reports for the RESEARCH plan of the pricing 0.2.0: the plan, its features and its limits, with no consumption. */
 const researchUsage = () => ({
   plan: 'RESEARCH',
   contract_pending: false,
-  features: { repository: true, runs: true, studies: true, generator: false, federatedEngines: true, collaboration: true, apiAccess: true },
+  features: {
+    repository: true,
+    runs: true,
+    studies: true,
+    generator: false,
+    federatedEngines: true,
+    collaboration: true,
+    apiAccess: true,
+  },
   capabilities: {
-    maxProblems: null, maxCollections: null, maxRepositoryStorage: null, solverHours: 100, maxRunMinutes: 30, maxConcurrentRuns: 4,
-    maxStudyCells: 5000, generatedInstances: 100_000, maxInstancesPerGeneration: 10_000, maxFederatedEngines: 3, maxPrivateProjects: 10, maxApiKeys: 10,
+    maxProblems: null,
+    maxCollections: null,
+    maxRepositoryStorage: null,
+    solverHours: 100,
+    maxRunMinutes: 30,
+    maxConcurrentRuns: 4,
+    maxStudyCells: 5000,
+    generatedInstances: 100_000,
+    maxInstancesPerGeneration: 10_000,
+    maxFederatedEngines: 3,
+    maxPrivateProjects: 10,
+    maxApiKeys: 10,
   },
 });
 
@@ -49,22 +103,59 @@ const researchUsage = () => ({
 const freeUsage = () => ({
   plan: 'FREE',
   contract_pending: false,
-  features: { repository: true, runs: true, studies: true, federatedEngines: true, apiAccess: true },
-  capabilities: { maxProblems: 25, maxRepositoryStorage: 500, maxRunMinutes: 5, maxConcurrentRuns: 1, maxStudyCells: 500, maxFederatedEngines: 1, maxApiKeys: 2 },
+  features: {
+    repository: true,
+    runs: true,
+    studies: true,
+    federatedEngines: true,
+    apiAccess: true,
+  },
+  capabilities: {
+    maxProblems: 25,
+    maxRepositoryStorage: 500,
+    maxRunMinutes: 5,
+    maxConcurrentRuns: 1,
+    maxStudyCells: 500,
+    maxFederatedEngines: 1,
+    maxApiKeys: 2,
+  },
 });
 
 const DIGEST = `sha256-${'b2c3d4e5'.repeat(8)}`;
-const engineRef = { namespace: 'bim.builtin', name: 'random-search', version: '1.0.0', digest: DIGEST };
+const engineRef = {
+  namespace: 'bim.builtin',
+  name: 'random-search',
+  version: '1.0.0',
+  digest: DIGEST,
+};
 const engine = { ...engineRef, id: 'bim.builtin/random-search', ref: engineRef, modes: [] };
 
 const reader = {
-  id: 'k1', name: 'ci-lectura-resultados', prefix: 'obk_demo0001', created_at: '2026-09-01T00:00:00Z', last_used_at: '2026-10-08T00:00:00Z',
-  expires_at: '2099-12-31T00:00:00Z', permissions: ['jobs:read', 'problems:read', 'studies:read'], engine_access: { all: true, engines: [] },
-  boundary: { methods: ['GET'], organizations: ['isa-demo'], resource_kinds: ['runs', 'studies'], slugs: null },
+  id: 'k1',
+  name: 'ci-lectura-resultados',
+  prefix: 'obk_demo0001',
+  created_at: '2026-09-01T00:00:00Z',
+  last_used_at: '2026-10-08T00:00:00Z',
+  expires_at: '2099-12-31T00:00:00Z',
+  permissions: ['jobs:read', 'problems:read', 'studies:read'],
+  engine_access: { all: true, engines: [] },
+  boundary: {
+    methods: ['GET'],
+    organizations: ['isa-demo'],
+    resource_kinds: ['runs', 'studies'],
+    slugs: null,
+  },
 };
 const runner = {
-  id: 'k2', name: 'ejecucion-engine-fijo', prefix: 'obk_demo0002', created_at: '2026-09-10T00:00:00Z', last_used_at: null, expires_at: null,
-  permissions: ['engines:execute', 'engines:read', 'problems:read', 'jobs:read'], engine_access: { all: false, engines: [engineRef] }, boundary: {},
+  id: 'k2',
+  name: 'ejecucion-engine-fijo',
+  prefix: 'obk_demo0002',
+  created_at: '2026-09-10T00:00:00Z',
+  last_used_at: null,
+  expires_at: null,
+  permissions: ['engines:execute', 'engines:read', 'problems:read', 'jobs:read'],
+  engine_access: { all: false, engines: [engineRef] },
+  boundary: {},
 };
 type ApiKey = typeof reader | typeof runner;
 
@@ -80,12 +171,37 @@ interface Notice {
 
 const notifications = (): Notice[] => [
   {
-    id: 'n1', kind: 'contract.changed', subject: 'Your OpenBinding agreement changed', body: 'Plan: FREE → RESEARCH. Add-ons: {} → {}. Reason: institutional_agreement.',
-    payload: { reason: 'institutional_agreement', previous: { plan: 'FREE', addOns: {} }, current: { plan: 'RESEARCH', addOns: {} }, pricingVersion: '0.2.0' },
-    read_at: null, created_at: hoursAgo(5),
+    id: 'n1',
+    kind: 'contract.changed',
+    subject: 'Your OpenBinding agreement changed',
+    body: 'Plan: FREE → RESEARCH. Add-ons: {} → {}. Reason: institutional_agreement.',
+    payload: {
+      reason: 'institutional_agreement',
+      previous: { plan: 'FREE', addOns: {} },
+      current: { plan: 'RESEARCH', addOns: {} },
+      pricingVersion: '0.2.0',
+    },
+    read_at: null,
+    created_at: hoursAgo(5),
   },
-  { id: 'n2', kind: 'job.finished', subject: 'Job completed', body: 'Job 0000…f1 finished with FEASIBLE.', payload: {}, read_at: hoursAgo(20), created_at: hoursAgo(26) },
-  { id: 'n3', kind: 'organization.invitation', subject: 'You were invited to ISA Demo Group', body: 'Pablo invited you as MEMBER.', payload: {}, read_at: null, created_at: hoursAgo(2) },
+  {
+    id: 'n2',
+    kind: 'job.finished',
+    subject: 'Job completed',
+    body: 'Job 0000…f1 finished with FEASIBLE.',
+    payload: {},
+    read_at: hoursAgo(20),
+    created_at: hoursAgo(26),
+  },
+  {
+    id: 'n3',
+    kind: 'organization.invitation',
+    subject: 'You were invited to ISA Demo Group',
+    body: 'Pablo invited you as MEMBER.',
+    payload: {},
+    read_at: null,
+    created_at: hoursAgo(2),
+  },
 ];
 
 interface State {
@@ -95,22 +211,53 @@ interface State {
   keys: ApiKey[];
   identities: Array<{ id: string; provider: string; subject: string; verifiedAt: string }>;
   notifications: ReturnType<typeof notifications>;
-  preferences: { inbox: boolean; email_contract_changes: boolean; email_invitations: boolean; email_job_failures: boolean };
+  preferences: {
+    inbox: boolean;
+    email_contract_changes: boolean;
+    email_invitations: boolean;
+    email_job_failures: boolean;
+  };
   /** A refusal for one action; unset means the action succeeds. */
-  refuse: Partial<Record<'patch' | 'delete' | 'list' | 'create' | 'revoke' | 'rotate' | 'link' | 'unlink' | 'notifications' | 'preferences' | 'savePreferences', Handler>>;
+  refuse: Partial<
+    Record<
+      | 'patch'
+      | 'delete'
+      | 'list'
+      | 'create'
+      | 'revoke'
+      | 'rotate'
+      | 'link'
+      | 'unlink'
+      | 'notifications'
+      | 'preferences'
+      | 'savePreferences',
+      Handler
+    >
+  >;
 }
 
 const methodOf = (route: Route) => route.request().method();
 
-async function mockApi(page: Page, account: Account, overrides: Partial<State> = {}): Promise<State> {
+async function mockApi(
+  page: Page,
+  account: Account,
+  overrides: Partial<State> = {}
+): Promise<State> {
   const state: State = {
     account,
     pricingToken: json({ pricing_token: token(3600) }),
     usage: json(researchUsage()),
     keys: [reader, runner],
-    identities: account.cas_verified ? [{ id: 'i1', provider: 'us-cas', subject: 'lvega1', verifiedAt: '2026-09-01T00:00:00Z' }] : [],
+    identities: account.cas_verified
+      ? [{ id: 'i1', provider: 'us-cas', subject: 'lvega1', verifiedAt: '2026-09-01T00:00:00Z' }]
+      : [],
     notifications: notifications(),
-    preferences: { inbox: true, email_contract_changes: true, email_invitations: true, email_job_failures: false },
+    preferences: {
+      inbox: true,
+      email_contract_changes: true,
+      email_invitations: true,
+      email_job_failures: false,
+    },
     refuse: {},
     ...overrides,
   };
@@ -119,21 +266,43 @@ async function mockApi(page: Page, account: Account, overrides: Partial<State> =
     localStorage.setItem('openbinding-refresh-token', 's3-refresh');
   });
 
-  await page.route(`${API}/**`, (route) => route.fulfill({ status: 404, json: { detail: 'not mocked' } }));
+  await page.route(`${API}/**`, route =>
+    route.fulfill({ status: 404, json: { detail: 'not mocked' } })
+  );
   await page.route(`${API}/health**`, json({ status: 'ok' }));
   // A 401 that is not an expired session (a wrong password) makes the client renew the session once before it reports it.
-  await page.route(`${API}/v1/auth/refresh`, json({ access_token: 's3-access-2', refresh_token: 's3-refresh-2', token_type: 'bearer', expires_in: 900 }));
+  await page.route(
+    `${API}/v1/auth/refresh`,
+    json({
+      access_token: 's3-access-2',
+      refresh_token: 's3-refresh-2',
+      token_type: 'bearer',
+      expires_in: 900,
+    })
+  );
   await page.route(`${API}/v1/auth/logout`, noContent);
   await page.route(`${API}/v1/pricing/catalog`, json(catalogFixture));
   await page.route(`${API}/v1/pricing/current`, json(CURRENT_FIXTURE));
   await page.route(`${API}/v1/engines`, json({ engines: [engine] }));
-  await page.route(`${API}/v1/organizations`, json([{
-    id: 'org-1', slug: 'isa-demo', name: 'ISA Demo Group', parent_id: null, effective_role: 'OWNER', created_at: '2026-09-01T00:00:00Z',
-  }]));
+  await page.route(
+    `${API}/v1/organizations`,
+    json([
+      {
+        id: 'org-1',
+        slug: 'isa-demo',
+        name: 'ISA Demo Group',
+        parent_id: null,
+        effective_role: 'OWNER',
+        created_at: '2026-09-01T00:00:00Z',
+      },
+    ])
+  );
   // The CAS round trip leaves the application; stand in for the university's side of it.
-  await page.route('**/api/v1/auth/cas/start**', (route) => route.fulfill({ status: 200, contentType: 'text/html', body: '<h1>CAS (simulated)</h1>' }));
+  await page.route('**/api/v1/auth/cas/start**', route =>
+    route.fulfill({ status: 200, contentType: 'text/html', body: '<h1>CAS (simulated)</h1>' })
+  );
 
-  await page.route(`${API}/v1/users/me`, async (route) => {
+  await page.route(`${API}/v1/users/me`, async route => {
     const method = methodOf(route);
     if (method === 'PATCH') {
       if (state.refuse.patch) return state.refuse.patch(route);
@@ -144,15 +313,21 @@ async function mockApi(page: Page, account: Account, overrides: Partial<State> =
     if (method === 'DELETE') return (state.refuse.delete ?? noContent)(route);
     return json(state.account)(route);
   });
-  await page.route(`${API}/v1/users/me/pricing-token`, (route) => state.pricingToken(route));
-  await page.route(`${API}/v1/users/me/usage`, (route) => state.usage(route));
+  await page.route(`${API}/v1/users/me/pricing-token`, route => state.pricingToken(route));
+  await page.route(`${API}/v1/users/me/usage`, route => state.usage(route));
 
-  await page.route(`${API}/v1/users/me/api-keys`, async (route) => {
+  await page.route(`${API}/v1/users/me/api-keys`, async route => {
     if (methodOf(route) === 'POST') {
       if (state.refuse.create) return state.refuse.create(route);
       const payload = route.request().postDataJSON() as Record<string, unknown>;
       const summary = {
-        id: 'k3', prefix: 'obk_demo0003', created_at: new Date().toISOString(), last_used_at: null, expires_at: null, boundary: {}, ...payload,
+        id: 'k3',
+        prefix: 'obk_demo0003',
+        created_at: new Date().toISOString(),
+        last_used_at: null,
+        expires_at: null,
+        boundary: {},
+        ...payload,
       };
       // The list never carries the secret; only this answer does.
       state.keys = [...state.keys, summary as unknown as ApiKey];
@@ -161,47 +336,52 @@ async function mockApi(page: Page, account: Account, overrides: Partial<State> =
     if (state.refuse.list) return state.refuse.list(route);
     return json({ api_keys: state.keys })(route);
   });
-  await page.route(new RegExp(`^${API}/v1/users/me/api-keys/([^/]+)/rotate$`), async (route) => {
+  await page.route(new RegExp(`^${API}/v1/users/me/api-keys/([^/]+)/rotate$`), async route => {
     if (state.refuse.rotate) return state.refuse.rotate(route);
     const id = /api-keys\/([^/]+)\/rotate/.exec(route.request().url())?.[1];
-    const key = state.keys.find((item) => item.id === id) ?? reader;
+    const key = state.keys.find(item => item.id === id) ?? reader;
     return json({ ...key, secret: 'obk_demo0001_NUEVO-SECRETO-DE-PRUEBA' })(route);
   });
-  await page.route(new RegExp(`^${API}/v1/users/me/api-keys/([^/]+)$`), async (route) => {
+  await page.route(new RegExp(`^${API}/v1/users/me/api-keys/([^/]+)$`), async route => {
     if (state.refuse.revoke) return state.refuse.revoke(route);
     const id = /api-keys\/([^/]+)$/.exec(route.request().url())?.[1];
-    state.keys = state.keys.filter((item) => item.id !== id);
+    state.keys = state.keys.filter(item => item.id !== id);
     return noContent(route);
   });
 
-  await page.route(`${API}/v1/users/me/identities`, (route) => json(state.identities)(route));
-  await page.route(new RegExp(`^${API}/v1/users/me/identities/([^/?]+)`), async (route) => {
+  await page.route(`${API}/v1/users/me/identities`, route => json(state.identities)(route));
+  await page.route(new RegExp(`^${API}/v1/users/me/identities/([^/?]+)`), async route => {
     if (state.refuse.unlink) return state.refuse.unlink(route);
     state.identities = [];
     // Unlinking a RESEARCH account moves the plan back to the default one, and with it the institutional mark.
     state.account = { ...state.account, plan: 'FREE', cas_verified: false };
     return noContent(route);
   });
-  await page.route(`${API}/v1/auth/cas/link-intent`, async (route) => {
+  await page.route(`${API}/v1/auth/cas/link-intent`, async route => {
     if (state.refuse.link) return state.refuse.link(route);
     return json({ url: '/api/v1/auth/cas/start?mode=link&intent=s3' })(route);
   });
 
-  await page.route(new RegExp(`^${API}/v1/notifications(\\?.*)?$`), async (route) => {
+  await page.route(new RegExp(`^${API}/v1/notifications(\\?.*)?$`), async route => {
     if (state.refuse.notifications) return state.refuse.notifications(route);
     return json(state.notifications)(route);
   });
-  await page.route(`${API}/v1/notifications/read-all`, async (route) => {
+  await page.route(`${API}/v1/notifications/read-all`, async route => {
     const stamp = new Date().toISOString();
-    state.notifications = state.notifications.map((item) => ({ ...item, read_at: item.read_at ?? stamp }));
+    state.notifications = state.notifications.map(item => ({
+      ...item,
+      read_at: item.read_at ?? stamp,
+    }));
     return json(state.notifications)(route);
   });
-  await page.route(new RegExp(`^${API}/v1/notifications/([^/]+)/read$`), async (route) => {
+  await page.route(new RegExp(`^${API}/v1/notifications/([^/]+)/read$`), async route => {
     const id = /notifications\/([^/]+)\/read/.exec(route.request().url())?.[1];
-    state.notifications = state.notifications.map((item) => (item.id === id ? { ...item, read_at: new Date().toISOString() } : item));
-    return json(state.notifications.find((item) => item.id === id))(route);
+    state.notifications = state.notifications.map(item =>
+      item.id === id ? { ...item, read_at: new Date().toISOString() } : item
+    );
+    return json(state.notifications.find(item => item.id === id))(route);
   });
-  await page.route(`${API}/v1/notifications/preferences`, async (route) => {
+  await page.route(`${API}/v1/notifications/preferences`, async route => {
     if (methodOf(route) === 'PUT') {
       if (state.refuse.savePreferences) return state.refuse.savePreferences(route);
       state.preferences = route.request().postDataJSON() as State['preferences'];
@@ -215,10 +395,14 @@ async function mockApi(page: Page, account: Account, overrides: Partial<State> =
 
 function watchCriticalErrors(page: Page) {
   const critical: string[] = [];
-  page.on('pageerror', (error) => critical.push(`pageerror: ${error.message}`));
-  page.on('console', (message) => {
+  page.on('pageerror', error => critical.push(`pageerror: ${error.message}`));
+  page.on('console', message => {
     const text = message.text();
-    if (message.type() === 'error' && /The above error occurred|Minified React error|Maximum update depth|Uncaught/i.test(text)) critical.push(`console: ${text}`);
+    if (
+      message.type() === 'error' &&
+      /The above error occurred|Minified React error|Maximum update depth|Uncaught/i.test(text)
+    )
+      critical.push(`console: ${text}`);
   });
   return critical;
 }
@@ -226,27 +410,46 @@ function watchCriticalErrors(page: Page) {
 /** Check that nothing scrolls sideways and, with E2E_SCREENSHOTS=1, save a full-page picture of the current state for a person to look at. */
 async function capture(page: Page, testInfo: TestInfo, name: string) {
   await page.evaluate(() => document.fonts.ready);
-  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - window.innerWidth
+  );
   expect(overflow, `${name} should not scroll sideways`).toBeLessThanOrEqual(1);
-  if (process.env.E2E_SCREENSHOTS) await page.screenshot({ path: testInfo.outputPath(`${name}.png`), fullPage: true, animations: 'disabled' });
+  if (process.env.E2E_SCREENSHOTS)
+    await page.screenshot({
+      path: testInfo.outputPath(`${name}.png`),
+      fullPage: true,
+      animations: 'disabled',
+    });
 }
 
 /** The account side navigation: five destinations, the current one marked. */
 async function expectAccountNav(main: Locator, current: string) {
   const nav = main.getByRole('navigation', { name: 'Account' });
   const destinations: Array<[string, string]> = [
-    ['Profile', '/app/account'], ['Plan', '/app/account/usage'], ['API keys', '/app/account/keys'],
-    ['Identities', '/app/account/identities'], ['Notifications', '/app/account/notifications'],
+    ['Profile', '/app/account'],
+    ['Plan', '/app/account/usage'],
+    ['API keys', '/app/account/keys'],
+    ['Identities', '/app/account/identities'],
+    ['Notifications', '/app/account/notifications'],
   ];
-  for (const [label, href] of destinations) await expect(nav.getByRole('link', { name: label, exact: true })).toHaveAttribute('href', href);
-  await expect(nav.getByRole('link', { name: current, exact: true })).toHaveAttribute('aria-current', 'page');
+  for (const [label, href] of destinations)
+    await expect(nav.getByRole('link', { name: label, exact: true })).toHaveAttribute('href', href);
+  await expect(nav.getByRole('link', { name: current, exact: true })).toHaveAttribute(
+    'aria-current',
+    'page'
+  );
 }
 
 // Each test walks a screen through its states while the dev server compiles on demand.
 test.setTimeout(90_000);
 
 const viewports = [
-  { name: 'desktop', viewport: { width: 1440, height: 900 }, isMobile: false, deviceScaleFactor: 1 },
+  {
+    name: 'desktop',
+    viewport: { width: 1440, height: 900 },
+    isMobile: false,
+    deviceScaleFactor: 1,
+  },
   { name: 'mobile', viewport: { width: 390, height: 844 }, isMobile: true, deviceScaleFactor: 2 },
 ] as const;
 
@@ -258,7 +461,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page, lucia);
       await page.goto('/app/account');
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
 
       await expect(page.locator('header.app-header')).toBeVisible();
       await expect(main.getByRole('heading', { level: 1, name: 'Account' })).toBeVisible();
@@ -283,23 +486,38 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await main.getByLabel('Email address').fill('new@example.org');
       await main.getByLabel('Current password').first().fill('old-password-123');
       await expect(main.getByText('You have unsaved changes')).toBeVisible();
-      const patched = page.waitForRequest((request) => request.method() === 'PATCH' && request.url() === `${API}/v1/users/me`);
+      const patched = page.waitForRequest(
+        request => request.method() === 'PATCH' && request.url() === `${API}/v1/users/me`
+      );
       await main.getByRole('button', { name: 'Save changes' }).click();
-      expect((await patched).postDataJSON()).toEqual({ email: 'new@example.org', current_password: 'old-password-123' });
-      await expect(main.getByRole('status').filter({ hasText: 'Email updated to new@example.org.' })).toBeVisible();
+      expect((await patched).postDataJSON()).toEqual({
+        email: 'new@example.org',
+        current_password: 'old-password-123',
+      });
+      await expect(
+        main.getByRole('status').filter({ hasText: 'Email updated to new@example.org.' })
+      ).toBeVisible();
       await expect(main.getByText('new@example.org · member since Mar 2, 2026')).toBeVisible();
       state.refuse.patch = detail(409, 'already_registered', 'That email is already in use.');
       await main.getByLabel('Email address').fill('taken@example.org');
       await main.getByLabel('Current password').first().fill('old-password-123');
       await main.getByRole('button', { name: 'Save changes' }).click();
-      await expect(main.getByText('That email is already used by another account (409 · already_registered).')).toBeVisible();
+      await expect(
+        main.getByText('That email is already used by another account (409 · already_registered).')
+      ).toBeVisible();
       await expect(main.getByLabel('Email address')).toHaveAttribute('aria-invalid', 'true');
       await capture(page, testInfo, `profile-${name}-409`);
 
-      state.refuse.patch = detail(401, 'invalid_credentials', 'The current password is required to change these details.');
+      state.refuse.patch = detail(
+        401,
+        'invalid_credentials',
+        'The current password is required to change these details.'
+      );
       await main.getByLabel('Current password').first().fill('wrong-password');
       await main.getByRole('button', { name: 'Save changes' }).click();
-      await expect(main.getByText('That isn’t your current password (401 · invalid_credentials).').first()).toBeVisible();
+      await expect(
+        main.getByText('That isn’t your current password (401 · invalid_credentials).').first()
+      ).toBeVisible();
       // Password: ten characters, typed twice, and the current one.
       state.refuse.patch = undefined;
       const current = main.getByLabel('Current password').nth(1);
@@ -308,15 +526,22 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByText('5 more characters needed')).toBeVisible();
       await main.getByLabel('Confirm new password').fill('short');
       await main.getByRole('button', { name: 'Change password' }).click();
-      await expect(main.getByText('Password must be at least 10 characters long.').first()).toBeVisible();
+      await expect(
+        main.getByText('Password must be at least 10 characters long.').first()
+      ).toBeVisible();
       await main.getByLabel('New password', { exact: true }).fill('new-secure-password');
       await main.getByLabel('Confirm new password').fill('something-different');
       await main.getByRole('button', { name: 'Change password' }).click();
       await expect(main.getByText('New password and confirm password do not match.')).toBeVisible();
       await main.getByLabel('Confirm new password').fill('new-secure-password');
-      const changed = page.waitForRequest((request) => request.method() === 'PATCH' && request.url() === `${API}/v1/users/me`);
+      const changed = page.waitForRequest(
+        request => request.method() === 'PATCH' && request.url() === `${API}/v1/users/me`
+      );
       await main.getByRole('button', { name: 'Change password' }).click();
-      expect((await changed).postDataJSON()).toEqual({ current_password: 'old-password-123', new_password: 'new-secure-password' });
+      expect((await changed).postDataJSON()).toEqual({
+        current_password: 'old-password-123',
+        new_password: 'new-secure-password',
+      });
       await expect(main.getByRole('status').filter({ hasText: 'Password changed.' })).toBeVisible();
 
       // Deleting the account asks for the username, and the gateway can still refuse.
@@ -327,11 +552,19 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await dialog.getByLabel('Type lucia.vega to confirm').fill('lucia.vega');
       await expect(dialog.getByRole('button', { name: 'Delete account' })).toBeEnabled();
 
-      state.refuse.delete = detail(409, 'last_owner', 'Transfer or delete every organization for which this is the last owner.');
+      state.refuse.delete = detail(
+        409,
+        'last_owner',
+        'Transfer or delete every organization for which this is the last owner.'
+      );
       await dialog.getByRole('button', { name: 'Delete account' }).click();
       await expect(dialog.getByRole('alert')).toContainText('409 · last_owner');
       await capture(page, testInfo, `profile-${name}-delete-409-owner`);
-      state.refuse.delete = detail(409, 'last_pricing_admin', 'Cannot delete the last administrator who authored pricing releases.');
+      state.refuse.delete = detail(
+        409,
+        'last_pricing_admin',
+        'Cannot delete the last administrator who authored pricing releases.'
+      );
       await dialog.getByRole('button', { name: 'Delete account' }).click();
       await expect(dialog.getByRole('alert')).toContainText('409 · last_pricing_admin');
       // Cancelling leaves everything as it was; deleting for real leaves the application.
@@ -340,17 +573,26 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       state.refuse.delete = undefined;
       await main.getByRole('button', { name: 'Delete my account' }).click();
       await dialog.getByLabel('Type lucia.vega to confirm').fill('lucia.vega');
-      const deleted = page.waitForRequest((request) => request.method() === 'DELETE' && request.url() === `${API}/v1/users/me`);
+      const deleted = page.waitForRequest(
+        request => request.method() === 'DELETE' && request.url() === `${API}/v1/users/me`
+      );
       await dialog.getByRole('button', { name: 'Delete account' }).click();
-      expect((await deleted).postDataJSON()).toEqual({ confirmation: 'lucia.vega', current_password: null });
+      expect((await deleted).postDataJSON()).toEqual({
+        confirmation: 'lucia.vega',
+        current_password: null,
+      });
       await expect(page).toHaveURL(/\/$/);
       expect(critical).toEqual([]);
     });
 
-    test('acct-profile: logging out, a pending contract and a refused read', async ({ page }, testInfo) => {
-      const state = await mockApi(page, marco, { usage: json({ ...freeUsage(), contract_pending: true }) });
+    test('acct-profile: logging out, a pending contract and a refused read', async ({
+      page,
+    }, testInfo) => {
+      const state = await mockApi(page, marco, {
+        usage: json({ ...freeUsage(), contract_pending: true }),
+      });
       await page.goto('/app/account');
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
 
       await expect(main.getByText('Contract pending')).toBeVisible();
       await expect(main.getByText('Universidad de Sevilla · verified')).toHaveCount(0);
@@ -362,41 +604,71 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await capture(page, testInfo, `profile-${name}-403`);
       if (isMobile) return;
 
-      const loggedOut = page.waitForRequest((request) => request.method() === 'POST' && request.url() === `${API}/v1/auth/logout`);
+      const loggedOut = page.waitForRequest(
+        request => request.method() === 'POST' && request.url() === `${API}/v1/auth/logout`
+      );
       await main.getByRole('button', { name: 'Log out' }).click();
       expect((await loggedOut).postDataJSON()).toEqual({ refresh_token: 's3-refresh' });
       await expect(page).toHaveURL(/\/login$/);
     });
 
-    test('acct-usage /app/account/usage · plan and permissions, with links to the native consoles', async ({ page }, testInfo) => {
+    test('acct-usage /app/account/usage · plan and permissions, with links to the native consoles', async ({
+      page,
+    }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page, lucia);
       await page.goto('/app/account/usage');
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
 
-      await expect(main.getByRole('heading', { level: 1, name: 'Plan & permissions' })).toBeVisible();
+      await expect(
+        main.getByRole('heading', { level: 1, name: 'Plan & permissions' })
+      ).toBeVisible();
       await expectAccountNav(main, 'Plan');
       const plan = main.getByRole('region', { name: 'Your plan' });
       await expect(plan.getByText('RESEARCH', { exact: true })).toBeVisible();
       await expect(plan.getByText('Free with verified CAS')).toBeVisible();
-      await expect(plan.getByText(/Published pricing 0\.2\.0 · A new pricing version applies when your contract is renewed in SPACE/)).toBeVisible();
-      await expect(plan.getByRole('link', { name: 'See plans' })).toHaveAttribute('href', '/pricing');
+      await expect(
+        plan.getByText(
+          /Published pricing 0\.2\.0 · A new pricing version applies when your contract is renewed in SPACE/
+        )
+      ).toBeVisible();
+      await expect(plan.getByRole('link', { name: 'See plans' })).toHaveAttribute(
+        'href',
+        '/pricing'
+      );
 
       // Prices, versions and contracts are managed in the native consoles; this page only links to them.
-      await expect(main.getByRole('link', { name: 'Open SPACE console' })).toHaveAttribute('href', 'https://space.score.us.es');
-      await expect(main.getByRole('link', { name: 'Open SPHERE console' })).toHaveAttribute('href', 'https://sphere.score.us.es');
+      await expect(main.getByRole('link', { name: 'Open SPACE console' })).toHaveAttribute(
+        'href',
+        'https://space.score.us.es'
+      );
+      await expect(main.getByRole('link', { name: 'Open SPHERE console' })).toHaveAttribute(
+        'href',
+        'https://sphere.score.us.es'
+      );
       await expect(main.getByRole('meter')).toHaveCount(0);
       await expect(main.getByRole('heading', { name: 'This month' })).toHaveCount(0);
-      const allowances = main.getByRole('heading', { name: 'What your plan allows' }).locator('xpath=ancestor::section[1]');
+      const allowances = main
+        .getByRole('heading', { name: 'What your plan allows' })
+        .locator('xpath=ancestor::section[1]');
       await expect(allowances.getByText('10', { exact: true })).toBeVisible();
-      await expect(allowances.getByRole('link', { name: 'Manage keys' })).toHaveAttribute('href', '/app/account/keys');
+      await expect(allowances.getByRole('link', { name: 'Manage keys' })).toHaveAttribute(
+        'href',
+        '/app/account/keys'
+      );
       const ceilings = main.getByRole('region', { name: 'Ceilings table' });
       await expect(ceilings.getByRole('row', { name: /Max time per run/ })).toContainText('30 min');
-      await expect(ceilings.getByRole('row', { name: /Cells per study run/ })).toContainText('5,000');
+      await expect(ceilings.getByRole('row', { name: /Cells per study run/ })).toContainText(
+        '5,000'
+      );
       await expect(main.getByRole('heading', { name: 'Organizations you sponsor' })).toHaveCount(0);
       await expect(main.getByText('Confirmed by your plan check')).toBeVisible();
-      await expect(main.getByText('Repository', { exact: true }).locator('..')).toContainText('Enabled');
-      await expect(main.getByText('Generator', { exact: true }).locator('..')).toContainText('Not in plan');
+      await expect(main.getByText('Repository', { exact: true }).locator('..')).toContainText(
+        'Enabled'
+      );
+      await expect(main.getByText('Generator', { exact: true }).locator('..')).toContainText(
+        'Not in plan'
+      );
       await capture(page, testInfo, `usage-${name}-research`);
       if (isMobile) {
         expect(critical).toEqual([]);
@@ -408,12 +680,20 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       state.pricingToken = json({ pricing_token: expired });
       await page.reload();
       await expect(main.getByText('Plan check expired · can’t confirm')).toBeVisible();
-      await expect(main.getByText(/Your plan check has expired, so features can’t be confirmed/)).toBeVisible();
-      await expect(main.getByText('Repository', { exact: true }).locator('..')).toContainText('Can’t confirm');
+      await expect(
+        main.getByText(/Your plan check has expired, so features can’t be confirmed/)
+      ).toBeVisible();
+      await expect(main.getByText('Repository', { exact: true }).locator('..')).toContainText(
+        'Can’t confirm'
+      );
       expect(await page.content()).not.toContain(expired);
       await capture(page, testInfo, `usage-${name}-token-stale`);
 
-      state.pricingToken = detail(503, 'pricing_unavailable', 'A pricing token cannot be issued right now.');
+      state.pricingToken = detail(
+        503,
+        'pricing_unavailable',
+        'A pricing token cannot be issued right now.'
+      );
       await page.reload();
       await expect(main.getByText('Can’t confirm features')).toBeVisible();
       await expect(main.getByText(/No plan check is available yet/)).toBeVisible();
@@ -434,7 +714,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByText('Your plan declares no limits.')).toBeVisible();
       state.usage = detail(503, 'pricing_unavailable', 'The plan cannot be read right now.');
       await refresh();
-      await expect(main.getByRole('alert')).toContainText('We can’t read your plan right now (503 · pricing_unavailable).');
+      await expect(main.getByRole('alert')).toContainText(
+        'We can’t read your plan right now (503 · pricing_unavailable).'
+      );
       await expect(main.getByRole('link', { name: 'Open SPACE console' })).toBeVisible();
       await expect(main.getByRole('heading', { name: 'What your plan allows' })).toHaveCount(0);
       await capture(page, testInfo, `usage-${name}-503`);
@@ -452,29 +734,42 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page, lucia);
       await page.goto('/app/account/keys');
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
 
       await expect(main.getByRole('heading', { level: 1, name: 'API keys' })).toBeVisible();
       await expectAccountNav(main, 'API keys');
-      await expect(main.getByRole('link', { name: 'New key' })).toHaveAttribute('href', '/app/account/keys?create=key');
+      await expect(main.getByRole('link', { name: 'New key' })).toHaveAttribute(
+        'href',
+        '/app/account/keys?create=key'
+      );
       await expect(main.getByText('2 of 10 keys')).toBeVisible();
       const first = main.getByRole('article', { name: 'ci-lectura-resultados' });
       await expect(first.getByText('obk_demo0001…')).toBeVisible();
       await expect(first.getByText('created Sep 1, 2026')).toBeVisible();
       await expect(first.getByText('last used Oct 8, 2026')).toBeVisible();
       await expect(first.getByText('expires Dec 31, 2099')).toBeVisible();
-      for (const label of ['GET only', 'org isa-demo', 'runs, studies']) await expect(first.getByText(label, { exact: true })).toBeVisible();
+      for (const label of ['GET only', 'org isa-demo', 'runs, studies'])
+        await expect(first.getByText(label, { exact: true })).toBeVisible();
       await expect(first.getByText('All engines, including future ones')).toBeVisible();
       const second = main.getByRole('article', { name: 'ejecucion-engine-fijo' });
-      await expect(second.getByText('Only bim.builtin/random-search@1.0.0', { exact: true })).toBeVisible();
+      await expect(
+        second.getByText('Only bim.builtin/random-search@1.0.0', { exact: true })
+      ).toBeVisible();
       await expect(second).not.toContainText(/sha256-|[0-9a-f]{12}/);
       await expect(second.getByText('No extra limits')).toBeVisible();
       await expect(main.getByText(/The secret is shown only once/)).toBeVisible();
       await capture(page, testInfo, `keys-${name}-list`);
       if (isMobile) {
         await first.getByRole('button', { name: 'Rotate ci-lectura-resultados' }).click();
-        await page.getByRole('dialog', { name: 'Rotate “ci-lectura-resultados”?' }).getByRole('button', { name: 'Rotate key' }).click();
-        await expect(page.getByRole('dialog', { name: 'Copy your new secret now' }).getByText('obk_demo0001_NUEVO-SECRETO-DE-PRUEBA')).toBeVisible();
+        await page
+          .getByRole('dialog', { name: 'Rotate “ci-lectura-resultados”?' })
+          .getByRole('button', { name: 'Rotate key' })
+          .click();
+        await expect(
+          page
+            .getByRole('dialog', { name: 'Copy your new secret now' })
+            .getByText('obk_demo0001_NUEVO-SECRETO-DE-PRUEBA')
+        ).toBeVisible();
         await capture(page, testInfo, `keys-${name}-secret`);
         expect(critical).toEqual([]);
         return;
@@ -483,7 +778,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       // Rotating shows the new secret once and does not let go of it until it is confirmed as stored.
       await first.getByRole('button', { name: 'Rotate ci-lectura-resultados' }).click();
       const confirm = page.getByRole('dialog', { name: 'Rotate “ci-lectura-resultados”?' });
-      await expect(confirm).toBeVisible();      await confirm.getByRole('button', { name: 'Rotate key' }).click();
+      await expect(confirm).toBeVisible();
+      await confirm.getByRole('button', { name: 'Rotate key' }).click();
       const secret = page.getByRole('dialog', { name: 'Copy your new secret now' });
       await expect(secret.getByText('obk_demo0001_NUEVO-SECRETO-DE-PRUEBA')).toBeVisible();
       await expect(secret.getByRole('button', { name: 'Done' })).toBeDisabled();
@@ -498,7 +794,11 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       // Revoking asks first, then the key is gone from the list.
       await first.getByRole('button', { name: 'Revoke ci-lectura-resultados' }).click();
       const revoke = page.getByRole('dialog', { name: 'Revoke “ci-lectura-resultados”?' });
-      await expect(revoke.getByText(/This can’t be undone/)).toBeVisible();      const revoked = page.waitForRequest((request) => request.method() === 'DELETE' && request.url() === `${API}/v1/users/me/api-keys/k1`);
+      await expect(revoke.getByText(/This can’t be undone/)).toBeVisible();
+      const revoked = page.waitForRequest(
+        request =>
+          request.method() === 'DELETE' && request.url() === `${API}/v1/users/me/api-keys/k1`
+      );
       await revoke.getByRole('button', { name: 'Revoke key' }).click();
       await revoked;
       await expect(main.getByText('“ci-lectura-resultados” was revoked.')).toBeVisible();
@@ -508,30 +808,48 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       state.refuse.revoke = detail(404, 'not_found', 'Key not found.');
       await main.getByRole('button', { name: 'Revoke ejecucion-engine-fijo' }).click();
       await page.getByRole('button', { name: 'Revoke key' }).click();
-      await expect(main.getByText('That key no longer exists or isn’t yours (404). The list was refreshed.')).toBeVisible();      state.refuse.revoke = undefined;
+      await expect(
+        main.getByText('That key no longer exists or isn’t yours (404). The list was refreshed.')
+      ).toBeVisible();
+      state.refuse.revoke = undefined;
 
       // The plan's limit is a warning here and a 402 in the wizard.
       state.keys = [reader, runner];
-      state.usage = json({ ...researchUsage(), capabilities: { ...researchUsage().capabilities, maxApiKeys: 2 } });
+      state.usage = json({
+        ...researchUsage(),
+        capabilities: { ...researchUsage().capabilities, maxApiKeys: 2 },
+      });
       await page.reload();
-      await expect(main.getByText(/You’ve reached your plan’s API key limit \(2\)\./)).toBeVisible();
-      await expect(main.getByRole('meter', { name: 'Active keys' })).toHaveAttribute('aria-valuenow', '2');
+      await expect(
+        main.getByText(/You’ve reached your plan’s API key limit \(2\)\./)
+      ).toBeVisible();
+      await expect(main.getByRole('meter', { name: 'Active keys' })).toHaveAttribute(
+        'aria-valuenow',
+        '2'
+      );
       await capture(page, testInfo, `keys-${name}-limit`);
 
       state.keys = [];
       await page.reload();
       await expect(main.getByText('No API keys')).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Create your first key' })).toHaveAttribute('href', '/app/account/keys?create=key');
+      await expect(main.getByRole('link', { name: 'Create your first key' })).toHaveAttribute(
+        'href',
+        '/app/account/keys?create=key'
+      );
       await capture(page, testInfo, `keys-${name}-empty`);
 
       state.refuse.list = detail(503, 'unavailable', 'Accounts are not reachable.');
       await page.reload();
-      await expect(main.getByRole('alert')).toContainText('Nothing was loaded');      state.refuse.list = detail(403, 'forbidden', 'The API key lacks keys:read.');
+      await expect(main.getByRole('alert')).toContainText('Nothing was loaded');
+      state.refuse.list = detail(403, 'forbidden', 'The API key lacks keys:read.');
       await main.getByRole('button', { name: 'Try again' }).click();
-      await expect(main.getByRole('alert')).toContainText('keys:read');      expect(critical).toEqual([]);
+      await expect(main.getByRole('alert')).toContainText('keys:read');
+      expect(critical).toEqual([]);
     });
 
-    test('acct-profile /app/account/keys?create=key · the New API key dialog', async ({ page }, testInfo) => {
+    test('acct-profile /app/account/keys?create=key · the New API key dialog', async ({
+      page,
+    }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page, marco);
       await page.goto('/app/account/keys?create=key');
@@ -540,10 +858,13 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const next = () => main.getByRole('button', { name: 'Continue' }).click();
 
       await expect(main).toBeVisible();
-      await expectAccountNav(page.locator('#platform-main'), 'API keys');
+      await expectAccountNav(page.locator('main'), 'API keys');
       const steps = main.getByRole('list', { name: 'Steps' });
       await expect(steps.getByRole('button')).toHaveCount(5);
-      await expect(steps.getByRole('button', { name: 'Name' })).toHaveAttribute('aria-current', 'step');
+      await expect(steps.getByRole('button', { name: 'Name' })).toHaveAttribute(
+        'aria-current',
+        'step'
+      );
       await capture(page, testInfo, `keynew-${name}-1-name`);
       if (isMobile) {
         await main.getByLabel('Name').fill('ci-nightly');
@@ -568,7 +889,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         await expect(main.getByRole('checkbox', { name: new RegExp(`^${id}`) })).toBeDisabled();
       }
       await expect(main.getByText('Only global administrators can grant this.')).toHaveCount(3);
-      await expect(main.getByText(/Permissions marked ADMIN are only granted to global administrators/)).toBeVisible();
+      await expect(
+        main.getByText(/Permissions marked ADMIN are only granted to global administrators/)
+      ).toBeVisible();
       await next();
       await expect(main.getByRole('alert')).toContainText('Choose at least one permission.');
       await capture(page, testInfo, `keynew-${name}-2-permissions`);
@@ -582,19 +905,39 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('heading', { name: 'Engine access' })).toBeVisible();
       await expect(main.getByRole('radio', { name: /All engines/ })).toBeChecked();
       await main.getByRole('radio', { name: /Only these engines/ }).check();
-      await expect(main.getByRole('checkbox', { name: /bim\.builtin\/random-search@1\.0\.0/ })).toBeVisible();
+      await expect(
+        main.getByRole('checkbox', { name: /bim\.builtin\/random-search@1\.0\.0/ })
+      ).toBeVisible();
       await next();
-      await expect(main.getByRole('alert')).toContainText('422 · The permissions you chose need all engines or at least one exact engine.');      await main.getByRole('checkbox', { name: /bim\.builtin\/random-search@1\.0\.0/ }).check();
+      await expect(main.getByRole('alert')).toContainText(
+        '422 · The permissions you chose need all engines or at least one exact engine.'
+      );
+      await main.getByRole('checkbox', { name: /bim\.builtin\/random-search@1\.0\.0/ }).check();
       await next();
 
       await expect(main.getByRole('heading', { name: /^Limits/ })).toBeVisible();
-      await main.getByRole('group', { name: 'HTTP methods' }).getByRole('button', { name: 'GET' }).click();
-      await main.getByRole('group', { name: 'Organizations' }).getByRole('button', { name: 'isa-demo' }).click();
+      await main
+        .getByRole('group', { name: 'HTTP methods' })
+        .getByRole('button', { name: 'GET' })
+        .click();
+      await main
+        .getByRole('group', { name: 'Organizations' })
+        .getByRole('button', { name: 'isa-demo' })
+        .click();
       await expect(main.getByRole('group', { name: 'Projects' })).toHaveCount(0);
-      await main.getByRole('group', { name: 'Resource kinds' }).getByRole('button', { name: 'runs' }).click();
-      await main.getByRole('group', { name: 'Slugs' }).getByLabel('Add slugs').fill('latency-study');
+      await main
+        .getByRole('group', { name: 'Resource kinds' })
+        .getByRole('button', { name: 'runs' })
+        .click();
+      await main
+        .getByRole('group', { name: 'Slugs' })
+        .getByLabel('Add slugs')
+        .fill('latency-study');
       await main.getByRole('group', { name: 'Slugs' }).getByRole('button', { name: 'Add' }).click();
-      await expect(main.getByRole('group', { name: 'Slugs' }).getByRole('button', { name: 'latency-study' })).toHaveAttribute('aria-pressed', 'true');      await next();
+      await expect(
+        main.getByRole('group', { name: 'Slugs' }).getByRole('button', { name: 'latency-study' })
+      ).toHaveAttribute('aria-pressed', 'true');
+      await next();
 
       await expect(main.getByRole('heading', { name: 'Review' })).toBeVisible();
       const review = main.locator('dl.keynew-review');
@@ -606,46 +949,84 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       // The gateway's refusals, one by one: 402, 403 escalation, 403 not grantable, 422 engines.
       const create = main.getByRole('button', { name: 'Create key' });
-      state.refuse.create = detail(402, 'quota_exceeded', 'Your plan allows 1 API key, and you have 1.');
+      state.refuse.create = detail(
+        402,
+        'quota_exceeded',
+        'Your plan allows 1 API key, and you have 1.'
+      );
       await create.click();
-      await expect(main.getByRole('alert')).toContainText('402 · You’ve reached your plan’s API key limit.');      state.refuse.create = detail(403, 'api_key_escalation', 'A key may create only keys whose permissions are a subset of its own.');
+      await expect(main.getByRole('alert')).toContainText(
+        '402 · You’ve reached your plan’s API key limit.'
+      );
+      state.refuse.create = detail(
+        403,
+        'api_key_escalation',
+        'A key may create only keys whose permissions are a subset of its own.'
+      );
       await create.click();
-      await expect(main.getByRole('alert')).toContainText('403 · api_key_escalation');      state.refuse.create = detail(403, 'permission_not_grantable', 'Only an administrator account may grant moderation permissions.');
+      await expect(main.getByRole('alert')).toContainText('403 · api_key_escalation');
+      state.refuse.create = detail(
+        403,
+        'permission_not_grantable',
+        'Only an administrator account may grant moderation permissions.'
+      );
       await create.click();
-      await expect(main.getByRole('alert')).toContainText('403 · permission_not_grantable');      state.refuse.create = detail(422, 'validation_error', 'Engine discovery, analysis, execution and job access require all Engines or at least one exact Engine revision');
+      await expect(main.getByRole('alert')).toContainText('403 · permission_not_grantable');
+      state.refuse.create = detail(
+        422,
+        'validation_error',
+        'Engine discovery, analysis, execution and job access require all Engines or at least one exact Engine revision'
+      );
       await create.click();
       await expect(main.getByRole('heading', { name: 'Engine access' })).toBeVisible();
-      await expect(main.getByRole('alert')).toContainText('422 · The permissions you chose need all engines or at least one exact engine.');      state.refuse.create = undefined;
+      await expect(main.getByRole('alert')).toContainText(
+        '422 · The permissions you chose need all engines or at least one exact engine.'
+      );
+      state.refuse.create = undefined;
       await next();
       await next();
 
       // Created: the secret is shown once, and the way on is closed until it is confirmed as stored.
-      const created = page.waitForRequest((request) => request.method() === 'POST' && request.url() === `${API}/v1/users/me/api-keys`);
+      const created = page.waitForRequest(
+        request => request.method() === 'POST' && request.url() === `${API}/v1/users/me/api-keys`
+      );
       await create.click();
       const sent = (await created).postDataJSON() as Record<string, unknown>;
       expect(sent).toMatchObject({
         name: 'ci-nightly',
         permissions: ['engines:read', 'engines:execute', 'jobs:read', 'problems:read'],
         engine_access: { all: false, engines: [engineRef] },
-        boundary: { methods: ['GET'], organizations: ['isa-demo'], resource_kinds: ['runs'], slugs: ['latency-study'] },
+        boundary: {
+          methods: ['GET'],
+          organizations: ['isa-demo'],
+          resource_kinds: ['runs'],
+          slugs: ['latency-study'],
+        },
       });
       const days = (Date.parse(sent.expires_at as string) - Date.now()) / 86_400_000;
       expect(days).toBeGreaterThan(29.9);
       expect(days).toBeLessThan(30.1);
-      const secret = page.getByRole('dialog', { name: '“ci-nightly” is ready. Copy its secret now' });
+      const secret = page.getByRole('dialog', {
+        name: '“ci-nightly” is ready. Copy its secret now',
+      });
       await expect(secret.getByText('obk_demo0003_SECRETO-UNICO-DE-PRUEBA')).toBeVisible();
       await expect(secret.getByRole('button', { name: 'Go to my keys' })).toBeDisabled();
       await capture(page, testInfo, `keynew-${name}-secret`);
       await secret.getByLabel('I’ve stored the secret somewhere safe').check();
       await secret.getByRole('button', { name: 'Go to my keys' }).click();
       await expect(page).toHaveURL(/\/app\/account\/keys$/);
-      await expect(page.locator('#platform-main').getByRole('article', { name: 'ci-nightly' })).toBeVisible();
+      await expect(page.locator('main').getByRole('article', { name: 'ci-nightly' })).toBeVisible();
       await expect(page.getByText('SECRETO-UNICO-DE-PRUEBA')).toHaveCount(0);
       expect(critical).toEqual([]);
     });
 
-    test('New API key dialog: an administrator can grant the admin-only permissions', async ({ page }, testInfo) => {
-      test.skip(isMobile, 'A desktop check: the phone shows the same step, laid out by the capture above.');
+    test('New API key dialog: an administrator can grant the admin-only permissions', async ({
+      page,
+    }, testInfo) => {
+      test.skip(
+        isMobile,
+        'A desktop check: the phone shows the same step, laid out by the capture above.'
+      );
       await mockApi(page, iker);
       await page.goto('/app/account/keys?create=key');
       const main = page.getByRole('dialog', { name: 'New API key' });
@@ -666,21 +1047,38 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page, lucia);
       await page.goto('/app/account/identities');
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
       const header = page.locator('header.app-header');
 
       await expect(main.getByRole('heading', { level: 1, name: 'Identities' })).toBeVisible();
       await expectAccountNav(main, 'Identities');
       await expect(main.getByText('Universidad de Sevilla · CAS')).toBeVisible();
       await expect(main.getByText('Verified · linked Sep 1, 2026 · lvega1')).toBeVisible();
-      await expect(main.getByText(/Shown on signed-in pages because your plan includes the institutional identity/)).toBeVisible();
-      await expect(main.getByRole('img', { name: 'Universidad de Sevilla' })).toHaveAttribute('src', '/brands/us-fama.png');
-      await expect(header.getByRole('img', { name: 'Universidad de Sevilla' }).first()).toBeAttached();
-      await expect(main.getByText(/Linking one moves an account on the default plan to RESEARCH automatically, at no extra cost/)).toBeVisible();
+      await expect(
+        main.getByText(
+          /Shown on signed-in pages because your plan includes the institutional identity/
+        )
+      ).toBeVisible();
+      await expect(main.getByRole('img', { name: 'Universidad de Sevilla' })).toHaveAttribute(
+        'src',
+        '/brands/us-fama.png'
+      );
+      await expect(
+        header.getByRole('img', { name: 'Universidad de Sevilla' }).first()
+      ).toBeAttached();
+      await expect(
+        main.getByText(
+          /Linking one moves an account on the default plan to RESEARCH automatically, at no extra cost/
+        )
+      ).toBeVisible();
       await capture(page, testInfo, `identities-${name}-linked`);
       if (isMobile) {
         await main.getByRole('button', { name: 'Unlink' }).click();
-        await expect(page.getByRole('dialog', { name: 'Unlink your Universidad de Sevilla identity?' }).getByLabel('Plan change')).toContainText('4 concurrent runs');
+        await expect(
+          page
+            .getByRole('dialog', { name: 'Unlink your Universidad de Sevilla identity?' })
+            .getByLabel('Plan change')
+        ).toContainText('4 concurrent runs');
         await capture(page, testInfo, `identities-${name}-unlink-dialog`);
         expect(critical).toEqual([]);
         return;
@@ -688,7 +1086,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       // Leaving RESEARCH is typed: the dialog says what changes and refuses anything but the exact phrase.
       await main.getByRole('button', { name: 'Unlink' }).click();
-      const dialog = page.getByRole('dialog', { name: 'Unlink your Universidad de Sevilla identity?' });
+      const dialog = page.getByRole('dialog', {
+        name: 'Unlink your Universidad de Sevilla identity?',
+      });
       await expect(dialog.getByLabel('Plan change')).toContainText('4 concurrent runs');
       await expect(dialog.getByLabel('Plan change')).toContainText('1 concurrent run');
       const unlink = dialog.getByRole('button', { name: 'Unlink' });
@@ -699,15 +1099,34 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(unlink).toBeEnabled();
       await capture(page, testInfo, `identities-${name}-unlink-dialog`);
 
-      state.refuse.unlink = detail(409, 'research_downgrade_confirmation_required', 'Type DOWNGRADE RESEARCH to remove US CAS and lose institutional access.');
+      state.refuse.unlink = detail(
+        409,
+        'research_downgrade_confirmation_required',
+        'Type DOWNGRADE RESEARCH to remove US CAS and lose institutional access.'
+      );
       await unlink.click();
-      await expect(dialog.getByRole('alert')).toContainText('409 · research_downgrade_confirmation_required');      state.refuse.unlink = detail(503, 'pricing_unavailable', 'The pricing service is not reachable.');
+      await expect(dialog.getByRole('alert')).toContainText(
+        '409 · research_downgrade_confirmation_required'
+      );
+      state.refuse.unlink = detail(
+        503,
+        'pricing_unavailable',
+        'The pricing service is not reachable.'
+      );
       await unlink.click();
-      await expect(dialog.getByRole('alert')).toContainText('Your identity and plan were not changed');
+      await expect(dialog.getByRole('alert')).toContainText(
+        'Your identity and plan were not changed'
+      );
       state.refuse.unlink = undefined;
-      const removed = page.waitForRequest((request) => request.method() === 'DELETE' && request.url().startsWith(`${API}/v1/users/me/identities/i1`));
+      const removed = page.waitForRequest(
+        request =>
+          request.method() === 'DELETE' &&
+          request.url().startsWith(`${API}/v1/users/me/identities/i1`)
+      );
       await unlink.click();
-      expect(new URL((await removed).url()).searchParams.get('confirmation')).toBe('DOWNGRADE RESEARCH');
+      expect(new URL((await removed).url()).searchParams.get('confirmation')).toBe(
+        'DOWNGRADE RESEARCH'
+      );
       await expect(main.getByText('Identity unlinked. Your plan is now FREE.')).toBeVisible();
       await expect(main.getByText('Not linked', { exact: true })).toBeVisible();
       // The plan and the institutional mark follow without a reload.
@@ -716,29 +1135,51 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await capture(page, testInfo, `identities-${name}-unlinked`);
 
       // Linking leaves for the CAS, with the one-use address the gateway gave; a paused service is explained.
-      state.refuse.link = detail(503, 'institutional_pricing_invalid', 'The active iPricing must declare the CAS-only RESEARCH plan.');
+      state.refuse.link = detail(
+        503,
+        'institutional_pricing_invalid',
+        'The active iPricing must declare the CAS-only RESEARCH plan.'
+      );
       await main.getByRole('button', { name: 'Link CAS identity' }).click();
-      await expect(main.getByText('Institutional sign-in is paused (503 · institutional_pricing_invalid): the current pricing has no valid RESEARCH plan. Try again later.')).toBeVisible();      state.refuse.link = undefined;
+      await expect(
+        main.getByText(
+          'Institutional sign-in is paused (503 · institutional_pricing_invalid): the current pricing has no valid RESEARCH plan. Try again later.'
+        )
+      ).toBeVisible();
+      state.refuse.link = undefined;
       await main.getByRole('button', { name: 'Link CAS identity' }).click();
       await expect(page).toHaveURL(/\/api\/v1\/auth\/cas\/start\?mode=link&intent=s3/);
       expect(critical).toEqual([]);
     });
 
-    test('acct-identities: an account that is not on RESEARCH unlinks without a typed phrase', async ({ page }) => {
-      test.skip(isMobile, 'A desktop check: the dialog is laid out by the capture of the other test.');
+    test('acct-identities: an account that is not on RESEARCH unlinks without a typed phrase', async ({
+      page,
+    }) => {
+      test.skip(
+        isMobile,
+        'A desktop check: the dialog is laid out by the capture of the other test.'
+      );
       const state = await mockApi(page, marco, {
-        identities: [{ id: 'i1', provider: 'us-cas', subject: 'mdiaz2', verifiedAt: '2026-09-01T00:00:00Z' }],
+        identities: [
+          { id: 'i1', provider: 'us-cas', subject: 'mdiaz2', verifiedAt: '2026-09-01T00:00:00Z' },
+        ],
       });
       await page.goto('/app/account/identities');
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
 
       await expect(main.getByText('Verified · linked Sep 1, 2026 · mdiaz2')).toBeVisible();
       await expect(main.getByRole('img', { name: 'Universidad de Sevilla' })).toHaveCount(0);
       await main.getByRole('button', { name: 'Unlink' }).click();
-      const dialog = page.getByRole('dialog', { name: 'Unlink your Universidad de Sevilla identity?' });
+      const dialog = page.getByRole('dialog', {
+        name: 'Unlink your Universidad de Sevilla identity?',
+      });
       await expect(dialog.getByText('Your plan stays as it is.')).toBeVisible();
       await expect(dialog.getByRole('textbox')).toHaveCount(0);
-      state.refuse.unlink = detail(409, 'last_login_method', 'Set a password before removing the last external identity.');
+      state.refuse.unlink = detail(
+        409,
+        'last_login_method',
+        'Set a password before removing the last external identity.'
+      );
       await dialog.getByRole('button', { name: 'Unlink' }).click();
       await expect(dialog.getByRole('alert')).toContainText('409 · last_login_method');
       state.refuse.unlink = undefined;
@@ -750,7 +1191,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page, lucia);
       await page.goto('/app/account/notifications');
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
       const list = main.getByRole('list', { name: 'Notifications' });
 
       await expect(main.getByRole('heading', { level: 1, name: 'Notifications' })).toBeVisible();
@@ -761,7 +1202,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await capture(page, testInfo, `notifications-${name}-list`);
       if (isMobile) {
         await list.getByRole('button', { name: /Your OpenBinding agreement changed/ }).click();
-        await expect(main.getByRole('group', { name: 'Before and after' })).toContainText('RESEARCH');
+        await expect(main.getByRole('group', { name: 'Before and after' })).toContainText(
+          'RESEARCH'
+        );
         await capture(page, testInfo, `notifications-${name}-contract-change`);
         expect(critical).toEqual([]);
         return;
@@ -772,11 +1215,19 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const change = main.getByRole('group', { name: 'Before and after' });
       await expect(change).toContainText('FREE');
       await expect(change).toContainText('RESEARCH');
-      await expect(main.getByText('Reason: institutional agreement · pricing version 0.2.0')).toBeVisible();
-      await expect(main.getByRole('link', { name: 'See your plan' })).toHaveAttribute('href', '/app/account/usage');
+      await expect(
+        main.getByText('Reason: institutional agreement · pricing version 0.2.0')
+      ).toBeVisible();
+      await expect(main.getByRole('link', { name: 'See your plan' })).toHaveAttribute(
+        'href',
+        '/app/account/usage'
+      );
       await capture(page, testInfo, `notifications-${name}-contract-change`);
 
-      const read = page.waitForRequest((request) => request.method() === 'POST' && request.url() === `${API}/v1/notifications/n1/read`);
+      const read = page.waitForRequest(
+        request =>
+          request.method() === 'POST' && request.url() === `${API}/v1/notifications/n1/read`
+      );
       await main.getByRole('button', { name: 'Mark as read' }).click();
       await read;
       await expect(main.getByText('You have 1 unread notification')).toBeVisible();
@@ -786,12 +1237,17 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(list.getByRole('listitem')).toHaveCount(1);
       await expect(list.getByText('Job completed')).toBeVisible();
       await main.getByRole('button', { name: 'Invitations' }).click();
-      await expect(list.getByText('You were invited to ISA Demo Group')).toBeVisible();      await main.getByRole('button', { name: 'Contract changes' }).click();
+      await expect(list.getByText('You were invited to ISA Demo Group')).toBeVisible();
+      await main.getByRole('button', { name: 'Contract changes' }).click();
       await main.getByLabel('Show unread only').check();
-      await expect(main.getByText('Nothing matches these filters.')).toBeVisible();      await main.getByLabel('Show unread only').uncheck();
+      await expect(main.getByText('Nothing matches these filters.')).toBeVisible();
+      await main.getByLabel('Show unread only').uncheck();
       await main.getByRole('button', { name: 'All', exact: true }).click();
 
-      const readAll = page.waitForRequest((request) => request.method() === 'POST' && request.url() === `${API}/v1/notifications/read-all`);
+      const readAll = page.waitForRequest(
+        request =>
+          request.method() === 'POST' && request.url() === `${API}/v1/notifications/read-all`
+      );
       await main.getByRole('button', { name: 'Mark all read' }).click();
       await readAll;
       await expect(main.getByText('All caught up!')).toBeVisible();
@@ -803,9 +1259,18 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(switches.first()).toHaveAttribute('aria-checked', 'true');
       await expect(main.getByRole('button', { name: 'Save preferences' })).toBeDisabled();
       await switches.first().click();
-      await expect(main.getByText('You have unsaved changes')).toBeVisible();      const saved = page.waitForRequest((request) => request.method() === 'PUT' && request.url() === `${API}/v1/notifications/preferences`);
+      await expect(main.getByText('You have unsaved changes')).toBeVisible();
+      const saved = page.waitForRequest(
+        request =>
+          request.method() === 'PUT' && request.url() === `${API}/v1/notifications/preferences`
+      );
       await main.getByRole('button', { name: 'Save preferences' }).click();
-      expect((await saved).postDataJSON()).toEqual({ inbox: true, email_contract_changes: false, email_invitations: true, email_job_failures: false });
+      expect((await saved).postDataJSON()).toEqual({
+        inbox: true,
+        email_contract_changes: false,
+        email_invitations: true,
+        email_job_failures: false,
+      });
       await expect(main.getByRole('button', { name: 'Saved' })).toBeDisabled();
       await capture(page, testInfo, `notifications-${name}-preferences-saved`);
 
@@ -819,9 +1284,15 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByText('All caught up!')).toBeVisible();
       state.refuse.notifications = detail(503, 'unavailable', 'Accounts are not reachable.');
       await page.reload();
-      await expect(main.getByRole('alert')).toContainText('Notifications couldn’t be loaded.');      state.refuse.notifications = detail(403, 'forbidden', 'The API key lacks notifications:read.');
+      await expect(main.getByRole('alert')).toContainText('Notifications couldn’t be loaded.');
+      state.refuse.notifications = detail(
+        403,
+        'forbidden',
+        'The API key lacks notifications:read.'
+      );
       await main.getByRole('button', { name: 'Try again' }).click();
-      await expect(main.getByRole('alert')).toContainText('notifications:read');      expect(critical).toEqual([]);
+      await expect(main.getByRole('alert')).toContainText('notifications:read');
+      expect(critical).toEqual([]);
     });
   });
 }

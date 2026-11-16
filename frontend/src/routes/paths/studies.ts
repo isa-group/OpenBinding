@@ -5,10 +5,12 @@
 export const STUDIES_SEGMENT = 'studies';
 
 /** The study list of an organization: `/app/<org>/studies`. */
-export const studiesPath = (org: string): string => `/app/${encodeURIComponent(org)}/${STUDIES_SEGMENT}`;
+export const studiesPath = (org: string): string =>
+  `/app/${encodeURIComponent(org)}/${STUDIES_SEGMENT}`;
 
 /** One study of an organization (its Setup tab): `/app/<org>/studies/<study>`. */
-export const studyPath = (org: string, study: string): string => `${studiesPath(org)}/${encodeURIComponent(study)}`;
+export const studyPath = (org: string, study: string): string =>
+  `${studiesPath(org)}/${encodeURIComponent(study)}`;
 
 /** What the builder starts from: a problem version, an engine (`namespace/name`), or both. */
 export interface StudyStart {

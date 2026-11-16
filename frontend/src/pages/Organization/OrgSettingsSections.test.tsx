@@ -7,14 +7,26 @@ import { OrgSettings } from './OrgSettings';
 
 const api = vi.hoisted(() => ({ adminListUsers: vi.fn(), getEngines: vi.fn() }));
 const platform = vi.hoisted(() => ({
-  members: vi.fn(), studies: vi.fn(), organizationAudit: vi.fn(), invitations: vi.fn(), organizationInvitations: vi.fn(),
+  members: vi.fn(),
+  studies: vi.fn(),
+  organizationAudit: vi.fn(),
+  invitations: vi.fn(),
+  organizationInvitations: vi.fn(),
 }));
 
-vi.mock('../../api/client', async () => ({ ...await vi.importActual<typeof import('../../api/client')>('../../api/client'), apiClient: api }));
-vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'), platformApi: platform }));
-vi.mock('../../api/problems', () => ({ problemsApi: { list: vi.fn().mockResolvedValue({ problems: [], total: 0, limit: 1, offset: 0 }) } }));
-vi.mock('../../entities/preset/api', async (actual) => ({
-  ...await actual<typeof import('../../entities/preset/api')>(),
+vi.mock('../../api/client', async () => ({
+  ...(await vi.importActual<typeof import('../../api/client')>('../../api/client')),
+  apiClient: api,
+}));
+vi.mock('../../api/platform', async () => ({
+  ...(await vi.importActual<typeof import('../../api/platform')>('../../api/platform')),
+  platformApi: platform,
+}));
+vi.mock('../../api/problems', () => ({
+  problemsApi: { list: vi.fn().mockResolvedValue({ problems: [], total: 0, limit: 1, offset: 0 }) },
+}));
+vi.mock('../../modules/run/api/presetsApi', async actual => ({
+  ...(await actual<typeof import('../../modules/run/api/presetsApi')>()),
   presetsApi: { list: vi.fn().mockResolvedValue({ presets: [], total: 0, limit: 200, offset: 0 }) },
 }));
 
@@ -38,7 +50,12 @@ describe('org-settings sections', () => {
     platform.studies.mockResolvedValue([]);
     platform.invitations.mockResolvedValue([]);
     platform.organizationInvitations.mockResolvedValue([]);
-    platform.organizationAudit.mockResolvedValue({ events: auditFixture, total: auditFixture.length, offset: 0, limit: 50 });
+    platform.organizationAudit.mockResolvedValue({
+      events: auditFixture,
+      total: auditFixture.length,
+      offset: 0,
+      limit: 50,
+    });
     api.adminListUsers.mockResolvedValue({ users: [] });
     api.getEngines.mockResolvedValue([]);
   });
@@ -47,7 +64,10 @@ describe('org-settings sections', () => {
     renderSection();
 
     expect(await screen.findByRole('heading', { level: 2, name: 'General' })).toBeInTheDocument();
-    expect(within(navOf()).getByRole('link', { name: 'General' })).toHaveAttribute('aria-current', 'page');
+    expect(within(navOf()).getByRole('link', { name: 'General' })).toHaveAttribute(
+      'aria-current',
+      'page'
+    );
     expect(navOf().querySelectorAll('[aria-current="page"]')).toHaveLength(1);
   });
 
@@ -55,15 +75,23 @@ describe('org-settings sections', () => {
     renderSection('members');
 
     expect(await screen.findByRole('heading', { level: 1, name: /Members/ })).toBeInTheDocument();
-    expect(within(navOf()).getByRole('link', { name: 'Members' })).toHaveAttribute('aria-current', 'page');
+    expect(within(navOf()).getByRole('link', { name: 'Members' })).toHaveAttribute(
+      'aria-current',
+      'page'
+    );
     expect(navOf().querySelectorAll('[aria-current="page"]')).toHaveLength(1);
   });
 
   it('renders Run presets at /settings/presets with Run presets as the current link', async () => {
     renderSection('presets');
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Run presets' })).toBeInTheDocument();
-    expect(within(navOf()).getByRole('link', { name: 'Run presets' })).toHaveAttribute('aria-current', 'page');
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Run presets' })
+    ).toBeInTheDocument();
+    expect(within(navOf()).getByRole('link', { name: 'Run presets' })).toHaveAttribute(
+      'aria-current',
+      'page'
+    );
     expect(navOf().querySelectorAll('[aria-current="page"]')).toHaveLength(1);
   });
 
@@ -71,7 +99,10 @@ describe('org-settings sections', () => {
     renderSection('audit');
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Audit log' })).toBeInTheDocument();
-    expect(within(navOf()).getByRole('link', { name: 'Audit' })).toHaveAttribute('aria-current', 'page');
+    expect(within(navOf()).getByRole('link', { name: 'Audit' })).toHaveAttribute(
+      'aria-current',
+      'page'
+    );
     expect(navOf().querySelectorAll('[aria-current="page"]')).toHaveLength(1);
   });
 
@@ -79,13 +110,19 @@ describe('org-settings sections', () => {
     renderSection('billing');
 
     expect(screen.getByRole('heading', { name: 'Page not found' })).toBeInTheDocument();
-    expect(screen.queryByRole('navigation', { name: 'Organization settings' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('navigation', { name: 'Organization settings' })
+    ).not.toBeInTheDocument();
   });
 
   it('keeps the ADMIN gate of the audit section for a member', async () => {
     renderSection('audit', [readOnly], 'read-only');
 
-    expect(await within(await screen.findByRole('navigation', { name: 'Organization settings' })).findByText('ADMIN')).toBeInTheDocument();
+    expect(
+      await within(
+        await screen.findByRole('navigation', { name: 'Organization settings' })
+      ).findByText('ADMIN')
+    ).toBeInTheDocument();
     expect(platform.organizationAudit).not.toHaveBeenCalled();
   });
 });

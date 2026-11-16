@@ -10,7 +10,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 const text = (value: unknown): string | null => (typeof value === 'string' && value ? value : null);
-const num = (value: unknown): number | null => (typeof value === 'number' && Number.isFinite(value) ? value : null);
+const num = (value: unknown): number | null =>
+  typeof value === 'number' && Number.isFinite(value) ? value : null;
 
 // --- states
 
@@ -31,11 +32,13 @@ export const isActive = (status: string) => status === 'queued' || status === 'r
 /** Only failed or cancelled runs can be retried (409 otherwise). */
 export const canRetryState = (status: string) => status === 'failed' || status === 'cancelled';
 
-export const normalizeStatus = (status: string): string => (status.toLowerCase() === 'canceled' ? 'cancelled' : status.toLowerCase());
+export const normalizeStatus = (status: string): string =>
+  status.toLowerCase() === 'canceled' ? 'cancelled' : status.toLowerCase();
 
 export function statusCounts(rows: ReadonlyArray<{ status: string }>): Record<string, number> {
   const counts: Record<string, number> = { '': rows.length };
-  for (const row of rows) counts[normalizeStatus(row.status)] = (counts[normalizeStatus(row.status)] ?? 0) + 1;
+  for (const row of rows)
+    counts[normalizeStatus(row.status)] = (counts[normalizeStatus(row.status)] ?? 0) + 1;
   return counts;
 }
 
@@ -44,19 +47,33 @@ export function statusCounts(rows: ReadonlyArray<{ status: string }>): Record<st
 export type OutcomeTone = 'success' | 'warning' | 'plain';
 
 /** The plain-language outcome of a finished run. */
-export function outcomeOf(termination: string | null | undefined): { label: string; long: string; tone: OutcomeTone } | null {
+export function outcomeOf(
+  termination: string | null | undefined
+): { label: string; long: string; tone: OutcomeTone } | null {
   switch (termination) {
-    case 'OPTIMAL': return { label: 'Optimal', long: 'Optimal: no better combination exists', tone: 'success' };
-    case 'FEASIBLE': return { label: 'Feasible', long: 'Feasible: meets every must-hold rule', tone: 'success' };
-    case 'INFEASIBLE': return { label: 'No feasible binding', long: 'Infeasible: no combination meets the rules', tone: 'warning' };
-    case 'UNKNOWN': return { label: 'No conclusion', long: 'No conclusion', tone: 'plain' };
-    default: return null;
+    case 'OPTIMAL':
+      return { label: 'Optimal', long: 'Optimal: no better combination exists', tone: 'success' };
+    case 'FEASIBLE':
+      return { label: 'Feasible', long: 'Feasible: meets every must-hold rule', tone: 'success' };
+    case 'INFEASIBLE':
+      return {
+        label: 'No feasible binding',
+        long: 'Infeasible: no combination meets the rules',
+        tone: 'warning',
+      };
+    case 'UNKNOWN':
+      return { label: 'No conclusion', long: 'No conclusion', tone: 'plain' };
+    default:
+      return null;
   }
 }
 
 // --- time
 
-export function secondsBetween(from: string | null | undefined, to: string | null | undefined): number | null {
+export function secondsBetween(
+  from: string | null | undefined,
+  to: string | null | undefined
+): number | null {
   if (!from || !to) return null;
   const seconds = (Date.parse(to) - Date.parse(from)) / 1000;
   return Number.isFinite(seconds) ? Math.max(0, Math.round(seconds)) : null;
@@ -71,10 +88,12 @@ export function formatTook(seconds: number | null): string {
   return `${Math.floor(minutes / 60)} h ${minutes % 60} min`;
 }
 
-export const tookOf = (job: Pick<Job, 'created_at' | 'finished_at'>): number | null => secondsBetween(job.created_at, job.finished_at);
+export const tookOf = (job: Pick<Job, 'created_at' | 'finished_at'>): number | null =>
+  secondsBetween(job.created_at, job.finished_at);
 
 /** The length of a bar for a duration, against two minutes. */
-export const tookPercent = (seconds: number | null): number => (seconds === null ? 0 : Math.min(100, Math.round((seconds / 120) * 100)));
+export const tookPercent = (seconds: number | null): number =>
+  seconds === null ? 0 : Math.min(100, Math.round((seconds / 120) * 100));
 
 // --- the settings of a run: asked, used
 
@@ -87,13 +106,19 @@ const OPTION_LABELS: Record<string, { label: string; unit: string }> = {
 };
 
 export function optionLabel(name: string): string {
-  return OPTION_LABELS[name]?.label ?? name.replace(/[_-]+/g, ' ').replace(/^./, (letter) => letter.toUpperCase());
+  return (
+    OPTION_LABELS[name]?.label ??
+    name.replace(/[_-]+/g, ' ').replace(/^./, letter => letter.toUpperCase())
+  );
 }
 
 /** `60 s` for a time budget, `100,000` for a count, the JSON of anything else. */
 export function formatOption(name: string, value: unknown): string {
   if (typeof value === 'number') {
-    if (name === 'time_budget_ms') return value % 1000 === 0 ? `${(value / 1000).toLocaleString('en-US')} s` : `${value.toLocaleString('en-US')} ms`;
+    if (name === 'time_budget_ms')
+      return value % 1000 === 0
+        ? `${(value / 1000).toLocaleString('en-US')} s`
+        : `${value.toLocaleString('en-US')} ms`;
     return value.toLocaleString('en-US');
   }
   if (typeof value === 'string' || typeof value === 'boolean') return String(value);
@@ -117,14 +142,17 @@ export function optionRows(provenance: Record<string, unknown> | null | undefine
   const notes = provenance?.warnings;
   const asked: Record<string, unknown> = isRecord(requested) ? requested : {};
   const used: Record<string, unknown> = isRecord(effective) ? effective : {};
-  const warnings: Array<Record<string, unknown>> = Array.isArray(notes) ? notes.filter(isRecord) : [];
+  const warnings: Array<Record<string, unknown>> = Array.isArray(notes)
+    ? notes.filter(isRecord)
+    : [];
   const reduced = new Map<string, Record<string, unknown>>();
   for (const warning of warnings) {
     const details = isRecord(warning.details) ? warning.details : {};
-    if (warning.code === 'OPTION_CLAMPED' && typeof details.option === 'string') reduced.set(details.option, warning);
+    if (warning.code === 'OPTION_CLAMPED' && typeof details.option === 'string')
+      reduced.set(details.option, warning);
   }
   const names = [...new Set([...Object.keys(asked), ...Object.keys(used)])];
-  return names.map((name) => {
+  return names.map(name => {
     const warning = reduced.get(name);
     return {
       key: name,
@@ -150,7 +178,12 @@ function pinOf(value: unknown): ResourcePin | null {
   if (!isRecord(value)) return null;
   const name = text(value.name);
   if (!name) return null;
-  return { namespace: text(value.namespace) ?? '', name, version: text(value.version) ?? '', digest: text(value.digest) };
+  return {
+    namespace: text(value.namespace) ?? '',
+    name,
+    version: text(value.version) ?? '',
+    digest: text(value.digest),
+  };
 }
 
 export interface RunPins {
@@ -184,8 +217,13 @@ export function readPins(provenance: Record<string, unknown> | null | undefined)
     instance: text(p.instanceDigest),
     package: text(p.packageDigest),
     checkedBy: text(p.evaluator),
-    configuration: configuration ? `${text(configuration.name) ?? 'configuration'}@${text(configuration.version) ?? '?'}` : null,
-    preset: isRecord(p.preset) && text(p.preset.slug) ? { id: text(p.preset.id), slug: text(p.preset.slug) as string } : null,
+    configuration: configuration
+      ? `${text(configuration.name) ?? 'configuration'}@${text(configuration.version) ?? '?'}`
+      : null,
+    preset:
+      isRecord(p.preset) && text(p.preset.slug)
+        ? { id: text(p.preset.id), slug: text(p.preset.slug) as string }
+        : null,
     limits: limitLines,
   };
 }
@@ -203,22 +241,44 @@ export interface TimelineStep {
  * The steps a run has gone through. The live updates report status snapshots only, so there is no progress to draw and the time
  * of "running" is not known; each step says what is known about it.
  */
-export function timelineOf(status: string, times: { created?: string | null; finished?: string | null }): TimelineStep[] {
+export function timelineOf(
+  status: string,
+  times: { created?: string | null; finished?: string | null }
+): TimelineStep[] {
   const state = normalizeStatus(status);
   const created = formatDateTime(times.created) ?? 'when it was sent';
   const finished = formatDateTime(times.finished) ?? 'finished';
-  const steps: TimelineStep[] = [{ key: 'queued', label: 'Queued', when: created, state: state === 'queued' ? 'current' : 'done' }];
+  const steps: TimelineStep[] = [
+    {
+      key: 'queued',
+      label: 'Queued',
+      when: created,
+      state: state === 'queued' ? 'current' : 'done',
+    },
+  ];
   if (state === 'cancelled' || state === 'failed' || state === 'completed') {
     const lived = secondsBetween(times.created, times.finished);
     const reachedRunning = !(state === 'cancelled' && lived !== null && lived < 5);
-    steps.push({ key: 'running', label: 'Running', when: reachedRunning ? 'started' : 'never started', state: reachedRunning ? 'done' : 'waiting' });
     steps.push({
-      key: state, label: state === 'completed' ? 'Completed' : state === 'failed' ? 'Failed' : 'Cancelled', when: finished,
+      key: 'running',
+      label: 'Running',
+      when: reachedRunning ? 'started' : 'never started',
+      state: reachedRunning ? 'done' : 'waiting',
+    });
+    steps.push({
+      key: state,
+      label: state === 'completed' ? 'Completed' : state === 'failed' ? 'Failed' : 'Cancelled',
+      when: finished,
       state: state === 'failed' ? 'bad' : 'done',
     });
     return steps;
   }
-  steps.push({ key: 'running', label: 'Running', when: state === 'running' ? 'in progress' : 'waiting', state: state === 'running' ? 'current' : 'waiting' });
+  steps.push({
+    key: 'running',
+    label: 'Running',
+    when: state === 'running' ? 'in progress' : 'waiting',
+    state: state === 'running' ? 'current' : 'waiting',
+  });
   steps.push({ key: 'finished', label: 'Finishes', when: 'waiting', state: 'waiting' });
   return steps;
 }

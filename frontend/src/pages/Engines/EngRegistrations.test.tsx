@@ -3,10 +3,18 @@ import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { UserProfile } from '../../api/auth';
 import { HttpError, type EngineRegistrationRevision } from '../../api/client';
-import { AuthContext } from '../../contexts/auth';
+import { AuthContext } from '../../modules/auth/hooks/useAuth';
 import { EngRegistrations } from './EngRegistrations';
 import {
-  EDGE_SOLVER, PAUSED_SOLVER, REPORT_FAILED, REPORT_PENDING, REPORT_VERIFIED, SHARED_SOLVER, SOLVER_IN_REVIEW, reportOf, usageOf,
+  EDGE_SOLVER,
+  PAUSED_SOLVER,
+  REPORT_FAILED,
+  REPORT_PENDING,
+  REPORT_VERIFIED,
+  SHARED_SOLVER,
+  SOLVER_IN_REVIEW,
+  reportOf,
+  usageOf,
 } from '../../test/fixtures/engines';
 
 const api = vi.hoisted(() => ({
@@ -21,12 +29,18 @@ const api = vi.hoisted(() => ({
 }));
 
 vi.mock('../../api/client', async () => ({
-  ...await vi.importActual<typeof import('../../api/client')>('../../api/client'),
+  ...(await vi.importActual<typeof import('../../api/client')>('../../api/client')),
   apiClient: api,
 }));
 
 const lucia: UserProfile = {
-  id: 'lucia-id', username: 'alex.rivera', email: 'lucia@example.test', role: 'user', plan: 'RESEARCH', is_active: true, created_at: '2026-01-01T00:00:00Z',
+  id: 'lucia-id',
+  username: 'alex.rivera',
+  email: 'lucia@example.test',
+  role: 'user',
+  plan: 'RESEARCH',
+  is_active: true,
+  created_at: '2026-01-01T00:00:00Z',
 };
 const iker: UserProfile = { ...lucia, id: 'iker-id', username: 'iker.mora', role: 'admin' };
 
@@ -44,10 +58,21 @@ function renderPage(options: { user?: UserProfile; entry?: string } = {}) {
   const user = options.user ?? lucia;
   return render(
     <MemoryRouter initialEntries={[options.entry ?? '/app/engines/registrations']}>
-      <AuthContext.Provider value={{ user, loading: false, signIn: vi.fn(), register: vi.fn(), signOut: vi.fn(), refresh: vi.fn(), isAdmin: user.role === 'admin' }}>
+      <AuthContext.Provider
+        value={{
+          user,
+          loading: false,
+          signIn: vi.fn(),
+          register: vi.fn(),
+          signOut: vi.fn(),
+          refresh: vi.fn(),
+          isAdmin: user.role === 'admin',
+          fetchWithInterceptor: vi.fn(),
+        }}
+      >
         <EngRegistrations />
       </AuthContext.Provider>
-    </MemoryRouter>,
+    </MemoryRouter>
   );
 }
 
@@ -63,12 +88,26 @@ describe('eng-registrations · my engines', () => {
     api.listEngineRegistrations.mockResolvedValue(MINE);
     api.adminListEngineRegistrations.mockResolvedValue([SOLVER_IN_REVIEW]);
     api.getOwnUsage.mockResolvedValue(usageOf('RESEARCH', 5));
-    api.getEngineRegistrationReport.mockImplementation(async (ref: EngineRegistrationRevision) => (
-      reportOf(ref, ref.name === 'edge-solver' ? REPORT_VERIFIED : ref.name === 'paused-solver' ? REPORT_FAILED : REPORT_PENDING)
-    ));
-    api.activateEngineRegistration.mockImplementation(async (ref: EngineRegistrationRevision) => ({ ...ref, active: true }));
-    api.deactivateEngineRegistration.mockImplementation(async (ref: EngineRegistrationRevision) => ({ ...ref, active: false }));
-    api.requestEngineRegistrationPublication.mockImplementation(async (ref: EngineRegistrationRevision) => ({ ...ref, status: 'pending_review' }));
+    api.getEngineRegistrationReport.mockImplementation(async (ref: EngineRegistrationRevision) =>
+      reportOf(
+        ref,
+        ref.name === 'edge-solver'
+          ? REPORT_VERIFIED
+          : ref.name === 'paused-solver'
+            ? REPORT_FAILED
+            : REPORT_PENDING
+      )
+    );
+    api.activateEngineRegistration.mockImplementation(async (ref: EngineRegistrationRevision) => ({
+      ...ref,
+      active: true,
+    }));
+    api.deactivateEngineRegistration.mockImplementation(
+      async (ref: EngineRegistrationRevision) => ({ ...ref, active: false })
+    );
+    api.requestEngineRegistrationPublication.mockImplementation(
+      async (ref: EngineRegistrationRevision) => ({ ...ref, status: 'pending_review' })
+    );
     api.deleteEngineRegistration.mockResolvedValue(undefined);
   });
 
@@ -80,21 +119,36 @@ describe('eng-registrations · my engines', () => {
     renderPage();
     expect(screen.getByRole('heading', { level: 1, name: 'My engines' })).toBeInTheDocument();
     const edge = await screen.findByRole('row', { name: 'edge-solver 0.3.1' });
-    expect(within(edge).getByRole('link', { name: 'edge-solver' })).toHaveAttribute('href', expect.stringContaining('/app/engines/registrations/edge-solver?namespace=alex.rivera&version=0.3.1&digest=sha256-'));
+    expect(within(edge).getByRole('link', { name: 'edge-solver' })).toHaveAttribute(
+      'href',
+      expect.stringContaining(
+        '/app/engines/registrations/edge-solver?namespace=alex.rivera&version=0.3.1&digest=sha256-'
+      )
+    );
     expect(within(edge).getByText('Active')).toBeInTheDocument();
     expect(within(edge).getByText('Private')).toBeInTheDocument();
     expect(await within(edge).findByText('Passed')).toBeInTheDocument();
     expect(await within(row('paused-solver', '1.2.0')).findByText('Failed')).toBeInTheDocument();
     expect(within(row('paused-solver', '1.2.0')).getByText('Inactive')).toBeInTheDocument();
-    expect(await within(row('region-solver', '1.0.0')).findByText('Not checked yet')).toBeInTheDocument();
-    expect(within(row('region-solver', '1.0.0')).getByText('Waiting for review')).toBeInTheDocument();
+    expect(
+      await within(row('region-solver', '1.0.0')).findByText('Not checked yet')
+    ).toBeInTheDocument();
+    expect(
+      within(row('region-solver', '1.0.0')).getByText('Waiting for review')
+    ).toBeInTheDocument();
   });
 
   it('shows the room the plan leaves for federated engines, with a way to the usage page', async () => {
     renderPage();
     expect(await screen.findByText('3 of 5 used')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'See all your limits' })).toHaveAttribute('href', '/app/account/usage');
-    expect(screen.getByRole('link', { name: 'Register an engine' })).toHaveAttribute('href', '/app/engines/new');
+    expect(screen.getByRole('link', { name: 'See all your limits' })).toHaveAttribute(
+      'href',
+      '/app/account/usage'
+    );
+    expect(screen.getByRole('link', { name: 'Register an engine' })).toHaveAttribute(
+      'href',
+      '/app/engines/new'
+    );
   });
 
   it('gives a published engine of someone else no owner actions', async () => {
@@ -124,7 +178,11 @@ describe('eng-registrations · my engines', () => {
     api.listEngineRegistrations.mockResolvedValue([EDGE_SOLVER]);
     renderPage();
     await screen.findByRole('row', { name: 'edge-solver 0.3.1' });
-    fireEvent.click(within(screen.getByRole('group', { name: 'Filter' })).getByRole('button', { name: 'Published' }));
+    fireEvent.click(
+      within(screen.getByRole('group', { name: 'Filter' })).getByRole('button', {
+        name: 'Published',
+      })
+    );
     expect(screen.getByText('No engine matches this filter')).toBeInTheDocument();
   });
 
@@ -139,7 +197,9 @@ describe('eng-registrations · my engines', () => {
   it('keeps accounts being unavailable (503) apart from an empty list, and retries', async () => {
     api.listEngineRegistrations.mockRejectedValueOnce(refusal(503, 'accounts_unavailable'));
     renderPage();
-    expect(await screen.findByText('Accounts are unavailable right now (503 · accounts_unavailable)')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Accounts are unavailable right now (503 · accounts_unavailable)')
+    ).toBeInTheDocument();
     expect(screen.queryByText('You haven’t registered an engine')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
     expect(await screen.findByRole('row', { name: 'edge-solver 0.3.1' })).toBeInTheDocument();
@@ -156,7 +216,9 @@ describe('eng-registrations · my engines', () => {
   it('turns a review link down for someone who is not an administrator (403) and shows their own engines instead', async () => {
     api.adminListEngineRegistrations.mockRejectedValue(refusal(403, 'forbidden'));
     renderPage({ entry: '/app/engines/registrations?review=true' });
-    expect(await screen.findByText('Only administrators can filter by “waiting for review” (403)')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Only administrators can filter by “waiting for review” (403)')
+    ).toBeInTheDocument();
     expect(screen.queryByLabelText(/Only waiting for review/)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Show my engines' }));
     expect(await screen.findByRole('row', { name: 'edge-solver 0.3.1' })).toBeInTheDocument();
@@ -168,7 +230,9 @@ describe('eng-registrations · my engines', () => {
     fireEvent.click(screen.getByLabelText(/Only waiting for review/));
     const waiting = await screen.findByRole('row', { name: 'region-solver 1.0.0' });
     expect(api.adminListEngineRegistrations).toHaveBeenCalledOnce();
-    expect(within(waiting).getByRole('link', { name: 'Review region-solver 1.0.0' })).toHaveAttribute('href', '/app/admin/moderation');
+    expect(
+      within(waiting).getByRole('link', { name: 'Review region-solver 1.0.0' })
+    ).toHaveAttribute('href', '/app/admin/moderation');
     expect(screen.queryByRole('row', { name: 'edge-solver 0.3.1' })).not.toBeInTheDocument();
 
     api.adminListEngineRegistrations.mockResolvedValue([]);
@@ -181,52 +245,87 @@ describe('eng-registrations · my engines', () => {
     renderPage();
     await screen.findByRole('row', { name: 'paused-solver 1.2.0' });
     fireEvent.click(screen.getByRole('button', { name: 'Activate paused-solver 1.2.0' }));
-    expect(await screen.findByText('paused-solver passed its check and is active for you.')).toBeInTheDocument();
-    expect(api.activateEngineRegistration).toHaveBeenCalledWith(expect.objectContaining({ name: 'paused-solver' }));
+    expect(
+      await screen.findByText('paused-solver passed its check and is active for you.')
+    ).toBeInTheDocument();
+    expect(api.activateEngineRegistration).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'paused-solver' })
+    );
     await waitFor(() => expect(api.listEngineRegistrations).toHaveBeenCalledTimes(2));
   });
 
   it('says when an activation is refused because the deployment does not conform, and points at the checks', async () => {
-    api.activateEngineRegistration.mockRejectedValueOnce(refusal(409, 'conformance_failed', REPORT_FAILED.checks));
+    api.activateEngineRegistration.mockRejectedValueOnce(
+      refusal(409, 'conformance_failed', REPORT_FAILED.checks)
+    );
     renderPage();
     await screen.findByRole('row', { name: 'paused-solver 1.2.0' });
     fireEvent.click(screen.getByRole('button', { name: 'Activate paused-solver 1.2.0' }));
-    expect(await screen.findByText('Your deployment didn’t pass (409 · conformance_failed)')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'See the checks' })).toHaveAttribute('href', expect.stringContaining('/app/engines/registrations/paused-solver?'));
-    expect(screen.getByText(/engine did not solve the deterministic conformance problem/)).toBeInTheDocument();
+    expect(
+      await screen.findByText('Your deployment didn’t pass (409 · conformance_failed)')
+    ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'See the checks' })).toHaveAttribute(
+      'href',
+      expect.stringContaining('/app/engines/registrations/paused-solver?')
+    );
+    expect(
+      screen.getByText(/engine did not solve the deterministic conformance problem/)
+    ).toBeInTheDocument();
   });
 
   it('deactivates a private registration at once', async () => {
     renderPage();
     await screen.findByRole('row', { name: 'edge-solver 0.3.1' });
     fireEvent.click(screen.getByRole('button', { name: 'Deactivate edge-solver 0.3.1' }));
-    expect(await screen.findByText('Deactivated. You can’t pick it for new runs until you activate it again.')).toBeInTheDocument();
-    expect(api.deactivateEngineRegistration).toHaveBeenCalledWith(expect.objectContaining({ name: 'edge-solver' }));
+    expect(
+      await screen.findByText(
+        'Deactivated. You can’t pick it for new runs until you activate it again.'
+      )
+    ).toBeInTheDocument();
+    expect(api.deactivateEngineRegistration).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'edge-solver' })
+    );
   });
 
   it('asks before requesting publication, and not at all for a registration that is inactive', async () => {
     renderPage();
     await screen.findByRole('row', { name: 'paused-solver 1.2.0' });
-    fireEvent.click(screen.getByRole('button', { name: 'Request publication of paused-solver 1.2.0' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Request publication of paused-solver 1.2.0' })
+    );
     expect(screen.getByText('Activate it first')).toBeInTheDocument();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(api.requestEngineRegistrationPublication).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Request publication of edge-solver 0.3.1' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Request publication of edge-solver 0.3.1' })
+    );
     const dialog = screen.getByRole('dialog', { name: 'Request publication of edge-solver?' });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Request publication' }));
-    expect(await screen.findByText('Publication requested. An administrator will review it.')).toBeInTheDocument();
-    expect(api.requestEngineRegistrationPublication).toHaveBeenCalledWith(expect.objectContaining({ name: 'edge-solver' }));
+    expect(
+      await screen.findByText('Publication requested. An administrator will review it.')
+    ).toBeInTheDocument();
+    expect(api.requestEngineRegistrationPublication).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'edge-solver' })
+    );
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
 
   it('shows the 409 the gateway gives when publication cannot be requested', async () => {
-    api.requestEngineRegistrationPublication.mockRejectedValueOnce(refusal(409, 'registration_inactive'));
+    api.requestEngineRegistrationPublication.mockRejectedValueOnce(
+      refusal(409, 'registration_inactive')
+    );
     renderPage();
     await screen.findByRole('row', { name: 'edge-solver 0.3.1' });
-    fireEvent.click(screen.getByRole('button', { name: 'Request publication of edge-solver 0.3.1' }));
-    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Request publication' }));
-    expect(await screen.findByText('It’s inactive (409 · registration_inactive)')).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Request publication of edge-solver 0.3.1' })
+    );
+    fireEvent.click(
+      within(screen.getByRole('dialog')).getByRole('button', { name: 'Request publication' })
+    );
+    expect(
+      await screen.findByText('It’s inactive (409 · registration_inactive)')
+    ).toBeInTheDocument();
   });
 
   it('deletes only after the registration’s name is typed', async () => {
@@ -242,25 +341,42 @@ describe('eng-registrations · my engines', () => {
     expect(confirm).toBeEnabled();
     fireEvent.click(confirm);
     expect(await screen.findByText('Deleted edge-solver 0.3.1.')).toBeInTheDocument();
-    expect(api.deleteEngineRegistration).toHaveBeenCalledWith(expect.objectContaining({ name: 'edge-solver' }));
+    expect(api.deleteEngineRegistration).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'edge-solver' })
+    );
   });
 
   it('opens the credential from the list, where it can be replaced, and offers it only while the registration can change', async () => {
-    api.listEngineRegistrations.mockResolvedValue([EDGE_SOLVER, { ...EDGE_SOLVER, name: 'live-solver', status: 'published' as const }]);
+    api.listEngineRegistrations.mockResolvedValue([
+      EDGE_SOLVER,
+      { ...EDGE_SOLVER, name: 'live-solver', status: 'published' as const },
+    ]);
     renderPage();
     const edge = await screen.findByRole('row', { name: 'edge-solver 0.3.1' });
-    expect(within(edge).getByRole('link', { name: 'Replace the credential of edge-solver 0.3.1' })).toHaveAttribute('href', expect.stringMatching(/#credential$/));
-    expect(within(screen.getByRole('row', { name: 'live-solver 0.3.1' })).queryByRole('link', { name: /credential/ })).not.toBeInTheDocument();
+    expect(
+      within(edge).getByRole('link', { name: 'Replace the credential of edge-solver 0.3.1' })
+    ).toHaveAttribute('href', expect.stringMatching(/#credential$/));
+    expect(
+      within(screen.getByRole('row', { name: 'live-solver 0.3.1' })).queryByRole('link', {
+        name: /credential/,
+      })
+    ).not.toBeInTheDocument();
   });
 
   it('asks before pausing a published engine that others may be using', async () => {
-    api.listEngineRegistrations.mockResolvedValue([{ ...EDGE_SOLVER, status: 'published' as const }]);
+    api.listEngineRegistrations.mockResolvedValue([
+      { ...EDGE_SOLVER, status: 'published' as const },
+    ]);
     renderPage();
     await screen.findByRole('row', { name: 'edge-solver 0.3.1' });
     fireEvent.click(screen.getByRole('button', { name: 'Deactivate edge-solver 0.3.1' }));
     expect(api.deactivateEngineRegistration).not.toHaveBeenCalled();
     const dialog = screen.getByRole('dialog', { name: 'Deactivate edge-solver?' });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Deactivate' }));
-    expect(await screen.findByText('Deactivated. Nobody can pick it for new runs until you activate it again.')).toBeInTheDocument();
+    expect(
+      await screen.findByText(
+        'Deactivated. Nobody can pick it for new runs until you activate it again.'
+      )
+    ).toBeInTheDocument();
   });
 });

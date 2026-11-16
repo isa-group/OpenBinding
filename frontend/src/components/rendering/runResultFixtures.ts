@@ -19,8 +19,18 @@ const problem = {
         { id: 'c2', name: 'Adyen', provider: 'Adyen', features: { latency: 90, cost: 5 } },
       ],
     },
-    { id: 't2', name: 'Shipping', candidates: [{ id: 'c3', name: 'DHL', provider: 'DHL', features: { latency: 200, cost: 3 } }] },
-    { id: 't3', name: 'Notify', candidates: [{ id: 'c4', name: 'Twilio', provider: 'Twilio', features: { latency: 100, cost: 2.5 } }] },
+    {
+      id: 't2',
+      name: 'Shipping',
+      candidates: [{ id: 'c3', name: 'DHL', provider: 'DHL', features: { latency: 200, cost: 3 } }],
+    },
+    {
+      id: 't3',
+      name: 'Notify',
+      candidates: [
+        { id: 'c4', name: 'Twilio', provider: 'Twilio', features: { latency: 100, cost: 2.5 } },
+      ],
+    },
   ],
 };
 
@@ -69,7 +79,14 @@ export const S1 = {
     penalty: 2,
     score: [0.3, 0.4],
   },
-  violations: [{ constraint: { resource: 'rules', id: 'prefer-eu' }, enforcement: 'soft', penalty: 2, message: 'Prefer EU providers' }],
+  violations: [
+    {
+      constraint: { resource: 'rules', id: 'prefer-eu' },
+      enforcement: 'soft',
+      penalty: 2,
+      message: 'Prefer EU providers',
+    },
+  ],
 };
 
 export const S2 = {

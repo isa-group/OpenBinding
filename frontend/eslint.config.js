@@ -1,13 +1,13 @@
-import js from '@eslint/js'
-import globals from 'globals'
-import reactHooks from 'eslint-plugin-react-hooks'
-import reactRefresh from 'eslint-plugin-react-refresh'
-import tseslint from 'typescript-eslint'
-import boundaries from 'eslint-plugin-boundaries'
-import { defineConfig, globalIgnores } from 'eslint/config'
+import js from '@eslint/js';
+import globals from 'globals';
+import reactHooks from 'eslint-plugin-react-hooks';
+import reactRefresh from 'eslint-plugin-react-refresh';
+import tseslint from 'typescript-eslint';
+import boundaries from 'eslint-plugin-boundaries';
+import { defineConfig, globalIgnores } from 'eslint/config';
 
 export default defineConfig([
-  globalIgnores(['dist', 'src/shared/api/openapi.ts']),
+  globalIgnores(['dist', 'src/modules/core/api/openapi.ts']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [
@@ -22,21 +22,19 @@ export default defineConfig([
     },
   },
   {
-    // The layers of docs/ARCHITECTURE.md §5: shared ← entities ← widgets ← features ← pages. Each layer folder holds slices
-    // (`src/widgets/workflow-graph`, `src/features/derive`, …). The legacy `components`, `api`, `utils` and `contexts` folders
-    // count as shared and are importable from every layer.
+    // SPHERE's module layout (docs/adr/0053-frontend-on-sphere-stack.md): src/modules/<domain>, with shared code in modules/core.
+    // The legacy folders (components, api, utils, contexts, features, pages) are not modules and stay importable until they empty.
     files: ['src/**/*.{ts,tsx}'],
     plugins: { boundaries },
     settings: {
       'boundaries/elements': [
-        { type: 'shared', pattern: 'src/shared/*', capture: ['name'] },
-        { type: 'shared', pattern: 'src/components' },
-        { type: 'shared', pattern: 'src/api' },
-        { type: 'shared', pattern: 'src/utils' },
-        { type: 'shared', pattern: 'src/contexts' },
-        { type: 'entity', pattern: 'src/entities/*', capture: ['name'] },
-        { type: 'widget', pattern: 'src/widgets/*', capture: ['name'] },
-        { type: 'feature', pattern: 'src/features/*', capture: ['name'] },
+        { type: 'core', pattern: 'src/modules/core' },
+        {
+          type: 'module-public',
+          pattern: 'src/modules/*/{api,types,components,hooks,contexts}',
+          capture: ['module'],
+        },
+        { type: 'module', pattern: 'src/modules/*', capture: ['module'] },
         { type: 'page', pattern: 'src/pages/*', capture: ['name'] },
       ],
       'import/resolver': { node: { extensions: ['.ts', '.tsx', '.js', '.jsx'] } },
@@ -54,7 +52,12 @@ export default defineConfig([
             {
               from: { element: { type: 'page' } },
               disallow: {
-                to: { element: { type: 'page', captured: { name: '!{{ from.element.captured.name }}' } } },
+                to: {
+                  element: {
+                    type: 'page',
+                    captured: { name: '!{{ from.element.captured.name }}' },
+                  },
+                },
               },
             },
           ],
@@ -63,10 +66,9 @@ export default defineConfig([
     },
   },
   {
-    // The new layers fail on a wrong-way import. Slices of one layer may use each other below the features (the renderer
-    // composes the leaf widgets, the composition entity reads the binding entity); features never import each other, so a
-    // widget that needs a feature's dialog takes a callback and the page mounts the dialog.
-    files: ['src/{shared,entities,widgets,features}/**/*.{ts,tsx}'],
+    // The minimal module rule: modules/core imports no domain module, and a module imports another only through that module's
+    // api/, types/, components/, hooks/ or contexts/ (SPHERE's own modules use `auth/hooks/useAuth`, so hooks and contexts are public too).
+    files: ['src/modules/**/*.{ts,tsx}'],
     rules: {
       'boundaries/dependencies': [
         'error',
@@ -74,25 +76,18 @@ export default defineConfig([
           default: 'allow',
           policies: [
             {
-              from: { element: { type: 'shared' } },
-              disallow: { to: { element: { types: { anyOf: ['entity', 'widget', 'feature', 'page'] } } } },
+              from: { element: { type: 'core' } },
+              disallow: { to: { element: { types: { anyOf: ['module', 'module-public'] } } } },
             },
             {
-              from: { element: { type: 'entity' } },
-              disallow: { to: { element: { types: { anyOf: ['widget', 'feature', 'page'] } } } },
-            },
-            {
-              from: { element: { type: 'widget' } },
-              disallow: { to: { element: { types: { anyOf: ['feature', 'page'] } } } },
-            },
-            {
-              from: { element: { type: 'feature' } },
-              disallow: { to: { element: { type: 'page' } } },
-            },
-            {
-              from: { element: { type: 'feature' } },
+              from: { element: { types: { anyOf: ['module', 'module-public'] } } },
               disallow: {
-                to: { element: { type: 'feature', captured: { name: '!{{ from.element.captured.name }}' } } },
+                to: {
+                  element: {
+                    type: 'module',
+                    captured: { module: '!{{ from.element.captured.module }}' },
+                  },
+                },
               },
             },
           ],
@@ -100,4 +95,4 @@ export default defineConfig([
       ],
     },
   },
-])
+]);

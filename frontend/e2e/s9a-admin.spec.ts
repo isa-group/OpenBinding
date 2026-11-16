@@ -1,10 +1,34 @@
-import { expect as baseExpect, test, type Locator, type Page, type Route, type TestInfo } from '@playwright/test';
+import {
+  expect as baseExpect,
+  test,
+  type Locator,
+  type Page,
+  type Route,
+  type TestInfo,
+} from '@playwright/test';
 import { failureBody } from './helpers/problems';
 import type { AdminAuditPage, AdminUserView } from '../src/api/auth';
-import { AGREEMENT_CURRENT_FIXTURE as CURRENT_FIXTURE, agreementCatalogFixture as catalogFixture } from '../src/test/fixtures/agreementCatalog';
 import {
-  ALEX, AUDIT, EMPTY_QUEUES, ERROR_EVENTS, ERROR_OVERVIEW, MARIA, MODERATION, ORG, OVERVIEW, SAM, SUB_ORG, USERS,
-  queuesAt, subscriptionOf, usageOf, userPage,
+  AGREEMENT_CURRENT_FIXTURE as CURRENT_FIXTURE,
+  agreementCatalogFixture as catalogFixture,
+} from '../src/test/fixtures/agreementCatalog';
+import {
+  ALEX,
+  AUDIT,
+  EMPTY_QUEUES,
+  ERROR_EVENTS,
+  ERROR_OVERVIEW,
+  MARIA,
+  MODERATION,
+  ORG,
+  OVERVIEW,
+  SAM,
+  SUB_ORG,
+  USERS,
+  queuesAt,
+  subscriptionOf,
+  usageOf,
+  userPage,
 } from '../src/test/fixtures/admin';
 
 // S9a · administration, part one: admin-overview (with its audit, errors and queues sections), admin-users and admin-user-detail.
@@ -18,19 +42,43 @@ const API = 'http://localhost:8000';
 const expect = baseExpect.configure({ timeout: 15_000 });
 
 type Handler = (route: Route) => Promise<void> | void;
-const json = (body: unknown, status = 200): Handler => (route) => route.fulfill({ status, json: body });
-const detail = (status: number, code: string, error: string, extra: Record<string, unknown> = {}): Handler => json(failureBody(status, code, error, extra), status);
+const json =
+  (body: unknown, status = 200): Handler =>
+  route =>
+    route.fulfill({ status, json: body });
+const detail = (
+  status: number,
+  code: string,
+  error: string,
+  extra: Record<string, unknown> = {}
+): Handler => json(failureBody(status, code, error, extra), status);
 const down = detail(503, 'accounts_unavailable', 'The accounts database is not reachable.');
-const forbidden = detail(403, 'insufficient_api_key_permission', 'The API key does not include this permission.');
+const forbidden = detail(
+  403,
+  'insufficient_api_key_permission',
+  'The API key does not include this permission.'
+);
 
-const token = (expiresInSeconds: number) => [
-  'header',
-  Buffer.from(JSON.stringify({ sub: ALEX.id, exp: Math.floor(Date.now() / 1000) + expiresInSeconds })).toString('base64'),
-  'signature',
-].join('.');
+const token = (expiresInSeconds: number) =>
+  [
+    'header',
+    Buffer.from(
+      JSON.stringify({ sub: ALEX.id, exp: Math.floor(Date.now() / 1000) + expiresInSeconds })
+    ).toString('base64'),
+    'signature',
+  ].join('.');
 
 type Key =
-  | 'overview' | 'queues' | 'moderation' | 'errorOverview' | 'errors' | 'audit' | 'users' | 'subscription' | 'usage' | 'catalog';
+  | 'overview'
+  | 'queues'
+  | 'moderation'
+  | 'errorOverview'
+  | 'errors'
+  | 'audit'
+  | 'users'
+  | 'subscription'
+  | 'usage'
+  | 'catalog';
 
 interface State {
   /** A handler that replaces the default answer of one call. */
@@ -55,7 +103,12 @@ const KEY_MISSING = '00000000-0000-4000-8000-000000000404';
 const bodyOf = (route: Route) => route.request().postDataJSON() as Record<string, unknown>;
 
 const REGISTRATION = {
-  namespace: 'maria-santos', name: 'edge-solver', version: '0.3.1', digest: `sha256-${'e5f6'.repeat(16)}`, status: 'pending_review', active: true,
+  namespace: 'maria-santos',
+  name: 'edge-solver',
+  version: '0.3.1',
+  digest: `sha256-${'e5f6'.repeat(16)}`,
+  status: 'pending_review',
+  active: true,
 };
 
 /** Everything these screens read and write, answered; anything else on the API origin is an empty 404. */
@@ -69,39 +122,68 @@ async function mockApi(page: Page, options: { role?: 'admin' | 'user' } = {}): P
     sent: { patch: [], subscription: [], plan: [], revoked: [], auditQueries: [] },
   };
   const me = options.role === 'user' ? { ...MARIA, role: 'user' } : ALEX;
-  const answer = (key: Key, body: unknown): Handler => (route) => (state.refuse[key] ? state.refuse[key](route) : json(body)(route));
+  const answer =
+    (key: Key, body: unknown): Handler =>
+    route =>
+      state.refuse[key] ? state.refuse[key](route) : json(body)(route);
   const etagOf = (id: string) => `"contract-${state.revisions[id] ?? 1}"`;
-  const moved = (id: string) => { state.revisions[id] = (state.revisions[id] ?? 1) + 1; };
+  const moved = (id: string) => {
+    state.revisions[id] = (state.revisions[id] ?? 1) + 1;
+  };
   const stale = (ifMatch: string | null, id: string) => ifMatch !== null && ifMatch !== etagOf(id);
   // An answer with the `ETag` of a subscription, which the page can read across origins because the gateway exposes it.
-  const withEtag = (status: number, body: unknown, id: string): Handler => (route) => route.fulfill({
-    status, json: body, headers: { ETag: etagOf(id), 'Access-Control-Expose-Headers': 'ETag' },
-  });
-  const precondition = (id: string) => withEtag(412, failureBody(412, 'precondition_failed', 'The resource changed since it was read; fetch it again and retry.'), id);
-  const userOf = (id: string | undefined) => state.users.find((account) => account.id === id);
+  const withEtag =
+    (status: number, body: unknown, id: string): Handler =>
+    route =>
+      route.fulfill({
+        status,
+        json: body,
+        headers: { ETag: etagOf(id), 'Access-Control-Expose-Headers': 'ETag' },
+      });
+  const precondition = (id: string) =>
+    withEtag(
+      412,
+      failureBody(
+        412,
+        'precondition_failed',
+        'The resource changed since it was read; fetch it again and retry.'
+      ),
+      id
+    );
+  const userOf = (id: string | undefined) => state.users.find(account => account.id === id);
 
   await page.addInitScript(() => {
     localStorage.setItem('openbinding-access-token', 's9a-access');
     localStorage.setItem('openbinding-refresh-token', 's9a-refresh');
   });
 
-  await page.route(`${API}/**`, (route) => route.fulfill({ status: 404, json: { detail: 'not mocked' } }));
+  await page.route(`${API}/**`, route =>
+    route.fulfill({ status: 404, json: { detail: 'not mocked' } })
+  );
   await page.route(`${API}/health**`, json({ status: 'ok' }));
-  await page.route(`${API}/v1/auth/refresh`, json({ access_token: 's9a-access-2', refresh_token: 's9a-refresh-2', token_type: 'bearer', expires_in: 900 }));
-  await page.route(`${API}/v1/pricing/catalog`, (route) => answer('catalog', catalogFixture)(route));
+  await page.route(
+    `${API}/v1/auth/refresh`,
+    json({
+      access_token: 's9a-access-2',
+      refresh_token: 's9a-refresh-2',
+      token_type: 'bearer',
+      expires_in: 900,
+    })
+  );
+  await page.route(`${API}/v1/pricing/catalog`, route => answer('catalog', catalogFixture)(route));
   await page.route(`${API}/v1/pricing/current`, json(CURRENT_FIXTURE));
   await page.route(`${API}/v1/users/me`, json(me));
   await page.route(`${API}/v1/users/me/usage`, json(usageOf('PRO')));
   await page.route(`${API}/v1/users/me/pricing-token`, json({ pricing_token: token(3600) }));
   await page.route(new RegExp(`^${API}/v1/notifications(\\?.*)?$`), json([]));
   await page.route(`${API}/v1/engine-registrations**`, json({ registrations: [REGISTRATION] }));
-  await page.route(new RegExp(`^${API}/v1/organizations(/.*)?(\\?.*)?$`), (route) => {
+  await page.route(new RegExp(`^${API}/v1/organizations(/.*)?(\\?.*)?$`), route => {
     const parts = new URL(route.request().url()).pathname.split('/').filter(Boolean);
     return json(parts.length === 2 ? [ORG, SUB_ORG] : [])(route);
   });
 
   // --- administration
-  await page.route(new RegExp(`^${API}/v1/admin/.*`), async (route) => {
+  await page.route(new RegExp(`^${API}/v1/admin/.*`), async route => {
     const url = new URL(route.request().url());
     const path = url.pathname.slice('/v1/admin/'.length);
     const parts = path.split('/');
@@ -113,18 +195,27 @@ async function mockApi(page: Page, options: { role?: 'admin' | 'user' } = {}): P
     if (path === 'moderation') return answer('moderation', MODERATION)(route);
     if (path === 'errors/overview') return answer('errorOverview', ERROR_OVERVIEW)(route);
     if (path === 'maintenance/preview') {
-      return json({ expiredArtifacts: 2, expiredApiKeys: 1, terminalJobs: 14, abandonedJobs: 1, terminalJobCutoff: '2025-10-09T00:00:00Z' })(route);
+      return json({
+        expiredArtifacts: 2,
+        expiredApiKeys: 1,
+        terminalJobs: 14,
+        abandonedJobs: 1,
+        terminalJobCutoff: '2025-10-09T00:00:00Z',
+      })(route);
     }
 
     if (path === 'errors') {
       const wantedStatus = params.get('status_code');
       const wantedCategory = params.get('category');
       const wantedSearch = (params.get('search') ?? '').toLowerCase();
-      const items = ERROR_EVENTS.filter((item) => (
-        (!wantedStatus || String(item.status_code) === wantedStatus)
-        && (!wantedCategory || item.category === wantedCategory)
-        && (!wantedSearch || item.error_code.includes(wantedSearch) || item.endpoint.includes(wantedSearch))
-      ));
+      const items = ERROR_EVENTS.filter(
+        item =>
+          (!wantedStatus || String(item.status_code) === wantedStatus) &&
+          (!wantedCategory || item.category === wantedCategory) &&
+          (!wantedSearch ||
+            item.error_code.includes(wantedSearch) ||
+            item.endpoint.includes(wantedSearch))
+      );
       return answer('errors', { items, total: items.length, limit: 50, offset: 0 })(route);
     }
 
@@ -133,8 +224,8 @@ async function mockApi(page: Page, options: { role?: 'admin' | 'user' } = {}): P
       const organization = params.get('organization_id');
       state.sent.auditQueries.push(url.search);
       const events = [...state.extraAudit, ...AUDIT.events]
-        .filter((event) => !action || event.action === action)
-        .filter((event) => !organization || event.organizationId === organization);
+        .filter(event => !action || event.action === action)
+        .filter(event => !organization || event.organizationId === organization);
       return answer('audit', { ...AUDIT, events, total: events.length })(route);
     }
 
@@ -142,8 +233,13 @@ async function mockApi(page: Page, options: { role?: 'admin' | 'user' } = {}): P
       const search = (params.get('search') ?? '').toLowerCase();
       const offset = Number(params.get('offset') ?? 0);
       const limit = Number(params.get('limit') ?? 50);
-      const matching = state.users.filter((account) => !search || account.username.includes(search) || account.email.includes(search));
-      return answer('users', userPage(matching.slice(offset, offset + limit), { total: matching.length, offset, limit }))(route);
+      const matching = state.users.filter(
+        account => !search || account.username.includes(search) || account.email.includes(search)
+      );
+      return answer(
+        'users',
+        userPage(matching.slice(offset, offset + limit), { total: matching.length, offset, limit })
+      )(route);
     }
 
     if (parts[0] === 'users' && parts.length >= 2) {
@@ -158,17 +254,29 @@ async function mockApi(page: Page, options: { role?: 'admin' | 'user' } = {}): P
       }
       const ifMatch = route.request().headers()['if-match'] ?? null;
       if (rest === 'subscription' && method === 'GET') {
-        return (state.refuse.subscription ?? withEtag(200, subscriptionOf(account, state.addOns[account.id] ?? {}), account.id))(route);
+        return (
+          state.refuse.subscription ??
+          withEtag(200, subscriptionOf(account, state.addOns[account.id] ?? {}), account.id)
+        )(route);
       }
       if (rest === 'subscription' && method === 'POST') {
         const body = bodyOf(route);
         state.sent.subscription.push({ id: account.id, body, ifMatch });
         if (stale(ifMatch, account.id)) return precondition(account.id)(route);
-        if (body.plan === 'RESEARCH' && !account.cas_verified) return detail(409, 'research_requires_us_cas', 'RESEARCH requires a verified Universidad de Sevilla CAS identity.')(route);
+        if (body.plan === 'RESEARCH' && !account.cas_verified)
+          return detail(
+            409,
+            'research_requires_us_cas',
+            'RESEARCH requires a verified Universidad de Sevilla CAS identity.'
+          )(route);
         account.plan = String(body.plan);
         state.addOns[account.id] = body.add_ons as Record<string, number>;
         moved(account.id);
-        return withEtag(200, { ...subscriptionOf(account, state.addOns[account.id]), changed: true }, account.id)(route);
+        return withEtag(
+          200,
+          { ...subscriptionOf(account, state.addOns[account.id]), changed: true },
+          account.id
+        )(route);
       }
       if (rest === 'plan' && method === 'POST') {
         const body = bodyOf(route);
@@ -194,10 +302,14 @@ async function mockApi(page: Page, options: { role?: 'admin' | 'user' } = {}): P
 
 function watchCriticalErrors(page: Page) {
   const critical: string[] = [];
-  page.on('pageerror', (error) => critical.push(`pageerror: ${error.message}`));
-  page.on('console', (message) => {
+  page.on('pageerror', error => critical.push(`pageerror: ${error.message}`));
+  page.on('console', message => {
     const text = message.text();
-    if (message.type() === 'error' && /The above error occurred|Minified React error|Maximum update depth|Uncaught/i.test(text)) critical.push(`console: ${text}`);
+    if (
+      message.type() === 'error' &&
+      /The above error occurred|Minified React error|Maximum update depth|Uncaught/i.test(text)
+    )
+      critical.push(`console: ${text}`);
   });
   return critical;
 }
@@ -206,7 +318,12 @@ function watchCriticalErrors(page: Page) {
  * A capture of the current state: with E2E_SCREENSHOTS=1 the whole page, its first `height` pixels, or one area, saved for a person to
  * look at; always a check that nothing scrolls sideways.
  */
-async function capture(page: Page, testInfo: TestInfo, name: string, options: { height?: number; area?: Locator } = {}) {
+async function capture(
+  page: Page,
+  testInfo: TestInfo,
+  name: string,
+  options: { height?: number; area?: Locator } = {}
+) {
   await page.evaluate(async () => {
     await document.fonts.ready;
     (document.activeElement as HTMLElement | null)?.blur();
@@ -220,17 +337,39 @@ async function capture(page: Page, testInfo: TestInfo, name: string, options: { 
     await options.area.screenshot({ path, animations: 'disabled' });
   } else if (options.height) {
     const total = await page.evaluate(() => document.documentElement.scrollHeight);
-    await page.screenshot({ path, fullPage: true, animations: 'disabled', clip: { x: 0, y: 0, width, height: Math.min(options.height, total) } });
+    await page.screenshot({
+      path,
+      fullPage: true,
+      animations: 'disabled',
+      clip: { x: 0, y: 0, width, height: Math.min(options.height, total) },
+    });
   } else {
     await page.screenshot({ path, fullPage: true, animations: 'disabled' });
   }
   // Against the width of the device, not window.innerWidth: a phone widens its layout viewport to fit a page that overflows.
-  const overflow = await page.evaluate((expected) => document.documentElement.scrollWidth - expected, width);
+  const overflow = await page.evaluate(
+    expected => document.documentElement.scrollWidth - expected,
+    width
+  );
   // When it does, say which elements reach past the edge.
-  const offenders = overflow <= 1 ? [] : await page.evaluate((expected) => Array.from(document.body.querySelectorAll('*'))
-    .filter((element) => element.getBoundingClientRect().right > expected + 1)
-    .slice(0, 8).map((element) => `${element.tagName.toLowerCase()}.${String(element.className).slice(0, 50)}@${Math.round(element.getBoundingClientRect().right)}`), width);
-  expect(overflow, `${name} should not scroll sideways${offenders.length ? `: ${offenders.join(' | ')}` : ''}`).toBeLessThanOrEqual(1);
+  const offenders =
+    overflow <= 1
+      ? []
+      : await page.evaluate(
+          expected =>
+            Array.from(document.body.querySelectorAll('*'))
+              .filter(element => element.getBoundingClientRect().right > expected + 1)
+              .slice(0, 8)
+              .map(
+                element =>
+                  `${element.tagName.toLowerCase()}.${String(element.className).slice(0, 50)}@${Math.round(element.getBoundingClientRect().right)}`
+              ),
+          width
+        );
+  expect(
+    overflow,
+    `${name} should not scroll sideways${offenders.length ? `: ${offenders.join(' | ')}` : ''}`
+  ).toBeLessThanOrEqual(1);
 }
 
 // Each test walks a screen through its states while the dev server compiles on demand.
@@ -239,7 +378,12 @@ test.setTimeout(150_000);
 test.describe.configure({ mode: 'default' });
 
 const viewports = [
-  { name: 'desktop', viewport: { width: 1440, height: 900 }, isMobile: false, deviceScaleFactor: 1 },
+  {
+    name: 'desktop',
+    viewport: { width: 1440, height: 900 },
+    isMobile: false,
+    deviceScaleFactor: 1,
+  },
   { name: 'mobile', viewport: { width: 390, height: 844 }, isMobile: true, deviceScaleFactor: 2 },
 ] as const;
 
@@ -250,50 +394,97 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
   test.describe(`${name} · S9a administration`, () => {
     test.use({ viewport, isMobile, deviceScaleFactor });
 
-    test('admin-overview /app/admin · the blocks, and the tools that lead to every administration screen', async ({ page }, testInfo) => {
+    test('admin-overview /app/admin · the blocks, and the tools that lead to every administration screen', async ({
+      page,
+    }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto('/app/admin');
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
 
-      await expect(main.getByRole('heading', { level: 1, name: 'Administration', exact: true })).toBeVisible();
-      await expect(main.getByRole('navigation', { name: 'Administration', exact: true }).getByText('Overview', { exact: true })).toHaveAttribute('aria-current', 'page');
+      await expect(
+        main.getByRole('heading', { level: 1, name: 'Administration', exact: true })
+      ).toBeVisible();
+      await expect(
+        main
+          .getByRole('navigation', { name: 'Administration', exact: true })
+          .getByText('Overview', { exact: true })
+      ).toHaveAttribute('aria-current', 'page');
       const accounts = main.getByRole('region', { name: 'Accounts', exact: true });
       await expect(accounts.getByText('7', { exact: true })).toBeVisible();
       await expect(accounts.getByText('3 FREE', { exact: true })).toBeVisible();
-      await expect(main.getByRole('region', { name: 'Run queue', exact: true }).getByText(/Oldest waiting: minizinc run, running for about 1 day/)).toBeVisible();
-      await expect(main.getByRole('region', { name: 'Moderation', exact: true }).getByText('Engine catalogue requests')).toBeVisible();
-      await expect(main.getByRole('region', { name: 'Errors, last 24 h', exact: true }).getByText('9 events in total')).toBeVisible();
+      await expect(
+        main
+          .getByRole('region', { name: 'Run queue', exact: true })
+          .getByText(/Oldest waiting: minizinc run, running for about 1 day/)
+      ).toBeVisible();
+      await expect(
+        main
+          .getByRole('region', { name: 'Moderation', exact: true })
+          .getByText('Engine catalogue requests')
+      ).toBeVisible();
+      await expect(
+        main
+          .getByRole('region', { name: 'Errors, last 24 h', exact: true })
+          .getByText('9 events in total')
+      ).toBeVisible();
       const pricing = main.getByRole('region', { name: 'Pricing', exact: true });
       await expect(pricing.getByText('0.1.0', { exact: true })).toBeVisible();
-      await expect(pricing.getByRole('link', { name: 'Open SPACE console' })).toHaveAttribute('target', '_blank');
-      await expect(pricing.getByRole('link', { name: 'Open SPHERE console' })).toHaveAttribute('target', '_blank');
-      await expect(main.getByRole('region', { name: 'Recent changes', exact: true }).getByText('contract.subscription.changed')).toBeVisible();
-      await expect(main.getByRole('link', { name: /^Account agreement/ })).toHaveAttribute('href', '/app/admin/users');
+      await expect(pricing.getByRole('link', { name: 'Open SPACE console' })).toHaveAttribute(
+        'target',
+        '_blank'
+      );
+      await expect(pricing.getByRole('link', { name: 'Open SPHERE console' })).toHaveAttribute(
+        'target',
+        '_blank'
+      );
+      await expect(
+        main
+          .getByRole('region', { name: 'Recent changes', exact: true })
+          .getByText('contract.subscription.changed')
+      ).toBeVisible();
+      await expect(main.getByRole('link', { name: /^Account agreement/ })).toHaveAttribute(
+        'href',
+        '/app/admin/users'
+      );
       await capture(page, testInfo, `overview-${name}-top`, { height: tall(1900) });
 
       // Reviewing publications and purging expired data are screens of their own (s9b-admin covers them): the overview leads there.
       await expect(main.getByRole('row', { name: 'maria-santos/edge-solver' })).toHaveCount(0);
       await expect(main.getByRole('button', { name: 'Purge expired data' })).toHaveCount(0);
       const tools = main.getByRole('region', { name: 'Tools', exact: true });
-      await expect(tools.getByRole('link', { name: /^Moderation/ })).toHaveAttribute('href', '/app/admin/moderation');
-      await expect(tools.getByRole('link', { name: /^Maintenance/ })).toHaveAttribute('href', '/app/admin?section=maintenance');
+      await expect(tools.getByRole('link', { name: /^Moderation/ })).toHaveAttribute(
+        'href',
+        '/app/admin/moderation'
+      );
+      await expect(tools.getByRole('link', { name: /^Maintenance/ })).toHaveAttribute(
+        'href',
+        '/app/admin?section=maintenance'
+      );
       await capture(page, testInfo, `overview-${name}-full`);
       await tools.getByRole('link', { name: /^Maintenance/ }).click();
       await expect(page).toHaveURL(/\/app\/admin\?section=maintenance$/);
-      await expect(page.locator('#platform-main').getByRole('heading', { level: 1, name: 'Maintenance' })).toBeVisible();
+      await expect(
+        page.locator('main').getByRole('heading', { level: 1, name: 'Maintenance' })
+      ).toBeVisible();
       await page.goBack();
-      await expect(main.getByRole('heading', { level: 1, name: 'Administration', exact: true })).toBeVisible();
+      await expect(
+        main.getByRole('heading', { level: 1, name: 'Administration', exact: true })
+      ).toBeVisible();
       await tools.getByRole('link', { name: /^Moderation/ }).click();
       await expect(page).toHaveURL(/\/app\/admin\/moderation$/);
-      await expect(page.locator('#platform-main').getByRole('heading', { level: 1, name: 'Moderation' })).toBeVisible();
+      await expect(
+        page.locator('main').getByRole('heading', { level: 1, name: 'Moderation' })
+      ).toBeVisible();
 
       // One block failing leaves the rest of the page as it was.
       state.refuse.queues = detail(503, 'accounts_unavailable', 'down');
       await page.goto('/app/admin');
       const queue = main.getByRole('region', { name: 'Run queue', exact: true });
       await expect(queue.getByText('This block couldn’t load')).toBeVisible();
-      await expect(main.getByRole('region', { name: 'Accounts', exact: true }).getByText('7', { exact: true })).toBeVisible();
+      await expect(
+        main.getByRole('region', { name: 'Accounts', exact: true }).getByText('7', { exact: true })
+      ).toBeVisible();
       await capture(page, testInfo, `overview-${name}-block-fails`, { height: tall(1300) });
       state.refuse.queues = undefined;
       await queue.getByRole('button', { name: 'Retry this block' }).click();
@@ -302,42 +493,83 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       // A key without the permission is told so, and the block offers no retry.
       state.refuse.moderation = forbidden;
       await page.goto('/app/admin');
-      await expect(main.getByRole('region', { name: 'Moderation', exact: true }).getByText('This key can’t use administration (403)')).toBeVisible();
+      await expect(
+        main
+          .getByRole('region', { name: 'Moderation', exact: true })
+          .getByText('This key can’t use administration (403)')
+      ).toBeVisible();
 
       // The Tools hold no sponsorship transfer: there is no field to name an organization.
       await expect(main.getByLabel('Organization slug or id')).toHaveCount(0);
       expect(critical).toEqual([]);
     });
 
-    test('admin-users /app/admin/users · search, filters, and the changes an administrator may make', async ({ page }, testInfo) => {
+    test('admin-users /app/admin/users · search, filters, and the changes an administrator may make', async ({
+      page,
+    }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto('/app/admin/users');
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
 
-      await expect(main.getByRole('heading', { level: 1, name: 'Accounts', exact: true })).toBeVisible();
+      await expect(
+        main.getByRole('heading', { level: 1, name: 'Accounts', exact: true })
+      ).toBeVisible();
       const sam = main.getByRole('row', { name: 'sam.okafor', exact: true });
       await expect(sam).toBeVisible();
-      await expect(sam.getByRole('link', { name: 'sam.okafor' })).toHaveAttribute('href', `/app/admin/users/${SAM.id}`);
-      await expect(main.getByRole('row', { name: 'jordan.lee', exact: true }).getByText('contract pending')).toBeVisible();
-      await expect(main.getByRole('row', { name: 'dana.kim', exact: true }).getByText('Inactive', { exact: true })).toBeVisible();
-      await expect(main.getByRole('row', { name: 'alex.rivera', exact: true }).getByText('you', { exact: true })).toBeVisible();
+      await expect(sam.getByRole('link', { name: 'sam.okafor' })).toHaveAttribute(
+        'href',
+        `/app/admin/users/${SAM.id}`
+      );
+      await expect(
+        main.getByRole('row', { name: 'jordan.lee', exact: true }).getByText('contract pending')
+      ).toBeVisible();
+      await expect(
+        main
+          .getByRole('row', { name: 'dana.kim', exact: true })
+          .getByText('Inactive', { exact: true })
+      ).toBeVisible();
+      await expect(
+        main
+          .getByRole('row', { name: 'alex.rivera', exact: true })
+          .getByText('you', { exact: true })
+      ).toBeVisible();
       // The institutional identity is real now: only the account that has one carries the chip.
-      await expect(main.getByRole('row', { name: 'maria.santos', exact: true }).getByText('Institutional identity verified')).toBeVisible();
-      await expect(main.getByRole('row', { name: 'sam.okafor', exact: true }).getByText('Institutional identity verified')).toHaveCount(0);
+      await expect(
+        main
+          .getByRole('row', { name: 'maria.santos', exact: true })
+          .getByText('Institutional identity verified')
+      ).toBeVisible();
+      await expect(
+        main
+          .getByRole('row', { name: 'sam.okafor', exact: true })
+          .getByText('Institutional identity verified')
+      ).toHaveCount(0);
       await expect(main.getByText('Showing 1–6 of 6 accounts')).toBeVisible();
       await capture(page, testInfo, `users-${name}-list`, { height: tall(1800) });
 
       // Filters narrow the page; the search asks the gateway.
-      await main.getByRole('group', { name: 'Role' }).getByRole('button', { name: 'Admins' }).click();
+      await main
+        .getByRole('group', { name: 'Role' })
+        .getByRole('button', { name: 'Admins' })
+        .click();
       await expect(main.getByRole('row', { name: 'sam.okafor', exact: true })).toHaveCount(0);
       await expect(main.getByRole('row', { name: 'alex.rivera', exact: true })).toBeVisible();
-      await main.getByRole('group', { name: 'Role' }).getByRole('button', { name: 'Any role' }).click();
-      await main.getByRole('group', { name: 'Status' }).getByRole('button', { name: 'Contract pending' }).click();
+      await main
+        .getByRole('group', { name: 'Role' })
+        .getByRole('button', { name: 'Any role' })
+        .click();
+      await main
+        .getByRole('group', { name: 'Status' })
+        .getByRole('button', { name: 'Contract pending' })
+        .click();
       await expect(main.getByRole('row', { name: 'jordan.lee', exact: true })).toBeVisible();
       await expect(main.getByRole('row', { name: 'maria.santos', exact: true })).toHaveCount(0);
       await capture(page, testInfo, `users-${name}-filtered`, { height: tall(1000) });
-      await main.getByRole('group', { name: 'Status' }).getByRole('button', { name: 'Any status' }).click();
+      await main
+        .getByRole('group', { name: 'Status' })
+        .getByRole('button', { name: 'Any status' })
+        .click();
       await main.getByRole('searchbox', { name: 'Search accounts' }).fill('sam');
       await expect(main.getByRole('row', { name: 'maria.santos', exact: true })).toHaveCount(0);
       await expect(main.getByText('Showing 1–1 of 1 accounts')).toBeVisible();
@@ -351,26 +583,39 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await main.getByRole('button', { name: 'Deactivate sam.okafor' }).click();
       const dialog = page.getByRole('dialog', { name: 'Deactivate sam.okafor?' });
       await capture(page, testInfo, `users-${name}-confirm`);
-      await expect(dialog.getByText('The change is recorded in the audit log with your name.')).toBeVisible();
+      await expect(
+        dialog.getByText('The change is recorded in the audit log with your name.')
+      ).toBeVisible();
       await dialog.getByRole('button', { name: 'Deactivate', exact: true }).click();
       await expect(main.getByText('sam.okafor was deactivated.')).toBeVisible();
       expect(state.sent.patch).toEqual([{ id: SAM.id, body: { is_active: false } }]);
-      await expect(main.getByRole('row', { name: 'sam.okafor', exact: true }).getByText('Inactive', { exact: true })).toBeVisible();
+      await expect(
+        main
+          .getByRole('row', { name: 'sam.okafor', exact: true })
+          .getByText('Inactive', { exact: true })
+      ).toBeVisible();
       await main.getByRole('button', { name: 'Make admin maria.santos' }).click();
-      await page.getByRole('dialog', { name: 'Make maria.santos an administrator?' }).getByRole('button', { name: 'Make administrator' }).click();
+      await page
+        .getByRole('dialog', { name: 'Make maria.santos an administrator?' })
+        .getByRole('button', { name: 'Make administrator' })
+        .click();
       await expect(main.getByText('maria.santos is now an administrator.')).toBeVisible();
       expect(state.sent.patch[1]).toEqual({ id: MARIA.id, body: { role: 'admin' } });
 
       // Nobody deactivates or demotes themselves.
       await main.getByRole('button', { name: 'Make user alex.rivera' }).click();
-      await expect(main.getByText('You can’t demote or deactivate yourself (409 · cannot_demote_self)')).toBeVisible();
+      await expect(
+        main.getByText('You can’t demote or deactivate yourself (409 · cannot_demote_self)')
+      ).toBeVisible();
       expect(state.sent.patch).toHaveLength(2);
       await capture(page, testInfo, `users-${name}-self`, { height: tall(1100) });
 
       // Failures read apart from an empty list.
       state.refuse.users = down;
       await page.goto('/app/admin/users');
-      await expect(main.getByText('A service isn’t available right now (503 · accounts_unavailable)')).toBeVisible();
+      await expect(
+        main.getByText('A service isn’t available right now (503 · accounts_unavailable)')
+      ).toBeVisible();
       await expect(main.getByText('There are no accounts yet')).toHaveCount(0);
       await capture(page, testInfo, `users-${name}-503`, { height: tall(900) });
       state.refuse.users = undefined;
@@ -388,21 +633,33 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('admin-user-detail /app/admin/users/:user · agreement, plan limits and keys of one account', async ({ page }, testInfo) => {
+    test('admin-user-detail /app/admin/users/:user · agreement, plan limits and keys of one account', async ({
+      page,
+    }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto(`/app/admin/users/${SAM.id}`);
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
 
-      await expect(main.getByRole('heading', { level: 1, name: 'sam.okafor', exact: true })).toBeVisible();
-      await expect(main.getByText(/sam-okafor@example\.invalid · since Jun 15, 2026/)).toBeVisible();
+      await expect(
+        main.getByRole('heading', { level: 1, name: 'sam.okafor', exact: true })
+      ).toBeVisible();
+      await expect(
+        main.getByText(/sam-okafor@example\.invalid · since Jun 15, 2026/)
+      ).toBeVisible();
       await expect(main.getByText(/Pinned to pricing 0\.1\.0 · renews Nov 1, 2026/)).toBeVisible();
-      await expect(main.getByRole('group', { name: 'Allowances' }).getByText('Concurrent runs')).toBeVisible();
-      await expect(main.getByRole('group', { name: 'Ceilings for each request' }).getByText('Max time per run')).toBeVisible();
+      await expect(
+        main.getByRole('group', { name: 'Allowances' }).getByText('Concurrent runs')
+      ).toBeVisible();
+      await expect(
+        main.getByRole('group', { name: 'Ceilings for each request' }).getByText('Max time per run')
+      ).toBeVisible();
       const plans = main.getByRole('radiogroup', { name: 'New plan' });
       await expect(plans.getByRole('radio')).toHaveCount(4);
       await expect(plans.getByRole('radio', { name: /^BASIC · current/ })).toBeChecked();
-      await expect(main.getByRole('button', { name: 'Apply agreement', exact: true })).toBeDisabled();
+      await expect(
+        main.getByRole('button', { name: 'Apply agreement', exact: true })
+      ).toBeDisabled();
       await capture(page, testInfo, `detail-${name}-top`, { height: tall(2600) });
 
       // Choosing another plan shows what changes before anything is sent, and the review of the change is where it is sent from
@@ -419,13 +676,22 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(state.sent.subscription).toEqual([]);
       await capture(page, testInfo, `detail-${name}-review`, { height: tall(1800) });
       await review.getByRole('button', { name: 'Apply agreement' }).click();
-      await expect(main.getByText(/Agreement updated for sam\.okafor \(institutional agreement\)/)).toBeVisible();
+      await expect(
+        main.getByText(/Agreement updated for sam\.okafor \(institutional agreement\)/)
+      ).toBeVisible();
       // It carries the revision of the subscription the review was drawn from.
-      expect(state.sent.subscription).toEqual([{
-        id: SAM.id,
-        body: { plan: 'ADVANCED', add_ons: { COLLABORATION_PACK: 1 }, reason: 'institutional_agreement', detail: 'Agreement 2026-14' },
-        ifMatch: '"contract-1"',
-      }]);
+      expect(state.sent.subscription).toEqual([
+        {
+          id: SAM.id,
+          body: {
+            plan: 'ADVANCED',
+            add_ons: { COLLABORATION_PACK: 1 },
+            reason: 'institutional_agreement',
+            detail: 'Agreement 2026-14',
+          },
+          ifMatch: '"contract-1"',
+        },
+      ]);
       await expect(main.getByText('collaboration pack ×1')).toBeVisible();
       await expect(main.getByRole('radio', { name: /^ADVANCED · current/ })).toBeChecked();
       await capture(page, testInfo, `detail-${name}-applied`, { height: tall(1400) });
@@ -434,14 +700,20 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await plans.getByRole('radio', { name: /^RESEARCH/ }).click();
       await main.getByRole('button', { name: 'Apply agreement', exact: true }).click();
       await review.getByRole('button', { name: 'Apply agreement' }).click();
-      await expect(review.getByRole('alert')).toContainText('RESEARCH needs a verified CAS identity (409 · research_requires_us_cas)');
+      await expect(review.getByRole('alert')).toContainText(
+        'RESEARCH needs a verified CAS identity (409 · research_requires_us_cas)'
+      );
       await review.getByRole('button', { name: 'Back' }).click();
-      await expect(main.getByText('RESEARCH needs a verified CAS identity (409 · research_requires_us_cas)')).toBeVisible();
+      await expect(
+        main.getByText('RESEARCH needs a verified CAS identity (409 · research_requires_us_cas)')
+      ).toBeVisible();
       await capture(page, testInfo, `detail-${name}-409`, { height: tall(3300) });
       await plans.getByRole('radio', { name: /^PRO/ }).click();
       await main.getByRole('button', { name: 'Change plan only, keep add-ons' }).click();
       await review.getByRole('button', { name: 'Change plan' }).click();
-      await expect(main.getByText(/Agreement updated for sam\.okafor \(administrative decision\)/)).toBeVisible();
+      await expect(
+        main.getByText(/Agreement updated for sam\.okafor \(administrative decision\)/)
+      ).toBeVisible();
       // The change before this one left a new revision, and this one carries it.
       expect(state.sent.plan).toEqual([{ id: SAM.id, plan: 'PRO', ifMatch: '"contract-2"' }]);
 
@@ -451,19 +723,26 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await plans.getByRole('radio', { name: /^ADVANCED/ }).click();
       await main.getByRole('button', { name: 'Change plan only, keep add-ons' }).click();
       await expect(review.getByText('PRO → ADVANCED')).toBeVisible();
-      const account = state.users.find((candidate) => candidate.id === SAM.id);
+      const account = state.users.find(candidate => candidate.id === SAM.id);
       if (!account) throw new Error('sam.okafor is not in this mock');
       account.plan = 'BASIC';
       state.addOns[SAM.id] = {};
       state.revisions[SAM.id] = (state.revisions[SAM.id] ?? 1) + 1;
       await review.getByRole('button', { name: 'Change plan' }).click();
-      await expect(review.getByRole('alert')).toContainText('The subscription changed meanwhile (412 · precondition_failed)');
+      await expect(review.getByRole('alert')).toContainText(
+        'The subscription changed meanwhile (412 · precondition_failed)'
+      );
       await expect(review.getByRole('alert')).toContainText('so nothing was changed');
       await expect(review.getByText('BASIC → ADVANCED')).toBeVisible();
-      expect(state.sent.plan.map((request) => [request.plan, request.ifMatch])).toEqual([['PRO', '"contract-2"'], ['ADVANCED', '"contract-3"']]);
+      expect(state.sent.plan.map(request => [request.plan, request.ifMatch])).toEqual([
+        ['PRO', '"contract-2"'],
+        ['ADVANCED', '"contract-3"'],
+      ]);
       await capture(page, testInfo, `detail-${name}-412`, { height: tall(1800) });
       await review.getByRole('button', { name: 'Back' }).click();
-      await expect(main.getByText('The subscription changed meanwhile (412 · precondition_failed)')).toBeVisible();
+      await expect(
+        main.getByText('The subscription changed meanwhile (412 · precondition_failed)')
+      ).toBeVisible();
       await expect(plans.getByRole('radio', { name: /^BASIC · current/ })).toBeVisible();
       await expect(plans.getByRole('radio', { name: /^ADVANCED/ })).toBeChecked();
 
@@ -472,14 +751,26 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await main.getByLabel('Key id').fill(KEY_ID);
       await main.getByRole('button', { name: 'Revoke key' }).click();
       await capture(page, testInfo, `detail-${name}-revoke-dialog`);
-      await page.getByRole('dialog', { name: 'Revoke the key of sam.okafor?' }).getByRole('button', { name: 'Revoke key' }).click();
-      await expect(main.getByText(/Key revoked\. Requests with it fail from now on\. It is recorded in the audit log with your name\./)).toBeVisible();
+      await page
+        .getByRole('dialog', { name: 'Revoke the key of sam.okafor?' })
+        .getByRole('button', { name: 'Revoke key' })
+        .click();
+      await expect(
+        main.getByText(
+          /Key revoked\. Requests with it fail from now on\. It is recorded in the audit log with your name\./
+        )
+      ).toBeVisible();
       expect(state.sent.revoked).toEqual([KEY_ID]);
       await main.getByLabel('Key id').fill(KEY_MISSING);
       await main.getByRole('button', { name: 'Revoke key' }).click();
-      await page.getByRole('dialog', { name: 'Revoke the key of sam.okafor?' }).getByRole('button', { name: 'Revoke key' }).click();
+      await page
+        .getByRole('dialog', { name: 'Revoke the key of sam.okafor?' })
+        .getByRole('button', { name: 'Revoke key' })
+        .click();
       await expect(main.getByText('No such API key (404)')).toBeVisible();
-      await expect(main.getByText(/has no list of the organizations an account belongs to or sponsors/)).toHaveCount(0);
+      await expect(
+        main.getByText(/has no list of the organizations an account belongs to or sponsors/)
+      ).toHaveCount(0);
       await expect(main.getByRole('button', { name: 'Open sponsorship' })).toHaveCount(0);
       await capture(page, testInfo, `detail-${name}-bottom`);
 
@@ -494,7 +785,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       // An account found by name, and one that does not exist.
       await page.goto('/app/admin/users/maria.santos');
-      await expect(main.getByRole('heading', { level: 1, name: 'maria.santos', exact: true })).toBeVisible();
+      await expect(
+        main.getByRole('heading', { level: 1, name: 'maria.santos', exact: true })
+      ).toBeVisible();
       await expect(main.getByText('Institutional identity verified')).toBeVisible();
       await page.goto('/app/admin/users/00000000-0000-4000-8000-0000000000ff');
       await expect(main.getByText('No such account', { exact: true })).toBeVisible();
@@ -502,65 +795,141 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('admin-overview, audit section /app/admin?section=audit · the timeline, the detail of an event and its filters', async ({ page }, testInfo) => {
+    test('admin-overview, audit section /app/admin?section=audit · the timeline, the detail of an event and its filters', async ({
+      page,
+    }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto('/app/admin?section=audit');
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
 
-      await expect(main.getByRole('heading', { level: 1, name: 'Audit log', exact: true })).toBeVisible();
-      await expect(main.getByRole('list', { name: 'Events, newest first' }).getByRole('listitem')).toHaveCount(3);
+      await expect(
+        main.getByRole('heading', { level: 1, name: 'Audit log', exact: true })
+      ).toBeVisible();
+      await expect(
+        main.getByRole('list', { name: 'Events, newest first' }).getByRole('listitem')
+      ).toHaveCount(3);
       await expect(main.getByText('2 abandoned runs were reconciled.')).toBeVisible();
       await expect(main.getByText('Pricing live activated: 0.1.0.')).toBeVisible();
       await capture(page, testInfo, `audit-${name}-list`, { height: tall(1500) });
 
       await main.getByRole('button', { name: /contract\.subscription\.changed/ }).click();
       const aside = main.getByRole('complementary', { name: 'Event detail' });
-      await expect(aside.getByLabel('Before and after').getByText('BASIC · no add-ons')).toBeVisible();
-      await expect(aside.getByLabel('Before and after').getByText('RESEARCH · no add-ons')).toBeVisible();
+      await expect(
+        aside.getByLabel('Before and after').getByText('BASIC · no add-ons')
+      ).toBeVisible();
+      await expect(
+        aside.getByLabel('Before and after').getByText('RESEARCH · no add-ons')
+      ).toBeVisible();
       // The raw event sits behind “View source”, so the readable value is the whole text of its field.
       await expect(aside.getByText('Agreement 2026-14', { exact: true })).toBeVisible();
-      await expect(aside.getByRole('link', { name: '00000000…' })).toHaveAttribute('href', `/app/admin/users/${ALEX.id}`);
+      await expect(aside.getByRole('link', { name: '00000000…' })).toHaveAttribute(
+        'href',
+        `/app/admin/users/${ALEX.id}`
+      );
       await capture(page, testInfo, `audit-${name}-detail`, { height: tall(1700) });
 
-      await main.getByRole('group', { name: 'Kind of event' }).getByRole('button', { name: 'Pricing' }).click();
+      await main
+        .getByRole('group', { name: 'Kind of event' })
+        .getByRole('button', { name: 'Pricing' })
+        .click();
       await expect(main.getByText('2 abandoned runs were reconciled.')).toHaveCount(0);
-      await main.getByRole('group', { name: 'Kind of event' }).getByRole('button', { name: 'All', exact: true }).click();
+      await main
+        .getByRole('group', { name: 'Kind of event' })
+        .getByRole('button', { name: 'All', exact: true })
+        .click();
       await main.getByLabel('Exact action').fill('pricing.live.activated');
       await main.getByRole('button', { name: 'Filter', exact: true }).click();
-      await expect(main.getByRole('list', { name: 'Events, newest first' }).getByRole('listitem')).toHaveCount(1);
+      await expect(
+        main.getByRole('list', { name: 'Events, newest first' }).getByRole('listitem')
+      ).toHaveCount(1);
       await main.getByRole('button', { name: 'Clear “pricing.live.activated”' }).click();
-      await expect(main.getByRole('list', { name: 'Events, newest first' }).getByRole('listitem')).toHaveCount(3);
+      await expect(
+        main.getByRole('list', { name: 'Events, newest first' }).getByRole('listitem')
+      ).toHaveCount(3);
 
       // B2: account actions, the CAS link and the events recorded inside an organization are in the log, the latter with their organization.
-      const recorded = (id: number, action: string, eventDetail: Record<string, unknown>, over: Partial<AdminAuditPage['events'][number]> = {}): AdminAuditPage['events'][number] => ({
-        id: `00000000-0000-4000-8000-00000000090${id}`, organizationId: null, organizationSlug: null, actorId: ALEX.id, action, targetType: 'User', targetId: SAM.id,
-        detail: eventDetail, createdAt: `2026-10-0${id}T09:00:00Z`, ...over,
+      const recorded = (
+        id: number,
+        action: string,
+        eventDetail: Record<string, unknown>,
+        over: Partial<AdminAuditPage['events'][number]> = {}
+      ): AdminAuditPage['events'][number] => ({
+        id: `00000000-0000-4000-8000-00000000090${id}`,
+        organizationId: null,
+        organizationSlug: null,
+        actorId: ALEX.id,
+        action,
+        targetType: 'User',
+        targetId: SAM.id,
+        detail: eventDetail,
+        createdAt: `2026-10-0${id}T09:00:00Z`,
+        ...over,
       });
       state.extraAudit = [
-        recorded(7, 'organization.updated', { name: 'ISA Demo' },
-          { organizationId: ORG.id, organizationSlug: 'isa-demo', targetType: 'Organization', targetId: ORG.id }),
-        recorded(6, 'admin.user.updated', { username: 'sam.okafor', changes: { is_active: { from: true, to: false } } }),
-        recorded(5, 'admin.api_key.revoked', { user_id: SAM.id, key: { id: 'key-1', name: 'ci pipeline', prefix: 'obk_ab12' } }, { targetType: 'ApiKey', targetId: 'key-1' }),
-        recorded(4, 'account.cas.linked', { provider: 'us-cas', plan_changed: { from: 'BASIC', to: 'RESEARCH', extra_cost: false } }),
+        recorded(
+          7,
+          'organization.updated',
+          { name: 'ISA Demo' },
+          {
+            organizationId: ORG.id,
+            organizationSlug: 'isa-demo',
+            targetType: 'Organization',
+            targetId: ORG.id,
+          }
+        ),
+        recorded(6, 'admin.user.updated', {
+          username: 'sam.okafor',
+          changes: { is_active: { from: true, to: false } },
+        }),
+        recorded(
+          5,
+          'admin.api_key.revoked',
+          { user_id: SAM.id, key: { id: 'key-1', name: 'ci pipeline', prefix: 'obk_ab12' } },
+          { targetType: 'ApiKey', targetId: 'key-1' }
+        ),
+        recorded(4, 'account.cas.linked', {
+          provider: 'us-cas',
+          plan_changed: { from: 'BASIC', to: 'RESEARCH', extra_cost: false },
+        }),
       ];
       await page.goto('/app/admin?section=audit');
       await expect(main.getByText('The organization’s settings were updated.')).toBeVisible();
-      await expect(main.getByText('Account sam.okafor was updated: status active → inactive.')).toBeVisible();
+      await expect(
+        main.getByText('Account sam.okafor was updated: status active → inactive.')
+      ).toBeVisible();
       await expect(main.getByText('API key “ci pipeline” (obk_ab12…) was revoked.')).toBeVisible();
-      await expect(main.getByText('An institutional identity was linked and the plan went from BASIC to RESEARCH at no extra cost.')).toBeVisible();
+      await expect(
+        main.getByText(
+          'An institutional identity was linked and the plan went from BASIC to RESEARCH at no extra cost.'
+        )
+      ).toBeVisible();
       const timeline = main.getByRole('list', { name: 'Events, newest first' });
-      await expect(timeline.getByRole('listitem').first().getByText('isa-demo', { exact: true })).toBeVisible();
-      await expect(main.getByRole('complementary', { name: 'Event detail' }).getByText('Organization', { exact: true })).toBeVisible();
+      await expect(
+        timeline.getByRole('listitem').first().getByText('isa-demo', { exact: true })
+      ).toBeVisible();
+      await expect(
+        main
+          .getByRole('complementary', { name: 'Event detail' })
+          .getByText('Organization', { exact: true })
+      ).toBeVisible();
       await capture(page, testInfo, `audit-${name}-account-events`, { height: tall(1700) });
-      await main.getByRole('group', { name: 'Kind of event' }).getByRole('button', { name: 'Accounts' }).click();
+      await main
+        .getByRole('group', { name: 'Kind of event' })
+        .getByRole('button', { name: 'Accounts' })
+        .click();
       await expect(timeline.getByRole('listitem')).toHaveCount(3);
-      await main.getByRole('group', { name: 'Kind of event' }).getByRole('button', { name: 'All', exact: true }).click();
+      await main
+        .getByRole('group', { name: 'Kind of event' })
+        .getByRole('button', { name: 'All', exact: true })
+        .click();
 
       // Only one organization’s events: the gateway filters by `organization_id`.
       await main.getByRole('button', { name: 'Only this organization' }).click();
       await expect(timeline.getByRole('listitem')).toHaveCount(1);
-      expect(state.sent.auditQueries[state.sent.auditQueries.length - 1]).toContain(`organization_id=${ORG.id}`);
+      expect(state.sent.auditQueries[state.sent.auditQueries.length - 1]).toContain(
+        `organization_id=${ORG.id}`
+      );
       await main.getByRole('button', { name: 'Clear organization filter' }).click();
       await expect(timeline.getByRole('listitem')).toHaveCount(7);
       state.extraAudit = [];
@@ -571,7 +940,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await capture(page, testInfo, `audit-${name}-empty`, { height: tall(900) });
       state.refuse.audit = down;
       await page.goto('/app/admin?section=audit');
-      await expect(main.getByText('A service isn’t available right now (503 · accounts_unavailable)')).toBeVisible();
+      await expect(
+        main.getByText('A service isn’t available right now (503 · accounts_unavailable)')
+      ).toBeVisible();
       await capture(page, testInfo, `audit-${name}-503`, { height: tall(900) });
       state.refuse.audit = undefined;
       await main.getByRole('button', { name: 'Try again' }).click();
@@ -582,15 +953,21 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('admin-overview, errors section /app/admin?section=errors · the summary, errors grouped by code and the events behind each group', async ({ page }, testInfo) => {
+    test('admin-overview, errors section /app/admin?section=errors · the summary, errors grouped by code and the events behind each group', async ({
+      page,
+    }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto('/app/admin?section=errors');
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
 
-      await expect(main.getByRole('heading', { level: 1, name: 'Errors', exact: true })).toBeVisible();
+      await expect(
+        main.getByRole('heading', { level: 1, name: 'Errors', exact: true })
+      ).toBeVisible();
       await expect(main.getByText('9 error events')).toBeVisible();
-      await expect(main.getByRole('img', { name: 'Errors by status: 402: 5, 422: 1, 429: 2, 503: 1' })).toBeVisible();
+      await expect(
+        main.getByRole('img', { name: 'Errors by status: 402: 5, 422: 1, 429: 2, 503: 1' })
+      ).toBeVisible();
       await expect(main.getByText('7 refusals')).toBeVisible();
       const groups = main.getByRole('list', { name: 'Errors grouped by code' });
       await expect(groups.getByRole('listitem')).toHaveCount(3);
@@ -618,13 +995,23 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       state.refuse.errors = down;
       await page.goto('/app/admin?section=errors');
-      await expect(main.getByText('A service isn’t available right now (503 · accounts_unavailable)')).toBeVisible();
+      await expect(
+        main.getByText('A service isn’t available right now (503 · accounts_unavailable)')
+      ).toBeVisible();
       await capture(page, testInfo, `errors-${name}-503`, { height: tall(1900) });
       state.refuse.errors = undefined;
       await main.getByRole('button', { name: 'Try again' }).click();
       await expect(groups.getByRole('listitem')).toHaveCount(3);
 
-      state.refuse.errorOverview = json({ ...ERROR_OVERVIEW, total_errors_24h: 0, by_category_24h: {}, by_status_code_24h: {}, top_users_quota: [], top_solvers_failed: [], timeline: [] });
+      state.refuse.errorOverview = json({
+        ...ERROR_OVERVIEW,
+        total_errors_24h: 0,
+        by_category_24h: {},
+        by_status_code_24h: {},
+        top_users_quota: [],
+        top_solvers_failed: [],
+        timeline: [],
+      });
       state.refuse.errors = json({ items: [], total: 0, limit: 50, offset: 0 });
       await page.goto('/app/admin?section=errors');
       await expect(main.getByText('No errors in the retention window')).toBeVisible();
@@ -636,19 +1023,32 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('admin-overview, queues section /app/admin?section=queues · runs by state, the oldest ones, and what the gateway does not let an administrator do', async ({ page }, testInfo) => {
+    test('admin-overview, queues section /app/admin?section=queues · runs by state, the oldest ones, and what the gateway does not let an administrator do', async ({
+      page,
+    }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto('/app/admin?section=queues');
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
 
-      await expect(main.getByRole('heading', { level: 1, name: 'Queues', exact: true })).toBeVisible();
-      await expect(main.getByRole('list', { name: 'Runs by state' }).getByRole('listitem')).toHaveCount(5);
+      await expect(
+        main.getByRole('heading', { level: 1, name: 'Queues', exact: true })
+      ).toBeVisible();
+      await expect(
+        main.getByRole('list', { name: 'Runs by state' }).getByRole('listitem')
+      ).toHaveCount(5);
       await expect(main.getByText('One run has gone far past its time budget')).toBeVisible();
       const jobs = main.getByRole('list', { name: 'Runs in flight, oldest first' });
-      await expect(jobs.getByRole('listitem', { name: 'minizinc running' }).getByText('Age about 1 day · past its budget')).toBeVisible();
+      await expect(
+        jobs
+          .getByRole('listitem', { name: 'minizinc running' })
+          .getByText('Age about 1 day · past its budget')
+      ).toBeVisible();
       await expect(jobs.getByRole('listitem', { name: 'random-search queued' })).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Reconcile abandoned runs' })).toHaveAttribute('href', '/app/admin?section=maintenance');
+      await expect(main.getByRole('link', { name: 'Reconcile abandoned runs' })).toHaveAttribute(
+        'href',
+        '/app/admin?section=maintenance'
+      );
       await expect(main.getByRole('heading', { name: 'What this screen can’t do' })).toBeVisible();
       await capture(page, testInfo, `queues-${name}-list`, { height: tall(1700) });
       await capture(page, testInfo, `queues-${name}-full`);
@@ -665,7 +1065,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await capture(page, testInfo, `queues-${name}-empty`, { height: tall(1100) });
       state.refuse.queues = down;
       await page.goto('/app/admin?section=queues');
-      await expect(main.getByText('A service isn’t available right now (503 · accounts_unavailable)')).toBeVisible();
+      await expect(
+        main.getByText('A service isn’t available right now (503 · accounts_unavailable)')
+      ).toBeVisible();
       await capture(page, testInfo, `queues-${name}-503`, { height: tall(900) });
       state.refuse.queues = undefined;
       await main.getByRole('button', { name: 'Try again' }).click();
@@ -676,12 +1078,23 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('administration is for administrators: another account is sent away and sees none of it', async ({ page }) => {
+    test('administration is for administrators: another account gets the in-place 404 and sees none of it', async ({
+      page,
+    }) => {
       const critical = watchCriticalErrors(page);
       await mockApi(page, { role: 'user' });
-      for (const path of ['/app/admin', '/app/admin/users', `/app/admin/users/${SAM.id}`, '/app/admin?section=audit', '/app/admin?section=errors', '/app/admin?section=queues']) {
+      for (const path of [
+        '/app/admin',
+        '/app/admin/users',
+        `/app/admin/users/${SAM.id}`,
+        '/app/admin?section=audit',
+        '/app/admin?section=errors',
+        '/app/admin?section=queues',
+      ]) {
         await page.goto(path);
-        await expect(page).toHaveURL(/\/app\/account$/);
+        // Unreadable is the same in-place 404 as missing: the address stays, and nothing of the screen shows.
+        await expect(page.getByRole('heading', { level: 1, name: 'Page not found' })).toBeVisible();
+        expect(new URL(page.url()).pathname).toBe(path.split('?')[0]);
         await expect(page.getByText('Platform admin', { exact: true })).toHaveCount(0);
         await expect(page.getByRole('link', { name: 'Admin', exact: true })).toHaveCount(0);
       }

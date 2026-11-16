@@ -33,15 +33,20 @@ export function MetricCards({ metrics, label = 'Key figures' }: MetricCardsProps
                   <span aria-hidden="true">—</span>
                   <span className="sr-only">no value</span>
                 </>
+              ) : typeof m.value === 'number' ? (
+                number.format(m.value)
               ) : (
-                typeof m.value === 'number' ? number.format(m.value) : m.value
+                m.value
               )}
-              {m.value !== null && m.unit && <span className="rendering-metrics__unit"> {m.unit}</span>}
+              {m.value !== null && m.unit && (
+                <span className="rendering-metrics__unit"> {m.unit}</span>
+              )}
             </dd>
           </dl>
           {m.trend && (
             <p className={`rendering-metrics__trend is-${m.trend.direction}`}>
-              <span aria-hidden="true">{ARROW[m.trend.direction]}</span> <span>{m.trend.label}</span>
+              <span aria-hidden="true">{ARROW[m.trend.direction]}</span>{' '}
+              <span>{m.trend.label}</span>
             </p>
           )}
           {m.hint && <small className="rendering-metrics__hint">{m.hint}</small>}

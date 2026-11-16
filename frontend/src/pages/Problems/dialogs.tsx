@@ -2,12 +2,12 @@ import { useState, type FormEvent } from 'react';
 import { TriangleAlert } from 'lucide-react';
 import type { Organization } from '../../api/platform';
 import { problemsApi, type Problem, type ProblemUpload } from '../../api/problems';
-import { Action } from '../../components/ui/Action';
-import { FormField } from '../../components/ui/FormField';
-import { Modal } from '../../components/ui/Modal';
+import { Action } from '../../modules/core/components/action-button';
+import { FormField } from '../../modules/core/components/form-field';
+import { Modal } from '../../modules/core/components/modal';
 import { deleteRefusal, uploadRefusal, type Refusal } from './problemErrors';
 import { DESCRIPTION_MAX, NAME_MAX } from './problemsModel';
-import { SLUG_PATTERN, slugFromName } from '../../shared/lib/slug';
+import { SLUG_PATTERN, slugFromName } from '../../modules/core/utils/slug';
 import '../../features/workspace/kit.css';
 
 /** The producer an upload names: the gateway records the version's origin as `upload` from it. */
@@ -29,7 +29,8 @@ function RefusalText({ refusal }: { refusal: Refusal }) {
           <ul className="case-diagnostics" aria-label="What the compiler found">
             {refusal.diagnostics.slice(0, 8).map((item, index) => (
               <li key={`${item.code}-${index}`}>
-                {item.resource && <code>{item.resource}</code>}{item.pointer && <code>{item.pointer}</code>} {item.message}
+                {item.resource && <code>{item.resource}</code>}
+                {item.pointer && <code>{item.pointer}</code>} {item.message}
               </li>
             ))}
           </ul>
@@ -39,12 +40,30 @@ function RefusalText({ refusal }: { refusal: Refusal }) {
   );
 }
 
-function PackagePicker({ file, onPick, disabled }: { file: File | null; onPick: (file: File | null) => void; disabled?: boolean }) {
+function PackagePicker({
+  file,
+  onPick,
+  disabled,
+}: {
+  file: File | null;
+  onPick: (file: File | null) => void;
+  disabled?: boolean;
+}) {
   return (
     <div className="ui-field">
       <label htmlFor="up-package">BIM package</label>
-      <input id="up-package" type="file" accept={PACKAGE_ACCEPT} disabled={disabled} onChange={(event) => onPick(event.target.files?.[0] ?? null)} />
-      <small className="ui-field-hint">{file ? `${file.name} · ${file.size.toLocaleString('en-US')} bytes` : 'A .bim.zip with instance.json at its root.'}</small>
+      <input
+        id="up-package"
+        type="file"
+        accept={PACKAGE_ACCEPT}
+        disabled={disabled}
+        onChange={event => onPick(event.target.files?.[0] ?? null)}
+      />
+      <small className="ui-field-hint">
+        {file
+          ? `${file.name} · ${file.size.toLocaleString('en-US')} bytes`
+          : 'A .bim.zip with instance.json at its root.'}
+      </small>
     </div>
   );
 }
@@ -53,8 +72,14 @@ function PackagePicker({ file, onPick, disabled }: { file: File | null; onPick: 
  * Upload a BIM package as a new problem of the organization (`?create=problem`). The package is compiled once: a refusal lists where it
  * is wrong, a taken address and a full plan say so, and nothing is created.
  */
-export function UploadProblemDialog({ organization, onClose, onCreated }: {
-  organization: Organization; onClose: () => void; onCreated: (created: ProblemUpload) => void;
+export function UploadProblemDialog({
+  organization,
+  onClose,
+  onCreated,
+}: {
+  organization: Organization;
+  onClose: () => void;
+  onCreated: (created: ProblemUpload) => void;
 }) {
   const [file, setFile] = useState<File | null>(null);
   const [name, setName] = useState('');
@@ -74,15 +99,23 @@ export function UploadProblemDialog({ organization, onClose, onCreated }: {
       return;
     }
     if (!slugOk) {
-      setRefusal({ kind: 'invalid', text: 'The address can only have lowercase letters, numbers and hyphens.' });
+      setRefusal({
+        kind: 'invalid',
+        text: 'The address can only have lowercase letters, numbers and hyphens.',
+      });
       return;
     }
     setBusy(true);
     setRefusal(null);
     try {
-      onCreated(await problemsApi.create(organization.slug, file, {
-        slug: slug || undefined, name: shownName.trim() || undefined, description: description.trim() || undefined, producer: UPLOAD_PRODUCER,
-      }));
+      onCreated(
+        await problemsApi.create(organization.slug, file, {
+          slug: slug || undefined,
+          name: shownName.trim() || undefined,
+          description: description.trim() || undefined,
+          producer: UPLOAD_PRODUCER,
+        })
+      );
     } catch (caught) {
       setRefusal(uploadRefusal(caught, 'problem'));
       setBusy(false);
@@ -91,26 +124,58 @@ export function UploadProblemDialog({ organization, onClose, onCreated }: {
 
   return (
     <Modal title="Upload a BIM package" size="md" onClose={() => !busy && onClose()}>
-      <form className="org-dialog-form" onSubmit={(event) => void submit(event)} noValidate>
-        <PackagePicker file={file} disabled={busy} onPick={(picked) => { setFile(picked); setRefusal(null); }} />
-        <FormField label="Name" value={shownName} maxLength={NAME_MAX} hint="Taken from the file name unless you write one." onChange={(event) => { setName(event.target.value); setRefusal(null); }} />
+      <form className="org-dialog-form" onSubmit={event => void submit(event)} noValidate>
+        <PackagePicker
+          file={file}
+          disabled={busy}
+          onPick={picked => {
+            setFile(picked);
+            setRefusal(null);
+          }}
+        />
+        <FormField
+          label="Name"
+          value={shownName}
+          maxLength={NAME_MAX}
+          hint="Taken from the file name unless you write one."
+          onChange={event => {
+            setName(event.target.value);
+            setRefusal(null);
+          }}
+        />
         <FormField
           label="Address"
           value={slug}
-          onChange={(event) => { setAddress(event.target.value); setRefusal(null); }}
+          onChange={event => {
+            setAddress(event.target.value);
+            setRefusal(null);
+          }}
           spellCheck={false}
           mono
           error={!slugOk ? 'Lowercase letters, numbers and hyphens.' : undefined}
           hint="Used in the address; can’t be changed later. Left empty, the package’s name is used."
         />
         <div className="ui-field">
-          <label htmlFor="nc-description">Description <span className="proj-optional">(optional)</span></label>
-          <textarea id="nc-description" className="proj-textarea" rows={3} maxLength={DESCRIPTION_MAX} value={description} onChange={(event) => setDescription(event.target.value)} />
+          <label htmlFor="nc-description">
+            Description <span className="proj-optional">(optional)</span>
+          </label>
+          <textarea
+            id="nc-description"
+            className="proj-textarea"
+            rows={3}
+            maxLength={DESCRIPTION_MAX}
+            value={description}
+            onChange={event => setDescription(event.target.value)}
+          />
         </div>
         <div aria-live="assertive">{refusal && <RefusalText refusal={refusal} />}</div>
         <div className="ui-modal-actions">
-          <Action variant="secondary" onClick={onClose} disabled={busy}>Cancel</Action>
-          <Action type="submit" variant="primary" busy={busy}>Upload problem</Action>
+          <Action variant="secondary" onClick={onClose} disabled={busy}>
+            Cancel
+          </Action>
+          <Action type="submit" variant="primary" busy={busy}>
+            Upload problem
+          </Action>
         </div>
       </form>
     </Modal>
@@ -121,8 +186,16 @@ export function UploadProblemDialog({ organization, onClose, onCreated }: {
  * Upload a package as a new version of a problem. The same package again is not a new version: the gateway answers with the version it
  * already is (`created: false`), and the dialog's caller says so.
  */
-export function UploadVersionDialog({ organization, item, onClose, onSaved }: {
-  organization: Organization; item: Problem; onClose: () => void; onSaved: (saved: ProblemUpload) => void;
+export function UploadVersionDialog({
+  organization,
+  item,
+  onClose,
+  onSaved,
+}: {
+  organization: Organization;
+  item: Problem;
+  onClose: () => void;
+  onSaved: (saved: ProblemUpload) => void;
 }) {
   const [file, setFile] = useState<File | null>(null);
   const [refusal, setRefusal] = useState<Refusal | null>(null);
@@ -138,7 +211,11 @@ export function UploadVersionDialog({ organization, item, onClose, onSaved }: {
     setBusy(true);
     setRefusal(null);
     try {
-      onSaved(await problemsApi.createRevision(organization.slug, item.slug, file, { producer: UPLOAD_PRODUCER }));
+      onSaved(
+        await problemsApi.createRevision(organization.slug, item.slug, file, {
+          producer: UPLOAD_PRODUCER,
+        })
+      );
     } catch (caught) {
       setRefusal(uploadRefusal(caught, 'version'));
       setBusy(false);
@@ -147,13 +224,27 @@ export function UploadVersionDialog({ organization, item, onClose, onSaved }: {
 
   return (
     <Modal title={`New version of ${item.name}`} size="md" onClose={() => !busy && onClose()}>
-      <form className="org-dialog-form" onSubmit={(event) => void submit(event)} noValidate>
-        <PackagePicker file={file} disabled={busy} onPick={(picked) => { setFile(picked); setRefusal(null); }} />
-        <p className="org-muted">The package is sealed as the next version. Uploading a package that already is a version of this problem changes nothing.</p>
+      <form className="org-dialog-form" onSubmit={event => void submit(event)} noValidate>
+        <PackagePicker
+          file={file}
+          disabled={busy}
+          onPick={picked => {
+            setFile(picked);
+            setRefusal(null);
+          }}
+        />
+        <p className="org-muted">
+          The package is sealed as the next version. Uploading a package that already is a version
+          of this problem changes nothing.
+        </p>
         <div aria-live="assertive">{refusal && <RefusalText refusal={refusal} />}</div>
         <div className="ui-modal-actions">
-          <Action variant="secondary" onClick={onClose} disabled={busy}>Cancel</Action>
-          <Action type="submit" variant="primary" busy={busy}>Upload version</Action>
+          <Action variant="secondary" onClick={onClose} disabled={busy}>
+            Cancel
+          </Action>
+          <Action type="submit" variant="primary" busy={busy}>
+            Upload version
+          </Action>
         </div>
       </form>
     </Modal>
@@ -164,8 +255,16 @@ export function UploadVersionDialog({ organization, item, onClose, onSaved }: {
  * Deleting a problem takes its versions with it. The gateway refuses it (409 `problem_has_runs`) while a run or a study names one of
  * them: those stay as evidence.
  */
-export function DeleteCaseDialog({ organization, item, onClose, onDeleted }: {
-  organization: Organization; item: Problem; onClose: () => void; onDeleted: (name: string) => void;
+export function DeleteCaseDialog({
+  organization,
+  item,
+  onClose,
+  onDeleted,
+}: {
+  organization: Organization;
+  item: Problem;
+  onClose: () => void;
+  onDeleted: (name: string) => void;
 }) {
   const [typed, setTyped] = useState('');
   const [error, setError] = useState<string>();
@@ -187,23 +286,43 @@ export function DeleteCaseDialog({ organization, item, onClose, onDeleted }: {
   };
 
   return (
-    <Modal title={`Delete ${item.name}?`} tone="danger" size="md" onClose={() => !busy && onClose()}>
-      <form className="org-dialog-form" onSubmit={(event) => void submit(event)} noValidate>
-        <p>The problem and its versions disappear from {organization.name}. This can’t be undone. A problem that runs or studies used can’t be deleted.</p>
+    <Modal
+      title={`Delete ${item.name}?`}
+      tone="danger"
+      size="md"
+      onClose={() => !busy && onClose()}
+    >
+      <form className="org-dialog-form" onSubmit={event => void submit(event)} noValidate>
+        <p>
+          The problem and its versions disappear from {organization.name}. This can’t be undone. A
+          problem that runs or studies used can’t be deleted.
+        </p>
         <FormField
           label={`Type ${item.slug} to confirm`}
           value={typed}
-          onChange={(event) => { setTyped(event.target.value); setError(undefined); }}
+          onChange={event => {
+            setTyped(event.target.value);
+            setError(undefined);
+          }}
           autoComplete="off"
           spellCheck={false}
           mono
         />
         <div aria-live="assertive">
-          {error && <div className="org-dialog-error" role="alert"><TriangleAlert aria-hidden="true" />{error}</div>}
+          {error && (
+            <div className="org-dialog-error" role="alert">
+              <TriangleAlert aria-hidden="true" />
+              {error}
+            </div>
+          )}
         </div>
         <div className="ui-modal-actions">
-          <Action variant="secondary" onClick={onClose} disabled={busy}>Cancel</Action>
-          <Action type="submit" variant="danger" disabled={!matches} busy={busy}>Delete problem</Action>
+          <Action variant="secondary" onClick={onClose} disabled={busy}>
+            Cancel
+          </Action>
+          <Action type="submit" variant="danger" disabled={!matches} busy={busy}>
+            Delete problem
+          </Action>
         </div>
       </form>
     </Modal>

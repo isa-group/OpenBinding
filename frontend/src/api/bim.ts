@@ -1,5 +1,5 @@
 import { apiClient, HttpError } from './client';
-import type { components } from '../shared/api/openapi';
+import type { components } from '../modules/core/api/openapi';
 
 type Schemas = components['schemas'];
 
@@ -46,7 +46,8 @@ export interface BimValidateOptions {
 
 const ZIP = { 'Content-Type': 'application/vnd.bim+zip' };
 
-const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
 
 const validateEndpoint = (include: BimValidateInclude[] = []) => {
   const asked = [...new Set(include)];
@@ -58,7 +59,8 @@ function refusalOf(error: HttpError): BimRefusal {
     valid: false,
     status: error.status,
     code: error.code ?? 'invalid_request',
-    message: error.message.replace(/^HTTP \d+:\s*/, '').trim() || 'The package could not be validated.',
+    message:
+      error.message.replace(/^HTTP \d+:\s*/, '').trim() || 'The package could not be validated.',
     diagnostics: (error.diagnostics ?? []).filter(isRecord) as BimDiagnostic[],
   };
 }
@@ -67,15 +69,28 @@ function refusalOf(error: HttpError): BimRefusal {
  * Check a package and say which engine modes can run it. A refusal throws (HttpError for 413, 415, 422, 429…) so the screen words
  * each one, and a 422 carries the located diagnostics; with `acceptRefusal`, a 422 comes back as a `BimRefusal` instead.
  */
-function validate(archive: Uint8Array, options: BimValidateOptions & { acceptRefusal: true }): Promise<BimValidateResponse | BimRefusal>;
-function validate(archive: Uint8Array, options?: BimValidateOptions & { acceptRefusal?: false }): Promise<BimValidateResponse>;
-async function validate(archive: Uint8Array, options: BimValidateOptions = {}): Promise<BimValidateResponse | BimRefusal> {
+function validate(
+  archive: Uint8Array,
+  options: BimValidateOptions & { acceptRefusal: true }
+): Promise<BimValidateResponse | BimRefusal>;
+function validate(
+  archive: Uint8Array,
+  options?: BimValidateOptions & { acceptRefusal?: false }
+): Promise<BimValidateResponse>;
+async function validate(
+  archive: Uint8Array,
+  options: BimValidateOptions = {}
+): Promise<BimValidateResponse | BimRefusal> {
   try {
     return await apiClient.request<BimValidateResponse>(validateEndpoint(options.include), {
-      method: 'POST', headers: ZIP, body: archive as unknown as BodyInit, signal: options.signal,
+      method: 'POST',
+      headers: ZIP,
+      body: archive as unknown as BodyInit,
+      signal: options.signal,
     });
   } catch (caught) {
-    if (options.acceptRefusal && caught instanceof HttpError && caught.status === 422) return refusalOf(caught);
+    if (options.acceptRefusal && caught instanceof HttpError && caught.status === 422)
+      return refusalOf(caught);
     throw caught;
   }
 }
@@ -95,5 +110,7 @@ export const bimApi = {
 
   /** One template as a `.bim.zip`. */
   template: (path: string) =>
-    apiClient.requestBinary(`/v1/bim/templates/${path.split('/').map(encodeURIComponent).join('/')}`),
+    apiClient.requestBinary(
+      `/v1/bim/templates/${path.split('/').map(encodeURIComponent).join('/')}`
+    ),
 };

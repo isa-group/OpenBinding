@@ -10,8 +10,10 @@ const EVERY_SEGMENT = [...OLD_ADDRESS_SEGMENTS, ...FORBIDDEN_ADDRESS_SEGMENTS];
 describe('the address scan', () => {
   it('reports an old address in a page and leaves the API client and the new addresses alone', () => {
     const files = {
-      'pages/X.tsx': "export const X = ({ root, slug }) => <Link to={`${root}/cases/${slug}`} />;\nexport const all = '/app/runs';",
-      'src/api/cases.ts': 'export const one = (org, project, caseSlug) => `${projectRoot(org, project)}/cases/${enc(caseSlug)}`;',
+      'pages/X.tsx':
+        "export const X = ({ root, slug }) => <Link to={`${root}/cases/${slug}`} />;\nexport const all = '/app/runs';",
+      'src/api/cases.ts':
+        'export const one = (org, project, caseSlug) => `${projectRoot(org, project)}/cases/${enc(caseSlug)}`;',
     };
     expect(scanAddresses(files)).toEqual(['pages/X.tsx: ${root}/cases/${slug}']);
   });
@@ -22,7 +24,7 @@ describe('the address scan', () => {
         "export const a = '/app/acme/demo/cases';",
         'export const b = `${root}/cases?create=problem`;',
         "export const c = '/app/:org/:project/cases/:case/:tab?';",
-        "export const d = `${root}/cases#top`;",
+        'export const d = `${root}/cases#top`;',
         'export const e = `${root}/cases${search}`;',
       ].join('\n'),
     };
@@ -56,9 +58,15 @@ describe('the address scan', () => {
   });
 
   it('takes the segments as a parameter and reads the files in order', () => {
-    const files = { 'b.ts': "export const b = '/app/runs/jobs';", 'a.ts': "export const a = `${root}/jobs/new`;" };
+    const files = {
+      'b.ts': "export const b = '/app/runs/jobs';",
+      'a.ts': 'export const a = `${root}/jobs/new`;',
+    };
     expect(scanAddresses(files, ['cases'])).toEqual([]);
-    expect(scanAddresses(files, ['cases', 'jobs'])).toEqual(['a.ts: ${root}/jobs/new', 'b.ts: /app/runs/jobs']);
+    expect(scanAddresses(files, ['cases', 'jobs'])).toEqual([
+      'a.ts: ${root}/jobs/new',
+      'b.ts: /app/runs/jobs',
+    ]);
   });
 
   it('holds the old cases, jobs and publications segments by default, and reports a jobs address in a page but not the API client or the new one', () => {
@@ -71,7 +79,8 @@ describe('the address scan', () => {
         "export const fine = '/app/runs';",
         'export const fineToo = `${root}/runs/${id}`;',
       ].join('\n'),
-      'src/api/runsClient.ts': 'export const list = (org, project) => `${projectRoot(org, project)}/jobs?include_results=false`;',
+      'src/api/runsClient.ts':
+        'export const list = (org, project) => `${projectRoot(org, project)}/jobs?include_results=false`;',
     };
     expect(scanAddresses(files)).toEqual([
       'pages/J.tsx: /app/jobs',
@@ -99,7 +108,12 @@ describe('the address scan', () => {
       'pages/C.tsx: /app/acme/compositions/fleet/scenarios/2',
       'pages/C.tsx: ${root}/builds?latest=1',
     ]);
-    expect(scanAddresses({ 'pages/C.tsx': files['pages/C.tsx'].split('\n').slice(3).join('\n') }, EVERY_SEGMENT)).toEqual([]);
+    expect(
+      scanAddresses(
+        { 'pages/C.tsx': files['pages/C.tsx'].split('\n').slice(3).join('\n') },
+        EVERY_SEGMENT
+      )
+    ).toEqual([]);
   });
 
   it('reports a publications address in a page but not /published or the API client', () => {
@@ -119,13 +133,17 @@ describe('the address scan', () => {
 });
 
 // Every application source, except the HTTP client layer (the scan skips it itself).
-const sources = import.meta.glob('/src/**/*.{ts,tsx}', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
+const sources = import.meta.glob('/src/**/*.{ts,tsx}', {
+  query: '?raw',
+  import: 'default',
+  eager: true,
+}) as Record<string, string>;
 
 describe('the addresses of the application sources', () => {
-  it('reads the application sources, the route areas among them', () => {
+  it('reads the application sources, the route table among them', () => {
     const paths = Object.keys(sources);
     expect(paths.length).toBeGreaterThan(200);
-    expect(paths.filter((path) => path.startsWith('/src/routes/areas/')).length).toBeGreaterThan(5);
+    expect(paths).toContain('/src/routes/router.tsx');
   });
 
   it('builds no address with a cases, jobs or publications segment, and declares none', () => {

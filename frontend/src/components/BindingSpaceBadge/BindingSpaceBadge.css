@@ -1,232 +1,252 @@
-/* BindingSpaceBadge.css - how big a binding space is, as a badge or a card (light theme: tokens only). */
+@layer legacy {
+  /* BindingSpaceBadge.css - how big a binding space is, as a badge or a card (light theme: tokens only). */
 
-.binding-space-badge {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.25rem 0.65rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-full);
-  background: var(--color-bg-elevated);
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  cursor: help;
-  user-select: none;
-  transition: border-color var(--transition-base);
-}
+  .binding-space-badge {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem 0.65rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-full);
+    background: var(--color-bg-elevated);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    cursor: help;
+    user-select: none;
+    transition: border-color var(--transition-base);
+  }
 
-.binding-space-badge:hover,
-.binding-space-badge:focus-visible {
-  border-color: var(--tier-color, var(--color-border-hover));
-}
+  .binding-space-badge:hover,
+  .binding-space-badge:focus-visible {
+    border-color: var(--tier-color, var(--color-border-hover));
+  }
 
-/* Tier colours: calm for small spaces, warmer as the space grows. Text always uses the deeper shade of the hue. */
-.binding-space-badge.tier-micro, .binding-space-card.tier-micro { --tier-color: var(--color-success); }
-.binding-space-badge.tier-small, .binding-space-card.tier-small { --tier-color: var(--tp-primary); }
-.binding-space-badge.tier-medium, .binding-space-card.tier-medium { --tier-color: var(--tp-primary-deep); }
-.binding-space-badge.tier-large, .binding-space-card.tier-large { --tier-color: var(--color-warning); }
-.binding-space-badge.tier-massive, .binding-space-card.tier-massive { --tier-color: var(--color-error); }
+  /* Tier colours: calm for small spaces, warmer as the space grows. Text always uses the deeper shade of the hue. */
+  .binding-space-badge.tier-micro,
+  .binding-space-card.tier-micro {
+    --tier-color: var(--color-success);
+  }
+  .binding-space-badge.tier-small,
+  .binding-space-card.tier-small {
+    --tier-color: var(--tp-primary);
+  }
+  .binding-space-badge.tier-medium,
+  .binding-space-card.tier-medium {
+    --tier-color: var(--tp-primary-deep);
+  }
+  .binding-space-badge.tier-large,
+  .binding-space-card.tier-large {
+    --tier-color: var(--color-warning);
+  }
+  .binding-space-badge.tier-massive,
+  .binding-space-card.tier-massive {
+    --tier-color: var(--color-error);
+  }
 
-.binding-space-badge.tier-micro,
-.binding-space-badge.tier-small,
-.binding-space-badge.tier-medium,
-.binding-space-badge.tier-large,
-.binding-space-badge.tier-massive {
-  --tier-bg: color-mix(in srgb, var(--tier-color) 10%, transparent);
-  border-color: color-mix(in srgb, var(--tier-color) 35%, var(--color-border));
-}
+  .binding-space-badge.tier-micro,
+  .binding-space-badge.tier-small,
+  .binding-space-badge.tier-medium,
+  .binding-space-badge.tier-large,
+  .binding-space-badge.tier-massive {
+    --tier-bg: color-mix(in srgb, var(--tier-color) 10%, transparent);
+    border-color: color-mix(in srgb, var(--tier-color) 35%, var(--color-border));
+  }
 
-.binding-space-icon {
-  display: flex;
-  align-items: center;
-  color: var(--tier-color);
-}
+  .binding-space-icon {
+    display: flex;
+    align-items: center;
+    color: var(--tier-color);
+  }
 
-.binding-space-icon svg {
-  width: 0.85rem;
-  height: 0.85rem;
-}
+  .binding-space-icon svg {
+    width: 0.85rem;
+    height: 0.85rem;
+  }
 
-.binding-space-label {
-  color: var(--color-text-tertiary);
-  font-size: 0.68rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
+  .binding-space-label {
+    color: var(--color-text-tertiary);
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
 
-.binding-space-value {
-  color: var(--color-text-primary);
-  font-weight: 700;
-}
+  .binding-space-value {
+    color: var(--color-text-primary);
+    font-weight: 700;
+  }
 
-/* Mini combinatorial magnitude dots */
-.binding-space-meter {
-  display: flex;
-  gap: 2px;
-  align-items: center;
-  margin-left: 0.25rem;
-}
+  /* Mini combinatorial magnitude dots */
+  .binding-space-meter {
+    display: flex;
+    gap: 2px;
+    align-items: center;
+    margin-left: 0.25rem;
+  }
 
-.binding-space-meter-dot {
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: var(--color-border);
-}
+  .binding-space-meter-dot {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--color-border);
+  }
 
-.binding-space-meter-dot.is-active {
-  background: var(--tier-color);
-}
+  .binding-space-meter-dot.is-active {
+    background: var(--tier-color);
+  }
 
-/* Card variant (larger for metrics rail / overview) */
-.binding-space-card {
-  position: relative;
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem 1rem;
-  overflow: visible;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  background: var(--color-bg-elevated);
-  transition: border-color var(--transition-base);
-}
+  /* Card variant (larger for metrics rail / overview) */
+  .binding-space-card {
+    position: relative;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    overflow: visible;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    background: var(--color-bg-elevated);
+    transition: border-color var(--transition-base);
+  }
 
-.binding-space-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  width: 3px;
-  border-top-left-radius: calc(var(--radius-lg) - 1px);
-  border-bottom-left-radius: calc(var(--radius-lg) - 1px);
-  background: var(--tier-color, var(--tp-primary));
-}
+  .binding-space-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 3px;
+    border-top-left-radius: calc(var(--radius-lg) - 1px);
+    border-bottom-left-radius: calc(var(--radius-lg) - 1px);
+    background: var(--tier-color, var(--tp-primary));
+  }
 
-.binding-space-card:hover,
-.binding-space-card:focus-visible {
-  border-color: var(--color-border-hover);
-}
+  .binding-space-card:hover,
+  .binding-space-card:focus-visible {
+    border-color: var(--color-border-hover);
+  }
 
-.binding-space-card-main {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-}
+  .binding-space-card-main {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+  }
 
-.binding-space-card-title {
-  color: var(--color-text-tertiary);
-  font-family: var(--font-mono);
-  font-size: 0.65rem;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
+  .binding-space-card-title {
+    color: var(--color-text-tertiary);
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
 
-.binding-space-card-val {
-  color: var(--color-text-primary);
-  font-family: var(--font-body);
-  font-size: 1.25rem;
-  font-weight: 600;
-}
+  .binding-space-card-val {
+    color: var(--color-text-primary);
+    font-family: var(--font-body);
+    font-size: 1.25rem;
+    font-weight: 600;
+  }
 
-.binding-space-card-desc {
-  color: var(--color-text-secondary);
-  font-size: 0.75rem;
-}
+  .binding-space-card-desc {
+    color: var(--color-text-secondary);
+    font-size: 0.75rem;
+  }
 
-/* Floating tooltip */
-.binding-space-tooltip {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  left: auto;
-  z-index: 20;
-  min-width: 240px;
-  max-width: 340px;
-  padding: 0.65rem 0.85rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-bg-elevated);
-  box-shadow: var(--shadow-lg);
-  opacity: 0;
-  pointer-events: none;
-  text-align: left;
-  transform: translateY(-4px);
-  transition: opacity var(--transition-base), transform var(--transition-base), visibility var(--transition-base);
-  visibility: hidden;
-}
+  /* Floating tooltip */
+  .binding-space-tooltip {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    left: auto;
+    z-index: 20;
+    min-width: 240px;
+    max-width: 340px;
+    padding: 0.65rem 0.85rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-bg-elevated);
+    box-shadow: var(--shadow-lg);
+    opacity: 0;
+    pointer-events: none;
+    text-align: left;
+    transform: translateY(-4px);
+    transition:
+      opacity var(--transition-base),
+      transform var(--transition-base),
+      visibility var(--transition-base);
+    visibility: hidden;
+  }
 
-.binding-space-badge:hover .binding-space-tooltip,
-.binding-space-badge:focus-visible .binding-space-tooltip {
-  opacity: 1;
-  transform: translateY(0);
-  visibility: visible;
-}
+  .binding-space-badge:hover .binding-space-tooltip,
+  .binding-space-badge:focus-visible .binding-space-tooltip {
+    opacity: 1;
+    transform: translateY(0);
+    visibility: visible;
+  }
 
-.binding-space-card .binding-space-tooltip {
-  right: 0;
-  left: 0;
-  width: 100%;
-  min-width: 0;
-  max-width: 100%;
-  box-sizing: border-box;
-}
+  .binding-space-card .binding-space-tooltip {
+    right: 0;
+    left: 0;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
 
-.binding-space-card:hover .binding-space-tooltip,
-.binding-space-card:focus-visible .binding-space-tooltip {
-  opacity: 1;
-  transform: translateY(0);
-  visibility: visible;
-}
+  .binding-space-card:hover .binding-space-tooltip,
+  .binding-space-card:focus-visible .binding-space-tooltip {
+    opacity: 1;
+    transform: translateY(0);
+    visibility: visible;
+  }
 
-.binding-space-tooltip-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 0.35rem;
-  padding-bottom: 0.25rem;
-  border-bottom: 1px solid var(--color-border);
-}
+  .binding-space-tooltip-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.35rem;
+    padding-bottom: 0.25rem;
+    border-bottom: 1px solid var(--color-border);
+  }
 
-.binding-space-tooltip-title {
-  color: var(--tier-color, var(--tp-primary));
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-}
+  .binding-space-tooltip-title {
+    color: var(--tier-color, var(--tp-primary));
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }
 
-.binding-space-tooltip-tier {
-  padding: 1px 6px;
-  border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--tier-color, var(--tp-primary)) 10%, transparent);
-  color: var(--tier-color, var(--tp-primary));
-  font-size: 0.65rem;
-  font-weight: 600;
-}
+  .binding-space-tooltip-tier {
+    padding: 1px 6px;
+    border-radius: var(--radius-sm);
+    background: color-mix(in srgb, var(--tier-color, var(--tp-primary)) 10%, transparent);
+    color: var(--tier-color, var(--tp-primary));
+    font-size: 0.65rem;
+    font-weight: 600;
+  }
 
-.binding-space-tooltip-exact {
-  margin-bottom: 0.25rem;
-  color: var(--color-text-primary);
-  font-family: var(--font-mono);
-  font-size: 0.8rem;
-  font-weight: 700;
-  word-break: break-all;
-}
+  .binding-space-tooltip-exact {
+    margin-bottom: 0.25rem;
+    color: var(--color-text-primary);
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    font-weight: 700;
+    word-break: break-all;
+  }
 
-.binding-space-tooltip-info {
-  color: var(--color-text-secondary);
-  font-size: 0.72rem;
-  line-height: 1.4;
-}
+  .binding-space-tooltip-info {
+    color: var(--color-text-secondary);
+    font-size: 0.72rem;
+    line-height: 1.4;
+  }
 
-.binding-space-tooltip-tasks {
-  margin-top: 0.35rem;
-  padding-top: 0.25rem;
-  border-top: 1px solid var(--color-border);
+  .binding-space-tooltip-tasks {
+    margin-top: 0.35rem;
+    padding-top: 0.25rem;
+    border-top: 1px solid var(--color-border);
+  }
 }

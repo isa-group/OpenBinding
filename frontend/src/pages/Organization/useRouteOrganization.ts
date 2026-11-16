@@ -1,6 +1,6 @@
 import { useOutletContext, useParams } from 'react-router-dom';
 import type { Organization } from '../../api/platform';
-import type { PlatformOutletContext } from '../../components/PlatformShell/PlatformShell';
+import type { PlatformOutletContext } from '../../routes/LegacyOrgOutlet';
 
 export interface RouteOrganization {
   context: PlatformOutletContext;
@@ -18,6 +18,6 @@ export interface RouteOrganization {
 export function useRouteOrganization(): RouteOrganization {
   const context = useOutletContext<PlatformOutletContext>();
   const { org: slug = '' } = useParams();
-  const organization = context.organizations.find((item) => item.slug === slug);
+  const organization = context.organizations.find(item => item.slug === slug);
   return { context, slug, organization, waiting: !organization && context.loading };
 }

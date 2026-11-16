@@ -107,7 +107,7 @@ versions of a pricing's versions, at SPHERE revision `73779a8a`. What was taken,
 | SPHERE | OpenBinding |
 |---|---|
 | PricingDiff and `forkPricing` | the composition diff (`composition/diff.py`) and fork (`modules/compositions/application/fork.py`), ported |
-| `text-diff.ts`, `requested-version.ts` | copied verbatim into `frontend/src/shared/sphere/` |
+| `text-diff.ts`, `requested-version.ts` | copied verbatim into `frontend/src/modules/core/utils/sphere/` |
 | `change-summary.ts`, `pricing-fragment.ts`, `new-version-menu`, `use-version-changes` | adapted copies (binding, values and offering sections; the `#composition=` fragment) |
 | the pricing card, versions, version diff, analytics, fork modal, problems panel and configuration-space screens | guided rewrites on OpenBinding's components ("no code copied") |
 | the private read rule (`privateReadRule.ts`) and public pricings | public compositions, with one not-found answer for anything a caller cannot read ([ADR 0047](adr/0047-public-compositions.md)) |

@@ -1,6 +1,6 @@
 import type { Analytics, Study, StudyCell, StudyRun } from '../../api/platform';
 import type { Problem, ProblemRevision } from '../../api/problems';
-import type { ParetoFront } from '../../shared/api/types';
+import type { ParetoFront } from '../../modules/core/api/types';
 
 // Shared by the tests of the study screens and the S7a browser spec: the "Engines × seeds" study of the design prototype,
 // 2 case revisions × 2 engines × 1 setting × 2 seeds = 8 cells, six completed, one failed, one cancelled.

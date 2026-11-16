@@ -1,14 +1,44 @@
 import { describe, expect, it } from 'vitest';
-import { nonDominated, tradeOffObjectivesOf, tradeOffPointsOf, type TradeOffPoint } from './tradeOffModel';
+import {
+  nonDominated,
+  tradeOffObjectivesOf,
+  tradeOffPointsOf,
+  type TradeOffPoint,
+} from './tradeOffModel';
 
 const POINTS: TradeOffPoint[] = [
-  { id: 'solution-1', label: 'Solution 1', values: { cost: 12, latency: 440, availability: 0.99 }, losses: { cost: 12, latency: 440, availability: -0.99 } },
-  { id: 'solution-2', label: 'Solution 2', values: { cost: 15, latency: 412, availability: 0.95 }, losses: { cost: 15, latency: 412, availability: -0.95 } },
-  { id: 'solution-3', label: 'Solution 3', values: { cost: 18, latency: 450, availability: 0.97 }, losses: { cost: 18, latency: 450, availability: -0.97 } },
-  { id: 'solution-4', label: 'Solution 4', values: { cost: 20, latency: 300, availability: 0.9 }, losses: { cost: 20, latency: 300, availability: -0.9 } },
+  {
+    id: 'solution-1',
+    label: 'Solution 1',
+    values: { cost: 12, latency: 440, availability: 0.99 },
+    losses: { cost: 12, latency: 440, availability: -0.99 },
+  },
+  {
+    id: 'solution-2',
+    label: 'Solution 2',
+    values: { cost: 15, latency: 412, availability: 0.95 },
+    losses: { cost: 15, latency: 412, availability: -0.95 },
+  },
+  {
+    id: 'solution-3',
+    label: 'Solution 3',
+    values: { cost: 18, latency: 450, availability: 0.97 },
+    losses: { cost: 18, latency: 450, availability: -0.97 },
+  },
+  {
+    id: 'solution-4',
+    label: 'Solution 4',
+    values: { cost: 20, latency: 300, availability: 0.9 },
+    losses: { cost: 20, latency: 300, availability: -0.9 },
+  },
 ];
 
-const point = (id: string, values: Record<string, number>, losses = values): TradeOffPoint => ({ id, label: id, values, losses });
+const point = (id: string, values: Record<string, number>, losses = values): TradeOffPoint => ({
+  id,
+  label: id,
+  values,
+  losses,
+});
 
 describe('tradeOffPointsOf', () => {
   it('reads a canonical solution', () => {
@@ -16,12 +46,23 @@ describe('tradeOffPointsOf', () => {
       objectives: {
         components: [
           { criteria: 'cost', feature: { id: 'cost' }, value: 12, loss: 12, weight: 0.5 },
-          { criteria: 'availability', feature: { id: 'availability' }, value: 0.99, loss: -0.99, weight: 0.5 },
+          {
+            criteria: 'availability',
+            feature: { id: 'availability' },
+            value: 0.99,
+            loss: -0.99,
+            weight: 0.5,
+          },
         ],
       },
     };
     expect(tradeOffPointsOf([solution])).toEqual([
-      { id: 'solution-1', label: 'Solution 1', values: { cost: 12, availability: 0.99 }, losses: { cost: 12, availability: -0.99 } },
+      {
+        id: 'solution-1',
+        label: 'Solution 1',
+        values: { cost: 12, availability: 0.99 },
+        losses: { cost: 12, availability: -0.99 },
+      },
     ]);
   });
 
@@ -59,7 +100,11 @@ describe('tradeOffObjectivesOf', () => {
 
 describe('nonDominated', () => {
   it('drops the dominated point of the fixture', () => {
-    expect(nonDominated(POINTS).map((p) => p.label)).toEqual(['Solution 1', 'Solution 2', 'Solution 4']);
+    expect(nonDominated(POINTS).map(p => p.label)).toEqual([
+      'Solution 1',
+      'Solution 2',
+      'Solution 4',
+    ]);
   });
 
   it('compares the loss, not the value', () => {
@@ -72,6 +117,6 @@ describe('nonDominated', () => {
     const c = point('C', { cost: 5, latency: 100 });
     const d = point('D', { cost: 5, latency: 100 });
     expect(nonDominated([c, d])).toEqual([c, d]);
-    expect(nonDominated(POINTS, ['cost']).map((p) => p.label)).toEqual(['Solution 1']);
+    expect(nonDominated(POINTS, ['cost']).map(p => p.label)).toEqual(['Solution 1']);
   });
 });

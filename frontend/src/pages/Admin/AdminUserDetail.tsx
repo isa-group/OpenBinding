@@ -2,11 +2,11 @@ import { useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { KeyRound, UserX } from 'lucide-react';
 import { apiClient, HttpError } from '../../api/client';
-import { Action } from '../../components/ui/Action';
+import { Action } from '../../modules/core/components/action-button';
 import { CopyButton } from '../Engines/EngineParts';
-import { EmptyState } from '../../components/ui/EmptyState';
-import { Notice } from '../../components/ui/Notice';
-import { Skeleton } from '../../components/ui/Skeleton';
+import { EmptyState } from '../../modules/core/components/empty-state';
+import { Notice } from '../../modules/core/components/notice';
+import { Skeleton } from '../../modules/core/components/skeleton';
 import { formatDate } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import { ConfirmDialog } from '../Engines/EngineDialogs';
@@ -29,7 +29,9 @@ async function loadAccount(param: string) {
   if (!UUID.test(param)) {
     const found = await apiClient.adminListUsers({ search: param, limit: 200 });
     const wanted = param.toLowerCase();
-    const match = found.users.find((account) => account.username.toLowerCase() === wanted || account.email.toLowerCase() === wanted);
+    const match = found.users.find(
+      account => account.username.toLowerCase() === wanted || account.email.toLowerCase() === wanted
+    );
     if (!match) throw new HttpError(404, 'No such account.');
     id = match.id;
   }
@@ -38,15 +40,31 @@ async function loadAccount(param: string) {
 
 /** The active pricing, read for contracts, and the document itself, which the review of a change draws. */
 async function loadCatalog() {
-  const [pricingDocument, current] = await Promise.all([apiClient.getPricingCatalog(), apiClient.getCurrentPricing().catch(() => null)]);
+  const [pricingDocument, current] = await Promise.all([
+    apiClient.getPricingCatalog(),
+    apiClient.getCurrentPricing().catch(() => null),
+  ]);
   return { catalog: readContractCatalog(pricingDocument), document: pricingDocument, current };
 }
 
 function Fact({ label, children }: { label: string; children: ReactNode }) {
-  return <div className="adm-fact"><dt>{label}</dt><dd>{children}</dd></div>;
+  return (
+    <div className="adm-fact">
+      <dt>{label}</dt>
+      <dd>{children}</dd>
+    </div>
+  );
 }
 
-function KeysCard({ userId, username, count }: { userId: string; username: string; count: number }) {
+function KeysCard({
+  userId,
+  username,
+  count,
+}: {
+  userId: string;
+  username: string;
+  count: number;
+}) {
   const [keyId, setKeyId] = useState('');
   const [confirm, setConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -62,13 +80,22 @@ function KeysCard({ userId, username, count }: { userId: string; username: strin
     setBusy(true);
     try {
       await apiClient.adminRevokeApiKey(userId, keyId.trim());
-      setMessage({ tone: 'success', text: 'Key revoked. Requests with it fail from now on. It is recorded in the audit log with your name.' });
+      setMessage({
+        tone: 'success',
+        text: 'Key revoked. Requests with it fail from now on. It is recorded in the audit log with your name.',
+      });
       setKeyId('');
     } catch (error: unknown) {
       const refused = describeAdminFailure(error, 'The key couldn’t be revoked');
-      setMessage(refused.status === 404
-        ? { tone: 'error', title: 'No such API key (404)', text: `${username} has no active key with that id.` }
-        : { tone: refused.tone, title: refused.title, text: refused.text });
+      setMessage(
+        refused.status === 404
+          ? {
+              tone: 'error',
+              title: 'No such API key (404)',
+              text: `${username} has no active key with that id.`,
+            }
+          : { tone: refused.tone, title: refused.title, text: refused.text }
+      );
     } finally {
       setBusy(false);
       setConfirm(false);
@@ -82,22 +109,54 @@ function KeysCard({ userId, username, count }: { userId: string; username: strin
         <span className="adm-muted">{count} active</span>
       </div>
       <p className="adm-muted">
-        The gateway keeps keys private to their owner: it doesn’t list another account’s keys, names or permissions to an administrator.
-        A key can be taken back by its id when its owner can’t be reached, for example after a leak.
+        The gateway keeps keys private to their owner: it doesn’t list another account’s keys, names
+        or permissions to an administrator. A key can be taken back by its id when its owner can’t
+        be reached, for example after a leak.
       </p>
       <form className="adm-inline-form" onSubmit={submit}>
         <label className="adm-field">
           <span className="adm-label">Key id</span>
-          <input value={keyId} onChange={(event) => { setKeyId(event.target.value); setMessage(null); }} placeholder="Key id from the user’s key list" autoComplete="off" spellCheck={false} />
+          <input
+            value={keyId}
+            onChange={event => {
+              setKeyId(event.target.value);
+              setMessage(null);
+            }}
+            placeholder="Key id from the user’s key list"
+            autoComplete="off"
+            spellCheck={false}
+          />
         </label>
-        <Action type="submit" variant="danger-outline" disabled={!valid}><KeyRound aria-hidden="true" />Revoke key</Action>
+        <Action type="submit" variant="danger-outline" disabled={!valid}>
+          <KeyRound aria-hidden="true" />
+          Revoke key
+        </Action>
       </form>
-      {keyId.trim() !== '' && !valid && <span className="adm-muted">A key id is a UUID, like the one in a support request.</span>}
-      {message && <Notice tone={message.tone} title={message.title}>{message.text}</Notice>}
+      {keyId.trim() !== '' && !valid && (
+        <span className="adm-muted">A key id is a UUID, like the one in a support request.</span>
+      )}
+      {message && (
+        <Notice tone={message.tone} title={message.title}>
+          {message.text}
+        </Notice>
+      )}
       {confirm && (
-        <ConfirmDialog title={`Revoke the key of ${username}?`} tone="danger" confirmLabel="Revoke key" confirmVariant="danger" busy={busy} onConfirm={() => void revoke()} onClose={() => setConfirm(false)}>
-          <p>Whatever uses this key stops working immediately. The owner is not asked first, and it can’t be undone; they can create a new key.</p>
-          <p className="adm-muted"><code>{keyId.trim()}</code></p>
+        <ConfirmDialog
+          title={`Revoke the key of ${username}?`}
+          tone="danger"
+          confirmLabel="Revoke key"
+          confirmVariant="danger"
+          busy={busy}
+          onConfirm={() => void revoke()}
+          onClose={() => setConfirm(false)}
+        >
+          <p>
+            Whatever uses this key stops working immediately. The owner is not asked first, and it
+            can’t be undone; they can create a new key.
+          </p>
+          <p className="adm-muted">
+            <code>{keyId.trim()}</code>
+          </p>
         </ConfirmDialog>
       )}
     </section>
@@ -111,8 +170,14 @@ function DetailScreen({ param }: { param: string }) {
   // The view and its revision come from the same answer, so a change is never sent with the revision of another reading.
   const read = account.data ?? account.stale;
   const view = read?.value;
-  const failure: Failure | null = account.status === 'error' ? describeAdminFailure(account.error, 'The account couldn’t be read') : null;
-  const catalogFailure = pricing.status === 'error' ? describeAdminFailure(pricing.error, 'The pricing couldn’t be read') : null;
+  const failure: Failure | null =
+    account.status === 'error'
+      ? describeAdminFailure(account.error, 'The account couldn’t be read')
+      : null;
+  const catalogFailure =
+    pricing.status === 'error'
+      ? describeAdminFailure(pricing.error, 'The pricing couldn’t be read')
+      : null;
   const catalog = (pricing.data ?? pricing.stale)?.catalog ?? null;
   const pricingDocument = (pricing.data ?? pricing.stale)?.document ?? null;
   const current = (pricing.data ?? pricing.stale)?.current ?? null;
@@ -137,12 +202,24 @@ function DetailScreen({ param }: { param: string }) {
 
   if (failure && !view) {
     return (
-      <AdminFrame section="users" trail={[{ label: 'Administration', to: '/app/admin' }, { label: 'Accounts', to: '/app/admin/users' }, { label: param, mono: true }]} title="Account">
+      <AdminFrame
+        section="users"
+        trail={[
+          { label: 'Administration', to: '/app/admin' },
+          { label: 'Accounts', to: '/app/admin/users' },
+          { label: param, mono: true },
+        ]}
+        title="Account"
+      >
         {failure.status === 404 ? (
           <EmptyState
             icon={<UserX />}
             title="No such account"
-            action={<Action size="sm" variant="secondary" to="/app/admin/users">Back to accounts</Action>}
+            action={
+              <Action size="sm" variant="secondary" to="/app/admin/users">
+                Back to accounts
+              </Action>
+            }
           >
             Nothing matches “{param}”. Use the account’s id, username or email.
           </EmptyState>
@@ -155,8 +232,21 @@ function DetailScreen({ param }: { param: string }) {
 
   if (!view) {
     return (
-      <AdminFrame section="users" trail={[{ label: 'Administration', to: '/app/admin' }, { label: 'Accounts', to: '/app/admin/users' }, { label: param, mono: true }]} title="Account">
-        <div className="adm-grid" aria-busy="true"><span className="sr-only">Reading the account</span><Skeleton variant="card" /><Skeleton variant="card" /><Skeleton variant="card" /></div>
+      <AdminFrame
+        section="users"
+        trail={[
+          { label: 'Administration', to: '/app/admin' },
+          { label: 'Accounts', to: '/app/admin/users' },
+          { label: param, mono: true },
+        ]}
+        title="Account"
+      >
+        <div className="adm-grid" aria-busy="true">
+          <span className="sr-only">Reading the account</span>
+          <Skeleton variant="card" />
+          <Skeleton variant="card" />
+          <Skeleton variant="card" />
+        </div>
       </AdminFrame>
     );
   }
@@ -165,21 +255,57 @@ function DetailScreen({ param }: { param: string }) {
   return (
     <AdminFrame
       section="users"
-      trail={[{ label: 'Administration', to: '/app/admin' }, { label: 'Accounts', to: '/app/admin/users' }, { label: user.username, mono: true }]}
+      trail={[
+        { label: 'Administration', to: '/app/admin' },
+        { label: 'Accounts', to: '/app/admin/users' },
+        { label: user.username, mono: true },
+      ]}
       title={user.username}
-      badges={<><Tag tone={user.role === 'admin' ? 'dark' : 'plain'}>{user.role === 'admin' ? 'Admin' : 'User'}</Tag><Tag tone={user.is_active ? 'info' : 'plain'}>{user.is_active ? 'Active' : 'Inactive'}</Tag></>}
-      lede={<>{user.email} · since {formatDate(user.created_at) ?? '—'}. <Link to="/app/admin/users" viewTransition>All accounts</Link></>}
+      badges={
+        <>
+          <Tag tone={user.role === 'admin' ? 'dark' : 'plain'}>
+            {user.role === 'admin' ? 'Admin' : 'User'}
+          </Tag>
+          <Tag tone={user.is_active ? 'info' : 'plain'}>
+            {user.is_active ? 'Active' : 'Inactive'}
+          </Tag>
+        </>
+      }
+      lede={
+        <>
+          {user.email} · since {formatDate(user.created_at) ?? '—'}.{' '}
+          <Link to="/app/admin/users" viewTransition>
+            All accounts
+          </Link>
+        </>
+      }
     >
-      {message && <Notice tone={message.tone} title={message.title}>{message.text}</Notice>}
+      {message && (
+        <Notice tone={message.tone} title={message.title}>
+          {message.text}
+        </Notice>
+      )}
       {failure && <FailureNotice failure={failure} onRetry={account.reload} />}
 
       <dl className="adm-facts" aria-label="Account facts">
-        <Fact label="Plan"><Tag tone="dark">{subscription.plan}</Tag></Fact>
-        <Fact label="Institutional identity">{user.cas_verified ? <Tag tone="success">Institutional identity verified</Tag> : 'None linked'}</Fact>
-        <Fact label="Contract">{user.contract_pending ? 'Pending: settles on the next authenticated request' : 'Settled'}</Fact>
+        <Fact label="Plan">
+          <Tag tone="dark">{subscription.plan}</Tag>
+        </Fact>
+        <Fact label="Institutional identity">
+          {user.cas_verified ? (
+            <Tag tone="success">Institutional identity verified</Tag>
+          ) : (
+            'None linked'
+          )}
+        </Fact>
+        <Fact label="Contract">
+          {user.contract_pending ? 'Pending: settles on the next authenticated request' : 'Settled'}
+        </Fact>
         <Fact label="Pricing pinned">{subscription.pricing_version}</Fact>
         <Fact label="API keys">{user.api_key_count}</Fact>
-        <Fact label="Account id"><CopyButton value={user.id} label="account id" /></Fact>
+        <Fact label="Account id">
+          <CopyButton value={user.id} label="account id" />
+        </Fact>
       </dl>
 
       {/* Not remounted when the subscription is read again: a review that was open is drawn again from the new reading. */}
@@ -197,7 +323,11 @@ function DetailScreen({ param }: { param: string }) {
       />
 
       <div className="adm-grid">
-        <UsageCard userId={user.id} catalog={catalog} version={`${subscription.plan}:${JSON.stringify(subscription.add_ons)}`} />
+        <UsageCard
+          userId={user.id}
+          catalog={catalog}
+          version={`${subscription.plan}:${JSON.stringify(subscription.add_ons)}`}
+        />
         <div className="adm-stack">
           <KeysCard userId={user.id} username={user.username} count={user.api_key_count} />
         </div>
@@ -209,5 +339,9 @@ function DetailScreen({ param }: { param: string }) {
 /** admin-user-detail: one account’s identity, agreement, usage and the administrative actions on it. */
 export function AdminUserDetail() {
   const { user } = useParams();
-  return <AdminOnly><DetailScreen key={user} param={user ?? ''} /></AdminOnly>;
+  return (
+    <AdminOnly>
+      <DetailScreen key={user} param={user ?? ''} />
+    </AdminOnly>
+  );
 }

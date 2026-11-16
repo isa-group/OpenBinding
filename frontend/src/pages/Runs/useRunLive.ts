@@ -29,26 +29,31 @@ function follow(org: string, jobId: string, first: boolean, publish: Publish): (
   let failures = 0;
   const read = (initial: boolean) => {
     runsApi.get(org, jobId).then(
-      (detail) => {
+      detail => {
         if (!active) return;
         failures = 0;
         publish(() => ({ jobId, phase: 'ready', detail, lost: false }));
-        if (isActive(normalizeStatus(detail.status))) timer = window.setTimeout(() => read(false), POLL_MS);
+        if (isActive(normalizeStatus(detail.status)))
+          timer = window.setTimeout(() => read(false), POLL_MS);
       },
       (error: unknown) => {
         if (!active) return;
         failures += 1;
-        const answered = error instanceof HttpError && (error.status === 404 || error.status === 403 || error.status === 401);
+        const answered =
+          error instanceof HttpError &&
+          (error.status === 404 || error.status === 403 || error.status === 401);
         if (initial || answered) {
           publish(() => ({ jobId, phase: 'error', error, lost: false }));
           return;
         }
         if (failures >= GIVE_UP_AFTER) {
-          publish((current) => (current ? { ...current, lost: true } : { jobId, phase: 'error', error, lost: false }));
+          publish(current =>
+            current ? { ...current, lost: true } : { jobId, phase: 'error', error, lost: false }
+          );
           return;
         }
         timer = window.setTimeout(() => read(false), POLL_MS * 2);
-      },
+      }
     );
   };
   read(first);
@@ -86,7 +91,10 @@ export function useRunLive(org: string, jobId: string): RunLive {
     detail,
     error: mine?.error,
     feed: mine?.lost ? 'paused' : finished ? 'finished' : 'live',
-    refresh: () => setNonce((value) => value + 1),
-    adopt: (status) => setState((current) => (current && current.detail ? { ...current, detail: { ...current.detail, status } } : current)),
+    refresh: () => setNonce(value => value + 1),
+    adopt: status =>
+      setState(current =>
+        current && current.detail ? { ...current, detail: { ...current.detail, status } } : current
+      ),
   };
 }

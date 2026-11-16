@@ -1,83 +1,90 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { routeDefinitions, routesByArea } from './registry';
+import { screens } from './router';
 
-/** The source of every area test, as text: importing them would run their tests a second time. */
-const areaTests = import.meta.glob<string>('./areas/*.test.ts', { query: '?raw', import: 'default', eager: true });
+// The screens of the application, exactly: one row per screen of `screens` (routes/router.tsx), with its address and layout.
+// A block that adds or removes a screen changes this list and the ceiling in the same commit. The convergence on SPHERE ends at
+// 38 screens (D9); while the domains are poured in, old and new addresses coexist and each block pins its own count.
 
-/** The `['id', '/path'],` lines each area test lists as the screens it expects (one pair per line). */
-const PAIR = /^\s*\['([a-z0-9-]+)',\s*'(\/[^']*)'\],?\s*$/gm;
+// prettier-ignore
+const SCREENS: Array<[string, string, string]> = [
+  ['pub-home', '/', 'public'],
+  ['pub-workbench', '/workbench', 'public'],
+  ['pub-about', '/about', 'public'],
+  ['pub-pricing', '/pricing', 'public'],
+  ['pub-language', '/language', 'public'],
+  ['auth-login', '/login', 'public'],
+  ['auth-register', '/register', 'public'],
+  ['auth-reset-request', '/password-reset', 'public'],
+  ['auth-cas-callback', '/auth/cas/callback', 'public'],
+  ['eng-catalog', '/engines', 'public'],
+  ['eng-detail', '/engines/:namespace/:name/:version', 'public'],
+  ['org-invite-accept', '/invitations/accept', 'session'],
+  ['pub-compositions', '/compositions', 'session'],
+  ['pub-showcase', '/c/:org/:composition', 'session'],
+  ['eng-register', '/app/engines/new', 'app'],
+  ['eng-registrations', '/app/engines/registrations', 'app'],
+  ['eng-registration-detail', '/app/engines/registrations/:name', 'app'],
+  ['acct-profile', '/app/account/:section?', 'app'],
+  ['app-home', '/app', 'app'],
+  ['org-overview', '/app/:org', 'app'],
+  ['org-settings', '/app/:org/settings/:section?', 'app'],
+  ['composition-list', '/app/:org/compositions', 'app'],
+  ['composition-detail', '/app/:org/compositions/:composition/:tab?', 'app'],
+  ['problem-list', '/app/:org/problems', 'app'],
+  ['problem-detail', '/app/:org/problems/:case/:tab?', 'app'],
+  ['problem-editor', '/app/:org/problem-editor', 'app'],
+  ['run-launch', '/app/:org/runs/new', 'app'],
+  ['run-list', '/app/:org/runs', 'app'],
+  ['run-detail', '/app/:org/runs/:job', 'app'],
+  ['study-list', '/app/:org/studies', 'app'],
+  ['study-builder', '/app/:org/studies/new', 'app'],
+  ['study-detail', '/app/:org/studies/:study/:tab?', 'app'],
+  ['admin-overview', '/app/admin', 'app'],
+  ['admin-users', '/app/admin/users', 'app'],
+  ['admin-user-detail', '/app/admin/users/:user', 'app'],
+  ['admin-moderation', '/app/admin/moderation', 'app'],
+];
 
-const expectedOf = (source: string) => [...source.matchAll(PAIR)].map((match) => [match[1], match[2]]);
-
-const expectations = Object.fromEntries(
-  Object.entries(areaTests).map(([file, source]) => [file.replace(/^\.\/areas\/(.+)\.test\.ts$/, '$1'), expectedOf(source)]),
-);
+const CEILING = 36;
 
 describe('screen budget', () => {
-  it('has one area test for each area of the registry, and nothing else', () => {
-    expect(Object.keys(expectations).sort()).toEqual(Object.keys(routesByArea).sort());
+  it('serves exactly the listed screens, with their addresses and layouts, in table order', () => {
+    expect(screens.map(screen => [screen.id, screen.path, screen.layout])).toEqual(SCREENS);
   });
 
-  it('registers as many screens as the area tests expect, each one of them', () => {
-    const expected = Object.values(expectations).flat();
-    expect(expected.length).toBeGreaterThan(0);
-    expect(routeDefinitions).toHaveLength(expected.length);
-    expect(routeDefinitions.map((definition) => definition.id).sort()).toEqual(expected.map(([id]) => id).sort());
+  it(`has at most ${CEILING} screens`, () => {
+    expect(
+      screens.length,
+      `${screens.length} screens against a ceiling of ${CEILING}`
+    ).toBeLessThanOrEqual(CEILING);
+    expect(screens).toHaveLength(CEILING);
   });
 
-  it('keeps every area at the size its test expects', () => {
-    for (const [area, expected] of Object.entries(expectations)) {
-      expect(routesByArea[area as keyof typeof routesByArea], area).toHaveLength(expected.length);
-    }
+  it('keeps one screen per line in router.tsx, which the end-to-end parsers read', () => {
+    const source = readFileSync(`${process.cwd()}/src/routes/router.tsx`, 'utf8');
+    const lines =
+      source.match(
+        /^\s*\{ id: '[a-z0-9-]+', path: '\/[^']*', layout: '(public|session|app)'.*\},$/gm
+      ) ?? [];
+    expect(lines).toHaveLength(screens.length);
   });
 
-  it('has at most 36 screens', () => {
-    expect(routeDefinitions.length, `${routeDefinitions.length} screens against a ceiling of 36`).toBeLessThanOrEqual(36);
-  });
-
-  // `pub-workbench` is registered in the public area (problems 3). The compositions area adds the list and the composition page
-  // (33), then the public list and the showcase (35), and the language reference (public 5) brings F2 to 36: 33 after F5 retires
-  // auth-register, auth-reset-request and auth-cas-callback.
-  it('has the area sizes of the registry, 36 screens in all', () => {
-    const sizes = Object.fromEntries(Object.entries(routesByArea).map(([area, routes]) => [area, routes.length]));
-    expect(sizes).toEqual({
-      public: 5,
-      auth: 5,
-      engines: 5,
-      account: 1,
-      organizations: 3,
-      compositions: 4,
-      problems: 3,
-      runs: 3,
-      studies: 3,
-      admin: 4,
-    });
-    expect(routeDefinitions).toHaveLength(36);
-  });
-
-  it('keeps no per-domain route file and no mention of routesByDomain under routes/', () => {
-    const files = import.meta.glob('./**/*.{ts,tsx}', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
+  it('keeps no area registry and no per-domain route file under routes/', () => {
+    const files = import.meta.glob('./**/*.{ts,tsx}', {
+      query: '?raw',
+      import: 'default',
+      eager: true,
+    }) as Record<string, string>;
     const paths = Object.keys(files);
-    expect(paths.length).toBeGreaterThan(5);
-    expect(paths.filter((path) => /^\.\/d[1-8]\.tsx$/.test(path))).toEqual([]);
-    // This file names the identifier to forbid it; every other file must not.
-    expect(paths.filter((path) => !path.endsWith('screenBudget.test.ts') && files[path].includes('routesByDomain'))).toEqual([]);
-  });
-
-  it('reports an id registered in two areas, naming both', () => {
-    const duplicates = (areas: Record<string, readonly { id: string }[]>): string[] => {
-      const seen = new Map<string, string>();
-      const found: string[] = [];
-      for (const [area, routes] of Object.entries(areas)) {
-        for (const { id } of routes) {
-          const first = seen.get(id);
-          if (first !== undefined) found.push(`${id}: ${first}, ${area}`);
-          else seen.set(id, area);
-        }
-      }
-      return found;
-    };
-    expect(duplicates({ public: [{ id: 'a' }, { id: 'b' }], runs: [{ id: 'b' }, { id: 'c' }] })).toEqual(['b: public, runs']);
-    expect(duplicates(routesByArea)).toEqual([]);
+    expect(paths.filter(path => /^\.\/(areas\/|registry|define|d[1-8]\.tsx)/.test(path))).toEqual(
+      []
+    );
+    expect(
+      paths.filter(
+        path =>
+          !path.endsWith('screenBudget.test.ts') && /routesByArea|routesByDomain/.test(files[path])
+      )
+    ).toEqual([]);
   });
 });

@@ -1,0 +1,231 @@
+@layer legacy {
+  /* The drawing of a workflow: nested lists laid out as boxes and arrows. Left to right from 640 px, stacked below. */
+  .wg {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 12px;
+    margin: 0;
+  }
+  .wg-scroll {
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+  .wg-canvas {
+    display: inline-block;
+    min-width: 100%;
+  }
+  .wg ol,
+  .wg ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .wg-seq {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .wg-seq > li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .wg-arrow {
+    flex: none;
+    color: var(--tp-steel);
+  }
+  .wg-arrow::before {
+    content: '→';
+  }
+
+  .wg-block {
+    display: flex;
+    min-width: 170px;
+    flex: none;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px;
+    border: 1px solid var(--tp-severity-info-border);
+    border-radius: var(--tp-radius-lg);
+    background: var(--tp-surface-cream);
+  }
+
+  .wg-block > ul {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .wg-block > ul > li {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  /* Inside a block a sequence runs downwards, as the old drawing did. */
+  .wg-block .wg-seq {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .wg-block .wg-seq > li {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .wg-block .wg-arrow {
+    text-align: center;
+  }
+  .wg-block .wg-arrow::before {
+    content: '↓';
+  }
+  .wg-block-label {
+    color: var(--tp-primary-deep);
+    font-size: 0.625rem;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+  .wg-branch-p {
+    font-size: 0.6875rem;
+    font-weight: 600;
+  }
+
+  .wg-task {
+    display: flex;
+    min-width: 130px;
+    flex: none;
+    flex-direction: column;
+    gap: 4px;
+    padding: 10px;
+    border: 2px solid var(--tp-primary);
+    border-radius: var(--tp-radius-lg);
+    background: var(--tp-canvas);
+    color: inherit;
+    font: inherit;
+    text-align: left;
+  }
+
+  button.wg-task {
+    cursor: pointer;
+  }
+  button.wg-task:focus-visible {
+    outline: 2px solid var(--tp-primary-deep);
+    outline-offset: 2px;
+  }
+  .wg-task.is-local {
+    border: 2px dashed var(--tp-hairline-strong);
+  }
+  .wg-task.is-added {
+    border-color: var(--tp-diff-added);
+  }
+  .wg-task.is-removed {
+    border-color: var(--tp-diff-removed);
+    border-style: dotted;
+  }
+  .wg-task.is-changed {
+    border-color: var(--tp-diff-changed);
+  }
+  .wg-task-top {
+    display: flex;
+    justify-content: space-between;
+    gap: 6px;
+  }
+  .wg-task-top code {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 500;
+    overflow-wrap: anywhere;
+  }
+  .wg-task-top b {
+    font-size: 0.6875rem;
+    font-weight: 600;
+  }
+  .wg-task small {
+    color: var(--tp-steel);
+    font-size: 0.6875rem;
+  }
+  .wg-status {
+    align-self: flex-start;
+    padding: 1px 6px;
+    border-radius: var(--tp-radius-xs);
+    background: var(--tp-cream-deeper);
+    font-size: 0.6875rem;
+    font-weight: 600;
+  }
+  .wg-bar {
+    display: block;
+    height: 4px;
+    overflow: hidden;
+    border-radius: var(--tp-radius-full);
+    background: var(--tp-hairline-soft);
+  }
+  .wg-bar i {
+    display: block;
+    height: 100%;
+    background: var(--tp-primary);
+  }
+  .wg-empty {
+    color: var(--tp-steel);
+    font-size: 0.75rem;
+  }
+  .wg-unreadable {
+    padding: 6px 8px;
+    border: 1px dashed var(--tp-severity-warning-border);
+    border-radius: var(--tp-radius-sm);
+    background: var(--tp-severity-warning-bg);
+    font-size: 0.75rem;
+  }
+
+  .wg-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    color: var(--tp-slate);
+    font-size: 0.75rem;
+  }
+  .wg-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .wg-key {
+    display: inline-block;
+    width: 14px;
+    height: 10px;
+    border: 2px solid var(--tp-primary);
+    border-radius: 3px;
+  }
+  .wg-key.is-local {
+    border-style: dashed;
+    border-color: var(--tp-hairline-strong);
+  }
+
+  .wg.is-vertical .wg-seq,
+  .wg.is-vertical .wg-seq > li {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .wg.is-vertical .wg-arrow {
+    text-align: center;
+  }
+  .wg.is-vertical .wg-arrow::before {
+    content: '↓';
+  }
+
+  @media (max-width: 640px) {
+    .wg-seq,
+    .wg-seq > li {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .wg-arrow {
+      text-align: center;
+    }
+    .wg-arrow::before {
+      content: '↓';
+    }
+    .wg-task,
+    .wg-block {
+      min-width: 0;
+    }
+  }
+}

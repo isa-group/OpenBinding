@@ -4,16 +4,16 @@ import { CheckCircle2, Lock, TriangleAlert } from 'lucide-react';
 import { platformApi } from '../../api/platform';
 import type { Organization } from '../../api/platform';
 import { problemsApi } from '../../api/problems';
-import { Action } from '../../components/ui/Action';
-import { FormField } from '../../components/ui/FormField';
-import { Modal } from '../../components/ui/Modal';
-import { Notice } from '../../components/ui/Notice';
+import { Action } from '../../modules/core/components/action-button';
+import { FormField } from '../../modules/core/components/form-field';
+import { Modal } from '../../modules/core/components/modal';
+import { Notice } from '../../modules/core/components/notice';
 import { useResource } from '../../utils/useResource';
 import { ancestorsOf, atLeast, descendantsOf, pathOf } from './orgModel';
 import { generalFailure } from '../../features/workspace/errors';
-import { classifyAuthError, marker, type AuthFailure } from '../../shared/api/errors';
+import { classifyAuthError, marker, type AuthFailure } from '../../modules/core/api/errors';
 import { Choice, NeutralGate, PageSkeleton, RoleChip } from './parts';
-import { NotFoundScreen } from '../../routes/NotFoundScreen';
+import NotFoundScreen from '../../modules/core/pages/page-not-found';
 import { OrgAudit } from './OrgAudit';
 import { OrgMembers } from './OrgMembers';
 import { OrgSettingsLayout } from './OrgSettingsLayout';
@@ -31,8 +31,10 @@ function updateRefusal(failure: AuthFailure): string {
     case 'organization_forbidden':
       return `You need ADMIN here, and in the new parent, for this${marker(failure)}.`;
     default:
-      if (failure.kind === 'not-found') return `The organization or its new parent no longer exists${marker(failure)}. Reload the page and try again.`;
-      if (failure.kind === 'invalid') return `The gateway refused that value${marker(failure)}.${failure.message ? ` ${failure.message}` : ''}`;
+      if (failure.kind === 'not-found')
+        return `The organization or its new parent no longer exists${marker(failure)}. Reload the page and try again.`;
+      if (failure.kind === 'invalid')
+        return `The gateway refused that value${marker(failure)}.${failure.message ? ` ${failure.message}` : ''}`;
       return generalFailure(failure, 'nothing changed');
   }
 }
@@ -44,9 +46,15 @@ function SettingsBody({ organization }: { organization: Organization }) {
   const role = organization.effective_role;
   const canEdit = atLeast(role, 'ADMIN');
 
-  const people = useResource(`settings-people:${slug}`, () => platformApi.members(slug).catch(() => null));
-  const problems = useResource(`settings-problems:${slug}`, () => problemsApi.list(slug, { limit: 1 }).catch(() => null));
-  const studies = useResource(`settings-studies:${slug}`, () => platformApi.studies(slug, true).catch(() => null));
+  const people = useResource(`settings-people:${slug}`, () =>
+    platformApi.members(slug).catch(() => null)
+  );
+  const problems = useResource(`settings-problems:${slug}`, () =>
+    problemsApi.list(slug, { limit: 1 }).catch(() => null)
+  );
+  const studies = useResource(`settings-studies:${slug}`, () =>
+    platformApi.studies(slug, true).catch(() => null)
+  );
 
   const [draftName, setDraftName] = useState<string | null>(null);
   const [moveTo, setMoveTo] = useState<string | null>(null);
@@ -62,9 +70,10 @@ function SettingsBody({ organization }: { organization: Organization }) {
   const currentParentId = organization.parent_id ?? '';
   const target = moveTo ?? currentParentId;
   const below = descendantsOf(organization, context.organizations);
-  const others = context.organizations.filter((item) => item.id !== organization.id);
-  const parentVisible = !organization.parent_id || others.some((item) => item.id === organization.parent_id);
-  const targetOrg = others.find((item) => item.id === target);
+  const others = context.organizations.filter(item => item.id !== organization.id);
+  const parentVisible =
+    !organization.parent_id || others.some(item => item.id === organization.parent_id);
+  const targetOrg = others.find(item => item.id === target);
   const previewPath = targetOrg ? pathOf(targetOrg, context.organizations) : [];
 
   const flash = (text: string) => {
@@ -72,7 +81,11 @@ function SettingsBody({ organization }: { organization: Organization }) {
     setErrors({});
   };
 
-  const update = async (kind: 'name' | 'move', value: Parameters<typeof platformApi.updateOrganization>[1], done: string) => {
+  const update = async (
+    kind: 'name' | 'move',
+    value: Parameters<typeof platformApi.updateOrganization>[1],
+    done: string
+  ) => {
     setBusy(kind);
     setToast('');
     setErrors({});
@@ -84,9 +97,10 @@ function SettingsBody({ organization }: { organization: Organization }) {
       flash(done);
     } catch (caught) {
       const failure = classifyAuthError(caught);
-      const text = kind === 'name' && failure.kind === 'unavailable'
-        ? `The name couldn’t be saved right now${marker(failure)}. Try again in a moment.`
-        : updateRefusal(failure);
+      const text =
+        kind === 'name' && failure.kind === 'unavailable'
+          ? `The name couldn’t be saved right now${marker(failure)}. Try again in a moment.`
+          : updateRefusal(failure);
       const next: typeof errors = {};
       next[kind] = text;
       setErrors(next);
@@ -107,19 +121,31 @@ function SettingsBody({ organization }: { organization: Organization }) {
     void update(
       'move',
       target ? { parent_id: target } : { move_to_root: true },
-      `Moved ${organization.name} ${destination ? `inside ${destination.name}` : 'to the top level'}.`,
+      `Moved ${organization.name} ${destination ? `inside ${destination.name}` : 'to the top level'}.`
     );
   };
 
-  const treeNote = target === currentParentId
-    ? 'No change yet.'
-    : targetOrg ? `Members of ${targetOrg.name} will inherit their roles here.` : 'Only direct members will have roles here.';
+  const treeNote =
+    target === currentParentId
+      ? 'No change yet.'
+      : targetOrg
+        ? `Members of ${targetOrg.name} will inherit their roles here.`
+        : 'Only direct members will have roles here.';
 
   const impact: Array<{ n: string; l: string }> = [
-    { n: problems.data ? String(problems.data.total) : '—', l: problems.data?.total === 1 ? 'problem' : 'problems' },
-    { n: studies.data ? String(studies.data.length) : '—', l: studies.data?.length === 1 ? 'study' : 'studies' },
+    {
+      n: problems.data ? String(problems.data.total) : '—',
+      l: problems.data?.total === 1 ? 'problem' : 'problems',
+    },
+    {
+      n: studies.data ? String(studies.data.length) : '—',
+      l: studies.data?.length === 1 ? 'study' : 'studies',
+    },
     { n: String(below.length), l: below.length === 1 ? 'sub-organization' : 'sub-organizations' },
-    { n: people.data ? String(people.data.length) : '—', l: people.data?.length === 1 ? 'direct member' : 'direct members' },
+    {
+      n: people.data ? String(people.data.length) : '—',
+      l: people.data?.length === 1 ? 'direct member' : 'direct members',
+    },
   ];
 
   return (
@@ -127,12 +153,17 @@ function SettingsBody({ organization }: { organization: Organization }) {
       organization={organization}
       section="general"
       title="Settings"
-      lede={<>{organization.name} · your role <RoleChip role={role} /></>}
+      lede={
+        <>
+          {organization.name} · your role <RoleChip role={role} />
+        </>
+      }
     >
       {!canEdit && (
         <Notice tone="info">
-          <Lock aria-hidden="true" className="org-inline-icon" /> You’re a <strong>{role}</strong>, so these settings are read-only.
-          Renaming, moving and deleting need ADMIN. Ask an owner or admin in <Link to={`/app/${slug}/settings/members`}>Members</Link>.
+          <Lock aria-hidden="true" className="org-inline-icon" /> You’re a <strong>{role}</strong>,
+          so these settings are read-only. Renaming, moving and deleting need ADMIN. Ask an owner or
+          admin in <Link to={`/app/${slug}/settings/members`}>Members</Link>.
         </Notice>
       )}
 
@@ -150,7 +181,10 @@ function SettingsBody({ organization }: { organization: Organization }) {
           <FormField
             label="Name"
             value={name}
-            onChange={(event) => { setDraftName(event.target.value); setErrors({}); }}
+            onChange={event => {
+              setDraftName(event.target.value);
+              setErrors({});
+            }}
             disabled={!canEdit}
             maxLength={160}
             error={errors.name}
@@ -161,7 +195,14 @@ function SettingsBody({ organization }: { organization: Organization }) {
           </div>
           {canEdit && (
             <div className="org-form-actions">
-              <Action type="submit" variant="primary" disabled={nameUnchanged} busy={busy === 'name'}>Save name</Action>
+              <Action
+                type="submit"
+                variant="primary"
+                disabled={nameUnchanged}
+                busy={busy === 'name'}
+              >
+                Save name
+              </Action>
             </div>
           )}
         </form>
@@ -170,25 +211,40 @@ function SettingsBody({ organization }: { organization: Organization }) {
       <section className="org-section" aria-labelledby="os-place">
         <div>
           <h2 id="os-place">Place in the hierarchy</h2>
-          <p className="org-muted">Moving changes who inherits roles here. You need ADMIN here and in the new parent.</p>
+          <p className="org-muted">
+            Moving changes who inherits roles here. You need ADMIN here and in the new parent.
+          </p>
         </div>
         <div className="org-card org-move">
           <div className="org-move-choices">
             <fieldset className="org-choices" disabled={!canEdit}>
               <legend className="sr-only">New parent</legend>
               <Choice
-                name="new-parent" value="" checked={target === ''} disabled={!canEdit} onChange={() => { setMoveTo(''); setErrors({}); }}
+                name="new-parent"
+                value=""
+                checked={target === ''}
+                disabled={!canEdit}
+                onChange={() => {
+                  setMoveTo('');
+                  setErrors({});
+                }}
                 label={`Top level${currentParentId === '' ? ' · current' : ''}`}
                 sub="No parent; only direct members keep roles"
               />
               {!parentVisible && (
                 <Choice
-                  name="new-parent" value={organization.parent_id ?? ''} checked={false} disabled onChange={() => undefined}
-                  label="Current parent · current" sub="You can’t see it, so you can’t choose it again" warn
+                  name="new-parent"
+                  value={organization.parent_id ?? ''}
+                  checked={false}
+                  disabled
+                  onChange={() => undefined}
+                  label="Current parent · current"
+                  sub="You can’t see it, so you can’t choose it again"
+                  warn
                 />
               )}
-              {others.map((item) => {
-                const loop = below.some((descendant) => descendant.id === item.id);
+              {others.map(item => {
+                const loop = below.some(descendant => descendant.id === item.id);
                 const allowed = atLeast(item.effective_role, 'ADMIN');
                 const unavailable = loop || !allowed;
                 return (
@@ -198,16 +254,32 @@ function SettingsBody({ organization }: { organization: Organization }) {
                     value={item.id}
                     checked={target === item.id}
                     disabled={!canEdit || unavailable}
-                    onChange={() => { setMoveTo(item.id); setErrors({}); }}
+                    onChange={() => {
+                      setMoveTo(item.id);
+                      setErrors({});
+                    }}
                     label={`${item.name}${item.id === organization.parent_id ? ' · current' : ''}`}
-                    sub={loop ? 'It sits inside this organization: moving here would make a loop' : allowed ? 'You can move it here' : `Needs ADMIN there; you’re ${item.effective_role}`}
+                    sub={
+                      loop
+                        ? 'It sits inside this organization: moving here would make a loop'
+                        : allowed
+                          ? 'You can move it here'
+                          : `Needs ADMIN there; you’re ${item.effective_role}`
+                    }
                     warn={unavailable}
                   />
                 );
               })}
             </fieldset>
             {canEdit && (
-              <Action variant="secondary" onClick={move} disabled={target === currentParentId} busy={busy === 'move'}>Move organization</Action>
+              <Action
+                variant="secondary"
+                onClick={move}
+                disabled={target === currentParentId}
+                busy={busy === 'move'}
+              >
+                Move organization
+              </Action>
             )}
             {errors.move && <Notice tone="error">{errors.move}</Notice>}
           </div>
@@ -215,12 +287,25 @@ function SettingsBody({ organization }: { organization: Organization }) {
             <span className="org-eyebrow">After the move</span>
             <ul aria-label="Organization tree after the move">
               {previewPath.map((item, depth) => (
-                <li key={item.id} style={{ marginLeft: depth * 20 }}><span className="org-node">{item.name}</span></li>
+                <li key={item.id} style={{ marginLeft: depth * 20 }}>
+                  <span className="org-node">{item.name}</span>
+                </li>
               ))}
-              <li style={{ marginLeft: previewPath.length * 20 }}><span className="org-node is-new">{organization.name}</span></li>
-              {below.map((item) => {
-                const depth = previewPath.length + 1 + (ancestorsOf(item, context.organizations).findIndex((ancestor) => ancestor.id === organization.id));
-                return <li key={item.id} style={{ marginLeft: depth * 20 }}><span className="org-node">{item.name}</span></li>;
+              <li style={{ marginLeft: previewPath.length * 20 }}>
+                <span className="org-node is-new">{organization.name}</span>
+              </li>
+              {below.map(item => {
+                const depth =
+                  previewPath.length +
+                  1 +
+                  ancestorsOf(item, context.organizations).findIndex(
+                    ancestor => ancestor.id === organization.id
+                  );
+                return (
+                  <li key={item.id} style={{ marginLeft: depth * 20 }}>
+                    <span className="org-node">{item.name}</span>
+                  </li>
+                );
               })}
             </ul>
             <span className="org-muted">{treeNote}</span>
@@ -233,14 +318,27 @@ function SettingsBody({ organization }: { organization: Organization }) {
         <div className="org-card is-danger org-stack">
           <strong>Delete this organization</strong>
           <span className="org-muted">
-            Deletes everything inside it, including sub-organizations: problems and their versions, studies, members and
-            invitations. Runs and study runs are history, so an organization that has any, here or below, can’t be deleted.
-            This can’t be undone.
+            Deletes everything inside it, including sub-organizations: problems and their versions,
+            studies, members and invitations. Runs and study runs are history, so an organization
+            that has any, here or below, can’t be deleted. This can’t be undone.
           </span>
           <dl className="org-impact" aria-label="What deleting removes">
-            {impact.map((item) => <div key={item.l}><dt>{item.l}</dt><dd>{item.n}</dd></div>)}
+            {impact.map(item => (
+              <div key={item.l}>
+                <dt>{item.l}</dt>
+                <dd>{item.n}</dd>
+              </div>
+            ))}
           </dl>
-          {canEdit && <Action variant="danger-outline" onClick={() => setDeleting(true)} className="org-danger-button">Delete organization</Action>}
+          {canEdit && (
+            <Action
+              variant="danger-outline"
+              onClick={() => setDeleting(true)}
+              className="org-danger-button"
+            >
+              Delete organization
+            </Action>
+          )}
         </div>
       </section>
 
@@ -255,12 +353,21 @@ function SettingsBody({ organization }: { organization: Organization }) {
           }}
         />
       )}
-      {people.status === 'loading' && <span className="sr-only" role="status">Loading members…</span>}
+      {people.status === 'loading' && (
+        <span className="sr-only" role="status">
+          Loading members…
+        </span>
+      )}
     </OrgSettingsLayout>
   );
 }
 
-function DeleteDialog({ organization, summary, onClose, onDeleted }: {
+function DeleteDialog({
+  organization,
+  summary,
+  onClose,
+  onDeleted,
+}: {
   organization: Organization;
   summary: string;
   onClose: () => void;
@@ -282,7 +389,9 @@ function DeleteDialog({ organization, summary, onClose, onDeleted }: {
     } catch (caught) {
       const failure = classifyAuthError(caught);
       if (failure.code === 'historical_references') {
-        setError(`It has runs or study runs, so it can’t be deleted${marker(failure)}. ${failure.message ?? ''}`.trim());
+        setError(
+          `It has runs or study runs, so it can’t be deleted${marker(failure)}. ${failure.message ?? ''}`.trim()
+        );
       } else if (failure.status === 403) {
         setError(`You need ADMIN here to delete it${marker(failure)}. Nothing was deleted.`);
       } else if (failure.kind === 'not-found') {
@@ -295,23 +404,40 @@ function DeleteDialog({ organization, summary, onClose, onDeleted }: {
   };
 
   return (
-    <Modal title={`Delete ${organization.name}?`} tone="danger" size="md" onClose={() => !busy && onClose()}>
+    <Modal
+      title={`Delete ${organization.name}?`}
+      tone="danger"
+      size="md"
+      onClose={() => !busy && onClose()}
+    >
       <form className="org-dialog-form" onSubmit={submit} noValidate>
         <p>{summary}</p>
         <FormField
           label={`Type ${organization.slug} to confirm`}
           value={typed}
-          onChange={(event) => { setTyped(event.target.value); setError(undefined); }}
+          onChange={event => {
+            setTyped(event.target.value);
+            setError(undefined);
+          }}
           autoComplete="off"
           spellCheck={false}
           mono
         />
         <div aria-live="assertive">
-          {error && <div className="org-dialog-error" role="alert"><TriangleAlert aria-hidden="true" />{error}</div>}
+          {error && (
+            <div className="org-dialog-error" role="alert">
+              <TriangleAlert aria-hidden="true" />
+              {error}
+            </div>
+          )}
         </div>
         <div className="ui-modal-actions">
-          <Action variant="secondary" onClick={onClose} disabled={busy}>Cancel</Action>
-          <Action type="submit" variant="danger" disabled={!matches} busy={busy}>Delete permanently</Action>
+          <Action variant="secondary" onClick={onClose} disabled={busy}>
+            Cancel
+          </Action>
+          <Action type="submit" variant="danger" disabled={!matches} busy={busy}>
+            Delete permanently
+          </Action>
         </div>
       </form>
     </Modal>
@@ -321,8 +447,18 @@ function DeleteDialog({ organization, summary, onClose, onDeleted }: {
 /** General section: name, place and deletion. */
 function GeneralSection() {
   const { organization, waiting } = useRouteOrganization();
-  if (waiting) return <div className="org-page"><PageSkeleton /></div>;
-  if (!organization) return <div className="org-page"><NeutralGate /></div>;
+  if (waiting)
+    return (
+      <div className="org-page">
+        <PageSkeleton />
+      </div>
+    );
+  if (!organization)
+    return (
+      <div className="org-page">
+        <NeutralGate />
+      </div>
+    );
   return <SettingsBody organization={organization} />;
 }
 

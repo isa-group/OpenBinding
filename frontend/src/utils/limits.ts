@@ -9,7 +9,8 @@
 import { formatByteSize, formatNumber } from './format';
 
 export type LimitGroup = 'monthly' | 'capacity' | 'ceiling';
-export type LimitKind = 'count' | 'seconds' | 'minutes' | 'hours' | 'bytes' | 'megabytes' | 'log10' | 'days';
+export type LimitKind =
+  'count' | 'seconds' | 'minutes' | 'hours' | 'bytes' | 'megabytes' | 'log10' | 'days';
 
 export interface LimitInfo {
   label: string;
@@ -48,13 +49,38 @@ export const BYTES_PER_MB = 1_000_000;
 const KNOWN: Record<string, LimitInfo> = {
   // The gateway meters no solver time yet (F3/F8); the Pricing page shows the published allowance.
   [LIMIT.solverHours]: { label: 'Solver hours', short: 'runs', group: 'monthly', kind: 'hours' },
-  [LIMIT.maxConcurrentRuns]: { label: 'Concurrent runs', short: 'runs', group: 'capacity', kind: 'count' },
-  [LIMIT.maxFederatedEngines]: { label: 'Federated engines', short: 'federated engines', group: 'capacity', kind: 'count' },
+  [LIMIT.maxConcurrentRuns]: {
+    label: 'Concurrent runs',
+    short: 'runs',
+    group: 'capacity',
+    kind: 'count',
+  },
+  [LIMIT.maxFederatedEngines]: {
+    label: 'Federated engines',
+    short: 'federated engines',
+    group: 'capacity',
+    kind: 'count',
+  },
   [LIMIT.maxApiKeys]: { label: 'API keys', short: 'API keys', group: 'capacity', kind: 'count' },
   [LIMIT.maxProblems]: { label: 'Problems', short: 'problems', group: 'capacity', kind: 'count' },
-  [LIMIT.maxRepositoryStorage]: { label: 'Repository storage', short: 'storage', group: 'capacity', kind: 'megabytes' },
-  [LIMIT.maxRunMinutes]: { label: 'Max time per run', short: 'runs', group: 'ceiling', kind: 'minutes' },
-  [LIMIT.maxStudyCells]: { label: 'Cells per study run', short: 'study runs', group: 'ceiling', kind: 'count' },
+  [LIMIT.maxRepositoryStorage]: {
+    label: 'Repository storage',
+    short: 'storage',
+    group: 'capacity',
+    kind: 'megabytes',
+  },
+  [LIMIT.maxRunMinutes]: {
+    label: 'Max time per run',
+    short: 'runs',
+    group: 'ceiling',
+    kind: 'minutes',
+  },
+  [LIMIT.maxStudyCells]: {
+    label: 'Cells per study run',
+    short: 'study runs',
+    group: 'ceiling',
+    kind: 'count',
+  },
 };
 
 /** The order the known limits are listed in; any other limit follows them. */
@@ -77,14 +103,28 @@ export function limitInfo(id: string, definition?: LimitDefinition): LimitInfo {
   const known = KNOWN[id];
   if (known) return known;
   const unit = typeof definition?.unit === 'string' ? definition.unit : '';
-  const kind: LimitKind = unit === 'second' || unit === 'second/month' ? 'seconds'
-    : unit === 'minute' ? 'minutes'
-      : unit === 'hour' || unit === 'hour/month' ? 'hours'
-        : unit === 'byte' ? 'bytes'
-          : unit === 'MB' ? 'megabytes'
-            : unit === 'day' ? 'days'
-              : unit.startsWith('log10') ? 'log10' : 'count';
-  const group: LimitGroup = definition?.type === 'RENEWABLE' ? 'monthly' : definition?.trackable === true ? 'capacity' : 'ceiling';
+  const kind: LimitKind =
+    unit === 'second' || unit === 'second/month'
+      ? 'seconds'
+      : unit === 'minute'
+        ? 'minutes'
+        : unit === 'hour' || unit === 'hour/month'
+          ? 'hours'
+          : unit === 'byte'
+            ? 'bytes'
+            : unit === 'MB'
+              ? 'megabytes'
+              : unit === 'day'
+                ? 'days'
+                : unit.startsWith('log10')
+                  ? 'log10'
+                  : 'count';
+  const group: LimitGroup =
+    definition?.type === 'RENEWABLE'
+      ? 'monthly'
+      : definition?.trackable === true
+        ? 'capacity'
+        : 'ceiling';
   return { label: humanize(id), short: humanize(id).toLowerCase(), group, kind };
 }
 
@@ -95,7 +135,17 @@ export const LIMIT_GROUPS: ReadonlyArray<{ id: LimitGroup; title: string; note: 
 ];
 
 const SUPERSCRIPT: Record<string, string> = {
-  '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴', '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹', '-': '⁻',
+  '0': '⁰',
+  '1': '¹',
+  '2': '²',
+  '3': '³',
+  '4': '⁴',
+  '5': '⁵',
+  '6': '⁶',
+  '7': '⁷',
+  '8': '⁸',
+  '9': '⁹',
+  '-': '⁻',
 };
 
 export const formatCount = (value: number): string => formatNumber(value);
@@ -113,7 +163,10 @@ export function formatDuration(seconds: number): string {
 
 /** The size of a binding space as a power of ten: `10⁹`. */
 export function formatPowerOfTen(exponent: number): string {
-  return `10${String(exponent).split('').map((digit) => SUPERSCRIPT[digit] ?? digit).join('')}`;
+  return `10${String(exponent)
+    .split('')
+    .map(digit => SUPERSCRIPT[digit] ?? digit)
+    .join('')}`;
 }
 
 export interface LimitText {
@@ -143,7 +196,10 @@ export function describeLimit(kind: LimitKind, value: number | null | undefined)
       return { text: `${formatCount(value)} h`, exact: `${formatCount(value)} h` };
     case 'megabytes':
       // Decimal, as the pricing writes it: 500 MB is 500,000,000 bytes.
-      return { text: value >= 1000 ? `${trimmed(value / 1000)} GB` : `${formatCount(value)} MB`, exact: `${formatCount(value)} MB` };
+      return {
+        text: value >= 1000 ? `${trimmed(value / 1000)} GB` : `${formatCount(value)} MB`,
+        exact: `${formatCount(value)} MB`,
+      };
     case 'bytes': {
       const text = formatByteSize(value);
       const exact = `${formatCount(value)} bytes`;

@@ -36,7 +36,9 @@ export interface ContractChange {
 
 function side(value: ContractChangePayload['previous']): ContractSide | null {
   if (!value || typeof value.plan !== 'string') return null;
-  const addOns = Object.entries(value.addOns ?? {}).map(([id, quantity]) => (quantity > 1 ? `${id} ×${quantity}` : id));
+  const addOns = Object.entries(value.addOns ?? {}).map(([id, quantity]) =>
+    quantity > 1 ? `${id} ×${quantity}` : id
+  );
   return { plan: value.plan, addOns: addOns.length ? addOns.join(', ') : 'none' };
 }
 
@@ -50,11 +52,14 @@ export function contractChange(notification: Notification): ContractChange | nul
   return {
     before,
     after,
-    reason: typeof payload.reason === 'string' && payload.reason ? payload.reason.replace(/_/g, ' ') : null,
+    reason:
+      typeof payload.reason === 'string' && payload.reason
+        ? payload.reason.replace(/_/g, ' ')
+        : null,
     pricingVersion: typeof payload.pricingVersion === 'string' ? payload.pricingVersion : null,
   };
 }
 
 export function unreadCount(items: Notification[]): number {
-  return items.filter((item) => !item.read_at).length;
+  return items.filter(item => !item.read_at).length;
 }

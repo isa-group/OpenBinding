@@ -1,4 +1,11 @@
-import { expect as baseExpect, test, type Locator, type Page, type Route, type TestInfo } from '@playwright/test';
+import {
+  expect as baseExpect,
+  test,
+  type Locator,
+  type Page,
+  type Route,
+  type TestInfo,
+} from '@playwright/test';
 import { failureBody } from './helpers/problems';
 import type { Job, Study, StudyCell, StudyRun } from '../src/api/platform';
 import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
@@ -6,7 +13,17 @@ import { jobOf } from '../src/test/fixtures/jobs';
 import { presetPage } from '../src/test/fixtures/presets';
 import { usageOf } from '../src/test/fixtures/resources';
 import {
-  CHECKOUT, EVOLUTIONARY, RANDOM_SEARCH, REVISION_1, REVISION_2, RUN_ID, analyticsFixture, cellFixture, cellsFixture, runFixture, studyFixture,
+  CHECKOUT,
+  EVOLUTIONARY,
+  RANDOM_SEARCH,
+  REVISION_1,
+  REVISION_2,
+  RUN_ID,
+  analyticsFixture,
+  cellFixture,
+  cellsFixture,
+  runFixture,
+  studyFixture,
 } from '../src/test/fixtures/studies';
 
 // S7a · studies: study-list, study-builder and study-detail with its tabs Setup, Progress (the run) and Results (analytics, the Pareto front,
@@ -20,25 +37,47 @@ const API = 'http://localhost:8000';
 const expect = baseExpect.configure({ timeout: 15_000 });
 
 type Handler = (route: Route) => Promise<void> | void;
-const json = (body: unknown, status = 200): Handler => (route) => route.fulfill({ status, json: body });
-const detail = (status: number, code: string, error: string, extra: Record<string, unknown> = {}): Handler => json(failureBody(status, code, error, extra), status);
+const json =
+  (body: unknown, status = 200): Handler =>
+  route =>
+    route.fulfill({ status, json: body });
+const detail = (
+  status: number,
+  code: string,
+  error: string,
+  extra: Record<string, unknown> = {}
+): Handler => json(failureBody(status, code, error, extra), status);
 const unavailable: Handler = json({ detail: 'The service is not reachable.' }, 503);
 
-const token = (expiresInSeconds: number) => [
-  'header',
-  Buffer.from(JSON.stringify({ sub: 'user-1', exp: Math.floor(Date.now() / 1000) + expiresInSeconds })).toString('base64'),
-  'signature',
-].join('.');
+const token = (expiresInSeconds: number) =>
+  [
+    'header',
+    Buffer.from(
+      JSON.stringify({ sub: 'user-1', exp: Math.floor(Date.now() / 1000) + expiresInSeconds })
+    ).toString('base64'),
+    'signature',
+  ].join('.');
 
 const lucia = {
-  id: 'user-1', username: 'lucia.vega', email: 'lucia@example.org', role: 'user', is_active: true, plan: 'RESEARCH',
-  created_at: '2026-03-02T00:00:00Z', cas_verified: true,
+  id: 'user-1',
+  username: 'lucia.vega',
+  email: 'lucia@example.org',
+  role: 'user',
+  is_active: true,
+  plan: 'RESEARCH',
+  created_at: '2026-03-02T00:00:00Z',
+  cas_verified: true,
 };
 
 type Role = 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER';
 
 const org = (id: string, slug: string, name: string, role: Role) => ({
-  id, slug, name, parent_id: null, effective_role: role, created_at: '2026-03-03T00:00:00Z',
+  id,
+  slug,
+  name,
+  parent_id: null,
+  effective_role: role,
+  created_at: '2026-03-03T00:00:00Z',
 });
 
 // --- the studies of the organization
@@ -46,54 +85,158 @@ const org = (id: string, slug: string, name: string, role: Role) => ({
 const NEW_RUN_ID = '00000000-0000-4000-8000-000000000102';
 const LIVE_RUN_ID = '00000000-0000-4000-8000-000000000111';
 
-const liveStudy = studyFixture({ id: 'study-live-sweep', slug: 'live-sweep', name: 'Live sweep', definition: { revision_ids: [REVISION_2.id], engines: [RANDOM_SEARCH], parameter_sets: [{}], seeds: [1, 2, 3, 4, 5, 6] } });
-const placement = studyFixture({ id: 'study-placement', slug: 'placement-sweep', name: 'Placement sweep', description: 'Pools and latencies on the edge.' });
-const oldStudy = studyFixture({ id: 'study-old', slug: 'old-study', name: 'Old study', archived: true });
+const liveStudy = studyFixture({
+  id: 'study-live-sweep',
+  slug: 'live-sweep',
+  name: 'Live sweep',
+  definition: {
+    revision_ids: [REVISION_2.id],
+    engines: [RANDOM_SEARCH],
+    parameter_sets: [{}],
+    seeds: [1, 2, 3, 4, 5, 6],
+  },
+});
+const placement = studyFixture({
+  id: 'study-placement',
+  slug: 'placement-sweep',
+  name: 'Placement sweep',
+  description: 'Pools and latencies on the edge.',
+});
+const oldStudy = studyFixture({
+  id: 'study-old',
+  slug: 'old-study',
+  name: 'Old study',
+  archived: true,
+});
 
 /** The cells of the run that is still going: two done, two solving, two waiting; once `done` is set, all of them completed. */
 function liveCells(done: boolean): StudyCell[] {
-  const metrics = (n: number) => ({ status: 'completed', feasible: true, termination: 'FEASIBLE', objectives: { cost: 0.1 + n / 100, latency: 400 + n }, runtimeSeconds: 55 + n, engine: 'bim.builtin/random-search@1.0.0', seed: n + 1 });
+  const metrics = (n: number) => ({
+    status: 'completed',
+    feasible: true,
+    termination: 'FEASIBLE',
+    objectives: { cost: 0.1 + n / 100, latency: 400 + n },
+    runtimeSeconds: 55 + n,
+    engine: 'bim.builtin/random-search@1.0.0',
+    seed: n + 1,
+  });
   return Array.from({ length: 6 }, (_, n) => {
     const state = done || n < 2 ? 'completed' : n < 4 ? 'running' : 'queued';
-    return cellFixture(n, REVISION_2, RANDOM_SEARCH, n + 1, state, state === 'completed' ? metrics(n) : {}, {
-      id: `00000000-0000-4000-8000-0000000004${String(n).padStart(2, '0')}`, study_run_id: LIVE_RUN_ID,
-    });
+    return cellFixture(
+      n,
+      REVISION_2,
+      RANDOM_SEARCH,
+      n + 1,
+      state,
+      state === 'completed' ? metrics(n) : {},
+      {
+        id: `00000000-0000-4000-8000-0000000004${String(n).padStart(2, '0')}`,
+        study_run_id: LIVE_RUN_ID,
+      }
+    );
   });
 }
 
-const liveRun = (done: boolean): StudyRun => runFixture({
-  id: LIVE_RUN_ID, study_id: liveStudy.id, run_number: 1, state: done ? 'completed' : 'running', cells: 6,
-  created_at: '2026-10-09T08:00:00Z', finished_at: done ? '2026-10-09T08:06:00Z' : null,
-});
+const liveRun = (done: boolean): StudyRun =>
+  runFixture({
+    id: LIVE_RUN_ID,
+    study_id: liveStudy.id,
+    run_number: 1,
+    state: done ? 'completed' : 'running',
+    cells: 6,
+    created_at: '2026-10-09T08:00:00Z',
+    finished_at: done ? '2026-10-09T08:06:00Z' : null,
+  });
 
 // --- the jobs an account could attach to a cell
 
 const mineJobs: Job[] = [
-  jobOf('job-mine-a', 'random-search', 'completed', 'FEASIBLE', '2026-10-01T09:00:00Z', '2026-10-01T09:01:05Z', { created_by: { id: 'user-1', username: 'lucia' } }),
-  jobOf('job-mine-b', 'evolutionary', 'failed', 'UNKNOWN', '2026-10-02T09:00:00Z', '2026-10-02T09:00:20Z', { created_by: { id: 'user-1', username: 'lucia' } }),
+  jobOf(
+    'job-mine-a',
+    'random-search',
+    'completed',
+    'FEASIBLE',
+    '2026-10-01T09:00:00Z',
+    '2026-10-01T09:01:05Z',
+    { created_by: { id: 'user-1', username: 'lucia' } }
+  ),
+  jobOf(
+    'job-mine-b',
+    'evolutionary',
+    'failed',
+    'UNKNOWN',
+    '2026-10-02T09:00:00Z',
+    '2026-10-02T09:00:20Z',
+    { created_by: { id: 'user-1', username: 'lucia' } }
+  ),
 ];
-const otherJobs: Job[] = [jobOf('job-theirs', 'minizinc', 'completed', 'OPTIMAL', '2026-10-03T09:00:00Z', '2026-10-03T09:02:00Z', { created_by: { id: 'user-2', username: 'ana' } })];
+const otherJobs: Job[] = [
+  jobOf(
+    'job-theirs',
+    'minizinc',
+    'completed',
+    'OPTIMAL',
+    '2026-10-03T09:00:00Z',
+    '2026-10-03T09:02:00Z',
+    { created_by: { id: 'user-2', username: 'ana' } }
+  ),
+];
 
 // --- what the gateway answers
 
 const mode = (id: string, properties: Record<string, unknown>) => ({
-  id, profile: 'qos-binding/v1', ir: { apiVersion: 'bim/v1', kind: 'BindingProblem' }, algorithm: id, capabilities: {},
-  optionsSchema: { type: 'object', properties, additionalProperties: false }, limits: {}, guarantees: { termination: ['FEASIBLE'], exact: false },
+  id,
+  profile: 'qos-binding/v1',
+  ir: { apiVersion: 'bim/v1', kind: 'BindingProblem' },
+  algorithm: id,
+  capabilities: {},
+  optionsSchema: { type: 'object', properties, additionalProperties: false },
+  limits: {},
+  guarantees: { termination: ['FEASIBLE'], exact: false },
 });
 
 const engineEntry = (ref: typeof RANDOM_SEARCH) => {
   const { mode: id, ...identity } = ref;
-  return { ...identity, id: `engine-${identity.name}`, ref: identity, modes: [mode(id, { time_budget_ms: { type: 'integer', default: 30000 } })] };
+  return {
+    ...identity,
+    id: `engine-${identity.name}`,
+    ref: identity,
+    modes: [mode(id, { time_budget_ms: { type: 'integer', default: 30000 } })],
+  };
 };
 
-
-type Overridable = 'studies' | 'create' | 'run' | 'cancel' | 'retry' | 'attach' | 'update' | 'delete' | 'runs' | 'cells' | 'cell' | 'analytics' | 'report' | 'export';
+type Overridable =
+  | 'studies'
+  | 'create'
+  | 'run'
+  | 'cancel'
+  | 'retry'
+  | 'attach'
+  | 'update'
+  | 'delete'
+  | 'runs'
+  | 'cells'
+  | 'cell'
+  | 'analytics'
+  | 'report'
+  | 'export';
 
 interface State {
   /** A handler that replaces the default answer of one call. */
   refuse: Partial<Record<Overridable, Handler>>;
   /** What each write carried, to check what was sent. */
-  sent: { create?: unknown; run?: string; cancel?: string; retry: string[]; attach?: { cell: string; job: unknown }; update: unknown[]; ifMatch: Array<string | undefined>; deleted: string[]; report?: unknown; exported: string[] };
+  sent: {
+    create?: unknown;
+    run?: string;
+    cancel?: string;
+    retry: string[];
+    attach?: { cell: string; job: unknown };
+    update: unknown[];
+    ifMatch: Array<string | undefined>;
+    deleted: string[];
+    report?: unknown;
+    exported: string[];
+  };
   studies: Study[];
   runs: Record<string, StudyRun[]>;
   cells: Record<string, StudyCell[]>;
@@ -130,49 +273,88 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
     localStorage.setItem('openbinding-refresh-token', 's7a-refresh');
   });
 
-  await page.route(`${API}/**`, (route) => route.fulfill({ status: 404, json: { detail: 'not mocked' } }));
+  await page.route(`${API}/**`, route =>
+    route.fulfill({ status: 404, json: { detail: 'not mocked' } })
+  );
   await page.route(`${API}/health**`, json({ status: 'ok' }));
-  await page.route(`${API}/v1/auth/refresh`, json({ access_token: 's7a-access-2', refresh_token: 's7a-refresh-2', token_type: 'bearer', expires_in: 900 }));
+  await page.route(
+    `${API}/v1/auth/refresh`,
+    json({
+      access_token: 's7a-access-2',
+      refresh_token: 's7a-refresh-2',
+      token_type: 'bearer',
+      expires_in: 900,
+    })
+  );
   await page.route(`${API}/v1/pricing/catalog`, json(catalogFixture));
   await page.route(`${API}/v1/pricing/current`, json(CURRENT_FIXTURE));
   await page.route(`${API}/v1/users/me`, json(lucia));
-  await page.route(`${API}/v1/users/me/usage`, json(usageOf({
-    plan: 'RESEARCH',
-    capabilities: { maxRunMinutes: 1, maxStudyCells: 5000, maxConcurrentRuns: 3 },
-  })));
+  await page.route(
+    `${API}/v1/users/me/usage`,
+    json(
+      usageOf({
+        plan: 'RESEARCH',
+        capabilities: { maxRunMinutes: 1, maxStudyCells: 5000, maxConcurrentRuns: 3 },
+      })
+    )
+  );
   await page.route(`${API}/v1/users/me/pricing-token`, json({ pricing_token: token(3600) }));
   await page.route(new RegExp(`^${API}/v1/notifications(\\?.*)?$`), json([]));
-  await page.route(`${API}/v1/engines`, json({ engines: [engineEntry(RANDOM_SEARCH), engineEntry(EVOLUTIONARY)] }));
+  await page.route(
+    `${API}/v1/engines`,
+    json({ engines: [engineEntry(RANDOM_SEARCH), engineEntry(EVOLUTIONARY)] })
+  );
 
-  await page.route(new RegExp(`^${API}/v1/organizations(/.*)?(\\?.*)?$`), async (route) => {
+  await page.route(new RegExp(`^${API}/v1/organizations(/.*)?(\\?.*)?$`), async route => {
     const url = new URL(route.request().url());
     const parts = url.pathname.split('/').filter(Boolean);
     const [, , orgSlug, section, runId] = parts;
     // /v1/organizations/{org}/studies/{study}/runs/{run}/cells/{cell}/{verb}
     const [, , , , subId, action, actionId, tail, cellId, verb] = parts;
     const method = route.request().method();
-    const found = organizations.find((item) => item.slug === orgSlug);
+    const found = organizations.find(item => item.slug === orgSlug);
 
     if (!orgSlug) return json(organizations)(route);
     if (section === 'members') return json([])(route);
     // The run presets the builder offers as engines: one a study can take, a federated one and one without an optimization.
-    if (section === 'presets') return json(orgSlug === 'isa-demo' ? presetPage() : presetPage([]))(route);
+    if (section === 'presets')
+      return json(orgSlug === 'isa-demo' ? presetPage() : presetPage([]))(route);
     if (section === 'runs') {
       // The runs of the organization: the attach dialog offers the finished ones, whoever launched them; a cell's run opens here.
-      if (!runId) return json({ runs: [...mineJobs, ...otherJobs], total: mineJobs.length + otherJobs.length })(route);
-      return json({ ...mineJobs[0], id: runId, status: 'completed', provenance: {}, result: { termination: 'FEASIBLE', solutions: [] } })(route);
+      if (!runId)
+        return json({
+          runs: [...mineJobs, ...otherJobs],
+          total: mineJobs.length + otherJobs.length,
+        })(route);
+      return json({
+        ...mineJobs[0],
+        id: runId,
+        status: 'completed',
+        provenance: {},
+        result: { termination: 'FEASIBLE', solutions: [] },
+      })(route);
     }
     if (section === 'problems') {
       // The study builder and the matrices name the problem versions of the organization.
       const [, , , , problemSlug, problemSub] = parts;
-      if (!problemSlug) return json({ problems: [CHECKOUT], total: 1, limit: 200, offset: 0 })(route);
+      if (!problemSlug)
+        return json({ problems: [CHECKOUT], total: 1, limit: 200, offset: 0 })(route);
       if (problemSub === 'revisions') return json([REVISION_1, REVISION_2])(route);
       return json(CHECKOUT)(route);
     }
-    if (section !== 'studies') return json(found ?? { detail: { code: 'not_found', error: 'Organization not found.' } }, found ? 200 : 404)(route);
+    if (section !== 'studies')
+      return json(
+        found ?? { detail: { code: 'not_found', error: 'Organization not found.' } },
+        found ? 200 : 404
+      )(route);
 
     // --- studies of the organization
-    if (!found) return detail(403, 'organization_forbidden', 'This action requires viewer access to the organization.')(route);
+    if (!found)
+      return detail(
+        403,
+        'organization_forbidden',
+        'This action requires viewer access to the organization.'
+      )(route);
     const studies = orgSlug === 'empty-lab' ? [] : state.studies;
     /** A study's revision, as its ETag: it changes with every edit. */
     const etagOf = (study: Study) => `"${study.id}-${state.sent.update.length}"`;
@@ -180,10 +362,19 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
       if (method === 'POST') {
         state.sent.create = bodyOf(route);
         if (state.refuse.create) return state.refuse.create(route);
-        const sent = bodyOf(route) as { slug: string; name: string; description: string; definition?: Study['definition'] };
-        if (state.studies.some((item) => item.slug === sent.slug)) return detail(409, 'slug_conflict', 'That study slug is in use.')(route);
+        const sent = bodyOf(route) as {
+          slug: string;
+          name: string;
+          description: string;
+          definition?: Study['definition'];
+        };
+        if (state.studies.some(item => item.slug === sent.slug))
+          return detail(409, 'slug_conflict', 'That study slug is in use.')(route);
         const made = studyFixture({
-          id: `study-${sent.slug}`, slug: sent.slug, name: sent.name, description: sent.description,
+          id: `study-${sent.slug}`,
+          slug: sent.slug,
+          name: sent.name,
+          description: sent.description,
           ...(sent.definition ? { definition: sent.definition } : {}),
         });
         state.studies.push(made);
@@ -193,7 +384,7 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
       return json(studies)(route);
     }
     if (method === 'GET' && !action && state.refuse.studies) return state.refuse.studies(route);
-    const study = studies.find((item) => item.slug === subId);
+    const study = studies.find(item => item.slug === subId);
     if (!study) return detail(404, 'not_found', 'Study not found.')(route);
     if (!action) {
       if (method === 'PATCH') {
@@ -203,21 +394,45 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
           state.sent.update.push(sent);
           return state.refuse.update(route);
         }
-        if (route.request().headers()['if-match'] && route.request().headers()['if-match'] !== etagOf(study)) {
-          return route.fulfill({ status: 412, headers: { ETag: etagOf(study), 'Access-Control-Expose-Headers': 'ETag' }, json: failureBody(412, 'precondition_failed', 'The resource changed since it was read; fetch it again and retry.') });
+        if (
+          route.request().headers()['if-match'] &&
+          route.request().headers()['if-match'] !== etagOf(study)
+        ) {
+          return route.fulfill({
+            status: 412,
+            headers: { ETag: etagOf(study), 'Access-Control-Expose-Headers': 'ETag' },
+            json: failureBody(
+              412,
+              'precondition_failed',
+              'The resource changed since it was read; fetch it again and retry.'
+            ),
+          });
         }
         state.sent.update.push(sent);
         Object.assign(study, sent);
-        return route.fulfill({ status: 200, headers: { ETag: etagOf(study), 'Access-Control-Expose-Headers': 'ETag' }, json: study });
+        return route.fulfill({
+          status: 200,
+          headers: { ETag: etagOf(study), 'Access-Control-Expose-Headers': 'ETag' },
+          json: study,
+        });
       }
       if (method === 'DELETE') {
         state.sent.deleted.push(study.slug);
         if (state.refuse.delete) return state.refuse.delete(route);
-        if ((state.runs[study.slug] ?? []).length > 0) return detail(409, 'study_history_retained', 'Set archived=true for a study with executions; historical runs cannot be deleted.')(route);
-        state.studies = state.studies.filter((item) => item.slug !== study.slug);
+        if ((state.runs[study.slug] ?? []).length > 0)
+          return detail(
+            409,
+            'study_history_retained',
+            'Set archived=true for a study with executions; historical runs cannot be deleted.'
+          )(route);
+        state.studies = state.studies.filter(item => item.slug !== study.slug);
         return route.fulfill({ status: 204 });
       }
-      return route.fulfill({ status: 200, headers: { ETag: etagOf(study), 'Access-Control-Expose-Headers': 'ETag' }, json: study });
+      return route.fulfill({
+        status: 200,
+        headers: { ETag: etagOf(study), 'Access-Control-Expose-Headers': 'ETag' },
+        json: study,
+      });
     }
     if (action !== 'runs') return json([])(route);
 
@@ -226,22 +441,34 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
       if (study.slug === 'live-sweep') return [liveRun(state.liveDone)];
       return state.runs[study.slug] ?? [];
     };
-    const cellsOf = (run: string): StudyCell[] => (run === LIVE_RUN_ID ? liveCells(state.liveDone) : state.cells[run] ?? []);
+    const cellsOf = (run: string): StudyCell[] =>
+      run === LIVE_RUN_ID ? liveCells(state.liveDone) : (state.cells[run] ?? []);
     if (!actionId) {
       if (method === 'POST') {
         state.sent.run = study.slug;
         if (state.refuse.run) return state.refuse.run(route);
-        const made = runFixture({ id: NEW_RUN_ID, run_number: 2, state: 'queued', finished_at: null, created_at: '2026-10-09T09:30:00Z' });
+        const made = runFixture({
+          id: NEW_RUN_ID,
+          run_number: 2,
+          state: 'queued',
+          finished_at: null,
+          created_at: '2026-10-09T09:30:00Z',
+        });
         state.runs[study.slug] = [made, ...(state.runs[study.slug] ?? [])];
-        state.cells[NEW_RUN_ID] = cellsFixture().map((cell) => ({
-          ...cell, id: `00000000-0000-4000-8000-0000000005${String(cell.ordinal).padStart(2, '0')}`, study_run_id: NEW_RUN_ID, state: 'queued' as const, metrics: {}, job_id: null,
+        state.cells[NEW_RUN_ID] = cellsFixture().map(cell => ({
+          ...cell,
+          id: `00000000-0000-4000-8000-0000000005${String(cell.ordinal).padStart(2, '0')}`,
+          study_run_id: NEW_RUN_ID,
+          state: 'queued' as const,
+          metrics: {},
+          job_id: null,
         }));
         return json(made, 202)(route);
       }
       if (state.refuse.runs) return state.refuse.runs(route);
       return json(runs())(route);
     }
-    const run = runs().find((item) => item.id === actionId);
+    const run = runs().find(item => item.id === actionId);
     if (!tail) return json(run ?? { detail: 'not found' }, run ? 200 : 404)(route);
     if (tail === 'analytics') {
       if (state.refuse.analytics) return state.refuse.analytics(route);
@@ -252,12 +479,23 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
       const format = new URL(route.request().url()).searchParams.get('format') ?? '';
       state.sent.exported.push(format);
       if (state.refuse.export) return state.refuse.export(route);
-      const body = format === 'csv'
-        ? 'cell_id,problem,revision,engine_namespace,engine_name,engine_version,mode,parameters,seed,status,feasible,runtime_seconds,objective.cost,objective.latency\n'
-        : JSON.stringify({ study: { id: study.id, slug: study.slug, name: study.name }, run: { id: actionId }, definition: {}, cells: [] });
+      const body =
+        format === 'csv'
+          ? 'cell_id,problem,revision,engine_namespace,engine_name,engine_version,mode,parameters,seed,status,feasible,runtime_seconds,objective.cost,objective.latency\n'
+          : JSON.stringify({
+              study: { id: study.id, slug: study.slug, name: study.name },
+              run: { id: actionId },
+              definition: {},
+              cells: [],
+            });
       return route.fulfill({
-        status: 200, body, contentType: format === 'csv' ? 'text/csv; charset=utf-8' : 'application/json',
-        headers: { 'Content-Disposition': `attachment; filename="${study.slug}-run-${run?.run_number ?? 1}.${format}"`, 'Access-Control-Expose-Headers': 'Content-Disposition' },
+        status: 200,
+        body,
+        contentType: format === 'csv' ? 'text/csv; charset=utf-8' : 'application/json',
+        headers: {
+          'Content-Disposition': `attachment; filename="${study.slug}-run-${run?.run_number ?? 1}.${format}"`,
+          'Access-Control-Expose-Headers': 'Content-Disposition',
+        },
       });
     }
     if (tail === 'cancel') {
@@ -270,7 +508,7 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
       if (state.refuse.cells) return state.refuse.cells(route);
       return json(cellsOf(actionId))(route);
     }
-    const cell = cellsOf(actionId).find((item) => item.id === cellId);
+    const cell = cellsOf(actionId).find(item => item.id === cellId);
     if (!verb) {
       if (state.refuse.cell) return state.refuse.cell(route);
       return cell ? json(cell)(route) : detail(404, 'not_found', 'Study cell not found.')(route);
@@ -278,7 +516,16 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
     if (verb === 'retry') {
       state.sent.retry.push(cellId);
       if (state.refuse.retry) return state.refuse.retry(route);
-      return json({ id: cellId, state: 'queued', fingerprint: cell?.fingerprint ?? '', jobId: 'job-new', idempotent: false }, 200)(route);
+      return json(
+        {
+          id: cellId,
+          state: 'queued',
+          fingerprint: cell?.fingerprint ?? '',
+          jobId: 'job-new',
+          idempotent: false,
+        },
+        200
+      )(route);
     }
     if (verb === 'result') {
       state.sent.attach = { cell: cellId, job: bodyOf(route) };
@@ -292,10 +539,14 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
 
 function watchCriticalErrors(page: Page) {
   const critical: string[] = [];
-  page.on('pageerror', (error) => critical.push(`pageerror: ${error.message}`));
-  page.on('console', (message) => {
+  page.on('pageerror', error => critical.push(`pageerror: ${error.message}`));
+  page.on('console', message => {
     const text = message.text();
-    if (message.type() === 'error' && /The above error occurred|Minified React error|Maximum update depth|Uncaught/i.test(text)) critical.push(`console: ${text}`);
+    if (
+      message.type() === 'error' &&
+      /The above error occurred|Minified React error|Maximum update depth|Uncaught/i.test(text)
+    )
+      critical.push(`console: ${text}`);
   });
   return critical;
 }
@@ -304,7 +555,12 @@ function watchCriticalErrors(page: Page) {
  * A capture of the current state: with E2E_SCREENSHOTS=1 the whole page, its first `height` pixels, or one area, saved for a person to
  * look at; always a check that nothing scrolls sideways.
  */
-async function capture(page: Page, testInfo: TestInfo, name: string, options: { height?: number; area?: Locator } = {}) {
+async function capture(
+  page: Page,
+  testInfo: TestInfo,
+  name: string,
+  options: { height?: number; area?: Locator } = {}
+) {
   await page.evaluate(async () => {
     await document.fonts.ready;
     (document.activeElement as HTMLElement | null)?.blur();
@@ -318,19 +574,32 @@ async function capture(page: Page, testInfo: TestInfo, name: string, options: { 
     await options.area.screenshot({ path, animations: 'disabled' });
   } else if (options.height) {
     const total = await page.evaluate(() => document.documentElement.scrollHeight);
-    await page.screenshot({ path, fullPage: true, animations: 'disabled', clip: { x: 0, y: 0, width, height: Math.min(options.height, total) } });
+    await page.screenshot({
+      path,
+      fullPage: true,
+      animations: 'disabled',
+      clip: { x: 0, y: 0, width, height: Math.min(options.height, total) },
+    });
   } else {
     await page.screenshot({ path, fullPage: true, animations: 'disabled' });
   }
   // Against the width of the device, not window.innerWidth: a phone widens its layout viewport to fit a page that overflows.
-  const overflow = await page.evaluate((expected) => document.documentElement.scrollWidth - expected, width);
+  const overflow = await page.evaluate(
+    expected => document.documentElement.scrollWidth - expected,
+    width
+  );
   expect(overflow, `${name} should not scroll sideways`).toBeLessThanOrEqual(1);
 }
 
 // Each test walks a screen through its states while the dev server compiles on demand.
 test.setTimeout(150_000);
 const viewports = [
-  { name: 'desktop', viewport: { width: 1440, height: 900 }, isMobile: false, deviceScaleFactor: 1 },
+  {
+    name: 'desktop',
+    viewport: { width: 1440, height: 900 },
+    isMobile: false,
+    deviceScaleFactor: 1,
+  },
   { name: 'mobile', viewport: { width: 390, height: 844 }, isMobile: true, deviceScaleFactor: 2 },
 ] as const;
 
@@ -348,22 +617,40 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
     test.describe.configure({ mode: 'default' });
     test.use({ viewport, isMobile, deviceScaleFactor });
 
-    test('study-list /app/:org/studies · rows, archive and delete, with no allowance meter', async ({ page }, testInfo) => {
+    test('study-list /app/:org/studies · rows, archive and delete, with no allowance meter', async ({
+      page,
+    }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto(`${ROOT}/studies`);
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
       const list = main.getByRole('list', { name: 'Studies of the organization' });
 
       await expect(main.getByRole('heading', { level: 1, name: 'Studies' })).toBeVisible();
-      await expect(main.getByText(/A study runs every combination of problems × engines × settings × seeds/)).toBeVisible();
+      await expect(
+        main.getByText(/A study runs every combination of problems × engines × settings × seeds/)
+      ).toBeVisible();
       // Studies belong to the organization: the crumbs lead back to it.
-      await expect(main.getByRole('navigation', { name: 'Breadcrumb' }).getByRole('link', { name: 'ISA Demo Group' })).toHaveAttribute('href', ROOT);
-      await expect(main.getByRole('link', { name: 'New study' })).toHaveAttribute('href', `${ROOT}/studies/new`);
+      await expect(
+        main
+          .getByRole('navigation', { name: 'Breadcrumb' })
+          .getByRole('link', { name: 'ISA Demo Group' })
+      ).toHaveAttribute('href', ROOT);
+      await expect(main.getByRole('link', { name: 'New study' })).toHaveAttribute(
+        'href',
+        `${ROOT}/studies/new`
+      );
       await expect(list.getByRole('listitem')).toHaveCount(3);
-      await expect(list.getByRole('link', { name: 'Last run #1' }).first()).toHaveAttribute('href', RUN);
-      await expect(list.getByRole('img', { name: '6 completed, 1 failed, 1 cancelled of 8 cells' })).toBeVisible();
-      await expect(list.getByRole('img', { name: '2 completed, 2 running, 2 queued of 6 cells' })).toBeVisible();
+      await expect(list.getByRole('link', { name: 'Last run #1' }).first()).toHaveAttribute(
+        'href',
+        RUN
+      );
+      await expect(
+        list.getByRole('img', { name: '6 completed, 1 failed, 1 cancelled of 8 cells' })
+      ).toBeVisible();
+      await expect(
+        list.getByRole('img', { name: '2 completed, 2 running, 2 queued of 6 cells' })
+      ).toBeVisible();
       await expect(list.getByText('Never run')).toBeVisible();
       await expect(main.getByText(/study runs this month|Renews/i)).toHaveCount(0);
       await capture(page, testInfo, `list-${name}-rows`);
@@ -378,7 +665,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       // Archive one; delete one with runs (the gateway refuses, so it is archived instead); delete one without.
       const row = (title: string) => list.getByRole('listitem').filter({ hasText: title });
       await row('Placement sweep').getByRole('button', { name: 'Archive' }).click();
-      await expect(main.getByText('Archived: it can’t start new runs, and existing results stay.')).toBeVisible();
+      await expect(
+        main.getByText('Archived: it can’t start new runs, and existing results stay.')
+      ).toBeVisible();
       expect(state.sent.update).toContainEqual({ archived: true });
       await capture(page, testInfo, `list-${name}-archived-toast`);
 
@@ -387,26 +676,41 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(dialog).toBeVisible();
       await capture(page, testInfo, `list-${name}-delete-dialog`);
       await dialog.getByRole('button', { name: 'Delete study' }).click();
-      await expect(main.getByText('This study has runs, so it was archived instead of deleted. Its runs and results stay intact.')).toBeVisible();
+      await expect(
+        main.getByText(
+          'This study has runs, so it was archived instead of deleted. Its runs and results stay intact.'
+        )
+      ).toBeVisible();
       expect(state.sent.deleted).toEqual(['engines-vs-seeds']);
       await capture(page, testInfo, `list-${name}-delete-archives`);
       expect(critical).toEqual([]);
     });
 
-    test('study-list /app/:org/studies · empty, 503, a viewer and an organization that is not the account’s', async ({ page }, testInfo) => {
+    test('study-list /app/:org/studies · empty, 503, a viewer and an organization that is not the account’s', async ({
+      page,
+    }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
 
       await page.goto('/app/empty-lab/studies');
       await expect(main.getByText('No studies yet')).toBeVisible();
-      await expect(main.getByText('2 problem versions × 2 engines × 2 seeds = 8 runs, all with the same rules. That’s a study.')).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Build a study' })).toHaveAttribute('href', '/app/empty-lab/studies/new');
+      await expect(
+        main.getByText(
+          '2 problem versions × 2 engines × 2 seeds = 8 runs, all with the same rules. That’s a study.'
+        )
+      ).toBeVisible();
+      await expect(main.getByRole('link', { name: 'Build a study' })).toHaveAttribute(
+        'href',
+        '/app/empty-lab/studies/new'
+      );
       await capture(page, testInfo, `list-${name}-empty`);
 
       state.refuse.studies = unavailable;
       await page.goto(`${ROOT}/studies`);
-      await expect(main.getByRole('alert').filter({ hasText: 'Studies couldn’t be loaded' })).toContainText('(503)');
+      await expect(
+        main.getByRole('alert').filter({ hasText: 'Studies couldn’t be loaded' })
+      ).toContainText('(503)');
       await expect(main.getByText('No studies yet')).toHaveCount(0);
       await capture(page, testInfo, `list-${name}-503`);
       state.refuse.studies = undefined;
@@ -430,18 +734,26 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('study-builder /app/:org/studies/new · the matrix, what it uses of the plan, created', async ({ page }, testInfo) => {
+    test('study-builder /app/:org/studies/new · the matrix, what it uses of the plan, created', async ({
+      page,
+    }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto(`${ROOT}/studies/new`);
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
       const create = main.getByRole('button', { name: 'Create study' });
 
       await expect(main.getByRole('heading', { level: 1, name: 'New study' })).toBeVisible();
-      await expect(main.getByText('Pick the problems, engines, settings and seeds. Every combination becomes one cell.')).toBeVisible();
+      await expect(
+        main.getByText(
+          'Pick the problems, engines, settings and seeds. Every combination becomes one cell.'
+        )
+      ).toBeVisible();
       await expect(main.getByRole('checkbox', { name: /Checkout flow · version 2/ })).toBeEnabled();
       await expect(create).toBeDisabled();
-      await expect(main.getByRole('list', { name: 'Still needed' })).toContainText('Choose at least one engine mode or run preset.');
+      await expect(main.getByRole('list', { name: 'Still needed' })).toContainText(
+        'Choose at least one engine mode or run preset.'
+      );
       await capture(page, testInfo, `builder-${name}-empty`);
 
       await main.getByRole('checkbox', { name: /Checkout flow · version 1/ }).check();
@@ -452,11 +764,15 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByLabel('Address')).toHaveValue('budgets-and-seeds');
       await main.getByRole('button', { name: 'Add a setting' }).click();
       await main.getByLabel('Time budget (seconds)').nth(1).fill('120');
-      await expect(main.getByText(/Your plan runs at most 60 s per solve, so this setting runs at 60 s/)).toBeVisible();
+      await expect(
+        main.getByText(/Your plan runs at most 60 s per solve, so this setting runs at 60 s/)
+      ).toBeVisible();
       await main.getByLabel(/Seeds \(comma-separated/).fill('1-3');
 
       const aside = main.getByRole('complementary', { name: 'Matrix and plan' });
-      await expect(aside.getByText('2 problem versions × 2 engines × 2 settings × 3 seeds')).toBeVisible();
+      await expect(
+        aside.getByText('2 problem versions × 2 engines × 2 settings × 3 seeds')
+      ).toBeVisible();
       await expect(aside.getByText(/used \+ up to|study runs this month/)).toHaveCount(0);
       await expect(aside.getByText(/your plan lets one solve run for up to 60 s/)).toBeVisible();
       await expect(create).toBeEnabled();
@@ -465,131 +781,216 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await create.click();
       await expect(main.getByRole('heading', { name: 'Study created' })).toBeVisible();
       expect(state.sent.create).toMatchObject({
-        slug: 'budgets-and-seeds', name: 'Budgets and seeds', description: '',
+        slug: 'budgets-and-seeds',
+        name: 'Budgets and seeds',
+        description: '',
         definition: {
           revision_ids: [REVISION_1.id, REVISION_2.id],
           parameter_sets: [{}, { time_budget_ms: 120000 }],
           seeds: [1, 2, 3],
         },
       });
-      await expect(main.getByRole('link', { name: 'Open the study' })).toHaveAttribute('href', `${ROOT}/studies/budgets-and-seeds`);
+      await expect(main.getByRole('link', { name: 'Open the study' })).toHaveAttribute(
+        'href',
+        `${ROOT}/studies/budgets-and-seeds`
+      );
       await capture(page, testInfo, `builder-${name}-created`);
 
       await main.getByRole('link', { name: 'Open the study' }).click();
-      await expect(main.getByRole('heading', { level: 1, name: 'Budgets and seeds' })).toBeVisible();
-      await expect(main.getByText('No runs yet. Running uses 1 study run from your month and runs up to 24 cells.')).toBeVisible();
+      await expect(
+        main.getByRole('heading', { level: 1, name: 'Budgets and seeds' })
+      ).toBeVisible();
+      await expect(
+        main.getByText(
+          'No runs yet. Running uses 1 study run from your month and runs up to 24 cells.'
+        )
+      ).toBeVisible();
       expect(critical).toEqual([]);
     });
 
-    test('study-builder /app/:org/studies/new · run presets as engines, the ones a study cannot take, and how a preset is refused', async ({ page }, testInfo) => {
+    test('study-builder /app/:org/studies/new · run presets as engines, the ones a study cannot take, and how a preset is refused', async ({
+      page,
+    }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto(`${ROOT}/studies/new?case=checkout-flow&revision=2`);
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
       const create = main.getByRole('button', { name: 'Create study' });
       const presets = main.getByRole('group', { name: 'Run presets' });
 
-      await expect(presets.getByRole('checkbox', { name: 'Fast sampling · run preset' })).toBeEnabled();
-      await expect(presets.getByRole('checkbox', { name: 'Edge deployment · run preset' })).toBeDisabled();
-      await expect(presets.getByRole('checkbox', { name: 'Edge deployment · run preset' })).toHaveAccessibleDescription(/presets of federated engines can’t join a study yet/);
+      await expect(
+        presets.getByRole('checkbox', { name: 'Fast sampling · run preset' })
+      ).toBeEnabled();
+      await expect(
+        presets.getByRole('checkbox', { name: 'Edge deployment · run preset' })
+      ).toBeDisabled();
+      await expect(
+        presets.getByRole('checkbox', { name: 'Edge deployment · run preset' })
+      ).toHaveAccessibleDescription(/presets of federated engines can’t join a study yet/);
       await expect(presets.getByRole('checkbox', { name: 'No goal · run preset' })).toBeDisabled();
-      await expect(presets.getByRole('checkbox', { name: 'No goal · run preset' })).toHaveAccessibleDescription(/Names no optimization, which a study engine needs\./);
+      await expect(
+        presets.getByRole('checkbox', { name: 'No goal · run preset' })
+      ).toHaveAccessibleDescription(/Names no optimization, which a study engine needs\./);
 
       await main.getByRole('checkbox', { name: /random-search 1\.0\.0/ }).check();
       await presets.getByRole('checkbox', { name: 'Fast sampling · run preset' }).check();
       await main.getByLabel('Study name').fill('Engines and a preset');
       const aside = main.getByRole('complementary', { name: 'Matrix and plan' });
-      await expect(aside.getByText('1 problem version × 2 engines × 1 setting × 2 seeds')).toBeVisible();
+      await expect(
+        aside.getByText('1 problem version × 2 engines × 1 setting × 2 seeds')
+      ).toBeVisible();
       await capture(page, testInfo, `builder-${name}-presets`, { height: 1800 });
 
       // The gateway expands each preset when the study is saved and refuses what no run could expand.
-      state.refuse.create = detail(422, 'preset_federated', 'Presets of federated engines cannot join a study yet.');
+      state.refuse.create = detail(
+        422,
+        'preset_federated',
+        'Presets of federated engines cannot join a study yet.'
+      );
       await create.click();
-      await expect(aside.getByText('A run preset runs on a federated deployment (422 · preset_federated)')).toBeVisible();
-      state.refuse.create = detail(422, 'duplicate_study_engines', 'Two engines of the study (after its presets are expanded) are the same.');
+      await expect(
+        aside.getByText('A run preset runs on a federated deployment (422 · preset_federated)')
+      ).toBeVisible();
+      state.refuse.create = detail(
+        422,
+        'duplicate_study_engines',
+        'Two engines of the study (after its presets are expanded) are the same.'
+      );
       await create.click();
-      await expect(aside.getByText('Two engines of the study are the same (422 · duplicate_study_engines)')).toBeVisible();
+      await expect(
+        aside.getByText('Two engines of the study are the same (422 · duplicate_study_engines)')
+      ).toBeVisible();
       await capture(page, testInfo, `builder-${name}-422-preset`, { area: aside });
 
       state.refuse.create = undefined;
       await create.click();
       await expect(main.getByRole('heading', { name: 'Study created' })).toBeVisible();
-      expect((state.sent.create as { definition: { engines: unknown[] } }).definition.engines).toEqual([
-        { namespace: RANDOM_SEARCH.namespace, name: RANDOM_SEARCH.name, version: RANDOM_SEARCH.version, digest: RANDOM_SEARCH.digest, mode: RANDOM_SEARCH.mode, optimization: { type: 'SINGLE', scalarization: 'weighted-sum' } },
+      expect(
+        (state.sent.create as { definition: { engines: unknown[] } }).definition.engines
+      ).toEqual([
+        {
+          namespace: RANDOM_SEARCH.namespace,
+          name: RANDOM_SEARCH.name,
+          version: RANDOM_SEARCH.version,
+          digest: RANDOM_SEARCH.digest,
+          mode: RANDOM_SEARCH.mode,
+          optimization: { type: 'SINGLE', scalarization: 'weighted-sum' },
+        },
         { preset: 'fast-sampling' },
       ]);
 
       // The new study names the preset in its matrix: each run expands it.
       await main.getByRole('link', { name: 'Open the study' }).click();
-      await expect(main.getByRole('columnheader', { name: 'preset fast-sampling · seed 1' })).toBeVisible();
-      await expect(main.getByText(/Each run expands the run preset fast-sampling into the engine, mode and options it holds then\./)).toBeVisible();
+      await expect(
+        main.getByRole('columnheader', { name: 'preset fast-sampling · seed 1' })
+      ).toBeVisible();
+      await expect(
+        main.getByText(
+          /Each run expands the run preset fast-sampling into the engine, mode and options it holds then\./
+        )
+      ).toBeVisible();
       expect(critical).toEqual([]);
     });
 
-    test('study-builder /app/:org/studies/new · 422, 402, 403 and 409 before and after sending', async ({ page }, testInfo) => {
+    test('study-builder /app/:org/studies/new · 422, 402, 403 and 409 before and after sending', async ({
+      page,
+    }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto(`${ROOT}/studies/new?case=checkout-flow&revision=2`);
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
       const create = main.getByRole('button', { name: 'Create study' });
 
       // The revision another screen named is already chosen.
       await expect(main.getByRole('checkbox', { name: /Checkout flow · version 2/ })).toBeChecked();
-      await expect(main.getByRole('checkbox', { name: /Checkout flow · version 1/ })).not.toBeChecked();
+      await expect(
+        main.getByRole('checkbox', { name: /Checkout flow · version 1/ })
+      ).not.toBeChecked();
       await main.getByRole('checkbox', { name: /random-search 1\.0\.0/ }).check();
       await main.getByLabel('Study name').fill('Refused study');
 
       // Repeated seeds and repeated settings never leave the page.
       await main.getByLabel(/Seeds \(comma-separated/).fill('1, 2, 2');
-      await expect(main.locator('small[role="alert"]')).toContainText('Seed 2 appears twice. Each value can appear once.');
+      await expect(main.locator('small[role="alert"]')).toContainText(
+        'Seed 2 appears twice. Each value can appear once.'
+      );
       await expect(create).toBeDisabled();
       await capture(page, testInfo, `builder-${name}-422-seeds`, { height: 1800 });
       await main.getByLabel(/Seeds \(comma-separated/).fill('1-100');
-      for (let n = 0; n < 25; n += 1) await main.getByRole('button', { name: 'Add a setting' }).click();
+      for (let n = 0; n < 25; n += 1)
+        await main.getByRole('button', { name: 'Add a setting' }).click();
       await main.getByRole('checkbox', { name: /evolutionary 1\.0\.0/ }).check();
       await main.getByRole('checkbox', { name: /Checkout flow · version 1/ }).check();
       await expect(main.getByRole('list', { name: 'Still needed' })).toContainText('10,000 limit');
       await expect(create).toBeDisabled();
-      await capture(page, testInfo, `builder-${name}-422-too-big`, { area: main.getByRole('complementary', { name: 'Matrix and plan' }) });
+      await capture(page, testInfo, `builder-${name}-422-too-big`, {
+        area: main.getByRole('complementary', { name: 'Matrix and plan' }),
+      });
 
       // What the gateway can still refuse.
       await main.getByLabel(/Seeds \(comma-separated/).fill('1, 2');
-      for (let n = 0; n < 25; n += 1) await main.getByRole('button', { name: 'Remove setting 2' }).first().click();
+      for (let n = 0; n < 25; n += 1)
+        await main.getByRole('button', { name: 'Remove setting 2' }).first().click();
       await expect(create).toBeEnabled();
       const side = main.getByRole('complementary', { name: 'Matrix and plan' });
 
-      state.refuse.create = detail(402, 'quota_exceeded', 'Storage exhausted.', { quota: { limit_id: 'maxRepositoryStorage', limit: 500, used: 500 } });
+      state.refuse.create = detail(402, 'quota_exceeded', 'Storage exhausted.', {
+        quota: { limit_id: 'maxRepositoryStorage', limit: 500, used: 500 },
+      });
       await create.click();
       await expect(side.getByText('Out of storage (402 · quota_exceeded)')).toBeVisible();
-      await expect(side.getByRole('link', { name: 'Compare plans' })).toHaveAttribute('href', '/pricing');
+      await expect(side.getByRole('link', { name: 'Compare plans' })).toHaveAttribute(
+        'href',
+        '/pricing'
+      );
       await capture(page, testInfo, `builder-${name}-402`, { area: side });
 
-      state.refuse.create = detail(403, 'api_key_engine_forbidden', 'This API key does not grant every exact Engine revision requested by the study.');
+      state.refuse.create = detail(
+        403,
+        'api_key_engine_forbidden',
+        'This API key does not grant every exact Engine revision requested by the study.'
+      );
       await create.click();
-      await expect(side.getByText('This API key isn’t allowed to use one of the study’s engines (403 · api_key_engine_forbidden)')).toBeVisible();
+      await expect(
+        side.getByText(
+          'This API key isn’t allowed to use one of the study’s engines (403 · api_key_engine_forbidden)'
+        )
+      ).toBeVisible();
       await capture(page, testInfo, `builder-${name}-403`, { area: side });
 
-      state.refuse.create = detail(422, 'engine_mode_incompatible', 'MiniZinc has no mode that supports this goal type.');
+      state.refuse.create = detail(
+        422,
+        'engine_mode_incompatible',
+        'MiniZinc has no mode that supports this goal type.'
+      );
       await create.click();
-      await expect(side.getByText(/MiniZinc has no mode that supports this goal type\./)).toBeVisible();
+      await expect(
+        side.getByText(/MiniZinc has no mode that supports this goal type\./)
+      ).toBeVisible();
       await capture(page, testInfo, `builder-${name}-422-engine`, { area: side });
 
       state.refuse.create = undefined;
       await main.getByLabel('Study name').fill('Engines × seeds');
       await main.getByLabel('Address').fill('engines-vs-seeds');
       await create.click();
-      await expect(side.getByText('That address is already used (409 · slug_conflict)')).toBeVisible();
+      await expect(
+        side.getByText('That address is already used (409 · slug_conflict)')
+      ).toBeVisible();
       await capture(page, testInfo, `builder-${name}-409`, { area: side });
       expect(critical).toEqual([]);
     });
 
-    test('study-builder /app/:org/studies/new · a viewer, and no shared definition to reuse', async ({ page }, testInfo) => {
+    test('study-builder /app/:org/studies/new · a viewer, and no shared definition to reuse', async ({
+      page,
+    }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
 
       await page.goto('/app/read-lab/studies/new');
-      await expect(main.getByText(/Creating studies needs MEMBER; you’re a VIEWER of Read Lab/)).toBeVisible();
+      await expect(
+        main.getByText(/Creating studies needs MEMBER; you’re a VIEWER of Read Lab/)
+      ).toBeVisible();
       await main.getByRole('checkbox', { name: /Checkout flow · version 1/ }).check();
       await expect(main.getByRole('button', { name: 'Create study' })).toBeDisabled();
       await expect(main.getByLabel('Study name')).toBeDisabled();
@@ -604,71 +1005,122 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('study-detail /app/:org/studies/:study/setup · the matrix, its runs and a new run', async ({ page }, testInfo) => {
+    test('study-detail /app/:org/studies/:study/setup · the matrix, its runs and a new run', async ({
+      page,
+    }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto(`${STUDY}/setup`);
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
 
       await expect(main.getByRole('heading', { level: 1, name: 'Engines × seeds' })).toBeVisible();
-      await expect(main.getByText('2 problem versions × 2 engines × 1 setting × 2 seeds = 8 cells', { exact: true })).toBeVisible();
+      await expect(
+        main.getByText('2 problem versions × 2 engines × 1 setting × 2 seeds = 8 cells', {
+          exact: true,
+        })
+      ).toBeVisible();
       const grid = main.getByRole('region', { name: 'The cells of the matrix' });
       await expect(grid.getByRole('columnheader')).toHaveCount(5);
       await expect(grid.getByText('cell 7')).toBeVisible();
-      await expect(main.getByText(/2 problem versions × 2 engines × 1 setting × 2 seeds = 8 cells\. Settings: 1 · engine defaults\./)).toBeVisible();
+      await expect(
+        main.getByText(
+          /2 problem versions × 2 engines × 1 setting × 2 seeds = 8 cells\. Settings: 1 · engine defaults\./
+        )
+      ).toBeVisible();
       await expect(main.getByRole('link', { name: /Run #1/ })).toHaveAttribute('href', RUN);
-      await expect(main.getByRole('link', { name: 'Open the definition in the library' })).toHaveCount(0);
+      await expect(
+        main.getByRole('link', { name: 'Open the definition in the library' })
+      ).toHaveCount(0);
       const definitionCard = main.getByRole('region', { name: 'Definition', exact: true });
-      await expect(definitionCard.getByRole('button', { name: 'Copy the definition digest' })).toBeVisible();
+      await expect(
+        definitionCard.getByRole('button', { name: 'Copy the definition digest' })
+      ).toBeVisible();
       await expect(definitionCard).not.toContainText('sha256-');
       await expect(main.getByRole('region', { name: 'Study definition source' })).toHaveCount(0);
       await capture(page, testInfo, `detail-${name}-top`);
       await main.getByRole('tab', { name: 'Source' }).click();
       const definitionSource = main.getByRole('region', { name: 'Study definition source' });
       await expect(definitionSource).toContainText('"revision_ids"');
-      await expect(definitionSource.getByRole('button', { name: 'Download Study definition source' })).toBeVisible();
+      await expect(
+        definitionSource.getByRole('button', { name: 'Download Study definition source' })
+      ).toBeVisible();
       await capture(page, testInfo, `detail-${name}-source`, { area: definitionSource });
       await main.getByRole('tab', { name: 'Overview' }).click();
 
       // A run is accepted and can be followed.
       await main.getByRole('button', { name: 'Run study' }).click();
-      await expect(main.getByText('Run #2 accepted (202). Cells start as run slots free up.')).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Follow run #2' })).toHaveAttribute('href', `${STUDY}/progress?run=${NEW_RUN_ID}`);
+      await expect(
+        main.getByText('Run #2 accepted (202). Cells start as run slots free up.')
+      ).toBeVisible();
+      await expect(main.getByRole('link', { name: 'Follow run #2' })).toHaveAttribute(
+        'href',
+        `${STUDY}/progress?run=${NEW_RUN_ID}`
+      );
       expect(state.sent.run).toBe('engines-vs-seeds');
       await expect(main.getByRole('link', { name: /Run #2/ }).first()).toBeVisible();
       await capture(page, testInfo, `detail-${name}-run-accepted`);
 
       // Every way the gateway refuses to start one.
-      state.refuse.run = detail(402, 'quota_exceeded', 'Storage exhausted.', { quota: { limit_id: 'maxRepositoryStorage', limit: 100, used: 100 } });
-      await main.getByRole('button', { name: 'Run study' }).click();
-      await expect(main.getByText('Out of storage (402 · quota_exceeded)')).toBeVisible();
-      await expect(main.getByText('You’ve used 100 of 100 storage. Nothing was started.')).toBeVisible();
-      await capture(page, testInfo, `detail-${name}-402`, { height: 1300 });
-      state.refuse.run = (route) => route.fulfill({
-        status: 429, headers: { 'Retry-After': '15' },
-        json: { detail: { code: 'concurrency_limit_exceeded', error: 'Concurrency limit exceeded.', concurrency: { limit_id: 'maxConcurrentRuns', limit: 3, used: 3 } } },
+      state.refuse.run = detail(402, 'quota_exceeded', 'Storage exhausted.', {
+        quota: { limit_id: 'maxRepositoryStorage', limit: 100, used: 100 },
       });
       await main.getByRole('button', { name: 'Run study' }).click();
-      await expect(main.getByText('All your run slots are busy (429 · concurrency_limit_exceeded)')).toBeVisible();
+      await expect(main.getByText('Out of storage (402 · quota_exceeded)')).toBeVisible();
+      await expect(
+        main.getByText('You’ve used 100 of 100 storage. Nothing was started.')
+      ).toBeVisible();
+      await capture(page, testInfo, `detail-${name}-402`, { height: 1300 });
+      state.refuse.run = route =>
+        route.fulfill({
+          status: 429,
+          headers: { 'Retry-After': '15' },
+          json: {
+            detail: {
+              code: 'concurrency_limit_exceeded',
+              error: 'Concurrency limit exceeded.',
+              concurrency: { limit_id: 'maxConcurrentRuns', limit: 3, used: 3 },
+            },
+          },
+        });
+      await main.getByRole('button', { name: 'Run study' }).click();
+      await expect(
+        main.getByText('All your run slots are busy (429 · concurrency_limit_exceeded)')
+      ).toBeVisible();
       await capture(page, testInfo, `detail-${name}-429`, { height: 1300 });
       state.refuse.run = detail(403, 'feature_not_entitled', 'The plan does not entitle studies.');
       await main.getByRole('button', { name: 'Run study' }).click();
-      await expect(main.getByText('Your plan doesn’t include studies right now (403 · feature_not_entitled)')).toBeVisible();
-      state.refuse.run = detail(409, 'study_archived', 'Restore this study before starting another run.');
+      await expect(
+        main.getByText('Your plan doesn’t include studies right now (403 · feature_not_entitled)')
+      ).toBeVisible();
+      state.refuse.run = detail(
+        409,
+        'study_archived',
+        'Restore this study before starting another run.'
+      );
       await main.getByRole('button', { name: 'Run study' }).click();
       await expect(main.getByText('This study is archived (409 · study_archived)')).toBeVisible();
       await capture(page, testInfo, `detail-${name}-409`, { height: 1300 });
-      state.refuse.run = detail(403, 'api_key_engine_forbidden', 'This key does not grant Evolutionary.');
+      state.refuse.run = detail(
+        403,
+        'api_key_engine_forbidden',
+        'This key does not grant Evolutionary.'
+      );
       await main.getByRole('button', { name: 'Run study' }).click();
-      await expect(main.getByText('This API key isn’t allowed to use one of the study’s engines (403 · api_key_engine_forbidden)')).toBeVisible();
+      await expect(
+        main.getByText(
+          'This API key isn’t allowed to use one of the study’s engines (403 · api_key_engine_forbidden)'
+        )
+      ).toBeVisible();
       await capture(page, testInfo, `detail-${name}-403-key`, { height: 1300 });
       expect(critical).toEqual([]);
     });
 
-    test('study-detail /app/:org/studies/:study/setup · edit the definition, archive, edit, delete, a viewer and a study that is not there', async ({ page }, testInfo) => {
+    test('study-detail /app/:org/studies/:study/setup · edit the definition, archive, edit, delete, a viewer and a study that is not there', async ({
+      page,
+    }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
 
       await page.goto(`${STUDY}/setup`);
       await expect(main.getByRole('heading', { level: 1, name: 'Engines × seeds' })).toBeVisible();
@@ -682,11 +1134,21 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByText(/Definition saved\. The next run uses it/)).toBeVisible();
       expect(state.sent.update).toContainEqual({ definition: nextDefinition });
       expect(state.sent.ifMatch[state.sent.ifMatch.length - 1]).toBe('"study-engines-vs-seeds-0"');
-      await expect(main.getByText('2 problem versions × 2 engines × 1 setting × 3 seeds = 12 cells', { exact: true })).toBeVisible();
+      await expect(
+        main.getByText('2 problem versions × 2 engines × 1 setting × 3 seeds = 12 cells', {
+          exact: true,
+        })
+      ).toBeVisible();
 
       await main.getByRole('button', { name: 'Archive' }).click();
-      await expect(main.getByText('Archived: it can’t start new runs, and existing results stay.')).toBeVisible();
-      await expect(main.getByText('Archived studies keep their runs and results but can’t start new runs until restored.')).toBeVisible();
+      await expect(
+        main.getByText('Archived: it can’t start new runs, and existing results stay.')
+      ).toBeVisible();
+      await expect(
+        main.getByText(
+          'Archived studies keep their runs and results but can’t start new runs until restored.'
+        )
+      ).toBeVisible();
       await expect(main.getByRole('button', { name: 'Run study' })).toBeDisabled();
       await capture(page, testInfo, `detail-${name}-archived`, { height: 1300 });
       await main.getByRole('button', { name: 'Restore' }).click();
@@ -701,58 +1163,99 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('heading', { level: 1, name: 'Engines vs seeds' })).toBeVisible();
 
       await main.getByRole('button', { name: 'Delete' }).click();
-      await page.getByRole('dialog', { name: 'Delete Engines vs seeds?' }).getByRole('button', { name: 'Delete study' }).click();
-      await expect(main.getByText('This study has runs, so it was archived instead of deleted. Its runs and results stay intact.')).toBeVisible();
+      await page
+        .getByRole('dialog', { name: 'Delete Engines vs seeds?' })
+        .getByRole('button', { name: 'Delete study' })
+        .click();
+      await expect(
+        main.getByText(
+          'This study has runs, so it was archived instead of deleted. Its runs and results stay intact.'
+        )
+      ).toBeVisible();
 
       // A viewer reads only.
       await page.goto('/app/read-lab/studies/old-study');
       await expect(main.getByRole('heading', { level: 1, name: 'Old study' })).toBeVisible();
-      await expect(main.getByText(/You can read this study\. Running, archiving and editing it need MEMBER in Read Lab\./)).toBeVisible();
-      for (const label of ['Run study', 'Archive', 'Edit details', 'Edit definition', 'Delete']) await expect(main.getByRole('button', { name: label })).toHaveCount(0);
+      await expect(
+        main.getByText(
+          /You can read this study\. Running, archiving and editing it need MEMBER in Read Lab\./
+        )
+      ).toBeVisible();
+      for (const label of ['Run study', 'Archive', 'Edit details', 'Edit definition', 'Delete'])
+        await expect(main.getByRole('button', { name: label })).toHaveCount(0);
       await capture(page, testInfo, `detail-${name}-viewer`, { height: 1400 });
 
       await page.goto(`${ROOT}/studies/ghost`);
       await expect(main.getByRole('heading', { name: 'Study not found' })).toBeVisible();
-      await expect(main.getByText('No study with this address in ISA Demo Group (404).')).toBeVisible();
+      await expect(
+        main.getByText('No study with this address in ISA Demo Group (404).')
+      ).toBeVisible();
       await capture(page, testInfo, `detail-${name}-404`);
 
       state.refuse.studies = unavailable;
       await page.goto(STUDY);
-      await expect(main.getByRole('alert').filter({ hasText: 'The study couldn’t be loaded' })).toContainText('(503)');
+      await expect(
+        main.getByRole('alert').filter({ hasText: 'The study couldn’t be loaded' })
+      ).toContainText('(503)');
       await capture(page, testInfo, `detail-${name}-503`);
       expect(critical).toEqual([]);
     });
 
-    test('study-detail /app/:org/studies/:study/progress · the cells as a matrix and a table, retry and no report', async ({ page }, testInfo) => {
+    test('study-detail /app/:org/studies/:study/progress · the cells as a matrix and a table, retry and no report', async ({
+      page,
+    }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto(RUN);
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
 
       await expect(main.getByRole('heading', { level: 2, name: 'Run #1' })).toBeVisible();
       // What the run froze when it started: its problem versions, each with the compilation it ran, and the matrix.
       const frozen = main.getByRole('region', { name: 'Frozen definition' });
-      await expect(frozen.getByRole('list', { name: 'Problem versions of the run' }).getByRole('listitem')).toHaveCount(2);
-      await expect(frozen.getByRole('list', { name: 'Engines of the run' }).getByRole('listitem')).toHaveCount(2);
-      await expect(frozen.getByRole('list', { name: 'Engines of the run' })).toContainText('random-search 1.0.0 (sampling)');
-      await expect(frozen.getByRole('button', { name: 'Copy the digest of the frozen definition' })).toBeVisible();
+      await expect(
+        frozen.getByRole('list', { name: 'Problem versions of the run' }).getByRole('listitem')
+      ).toHaveCount(2);
+      await expect(
+        frozen.getByRole('list', { name: 'Engines of the run' }).getByRole('listitem')
+      ).toHaveCount(2);
+      await expect(frozen.getByRole('list', { name: 'Engines of the run' })).toContainText(
+        'random-search 1.0.0 (sampling)'
+      );
+      await expect(
+        frozen.getByRole('button', { name: 'Copy the digest of the frozen definition' })
+      ).toBeVisible();
       await expect(frozen).toContainText('The study’s current definition is this one.');
       await expect(frozen).not.toContainText('sha256-');
-      await expect(main.getByText(/Sep 20, 2026, 09:00 UTC → Sep 20, 2026, 09:20 UTC/)).toBeVisible();
+      await expect(
+        main.getByText(/Sep 20, 2026, 09:00 UTC → Sep 20, 2026, 09:20 UTC/)
+      ).toBeVisible();
       const progress = main.getByRole('region', { name: 'Progress of the run' });
-      await expect(progress.getByRole('img', { name: '6 completed, 1 failed, 1 cancelled of 8 cells' })).toBeVisible();
+      await expect(
+        progress.getByRole('img', { name: '6 completed, 1 failed, 1 cancelled of 8 cells' })
+      ).toBeVisible();
       await expect(progress.getByText('6 of 6 completed are feasible')).toBeVisible();
       await expect(progress.getByText('Finished · not live')).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Compare results' })).toHaveAttribute('href', RESULTS);
+      await expect(main.getByRole('link', { name: 'Compare results' })).toHaveAttribute(
+        'href',
+        RESULTS
+      );
       const heat = main.getByRole('region', { name: 'Cells of the run as a matrix' });
       await expect(heat.getByRole('link')).toHaveCount(8);
-      await expect(heat.getByRole('link', { name: /Cell 4, .* Cost 0\.104/ })).toHaveClass(/is-level-0/);
-      await expect(heat.getByRole('link', { name: /Cell 1, .* failed$/ })).toContainText('engine_unreachable');
+      await expect(heat.getByRole('link', { name: /Cell 4, .* Cost 0\.104/ })).toHaveClass(
+        /is-level-0/
+      );
+      await expect(heat.getByRole('link', { name: /Cell 1, .* failed$/ })).toContainText(
+        'engine_unreachable'
+      );
       await capture(page, testInfo, `run-${name}-top`, { height: 1500 });
 
       await main.getByRole('combobox', { name: 'Colour by' }).selectOption('runtime');
-      await expect(main.getByRole('heading', { name: 'Cells · time taken (lower is better)' })).toBeVisible();
-      await capture(page, testInfo, `run-${name}-runtime`, { area: main.locator('section[aria-labelledby="st-heat-title"]') });
+      await expect(
+        main.getByRole('heading', { name: 'Cells · time taken (lower is better)' })
+      ).toBeVisible();
+      await capture(page, testInfo, `run-${name}-runtime`, {
+        area: main.locator('section[aria-labelledby="st-heat-title"]'),
+      });
       await main.getByRole('combobox', { name: 'Colour by' }).selectOption('cost');
 
       // The table of every cell, narrowed by state.
@@ -760,13 +1263,21 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(table.getByRole('row')).toHaveCount(9);
       await main.getByRole('button', { name: 'Failed (1)' }).click();
       await expect(table.getByRole('row')).toHaveCount(2);
-      await capture(page, testInfo, `run-${name}-table-failed`, { area: main.locator('section[aria-labelledby="st-cells-title"]') });
+      await capture(page, testInfo, `run-${name}-table-failed`, {
+        area: main.locator('section[aria-labelledby="st-cells-title"]'),
+      });
       await main.getByRole('button', { name: 'All (8)' }).click();
 
       // Retry: a refusal is said, then it is queued.
-      state.refuse.retry = detail(409, 'cell_not_retryable', 'Only failed or cancelled cells can be retried.');
+      state.refuse.retry = detail(
+        409,
+        'cell_not_retryable',
+        'Only failed or cancelled cells can be retried.'
+      );
       await table.getByRole('button', { name: 'Retry cell 1' }).click();
-      await expect(main.getByText('This cell can’t be retried (409 · cell_not_retryable)')).toBeVisible();
+      await expect(
+        main.getByText('This cell can’t be retried (409 · cell_not_retryable)')
+      ).toBeVisible();
       await capture(page, testInfo, `run-${name}-409`, { height: 1300 });
       state.refuse.retry = undefined;
       await table.getByRole('button', { name: 'Retry cell 1' }).click();
@@ -783,22 +1294,27 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       // A viewer sees it all and changes nothing.
       await page.goto(`/app/read-lab/studies/engines-vs-seeds/progress?run=${RUN_ID}`);
       await expect(main.getByRole('heading', { level: 2, name: 'Run #1' })).toBeVisible();
-      for (const label of ['Cancel run', 'Retry cell 1', 'Retry 2 unfinished cells']) await expect(main.getByRole('button', { name: label })).toHaveCount(0);
+      for (const label of ['Cancel run', 'Retry cell 1', 'Retry 2 unfinished cells'])
+        await expect(main.getByRole('button', { name: label })).toHaveCount(0);
       await capture(page, testInfo, `run-${name}-viewer`, { height: 1300 });
       expect(critical).toEqual([]);
     });
 
-    test('study-detail /app/:org/studies/:study/progress · a run that is going, cancel, and the ways it cannot be shown', async ({ page }, testInfo) => {
+    test('study-detail /app/:org/studies/:study/progress · a run that is going, cancel, and the ways it cannot be shown', async ({
+      page,
+    }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       const live = `${ROOT}/studies/live-sweep/progress?run=${LIVE_RUN_ID}`;
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
 
       await page.goto(live);
       await expect(main.getByRole('heading', { level: 2, name: 'Run #1' })).toBeVisible();
       await expect(main.getByText('Live · every 3 s')).toBeVisible();
       await expect(main.getByRole('checkbox', { name: 'Keep updating' })).toBeChecked();
-      await expect(main.getByRole('img', { name: '2 completed, 2 running, 2 queued of 6 cells' }).first()).toBeVisible();
+      await expect(
+        main.getByRole('img', { name: '2 completed, 2 running, 2 queued of 6 cells' }).first()
+      ).toBeVisible();
       await capture(page, testInfo, `run-${name}-live`, { height: 1500 });
 
       // Cancelling a run that ended meanwhile is refused.
@@ -817,12 +1333,21 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       await page.goto(`${STUDY}/progress?run=ghost`);
       await expect(main.getByRole('heading', { name: 'Run not found' })).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Back to the study' })).toHaveAttribute('href', STUDY);
+      await expect(main.getByRole('link', { name: 'Back to the study' })).toHaveAttribute(
+        'href',
+        STUDY
+      );
       await capture(page, testInfo, `run-${name}-404`);
 
-      state.refuse.cells = detail(403, 'api_key_engine_forbidden', 'This key does not grant Evolutionary.');
+      state.refuse.cells = detail(
+        403,
+        'api_key_engine_forbidden',
+        'This key does not grant Evolutionary.'
+      );
       await page.goto(RUN);
-      await expect(main.getByText(/This API key can’t show this run \(403 · api_key_engine_forbidden\)/)).toBeVisible();
+      await expect(
+        main.getByText(/This API key can’t show this run \(403 · api_key_engine_forbidden\)/)
+      ).toBeVisible();
       await capture(page, testInfo, `run-${name}-403-key`);
 
       state.refuse.cells = unavailable;
@@ -835,30 +1360,50 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('study-detail /app/:org/studies/:study/results · a finished cell and how the engines compare', async ({ page }, testInfo) => {
+    test('study-detail /app/:org/studies/:study/results · a finished cell and how the engines compare', async ({
+      page,
+    }, testInfo) => {
       const critical = watchCriticalErrors(page);
       await mockApi(page);
       await page.goto(cellPath(2));
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
 
       await expect(main.getByRole('heading', { level: 2, name: 'Cell 2' })).toBeVisible();
       const inputs = main.getByRole('region', { name: 'Frozen inputs' });
-      await expect(inputs.getByRole('link', { name: 'Checkout flow · version 1' })).toHaveAttribute('href', '/app/isa-demo/problems/checkout-flow?version=1');
+      await expect(inputs.getByRole('link', { name: 'Checkout flow · version 1' })).toHaveAttribute(
+        'href',
+        '/app/isa-demo/problems/checkout-flow?version=1'
+      );
       await expect(inputs.getByText('random-search 1.0.0')).toBeVisible();
-      await expect(inputs.getByRole('link', { name: 'Package and compiled form' })).toHaveAttribute('href', '/app/isa-demo/problems/checkout-flow/source?version=1');
-      await expect(inputs.getByRole('button', { name: 'Copy cell digest' })).toHaveText('Copy digest');
+      await expect(inputs.getByRole('link', { name: 'Package and compiled form' })).toHaveAttribute(
+        'href',
+        '/app/isa-demo/problems/checkout-flow/source?version=1'
+      );
+      await expect(inputs.getByRole('button', { name: 'Copy cell digest' })).toHaveText(
+        'Copy digest'
+      );
       await expect(inputs).not.toContainText(/sha256-|[0-9a-f]{12}/);
       const result = main.getByRole('region', { name: 'Result' });
       await expect(result.getByText('0.121')).toBeVisible();
       await expect(result.getByText('430')).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Open run' })).toHaveAttribute('href', '/app/isa-demo/runs/00000000-0000-4000-8000-000000000302');
+      await expect(main.getByRole('link', { name: 'Open run' })).toHaveAttribute(
+        'href',
+        '/app/isa-demo/runs/00000000-0000-4000-8000-000000000302'
+      );
       const rivals = main.getByRole('list', { name: 'Cost of each engine on this input' });
       await expect(rivals.getByRole('listitem')).toHaveCount(2);
-      await expect(rivals.getByRole('link', { name: 'evolutionary' })).toHaveAttribute('href', cellPath(0));
-      await expect(main.getByText('Same engine, other seeds: seed 1 0.121 · seed 2 0.118.')).toBeVisible();
+      await expect(rivals.getByRole('link', { name: 'evolutionary' })).toHaveAttribute(
+        'href',
+        cellPath(0)
+      );
+      await expect(
+        main.getByText('Same engine, other seeds: seed 1 0.121 · seed 2 0.118.')
+      ).toBeVisible();
       await capture(page, testInfo, `cell-${name}-top`, { height: 1700 });
       await main.getByRole('combobox', { name: 'Compare by' }).selectOption('latency');
-      await expect(main.getByRole('list', { name: 'Latency of each engine on this input' })).toBeVisible();
+      await expect(
+        main.getByRole('list', { name: 'Latency of each engine on this input' })
+      ).toBeVisible();
 
       // The metrics as the gateway recorded them, only in the Source tab.
       await expect(main.getByRole('region', { name: 'Cell metrics source' })).toHaveCount(0);
@@ -874,27 +1419,43 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('study-detail /app/:org/studies/:study/results · a cell that failed, was cancelled, takes an attached job, a viewer and a cell that is not there', async ({ page }, testInfo) => {
+    test('study-detail /app/:org/studies/:study/results · a cell that failed, was cancelled, takes an attached job, a viewer and a cell that is not there', async ({
+      page,
+    }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
 
       // A failed cell says why, and a retry can be refused or accepted.
       await page.goto(cellPath(1));
       await expect(main.getByRole('heading', { level: 2, name: 'Cell 1' })).toBeVisible();
-      await expect(main.getByText('Failed: The engine deployment didn’t answer in time.')).toBeVisible();
+      await expect(
+        main.getByText('Failed: The engine deployment didn’t answer in time.')
+      ).toBeVisible();
       await expect(main.getByText(/Code engine_unreachable · timeout\./)).toBeVisible();
       await capture(page, testInfo, `cell-${name}-failed`, { height: 1500 });
-      state.refuse.retry = detail(402, 'quota_exceeded', 'Storage exhausted.', { quota: { limit_id: 'maxRepositoryStorage', limit: 50, used: 50 } });
+      state.refuse.retry = detail(402, 'quota_exceeded', 'Storage exhausted.', {
+        quota: { limit_id: 'maxRepositoryStorage', limit: 50, used: 50 },
+      });
       await main.getByRole('button', { name: 'Retry this cell' }).click();
       await expect(main.getByText('Out of storage (402 · quota_exceeded)')).toBeVisible();
       await capture(page, testInfo, `cell-${name}-402`, { height: 1500 });
-      state.refuse.retry = (route) => route.fulfill({
-        status: 429, headers: { 'Retry-After': '15' },
-        json: { detail: { code: 'concurrency_limit_exceeded', error: 'Concurrency limit exceeded.', concurrency: { limit_id: 'maxConcurrentRuns', limit: 3, used: 3 } } },
-      });
+      state.refuse.retry = route =>
+        route.fulfill({
+          status: 429,
+          headers: { 'Retry-After': '15' },
+          json: {
+            detail: {
+              code: 'concurrency_limit_exceeded',
+              error: 'Concurrency limit exceeded.',
+              concurrency: { limit_id: 'maxConcurrentRuns', limit: 3, used: 3 },
+            },
+          },
+        });
       await main.getByRole('button', { name: 'Retry this cell' }).click();
-      await expect(main.getByText('All your run slots are busy (429 · concurrency_limit_exceeded)')).toBeVisible();
+      await expect(
+        main.getByText('All your run slots are busy (429 · concurrency_limit_exceeded)')
+      ).toBeVisible();
       state.refuse.retry = undefined;
       await main.getByRole('button', { name: 'Retry this cell' }).click();
       await expect(main.getByText('Cell queued again.')).toBeVisible();
@@ -902,27 +1463,47 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       // A cancelled cell can take the result of a run of the organization, whoever launched it (D10).
       await page.goto(cellPath(5));
-      await expect(main.getByText('Cancelled before it ran. Retry it, or attach the result of a run of the organization with the same inputs.')).toBeVisible();
+      await expect(
+        main.getByText(
+          'Cancelled before it ran. Retry it, or attach the result of a run of the organization with the same inputs.'
+        )
+      ).toBeVisible();
       await main.getByRole('button', { name: 'Use an existing run’s result' }).click();
       const dialog = page.getByRole('dialog', { name: 'Use an existing run’s result' });
       const choices = dialog.getByRole('radiogroup', { name: 'Finished runs' });
       await expect(choices.getByRole('radio')).toHaveCount(3);
-      await expect(choices.getByRole('radio', { name: /minizinc · completed · by ana/ })).toBeVisible();
+      await expect(
+        choices.getByRole('radio', { name: /minizinc · completed · by ana/ })
+      ).toBeVisible();
       await expect(dialog.getByRole('button', { name: 'Attach this result' })).toBeDisabled();
       await choices.getByRole('radio', { name: /random-search · completed/ }).check();
       await capture(page, testInfo, `cell-${name}-attach`);
-      state.refuse.attach = detail(409, 'job_already_attached', 'The job is already the result of another cell.');
+      state.refuse.attach = detail(
+        409,
+        'job_already_attached',
+        'The job is already the result of another cell.'
+      );
       await dialog.getByRole('button', { name: 'Attach this result' }).click();
-      await expect(dialog.getByText('That run is already the result of another cell (409 · job_already_attached)')).toBeVisible();
+      await expect(
+        dialog.getByText(
+          'That run is already the result of another cell (409 · job_already_attached)'
+        )
+      ).toBeVisible();
       await capture(page, testInfo, `cell-${name}-attach-409`);
       state.refuse.attach = undefined;
       await dialog.getByRole('button', { name: 'Attach this result' }).click();
-      await expect(main.getByText('Result attached. It now counts as this cell’s result.')).toBeVisible();
+      await expect(
+        main.getByText('Result attached. It now counts as this cell’s result.')
+      ).toBeVisible();
       expect(state.sent.attach).toEqual({ cell: cells[5].id, job: { job_id: 'job-mine-a' } });
 
       // A viewer reads only.
-      await page.goto(`/app/read-lab/studies/engines-vs-seeds/results?run=${RUN_ID}&cell=${cells[1].id}`);
-      await expect(main.getByText('Read-only: retrying and attaching a result need MEMBER in Read Lab.')).toBeVisible();
+      await page.goto(
+        `/app/read-lab/studies/engines-vs-seeds/results?run=${RUN_ID}&cell=${cells[1].id}`
+      );
+      await expect(
+        main.getByText('Read-only: retrying and attaching a result need MEMBER in Read Lab.')
+      ).toBeVisible();
       await expect(main.getByRole('button', { name: 'Retry this cell' })).toHaveCount(0);
       await capture(page, testInfo, `cell-${name}-viewer`, { height: 1500 });
 
@@ -933,33 +1514,55 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('study-detail /app/:org/studies/:study/results · charts, rankings and seeds', async ({ page }, testInfo) => {
+    test('study-detail /app/:org/studies/:study/results · charts, rankings and seeds', async ({
+      page,
+    }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto(RESULTS);
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
 
-      await expect(main.getByRole('heading', { level: 2, name: 'Compare results · run #1' })).toBeVisible();
-      await expect(main.getByText(/Only what the run recorded\. Nothing here is estimated/)).toBeVisible();
+      await expect(
+        main.getByRole('heading', { level: 2, name: 'Compare results · run #1' })
+      ).toBeVisible();
+      await expect(
+        main.getByText(/Only what the run recorded\. Nothing here is estimated/)
+      ).toBeVisible();
       const counters = main.getByLabel('Counts of the run');
       await expect(counters).toContainText('8cells');
       await expect(counters).toContainText('1failed');
       await expect(main.getByRole('link', { name: 'Weigh trade-offs' })).toHaveCount(0);
-      await expect(main.getByRole('img', { name: 'evolutionary: 2 values from 0.104 to 0.112, median 0.108' })).toBeVisible();
-      await expect(main.getByRole('img', { name: /evolutionary took 1 min 58 s to 2 min; random-search took 58 s to 1 min/ })).toBeVisible();
-      await expect(main.getByRole('img', { name: /3 results plotted by Cost and Latency; 2 are best trade-offs/ })).toBeVisible();
+      await expect(
+        main.getByRole('img', { name: 'evolutionary: 2 values from 0.104 to 0.112, median 0.108' })
+      ).toBeVisible();
+      await expect(
+        main.getByRole('img', {
+          name: /evolutionary took 1 min 58 s to 2 min; random-search took 58 s to 1 min/,
+        })
+      ).toBeVisible();
+      await expect(
+        main.getByRole('img', {
+          name: /3 results plotted by Cost and Latency; 2 are best trade-offs/,
+        })
+      ).toBeVisible();
       await capture(page, testInfo, `analytics-${name}-top`, { height: 2200 });
 
       const ranking = main.getByRole('region', { name: 'Engines ranked by cost' });
       await expect(ranking.getByRole('row')).toHaveCount(3);
       await expect(ranking.getByRole('row').nth(1)).toContainText('evolutionary');
-      await capture(page, testInfo, `analytics-${name}-ranking`, { area: main.locator('section[aria-labelledby="st-rank-title"]') });
+      await capture(page, testInfo, `analytics-${name}-ranking`, {
+        area: main.locator('section[aria-labelledby="st-rank-title"]'),
+      });
       const seeds = main.getByRole('region', { name: 'Results by seed' });
       await expect(seeds.getByRole('row')).toHaveCount(5);
       await expect(main.getByLabel('Repeatability of each engine')).toContainText('4/4 distinct');
-      await capture(page, testInfo, `analytics-${name}-seeds`, { area: main.locator('section[aria-labelledby="st-seed-title"]') });
+      await capture(page, testInfo, `analytics-${name}-seeds`, {
+        area: main.locator('section[aria-labelledby="st-seed-title"]'),
+      });
       await expect(main.getByRole('heading', { name: 'Largest search space' })).toBeVisible();
-      await capture(page, testInfo, `analytics-${name}-space`, { area: main.locator('section[aria-labelledby="st-space-title"]') });
+      await capture(page, testInfo, `analytics-${name}-space`, {
+        area: main.locator('section[aria-labelledby="st-space-title"]'),
+      });
 
       // One engine, then another measure and the other case.
       await main.getByRole('button', { name: 'evolutionary' }).click();
@@ -970,12 +1573,18 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('heading', { name: 'Time taken, per engine' })).toBeVisible();
       await main.getByRole('combobox', { name: 'Measure' }).selectOption('cost');
       await main.getByRole('combobox', { name: 'Problem' }).selectOption(REVISION_2.id);
-      await expect(main.getByText(/Best trade-offs:/)).toContainText('cell 4 (0.104, 420); cell 6 (0.109, 398).');
+      await expect(main.getByText(/Best trade-offs:/)).toContainText(
+        'cell 4 (0.104, 420); cell 6 (0.109, 398).'
+      );
 
       // The gateway's front of each problem version, one table each.
       const front = main.getByRole('region', { name: 'Pareto front' });
-      await expect(front.getByRole('region', { name: 'Front of checkout-flow · version 1' }).getByRole('row')).toHaveCount(3);
-      await expect(front.getByRole('region', { name: 'Front of checkout-flow · version 2' })).toContainText('P4');
+      await expect(
+        front.getByRole('region', { name: 'Front of checkout-flow · version 1' }).getByRole('row')
+      ).toHaveCount(3);
+      await expect(
+        front.getByRole('region', { name: 'Front of checkout-flow · version 2' })
+      ).toContainText('P4');
       await capture(page, testInfo, `analytics-${name}-front`, { area: front });
 
       // Every cell goes into the gateway's CSV or JSON file, never onto the page, under the name the gateway gives it.
@@ -986,9 +1595,15 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await main.getByRole('button', { name: 'Export JSON' }).click();
       expect((await json).suggestedFilename()).toBe('engines-vs-seeds-run-1.json');
       expect(state.sent.exported).toEqual(['csv', 'json']);
-      state.refuse.export = detail(403, 'api_key_permission_denied', 'The API key lacks studies:read.');
+      state.refuse.export = detail(
+        403,
+        'api_key_permission_denied',
+        'The API key lacks studies:read.'
+      );
       await main.getByRole('button', { name: 'Export CSV' }).click();
-      await expect(main.getByText('The CSV export couldn’t be made (403 · api_key_permission_denied).')).toBeVisible();
+      await expect(
+        main.getByText('The CSV export couldn’t be made (403 · api_key_permission_denied).')
+      ).toBeVisible();
 
       // Provenance of each cell.
       const provenance = main.getByRole('region', { name: 'Provenance of every cell' });
@@ -998,25 +1613,38 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('study-detail /app/:org/studies/:study/results · empty, 503, 404 and a viewer', async ({ page }, testInfo) => {
+    test('study-detail /app/:org/studies/:study/results · empty, 503, 404 and a viewer', async ({
+      page,
+    }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
 
-      state.cells[RUN_ID] = cells.map((cell) => ({ ...cell, state: 'cancelled' as const, metrics: {}, job_id: null }));
+      state.cells[RUN_ID] = cells.map(cell => ({
+        ...cell,
+        state: 'cancelled' as const,
+        metrics: {},
+        job_id: null,
+      }));
       await page.goto(RESULTS);
-      await expect(main.getByText(/No completed cells yet, so there’s nothing to chart\./)).toBeVisible();
+      await expect(
+        main.getByText(/No completed cells yet, so there’s nothing to chart\./)
+      ).toBeVisible();
       await expect(main.getByRole('heading', { name: 'Engine ranking' })).toHaveCount(0);
       await capture(page, testInfo, `analytics-${name}-empty`);
       state.cells[RUN_ID] = cellsFixture();
 
       state.refuse.analytics = unavailable;
       await page.goto(RESULTS);
-      await expect(main.getByRole('alert').filter({ hasText: 'Analytics couldn’t be loaded' })).toContainText('(503)');
+      await expect(
+        main.getByRole('alert').filter({ hasText: 'Analytics couldn’t be loaded' })
+      ).toContainText('(503)');
       await capture(page, testInfo, `analytics-${name}-503`);
       state.refuse.analytics = undefined;
       await main.getByRole('button', { name: 'Retry' }).click();
-      await expect(main.getByRole('heading', { level: 2, name: 'Compare results · run #1' })).toBeVisible();
+      await expect(
+        main.getByRole('heading', { level: 2, name: 'Compare results · run #1' })
+      ).toBeVisible();
 
       await page.goto(`${STUDY}/results?run=ghost`);
       await expect(main.getByRole('heading', { name: 'Run not found' })).toBeVisible();
@@ -1024,7 +1652,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await capture(page, testInfo, `analytics-${name}-404`);
 
       await page.goto(`/app/read-lab/studies/engines-vs-seeds/results?run=${RUN_ID}`);
-      await expect(main.getByRole('heading', { level: 2, name: 'Compare results · run #1' })).toBeVisible();
+      await expect(
+        main.getByRole('heading', { level: 2, name: 'Compare results · run #1' })
+      ).toBeVisible();
       await expect(main.getByRole('button', { name: 'Create a report' })).toHaveCount(0);
       await capture(page, testInfo, `analytics-${name}-viewer`, { height: 1500 });
       expect(critical).toEqual([]);
@@ -1036,30 +1666,44 @@ test.describe('desktop · S7a study-cell, a job that is not a run of the cell', 
   test.describe.configure({ mode: 'default' });
   test.use({ viewport: viewports[0].viewport, isMobile: false, deviceScaleFactor: 1 });
 
-  test('study-detail /app/:org/studies/:study/results · attaching a job that differs from the cell (409 cell_job_mismatch)', async ({ page }, testInfo) => {
+  test('study-detail /app/:org/studies/:study/results · attaching a job that differs from the cell (409 cell_job_mismatch)', async ({
+    page,
+  }, testInfo) => {
     const critical = watchCriticalErrors(page);
     const state = await mockApi(page);
-    const main = page.locator('#platform-main');
+    const main = page.locator('main');
 
     await page.goto(cellPath(5));
     await main.getByRole('button', { name: 'Use an existing run’s result' }).click();
     const dialog = page.getByRole('dialog', { name: 'Use an existing run’s result' });
-    await dialog.getByRole('radiogroup', { name: 'Finished runs' }).getByRole('radio', { name: /random-search · completed/ }).check();
+    await dialog
+      .getByRole('radiogroup', { name: 'Finished runs' })
+      .getByRole('radio', { name: /random-search · completed/ })
+      .check();
     state.refuse.attach = detail(409, 'cell_job_mismatch', 'The job did not run this cell.', {
       fields: ['engine', 'seed'],
-      details: { engine: { cell: 'evolutionary', job: 'random-search' }, seed: { cell: 2, job: 9 } },
+      details: {
+        engine: { cell: 'evolutionary', job: 'random-search' },
+        seed: { cell: 2, job: 9 },
+      },
     });
     await dialog.getByRole('button', { name: 'Attach this result' }).click();
-    await expect(dialog.getByText('That run isn’t a run of this cell (409 · cell_job_mismatch)')).toBeVisible();
+    await expect(
+      dialog.getByText('That run isn’t a run of this cell (409 · cell_job_mismatch)')
+    ).toBeVisible();
     await expect(dialog.getByText(/It differs in the engine and seed\./)).toBeVisible();
-    await expect(dialog.getByText('Engine: the cell has evolutionary, the run had random-search')).toBeVisible();
+    await expect(
+      dialog.getByText('Engine: the cell has evolutionary, the run had random-search')
+    ).toBeVisible();
     await expect(dialog.getByText('Seed: the cell has 2, the run had 9')).toBeVisible();
     await capture(page, testInfo, 'cell-desktop-attach-409-mismatch');
 
     // The dialog stays open, and the same choice goes through once the gateway accepts it.
     state.refuse.attach = undefined;
     await dialog.getByRole('button', { name: 'Attach this result' }).click();
-    await expect(main.getByText('Result attached. It now counts as this cell’s result.')).toBeVisible();
+    await expect(
+      main.getByText('Result attached. It now counts as this cell’s result.')
+    ).toBeVisible();
     expect(critical).toEqual([]);
   });
 });

@@ -6,11 +6,16 @@ import { isInstitutionalAccount, useInstitutionalBranding } from './institution'
 
 const auth = vi.hoisted(() => ({ user: null as UserProfile | null }));
 
-vi.mock('../../contexts/auth', () => ({ useAuth: () => auth }));
+vi.mock('../../modules/auth/hooks/useAuth', () => ({ useAuth: () => auth }));
 
 const base: UserProfile = {
-  id: 'user-id', username: 'someone', email: 'someone@example.com', role: 'user', is_active: true,
-  plan: 'LAB', created_at: '2026-09-01T00:00:00Z',
+  id: 'user-id',
+  username: 'someone',
+  email: 'someone@example.com',
+  role: 'user',
+  is_active: true,
+  plan: 'LAB',
+  created_at: '2026-09-01T00:00:00Z',
 };
 
 describe('isInstitutionalAccount', () => {
@@ -34,7 +39,9 @@ describe('isInstitutionalAccount', () => {
 });
 
 describe('useInstitutionalBranding', () => {
-  beforeEach(() => { auth.user = null; });
+  beforeEach(() => {
+    auth.user = null;
+  });
 
   it('applies the rule to the authenticated user', () => {
     expect(renderHook(() => useInstitutionalBranding()).result.current).toBe(false);
@@ -46,20 +53,27 @@ describe('useInstitutionalBranding', () => {
 });
 
 describe('InstitutionMark', () => {
-  beforeEach(() => { auth.user = { ...base, plan: 'RESEARCH' }; });
+  beforeEach(() => {
+    auth.user = { ...base, plan: 'RESEARCH' };
+  });
 
   it('renders the compact co-brand as a plain mark with the institutional title', () => {
     render(<InstitutionMark variant="compact" />);
 
     const image = screen.getByRole('img', { name: 'Universidad de Sevilla' });
     expect(image).toHaveAttribute('src', '/brands/us-fama.png');
-    expect(screen.getByTitle('Institutional account · Universidad de Sevilla')).toContainElement(image);
+    expect(screen.getByTitle('Institutional account · Universidad de Sevilla')).toContainElement(
+      image
+    );
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
   });
 
   it('defaults to the compact variant', () => {
     render(<InstitutionMark />);
-    expect(screen.getByRole('img', { name: 'Universidad de Sevilla' })).toHaveAttribute('src', '/brands/us-fama.png');
+    expect(screen.getByRole('img', { name: 'Universidad de Sevilla' })).toHaveAttribute(
+      'src',
+      '/brands/us-fama.png'
+    );
   });
 
   it('renders the wide variant as an external link to the university', () => {
@@ -70,16 +84,22 @@ describe('InstitutionMark', () => {
     expect(link).toHaveAttribute('target', '_blank');
     expect(link).toHaveAttribute('rel', 'noreferrer');
     expect(link).toHaveAttribute('title', 'Institutional account · Universidad de Sevilla');
-    expect(screen.getByRole('img', { name: 'Universidad de Sevilla' })).toHaveAttribute('src', '/brands/universidad-sevilla.svg');
+    expect(screen.getByRole('img', { name: 'Universidad de Sevilla' })).toHaveAttribute(
+      'src',
+      '/brands/universidad-sevilla.svg'
+    );
   });
 
-  it.each(['compact', 'wide'] as const)('renders nothing for non-institutional accounts (%s)', (variant) => {
-    auth.user = { ...base, plan: 'PRO' };
-    const { container } = render(<InstitutionMark variant={variant} />);
-    expect(container).toBeEmptyDOMElement();
-  });
+  it.each(['compact', 'wide'] as const)(
+    'renders nothing for non-institutional accounts (%s)',
+    variant => {
+      auth.user = { ...base, plan: 'PRO' };
+      const { container } = render(<InstitutionMark variant={variant} />);
+      expect(container).toBeEmptyDOMElement();
+    }
+  );
 
-  it.each(['compact', 'wide'] as const)('renders nothing for guests (%s)', (variant) => {
+  it.each(['compact', 'wide'] as const)('renders nothing for guests (%s)', variant => {
     auth.user = null;
     const { container } = render(<InstitutionMark variant={variant} />);
     expect(container).toBeEmptyDOMElement();

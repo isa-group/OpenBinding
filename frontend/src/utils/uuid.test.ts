@@ -14,7 +14,10 @@ describe('randomUUID', () => {
   });
 
   it('builds a version-4 UUID from getRandomValues in a context without randomUUID (plain http)', () => {
-    const getRandomValues = vi.fn((bytes: Uint8Array) => { bytes.fill(255); return bytes; });
+    const getRandomValues = vi.fn((bytes: Uint8Array) => {
+      bytes.fill(255);
+      return bytes;
+    });
     vi.stubGlobal('crypto', { getRandomValues });
     const made = randomUUID();
     expect(getRandomValues).toHaveBeenCalledOnce();

@@ -2,7 +2,14 @@ import type { PricingSelection } from 'pricing-renderer';
 import { selectionFromContract, type SpaceContractLike } from 'pricing-renderer/space';
 import type { PricingCatalog } from '../../api/auth';
 import { inInterfaceWords } from '../../components/ui/interfaceWords';
-import { describeLimit, FEATURE, LIMIT, limitInfo, LIMIT_GROUPS, type LimitGroup } from '../../utils/limits';
+import {
+  describeLimit,
+  FEATURE,
+  LIMIT,
+  limitInfo,
+  LIMIT_GROUPS,
+  type LimitGroup,
+} from '../../utils/limits';
 
 /**
  * The pricing document, read for display.
@@ -121,10 +128,20 @@ const CONTACT = /^contact us/i;
 
 function planColumn(id: string, plan: Dict, index: number): PlanColumn {
   const price = plan.price;
-  const byAgreement = typeof price === 'number' ? price > 0 : typeof price === 'string' && CONTACT.test(price);
-  const description = sentence(plan.description).replace(/^Contact us \/ Institutional agreement\.?\s*/i, '');
+  const byAgreement =
+    typeof price === 'number' ? price > 0 : typeof price === 'string' && CONTACT.test(price);
+  const description = sentence(plan.description).replace(
+    /^Contact us \/ Institutional agreement\.?\s*/i,
+    ''
+  );
   if (byAgreement) {
-    return { id, description, priceLabel: 'Contact us', unitLabel: 'institutional agreement', byAgreement: true };
+    return {
+      id,
+      description,
+      priceLabel: 'Contact us',
+      unitLabel: 'institutional agreement',
+      byAgreement: true,
+    };
   }
   return {
     id,
@@ -152,8 +169,12 @@ function quantityOf(unit: string, constraints: Dict): string {
 
 /** The sentences the document's own expressions require: `subscriptionContext['x'] < pricingContext…`. */
 function gateNeeds(expression: string, limits: Dict): string[] {
-  const ids = [...new Set([...expression.matchAll(/subscriptionContext\['([A-Za-z0-9_]+)'\]/g)].map((match) => match[1]))];
-  return ids.map((id) => {
+  const ids = [
+    ...new Set(
+      [...expression.matchAll(/subscriptionContext\['([A-Za-z0-9_]+)'\]/g)].map(match => match[1])
+    ),
+  ];
+  return ids.map(id => {
     const definition = dictOf(limits[id]);
     const info = limitInfo(id, definition);
     if (id === LIMIT.maxConcurrentRuns) return 'A free run slot';
@@ -186,7 +207,7 @@ export function readCatalog(catalog: PricingCatalog): PricingView | null {
     const fallback = dictOf(features[featureId]).defaultValue;
     const value = 'value' in own ? own.value : fallback;
     if (value === true) return { kind: 'yes' };
-    const viaAddOn = Object.values(addOnsById).some((addOn) => {
+    const viaAddOn = Object.values(addOnsById).some(addOn => {
       const entry = dictOf(addOn);
       const available = Array.isArray(entry.availableFor) ? entry.availableFor : [];
       return available.includes(planId) && dictOf(dictOf(entry.features)[featureId]).value === true;
@@ -204,52 +225,63 @@ export function readCatalog(catalog: PricingCatalog): PricingView | null {
   };
 
   // Features are grouped by the tags the document declares, in its order.
-  const declaredTags = Array.isArray(catalog.tags) ? catalog.tags.filter((tag): tag is string => typeof tag === 'string') : [];
+  const declaredTags = Array.isArray(catalog.tags)
+    ? catalog.tags.filter((tag): tag is string => typeof tag === 'string')
+    : [];
   const featureTags = new Map<string, string[]>();
   for (const [id, feature] of Object.entries(features)) {
     const tag = text(dictOf(feature).tag) || 'Other';
     featureTags.set(tag, [...(featureTags.get(tag) ?? []), id]);
   }
-  const tagOrder = [...declaredTags.filter((tag) => featureTags.has(tag)), ...[...featureTags.keys()].filter((tag) => !declaredTags.includes(tag))];
-  const featureGroups: RowGroup[] = tagOrder.map((tag) => {
+  const tagOrder = [
+    ...declaredTags.filter(tag => featureTags.has(tag)),
+    ...[...featureTags.keys()].filter(tag => !declaredTags.includes(tag)),
+  ];
+  const featureGroups: RowGroup[] = tagOrder.map(tag => {
     const ids = featureTags.get(tag) ?? [];
     return {
       id: `feature-${tag}`,
       title: tag,
       note: ids.length === 1 ? 'Feature' : 'Features',
-      rows: ids.map((id) => ({
+      rows: ids.map(id => ({
         id,
         name: featureName(id, features[id]),
         description: sentence(dictOf(features[id]).description),
-        cells: planIds.map((planId) => featureCell(id, planId)),
+        cells: planIds.map(planId => featureCell(id, planId)),
         appliesTo: [],
       })),
     };
   });
 
-  const limitGroups: RowGroup[] = LIMIT_GROUPS.map((group) => {
-    const ids = Object.keys(limits).filter((id) => limitInfo(id, dictOf(limits[id])).group === (group.id as LimitGroup));
+  const limitGroups: RowGroup[] = LIMIT_GROUPS.map(group => {
+    const ids = Object.keys(limits).filter(
+      id => limitInfo(id, dictOf(limits[id])).group === (group.id as LimitGroup)
+    );
     return {
       id: `limit-${group.id}`,
       title: group.title,
       note: group.note,
-      rows: ids.map((id) => {
+      rows: ids.map(id => {
         const definition = dictOf(limits[id]);
-        const linked = Array.isArray(definition.linkedFeatures) ? definition.linkedFeatures.filter((item): item is string => typeof item === 'string') : [];
+        const linked = Array.isArray(definition.linkedFeatures)
+          ? definition.linkedFeatures.filter((item): item is string => typeof item === 'string')
+          : [];
         return {
           id,
           name: limitInfo(id, definition).label,
           description: sentence(definition.description),
-          cells: planIds.map((planId) => limitCell(id, planId)),
-          appliesTo: linked.map((featureId) => featureName(featureId, features[featureId])),
+          cells: planIds.map(planId => limitCell(id, planId)),
+          appliesTo: linked.map(featureId => featureName(featureId, features[featureId])),
         };
       }),
     };
-  }).filter((group) => group.rows.length > 0);
+  }).filter(group => group.rows.length > 0);
 
   const gates: Gate[] = Object.entries(features).flatMap(([id, feature]) => {
     const needs = gateNeeds(text(dictOf(feature).expression), limits);
-    return needs.length === 0 ? [] : [{ starts: STARTS[id] ?? featureName(id, feature).toLowerCase(), needs }];
+    return needs.length === 0
+      ? []
+      : [{ starts: STARTS[id] ?? featureName(id, feature).toLowerCase(), needs }];
   });
 
   const addOns: AddOn[] = Object.entries(addOnsById).map(([id, value]) => {
@@ -259,7 +291,9 @@ export function readCatalog(catalog: PricingCatalog): PricingView | null {
       id,
       initial: id.charAt(0),
       effect: sentence(addOn.description),
-      plans: Array.isArray(addOn.availableFor) ? addOn.availableFor.filter((plan): plan is string => typeof plan === 'string') : [],
+      plans: Array.isArray(addOn.availableFor)
+        ? addOn.availableFor.filter((plan): plan is string => typeof plan === 'string')
+        : [],
       quantity: quantityOf(unit, dictOf(addOn.subscriptionConstraints)),
       per: perOf(unit),
     };
@@ -276,20 +310,29 @@ export function readCatalog(catalog: PricingCatalog): PricingView | null {
     periods: periods ? `${periods} periods` : null,
     plans,
     groups: [...featureGroups, ...limitGroups],
-    features: Object.entries(features).map(([id, feature]) => ({ id, name: featureName(id, feature), description: sentence(dictOf(feature).description) })),
+    features: Object.entries(features).map(([id, feature]) => ({
+      id,
+      name: featureName(id, feature),
+      description: sentence(dictOf(feature).description),
+    })),
     gates,
     addOns,
     developmentCopy: /^0\./.test(version),
-    researchDescription: plansById.RESEARCH ? sentence(dictOf(plansById.RESEARCH).description) : null,
+    researchDescription: plansById.RESEARCH
+      ? sentence(dictOf(plansById.RESEARCH).description)
+      : null,
   };
 }
 
 /** `.inf` in the YAML reaches the browser as `null`; the renderer expects the number it stands for. */
 export function withInfiniteLimits(value: unknown, key?: string): unknown {
-  if (value === null && (key === 'value' || key === 'defaultValue')) return Number.POSITIVE_INFINITY;
-  if (Array.isArray(value)) return value.map((item) => withInfiniteLimits(item));
+  if (value === null && (key === 'value' || key === 'defaultValue'))
+    return Number.POSITIVE_INFINITY;
+  if (Array.isArray(value)) return value.map(item => withInfiniteLimits(item));
   if (typeof value === 'object' && value !== null) {
-    return Object.fromEntries(Object.entries(value).map(([name, child]) => [name, withInfiniteLimits(child, name)]));
+    return Object.fromEntries(
+      Object.entries(value).map(([name, child]) => [name, withInfiniteLimits(child, name)])
+    );
   }
   return value;
 }
@@ -303,9 +346,11 @@ export function withInfiniteLimits(value: unknown, key?: string): unknown {
 export function currentSelectionOf(
   plan: string | null,
   subscription: SpaceContractLike | null,
-  service: string,
+  service: string
 ): Partial<PricingSelection> | undefined {
   if (!plan) return undefined;
   const claimed = subscription ? selectionFromContract(subscription, service) : {};
-  return claimed.planId === plan && claimed.addOns ? { planId: plan, addOns: claimed.addOns } : { planId: plan };
+  return claimed.planId === plan && claimed.addOns
+    ? { planId: plan, addOns: claimed.addOns }
+    : { planId: plan };
 }

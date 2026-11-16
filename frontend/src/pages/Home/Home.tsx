@@ -1,15 +1,34 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
-import { ArrowRight, ArrowUpRight, BookOpen, Boxes, Braces, Check, Info, Layers, Network, ServerCog, ShieldCheck, User, Waypoints } from 'lucide-react';
+import {
+  ArrowRight,
+  ArrowUpRight,
+  BookOpen,
+  Boxes,
+  Braces,
+  Check,
+  Info,
+  Layers,
+  Network,
+  ServerCog,
+  ShieldCheck,
+  User,
+  Waypoints,
+} from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { apiClient, HttpError, SESSION_ENDED_EVENT } from '../../api/client';
-import { Button } from '../../components/ui/Button';
-import { Notice } from '../../components/ui/Notice';
-import { Skeleton } from '../../components/ui/Skeleton';
+import { Button } from '../../modules/core/components/action-button';
+import { Notice } from '../../modules/core/components/notice';
+import { Skeleton } from '../../modules/core/components/skeleton';
 import { PRICING_VERSION, planSummaries } from '../../content/plans';
-import { useAuth } from '../../contexts/auth';
+import { useAuth } from '../../modules/auth/hooks/useAuth';
 import { useResource, type Resource } from '../../utils/useResource';
 import {
-  COMPATIBILITY_GATE, EXTENSION_ROUTES, LAYERS, PIPELINE, WORKFLOW_OPTIONS, type WorkflowOption,
+  COMPATIBILITY_GATE,
+  EXTENSION_ROUTES,
+  LAYERS,
+  PIPELINE,
+  WORKFLOW_OPTIONS,
+  type WorkflowOption,
 } from './homeContent';
 import './Home.css';
 
@@ -49,10 +68,16 @@ export function Home() {
       <div className="home-inner">
         {sessionEnded && !signedIn && (
           <Notice tone="info" action={<Link to="/login">Log in again</Link>}>
-            Your session expired, so you’re browsing as a visitor. Nothing private is shown on this page.
+            Your session expired, so you’re browsing as a visitor. Nothing private is shown on this
+            page.
           </Notice>
         )}
-        <Hero signedIn={signedIn} name={user?.username ?? ''} plan={user?.plan ?? ''} runtime={runtime} />
+        <Hero
+          signedIn={signedIn}
+          name={user?.username ?? ''}
+          plan={user?.plan ?? ''}
+          runtime={runtime}
+        />
         <Pipeline />
         <PublicEngines />
         <Plans />
@@ -62,60 +87,120 @@ export function Home() {
   );
 }
 
-function Hero({ signedIn, name, plan, runtime }: { signedIn: boolean; name: string; plan: string; runtime: Resource<RuntimeCounts> }) {
+function Hero({
+  signedIn,
+  name,
+  plan,
+  runtime,
+}: {
+  signedIn: boolean;
+  name: string;
+  plan: string;
+  runtime: Resource<RuntimeCounts>;
+}) {
   const counts = runtime.data;
 
   return (
     <section aria-labelledby="home-hero-title" className="home-hero">
       <Eyebrow>Compositions · Composition2Yaml · BIM problems</Eyebrow>
       <h1 id="home-hero-title">
-        <span>Describe.</span>{' '}
-        <span>Bind.</span>{' '}
-        <span>Reproduce.</span>
+        <span>Describe.</span> <span>Bind.</span> <span>Reproduce.</span>
       </h1>
       <p className="home-lede">
-        Define, version, evaluate, render and compare compositions; problems, written in BIM, say what was possible. OpenBinding
-        compiles a problem, runs engines over it and re-evaluates every binding they return, so a composition’s values can be
-        verified against the problem it links.
+        Define, version, evaluate, render and compare compositions; problems, written in BIM, say
+        what was possible. OpenBinding compiles a problem, runs engines over it and re-evaluates
+        every binding they return, so a composition’s values can be verified against the problem it
+        links.
       </p>
       <div className="home-cards">
         <Link to="/compositions" viewTransition className="home-card">
-          <span className="home-card-top"><span className="home-card-icon"><Layers aria-hidden="true" /></span><span className="home-card-go is-filled" aria-hidden="true">↗</span></span>
+          <span className="home-card-top">
+            <span className="home-card-icon">
+              <Layers aria-hidden="true" />
+            </span>
+            <span className="home-card-go is-filled" aria-hidden="true">
+              ↗
+            </span>
+          </span>
           <strong>Explore compositions</strong>
-          <span>No account needed. Public compositions, each with its workflow, the service chosen for every task and the values that choice yields.</span>
+          <span>
+            No account needed. Public compositions, each with its workflow, the service chosen for
+            every task and the values that choice yields.
+          </span>
         </Link>
         <Link to="/language" viewTransition className="home-card">
-          <span className="home-card-top"><span className="home-card-icon"><BookOpen aria-hidden="true" /></span><span className="home-card-go" aria-hidden="true">↗</span></span>
+          <span className="home-card-top">
+            <span className="home-card-icon">
+              <BookOpen aria-hidden="true" />
+            </span>
+            <span className="home-card-go" aria-hidden="true">
+              ↗
+            </span>
+          </span>
           <strong>Learn Composition2Yaml</strong>
-          <span>The language of a composition, by example, with a playground that checks a document as you write it.</span>
+          <span>
+            The language of a composition, by example, with a playground that checks a document as
+            you write it.
+          </span>
         </Link>
         {signedIn ? (
           <Link to="/app" viewTransition className="home-card is-accent">
-            <span className="home-card-top"><span className="home-card-icon is-round">{name.slice(0, 2).toUpperCase()}</span><span className="home-card-go is-filled" aria-hidden="true">↗</span></span>
+            <span className="home-card-top">
+              <span className="home-card-icon is-round">{name.slice(0, 2).toUpperCase()}</span>
+              <span className="home-card-go is-filled" aria-hidden="true">
+                ↗
+              </span>
+            </span>
             <strong>Go to your workspace</strong>
-            <span>Signed in as {name} · {plan} plan. Organizations, compositions, problems and runs live there.</span>
+            <span>
+              Signed in as {name} · {plan} plan. Organizations, compositions, problems and runs live
+              there.
+            </span>
           </Link>
         ) : (
           <Link to="/register" viewTransition className="home-card is-accent">
-            <span className="home-card-top"><span className="home-card-icon"><User aria-hidden="true" /></span><span className="home-card-go is-filled" aria-hidden="true">↗</span></span>
+            <span className="home-card-top">
+              <span className="home-card-icon">
+                <User aria-hidden="true" />
+              </span>
+              <span className="home-card-go is-filled" aria-hidden="true">
+                ↗
+              </span>
+            </span>
             <strong>Create an account</strong>
-            <span>Start on FREE: define compositions, write their problems in BIM, run engines and compare them in studies. Verified Universidad de Sevilla accounts can get RESEARCH.</span>
+            <span>
+              Start on FREE: define compositions, write their problems in BIM, run engines and
+              compare them in studies. Verified Universidad de Sevilla accounts can get RESEARCH.
+            </span>
           </Link>
         )}
       </div>
       <div className="home-quick">
-        <Link to="/workbench" viewTransition className="link-arrow">Learn with an example <ArrowRight aria-hidden="true" /></Link>
+        <Link to="/workbench" viewTransition className="link-arrow">
+          Learn with an example <ArrowRight aria-hidden="true" />
+        </Link>
         <div className="home-runtime" role="status" aria-label="Runtime catalogue status">
           {counts ? (
             <>
-              <span className="is-live"><i className="status-dot" aria-hidden="true" /> Runtime catalogue connected</span>
-              <span>{counts.profiles} executable profile{counts.profiles === 1 ? '' : 's'}</span>
-              <span>{counts.engines} {signedIn ? '' : 'public '}engine revision{counts.engines === 1 ? '' : 's'}</span>
+              <span className="is-live">
+                <i className="status-dot" aria-hidden="true" /> Runtime catalogue connected
+              </span>
+              <span>
+                {counts.profiles} executable profile{counts.profiles === 1 ? '' : 's'}
+              </span>
+              <span>
+                {counts.engines} {signedIn ? '' : 'public '}engine revision
+                {counts.engines === 1 ? '' : 's'}
+              </span>
             </>
           ) : runtime.status === 'error' ? (
-            <span className="is-offline"><i className="status-dot" aria-hidden="true" /> Runtime catalogue unavailable</span>
+            <span className="is-offline">
+              <i className="status-dot" aria-hidden="true" /> Runtime catalogue unavailable
+            </span>
           ) : (
-            <span><i className="status-dot" aria-hidden="true" /> Checking the runtime catalogue…</span>
+            <span>
+              <i className="status-dot" aria-hidden="true" /> Checking the runtime catalogue…
+            </span>
           )}
         </div>
       </div>
@@ -134,7 +219,14 @@ function Pipeline() {
     tabs.current[next]?.focus();
   };
   const onKeyDown = (event: KeyboardEvent, index: number) => {
-    const target: Record<string, number> = { ArrowRight: index + 1, ArrowDown: index + 1, ArrowLeft: index - 1, ArrowUp: index - 1, Home: 0, End: PIPELINE.length - 1 };
+    const target: Record<string, number> = {
+      ArrowRight: index + 1,
+      ArrowDown: index + 1,
+      ArrowLeft: index - 1,
+      ArrowUp: index - 1,
+      Home: 0,
+      End: PIPELINE.length - 1,
+    };
     if (!(event.key in target)) return;
     event.preventDefault();
     move(target[event.key]);
@@ -148,7 +240,9 @@ function Pipeline() {
         {PIPELINE.map((item, index) => (
           <button
             key={item.id}
-            ref={(node) => { tabs.current[index] = node; }}
+            ref={node => {
+              tabs.current[index] = node;
+            }}
             id={`home-stage-${item.id}`}
             type="button"
             role="tab"
@@ -156,7 +250,7 @@ function Pipeline() {
             aria-controls="home-stage-panel"
             tabIndex={index === active ? 0 : -1}
             onClick={() => setActive(index)}
-            onKeyDown={(event) => onKeyDown(event, index)}
+            onKeyDown={event => onKeyDown(event, index)}
           >
             <span className="home-stage-step">{item.step}</span>
             <strong>{item.title}</strong>
@@ -164,13 +258,23 @@ function Pipeline() {
           </button>
         ))}
       </div>
-      <div id="home-stage-panel" role="tabpanel" aria-labelledby={`home-stage-${stage.id}`} aria-live="polite" className="home-stage-panel">
+      <div
+        id="home-stage-panel"
+        role="tabpanel"
+        aria-labelledby={`home-stage-${stage.id}`}
+        aria-live="polite"
+        className="home-stage-panel"
+      >
         <div>
-          <span className="home-kicker">{stage.step} · {stage.title}</span>
+          <span className="home-kicker">
+            {stage.step} · {stage.title}
+          </span>
           <p>{stage.long}</p>
           <code>{stage.pin}</code>
         </div>
-        <Link to={stage.href} viewTransition className="home-cta">{stage.cta}</Link>
+        <Link to={stage.href} viewTransition className="home-cta">
+          {stage.cta}
+        </Link>
       </div>
     </section>
   );
@@ -179,9 +283,9 @@ function Pipeline() {
 function PublicEngines() {
   const engines = useResource('home-engines', () => apiClient.getPublicEngines());
   const engineList = engines.data ?? [];
-  const engineNames = [...new Set(engineList.map((engine) => engine.name))];
-  const namespaces = [...new Set(engineList.map((engine) => engine.namespace))];
-  const versions = [...new Set(engineList.map((engine) => engine.version))];
+  const engineNames = [...new Set(engineList.map(engine => engine.name))];
+  const namespaces = [...new Set(engineList.map(engine => engine.namespace))];
+  const versions = [...new Set(engineList.map(engine => engine.version))];
 
   return (
     <section aria-labelledby="home-recent-title" className="home-section">
@@ -190,26 +294,43 @@ function PublicEngines() {
           <Eyebrow>Public engines</Eyebrow>
           <h2 id="home-recent-title">Engines anyone can run</h2>
         </div>
-        <Link to="/engines" viewTransition>All engines</Link>
+        <Link to="/engines" viewTransition>
+          All engines
+        </Link>
       </div>
       <div aria-live="polite" aria-busy={engines.status === 'loading'}>
         {engines.status === 'loading' && (
           <>
-            <div className="home-recent"><Skeleton /></div>
+            <div className="home-recent">
+              <Skeleton />
+            </div>
             <span className="sr-only">Loading the public engines</span>
           </>
         )}
         {engines.status === 'error' && (
-          <Notice tone="error" action={<Button size="sm" variant="secondary" onClick={engines.reload}>Retry</Button>}>
-            The public engines couldn’t be loaded ({engines.error instanceof HttpError ? `HTTP ${engines.error.status}` : 'the gateway can’t be reached'}).
-            The rest of the page still works.
+          <Notice
+            tone="error"
+            action={
+              <Button size="sm" variant="secondary" onClick={engines.reload}>
+                Retry
+              </Button>
+            }
+          >
+            The public engines couldn’t be loaded (
+            {engines.error instanceof HttpError
+              ? `HTTP ${engines.error.status}`
+              : 'the gateway can’t be reached'}
+            ). The rest of the page still works.
           </Notice>
         )}
         {engines.status === 'ready' && engineList.length === 0 && (
           <div className="home-empty">
             <Network aria-hidden="true" />
             <strong>No public engines yet</strong>
-            <span>An engine appears here once it is published. Meanwhile, the Workbench shows what a package contains.</span>
+            <span>
+              An engine appears here once it is published. Meanwhile, the Workbench shows what a
+              package contains.
+            </span>
             <Link to="/workbench">Open the Workbench</Link>
           </div>
         )}
@@ -218,9 +339,15 @@ function PublicEngines() {
             <li>
               <Link to="/engines" viewTransition className="home-recent-card">
                 <span className="home-recent-meta">Public engines</span>
-                <strong>{engineList.length} public engine revision{engineList.length === 1 ? '' : 's'}</strong>
+                <strong>
+                  {engineList.length} public engine revision{engineList.length === 1 ? '' : 's'}
+                </strong>
                 <span className="home-recent-sub is-mono">{engineNames.join(' · ')}</span>
-                <span className="home-recent-chips">{[...namespaces, ...versions.map((version) => `v${version}`)].map((chip) => <span key={chip}>{chip}</span>)}</span>
+                <span className="home-recent-chips">
+                  {[...namespaces, ...versions.map(version => `v${version}`)].map(chip => (
+                    <span key={chip}>{chip}</span>
+                  ))}
+                </span>
               </Link>
             </li>
           </ul>
@@ -238,24 +365,39 @@ function Plans() {
           <Eyebrow>Plans</Eyebrow>
           <h2 id="home-plans-title">Free to start, institutional when you scale</h2>
         </div>
-        <Link to="/pricing" viewTransition>Compare plans</Link>
+        <Link to="/pricing" viewTransition>
+          Compare plans
+        </Link>
       </div>
       <ul className="home-plans">
-        {planSummaries.map((plan) => (
+        {planSummaries.map(plan => (
           <li key={plan.name}>
             <span className="home-kicker">{plan.name}</span>
             <strong>{plan.price}</strong>
             <span>{plan.how}</span>
-            <span className="home-plan-chips">{plan.chips.map((chip) => <span key={chip}>{chip}</span>)}</span>
+            <span className="home-plan-chips">
+              {plan.chips.map(chip => (
+                <span key={chip}>{chip}</span>
+              ))}
+            </span>
           </li>
         ))}
       </ul>
-      <span className="home-fineprint"><Info aria-hidden="true" />Headline limits from pricing {PRICING_VERSION}; the Pricing page shows the live document. No checkout: paid plans are arranged by agreement.</span>
+      <span className="home-fineprint">
+        <Info aria-hidden="true" />
+        Headline limits from pricing {PRICING_VERSION}; the Pricing page shows the live document. No
+        checkout: paid plans are arranged by agreement.
+      </span>
     </section>
   );
 }
 
-const LAYER_ICONS = { core: Boxes, profile: Braces, dialect: Waypoints, engine: ServerCog } as const;
+const LAYER_ICONS = {
+  core: Boxes,
+  profile: Braces,
+  dialect: Waypoints,
+  engine: ServerCog,
+} as const;
 
 function ExtendingBim({ executableProfiles: executable }: { executableProfiles: number }) {
   const [workflow, setWorkflow] = useState<WorkflowOption>('bpmn');
@@ -269,10 +411,13 @@ function ExtendingBim({ executableProfiles: executable }: { executableProfiles: 
             <Eyebrow>Extensibility is the architecture</Eyebrow>
             <h2 id="home-extend-title">A stable core, plural problem families.</h2>
           </div>
-          <p>BIM does not freeze every domain into one QoS schema. It keeps identity, packaging, resolution and provenance common, while explicit contracts own the meaning.</p>
+          <p>
+            BIM does not freeze every domain into one QoS schema. It keeps identity, packaging,
+            resolution and provenance common, while explicit contracts own the meaning.
+          </p>
         </div>
         <ul className="home-layers">
-          {LAYERS.map((layer) => {
+          {LAYERS.map(layer => {
             const Icon = LAYER_ICONS[layer.id];
             return (
               <li key={layer.id} className={`is-${layer.id}`}>
@@ -281,26 +426,40 @@ function ExtendingBim({ executableProfiles: executable }: { executableProfiles: 
                 <h3>{layer.title}</h3>
                 <p>{layer.copy}</p>
                 <small>
-                  {layer.id === 'profile'
-                    ? (executable > 1 ? `${executable} Profiles are executable on this host.` : <>Only <code>qos-binding/v1</code> is executable today.</>)
-                    : layer.note}
+                  {layer.id === 'profile' ? (
+                    executable > 1 ? (
+                      `${executable} Profiles are executable on this host.`
+                    ) : (
+                      <>
+                        Only <code>qos-binding/v1</code> is executable today.
+                      </>
+                    )
+                  ) : (
+                    layer.note
+                  )}
                 </small>
               </li>
             );
           })}
         </ul>
         <ul className="home-routes">
-          {EXTENSION_ROUTES.map((route) => (
+          {EXTENSION_ROUTES.map(route => (
             <li key={route.index}>
-              <span className="home-route-index" aria-hidden="true">{route.index}</span>
-              <div><small>{route.tag}</small><h3>{route.title}</h3></div>
+              <span className="home-route-index" aria-hidden="true">
+                {route.index}
+              </span>
+              <div>
+                <small>{route.tag}</small>
+                <h3>{route.title}</h3>
+              </div>
               <p>{route.copy}</p>
             </li>
           ))}
         </ul>
         <p className="home-fineprint">
-          “Specialize” means publishing a new, explicit Profile contract that may reuse shared resource languages. It does not mean a
-          package can inherit or override a host Profile at runtime.
+          “Specialize” means publishing a new, explicit Profile contract that may reuse shared
+          resource languages. It does not mean a package can inherit or override a host Profile at
+          runtime.
         </p>
       </section>
 
@@ -310,17 +469,34 @@ function ExtendingBim({ executableProfiles: executable }: { executableProfiles: 
             <Eyebrow>Vendor-neutral source</Eyebrow>
             <h2 id="home-workflow-title">Swap the workflow language, keep the boundary.</h2>
           </div>
-          <p>A Profile opens roles. Compatible Dialects let standards bodies or vendors supply source vocabularies without teaching every solver to parse them.</p>
+          <p>
+            A Profile opens roles. Compatible Dialects let standards bodies or vendors supply source
+            vocabularies without teaching every solver to parse them.
+          </p>
         </div>
         <div className="home-lab">
           <div role="tablist" aria-label="Workflow source language" className="home-lab-tabs">
-            {(Object.keys(WORKFLOW_OPTIONS) as WorkflowOption[]).map((key) => (
-              <button key={key} type="button" role="tab" id={`home-workflow-${key}`} aria-selected={workflow === key} aria-controls="home-workflow-panel" onClick={() => setWorkflow(key)}>
-                <span>{WORKFLOW_OPTIONS[key].status}</span>{WORKFLOW_OPTIONS[key].label}
+            {(Object.keys(WORKFLOW_OPTIONS) as WorkflowOption[]).map(key => (
+              <button
+                key={key}
+                type="button"
+                role="tab"
+                id={`home-workflow-${key}`}
+                aria-selected={workflow === key}
+                aria-controls="home-workflow-panel"
+                onClick={() => setWorkflow(key)}
+              >
+                <span>{WORKFLOW_OPTIONS[key].status}</span>
+                {WORKFLOW_OPTIONS[key].label}
               </button>
             ))}
           </div>
-          <div id="home-workflow-panel" role="tabpanel" aria-labelledby={`home-workflow-${workflow}`} className="home-lab-route">
+          <div
+            id="home-workflow-panel"
+            role="tabpanel"
+            aria-labelledby={`home-workflow-${workflow}`}
+            className="home-lab-route"
+          >
             <article>
               <span className="home-kicker">Typed source</span>
               <Braces aria-hidden="true" />
@@ -344,7 +520,8 @@ function ExtendingBim({ executableProfiles: executable }: { executableProfiles: 
           </div>
           <p className="home-lab-proof">
             <Check aria-hidden="true" />
-            Equivalent native JSON and BPMN lowerings may share a semantic IR identity; source files, Dialects and adapters remain separately pinned in provenance.
+            Equivalent native JSON and BPMN lowerings may share a semantic IR identity; source
+            files, Dialects and adapters remain separately pinned in provenance.
           </p>
         </div>
       </section>
@@ -353,17 +530,41 @@ function ExtendingBim({ executableProfiles: executable }: { executableProfiles: 
         <div className="home-gate-copy">
           <Eyebrow>Solver compatibility &amp; federation</Eyebrow>
           <h2 id="home-gate-title">The match closes before work crosses a boundary.</h2>
-          <p>OpenBinding compiles first, finds exact compatible modes second, and only then routes the IR to a pinned local or remote EngineRegistration. Remote engines never receive the source package.</p>
-          <Link to="/engines" viewTransition className="link-arrow">Inspect engine modes <ArrowUpRight aria-hidden="true" /></Link>
+          <p>
+            OpenBinding compiles first, finds exact compatible modes second, and only then routes
+            the IR to a pinned local or remote EngineRegistration. Remote engines never receive the
+            source package.
+          </p>
+          <Link to="/engines" viewTransition className="link-arrow">
+            Inspect engine modes <ArrowUpRight aria-hidden="true" />
+          </Link>
         </div>
         <div className="home-gate-card">
-          <header><ShieldCheck aria-hidden="true" /><div><span className="home-kicker">Fail-closed gate</span><h3>Every line must match</h3></div></header>
+          <header>
+            <ShieldCheck aria-hidden="true" />
+            <div>
+              <span className="home-kicker">Fail-closed gate</span>
+              <h3>Every line must match</h3>
+            </div>
+          </header>
           <ol>
-            {COMPATIBILITY_GATE.map((row) => (
-              <li key={row.name}><Check aria-hidden="true" /><span><strong>{row.name}</strong><small>{row.rule}</small></span><code>{row.value}</code></li>
+            {COMPATIBILITY_GATE.map(row => (
+              <li key={row.name}>
+                <Check aria-hidden="true" />
+                <span>
+                  <strong>{row.name}</strong>
+                  <small>{row.rule}</small>
+                </span>
+                <code>{row.value}</code>
+              </li>
             ))}
           </ol>
-          <footer><span>* <code>all</code> is legal only for closed dimensions.</span><strong>Gateway reevaluates the decision on return.</strong></footer>
+          <footer>
+            <span>
+              * <code>all</code> is legal only for closed dimensions.
+            </span>
+            <strong>Gateway reevaluates the decision on return.</strong>
+          </footer>
         </div>
       </section>
     </>

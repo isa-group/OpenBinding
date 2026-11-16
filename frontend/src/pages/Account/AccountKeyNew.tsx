@@ -4,16 +4,22 @@ import { apiClient, bimResourceKey } from '../../api/client';
 import type { ApiKeyPermission, CreateApiKeyRequest, CreatedApiKey } from '../../api/auth';
 import type { EngineCatalogEntry } from '../../api/client';
 import { platformApi } from '../../api/platform';
-import { Action } from '../../components/ui/Action';
-import { FormField } from '../../components/ui/FormField';
-import { Modal } from '../../components/ui/Modal';
-import { Notice } from '../../components/ui/Notice';
-import { useAuth } from '../../contexts/auth';
+import { Action } from '../../modules/core/components/action-button';
+import { FormField } from '../../modules/core/components/form-field';
+import { Modal } from '../../modules/core/components/modal';
+import { Notice } from '../../modules/core/components/notice';
+import { useAuth } from '../../modules/auth/hooks/useAuth';
 import { useResource } from '../../utils/useResource';
 import { fallbackMessage } from './accountErrors';
-import { classifyAuthError } from '../../shared/api/errors';
+import { classifyAuthError } from '../../modules/core/api/errors';
 import {
-  ADMIN_ONLY, EXPIRY_PRESETS, PERMISSION_GROUPS, PRESETS, describeDescription, expiryFor, needsEngines,
+  ADMIN_ONLY,
+  EXPIRY_PRESETS,
+  PERMISSION_GROUPS,
+  PRESETS,
+  describeDescription,
+  expiryFor,
+  needsEngines,
   type ExpiryId,
 } from './keysModel';
 import { SecretDialog } from './SecretDialog';
@@ -26,12 +32,24 @@ const KIND_SUGGESTIONS = ['runs', 'studies', 'problems'];
 type BoundaryKey = 'methods' | 'organizations' | 'resource_kinds' | 'slugs';
 type BoundaryState = Record<BoundaryKey, string[]>;
 
-const NO_BOUNDARY: BoundaryState = { methods: [], organizations: [], resource_kinds: [], slugs: [] };
+const NO_BOUNDARY: BoundaryState = {
+  methods: [],
+  organizations: [],
+  resource_kinds: [],
+  slugs: [],
+};
 
 const ENGINE_MESSAGE = 'The permissions you chose need all engines or at least one exact engine.';
 
 /** One restriction of the key: pick from what exists, or add an exact identifier that isn't listed. */
-function BoundaryPicker({ label, options, selected, onChange, hint, freeText = true }: {
+function BoundaryPicker({
+  label,
+  options,
+  selected,
+  onChange,
+  hint,
+  freeText = true,
+}: {
   label: string;
   options: readonly string[];
   selected: string[];
@@ -40,10 +58,16 @@ function BoundaryPicker({ label, options, selected, onChange, hint, freeText = t
   freeText?: boolean;
 }) {
   const [draft, setDraft] = useState('');
-  const shown = [...options, ...selected.filter((value) => !options.includes(value))];
-  const toggle = (value: string) => onChange(selected.includes(value) ? selected.filter((item) => item !== value) : [...selected, value]);
+  const shown = [...options, ...selected.filter(value => !options.includes(value))];
+  const toggle = (value: string) =>
+    onChange(
+      selected.includes(value) ? selected.filter(item => item !== value) : [...selected, value]
+    );
   const add = () => {
-    const values = draft.split(',').map((item) => item.trim()).filter(Boolean);
+    const values = draft
+      .split(',')
+      .map(item => item.trim())
+      .filter(Boolean);
     if (values.length) onChange([...new Set([...selected, ...values])]);
     setDraft('');
   };
@@ -51,8 +75,15 @@ function BoundaryPicker({ label, options, selected, onChange, hint, freeText = t
     <div className="keynew-bound" role="group" aria-label={label}>
       <span className="keynew-bound-label">{label}</span>
       <span className="keynew-pills">
-        {shown.map((value) => (
-          <button key={value} type="button" aria-pressed={selected.includes(value)} onClick={() => toggle(value)}><code>{value}</code></button>
+        {shown.map(value => (
+          <button
+            key={value}
+            type="button"
+            aria-pressed={selected.includes(value)}
+            onClick={() => toggle(value)}
+          >
+            <code>{value}</code>
+          </button>
         ))}
         {shown.length === 0 && <span className="acct-muted">{hint ?? 'None to pick from.'}</span>}
       </span>
@@ -62,10 +93,18 @@ function BoundaryPicker({ label, options, selected, onChange, hint, freeText = t
             aria-label={`Add ${label.toLowerCase()}`}
             value={draft}
             placeholder="Add another, comma-separated"
-            onChange={(event) => setDraft(event.target.value)}
-            onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); add(); } }}
+            onChange={event => setDraft(event.target.value)}
+            onKeyDown={event => {
+              if (event.key === 'Enter') {
+                event.preventDefault();
+                add();
+              }
+            }}
           />
-          <Action variant="secondary" size="sm" onClick={add} disabled={!draft.trim()}><Plus aria-hidden="true" />Add</Action>
+          <Action variant="secondary" size="sm" onClick={add} disabled={!draft.trim()}>
+            <Plus aria-hidden="true" />
+            Add
+          </Action>
         </span>
       )}
     </div>
@@ -99,13 +138,17 @@ export function AccountKeyNew({ onClose, onCreated }: AccountKeyNewProps) {
   const errorRef = useRef<HTMLDivElement>(null);
 
   // What the key could be narrowed to comes from what the account can reach; each source may fail without blocking the rest.
-  const engines = useResource('keynew-engines', () => apiClient.getEngines().catch(() => [] as EngineCatalogEntry[]));
-  const organizations = useResource('keynew-orgs', () => platformApi.organizations().catch(() => []));
+  const engines = useResource('keynew-engines', () =>
+    apiClient.getEngines().catch(() => [] as EngineCatalogEntry[])
+  );
+  const organizations = useResource('keynew-orgs', () =>
+    platformApi.organizations().catch(() => [])
+  );
 
   const catalog = engines.data ?? [];
-  const orgSlugs = (organizations.data ?? []).map((org) => org.slug);
+  const orgSlugs = (organizations.data ?? []).map(org => org.slug);
   const needsEngine = needsEngines(permissions);
-  const selectedEngines = catalog.filter((engine) => engineKeys.includes(bimResourceKey(engine.ref)));
+  const selectedEngines = catalog.filter(engine => engineKeys.includes(bimResourceKey(engine.ref)));
 
   useEffect(() => {
     if (error) errorRef.current?.focus();
@@ -115,18 +158,28 @@ export function AccountKeyNew({ onClose, onCreated }: AccountKeyNewProps) {
 
   const togglePermission = (permission: ApiKeyPermission) => {
     setError(null);
-    setPermissions((current) => (current.includes(permission) ? current.filter((item) => item !== permission) : [...current, permission]));
+    setPermissions(current =>
+      current.includes(permission)
+        ? current.filter(item => item !== permission)
+        : [...current, permission]
+    );
   };
 
-  const setBoundaryValues = (key: BoundaryKey) => (next: string[]) => setBoundary((current) => ({ ...current, [key]: next }));
+  const setBoundaryValues = (key: BoundaryKey) => (next: string[]) =>
+    setBoundary(current => ({ ...current, [key]: next }));
 
   const request = (): CreateApiKeyRequest => {
-    const restrictions = Object.fromEntries(Object.entries(boundary).filter(([, values]) => values.length > 0));
+    const restrictions = Object.fromEntries(
+      Object.entries(boundary).filter(([, values]) => values.length > 0)
+    );
     const expires = expiryFor(expiry, Date.now());
     return {
       name: name.trim(),
       permissions,
-      engine_access: { all: allEngines, engines: allEngines ? [] : selectedEngines.map((engine) => engine.ref) },
+      engine_access: {
+        all: allEngines,
+        engines: allEngines ? [] : selectedEngines.map(engine => engine.ref),
+      },
       ...(Object.keys(restrictions).length > 0 ? { boundary: restrictions } : {}),
       ...(expires ? { expires_at: expires } : {}),
     };
@@ -135,7 +188,8 @@ export function AccountKeyNew({ onClose, onCreated }: AccountKeyNewProps) {
   /** The refusal for the step being left, or `null`. */
   const refusalFor = (current: number): string | null => {
     if (current === 2 && permissions.length === 0) return 'Choose at least one permission.';
-    if (current === 3 && needsEngine && !allEngines && selectedEngines.length === 0) return `422 · ${ENGINE_MESSAGE}`;
+    if (current === 3 && needsEngine && !allEngines && selectedEngines.length === 0)
+      return `422 · ${ENGINE_MESSAGE}`;
     return null;
   };
 
@@ -163,12 +217,23 @@ export function AccountKeyNew({ onClose, onCreated }: AccountKeyNewProps) {
       onCreated?.();
     } catch (caught) {
       const failure = classifyAuthError(caught);
-      if (failure.kind === 'quota') setError('402 · You’ve reached your plan’s API key limit. Revoke a key or ask for an agreement with more keys.');
-      else if (failure.status === 403 && failure.code === 'api_key_escalation') setError(`403 · api_key_escalation: ${failure.message || 'a key can only create keys with a subset of its own authority.'}`);
-      else if (failure.status === 403 && failure.code === 'permission_not_grantable') setError('403 · permission_not_grantable: admin permissions can only be granted by a global administrator.');
+      if (failure.kind === 'quota')
+        setError(
+          '402 · You’ve reached your plan’s API key limit. Revoke a key or ask for an agreement with more keys.'
+        );
+      else if (failure.status === 403 && failure.code === 'api_key_escalation')
+        setError(
+          `403 · api_key_escalation: ${failure.message || 'a key can only create keys with a subset of its own authority.'}`
+        );
+      else if (failure.status === 403 && failure.code === 'permission_not_grantable')
+        setError(
+          '403 · permission_not_grantable: admin permissions can only be granted by a global administrator.'
+        );
       else if (failure.kind === 'invalid') {
         // The engines rule is the one a wizard can still get wrong; anything else is the gateway's own sentence.
-        setError(`422 · ${/engine/i.test(failure.message ?? '') ? ENGINE_MESSAGE : failure.message || 'The gateway refused this combination.'}`);
+        setError(
+          `422 · ${/engine/i.test(failure.message ?? '') ? ENGINE_MESSAGE : failure.message || 'The gateway refused this combination.'}`
+        );
         if (/engine/i.test(failure.message ?? '')) setStep(3);
       } else setError(fallbackMessage(failure, 'created'));
     } finally {
@@ -177,11 +242,18 @@ export function AccountKeyNew({ onClose, onCreated }: AccountKeyNewProps) {
   };
 
   const canList = permissions.length
-    ? permissions.map((permission) => ({ key: permission, item: <>{describeDescription(permission)} (<code>{permission}</code>)</> }))
+    ? permissions.map(permission => ({
+        key: permission,
+        item: (
+          <>
+            {describeDescription(permission)} (<code>{permission}</code>)
+          </>
+        ),
+      }))
     : [{ key: 'nothing', item: <>Nothing yet</> }];
   const boundSummary = Object.values(boundary).flat();
   const adminLocked = !isAdmin;
-  const expiryLabel = EXPIRY_PRESETS.find((item) => item.id === expiry)?.label ?? '';
+  const expiryLabel = EXPIRY_PRESETS.find(item => item.id === expiry)?.label ?? '';
 
   // The secret is shown once, in a dialog of its own that takes the place of the wizard.
   if (created) {
@@ -192,14 +264,19 @@ export function AccountKeyNew({ onClose, onCreated }: AccountKeyNewProps) {
         doneLabel="Go to my keys"
         onDone={onClose}
       >
-        <p>This is the only time the secret is shown. Use it as <code>X-API-Key</code> or <code>Authorization: Bearer</code>.</p>
+        <p>
+          This is the only time the secret is shown. Use it as <code>X-API-Key</code> or{' '}
+          <code>Authorization: Bearer</code>.
+        </p>
       </SecretDialog>
     );
   }
 
   return (
     <Modal title="New API key" size="lg" onClose={() => !busy && onClose()}>
-      <p className="keynew-lede">Give the key only what it needs. It can never exceed your own account.</p>
+      <p className="keynew-lede">
+        Give the key only what it needs. It can never exceed your own account.
+      </p>
       <ol aria-label="Steps" className="keynew-steps">
         {STEPS.map((label, index) => {
           const number = index + 1;
@@ -212,7 +289,10 @@ export function AccountKeyNew({ onClose, onCreated }: AccountKeyNewProps) {
                 aria-current={current ? 'step' : undefined}
                 disabled={!done}
                 className={current ? 'is-current' : done ? 'is-done' : undefined}
-                onClick={() => { setStep(number); setError(null); }}
+                onClick={() => {
+                  setStep(number);
+                  setError(null);
+                }}
               >
                 <span aria-hidden="true">{done ? <Check /> : number}</span>
                 {label}
@@ -225,7 +305,9 @@ export function AccountKeyNew({ onClose, onCreated }: AccountKeyNewProps) {
 
       <div aria-live="assertive">
         {error && (
-          <div ref={errorRef} tabIndex={-1} className="keynew-error" role="alert">{error}</div>
+          <div ref={errorRef} tabIndex={-1} className="keynew-error" role="alert">
+            {error}
+          </div>
         )}
       </div>
 
@@ -237,7 +319,7 @@ export function AccountKeyNew({ onClose, onCreated }: AccountKeyNewProps) {
               <FormField
                 label="Name"
                 value={name}
-                onChange={(event) => setName(event.target.value)}
+                onChange={event => setName(event.target.value)}
                 placeholder="e.g. ci-nightly-results"
                 maxLength={128}
                 autoComplete="off"
@@ -246,10 +328,21 @@ export function AccountKeyNew({ onClose, onCreated }: AccountKeyNewProps) {
               />
               <div className="ui-field">
                 <label htmlFor="keynew-expiry">Expires</label>
-                <select id="keynew-expiry" value={expiry} onChange={(event) => setExpiry(event.target.value as ExpiryId)} aria-describedby="keynew-expiry-note">
-                  {EXPIRY_PRESETS.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+                <select
+                  id="keynew-expiry"
+                  value={expiry}
+                  onChange={event => setExpiry(event.target.value as ExpiryId)}
+                  aria-describedby="keynew-expiry-note"
+                >
+                  {EXPIRY_PRESETS.map(item => (
+                    <option key={item.id} value={item.id}>
+                      {item.label}
+                    </option>
+                  ))}
                 </select>
-                <span id="keynew-expiry-note" className="ui-field-note">An expired key stops working; you’d create or rotate a new one.</span>
+                <span id="keynew-expiry-note" className="ui-field-note">
+                  An expired key stops working; you’d create or rotate a new one.
+                </span>
               </div>
             </div>
           </>
@@ -260,20 +353,43 @@ export function AccountKeyNew({ onClose, onCreated }: AccountKeyNewProps) {
             <div className="keynew-perm-head">
               <h2>Permissions</h2>
               <span className="keynew-presets">
-                <Action variant="secondary" size="sm" onClick={() => { setPermissions(PRESETS.read); setError(null); }}>Preset: read results</Action>
-                <Action variant="secondary" size="sm" onClick={() => { setPermissions(PRESETS.run); setError(null); }}>Preset: run an engine</Action>
-                <Action variant="link" size="sm" onClick={() => setPermissions([])}>Clear</Action>
+                <Action
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    setPermissions(PRESETS.read);
+                    setError(null);
+                  }}
+                >
+                  Preset: read results
+                </Action>
+                <Action
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    setPermissions(PRESETS.run);
+                    setError(null);
+                  }}
+                >
+                  Preset: run an engine
+                </Action>
+                <Action variant="link" size="sm" onClick={() => setPermissions([])}>
+                  Clear
+                </Action>
               </span>
             </div>
-            {PERMISSION_GROUPS.map((group) => (
+            {PERMISSION_GROUPS.map(group => (
               <fieldset key={group.name} className="keynew-group">
                 <legend>{group.name}</legend>
                 <div className="keynew-perms">
-                  {group.permissions.map((permission) => {
+                  {group.permissions.map(permission => {
                     const locked = ADMIN_ONLY.has(permission.id) && adminLocked;
                     const noteId = `perm-${permission.id.replace(/:/g, '-')}-note`;
                     return (
-                      <label key={permission.id} className={`keynew-perm${locked ? ' is-locked' : ''}`}>
+                      <label
+                        key={permission.id}
+                        className={`keynew-perm${locked ? ' is-locked' : ''}`}
+                      >
                         <input
                           type="checkbox"
                           checked={permissions.includes(permission.id)}
@@ -284,11 +400,15 @@ export function AccountKeyNew({ onClose, onCreated }: AccountKeyNewProps) {
                         <span>
                           <span className="keynew-perm-id">
                             <code>{permission.id}</code>
-                            {ADMIN_ONLY.has(permission.id) && <span className="keynew-admin-badge">ADMIN</span>}
+                            {ADMIN_ONLY.has(permission.id) && (
+                              <span className="keynew-admin-badge">ADMIN</span>
+                            )}
                           </span>
                           <span id={noteId} className="keynew-perm-desc">
                             {locked && <Lock aria-hidden="true" />}
-                            {locked ? 'Only global administrators can grant this.' : permission.description}
+                            {locked
+                              ? 'Only global administrators can grant this.'
+                              : permission.description}
                           </span>
                         </span>
                       </label>
@@ -298,7 +418,10 @@ export function AccountKeyNew({ onClose, onCreated }: AccountKeyNewProps) {
               </fieldset>
             ))}
             {adminLocked && (
-              <p className="acct-muted">Permissions marked ADMIN are only granted to global administrators, and admin routes still require the admin role.</p>
+              <p className="acct-muted">
+                Permissions marked ADMIN are only granted to global administrators, and admin routes
+                still require the admin role.
+              </p>
             )}
           </>
         )}
@@ -306,31 +429,69 @@ export function AccountKeyNew({ onClose, onCreated }: AccountKeyNewProps) {
         {step === 3 && (
           <>
             <h2>Engine access</h2>
-            <p>Permissions that run or read engine work (<code>engines:*</code>, <code>jobs:read</code>, <code>studies:*</code>) need all engines or at least one exact engine.</p>
+            <p>
+              Permissions that run or read engine work (<code>engines:*</code>,{' '}
+              <code>jobs:read</code>, <code>studies:*</code>) need all engines or at least one exact
+              engine.
+            </p>
             <div role="radiogroup" aria-label="Engine access" className="keynew-radios">
               <label className={allEngines ? 'is-on' : undefined}>
-                <input type="radio" name="engine-access" checked={allEngines} onChange={() => { setAllEngines(true); setError(null); }} />
-                <span><strong>All engines</strong><small>Includes engines added later, so the key can register new ones.</small></span>
+                <input
+                  type="radio"
+                  name="engine-access"
+                  checked={allEngines}
+                  onChange={() => {
+                    setAllEngines(true);
+                    setError(null);
+                  }}
+                />
+                <span>
+                  <strong>All engines</strong>
+                  <small>Includes engines added later, so the key can register new ones.</small>
+                </span>
               </label>
               <label className={!allEngines ? 'is-on' : undefined}>
-                <input type="radio" name="engine-access" checked={!allEngines} onChange={() => setAllEngines(false)} />
-                <span><strong>Only these engines</strong><small>Exact revisions. Others answer 404 to this key.</small></span>
+                <input
+                  type="radio"
+                  name="engine-access"
+                  checked={!allEngines}
+                  onChange={() => setAllEngines(false)}
+                />
+                <span>
+                  <strong>Only these engines</strong>
+                  <small>Exact revisions. Others answer 404 to this key.</small>
+                </span>
               </label>
             </div>
             {!allEngines && (
               <div className="keynew-engines">
-                {engines.status === 'loading' && <p className="acct-muted keynew-engines-note">Loading engines…</p>}
-                {engines.status !== 'loading' && catalog.length === 0 && <p className="acct-muted keynew-engines-note">No visible engines are available to select.</p>}
-                {catalog.map((engine) => {
+                {engines.status === 'loading' && (
+                  <p className="acct-muted keynew-engines-note">Loading engines…</p>
+                )}
+                {engines.status !== 'loading' && catalog.length === 0 && (
+                  <p className="acct-muted keynew-engines-note">
+                    No visible engines are available to select.
+                  </p>
+                )}
+                {catalog.map(engine => {
                   const key = bimResourceKey(engine.ref);
                   return (
                     <label key={key}>
                       <input
                         type="checkbox"
                         checked={engineKeys.includes(key)}
-                        onChange={() => { setError(null); setEngineKeys((current) => (current.includes(key) ? current.filter((item) => item !== key) : [...current, key])); }}
+                        onChange={() => {
+                          setError(null);
+                          setEngineKeys(current =>
+                            current.includes(key)
+                              ? current.filter(item => item !== key)
+                              : [...current, key]
+                          );
+                        }}
                       />
-                      <span className="keynew-engine-ref">{engine.namespace}/{engine.name}@{engine.version}</span>
+                      <span className="keynew-engine-ref">
+                        {engine.namespace}/{engine.name}@{engine.version}
+                      </span>
                     </label>
                   );
                 })}
@@ -341,12 +502,39 @@ export function AccountKeyNew({ onClose, onCreated }: AccountKeyNewProps) {
 
         {step === 4 && (
           <>
-            <h2>Limits <span className="keynew-optional">optional</span></h2>
-            <p>Narrow where the key works. Requests outside these limits get 403 api_key_boundary.</p>
-            <BoundaryPicker label="HTTP methods" options={METHODS} selected={boundary.methods} onChange={setBoundaryValues('methods')} freeText={false} />
-            <BoundaryPicker label="Organizations" options={orgSlugs} selected={boundary.organizations} onChange={setBoundaryValues('organizations')} hint="You don’t belong to an organization yet." />
-            <BoundaryPicker label="Resource kinds" options={KIND_SUGGESTIONS} selected={boundary.resource_kinds} onChange={setBoundaryValues('resource_kinds')} />
-            <BoundaryPicker label="Slugs" options={[]} selected={boundary.slugs} onChange={setBoundaryValues('slugs')} hint="Exact resource slugs, such as a problem or study." />
+            <h2>
+              Limits <span className="keynew-optional">optional</span>
+            </h2>
+            <p>
+              Narrow where the key works. Requests outside these limits get 403 api_key_boundary.
+            </p>
+            <BoundaryPicker
+              label="HTTP methods"
+              options={METHODS}
+              selected={boundary.methods}
+              onChange={setBoundaryValues('methods')}
+              freeText={false}
+            />
+            <BoundaryPicker
+              label="Organizations"
+              options={orgSlugs}
+              selected={boundary.organizations}
+              onChange={setBoundaryValues('organizations')}
+              hint="You don’t belong to an organization yet."
+            />
+            <BoundaryPicker
+              label="Resource kinds"
+              options={KIND_SUGGESTIONS}
+              selected={boundary.resource_kinds}
+              onChange={setBoundaryValues('resource_kinds')}
+            />
+            <BoundaryPicker
+              label="Slugs"
+              options={[]}
+              selected={boundary.slugs}
+              onChange={setBoundaryValues('slugs')}
+              hint="Exact resource slugs, such as a problem or study."
+            />
           </>
         )}
 
@@ -354,24 +542,75 @@ export function AccountKeyNew({ onClose, onCreated }: AccountKeyNewProps) {
           <>
             <h2>Review</h2>
             <dl className="keynew-review">
-              <dt>Name</dt><dd><strong>{name.trim()}</strong></dd>
-              <dt>Expires</dt><dd>{expiryLabel}</dd>
-              <dt>Can</dt><dd><ul>{canList.map(({ key, item }) => <li key={key}>{item}</li>)}</ul></dd>
-              <dt>Engines</dt><dd>{allEngines ? 'All engines, including future ones' : selectedEngines.length ? selectedEngines.map((engine) => `${engine.namespace}/${engine.name}@${engine.version}`).join(', ') : 'None'}</dd>
-              <dt>Limited to</dt><dd>{boundSummary.length ? boundSummary.map((value, index) => <span key={`${value}-${index}`}>{index > 0 && ' · '}<code>{value}</code></span>) : 'No extra limits'}</dd>
+              <dt>Name</dt>
+              <dd>
+                <strong>{name.trim()}</strong>
+              </dd>
+              <dt>Expires</dt>
+              <dd>{expiryLabel}</dd>
+              <dt>Can</dt>
+              <dd>
+                <ul>
+                  {canList.map(({ key, item }) => (
+                    <li key={key}>{item}</li>
+                  ))}
+                </ul>
+              </dd>
+              <dt>Engines</dt>
+              <dd>
+                {allEngines
+                  ? 'All engines, including future ones'
+                  : selectedEngines.length
+                    ? selectedEngines
+                        .map(engine => `${engine.namespace}/${engine.name}@${engine.version}`)
+                        .join(', ')
+                    : 'None'}
+              </dd>
+              <dt>Limited to</dt>
+              <dd>
+                {boundSummary.length
+                  ? boundSummary.map((value, index) => (
+                      <span key={`${value}-${index}`}>
+                        {index > 0 && ' · '}
+                        <code>{value}</code>
+                      </span>
+                    ))
+                  : 'No extra limits'}
+              </dd>
             </dl>
             <Notice tone="info">
-              After creation the key’s authority can’t be edited. Rotating keeps it; to change it, create a new key and revoke this one.
-              Even with these permissions, your account’s role and plan still apply to every request.
+              After creation the key’s authority can’t be edited. Rotating keeps it; to change it,
+              create a new key and revoke this one. Even with these permissions, your account’s role
+              and plan still apply to every request.
             </Notice>
           </>
         )}
 
         <div className="keynew-nav">
-          {step > 1 ? <Action variant="secondary" onClick={() => { setStep(step - 1); setError(null); }}>Back</Action> : <Action variant="secondary" onClick={onClose}>Cancel</Action>}
-          {step < STEPS.length
-            ? <Action variant="primary" onClick={next}>Continue</Action>
-            : <Action variant="primary" onClick={() => void create()} busy={busy}>{busy ? 'Creating…' : 'Create key'}</Action>}
+          {step > 1 ? (
+            <Action
+              variant="secondary"
+              onClick={() => {
+                setStep(step - 1);
+                setError(null);
+              }}
+            >
+              Back
+            </Action>
+          ) : (
+            <Action variant="secondary" onClick={onClose}>
+              Cancel
+            </Action>
+          )}
+          {step < STEPS.length ? (
+            <Action variant="primary" onClick={next}>
+              Continue
+            </Action>
+          ) : (
+            <Action variant="primary" onClick={() => void create()} busy={busy}>
+              {busy ? 'Creating…' : 'Create key'}
+            </Action>
+          )}
         </div>
       </section>
     </Modal>

@@ -19,7 +19,8 @@ export interface MenuEntry {
 
 export const NEEDS_ORGANIZATION = 'Needs an organization';
 
-const under = (pathname: string, root: string) => pathname === root || pathname.startsWith(`${root}/`);
+const under = (pathname: string, root: string) =>
+  pathname === root || pathname.startsWith(`${root}/`);
 
 export type MainSection = 'home' | OrganizationSectionId | 'engines' | 'admin' | null;
 /** The sections of the organization that have an entry of their own in the header. */
@@ -41,14 +42,25 @@ export const accountLinks: readonly NavLinkItem[] = [
 ];
 
 /** An entry of the organization (the one the address names, else the first), disabled with `Needs an organization` when there is none. */
-function inOrganization(label: string, organization: Organization | undefined, suffix: string): MenuEntry {
-  return organization ? { label, to: `/app/${organization.slug}${suffix}` } : { label, hint: NEEDS_ORGANIZATION };
+function inOrganization(
+  label: string,
+  organization: Organization | undefined,
+  suffix: string
+): MenuEntry {
+  return organization
+    ? { label, to: `/app/${organization.slug}${suffix}` }
+    : { label, hint: NEEDS_ORGANIZATION };
 }
 
 /** The entries of the header that lead into the organization, in order: its compositions, problems, runs and studies. */
-export function organizationEntries(organization?: Organization): Array<MenuEntry & { id: OrganizationSectionId }> {
+export function organizationEntries(
+  organization?: Organization
+): Array<MenuEntry & { id: OrganizationSectionId }> {
   return [
-    { id: 'compositions', ...inOrganization('Compositions', organization, `/${COMPOSITIONS_SEGMENT}`) },
+    {
+      id: 'compositions',
+      ...inOrganization('Compositions', organization, `/${COMPOSITIONS_SEGMENT}`),
+    },
     { id: 'problems', ...inOrganization('Problems', organization, `/${PROBLEMS_SEGMENT}`) },
     { id: 'runs', ...inOrganization('Runs', organization, `/${RUNS_SEGMENT}`) },
     { id: 'studies', ...inOrganization('Studies', organization, `/${STUDIES_SEGMENT}`) },

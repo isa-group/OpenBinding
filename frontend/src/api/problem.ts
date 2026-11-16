@@ -42,12 +42,16 @@ function text(value: unknown): string | undefined {
 }
 
 function strings(value: unknown): string[] | undefined {
-  return Array.isArray(value) && value.length > 0 && value.every((item) => typeof item === 'string') ? (value as string[]) : undefined;
+  return Array.isArray(value) && value.length > 0 && value.every(item => typeof item === 'string')
+    ? (value as string[])
+    : undefined;
 }
 
 function numbers(value: unknown): Record<string, number> | undefined {
   if (!isRecord(value)) return undefined;
-  const entries = Object.entries(value).filter((entry): entry is [string, number] => typeof entry[1] === 'number');
+  const entries = Object.entries(value).filter(
+    (entry): entry is [string, number] => typeof entry[1] === 'number'
+  );
   return entries.length > 0 ? Object.fromEntries(entries) : undefined;
 }
 
@@ -61,35 +65,42 @@ export function readDiagnostics(value: unknown, problemCode?: string): Diagnosti
     if (!isRecord(entry)) return [];
     const message = text(entry.message) ?? text(entry.detail) ?? text(entry.code);
     if (!message) return [];
-    const loc = Array.isArray(entry.loc) ? entry.loc.filter((part): part is string | number => typeof part === 'string' || typeof part === 'number') : undefined;
+    const loc = Array.isArray(entry.loc)
+      ? entry.loc.filter(
+          (part): part is string | number => typeof part === 'string' || typeof part === 'number'
+        )
+      : undefined;
     const span = numbers(entry.span);
     const related = Array.isArray(entry.related) ? entry.related.filter(isRecord) : [];
     const unsupported = strings(entry.unsupported);
     const allowed = strings(entry.allowed);
-    return [{
-      code: text(entry.code) ?? text(problemCode) ?? PROBLEM_CODE,
-      message,
-      ...(text(entry.pointer) !== undefined ? { pointer: text(entry.pointer) } : {}),
-      ...(text(entry.in) !== undefined ? { in: text(entry.in) } : {}),
-      ...(text(entry.parameter) !== undefined ? { parameter: text(entry.parameter) } : {}),
-      ...(loc && loc.length > 0 ? { loc } : {}),
-      ...(isRecord(entry.context) ? { context: entry.context } : {}),
-      ...(text(entry.hint) !== undefined ? { hint: text(entry.hint) } : {}),
-      ...(text(entry.fix) !== undefined ? { fix: text(entry.fix) } : {}),
-      ...(text(entry.resource) !== undefined ? { resource: text(entry.resource) } : {}),
-      ...(span ? { span } : {}),
-      ...(related.length > 0 ? { related } : {}),
-      ...(text(entry.bpmnElement) !== undefined ? { bpmnElement: text(entry.bpmnElement) } : {}),
-      ...(text(entry.irPath) !== undefined ? { irPath: text(entry.irPath) } : {}),
-      ...(text(entry.category) !== undefined ? { category: text(entry.category) } : {}),
-      ...(unsupported ? { unsupported } : {}),
-      ...(allowed ? { allowed } : {}),
-    }];
+    return [
+      {
+        code: text(entry.code) ?? text(problemCode) ?? PROBLEM_CODE,
+        message,
+        ...(text(entry.pointer) !== undefined ? { pointer: text(entry.pointer) } : {}),
+        ...(text(entry.in) !== undefined ? { in: text(entry.in) } : {}),
+        ...(text(entry.parameter) !== undefined ? { parameter: text(entry.parameter) } : {}),
+        ...(loc && loc.length > 0 ? { loc } : {}),
+        ...(isRecord(entry.context) ? { context: entry.context } : {}),
+        ...(text(entry.hint) !== undefined ? { hint: text(entry.hint) } : {}),
+        ...(text(entry.fix) !== undefined ? { fix: text(entry.fix) } : {}),
+        ...(text(entry.resource) !== undefined ? { resource: text(entry.resource) } : {}),
+        ...(span ? { span } : {}),
+        ...(related.length > 0 ? { related } : {}),
+        ...(text(entry.bpmnElement) !== undefined ? { bpmnElement: text(entry.bpmnElement) } : {}),
+        ...(text(entry.irPath) !== undefined ? { irPath: text(entry.irPath) } : {}),
+        ...(text(entry.category) !== undefined ? { category: text(entry.category) } : {}),
+        ...(unsupported ? { unsupported } : {}),
+        ...(allowed ? { allowed } : {}),
+      },
+    ];
   });
 }
 
 const unescapePointer = (segment: string) => segment.replace(/~1/g, '/').replace(/~0/g, '~');
-const escapePointer = (segment: string | number) => String(segment).replace(/~/g, '~0').replace(/\//g, '~1');
+const escapePointer = (segment: string | number) =>
+  String(segment).replace(/~/g, '~0').replace(/\//g, '~1');
 
 /**
  * The JSON pointer a diagnostic is about: its `pointer`, else its `loc` inside the body without the leading `body`.
@@ -98,7 +109,8 @@ const escapePointer = (segment: string | number) => String(segment).replace(/~/g
 export function pointerOf(diagnostic: Diagnostic): string | undefined {
   if (diagnostic.pointer !== undefined) return diagnostic.pointer;
   const inBody = diagnostic.in === undefined || diagnostic.in === 'body';
-  if (inBody && diagnostic.loc && diagnostic.loc.length > 1) return `/${diagnostic.loc.slice(1).map(escapePointer).join('/')}`;
+  if (inBody && diagnostic.loc && diagnostic.loc.length > 1)
+    return `/${diagnostic.loc.slice(1).map(escapePointer).join('/')}`;
   return undefined;
 }
 
@@ -106,7 +118,10 @@ export function pointerOf(diagnostic: Diagnostic): string | undefined {
 export function fieldOf(diagnostic: Diagnostic): string | undefined {
   const pointer = pointerOf(diagnostic);
   if (pointer !== undefined) {
-    const last = pointer.split('/').filter((part) => part !== '').pop();
+    const last = pointer
+      .split('/')
+      .filter(part => part !== '')
+      .pop();
     return last === undefined ? undefined : unescapePointer(last);
   }
   return diagnostic.parameter;
@@ -116,7 +131,9 @@ export function fieldOf(diagnostic: Diagnostic): string | undefined {
  * The first message of each pointer, to paint under the field it names (`/spec/limits/maxTasks` → message).
  * A diagnostic that names a query/path/header parameter is keyed by that parameter; one that names nothing is left out.
  */
-export function diagnosticsByPointer(diagnostics: readonly Diagnostic[]): Partial<Record<string, string>> {
+export function diagnosticsByPointer(
+  diagnostics: readonly Diagnostic[]
+): Partial<Record<string, string>> {
   const messages: Partial<Record<string, string>> = {};
   for (const diagnostic of diagnostics) {
     const key = pointerOf(diagnostic) ?? diagnostic.parameter;
@@ -126,7 +143,9 @@ export function diagnosticsByPointer(diagnostics: readonly Diagnostic[]): Partia
 }
 
 /** Like {@link diagnosticsByPointer}, keyed by the field's own name (`email`, `new_password`) for flat forms. */
-export function diagnosticsByField(diagnostics: readonly Diagnostic[]): Partial<Record<string, string>> {
+export function diagnosticsByField(
+  diagnostics: readonly Diagnostic[]
+): Partial<Record<string, string>> {
   const messages: Partial<Record<string, string>> = {};
   for (const diagnostic of diagnostics) {
     const key = fieldOf(diagnostic);
@@ -137,7 +156,9 @@ export function diagnosticsByField(diagnostics: readonly Diagnostic[]): Partial<
 
 /** The sentence of a thrown error without the `HTTP 422: ` the client puts in front of it. */
 function sentenceOf(error: unknown): string {
-  return isRecord(error) && typeof error.message === 'string' ? error.message.replace(/^HTTP \d+:\s*/, '').trim() : '';
+  return isRecord(error) && typeof error.message === 'string'
+    ? error.message.replace(/^HTTP \d+:\s*/, '').trim()
+    : '';
 }
 
 /**
@@ -148,8 +169,8 @@ export function diagnosticLines(error: unknown, limit = 6): string[] {
   const sentence = sentenceOf(error);
   const rows = isRecord(error) && Array.isArray(error.diagnostics) ? error.diagnostics : [];
   return rows
-    .map((row) => (isRecord(row) ? (text(row.message) ?? text(row.code) ?? '') : ''))
-    .filter((line) => line !== '' && line !== sentence)
+    .map(row => (isRecord(row) ? (text(row.message) ?? text(row.code) ?? '') : ''))
+    .filter(line => line !== '' && line !== sentence)
     .slice(0, limit);
 }
 

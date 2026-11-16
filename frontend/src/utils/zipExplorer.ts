@@ -56,7 +56,9 @@ export async function readZipArchive(data: Blob | ArrayBuffer | Uint8Array): Pro
 
   zip.forEach((relativePath, zipEntry) => {
     // JSZip uses internal property _data or we can read as binary / text
-    const size = (zipEntry as unknown as { _data?: { uncompressedSize?: number } })._data?.uncompressedSize ?? 0;
+    const size =
+      (zipEntry as unknown as { _data?: { uncompressedSize?: number } })._data?.uncompressedSize ??
+      0;
     totalSize += size;
     const parts = relativePath.split('/').filter(Boolean);
     const name = parts[parts.length - 1] || relativePath;
@@ -90,7 +92,7 @@ export async function readZipArchive(data: Blob | ArrayBuffer | Uint8Array): Pro
       const isLast = i === parts.length - 1;
       const isDir = !isLast || entry.dir;
 
-      let child = current.children.find((c) => c.name === part);
+      let child = current.children.find(c => c.name === part);
       if (!child) {
         child = {
           name: part,

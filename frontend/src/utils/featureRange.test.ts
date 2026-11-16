@@ -1,7 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import {
-  compareFeatures, compareOptionalFeatures, featureMidpoint, featureSortKey, formatFeature, hasRange, isFeatureSlot, isFeatureValue, isRange,
-  parseFiniteNumber, parseRangeInput, rangeInputOf, toRange, toScalar, validateFeature,
+  compareFeatures,
+  compareOptionalFeatures,
+  featureMidpoint,
+  featureSortKey,
+  formatFeature,
+  hasRange,
+  isFeatureSlot,
+  isFeatureValue,
+  isRange,
+  parseFiniteNumber,
+  parseRangeInput,
+  rangeInputOf,
+  toRange,
+  toScalar,
+  validateFeature,
 } from './featureRange';
 
 describe('isRange', () => {
@@ -27,7 +40,16 @@ describe('isRange', () => {
 
 describe('validateFeature', () => {
   it('accepts numbers and well-ordered ranges, open or not', () => {
-    for (const value of [0, -3, 120, { min: 1, max: 1 }, { min: 1, max: 2 }, { min: null, max: 5 }, { min: 5, max: null }, { min: null, max: null }]) {
+    for (const value of [
+      0,
+      -3,
+      120,
+      { min: 1, max: 1 },
+      { min: 1, max: 2 },
+      { min: null, max: 5 },
+      { min: 5, max: null },
+      { min: null, max: null },
+    ]) {
       expect(validateFeature(value)).toBeNull();
       expect(isFeatureValue(value)).toBe(true);
     }
@@ -73,21 +95,40 @@ describe('parseFiniteNumber', () => {
     expect(parseFiniteNumber(' -3 ')).toBe(-3);
     expect(parseFiniteNumber('1e-4')).toBe(0.0001);
     expect(parseFiniteNumber('.5')).toBe(0.5);
-    for (const text of ['', '-', '1e', 'abc', 'Infinity', 'NaN', '1e999', '1,5']) expect(parseFiniteNumber(text)).toBeUndefined();
+    for (const text of ['', '-', '1e', 'abc', 'Infinity', 'NaN', '1e999', '1,5'])
+      expect(parseFiniteNumber(text)).toBeUndefined();
   });
 });
 
 describe('parseRangeInput', () => {
-  const input = (over: Partial<Parameters<typeof parseRangeInput>[0]> = {}) => ({ min: '', max: '', minOpen: false, maxOpen: false, ...over });
+  const input = (over: Partial<Parameters<typeof parseRangeInput>[0]> = {}) => ({
+    min: '',
+    max: '',
+    minOpen: false,
+    maxOpen: false,
+    ...over,
+  });
 
   it('reads a closed range', () => {
-    expect(parseRangeInput(input({ min: '120', max: '180' }))).toEqual({ value: { min: 120, max: 180 }, errors: {} });
+    expect(parseRangeInput(input({ min: '120', max: '180' }))).toEqual({
+      value: { min: 120, max: 180 },
+      errors: {},
+    });
   });
 
   it('reads null for an end with no limit, whatever is typed in it', () => {
-    expect(parseRangeInput(input({ min: 'junk', minOpen: true, max: '200' })).value).toEqual({ min: null, max: 200 });
-    expect(parseRangeInput(input({ min: '100', maxOpen: true })).value).toEqual({ min: 100, max: null });
-    expect(parseRangeInput(input({ minOpen: true, maxOpen: true }))).toEqual({ value: { min: null, max: null }, errors: {} });
+    expect(parseRangeInput(input({ min: 'junk', minOpen: true, max: '200' })).value).toEqual({
+      min: null,
+      max: 200,
+    });
+    expect(parseRangeInput(input({ min: '100', maxOpen: true })).value).toEqual({
+      min: 100,
+      max: null,
+    });
+    expect(parseRangeInput(input({ minOpen: true, maxOpen: true }))).toEqual({
+      value: { min: null, max: null },
+      errors: {},
+    });
   });
 
   it('leaves an unreadable end out and says why', () => {
@@ -100,7 +141,9 @@ describe('parseRangeInput', () => {
   });
 
   it('flags min above max when both are finite, and only then', () => {
-    expect(parseRangeInput(input({ min: '9', max: '3' })).errors.range).toBe('Min can’t be greater than max.');
+    expect(parseRangeInput(input({ min: '9', max: '3' })).errors.range).toBe(
+      'Min can’t be greater than max.'
+    );
     expect(parseRangeInput(input({ min: '9', maxOpen: true })).errors).toEqual({});
     expect(parseRangeInput(input({ minOpen: true, max: '-9' })).errors).toEqual({});
   });
@@ -110,8 +153,18 @@ describe('rangeInputOf', () => {
   it('fills the fields from what the document holds', () => {
     expect(rangeInputOf(undefined)).toEqual({ min: '', max: '', minOpen: false, maxOpen: false });
     expect(rangeInputOf(120)).toEqual({ min: '120', max: '120', minOpen: false, maxOpen: false });
-    expect(rangeInputOf({ min: null, max: 200 })).toEqual({ min: '', max: '200', minOpen: true, maxOpen: false });
-    expect(rangeInputOf({ min: 100 })).toEqual({ min: '100', max: '', minOpen: false, maxOpen: false });
+    expect(rangeInputOf({ min: null, max: 200 })).toEqual({
+      min: '',
+      max: '200',
+      minOpen: true,
+      maxOpen: false,
+    });
+    expect(rangeInputOf({ min: 100 })).toEqual({
+      min: '100',
+      max: '',
+      minOpen: false,
+      maxOpen: false,
+    });
   });
 });
 
@@ -155,13 +208,37 @@ describe('formatFeature', () => {
 describe('ordering', () => {
   it('sorts by middle, with open ranges after the numbers and unbounded last', () => {
     const values = [
-      { min: null, max: null }, { min: 100, max: null }, 300, { min: null, max: 50 }, { min: 10, max: 30 }, 5, { min: 150, max: null },
+      { min: null, max: null },
+      { min: 100, max: null },
+      300,
+      { min: null, max: 50 },
+      { min: 10, max: 30 },
+      5,
+      { min: 150, max: null },
     ];
-    expect([...values].sort(compareFeatures)).toEqual([5, { min: 10, max: 30 }, 300, { min: null, max: 50 }, { min: 100, max: null }, { min: 150, max: null }, { min: null, max: null }]);
+    expect([...values].sort(compareFeatures)).toEqual([
+      5,
+      { min: 10, max: 30 },
+      300,
+      { min: null, max: 50 },
+      { min: 100, max: null },
+      { min: 150, max: null },
+      { min: null, max: null },
+    ]);
   });
 
   it('has a key that is never NaN', () => {
-    for (const value of [1, { min: 1, max: 3 }, { min: null, max: 3 }, { min: 1, max: null }, { min: null, max: null }, {}, { min: 1 }, undefined, null]) {
+    for (const value of [
+      1,
+      { min: 1, max: 3 },
+      { min: null, max: 3 },
+      { min: 1, max: null },
+      { min: null, max: null },
+      {},
+      { min: 1 },
+      undefined,
+      null,
+    ]) {
       expect(Number.isNaN(featureSortKey(value as never))).toBe(false);
     }
     expect(featureSortKey({ min: 2, max: 4 })).toBe(3);
@@ -169,10 +246,19 @@ describe('ordering', () => {
   });
 
   it('is a total order: a before b exactly when b is after a', () => {
-    const values = [1, { min: 1, max: 1 }, { min: 0, max: 2 }, { min: null, max: 1 }, { min: 1, max: null }, { min: null, max: null }, 2];
-    for (const a of values) for (const b of values) {
-      expect(Math.sign(compareFeatures(a, b))).toBe(-Math.sign(compareFeatures(b, a)) || 0);
-    }
+    const values = [
+      1,
+      { min: 1, max: 1 },
+      { min: 0, max: 2 },
+      { min: null, max: 1 },
+      { min: 1, max: null },
+      { min: null, max: null },
+      2,
+    ];
+    for (const a of values)
+      for (const b of values) {
+        expect(Math.sign(compareFeatures(a, b))).toBe(-Math.sign(compareFeatures(b, a)) || 0);
+      }
   });
 
   it('puts missing values last', () => {
@@ -201,13 +287,29 @@ describe('converting a cell between a single value and a range', () => {
   });
 
   it('asks when something would be lost, and keeps the finite min (else the finite max)', () => {
-    expect(toScalar({ min: 120, max: 180 })).toEqual({ value: 120, lossy: true, dropped: 'the upper limit (180)' });
-    expect(toScalar({ min: 100, max: null })).toEqual({ value: 100, lossy: true, dropped: 'the upper limit (no limit)' });
-    expect(toScalar({ min: null, max: 200 })).toEqual({ value: 200, lossy: true, dropped: 'the lower limit (no limit)' });
+    expect(toScalar({ min: 120, max: 180 })).toEqual({
+      value: 120,
+      lossy: true,
+      dropped: 'the upper limit (180)',
+    });
+    expect(toScalar({ min: 100, max: null })).toEqual({
+      value: 100,
+      lossy: true,
+      dropped: 'the upper limit (no limit)',
+    });
+    expect(toScalar({ min: null, max: 200 })).toEqual({
+      value: 200,
+      lossy: true,
+      dropped: 'the lower limit (no limit)',
+    });
   });
 
   it('leaves the cell empty when there is no finite end', () => {
-    expect(toScalar({ min: null, max: null })).toEqual({ value: null, lossy: true, dropped: 'both limits' });
+    expect(toScalar({ min: null, max: null })).toEqual({
+      value: null,
+      lossy: true,
+      dropped: 'both limits',
+    });
     expect(toScalar({})).toMatchObject({ value: null, lossy: false });
   });
 

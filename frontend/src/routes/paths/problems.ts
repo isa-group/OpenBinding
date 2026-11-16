@@ -1,17 +1,25 @@
 // Address builders of the problems area (M2.6; organization-level since F0b). Code that links to a problem, a problem version or the problem list builds the address here,
 // so the segment is named once.
 
-import type { ProblemOrigin } from '../../shared/api/types';
+import type { ProblemOrigin } from '../../modules/core/api/types';
 
 /** The segment of the problem list and the problem page. */
 export const PROBLEMS_SEGMENT = 'problems';
 
 /** The segments of the problem page after the problem: no segment is the Overview tab. */
-export const PROBLEM_TAB_SEGMENTS = ['candidates', 'versions', 'runs', 'compositions', 'source', 'settings'] as const;
+export const PROBLEM_TAB_SEGMENTS = [
+  'candidates',
+  'versions',
+  'runs',
+  'compositions',
+  'source',
+  'settings',
+] as const;
 
 export type ProblemTabSegment = (typeof PROBLEM_TAB_SEGMENTS)[number];
 
-export const isProblemTabSegment = (value: string): value is ProblemTabSegment => (PROBLEM_TAB_SEGMENTS as readonly string[]).includes(value);
+export const isProblemTabSegment = (value: string): value is ProblemTabSegment =>
+  (PROBLEM_TAB_SEGMENTS as readonly string[]).includes(value);
 
 /**
  * The query of a problem page: the problem version shown (`version`), the pair that the Versions tab compares (`from`, `to`), and
@@ -45,14 +53,25 @@ function withQuery(path: string, values: Record<string, string | number | undefi
 }
 
 /** The problem list of an organization: `/app/<org>/problems`, with its filters. */
-export const problemsPath = (org: string, filter: ProblemsFilter = {}): string => (
-  withQuery(`${organizationPath(org)}/${PROBLEMS_SEGMENT}`, { origin: filter.origin, composition: filter.composition })
-);
+export const problemsPath = (org: string, filter: ProblemsFilter = {}): string =>
+  withQuery(`${organizationPath(org)}/${PROBLEMS_SEGMENT}`, {
+    origin: filter.origin,
+    composition: filter.composition,
+  });
 
 /** The problem page, with its tab and the version or pair it shows. */
-export function problemPath(org: string, problem: string, tab?: ProblemTabSegment, view: ProblemView = {}): string {
+export function problemPath(
+  org: string,
+  problem: string,
+  tab?: ProblemTabSegment,
+  view: ProblemView = {}
+): string {
   return withQuery(`${problemsPath(org)}/${encodeURIComponent(problem)}${tab ? `/${tab}` : ''}`, {
-    version: view.version, from: view.from, to: view.to, composition: view.composition, compositionVersion: view.compositionVersion,
+    version: view.version,
+    from: view.from,
+    to: view.to,
+    composition: view.composition,
+    compositionVersion: view.compositionVersion,
   });
 }
 
@@ -75,7 +94,10 @@ export interface ProblemEditorTarget {
  */
 export function problemEditorPath(org: string, target: ProblemEditorTarget = {}): string {
   return withQuery(`${organizationPath(org)}/problem-editor`, {
-    problem: target.problem, revision: target.revision, template: target.template,
-    composition: target.composition, compositionVersion: target.compositionVersion,
+    problem: target.problem,
+    revision: target.revision,
+    template: target.template,
+    composition: target.composition,
+    compositionVersion: target.compositionVersion,
   });
 }

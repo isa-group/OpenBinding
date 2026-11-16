@@ -1,4 +1,4 @@
-import type { ProblemOrigin } from '../shared/api/types';
+import type { ProblemOrigin } from '../modules/core/api/types';
 import type { BimEngineCompatibility } from './bim';
 import { apiClient } from './client';
 
@@ -167,10 +167,19 @@ export const problemsApi = {
   create: (org: string, archive: Uint8Array | Blob, value: ProblemCreate = {}) =>
     apiClient.request<ProblemUpload>(
       `${problemsRoot(org)}${query({ slug: value.slug, name: value.name, description: value.description, producer: value.producer })}`,
-      zipBody(archive), undefined, true, true,
+      zipBody(archive),
+      undefined,
+      true,
+      true
     ),
   update: (org: string, problem: string, value: { name?: string; description?: string }) =>
-    apiClient.request<Problem>(problemRoot(org, problem), { method: 'PATCH', body: JSON.stringify(value) }, undefined, true, true),
+    apiClient.request<Problem>(
+      problemRoot(org, problem),
+      { method: 'PATCH', body: JSON.stringify(value) },
+      undefined,
+      true,
+      true
+    ),
   /** 409 `problem_has_runs` while a run or a study names one of its revisions. */
   remove: (org: string, problem: string) =>
     apiClient.request<void>(problemRoot(org, problem), { method: 'DELETE' }, undefined, true, true),
@@ -178,8 +187,19 @@ export const problemsApi = {
   revisions: (org: string, problem: string) =>
     apiClient.request<ProblemRevision[]>(`${problemRoot(org, problem)}/revisions`),
   /** Upload a package as a revision: `created` is false (200) when the package already is a revision of the problem. */
-  createRevision: (org: string, problem: string, archive: Uint8Array | Blob, value: { producer?: string } = {}) =>
-    apiClient.request<ProblemUpload>(`${problemRoot(org, problem)}/revisions${query({ producer: value.producer })}`, zipBody(archive), undefined, true, true),
+  createRevision: (
+    org: string,
+    problem: string,
+    archive: Uint8Array | Blob,
+    value: { producer?: string } = {}
+  ) =>
+    apiClient.request<ProblemUpload>(
+      `${problemRoot(org, problem)}/revisions${query({ producer: value.producer })}`,
+      zipBody(archive),
+      undefined,
+      true,
+      true
+    ),
   /** One revision by its number, id or package digest. */
   revision: (org: string, problem: string, revision: number | string) =>
     apiClient.request<ProblemRevisionDetail>(revisionRoot(org, problem, revision)),
@@ -191,5 +211,7 @@ export const problemsApi = {
     apiClient.request<ProblemCompilation>(`${revisionRoot(org, problem, revision)}/compilation`),
   /** The IR of one compilation, as the engines read it, with its source map. */
   ir: (org: string, problem: string, revision: number | string, compilation: string) =>
-    apiClient.request<CompilationIr>(`${revisionRoot(org, problem, revision)}/compilations/${enc(compilation)}/ir`),
+    apiClient.request<CompilationIr>(
+      `${revisionRoot(org, problem, revision)}/compilations/${enc(compilation)}/ir`
+    ),
 };

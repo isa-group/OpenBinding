@@ -12,7 +12,8 @@ export function useCurrentIntoView(nav: RefObject<HTMLElement | null>, current: 
     if (!row || !link || row.scrollWidth <= row.clientWidth) return;
     const rowBox = row.getBoundingClientRect();
     const linkBox = link.getBoundingClientRect();
-    const centred = row.scrollLeft + (linkBox.left - rowBox.left) - (row.clientWidth - linkBox.width) / 2;
+    const centred =
+      row.scrollLeft + (linkBox.left - rowBox.left) - (row.clientWidth - linkBox.width) / 2;
     row.scrollTo?.({ left: Math.max(0, centred) });
   }, [nav, current]);
 }

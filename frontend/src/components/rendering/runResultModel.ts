@@ -1,15 +1,23 @@
 import type { BindingProblemShape } from './bindingTableModel';
 import type { ObjectiveProblem } from './objectiveModel';
 
-export interface RunResultData { termination?: unknown; solutions?: unknown; logs?: unknown }
+export interface RunResultData {
+  termination?: unknown;
+  solutions?: unknown;
+  logs?: unknown;
+}
 /** What `runProblemOf(facts)` (runProblem.ts) returns from the facts of the run's compilation. */
 export type RunProblem = BindingProblemShape & ObjectiveProblem;
-export interface RunReport { remote?: unknown }
+export interface RunReport {
+  remote?: unknown;
+}
 
 type Plain = Record<string, unknown>;
 
-const isPlain = (value: unknown): value is Plain => typeof value === 'object' && value !== null && !Array.isArray(value);
-const own = (object: unknown, key: string): unknown => (isPlain(object) && Object.hasOwn(object, key) ? object[key] : undefined);
+const isPlain = (value: unknown): value is Plain =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+const own = (object: unknown, key: string): unknown =>
+  isPlain(object) && Object.hasOwn(object, key) ? object[key] : undefined;
 
 /** The termination as the badge shows it: a non-empty string, else UNKNOWN. */
 export function verdictOf(termination: unknown): string {
@@ -54,7 +62,9 @@ export function unitsOf(problem: RunProblem | null | undefined): Record<string, 
 /** The string items of `report.remote.divergence.notes`. */
 export function notesOf(report: RunReport | null | undefined): string[] {
   const notes = own(own(own(report, 'remote'), 'divergence'), 'notes');
-  return Array.isArray(notes) ? notes.filter((note): note is string => typeof note === 'string') : [];
+  return Array.isArray(notes)
+    ? notes.filter((note): note is string => typeof note === 'string')
+    : [];
 }
 
 /** `report.remote` when it is an object with at least one own key. */

@@ -2,7 +2,8 @@ export type TimeHorizon = 'realtime' | 'day' | 'week' | 'month' | 'historic';
 
 export type DashboardCategory = 'builtin' | 'public_federated' | 'private_federated' | 'unified';
 
-export type AdminViewMode = 'all' | 'dashboards' | 'accounts' | 'engines' | 'operations' | 'diagnostics';
+export type AdminViewMode =
+  'all' | 'dashboards' | 'accounts' | 'engines' | 'operations' | 'diagnostics';
 
 export interface UserEngineUsage {
   engineId: string;
@@ -191,7 +192,8 @@ export interface ApiErrorEventItem {
   organizationId?: string | null;
   status_code: number;
   statusCode: number;
-  category: 'pricing_quota' | 'concurrency' | 'solver_failure' | 'system_bug' | 'validation' | 'auth';
+  category:
+    'pricing_quota' | 'concurrency' | 'solver_failure' | 'system_bug' | 'validation' | 'auth';
   error_code: string;
   errorCode: string;
   endpoint: string;

@@ -51,8 +51,10 @@ interface ReadRun {
   solutions: ReadSolution[];
 }
 
-const isPlain = (x: unknown): x is Record<string, unknown> => typeof x === 'object' && x !== null && !Array.isArray(x);
-const own = (o: Record<string, unknown>, k: string): unknown => (Object.hasOwn(o, k) ? o[k] : undefined);
+const isPlain = (x: unknown): x is Record<string, unknown> =>
+  typeof x === 'object' && x !== null && !Array.isArray(x);
+const own = (o: Record<string, unknown>, k: string): unknown =>
+  Object.hasOwn(o, k) ? o[k] : undefined;
 
 function readRun(run: unknown): ReadRun {
   const r = isPlain(run) ? run : {};
@@ -61,7 +63,8 @@ function readRun(run: unknown): ReadRun {
   const solutions = list.map((s): ReadSolution => {
     if (!isPlain(s)) return { features: null, score: undefined };
     const features = isPlain(s.features) ? s.features : isPlain(s.metrics) ? s.metrics : null;
-    const score = s.score !== undefined ? s.score : isPlain(s.objectives) ? s.objectives.score : undefined;
+    const score =
+      s.score !== undefined ? s.score : isPlain(s.objectives) ? s.objectives.score : undefined;
     return { features, score };
   });
   return { termination, solutions };
@@ -72,7 +75,8 @@ const isNum = (x: unknown): x is number => typeof x === 'number' && Number.isFin
 function valueOf(raw: unknown, allowList: boolean): DiffValue {
   if (raw === undefined || raw === null) return { kind: 'absent' };
   if (isNum(raw)) return { kind: 'number', value: raw };
-  if (allowList && Array.isArray(raw) && raw.every(isNum)) return { kind: 'list', values: raw as number[] };
+  if (allowList && Array.isArray(raw) && raw.every(isNum))
+    return { kind: 'list', values: raw as number[] };
   return { kind: 'invalid' };
 }
 
@@ -83,7 +87,10 @@ function same(a: DiffValue, b: DiffValue): boolean {
 }
 
 /** Compares what an engine claimed with what the gateway evaluated; solutions are paired by position. */
-export function evaluationDiffOf(evaluated: RunValues, claimed?: RunValues | null): EvaluationDiffView {
+export function evaluationDiffOf(
+  evaluated: RunValues,
+  claimed?: RunValues | null
+): EvaluationDiffView {
   const ev = readRun(evaluated);
   const evSide = { termination: ev.termination, solutions: ev.solutions.length };
   if (claimed === undefined || claimed === null) {
@@ -113,11 +120,12 @@ export function evaluationDiffOf(evaluated: RunValues, claimed?: RunValues | nul
       const solution = i + 1;
       const eKeys = e.features ? Object.keys(e.features) : [];
       const cKeys = c.features ? Object.keys(c.features) : [];
-      const names = [...eKeys, ...cKeys.filter((k) => !eKeys.includes(k))];
+      const names = [...eKeys, ...cKeys.filter(k => !eKeys.includes(k))];
       for (const name of names) {
         const cv = valueOf(c.features ? own(c.features, name) : undefined, false);
         const ev2 = valueOf(e.features ? own(e.features, name) : undefined, false);
-        if (!same(cv, ev2)) rows.push({ solution, field: { kind: 'feature', name }, claimed: cv, evaluated: ev2 });
+        if (!same(cv, ev2))
+          rows.push({ solution, field: { kind: 'feature', name }, claimed: cv, evaluated: ev2 });
       }
       const cs = valueOf(c.score, true);
       const es = valueOf(e.score, true);
@@ -125,10 +133,21 @@ export function evaluationDiffOf(evaluated: RunValues, claimed?: RunValues | nul
         es.values.forEach((v, k) => {
           const a: DiffValue = { kind: 'number', value: cs.values[k] };
           const b: DiffValue = { kind: 'number', value: v };
-          if (!same(a, b)) rows.push({ solution, field: { kind: 'score', component: k + 1 }, claimed: a, evaluated: b });
+          if (!same(a, b))
+            rows.push({
+              solution,
+              field: { kind: 'score', component: k + 1 },
+              claimed: a,
+              evaluated: b,
+            });
         });
       } else if (!same(cs, es)) {
-        rows.push({ solution, field: { kind: 'score', component: null }, claimed: cs, evaluated: es });
+        rows.push({
+          solution,
+          field: { kind: 'score', component: null },
+          claimed: cs,
+          evaluated: es,
+        });
       }
     });
   }

@@ -22,6 +22,31 @@ Conventional Commits: `type(scope): subject` in lower-case imperative, no final 
 No AI-assistance markers and no `Co-authored-by` trailers. One coherent change per commit; keep generated files,
 dependency updates, docs, tests and behaviour in separate commits when they can be reviewed separately.
 
+## Frontend
+
+The frontend follows SPHERE (`SCORELabUS/SPHERE`), its look, behaviour and structure
+([ADR 0053](docs/adr/0053-frontend-on-sphere-stack.md), [`frontend/DESIGN.md`](frontend/DESIGN.md)).
+
+- **SPHERE first.** Before writing a screen, component or utility, find its counterpart in SPHERE at the pinned
+  revision (`73779a8a`, in `THIRD_PARTY_NOTICES.md`) and copy it into `frontend/src/modules/<domain>`, in SPHERE's
+  folders (`api`, `components/<kebab>/index.tsx`, `contexts`, `hooks`, `pages/<kebab>/index.tsx`, `types`, `utils`).
+  Change only the data, the wording and OpenBinding's rules, and port its test with it.
+- **Origin header and reuse class.** Every copied file opens with `Copied verbatim from`, `Adapted from` (with a
+  `Changes:` line) or `Pattern only, after` SPHERE `<path>` (revision), and gets a row in `THIRD_PARTY_NOTICES.md` with
+  its class: **verbatim** (only imports, wording and types changed), **adapted** (logic changed) or **pattern-only**
+  (the layout followed, the code written here). Invent only when SPHERE has no counterpart.
+- **Never copy SPHERE's known defects**: undefined `sphere-*` classes, missing iconify names, button navigation
+  instead of links, detached dialogs without a focus trap, small text under 4.5:1, Spanish leftovers, crypto-js
+  storage.
+- **Styling.** Tailwind `tp-*` utilities and Tailwind's default palette only; no new `.css` file and no hex value
+  outside `src/styles/tailwind.css`, where a new colour goes. Small text uses `tp-accent`, not `tp-primary`. Copied
+  `dark:` classes stay inert (light only). `cursor-pointer` on every clickable.
+- **Modules.** `modules/core` imports no domain module; a module imports another only through its `api/`, `types/`,
+  `components/`, `hooks/` or `contexts/` (lint enforces it). Data goes through `use<Domain>Api()` over
+  `useAuth().fetchWithInterceptor`, with the generated types and `readApiError`; writes send `If-Match` and a 412 opens
+  `offerReloadIfChanged`.
+- **Gates.** `pnpm gen:api --check`, `pnpm format:check`, `pnpm lint`, `pnpm test`, `pnpm build`.
+
 ## Pull requests
 
 - Small and focused: one capability per PR, base `develop`.

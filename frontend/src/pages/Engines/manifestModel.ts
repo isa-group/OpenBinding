@@ -77,11 +77,23 @@ const VALUE_LABELS: Record<string, Record<string, string>> = {
   featureScopes: { invocation: 'Invocation', selectedCandidate: 'Selected candidate' },
 };
 
-const OBJECTIVE_LABELS: Record<string, string> = { SINGLE: 'one objective', MULTI: 'several objectives', MANY: 'many objectives' };
-const WEIGHT_LABELS: Record<string, string> = { required: 'weights required', optional: 'weights optional', forbidden: 'no weights' };
+const OBJECTIVE_LABELS: Record<string, string> = {
+  SINGLE: 'one objective',
+  MULTI: 'several objectives',
+  MANY: 'many objectives',
+};
+const WEIGHT_LABELS: Record<string, string> = {
+  required: 'weights required',
+  optional: 'weights optional',
+  forbidden: 'no weights',
+};
 
 function humanize(id: string): string {
-  const words = id.replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/[-_]+/g, ' ').trim().toLowerCase();
+  const words = id
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/[-_]+/g, ' ')
+    .trim()
+    .toLowerCase();
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
@@ -94,7 +106,9 @@ export function valueLabel(dimension: string, value: string): string {
 }
 
 function strings(value: unknown): string[] {
-  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === 'string')
+    : [];
 }
 
 function format(value: number): string {
@@ -102,8 +116,18 @@ function format(value: number): string {
 }
 
 function rangeOf(schema: Record<string, unknown>): string {
-  const low = typeof schema.minimum === 'number' ? schema.minimum : typeof schema.exclusiveMinimum === 'number' ? schema.exclusiveMinimum : null;
-  const high = typeof schema.maximum === 'number' ? schema.maximum : typeof schema.exclusiveMaximum === 'number' ? schema.exclusiveMaximum : null;
+  const low =
+    typeof schema.minimum === 'number'
+      ? schema.minimum
+      : typeof schema.exclusiveMinimum === 'number'
+        ? schema.exclusiveMinimum
+        : null;
+  const high =
+    typeof schema.maximum === 'number'
+      ? schema.maximum
+      : typeof schema.exclusiveMaximum === 'number'
+        ? schema.exclusiveMaximum
+        : null;
   if (low !== null && high !== null) return `${format(low)} – ${format(high)}`;
   if (low !== null) return `≥ ${format(low)}`;
   if (high !== null) return `≤ ${format(high)}`;
@@ -111,7 +135,11 @@ function rangeOf(schema: Record<string, unknown>): string {
 }
 
 function scalar(value: unknown): string {
-  return typeof value === 'number' ? format(value) : typeof value === 'string' || typeof value === 'boolean' ? String(value) : '—';
+  return typeof value === 'number'
+    ? format(value)
+    : typeof value === 'string' || typeof value === 'boolean'
+      ? String(value)
+      : '—';
 }
 
 export interface FixedOptionView {
@@ -134,9 +162,12 @@ function keywordValue(value: unknown): string {
 /** What a fixed option schema says, in words: the `const`/`enum` reading of the options table, plus the other keywords as pairs. */
 export function describeFixedOption(schema: unknown): FixedOptionView {
   const body = isRecord(schema) ? schema : {};
-  const summary = 'const' in body
-    ? `always ${keywordValue(body.const)}`
-    : Array.isArray(body.enum) ? `one of ${body.enum.map(keywordValue).join(', ')}` : null;
+  const summary =
+    'const' in body
+      ? `always ${keywordValue(body.const)}`
+      : Array.isArray(body.enum)
+        ? `one of ${body.enum.map(keywordValue).join(', ')}`
+        : null;
   const pairs = Object.entries(body)
     .filter(([keyword]) => keyword !== 'const' && keyword !== 'enum')
     .map(([keyword, value]) => ({ keyword, value: keywordValue(value) }));
@@ -163,19 +194,35 @@ function readOptions(schema: unknown): OptionRow[] {
 
 function readCapability(id: string, raw: unknown): CapabilityRow {
   const body = isRecord(raw) ? raw : {};
-  const selector = body.selector === 'none' || body.selector === 'all' || body.selector === 'only' ? body.selector : 'unknown';
-  const values = selector === 'only' && Array.isArray(body.values)
-    ? body.values.map((item) => (typeof item === 'string' ? item : isRecord(item) && typeof item.id === 'string' ? item.id : JSON.stringify(item)))
-    : [];
+  const selector =
+    body.selector === 'none' || body.selector === 'all' || body.selector === 'only'
+      ? body.selector
+      : 'unknown';
+  const values =
+    selector === 'only' && Array.isArray(body.values)
+      ? body.values.map(item =>
+          typeof item === 'string'
+            ? item
+            : isRecord(item) && typeof item.id === 'string'
+              ? item.id
+              : JSON.stringify(item)
+        )
+      : [];
   return { id, label: dimensionLabel(id), selector, values };
 }
 
 function readScalarizations(raw: unknown): ScalarizationRow[] {
   const values = isRecord(raw) && Array.isArray(raw.values) ? raw.values : [];
-  return values.filter(isRecord).map((item) => ({
+  return values.filter(isRecord).map(item => ({
     id: typeof item.id === 'string' ? item.id : '—',
-    objectives: strings(item.objectiveTypes).map((type) => OBJECTIVE_LABELS[type] ?? type).join(' · ') || '—',
-    weights: typeof item.weightPolicy === 'string' ? WEIGHT_LABELS[item.weightPolicy] ?? item.weightPolicy : '—',
+    objectives:
+      strings(item.objectiveTypes)
+        .map(type => OBJECTIVE_LABELS[type] ?? type)
+        .join(' · ') || '—',
+    weights:
+      typeof item.weightPolicy === 'string'
+        ? (WEIGHT_LABELS[item.weightPolicy] ?? item.weightPolicy)
+        : '—',
   }));
 }
 
@@ -184,7 +231,11 @@ function featureValuesOf(raw: unknown): FeatureValuesView {
   if (raw.selector === 'all') return { declared: true, scalar: true, interval: true };
   if (raw.selector === 'only') {
     const values = strings(raw.values);
-    return { declared: true, scalar: values.includes('scalar'), interval: values.includes('interval') };
+    return {
+      declared: true,
+      scalar: values.includes('scalar'),
+      interval: values.includes('interval'),
+    };
   }
   return { declared: true, scalar: false, interval: false };
 }
@@ -201,13 +252,20 @@ function readMode(raw: unknown, index: number): ModeView {
   return {
     id: typeof mode.id === 'string' ? mode.id : `mode-${index + 1}`,
     profile: typeof mode.profile === 'string' ? mode.profile : '—',
-    ir: [ir.apiVersion, ir.kind].filter((part): part is string => typeof part === 'string').join(' · ') || '—',
+    ir:
+      [ir.apiVersion, ir.kind]
+        .filter((part): part is string => typeof part === 'string')
+        .join(' · ') || '—',
     algorithm: typeof mode.algorithm === 'string' ? mode.algorithm : '—',
-    capabilities: Object.entries(capabilities).filter(([id]) => id !== 'scalarizations').map(([id, value]) => readCapability(id, value)),
+    capabilities: Object.entries(capabilities)
+      .filter(([id]) => id !== 'scalarizations')
+      .map(([id, value]) => readCapability(id, value)),
     featureValues: featureValuesOf(capabilities.featureValues),
     scalarizations: readScalarizations(capabilities.scalarizations),
     options: readOptions(mode.optionsSchema),
-    limits: Object.entries(limits).filter((entry): entry is [string, number] => typeof entry[1] === 'number'),
+    limits: Object.entries(limits).filter(
+      (entry): entry is [string, number] => typeof entry[1] === 'number'
+    ),
     termination: strings(guarantees.termination),
     exact: guarantees.exact === true,
     flags,
@@ -221,13 +279,18 @@ export function readManifest(document: unknown): ManifestView | null {
   const modes = Array.isArray(document.spec.modes) ? document.spec.modes : [];
   const extras: string[] = [];
   if (isRecord(metadata.labels) && Object.keys(metadata.labels).length) extras.push('labels');
-  if (isRecord(metadata.annotations) && Object.keys(metadata.annotations).length) extras.push('annotations');
-  if (isRecord(document.spec.extensions) && Object.keys(document.spec.extensions).length) extras.push('extensions');
+  if (isRecord(metadata.annotations) && Object.keys(metadata.annotations).length)
+    extras.push('annotations');
+  if (isRecord(document.spec.extensions) && Object.keys(document.spec.extensions).length)
+    extras.push('extensions');
   return {
     namespace: typeof metadata.namespace === 'string' ? metadata.namespace : '',
     name: typeof metadata.name === 'string' ? metadata.name : '',
     version: typeof metadata.version === 'string' ? metadata.version : '',
-    description: typeof metadata.description === 'string' && metadata.description ? metadata.description : null,
+    description:
+      typeof metadata.description === 'string' && metadata.description
+        ? metadata.description
+        : null,
     modes: modes.map(readMode),
     extras,
   };

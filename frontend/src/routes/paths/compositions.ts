@@ -1,7 +1,7 @@
 // Address builders of the compositions area (F2). Code that links to the composition list, a composition, its tabs or its public
 // page builds the address here, so the segments are named once.
 
-import type { Kind } from '../../entities/composition/document';
+import type { Kind } from '../../modules/core/utils/composition/document';
 import { organizationPath } from './problems';
 
 /** The segment of the composition list and the composition page. */
@@ -12,9 +12,8 @@ export const COMPOSITION_TAB_SEGMENTS = ['editor', 'versions', 'analysis', 'sett
 
 export type CompositionTabSegment = (typeof COMPOSITION_TAB_SEGMENTS)[number];
 
-export const isCompositionTabSegment = (value: string): value is CompositionTabSegment => (
-  (COMPOSITION_TAB_SEGMENTS as readonly string[]).includes(value)
-);
+export const isCompositionTabSegment = (value: string): value is CompositionTabSegment =>
+  (COMPOSITION_TAB_SEGMENTS as readonly string[]).includes(value);
 
 /** What the composition list shows: one kind, the archived ones instead of the active ones, and a search text. */
 export interface CompositionsFilter {
@@ -34,7 +33,10 @@ export interface CompositionQuery {
   view?: VersionsView;
 }
 
-function withQuery(path: string, values: Record<string, string | number | boolean | undefined>): string {
+function withQuery(
+  path: string,
+  values: Record<string, string | number | boolean | undefined>
+): string {
   const query = new URLSearchParams();
   for (const [key, value] of Object.entries(values)) {
     if (value !== undefined && value !== '' && value !== false) query.set(key, String(value));
@@ -45,11 +47,20 @@ function withQuery(path: string, values: Record<string, string | number | boolea
 
 /** The composition list of an organization: `/app/<org>/compositions`, with its filters. */
 export function compositionsPath(org: string, filter: CompositionsFilter = {}): string {
-  return withQuery(`${organizationPath(org)}/${COMPOSITIONS_SEGMENT}`, { kind: filter.kind, archived: filter.archived, q: filter.q?.trim() });
+  return withQuery(`${organizationPath(org)}/${COMPOSITIONS_SEGMENT}`, {
+    kind: filter.kind,
+    archived: filter.archived,
+    q: filter.q?.trim(),
+  });
 }
 
 /** A composition of an organization, with its tab and the version or pair it shows. */
-export function compositionPath(org: string, composition: string, tab?: CompositionTabSegment, query: CompositionQuery = {}): string {
+export function compositionPath(
+  org: string,
+  composition: string,
+  tab?: CompositionTabSegment,
+  query: CompositionQuery = {}
+): string {
   const base = `${organizationPath(org)}/${COMPOSITIONS_SEGMENT}/${encodeURIComponent(composition)}`;
   return withQuery(tab ? `${base}/${tab}` : base, { ...query });
 }
@@ -63,7 +74,10 @@ export interface ShowcaseQuery {
 
 /** The public page of a public composition: `/c/<org>/<composition>`, at a version (an id, a label or an ordinal). */
 export function showcasePath(org: string, composition: string, query: ShowcaseQuery = {}): string {
-  return withQuery(`/c/${encodeURIComponent(org)}/${encodeURIComponent(composition)}`, { version: query.version, fork: query.fork ? 1 : undefined });
+  return withQuery(`/c/${encodeURIComponent(org)}/${encodeURIComponent(composition)}`, {
+    version: query.version,
+    fork: query.fork ? 1 : undefined,
+  });
 }
 
 /** What the public list shows: one kind, a search text and a page (1 is the first, and is left out of the address). */
@@ -75,5 +89,9 @@ export interface PublicCompositionsFilter {
 
 /** The public compositions of every organization: `/compositions`, with its filters. */
 export function publicCompositionsPath(filter: PublicCompositionsFilter = {}): string {
-  return withQuery(`/${COMPOSITIONS_SEGMENT}`, { kind: filter.kind, q: filter.q?.trim(), page: filter.page && filter.page > 1 ? filter.page : undefined });
+  return withQuery(`/${COMPOSITIONS_SEGMENT}`, {
+    kind: filter.kind,
+    q: filter.q?.trim(),
+    page: filter.page && filter.page > 1 ? filter.page : undefined,
+  });
 }

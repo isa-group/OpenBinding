@@ -56,7 +56,9 @@ describe('usePricingTokenStatus', () => {
     const { result } = renderHook(() => usePricingTokenStatus());
     expect(result.current).toBe('valid');
 
-    act(() => { vi.advanceTimersByTime(61_000); });
+    act(() => {
+      vi.advanceTimersByTime(61_000);
+    });
     expect(result.current).toBe('stale');
   });
 });

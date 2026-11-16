@@ -4,7 +4,9 @@ import { CASE, ORG, ORG_PATH, RUNS_PATH, capture, signInByApi, watchPageErrors }
 // A VIEWER reads: it sees the organization, the problems and their versions, and none of the controls that change something.
 
 test.describe('live · lab-viewer reads and edits nothing', () => {
-  test('the problem list and the problem have no editing control and say why', async ({ page }, testInfo) => {
+  test('the problem list and the problem have no editing control and say why', async ({
+    page,
+  }, testInfo) => {
     const errors = watchPageErrors(page);
     await signInByApi(page, 'viewer');
     await page.goto(`${ORG_PATH}/problems`);
@@ -20,14 +22,18 @@ test.describe('live · lab-viewer reads and edits nothing', () => {
     await page.goto(`${ORG_PATH}/problems/${CASE}`);
     await expect(page.locator('code.case-slug')).toHaveText(CASE);
     await expect(page.getByRole('tab', { name: 'Versions' })).toBeVisible();
-    await expect(page.getByRole('note').filter({ hasText: 'New versions need MEMBER; deleting needs ADMIN' })).toBeVisible();
+    await expect(
+      page.getByRole('note').filter({ hasText: 'New versions need MEMBER; deleting needs ADMIN' })
+    ).toBeVisible();
     await expect(page.getByRole('button', { name: 'Upload new version' })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Delete problem' })).toHaveCount(0);
     await capture(page, testInfo, 'viewer-case');
     expect(errors).toEqual([]);
   });
 
-  test('starting a run is for members: the viewer is told so and has no way to send one', async ({ page }, testInfo) => {
+  test('starting a run is for members: the viewer is told so and has no way to send one', async ({
+    page,
+  }, testInfo) => {
     const errors = watchPageErrors(page);
     await signInByApi(page, 'viewer');
     await page.goto(`${RUNS_PATH}/new?problem=${CASE}`);
@@ -41,7 +47,9 @@ test.describe('live · lab-viewer reads and edits nothing', () => {
     expect(errors).toEqual([]);
   });
 
-  test('the list of runs of the organization offers no way to start one', async ({ page }, testInfo) => {
+  test('the list of runs of the organization offers no way to start one', async ({
+    page,
+  }, testInfo) => {
     const errors = watchPageErrors(page);
     await signInByApi(page, 'viewer');
     await page.goto(`${RUNS_PATH}`);
@@ -55,12 +63,17 @@ test.describe('live · lab-viewer reads and edits nothing', () => {
     await expect(page.locator('code.case-slug')).toHaveText(CASE);
     const entries = await page.getByRole('link', { name: 'Run this version' }).count();
     if (entries > 0) {
-      testInfo.annotations.push({ type: 'viewer-run-entry', description: `${entries} "Run this version" link(s) are shown to a VIEWER; they lead to a read-only launch page` });
+      testInfo.annotations.push({
+        type: 'viewer-run-entry',
+        description: `${entries} "Run this version" link(s) are shown to a VIEWER; they lead to a read-only launch page`,
+      });
     }
     expect(errors).toEqual([]);
   });
 
-  test('studies cannot be created and the settings of the organization are read-only', async ({ page }, testInfo) => {
+  test('studies cannot be created and the settings of the organization are read-only', async ({
+    page,
+  }, testInfo) => {
     const errors = watchPageErrors(page);
     await signInByApi(page, 'viewer');
 

@@ -1,0 +1,798 @@
+/*
+ * Adapted from SPHERE frontend/src/styles/tailwind.css (revision 73779a8a), https://github.com/SCORELabUS/SPHERE.
+ * Copyright (c) 2024 Alejandro García Fernández. MIT licence: the full text is in THIRD_PARTY_NOTICES.md.
+ * Changes:
+ * - the cascade layer statement comes first, with a `legacy` layer for the stylesheets of the screens that are not yet
+ *   drawn with Tailwind, and the layers of pricing-renderer;
+ * - two brand palettes over the same `--color-tp-*` names: SPHERE's orange (the `@theme` defaults, verbatim) and
+ *   OpenBinding's blue, chosen at runtime with `data-brand` on <html> (src/modules/core/theme/brand.ts);
+ * - `--color-tp-accent` and `--color-tp-accent-hover`: the primary colour that small text may be set in and that small
+ *   white text may sit on, so both palettes reach 4.5:1 (SPHERE's #fa520f is 3.35:1 on white). `--color-tp-link` uses it;
+ * - OpenBinding's status, diff, chart and strong severity tokens;
+ * - the display face falls back to Georgia first, and the body face prefers Inter Variable;
+ * - the base styles, the phone touch-target rule and the dual range slider live in layers; the slider uses the tokens;
+ * - the `.dark` block stays commented out: OpenBinding is light only, and copied `dark:` classes stay inert.
+ */
+@layer theme, base, legacy, components, pricing-renderer, pricing-renderer.theme, utilities;
+
+@import 'tailwindcss';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  /* ═══════════════════════════════════════════════════════════════
+     BRAND & ACCENT
+     ═══════════════════════════════════════════════════════════════ */
+  --color-tp-primary: #fa520f;
+  --color-tp-primary-deep: #cc3a05;
+  --color-tp-on-primary: #ffffff;
+  --color-tp-accent: #cc3a05;
+  --color-tp-accent-hover: #a32e04;
+  --color-tp-sunshine-300: #ffd06a;
+  --color-tp-sunshine-500: #ffb83e;
+  --color-tp-sunshine-700: #ffa110;
+  --color-tp-sunshine-800: #ff8105;
+  --color-tp-sunshine-900: #ff8a00;
+  --color-tp-yellow-saturated: #ffd900;
+
+  /* ═══════════════════════════════════════════════════════════════
+     CREAM / NEUTRAL WARM
+     ═══════════════════════════════════════════════════════════════ */
+  --color-tp-cream: #fff8e0;
+  --color-tp-cream-light: #fffaeb;
+  --color-tp-cream-deeper: #fff0c2;
+  --color-tp-beige-deep: #e6d5a8;
+
+  /* ═══════════════════════════════════════════════════════════════
+     BLOCKS (spectrum stops)
+     ═══════════════════════════════════════════════════════════════ */
+  --color-tp-block-5: #ffe295;
+  --color-tp-block-6: #ffd900;
+  --color-tp-block-7: #ff8105;
+
+  /* ═══════════════════════════════════════════════════════════════
+     TEXT
+     ═══════════════════════════════════════════════════════════════ */
+  --color-tp-ink: #1f1f1f;
+  --color-tp-ink-tint: #3d3d3d;
+  --color-tp-charcoal: #2c2c2c;
+  --color-tp-slate: #4a4a4a;
+  --color-tp-steel: #6a6a6a;
+  --color-tp-stone: #8a8a8a;
+  --color-tp-muted: #a8a8a8;
+
+  /* ═══════════════════════════════════════════════════════════════
+     BORDERS / SEPARATORS
+     ═══════════════════════════════════════════════════════════════ */
+  --color-tp-hairline: #b8b8b8;
+  --color-tp-hairline-soft: #ededed;
+  --color-tp-hairline-strong: #a8a8a8;
+
+  /* ═══════════════════════════════════════════════════════════════
+     SURFACES
+     ═══════════════════════════════════════════════════════════════ */
+  --color-tp-canvas: #ffffff;
+  --color-tp-surface: #fafafa;
+  --color-tp-surface-cream: #fff8e0;
+  --color-tp-surface-cream-soft: #fffaeb;
+  --color-tp-surface-code: #1c1c1e;
+
+  /* ═══════════════════════════════════════════════════════════════
+     FOREGROUND ON DARK / CREAM
+     ═══════════════════════════════════════════════════════════════ */
+  --color-tp-on-dark: #ffffff;
+  --color-tp-on-dark-muted: #a8a8a8;
+  --color-tp-on-cream: #1f1f1f;
+
+  /* ═══════════════════════════════════════════════════════════════
+     FOOTER
+     ═══════════════════════════════════════════════════════════════ */
+  --color-tp-footer-cream: #fff8e0;
+
+  /* ═══════════════════════════════════════════════════════════════
+     FORM INPUTS
+     ═══════════════════════════════════════════════════════════════ */
+  --color-tp-input-bg: #ffffff;
+  --color-tp-input-border: #c7c7c7;
+
+  /* ═══════════════════════════════════════════════════════════════
+     LINKS
+     ═══════════════════════════════════════════════════════════════ */
+  --color-tp-link: #cc3a05;
+
+  /* ═══════════════════════════════════════════════════════════════
+     TYPOGRAPHY
+     ═══════════════════════════════════════════════════════════════ */
+  /* PP Editorial Old is declared only (no licensed files yet); until then the browser falls back to Georgia. */
+  --font-display: 'PP Editorial Old', Georgia, serif;
+  --font-body: 'Inter Variable', 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-sans: 'Inter Variable', 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
+
+  /* ═══════════════════════════════════════════════════════════════
+     SPACING (base unit: 4px)
+     ═══════════════════════════════════════════════════════════════ */
+  --spacing-xxs: 4px;
+  --spacing-xs: 8px;
+  --spacing-sm: 12px;
+  --spacing-md: 16px;
+  --spacing-lg: 20px;
+  --spacing-xl: 24px;
+  --spacing-xxl: 32px;
+  --spacing-xxxl: 40px;
+  --spacing-section-sm: 48px;
+  --spacing-section: 64px;
+  --spacing-section-lg: 96px;
+  --spacing-hero: 120px;
+
+  /* ═══════════════════════════════════════════════════════════════
+     BORDER RADIUS
+     ═══════════════════════════════════════════════════════════════ */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-xxl: 20px;
+  --radius-full: 9999px;
+
+  /* ═══════════════════════════════════════════════════════════════
+     SEVERITY / ALERT COLORS
+     ═══════════════════════════════════════════════════════════════ */
+  --color-tp-severity-error: #ef4444;
+  --color-tp-severity-error-bg: #fef2f2;
+  --color-tp-severity-error-border: #fca5a5;
+  --color-tp-severity-warning: #f59e0b;
+  --color-tp-severity-warning-bg: #fffbeb;
+  --color-tp-severity-warning-border: #fcd34d;
+  --color-tp-severity-info: #3b82f6;
+  --color-tp-severity-info-bg: #eff6ff;
+  --color-tp-severity-info-border: #93c5fd;
+  --color-tp-severity-success: #22c55e;
+  --color-tp-severity-success-bg: #f0fdf4;
+  --color-tp-severity-success-border: #86efac;
+
+  /* OpenBinding: the severity colours as foregrounds. The raw severity colours are 2.2-3.8:1 on white and are kept for
+     icons and fills; text uses these deeper shades of the same hue, which reach 4.5:1. */
+  --color-tp-success-strong: #15803d;
+  --color-tp-success-text: #14532d;
+  --color-tp-warning-strong: #b45309;
+  --color-tp-warning-text: #78350f;
+  --color-tp-error-strong: #b91c1c;
+  --color-tp-error-text: #7f1d1d;
+  --color-tp-info-strong: #1d4ed8;
+  --color-tp-info-text: #1e3a8a;
+
+  /* OpenBinding: the status of a composition value and the kinds of change; always shown beside words. */
+  --color-tp-status-verified: var(--color-tp-severity-success);
+  --color-tp-status-declared: var(--color-tp-severity-info);
+  --color-tp-status-unverified: var(--color-tp-severity-warning);
+  --color-tp-diff-added: var(--color-tp-severity-success);
+  --color-tp-diff-removed: var(--color-tp-severity-error);
+  --color-tp-diff-changed: var(--color-tp-severity-warning);
+
+  /* OpenBinding: chart series, in this fixed order (blue, orange, aqua, yellow, magenta, green): adjacent pairs stay apart
+     under the common colour-vision deficiencies. 3 to 6 are under 3:1 on white, so every chart also has a table and says
+     its series in words. */
+  --color-tp-chart-1: #2a78d6;
+  --color-tp-chart-2: #eb6834;
+  --color-tp-chart-3: #1baf7a;
+  --color-tp-chart-4: #eda100;
+  --color-tp-chart-5: #e87ba4;
+  --color-tp-chart-6: #008300;
+
+  /* SPHERE's 404 illustration (modules/core/components/404-logo). */
+  --color-tp-illustration-amber: #ffc107;
+  --color-tp-illustration-navy: #061b64;
+  --color-tp-illustration-blue: #2065d1;
+  --color-tp-illustration-gold-light: #ffe16a;
+  --color-tp-illustration-gold-dark: #b78103;
+
+  /* ═══════════════════════════════════════════════════════════════
+     ELEVATION / SHADOWS
+     ═══════════════════════════════════════════════════════════════ */
+  --shadow-elevation-0: none;
+  --shadow-elevation-1: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
+  --shadow-elevation-2: 0 4px 12px 0 rgba(0, 0, 0, 0.04);
+  --shadow-elevation-3: 0 12px 24px -4px rgba(0, 0, 0, 0.08);
+  --shadow-elevation-4: 0 16px 48px -8px rgba(0, 0, 0, 0.12);
+
+  /* ═══════════════════════════════════════════════════════════════
+     ANIMATIONS
+     ═══════════════════════════════════════════════════════════════ */
+  --animate-alert-slide-in: alert-slide-in 0.5s ease-in-out;
+  --animate-banter-box: banter-box 1.2s ease-in-out infinite;
+  --animate-register-pulse: register-pulse 1s linear infinite;
+  --animate-fade-in: fade-in 0.3s ease-out;
+  --animate-slide-up: slide-up 0.3s ease-out;
+  --animate-pulse-ring: pulse-ring 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+  --animate-wiggle-bubble: wiggle-bubble 2.5s ease-in-out infinite;
+  --animate-orbit-shimmer: orbit-shimmer 1.6s linear infinite;
+  --animate-orbit-caret: orbit-caret 1s steps(1) infinite;
+  --animate-orbit-indeterminate: orbit-indeterminate 1.3s ease-in-out infinite;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   BRAND: OPENBINDING
+   The same names in OpenBinding's blue. SPHERE's orange above is the default; `data-brand="openbinding"` on <html>
+   switches every utility and every legacy `--tp-*` variable at once. Neutrals, severities and charts are shared.
+   ═══════════════════════════════════════════════════════════════ */
+@layer theme {
+  :root[data-brand='openbinding'] {
+    --color-tp-primary: #0077b6;
+    --color-tp-primary-deep: #023e8a;
+    --color-tp-on-primary: #ffffff;
+    --color-tp-accent: #0077b6;
+    --color-tp-accent-hover: #023e8a;
+    --color-tp-sunshine-300: #ade8f4;
+    --color-tp-sunshine-500: #48cae4;
+    --color-tp-sunshine-700: #00b4d8;
+    --color-tp-sunshine-800: #0096c7;
+    --color-tp-sunshine-900: #0090c8;
+    --color-tp-yellow-saturated: #90e0ef;
+    --color-tp-cream: #f1f8fc;
+    --color-tp-cream-light: #f5fbfd;
+    --color-tp-cream-deeper: #caf0f8;
+    --color-tp-beige-deep: #a9d6ea;
+    --color-tp-block-5: #ade8f4;
+    --color-tp-block-6: #90e0ef;
+    --color-tp-block-7: #0096c7;
+    --color-tp-surface-cream: #f1f8fc;
+    --color-tp-surface-cream-soft: #f5fbfd;
+    --color-tp-footer-cream: #f1f8fc;
+    --color-tp-link: #0077b6;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   DARK MODE
+   ═══════════════════════════════════════════════════════════════ */
+/* .dark {
+  --color-tp-primary: #ff6a2b;
+  --color-tp-primary-deep: #ff8a57;
+  --color-tp-on-primary: #ffffff;
+
+  --color-tp-sunshine-300: #ffd06a;
+  --color-tp-sunshine-500: #ffb83e;
+  --color-tp-sunshine-700: #ffa110;
+  --color-tp-sunshine-800: #ff8105;
+  --color-tp-sunshine-900: #ff8a00;
+
+  --color-tp-yellow-saturated: #ffd900;
+
+  --color-tp-cream: #2b2418;
+  --color-tp-cream-light: #332b1d;
+  --color-tp-cream-deeper: #241e14;
+  --color-tp-beige-deep: #8c7a52;
+
+  --color-tp-block-5: #b88a1f;
+  --color-tp-block-6: #d4b000;
+  --color-tp-block-7: #ff8105;
+
+  --color-tp-ink: #f5f5f5;
+  --color-tp-ink-tint: #d6d6d6;
+  --color-tp-charcoal: #c2c2c2;
+  --color-tp-slate: #9a9a9a;
+  --color-tp-steel: #7a7a7a;
+  --color-tp-stone: #5f5f5f;
+  --color-tp-muted: #8f8f8f;
+
+  --color-tp-hairline: #2a2a2a;
+  --color-tp-hairline-soft: #222222;
+  --color-tp-hairline-strong: #3a3a3a;
+
+  --color-tp-canvas: #121212;
+  --color-tp-surface: #1a1a1a;
+  --color-tp-surface-cream: #211b12;
+  --color-tp-surface-cream-soft: #2a2318;
+  --color-tp-surface-code: #0d0d0f;
+
+  --color-tp-on-dark: #ffffff;
+  --color-tp-on-dark-muted: #a8a8a8;
+
+  --color-tp-on-cream: #f3ead7;
+
+  --color-tp-footer-cream: #1f1a12;
+
+  --color-tp-input-bg: #1e1e1e;
+  --color-tp-input-border: #333333;
+
+  --color-tp-link: #ff7a3d;
+
+  --color-tp-severity-error: #f87171;
+  --color-tp-severity-error-bg: #450a0a;
+  --color-tp-severity-error-border: #7f1d1d;
+  --color-tp-severity-warning: #fbbf24;
+  --color-tp-severity-warning-bg: #451a03;
+  --color-tp-severity-warning-border: #78350f;
+  --color-tp-severity-info: #60a5fa;
+  --color-tp-severity-info-bg: #172554;
+  --color-tp-severity-info-border: #1e3a5f;
+  --color-tp-severity-success: #4ade80;
+  --color-tp-severity-success-bg: #052e16;
+  --color-tp-severity-success-border: #14532d;
+  --shadow-elevation-1: 0 1px 2px 0 rgba(0, 0, 0, 0.2);
+  --shadow-elevation-2: 0 4px 12px 0 rgba(0, 0, 0, 0.25);
+  --shadow-elevation-3: 0 12px 24px -4px rgba(0, 0, 0, 0.35);
+  --shadow-elevation-4: 0 16px 48px -8px rgba(0, 0, 0, 0.45);
+} */
+
+/* ═══════════════════════════════════════════════════════════════
+   BASE STYLES
+   ═══════════════════════════════════════════════════════════════ */
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html,
+  body,
+  #root {
+    min-height: 100%;
+  }
+
+  body {
+    margin: 0;
+    font-family: var(--font-body);
+    background-color: var(--color-tp-canvas);
+    color: var(--color-tp-ink);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /*
+   * Touch targets on a phone: every control is at least 24 px high (WCAG 2.5.8; e2e/live/visual-qa.spec.ts measures it).
+   * The links of the navigation, the header, the footer, the breadcrumbs and the head of a card are laid out as a box that
+   * centres its text; a link that sits in a line of text keeps its line, which the criterion exempts. The link rules have
+   * no specificity (`:where()`), so a component that sets its own `display` (a card laid out as a grid, say) keeps it; the
+   * minimum height is only ever added. The rule sits in `base`, under every component and legacy rule.
+   */
+  @media (max-width: 640px) {
+    button,
+    summary,
+    select,
+    [role='button'],
+    [role='tab'],
+    input:not([type='hidden'], [type='checkbox'], [type='radio']) {
+      min-height: 24px;
+    }
+
+    /* Every link that is not inside running text (p, headings, dd, small, label, prose) is a box that centres its content. */
+    :where(
+      a[href]:not(:is(p, h1, h2, h3, h4, h5, h6, dd, small, label, .prose, [class*='prose']) a)
+    ) {
+      display: inline-flex;
+      min-height: 24px;
+      align-items: center;
+    }
+
+    /* The links that the real run measured under 24 px, named so they stay covered even where they sit in a paragraph-like container. */
+    :where(
+      .ui-action,
+      .ui-action.is-link,
+      .case-rev-links a,
+      .usage-consoles a,
+      .proj-job a,
+      .job-wizard a,
+      .job-fact a,
+      .cr-muted a,
+      .pcl-card-title a
+    ) {
+      display: inline-flex;
+      min-height: 24px;
+      align-items: center;
+    }
+
+    :where(
+      :is(
+          nav,
+          header,
+          footer,
+          aside,
+          [class*='crumb'],
+          [class*='-head'],
+          [class*='-nav'],
+          [class*='-actions'],
+          [class*='-brand']
+        )
+        a[href]:not(:is(p, h1, h2, h3, h4, h5, h6, dd, small) a)
+    ) {
+      display: inline-flex;
+      min-height: 24px;
+      align-items: center;
+    }
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   DUAL RANGE SLIDER
+   ═══════════════════════════════════════════════════════════════ */
+@layer components {
+  .dual-range-low,
+  .dual-range-high {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    background: transparent;
+    -webkit-appearance: none;
+    appearance: none;
+    pointer-events: none;
+    outline: none;
+  }
+
+  .dual-range-low::-webkit-slider-thumb,
+  .dual-range-high::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 9999px;
+    background: var(--color-tp-primary);
+    border: 2px solid var(--color-tp-canvas);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    cursor: pointer;
+    pointer-events: auto;
+    position: relative;
+    z-index: 2;
+    transition: box-shadow 0.15s ease;
+  }
+
+  .dual-range-low::-webkit-slider-thumb:hover,
+  .dual-range-high::-webkit-slider-thumb:hover {
+    box-shadow:
+      0 0 0 4px color-mix(in srgb, var(--color-tp-primary) 15%, transparent),
+      0 1px 3px rgba(0, 0, 0, 0.2);
+  }
+
+  .dual-range-low::-moz-range-thumb,
+  .dual-range-high::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 9999px;
+    background: var(--color-tp-primary);
+    border: 2px solid var(--color-tp-canvas);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    cursor: pointer;
+    pointer-events: auto;
+    position: relative;
+    z-index: 2;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   KEYFRAMES
+   ═══════════════════════════════════════════════════════════════ */
+@layer utilities {
+  @keyframes alert-slide-in {
+    0% {
+      transform: translateX(100%);
+    }
+
+    60% {
+      transform: translateX(-10%);
+    }
+
+    80% {
+      transform: translateX(10%);
+    }
+
+    100% {
+      transform: translateX(0);
+    }
+  }
+
+  .animate-alert-slide-in {
+    animation: alert-slide-in 0.5s ease-in-out;
+  }
+
+  @keyframes banter-box {
+    0%,
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+
+    50% {
+      transform: scale(0.55);
+      opacity: 0.45;
+    }
+  }
+
+  .animate-banter-box {
+    animation: banter-box 1.2s ease-in-out infinite;
+  }
+
+  .banter-box:nth-child(1) {
+    animation-delay: 0s;
+  }
+
+  .banter-box:nth-child(2) {
+    animation-delay: 0.08s;
+  }
+
+  .banter-box:nth-child(3) {
+    animation-delay: 0.16s;
+  }
+
+  .banter-box:nth-child(4) {
+    animation-delay: 0.24s;
+  }
+
+  .banter-box:nth-child(5) {
+    animation-delay: 0.32s;
+  }
+
+  .banter-box:nth-child(6) {
+    animation-delay: 0.4s;
+  }
+
+  .banter-box:nth-child(7) {
+    animation-delay: 0.48s;
+  }
+
+  .banter-box:nth-child(8) {
+    animation-delay: 0.56s;
+  }
+
+  .banter-box:nth-child(9) {
+    animation-delay: 0.64s;
+  }
+
+  @keyframes register-pulse {
+    from {
+      transform: scale(0.95);
+      opacity: 1;
+    }
+
+    to {
+      transform: scale(1.65);
+      opacity: 0;
+    }
+  }
+
+  .animate-register-pulse {
+    animation: register-pulse 1s linear infinite;
+  }
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+
+    to {
+      opacity: 1;
+    }
+  }
+
+  .animate-fade-in {
+    animation: fade-in 0.3s ease-out;
+  }
+
+  @keyframes slide-up {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-slide-up {
+    animation: slide-up 0.3s ease-out;
+  }
+
+  @keyframes fadeSlideIn {
+    from {
+      opacity: 0;
+      transform: translateY(-4px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes toast-slide-in {
+    from {
+      opacity: 0;
+      transform: translateX(100%);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  .animate-toast-slide-in {
+    animation: toast-slide-in 0.3s ease-out;
+  }
+
+  @keyframes toast-slide-out {
+    from {
+      opacity: 1;
+      transform: translateX(0);
+    }
+
+    to {
+      opacity: 0;
+      transform: translateX(100%);
+    }
+  }
+
+  .animate-toast-slide-out {
+    animation: toast-slide-out 0.25s ease-in forwards;
+  }
+
+  @keyframes bell-ring {
+    0% {
+      transform: rotate(0deg);
+    }
+
+    15% {
+      transform: rotate(14deg);
+    }
+
+    30% {
+      transform: rotate(-12deg);
+    }
+
+    45% {
+      transform: rotate(10deg);
+    }
+
+    60% {
+      transform: rotate(-8deg);
+    }
+
+    75% {
+      transform: rotate(4deg);
+    }
+
+    100% {
+      transform: rotate(0deg);
+    }
+  }
+
+  .animate-bell-ring {
+    animation: bell-ring 0.6s ease-in-out;
+  }
+
+  @keyframes pulse-ring {
+    0% {
+      transform: scale(1);
+      opacity: 0.5;
+    }
+
+    70% {
+      transform: scale(1.5);
+      opacity: 0;
+    }
+
+    100% {
+      transform: scale(1.5);
+      opacity: 0;
+    }
+  }
+
+  .animate-pulse-ring {
+    animation: pulse-ring 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+  }
+
+  @keyframes wiggle-bubble {
+    0%,
+    100% {
+      transform: rotate(0deg);
+    }
+
+    12% {
+      transform: rotate(-12deg);
+    }
+
+    24% {
+      transform: rotate(10deg);
+    }
+
+    36% {
+      transform: rotate(-8deg);
+    }
+
+    48% {
+      transform: rotate(6deg);
+    }
+
+    60% {
+      transform: rotate(-3deg);
+    }
+
+    72% {
+      transform: rotate(0deg);
+    }
+  }
+
+  .animate-wiggle-bubble {
+    animation: wiggle-bubble 2.5s ease-in-out infinite;
+  }
+
+  /* ORBIT: text that glints while the assistant works on a step */
+  @keyframes orbit-shimmer {
+    from {
+      background-position: 200% 0;
+    }
+
+    to {
+      background-position: -200% 0;
+    }
+  }
+
+  .animate-orbit-shimmer {
+    background-image: linear-gradient(
+      90deg,
+      var(--color-tp-steel) 0%,
+      var(--color-tp-steel) 35%,
+      var(--color-tp-ink) 50%,
+      var(--color-tp-steel) 65%,
+      var(--color-tp-steel) 100%
+    );
+    background-size: 200% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: orbit-shimmer 1.6s linear infinite;
+  }
+
+  /* ORBIT: the caret at the end of an answer being written */
+  @keyframes orbit-caret {
+    0%,
+    100% {
+      opacity: 1;
+    }
+
+    50% {
+      opacity: 0;
+    }
+  }
+
+  .animate-orbit-caret {
+    animation: orbit-caret 1s steps(1) infinite;
+  }
+
+  /* ORBIT: a progress bar for work whose length is not known */
+  @keyframes orbit-indeterminate {
+    0% {
+      transform: translateX(-100%);
+    }
+
+    100% {
+      transform: translateX(250%);
+    }
+  }
+
+  .animate-orbit-indeterminate {
+    animation: orbit-indeterminate 1.3s ease-in-out infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-orbit-shimmer,
+    .animate-orbit-caret,
+    .animate-orbit-indeterminate {
+      animation: none;
+    }
+
+    .animate-orbit-shimmer {
+      color: var(--color-tp-steel);
+      background-image: none;
+    }
+  }
+}

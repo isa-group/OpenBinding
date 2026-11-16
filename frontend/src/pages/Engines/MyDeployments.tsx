@@ -1,28 +1,53 @@
 import { useCallback, useEffect, useState } from 'react';
 import { CloudCog } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { apiClient, bimResourceKey, HttpError, type EngineRegistrationRevision, type EngineRegistrationState } from '../../api/client';
-import { Badge } from '../../components/ui/Badge';
-import { Button } from '../../components/ui/Button';
-import { EmptyState } from '../../components/ui/EmptyState';
-import { Notice } from '../../components/ui/Notice';
-import { Skeleton } from '../../components/ui/Skeleton';
+import {
+  apiClient,
+  bimResourceKey,
+  HttpError,
+  type EngineRegistrationRevision,
+  type EngineRegistrationState,
+} from '../../api/client';
+import { Badge } from '../../modules/core/components/badge';
+import { Button } from '../../modules/core/components/action-button';
+import { EmptyState } from '../../modules/core/components/empty-state';
+import { Notice } from '../../modules/core/components/notice';
+import { Skeleton } from '../../modules/core/components/skeleton';
 
-const deploymentStates: Record<EngineRegistrationState, {
-  label: string;
-  hint: string;
-  badge: 'default' | 'success' | 'warning' | 'error' | 'info';
-}> = {
-  private: { label: 'Private', hint: 'Visible only to your account; administrators cannot discover it.', badge: 'info' },
-  pending_review: { label: 'In review', hint: 'Visible to administrators because you requested a listing.', badge: 'warning' },
-  published: { label: 'Published', hint: 'Available to every authenticated compatible account.', badge: 'success' },
-  rejected: { label: 'Rejected', hint: 'Not published; it remains private to your account.', badge: 'error' },
+const deploymentStates: Record<
+  EngineRegistrationState,
+  {
+    label: string;
+    hint: string;
+    badge: 'default' | 'success' | 'warning' | 'error' | 'info';
+  }
+> = {
+  private: {
+    label: 'Private',
+    hint: 'Visible only to your account; administrators cannot discover it.',
+    badge: 'info',
+  },
+  pending_review: {
+    label: 'In review',
+    hint: 'Visible to administrators because you requested a listing.',
+    badge: 'warning',
+  },
+  published: {
+    label: 'Published',
+    hint: 'Available to every authenticated compatible account.',
+    badge: 'success',
+  },
+  rejected: {
+    label: 'Rejected',
+    hint: 'Not published; it remains private to your account.',
+    badge: 'error',
+  },
 };
 
 function deploymentErrorMessage(reason: unknown): string {
   if (reason instanceof HttpError) {
     const diagnostic = reason.diagnostics?.find(
-      (item): item is Record<string, unknown> => typeof item === 'object' && item !== null,
+      (item): item is Record<string, unknown> => typeof item === 'object' && item !== null
     );
     const diagnosticMessage = diagnostic?.message;
     if (typeof diagnosticMessage === 'string' && diagnosticMessage) {
@@ -36,7 +61,13 @@ function deploymentErrorMessage(reason: unknown): string {
  * The signed-in account's own engine registrations (deployments): activate, deactivate, ask for publication and
  * replace the credential. Activation and publication are independent of each other, as the gateway keeps them.
  */
-export function MyDeployments({ username, onChanged }: { username: string; onChanged?: () => void }) {
+export function MyDeployments({
+  username,
+  onChanged,
+}: {
+  username: string;
+  onChanged?: () => void;
+}) {
   const [deployments, setDeployments] = useState<EngineRegistrationRevision[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -50,7 +81,7 @@ export function MyDeployments({ username, onChanged }: { username: string; onCha
     setError(null);
     try {
       const registrations = await apiClient.listEngineRegistrations();
-      setDeployments(registrations.filter((registration) => registration.namespace === username));
+      setDeployments(registrations.filter(registration => registration.namespace === username));
     } catch (reason: unknown) {
       setError(reason instanceof Error ? reason.message : 'Your deployments could not be loaded.');
     } finally {
@@ -65,7 +96,7 @@ export function MyDeployments({ username, onChanged }: { username: string; onCha
   const change = async (
     registration: EngineRegistrationRevision,
     action: (ref: EngineRegistrationRevision) => Promise<EngineRegistrationRevision>,
-    message: string,
+    message: string
   ) => {
     const key = bimResourceKey(registration);
     setBusy(key);
@@ -73,7 +104,9 @@ export function MyDeployments({ username, onChanged }: { username: string; onCha
     setNotice(null);
     try {
       const updated = await action(registration);
-      setDeployments((current) => current.map((item) => bimResourceKey(item) === key ? updated : item));
+      setDeployments(current =>
+        current.map(item => (bimResourceKey(item) === key ? updated : item))
+      );
       setNotice(message);
       onChanged?.();
       return true;
@@ -92,8 +125,8 @@ export function MyDeployments({ username, onChanged }: { username: string; onCha
     }
     const changed = await change(
       registration,
-      (ref) => apiClient.setEngineRegistrationCredential(ref, credentialValue),
-      `${registration.name} has a new encrypted credential and is private and inactive until it is verified again.`,
+      ref => apiClient.setEngineRegistrationCredential(ref, credentialValue),
+      `${registration.name} has a new encrypted credential and is private and inactive until it is verified again.`
     );
     if (changed) {
       setCredentialEditor('');
@@ -105,26 +138,40 @@ export function MyDeployments({ username, onChanged }: { username: string; onCha
     <section className="engines-section" aria-labelledby="deployment-title">
       <div className="engines-section-heading">
         <h2 id="deployment-title">My deployments</h2>
-        <span>You control private activation independently from its listing. A deployment reaches administrators only after you submit it for review.</span>
+        <span>
+          You control private activation independently from its listing. A deployment reaches
+          administrators only after you submit it for review.
+        </span>
       </div>
 
       {error && (
-        <Notice tone="error" title="Deployment change unavailable" action={<Button size="sm" variant="secondary" onClick={() => void load()}>Retry</Button>}>
+        <Notice
+          tone="error"
+          title="Deployment change unavailable"
+          action={
+            <Button size="sm" variant="secondary" onClick={() => void load()}>
+              Retry
+            </Button>
+          }
+        >
           {error}
         </Notice>
       )}
       {notice && <Notice tone="success">{notice}</Notice>}
-      {loading ? <Skeleton variant="tile" /> : error && deployments.length === 0 ? null : deployments.length === 0 ? (
+      {loading ? (
+        <Skeleton variant="tile" />
+      ) : error && deployments.length === 0 ? null : deployments.length === 0 ? (
         <EmptyState
           icon={<CloudCog />}
           title={`No deployments in ${username} yet.`}
           action={<Link to="/app/engines/new">Register deployment</Link>}
         >
-          Register an engine endpoint to keep it private while the gateway verifies it. Production requires HTTPS.
+          Register an engine endpoint to keep it private while the gateway verifies it. Production
+          requires HTTPS.
         </EmptyState>
       ) : (
         <ul className="deployment-list" aria-label="My federated deployments">
-          {deployments.map((registration) => {
+          {deployments.map(registration => {
             const state = deploymentStates[registration.status];
             const key = bimResourceKey(registration);
             const working = busy === key;
@@ -133,42 +180,106 @@ export function MyDeployments({ username, onChanged }: { username: string; onCha
                 <div className="deployment-identity">
                   <div className="deployment-badges">
                     <Badge variant={state.badge}>{state.label}</Badge>
-                    <Badge variant={registration.active ? 'success' : 'default'}>{registration.active ? 'active for you' : 'inactive for you'}</Badge>
+                    <Badge variant={registration.active ? 'success' : 'default'}>
+                      {registration.active ? 'active for you' : 'inactive for you'}
+                    </Badge>
                     <span>{state.hint}</span>
                   </div>
                   <h3>{registration.name}</h3>
-                  <p><code>{registration.namespace}/{registration.name}</code> · <code>{registration.version}</code></p>
+                  <p>
+                    <code>
+                      {registration.namespace}/{registration.name}
+                    </code>{' '}
+                    · <code>{registration.version}</code>
+                  </p>
                 </div>
                 <div className="deployment-actions">
                   {!registration.active && (
-                    <Button size="sm" disabled={working} aria-label={`Activate ${registration.name}`} onClick={() => void change(registration, (ref) => apiClient.activateEngineRegistration(ref), `${registration.name} is verified and active for your account.`)}>Activate</Button>
+                    <Button
+                      size="sm"
+                      disabled={working}
+                      aria-label={`Activate ${registration.name}`}
+                      onClick={() =>
+                        void change(
+                          registration,
+                          ref => apiClient.activateEngineRegistration(ref),
+                          `${registration.name} is verified and active for your account.`
+                        )
+                      }
+                    >
+                      Activate
+                    </Button>
                   )}
                   {registration.active && (
-                    <Button size="sm" variant="secondary" disabled={working} aria-label={`Deactivate ${registration.name}`} onClick={() => {
-                      if (window.confirm(`Deactivate ${registration.name} for your account? Its listing state will not change.`)) {
-                        void change(registration, (ref) => apiClient.deactivateEngineRegistration(ref), `${registration.name} is inactive for your account.`);
-                      }
-                    }}>Deactivate</Button>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      disabled={working}
+                      aria-label={`Deactivate ${registration.name}`}
+                      onClick={() => {
+                        if (
+                          window.confirm(
+                            `Deactivate ${registration.name} for your account? Its listing state will not change.`
+                          )
+                        ) {
+                          void change(
+                            registration,
+                            ref => apiClient.deactivateEngineRegistration(ref),
+                            `${registration.name} is inactive for your account.`
+                          );
+                        }
+                      }}
+                    >
+                      Deactivate
+                    </Button>
                   )}
-                  {registration.active && (registration.status === 'private' || registration.status === 'rejected') && (
-                    <Button size="sm" variant="ghost" disabled={working} aria-label={`Request listing for ${registration.name}`} onClick={() => {
-                      if (window.confirm(`Submit ${registration.name} for listing? Administrators will then be able to discover and review this exact revision.`)) {
-                        void change(registration, (ref) => apiClient.requestEngineRegistrationPublication(ref), `${registration.name} was submitted for listing review.`);
-                      }
-                    }}>Request listing</Button>
-                  )}
+                  {registration.active &&
+                    (registration.status === 'private' || registration.status === 'rejected') && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled={working}
+                        aria-label={`Request listing for ${registration.name}`}
+                        onClick={() => {
+                          if (
+                            window.confirm(
+                              `Submit ${registration.name} for listing? Administrators will then be able to discover and review this exact revision.`
+                            )
+                          ) {
+                            void change(
+                              registration,
+                              ref => apiClient.requestEngineRegistrationPublication(ref),
+                              `${registration.name} was submitted for listing review.`
+                            );
+                          }
+                        }}
+                      >
+                        Request listing
+                      </Button>
+                    )}
                   {registration.status !== 'published' && (
-                    <Button size="sm" variant="ghost" disabled={working} aria-label={`Replace credential for ${registration.name}`} onClick={() => {
-                      setCredentialEditor((current) => current === key ? '' : key);
-                      setCredentialValue('');
-                    }}>Credential</Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={working}
+                      aria-label={`Replace credential for ${registration.name}`}
+                      onClick={() => {
+                        setCredentialEditor(current => (current === key ? '' : key));
+                        setCredentialValue('');
+                      }}
+                    >
+                      Credential
+                    </Button>
                   )}
                 </div>
                 {credentialEditor === key && (
-                  <form className="credential-editor" onSubmit={(event) => {
-                    event.preventDefault();
-                    void replaceCredential(registration);
-                  }}>
+                  <form
+                    className="credential-editor"
+                    onSubmit={event => {
+                      event.preventDefault();
+                      void replaceCredential(registration);
+                    }}
+                  >
                     <label htmlFor={`credential-${registration.digest}`}>
                       <span>New deployment credential</span>
                       <input
@@ -176,17 +287,31 @@ export function MyDeployments({ username, onChanged }: { username: string; onCha
                         type="password"
                         autoComplete="off"
                         value={credentialValue}
-                        onChange={(event) => setCredentialValue(event.target.value)}
+                        onChange={event => setCredentialValue(event.target.value)}
                         placeholder="Bearer token or username:password"
                       />
                     </label>
-                    <p>Use the token alone for bearer auth or <code>username:password</code> for Basic. Replacing it makes the deployment private and inactive, so activation and listing review must be repeated.</p>
+                    <p>
+                      Use the token alone for bearer auth or <code>username:password</code> for
+                      Basic. Replacing it makes the deployment private and inactive, so activation
+                      and listing review must be repeated.
+                    </p>
                     <div>
-                      <Button type="submit" size="sm" disabled={working}>Store encrypted credential</Button>
-                      <Button type="button" size="sm" variant="ghost" disabled={working} onClick={() => {
-                        setCredentialEditor('');
-                        setCredentialValue('');
-                      }}>Cancel</Button>
+                      <Button type="submit" size="sm" disabled={working}>
+                        Store encrypted credential
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        disabled={working}
+                        onClick={() => {
+                          setCredentialEditor('');
+                          setCredentialValue('');
+                        }}
+                      >
+                        Cancel
+                      </Button>
                     </div>
                   </form>
                 )}

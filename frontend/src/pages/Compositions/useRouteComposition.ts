@@ -1,8 +1,8 @@
 import { useParams } from 'react-router-dom';
 import type { Organization } from '../../api/platform';
-import { compositionsApi } from '../../entities/composition/api';
-import { classifyAuthError, type AuthFailure } from '../../shared/api/errors';
-import type { CompositionVersionView, CompositionView } from '../../shared/api/types';
+import { compositionsApi } from '../../modules/core/utils/composition/api';
+import { classifyAuthError, type AuthFailure } from '../../modules/core/api/errors';
+import type { CompositionVersionView, CompositionView } from '../../modules/core/api/types';
 import { useResource, type Resource } from '../../utils/useResource';
 import { atLeast } from '../Organization/orgModel';
 import { useRouteOrganization, type RouteOrganization } from '../Organization/useRouteOrganization';
@@ -53,7 +53,7 @@ export function useRouteComposition(): RouteComposition {
         compositionsApi.allVersions(organization.slug, compositionSlug, { order: 'newest' }),
       ]);
       return { composition: read.value, etag: read.etag, versions };
-    },
+    }
   );
   const stale = content.stale;
   const previous = stale && stale.composition.slug === compositionSlug ? stale : undefined;

@@ -1,6 +1,12 @@
 import { config } from '../config';
-import { PricingUnavailableError, QuotaError } from './auth';
-import { bindingSpaceFrom, limitNoticeFrom, type BindingSpaceReport, type LimitNotice } from './limitNotice';
+import {
+  HttpError,
+  HttpTransport,
+  PRICING_TOKEN_KEY,
+  PRICING_TOKEN_UPDATED_EVENT,
+  REFRESH_TOKEN_KEY,
+  type Revised,
+} from '../modules/core/api/http';
 import type {
   AdminUserPage,
   AdminSubscriptionView,
@@ -28,7 +34,7 @@ import type {
 } from './auth';
 import type { AdminErrorOverview, AdminErrorListResponse } from '../pages/Admin/types';
 import { rememberCasFlow } from '../utils/authFlow';
-import type { ImmutableResourceRef } from '../shared/api/types';
+import type { ImmutableResourceRef } from '../modules/core/api/types';
 
 /** How a run ended, in BIM v1 terms. */
 export type Termination = 'OPTIMAL' | 'FEASIBLE' | 'INFEASIBLE' | 'UNKNOWN';
@@ -217,389 +223,19 @@ export function bimResourceKey(ref: ImmutableResourceRef): string {
  * An answer of the gateway with the revision it gave the resource: its `ETag`, or `null` when the answer carried none
  * (docs/ERRORS.md, "Conditional writes"). The tag is opaque: it goes back unchanged as `If-Match` and is never read.
  */
-export interface Revised<T> {
-  value: T;
-  etag: string | null;
-}
+// The transport now lives in modules/core/api/http.ts; these names stay importable from here until the client is emptied.
+export {
+  ACCESS_TOKEN_KEY,
+  HttpError,
+  PRICING_TOKEN_UPDATED_EVENT,
+  SESSION_ENDED_EVENT,
+  getStoredPricingToken,
+  type Revised,
+} from '../modules/core/api/http';
 
-export class HttpError extends Error {
-  status: number;
-  code?: string;
-  problem?: unknown;
-  diagnostics?: unknown[];
-  /** What a 429 names: the limit, how many jobs are in flight, and whose limit it is (`plan` or `technical`). */
-  concurrency?: { limit_id: string; limit: number; used: number; source?: string; unit?: string };
-  retryAfter?: number;
-  /** The current `ETag` a 412 names (docs/ERRORS.md, "Conditional writes"): the revision to re-read before retrying. */
-  etag?: string;
-  /** The limit a refusal names (a 403 or 422 about a size limit carries one, with its state and source). */
-  notice?: LimitNotice;
-  /** The measured size, when the refusal is about the binding space. */
-  bindingSpace?: BindingSpaceReport;
-
-  constructor(status: number, statusText: string) {
-    super(`HTTP ${status}: ${statusText}`);
-    this.status = status;
-  }
-}
-
-/** Where the session lives. Header-based rather than cookies: see AuthContext. */
-export const ACCESS_TOKEN_KEY = 'openbinding-access-token';
-const REFRESH_TOKEN_KEY = 'openbinding-refresh-token';
-const PRICING_TOKEN_KEY = 'pricingToken';
-
-/**
- * Fired when a new pricing token is retrieved from the gateway so that
- * SpaceTokenSync immediately updates TokenService across the UI.
- */
-export const PRICING_TOKEN_UPDATED_EVENT = 'openbinding:pricing-token-updated';
-
-/** Helper to retrieve the active pricing token from localStorage safely. */
-export function getStoredPricingToken(): string | null {
-  const raw = localStorage.getItem(PRICING_TOKEN_KEY);
-  if (!raw) return null;
-  try {
-    const parsed = JSON.parse(raw);
-    return typeof parsed === 'string' ? parsed : raw;
-  } catch {
-    return raw;
-  }
-}
-
-/**
- * Fired when a session ends without the user asking - a refresh token that was
- * spent, revoked or expired. AuthContext listens and clears the user. The event is local
- * to the tab that made the request; the other tabs learn of it from the `storage` event
- * that clearing the tokens raises (see AuthContext).
- */
-export const SESSION_ENDED_EVENT = 'openbinding:session-ended';
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function isAbortError(error: unknown): boolean {
-  return isRecord(error) && error.name === 'AbortError';
-}
-
-function quotaFromProblem(value: unknown): NonNullable<QuotaError['quota']> | undefined {
-  if (!isRecord(value) || typeof value.limit_id !== 'string' || typeof value.limit !== 'number') {
-    return undefined;
-  }
-  return {
-    limit_id: value.limit_id,
-    limit: value.limit,
-    ...(typeof value.used === 'number' ? { used: value.used } : {}),
-    ...(typeof value.actual === 'number' ? { actual: value.actual } : {}),
-    ...(typeof value.unit === 'string' ? { unit: value.unit } : {}),
-    ...(typeof value.renews_at === 'string' || value.renews_at === null
-      ? { renews_at: value.renews_at }
-      : {}),
-  };
-}
-
-export class ApiClient {
-  private baseUrl: string;
-  /** In flight refresh, so that ten simultaneous 401s cause one refresh. */
-  private refreshing: Promise<boolean> | null = null;
-
+export class ApiClient extends HttpTransport {
   constructor(baseUrl: string = config.apiBaseUrl) {
-    this.baseUrl = baseUrl;
-  }
-
-  // -- Session ---------------------------------------------------------
-
-  getAccessToken(): string | null {
-    return localStorage.getItem(ACCESS_TOKEN_KEY);
-  }
-
-  setTokens(tokens: { access_token: string; refresh_token: string }): void {
-    localStorage.setItem(ACCESS_TOKEN_KEY, tokens.access_token);
-    localStorage.setItem(REFRESH_TOKEN_KEY, tokens.refresh_token);
-  }
-
-  clearTokens(): void {
-    localStorage.removeItem(ACCESS_TOKEN_KEY);
-    localStorage.removeItem(REFRESH_TOKEN_KEY);
-    localStorage.removeItem(PRICING_TOKEN_KEY);
-    // Whoever shows the state of the pricing token (the usage screen) learns that there is none.
-    window.dispatchEvent(new CustomEvent(PRICING_TOKEN_UPDATED_EVENT));
-  }
-
-  private authHeaders(): Record<string, string> {
-    const token = this.getAccessToken();
-    return token ? { Authorization: `Bearer ${token}` } : {};
-  }
-
-  /**
-   * Exchange the refresh token for a new pair, once however many callers ask.
-   *
-   * The gateway rotates refresh tokens: presenting one spends it. Two
-   * concurrent refreshes would therefore race, and the loser would be holding
-   * a token that has just been invalidated - so they share one attempt.
-   */
-  private async refreshSession(): Promise<boolean> {
-    if (this.refreshing) return this.refreshing;
-
-    const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
-    if (!refreshToken) return false;
-
-    this.refreshing = (async () => {
-      try {
-        const response = await fetch(`${this.baseUrl}/v1/auth/refresh`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ refresh_token: refreshToken }),
-        });
-        if (!response.ok) return false;
-        this.setTokens(await response.json());
-        return true;
-      } catch {
-        return false;
-      } finally {
-        this.refreshing = null;
-      }
-    })();
-
-    return this.refreshing;
-  }
-
-  private endSession(): void {
-    this.clearTokens();
-    window.dispatchEvent(new CustomEvent(SESSION_ENDED_EVENT));
-  }
-
-  /**
-   * Turn a failed response into the most specific error available.
-   *
-   * A caller needs to tell "your instance is invalid" from "your allowance is
-   * spent" from "we could not find out", because only one of those is worth
-   * offering an upgrade for and only one is worth retrying.
-   */
-  private async errorFor(response: Response): Promise<Error> {
-    let problem: unknown = null;
-    try {
-      problem = await response.json();
-    } catch {
-      /* not JSON; fall through to the status-only error */
-    }
-
-    const problemObject = isRecord(problem) ? problem : undefined;
-    const rawDetail = problemObject?.detail;
-    const detail = isRecord(rawDetail) ? rawDetail : undefined;
-    // The canonical `code` sits at the top of every coded failure (and a 422 has nothing else); the old
-    // `detail.code` and the BIM routes' `title` (always equal to `code`) are what older bodies carry.
-    const code =
-      (typeof problemObject?.code === 'string' ? problemObject.code : undefined) ??
-      (typeof detail?.code === 'string' ? detail.code : undefined) ??
-      (typeof problemObject?.title === 'string' ? problemObject.title : undefined);
-    const message =
-      (typeof detail?.error === 'string' ? detail.error : undefined) ??
-      (typeof detail?.message === 'string' ? detail.message : undefined) ??
-      (typeof rawDetail === 'string' ? rawDetail : undefined) ??
-      response.statusText;
-
-    const rawQuota = detail?.quota ?? problemObject?.quota;
-    // Where the limit stands, and for a binding space how big it is: top level or inside `detail`, like the quota.
-    const notice = limitNoticeFrom(rawQuota);
-    const bindingSpace = bindingSpaceFrom(detail?.binding_space ?? problemObject?.binding_space);
-    if (response.status === 402) {
-      const quotaError = new QuotaError(code ?? 'quota_exceeded', message, quotaFromProblem(rawQuota));
-      quotaError.notice = notice;
-      quotaError.bindingSpace = bindingSpace;
-      return quotaError;
-    }
-    if (response.status === 429) {
-      const rawConcurrency = detail?.concurrency ?? problemObject?.concurrency;
-      const retryAfterHeader = response.headers.get('Retry-After');
-      const err = new HttpError(429, message);
-      err.code = code ?? 'concurrency_limit_exceeded';
-      err.problem = problem;
-      if (isRecord(rawConcurrency) && typeof rawConcurrency.limit_id === 'string' && typeof rawConcurrency.limit === 'number') {
-        err.concurrency = {
-          limit_id: rawConcurrency.limit_id,
-          limit: rawConcurrency.limit,
-          used: typeof rawConcurrency.used === 'number' ? rawConcurrency.used : 0,
-          ...(typeof rawConcurrency.source === 'string' ? { source: rawConcurrency.source } : {}),
-          ...(typeof rawConcurrency.unit === 'string' ? { unit: rawConcurrency.unit } : {}),
-        };
-      }
-      if (retryAfterHeader) {
-        const parsed = parseInt(retryAfterHeader, 10);
-        if (!isNaN(parsed)) err.retryAfter = parsed;
-      }
-      return err;
-    }
-    if (response.status === 503 && code === 'pricing_unavailable') {
-      return new PricingUnavailableError(message);
-    }
-    const error = new HttpError(response.status, message);
-    error.code = code;
-    error.problem = problem;
-    const retryAfter = parseInt(response.headers.get('Retry-After') ?? '', 10);
-    if (!isNaN(retryAfter)) error.retryAfter = retryAfter;
-    const etag = response.status === 412 ? response.headers.get('ETag') : null;
-    if (etag) error.etag = etag;
-    error.notice = notice;
-    error.bindingSpace = bindingSpace;
-    error.diagnostics = Array.isArray(problemObject?.diagnostics)
-      ? problemObject.diagnostics
-      : Array.isArray(detail?.diagnostics) ? detail.diagnostics : [];
-    return error;
-  }
-
-  /**
-   * `retryOnUnauthorized` turns off the silent refresh (a login form has no session to renew);
-   * `throwOnValidation` (on unless a caller turns it off) makes a 422 an HttpError with the gateway's code and diagnostics;
-   * pass `false` only where a 422 is a result the caller reads from the body (a package found invalid, a pricing document refused).
-   * `read` turns a successful answer into the result: its body, unless the caller needs a header too (see `revised`).
-   */
-  async request<T>(
-    endpoint: string,
-    options: RequestInit = {},
-    timeoutMs?: number,
-    retryOnUnauthorized = true,
-    throwOnValidation = true,
-    read: (response: Response) => Promise<T> = (response) => response.json(),
-  ): Promise<T> {
-    const url = `${this.baseUrl}${endpoint}`;
-    const controller = new AbortController();
-    const timeoutId = timeoutMs ? setTimeout(() => controller.abort(), timeoutMs) : undefined;
-    const abortFromCaller = () => controller.abort();
-    if (options.signal?.aborted) controller.abort();
-    options.signal?.addEventListener('abort', abortFromCaller, { once: true });
-
-    try {
-      const response = await fetch(url, {
-        ...options,
-        headers: {
-          'Content-Type': 'application/json',
-          ...this.authHeaders(),
-          ...options.headers,
-        },
-        signal: controller.signal,
-      });
-
-      // An expired access token is ordinary rather than exceptional: refresh
-      // once and try again. A second 401 means the session is genuinely over.
-      if (response.status === 401 && retryOnUnauthorized && this.getAccessToken()) {
-        if (await this.refreshSession()) {
-          return this.request<T>(endpoint, options, timeoutMs, false, throwOnValidation, read);
-        }
-        this.endSession();
-      }
-
-      // A 422 is an error unless the caller asked for its body as a result.
-      if (response.status === 422 && throwOnValidation) {
-        throw await this.errorFor(response);
-      }
-      if (response.status === 422) {
-        return await response.json() as T;
-      }
-
-      if (!response.ok) {
-        throw await this.errorFor(response);
-      }
-
-      if (response.status === 204) {
-        return undefined as T;
-      }
-
-      return read(response);
-    } catch (error: unknown) {
-      if (isAbortError(error)) {
-        if (options.signal?.aborted) throw error;
-        throw new Error('Request timed out');
-      }
-      throw error;
-    } finally {
-      options.signal?.removeEventListener('abort', abortFromCaller);
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-    }
-  }
-
-  /**
-   * A conditional write, or the read it is decided on. `ifMatch` is the revision the change was decided on, sent as `If-Match`; with
-   * none nothing is sent, and the gateway behaves as it does without one. The answer comes back with its `ETag`.
-   */
-  private revised<T>(endpoint: string, ifMatch: string | null, init: Omit<RequestInit, 'headers'> = {}): Promise<Revised<T>> {
-    return this.request<Revised<T>>(
-      endpoint,
-      ifMatch ? { ...init, headers: { 'If-Match': ifMatch } } : init,
-      undefined,
-      true,
-      true,
-      async (response) => ({ value: await response.json() as T, etag: response.headers.get('ETag') }),
-    );
-  }
-
-  async requestText(
-    endpoint: string,
-    options: RequestInit = {},
-    timeoutMs?: number,
-    retryOnUnauthorized = true
-  ): Promise<string> {
-    const url = `${this.baseUrl}${endpoint}`;
-    const controller = new AbortController();
-    const timeoutId = timeoutMs ? setTimeout(() => controller.abort(), timeoutMs) : undefined;
-
-    try {
-      const response = await fetch(url, {
-        ...options,
-        headers: {
-          ...this.authHeaders(),
-          ...options.headers,
-        },
-        signal: controller.signal,
-      });
-
-      if (response.status === 401 && retryOnUnauthorized && this.getAccessToken()) {
-        if (await this.refreshSession()) {
-          return this.requestText(endpoint, options, timeoutMs, false);
-        }
-        this.endSession();
-      }
-
-      if (!response.ok) {
-        throw await this.errorFor(response);
-      }
-
-      return response.text();
-    } catch (error: unknown) {
-      if (isAbortError(error)) {
-        throw new Error('Request timed out');
-      }
-      throw error;
-    } finally {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-    }
-  }
-
-  async requestBinary(
-    endpoint: string,
-    timeoutMs?: number,
-    retryOnUnauthorized = true,
-  ): Promise<ArrayBuffer> {
-    const controller = new AbortController();
-    const timeoutId = timeoutMs ? setTimeout(() => controller.abort(), timeoutMs) : undefined;
-    try {
-      const response = await fetch(`${this.baseUrl}${endpoint}`, {
-        headers: this.authHeaders(),
-        signal: controller.signal,
-      });
-      if (response.status === 401 && retryOnUnauthorized && this.getAccessToken()) {
-        if (await this.refreshSession()) return this.requestBinary(endpoint, timeoutMs, false);
-        this.endSession();
-      }
-      if (!response.ok) throw await this.errorFor(response);
-      return response.arrayBuffer();
-    } finally {
-      if (timeoutId) clearTimeout(timeoutId);
-    }
+    super(baseUrl);
   }
 
   /** The public engine catalogue (GET /v1/engines): a visitor gets the built-in and published engines. */
@@ -648,17 +284,29 @@ export class ApiClient {
     email: string;
     password: string;
   }): Promise<UserProfile> {
-    return this.request<UserProfile>('/v1/auth/register', {
-      method: 'POST',
-      body: JSON.stringify(details),
-    }, undefined, false, true);
+    return this.request<UserProfile>(
+      '/v1/auth/register',
+      {
+        method: 'POST',
+        body: JSON.stringify(details),
+      },
+      undefined,
+      false,
+      true
+    );
   }
 
   async login(usernameOrEmail: string, password: string): Promise<TokenPair> {
-    const tokens = await this.request<TokenPair>('/v1/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ username_or_email: usernameOrEmail, password }),
-    }, undefined, false, true);
+    const tokens = await this.request<TokenPair>(
+      '/v1/auth/login',
+      {
+        method: 'POST',
+        body: JSON.stringify({ username_or_email: usernameOrEmail, password }),
+      },
+      undefined,
+      false,
+      true
+    );
     this.setTokens(tokens);
     return tokens;
   }
@@ -688,22 +336,44 @@ export class ApiClient {
     current_password?: string;
     new_password?: string;
   }): Promise<UserProfile> {
-    return this.request<UserProfile>('/v1/users/me', {
-      method: 'PATCH',
-      body: JSON.stringify(changes),
-    }, undefined, true, true);
+    return this.request<UserProfile>(
+      '/v1/users/me',
+      {
+        method: 'PATCH',
+        body: JSON.stringify(changes),
+      },
+      undefined,
+      true,
+      true
+    );
   }
 
-  async requestPasswordReset(email: string): Promise<{ accepted: boolean; delivery: string; token?: string }> {
-    return this.request('/v1/auth/password-reset/request', {
-      method: 'POST', body: JSON.stringify({ email }),
-    }, undefined, false, true);
+  async requestPasswordReset(
+    email: string
+  ): Promise<{ accepted: boolean; delivery: string; token?: string }> {
+    return this.request(
+      '/v1/auth/password-reset/request',
+      {
+        method: 'POST',
+        body: JSON.stringify({ email }),
+      },
+      undefined,
+      false,
+      true
+    );
   }
 
   async completePasswordReset(token: string, newPassword: string): Promise<void> {
-    await this.request('/v1/auth/password-reset/complete', {
-      method: 'POST', body: JSON.stringify({ token, new_password: newPassword }),
-    }, undefined, false, true);
+    await this.request(
+      '/v1/auth/password-reset/complete',
+      {
+        method: 'POST',
+        body: JSON.stringify({ token, new_password: newPassword }),
+      },
+      undefined,
+      false,
+      true
+    );
   }
 
   casStartUrl(mode: 'login' | 'link' = 'login'): string {
@@ -711,7 +381,9 @@ export class ApiClient {
   }
 
   async createCasLinkIntent(): Promise<string> {
-    const response = await this.request<{ url: string }>('/v1/auth/cas/link-intent', { method: 'POST' });
+    const response = await this.request<{ url: string }>('/v1/auth/cas/link-intent', {
+      method: 'POST',
+    });
     // The caller navigates to this URL next; the callback page needs to know it is a link, not a login.
     rememberCasFlow('link');
     return response.url;
@@ -722,9 +394,16 @@ export class ApiClient {
    * FREE to RESEARCH, at no extra cost), or `null` when the plan did not change.
    */
   async exchangeCasCode(code: string): Promise<PlanChange | null> {
-    const session = await this.request<CasSession>('/v1/auth/cas/exchange', {
-      method: 'POST', body: JSON.stringify({ code }),
-    }, undefined, false, true);
+    const session = await this.request<CasSession>(
+      '/v1/auth/cas/exchange',
+      {
+        method: 'POST',
+        body: JSON.stringify({ code }),
+      },
+      undefined,
+      false,
+      true
+    );
     this.setTokens(session);
     const change = session.plan_changed;
     return change && typeof change.to === 'string' ? change : null;
@@ -736,19 +415,30 @@ export class ApiClient {
 
   async unlinkOwnIdentity(identityId: string, confirmation?: string): Promise<void> {
     const query = confirmation ? `?confirmation=${encodeURIComponent(confirmation)}` : '';
-    await this.request(`/v1/users/me/identities/${encodeURIComponent(identityId)}${query}`, { method: 'DELETE' });
+    await this.request(`/v1/users/me/identities/${encodeURIComponent(identityId)}${query}`, {
+      method: 'DELETE',
+    });
   }
 
   async deleteOwnAccount(confirmation: string, currentPassword?: string): Promise<void> {
-    await this.request('/v1/users/me', {
-      method: 'DELETE', body: JSON.stringify({ confirmation, current_password: currentPassword || null }),
-    }, undefined, true, true);
+    await this.request(
+      '/v1/users/me',
+      {
+        method: 'DELETE',
+        body: JSON.stringify({ confirmation, current_password: currentPassword || null }),
+      },
+      undefined,
+      true,
+      true
+    );
   }
 
   async listNotifications(unreadOnly = false): Promise<Notification[]> {
-    const list = await this.request<Notification[]>(`/v1/notifications${unreadOnly ? '?unread_only=true' : ''}`);
+    const list = await this.request<Notification[]>(
+      `/v1/notifications${unreadOnly ? '?unread_only=true' : ''}`
+    );
     const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
-    return list.filter((item) => new Date(item.created_at).getTime() >= cutoff);
+    return list.filter(item => new Date(item.created_at).getTime() >= cutoff);
   }
 
   async markAllNotificationsRead(): Promise<Notification[]> {
@@ -756,15 +446,25 @@ export class ApiClient {
   }
 
   async markNotificationRead(notificationId: string): Promise<Notification> {
-    return this.request(`/v1/notifications/${encodeURIComponent(notificationId)}/read`, { method: 'POST' });
+    return this.request(`/v1/notifications/${encodeURIComponent(notificationId)}/read`, {
+      method: 'POST',
+    });
   }
 
   async getNotificationPreferences(): Promise<NotificationPreferences> {
     return this.request('/v1/notifications/preferences');
   }
 
-  async updateNotificationPreferences(value: NotificationPreferences): Promise<NotificationPreferences> {
-    return this.request('/v1/notifications/preferences', { method: 'PUT', body: JSON.stringify(value) }, undefined, true, true);
+  async updateNotificationPreferences(
+    value: NotificationPreferences
+  ): Promise<NotificationPreferences> {
+    return this.request(
+      '/v1/notifications/preferences',
+      { method: 'PUT', body: JSON.stringify(value) },
+      undefined,
+      true,
+      true
+    );
   }
 
   async listApiKeys(): Promise<ApiKeySummary[]> {
@@ -775,10 +475,16 @@ export class ApiClient {
   /** The response carries the secret. It is the only one that ever will. */
   async createApiKey(payload: CreateApiKeyRequest): Promise<CreatedApiKey> {
     // A 422 (engines missing for the chosen permissions, past expiry) throws: its body is not a key.
-    return this.request<CreatedApiKey>('/v1/users/me/api-keys', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    }, undefined, true, true);
+    return this.request<CreatedApiKey>(
+      '/v1/users/me/api-keys',
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+      undefined,
+      true,
+      true
+    );
   }
 
   async revokeApiKey(keyId: string): Promise<void> {
@@ -792,7 +498,6 @@ export class ApiClient {
   async getOwnUsage(): Promise<UsageView> {
     return this.request<UsageView>('/v1/users/me/usage');
   }
-
 
   /**
    * The active Pricing2Yaml document, digest-verified by the gateway and served as JSON.
@@ -822,11 +527,13 @@ export class ApiClient {
 
   // -- Administration --------------------------------------------------
 
-  async adminListUsers(params: {
-    search?: string;
-    offset?: number;
-    limit?: number;
-  } = {}): Promise<AdminUserPage> {
+  async adminListUsers(
+    params: {
+      search?: string;
+      offset?: number;
+      limit?: number;
+    } = {}
+  ): Promise<AdminUserPage> {
     const query = new URLSearchParams();
     if (params.search) query.set('search', params.search);
     if (params.offset != null) query.set('offset', String(params.offset));
@@ -839,10 +546,16 @@ export class ApiClient {
     userId: string,
     changes: { is_active?: boolean; role?: RoleName }
   ): Promise<AdminUserView> {
-    return this.request<AdminUserView>(`/v1/admin/users/${userId}`, {
-      method: 'PATCH',
-      body: JSON.stringify(changes),
-    }, undefined, true, true);
+    return this.request<AdminUserView>(
+      `/v1/admin/users/${userId}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(changes),
+      },
+      undefined,
+      true,
+      true
+    );
   }
 
   /**
@@ -851,7 +564,11 @@ export class ApiClient {
    * `ifMatch` is the revision of the subscription the change was decided on (from `adminGetSubscription`): a subscription that has
    * moved since is refused with 412 `precondition_failed` and nothing is written. The answer carries the new revision.
    */
-  async adminChangePlan(userId: string, plan: string, ifMatch: string | null): Promise<Revised<AdminUserView>> {
+  async adminChangePlan(
+    userId: string,
+    plan: string,
+    ifMatch: string | null
+  ): Promise<Revised<AdminUserView>> {
     return this.revised<AdminUserView>(`/v1/admin/users/${userId}/plan`, ifMatch, {
       method: 'POST',
       body: JSON.stringify({ plan }),
@@ -872,7 +589,7 @@ export class ApiClient {
       reason: ContractChangeReason;
       detail?: string;
     },
-    ifMatch: string | null,
+    ifMatch: string | null
   ): Promise<Revised<AdminSubscriptionView>> {
     return this.revised<AdminSubscriptionView>(`/v1/admin/users/${userId}/subscription`, ifMatch, {
       method: 'POST',
@@ -899,10 +616,13 @@ export class ApiClient {
    * `organizationSlug`). `action` is an exact action name and `organizationId` keeps one organization's events;
    * the gateway's page is 100 events unless `limit` (at most 500) says otherwise.
    */
-  async adminAudit(filter?: string | { action?: string; organizationId?: string; offset?: number; limit?: number }): Promise<AdminAuditPage> {
-    const { action, organizationId, offset, limit } = typeof filter === 'string'
-      ? { action: filter, organizationId: undefined, offset: undefined, limit: undefined }
-      : filter ?? {};
+  async adminAudit(
+    filter?: string | { action?: string; organizationId?: string; offset?: number; limit?: number }
+  ): Promise<AdminAuditPage> {
+    const { action, organizationId, offset, limit } =
+      typeof filter === 'string'
+        ? { action: filter, organizationId: undefined, offset: undefined, limit: undefined }
+        : (filter ?? {});
     const query = new URLSearchParams();
     if (action) query.set('action', action);
     if (organizationId) query.set('organization_id', organizationId);
@@ -922,7 +642,9 @@ export class ApiClient {
   }
 
   async adminMaintenancePreview(retentionDays = 365): Promise<MaintenancePreview> {
-    return this.request(`/v1/admin/maintenance/preview?terminal_job_retention_days=${retentionDays}`);
+    return this.request(
+      `/v1/admin/maintenance/preview?terminal_job_retention_days=${retentionDays}`
+    );
   }
 
   async adminReconcileJobs(): Promise<{ settled: number }> {
@@ -930,7 +652,11 @@ export class ApiClient {
   }
 
   /** `errorRetentionDays` is how long error events are kept (1–3650, the gateway defaults to 90); it isn't part of the preview. */
-  async adminPurgeExpired(confirmation: string, retentionDays = 365, errorRetentionDays?: number): Promise<Record<string, number>> {
+  async adminPurgeExpired(
+    confirmation: string,
+    retentionDays = 365,
+    errorRetentionDays?: number
+  ): Promise<Record<string, number>> {
     return this.request('/v1/admin/maintenance/purge', {
       method: 'POST',
       body: JSON.stringify({
@@ -943,7 +669,10 @@ export class ApiClient {
 
   private requireExactResourceRef<T extends object>(body: T): T & ImmutableResourceRef {
     for (const field of ['namespace', 'name', 'version', 'digest'] as const) {
-      if (typeof (body as Record<string, unknown>)[field] !== 'string' || !(body as Record<string, string>)[field]) {
+      if (
+        typeof (body as Record<string, unknown>)[field] !== 'string' ||
+        !(body as Record<string, string>)[field]
+      ) {
         throw new Error(`The gateway response omitted the immutable resource pin ${field}.`);
       }
     }
@@ -979,14 +708,21 @@ export class ApiClient {
     protocolDigest: string;
     digest: string;
   }> {
-    const profile = (await this.getProtocolProfiles()).find((item) => item.id === 'qos-binding/v1');
+    const profile = (await this.getProtocolProfiles()).find(item => item.id === 'qos-binding/v1');
     const output = profile?.output;
-    if (!profile || output?.apiVersion !== 'bim/v1' || output?.kind !== 'BindingProblem'
-      || profile.protocol !== 'bim-engine/v1') {
+    if (
+      !profile ||
+      output?.apiVersion !== 'bim/v1' ||
+      output?.kind !== 'BindingProblem' ||
+      profile.protocol !== 'bim-engine/v1'
+    ) {
       throw new Error('The gateway does not advertise the BIM v1 binding profile.');
     }
-    if (typeof output.schemaDigest !== 'string' || typeof profile.protocolDigest !== 'string'
-      || typeof profile.digest !== 'string') {
+    if (
+      typeof output.schemaDigest !== 'string' ||
+      typeof profile.protocolDigest !== 'string' ||
+      typeof profile.digest !== 'string'
+    ) {
       throw new Error('The gateway did not publish complete immutable BIM profile pins.');
     }
     return profile as {
@@ -1000,7 +736,7 @@ export class ApiClient {
 
   /** Register private deployment material separately from the portable Engine. */
   async createEngineRegistration(
-    manifest: EngineRegistrationManifest,
+    manifest: EngineRegistrationManifest
   ): Promise<EngineRegistrationRevision> {
     return this.requireExactResourceRef(
       await this.request<EngineRegistrationRevision>('/v1/engine-registrations', {
@@ -1011,8 +747,12 @@ export class ApiClient {
   }
 
   async listEngineRegistrations(): Promise<EngineRegistrationRevision[]> {
-    const body = await this.request<{ registrations: EngineRegistrationRevision[] }>('/v1/engine-registrations');
-    return (body.registrations || []).map((registration) => this.requireExactResourceRef(registration));
+    const body = await this.request<{ registrations: EngineRegistrationRevision[] }>(
+      '/v1/engine-registrations'
+    );
+    return (body.registrations || []).map(registration =>
+      this.requireExactResourceRef(registration)
+    );
   }
 
   private engineRegistrationEndpoint(ref: ImmutableResourceRef, action?: string): string {
@@ -1036,15 +776,27 @@ export class ApiClient {
   }
 
   async activateEngineRegistration(ref: ImmutableResourceRef): Promise<EngineRegistrationRevision> {
-    return this.requireExactResourceRef(await this.request<EngineRegistrationRevision>(this.engineRegistrationEndpoint(ref, 'activate'), {
-      method: 'POST',
-    }));
+    return this.requireExactResourceRef(
+      await this.request<EngineRegistrationRevision>(
+        this.engineRegistrationEndpoint(ref, 'activate'),
+        {
+          method: 'POST',
+        }
+      )
+    );
   }
 
-  async deactivateEngineRegistration(ref: ImmutableResourceRef): Promise<EngineRegistrationRevision> {
-    return this.requireExactResourceRef(await this.request<EngineRegistrationRevision>(this.engineRegistrationEndpoint(ref, 'deactivate'), {
-      method: 'POST',
-    }));
+  async deactivateEngineRegistration(
+    ref: ImmutableResourceRef
+  ): Promise<EngineRegistrationRevision> {
+    return this.requireExactResourceRef(
+      await this.request<EngineRegistrationRevision>(
+        this.engineRegistrationEndpoint(ref, 'deactivate'),
+        {
+          method: 'POST',
+        }
+      )
+    );
   }
 
   async deleteEngineRegistration(ref: ImmutableResourceRef): Promise<void> {
@@ -1053,37 +805,70 @@ export class ApiClient {
     });
   }
 
-  async requestEngineRegistrationPublication(ref: ImmutableResourceRef): Promise<EngineRegistrationRevision> {
-    return this.requireExactResourceRef(await this.request<EngineRegistrationRevision>(this.engineRegistrationEndpoint(ref, 'publication-request'), {
-      method: 'POST',
-    }));
+  async requestEngineRegistrationPublication(
+    ref: ImmutableResourceRef
+  ): Promise<EngineRegistrationRevision> {
+    return this.requireExactResourceRef(
+      await this.request<EngineRegistrationRevision>(
+        this.engineRegistrationEndpoint(ref, 'publication-request'),
+        {
+          method: 'POST',
+        }
+      )
+    );
   }
 
   async setEngineRegistrationCredential(
     ref: ImmutableResourceRef,
-    secret: string,
+    secret: string
   ): Promise<EngineRegistrationRevision> {
-    return this.requireExactResourceRef(await this.request<EngineRegistrationRevision>(this.engineRegistrationEndpoint(ref, 'credential'), {
-      method: 'PUT',
-      body: JSON.stringify({ secret }),
-    }, undefined, true, true));
+    return this.requireExactResourceRef(
+      await this.request<EngineRegistrationRevision>(
+        this.engineRegistrationEndpoint(ref, 'credential'),
+        {
+          method: 'PUT',
+          body: JSON.stringify({ secret }),
+        },
+        undefined,
+        true,
+        true
+      )
+    );
   }
 
   async adminListEngineRegistrations(): Promise<EngineRegistrationRevision[]> {
-    const body = await this.request<{ registrations: EngineRegistrationRevision[] }>('/v1/engine-registrations?review=true');
-    return (body.registrations || []).map((registration) => this.requireExactResourceRef(registration));
+    const body = await this.request<{ registrations: EngineRegistrationRevision[] }>(
+      '/v1/engine-registrations?review=true'
+    );
+    return (body.registrations || []).map(registration =>
+      this.requireExactResourceRef(registration)
+    );
   }
 
-  async adminApproveEngineRegistration(ref: ImmutableResourceRef): Promise<EngineRegistrationRevision> {
-    return this.requireExactResourceRef(await this.request<EngineRegistrationRevision>(this.engineRegistrationEndpoint(ref, 'approve'), {
-      method: 'POST',
-    }));
+  async adminApproveEngineRegistration(
+    ref: ImmutableResourceRef
+  ): Promise<EngineRegistrationRevision> {
+    return this.requireExactResourceRef(
+      await this.request<EngineRegistrationRevision>(
+        this.engineRegistrationEndpoint(ref, 'approve'),
+        {
+          method: 'POST',
+        }
+      )
+    );
   }
 
-  async adminRejectEngineRegistration(ref: ImmutableResourceRef): Promise<EngineRegistrationRevision> {
-    return this.requireExactResourceRef(await this.request<EngineRegistrationRevision>(this.engineRegistrationEndpoint(ref, 'reject'), {
-      method: 'POST',
-    }));
+  async adminRejectEngineRegistration(
+    ref: ImmutableResourceRef
+  ): Promise<EngineRegistrationRevision> {
+    return this.requireExactResourceRef(
+      await this.request<EngineRegistrationRevision>(
+        this.engineRegistrationEndpoint(ref, 'reject'),
+        {
+          method: 'POST',
+        }
+      )
+    );
   }
 
   async adminErrorOverview(): Promise<AdminErrorOverview> {
