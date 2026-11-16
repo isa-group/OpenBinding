@@ -34,19 +34,31 @@ const HOVER_DELAY_MS = 150;
  * What a version changed from another, as the gateway's diff of the two reads. Diffs and summaries are kept, so asking for a
  * pair again answers at once; a refresh (`revision`) or another credential starts a new cache.
  */
-export function useVersionChanges(target: ChangesTarget | null, revision: object | null): ChangesState {
+export function useVersionChanges(
+  target: ChangesTarget | null,
+  revision: object | null
+): ChangesState {
   const { user } = useAuth();
   const credential = user?.id ?? null;
   // A refresh or a credential change starts a new cache. Old requests may finish, but can neither populate the new cache nor
   // display their old result.
-  const cache = useMemo(() => ({
-    credential,
-    revision,
-    diffs: new Map<string, Promise<CompositionVersionDiff>>(),
-    summaries: new Map<string, VersionChanges>(),
-  }), [credential, revision]);
-  const key = target ? JSON.stringify([target.org, target.composition, target.key, target.before, target.after]) : null;
-  const [state, setState] = useState<{ cache: typeof cache; key: string; value: ChangesState } | null>(null);
+  const cache = useMemo(
+    () => ({
+      credential,
+      revision,
+      diffs: new Map<string, Promise<CompositionVersionDiff>>(),
+      summaries: new Map<string, VersionChanges>(),
+    }),
+    [credential, revision]
+  );
+  const key = target
+    ? JSON.stringify([target.org, target.composition, target.key, target.before, target.after])
+    : null;
+  const [state, setState] = useState<{
+    cache: typeof cache;
+    key: string;
+    value: ChangesState;
+  } | null>(null);
 
   useEffect(() => {
     if (!target || key === null || cache.summaries.has(key)) return;
@@ -67,7 +79,7 @@ export function useVersionChanges(target: ChangesTarget | null, revision: object
     const timer = setTimeout(() => {
       setState({ cache, key, value: { status: 'loading' } });
       read(target.org, target.composition, target.before, target.after)
-        .then((diff) => {
+        .then(diff => {
           const summary = versionChanges(diff);
           cache.summaries.set(key, summary);
           if (active) setState({ cache, key, value: { status: 'ready', summary } });

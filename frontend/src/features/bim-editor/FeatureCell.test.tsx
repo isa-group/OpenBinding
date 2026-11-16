@@ -9,23 +9,39 @@ function Harness({ start, disabled = false }: { start?: FeatureSlot; disabled?: 
   const [value, setValue] = useState<FeatureSlot | undefined>(start);
   return (
     <>
-      <FeatureCell feature="latency" candidate="fast" value={value} disabled={disabled} required onChange={(next) => setValue(next === null ? undefined : next)} />
-      <output aria-label="document">{value === undefined ? 'nothing' : JSON.stringify(value)}</output>
+      <FeatureCell
+        feature="latency"
+        candidate="fast"
+        value={value}
+        disabled={disabled}
+        required
+        onChange={next => setValue(next === null ? undefined : next)}
+      />
+      <output aria-label="document">
+        {value === undefined ? 'nothing' : JSON.stringify(value)}
+      </output>
     </>
   );
 }
 
 const written = () => screen.getByLabelText('document').textContent;
 const modes = () => screen.getByRole('group', { name: 'latency for fast: value or range' });
-const type = (label: string, value: string) => fireEvent.change(screen.getByLabelText(label), { target: { value } });
+const type = (label: string, value: string) =>
+  fireEvent.change(screen.getByLabelText(label), { target: { value } });
 
 describe('FeatureCell', () => {
   it('starts as a single value, with a named switch between value and range', () => {
     render(<Harness start={120} />);
 
     const group = modes();
-    expect(within(group).getByRole('button', { name: 'Value' })).toHaveAttribute('aria-pressed', 'true');
-    expect(within(group).getByRole('button', { name: 'Range' })).toHaveAttribute('aria-pressed', 'false');
+    expect(within(group).getByRole('button', { name: 'Value' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
+    expect(within(group).getByRole('button', { name: 'Range' })).toHaveAttribute(
+      'aria-pressed',
+      'false'
+    );
     expect(screen.getByLabelText('latency for fast')).toHaveValue('120');
     expect(screen.queryByLabelText('latency for fast min')).not.toBeInTheDocument();
   });
@@ -36,7 +52,10 @@ describe('FeatureCell', () => {
     fireEvent.click(within(modes()).getByRole('button', { name: 'Range' }));
 
     expect(written()).toBe('{"min":120,"max":120}');
-    expect(within(modes()).getByRole('button', { name: 'Range' })).toHaveAttribute('aria-pressed', 'true');
+    expect(within(modes()).getByRole('button', { name: 'Range' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
     expect(screen.getByLabelText('latency for fast min')).toHaveValue('120');
     expect(screen.getByLabelText('latency for fast max')).toHaveValue('120');
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
@@ -151,7 +170,9 @@ describe('FeatureCell', () => {
     render(<Harness start={{ min: 120, max: 180 }} />);
 
     fireEvent.click(within(modes()).getByRole('button', { name: 'Value' }));
-    const question = screen.getByRole('alertdialog', { name: 'Convert latency for fast to a single value' });
+    const question = screen.getByRole('alertdialog', {
+      name: 'Convert latency for fast to a single value',
+    });
     expect(question).toHaveTextContent('Convert to 120? This drops the upper limit (180).');
     expect(written()).toBe('{"min":120,"max":180}');
 
@@ -160,7 +181,9 @@ describe('FeatureCell', () => {
     expect(written()).toBe('{"min":120,"max":180}');
 
     fireEvent.click(within(modes()).getByRole('button', { name: 'Value' }));
-    fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Convert' }));
+    fireEvent.click(
+      within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Convert' })
+    );
     expect(written()).toBe('120');
     expect(screen.getByLabelText('latency for fast')).toHaveValue('120');
   });
@@ -168,14 +191,18 @@ describe('FeatureCell', () => {
   it('keeps the finite end of an open range and empties the cell when there is none', () => {
     const { unmount } = render(<Harness start={{ min: null, max: 200 }} />);
     fireEvent.click(within(modes()).getByRole('button', { name: 'Value' }));
-    expect(screen.getByRole('alertdialog')).toHaveTextContent('Convert to 200? This drops the lower limit (no limit).');
+    expect(screen.getByRole('alertdialog')).toHaveTextContent(
+      'Convert to 200? This drops the lower limit (no limit).'
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Convert' }));
     expect(written()).toBe('200');
     unmount();
 
     render(<Harness start={{ min: null, max: null }} />);
     fireEvent.click(within(modes()).getByRole('button', { name: 'Value' }));
-    expect(screen.getByRole('alertdialog')).toHaveTextContent('A single value can’t hold a range with no limits. Convert and leave it empty?');
+    expect(screen.getByRole('alertdialog')).toHaveTextContent(
+      'A single value can’t hold a range with no limits. Convert and leave it empty?'
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Convert' }));
     expect(written()).toBe('nothing');
   });
@@ -192,8 +219,15 @@ describe('FeatureCell', () => {
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
     expect(written()).toBe('{"min":1,"max":2}');
     // Every control is a native one, so Tab, Space and Enter work without more.
-    expect(within(modes()).getAllByRole('button').every((button) => button.tagName === 'BUTTON')).toBe(true);
-    expect(screen.getByLabelText('latency for fast: no lower limit')).toHaveAttribute('type', 'checkbox');
+    expect(
+      within(modes())
+        .getAllByRole('button')
+        .every(button => button.tagName === 'BUTTON')
+    ).toBe(true);
+    expect(screen.getByLabelText('latency for fast: no lower limit')).toHaveAttribute(
+      'type',
+      'checkbox'
+    );
   });
 
   it('is read-only when the draft is', () => {
@@ -210,8 +244,20 @@ describe('FeatureCell', () => {
       const [value, setValue] = useState<FeatureSlot | undefined>(10);
       return (
         <FeatureCell
-          feature="latency" candidate="fast" value={value} onChange={(next) => setValue(next === null ? undefined : next)}
-          valueInput={({ value: current, onChange }) => <input aria-label="fast QoS latency" type="number" value={current ?? ''} onChange={(event) => onChange(event.target.value === '' ? null : Number(event.target.value))} />}
+          feature="latency"
+          candidate="fast"
+          value={value}
+          onChange={next => setValue(next === null ? undefined : next)}
+          valueInput={({ value: current, onChange }) => (
+            <input
+              aria-label="fast QoS latency"
+              type="number"
+              value={current ?? ''}
+              onChange={event =>
+                onChange(event.target.value === '' ? null : Number(event.target.value))
+              }
+            />
+          )}
         />
       );
     }

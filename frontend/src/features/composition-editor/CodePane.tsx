@@ -16,7 +16,16 @@ interface CodePaneProps {
 }
 
 /** The code of the draft, with the gateway's findings marked in it and listed below, and completion while typing. */
-export function CodePane({ text, onChange, readOnly, diagnostics, completions, selection, onSelect, withProblems }: CodePaneProps) {
+export function CodePane({
+  text,
+  onChange,
+  readOnly,
+  diagnostics,
+  completions,
+  selection,
+  onSelect,
+  withProblems,
+}: CodePaneProps) {
   return (
     <div className="ce-code">
       <CodeEditor

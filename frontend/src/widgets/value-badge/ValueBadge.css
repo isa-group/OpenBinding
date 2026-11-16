@@ -1,29 +1,62 @@
 @layer legacy {
-.vb { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+  .vb {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 8px;
+  }
 
-.vb-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 1px 8px;
-  border: 1px solid;
-  border-radius: var(--tp-radius-full);
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--tp-ink-tint);
-  line-height: 1.5;
-}
+  .vb-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 1px 8px;
+    border: 1px solid;
+    border-radius: var(--tp-radius-full);
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--tp-ink-tint);
+    line-height: 1.5;
+  }
 
-.vb-status svg { width: 12px; height: 12px; flex: none; }
-.vb-status.is-verified { border-color: var(--tp-status-verified); }
-.vb-status.is-verified svg { color: var(--tp-status-verified); }
-/* The three differ in words and icon, and in the line: dashed for a value nobody checked, dotted for one that no longer holds. */
-.vb-status.is-declared { border-color: var(--tp-status-declared); border-style: dashed; }
-.vb-status.is-declared svg { color: var(--tp-status-declared); }
-.vb-status.is-unverified { border-color: var(--tp-status-unverified); border-style: dotted; }
-.vb-status.is-unverified svg { color: var(--tp-status-unverified); }
+  .vb-status svg {
+    width: 12px;
+    height: 12px;
+    flex: none;
+  }
+  .vb-status.is-verified {
+    border-color: var(--tp-status-verified);
+  }
+  .vb-status.is-verified svg {
+    color: var(--tp-status-verified);
+  }
+  /* The three differ in words and icon, and in the line: dashed for a value nobody checked, dotted for one that no longer holds. */
+  .vb-status.is-declared {
+    border-color: var(--tp-status-declared);
+    border-style: dashed;
+  }
+  .vb-status.is-declared svg {
+    color: var(--tp-status-declared);
+  }
+  .vb-status.is-unverified {
+    border-color: var(--tp-status-unverified);
+    border-style: dotted;
+  }
+  .vb-status.is-unverified svg {
+    color: var(--tp-status-unverified);
+  }
 
-.vb-origin { color: var(--tp-steel); font-size: 0.75rem; overflow-wrap: anywhere; }
-.vb-origin.is-compact { display: inline-flex; color: var(--tp-stone); }
-.vb-origin.is-compact svg { width: 12px; height: 12px; }
+  .vb-origin {
+    color: var(--tp-steel);
+    font-size: 0.75rem;
+    overflow-wrap: anywhere;
+  }
+  .vb-origin.is-compact {
+    display: inline-flex;
+    color: var(--tp-stone);
+  }
+  .vb-origin.is-compact svg {
+    width: 12px;
+    height: 12px;
+  }
 }

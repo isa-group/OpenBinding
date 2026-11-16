@@ -30,7 +30,7 @@ function SpaceTokenSync({ children }: { children: ReactNode }) {
     let cancelled = false;
     apiClient
       .getPricingToken()
-      .then((token) => {
+      .then(token => {
         if (!cancelled && token) {
           try {
             tokenService.update(token);
@@ -79,10 +79,7 @@ export function SpaceProviderWrapper({ children }: { children: ReactNode }) {
   const { user } = useAuth();
 
   return (
-    <SpaceProvider
-      key={user ? user.id : 'anonymous'}
-      config={TOKEN_ONLY_SPACE_CONFIG}
-    >
+    <SpaceProvider key={user ? user.id : 'anonymous'} config={TOKEN_ONLY_SPACE_CONFIG}>
       <SpaceTokenSync>{children}</SpaceTokenSync>
     </SpaceProvider>
   );

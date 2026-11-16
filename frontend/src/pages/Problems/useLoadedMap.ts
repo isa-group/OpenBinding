@@ -10,7 +10,10 @@ export interface Loaded<T> {
  * Load one value per key, once each, as the keys appear. The answer for a key arrives in a promise callback, so nothing is
  * set synchronously from the effect. A key that was asked for is never asked again.
  */
-export function useLoadedMap<T>(keys: readonly string[], load: (key: string) => Promise<T>): Record<string, Loaded<T>> {
+export function useLoadedMap<T>(
+  keys: readonly string[],
+  load: (key: string) => Promise<T>
+): Record<string, Loaded<T>> {
   const [loaded, setLoaded] = useState<Record<string, Loaded<T>>>({});
   const asked = useRef(new Set<string>());
   const run = useEffectEvent(load);
@@ -21,8 +24,9 @@ export function useLoadedMap<T>(keys: readonly string[], load: (key: string) => 
       if (asked.current.has(key)) continue;
       asked.current.add(key);
       run(key).then(
-        (value) => setLoaded((current) => ({ ...current, [key]: { status: 'ready', value } })),
-        (error: unknown) => setLoaded((current) => ({ ...current, [key]: { status: 'error', error } })),
+        value => setLoaded(current => ({ ...current, [key]: { status: 'ready', value } })),
+        (error: unknown) =>
+          setLoaded(current => ({ ...current, [key]: { status: 'error', error } }))
       );
     }
   }, [signature]);

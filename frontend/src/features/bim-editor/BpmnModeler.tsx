@@ -27,7 +27,10 @@ interface ShapeLike {
 
 /** The few services of the modeler this editor uses. bpmn-js types most of them loosely, so each is declared by what it is asked for. */
 interface Services {
-  canvas: { zoom(level?: number | 'fit-viewport'): number; scrollToElement(element: ShapeLike): void };
+  canvas: {
+    zoom(level?: number | 'fit-viewport'): number;
+    scrollToElement(element: ShapeLike): void;
+  };
   commandStack: { canUndo(): boolean; canRedo(): boolean; undo(): void; redo(): void };
   elementRegistry: { get(id: string): ShapeLike | undefined };
   modeling: { updateProperties(element: ShapeLike, properties: Record<string, unknown>): void };
@@ -56,7 +59,10 @@ function showElement(instance: Modeler, id: string) {
 
 /** `bpmn:ServiceTask` as `Service task`. */
 function typeLabel(type: string): string {
-  const words = type.replace(/^bpmn:/, '').replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
+  const words = type
+    .replace(/^bpmn:/, '')
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .toLowerCase();
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
@@ -64,7 +70,13 @@ function typeLabel(type: string): string {
  * The visual editor of the workflow diagram. bpmn-js draws the canvas and its palette; the toolbar above and the panel beside
  * it are ours, so they speak the same tokens as the rest of the page (see BpmnModeler.css for the palette and the canvas).
  */
-export function BpmnModeler({ candidateXml, fallbackXml = '', focusElement, onValidXml, onError }: BpmnModelerProps) {
+export function BpmnModeler({
+  candidateXml,
+  fallbackXml = '',
+  focusElement,
+  onValidXml,
+  onError,
+}: BpmnModelerProps) {
   const container = useRef<HTMLDivElement>(null);
   const modeler = useRef<Modeler | null>(null);
   const imported = useRef('');
@@ -91,17 +103,22 @@ export function BpmnModeler({ candidateXml, fallbackXml = '', focusElement, onVa
       const stack = serviceOf(instance, 'commandStack');
       setHistory({ undo: Boolean(stack.canUndo()), redo: Boolean(stack.canRedo()) });
       if (importing.current) return;
-      void instance.saveXML({ format: true }).then(({ xml }) => {
-        if (!xml) return;
-        imported.current = xml;
-        onValid.current(xml);
-      }).catch((error) => onFailure.current(String(error)));
+      void instance
+        .saveXML({ format: true })
+        .then(({ xml }) => {
+          if (!xml) return;
+          imported.current = xml;
+          onValid.current(xml);
+        })
+        .catch(error => onFailure.current(String(error)));
     });
-    events.on<{ newSelection: ShapeLike[] }>('selection.changed', (event) => {
+    events.on<{ newSelection: ShapeLike[] }>('selection.changed', event => {
       const element = event.newSelection[0];
-      setSelected(element && element.type !== 'bpmn:Process' && element.type !== 'label'
-        ? { id: element.id, type: element.type, name: element.businessObject?.name ?? '' }
-        : null);
+      setSelected(
+        element && element.type !== 'bpmn:Process' && element.type !== 'label'
+          ? { id: element.id, type: element.type, name: element.businessObject?.name ?? '' }
+          : null
+      );
     });
     return () => {
       modeler.current = null;
@@ -115,33 +132,43 @@ export function BpmnModeler({ candidateXml, fallbackXml = '', focusElement, onVa
     let cancelled = false;
     const previousXml = imported.current || (fallbackXml !== candidateXml ? fallbackXml : '');
     importing.current = true;
-    void instance.importXML(candidateXml).then(() => {
-      if (cancelled || modeler.current !== instance) return;
-      imported.current = candidateXml;
-      onValid.current(candidateXml);
-      const bounds = container.current?.getBoundingClientRect();
-      if (bounds?.width && bounds.height) {
-        try {
-          serviceOf(instance, 'canvas').zoom('fit-viewport');
-        } catch {
-          // The XML is valid even if a just-mounted canvas cannot fit its viewport yet.
+    void instance
+      .importXML(candidateXml)
+      .then(() => {
+        if (cancelled || modeler.current !== instance) return;
+        imported.current = candidateXml;
+        onValid.current(candidateXml);
+        const bounds = container.current?.getBoundingClientRect();
+        if (bounds?.width && bounds.height) {
+          try {
+            serviceOf(instance, 'canvas').zoom('fit-viewport');
+          } catch {
+            // The XML is valid even if a just-mounted canvas cannot fit its viewport yet.
+          }
         }
-      }
-      if (wanted.current) showElement(instance, wanted.current);
-    }).catch(async (error) => {
-      if (cancelled || modeler.current !== instance) return;
-      onFailure.current(`BPMN XML was not applied: ${error instanceof Error ? error.message : String(error)}`);
-      if (!previousXml) return;
-      try {
-        await instance.importXML(previousXml);
-        imported.current = previousXml;
-      } catch (restoreError) {
-        onFailure.current(`The last valid BPMN diagram could not be restored: ${restoreError instanceof Error ? restoreError.message : String(restoreError)}`);
-      }
-    }).finally(() => {
-      if (!cancelled && modeler.current === instance) importing.current = false;
-    });
-    return () => { cancelled = true; };
+        if (wanted.current) showElement(instance, wanted.current);
+      })
+      .catch(async error => {
+        if (cancelled || modeler.current !== instance) return;
+        onFailure.current(
+          `BPMN XML was not applied: ${error instanceof Error ? error.message : String(error)}`
+        );
+        if (!previousXml) return;
+        try {
+          await instance.importXML(previousXml);
+          imported.current = previousXml;
+        } catch (restoreError) {
+          onFailure.current(
+            `The last valid BPMN diagram could not be restored: ${restoreError instanceof Error ? restoreError.message : String(restoreError)}`
+          );
+        }
+      })
+      .finally(() => {
+        if (!cancelled && modeler.current === instance) importing.current = false;
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [candidateXml, fallbackXml]);
 
   useEffect(() => {
@@ -191,15 +218,40 @@ export function BpmnModeler({ candidateXml, fallbackXml = '', focusElement, onVa
     <div className="wb-bpmn">
       <div className="pe-bpmn-bar" role="toolbar" aria-label="Diagram tools">
         <div className="pe-bpmn-group">
-          <button type="button" onClick={() => step('undo')} disabled={!history.undo} aria-label="Undo diagram edit"><Undo2 aria-hidden="true" />Undo</button>
-          <button type="button" onClick={() => step('redo')} disabled={!history.redo} aria-label="Redo diagram edit"><Redo2 aria-hidden="true" />Redo</button>
+          <button
+            type="button"
+            onClick={() => step('undo')}
+            disabled={!history.undo}
+            aria-label="Undo diagram edit"
+          >
+            <Undo2 aria-hidden="true" />
+            Undo
+          </button>
+          <button
+            type="button"
+            onClick={() => step('redo')}
+            disabled={!history.redo}
+            aria-label="Redo diagram edit"
+          >
+            <Redo2 aria-hidden="true" />
+            Redo
+          </button>
         </div>
         <div className="pe-bpmn-group">
-          <button type="button" onClick={() => zoomBy(-0.2)} aria-label="Zoom out"><ZoomOut aria-hidden="true" /></button>
-          <button type="button" onClick={() => zoomBy(0.2)} aria-label="Zoom in"><ZoomIn aria-hidden="true" /></button>
-          <button type="button" onClick={fit} aria-label="Fit the diagram to the view"><Maximize2 aria-hidden="true" />Fit</button>
+          <button type="button" onClick={() => zoomBy(-0.2)} aria-label="Zoom out">
+            <ZoomOut aria-hidden="true" />
+          </button>
+          <button type="button" onClick={() => zoomBy(0.2)} aria-label="Zoom in">
+            <ZoomIn aria-hidden="true" />
+          </button>
+          <button type="button" onClick={fit} aria-label="Fit the diagram to the view">
+            <Maximize2 aria-hidden="true" />
+            Fit
+          </button>
         </div>
-        <span className="pe-bpmn-hint">Drag shapes from the palette on the left; select one to rename it.</span>
+        <span className="pe-bpmn-hint">
+          Drag shapes from the palette on the left; select one to rename it.
+        </span>
       </div>
       <div className="pe-bpmn-stage">
         <div className="bpmn-modeler" ref={container} aria-label="Editable BPMN diagram" />
@@ -210,7 +262,11 @@ export function BpmnModeler({ candidateXml, fallbackXml = '', focusElement, onVa
               <strong>{typeLabel(selected.type)}</strong>
               <code>{selected.id}</code>
               <label htmlFor={nameId}>Name</label>
-              <input id={nameId} value={selected.name} onChange={(event) => rename(event.target.value)} />
+              <input
+                id={nameId}
+                value={selected.name}
+                onChange={event => rename(event.target.value)}
+              />
             </>
           ) : (
             <p>Select a task, gateway or event to see what it is and rename it.</p>

@@ -18,11 +18,20 @@ describe('summarizeChanges', () => {
 
     expect(summary.isEmpty).toBe(false);
     // The offering did not change, so it is not listed.
-    expect(summary.sections.map(section => [section.key, section.added, section.removed, section.changed])).toEqual([
+    expect(
+      summary.sections.map(section => [
+        section.key,
+        section.added,
+        section.removed,
+        section.changed,
+      ])
+    ).toEqual([
       ['binding', [], [], ['T1']],
       ['values', [], [], ['availability', 'cost', 'execution_time', 'reliability']],
     ]);
-    expect(summary.candidateChanges).toEqual([{ task: 'T1', before: 'cand_t1_aws', after: 'cand_t1_google_cloud' }]);
+    expect(summary.candidateChanges).toEqual([
+      { task: 'T1', before: 'cand_t1_aws', after: 'cand_t1_google_cloud' },
+    ]);
     expect(summary.valueChanges).toEqual([
       { name: 'availability', before: 0.9963044476255752, after: 0.9966034884802901 },
       { name: 'cost', before: 3060, after: 3080 },
@@ -41,11 +50,12 @@ describe('summarizeChanges', () => {
 
   it('reads a first version as everything it starts with, and equal versions as no changes', () => {
     const diff = diffOf(fms);
-    const added = (names: string[], path: string) => names.map(name => ({
-      name,
-      kind: 'added' as const,
-      changes: [{ path, before: null, after: name }],
-    }));
+    const added = (names: string[], path: string) =>
+      names.map(name => ({
+        name,
+        kind: 'added' as const,
+        changes: [{ path, before: null, after: name }],
+      }));
     diff.sections = [
       { key: 'binding', label: 'Binding', entries: added(['T1', 'T2', 'T3'], 'candidate') },
       { key: 'values', label: 'Values', entries: added(['cost', 'availability'], 'value') },
@@ -96,12 +106,19 @@ describe('summarizeChanges', () => {
 
   it('reads a task that became local as a candidate change to none', () => {
     const diff = diffOf(fms);
-    diff.sections[0].entries = [{
-      name: 'T1',
-      kind: 'changed',
-      changes: [{ path: 'candidate', before: 'cand_t1_aws', after: null }, { path: 'local', before: null, after: true }],
-    }];
+    diff.sections[0].entries = [
+      {
+        name: 'T1',
+        kind: 'changed',
+        changes: [
+          { path: 'candidate', before: 'cand_t1_aws', after: null },
+          { path: 'local', before: null, after: true },
+        ],
+      },
+    ];
 
-    expect(summarizeChanges(diff).candidateChanges).toEqual([{ task: 'T1', before: 'cand_t1_aws', after: null }]);
+    expect(summarizeChanges(diff).candidateChanges).toEqual([
+      { task: 'T1', before: 'cand_t1_aws', after: null },
+    ]);
   });
 });

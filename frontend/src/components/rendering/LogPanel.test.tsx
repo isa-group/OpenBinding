@@ -83,7 +83,12 @@ describe('LogPanel', () => {
     const pre = screen.getByLabelText('Run log');
     expect(pre.tagName).toBe('PRE');
     expect(pre).toHaveTextContent('solver Alpha ready');
-    expect([...pre.querySelectorAll('[data-line]')].map((l) => l.getAttribute('data-line'))).toEqual(['1', '2', '3', '4']);
+    expect([...pre.querySelectorAll('[data-line]')].map(l => l.getAttribute('data-line'))).toEqual([
+      '1',
+      '2',
+      '3',
+      '4',
+    ]);
     expect(screen.getByRole('status')).toHaveTextContent('4 of 4 lines');
   });
 
@@ -121,7 +126,11 @@ describe('LogPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Copy/ }));
 
     expect(writeText).toHaveBeenCalledWith(LOG);
-    await waitFor(() => expect(screen.getAllByRole('status').some((s) => /copied/i.test(s.textContent ?? ''))).toBe(true));
+    await waitFor(() =>
+      expect(screen.getAllByRole('status').some(s => /copied/i.test(s.textContent ?? ''))).toBe(
+        true
+      )
+    );
   });
 
   it('shows Download only with a filename and downloads the whole log as text, revoking the URL later', async () => {
@@ -141,7 +150,9 @@ describe('LogPanel', () => {
     expect(revokeObjectURL).not.toHaveBeenCalled();
     vi.runAllTimers();
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:log');
-    expect(anchorClick.mock.invocationCallOrder[0]).toBeLessThan(revokeObjectURL.mock.invocationCallOrder[0]);
+    expect(anchorClick.mock.invocationCallOrder[0]).toBeLessThan(
+      revokeObjectURL.mock.invocationCallOrder[0]
+    );
   });
 
   it('keeps the log pre in the tab order', () => {
@@ -158,7 +169,8 @@ describe('LogPanel', () => {
 
   it('shows the line numbers as text, original ones after filtering', () => {
     render(<LogPanel log={LOG} defaultOpen />);
-    const nums = () => [...document.querySelectorAll('.rendering-log__num')].map((n) => n.textContent);
+    const nums = () =>
+      [...document.querySelectorAll('.rendering-log__num')].map(n => n.textContent);
 
     expect(nums()).toEqual(['1', '2', '3', '4']);
     fireEvent.change(screen.getByLabelText('Search the log'), { target: { value: 'solver' } });

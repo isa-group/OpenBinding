@@ -54,16 +54,28 @@ function OfferingLine({ offering }: { offering: OfferingModel }) {
   if (offering.source === 'url' && offering.href) {
     return (
       <p className="cr-muted">
-        <a href={offering.href} rel="noreferrer" target="_blank">{offering.label}<ExternalLink aria-hidden="true" className="cr-icon" /></a>
+        <a href={offering.href} rel="noreferrer" target="_blank">
+          {offering.label}
+          <ExternalLink aria-hidden="true" className="cr-icon" />
+        </a>
       </p>
     );
   }
   if (offering.source === 'registry') {
     // The label is `owner/name on <alias>`, and neither part holds a space.
     const at = offering.label.lastIndexOf(' on ');
-    return <p className="cr-muted"><code>{offering.label.slice(0, at)}</code> on the on-premise SPHERE <code>{offering.label.slice(at + 4)}</code></p>;
+    return (
+      <p className="cr-muted">
+        <code>{offering.label.slice(0, at)}</code> on the on-premise SPHERE{' '}
+        <code>{offering.label.slice(at + 4)}</code>
+      </p>
+    );
   }
-  return <p className="cr-muted"><code>{offering.label}</code> in SPHERE</p>;
+  return (
+    <p className="cr-muted">
+      <code>{offering.label}</code> in SPHERE
+    </p>
+  );
 }
 
 function CopyPermalink({ permalink }: { permalink: string }) {
@@ -76,7 +88,11 @@ function CopyPermalink({ permalink }: { permalink: string }) {
         Copy permalink
       </Action>
       <span role="status" className="cr-copied">
-        {said === 'copied' ? 'Link copied.' : said === 'failed' ? 'The browser refused to copy; the address bar holds the same link.' : ''}
+        {said === 'copied'
+          ? 'Link copied.'
+          : said === 'failed'
+            ? 'The browser refused to copy; the address bar holds the same link.'
+            : ''}
       </span>
     </>
   );
@@ -94,16 +110,29 @@ export function ShowcaseMode({ model, sections, actions }: ShowcaseModeProps) {
       {shows('identity') && (
         <header className="cr-showcase-head">
           <div className="cr-showcase-title">
-            <span className="cr-kind">{kindLabel(identity.kind)} · {identity.orgName}</span>
+            <span className="cr-kind">
+              {kindLabel(identity.kind)} · {identity.orgName}
+            </span>
             <h1>{identity.name}</h1>
             <p className="cr-muted">
-              {version ? <>Version <code>{version.label}</code>{sealed && `, sealed ${sealed}`}</> : 'No version yet'}
+              {version ? (
+                <>
+                  Version <code>{version.label}</code>
+                  {sealed && `, sealed ${sealed}`}
+                </>
+              ) : (
+                'No version yet'
+              )}
               {updated && ` · Updated ${updated}`}
             </p>
           </div>
           {actions && (
             <div className="cr-showcase-actions">
-              {actions.appHref && <Action to={actions.appHref} variant="secondary" size="sm">Open in the app</Action>}
+              {actions.appHref && (
+                <Action to={actions.appHref} variant="secondary" size="sm">
+                  Open in the app
+                </Action>
+              )}
               {actions.onFork && (
                 <Action variant="primary" size="sm" onClick={actions.onFork}>
                   <GitFork aria-hidden="true" className="cr-icon" />
@@ -122,7 +151,9 @@ export function ShowcaseMode({ model, sections, actions }: ShowcaseModeProps) {
         </RendererSection>
       )}
 
-      {!version ? <p className="cr-muted">No version yet: nothing has been sealed for this composition.</p> : (
+      {!version ? (
+        <p className="cr-muted">No version yet: nothing has been sealed for this composition.</p>
+      ) : (
         <>
           <CatalogMode model={model} sections={only('status', 'values')} />
           <WorkflowMode model={model} sections={only('graph')} />
@@ -131,16 +162,22 @@ export function ShowcaseMode({ model, sections, actions }: ShowcaseModeProps) {
           {shows('problem') && status.problemRef && (
             <RendererSection title="Problem">
               <p className="cr-muted">
-                The values were computed against the problem <code>{status.problemRef}</code>. The problem itself, its runs and the
-                evaluation’s findings are not shown here.
+                The values were computed against the problem <code>{status.problemRef}</code>. The
+                problem itself, its runs and the evaluation’s findings are not shown here.
               </p>
             </RendererSection>
           )}
 
           {shows('offering') && (
             <RendererSection title="Offering">
-              {model.offering ? <OfferingLine offering={model.offering} /> : <p className="cr-muted">This version names no pricing of its own.</p>}
-              <p className="cr-muted">Plans and prices arrive when OpenBinding reads the offering.</p>
+              {model.offering ? (
+                <OfferingLine offering={model.offering} />
+              ) : (
+                <p className="cr-muted">This version names no pricing of its own.</p>
+              )}
+              <p className="cr-muted">
+                Plans and prices arrive when OpenBinding reads the offering.
+              </p>
             </RendererSection>
           )}
         </>
@@ -149,9 +186,12 @@ export function ShowcaseMode({ model, sections, actions }: ShowcaseModeProps) {
       {shows('versions') && actions && actions.versions.length > 0 && (
         <RendererSection title="Versions">
           <ol className="cr-versions" aria-label="Versions">
-            {actions.versions.map((item) => (
+            {actions.versions.map(item => (
               <li key={item.id}>
-                <Link to={actions.versionHref(item.label)} aria-current={item.id === version?.id ? 'page' : undefined}>
+                <Link
+                  to={actions.versionHref(item.label)}
+                  aria-current={item.id === version?.id ? 'page' : undefined}
+                >
                   <code>{item.label}</code>
                 </Link>
                 <span className="cr-muted">{formatDate(item.createdAt) ?? ''}</span>

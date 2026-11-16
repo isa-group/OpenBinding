@@ -1,30 +1,112 @@
 @layer legacy {
-/* The rules and objectives of a problem: two panels side by side (stacked on a phone), a Must/Should mark per rule. */
-.ro { display: flex; flex-direction: column; gap: var(--tp-spacing-sm); }
-.ro h2 { margin: 0; font-size: 1.125rem; font-weight: 500; }
-.ro h3 { margin: 0; font-size: 0.9375rem; font-weight: 600; }
-.ro code { font-family: var(--font-mono); }
-.ro-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: var(--tp-spacing-md); align-items: start; }
-.ro-panel {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: var(--tp-spacing-sm);
-  padding: var(--tp-spacing-md);
-  border: 1px solid var(--tp-hairline);
-  border-radius: var(--tp-radius-xl);
-  background: var(--tp-canvas);
-}
-.ro-muted { margin: 0; color: var(--tp-steel); font-size: 0.875rem; }
-.ro-rules, .ro-criteria { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
-.ro-rules li { display: flex; align-items: baseline; gap: 8px; font-size: 0.8125rem; }
-.ro-rules small { margin-left: 4px; color: var(--tp-steel); font-size: 0.6875rem; }
-.ro-rules .ro-rule-id { display: block; margin: 0; }
-.ro-must { flex: none; padding: 1px 6px; border-radius: 4px; background: var(--tp-ink); color: var(--tp-on-primary); font-size: 0.6875rem; font-weight: 600; }
-.ro-must.is-should { border: 1px solid var(--tp-ink); background: none; color: var(--tp-ink); }
-.ro-criteria li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; font-size: 0.8125rem; }
-.ro-criteria small { color: var(--tp-steel); }
-.ro-rules .ro-written { display: block; margin: 0; color: var(--tp-steel); font-size: 0.6875rem; overflow-wrap: anywhere; }
-.ro-rules .ro-open { padding: 0; border: 0; background: none; color: var(--tp-link); cursor: pointer; font: inherit; font-size: 0.6875rem; text-align: left; text-decoration: underline; }
-.ro-open:focus-visible { outline: 2px solid var(--tp-primary); outline-offset: 1px; }
+  /* The rules and objectives of a problem: two panels side by side (stacked on a phone), a Must/Should mark per rule. */
+  .ro {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tp-spacing-sm);
+  }
+  .ro h2 {
+    margin: 0;
+    font-size: 1.125rem;
+    font-weight: 500;
+  }
+  .ro h3 {
+    margin: 0;
+    font-size: 0.9375rem;
+    font-weight: 600;
+  }
+  .ro code {
+    font-family: var(--font-mono);
+  }
+  .ro-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+    gap: var(--tp-spacing-md);
+    align-items: start;
+  }
+  .ro-panel {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: var(--tp-spacing-sm);
+    padding: var(--tp-spacing-md);
+    border: 1px solid var(--tp-hairline);
+    border-radius: var(--tp-radius-xl);
+    background: var(--tp-canvas);
+  }
+  .ro-muted {
+    margin: 0;
+    color: var(--tp-steel);
+    font-size: 0.875rem;
+  }
+  .ro-rules,
+  .ro-criteria {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .ro-rules li {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    font-size: 0.8125rem;
+  }
+  .ro-rules small {
+    margin-left: 4px;
+    color: var(--tp-steel);
+    font-size: 0.6875rem;
+  }
+  .ro-rules .ro-rule-id {
+    display: block;
+    margin: 0;
+  }
+  .ro-must {
+    flex: none;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: var(--tp-ink);
+    color: var(--tp-on-primary);
+    font-size: 0.6875rem;
+    font-weight: 600;
+  }
+  .ro-must.is-should {
+    border: 1px solid var(--tp-ink);
+    background: none;
+    color: var(--tp-ink);
+  }
+  .ro-criteria li {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 0.8125rem;
+  }
+  .ro-criteria small {
+    color: var(--tp-steel);
+  }
+  .ro-rules .ro-written {
+    display: block;
+    margin: 0;
+    color: var(--tp-steel);
+    font-size: 0.6875rem;
+    overflow-wrap: anywhere;
+  }
+  .ro-rules .ro-open {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--tp-link);
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.6875rem;
+    text-align: left;
+    text-decoration: underline;
+  }
+  .ro-open:focus-visible {
+    outline: 2px solid var(--tp-primary);
+    outline-offset: 1px;
+  }
 }

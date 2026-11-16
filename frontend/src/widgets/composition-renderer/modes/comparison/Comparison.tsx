@@ -1,6 +1,16 @@
 // Design follows SPHERE frontend/src/modules/pricing/components/pricing-version-diff/index.tsx (revision 73779a8a); no code copied
 import { useId, useState, type ReactNode } from 'react';
-import { ArrowLeftRight, ArrowRight, ChevronDown, CircleCheck, MinusCircle, Pencil, PlusCircle, X, type LucideIcon } from 'lucide-react';
+import {
+  ArrowLeftRight,
+  ArrowRight,
+  ChevronDown,
+  CircleCheck,
+  MinusCircle,
+  Pencil,
+  PlusCircle,
+  X,
+  type LucideIcon,
+} from 'lucide-react';
 import { Action } from '../../../../components/ui/Action';
 import { Notice } from '../../../../components/ui/Notice';
 import { fieldPath, versionChanges } from '../../../../entities/composition/changes';
@@ -8,8 +18,19 @@ import type { CompositionViewModel } from '../../../../entities/composition/view
 import type { Section } from '../../presets';
 import { RendererSection } from '../../RendererSection';
 import {
-  activeFilter, CHANGE_KINDS, changeRow, filteredSections, KIND_LABELS, opensAtFirst, showsGeneral,
-  type ChangeKind, type Diff, type DiffEntry, type FieldChange, type Loaded, type SideText,
+  activeFilter,
+  CHANGE_KINDS,
+  changeRow,
+  filteredSections,
+  KIND_LABELS,
+  opensAtFirst,
+  showsGeneral,
+  type ChangeKind,
+  type Diff,
+  type DiffEntry,
+  type FieldChange,
+  type Loaded,
+  type SideText,
 } from './comparisonModel';
 import { FileDiff } from './FileDiff';
 import { GraphDiff } from './GraphDiff';
@@ -44,13 +65,33 @@ export interface ComparisonData {
   beforeSelection?: Loaded<Readonly<Record<string, string>> | null> | null;
 }
 
-const KIND_ICONS: Readonly<Record<ChangeKind, LucideIcon>> = { added: PlusCircle, removed: MinusCircle, changed: Pencil };
+const KIND_ICONS: Readonly<Record<ChangeKind, LucideIcon>> = {
+  added: PlusCircle,
+  removed: MinusCircle,
+  changed: Pencil,
+};
 
 /** A count that doubles as a filter: pressing it keeps only that kind of change. */
-function SummaryTile({ kind, count, active, onToggle }: { kind: ChangeKind; count: number; active: boolean; onToggle: () => void }) {
+function SummaryTile({
+  kind,
+  count,
+  active,
+  onToggle,
+}: {
+  kind: ChangeKind;
+  count: number;
+  active: boolean;
+  onToggle: () => void;
+}) {
   const Icon = KIND_ICONS[kind];
   return (
-    <button type="button" className={`cx-tile is-${kind}`} onClick={onToggle} disabled={count === 0} aria-pressed={active}>
+    <button
+      type="button"
+      className={`cx-tile is-${kind}`}
+      onClick={onToggle}
+      disabled={count === 0}
+      aria-pressed={active}
+    >
       <Icon aria-hidden="true" />
       <span className="cx-tile-count">{count}</span>
       <span className="cx-tile-label">{KIND_LABELS[kind]}</span>
@@ -63,16 +104,26 @@ function FieldPath({ path }: { path: string }) {
   const { parents, leaf } = fieldPath(path);
   return (
     <span className="cx-path" title={path}>
-      {parents.map((parent, index) => <span key={`${parent}-${index}`}>{parent}<span className="cx-path-sep" aria-hidden="true"> › </span></span>)}
+      {parents.map((parent, index) => (
+        <span key={`${parent}-${index}`}>
+          {parent}
+          <span className="cx-path-sep" aria-hidden="true">
+            {' '}
+            ›{' '}
+          </span>
+        </span>
+      ))}
       <strong>{leaf}</strong>
     </span>
   );
 }
 
 function Value({ value, which }: { value: SideText; which: 'before' | 'after' }) {
-  return value.absent
-    ? <em className="cx-absent">{value.text}</em>
-    : <code className={`cx-value is-${which}`}>{value.text}</code>;
+  return value.absent ? (
+    <em className="cx-absent">{value.text}</em>
+  ) : (
+    <code className={`cx-value is-${which}`}>{value.text}</code>
+  );
 }
 
 function ChangeRow({ change, kind }: { change: FieldChange; kind: ChangeKind }) {
@@ -81,10 +132,17 @@ function ChangeRow({ change, kind }: { change: FieldChange; kind: ChangeKind }) 
     <div className="cx-change">
       <FieldPath path={row.path} />
       <span className="cx-sides">
-        {row.structure ? <em className="cx-absent">changed; the file view shows how</em> : (
+        {row.structure ? (
+          <em className="cx-absent">changed; the file view shows how</em>
+        ) : (
           <>
             {row.before && <Value value={row.before} which="before" />}
-            {row.before && row.after && <><ArrowRight className="cx-arrow" aria-hidden="true" /><span className="sr-only"> to </span></>}
+            {row.before && row.after && (
+              <>
+                <ArrowRight className="cx-arrow" aria-hidden="true" />
+                <span className="sr-only"> to </span>
+              </>
+            )}
             {row.after && <Value value={row.after} which="after" />}
           </>
         )}
@@ -108,25 +166,45 @@ function EntryItem({ entry }: { entry: DiffEntry }) {
   return (
     <li className="cx-entry">
       {details ? (
-        <button type="button" className="cx-entry-head" aria-expanded={open} onClick={() => setOpen((current) => !current)}>
+        <button
+          type="button"
+          className="cx-entry-head"
+          aria-expanded={open}
+          onClick={() => setOpen(current => !current)}
+        >
           {head}
           <ChevronDown className={`cx-chevron${open ? ' is-open' : ''}`} aria-hidden="true" />
         </button>
-      ) : <div className="cx-entry-head">{head}</div>}
+      ) : (
+        <div className="cx-entry-head">{head}</div>
+      )}
       {details && open && (
         <div className="cx-entry-body">
-          {entry.changes.map((change) => <ChangeRow key={change.path} change={change} kind={entry.kind} />)}
+          {entry.changes.map(change => (
+            <ChangeRow key={change.path} change={change} kind={entry.kind} />
+          ))}
         </div>
       )}
     </li>
   );
 }
 
-function SectionList({ title, count, children }: { title: string; count?: number; children: ReactNode }) {
+function SectionList({
+  title,
+  count,
+  children,
+}: {
+  title: string;
+  count?: number;
+  children: ReactNode;
+}) {
   const id = useId();
   return (
     <section className="cx-section" aria-labelledby={id}>
-      <h3 id={id}>{title}{count !== undefined && <span className="cx-section-count">{count}</span>}</h3>
+      <h3 id={id}>
+        {title}
+        {count !== undefined && <span className="cx-section-count">{count}</span>}
+      </h3>
       {children}
     </section>
   );
@@ -151,31 +229,47 @@ export function Changes({ diff }: { diff: Diff }) {
         </Notice>
       )}
       {diff.isEmpty ? (
-        <p className="cx-identical"><CircleCheck aria-hidden="true" />{`${diff.from.label} and ${diff.to.label} bind, value and offer the same.`}</p>
+        <p className="cx-identical">
+          <CircleCheck aria-hidden="true" />
+          {`${diff.from.label} and ${diff.to.label} bind, value and offer the same.`}
+        </p>
       ) : (
         <>
           <div className="cx-tiles" role="group" aria-label="Show one kind of change">
-            {CHANGE_KINDS.map((kind) => (
-              <SummaryTile key={kind} kind={kind} count={diff.totals[kind]} active={filter === kind} onToggle={() => setChosen(filter === kind ? null : kind)} />
+            {CHANGE_KINDS.map(kind => (
+              <SummaryTile
+                key={kind}
+                kind={kind}
+                count={diff.totals[kind]}
+                active={filter === kind}
+                onToggle={() => setChosen(filter === kind ? null : kind)}
+              />
             ))}
           </div>
           {filter && (
             <p className="cx-filter">
               Showing only <strong>{KIND_LABELS[filter].toLowerCase()}</strong> items
-              <button type="button" className="cx-clear" onClick={() => setChosen(null)}><X aria-hidden="true" />Clear filter</button>
+              <button type="button" className="cx-clear" onClick={() => setChosen(null)}>
+                <X aria-hidden="true" />
+                Clear filter
+              </button>
             </p>
           )}
           {showsGeneral(diff, filter) && (
             <SectionList title="General">
               <div className="cx-general">
-                {diff.general.map((change) => <ChangeRow key={change.path} change={change} kind="changed" />)}
+                {diff.general.map(change => (
+                  <ChangeRow key={change.path} change={change} kind="changed" />
+                ))}
               </div>
             </SectionList>
           )}
-          {sections.map((section) => (
+          {sections.map(section => (
             <SectionList key={section.key} title={section.label} count={section.entries.length}>
               <ul className="cx-entries">
-                {section.entries.map((entry) => <EntryItem key={`${entry.kind}-${entry.name}`} entry={entry} />)}
+                {section.entries.map(entry => (
+                  <EntryItem key={`${entry.kind}-${entry.name}`} entry={entry} />
+                ))}
               </ul>
             </SectionList>
           ))}
@@ -186,10 +280,18 @@ export function Changes({ diff }: { diff: Diff }) {
 }
 
 function Pending({ what, state }: { what: string; state: Loaded<unknown> }) {
-  if (state.status === 'loading') return <p className="cx-pending" role="status">{`Reading ${what}…`}</p>;
+  if (state.status === 'loading')
+    return <p className="cx-pending" role="status">{`Reading ${what}…`}</p>;
   if (state.status === 'error') {
     return (
-      <Notice tone="error" action={<Action variant="secondary" size="sm" onClick={state.retry}>Retry</Action>}>
+      <Notice
+        tone="error"
+        action={
+          <Action variant="secondary" size="sm" onClick={state.retry}>
+            Retry
+          </Action>
+        }
+      >
         {state.message}
       </Notice>
     );
@@ -197,22 +299,49 @@ function Pending({ what, state }: { what: string; state: Loaded<unknown> }) {
   return null;
 }
 
-function PairPicker({ versions, from, to, onPair }: Pick<ComparisonData, 'versions' | 'from' | 'to' | 'onPair'>) {
+function PairPicker({
+  versions,
+  from,
+  to,
+  onPair,
+}: Pick<ComparisonData, 'versions' | 'from' | 'to' | 'onPair'>) {
   return (
     <div className="cx-pair">
       <label className="cx-pick">
         <span>Base version</span>
-        <select className="cmp-select" value={from} onChange={(event) => onPair(event.target.value, to)}>
-          {versions.map((version) => <option key={version.id} value={version.id}>{version.label}</option>)}
+        <select
+          className="cmp-select"
+          value={from}
+          onChange={event => onPair(event.target.value, to)}
+        >
+          {versions.map(version => (
+            <option key={version.id} value={version.id}>
+              {version.label}
+            </option>
+          ))}
         </select>
       </label>
-      <button type="button" className="cx-swap" aria-label="Swap versions" title="Swap versions" onClick={() => onPair(to, from)}>
+      <button
+        type="button"
+        className="cx-swap"
+        aria-label="Swap versions"
+        title="Swap versions"
+        onClick={() => onPair(to, from)}
+      >
         <ArrowLeftRight aria-hidden="true" />
       </button>
       <label className="cx-pick">
         <span>Compared with</span>
-        <select className="cmp-select" value={to} onChange={(event) => onPair(from, event.target.value)}>
-          {versions.map((version) => <option key={version.id} value={version.id}>{version.label}</option>)}
+        <select
+          className="cmp-select"
+          value={to}
+          onChange={event => onPair(from, event.target.value)}
+        >
+          {versions.map(version => (
+            <option key={version.id} value={version.id}>
+              {version.label}
+            </option>
+          ))}
         </select>
       </label>
     </div>
@@ -233,26 +362,53 @@ interface ComparisonProps extends ComparisonData {
  * later version marked; or the two texts line by line. Values that the gateway did not compare are left out, and the banner
  * says why.
  */
-export function Comparison({ versions, from, to, onPair, view, diff, files = null, beforeSelection = null, model, sections, onlyDifferences }: ComparisonProps) {
-  const labelOf = (id: string) => versions.find((version) => version.id === id)?.label ?? id;
+export function Comparison({
+  versions,
+  from,
+  to,
+  onPair,
+  view,
+  diff,
+  files = null,
+  beforeSelection = null,
+  model,
+  sections,
+  onlyDifferences,
+}: ComparisonProps) {
+  const labelOf = (id: string) => versions.find(version => version.id === id)?.label ?? id;
   const shows = (section: Section) => sections.includes(section);
   return (
     <div className="cx">
       <PairPicker versions={versions} from={from} to={to} onPair={onPair} />
-      {from === to && <p className="cx-pending">Pick two different versions to see what changed between them.</p>}
-      {view === 'compare' && from !== to && (
-        diff.status !== 'ready' ? <Pending what="what changed" state={diff} /> : (
+      {from === to && (
+        <p className="cx-pending">Pick two different versions to see what changed between them.</p>
+      )}
+      {view === 'compare' &&
+        from !== to &&
+        (diff.status !== 'ready' ? (
+          <Pending what="what changed" state={diff} />
+        ) : (
           <>
             {shows('changes') && <Changes key={`${from}..${to}`} diff={diff.value} />}
-            {beforeSelection && beforeSelection.status !== 'ready' && <Pending what="the workflow" state={beforeSelection} />}
+            {beforeSelection && beforeSelection.status !== 'ready' && (
+              <Pending what="the workflow" state={beforeSelection} />
+            )}
             {beforeSelection?.status === 'ready' && model.version?.id === to && (
-              <GraphDiff model={model} diff={diff.value} beforeSelection={beforeSelection.value} sections={sections} />
+              <GraphDiff
+                model={model}
+                diff={diff.value}
+                beforeSelection={beforeSelection.value}
+                sections={sections}
+              />
             )}
           </>
-        )
-      )}
-      {view === 'file' && from !== to && files && (
-        files.status !== 'ready' ? <Pending what="both texts" state={files} /> : (
+        ))}
+      {view === 'file' &&
+        from !== to &&
+        files &&
+        (files.status !== 'ready' ? (
+          <Pending what="both texts" state={files} />
+        ) : (
           <FileDiff
             key={`${from}..${to}`}
             before={files.value.before}
@@ -261,8 +417,7 @@ export function Comparison({ versions, from, to, onPair, view, diff, files = nul
             afterLabel={labelOf(to)}
             foldAtFirst={onlyDifferences}
           />
-        )
-      )}
+        ))}
     </div>
   );
 }

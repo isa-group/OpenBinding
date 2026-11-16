@@ -3,7 +3,12 @@ import { fileURLToPath } from 'node:url';
 import { expect, test, type Page } from '@playwright/test';
 import { countLiveCalls, readGalleryScreens, type GalleryScreen } from './helpers/galleryRoutes';
 import { installMockApi } from './helpers/mockApi';
-import { measurePage, prepareCapture, waitUntilSettled, type PageMeasure } from './helpers/pageChecks';
+import {
+  measurePage,
+  prepareCapture,
+  waitUntilSettled,
+  type PageMeasure,
+} from './helpers/pageChecks';
 
 // QA gallery: one picture of the first screenful of every screen of the registry (src/routes/areas/*.tsx), on a desktop and on a
 // phone, saved to <QA_GALLERY_DIR>/<desktop|mobile>/<screen-id>.png for a person to review. QA_GALLERY_DIR defaults to
@@ -64,7 +69,12 @@ const HEADING: Record<string, RegExp> = {
 };
 
 const VIEWPORTS = [
-  { name: 'desktop', viewport: { width: 1440, height: 900 }, isMobile: false, deviceScaleFactor: 1 },
+  {
+    name: 'desktop',
+    viewport: { width: 1440, height: 900 },
+    isMobile: false,
+    deviceScaleFactor: 1,
+  },
   { name: 'mobile', viewport: { width: 390, height: 844 }, isMobile: true, deviceScaleFactor: 2 },
 ] as const;
 
@@ -81,8 +91,23 @@ interface Measurement extends PageMeasure {
 }
 
 const NOTHING: PageMeasure = {
-  title: '', h1: [], h1Font: null, displayHeadings: [], overflowX: 0, offenders: [], clipped: [], lowContrast: [], darkSurfaces: [], alerts: [], spanish: [], placeholders: [],
-  prototypeLeftovers: [], overlays: [], brokenImages: [], emptyControls: [], brand: { header: 0, footer: 0, mobileMenu: 0 },
+  title: '',
+  h1: [],
+  h1Font: null,
+  displayHeadings: [],
+  overflowX: 0,
+  offenders: [],
+  clipped: [],
+  lowContrast: [],
+  darkSurfaces: [],
+  alerts: [],
+  spanish: [],
+  placeholders: [],
+  prototypeLeftovers: [],
+  overlays: [],
+  brokenImages: [],
+  emptyControls: [],
+  brand: { header: 0, footer: 0, mobileMenu: 0 },
   textLength: 0,
 };
 
@@ -91,13 +116,16 @@ function summarize(viewport: string) {
   const folder = `${MEASUREMENTS}${viewport}/`;
   const target = `${MEASUREMENTS}${viewport}.txt`;
   try {
-    const all = readdirSync(folder).filter((file) => file.endsWith('.json')).sort().flatMap((file) => {
-      try {
-        return [JSON.parse(readFileSync(`${folder}${file}`, 'utf8')) as Measurement];
-      } catch {
-        return []; // another worker is writing it right now: the next summary has it
-      }
-    });
+    const all = readdirSync(folder)
+      .filter(file => file.endsWith('.json'))
+      .sort()
+      .flatMap(file => {
+        try {
+          return [JSON.parse(readFileSync(`${folder}${file}`, 'utf8')) as Measurement];
+        } catch {
+          return []; // another worker is writing it right now: the next summary has it
+        }
+      });
     const scratch = `${target}.${process.pid}.tmp`;
     writeFileSync(scratch, all.map(oneLine).join('\n'));
     renameSync(scratch, target);
@@ -109,13 +137,16 @@ function summarize(viewport: string) {
 /** One line per screen: what it is and everything the measurements found wrong, if anything. */
 function oneLine(m: Measurement): string {
   const found: string[] = [];
-  const add = (label: string, values: string[]) => { if (values.length) found.push(`${label}=[${values.join(' | ')}]`); };
+  const add = (label: string, values: string[]) => {
+    if (values.length) found.push(`${label}=[${values.join(' | ')}]`);
+  };
   add('FAILED', m.failures);
   add('displayHeadings', m.displayHeadings);
   if (m.h1Font) {
     // The computed stack is "PP Editorial Old", Georgia, serif: Georgia must be the second family, Times New Roman must not appear.
-    const stack = m.h1Font.split(',').map((family) => family.trim().replace(/^["']|["']$/g, ''));
-    if (stack[0] !== 'PP Editorial Old' || stack[1] !== 'Georgia') found.push(`h1 is not in the display stack (PP Editorial Old, Georgia, serif): ${m.h1Font}`);
+    const stack = m.h1Font.split(',').map(family => family.trim().replace(/^["']|["']$/g, ''));
+    if (stack[0] !== 'PP Editorial Old' || stack[1] !== 'Georgia')
+      found.push(`h1 is not in the display stack (PP Editorial Old, Georgia, serif): ${m.h1Font}`);
   }
   if (m.overflowX > 1) found.push(`overflowX=${m.overflowX}`);
   add('offenders', m.offenders);
@@ -139,24 +170,26 @@ function oneLine(m: Measurement): string {
 /** Uncaught exceptions and React error reports are critical; a request the mock did not answer is reported apart. */
 function watchCriticalErrors(page: Page) {
   const critical: string[] = [];
-  page.on('pageerror', (error) => critical.push(`pageerror: ${error.message}`));
-  page.on('console', (message) => {
+  page.on('pageerror', error => critical.push(`pageerror: ${error.message}`));
+  page.on('console', message => {
     if (message.type() !== 'error') return;
     const text = message.text();
     if (/Failed to load resource|net::ERR_/i.test(text)) return;
-    if (/The above error occurred|Minified React error|Maximum update depth|Uncaught/i.test(text)) critical.push(`console: ${text.slice(0, 300)}`);
+    if (/The above error occurred|Minified React error|Maximum update depth|Uncaught/i.test(text))
+      critical.push(`console: ${text.slice(0, 300)}`);
   });
   return critical;
 }
 
 /** A session for /app and for the invitation link; the other public addresses are visited by nobody in particular. */
-const sessionOf = (screen: GalleryScreen) => (screen.underApp || screen.sessionHeader ? 'admin' : 'none');
+const sessionOf = (screen: GalleryScreen) =>
+  screen.underApp || screen.sessionHeader ? 'admin' : 'none';
 
 test.describe('gallery registry', () => {
   test('lists every screen of the area files', () => {
     expect(screens.length).toBeGreaterThan(0);
     expect(screens).toHaveLength(countLiveCalls());
-    expect(new Set(screens.map((screen) => screen.id)).size).toBe(screens.length);
+    expect(new Set(screens.map(screen => screen.id)).size).toBe(screens.length);
   });
 });
 
@@ -184,33 +217,61 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of VIEWPORTS) {
           await page.goto(screen.url, { waitUntil: 'domcontentloaded' });
 
           // The layout of the screen has arrived, and the screen itself has a title.
-          const header = page.locator(screen.underApp || screen.sessionHeader ? 'header.app-header' : 'header.site-header');
+          const header = page.locator(
+            screen.underApp || screen.sessionHeader ? 'header.app-header' : 'header.site-header'
+          );
           await expect(header).toBeVisible({ timeout: 30_000 });
-          await expect(page.locator('main h1, #platform-main h1').first()).toHaveText(HEADING[screen.id] ?? /\S/, { timeout: 30_000 });
+          await expect(page.locator('main h1, #platform-main h1').first()).toHaveText(
+            HEADING[screen.id] ?? /\S/,
+            { timeout: 30_000 }
+          );
 
           waiting = await waitUntilSettled(page);
           await prepareCapture(page);
           measured = await measurePage(page);
-          await page.screenshot({ path: `${SCREENSHOTS}${name}/${screen.id}.png`, animations: 'disabled', fullPage: false });
+          await page.screenshot({
+            path: `${SCREENSHOTS}${name}/${screen.id}.png`,
+            animations: 'disabled',
+            fullPage: false,
+          });
 
           const text = await page.evaluate(() => document.body.innerText);
-          if (text.includes('This screen is being rebuilt')) failures.push('shows the placeholder of a screen that is being rebuilt');
+          if (text.includes('This screen is being rebuilt'))
+            failures.push('shows the placeholder of a screen that is being rebuilt');
           if (text.includes('Something went wrong')) failures.push('fell into the error boundary');
-          if (text.includes('not mocked')) failures.push('shows an error that says the mock does not answer');
+          if (text.includes('not mocked'))
+            failures.push('shows an error that says the mock does not answer');
         } catch (error) {
-          failures.push(String(error instanceof Error ? error.message : error).split('\n').slice(0, 5).join(' ⏎ '));
+          failures.push(
+            String(error instanceof Error ? error.message : error)
+              .split('\n')
+              .slice(0, 5)
+              .join(' ⏎ ')
+          );
         }
 
         // What the page asked for while it settled counts too.
         await page.waitForTimeout(150);
         if (waiting.length) failures.push(`has not finished loading: ${waiting.join('; ')}`);
-        if (critical.length) failures.push(`raised critical console errors: ${critical.join('; ')}`);
-        if (measured && measured.overflowX > 1) failures.push(`scrolls sideways by ${measured.overflowX}px`);
-        if (measured?.overlays.length) failures.push(`shows a dialog, banner or overlay: ${measured.overlays.join(', ')}`);
-        if (mock.unmocked.length) failures.push(`asked for what the mock does not answer: ${mock.unmocked.join(', ')}`);
+        if (critical.length)
+          failures.push(`raised critical console errors: ${critical.join('; ')}`);
+        if (measured && measured.overflowX > 1)
+          failures.push(`scrolls sideways by ${measured.overflowX}px`);
+        if (measured?.overlays.length)
+          failures.push(`shows a dialog, banner or overlay: ${measured.overlays.join(', ')}`);
+        if (mock.unmocked.length)
+          failures.push(`asked for what the mock does not answer: ${mock.unmocked.join(', ')}`);
 
         const result: Measurement = {
-          ...(measured ?? NOTHING), id: screen.id, url: screen.url, viewport: name, session, unmocked: mock.unmocked, problems: critical, waiting, failures,
+          ...(measured ?? NOTHING),
+          id: screen.id,
+          url: screen.url,
+          viewport: name,
+          session,
+          unmocked: mock.unmocked,
+          problems: critical,
+          waiting,
+          failures,
         };
         writeFileSync(record, JSON.stringify(result, null, 1));
         summarize(name);

@@ -1,5 +1,12 @@
 import type { UsageView } from '../../api/auth';
-import { LIMIT_ORDER, describeLimit, formatCount, limitInfo, type LimitDefinition, type LimitInfo } from '../../utils/limits';
+import {
+  LIMIT_ORDER,
+  describeLimit,
+  formatCount,
+  limitInfo,
+  type LimitDefinition,
+  type LimitInfo,
+} from '../../utils/limits';
 
 /**
  * What `GET /v1/users/me/usage` says, arranged for the plan screen.
@@ -19,7 +26,10 @@ function orderOf(id: string): number {
   return index < 0 ? LIMIT_ORDER.length : index;
 }
 
-export function usageRows(usage: UsageView, definitions: Record<string, LimitDefinition> = {}): UsageRow[] {
+export function usageRows(
+  usage: UsageView,
+  definitions: Record<string, LimitDefinition> = {}
+): UsageRow[] {
   return Object.entries(usage.capabilities ?? {})
     .map(([id, limit]): UsageRow => ({ id, info: limitInfo(id, definitions[id]), limit }))
     .sort((a, b) => orderOf(a.id) - orderOf(b.id));

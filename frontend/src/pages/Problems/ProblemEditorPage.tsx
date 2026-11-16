@@ -17,14 +17,25 @@ export function ProblemEditorPage() {
   if (!organization) return <OrgGate failure={null} />;
   const org = organization.slug;
   return (
-    <OrgFrame organization={organization} trail={[{ label: 'Problems', to: problemsPath(org) }, { label: 'Problem editor' }]}>
+    <OrgFrame
+      organization={organization}
+      trail={[{ label: 'Problems', to: problemsPath(org) }, { label: 'Problem editor' }]}
+    >
       <header className="proj-title-row">
         <div className="proj-title">
           <h1>Problem editor</h1>
-          <p>Write a BIM package or change one: the gateway checks it as you type, and a valid package saves as a new problem or a new version of one. A saved version runs from its problem page.</p>
+          <p>
+            Write a BIM package or change one: the gateway checks it as you type, and a valid
+            package saves as a new problem or a new version of one. A saved version runs from its
+            problem page.
+          </p>
         </div>
       </header>
-      <ProblemEditor organization={organization} canSave={problemAccess(organization).canCreate} userId={user?.id} />
+      <ProblemEditor
+        organization={organization}
+        canSave={problemAccess(organization).canCreate}
+        userId={user?.id}
+      />
     </OrgFrame>
   );
 }

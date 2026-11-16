@@ -10,7 +10,8 @@ import './Navigation.css';
 
 type MenuName = 'account' | 'mobile';
 
-const underPath = (pathname: string, root: string) => pathname === root || pathname.startsWith(`${root}/`);
+const underPath = (pathname: string, root: string) =>
+  pathname === root || pathname.startsWith(`${root}/`);
 
 interface PublicLink {
   to: string;
@@ -19,14 +20,18 @@ interface PublicLink {
 }
 
 const publicLinks: readonly PublicLink[] = [
-  { to: '/', label: 'Home', active: (pathname) => pathname === '/' },
+  { to: '/', label: 'Home', active: pathname => pathname === '/' },
   // The public compositions and the public page of each one.
-  { to: '/compositions', label: 'Compositions', active: (pathname) => underPath(pathname, '/compositions') || pathname.startsWith('/c/') },
+  {
+    to: '/compositions',
+    label: 'Compositions',
+    active: pathname => underPath(pathname, '/compositions') || pathname.startsWith('/c/'),
+  },
   // The Composition2Yaml reference and playground.
-  { to: '/language', label: 'Language', active: (pathname) => underPath(pathname, '/language') },
-  { to: '/engines', label: 'Engines', active: (pathname) => underPath(pathname, '/engines') },
-  { to: '/pricing', label: 'Pricing', active: (pathname) => underPath(pathname, '/pricing') },
-  { to: '/about', label: 'About', active: (pathname) => underPath(pathname, '/about') },
+  { to: '/language', label: 'Language', active: pathname => underPath(pathname, '/language') },
+  { to: '/engines', label: 'Engines', active: pathname => underPath(pathname, '/engines') },
+  { to: '/pricing', label: 'Pricing', active: pathname => underPath(pathname, '/pricing') },
+  { to: '/about', label: 'About', active: pathname => underPath(pathname, '/about') },
 ];
 
 export function Navigation() {
@@ -37,18 +42,23 @@ export function Navigation() {
   const accountToggle = useRef<HTMLButtonElement>(null);
   const mobileToggle = useRef<HTMLButtonElement>(null);
   // Menus belong to the location they were opened on, so navigating closes them.
-  const [opened, setOpened] = useState<{ menu: MenuName | null; at: string }>({ menu: null, at: location.key });
+  const [opened, setOpened] = useState<{ menu: MenuName | null; at: string }>({
+    menu: null,
+    at: location.key,
+  });
   const openMenu = opened.at === location.key ? opened.menu : null;
 
   const closeMenus = () => setOpened({ menu: null, at: location.key });
-  const toggleMenu = (menu: MenuName) => setOpened({ menu: openMenu === menu ? null : menu, at: location.key });
+  const toggleMenu = (menu: MenuName) =>
+    setOpened({ menu: openMenu === menu ? null : menu, at: location.key });
   const isActive = (link: PublicLink) => link.active(location.pathname);
   const current = (link: PublicLink) => (isActive(link) ? 'page' : undefined);
 
   useEffect(() => {
     if (!openMenu) return undefined;
     const handlePointerDown = (event: PointerEvent) => {
-      if (!header.current?.contains(event.target as Node)) setOpened({ menu: null, at: location.key });
+      if (!header.current?.contains(event.target as Node))
+        setOpened({ menu: null, at: location.key });
     };
 
     document.addEventListener('pointerdown', handlePointerDown);
@@ -80,7 +90,7 @@ export function Navigation() {
         </Link>
 
         <nav className="public-nav" aria-label="Primary navigation">
-          {publicLinks.map((link) => (
+          {publicLinks.map(link => (
             <Link
               key={link.to}
               to={link.to}
@@ -96,8 +106,13 @@ export function Navigation() {
         <div className="public-actions">
           {user ? (
             <>
-              <Link to="/app" viewTransition className="public-button public-button-primary">Open workspace</Link>
-              <div className="public-nav-menu" onBlur={openMenu === 'account' ? closeWhenFocusLeaves : undefined}>
+              <Link to="/app" viewTransition className="public-button public-button-primary">
+                Open workspace
+              </Link>
+              <div
+                className="public-nav-menu"
+                onBlur={openMenu === 'account' ? closeWhenFocusLeaves : undefined}
+              >
                 <button
                   ref={accountToggle}
                   type="button"
@@ -115,22 +130,39 @@ export function Navigation() {
                       <strong>{user.username}</strong>
                       <span>{user.email}</span>
                       {institutional && (
-                        <span className="public-institution-chip">{INSTITUTION_NAME} · Institutional account</span>
+                        <span className="public-institution-chip">
+                          {INSTITUTION_NAME} · Institutional account
+                        </span>
                       )}
                     </div>
-                    <Link to="/app" viewTransition>Workspace</Link>
-                    <Link to="/app/account" viewTransition>Account</Link>
-                    {isAdmin && <Link to="/app/admin" viewTransition>Administration</Link>}
-                    <button type="button" onClick={handleSignOut}>Log out</button>
+                    <Link to="/app" viewTransition>
+                      Workspace
+                    </Link>
+                    <Link to="/app/account" viewTransition>
+                      Account
+                    </Link>
+                    {isAdmin && (
+                      <Link to="/app/admin" viewTransition>
+                        Administration
+                      </Link>
+                    )}
+                    <button type="button" onClick={handleSignOut}>
+                      Log out
+                    </button>
                   </div>
                 )}
               </div>
             </>
           ) : (
             <>
-              <Link to="/login" viewTransition className="public-button">Log in</Link>
+              <Link to="/login" viewTransition className="public-button">
+                Log in
+              </Link>
               <Link to="/register" viewTransition className="public-button public-button-primary">
-                Sign up <span className="public-button-arrow" aria-hidden="true">↗</span>
+                Sign up{' '}
+                <span className="public-button-arrow" aria-hidden="true">
+                  ↗
+                </span>
               </Link>
             </>
           )}
@@ -152,7 +184,7 @@ export function Navigation() {
       {openMenu === 'mobile' && (
         <nav id="public-mobile-menu" className="public-mobile-menu" aria-label="Mobile navigation">
           <InstitutionMark variant="wide" className="public-mobile-institution" />
-          {publicLinks.map((link) => (
+          {publicLinks.map(link => (
             <Link
               key={link.to}
               to={link.to}
@@ -165,15 +197,29 @@ export function Navigation() {
           ))}
           {user ? (
             <>
-              <Link to="/app" viewTransition className="public-button public-button-primary">Open workspace</Link>
-              <Link to="/app/account" viewTransition className="public-button">Account</Link>
-              {isAdmin && <Link to="/app/admin" viewTransition className="public-button">Administration</Link>}
-              <button type="button" className="public-button" onClick={handleSignOut}>Log out</button>
+              <Link to="/app" viewTransition className="public-button public-button-primary">
+                Open workspace
+              </Link>
+              <Link to="/app/account" viewTransition className="public-button">
+                Account
+              </Link>
+              {isAdmin && (
+                <Link to="/app/admin" viewTransition className="public-button">
+                  Administration
+                </Link>
+              )}
+              <button type="button" className="public-button" onClick={handleSignOut}>
+                Log out
+              </button>
             </>
           ) : (
             <>
-              <Link to="/login" viewTransition className="public-button">Log in</Link>
-              <Link to="/register" viewTransition className="public-button public-button-primary">Sign up</Link>
+              <Link to="/login" viewTransition className="public-button">
+                Log in
+              </Link>
+              <Link to="/register" viewTransition className="public-button public-button-primary">
+                Sign up
+              </Link>
             </>
           )}
         </nav>

@@ -6,14 +6,32 @@ import { compositionsApi } from '../../../entities/composition/api';
 import { formatValue } from '../../../entities/composition/values';
 import type { CompositionViewModel } from '../../../entities/composition/viewModel';
 import type { EvaluateResult } from '../../../shared/api/types';
-import { createScheduler, pausedMessage, type Scheduler, type SchedulerStatus } from '../../../shared/editor/lintScheduler';
+import {
+  createScheduler,
+  pausedMessage,
+  type Scheduler,
+  type SchedulerStatus,
+} from '../../../shared/editor/lintScheduler';
 import { CandidateMatrix } from '../../candidate-matrix/CandidateMatrix';
 import { ValueBadge } from '../../value-badge/ValueBadge';
 import type { Section } from '../presets';
 import { RendererSection } from '../RendererSection';
-import { analysisRefusal, findingTask, type AnalysisActions, type AnalysisRefusal, type WrittenBinding } from './analysis';
+import {
+  analysisRefusal,
+  findingTask,
+  type AnalysisActions,
+  type AnalysisRefusal,
+  type WrittenBinding,
+} from './analysis';
 import { violationText } from './calculatorModel';
-import { changedBinding, fullBinding, selectedMatrix, sideBySide, startSelection, type Selection } from './configuratorModel';
+import {
+  changedBinding,
+  fullBinding,
+  selectedMatrix,
+  sideBySide,
+  startSelection,
+  type Selection,
+} from './configuratorModel';
 import './analysis.css';
 
 /**
@@ -43,7 +61,8 @@ type Answer =
   | { key: string; state: 'ready'; result: EvaluateResult }
   | { key: string; state: 'refused'; refusal: AnalysisRefusal };
 
-const keyOf = (binding: WrittenBinding) => JSON.stringify(Object.entries(binding).sort(([a], [b]) => (a < b ? -1 : 1)));
+const keyOf = (binding: WrittenBinding) =>
+  JSON.stringify(Object.entries(binding).sort(([a], [b]) => (a < b ? -1 : 1)));
 
 function FindingList({ findings, label }: { findings: Finding[]; label: string }) {
   if (findings.length === 0) return null;
@@ -51,7 +70,11 @@ function FindingList({ findings, label }: { findings: Finding[]; label: string }
     <ul className="cr-conf-findings" aria-label={label}>
       {findings.map((finding, index) => (
         <li key={`${finding.code}-${finding.task ?? ''}-${index}`}>
-          {finding.task && <><span>Task</span> <code>{finding.task}</code>: </>}
+          {finding.task && (
+            <>
+              <span>Task</span> <code>{finding.task}</code>:{' '}
+            </>
+          )}
           {finding.message} <code>{finding.code}</code>
         </li>
       ))}
@@ -62,19 +85,24 @@ function FindingList({ findings, label }: { findings: Finding[]; label: string }
 function Values({ model, result }: { model: CompositionViewModel; result: EvaluateResult }) {
   const rows = sideBySide(model.values, result.values);
   const versionStatus = model.status.values ?? 'unverified';
-  if (rows.length === 0) return <p className="cr-muted">The toolchain computed no values for this binding.</p>;
+  if (rows.length === 0)
+    return <p className="cr-muted">The toolchain computed no values for this binding.</p>;
   return (
     <table className="cr-conf-values">
       <caption className="sr-only">The version’s values and this binding’s, side by side</caption>
       <thead>
         <tr>
           <th scope="col">Value</th>
-          <th scope="col">{`Version ${model.version?.label ?? ''}`} <ValueBadge status={versionStatus} /></th>
-          <th scope="col">This binding <ValueBadge status={result.valid ? 'verified' : 'unverified'} /></th>
+          <th scope="col">
+            {`Version ${model.version?.label ?? ''}`} <ValueBadge status={versionStatus} />
+          </th>
+          <th scope="col">
+            This binding <ValueBadge status={result.valid ? 'verified' : 'unverified'} />
+          </th>
         </tr>
       </thead>
       <tbody>
-        {rows.map((row) => (
+        {rows.map(row => (
           <tr key={row.name}>
             <th scope="row">{row.name}</th>
             <td>{row.version ? formatValue(row.version.value, row.version.unit) : '—'}</td>
@@ -86,16 +114,25 @@ function Values({ model, result }: { model: CompositionViewModel; result: Evalua
   );
 }
 
-function Configurator({ model, matrix, sections, actions = {} }: ConfiguratorModeProps & { matrix: Matrix }) {
+function Configurator({
+  model,
+  matrix,
+  sections,
+  actions = {},
+}: ConfiguratorModeProps & { matrix: Matrix }) {
   const { org, slug } = model.identity;
   const version = model.version?.id ?? '';
   const base = model.selection;
-  const [selection, setSelection] = useState<Selection>(() => startSelection(matrix, base, actions.start));
+  const [selection, setSelection] = useState<Selection>(() =>
+    startSelection(matrix, base, actions.start)
+  );
   const [status, setStatus] = useState<SchedulerStatus>({ state: 'idle' });
   const [answer, setAnswer] = useState<Answer | null>(null);
   const scheduler = useRef<Scheduler<WrittenBinding> | null>(null);
   const notLinked = useRef(actions.onNotLinked);
-  useEffect(() => { notLinked.current = actions.onNotLinked; });
+  useEffect(() => {
+    notLinked.current = actions.onNotLinked;
+  });
 
   const changed = changedBinding(matrix, base, selection);
   const key = keyOf(changed);
@@ -129,37 +166,64 @@ function Configurator({ model, matrix, sections, actions = {} }: ConfiguratorMod
   }, [key]);
 
   const shown = answer && answer.key === key && pending ? answer : null;
-  const findings: Finding[] = shown?.state === 'ready'
-    ? shown.result.diagnostics.map((item) => ({ code: item.code, message: item.message, task: findingTask(item.pointer) }))
-    : shown?.state === 'refused'
-      ? shown.refusal.findings.map((item) => ({ code: item.code, message: item.message, task: findingTask(item.pointer) }))
-      : [];
-  const flagged = new Set(findings.flatMap((finding) => (finding.task ? [finding.task] : [])));
+  const findings: Finding[] =
+    shown?.state === 'ready'
+      ? shown.result.diagnostics.map(item => ({
+          code: item.code,
+          message: item.message,
+          task: findingTask(item.pointer),
+        }))
+      : shown?.state === 'refused'
+        ? shown.refusal.findings.map(item => ({
+            code: item.code,
+            message: item.message,
+            task: findingTask(item.pointer),
+          }))
+        : [];
+  const flagged = new Set(findings.flatMap(finding => (finding.task ? [finding.task] : [])));
   const revision = model.status.problemRevision;
   const source = revision ? { revision, binding: fullBinding(model, changed) } : null;
   const comparable = model.status.values === 'verified';
 
   const result = (
     <RendererSection title="This binding">
-      {!pending && <p className="cr-muted">This is the version’s binding. Choose another candidate for a task to have the toolchain evaluate it.</p>}
-      {pending && status.state === 'paused' && <p className="cr-muted" role="status">{pausedMessage(status.until)}</p>}
-      {pending && !shown && status.state !== 'paused' && <p className="cr-muted" role="status">The toolchain is evaluating this binding…</p>}
-      {shown?.state === 'refused' && (
-        shown.refusal.notLinked ? <p className="cr-muted">{shown.refusal.message}</p> : (
+      {!pending && (
+        <p className="cr-muted">
+          This is the version’s binding. Choose another candidate for a task to have the toolchain
+          evaluate it.
+        </p>
+      )}
+      {pending && status.state === 'paused' && (
+        <p className="cr-muted" role="status">
+          {pausedMessage(status.until)}
+        </p>
+      )}
+      {pending && !shown && status.state !== 'paused' && (
+        <p className="cr-muted" role="status">
+          The toolchain is evaluating this binding…
+        </p>
+      )}
+      {shown?.state === 'refused' &&
+        (shown.refusal.notLinked ? (
+          <p className="cr-muted">{shown.refusal.message}</p>
+        ) : (
           <Notice tone="error">
             {shown.refusal.message}
             <FindingList findings={findings} label="What the gateway found" />
           </Notice>
-        )
-      )}
+        ))}
       {shown?.state === 'ready' && (
         <div className="cr-conf-result">
           <p className={shown.result.valid ? 'cr-conf-valid' : 'cr-conf-invalid'} role="status">
-            {shown.result.valid ? 'Valid: the toolchain reports no broken hard rule.' : 'Not valid: this binding breaks a hard rule.'}
+            {shown.result.valid
+              ? 'Valid: the toolchain reports no broken hard rule.'
+              : 'Not valid: this binding breaks a hard rule.'}
           </p>
           {shown.result.violations.length > 0 && (
             <ul className="cr-calc-violations" aria-label="Rules broken">
-              {shown.result.violations.map((violation, index) => <li key={`${violationText(violation)}-${index}`}>{violationText(violation)}</li>)}
+              {shown.result.violations.map((violation, index) => (
+                <li key={`${violationText(violation)}-${index}`}>{violationText(violation)}</li>
+              ))}
             </ul>
           )}
           <FindingList findings={findings} label="What the toolchain found" />
@@ -173,9 +237,19 @@ function Configurator({ model, matrix, sections, actions = {} }: ConfiguratorMod
       )}
       {pending && (
         <div className="cr-conf-actions">
-          <Action variant="secondary" onClick={() => setSelection(base)}>Back to the version’s binding</Action>
-          {actions.onOpenDraft && source && <Action variant="secondary" onClick={() => actions.onOpenDraft?.(source)}>Open as a draft</Action>}
-          {actions.onDerive && source && <Action variant="primary" onClick={() => actions.onDerive?.(source)}>Derive as a new version</Action>}
+          <Action variant="secondary" onClick={() => setSelection(base)}>
+            Back to the version’s binding
+          </Action>
+          {actions.onOpenDraft && source && (
+            <Action variant="secondary" onClick={() => actions.onOpenDraft?.(source)}>
+              Open as a draft
+            </Action>
+          )}
+          {actions.onDerive && source && (
+            <Action variant="primary" onClick={() => actions.onDerive?.(source)}>
+              Derive as a new version
+            </Action>
+          )}
         </div>
       )}
     </RendererSection>
@@ -187,15 +261,17 @@ function Configurator({ model, matrix, sections, actions = {} }: ConfiguratorMod
       {sections.includes('choice') && (
         <RendererSection title="Choose per task">
           <p className="cr-muted">
-            The candidates of the linked problem, on the compilation this version’s values were evaluated on. The selected ones start as the
-            version’s binding.
+            The candidates of the linked problem, on the compilation this version’s values were
+            evaluated on. The selected ones start as the version’s binding.
           </p>
           <CandidateMatrix
             matrix={selectedMatrix(matrix, selection)}
             mode="select"
             label="Candidates to choose from"
-            onSelect={(task, candidate) => setSelection((now) => ({ ...now, [task]: candidate }))}
-            tags={(task, candidate) => (flagged.has(task) && selection[task] === candidate ? ['See the finding'] : [])}
+            onSelect={(task, candidate) => setSelection(now => ({ ...now, [task]: candidate }))}
+            tags={(task, candidate) =>
+              flagged.has(task) && selection[task] === candidate ? ['See the finding'] : []
+            }
           />
         </RendererSection>
       )}
@@ -212,5 +288,13 @@ export function ConfiguratorMode({ model, sections, actions }: ConfiguratorModeP
       </RendererSection>
     ) : null;
   }
-  return <Configurator key={model.version.id} model={model} matrix={model.matrix} sections={sections} actions={actions} />;
+  return (
+    <Configurator
+      key={model.version.id}
+      model={model}
+      matrix={model.matrix}
+      sections={sections}
+      actions={actions}
+    />
+  );
 }

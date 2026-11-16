@@ -65,7 +65,11 @@ export function findRawRendering(text: string): Finding[] {
       findings.push({ ...at, kind: 'pre' });
       return;
     }
-    for (let from = code.indexOf('JSON.stringify('); from !== -1; from = code.indexOf('JSON.stringify(', from + 1)) {
+    for (
+      let from = code.indexOf('JSON.stringify(');
+      from !== -1;
+      from = code.indexOf('JSON.stringify(', from + 1)
+    ) {
       if (opensRenderedExpression(code.slice(0, from))) {
         findings.push({ ...at, kind: 'stringify' });
         return;
@@ -82,11 +86,17 @@ function scan(sources: Record<string, string>) {
   return Object.entries(sources)
     .map(([path, text]) => [path.replace(/^\/src\//, ''), text] as const)
     .filter(([file]) => !isExempt(file))
-    .flatMap(([file, text]) => findRawRendering(text).map((finding) => ({ file, ...finding })));
+    .flatMap(([file, text]) => findRawRendering(text).map(finding => ({ file, ...finding })));
 }
 
-const files = import.meta.glob(['/src/**/*.{ts,tsx}', '!/src/**/*.test.*', '!/src/test/**'], { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
-const sources = Object.fromEntries(Object.entries(files).filter(([path]) => !/([Tt]estKit\.tsx?$|[Tt]estUtils\.tsx?$)/.test(path)));
+const files = import.meta.glob(['/src/**/*.{ts,tsx}', '!/src/**/*.test.*', '!/src/test/**'], {
+  query: '?raw',
+  import: 'default',
+  eager: true,
+}) as Record<string, string>;
+const sources = Object.fromEntries(
+  Object.entries(files).filter(([path]) => !/([Tt]estKit\.tsx?$|[Tt]estUtils\.tsx?$)/.test(path))
+);
 
 type Accepted = { file: string; lines: { line: number; text: string }[] }[];
 
@@ -110,31 +120,47 @@ function take(left: Map<string, number>, k: string): boolean {
 
 /** Raw findings that no accepted line covers (a new one, or one more copy of a listed line). */
 export function unlistedFindings(sources: Record<string, string>, allow: Accepted): string[] {
-  const left = counts(allow.flatMap((entry) => entry.lines.map((l) => key(entry.file, l.text))));
+  const left = counts(allow.flatMap(entry => entry.lines.map(l => key(entry.file, l.text))));
   return scan(sources)
     .filter(({ file, text }) => !take(left, key(file, text)))
-    .map(({ file, line, text }) => `${file}:${line}  ${text}  — render with the catalogue (SourceView, LogPanel, ...) instead of adding an entry to rawRenderingAllowList.ts`);
+    .map(
+      ({ file, line, text }) =>
+        `${file}:${line}  ${text}  — render with the catalogue (SourceView, LogPanel, ...) instead of adding an entry to rawRenderingAllowList.ts`
+    );
 }
 
 /** Accepted lines that no finding backs any more (fixed, or one copy removed). */
 export function staleEntries(sources: Record<string, string>, allow: Accepted): string[] {
   const left = counts(scan(sources).map(({ file, text }) => key(file, text)));
-  return allow.flatMap((entry) => entry.lines
-    .filter((l) => !take(left, key(entry.file, l.text)))
-    .map((l) => `${entry.file}:${l.line}  ${l.text}  — no longer raw rendering: remove this entry from rawRenderingAllowList.ts`));
+  return allow.flatMap(entry =>
+    entry.lines
+      .filter(l => !take(left, key(entry.file, l.text)))
+      .map(
+        l =>
+          `${entry.file}:${l.line}  ${l.text}  — no longer raw rendering: remove this entry from rawRenderingAllowList.ts`
+      )
+  );
 }
 
 /** Accepted lines whose number no longer points at their text. */
 export function wrongLineNumbers(sources: Record<string, string>, allow: Accepted): string[] {
-  return allow.flatMap((entry) => entry.lines.flatMap((l) => {
-    const actual = sources[`/src/${entry.file}`]?.split('\n')[l.line - 1]?.trim();
-    return actual === l.text ? [] : [`${entry.file}:${l.line} is ${JSON.stringify(actual)}, expected ${JSON.stringify(l.text)}`];
-  }));
+  return allow.flatMap(entry =>
+    entry.lines.flatMap(l => {
+      const actual = sources[`/src/${entry.file}`]?.split('\n')[l.line - 1]?.trim();
+      return actual === l.text
+        ? []
+        : [
+            `${entry.file}:${l.line} is ${JSON.stringify(actual)}, expected ${JSON.stringify(l.text)}`,
+          ];
+    })
+  );
 }
 
 /** A message when the ceiling is not the number of entries, otherwise nothing. */
 export function ceilingMismatch(max: number, entries: readonly unknown[]): string | undefined {
-  return max === entries.length ? undefined : `MAX_ALLOWED_OFFENDERS is ${max} but the allow-list has ${entries.length} entries`;
+  return max === entries.length
+    ? undefined
+    : `MAX_ALLOWED_OFFENDERS is ${max} but the allow-list has ${entries.length} entries`;
 }
 
 describe('the detector of raw rendering', () => {
@@ -146,8 +172,12 @@ describe('the detector of raw rendering', () => {
 
   it('reports a stringify rendered as a JSX child', () => {
     expect(findRawRendering('<code>{JSON.stringify(option.rest)}</code>')).toHaveLength(1);
-    expect(findRawRendering("<dd>{typeof v === 'string' ? v : JSON.stringify(v)}</dd>")).toHaveLength(1);
-    expect(findRawRendering('<dd>{ok ? <>{a} <small>{b}</small></> : JSON.stringify(ref)}</dd>')).toHaveLength(1);
+    expect(
+      findRawRendering("<dd>{typeof v === 'string' ? v : JSON.stringify(v)}</dd>")
+    ).toHaveLength(1);
+    expect(
+      findRawRendering('<dd>{ok ? <>{a} <small>{b}</small></> : JSON.stringify(ref)}</dd>')
+    ).toHaveLength(1);
     expect(findRawRendering('  {JSON.stringify(x)}')).toHaveLength(1);
     expect(findRawRendering('<p>Value: {JSON.stringify(x)}</p>')).toHaveLength(1);
     expect(findRawRendering('<dd>{a} {JSON.stringify(b)}</dd>')).toHaveLength(1);
@@ -197,25 +227,29 @@ describe('the detector of raw rendering', () => {
   });
 
   it('known limit: a line with a <pre tag and a rendered stringify yields one finding', () => {
-    expect(findRawRendering('<pre>{JSON.stringify(x)}</pre>')).toEqual([{ line: 1, text: '<pre>{JSON.stringify(x)}</pre>', kind: 'pre' }]);
+    expect(findRawRendering('<pre>{JSON.stringify(x)}</pre>')).toEqual([
+      { line: 1, text: '<pre>{JSON.stringify(x)}</pre>', kind: 'pre' },
+    ]);
   });
 
   it('reports a stringify given as a JSX attribute value', () => {
-    expect(findRawRendering('<CodeEditor value={JSON.stringify(doc, null, 2)} readOnly />')).toHaveLength(1);
+    expect(
+      findRawRendering('<CodeEditor value={JSON.stringify(doc, null, 2)} readOnly />')
+    ).toHaveLength(1);
   });
 
   it('does not report stringify that is not rendered', () => {
     const quiet = [
       "const r = await fetch(url, { method: 'POST', body: JSON.stringify(payload) });",
-      "localStorage.setItem(KEY, JSON.stringify({ a: 1 }));",
+      'localStorage.setItem(KEY, JSON.stringify({ a: 1 }));',
       "const url = URL.createObjectURL(new Blob([JSON.stringify(manifest, null, 2)], { type: 'application/json' }));",
       "saveBytes(new TextEncoder().encode(JSON.stringify(body, null, 2)).buffer as ArrayBuffer, 'a.json', 'application/json');",
       "<Action onClick={() => void copy(JSON.stringify(report.document, null, 2), 'json')}>Copy</Action>",
       'const dirty = JSON.stringify(current) !== JSON.stringify(working);',
       '<Row key={`${plan}:${JSON.stringify(addOns)}`} />',
       'const stamp = (value) => JSON.stringify(value ?? null);',
-      'const source = useMemo(() => JSON.stringify(value, null, 2) ?? \'\', [value]);',
-      "return [...new Map(points.map(p => [JSON.stringify(p), p])).values()];",
+      "const source = useMemo(() => JSON.stringify(value, null, 2) ?? '', [value]);",
+      'return [...new Map(points.map(p => [JSON.stringify(p), p])).values()];',
       '<button onClick={() => { save(JSON.stringify(x)); }}>Save</button>',
       '// <pre>{JSON.stringify(x)}</pre>',
       '<preview>{x}</preview>',
@@ -224,7 +258,9 @@ describe('the detector of raw rendering', () => {
   });
 
   it('numbers lines from 1 and keeps the trimmed text', () => {
-    expect(findRawRendering('const a = 1;\n    <pre>{a}</pre>')).toEqual([{ line: 2, text: '<pre>{a}</pre>', kind: 'pre' }]);
+    expect(findRawRendering('const a = 1;\n    <pre>{a}</pre>')).toEqual([
+      { line: 2, text: '<pre>{a}</pre>', kind: 'pre' },
+    ]);
   });
 
   it('exempts the catalogue files by exact path and nothing else', () => {
@@ -237,7 +273,10 @@ describe('the detector of raw rendering', () => {
   });
 
   it('exempts exactly the two catalogue components', () => {
-    expect(EXEMPT_FILES).toEqual(['components/rendering/SourceView.tsx', 'components/rendering/LogPanel.tsx']);
+    expect(EXEMPT_FILES).toEqual([
+      'components/rendering/SourceView.tsx',
+      'components/rendering/LogPanel.tsx',
+    ]);
     for (const file of EXEMPT_FILES) expect(files[`/src/${file}`], file).toBeDefined();
   });
 });
@@ -245,7 +284,7 @@ describe('the detector of raw rendering', () => {
 describe('raw rendering in the application sources', () => {
   it('reads the sources', () => {
     expect(Object.keys(sources).length).toBeGreaterThan(100);
-    expect(Object.keys(sources).some((path) => path.startsWith('/src/test/'))).toBe(false);
+    expect(Object.keys(sources).some(path => path.startsWith('/src/test/'))).toBe(false);
   });
 
   it('has no raw rendering outside the allow-list', () => {
@@ -264,22 +303,35 @@ describe('raw rendering in the application sources', () => {
 describe('the allow-list checks', () => {
   const dump = '<pre>{a}</pre>';
   const at = (file: string, ...lines: string[]) => ({ [`/src/${file}`]: lines.join('\n') });
-  const allow = (file: string, ...lines: { line: number; text: string }[]): Accepted => [{ file, lines }];
+  const allow = (file: string, ...lines: { line: number; text: string }[]): Accepted => [
+    { file, lines },
+  ];
 
   it('reports a new raw finding in an unlisted file, with file:line, text and the instruction', () => {
     const found = unlistedFindings(at('pages/New.tsx', 'const a = 1;', dump), []);
-    expect(found).toEqual([`pages/New.tsx:2  ${dump}  — render with the catalogue (SourceView, LogPanel, ...) instead of adding an entry to rawRenderingAllowList.ts`]);
+    expect(found).toEqual([
+      `pages/New.tsx:2  ${dump}  — render with the catalogue (SourceView, LogPanel, ...) instead of adding an entry to rawRenderingAllowList.ts`,
+    ]);
   });
 
   it('reports an entry whose line no longer exists as stale, with file:line, text and the instruction', () => {
-    const stale = staleEntries(at('pages/Old.tsx', 'const a = 1;'), allow('pages/Old.tsx', { line: 3, text: dump }));
-    expect(stale).toEqual([`pages/Old.tsx:3  ${dump}  — no longer raw rendering: remove this entry from rawRenderingAllowList.ts`]);
+    const stale = staleEntries(
+      at('pages/Old.tsx', 'const a = 1;'),
+      allow('pages/Old.tsx', { line: 3, text: dump })
+    );
+    expect(stale).toEqual([
+      `pages/Old.tsx:3  ${dump}  — no longer raw rendering: remove this entry from rawRenderingAllowList.ts`,
+    ]);
   });
 
   it('accepts a listed finding and reports nothing', () => {
     const sources = at('pages/Ok.tsx', dump);
     const list = allow('pages/Ok.tsx', { line: 1, text: dump });
-    expect([unlistedFindings(sources, list), staleEntries(sources, list), wrongLineNumbers(sources, list)]).toEqual([[], [], []]);
+    expect([
+      unlistedFindings(sources, list),
+      staleEntries(sources, list),
+      wrongLineNumbers(sources, list),
+    ]).toEqual([[], [], []]);
   });
 
   it('reports a moved line only as a wrong line number', () => {
@@ -287,17 +339,26 @@ describe('the allow-list checks', () => {
     const list = allow('pages/Moved.tsx', { line: 1, text: dump });
     expect(unlistedFindings(sources, list)).toEqual([]);
     expect(staleEntries(sources, list)).toEqual([]);
-    expect(wrongLineNumbers(sources, list)).toEqual([`pages/Moved.tsx:1 is "const a = 1;", expected ${JSON.stringify(dump)}`]);
+    expect(wrongLineNumbers(sources, list)).toEqual([
+      `pages/Moved.tsx:1 is "const a = 1;", expected ${JSON.stringify(dump)}`,
+    ]);
   });
 
   it('reports a line number past the end of the file', () => {
-    expect(wrongLineNumbers(at('pages/Short.tsx', dump), allow('pages/Short.tsx', { line: 9, text: dump }))).toEqual([`pages/Short.tsx:9 is undefined, expected ${JSON.stringify(dump)}`]);
+    expect(
+      wrongLineNumbers(
+        at('pages/Short.tsx', dump),
+        allow('pages/Short.tsx', { line: 9, text: dump })
+      )
+    ).toEqual([`pages/Short.tsx:9 is undefined, expected ${JSON.stringify(dump)}`]);
   });
 
   it('counts: an extra identical raw line in a listed file is unlisted', () => {
     const sources = at('pages/Dup.tsx', dump, 'const a = 1;', dump);
     const list = allow('pages/Dup.tsx', { line: 1, text: dump });
-    expect(unlistedFindings(sources, list)).toEqual([`pages/Dup.tsx:3  ${dump}  — render with the catalogue (SourceView, LogPanel, ...) instead of adding an entry to rawRenderingAllowList.ts`]);
+    expect(unlistedFindings(sources, list)).toEqual([
+      `pages/Dup.tsx:3  ${dump}  — render with the catalogue (SourceView, LogPanel, ...) instead of adding an entry to rawRenderingAllowList.ts`,
+    ]);
     expect(staleEntries(sources, list)).toEqual([]);
   });
 
@@ -305,24 +366,36 @@ describe('the allow-list checks', () => {
     const sources = at('pages/Dup.tsx', dump);
     const list = allow('pages/Dup.tsx', { line: 1, text: dump }, { line: 3, text: dump });
     expect(unlistedFindings(sources, list)).toEqual([]);
-    expect(staleEntries(sources, list)).toEqual([`pages/Dup.tsx:3  ${dump}  — no longer raw rendering: remove this entry from rawRenderingAllowList.ts`]);
+    expect(staleEntries(sources, list)).toEqual([
+      `pages/Dup.tsx:3  ${dump}  — no longer raw rendering: remove this entry from rawRenderingAllowList.ts`,
+    ]);
   });
 
   it('counts: two identical lines listed twice are accepted', () => {
     const sources = at('pages/Dup.tsx', dump, dump);
     const list = allow('pages/Dup.tsx', { line: 1, text: dump }, { line: 2, text: dump });
-    expect([unlistedFindings(sources, list), staleEntries(sources, list), wrongLineNumbers(sources, list)]).toEqual([[], [], []]);
+    expect([
+      unlistedFindings(sources, list),
+      staleEntries(sources, list),
+      wrongLineNumbers(sources, list),
+    ]).toEqual([[], [], []]);
   });
 
   it('matches by file: the same text in another file is not covered', () => {
-    expect(unlistedFindings(at('pages/B.tsx', dump), allow('pages/A.tsx', { line: 1, text: dump }))).toHaveLength(1);
+    expect(
+      unlistedFindings(at('pages/B.tsx', dump), allow('pages/A.tsx', { line: 1, text: dump }))
+    ).toHaveLength(1);
   });
 });
 
 describe('the allow-list', () => {
   it('reports a ceiling that differs from the entries, naming both numbers', () => {
-    expect(ceilingMismatch(14, new Array(13))).toBe('MAX_ALLOWED_OFFENDERS is 14 but the allow-list has 13 entries');
-    expect(ceilingMismatch(12, new Array(13))).toBe('MAX_ALLOWED_OFFENDERS is 12 but the allow-list has 13 entries');
+    expect(ceilingMismatch(14, new Array(13))).toBe(
+      'MAX_ALLOWED_OFFENDERS is 14 but the allow-list has 13 entries'
+    );
+    expect(ceilingMismatch(12, new Array(13))).toBe(
+      'MAX_ALLOWED_OFFENDERS is 12 but the allow-list has 13 entries'
+    );
     expect(ceilingMismatch(13, new Array(13))).toBeUndefined();
   });
 
@@ -334,8 +407,12 @@ describe('the allow-list', () => {
 
   it('has a ceiling equal to its entries, numbered as a strictly increasing subset of 1 to 15', () => {
     expect(ceilingMismatch(MAX_ALLOWED_OFFENDERS, RAW_RENDERING_ALLOW_LIST)).toBeUndefined();
-    const numbers = RAW_RENDERING_ALLOW_LIST.map((entry) => entry.offender);
-    expect(numbers.every((n, i) => Number.isInteger(n) && n >= 1 && n <= 15 && (i === 0 || n > numbers[i - 1]))).toBe(true);
+    const numbers = RAW_RENDERING_ALLOW_LIST.map(entry => entry.offender);
+    expect(
+      numbers.every(
+        (n, i) => Number.isInteger(n) && n >= 1 && n <= 15 && (i === 0 || n > numbers[i - 1])
+      )
+    ).toBe(true);
     for (const entry of RAW_RENDERING_ALLOW_LIST) {
       expect(entry.lines.length, `offender ${entry.offender}`).toBeGreaterThan(0);
       expect(entry.reason.length, `offender ${entry.offender}`).toBeGreaterThan(0);
@@ -343,8 +420,12 @@ describe('the allow-list', () => {
   });
 
   it('holds no offender of the retired analysis pages', () => {
-    expect(RAW_RENDERING_ALLOW_LIST.map((entry) => entry.offender)).toEqual([]);
-    expect([...RAW_RENDERING_ALLOW_LIST, ...UNLISTED_FINDINGS].filter((entry) => entry.file.startsWith('pages/Analysis'))).toEqual([]);
+    expect(RAW_RENDERING_ALLOW_LIST.map(entry => entry.offender)).toEqual([]);
+    expect(
+      [...RAW_RENDERING_ALLOW_LIST, ...UNLISTED_FINDINGS].filter(entry =>
+        entry.file.startsWith('pages/Analysis')
+      )
+    ).toEqual([]);
   });
 
   it('holds no offender and no unlisted finding, with a ceiling of 0', () => {
@@ -357,25 +438,38 @@ describe('the allow-list', () => {
   });
 
   it('renders the changes of a file in the problem editor through FileDiff, with no <pre> of its own', () => {
-    const pane = Object.entries(sources).find(([path]) => path.endsWith('/features/bim-editor/FilesPane.tsx'))?.[1];
+    const pane = Object.entries(sources).find(([path]) =>
+      path.endsWith('/features/bim-editor/FilesPane.tsx')
+    )?.[1];
     expect(pane).toBeDefined();
     expect(pane).toContain('<FileDiff');
     expect(pane).not.toMatch(/<pre[\s>]/);
-    expect(Object.keys(sources).filter((path) => path.includes('/pages/Workbench/'))).toEqual([]);
+    expect(Object.keys(sources).filter(path => path.includes('/pages/Workbench/'))).toEqual([]);
   });
 
   it('has no entry for the report editor, which slice 2 retires', () => {
-    expect([...RAW_RENDERING_ALLOW_LIST, ...UNLISTED_FINDINGS].filter((entry) => entry.file === 'pages/Reports/RepDetail.tsx')).toEqual([]);
-    expect(Object.keys(sources).filter((path) => path.endsWith('/pages/Reports/RepDetail.tsx'))).toEqual([]);
+    expect(
+      [...RAW_RENDERING_ALLOW_LIST, ...UNLISTED_FINDINGS].filter(
+        entry => entry.file === 'pages/Reports/RepDetail.tsx'
+      )
+    ).toEqual([]);
+    expect(
+      Object.keys(sources).filter(path => path.endsWith('/pages/Reports/RepDetail.tsx'))
+    ).toEqual([]);
   });
 
   it('has no entry for the library content view, which slice 3 retires, nor for the feature cell the problem editor took over', () => {
-    expect([...RAW_RENDERING_ALLOW_LIST, ...UNLISTED_FINDINGS].filter((entry) => entry.file.startsWith('features/bim-editor/FeatureCell'))).toEqual([]);
-    expect(Object.keys(sources).filter((path) => path.includes('/pages/Library/'))).toEqual([]);
+    expect(
+      [...RAW_RENDERING_ALLOW_LIST, ...UNLISTED_FINDINGS].filter(entry =>
+        entry.file.startsWith('features/bim-editor/FeatureCell')
+      )
+    ).toEqual([]);
+    expect(Object.keys(sources).filter(path => path.includes('/pages/Library/'))).toEqual([]);
   });
 
   it('keeps the retired offenders retired', () => {
-    const slice = (n: number) => RAW_RENDERING_ALLOW_LIST.find((entry) => entry.offender === n)?.retiredBy;
+    const slice = (n: number) =>
+      RAW_RENDERING_ALLOW_LIST.find(entry => entry.offender === n)?.retiredBy;
     expect(slice(2)).toBeUndefined();
     for (const n of [1, 3, 4]) expect(slice(n), `offender ${n}`).toBeUndefined();
     expect(slice(5)).toBeUndefined();
@@ -388,7 +482,10 @@ describe('the allow-list', () => {
     for (const entry of UNLISTED_FINDINGS) {
       expect(entry.reason, entry.file).toBe(UNLISTED_REASON);
       expect(entry.retiredBy, entry.file).toBeNull();
-      expect(RAW_RENDERING_ALLOW_LIST.some((listed) => listed.file === entry.file), entry.file).toBe(false);
+      expect(
+        RAW_RENDERING_ALLOW_LIST.some(listed => listed.file === entry.file),
+        entry.file
+      ).toBe(false);
     }
   });
 });

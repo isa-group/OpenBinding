@@ -31,22 +31,43 @@ type Outcome = { tone: 'success'; text: string } | { tone: 'error'; refusal: Ref
 function DemoGrid() {
   return (
     <div className="st-demo" aria-hidden="true">
-      {['completed', 'completed', 'completed', 'failed', 'completed', 'completed', 'completed', 'cancelled'].map((state, position) => <i key={position} className={`is-${state}`} />)}
+      {[
+        'completed',
+        'completed',
+        'completed',
+        'failed',
+        'completed',
+        'completed',
+        'completed',
+        'cancelled',
+      ].map((state, position) => (
+        <i key={position} className={`is-${state}`} />
+      ))}
     </div>
   );
 }
 
-function StudyListBody({ organization, canCreate, canAdminister }: { organization: Organization; canCreate: boolean; canAdminister: boolean }) {
+function StudyListBody({
+  organization,
+  canCreate,
+  canAdminister,
+}: {
+  organization: Organization;
+  canCreate: boolean;
+  canAdminister: boolean;
+}) {
   const org = organization.slug;
-  const studies = useResource<StudyContent[]>(`studies-list:${org}`, () => loadStudies(org, WITH_CELLS));
+  const studies = useResource<StudyContent[]>(`studies-list:${org}`, () =>
+    loadStudies(org, WITH_CELLS)
+  );
   const [showArchived, setShowArchived] = useState(false);
   const [outcome, setOutcome] = useState<Outcome | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<Study | null>(null);
 
   const data = studies.data ?? studies.stale;
-  const rows = (data ?? []).filter((entry) => showArchived || !entry.study.archived);
-  const archivedCount = (data ?? []).filter((entry) => entry.study.archived).length;
+  const rows = (data ?? []).filter(entry => showArchived || !entry.study.archived);
+  const archivedCount = (data ?? []).filter(entry => entry.study.archived).length;
   const failure = studies.status === 'error' ? classifyAuthError(studies.error) : null;
   const reload = studies.reload;
 
@@ -55,7 +76,12 @@ function StudyListBody({ organization, canCreate, canAdminister }: { organizatio
     setOutcome(null);
     try {
       await platformApi.updateStudy(org, study.slug, { archived: !study.archived });
-      setOutcome({ tone: 'success', text: study.archived ? 'Restored.' : 'Archived: it can’t start new runs, and existing results stay.' });
+      setOutcome({
+        tone: 'success',
+        text: study.archived
+          ? 'Restored.'
+          : 'Archived: it can’t start new runs, and existing results stay.',
+      });
       reload();
     } catch (caught) {
       setOutcome({ tone: 'error', refusal: studyRefusal(caught, 'archive') });
@@ -71,11 +97,18 @@ function StudyListBody({ organization, canCreate, canAdminister }: { organizatio
       await platformApi.deleteStudy(org, study.slug);
       setOutcome({ tone: 'success', text: `Deleted ${study.name}.` });
     } catch (caught) {
-      if (caught instanceof HttpError && caught.status === 409 && caught.code === 'study_history_retained') {
+      if (
+        caught instanceof HttpError &&
+        caught.status === 409 &&
+        caught.code === 'study_history_retained'
+      ) {
         // Runs are history: the gateway refuses the delete, so the study is archived instead and its results stay.
         try {
           await platformApi.updateStudy(org, study.slug, { archived: true });
-          setOutcome({ tone: 'success', text: 'This study has runs, so it was archived instead of deleted. Its runs and results stay intact.' });
+          setOutcome({
+            tone: 'success',
+            text: 'This study has runs, so it was archived instead of deleted. Its runs and results stay intact.',
+          });
         } catch (second) {
           setOutcome({ tone: 'error', refusal: studyRefusal(second, 'archive') });
         }
@@ -95,14 +128,27 @@ function StudyListBody({ organization, canCreate, canAdminister }: { organizatio
       <header className="proj-title-row">
         <div className="proj-title">
           <h1>Studies</h1>
-          <p>A study runs every combination of problems × engines × settings × seeds, so results can be compared fairly and repeated.</p>
+          <p>
+            A study runs every combination of problems × engines × settings × seeds, so results can
+            be compared fairly and repeated.
+          </p>
         </div>
-        {canCreate && <div className="proj-actions"><Action to={newStudyPath(org)} variant="primary">New study</Action></div>}
+        {canCreate && (
+          <div className="proj-actions">
+            <Action to={newStudyPath(org)} variant="primary">
+              New study
+            </Action>
+          </div>
+        )}
       </header>
 
       {data && archivedCount > 0 && (
         <label className="st-check">
-          <input type="checkbox" checked={showArchived} onChange={(event) => setShowArchived(event.target.checked)} />
+          <input
+            type="checkbox"
+            checked={showArchived}
+            onChange={event => setShowArchived(event.target.checked)}
+          />
           Show archived studies <span className="org-muted">({archivedCount})</span>
         </label>
       )}
@@ -110,9 +156,21 @@ function StudyListBody({ organization, canCreate, canAdminister }: { organizatio
       {outcome?.tone === 'success' && <Notice tone="success">{outcome.text}</Notice>}
       {outcome?.tone === 'error' && <RefusalNotice refusal={outcome.refusal} />}
 
-      {studies.status === 'loading' && !data && <div role="status" aria-busy="true"><span className="sr-only">Loading the studies…</span><Skeleton variant="panel" /></div>}
+      {studies.status === 'loading' && !data && (
+        <div role="status" aria-busy="true">
+          <span className="sr-only">Loading the studies…</span>
+          <Skeleton variant="panel" />
+        </div>
+      )}
       {failure && !data && (
-        <Notice tone="error" action={<Action variant="secondary" size="sm" onClick={reload}>Retry</Action>}>
+        <Notice
+          tone="error"
+          action={
+            <Action variant="secondary" size="sm" onClick={reload}>
+              Retry
+            </Action>
+          }
+        >
           {failure.status === 403
             ? `This credential can’t read studies${marker(failure)}. Use a session, or a key with studies:read.`
             : `Studies couldn’t be loaded${marker(failure)}.`}
@@ -124,16 +182,27 @@ function StudyListBody({ organization, canCreate, canAdminister }: { organizatio
           <DemoGrid />
           <div>
             <strong>No studies yet</strong>
-            <span>2 problem versions × 2 engines × 2 seeds = 8 runs, all with the same rules. That’s a study.</span>
-            {canCreate
-              ? <Action to={newStudyPath(org)} variant="primary">Build a study</Action>
-              : <small className="org-muted">Creating a study needs MEMBER in {organization.name}.</small>}
+            <span>
+              2 problem versions × 2 engines × 2 seeds = 8 runs, all with the same rules. That’s a
+              study.
+            </span>
+            {canCreate ? (
+              <Action to={newStudyPath(org)} variant="primary">
+                Build a study
+              </Action>
+            ) : (
+              <small className="org-muted">
+                Creating a study needs MEMBER in {organization.name}.
+              </small>
+            )}
           </div>
         </section>
       )}
 
       {data && data.length > 0 && rows.length === 0 && (
-        <EmptyState icon={<FlaskConical />} title="Every study is archived" dashed>Show archived studies to see them and their results.</EmptyState>
+        <EmptyState icon={<FlaskConical />} title="Every study is archived" dashed>
+          Show archived studies to see them and their results.
+        </EmptyState>
       )}
 
       {rows.length > 0 && (
@@ -149,29 +218,58 @@ function StudyListBody({ organization, canCreate, canAdminister }: { organizatio
                     <strong>{study.name}</strong>
                     {study.archived && <Chip>Archived</Chip>}
                   </span>
-                  <small>{formulaOf(size)} = {plural(size.cells, 'cell')}</small>
+                  <small>
+                    {formulaOf(size)} = {plural(size.cells, 'cell')}
+                  </small>
                   {study.description && <small className="org-muted">{study.description}</small>}
                 </Link>
                 <div className="st-row-run">
                   {run ? (
                     <>
                       <small>
-                        <Link to={studyPageHref(studyPath(org, study.slug), 'progress', { run: run.id })} viewTransition>Last run #{run.run_number}</Link>
+                        <Link
+                          to={studyPageHref(studyPath(org, study.slug), 'progress', {
+                            run: run.id,
+                          })}
+                          viewTransition
+                        >
+                          Last run #{run.run_number}
+                        </Link>
                         {when ? ` · ${when}` : ''} · {run.state}
                         {runs.length > 1 ? ` · ${plural(runs.length, 'run')} in all` : ''}
                       </small>
-                      {latestCells && latestCells.length > 0 ? <CellBar cells={latestCells} size="sm" /> : <StateChip state={run.state} />}
+                      {latestCells && latestCells.length > 0 ? (
+                        <CellBar cells={latestCells} size="sm" />
+                      ) : (
+                        <StateChip state={run.state} />
+                      )}
                     </>
-                  ) : <small>Never run</small>}
+                  ) : (
+                    <small>Never run</small>
+                  )}
                 </div>
                 {(canCreate || canAdminister) && (
                   <div className="st-row-actions">
                     {canCreate && (
-                      <Action variant="secondary" size="sm" busy={busy === study.id} onClick={() => void archive(study)}>
+                      <Action
+                        variant="secondary"
+                        size="sm"
+                        busy={busy === study.id}
+                        onClick={() => void archive(study)}
+                      >
                         {study.archived ? 'Restore' : 'Archive'}
                       </Action>
                     )}
-                    {canAdminister && <Action variant="danger-outline" size="sm" disabled={busy === study.id} onClick={() => setDeleting(study)}>Delete</Action>}
+                    {canAdminister && (
+                      <Action
+                        variant="danger-outline"
+                        size="sm"
+                        disabled={busy === study.id}
+                        onClick={() => setDeleting(study)}
+                      >
+                        Delete
+                      </Action>
+                    )}
                   </div>
                 )}
               </li>
@@ -181,11 +279,27 @@ function StudyListBody({ organization, canCreate, canAdminister }: { organizatio
       )}
 
       {deleting && (
-        <Modal title={`Delete ${deleting.name}?`} tone="danger" size="md" onClose={() => busy === null && setDeleting(null)}>
-          <p>The definition goes away for good. A study that already has runs can’t be deleted, because runs are history: it is archived instead, and its results stay.</p>
+        <Modal
+          title={`Delete ${deleting.name}?`}
+          tone="danger"
+          size="md"
+          onClose={() => busy === null && setDeleting(null)}
+        >
+          <p>
+            The definition goes away for good. A study that already has runs can’t be deleted,
+            because runs are history: it is archived instead, and its results stay.
+          </p>
           <div className="ui-modal-actions">
-            <Action variant="secondary" onClick={() => setDeleting(null)} disabled={busy !== null}>Cancel</Action>
-            <Action variant="danger" busy={busy === deleting.id} onClick={() => void remove(deleting)}>Delete study</Action>
+            <Action variant="secondary" onClick={() => setDeleting(null)} disabled={busy !== null}>
+              Cancel
+            </Action>
+            <Action
+              variant="danger"
+              busy={busy === deleting.id}
+              onClick={() => void remove(deleting)}
+            >
+              Delete study
+            </Action>
           </div>
         </Modal>
       )}
@@ -199,5 +313,12 @@ export function StudyList() {
   if (waiting) return <OrgSkeleton label="Loading organization…" />;
   if (!organization) return <OrgGate failure={null} />;
   const access = problemAccess(organization);
-  return <StudyListBody key={organization.slug} organization={organization} canCreate={access.canCreate} canAdminister={access.canAdminister} />;
+  return (
+    <StudyListBody
+      key={organization.slug}
+      organization={organization}
+      canCreate={access.canCreate}
+      canAdminister={access.canAdminister}
+    />
+  );
 }

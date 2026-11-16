@@ -24,22 +24,29 @@ export interface PartialRange {
 
 export type FeatureSlot = number | PartialRange;
 
-const isPlainObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
-const isFiniteNumber = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value);
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+const isFiniteNumber = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isFinite(value);
 
 /** Is it a well-formed range: an object with exactly `min` and `max`, each a finite number or `null`? Order is not checked. */
 export function isRange(value: unknown): value is FeatureRange {
   if (!isPlainObject(value)) return false;
   const keys = Object.keys(value);
   if (keys.length !== 2 || !keys.includes('min') || !keys.includes('max')) return false;
-  return (value.min === null || isFiniteNumber(value.min)) && (value.max === null || isFiniteNumber(value.max));
+  return (
+    (value.min === null || isFiniteNumber(value.min)) &&
+    (value.max === null || isFiniteNumber(value.max))
+  );
 }
 
 /** Is it a shape a cell can edit: a number or an object that only uses the keys `min` and `max` (maybe not both yet)? */
 export function isFeatureSlot(value: unknown): value is FeatureSlot {
   if (typeof value === 'number') return true;
   if (!isPlainObject(value)) return false;
-  return Object.entries(value).every(([key, end]) => (key === 'min' || key === 'max') && (end === null || typeof end === 'number'));
+  return Object.entries(value).every(
+    ([key, end]) => (key === 'min' || key === 'max') && (end === null || typeof end === 'number')
+  );
 }
 
 /** A valid value: a finite number or a well-formed range whose finite ends are in order. */
@@ -52,16 +59,23 @@ export function isFeatureValue(value: unknown): value is FeatureValue {
  * (`schema`, `finite_number`, `feature_interval_order`), so this stops them before they get there.
  */
 export function validateFeature(value: unknown): string | null {
-  if (value === null || value === undefined) return 'A single value can’t be empty. Enter a number, or use a range with no limits.';
-  if (typeof value === 'number') return Number.isFinite(value) ? null : 'The value must be a finite number.';
+  if (value === null || value === undefined)
+    return 'A single value can’t be empty. Enter a number, or use a range with no limits.';
+  if (typeof value === 'number')
+    return Number.isFinite(value) ? null : 'The value must be a finite number.';
   if (!isPlainObject(value)) return 'A feature is a number or a range with a min and a max.';
-  const extra = Object.keys(value).filter((key) => key !== 'min' && key !== 'max');
+  const extra = Object.keys(value).filter(key => key !== 'min' && key !== 'max');
   if (extra.length) return `A range has only a min and a max, not “${extra[0]}”.`;
-  if (!('min' in value) || value.min === undefined) return 'A range needs a min: enter a number or tick “No lower limit”.';
-  if (!('max' in value) || value.max === undefined) return 'A range needs a max: enter a number or tick “No upper limit”.';
-  if (value.min !== null && !isFiniteNumber(value.min)) return 'Min must be a finite number or have no limit.';
-  if (value.max !== null && !isFiniteNumber(value.max)) return 'Max must be a finite number or have no limit.';
-  if (isFiniteNumber(value.min) && isFiniteNumber(value.max) && value.min > value.max) return 'Min can’t be greater than max.';
+  if (!('min' in value) || value.min === undefined)
+    return 'A range needs a min: enter a number or tick “No lower limit”.';
+  if (!('max' in value) || value.max === undefined)
+    return 'A range needs a max: enter a number or tick “No upper limit”.';
+  if (value.min !== null && !isFiniteNumber(value.min))
+    return 'Min must be a finite number or have no limit.';
+  if (value.max !== null && !isFiniteNumber(value.max))
+    return 'Max must be a finite number or have no limit.';
+  if (isFiniteNumber(value.min) && isFiniteNumber(value.max) && value.min > value.max)
+    return 'Min can’t be greater than max.';
   return null;
 }
 
@@ -94,10 +108,19 @@ export function parseRangeInput(input: RangeInput): RangeParse {
   const errors: RangeParse['errors'] = {};
   const value: PartialRange = {};
   const end = (side: 'min' | 'max', text: string, open: boolean) => {
-    if (open) { value[side] = null; return; }
-    if (text.trim() === '') { errors[side] = `Enter a number or tick “No ${side === 'min' ? 'lower' : 'upper'} limit”.`; return; }
+    if (open) {
+      value[side] = null;
+      return;
+    }
+    if (text.trim() === '') {
+      errors[side] = `Enter a number or tick “No ${side === 'min' ? 'lower' : 'upper'} limit”.`;
+      return;
+    }
     const parsed = parseFiniteNumber(text);
-    if (parsed === undefined) { errors[side] = `${side === 'min' ? 'Min' : 'Max'} must be a finite number.`; return; }
+    if (parsed === undefined) {
+      errors[side] = `${side === 'min' ? 'Min' : 'Max'} must be a finite number.`;
+      return;
+    }
     value[side] = parsed;
   };
   end('min', input.min, input.minOpen);
@@ -112,7 +135,12 @@ export function rangeInputOf(value: FeatureSlot | undefined): RangeInput {
   if (value === undefined) return { min: '', max: '', minOpen: false, maxOpen: false };
   const range: PartialRange = typeof value === 'number' ? { min: value, max: value } : value;
   const text = (end: number | null | undefined) => (typeof end === 'number' ? String(end) : '');
-  return { min: text(range.min), max: text(range.max), minOpen: range.min === null, maxOpen: range.max === null };
+  return {
+    min: text(range.min),
+    max: text(range.max),
+    minOpen: range.min === null,
+    maxOpen: range.max === null,
+  };
 }
 
 // --- in words
@@ -133,7 +161,10 @@ export interface FormatOptions {
  * `long` writes ranges as intervals instead (`(−∞, 200]`), which is what a screen reader or a tooltip gets. A slot that is
  * not usable yet (an end is missing) reads `incomplete`.
  */
-export function formatFeature(value: FeatureSlot | null | undefined, options: FormatOptions = {}): string {
+export function formatFeature(
+  value: FeatureSlot | null | undefined,
+  options: FormatOptions = {}
+): string {
   if (value === null || value === undefined) return '—';
   const tail = options.unit ? ` ${options.unit}` : '';
   if (typeof value === 'number') return Number.isFinite(value) ? `${fmt(value)}${tail}` : '—';
@@ -152,7 +183,8 @@ export function formatFeature(value: FeatureSlot | null | undefined, options: Fo
 }
 
 /** The `<feature> for <candidate>: value or range` name of the switch of a cell. */
-export const modeLabel = (feature: string, candidate: string) => `${feature} for ${candidate}: value or range`;
+export const modeLabel = (feature: string, candidate: string) =>
+  `${feature} for ${candidate}: value or range`;
 
 // --- order
 
@@ -197,12 +229,20 @@ export function compareFeatures(a: FeatureSlot, b: FeatureSlot): number {
   const anchor = anchorOf(a) - anchorOf(b);
   if (anchor !== 0) return anchor;
   // Same middle: the narrower one first, a number before a range of the same middle.
-  const width = (value: FeatureSlot) => (typeof value === 'number' ? 0 : typeof value.min === 'number' && typeof value.max === 'number' ? value.max - value.min : 0);
+  const width = (value: FeatureSlot) =>
+    typeof value === 'number'
+      ? 0
+      : typeof value.min === 'number' && typeof value.max === 'number'
+        ? value.max - value.min
+        : 0;
   return width(a) - width(b);
 }
 
 /** `compareFeatures` for a column in which a candidate may have no value: those go last. */
-export function compareOptionalFeatures(a: FeatureSlot | undefined, b: FeatureSlot | undefined): number {
+export function compareOptionalFeatures(
+  a: FeatureSlot | undefined,
+  b: FeatureSlot | undefined
+): number {
   if (a === undefined || b === undefined) return a === b ? 0 : a === undefined ? 1 : -1;
   return compareFeatures(a, b);
 }
@@ -232,9 +272,13 @@ export function toScalar(value: FeatureSlot): ScalarConversion {
   const { min, max } = value;
   if (typeof min === 'number' && min === max) return { value: min, lossy: false, dropped: null };
   const kept = typeof min === 'number' ? min : typeof max === 'number' ? max : null;
-  if (kept === null) return { value: null, lossy: min !== undefined || max !== undefined, dropped: 'both limits' };
+  if (kept === null)
+    return { value: null, lossy: min !== undefined || max !== undefined, dropped: 'both limits' };
   const other = kept === min ? max : min;
-  const dropped = typeof other === 'number' ? `the ${kept === min ? 'upper' : 'lower'} limit (${fmt(other)})` : `the ${kept === min ? 'upper' : 'lower'} limit (no limit)`;
+  const dropped =
+    typeof other === 'number'
+      ? `the ${kept === min ? 'upper' : 'lower'} limit (${fmt(other)})`
+      : `the ${kept === min ? 'upper' : 'lower'} limit (no limit)`;
   return { value: kept, lossy: other !== undefined && other !== kept, dropped };
 }
 
@@ -242,9 +286,10 @@ export function toScalar(value: FeatureSlot): ScalarConversion {
 export const RANGE_CODE = 'unsupported_capability_value';
 
 /** Why such a mode is off in a list of engines. */
-export const RANGE_REFUSAL = 'This package has range features; this engine only accepts single values';
+export const RANGE_REFUSAL =
+  'This package has range features; this engine only accepts single values';
 
 /** Does this value, or any value inside it, have a range in it? For a map of slots (`features` of one candidate). */
 export function hasRange(values: Record<string, unknown> | undefined | null): boolean {
-  return !!values && Object.values(values).some((value) => isPlainObject(value));
+  return !!values && Object.values(values).some(value => isPlainObject(value));
 }

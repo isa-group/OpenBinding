@@ -28,7 +28,9 @@ export function ProtectedRoute({
 
   if (!user) {
     // The query string travels too, so that a deep link (?tab=…) is not lost to the sign-in detour.
-    return <Navigate to="/login" replace state={{ from: `${location.pathname}${location.search}` }} />;
+    return (
+      <Navigate to="/login" replace state={{ from: `${location.pathname}${location.search}` }} />
+    );
   }
 
   if (requireAdmin && !isAdmin) {

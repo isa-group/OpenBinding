@@ -1,10 +1,21 @@
 import type {
-  CompositionVersionView, CompositionView, EvaluationView, ForkedFrom, ProblemFacts, VersionDerivation,
+  CompositionVersionView,
+  CompositionView,
+  EvaluationView,
+  ForkedFrom,
+  ProblemFacts,
+  VersionDerivation,
 } from '../../shared/api/types';
 import { fromC2y, type Located } from '../../shared/diagnostics/located';
 import { candidateMatrix, type CandidateMatrix } from '../binding/candidateMatrix';
 import { workflowGraph, type WorkflowGraph } from '../binding/workflowGraph';
-import { readDocument, type CompositionDocument, type Evidence, type Kind, type Provenance } from './document';
+import {
+  readDocument,
+  type CompositionDocument,
+  type Evidence,
+  type Kind,
+  type Provenance,
+} from './document';
 import { readAnalytics, type Analytics } from './evolution';
 import { valueModels, valueStatus, type ValueModel, type ValueStatus } from './values';
 
@@ -17,7 +28,14 @@ import { valueModels, valueStatus, type ValueModel, type ValueStatus } from './v
 export type Reader = 'member' | 'public';
 
 /** The renderer's modes; `calculator` and `configurator` need a linked problem the reader may read. */
-export type Mode = 'catalog' | 'architecture' | 'workflow' | 'comparison' | 'calculator' | 'configurator' | 'showcase';
+export type Mode =
+  | 'catalog'
+  | 'architecture'
+  | 'workflow'
+  | 'comparison'
+  | 'calculator'
+  | 'configurator'
+  | 'showcase';
 
 export type Outcome = EvaluationView['outcome'];
 
@@ -113,9 +131,11 @@ export interface CompositionViewModelInput {
 }
 
 function currentEvaluation(version: CompositionVersionView): EvaluationView | null {
-  return version.evaluations.find((evaluation) => evaluation.current)
-    ?? version.evaluations.find((evaluation) => evaluation.id === version.current_evaluation_id)
-    ?? null;
+  return (
+    version.evaluations.find(evaluation => evaluation.current) ??
+    version.evaluations.find(evaluation => evaluation.id === version.current_evaluation_id) ??
+    null
+  );
 }
 
 /**
@@ -136,10 +156,17 @@ function offeringModel(offering: Record<string, string> | null | undefined): Off
     : { source: 'sphere', label: offering.sphere, href: null };
 }
 
-function tasksOf(graph: WorkflowGraph, document: CompositionDocument | null, selection: Record<string, string>, facts: ProblemFacts | null) {
+function tasksOf(
+  graph: WorkflowGraph,
+  document: CompositionDocument | null,
+  selection: Record<string, string>,
+  facts: ProblemFacts | null
+) {
   const binding = document?.binding ?? {};
-  const providers = new Map((facts?.candidates ?? []).map((candidate) => [candidate.key, candidate.provider]));
-  const ids = [...graph.tasks, ...Object.keys(binding).filter((task) => !graph.tasks.includes(task))];
+  const providers = new Map(
+    (facts?.candidates ?? []).map(candidate => [candidate.key, candidate.provider])
+  );
+  const ids = [...graph.tasks, ...Object.keys(binding).filter(task => !graph.tasks.includes(task))];
   return ids.map((id): TaskModel => {
     const entry = binding[id];
     const local = entry !== undefined && 'local' in entry;
@@ -149,7 +176,7 @@ function tasksOf(graph: WorkflowGraph, document: CompositionDocument | null, sel
       local,
       candidate: candidate?.candidate ?? null,
       from: candidate?.from ?? null,
-      provider: selection[id] ? providers.get(selection[id]) ?? null : null,
+      provider: selection[id] ? (providers.get(selection[id]) ?? null) : null,
     };
   });
 }
@@ -176,11 +203,14 @@ export function compositionViewModel(input: CompositionViewModelInput): Composit
     if (composition.visibility === 'public') modes.push('showcase');
   }
 
-  const diagnostics = member && evaluation
-    ? evaluation.diagnostics.map((diagnostic) => (input.content === undefined
-      ? fromC2y({ ...diagnostic, span: null }, '', COMPOSITION_FILE)
-      : fromC2y(diagnostic, input.content, COMPOSITION_FILE)))
-    : [];
+  const diagnostics =
+    member && evaluation
+      ? evaluation.diagnostics.map(diagnostic =>
+          input.content === undefined
+            ? fromC2y({ ...diagnostic, span: null }, '', COMPOSITION_FILE)
+            : fromC2y(diagnostic, input.content, COMPOSITION_FILE)
+        )
+      : [];
 
   return {
     identity: {
@@ -208,14 +238,18 @@ export function compositionViewModel(input: CompositionViewModelInput): Composit
       values: version ? valueStatus(version) : null,
       outcome: version?.current_evaluation?.outcome ?? null,
       compilationDrift: evaluatedOn !== null && linkedTo !== null && evaluatedOn !== linkedTo,
-      problemRef: document?.problem?.ref ?? (link ? `${link.problem.slug}@${link.revision.revision}` : null),
+      problemRef:
+        document?.problem?.ref ?? (link ? `${link.problem.slug}@${link.revision.revision}` : null),
       problemReadable,
-      problemRevision: problemReadable && link ? `${link.problem.slug}@${link.revision.revision}` : null,
+      problemRevision:
+        problemReadable && link ? `${link.problem.slug}@${link.revision.revision}` : null,
     },
     workflow: graph,
     tasks: tasksOf(graph, document, selection, facts),
     values: version ? valueModels(version) : [],
-    offering: offeringModel(version ? version.offering : null) ?? offeringModel(document?.offering as Record<string, string> | undefined),
+    offering:
+      offeringModel(version ? version.offering : null) ??
+      offeringModel(document?.offering as Record<string, string> | undefined),
     evidence: document?.evidence ?? null,
     selection,
     matrix: member && version && facts ? candidateMatrix(facts, { selection }) : null,

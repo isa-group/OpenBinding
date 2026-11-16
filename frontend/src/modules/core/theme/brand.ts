@@ -14,7 +14,8 @@ export function isBrand(value: unknown): value is Brand {
 
 /** The deployment's default: `VITE_DEFAULT_BRAND` when it names a palette, otherwise SPHERE's. */
 export function defaultBrand(env: Record<string, unknown> = import.meta.env): Brand {
-  const configured = typeof env.VITE_DEFAULT_BRAND === 'string' ? env.VITE_DEFAULT_BRAND.trim().toLowerCase() : '';
+  const configured =
+    typeof env.VITE_DEFAULT_BRAND === 'string' ? env.VITE_DEFAULT_BRAND.trim().toLowerCase() : '';
   return isBrand(configured) ? configured : 'sphere';
 }
 

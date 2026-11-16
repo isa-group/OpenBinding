@@ -14,10 +14,20 @@ vi.mock('../../../entities/composition/api', () => ({ compositionsApi: api }));
 
 const version = fmsVersionView();
 const BINDING = {
-  T1: 'cand_t1_aws', T2: 'cand_t2_radius_iot_network', T3: 'cand_t3_distance_matrix_api', T5: 'cand_t5_amazon_braket', T6: 'cand_t6_paypal',
+  T1: 'cand_t1_aws',
+  T2: 'cand_t2_radius_iot_network',
+  T3: 'cand_t3_distance_matrix_api',
+  T5: 'cand_t5_amazon_braket',
+  T6: 'cand_t6_paypal',
 };
 
-const modelOf = (reader: Reader = 'member') => compositionViewModel({ composition: FMS_COMPOSITION, version, facts: fmsFacts as ProblemFacts, reader });
+const modelOf = (reader: Reader = 'member') =>
+  compositionViewModel({
+    composition: FMS_COMPOSITION,
+    version,
+    facts: fmsFacts as ProblemFacts,
+    reader,
+  });
 
 function renderCalculator(actions: AnalysisActions = {}) {
   return render(<CompositionRenderer model={modelOf()} mode="calculator" analysis={actions} />);
@@ -37,8 +47,15 @@ describe('the calculator mode', () => {
     renderCalculator();
 
     expect(await within(section()).findByText(NEIGHBOURHOOD.conclusion)).toBeInTheDocument();
-    expect(api.neighborhood).toHaveBeenCalledWith('isa-demo', 'fleet-routing', { version: version.id, limit: 64 });
-    expect(bodyRows().map((row) => within(row).getByRole('rowheader').textContent)).toEqual(['T1', 'T2', 'T6']);
+    expect(api.neighborhood).toHaveBeenCalledWith('isa-demo', 'fleet-routing', {
+      version: version.id,
+      limit: 64,
+    });
+    expect(bodyRows().map(row => within(row).getByRole('rowheader').textContent)).toEqual([
+      'T1',
+      'T2',
+      'T6',
+    ]);
     const [t1, t2, t6] = bodyRows();
     expect(t1).toHaveTextContent('cand_t1_aws');
     expect(t1).toHaveTextContent('cand_t1_google_cloud');
@@ -51,35 +68,57 @@ describe('the calculator mode', () => {
     expect(within(t6).getByText('Trade-off')).toBeInTheDocument();
     expect(within(t2).getByText('Not feasible')).toBeInTheDocument();
     expect(t2).toHaveTextContent('Breaks a hard rule');
-    expect(within(t2).getByRole('list', { name: 'Rules broken' })).toHaveTextContent('Keep the data in the EU');
-    expect(within(t2).getByRole('list', { name: 'Changes in the objectives' })).toHaveTextContent('penalty +5');
-    expect(section()).toHaveTextContent('Evaluated 3 of 5 moves (up to 64) on the installed toolchain. Coverage is incomplete');
+    expect(within(t2).getByRole('list', { name: 'Rules broken' })).toHaveTextContent(
+      'Keep the data in the EU'
+    );
+    expect(within(t2).getByRole('list', { name: 'Changes in the objectives' })).toHaveTextContent(
+      'penalty +5'
+    );
+    expect(section()).toHaveTextContent(
+      'Evaluated 3 of 5 moves (up to 64) on the installed toolchain. Coverage is incomplete'
+    );
   });
 
   it('narrows the moves by candidate or provider, task and comparison word', async () => {
     renderCalculator();
     await within(section()).findByRole('table');
 
-    fireEvent.change(screen.getByRole('searchbox', { name: 'Search candidates and providers' }), { target: { value: 'STRIPE' } });
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search candidates and providers' }), {
+      target: { value: 'STRIPE' },
+    });
     expect(bodyRows()).toHaveLength(1);
     expect(bodyRows()[0]).toHaveTextContent('cand_t6_stripe');
 
-    fireEvent.change(screen.getByRole('searchbox', { name: 'Search candidates and providers' }), { target: { value: 'samsara' } });
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search candidates and providers' }), {
+      target: { value: 'samsara' },
+    });
     expect(bodyRows()[0]).toHaveTextContent('T2');
 
-    fireEvent.change(screen.getByRole('searchbox', { name: 'Search candidates and providers' }), { target: { value: '' } });
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search candidates and providers' }), {
+      target: { value: '' },
+    });
     const task = screen.getByRole('combobox', { name: 'Task' });
-    expect(within(task).getAllByRole('option').map((option) => option.textContent)).toEqual(['All tasks', 'T1', 'T2', 'T6']);
+    expect(
+      within(task)
+        .getAllByRole('option')
+        .map(option => option.textContent)
+    ).toEqual(['All tasks', 'T1', 'T2', 'T6']);
     fireEvent.change(task, { target: { value: 'T6' } });
     expect(bodyRows()).toHaveLength(1);
 
     fireEvent.change(task, { target: { value: '' } });
     const comparison = screen.getByRole('combobox', { name: 'Comparison' });
-    expect(within(comparison).getAllByRole('option').map((option) => option.textContent)).toEqual(['Any comparison', 'Better', 'Not feasible', 'Trade-off']);
+    expect(
+      within(comparison)
+        .getAllByRole('option')
+        .map(option => option.textContent)
+    ).toEqual(['Any comparison', 'Better', 'Not feasible', 'Trade-off']);
     fireEvent.change(comparison, { target: { value: 'trade-off' } });
-    expect(bodyRows().map((row) => within(row).getByRole('rowheader').textContent)).toEqual(['T6']);
+    expect(bodyRows().map(row => within(row).getByRole('rowheader').textContent)).toEqual(['T6']);
 
-    fireEvent.change(screen.getByRole('searchbox', { name: 'Search candidates and providers' }), { target: { value: 'nothing like it' } });
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search candidates and providers' }), {
+      target: { value: 'nothing like it' },
+    });
     expect(within(section()).getByText(/No move matches/)).toBeInTheDocument();
   });
 
@@ -94,7 +133,9 @@ describe('the calculator mode', () => {
     expect(previous).toBeDisabled();
 
     fireEvent.click(next);
-    expect(within(section()).getByText(/^Move 2 of 3/)).toHaveTextContent('T2 cand_t2_radius_iot_network → cand_t2_samsara_fleet_api');
+    expect(within(section()).getByText(/^Move 2 of 3/)).toHaveTextContent(
+      'T2 cand_t2_radius_iot_network → cand_t2_samsara_fleet_api'
+    );
     expect(bodyRows()[1]).toHaveAttribute('aria-current', 'true');
     expect(bodyRows()[0]).not.toHaveAttribute('aria-current');
     fireEvent.click(next);
@@ -120,26 +161,37 @@ describe('the calculator mode', () => {
     await within(section()).findByRole('table');
 
     fireEvent.click(within(bodyRows()[0]).getByRole('button', { name: 'Derive composition' }));
-    expect(onDerive).toHaveBeenCalledWith({ revision: 'fms@1', binding: { ...BINDING, T1: 'cand_t1_google_cloud' } });
+    expect(onDerive).toHaveBeenCalledWith({
+      revision: 'fms@1',
+      binding: { ...BINDING, T1: 'cand_t1_google_cloud' },
+    });
   });
 
   it('says why the moves could not be evaluated, and asks again on Retry', async () => {
-    api.neighborhood.mockRejectedValueOnce(Object.assign(new HttpError(429, 'busy'), { code: 'composition_busy' }));
+    api.neighborhood.mockRejectedValueOnce(
+      Object.assign(new HttpError(429, 'busy'), { code: 'composition_busy' })
+    );
     renderCalculator();
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('The toolchain is busy (429 · composition_busy).');
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'The toolchain is busy (429 · composition_busy).'
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     expect(await within(section()).findByRole('table')).toBeInTheDocument();
     expect(api.neighborhood).toHaveBeenCalledTimes(2);
   });
 
   it('tells the page when the gateway says the version links no problem', async () => {
-    api.neighborhood.mockRejectedValueOnce(Object.assign(new HttpError(422, 'not linked'), { code: 'composition_not_linked' }));
+    api.neighborhood.mockRejectedValueOnce(
+      Object.assign(new HttpError(422, 'not linked'), { code: 'composition_not_linked' })
+    );
     const onNotLinked = vi.fn();
     renderCalculator({ onNotLinked });
 
     await waitFor(() => expect(onNotLinked).toHaveBeenCalledTimes(1));
-    expect(section()).toHaveTextContent('Values are declared: the calculator and configurator need a linked problem you can read.');
+    expect(section()).toHaveTextContent(
+      'Values are declared: the calculator and configurator need a linked problem you can read.'
+    );
   });
 
   it('is not drawn for a reader who may not read the linked problem', () => {
@@ -155,14 +207,29 @@ describe('the calculator model', () => {
 
   it('places the gateway’s fields only: the current candidate, the written name, the provider, the deltas with units', () => {
     expect(rows[1]).toMatchObject({
-      index: 1, task: 'T1', from: 'cand_t1_aws', to: 'cand_t1_google_cloud', provider: 'google', comparison: 'better', feasible: true, penaltyDelta: 0,
+      index: 1,
+      task: 'T1',
+      from: 'cand_t1_aws',
+      to: 'cand_t1_google_cloud',
+      provider: 'google',
+      comparison: 'better',
+      feasible: true,
+      penaltyDelta: 0,
     });
-    expect(rows[1].deltas[0]).toEqual({ feature: 'cost', value: -20, loss: -0.015, unit: 'USD/month' });
+    expect(rows[1].deltas[0]).toEqual({
+      feature: 'cost',
+      value: -20,
+      loss: -0.015,
+      unit: 'USD/month',
+    });
   });
 
   it('orders by task and then by the gateway’s order, and lists each choice once', () => {
-    expect(visibleRows(rows, NO_FILTER).map((row) => row.index)).toEqual([1, 2, 0]);
-    expect(rowChoices(rows)).toEqual({ tasks: ['T1', 'T2', 'T6'], comparisons: ['better', 'infeasible', 'trade-off'] });
+    expect(visibleRows(rows, NO_FILTER).map(row => row.index)).toEqual([1, 2, 0]);
+    expect(rowChoices(rows)).toEqual({
+      tasks: ['T1', 'T2', 'T6'],
+      comparisons: ['better', 'infeasible', 'trade-off'],
+    });
   });
 
   it('writes a delta with its sign, never computing one', () => {

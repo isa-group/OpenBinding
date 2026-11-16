@@ -16,7 +16,11 @@ export type ChangeKind = DiffEntry['kind'];
 
 export const CHANGE_KINDS: readonly ChangeKind[] = ['added', 'removed', 'changed'];
 
-export const KIND_LABELS: Readonly<Record<ChangeKind, string>> = { added: 'Added', removed: 'Removed', changed: 'Changed' };
+export const KIND_LABELS: Readonly<Record<ChangeKind, string>> = {
+  added: 'Added',
+  removed: 'Removed',
+  changed: 'Changed',
+};
 
 /** Something the screen asked the gateway for: on its way, refused (with a retry), or here. */
 export type Loaded<T> =
@@ -32,8 +36,11 @@ export function activeFilter(diff: Diff, filter: ChangeKind | null): ChangeKind 
 /** The sections with entries of the kind the filter keeps (every kind without one); empty sections are left out. */
 export function filteredSections(diff: Diff, filter: ChangeKind | null): DiffSection[] {
   return diff.sections
-    .map((section) => ({ ...section, entries: filter ? section.entries.filter((entry) => entry.kind === filter) : section.entries }))
-    .filter((section) => section.entries.length > 0);
+    .map(section => ({
+      ...section,
+      entries: filter ? section.entries.filter(entry => entry.kind === filter) : section.entries,
+    }))
+    .filter(section => section.entries.length > 0);
 }
 
 /** Changes of the top-level fields (kind, problem, workflow…) count as changed. */
@@ -42,7 +49,8 @@ export function showsGeneral(diff: Diff, filter: ChangeKind | null): boolean {
 }
 
 /** An entry shows its field changes at first when it was changed in a few fields. */
-export const opensAtFirst = (entry: DiffEntry): boolean => entry.kind === 'changed' && entry.changes.length <= 6;
+export const opensAtFirst = (entry: DiffEntry): boolean =>
+  entry.kind === 'changed' && entry.changes.length <= 6;
 
 const isStructure = (value: unknown) => typeof value === 'object' && value !== null;
 
@@ -69,7 +77,8 @@ const side = (value: unknown, which: DiffSide): SideText => ({
 
 /** A field change of an entry of `kind`, as a row reads it: `before → after`, with a missing side read as absent. */
 export function changeRow(change: FieldChange, kind: ChangeKind): ChangeRowModel {
-  if (isStructure(change.before) || isStructure(change.after)) return { path: change.path, before: null, after: null, structure: true };
+  if (isStructure(change.before) || isStructure(change.after))
+    return { path: change.path, before: null, after: null, structure: true };
   return {
     path: change.path,
     before: kind === 'added' ? null : side(change.before, 'before'),
@@ -78,40 +87,50 @@ export function changeRow(change: FieldChange, kind: ChangeKind): ChangeRowModel
   };
 }
 
-const bindingEntries = (diff: Diff) => diff.sections.filter((section) => section.key === 'binding').flatMap((section) => section.entries);
+const bindingEntries = (diff: Diff) =>
+  diff.sections.filter(section => section.key === 'binding').flatMap(section => section.entries);
 
 /**
  * What the workflow drawing of the later version says of each task: its candidate (or that it is local) and whether its binding
  * entry was added or changed since the earlier version.
  */
 export function taskOverlay(diff: Diff, tasks: readonly TaskModel[]): Record<string, TaskOverlay> {
-  const kinds = new Map(bindingEntries(diff).map((entry) => [entry.name, entry.kind]));
-  return Object.fromEntries(tasks.map((task): [string, TaskOverlay] => {
-    const status = kinds.get(task.id);
-    return [task.id, {
-      ...(task.local ? { local: true } : task.candidate ? { candidate: task.candidate } : {}),
-      ...(status ? { status } : {}),
-    }];
-  }));
+  const kinds = new Map(bindingEntries(diff).map(entry => [entry.name, entry.kind]));
+  return Object.fromEntries(
+    tasks.map((task): [string, TaskOverlay] => {
+      const status = kinds.get(task.id);
+      return [
+        task.id,
+        {
+          ...(task.local ? { local: true } : task.candidate ? { candidate: task.candidate } : {}),
+          ...(status ? { status } : {}),
+        },
+      ];
+    })
+  );
 }
 
 /** The tasks whose binding entry was removed and that the later version's workflow no longer has, so its drawing cannot show them. */
 export function removedTasks(diff: Diff, tasks: readonly TaskModel[]): string[] {
-  const present = new Set(tasks.map((task) => task.id));
-  return bindingEntries(diff).filter((entry) => entry.kind === 'removed' && !present.has(entry.name)).map((entry) => entry.name);
+  const present = new Set(tasks.map(task => task.id));
+  return bindingEntries(diff)
+    .filter(entry => entry.kind === 'removed' && !present.has(entry.name))
+    .map(entry => entry.name);
 }
 
 /** Whether the workflow itself changed (a general change of `workflow`). */
-export const workflowChanged = (diff: Diff): boolean => diff.general.some((change) => change.path === 'workflow');
+export const workflowChanged = (diff: Diff): boolean =>
+  diff.general.some(change => change.path === 'workflow');
 
 /**
  * The tags of each candidate in the matrix: the label of every version whose evaluation chose it, so both selections show.
  * Selections are task → candidate key, as `EvaluationView.binding` has them; keys are compared, never read.
  */
 export function selectionTags(
-  selections: ReadonlyArray<{ label: string; selection: Readonly<Record<string, string>> | null }>,
+  selections: ReadonlyArray<{ label: string; selection: Readonly<Record<string, string>> | null }>
 ): (task: string, candidate: string) => string[] {
-  return (task, candidate) => selections
-    .filter(({ selection }) => selection?.[task] === candidate)
-    .map(({ label }) => `In ${label}`);
+  return (task, candidate) =>
+    selections
+      .filter(({ selection }) => selection?.[task] === candidate)
+      .map(({ label }) => `In ${label}`);
 }

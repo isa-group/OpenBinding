@@ -18,8 +18,14 @@ vi.mock('../contexts/auth', () => ({ useAuth: () => auth }));
 vi.mock('../api/platform', () => ({ platformApi: platform }));
 
 const researchUser: UserProfile = {
-  id: 'user-id', username: 'researcher', email: 'researcher@us.es', role: 'user', is_active: true,
-  plan: 'RESEARCH', created_at: '2026-09-01T00:00:00Z', cas_verified: true,
+  id: 'user-id',
+  username: 'researcher',
+  email: 'researcher@us.es',
+  role: 'user',
+  is_active: true,
+  plan: 'RESEARCH',
+  created_at: '2026-09-01T00:00:00Z',
+  cas_verified: true,
 };
 
 const markName = { name: 'Universidad de Sevilla' };
@@ -33,7 +39,11 @@ describe('Universidad de Sevilla institutional branding', () => {
   });
 
   it('places the compact co-brand inside the home link of the public header', () => {
-    render(<MemoryRouter><Navigation /></MemoryRouter>);
+    render(
+      <MemoryRouter>
+        <Navigation />
+      </MemoryRouter>
+    );
 
     const brandLink = screen.getByRole('link', { name: /OpenBinding home/i });
     const mark = screen.getByTitle('Institutional account · Universidad de Sevilla');
@@ -47,7 +57,11 @@ describe('Universidad de Sevilla institutional branding', () => {
   });
 
   it('adds a wide mark row to the mobile menu and a chip to the account menu', () => {
-    render(<MemoryRouter><Navigation /></MemoryRouter>);
+    render(
+      <MemoryRouter>
+        <Navigation />
+      </MemoryRouter>
+    );
 
     fireEvent.click(screen.getByRole('button', { name: 'Account menu' }));
     expect(screen.getByText('Universidad de Sevilla · Institutional account')).toBeInTheDocument();
@@ -56,19 +70,30 @@ describe('Universidad de Sevilla institutional branding', () => {
     const mobile = screen.getByRole('navigation', { name: 'Mobile navigation' });
     const wide = within(mobile).getByRole('link', markName);
     expect(wide).toHaveAttribute('href', 'https://www.us.es');
-    expect(within(wide).getByRole('img', markName)).toHaveAttribute('src', '/brands/universidad-sevilla.svg');
+    expect(within(wide).getByRole('img', markName)).toHaveAttribute(
+      'src',
+      '/brands/universidad-sevilla.svg'
+    );
   });
 
   it('shows the mark for RESEARCH accounts', () => {
     auth.user = { ...researchUser, plan: 'RESEARCH' };
-    render(<MemoryRouter><Navigation /></MemoryRouter>);
+    render(
+      <MemoryRouter>
+        <Navigation />
+      </MemoryRouter>
+    );
 
     expect(screen.getByRole('img', markName)).toBeInTheDocument();
   });
 
   it('does not show any mark on another plan', () => {
     auth.user = { ...researchUser, plan: 'LAB' };
-    render(<MemoryRouter><Navigation /></MemoryRouter>);
+    render(
+      <MemoryRouter>
+        <Navigation />
+      </MemoryRouter>
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Account menu' }));
     expect(screen.queryByRole('img', markName)).not.toBeInTheDocument();
     expect(screen.queryByText(/Institutional account/)).not.toBeInTheDocument();
@@ -80,41 +105,74 @@ describe('Universidad de Sevilla institutional branding', () => {
 
   it('never infers institutional status from a @us.es address', () => {
     auth.user = { ...researchUser, plan: 'FREE', email: 'someone@us.es' };
-    render(<MemoryRouter><Navigation /><SiteFooter /></MemoryRouter>);
+    render(
+      <MemoryRouter>
+        <Navigation />
+        <SiteFooter />
+      </MemoryRouter>
+    );
 
     expect(screen.queryByRole('img', markName)).not.toBeInTheDocument();
   });
 
   it('shows nothing to guests', () => {
     auth.user = null;
-    render(<MemoryRouter><Navigation /><SiteFooter /><InstitutionMark variant="wide" /></MemoryRouter>);
+    render(
+      <MemoryRouter>
+        <Navigation />
+        <SiteFooter />
+        <InstitutionMark variant="wide" />
+      </MemoryRouter>
+    );
 
     expect(screen.queryByRole('img', markName)).not.toBeInTheDocument();
   });
 
   it('adds the wide mark to the footer without removing the text links', () => {
-    render(<MemoryRouter><SiteFooter /></MemoryRouter>);
+    render(
+      <MemoryRouter>
+        <SiteFooter />
+      </MemoryRouter>
+    );
 
-    expect(screen.getByRole('img', markName)).toHaveAttribute('src', '/brands/universidad-sevilla.svg');
+    expect(screen.getByRole('img', markName)).toHaveAttribute(
+      'src',
+      '/brands/universidad-sevilla.svg'
+    );
     expect(screen.getByRole('link', { name: 'SCORE Lab' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'ISA Group' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'GitHub Source' })).toBeInTheDocument();
   });
 
   it('uses the shared component inside the authenticated platform shell', async () => {
-    render(<MemoryRouter initialEntries={['/app']}><PlatformShell /></MemoryRouter>);
+    render(
+      <MemoryRouter initialEntries={['/app']}>
+        <PlatformShell />
+      </MemoryRouter>
+    );
 
     await waitFor(() => expect(platform.organizations).toHaveBeenCalledOnce());
     // Topbar (compact), sidebar (wide) and mobile menu (wide).
     expect(screen.getAllByRole('img', markName)).toHaveLength(3);
     const brandLink = screen.getByRole('link', { name: /OpenBinding home/i });
-    expect(brandLink.querySelector('img[alt="Universidad de Sevilla"]')).toHaveAttribute('src', '/brands/us-fama.png');
-    expect(screen.getAllByRole('link', markName).every((link) => link.getAttribute('href') === 'https://www.us.es')).toBe(true);
+    expect(brandLink.querySelector('img[alt="Universidad de Sevilla"]')).toHaveAttribute(
+      'src',
+      '/brands/us-fama.png'
+    );
+    expect(
+      screen
+        .getAllByRole('link', markName)
+        .every(link => link.getAttribute('href') === 'https://www.us.es')
+    ).toBe(true);
   });
 
   it('keeps the platform shell free of marks for ordinary accounts', async () => {
     auth.user = { ...researchUser, plan: 'LAB' };
-    render(<MemoryRouter initialEntries={['/app']}><PlatformShell /></MemoryRouter>);
+    render(
+      <MemoryRouter initialEntries={['/app']}>
+        <PlatformShell />
+      </MemoryRouter>
+    );
 
     await waitFor(() => expect(platform.organizations).toHaveBeenCalledOnce());
     expect(screen.queryByRole('img', markName)).not.toBeInTheDocument();

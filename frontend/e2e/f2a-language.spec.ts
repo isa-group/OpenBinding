@@ -9,10 +9,14 @@ import { installMockApi } from './helpers/mockApi';
 const expect = baseExpect.configure({ timeout: 15_000 });
 
 /** The text of the playground, line by line, as CodeMirror shows it. */
-const playgroundText = async (page: Page) => (await page.getByRole('main').locator('.cm-content .cm-line').allInnerTexts()).join('\n');
+const playgroundText = async (page: Page) =>
+  (await page.getByRole('main').locator('.cm-content .cm-line').allInnerTexts()).join('\n');
 
 test.describe('J6 · language', () => {
-  test('a visitor breaks the sample, fixes it, and shares the text through a link that opens it again', async ({ page, context }) => {
+  test('a visitor breaks the sample, fixes it, and shares the text through a link that opens it again', async ({
+    page,
+    context,
+  }) => {
     test.setTimeout(120_000);
     await context.grantPermissions(['clipboard-read', 'clipboard-write']);
     await installMockApi(page, 'visitor');
@@ -21,7 +25,10 @@ test.describe('J6 · language', () => {
 
     // The reference, from the public header.
     await page.goto('/');
-    await page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('link', { name: 'Language' }).click();
+    await page
+      .getByRole('navigation', { name: 'Primary navigation' })
+      .getByRole('link', { name: 'Language' })
+      .click();
     await expect(page).toHaveURL('/language');
     await expect(main.getByRole('heading', { level: 1, name: 'Composition2Yaml' })).toBeVisible();
     const source = main.getByRole('textbox', { name: 'composition.yaml source' });
@@ -54,7 +61,9 @@ test.describe('J6 · language', () => {
 
     // The canonical form is the gateway's writing of the same document.
     await main.getByRole('tab', { name: 'Canonical form' }).click();
-    await expect(main.getByRole('region', { name: 'Canonical form' }).locator('pre')).toContainText('composition: my-composition-shared');
+    await expect(main.getByRole('region', { name: 'Canonical form' }).locator('pre')).toContainText(
+      'composition: my-composition-shared'
+    );
     await main.getByRole('tab', { name: 'Problems' }).click();
 
     // The share link carries the text in its fragment.

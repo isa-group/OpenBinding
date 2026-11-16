@@ -1,4 +1,11 @@
-import { useEffect, useId, useRef, type KeyboardEvent, type ReactNode, type RefObject } from 'react';
+import {
+  useEffect,
+  useId,
+  useRef,
+  type KeyboardEvent,
+  type ReactNode,
+  type RefObject,
+} from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import './Modal.css';
@@ -21,13 +28,23 @@ interface ModalProps {
   initialFocus?: RefObject<HTMLElement | null>;
 }
 
-const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+const FOCUSABLE =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 /**
  * A modal dialog: it takes focus, keeps Tab inside, closes on Escape and returns focus to what opened it.
  * The application behind it is inert while it is open.
  */
-export function Modal({ title, children, onClose, tone = 'default', dismissible = true, size = 'md', eyebrow, initialFocus }: ModalProps) {
+export function Modal({
+  title,
+  children,
+  onClose,
+  tone = 'default',
+  dismissible = true,
+  size = 'md',
+  eyebrow,
+  initialFocus,
+}: ModalProps) {
   const titleId = useId();
   const panel = useRef<HTMLDivElement>(null);
   const firstFocus = useRef(initialFocus);
@@ -36,10 +53,13 @@ export function Modal({ title, children, onClose, tone = 'default', dismissible 
     const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const root = document.getElementById('root');
     root?.setAttribute('inert', '');
-    const target = firstFocus.current?.current
-      ?? panel.current?.querySelector<HTMLElement>('[data-autofocus]')
-      ?? panel.current?.querySelector<HTMLElement>('.ui-modal-body input, .ui-modal-body select, .ui-modal-body textarea')
-      ?? panel.current;
+    const target =
+      firstFocus.current?.current ??
+      panel.current?.querySelector<HTMLElement>('[data-autofocus]') ??
+      panel.current?.querySelector<HTMLElement>(
+        '.ui-modal-body input, .ui-modal-body select, .ui-modal-body textarea'
+      ) ??
+      panel.current;
     target?.focus();
     return () => {
       root?.removeAttribute('inert');
@@ -61,7 +81,8 @@ export function Modal({ title, children, onClose, tone = 'default', dismissible 
     }
     const first = stops[0];
     const last = stops[stops.length - 1];
-    const outside = !panel.current.contains(document.activeElement) || document.activeElement === panel.current;
+    const outside =
+      !panel.current.contains(document.activeElement) || document.activeElement === panel.current;
     if (event.shiftKey && (document.activeElement === first || outside)) {
       event.preventDefault();
       last.focus();
@@ -73,8 +94,19 @@ export function Modal({ title, children, onClose, tone = 'default', dismissible 
 
   return createPortal(
     <div className="ui-modal-layer" onKeyDown={onKeyDown}>
-      <div className="ui-modal-backdrop" onClick={dismissible ? onClose : undefined} aria-hidden="true" />
-      <div ref={panel} className={`ui-modal is-${tone} is-${size}`} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}>
+      <div
+        className="ui-modal-backdrop"
+        onClick={dismissible ? onClose : undefined}
+        aria-hidden="true"
+      />
+      <div
+        ref={panel}
+        className={`ui-modal is-${tone} is-${size}`}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+      >
         <header className="ui-modal-head">
           <div>
             {eyebrow && <span className="ui-modal-eyebrow">{eyebrow}</span>}
@@ -89,6 +121,6 @@ export function Modal({ title, children, onClose, tone = 'default', dismissible 
         <div className="ui-modal-body">{children}</div>
       </div>
     </div>,
-    document.body,
+    document.body
   );
 }

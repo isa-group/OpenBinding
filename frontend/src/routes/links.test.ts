@@ -6,27 +6,38 @@ import { routeDefinitions } from './registry';
 const lineOf = (text: string, at: number) => text.slice(0, at).split('\n').length;
 
 /** Every source file that is not a test, as text. */
-const sources = import.meta.glob<string>(['../**/*.{ts,tsx}', '!../**/*.test.{ts,tsx}'], { query: '?raw', import: 'default', eager: true });
+const sources = import.meta.glob<string>(['../**/*.{ts,tsx}', '!../**/*.test.{ts,tsx}'], {
+  query: '?raw',
+  import: 'default',
+  eager: true,
+});
 
 /**
  * The static internal addresses written in the code: `to="/x"`, `to: '/x'`, `href: '/x'`, `to={`/x/${id}`}`, `navigate('/x')`.
  * Addresses built from a variable first (`${base}/x`) are not static and are left to the tests of their screen.
  */
-const LINK = /(?:\bto|\bhref|\bfrom)\s*(?:=\s*\{?|:\s*)(['"`])(\/[^'"`]*)\1|\bnavigate\(\s*(['"`])(\/[^'"`]*)\3/g;
+const LINK =
+  /(?:\bto|\bhref|\bfrom)\s*(?:=\s*\{?|:\s*)(['"`])(\/[^'"`]*)\1|\bnavigate\(\s*(['"`])(\/[^'"`]*)\3/g;
 
 /** The screens: a link leads to one of them. */
-const config = routeDefinitions.map((definition) => ({ id: definition.id, path: definition.path }));
+const config = routeDefinitions.map(definition => ({ id: definition.id, path: definition.path }));
 
 /** The route an address leads to, with the query, the hash and any `${…}` filled in by an example value. */
 const pathOf = (address: string) => address.replace(/\$\{[^}]*\}/g, 'sample').split(/[?#]/)[0];
 
 /** The static links of a source text, each with its address and its line. */
 function linksOf(file: string, text: string) {
-  return [...text.matchAll(LINK)].map((match) => ({ file, line: lineOf(text, match.index ?? 0), address: match[2] ?? match[4] }));
+  return [...text.matchAll(LINK)].map(match => ({
+    file,
+    line: lineOf(text, match.index ?? 0),
+    address: match[2] ?? match[4],
+  }));
 }
 
 function staticLinks() {
-  return Object.entries(sources).flatMap(([file, text]) => linksOf(file.replace('../', 'src/'), text));
+  return Object.entries(sources).flatMap(([file, text]) =>
+    linksOf(file.replace('../', 'src/'), text)
+  );
 }
 
 describe('internal links written in the code', () => {
@@ -35,7 +46,9 @@ describe('internal links written in the code', () => {
   });
 
   it('reads each way of writing a link, with its line', () => {
-    const text = ['<Link to="/a/b">', 'x({ to: `/c/${id}`, href: \'/d\' });', 'navigate("/e");'].join('\n');
+    const text = ['<Link to="/a/b">', "x({ to: `/c/${id}`, href: '/d' });", 'navigate("/e");'].join(
+      '\n'
+    );
     expect(linksOf('src/X.tsx', text)).toEqual([
       { file: 'src/X.tsx', line: 1, address: '/a/b' },
       { file: 'src/X.tsx', line: 2, address: '/c/${id}' },
@@ -52,8 +65,11 @@ describe('internal links written in the code', () => {
   });
 
   it('do not point at the addresses the redesign retired', () => {
-    const retired = /^\/(playground|profiles|schemas|team|research|funding|contributions|changelog)(\/|$)|^\/app\/analysis\?job=|^\/app\/[^/]+\/[^/]+\/(verifier|analytics|artifacts|reports|library|resources)(\/|$)|^\/app\/[^/]+\/library(\/|$)|^\/app\/[^/]+\/[^/]+\/cases\/[^/]+\/compose(\/|$)/;
-    const old = staticLinks().filter(({ address }) => retired.test(address)).map(({ file, line, address }) => `${file}:${line}: ${address}`);
+    const retired =
+      /^\/(playground|profiles|schemas|team|research|funding|contributions|changelog)(\/|$)|^\/app\/analysis\?job=|^\/app\/[^/]+\/[^/]+\/(verifier|analytics|artifacts|reports|library|resources)(\/|$)|^\/app\/[^/]+\/library(\/|$)|^\/app\/[^/]+\/[^/]+\/cases\/[^/]+\/compose(\/|$)/;
+    const old = staticLinks()
+      .filter(({ address }) => retired.test(address))
+      .map(({ file, line, address }) => `${file}:${line}: ${address}`);
     expect(old).toEqual([]);
   });
 });

@@ -31,12 +31,27 @@ export interface QoSRule {
 
 type Rec = Record<string, unknown>;
 
-const isRecord = (value: unknown): value is Rec => typeof value === 'object' && value !== null && !Array.isArray(value);
+const isRecord = (value: unknown): value is Rec =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
 const list = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
-const text = (value: unknown): string | null => (typeof value === 'string' && value.trim() ? value : null);
-const finite = (value: unknown): number | null => (typeof value === 'number' && Number.isFinite(value) ? value : null);
+const text = (value: unknown): string | null =>
+  typeof value === 'string' && value.trim() ? value : null;
+const finite = (value: unknown): number | null =>
+  typeof value === 'number' && Number.isFinite(value) ? value : null;
 
-const OPERATORS: Record<string, string> = { eq: '=', ne: '≠', lt: '<', lte: '≤', gt: '>', gte: '≥', add: '+', sub: '−', mul: '×', div: '÷', pow: '^' };
+const OPERATORS: Record<string, string> = {
+  eq: '=',
+  ne: '≠',
+  lt: '<',
+  lte: '≤',
+  gt: '>',
+  gte: '≥',
+  add: '+',
+  sub: '−',
+  mul: '×',
+  div: '÷',
+  pow: '^',
+};
 const FLIPPED: Record<BoundOp, BoundOp> = { lt: 'gt', lte: 'gte', gt: 'lt', gte: 'lte' };
 const FALLBACK_TEXT = 'Reported by the gateway; not a rule of the compiled problem.';
 
@@ -45,7 +60,9 @@ function describe(expression: unknown, depth = 0): string {
   if (!isRecord(expression) || depth > 8) return '…';
   const wrap = (inner: unknown) => {
     const shown = describe(inner, depth + 1);
-    return isRecord(inner) && ['and', 'or', 'compare', 'arithmetic'].includes(String(inner.kind)) ? `(${shown})` : shown;
+    return isRecord(inner) && ['and', 'or', 'compare', 'arithmetic'].includes(String(inner.kind))
+      ? `(${shown})`
+      : shown;
   };
   switch (expression.kind) {
     case 'literal': {
@@ -55,20 +72,28 @@ function describe(expression: unknown, depth = 0): string {
     }
     case 'path':
       return list(expression.segments).map(String).join('.');
-    case 'not': return `not ${wrap(expression.value)}`;
-    case 'negate': return `−${wrap(expression.value)}`;
-    case 'and': return `${wrap(expression.left)} and ${wrap(expression.right)}`;
-    case 'or': return `${wrap(expression.left)} or ${wrap(expression.right)}`;
+    case 'not':
+      return `not ${wrap(expression.value)}`;
+    case 'negate':
+      return `−${wrap(expression.value)}`;
+    case 'and':
+      return `${wrap(expression.left)} and ${wrap(expression.right)}`;
+    case 'or':
+      return `${wrap(expression.left)} or ${wrap(expression.right)}`;
     case 'compare':
     case 'arithmetic':
       return `${wrap(expression.left)} ${OPERATORS[String(expression.op)] ?? String(expression.op)} ${wrap(expression.right)}`;
     case 'call':
-      return `${String(expression.name)}(${list(expression.args).map((arg) => describe(arg, depth + 1)).join(', ')})`;
-    default: return '…';
+      return `${String(expression.name)}(${list(expression.args)
+        .map(arg => describe(arg, depth + 1))
+        .join(', ')})`;
+    default:
+      return '…';
   }
 }
 
-const isAlways = (expression: unknown) => isRecord(expression) && expression.kind === 'literal' && expression.value === true;
+const isAlways = (expression: unknown) =>
+  isRecord(expression) && expression.kind === 'literal' && expression.value === true;
 
 /** The comparisons of an assert joined only by `and`, left to right; null when any conjunct is something else. */
 function conjuncts(expression: unknown, depth = 0): Rec[] | null {
@@ -87,7 +112,8 @@ const featureOf = (node: unknown): string | null => {
   return segments.length === 2 && segments[0] === 'features' ? text(segments[1]) : null;
 };
 
-const numberOf = (node: unknown): number | null => (isRecord(node) && node.kind === 'literal' ? finite(node.value) : null);
+const numberOf = (node: unknown): number | null =>
+  isRecord(node) && node.kind === 'literal' ? finite(node.value) : null;
 
 function boundOf(node: Rec): { feature: string; op: BoundOp; limit: number } | null {
   if (node.kind !== 'compare') return null;
@@ -101,10 +127,17 @@ function boundOf(node: Rec): { feature: string; op: BoundOp; limit: number } | n
   return flipped !== null && limit !== null ? { feature: flipped, op: FLIPPED[op], limit } : null;
 }
 
-interface Violation { resource: string; id: string; soft: boolean; penalty: number | null; message: string | null }
+interface Violation {
+  resource: string;
+  id: string;
+  soft: boolean;
+  penalty: number | null;
+  message: string | null;
+}
 
 /** A violated constraint named as the facts name constraints (`<resource>/<id>`), so the two are compared as identifiers. */
-const nameOf = (violation: Violation) => (violation.resource ? `${violation.resource}/${violation.id}` : violation.id);
+const nameOf = (violation: Violation) =>
+  violation.resource ? `${violation.resource}/${violation.id}` : violation.id;
 
 const readViolations = (violations: unknown): Violation[] | null => {
   if (!Array.isArray(violations)) return null;
@@ -132,7 +165,7 @@ export function qosBoundsOf(
   constraints: unknown,
   features: Record<string, unknown> | null | undefined,
   violations: unknown,
-  units?: Record<string, string | null>,
+  units?: Record<string, string | null>
 ): { bounds: QoSBound[]; rules: QoSRule[] } {
   const reported = readViolations(violations);
   const bounds: QoSBound[] = [];
@@ -145,22 +178,31 @@ export function qosBoundsOf(
     const rule = text(entry.id);
     if (rule === null) continue;
     const enforcement = entry.enforcement === 'soft' ? 'soft' : 'hard';
-    const matches = reported === null ? [] : reported.filter((v) => nameOf(v) === rule);
-    matches.forEach((v) => matched.add(v));
+    const matches = reported === null ? [] : reported.filter(v => nameOf(v) === rule);
+    matches.forEach(v => matched.add(v));
     const met = reported === null ? null : matches.length === 0;
-    const status = { enforcement, met, ...(met === false && enforcement === 'soft' ? { penalty: penaltyOf(matches) } : {}) } as const;
+    const status = {
+      enforcement,
+      met,
+      ...(met === false && enforcement === 'soft' ? { penalty: penaltyOf(matches) } : {}),
+    } as const;
 
     const always = entry.when === undefined || entry.when === null || isAlways(entry.when);
     const parts = always ? conjuncts(entry.expression) : null;
     const read = parts?.map(boundOf);
-    if (parts && read && read.every((b) => b !== null)) {
+    if (parts && read && read.every(b => b !== null)) {
       for (const b of read) {
         const value = finite(values[b.feature]);
         const unit = text(units?.[b.feature]);
         bounds.push({ rule, feature: b.feature, op: b.op, limit: b.limit, value, unit, ...status });
       }
     } else {
-      rules.push({ rule, text: describe(entry.expression), when: always ? null : describe(entry.when), ...status });
+      rules.push({
+        rule,
+        text: describe(entry.expression),
+        when: always ? null : describe(entry.when),
+        ...status,
+      });
     }
   }
 
@@ -169,10 +211,12 @@ export function qosBoundsOf(
     const key = `${v.resource}\u0000${v.id}`;
     if (matched.has(v) || seen.has(key)) continue;
     seen.add(key);
-    const group = (reported ?? []).filter((o) => o.resource === v.resource && o.id === v.id && !matched.has(o));
+    const group = (reported ?? []).filter(
+      o => o.resource === v.resource && o.id === v.id && !matched.has(o)
+    );
     rules.push({
       rule: nameOf(v),
-      text: group.find((o) => o.message !== null)?.message ?? FALLBACK_TEXT,
+      text: group.find(o => o.message !== null)?.message ?? FALLBACK_TEXT,
       when: null,
       enforcement: v.soft ? 'soft' : 'hard',
       met: false,

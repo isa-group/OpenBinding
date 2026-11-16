@@ -49,10 +49,11 @@ export interface ChangeSummary {
 const asText = (value: unknown): string | null => (typeof value === 'string' ? value : null);
 const asNumber = (value: unknown): number | null => (typeof value === 'number' ? value : null);
 
-const changedEntries = (diff: CompositionVersionDiff, key: SectionKey) => diff.sections
-  .filter(section => section.key === key)
-  .flatMap(section => section.entries)
-  .filter(entry => entry.kind === 'changed');
+const changedEntries = (diff: CompositionVersionDiff, key: SectionKey) =>
+  diff.sections
+    .filter(section => section.key === key)
+    .flatMap(section => section.entries)
+    .filter(entry => entry.kind === 'changed');
 
 export function summarizeChanges(diff: CompositionVersionDiff): ChangeSummary {
   const sections = diff.sections
@@ -65,14 +66,26 @@ export function summarizeChanges(diff: CompositionVersionDiff): ChangeSummary {
     }))
     .filter(section => section.added.length + section.removed.length + section.changed.length > 0);
 
-  const candidateChanges = changedEntries(diff, 'binding').flatMap(entry => entry.changes
-    .filter(change => change.path === 'candidate')
-    .map(change => ({ task: entry.name, before: asText(change.before), after: asText(change.after) })));
+  const candidateChanges = changedEntries(diff, 'binding').flatMap(entry =>
+    entry.changes
+      .filter(change => change.path === 'candidate')
+      .map(change => ({
+        task: entry.name,
+        before: asText(change.before),
+        after: asText(change.after),
+      }))
+  );
 
   const valueChanges = diff.comparison.comparable
-    ? changedEntries(diff, 'values').flatMap(entry => entry.changes
-      .filter(change => change.path === 'value')
-      .map(change => ({ name: entry.name, before: asNumber(change.before), after: asNumber(change.after) })))
+    ? changedEntries(diff, 'values').flatMap(entry =>
+        entry.changes
+          .filter(change => change.path === 'value')
+          .map(change => ({
+            name: entry.name,
+            before: asNumber(change.before),
+            after: asNumber(change.after),
+          }))
+      )
     : [];
 
   return {

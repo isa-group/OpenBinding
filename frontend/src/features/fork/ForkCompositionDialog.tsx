@@ -10,14 +10,31 @@ import { OrganizationPicker } from '../../components/ui/OrganizationPicker';
 import { compositionsApi } from '../../entities/composition/api';
 import { compositionPath } from '../../routes/paths/compositions';
 import { readApiError } from '../../shared/api/errors';
-import type { CompositionVersionView, CompositionView, ForkNameTaken } from '../../shared/api/types';
+import type {
+  CompositionVersionView,
+  CompositionView,
+  ForkNameTaken,
+} from '../../shared/api/types';
 import {
-  NAME_MAX, forkRefusal, forkRequest, forkSuggestion, linksProblem, nameProblem, slugProblem, stepsOf, targetReason,
-  type ForkRefusal, type ForkStep,
+  NAME_MAX,
+  forkRefusal,
+  forkRequest,
+  forkSuggestion,
+  linksProblem,
+  nameProblem,
+  slugProblem,
+  stepsOf,
+  targetReason,
+  type ForkRefusal,
+  type ForkStep,
 } from './forkModel';
 import './ForkCompositionDialog.css';
 
-const STEP_LABELS: Record<ForkStep, string> = { target: 'Where', problem: 'Its problem', name: 'A different name' };
+const STEP_LABELS: Record<ForkStep, string> = {
+  target: 'Where',
+  problem: 'Its problem',
+  name: 'A different name',
+};
 
 function RefusalNotice({ refusal }: { refusal: ForkRefusal }) {
   return (
@@ -30,8 +47,13 @@ function RefusalNotice({ refusal }: { refusal: ForkRefusal }) {
             {refusal.findings.map((finding, index) => (
               <li key={`${finding.code}-${finding.pointer ?? ''}-${index}`}>
                 {finding.message}
-                {finding.pointer && <> <code>{finding.pointer}</code></>}
-                {' '}<code>{finding.code}</code>
+                {finding.pointer && (
+                  <>
+                    {' '}
+                    <code>{finding.pointer}</code>
+                  </>
+                )}{' '}
+                <code>{finding.code}</code>
               </li>
             ))}
           </ul>
@@ -55,7 +77,11 @@ export interface ForkCompositionDialogProps {
  * that link, which the target cannot read. When the target already has a composition at the source's address, nothing is forked
  * and the dialog asks for a different name and address. The fork is a new, private composition, which opens once it is made.
  */
-export function ForkCompositionDialog({ composition, version, onClose }: ForkCompositionDialogProps) {
+export function ForkCompositionDialog({
+  composition,
+  version,
+  onClose,
+}: ForkCompositionDialogProps) {
   const navigate = useNavigate();
   const ids = useId();
   const source = composition.organization;
@@ -66,7 +92,10 @@ export function ForkCompositionDialog({ composition, version, onClose }: ForkCom
   const [dropProblem, setDropProblem] = useState(false);
   const [taken, setTaken] = useState<ForkNameTaken['existingComposition'] | null>(null);
   const [rename, setRename] = useState<{ slug: string; name: string }>({ slug: '', name: '' });
-  const [shown, setShown] = useState<{ slug: boolean; name: boolean }>({ slug: false, name: false });
+  const [shown, setShown] = useState<{ slug: boolean; name: boolean }>({
+    slug: false,
+    name: false,
+  });
   const [busy, setBusy] = useState(false);
   const [refusal, setRefusal] = useState<ForkRefusal | null>(null);
 
@@ -85,7 +114,11 @@ export function ForkCompositionDialog({ composition, version, onClose }: ForkCom
     setBusy(true);
     setRefusal(null);
     try {
-      const answer = await compositionsApi.fork(source.slug, composition.slug, forkRequest(version, target.slug, named ? rename : undefined));
+      const answer = await compositionsApi.fork(
+        source.slug,
+        composition.slug,
+        forkRequest(version, target.slug, named ? rename : undefined)
+      );
       if (answer.status === 'nameTaken') {
         setTaken(answer.existing);
         setRename(forkSuggestion(composition));
@@ -96,9 +129,14 @@ export function ForkCompositionDialog({ composition, version, onClose }: ForkCom
       }
       const { result } = answer;
       const toast = `Forked. The copy is private.${result.droppedProblem ? ' Values are declared.' : ''}`;
-      void navigate(compositionPath(target.slug, result.composition.slug), { state: { toast }, viewTransition: true });
+      void navigate(compositionPath(target.slug, result.composition.slug), {
+        state: { toast },
+        viewTransition: true,
+      });
     } catch (caught) {
-      setRefusal(forkRefusal(readApiError(caught), target.name, named ? rename.slug : composition.slug));
+      setRefusal(
+        forkRefusal(readApiError(caught), target.name, named ? rename.slug : composition.slug)
+      );
       setBusy(false);
     }
   };
@@ -136,7 +174,11 @@ export function ForkCompositionDialog({ composition, version, onClose }: ForkCom
       <div className="fk">
         <ol className="fk-steps" aria-label="Steps">
           {steps.map((id, index) => (
-            <li key={id} className={id === step ? 'is-current' : undefined} aria-current={id === step ? 'step' : undefined}>
+            <li
+              key={id}
+              className={id === step ? 'is-current' : undefined}
+              aria-current={id === step ? 'step' : undefined}
+            >
               <span aria-hidden="true">{index + 1}</span>
               {STEP_LABELS[id]}
             </li>
@@ -146,20 +188,28 @@ export function ForkCompositionDialog({ composition, version, onClose }: ForkCom
         {step === 'target' && (
           <form className="fk-form" onSubmit={submitTarget} noValidate>
             <p className="fk-muted">
-              Create your own copy of <strong>{composition.name}</strong> at version <strong>{version.label}</strong> in another of your
-              organizations. The copy is a new, private composition.
+              Create your own copy of <strong>{composition.name}</strong> at version{' '}
+              <strong>{version.label}</strong> in another of your organizations. The copy is a new,
+              private composition.
             </p>
             <OrganizationPicker
               mode="select"
               label="Fork into"
               value={target?.slug ?? null}
-              onChange={(organization) => { setTarget(organization); setRefusal(null); }}
-              disabledReason={(organization) => targetReason(organization, source.slug)}
+              onChange={organization => {
+                setTarget(organization);
+                setRefusal(null);
+              }}
+              disabledReason={organization => targetReason(organization, source.slug)}
             />
             {refusal && <RefusalNotice refusal={refusal} />}
             <div className="ui-modal-actions">
-              <Action variant="secondary" onClick={close} disabled={busy}>Cancel</Action>
-              <Action type="submit" variant="primary" disabled={!target} busy={busy}>{linked ? 'Next' : 'Fork'}</Action>
+              <Action variant="secondary" onClick={close} disabled={busy}>
+                Cancel
+              </Action>
+              <Action type="submit" variant="primary" disabled={!target} busy={busy}>
+                {linked ? 'Next' : 'Fork'}
+              </Action>
             </div>
           </form>
         )}
@@ -167,8 +217,8 @@ export function ForkCompositionDialog({ composition, version, onClose }: ForkCom
         {step === 'problem' && (
           <form className="fk-form" onSubmit={submitProblem} noValidate>
             <p id={`${ids}-problem`}>
-              This version links a problem of {source.name}, which {targetName} cannot read. Forking removes the link and the evidence,
-              and seals the copy with declared values.
+              This version links a problem of {source.name}, which {targetName} cannot read. Forking
+              removes the link and the evidence, and seals the copy with declared values.
             </p>
             <label className="fk-check">
               <input
@@ -176,14 +226,21 @@ export function ForkCompositionDialog({ composition, version, onClose }: ForkCom
                 checked={dropProblem}
                 required
                 aria-describedby={`${ids}-problem`}
-                onChange={(event) => { setDropProblem(event.target.checked); setRefusal(null); }}
+                onChange={event => {
+                  setDropProblem(event.target.checked);
+                  setRefusal(null);
+                }}
               />
               Fork without the problem: remove the link and the evidence, and declare the values
             </label>
             {refusal && <RefusalNotice refusal={refusal} />}
             <div className="ui-modal-actions">
-              <Action variant="secondary" onClick={back} disabled={busy}>Back</Action>
-              <Action type="submit" variant="primary" disabled={!dropProblem} busy={busy}>Fork</Action>
+              <Action variant="secondary" onClick={back} disabled={busy}>
+                Back
+              </Action>
+              <Action type="submit" variant="primary" disabled={!dropProblem} busy={busy}>
+                Fork
+              </Action>
             </div>
           </form>
         )}
@@ -191,14 +248,18 @@ export function ForkCompositionDialog({ composition, version, onClose }: ForkCom
         {step === 'name' && taken && (
           <form className="fk-form" onSubmit={submitName} noValidate>
             <p>
-              {targetName} already has a composition at <code>{taken.slug}</code>, named “{taken.name}”. A fork always creates a new
-              composition and cannot be added to an existing one, so choose a different name and address for it.
+              {targetName} already has a composition at <code>{taken.slug}</code>, named “
+              {taken.name}”. A fork always creates a new composition and cannot be added to an
+              existing one, so choose a different name and address for it.
             </p>
             <FormField
               label="Name"
               value={rename.name}
               maxLength={NAME_MAX}
-              onChange={(event) => { setRename({ ...rename, name: event.target.value }); setShown({ ...shown, name: true }); }}
+              onChange={event => {
+                setRename({ ...rename, name: event.target.value });
+                setShown({ ...shown, name: true });
+              }}
               error={shown.name && nameError ? nameError : undefined}
             />
             <FormField
@@ -206,14 +267,27 @@ export function ForkCompositionDialog({ composition, version, onClose }: ForkCom
               value={rename.slug}
               spellCheck={false}
               mono
-              onChange={(event) => { setRename({ ...rename, slug: event.target.value }); setShown({ ...shown, slug: true }); setRefusal(null); }}
+              onChange={event => {
+                setRename({ ...rename, slug: event.target.value });
+                setShown({ ...shown, slug: true });
+                setRefusal(null);
+              }}
               error={slugRefused ?? (shown.slug && slugError ? slugError : undefined)}
               hint="Used in the address; can’t be changed later."
             />
             {refusal && refusal.field !== 'slug' && <RefusalNotice refusal={refusal} />}
             <div className="ui-modal-actions">
-              <Action variant="secondary" onClick={back} disabled={busy}>Back</Action>
-              <Action type="submit" variant="primary" disabled={nameError !== null || slugError !== null} busy={busy}>Fork as a new composition</Action>
+              <Action variant="secondary" onClick={back} disabled={busy}>
+                Back
+              </Action>
+              <Action
+                type="submit"
+                variant="primary"
+                disabled={nameError !== null || slugError !== null}
+                busy={busy}
+              >
+                Fork as a new composition
+              </Action>
             </div>
           </form>
         )}

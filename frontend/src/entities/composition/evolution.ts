@@ -21,12 +21,26 @@ export interface Analytics {
 }
 
 export type StructureMetric =
-  | 'tasks' | 'boundTasks' | 'localTasks' | 'providers' | 'upstreamPricings'
-  | 'workflow.depth' | 'workflow.and' | 'workflow.xor' | 'workflow.loop';
+  | 'tasks'
+  | 'boundTasks'
+  | 'localTasks'
+  | 'providers'
+  | 'upstreamPricings'
+  | 'workflow.depth'
+  | 'workflow.and'
+  | 'workflow.xor'
+  | 'workflow.loop';
 
 export const STRUCTURE_METRICS: readonly StructureMetric[] = [
-  'tasks', 'boundTasks', 'localTasks', 'providers', 'upstreamPricings',
-  'workflow.depth', 'workflow.and', 'workflow.xor', 'workflow.loop',
+  'tasks',
+  'boundTasks',
+  'localTasks',
+  'providers',
+  'upstreamPricings',
+  'workflow.depth',
+  'workflow.and',
+  'workflow.xor',
+  'workflow.loop',
 ];
 
 /** One position on a chart: when the version was sealed (ms since the epoch), its ordinal, and the number or a gap. */
@@ -78,15 +92,24 @@ export interface EvolutionModel {
 }
 
 /** What the model reads of a version row. */
-export type EvolutionRow = Pick<CompositionVersionView,
-  'id' | 'label' | 'ordinal' | 'created_at' | 'values' | 'values_status' | 'current_evaluation' | 'problem'>
-  & { analytics?: CompositionVersionView['analytics'] };
+export type EvolutionRow = Pick<
+  CompositionVersionView,
+  | 'id'
+  | 'label'
+  | 'ordinal'
+  | 'created_at'
+  | 'values'
+  | 'values_status'
+  | 'current_evaluation'
+  | 'problem'
+> & { analytics?: CompositionVersionView['analytics'] };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-const count = (value: unknown): number | null => (typeof value === 'number' && Number.isFinite(value) ? value : null);
+const count = (value: unknown): number | null =>
+  typeof value === 'number' && Number.isFinite(value) ? value : null;
 
 /** The stored analytics, each count as the gateway wrote it and `null` where it wrote none. */
 export function readAnalytics(raw: unknown): Analytics | null {
@@ -98,18 +121,28 @@ export function readAnalytics(raw: unknown): Analytics | null {
     localTasks: count(raw.localTasks),
     providers: count(raw.providers),
     upstreamPricings: count(raw.upstreamPricings),
-    workflow: { depth: count(workflow.depth), and: count(workflow.and), xor: count(workflow.xor), loop: count(workflow.loop) },
+    workflow: {
+      depth: count(workflow.depth),
+      and: count(workflow.and),
+      xor: count(workflow.xor),
+      loop: count(workflow.loop),
+    },
     hasOffering: typeof raw.hasOffering === 'boolean' ? raw.hasOffering : null,
   };
 }
 
 function metricOf(analytics: Analytics, metric: StructureMetric): number | null {
   switch (metric) {
-    case 'workflow.depth': return analytics.workflow.depth;
-    case 'workflow.and': return analytics.workflow.and;
-    case 'workflow.xor': return analytics.workflow.xor;
-    case 'workflow.loop': return analytics.workflow.loop;
-    default: return analytics[metric];
+    case 'workflow.depth':
+      return analytics.workflow.depth;
+    case 'workflow.and':
+      return analytics.workflow.and;
+    case 'workflow.xor':
+      return analytics.workflow.xor;
+    case 'workflow.loop':
+      return analytics.workflow.loop;
+    default:
+      return analytics[metric];
   }
 }
 
@@ -121,9 +154,14 @@ function point(row: EvolutionRow): EvolutionPoint {
     ordinal: row.ordinal,
     t: Date.parse(row.created_at),
     analytics: readAnalytics(row.analytics),
-    values: Object.fromEntries(Object.entries(row.values).map(([name, { value, unit }]) => [name, { value, unit, status }])),
+    values: Object.fromEntries(
+      Object.entries(row.values).map(([name, { value, unit }]) => [name, { value, unit, status }])
+    ),
     problemKey: row.problem ? `${row.problem.problem.slug}@${row.problem.revision.revision}` : null,
-    compilationKey: row.problem?.linked_compilation.semantic_digest ?? row.current_evaluation?.compilation?.semantic_digest ?? null,
+    compilationKey:
+      row.problem?.linked_compilation.semantic_digest ??
+      row.current_evaluation?.compilation?.semantic_digest ??
+      null,
   };
 }
 
@@ -136,10 +174,22 @@ function markersOf(points: EvolutionPoint[]): Marker[] {
     if (previous.problemKey === null && current.problemKey !== null) {
       markers.push({ ...at, kind: 'linked', label: `Linked to ${current.problemKey}` });
     } else if (previous.problemKey !== null && current.problemKey === null) {
-      markers.push({ ...at, kind: 'unlinked', label: `No longer linked to ${previous.problemKey}` });
+      markers.push({
+        ...at,
+        kind: 'unlinked',
+        label: `No longer linked to ${previous.problemKey}`,
+      });
     } else if (previous.problemKey !== current.problemKey) {
-      markers.push({ ...at, kind: 'problem', label: `Problem ${previous.problemKey} to ${current.problemKey}` });
-    } else if (previous.compilationKey !== null && current.compilationKey !== null && previous.compilationKey !== current.compilationKey) {
+      markers.push({
+        ...at,
+        kind: 'problem',
+        label: `Problem ${previous.problemKey} to ${current.problemKey}`,
+      });
+    } else if (
+      previous.compilationKey !== null &&
+      current.compilationKey !== null &&
+      previous.compilationKey !== current.compilationKey
+    ) {
       markers.push({ ...at, kind: 'compilation', label: 'Compilation changed' });
     }
   });
@@ -163,7 +213,11 @@ function valueSeries(points: EvolutionPoint[]): ValueSeries[] {
       const value = current.values[name];
       const here = value && value.unit === unit ? value : null;
       for (const status of ['verified', 'declared', 'unverified'] as const) {
-        series[status].push({ t: current.t, ordinal: current.ordinal, value: here && here.status === status ? here.value : null });
+        series[status].push({
+          t: current.t,
+          ordinal: current.ordinal,
+          value: here && here.status === status ? here.value : null,
+        });
       }
     }
     return series;
@@ -173,14 +227,24 @@ function valueSeries(points: EvolutionPoint[]): ValueSeries[] {
 /** The evolution of a composition from its version rows, in any order; points come out oldest first (by ordinal). */
 export function evolutionModel(rows: readonly EvolutionRow[]): EvolutionModel {
   const points = [...rows].sort((one, other) => one.ordinal - other.ordinal).map(point);
-  const analysed = points.filter((current): current is EvolutionPoint & { analytics: Analytics } => current.analytics !== null);
+  const analysed = points.filter(
+    (current): current is EvolutionPoint & { analytics: Analytics } => current.analytics !== null
+  );
   return {
     points,
-    structure: STRUCTURE_METRICS.map((metric) => ({
+    structure: STRUCTURE_METRICS.map(metric => ({
       metric,
-      points: analysed.map((current) => ({ t: current.t, ordinal: current.ordinal, value: metricOf(current.analytics, metric) })),
+      points: analysed.map(current => ({
+        t: current.t,
+        ordinal: current.ordinal,
+        value: metricOf(current.analytics, metric),
+      })),
     })),
-    hasOffering: analysed.map((current) => ({ t: current.t, ordinal: current.ordinal, value: current.analytics.hasOffering })),
+    hasOffering: analysed.map(current => ({
+      t: current.t,
+      ordinal: current.ordinal,
+      value: current.analytics.hasOffering,
+    })),
     values: valueSeries(points),
     markers: markersOf(points),
   };

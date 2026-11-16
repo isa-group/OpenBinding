@@ -6,7 +6,7 @@ const read = (path: string) => readFileSync(`${process.cwd()}/src/${path}`, 'utf
 const css = read('styles/tailwind.css');
 
 function mobileBlock(): string {
-  const start = css.indexOf('@media (max-width: 640px) {\n    button, summary');
+  const start = css.indexOf('@media (max-width: 640px) {\n    button,\n    summary');
   expect(start).toBeGreaterThan(-1);
   let depth = 0;
   for (let i = css.indexOf('{', start); i < css.length; i += 1) {
@@ -20,17 +20,30 @@ describe('mobile touch targets (max-width: 640px)', () => {
   const block = mobileBlock();
 
   it('gives interactive controls a 24px minimum height', () => {
-    for (const selector of ['button', 'summary', "[role='button']", "[role='tab']"]) expect(block).toContain(selector);
+    for (const selector of ['button', 'summary', "[role='button']", "[role='tab']"])
+      expect(block).toContain(selector);
     expect(block).toMatch(/min-height: 24px/);
   });
 
   it('covers every link outside running text, with zero specificity', () => {
-    expect(block).toMatch(/:where\(a\[href\]:not\(:is\(p, h1, h2, h3, h4, h5, h6, dd, small, label, \.prose/);
+    expect(block).toMatch(
+      /:where\(\s*a\[href\]:not\(:is\(p, h1, h2, h3, h4, h5, h6, dd, small, label, \.prose/
+    );
     expect(block).toMatch(/display: inline-flex;\s*min-height: 24px;\s*align-items: center;/);
   });
 
   it('names the containers where the real run found short links', () => {
-    for (const selector of ['.ui-action', '.ui-action.is-link', '.case-rev-links a', '.usage-consoles a', '.proj-job a', '.job-wizard a', '.job-fact a', '.cr-muted a', '.pcl-card-title a']) {
+    for (const selector of [
+      '.ui-action',
+      '.ui-action.is-link',
+      '.case-rev-links a',
+      '.usage-consoles a',
+      '.proj-job a',
+      '.job-wizard a',
+      '.job-fact a',
+      '.cr-muted a',
+      '.pcl-card-title a',
+    ]) {
       expect(block).toContain(selector);
     }
   });
@@ -43,8 +56,9 @@ describe('mobile touch targets (max-width: 640px)', () => {
 
   it('beats the min-height: 0 of the link action with a phone rule of its own stylesheet, after it', () => {
     const action = read('components/ui/Action.css');
-    const zero = action.indexOf('.ui-action.is-link { min-height: 0;');
-    const phone = /@media \(max-width: 640px\) \{\s*:is\(a, button\)\.ui-action\.is-link \{\s*min-height: 24px;\s*align-items: center;\s*vertical-align: middle;\s*\}/;
+    const zero = action.search(/\.ui-action\.is-link \{\s*min-height: 0;/);
+    const phone =
+      /@media \(max-width: 640px\) \{\s*:is\(a, button\)\.ui-action\.is-link \{\s*min-height: 24px;\s*align-items: center;\s*vertical-align: middle;\s*\}/;
     expect(zero).toBeGreaterThan(-1);
     expect(action.slice(zero)).toMatch(phone);
     expect(action.slice(0, zero)).not.toMatch(phone);

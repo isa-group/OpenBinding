@@ -5,7 +5,8 @@ import type { CompositionDerive, CompositionView, DeriveDraft } from '../../shar
 // compared here.
 
 /** A Semantic Versioning label, as the gateway accepts one for a derived version (`CompositionDerive.version`). */
-export const LABEL_PATTERN = /^(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:-(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
+export const LABEL_PATTERN =
+  /^(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:-(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
 
 /** The label of a composition's first version. */
 export const FIRST_LABEL = '1.0.0';
@@ -87,15 +88,20 @@ export interface Point {
   score: Array<number | null> | number | null;
 }
 
-const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
-const finite = (value: unknown): number | null => (typeof value === 'number' && Number.isFinite(value) ? value : null);
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+const finite = (value: unknown): number | null =>
+  typeof value === 'number' && Number.isFinite(value) ? value : null;
 
 /** The objectives of a solution in the order its result lists them (`objectives.components[].criteria` and `value`). */
 function objectivesOf(solution: Record<string, unknown>): PointObjective[] {
   const objectives = isRecord(solution.objectives) ? solution.objectives : {};
   const components = Array.isArray(objectives.components) ? objectives.components : [];
   return components.filter(isRecord).map((component, index) => ({
-    criterion: typeof component.criteria === 'string' && component.criteria !== '' ? component.criteria : `criterion ${index + 1}`,
+    criterion:
+      typeof component.criteria === 'string' && component.criteria !== ''
+        ? component.criteria
+        : `criterion ${index + 1}`,
     value: finite(component.value),
   }));
 }
@@ -107,31 +113,57 @@ function scoreOf(solution: Record<string, unknown>): Point['score'] {
 
 /** The solutions of a run, in the result's order. Entries that are not solutions are skipped, and the others keep their index. */
 export function pointsOf(solutions: readonly unknown[]): Point[] {
-  return solutions.flatMap((solution, point) => (isRecord(solution)
-    ? [{ point, label: `Solution ${point + 1}`, objectives: objectivesOf(solution), score: scoreOf(solution) }]
-    : []));
+  return solutions.flatMap((solution, point) =>
+    isRecord(solution)
+      ? [
+          {
+            point,
+            label: `Solution ${point + 1}`,
+            objectives: objectivesOf(solution),
+            score: scoreOf(solution),
+          },
+        ]
+      : []
+  );
 }
 
 /** The criteria the table has columns for: every criterion any solution names, in the order they first appear. */
 export function criteriaOf(points: readonly Point[]): string[] {
   const seen: string[] = [];
-  for (const point of points) for (const objective of point.objectives) if (!seen.includes(objective.criterion)) seen.push(objective.criterion);
+  for (const point of points)
+    for (const objective of point.objectives)
+      if (!seen.includes(objective.criterion)) seen.push(objective.criterion);
   return seen;
 }
 
 /** The request that derives `point` of the run as version `version`: only a preview (`seal: false`), or the version itself. */
-export function runDerivation(source: Pick<RunSource, 'run'>, point: number, version: string, seal: boolean): CompositionDerive {
+export function runDerivation(
+  source: Pick<RunSource, 'run'>,
+  point: number,
+  version: string,
+  seal: boolean
+): CompositionDerive {
   return { run: source.run, point, version, seal };
 }
 
 /** The request that derives the binding as version `version`: only a preview (`seal: false`), or the version itself. */
-export function bindingDerivation(source: Pick<BindingSource, 'revision' | 'binding'>, version: string, seal: boolean): CompositionDerive {
+export function bindingDerivation(
+  source: Pick<BindingSource, 'revision' | 'binding'>,
+  version: string,
+  seal: boolean
+): CompositionDerive {
   return { revision: source.revision, binding: { ...source.binding }, version, seal };
 }
 
 /** The values of a preview, in the order the gateway listed them. */
-export function previewValues(draft: Pick<DeriveDraft, 'values'>): Array<{ name: string; value: number; unit: string }> {
-  return Object.entries(draft.values).map(([name, value]) => ({ name, value: value.value, unit: value.unit }));
+export function previewValues(
+  draft: Pick<DeriveDraft, 'values'>
+): Array<{ name: string; value: number; unit: string }> {
+  return Object.entries(draft.values).map(([name, value]) => ({
+    name,
+    value: value.value,
+    unit: value.unit,
+  }));
 }
 
 /** The longest address a composition may have (`CompositionCreate.slug`). */
@@ -144,11 +176,16 @@ export function pointSlug(problem: string, n: number): string {
 }
 
 /** What is wrong with each address of a batch: not an address, or one another point of the batch has too. */
-export function batchSlugErrors(rows: ReadonlyArray<{ key: string; slug: string }>, pattern: RegExp): Record<string, string> {
+export function batchSlugErrors(
+  rows: ReadonlyArray<{ key: string; slug: string }>,
+  pattern: RegExp
+): Record<string, string> {
   const errors: Record<string, string> = {};
   for (const row of rows) {
-    if (!pattern.test(row.slug)) errors[row.key] = 'Lowercase letters, numbers and hyphens, at most 64.';
-    else if (rows.some((other) => other.key !== row.key && other.slug === row.slug)) errors[row.key] = `Another point has ${row.slug} too.`;
+    if (!pattern.test(row.slug))
+      errors[row.key] = 'Lowercase letters, numbers and hyphens, at most 64.';
+    else if (rows.some(other => other.key !== row.key && other.slug === row.slug))
+      errors[row.key] = `Another point has ${row.slug} too.`;
   }
   return errors;
 }

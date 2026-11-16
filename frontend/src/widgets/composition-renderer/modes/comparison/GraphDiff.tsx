@@ -4,7 +4,13 @@ import { CandidateMatrix } from '../../../candidate-matrix/CandidateMatrix';
 import { WorkflowGraph } from '../../../workflow-graph/WorkflowGraph';
 import type { Section } from '../../presets';
 import { RendererSection } from '../../RendererSection';
-import { removedTasks, selectionTags, taskOverlay, workflowChanged, type Diff } from './comparisonModel';
+import {
+  removedTasks,
+  selectionTags,
+  taskOverlay,
+  workflowChanged,
+  type Diff,
+} from './comparisonModel';
 
 interface GraphDiffProps {
   /** The later version, with its document (and, for a member who may read the problem, its candidate matrix). */
@@ -18,7 +24,10 @@ interface GraphDiffProps {
 /** The matrix with no candidate selected: the tags name the version, or both, that chose each one. */
 const unselected = (matrix: Matrix): Matrix => ({
   ...matrix,
-  rows: matrix.rows.map((row) => ({ ...row, candidates: row.candidates.map((candidate) => ({ ...candidate, selected: false })) })),
+  rows: matrix.rows.map(row => ({
+    ...row,
+    candidates: row.candidates.map(candidate => ({ ...candidate, selected: false })),
+  })),
 });
 
 /**
@@ -38,13 +47,24 @@ export function GraphDiff({ model, diff, beforeSelection, sections }: GraphDiffP
         <RendererSection title="Workflow changes">
           <p className="cr-muted">
             {`The workflow of ${to}. A task marked added or changed is bound differently from ${from}.`}
-            {workflowChanged(diff) ? ' The workflow itself changed too: the file view shows how.' : ''}
+            {workflowChanged(diff)
+              ? ' The workflow itself changed too: the file view shows how.'
+              : ''}
           </p>
-          <WorkflowGraph graph={model.workflow} overlay={taskOverlay(diff, model.tasks)} label={`The workflow of ${model.identity.name} at ${to}`} />
+          <WorkflowGraph
+            graph={model.workflow}
+            overlay={taskOverlay(diff, model.tasks)}
+            label={`The workflow of ${model.identity.name} at ${to}`}
+          />
           {removed.length > 0 && (
             <p className="cx-removed">
               {`Not in ${to} any more: `}
-              {removed.map((task, index) => <span key={task}>{index > 0 && ', '}<code>{task}</code></span>)}
+              {removed.map((task, index) => (
+                <span key={task}>
+                  {index > 0 && ', '}
+                  <code>{task}</code>
+                </span>
+              ))}
             </p>
           )}
         </RendererSection>
@@ -56,7 +76,10 @@ export function GraphDiff({ model, diff, beforeSelection, sections }: GraphDiffP
             matrix={unselected(matrix)}
             mode="view"
             label={`Candidates chosen by ${from} and ${to}`}
-            tags={selectionTags([{ label: from, selection: beforeSelection }, { label: to, selection: model.selection }])}
+            tags={selectionTags([
+              { label: from, selection: beforeSelection },
+              { label: to, selection: model.selection },
+            ])}
           />
         </RendererSection>
       )}

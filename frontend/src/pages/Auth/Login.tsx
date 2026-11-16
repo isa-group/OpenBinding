@@ -7,7 +7,12 @@ import { Notice } from '../../components/ui/Notice';
 import { BRAND_ASSETS } from '../../content/brandAssets';
 import { useAuth } from '../../contexts/auth';
 import {
-  afterSignInTarget, clearSignInNote, hasRecentSignIn, hasSessionEnded, noteSignInStarted, rememberCasFlow,
+  afterSignInTarget,
+  clearSignInNote,
+  hasRecentSignIn,
+  hasSessionEnded,
+  noteSignInStarted,
+  rememberCasFlow,
 } from '../../utils/authFlow';
 import { fieldErrorsFrom } from './authErrors';
 import { classifyAuthError } from '../../shared/api/errors';
@@ -28,7 +33,9 @@ export function Login() {
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [touched, setTouched] = useState(false);
-  const [failure, setFailure] = useState<'rejected' | 'unavailable' | 'network' | 'invalid' | 'busy' | null>(null);
+  const [failure, setFailure] = useState<
+    'rejected' | 'unavailable' | 'network' | 'invalid' | 'busy' | null
+  >(null);
   const [serverFields, setServerFields] = useState<Record<string, string | undefined>>({});
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
@@ -46,7 +53,10 @@ export function Login() {
     navigate(target, { replace: true });
   }, [user, returning, target, navigate]);
 
-  const identifierError = touched && !identifier.trim() ? 'Enter your username or email.' : serverFields.username_or_email;
+  const identifierError =
+    touched && !identifier.trim()
+      ? 'Enter your username or email.'
+      : serverFields.username_or_email;
   const passwordError = touched && !password ? 'Enter your password.' : serverFields.password;
   const credentialsRefused = failure === 'rejected';
 
@@ -73,7 +83,12 @@ export function Login() {
       // The gateway answers a wrong password and an unknown account in the same words, and so does this:
       // saying which would tell an unauthenticated visitor who has an account here.
       const result = classifyAuthError(caught);
-      if (result.kind === 'unavailable' || result.kind === 'network' || result.kind === 'invalid' || result.kind === 'busy') {
+      if (
+        result.kind === 'unavailable' ||
+        result.kind === 'network' ||
+        result.kind === 'invalid' ||
+        result.kind === 'busy'
+      ) {
         setFailure(result.kind);
         if (result.kind === 'invalid') setServerFields(fieldErrorsFrom(caught));
       } else {
@@ -89,9 +104,19 @@ export function Login() {
       <AuthShell>
         <div className="auth-stack">
           <h1 className="auth-title">You’re already signed in</h1>
-          <p className="auth-lede">Signed in as {user.username} ({user.email}).</p>
-          <Link className="auth-btn auth-btn-primary" to={target} viewTransition>Continue to your workspace</Link>
-          <button type="button" className="auth-btn auth-btn-secondary" onClick={() => void signOut()}>Log in as someone else</button>
+          <p className="auth-lede">
+            Signed in as {user.username} ({user.email}).
+          </p>
+          <Link className="auth-btn auth-btn-primary" to={target} viewTransition>
+            Continue to your workspace
+          </Link>
+          <button
+            type="button"
+            className="auth-btn auth-btn-secondary"
+            onClick={() => void signOut()}
+          >
+            Log in as someone else
+          </button>
         </div>
       </AuthShell>
     );
@@ -101,10 +126,16 @@ export function Login() {
     return (
       <AuthShell>
         <div className="auth-stack" role="status">
-          <span className="auth-icon-tile is-ok" aria-hidden="true"><Check /></span>
+          <span className="auth-icon-tile is-ok" aria-hidden="true">
+            <Check />
+          </span>
           <h1 className="auth-title">Welcome back</h1>
-          <p className="auth-lede">You’re signed in. Taking you back to the page you asked for, or to your workspace.</p>
-          <Link className="auth-btn auth-btn-primary" to={target} viewTransition>Continue</Link>
+          <p className="auth-lede">
+            You’re signed in. Taking you back to the page you asked for, or to your workspace.
+          </p>
+          <Link className="auth-btn auth-btn-primary" to={target} viewTransition>
+            Continue
+          </Link>
         </div>
       </AuthShell>
     );
@@ -119,42 +150,64 @@ export function Login() {
 
       <div className="auth-notices auth-spaced">
         {sessionEnded && (
-          <Notice tone="info">Your session ended and couldn’t be renewed. Log in again and you’ll return to where you were.</Notice>
+          <Notice tone="info">
+            Your session ended and couldn’t be renewed. Log in again and you’ll return to where you
+            were.
+          </Notice>
         )}
         {state?.notice && <Notice tone="success">{state.notice}</Notice>}
       </div>
 
       {loading ? (
-        <p className="auth-lede" role="status">Checking your session…</p>
+        <p className="auth-lede" role="status">
+          Checking your session…
+        </p>
       ) : (
         <>
-          <a className="auth-cas" href={apiClient.casStartUrl('login')} onClick={() => rememberCasFlow('login', state?.from)}>
+          <a
+            className="auth-cas"
+            href={apiClient.casStartUrl('login')}
+            onClick={() => rememberCasFlow('login', state?.from)}
+          >
             <img src={BRAND_ASSETS.institutionMark} alt="" />
             Continue with Universidad de Sevilla (CAS)
           </a>
           <span className="auth-cas-note">
-            A verified CAS identity can qualify for RESEARCH, but only if the current pricing grants it. It never gives admin or organization roles.
+            A verified CAS identity can qualify for RESEARCH, but only if the current pricing grants
+            it. It never gives admin or organization roles.
           </span>
 
-          <div className="auth-divider" aria-hidden="true">or</div>
+          <div className="auth-divider" aria-hidden="true">
+            or
+          </div>
 
           <div aria-live="assertive" className="auth-notices">
             {credentialsRefused && (
-              <Notice tone="error">That username or email and password don’t match an active account. Check both and try again.</Notice>
+              <Notice tone="error">
+                That username or email and password don’t match an active account. Check both and
+                try again.
+              </Notice>
             )}
             {failure === 'unavailable' && (
               <Notice tone="error">
-                Sign-in is unavailable right now (503). Accounts aren’t reachable from this deployment; public pages still work.{' '}
-                <Link to="/about">Service status</Link>
+                Sign-in is unavailable right now (503). Accounts aren’t reachable from this
+                deployment; public pages still work. <Link to="/about">Service status</Link>
               </Notice>
             )}
             {failure === 'network' && (
               <Notice tone="error">
-                OpenBinding couldn’t be reached. Check your connection and try again. <Link to="/about">Service status</Link>
+                OpenBinding couldn’t be reached. Check your connection and try again.{' '}
+                <Link to="/about">Service status</Link>
               </Notice>
             )}
-            {failure === 'busy' && <Notice tone="error">Too many sign-in attempts. Wait a moment and try again.</Notice>}
-            {failure === 'invalid' && <Notice tone="error">The gateway didn’t accept those details. Check both fields and try again.</Notice>}
+            {failure === 'busy' && (
+              <Notice tone="error">Too many sign-in attempts. Wait a moment and try again.</Notice>
+            )}
+            {failure === 'invalid' && (
+              <Notice tone="error">
+                The gateway didn’t accept those details. Check both fields and try again.
+              </Notice>
+            )}
           </div>
 
           <form className="auth-form" onSubmit={handleSubmit} noValidate>
@@ -167,7 +220,7 @@ export function Login() {
               spellCheck={false}
               placeholder="Enter your username or email"
               value={identifier}
-              onChange={(event) => setIdentifier(event.target.value)}
+              onChange={event => setIdentifier(event.target.value)}
               disabled={busy}
               error={identifierError}
               invalid={credentialsRefused}
@@ -181,22 +234,35 @@ export function Login() {
               autoComplete="current-password"
               placeholder="Enter your password"
               value={password}
-              onChange={(event) => setPassword(event.target.value)}
+              onChange={event => setPassword(event.target.value)}
               disabled={busy}
               error={passwordError}
               invalid={credentialsRefused}
               inputRef={passwordRef}
-              aside={<Link to="/password-reset" viewTransition>Forgot password?</Link>}
+              aside={
+                <Link to="/password-reset" viewTransition>
+                  Forgot password?
+                </Link>
+              }
             />
             <button type="submit" className="auth-btn auth-btn-primary" disabled={busy}>
               {busy && <AuthSpinner />}
               {busy ? 'Signing in…' : 'Log in'}
             </button>
-            <span className="sr-only" role="status" aria-live="polite">{busy ? 'Signing in' : ''}</span>
+            <span className="sr-only" role="status" aria-live="polite">
+              {busy ? 'Signing in' : ''}
+            </span>
           </form>
 
           <p className="auth-switch">
-            Don’t have an account? <Link to="/register" state={state?.from ? { from: state.from } : undefined} viewTransition>Create one</Link>
+            Don’t have an account?{' '}
+            <Link
+              to="/register"
+              state={state?.from ? { from: state.from } : undefined}
+              viewTransition
+            >
+              Create one
+            </Link>
           </p>
         </>
       )}

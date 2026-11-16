@@ -6,7 +6,16 @@ import type { Mode } from '../../entities/composition/viewModel';
  */
 
 /** The modes this renderer draws so far; the others join with the blocks that build them. */
-export type RendererMode = Extract<Mode, 'catalog' | 'architecture' | 'workflow' | 'comparison' | 'calculator' | 'configurator' | 'showcase'>;
+export type RendererMode = Extract<
+  Mode,
+  | 'catalog'
+  | 'architecture'
+  | 'workflow'
+  | 'comparison'
+  | 'calculator'
+  | 'configurator'
+  | 'showcase'
+>;
 
 /**
  * The sections of the modes.
@@ -23,22 +32,53 @@ export type RendererMode = Extract<Mode, 'catalog' | 'architecture' | 'workflow'
  *   the versions there are.
  */
 export type Section =
-  | 'identity' | 'status' | 'values' | 'binding' | 'offering' | 'evidence' | 'problem' | 'diagnostics'
-  | 'providers' | 'plans'
-  | 'graph' | 'candidates'
+  | 'identity'
+  | 'status'
+  | 'values'
+  | 'binding'
+  | 'offering'
+  | 'evidence'
+  | 'problem'
+  | 'diagnostics'
+  | 'providers'
+  | 'plans'
+  | 'graph'
+  | 'candidates'
   | 'changes'
   | 'moves'
-  | 'result' | 'choice'
-  | 'about' | 'versions';
+  | 'result'
+  | 'choice'
+  | 'about'
+  | 'versions';
 
 export const MODE_SECTIONS: Readonly<Record<RendererMode, readonly Section[]>> = {
-  catalog: ['identity', 'status', 'values', 'binding', 'offering', 'evidence', 'problem', 'diagnostics'],
+  catalog: [
+    'identity',
+    'status',
+    'values',
+    'binding',
+    'offering',
+    'evidence',
+    'problem',
+    'diagnostics',
+  ],
   architecture: ['providers', 'plans'],
   workflow: ['graph', 'candidates'],
   comparison: ['changes', 'graph', 'candidates'],
   calculator: ['moves'],
   configurator: ['result', 'choice'],
-  showcase: ['identity', 'about', 'status', 'values', 'graph', 'providers', 'plans', 'problem', 'offering', 'versions'],
+  showcase: [
+    'identity',
+    'about',
+    'status',
+    'values',
+    'graph',
+    'providers',
+    'plans',
+    'problem',
+    'offering',
+    'versions',
+  ],
 };
 
 /** How tightly a mode is laid out: a page of its own, or a panel beside something else. */
@@ -46,5 +86,5 @@ export type Density = 'comfortable' | 'compact';
 
 /** The sections a mode shows, without the ones a screen hides. */
 export function sectionsOf(mode: RendererMode, hidden: readonly Section[] = []): Section[] {
-  return MODE_SECTIONS[mode].filter((section) => !hidden.includes(section));
+  return MODE_SECTIONS[mode].filter(section => !hidden.includes(section));
 }

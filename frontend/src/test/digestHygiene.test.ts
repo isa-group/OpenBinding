@@ -11,13 +11,20 @@ import { describe, expect, it } from 'vitest';
 // Known limits: short digests, digests built from a template and runtime data are not detected; the generated
 // frontend/src/content/changelog.json is rendered on About but is not scanned (JSON is not in the glob).
 
-const files = import.meta.glob(['/src/**/*.{ts,tsx,css}', '!/src/**/*.test.*'], { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
+const files = import.meta.glob(['/src/**/*.{ts,tsx,css}', '!/src/**/*.test.*'], {
+  query: '?raw',
+  import: 'default',
+  eager: true,
+}) as Record<string, string>;
 
 // Vitest hands a `?raw` stylesheet over empty, so the stylesheets are read from disk (this file sits in src/test/).
 const root = join(import.meta.dirname ?? join(process.cwd(), 'src', 'test'), '..');
 const stylesheets = readdirSync(root, { recursive: true, encoding: 'utf8' })
-  .filter((name) => name.endsWith('.css'))
-  .map((name): [string, string] => [`/src/${name.replaceAll('\\', '/')}`, readFileSync(join(root, name), 'utf8')]);
+  .filter(name => name.endsWith('.css'))
+  .map((name): [string, string] => [
+    `/src/${name.replaceAll('\\', '/')}`,
+    readFileSync(join(root, name), 'utf8'),
+  ]);
 
 // Test-support files that are not shipped; anchored on a path segment so a shipped `latestUtils.ts` is still scanned.
 const TEST_KIT = /\/(testKit|[A-Za-z]*TestUtils)\.tsx?$|\/src\/test\/setup\.ts$/;
@@ -33,7 +40,8 @@ const TEST_KIT_FILES: readonly string[] = [
 const all = [...Object.entries(files).filter(([path]) => !path.endsWith('.css')), ...stylesheets];
 const shipped = all.filter(([path]) => !TEST_KIT.test(path));
 
-const ALLOWED = /\/src\/(components\/rendering\/(SourceView|LogPanel)|utils\/uuid|api\/|test\/)|[Ff]ixtures?\.ts$/;
+const ALLOWED =
+  /\/src\/(components\/rendering\/(SourceView|LogPanel)|utils\/uuid|api\/|test\/)|[Ff]ixtures?\.ts$/;
 
 // Every shipped file the ALLOWED pattern exempts; a new exempt-named file needs an edit here.
 const EXEMPT_FILES: readonly string[] = [
@@ -76,15 +84,23 @@ const EXEMPT_FILES: readonly string[] = [
   '/src/utils/uuid.ts',
 ];
 
-const DIGEST_LITERAL = /sha256-[0-9a-fA-F]{8,}|(?<![0-9a-fA-F])(?:[0-9a-fA-F]{40}|[0-9a-fA-F]{64})(?![0-9a-fA-F])/;
-const UUID_LITERAL = /(?<![0-9a-fA-F])[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}(?![0-9a-fA-F])/;
+const DIGEST_LITERAL =
+  /sha256-[0-9a-fA-F]{8,}|(?<![0-9a-fA-F])(?:[0-9a-fA-F]{40}|[0-9a-fA-F]{64})(?![0-9a-fA-F])/;
+const UUID_LITERAL =
+  /(?<![0-9a-fA-F])[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}(?![0-9a-fA-F])/;
 const SHORTENER = /\b(?:shortDigest|digestPrefix)\b/;
 
 const checked = shipped.filter(([path]) => !ALLOWED.test(path));
 
-const grep = (pattern: RegExp, entries: ReadonlyArray<[string, string]> = checked) => entries
-  .flatMap(([path, text]) => text.split('\n').map((line, index) => ({ at: `${path}:${index + 1}`, line })).filter(({ line }) => pattern.test(line)))
-  .map(({ at, line }) => `${at}  ${line.trim()}`);
+const grep = (pattern: RegExp, entries: ReadonlyArray<[string, string]> = checked) =>
+  entries
+    .flatMap(([path, text]) =>
+      text
+        .split('\n')
+        .map((line, index) => ({ at: `${path}:${index + 1}`, line }))
+        .filter(({ line }) => pattern.test(line))
+    )
+    .map(({ at, line }) => `${at}  ${line.trim()}`);
 
 describe('names, not digests: no digest-shaped string or UUID outside the places that cite', () => {
   it('reads files', () => {
@@ -94,16 +110,28 @@ describe('names, not digests: no digest-shaped string or UUID outside the places
 
   it('reads the stylesheets from disk with their content', () => {
     expect(stylesheets.length).toBeGreaterThan(0);
-    const logPanel = stylesheets.find(([path]) => path === '/src/components/rendering/LogPanel.css');
+    const logPanel = stylesheets.find(
+      ([path]) => path === '/src/components/rendering/LogPanel.css'
+    );
     expect(logPanel?.[1].trim().length).toBeGreaterThan(0);
   });
 
   it('leaves out exactly the files of the explicit test-kit list', () => {
-    expect(all.map(([path]) => path).filter((path) => TEST_KIT.test(path)).sort()).toEqual([...TEST_KIT_FILES].sort());
+    expect(
+      all
+        .map(([path]) => path)
+        .filter(path => TEST_KIT.test(path))
+        .sort()
+    ).toEqual([...TEST_KIT_FILES].sort());
   });
 
   it('exempts exactly the files of the explicit allowed list', () => {
-    expect(shipped.map(([path]) => path).filter((path) => ALLOWED.test(path)).sort()).toEqual([...EXEMPT_FILES].sort());
+    expect(
+      shipped
+        .map(([path]) => path)
+        .filter(path => ALLOWED.test(path))
+        .sort()
+    ).toEqual([...EXEMPT_FILES].sort());
   });
 
   it('carries no digest-shaped literal or UUID outside the allowed set', () => {
@@ -118,17 +146,31 @@ describe('names, not digests: no digest-shaped string or UUID outside the places
 
 describe('the scan pipeline', () => {
   it('reports a match as path:line  text', () => {
-    const entries: Array<[string, string]> = [['/src/x/Foo.ts', 'const a = 1;\n  const b = shortDigest(x);  \n']];
+    const entries: Array<[string, string]> = [
+      ['/src/x/Foo.ts', 'const a = 1;\n  const b = shortDigest(x);  \n'],
+    ];
     expect(grep(SHORTENER, entries)).toEqual(['/src/x/Foo.ts:2  const b = shortDigest(x);']);
     expect(grep(DIGEST_LITERAL, entries)).toEqual([]);
   });
 
   it('skips the test-kit names on a path segment only', () => {
-    const paths = ['/src/pages/A/testKit.tsx', '/src/pages/A/adminTestUtils.ts', '/src/test/setup.ts'];
-    expect(paths.every((path) => TEST_KIT.test(path))).toBe(true);
-    const shippedNames = ['/src/utils/latestUtils.ts', '/src/pages/A/mytestKit.tsx', '/src/pages/A/setup.ts', '/src/x/test/setup.ts.bak'];
-    expect(shippedNames.some((path) => TEST_KIT.test(path))).toBe(false);
-    const entry: [string, string] = ['/src/utils/latestUtils.ts', `const d = 'sha256-${'ab'.repeat(32)}';`];
+    const paths = [
+      '/src/pages/A/testKit.tsx',
+      '/src/pages/A/adminTestUtils.ts',
+      '/src/test/setup.ts',
+    ];
+    expect(paths.every(path => TEST_KIT.test(path))).toBe(true);
+    const shippedNames = [
+      '/src/utils/latestUtils.ts',
+      '/src/pages/A/mytestKit.tsx',
+      '/src/pages/A/setup.ts',
+      '/src/x/test/setup.ts.bak',
+    ];
+    expect(shippedNames.some(path => TEST_KIT.test(path))).toBe(false);
+    const entry: [string, string] = [
+      '/src/utils/latestUtils.ts',
+      `const d = 'sha256-${'ab'.repeat(32)}';`,
+    ];
     const scanned = [entry].filter(([path]) => !TEST_KIT.test(path) && !ALLOWED.test(path));
     expect(grep(DIGEST_LITERAL, scanned)).toHaveLength(1);
   });

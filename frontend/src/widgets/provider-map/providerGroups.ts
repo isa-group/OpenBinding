@@ -16,13 +16,13 @@ export interface ProviderGroup {
   tasks: TaskModel[];
 }
 
-const pricingOf = (task: TaskModel): string | null => (
-  task.from ? `${task.from.sphere}${task.from.registry ? ` on ${task.from.registry}` : ''}` : null
-);
+const pricingOf = (task: TaskModel): string | null =>
+  task.from ? `${task.from.sphere}${task.from.registry ? ` on ${task.from.registry}` : ''}` : null;
 
 function placeOf(task: TaskModel): { kind: ProviderGroupKind; name: string } {
   if (task.local) return { kind: 'in-house', name: '' };
-  if (task.candidate !== null && task.provider !== null) return { kind: 'provider', name: task.provider };
+  if (task.candidate !== null && task.provider !== null)
+    return { kind: 'provider', name: task.provider };
   const pricing = pricingOf(task);
   if (task.candidate !== null && pricing !== null) return { kind: 'pricing', name: pricing };
   return { kind: 'unknown', name: '' };
@@ -33,12 +33,13 @@ export function providerGroups(tasks: readonly TaskModel[]): ProviderGroup[] {
   const groups: ProviderGroup[] = [];
   for (const task of tasks) {
     const { kind, name } = placeOf(task);
-    const group = groups.find((item) => item.kind === kind && item.name === name);
+    const group = groups.find(item => item.kind === kind && item.name === name);
     if (group) group.tasks.push(task);
     else groups.push({ kind, name, tasks: [task] });
   }
   const rank = (kind: ProviderGroupKind) => (kind === 'in-house' ? 2 : kind === 'unknown' ? 1 : 0);
-  return groups.map((group, index) => ({ group, index }))
+  return groups
+    .map((group, index) => ({ group, index }))
     .sort((a, b) => rank(a.group.kind) - rank(b.group.kind) || a.index - b.index)
     .map(({ group }) => group);
 }

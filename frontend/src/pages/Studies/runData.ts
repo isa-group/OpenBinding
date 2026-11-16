@@ -10,7 +10,10 @@ export interface RunData {
  * (a key without one of the engines) stays a 403.
  */
 export async function loadRun(org: string, study: string, runId: string): Promise<RunData> {
-  const [run, cells] = await Promise.allSettled([platformApi.studyRun(org, study, runId), platformApi.studyCells(org, study, runId)]);
+  const [run, cells] = await Promise.allSettled([
+    platformApi.studyRun(org, study, runId),
+    platformApi.studyCells(org, study, runId),
+  ]);
   if (cells.status === 'rejected') throw cells.reason;
   if (run.status === 'rejected') throw run.reason;
   return { run: run.value, cells: cells.value };

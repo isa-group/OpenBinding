@@ -6,7 +6,12 @@ import { CommandPalette, OPEN_COMMAND_PALETTE_EVENT } from './CommandPalette';
 import { buildCommands } from './paletteCommands';
 
 const organization: Organization = {
-  id: 'org-1', name: 'ISA Demo Group', slug: 'isa-demo', parent_id: null, effective_role: 'OWNER', created_at: '2026-01-01T00:00:00Z',
+  id: 'org-1',
+  name: 'ISA Demo Group',
+  slug: 'isa-demo',
+  parent_id: null,
+  effective_role: 'OWNER',
+  created_at: '2026-01-01T00:00:00Z',
 };
 
 function Location() {
@@ -15,23 +20,32 @@ function Location() {
 
 // What the palette offers comes from the commands under test, not from names written here: a change to the screens a command leads to
 // edits paletteCommands.ts and leaves these tests alone.
-const commandsOf = (isAdmin: boolean) => buildCommands({ organizations: [organization], organization, isAdmin });
+const commandsOf = (isAdmin: boolean) =>
+  buildCommands({ organizations: [organization], organization, isAdmin });
 const pathOf = (href: string) => new URL(href, 'http://localhost').pathname;
 
 function renderPalette(isAdmin = false) {
   return render(
     <MemoryRouter initialEntries={['/app']}>
       <button type="button">Opener</button>
-      <CommandPalette organizations={[organization]} organization={organization} isAdmin={isAdmin} />
+      <CommandPalette
+        organizations={[organization]}
+        organization={organization}
+        isAdmin={isAdmin}
+      />
       <Location />
-    </MemoryRouter>,
+    </MemoryRouter>
   );
 }
 
-const openWithShortcut = (init: KeyboardEventInit = { ctrlKey: true }) => fireEvent.keyDown(document.body, { key: 'k', ...init });
+const openWithShortcut = (init: KeyboardEventInit = { ctrlKey: true }) =>
+  fireEvent.keyDown(document.body, { key: 'k', ...init });
 const dialog = () => screen.getByRole('dialog', { name: 'Command palette' });
 const search = () => screen.getByRole('textbox', { name: 'Search commands and loaded items' });
-const resultLabels = () => within(dialog()).queryAllByRole('link').map((link) => link.querySelector('strong')?.textContent);
+const resultLabels = () =>
+  within(dialog())
+    .queryAllByRole('link')
+    .map(link => link.querySelector('strong')?.textContent);
 
 describe('CommandPalette', () => {
   it('stays closed until it is asked to open', () => {
@@ -42,16 +56,19 @@ describe('CommandPalette', () => {
   it.each([
     ['Ctrl+K', { ctrlKey: true }],
     ['Cmd+K', { metaKey: true }],
-  ])('opens with %s, focuses the search box and toggles closed on a second press', (_name, init) => {
-    renderPalette();
-    openWithShortcut(init);
+  ])(
+    'opens with %s, focuses the search box and toggles closed on a second press',
+    (_name, init) => {
+      renderPalette();
+      openWithShortcut(init);
 
-    expect(dialog()).toHaveAttribute('aria-modal', 'true');
-    expect(search()).toHaveFocus();
+      expect(dialog()).toHaveAttribute('aria-modal', 'true');
+      expect(search()).toHaveFocus();
 
-    openWithShortcut(init);
-    expect(screen.queryByRole('dialog')).toBeNull();
-  });
+      openWithShortcut(init);
+      expect(screen.queryByRole('dialog')).toBeNull();
+    }
+  );
 
   it('opens from the event the header search button sends', () => {
     renderPalette();
@@ -61,12 +78,12 @@ describe('CommandPalette', () => {
 
   it('filters by label, description and group', () => {
     const commands = commandsOf(false);
-    const tools = commands.filter((command) => command.group === 'Go to');
+    const tools = commands.filter(command => command.group === 'Go to');
     expect(tools.length).toBeGreaterThan(1);
     const [first] = tools;
     renderPalette();
     openWithShortcut();
-    expect(resultLabels()).toEqual(commands.map((command) => command.label));
+    expect(resultLabels()).toEqual(commands.map(command => command.label));
 
     fireEvent.change(search(), { target: { value: first.label.toLowerCase() } });
     expect(resultLabels()).toContain(first.label);
@@ -76,7 +93,7 @@ describe('CommandPalette', () => {
     expect(resultLabels()).toEqual([first.label]);
 
     fireEvent.change(search(), { target: { value: first.group.toLowerCase() } });
-    expect(resultLabels()).toEqual(expect.arrayContaining(tools.map((command) => command.label)));
+    expect(resultLabels()).toEqual(expect.arrayContaining(tools.map(command => command.label)));
     expect(resultLabels().length).toBeLessThan(commands.length);
   });
 
@@ -85,7 +102,9 @@ describe('CommandPalette', () => {
     openWithShortcut();
     fireEvent.change(search(), { target: { value: 'zzzz-not-here' } });
 
-    expect(screen.getByText('No matches. Search only covers data already loaded on this device.')).toBeInTheDocument();
+    expect(
+      screen.getByText('No matches. Search only covers data already loaded on this device.')
+    ).toBeInTheDocument();
     expect(resultLabels()).toEqual([]);
   });
 
@@ -94,12 +113,17 @@ describe('CommandPalette', () => {
     openWithShortcut();
 
     fireEvent.change(search(), { target: { value: 'ISA Demo' } });
-    expect(within(dialog()).getByRole('link', { name: /^ISA Demo Group/ })).toHaveAttribute('href', '/app/isa-demo');
+    expect(within(dialog()).getByRole('link', { name: /^ISA Demo Group/ })).toHaveAttribute(
+      'href',
+      '/app/isa-demo'
+    );
   });
 
   it('only offers administration commands to administrators', () => {
-    const everyoneLabels = commandsOf(false).map((command) => command.label);
-    const adminOnly = commandsOf(true).map((command) => command.label).filter((label) => !everyoneLabels.includes(label));
+    const everyoneLabels = commandsOf(false).map(command => command.label);
+    const adminOnly = commandsOf(true)
+      .map(command => command.label)
+      .filter(label => !everyoneLabels.includes(label));
     expect(adminOnly.length).toBeGreaterThan(0);
 
     const { unmount } = renderPalette(false);
@@ -132,7 +156,7 @@ describe('CommandPalette', () => {
   });
 
   it('opens the first result with Enter', () => {
-    const [first] = commandsOf(false).filter((command) => command.group === 'Go to');
+    const [first] = commandsOf(false).filter(command => command.group === 'Go to');
     renderPalette();
     openWithShortcut();
     fireEvent.change(search(), { target: { value: first.desc } });
@@ -143,11 +167,15 @@ describe('CommandPalette', () => {
   });
 
   it('navigates and closes when a result is chosen', () => {
-    const chosen = commandsOf(false).filter((command) => command.group === 'Account').at(-1);
+    const chosen = commandsOf(false)
+      .filter(command => command.group === 'Account')
+      .at(-1);
     if (!chosen) throw new Error('the palette has no account command');
     renderPalette();
     openWithShortcut();
-    const link = within(dialog()).getAllByRole('link').find((candidate) => candidate.getAttribute('href') === chosen.href);
+    const link = within(dialog())
+      .getAllByRole('link')
+      .find(candidate => candidate.getAttribute('href') === chosen.href);
     if (!link) throw new Error(`the palette does not list ${chosen.href}`);
     fireEvent.click(link);
 

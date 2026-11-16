@@ -1,4 +1,12 @@
-import { useEffect, useId, useRef, useState, type FocusEvent, type KeyboardEvent, type MouseEvent } from 'react';
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type FocusEvent,
+  type KeyboardEvent,
+  type MouseEvent,
+} from 'react';
 import { ChevronDown, Menu, Plus, Search, X } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import type { Organization } from '../../api/platform';
@@ -9,7 +17,11 @@ import { InstitutionMark } from '../InstitutionMark';
 import { INSTITUTION_NAME, useInstitutionalBranding } from '../InstitutionMark/institution';
 import { NotificationDropdown } from '../NotificationDropdown/NotificationDropdown';
 import {
-  accountLinks, createItems, currentSection, mainLinks, organizationEntries,
+  accountLinks,
+  createItems,
+  currentSection,
+  mainLinks,
+  organizationEntries,
   type MenuEntry,
 } from './appNavigation';
 import { CommandPalette, OPEN_COMMAND_PALETTE_EVENT } from './CommandPalette';
@@ -22,7 +34,8 @@ interface AppHeaderProps {
   organization?: Organization;
 }
 
-const shortcutLabel = () => (typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘K' : 'Ctrl K');
+const shortcutLabel = () =>
+  typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘K' : 'Ctrl K';
 
 export function AppHeader({ organizations = [], organization }: AppHeaderProps) {
   const { user, isAdmin, signOut } = useAuth();
@@ -34,20 +47,25 @@ export function AppHeader({ organizations = [], organization }: AppHeaderProps) 
   const accountToggle = useRef<HTMLButtonElement>(null);
   const mobileToggle = useRef<HTMLButtonElement>(null);
   // Menus belong to the location they were opened on, so navigating closes them.
-  const [opened, setOpened] = useState<{ menu: MenuName | null; at: string }>({ menu: null, at: location.key });
+  const [opened, setOpened] = useState<{ menu: MenuName | null; at: string }>({
+    menu: null,
+    at: location.key,
+  });
   const openMenu = opened.at === location.key ? opened.menu : null;
   const [shortcut] = useState(shortcutLabel);
 
   const section = currentSection(location.pathname);
   const current = (active: boolean) => (active ? 'page' : undefined);
   const closeMenus = () => setOpened({ menu: null, at: location.key });
-  const toggleMenu = (menu: MenuName) => setOpened({ menu: openMenu === menu ? null : menu, at: location.key });
+  const toggleMenu = (menu: MenuName) =>
+    setOpened({ menu: openMenu === menu ? null : menu, at: location.key });
 
   useEffect(() => {
     if (!openMenu) return undefined;
     const handlePointerDown = (event: PointerEvent) => {
       const target = event.target as Element | null;
-      if (!target?.closest(`[data-app-menu="${openMenu}"]`)) setOpened({ menu: null, at: location.key });
+      if (!target?.closest(`[data-app-menu="${openMenu}"]`))
+        setOpened({ menu: null, at: location.key });
     };
     document.addEventListener('pointerdown', handlePointerDown);
     return () => document.removeEventListener('pointerdown', handlePointerDown);
@@ -83,13 +101,23 @@ export function AppHeader({ organizations = [], organization }: AppHeaderProps) 
   const renderEntry = (entry: MenuEntry, where: string, className?: string, active = false) => {
     if (entry.to) {
       return (
-        <Link key={entry.label} to={entry.to} viewTransition className={className} aria-current={current(active)}>{entry.label}</Link>
+        <Link
+          key={entry.label}
+          to={entry.to}
+          viewTransition
+          className={className}
+          aria-current={current(active)}
+        >
+          {entry.label}
+        </Link>
       );
     }
     const hintId = `${hintScope}-${where}-${entry.label}`;
     return (
       <span key={entry.label} className={`app-menu-disabled ${className ?? ''}`.trim()}>
-        <span role="link" tabIndex={0} aria-disabled="true" aria-describedby={hintId}>{entry.label}</span>
+        <span role="link" tabIndex={0} aria-disabled="true" aria-describedby={hintId}>
+          {entry.label}
+        </span>
         <small id={hintId}>{entry.hint}</small>
       </span>
     );
@@ -106,20 +134,25 @@ export function AppHeader({ organizations = [], organization }: AppHeaderProps) 
 
           {contextLabel && (
             <Link to="/app" viewTransition className="app-context" title="Switch organization">
-              <span>{contextLabel}</span><ChevronDown aria-hidden="true" />
+              <span>{contextLabel}</span>
+              <ChevronDown aria-hidden="true" />
             </Link>
           )}
 
           <nav className="app-nav" aria-label="Main">
             {renderEntry(mainLinks.home, 'nav', 'app-nav-link', section === 'home')}
-            {sections.map((entry) => renderEntry(entry, 'nav', 'app-nav-link', section === entry.id))}
+            {sections.map(entry => renderEntry(entry, 'nav', 'app-nav-link', section === entry.id))}
             {renderEntry(mainLinks.engines, 'nav', 'app-nav-link', section === 'engines')}
             {isAdmin && renderEntry(mainLinks.admin, 'nav', 'app-nav-link', section === 'admin')}
           </nav>
         </div>
 
         <div className="app-header-end">
-          <div className="app-menu app-new-menu" data-app-menu="new" onBlur={openMenu === 'new' ? closeWhenFocusLeaves : undefined}>
+          <div
+            className="app-menu app-new-menu"
+            data-app-menu="new"
+            onBlur={openMenu === 'new' ? closeWhenFocusLeaves : undefined}
+          >
             <button
               ref={newToggle}
               type="button"
@@ -128,22 +161,38 @@ export function AppHeader({ organizations = [], organization }: AppHeaderProps) 
               aria-controls="app-new-menu"
               onClick={() => toggleMenu('new')}
             >
-              <Plus aria-hidden="true" />New<ChevronDown aria-hidden="true" />
+              <Plus aria-hidden="true" />
+              New
+              <ChevronDown aria-hidden="true" />
             </button>
             {openMenu === 'new' && (
-              <div id="app-new-menu" className="app-menu-panel app-new-panel" onClick={closeAfterLink}>
-                {items.map((entry) => renderEntry(entry, 'new'))}
+              <div
+                id="app-new-menu"
+                className="app-menu-panel app-new-panel"
+                onClick={closeAfterLink}
+              >
+                {items.map(entry => renderEntry(entry, 'new'))}
               </div>
             )}
           </div>
 
-          <button type="button" className="app-search-button" onClick={openPalette} aria-label="Open command palette (Ctrl or Cmd + K)">
-            <Search aria-hidden="true" />Search<kbd>{shortcut}</kbd>
+          <button
+            type="button"
+            className="app-search-button"
+            onClick={openPalette}
+            aria-label="Open command palette (Ctrl or Cmd + K)"
+          >
+            <Search aria-hidden="true" />
+            Search<kbd>{shortcut}</kbd>
           </button>
 
           <NotificationDropdown />
 
-          <div className="app-menu" data-app-menu="account" onBlur={openMenu === 'account' ? closeWhenFocusLeaves : undefined}>
+          <div
+            className="app-menu"
+            data-app-menu="account"
+            onBlur={openMenu === 'account' ? closeWhenFocusLeaves : undefined}
+          >
             <button
               ref={accountToggle}
               type="button"
@@ -156,21 +205,35 @@ export function AppHeader({ organizations = [], organization }: AppHeaderProps) 
               {initials}
             </button>
             {openMenu === 'account' && (
-              <div id="app-account-menu" className="app-menu-panel app-account-panel" onClick={closeAfterLink}>
+              <div
+                id="app-account-menu"
+                className="app-menu-panel app-account-panel"
+                onClick={closeAfterLink}
+              >
                 <div className="app-account-card">
                   <strong>{user?.username}</strong>
                   <span>{user?.email}</span>
                   {institutional && (
                     <span className="app-institution-chip">
-                      <InstitutionMark variant="compact" />{INSTITUTION_NAME} · Institutional account
+                      <InstitutionMark variant="compact" />
+                      {INSTITUTION_NAME} · Institutional account
                     </span>
                   )}
                 </div>
-                {accountLinks.map((link) => (
-                  <Link key={link.to} to={link.to} viewTransition aria-current={current(location.pathname === link.to)}>{link.label}</Link>
+                {accountLinks.map(link => (
+                  <Link
+                    key={link.to}
+                    to={link.to}
+                    viewTransition
+                    aria-current={current(location.pathname === link.to)}
+                  >
+                    {link.label}
+                  </Link>
                 ))}
                 <hr />
-                <button type="button" onClick={handleSignOut}>Sign out</button>
+                <button type="button" onClick={handleSignOut}>
+                  Sign out
+                </button>
               </div>
             )}
           </div>
@@ -197,26 +260,27 @@ export function AppHeader({ organizations = [], organization }: AppHeaderProps) 
         aria-label="Mobile navigation"
         onClick={closeAfterLink}
       >
-        {contextLabel && <Link to="/app" viewTransition className="app-mobile-context">{contextLabel}</Link>}
+        {contextLabel && (
+          <Link to="/app" viewTransition className="app-mobile-context">
+            {contextLabel}
+          </Link>
+        )}
         {renderEntry(mainLinks.home, 'mobile', undefined, section === 'home')}
-        {sections.map((entry) => renderEntry(entry, 'mobile', undefined, section === entry.id))}
+        {sections.map(entry => renderEntry(entry, 'mobile', undefined, section === entry.id))}
         {renderEntry(mainLinks.engines, 'mobile', undefined, section === 'engines')}
         {isAdmin && renderEntry(mainLinks.admin, 'mobile', undefined, section === 'admin')}
         <div className="app-mobile-group">
           <span>New</span>
-          {items.map((entry) => renderEntry(entry, 'mobile-new'))}
+          {items.map(entry => renderEntry(entry, 'mobile-new'))}
         </div>
         <button type="button" className="app-mobile-search" onClick={openPalette}>
-          <Search aria-hidden="true" />Search
+          <Search aria-hidden="true" />
+          Search
         </button>
         <InstitutionMark variant="wide" className="app-mobile-institution" />
       </nav>
 
-      <CommandPalette
-        organizations={organizations}
-        organization={organization}
-        isAdmin={isAdmin}
-      />
+      <CommandPalette organizations={organizations} organization={organization} isAdmin={isAdmin} />
     </header>
   );
 }

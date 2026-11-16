@@ -40,7 +40,10 @@ export const RESULTS_DIR = process.env.E2E_RESULTS_DIR ?? '/results';
  */
 export function labPassword(): string {
   const value = process.env.LAB_SEED_PASSWORD || process.env.DEMO_SEED_PASSWORD;
-  if (!value) throw new Error('Neither LAB_SEED_PASSWORD nor DEMO_SEED_PASSWORD is set: export the password the lab users were seeded with (it is not kept in the repository).');
+  if (!value)
+    throw new Error(
+      'Neither LAB_SEED_PASSWORD nor DEMO_SEED_PASSWORD is set: export the password the lab users were seeded with (it is not kept in the repository).'
+    );
   return value;
 }
 
@@ -66,25 +69,41 @@ const LONGEST_WAIT_S = 300;
 export async function signInByApi(page: Page, role: LabRole): Promise<string> {
   let status = 0;
   for (let attempt = 1; attempt <= LOGIN_TRIES; attempt += 1) {
-    const response = await page.request.post(`${API}/v1/auth/login`, { data: { username_or_email: LAB_USERS[role], password: labPassword() } });
+    const response = await page.request.post(`${API}/v1/auth/login`, {
+      data: { username_or_email: LAB_USERS[role], password: labPassword() },
+    });
     status = response.status();
     if (response.ok()) {
-      const tokens = await response.json() as { access_token: string; refresh_token: string };
-      await page.addInitScript((session) => {
-        localStorage.setItem(session.access, session.accessToken);
-        localStorage.setItem(session.refresh, session.refreshToken);
-      }, { access: ACCESS_TOKEN_KEY, refresh: REFRESH_TOKEN_KEY, accessToken: tokens.access_token, refreshToken: tokens.refresh_token });
+      const tokens = (await response.json()) as { access_token: string; refresh_token: string };
+      await page.addInitScript(
+        session => {
+          localStorage.setItem(session.access, session.accessToken);
+          localStorage.setItem(session.refresh, session.refreshToken);
+        },
+        {
+          access: ACCESS_TOKEN_KEY,
+          refresh: REFRESH_TOKEN_KEY,
+          accessToken: tokens.access_token,
+          refreshToken: tokens.refresh_token,
+        }
+      );
       return tokens.access_token;
     }
     if (status !== 429 || attempt === LOGIN_TRIES) break;
     const wait = Number(response.headers()['retry-after']);
-    await page.waitForTimeout(1000 * Math.min(Number.isFinite(wait) && wait > 0 ? wait : 30, LONGEST_WAIT_S));
+    await page.waitForTimeout(
+      1000 * Math.min(Number.isFinite(wait) && wait > 0 ? wait : 30, LONGEST_WAIT_S)
+    );
   }
   throw new Error(`login of ${LAB_USERS[role]} answered HTTP ${status}`);
 }
 
 /** Signs in through the form of the login page, the way a person does. */
-export async function signInThroughForm(page: Page, username: string, password: string): Promise<void> {
+export async function signInThroughForm(
+  page: Page,
+  username: string,
+  password: string
+): Promise<void> {
   await page.goto('/login');
   await page.getByLabel('Username or email').fill(username);
   await page.getByLabel('Password', { exact: true }).fill(password);
@@ -94,7 +113,7 @@ export async function signInThroughForm(page: Page, username: string, password: 
 /** Collects the errors the page throws, to be checked at the end of a spec. */
 export function watchPageErrors(page: Page): string[] {
   const errors: string[] = [];
-  page.on('pageerror', (error) => errors.push(error.message));
+  page.on('pageerror', error => errors.push(error.message));
   return errors;
 }
 

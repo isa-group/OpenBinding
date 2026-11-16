@@ -18,39 +18,59 @@ function rangedFacts(): ProblemFacts {
 describe('candidateMatrix', () => {
   it('keeps ranges as written, open ends included', () => {
     const t1 = candidateMatrix(rangedFacts()).rows[0];
-    expect(t1.candidates.map((candidate) => candidate.cells.map((cell) => cell.value))).toEqual([
+    expect(t1.candidates.map(candidate => candidate.cells.map(cell => cell.value))).toEqual([
       [10, { min: 0.01, max: 0.02 }],
-      [{ min: 100, max: null }, { min: null, max: 0.05 }],
+      [
+        { min: 100, max: null },
+        { min: null, max: 0.05 },
+      ],
     ]);
     expect(t1.candidates[0].cells[0]).toEqual({
-      feature: 'latency', value: 10, unit: 'ms',
-      origin: { kind: 'package', resource: 'catalog', path: 'candidates.json', pointer: '/spec/candidates/c1a/features/latency' },
+      feature: 'latency',
+      value: 10,
+      unit: 'ms',
+      origin: {
+        kind: 'package',
+        resource: 'catalog',
+        path: 'candidates.json',
+        pointer: '/spec/candidates/c1a/features/latency',
+      },
     });
   });
 
   it('gives a value a candidate does not declare as null, with no origin', () => {
     const facts = rangedFacts();
     facts.candidates[0] = { ...facts.candidates[0], values: { latency: 10 }, origins: {} };
-    const cell = candidateMatrix(facts).rows[0].candidates[0].cells.find((entry) => entry.feature === 'cost');
+    const cell = candidateMatrix(facts).rows[0].candidates[0].cells.find(
+      entry => entry.feature === 'cost'
+    );
     expect(cell).toEqual({ feature: 'cost', value: null, unit: 'EUR', origin: null });
   });
 
   it('marks the selection by the candidate keys of EvaluationView.binding', () => {
-    const matrix = candidateMatrix(ambiguous as ProblemFacts, { selection: { t1: 'other/c1a', t2: 'catalog/c2a' } });
-    expect(matrix.rows.map((row) => row.candidates.filter((candidate) => candidate.selected).map((candidate) => candidate.key))).toEqual([
-      ['other/c1a'], ['catalog/c2a'], [],
-    ]);
+    const matrix = candidateMatrix(ambiguous as ProblemFacts, {
+      selection: { t1: 'other/c1a', t2: 'catalog/c2a' },
+    });
+    expect(
+      matrix.rows.map(row =>
+        row.candidates.filter(candidate => candidate.selected).map(candidate => candidate.key)
+      )
+    ).toEqual([['other/c1a'], ['catalog/c2a'], []]);
   });
 
   it('takes the written names from the facts, ambiguous ones included', () => {
     const t1 = candidateMatrix(ambiguous as ProblemFacts).rows[0];
-    expect(t1.candidates.map((candidate) => [candidate.key, candidate.written])).toEqual([
-      ['catalog/c1a', 'catalog/c1a'], ['catalog/c1b', 'c1b'], ['other/c1a', 'other/c1a'],
+    expect(t1.candidates.map(candidate => [candidate.key, candidate.written])).toEqual([
+      ['catalog/c1a', 'catalog/c1a'],
+      ['catalog/c1b', 'c1b'],
+      ['other/c1a', 'other/c1a'],
     ]);
   });
 
   it('gives a local task a row with no candidates', () => {
-    const local = candidateMatrix(fms as ProblemFacts).rows.find((row) => row.task === 'node_classic_routing');
+    const local = candidateMatrix(fms as ProblemFacts).rows.find(
+      row => row.task === 'node_classic_routing'
+    );
     expect(local).toEqual({ task: 'node_classic_routing', kind: 'local', candidates: [] });
   });
 
@@ -63,7 +83,17 @@ describe('candidateMatrix', () => {
       { id: 'cost', unit: 'EUR', direction: null, required: true },
     ];
     const matrix = candidateMatrix(facts);
-    expect(matrix.features.map((feature) => feature.id)).toEqual(['latency', 'cost', 'carbon', 'trust']);
-    expect(matrix.rows[0].candidates[0].cells.map((cell) => cell.feature)).toEqual(['latency', 'cost', 'carbon', 'trust']);
+    expect(matrix.features.map(feature => feature.id)).toEqual([
+      'latency',
+      'cost',
+      'carbon',
+      'trust',
+    ]);
+    expect(matrix.rows[0].candidates[0].cells.map(cell => cell.feature)).toEqual([
+      'latency',
+      'cost',
+      'carbon',
+      'trust',
+    ]);
   });
 });

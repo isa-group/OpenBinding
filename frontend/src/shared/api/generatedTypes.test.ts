@@ -8,7 +8,10 @@ const frontend = fileURLToPath(new URL('../../..', import.meta.url));
 
 describe('the generated API types', () => {
   it('match docs/openapi.json', () => {
-    const run = spawnSync(process.execPath, ['scripts/gen-api.mjs', '--check'], { cwd: frontend, encoding: 'utf8' });
+    const run = spawnSync(process.execPath, ['scripts/gen-api.mjs', '--check'], {
+      cwd: frontend,
+      encoding: 'utf8',
+    });
     expect(run.stderr).toBe('');
     expect(run.status).toBe(0);
   });

@@ -12,7 +12,18 @@ import type { Kind } from '../../entities/composition/document';
 export type DocumentModel = Record<string, unknown>;
 
 /** The keys a Composition2Yaml 1.0 document may hold (the schema's properties); nothing else is ever written. */
-export const DOCUMENT_KEYS = ['syntaxVersion', 'composition', 'version', 'kind', 'problem', 'workflow', 'binding', 'values', 'offering', 'evidence'] as const;
+export const DOCUMENT_KEYS = [
+  'syntaxVersion',
+  'composition',
+  'version',
+  'kind',
+  'problem',
+  'workflow',
+  'binding',
+  'values',
+  'offering',
+  'evidence',
+] as const;
 
 /** The composition's own pricing in one of its three forms. */
 export type OfferingChoice =
@@ -25,13 +36,13 @@ export const PROVENANCE_REMOVED = 'Provenance removed; derive fills it.';
 /** What a candidate change says about the run it no longer cites. */
 export const RUN_EVIDENCE_REMOVED = 'The run is no longer cited: its solution is another binding.';
 
-const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
 
 const clone = (document: DocumentModel): DocumentModel => structuredClone(document);
 
-const section = (document: DocumentModel, key: 'binding' | 'values'): Record<string, unknown> => (
-  isRecord(document[key]) ? document[key] as Record<string, unknown> : {}
-);
+const section = (document: DocumentModel, key: 'binding' | 'values'): Record<string, unknown> =>
+  isRecord(document[key]) ? (document[key] as Record<string, unknown>) : {};
 
 /** The document's own label. */
 export function setVersion(document: DocumentModel, label: string): DocumentModel {
@@ -49,7 +60,11 @@ export function setKind(document: DocumentModel, kind: Kind): DocumentModel {
  * the solution that run found (the gateway refuses a run that does not hold the binding, `c2y_run_binding_mismatch`), and the seal
  * stamps the evidence of a binding chosen by hand.
  */
-export function setCandidate(document: DocumentModel, task: string, candidate: string): { document: DocumentModel; note: string | null } {
+export function setCandidate(
+  document: DocumentModel,
+  task: string,
+  candidate: string
+): { document: DocumentModel; note: string | null } {
   const next = clone(document);
   const binding = section(next, 'binding');
   const previous = binding[task];
@@ -64,12 +79,19 @@ export function setCandidate(document: DocumentModel, task: string, candidate: s
     if (Object.keys(kept).length > 0) next.evidence = kept;
     else delete next.evidence;
   }
-  const notes = [dropped ? PROVENANCE_REMOVED : '', cited ? RUN_EVIDENCE_REMOVED : ''].filter(Boolean);
+  const notes = [dropped ? PROVENANCE_REMOVED : '', cited ? RUN_EVIDENCE_REMOVED : ''].filter(
+    Boolean
+  );
   return { document: next, note: notes.length > 0 ? notes.join(' ') : null };
 }
 
 /** Declare a value: a dimensionless one (unit `"1"` or none) is written as a bare number, any other as `{value, unit}`. */
-export function setValue(document: DocumentModel, name: string, value: number, unit: string): DocumentModel {
+export function setValue(
+  document: DocumentModel,
+  name: string,
+  value: number,
+  unit: string
+): DocumentModel {
   const next = clone(document);
   const written = unit.trim() === '' || unit.trim() === '1' ? value : { value, unit: unit.trim() };
   next.values = { ...section(next, 'values'), [name]: written };
@@ -86,15 +108,21 @@ export function removeValue(document: DocumentModel, name: string): DocumentMode
 }
 
 /** The composition's own pricing in one of its forms, or none. */
-export function setOffering(document: DocumentModel, offering: OfferingChoice | null): DocumentModel {
+export function setOffering(
+  document: DocumentModel,
+  offering: OfferingChoice | null
+): DocumentModel {
   const next = clone(document);
   if (!offering) {
     delete next.offering;
     return next;
   }
-  next.offering = offering.source === 'url'
-    ? { url: offering.url }
-    : offering.source === 'registry' ? { sphere: offering.sphere, registry: offering.registry } : { sphere: offering.sphere };
+  next.offering =
+    offering.source === 'url'
+      ? { url: offering.url }
+      : offering.source === 'registry'
+        ? { sphere: offering.sphere, registry: offering.registry }
+        : { sphere: offering.sphere };
   return next;
 }
 

@@ -72,13 +72,20 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 const isText = (value: unknown): value is string => typeof value === 'string';
-const isNumber = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value);
-const optional = (value: unknown, check: (item: unknown) => boolean) => value === undefined || check(value);
+const isNumber = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isFinite(value);
+const optional = (value: unknown, check: (item: unknown) => boolean) =>
+  value === undefined || check(value);
 
 function isProvenance(value: unknown): value is Provenance {
-  return isRecord(value) && isText(value.sphere) && isText(value.version) && isText(value.plan)
-    && optional(value.registry, isText)
-    && optional(value.addons, (addons) => Array.isArray(addons) && addons.every(isText));
+  return (
+    isRecord(value) &&
+    isText(value.sphere) &&
+    isText(value.version) &&
+    isText(value.plan) &&
+    optional(value.registry, isText) &&
+    optional(value.addons, addons => Array.isArray(addons) && addons.every(isText))
+  );
 }
 
 function isBindingEntry(value: unknown): value is BindingEntry {
@@ -97,9 +104,10 @@ function isOffering(value: unknown): value is Offering {
   return isText(value.sphere) && optional(value.registry, isText);
 }
 
-const every = <T>(record: unknown, check: (item: unknown) => item is T): record is Record<string, T> => (
-  isRecord(record) && Object.values(record).every(check)
-);
+const every = <T>(
+  record: unknown,
+  check: (item: unknown) => item is T
+): record is Record<string, T> => isRecord(record) && Object.values(record).every(check);
 
 /**
  * The document, when `value` has the shape of one; otherwise null. The workflow is not checked here: the workflow graph
@@ -107,15 +115,21 @@ const every = <T>(record: unknown, check: (item: unknown) => item is T): record 
  */
 export function readDocument(value: unknown): CompositionDocument | null {
   if (!isRecord(value)) return null;
-  const shaped = isText(value.syntaxVersion) && isText(value.composition) && isText(value.version)
-    && KINDS.includes(value.kind as Kind)
-    && Object.hasOwn(value, 'workflow')
-    && every(value.binding, isBindingEntry)
-    && every(value.values, isValue)
-    && optional(value.problem, (problem) => isRecord(problem) && isText(problem.ref) && isText(problem.compilation))
-    && optional(value.offering, isOffering)
-    && optional(value.evidence, isRecord);
-  return shaped ? value as unknown as CompositionDocument : null;
+  const shaped =
+    isText(value.syntaxVersion) &&
+    isText(value.composition) &&
+    isText(value.version) &&
+    KINDS.includes(value.kind as Kind) &&
+    Object.hasOwn(value, 'workflow') &&
+    every(value.binding, isBindingEntry) &&
+    every(value.values, isValue) &&
+    optional(
+      value.problem,
+      problem => isRecord(problem) && isText(problem.ref) && isText(problem.compilation)
+    ) &&
+    optional(value.offering, isOffering) &&
+    optional(value.evidence, isRecord);
+  return shaped ? (value as unknown as CompositionDocument) : null;
 }
 
 /** Is it a document? The same check as `readDocument`, as a type guard. */
@@ -125,5 +139,7 @@ export function isCompositionDocument(value: unknown): value is CompositionDocum
 
 /** The number and unit of a document value, as written: a bare number has unit `"1"`. */
 export function documentValue(value: DocumentValue): { value: number; unit: string } {
-  return typeof value === 'number' ? { value, unit: '1' } : { value: value.value, unit: value.unit };
+  return typeof value === 'number'
+    ? { value, unit: '1' }
+    : { value: value.value, unit: value.unit };
 }

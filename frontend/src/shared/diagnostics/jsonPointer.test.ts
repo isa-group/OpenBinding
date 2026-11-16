@@ -7,7 +7,7 @@ import { expressionRange, lineColumn, parsePointer, resolvePointer } from './jso
 // `refused.validate.json` its 422 body.
 const texts = files as Record<string, string>;
 const finding = (code: string) => {
-  const found = refused.diagnostics.find((item) => item.code === code);
+  const found = refused.diagnostics.find(item => item.code === code);
   if (!found) throw new Error(`no ${code} in refused.validate.json`);
   return found;
 };
@@ -62,8 +62,15 @@ describe('resolvePointer on the refused package', () => {
 });
 
 describe('resolvePointer', () => {
-  const text = JSON.stringify({ spec: { 'zone/a': 1, 'b~c': [[0, [1, 2, 'three']]], twice: 1, other: { twice: 9 } }, twice: 'first', last: true }, null, 2)
-    .replace('"last": true', '"twice": "second",\n  "last": true');
+  const text = JSON.stringify(
+    {
+      spec: { 'zone/a': 1, 'b~c': [[0, [1, 2, 'three']]], twice: 1, other: { twice: 9 } },
+      twice: 'first',
+      last: true,
+    },
+    null,
+    2
+  ).replace('"last": true', '"twice": "second",\n  "last": true');
 
   it('unescapes ~1 and ~0 in member names', () => {
     expect(slice(text, '/spec/zone~1a').text).toBe('1');
@@ -92,7 +99,12 @@ describe('resolvePointer', () => {
   });
 
   it('answers the whole document for the empty pointer, and nothing for text that holds no value or a pointer that is not one', () => {
-    expect(slice(text, '')).toMatchObject({ from: 0, to: text.length, exact: true, kind: 'Object' });
+    expect(slice(text, '')).toMatchObject({
+      from: 0,
+      to: text.length,
+      exact: true,
+      kind: 'Object',
+    });
     expect(resolvePointer('', '/a')).toBeNull();
     expect(resolvePointer(text, 'spec')).toBeNull();
   });
@@ -111,12 +123,17 @@ describe('expressionRange', () => {
     const start = characters.indexOf('<');
     const range = expressionRange(text, target, { start, end: start + 2 })!;
     expect(text.slice(range.from, range.to)).toBe('<=');
-    const quoted = expressionRange(text, target, { start: expression.indexOf('"'), end: expression.indexOf('"') + 3 })!;
+    const quoted = expressionRange(text, target, {
+      start: expression.indexOf('"'),
+      end: expression.indexOf('"') + 3,
+    })!;
     expect(text.slice(quoted.from, quoted.to)).toBe('\\"x\\"');
   });
 
   it('places nothing in a value that is not a string', () => {
-    expect(expressionRange('{"a": 1}', resolvePointer('{"a": 1}', '/a')!, { start: 0, end: 1 })).toBeNull();
+    expect(
+      expressionRange('{"a": 1}', resolvePointer('{"a": 1}', '/a')!, { start: 0, end: 1 })
+    ).toBeNull();
   });
 });
 

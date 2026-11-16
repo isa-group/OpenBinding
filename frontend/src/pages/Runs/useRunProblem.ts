@@ -20,19 +20,28 @@ const UNAVAILABLE: RunProblemState = { problem: null, constraints: [] };
  * tasks and candidates and to show bounds.
  */
 export function useRunProblem(origin: Origin | null, enabled: boolean): RunProblemState {
-  const key = origin?.compilationId ? `${origin.org}/${origin.caseSlug}/${origin.revision}/${origin.compilationId}` : undefined;
-  const [state, setState] = useState<{ key: string | undefined; value: RunProblemState }>({ key, value: LOADING });
+  const key = origin?.compilationId
+    ? `${origin.org}/${origin.caseSlug}/${origin.revision}/${origin.compilationId}`
+    : undefined;
+  const [state, setState] = useState<{ key: string | undefined; value: RunProblemState }>({
+    key,
+    value: LOADING,
+  });
 
   useEffect(() => {
     if (!enabled || !key || !origin?.compilationId) return undefined;
     let cancelled = false;
     problemFactsApi.get(origin.org, origin.caseSlug, origin.revision, origin.compilationId).then(
-      (facts) => {
-        if (!cancelled) setState({ key, value: { problem: runProblemOf(facts), constraints: facts.constraints } });
+      facts => {
+        if (!cancelled)
+          setState({
+            key,
+            value: { problem: runProblemOf(facts), constraints: facts.constraints },
+          });
       },
       () => {
         if (!cancelled) setState({ key, value: UNAVAILABLE });
-      },
+      }
     );
     return () => {
       cancelled = true;

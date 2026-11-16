@@ -19,8 +19,10 @@ const PATH = '/invitations/accept';
 const ROLE_COPY: Record<OrganizationRole, string> = {
   OWNER: 'As an owner you manage the organization, its members and its settings.',
   ADMIN: 'As an admin you can manage members and settings. Owners can change your role later.',
-  MEMBER: 'As a member you can upload problems and launch runs and studies. Sub-organizations inherit your role unless they grant you a higher one. Admins can change your role later.',
-  VIEWER: 'As a viewer you can read what the organization shares with you. Admins can change your role later.',
+  MEMBER:
+    'As a member you can upload problems and launch runs and studies. Sub-organizations inherit your role unless they grant you a higher one. Admins can change your role later.',
+  VIEWER:
+    'As a viewer you can read what the organization shares with you. Admins can change your role later.',
 };
 
 type Failure =
@@ -40,7 +42,14 @@ interface InviteState {
   token?: string;
 }
 
-const initialsOf = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((word) => word[0]).join('').toUpperCase() || '?';
+const initialsOf = (name: string) =>
+  name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map(word => word[0])
+    .join('')
+    .toUpperCase() || '?';
 
 /**
  * Accept an organization invitation with the token that came in the link (or was pasted).
@@ -67,15 +76,17 @@ export function AcceptInvitation() {
   useEffect(() => {
     // A secret does not stay in the address bar, the history list or the Referer of an outgoing link:
     // it moves to this entry's own state, which survives a reload and goes nowhere else.
-    if (queryToken) navigate(PATH, { replace: true, state: { token: queryToken.trim() } satisfies InviteState });
+    if (queryToken)
+      navigate(PATH, { replace: true, state: { token: queryToken.trim() } satisfies InviteState });
   }, [queryToken, navigate]);
 
   const trimmed = token.trim();
-  const tokenError = touched && !trimmed
-    ? 'Paste the invitation token.'
-    : (touched && trimmed.length < MIN_TOKEN_LENGTH) || failure?.kind === 'malformed'
-      ? `That doesn’t look like an invitation token: they are at least ${MIN_TOKEN_LENGTH} characters long.`
-      : undefined;
+  const tokenError =
+    touched && !trimmed
+      ? 'Paste the invitation token.'
+      : (touched && trimmed.length < MIN_TOKEN_LENGTH) || failure?.kind === 'malformed'
+        ? `That doesn’t look like an invitation token: they are at least ${MIN_TOKEN_LENGTH} characters long.`
+        : undefined;
   // Sent to log in and back: the return address carries the token (in router state, never in a visible URL),
   // and this page moves it out of the query again as soon as it is back.
   const loginState = { from: trimmed ? `${PATH}?token=${encodeURIComponent(trimmed)}` : PATH };
@@ -96,8 +107,8 @@ export function AcceptInvitation() {
       const after = await platformApi.organizations().catch(() => null);
       setJoined({
         member,
-        organization: after?.find((item) => item.id === member.organization_id) ?? null,
-        alreadyMember: Boolean(before?.some((item) => item.id === member.organization_id)),
+        organization: after?.find(item => item.id === member.organization_id) ?? null,
+        alreadyMember: Boolean(before?.some(item => item.id === member.organization_id)),
       });
       setToken('');
       void platform?.reload();
@@ -136,12 +147,18 @@ export function AcceptInvitation() {
         <div className="invite-card">
           <span className="invite-eyebrow">Organization invitation</span>
           <div className="invite-done" role="status">
-            <span className="invite-check" aria-hidden="true"><Check /></span>
+            <span className="invite-check" aria-hidden="true">
+              <Check />
+            </span>
             <h1>{alreadyMember ? `You’re already a member of ${name}` : `You joined ${name}`}</h1>
           </div>
-          {alreadyMember && <Notice tone="info">Nothing changed: your current role stays as it is.</Notice>}
+          {alreadyMember && (
+            <Notice tone="info">Nothing changed: your current role stays as it is.</Notice>
+          )}
           <div className="invite-org">
-            <span className="invite-org-mark" aria-hidden="true">{initialsOf(organization?.name ?? 'Organization')}</span>
+            <span className="invite-org-mark" aria-hidden="true">
+              {initialsOf(organization?.name ?? 'Organization')}
+            </span>
             <div className="invite-org-name">
               <strong>{organization?.name ?? 'Organization'}</strong>
               {organization && <code>@{organization.slug}</code>}
@@ -149,7 +166,11 @@ export function AcceptInvitation() {
             <Chip>{member.role}</Chip>
           </div>
           <p className="invite-note">{ROLE_COPY[member.role]}</p>
-          <Link className="invite-btn invite-btn-primary" to={organization ? `/app/${organization.slug}` : '/app'} viewTransition>
+          <Link
+            className="invite-btn invite-btn-primary"
+            to={organization ? `/app/${organization.slug}` : '/app'}
+            viewTransition
+          >
             Open the organization
           </Link>
         </div>
@@ -164,11 +185,26 @@ export function AcceptInvitation() {
           <span className="invite-eyebrow">Organization invitation</span>
           <h1>Log in to accept</h1>
           <p className="invite-note">
-            Invitations are accepted from a signed-in account. Your invitation link is kept, so you’ll come back here after logging in.
+            Invitations are accepted from a signed-in account. Your invitation link is kept, so
+            you’ll come back here after logging in.
           </p>
           <div className="invite-actions">
-            <Link className="invite-btn invite-btn-primary" to="/login" state={loginState} viewTransition>Log in</Link>
-            <Link className="invite-btn invite-btn-secondary" to="/register" state={loginState} viewTransition>Create an account</Link>
+            <Link
+              className="invite-btn invite-btn-primary"
+              to="/login"
+              state={loginState}
+              viewTransition
+            >
+              Log in
+            </Link>
+            <Link
+              className="invite-btn invite-btn-secondary"
+              to="/register"
+              state={loginState}
+              viewTransition
+            >
+              Create an account
+            </Link>
           </div>
         </div>
       </div>
@@ -186,7 +222,8 @@ export function AcceptInvitation() {
             : 'Opened this page without a link? Paste the token you were sent. It’s shown once to the person who invited you.'}
         </p>
         <Notice tone="info">
-          The organization and role are confirmed once you accept: the API has no endpoint to preview an invitation before using it.
+          The organization and role are confirmed once you accept: the API has no endpoint to
+          preview an invitation before using it.
         </Notice>
 
         <form className="invite-form" onSubmit={accept} noValidate>
@@ -197,25 +234,38 @@ export function AcceptInvitation() {
               id="invitation-token"
               name="token"
               value={token}
-              onChange={(event) => setToken(event.target.value)}
+              onChange={event => setToken(event.target.value)}
               autoComplete="off"
               autoCapitalize="none"
               spellCheck={false}
               placeholder="Paste the token you received"
               disabled={busy}
               aria-invalid={tokenError ? true : undefined}
-              aria-describedby={tokenError ? 'invitation-token-help invitation-token-error' : 'invitation-token-help'}
+              aria-describedby={
+                tokenError
+                  ? 'invitation-token-help invitation-token-error'
+                  : 'invitation-token-help'
+              }
             />
-            {tokenError && <span id="invitation-token-error" className="invite-error">{tokenError}</span>}
-            <span id="invitation-token-help" className="invite-help">Tokens are valid for 7 days and work once.</span>
+            {tokenError && (
+              <span id="invitation-token-error" className="invite-error">
+                {tokenError}
+              </span>
+            )}
+            <span id="invitation-token-help" className="invite-help">
+              Tokens are valid for 7 days and work once.
+            </span>
           </div>
 
           <div aria-live="assertive" className="invite-results">
             {failure?.kind === 'refused' && (
               <Notice tone="error" title="This invitation can’t be used.">
-                It’s invalid, expired or was already used, or it was sent to a different email address than {user.email}: the gateway
-                doesn’t say which. Log in with the account that received it, or ask the person who invited you for a new one.{' '}
-                <button type="button" className="invite-inline" onClick={() => void signOut()}>Log out</button>
+                It’s invalid, expired or was already used, or it was sent to a different email
+                address than {user.email}: the gateway doesn’t say which. Log in with the account
+                that received it, or ask the person who invited you for a new one.{' '}
+                <button type="button" className="invite-inline" onClick={() => void signOut()}>
+                  Log out
+                </button>
               </Notice>
             )}
             {failure?.kind === 'unavailable' && (
@@ -224,10 +274,14 @@ export function AcceptInvitation() {
               </Notice>
             )}
             {failure?.kind === 'network' && (
-              <Notice tone="error" title="OpenBinding couldn’t be reached.">Nothing was changed. Check your connection and try again.</Notice>
+              <Notice tone="error" title="OpenBinding couldn’t be reached.">
+                Nothing was changed. Check your connection and try again.
+              </Notice>
             )}
             {failure?.kind === 'unknown' && (
-              <Notice tone="error" title="The invitation could not be accepted.">Nothing was changed. Try again in a moment.</Notice>
+              <Notice tone="error" title="The invitation could not be accepted.">
+                Nothing was changed. Try again in a moment.
+              </Notice>
             )}
           </div>
 
@@ -235,7 +289,9 @@ export function AcceptInvitation() {
             {busy && <span className="invite-spinner" aria-hidden="true" />}
             {busy ? 'Accepting…' : 'Accept invitation'}
           </button>
-          <Link className="invite-link" to="/app" viewTransition>Not now</Link>
+          <Link className="invite-link" to="/app" viewTransition>
+            Not now
+          </Link>
         </form>
       </div>
     </div>

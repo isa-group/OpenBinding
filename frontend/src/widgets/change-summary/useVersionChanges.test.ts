@@ -19,14 +19,26 @@ vi.mock('../../entities/composition/api', () => ({ compositionsApi: api }));
 /** A diff whose binding section adds these tasks and changes nothing else. */
 function diffAdding(added: string[]): CompositionVersionDiff {
   const diff = structuredClone(fms) as CompositionVersionDiff;
-  diff.sections = [{ key: 'binding', label: 'Binding', entries: added.map((name) => ({ kind: 'added' as const, name, changes: [] })) }];
+  diff.sections = [
+    {
+      key: 'binding',
+      label: 'Binding',
+      entries: added.map(name => ({ kind: 'added' as const, name, changes: [] })),
+    },
+  ];
   diff.general = [];
   diff.isEmpty = added.length === 0;
   diff.totals = { added: added.length, removed: 0, changed: 0 };
   return diff;
 }
 
-const pair = (before: string, after: string): ChangesTarget => ({ org: 'isa-demo', composition: 'order-desk', key: 'composition-v3', before, after });
+const pair = (before: string, after: string): ChangesTarget => ({
+  org: 'isa-demo',
+  composition: 'order-desk',
+  key: 'composition-v3',
+  before,
+  after,
+});
 
 describe('version change cache', () => {
   let latest: ChangesState;
@@ -38,17 +50,28 @@ describe('version change cache', () => {
   // Render (its effects run as the render's own act ends), then let the delay pass and the diff answer.
   const render = async () => {
     if (view) view.rerender();
-    else view = renderHook(() => { latest = useVersionChanges(target, revision); return latest; });
-    await act(async () => { await vi.advanceTimersByTimeAsync(151); });
+    else
+      view = renderHook(() => {
+        latest = useVersionChanges(target, revision);
+        return latest;
+      });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(151);
+    });
   };
   const additions = () => {
     if (latest.status !== 'ready') throw new Error(`Expected ready, got ${latest.status}`);
-    return latest.summary.sections.flatMap((section) => section.added);
+    return latest.summary.sections.flatMap(section => section.added);
   };
 
   beforeEach(() => {
     vi.useFakeTimers();
-    api.diff.mockReset().mockImplementation(async (_org: string, _composition: string, before: string, after: string) => diffAdding(answers[`${before}..${after}`] ?? []));
+    api.diff
+      .mockReset()
+      .mockImplementation(
+        async (_org: string, _composition: string, before: string, after: string) =>
+          diffAdding(answers[`${before}..${after}`] ?? [])
+      );
     auth.user = { id: 'first-user' };
     revision = {};
     target = pair('v2', 'v3');
@@ -101,14 +124,21 @@ describe('version change cache', () => {
 
   it('ignores an old in-flight result after the versions change', async () => {
     let finish!: (value: CompositionVersionDiff) => void;
-    api.diff.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }));
+    api.diff.mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          finish = resolve;
+        })
+    );
     await render();
     expect(latest.status).toBe('loading');
     revision = {};
     answers['v2..v3'] = ['Team'];
     await render();
     expect(additions()).toEqual(['Team']);
-    await act(async () => { finish(diffAdding([])); });
+    await act(async () => {
+      finish(diffAdding([]));
+    });
     expect(additions()).toEqual(['Team']);
   });
 });

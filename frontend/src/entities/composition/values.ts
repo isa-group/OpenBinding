@@ -28,7 +28,10 @@ type StatusOf =
 /** The status of a version's values, from the gateway's `values_status` and whether the current evaluation verified it. */
 export function valueStatus(version: StatusOf): ValueStatus {
   if (version.values_status === 'declared') return 'declared';
-  const verified = 'current_evaluation' in version ? version.current_evaluation?.outcome === 'verified' : version.verified;
+  const verified =
+    'current_evaluation' in version
+      ? version.current_evaluation?.outcome === 'verified'
+      : version.verified;
   return verified ? 'verified' : 'unverified';
 }
 
@@ -43,11 +46,19 @@ export interface ValueModel {
 /** The values of a version in the order the gateway serves them (the document's), each with its unit as written. */
 export function valueModels(version: Valued): ValueModel[] {
   const status = valueStatus(version);
-  return Object.entries(version.values).map(([name, { value, unit }]) => ({ name, value, unit, status }));
+  return Object.entries(version.values).map(([name, { value, unit }]) => ({
+    name,
+    value,
+    unit,
+    status,
+  }));
 }
 
 const NUMBER = new Intl.NumberFormat('en-US', { maximumFractionDigits: 6 });
-const TINY = new Intl.NumberFormat('en-US', { notation: 'scientific', maximumSignificantDigits: 4 });
+const TINY = new Intl.NumberFormat('en-US', {
+  notation: 'scientific',
+  maximumSignificantDigits: 4,
+});
 
 /** A number as people read it: grouped, at most six decimals, and in scientific notation when that would hide it. */
 export function formatNumber(value: number): string {

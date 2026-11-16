@@ -25,21 +25,49 @@ import { useRouteOrganization } from '../Organization/useRouteOrganization';
 import { CasesField, EnginesField, SettingsField } from './BuilderFields';
 import { StudyFrame } from './parts';
 import {
-  MAX_CASES, MAX_CELLS, MAX_ENGINES, MAX_SETTINGS, defaultSelection, definitionEngines, emptyVariant, engineChoices, formulaOf,
-  matrixSize, parametersKey, readSeeds, readVariant, revisionsOf, studyCriteriaCount, type Variant,
+  MAX_CASES,
+  MAX_CELLS,
+  MAX_ENGINES,
+  MAX_SETTINGS,
+  defaultSelection,
+  definitionEngines,
+  emptyVariant,
+  engineChoices,
+  formulaOf,
+  matrixSize,
+  parametersKey,
+  readSeeds,
+  readVariant,
+  revisionsOf,
+  studyCriteriaCount,
+  type Variant,
 } from './studiesModel';
 import { studyRefusal, type Refusal } from './studyErrors';
 
-function BuilderBody({ organization, canCreate }: { organization: Organization; canCreate: boolean }) {
+function BuilderBody({
+  organization,
+  canCreate,
+}: {
+  organization: Organization;
+  canCreate: boolean;
+}) {
   const { user } = useAuth();
   const [params] = useSearchParams();
   const org = organization.slug;
 
   const cases = useResource<CaseContent[]>(`builder-problems:${org}`, () => loadProblems(org));
-  const engines = useResource<EngineCatalogEntry[]>('builder-engines', () => apiClient.getEngines());
-  const usage = useResource<UsageView | null>('builder-usage', () => apiClient.getOwnUsage().catch(() => null));
-  const pricing = useResource<Record<string, unknown> | null>('builder-pricing', () => apiClient.getPricingCatalog().catch(() => null));
-  const presets = useResource<RunPresetList | null>(`builder-presets:${org}`, () => presetsApi.list(org, { limit: PRESET_PAGE }).catch(() => null));
+  const engines = useResource<EngineCatalogEntry[]>('builder-engines', () =>
+    apiClient.getEngines()
+  );
+  const usage = useResource<UsageView | null>('builder-usage', () =>
+    apiClient.getOwnUsage().catch(() => null)
+  );
+  const pricing = useResource<Record<string, unknown> | null>('builder-pricing', () =>
+    apiClient.getPricingCatalog().catch(() => null)
+  );
+  const presets = useResource<RunPresetList | null>(`builder-presets:${org}`, () =>
+    presetsApi.list(org, { limit: PRESET_PAGE }).catch(() => null)
+  );
 
   const [name, setName] = useState('');
   const [address, setAddress] = useState<string | null>(null);
@@ -56,24 +84,36 @@ function BuilderBody({ organization, canCreate }: { organization: Organization; 
 
   const caseList = cases.data ?? cases.stale;
   const defaults = useMemo(
-    () => defaultSelection({ cases: caseList ?? [], caseSlug: params.get('case'), revision: params.get('revision') }),
-    [caseList, params],
+    () =>
+      defaultSelection({
+        cases: caseList ?? [],
+        caseSlug: params.get('case'),
+        revision: params.get('revision'),
+      }),
+    [caseList, params]
   );
   const selected = picked ?? defaults;
 
   const choices = engineChoices(engines.data ?? []);
-  const chosen = choices.filter((choice) => pickedEngines.includes(choice.key));
+  const chosen = choices.filter(choice => pickedEngines.includes(choice.key));
   // The organization's run presets: `[]` while they load, `null` when they can't be read. Only one a study can take stays chosen.
-  const presetList = presets.data === undefined ? [] : presets.data?.presets ?? null;
-  const chosenPresets = (presetList ?? []).filter((preset) => pickedPresets.includes(preset.slug) && studyPresetRefusal(preset) === null).map((preset) => preset.slug);
+  const presetList = presets.data === undefined ? [] : (presets.data?.presets ?? null);
+  const chosenPresets = (presetList ?? [])
+    .filter(preset => pickedPresets.includes(preset.slug) && studyPresetRefusal(preset) === null)
+    .map(preset => preset.slug);
   const engineCount = chosen.length + chosenPresets.length;
   const readings = variants.map(readVariant);
-  const settings = readings.map((reading) => reading.parameters);
+  const settings = readings.map(reading => reading.parameters);
   const settingKeys = settings.map(parametersKey);
   const duplicateSettings = new Set(settingKeys).size !== settingKeys.length;
   const seeds = readSeeds(seedText);
   const caseCount = new Set(selected).size;
-  const size = matrixSize({ cases: caseCount, engines: engineCount, settings: variants.length, seeds: seeds.seeds.length });
+  const size = matrixSize({
+    cases: caseCount,
+    engines: engineCount,
+    settings: variants.length,
+    seeds: seeds.seeds.length,
+  });
 
   const ceilings = planCeilingsOf(usage.data ?? null, pricing.data ?? null, user?.plan);
   const cells = size.cells;
@@ -83,29 +123,43 @@ function BuilderBody({ organization, canCreate }: { organization: Organization; 
 
   const blockers: string[] = [];
   if (!effectiveName.trim()) blockers.push('Give the study a name.');
-  else if (!SLUG_PATTERN.test(effectiveAddress)) blockers.push('Give it an address of lowercase letters, numbers and hyphens.');
+  else if (!SLUG_PATTERN.test(effectiveAddress))
+    blockers.push('Give it an address of lowercase letters, numbers and hyphens.');
   if (caseCount === 0) blockers.push('Choose at least one problem version.');
   if (engineCount === 0) blockers.push('Choose at least one engine mode or run preset.');
   if (seeds.error) blockers.push(seeds.error);
-  if (readings.some((reading) => reading.error)) blockers.push('Fix the settings marked in red.');
+  if (readings.some(reading => reading.error)) blockers.push('Fix the settings marked in red.');
   if (duplicateSettings) blockers.push('Two settings are identical.');
-  if (size.cells > MAX_CELLS) blockers.push(`${size.cells.toLocaleString('en-US')} cells is over the ${MAX_CELLS.toLocaleString('en-US')} limit. Remove an engine, a setting or some seeds.`);
+  if (size.cells > MAX_CELLS)
+    blockers.push(
+      `${size.cells.toLocaleString('en-US')} cells is over the ${MAX_CELLS.toLocaleString('en-US')} limit. Remove an engine, a setting or some seeds.`
+    );
   if (caseCount > MAX_CASES) blockers.push(`A study takes at most ${MAX_CASES} problem versions.`);
-  if (engineCount > MAX_ENGINES) blockers.push(`A study takes at most ${MAX_ENGINES} engine modes and run presets.`);
-  if (variants.length > MAX_SETTINGS) blockers.push(`A study takes at most ${MAX_SETTINGS} settings.`);
+  if (engineCount > MAX_ENGINES)
+    blockers.push(`A study takes at most ${MAX_ENGINES} engine modes and run presets.`);
+  if (variants.length > MAX_SETTINGS)
+    blockers.push(`A study takes at most ${MAX_SETTINGS} settings.`);
   const ready = canCreate && blockers.length === 0;
 
   const create = async () => {
     if (!ready || submitting) return;
     setSubmitting(true);
     setRefusal(null);
-    const head = { slug: effectiveAddress, name: effectiveName.trim(), description: description.trim() };
+    const head = {
+      slug: effectiveAddress,
+      name: effectiveName.trim(),
+      description: description.trim(),
+    };
     try {
       const made = await platformApi.createStudy(org, {
         ...head,
         definition: {
           revision_ids: selected,
-          engines: definitionEngines(chosen, studyCriteriaCount(await compiledForms(org, caseList ?? [], selected)), chosenPresets),
+          engines: definitionEngines(
+            chosen,
+            studyCriteriaCount(await compiledForms(org, caseList ?? [], selected)),
+            chosenPresets
+          ),
           parameter_sets: settings,
           seeds: seeds.seeds,
         },
@@ -121,7 +175,10 @@ function BuilderBody({ organization, canCreate }: { organization: Organization; 
   const loading = cases.status === 'loading' && !caseList;
 
   return (
-    <StudyFrame organization={organization} trail={[{ label: 'Studies', to: studiesPath(org) }, { label: 'New study' }]}>
+    <StudyFrame
+      organization={organization}
+      trail={[{ label: 'Studies', to: studiesPath(org) }, { label: 'New study' }]}
+    >
       <header className="proj-title-row">
         <div className="proj-title">
           <h1>New study</h1>
@@ -129,97 +186,184 @@ function BuilderBody({ organization, canCreate }: { organization: Organization; 
         </div>
       </header>
 
-      {!canCreate && <Notice tone="warning">Creating studies needs MEMBER; you’re a VIEWER of {organization.name}. You can look through the form, but nothing can be created.</Notice>}
+      {!canCreate && (
+        <Notice tone="warning">
+          Creating studies needs MEMBER; you’re a VIEWER of {organization.name}. You can look
+          through the form, but nothing can be created.
+        </Notice>
+      )}
 
       {created && (
         <section className="st-made" aria-labelledby="st-made-title">
           <div>
             <h2 id="st-made-title">Study created</h2>
-            <p>Open it to run the matrix. Every run freezes the definition it runs, so it can always be traced back.</p>
+            <p>
+              Open it to run the matrix. Every run freezes the definition it runs, so it can always
+              be traced back.
+            </p>
           </div>
           <div className="proj-actions">
-            <Action to={studyPath(org, created.slug)} variant="primary">Open the study</Action>
-            <Action to={studiesPath(org)} variant="secondary">All studies</Action>
+            <Action to={studyPath(org, created.slug)} variant="primary">
+              Open the study
+            </Action>
+            <Action to={studiesPath(org)} variant="secondary">
+              All studies
+            </Action>
           </div>
         </section>
       )}
 
-      {!created && loading && <div role="status" aria-busy="true"><span className="sr-only">Loading the organization’s problems…</span><Skeleton variant="panel" /></div>}
+      {!created && loading && (
+        <div role="status" aria-busy="true">
+          <span className="sr-only">Loading the organization’s problems…</span>
+          <Skeleton variant="panel" />
+        </div>
+      )}
 
       {!created && !loading && (
         <>
           <div className="st-builder">
             <div className="st-builder-main">
               <div className="st-identity">
-                <FormField label="Study name" value={effectiveName} maxLength={160} disabled={!canCreate} onChange={(event) => { setName(event.target.value); setRefusal(null); }} />
+                <FormField
+                  label="Study name"
+                  value={effectiveName}
+                  maxLength={160}
+                  disabled={!canCreate}
+                  onChange={event => {
+                    setName(event.target.value);
+                    setRefusal(null);
+                  }}
+                />
                 <FormField
                   label="Address"
                   value={effectiveAddress}
                   mono
                   spellCheck={false}
                   disabled={!canCreate}
-                  onChange={(event) => { setAddress(event.target.value); setRefusal(null); }}
-                  error={effectiveAddress && !SLUG_PATTERN.test(effectiveAddress) ? 'Lowercase letters, numbers and hyphens.' : undefined}
+                  onChange={event => {
+                    setAddress(event.target.value);
+                    setRefusal(null);
+                  }}
+                  error={
+                    effectiveAddress && !SLUG_PATTERN.test(effectiveAddress)
+                      ? 'Lowercase letters, numbers and hyphens.'
+                      : undefined
+                  }
                   hint="Used in the address of the study; it can’t be changed later."
                 />
               </div>
               <label className="st-description">
-                <span>Description <span className="proj-optional">(optional)</span></span>
-                <textarea className="proj-textarea" rows={2} maxLength={2000} value={description} disabled={!canCreate} onChange={(event) => setDescription(event.target.value)} />
+                <span>
+                  Description <span className="proj-optional">(optional)</span>
+                </span>
+                <textarea
+                  className="proj-textarea"
+                  rows={2}
+                  maxLength={2000}
+                  value={description}
+                  disabled={!canCreate}
+                  onChange={event => setDescription(event.target.value)}
+                />
               </label>
 
               <CasesField
                 cases={caseList ?? []}
                 selected={selected}
-                onChange={(ids) => { setPicked(ids); setRefusal(null); }}
+                onChange={ids => {
+                  setPicked(ids);
+                  setRefusal(null);
+                }}
                 org={org}
               />
               <EnginesField
                 choices={choices}
                 selected={pickedEngines}
-                onChange={(keys) => { setPickedEngines(keys); setRefusal(null); }}
+                onChange={keys => {
+                  setPickedEngines(keys);
+                  setRefusal(null);
+                }}
                 failed={engines.status === 'error'}
                 presets={{
-                  presets: presetList, selected: chosenPresets, manageHref: `/app/${org}/settings/presets`,
-                  onChange: (slugs) => { setPickedPresets(slugs); setRefusal(null); },
+                  presets: presetList,
+                  selected: chosenPresets,
+                  manageHref: `/app/${org}/settings/presets`,
+                  onChange: slugs => {
+                    setPickedPresets(slugs);
+                    setRefusal(null);
+                  },
                 }}
               />
               <SettingsField
                 variants={variants}
-                onChange={(next) => { setVariants(next); setRefusal(null); }}
+                onChange={next => {
+                  setVariants(next);
+                  setRefusal(null);
+                }}
                 seeds={seedText}
-                onSeeds={(text) => { setSeedText(text); setRefusal(null); }}
+                onSeeds={text => {
+                  setSeedText(text);
+                  setRefusal(null);
+                }}
                 seedsError={seeds.error}
                 seedCount={seeds.seeds.length}
                 ceiling={ceilings.seconds}
                 duplicate={duplicateSettings}
-                onAdd={() => { setVariants([...variants, emptyVariant(`v${serial + 1}`)]); setSerial(serial + 1); }}
+                onAdd={() => {
+                  setVariants([...variants, emptyVariant(`v${serial + 1}`)]);
+                  setSerial(serial + 1);
+                }}
               />
             </div>
 
             <aside className="st-builder-aside" aria-label="Matrix and plan" aria-live="polite">
               <section className="st-matrix">
                 <span className="st-eyebrow">4 · Matrix</span>
-                <span className="st-cells"><b>{cells.toLocaleString('en-US')}</b> cells</span>
+                <span className="st-cells">
+                  <b>{cells.toLocaleString('en-US')}</b> cells
+                </span>
                 <span className="st-formula">{formulaOf(size)}</span>
                 <span className="st-squares" aria-hidden="true">
-                  {Array.from({ length: Math.min(cells, 48) }, (_, position) => <i key={position} />)}
+                  {Array.from({ length: Math.min(cells, 48) }, (_, position) => (
+                    <i key={position} />
+                  ))}
                 </span>
-                <span className="st-cap" aria-hidden="true"><i className={cells > MAX_CELLS ? 'is-over' : undefined} style={{ width: `${Math.min(100, Math.max(cells > 0 ? 1 : 0, Math.round((cells / MAX_CELLS) * 100)))}%` }} /></span>
-                <small className="org-muted">Up to {MAX_CELLS.toLocaleString('en-US')} cells, {MAX_CASES} problem versions, {MAX_ENGINES} engine modes and {MAX_SETTINGS} settings per study</small>
+                <span className="st-cap" aria-hidden="true">
+                  <i
+                    className={cells > MAX_CELLS ? 'is-over' : undefined}
+                    style={{
+                      width: `${Math.min(100, Math.max(cells > 0 ? 1 : 0, Math.round((cells / MAX_CELLS) * 100)))}%`,
+                    }}
+                  />
+                </span>
+                <small className="org-muted">
+                  Up to {MAX_CELLS.toLocaleString('en-US')} cells, {MAX_CASES} problem versions,{' '}
+                  {MAX_ENGINES} engine modes and {MAX_SETTINGS} settings per study
+                </small>
               </section>
               <section className="st-plan" aria-label="How a run proceeds">
                 <p className="st-plan-note">
-                  Cells start as run slots free up{ceilings.seconds !== null ? `; your plan lets one solve run for up to ${ceilings.seconds} s` : ''}.
+                  Cells start as run slots free up
+                  {ceilings.seconds !== null
+                    ? `; your plan lets one solve run for up to ${ceilings.seconds} s`
+                    : ''}
+                  .
                 </p>
               </section>
               {refusal && <RefusalNotice refusal={refusal} usageTo />}
               {!refusal && blockers.length > 0 && canCreate && (
                 <ul className="st-blockers" aria-label="Still needed">
-                  {blockers.map((line) => <li key={line}>{line}</li>)}
+                  {blockers.map(line => (
+                    <li key={line}>{line}</li>
+                  ))}
                 </ul>
               )}
-              <Action variant="primary" busy={submitting} disabled={!ready} onClick={() => void create()}>
+              <Action
+                variant="primary"
+                busy={submitting}
+                disabled={!ready}
+                onClick={() => void create()}
+              >
                 Create study
               </Action>
             </aside>
@@ -231,20 +375,28 @@ function BuilderBody({ organization, canCreate }: { organization: Organization; 
 }
 
 /** The compiled forms of the chosen problem versions (the IR of each one's current compilation); a version that can't be read is left out. */
-async function compiledForms(org: string, cases: readonly CaseContent[], ids: readonly string[]): Promise<unknown[]> {
+async function compiledForms(
+  org: string,
+  cases: readonly CaseContent[],
+  ids: readonly string[]
+): Promise<unknown[]> {
   const chosen = revisionsOf(cases, ids);
-  const slugOf = new Map(cases.flatMap((entry) => entry.revisions.map((revision) => [revision.id, entry.item.slug] as const)));
-  const forms = await Promise.all(chosen.map(async (revision) => {
-    const problem = slugOf.get(revision.id);
-    if (!problem) return null;
-    try {
-      const compilation = await problemsApi.compilation(org, problem, revision.revision);
-      return (await problemsApi.ir(org, problem, revision.revision, compilation.id)).ir;
-    } catch {
-      return null;
-    }
-  }));
-  return forms.filter((form) => form !== null);
+  const slugOf = new Map(
+    cases.flatMap(entry => entry.revisions.map(revision => [revision.id, entry.item.slug] as const))
+  );
+  const forms = await Promise.all(
+    chosen.map(async revision => {
+      const problem = slugOf.get(revision.id);
+      if (!problem) return null;
+      try {
+        const compilation = await problemsApi.compilation(org, problem, revision.revision);
+        return (await problemsApi.ir(org, problem, revision.revision, compilation.id)).ir;
+      } catch {
+        return null;
+      }
+    })
+  );
+  return forms.filter(form => form !== null);
 }
 
 /** A new study (`study-builder`, `/app/:org/studies/new`): the problem versions, engines, settings and seeds that become one cell each. */
@@ -252,5 +404,11 @@ export function StudyBuilder() {
   const { organization, waiting } = useRouteOrganization();
   if (waiting) return <OrgSkeleton label="Loading organization…" />;
   if (!organization) return <OrgGate failure={null} />;
-  return <BuilderBody key={organization.slug} organization={organization} canCreate={problemAccess(organization).canCreate} />;
+  return (
+    <BuilderBody
+      key={organization.slug}
+      organization={organization}
+      canCreate={problemAccess(organization).canCreate}
+    />
+  );
 }

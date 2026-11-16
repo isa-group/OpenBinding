@@ -39,11 +39,19 @@ interface Snapshot {
 }
 
 async function loadSnapshot(): Promise<Snapshot> {
-  const [keys, usage] = await Promise.all([apiClient.listApiKeys(), apiClient.getOwnUsage().catch(() => null)]);
+  const [keys, usage] = await Promise.all([
+    apiClient.listApiKeys(),
+    apiClient.getOwnUsage().catch(() => null),
+  ]);
   return { keys, limit: usage?.capabilities[LIMIT.maxApiKeys], loadedAt: Date.now() };
 }
 
-function KeyCard({ apiKey, expired, onRotate, onRevoke }: {
+function KeyCard({
+  apiKey,
+  expired,
+  onRotate,
+  onRevoke,
+}: {
   apiKey: ApiKeySummary;
   expired: boolean;
   onRotate: () => void;
@@ -60,32 +68,67 @@ function KeyCard({ apiKey, expired, onRotate, onRevoke }: {
         <Chip tone={expired ? 'warning' : 'success'}>{expired ? 'Expired' : 'Active'}</Chip>
         <span className="key-card-spacer" />
         <div className="key-card-actions">
-          <Action variant="secondary" size="sm" onClick={onRotate} aria-label={`Rotate ${apiKey.name}`}>Rotate</Action>
-          <Action variant="danger-outline" size="sm" onClick={onRevoke} aria-label={`Revoke ${apiKey.name}`}>Revoke</Action>
+          <Action
+            variant="secondary"
+            size="sm"
+            onClick={onRotate}
+            aria-label={`Rotate ${apiKey.name}`}
+          >
+            Rotate
+          </Action>
+          <Action
+            variant="danger-outline"
+            size="sm"
+            onClick={onRevoke}
+            aria-label={`Revoke ${apiKey.name}`}
+          >
+            Revoke
+          </Action>
         </div>
       </div>
       <div className="key-card-meta">
         <code>{apiKey.prefix}…</code>
-        <button type="button" className="key-copy" onClick={() => void copy(apiKey.prefix, apiKey.id)} aria-label={`Copy prefix of ${apiKey.name}`}>
+        <button
+          type="button"
+          className="key-copy"
+          onClick={() => void copy(apiKey.prefix, apiKey.id)}
+          aria-label={`Copy prefix of ${apiKey.name}`}
+        >
           {state === 'copied' ? 'Copied' : state === 'failed' ? 'Copy failed' : 'Copy prefix'}
         </button>
         {/* Three facts, spaced by the row's gap: a bullet typed between them lands at the start of a line when the row wraps. */}
         <span className="key-dates">
           <span>created {formatDate(apiKey.created_at) ?? '—'}</span>
           <span>last used {formatDate(apiKey.last_used_at) ?? 'never'}</span>
-          <span>{apiKey.expires_at ? `${expired ? 'expired' : 'expires'} ${formatDate(apiKey.expires_at)}` : 'no expiry'}</span>
+          <span>
+            {apiKey.expires_at
+              ? `${expired ? 'expired' : 'expires'} ${formatDate(apiKey.expires_at)}`
+              : 'no expiry'}
+          </span>
         </span>
       </div>
       <dl className="key-card-grid">
         <dt>Permissions</dt>
         <dd className="key-chips">
-          {apiKey.permissions.map((permission) => <code key={permission} className="key-permission">{permission}</code>)}
+          {apiKey.permissions.map(permission => (
+            <code key={permission} className="key-permission">
+              {permission}
+            </code>
+          ))}
         </dd>
         <dt>Engines</dt>
         <dd>{describeEngineAccess(apiKey.engine_access)}</dd>
         <dt>Limited to</dt>
         <dd className="key-chips">
-          {bounds.length > 0 ? bounds.map((label) => <span key={label} className="key-bound"><code>{label}</code></span>) : <span className="acct-muted">No extra limits</span>}
+          {bounds.length > 0 ? (
+            bounds.map(label => (
+              <span key={label} className="key-bound">
+                <code>{label}</code>
+              </span>
+            ))
+          ) : (
+            <span className="acct-muted">No extra limits</span>
+          )}
         </dd>
       </dl>
     </article>
@@ -114,9 +157,18 @@ export function AccountKeys() {
   const count = snapshot?.keys.length ?? 0;
   const limit = snapshot?.limit;
   const atLimit = typeof limit === 'number' && count >= limit;
-  const share = typeof limit === 'number' && limit > 0 ? Math.min(100, Math.round((count / limit) * 100)) : limit === null ? 4 : 0;
+  const share =
+    typeof limit === 'number' && limit > 0
+      ? Math.min(100, Math.round((count / limit) * 100))
+      : limit === null
+        ? 4
+        : 0;
 
-  const goneBanner = () => setBanner({ tone: 'warning', text: 'That key no longer exists or isn’t yours (404). The list was refreshed.' });
+  const goneBanner = () =>
+    setBanner({
+      tone: 'warning',
+      text: 'That key no longer exists or isn’t yours (404). The list was refreshed.',
+    });
 
   const revoke = async (key: ApiKeySummary) => {
     setBusy(true);
@@ -157,52 +209,82 @@ export function AccountKeys() {
       section="keys"
       title="API keys"
       lede="Keys for scripts and CI. A key can never do more than your account."
-      actions={<Action to={NEW_KEY} variant="primary"><Plus aria-hidden="true" className="key-plus" />New key</Action>}
+      actions={
+        <Action to={NEW_KEY} variant="primary">
+          <Plus aria-hidden="true" className="key-plus" />
+          New key
+        </Action>
+      }
     >
       {banner && <Notice tone={banner.tone}>{banner.text}</Notice>}
       {atLimit && (
         <Notice tone="warning">
-          You’ve reached your plan’s API key limit ({formatCount(limit)}). Revoke a key or ask for an agreement with more keys;
-          creating one now returns 402.
+          You’ve reached your plan’s API key limit ({formatCount(limit)}). Revoke a key or ask for
+          an agreement with more keys; creating one now returns 402.
         </Notice>
       )}
 
-      {failure?.status === 403 && <PermissionNotice permissions={['keys:read']} action="manage keys" />}
-      {failure && failure.status !== 403 && <LoadFailure onRetry={data.reload}>{fallbackMessage(failure, 'loaded')}</LoadFailure>}
+      {failure?.status === 403 && (
+        <PermissionNotice permissions={['keys:read']} action="manage keys" />
+      )}
+      {failure && failure.status !== 403 && (
+        <LoadFailure onRetry={data.reload}>{fallbackMessage(failure, 'loaded')}</LoadFailure>
+      )}
 
       {data.status === 'loading' && (
-        <div aria-busy="true" className="key-skeleton"><Skeleton variant="tile" /><Skeleton variant="panel" /><Skeleton variant="panel" /></div>
+        <div aria-busy="true" className="key-skeleton">
+          <Skeleton variant="tile" />
+          <Skeleton variant="panel" />
+          <Skeleton variant="panel" />
+        </div>
       )}
 
       {snapshot && (
         <>
           <div className="key-meter">
             <span>Active keys</span>
-            <div className="key-meter-track" role="meter" aria-label="Active keys" aria-valuemin={0} aria-valuemax={typeof limit === 'number' ? limit : count} aria-valuenow={count}>
+            <div
+              className="key-meter-track"
+              role="meter"
+              aria-label="Active keys"
+              aria-valuemin={0}
+              aria-valuemax={typeof limit === 'number' ? limit : count}
+              aria-valuenow={count}
+            >
               <div className={atLimit ? 'is-full' : undefined} style={{ width: `${share}%` }} />
             </div>
-            <span className="key-meter-label">{count} of {typeof limit === 'number' ? limit : limit === null ? 'unlimited' : '—'} keys</span>
+            <span className="key-meter-label">
+              {count} of {typeof limit === 'number' ? limit : limit === null ? 'unlimited' : '—'}{' '}
+              keys
+            </span>
           </div>
 
           <Notice tone="info">
-            Treat a key like a password: it acts as you within its permissions. The secret is shown only once, when you create or rotate it.
-            We only keep its prefix.
+            Treat a key like a password: it acts as you within its permissions. The secret is shown
+            only once, when you create or rotate it. We only keep its prefix.
           </Notice>
 
           {count === 0 ? (
             <EmptyState
               icon={<KeyRound />}
               title="No API keys"
-              action={<Action to={NEW_KEY} variant="link">Create your first key</Action>}
+              action={
+                <Action to={NEW_KEY} variant="link">
+                  Create your first key
+                </Action>
+              }
             >
               Create a key to call OpenBinding from scripts or CI.
             </EmptyState>
           ) : (
-            snapshot.keys.map((key) => (
+            snapshot.keys.map(key => (
               <KeyCard
                 key={key.id}
                 apiKey={key}
-                expired={Boolean(key.expires_at) && new Date(key.expires_at as string).getTime() <= snapshot.loadedAt}
+                expired={
+                  Boolean(key.expires_at) &&
+                  new Date(key.expires_at as string).getTime() <= snapshot.loadedAt
+                }
                 onRotate={() => setDialog({ kind: 'rotate', key })}
                 onRevoke={() => setDialog({ kind: 'revoke', key })}
               />
@@ -213,7 +295,11 @@ export function AccountKeys() {
 
       {dialog && dialog.kind !== 'secret' && (
         <Modal
-          title={dialog.kind === 'rotate' ? `Rotate “${dialog.key.name}”?` : `Revoke “${dialog.key.name}”?`}
+          title={
+            dialog.kind === 'rotate'
+              ? `Rotate “${dialog.key.name}”?`
+              : `Revoke “${dialog.key.name}”?`
+          }
           tone={dialog.kind === 'revoke' ? 'danger' : 'default'}
           onClose={() => !busy && setDialog(null)}
         >
@@ -223,11 +309,15 @@ export function AccountKeys() {
               : 'Anything using this key stops working right away. This can’t be undone; create a new key if you need access again.'}
           </p>
           <div className="ui-modal-actions">
-            <Action variant="secondary" onClick={() => setDialog(null)} disabled={busy}>Cancel</Action>
+            <Action variant="secondary" onClick={() => setDialog(null)} disabled={busy}>
+              Cancel
+            </Action>
             <Action
               variant={dialog.kind === 'revoke' ? 'danger' : 'primary'}
               busy={busy}
-              onClick={() => void (dialog.kind === 'rotate' ? rotate(dialog.key) : revoke(dialog.key))}
+              onClick={() =>
+                void (dialog.kind === 'rotate' ? rotate(dialog.key) : revoke(dialog.key))
+              }
             >
               {dialog.kind === 'rotate' ? 'Rotate key' : 'Revoke key'}
             </Action>
@@ -236,12 +326,24 @@ export function AccountKeys() {
       )}
 
       {dialog?.kind === 'secret' && (
-        <SecretDialog title="Copy your new secret now" secret={dialog.created.secret} onDone={() => setDialog(null)}>
-          <p>This is the only time it’s shown. The previous secret of “{dialog.name}” has stopped working; permissions didn’t change.</p>
+        <SecretDialog
+          title="Copy your new secret now"
+          secret={dialog.created.secret}
+          onDone={() => setDialog(null)}
+        >
+          <p>
+            This is the only time it’s shown. The previous secret of “{dialog.name}” has stopped
+            working; permissions didn’t change.
+          </p>
         </SecretDialog>
       )}
 
-      {creating && <AccountKeyNew onClose={() => navigate('/app/account/keys', { replace: true })} onCreated={data.reload} />}
+      {creating && (
+        <AccountKeyNew
+          onClose={() => navigate('/app/account/keys', { replace: true })}
+          onCreated={data.reload}
+        />
+      )}
     </AccountLayout>
   );
 }

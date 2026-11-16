@@ -26,21 +26,24 @@ describe('the plan summaries of the home page', () => {
 
   it('are exactly the plans of the document', () => {
     const ids = Object.keys(pricing.plans);
-    expect(planSummaries.map((plan) => plan.name.toUpperCase()).sort()).toEqual([...ids].sort());
+    expect(planSummaries.map(plan => plan.name.toUpperCase()).sort()).toEqual([...ids].sort());
   });
 
-  it.each(planSummaries.map((plan) => [plan.name, plan] as const))('%s repeats the limits and the price of the document', (_name, plan) => {
-    const id = plan.name.toUpperCase();
-    const keys = limitOf(id, LIMIT.maxApiKeys);
-    const jobs = limitOf(id, LIMIT.maxConcurrentRuns) ?? 0;
+  it.each(planSummaries.map(plan => [plan.name, plan] as const))(
+    '%s repeats the limits and the price of the document',
+    (_name, plan) => {
+      const id = plan.name.toUpperCase();
+      const keys = limitOf(id, LIMIT.maxApiKeys);
+      const jobs = limitOf(id, LIMIT.maxConcurrentRuns) ?? 0;
 
-    expect(plan.chips).toEqual([
-      keys === null ? 'Unlimited API keys' : plural(keys, 'API key'),
-      plural(jobs, 'concurrent run'),
-    ]);
+      expect(plan.chips).toEqual([
+        keys === null ? 'Unlimited API keys' : plural(keys, 'API key'),
+        plural(jobs, 'concurrent run'),
+      ]);
 
-    const price = pricing.plans[id]?.price;
-    if (price === 0) expect(plan.price).toMatch(/^Free/);
-    else expect(plan.price).toBe('Contact us');
-  });
+      const price = pricing.plans[id]?.price;
+      if (price === 0) expect(plan.price).toMatch(/^Free/);
+      else expect(plan.price).toBe('Contact us');
+    }
+  );
 });

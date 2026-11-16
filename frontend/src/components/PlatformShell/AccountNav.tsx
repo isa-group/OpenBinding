@@ -6,7 +6,12 @@ import './SectionNav.css';
 
 export type AccountSection = 'profile' | 'usage' | 'keys' | 'identities' | 'notifications';
 
-const sections: ReadonlyArray<{ key: AccountSection; label: string; to: string; icon: LucideIcon }> = [
+const sections: ReadonlyArray<{
+  key: AccountSection;
+  label: string;
+  to: string;
+  icon: LucideIcon;
+}> = [
   { key: 'profile', label: 'Profile', to: '/app/account', icon: User },
   { key: 'usage', label: 'Plan', to: '/app/account/usage', icon: BarChart3 },
   { key: 'keys', label: 'API keys', to: '/app/account/keys', icon: KeyRound },
@@ -22,8 +27,15 @@ export function AccountNav({ active = 'profile' }: { active?: AccountSection }) 
     <nav ref={nav} className="section-nav" aria-label="Account">
       <span className="section-nav-title">Account</span>
       {sections.map(({ key, label, to, icon: Icon }) => (
-        <Link key={key} to={to} viewTransition className="section-nav-link" aria-current={active === key ? 'page' : undefined}>
-          <Icon aria-hidden="true" />{label}
+        <Link
+          key={key}
+          to={to}
+          viewTransition
+          className="section-nav-link"
+          aria-current={active === key ? 'page' : undefined}
+        >
+          <Icon aria-hidden="true" />
+          {label}
         </Link>
       ))}
     </nav>

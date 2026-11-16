@@ -55,14 +55,25 @@ function offsetOf(text: string, starts: number[], line: number, column: number):
  * A Composition2Yaml diagnostic, located in `text`. Its span is one-based with an exclusive end; a diagnostic without a
  * span (a document with no text, or an element the text does not place) is located at the file, with its path shown.
  */
-export function fromC2y(diagnostic: CompositionDiagnosticView, text: string, file: string): Located {
+export function fromC2y(
+  diagnostic: CompositionDiagnosticView,
+  text: string,
+  file: string
+): Located {
   const { span } = diagnostic;
   let where: Where = { kind: 'file', file };
   if (span) {
     const starts = lineStarts(text);
     const from = offsetOf(text, starts, span.line, span.column);
     const to = offsetOf(text, starts, span.end_line, span.end_column);
-    where = { kind: 'text', file, from, to: Math.max(from, to), line: span.line, column: span.column };
+    where = {
+      kind: 'text',
+      file,
+      from,
+      to: Math.max(from, to),
+      line: span.line,
+      column: span.column,
+    };
   }
   return {
     code: diagnostic.code,

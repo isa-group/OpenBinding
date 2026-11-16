@@ -5,11 +5,19 @@ import { caseOf, org, renderOrgScreen, revisionOf } from '../../features/workspa
 import { ProblemDetail } from './ProblemDetail';
 import { checkoutFacts, digestOf } from './fixtures';
 
-const problems = vi.hoisted(() => ({ get: vi.fn(), revisions: vi.fn(), revision: vi.fn(), compilation: vi.fn() }));
+const problems = vi.hoisted(() => ({
+  get: vi.fn(),
+  revisions: vi.fn(),
+  revision: vi.fn(),
+  compilation: vi.fn(),
+}));
 const facts = vi.hoisted(() => ({ get: vi.fn() }));
 
 vi.mock('../../api/problems', () => ({ problemsApi: problems }));
-vi.mock('../../entities/problem/facts', async (actual) => ({ ...await actual<typeof import('../../entities/problem/facts')>(), problemFactsApi: facts }));
+vi.mock('../../entities/problem/facts', async actual => ({
+  ...(await actual<typeof import('../../entities/problem/facts')>()),
+  problemFactsApi: facts,
+}));
 
 const group = org('isa-demo', { name: 'ISA Demo Group', effective_role: 'MEMBER' });
 const viewing = org('isa-demo', { name: 'ISA Demo Group', effective_role: 'VIEWER' });
@@ -18,18 +26,36 @@ const r1 = revisionOf(checkout, 1);
 const r2 = revisionOf(checkout, 2, { package_size: 48_213 });
 const root = '/app/isa-demo';
 
-const refusal = (status: number, code = 'refused') => Object.assign(new HttpError(status, 'refused'), { code });
+const refusal = (status: number, code = 'refused') =>
+  Object.assign(new HttpError(status, 'refused'), { code });
 const compilationOf = (revision: string) => ({
-  id: `compilation-${revision}`, revision_id: `rev-${revision}`, compilation_digest: digestOf('9'), compiler_digest: digestOf('8'), ir_digest: digestOf('c'),
-  binding_space: '4096', created_at: '2026-08-20T10:05:00Z', current: true, toolchain: {},
+  id: `compilation-${revision}`,
+  revision_id: `rev-${revision}`,
+  compilation_digest: digestOf('9'),
+  compiler_digest: digestOf('8'),
+  ir_digest: digestOf('c'),
+  binding_space: '4096',
+  created_at: '2026-08-20T10:05:00Z',
+  current: true,
+  toolchain: {},
   analysis: { tasks: 4, candidates: 20, constraints: 2, placement: false, bindingSpace: '4096' },
-  resources: { app: { role: 'application', path: 'application.json', apiVersion: 'qos-binding/v1', kind: 'Application' } }, compatible_modes: [],
+  resources: {
+    app: {
+      role: 'application',
+      path: 'application.json',
+      apiVersion: 'qos-binding/v1',
+      kind: 'Application',
+    },
+  },
+  compatible_modes: [],
 });
 
 /** The Overview tab of the problem page (or `tab`), showing the version named by the query. */
 function renderRevision(revision = '2', organization = group, tab = '') {
   return renderOrgScreen(<ProblemDetail />, {
-    path: '/app/:org/problems/:case/:tab?', url: `${root}/problems/flujo-checkout${tab}?version=${revision}`, organizations: [organization],
+    path: '/app/:org/problems/:case/:tab?',
+    url: `${root}/problems/flujo-checkout${tab}?version=${revision}`,
+    organizations: [organization],
   });
 }
 
@@ -38,26 +64,42 @@ describe('Overview tab of the problem page', () => {
     vi.clearAllMocks();
     problems.get.mockResolvedValue(checkout);
     problems.revisions.mockResolvedValue([r1, r2]);
-    problems.compilation.mockImplementation(async (_org: string, _problem: string, revision: number | string) => compilationOf(String(revision)));
+    problems.compilation.mockImplementation(
+      async (_org: string, _problem: string, revision: number | string) =>
+        compilationOf(String(revision))
+    );
     facts.get.mockResolvedValue(checkoutFacts());
-    Object.defineProperty(navigator, 'clipboard', { value: { writeText: vi.fn().mockResolvedValue(undefined) }, configurable: true });
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText: vi.fn().mockResolvedValue(undefined) },
+      configurable: true,
+    });
   });
 
   it('opens with the problem, the version, its seal and what it identifies', async () => {
     renderRevision();
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Flujo de checkout' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Flujo de checkout' })
+    ).toBeInTheDocument();
     expect(screen.getByLabelText('Version')).toHaveValue('2');
     expect(screen.getAllByText('Sealed')).toHaveLength(2);
     const identity = screen.getByRole('region', { name: 'Identity' });
-    expect(within(identity).getByRole('button', { name: 'Copy version 2 fingerprint' })).toHaveTextContent('Copy digest');
+    expect(
+      within(identity).getByRole('button', { name: 'Copy version 2 fingerprint' })
+    ).toHaveTextContent('Copy digest');
     expect(identity.textContent).not.toMatch(/sha256-|[0-9a-f]{12}/);
     expect(await within(identity).findByText('qos-binding/v1')).toBeInTheDocument();
-    expect(within(identity).getByRole('link', { name: 'Open source' })).toHaveAttribute('href', `${root}/problems/flujo-checkout/source?version=2`);
+    expect(within(identity).getByRole('link', { name: 'Open source' })).toHaveAttribute(
+      'href',
+      `${root}/problems/flujo-checkout/source?version=2`
+    );
     expect(identity).toHaveTextContent('47.1 KiB');
     expect(facts.get).toHaveBeenCalledWith('isa-demo', 'flujo-checkout', 2, 'compilation-2');
     const crumbs = screen.getByRole('navigation', { name: 'Breadcrumb' });
-    expect(within(crumbs).getByRole('link', { name: 'Problems' })).toHaveAttribute('href', `${root}/problems`);
+    expect(within(crumbs).getByRole('link', { name: 'Problems' })).toHaveAttribute(
+      'href',
+      `${root}/problems`
+    );
   });
 
   it('draws the workflow from the facts, with its alternatives, and the size of the binding space', async () => {
@@ -65,25 +107,49 @@ describe('Overview tab of the problem page', () => {
 
     const section = await screen.findByRole('region', { name: 'How the service works' });
     const drawing = await within(section).findByRole('group', { name: 'Workflow' });
-    expect(drawing).toHaveAccessibleDescription(/^Workflow: authenticate, then \(inventory and shipping in parallel\)/);
-    const choice = within(drawing).getByRole('group', { name: 'Choice, 2 branches, probabilities 0.7, 0.3' });
+    expect(drawing).toHaveAccessibleDescription(
+      /^Workflow: authenticate, then \(inventory and shipping in parallel\)/
+    );
+    const choice = within(drawing).getByRole('group', {
+      name: 'Choice, 2 branches, probabilities 0.7, 0.3',
+    });
     expect(within(choice).getByText('0.7')).toBeInTheDocument();
-    expect(within(drawing).getByRole('group', { name: 'Parallel, 2 branches' })).toBeInTheDocument();
+    expect(
+      within(drawing).getByRole('group', { name: 'Parallel, 2 branches' })
+    ).toBeInTheDocument();
     expect(within(drawing).getByText('local task · not bound')).toBeInTheDocument();
-    expect(within(section).getByRole('status', { name: /Binding space size: 1,920 combinations/ })).toBeInTheDocument();
+    expect(
+      within(section).getByRole('status', { name: /Binding space size: 1,920 combinations/ })
+    ).toBeInTheDocument();
   });
 
   it('lists the candidates of every task with their values on the Candidates tab, from the facts', async () => {
     renderRevision('2', group, '/candidates');
 
     const providers = await screen.findByRole('region', { name: 'Candidates of each task' });
-    const table = within(providers).getByRole('table', { name: /Task authenticate · 4 candidates/ });
-    expect(within(table).getAllByRole('columnheader').map((cell) => cell.textContent)).toEqual(['Candidate', 'Provider', 'latency (ms)', 'cost (EUR)']);
-    expect(within(table).getByRole('row', { name: /authenticate-1/ }).textContent).toContain('40 ms');
-    expect(within(table).getByRole('row', { name: /authenticate-1/ }).textContent).toContain('0.01–0.02 EUR');
+    const table = within(providers).getByRole('table', {
+      name: /Task authenticate · 4 candidates/,
+    });
+    expect(
+      within(table)
+        .getAllByRole('columnheader')
+        .map(cell => cell.textContent)
+    ).toEqual(['Candidate', 'Provider', 'latency (ms)', 'cost (EUR)']);
+    expect(within(table).getByRole('row', { name: /authenticate-1/ }).textContent).toContain(
+      '40 ms'
+    );
+    expect(within(table).getByRole('row', { name: /authenticate-1/ }).textContent).toContain(
+      '0.01–0.02 EUR'
+    );
     expect(within(table).getAllByRole('row')).toHaveLength(1 + 4);
-    expect(within(within(providers).getByRole('table', { name: /Task pay-card · 8 candidates/ })).getAllByRole('row')).toHaveLength(1 + 8);
-    expect(within(providers).getByText(/is a local task/)).toHaveTextContent('notify is a local task: it gets no candidate.');
+    expect(
+      within(
+        within(providers).getByRole('table', { name: /Task pay-card · 8 candidates/ })
+      ).getAllByRole('row')
+    ).toHaveLength(1 + 8);
+    expect(within(providers).getByText(/is a local task/)).toHaveTextContent(
+      'notify is a local task: it gets no candidate.'
+    );
   });
 
   it('writes a candidate’s range as a range, open or not, with a bar for the stretch it covers', async () => {
@@ -98,8 +164,14 @@ describe('Overview tab of the problem page', () => {
     expect(row(/authenticate-3/).textContent).toContain('≤ 0.05 EUR');
     expect(row(/authenticate-4/).textContent).toContain('unbounded');
     expect(row(/authenticate-4/).textContent).toContain('0.04 EUR');
-    expect(within(row(/authenticate-3/)).getByText('≥ 100 ms')).toHaveAttribute('title', '[100, +∞) ms');
-    expect(within(row(/authenticate-3/)).getByText('≤ 0.05 EUR')).toHaveAttribute('title', '(−∞, 0.05] EUR');
+    expect(within(row(/authenticate-3/)).getByText('≥ 100 ms')).toHaveAttribute(
+      'title',
+      '[100, +∞) ms'
+    );
+    expect(within(row(/authenticate-3/)).getByText('≤ 0.05 EUR')).toHaveAttribute(
+      'title',
+      '(−∞, 0.05] EUR'
+    );
 
     const bar = (name: RegExp, index: number) => row(name).querySelectorAll('.cm-bar')[index];
     expect(bar(/authenticate-1/, 0)).not.toHaveClass('is-interval');
@@ -115,34 +187,62 @@ describe('Overview tab of the problem page', () => {
     renderRevision();
 
     const section = await screen.findByRole('region', { name: 'Rules and objectives' });
-    expect(within(section).getByRole('region', { name: 'Rules' })).toHaveTextContent('features.latency ≤ 600');
-    expect(within(section).getByRole('region', { name: 'Objectives' })).toHaveTextContent('lower is better · scaled 0–1000');
-    expect(screen.getByText(/not declared in this version \(no pools, network or events\)/)).toBeInTheDocument();
-    expect(screen.queryByRole('region', { name: 'Candidates of each task' })).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Candidates' })).toHaveAttribute('href', `${root}/problems/flujo-checkout/candidates?version=2`);
+    expect(within(section).getByRole('region', { name: 'Rules' })).toHaveTextContent(
+      'features.latency ≤ 600'
+    );
+    expect(within(section).getByRole('region', { name: 'Objectives' })).toHaveTextContent(
+      'lower is better · scaled 0–1000'
+    );
+    expect(
+      screen.getByText(/not declared in this version \(no pools, network or events\)/)
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('region', { name: 'Candidates of each task' })
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Candidates' })).toHaveAttribute(
+      'href',
+      `${root}/problems/flujo-checkout/candidates?version=2`
+    );
   });
 
   it('says a declared placement is declared, from the compilation’s analysis', async () => {
-    problems.compilation.mockImplementation(async (_org: string, _problem: string, revision: number | string) => ({
-      ...compilationOf(String(revision)), analysis: { tasks: 4, candidates: 20, constraints: 2, placement: true, bindingSpace: '4096' },
-    }));
+    problems.compilation.mockImplementation(
+      async (_org: string, _problem: string, revision: number | string) => ({
+        ...compilationOf(String(revision)),
+        analysis: {
+          tasks: 4,
+          candidates: 20,
+          constraints: 2,
+          placement: true,
+          bindingSpace: '4096',
+        },
+      })
+    );
     renderRevision();
 
-    expect(await screen.findByText(/declared in this version \(pools, network or events\)/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/declared in this version \(pools, network or events\)/)
+    ).toBeInTheDocument();
   });
 
   it('has no section of library resources: a version is a self-contained package', async () => {
     renderRevision();
 
     await screen.findByRole('region', { name: 'How the service works' });
-    expect(screen.queryByRole('region', { name: 'Resources it’s built from' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('region', { name: 'Resources it’s built from' })
+    ).not.toBeInTheDocument();
   });
 
   it('copies the exact reference', async () => {
     renderRevision();
 
     fireEvent.click(await screen.findByRole('button', { name: 'Copy exact reference' }));
-    await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalledWith(`flujo-checkout@2 ${r2.package_digest}`));
+    await waitFor(() =>
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
+        `flujo-checkout@2 ${r2.package_digest}`
+      )
+    );
     expect(await screen.findByRole('button', { name: 'Reference copied' })).toBeInTheDocument();
   });
 
@@ -150,20 +250,37 @@ describe('Overview tab of the problem page', () => {
     renderRevision();
 
     await screen.findByRole('heading', { level: 1, name: 'Flujo de checkout' });
-    expect(screen.getByRole('link', { name: 'Run this version' })).toHaveAttribute('href', `${root}/runs/new?problem=flujo-checkout&revision=2`);
-    expect(screen.getByRole('link', { name: 'Add to study' })).toHaveAttribute('href', `${root}/studies/new?case=flujo-checkout&revision=2`);
+    expect(screen.getByRole('link', { name: 'Run this version' })).toHaveAttribute(
+      'href',
+      `${root}/runs/new?problem=flujo-checkout&revision=2`
+    );
+    expect(screen.getByRole('link', { name: 'Add to study' })).toHaveAttribute(
+      'href',
+      `${root}/studies/new?case=flujo-checkout&revision=2`
+    );
     const select = screen.getByLabelText('Version');
-    expect(within(select).getAllByRole('option').map((option) => option.textContent)).toEqual(['Version 2 · latest', 'Version 1']);
+    expect(
+      within(select)
+        .getAllByRole('option')
+        .map(option => option.textContent)
+    ).toEqual(['Version 2 · latest', 'Version 1']);
     fireEvent.change(select, { target: { value: '1' } });
     await waitFor(() => expect(screen.getByLabelText('Version')).toHaveValue('1'));
-    expect(screen.getByRole('link', { name: 'Run this version' })).toHaveAttribute('href', `${root}/runs/new?problem=flujo-checkout&revision=1`);
+    expect(screen.getByRole('link', { name: 'Run this version' })).toHaveAttribute(
+      'href',
+      `${root}/runs/new?problem=flujo-checkout&revision=1`
+    );
   });
 
   it('says the installed toolchain refuses a stored package, and keeps the identity', async () => {
     problems.compilation.mockRejectedValue(refusal(422, 'revision_not_recompilable'));
     renderRevision();
 
-    expect(await screen.findByText(/The compiled form couldn’t be read \(422 · revision_not_recompilable\)/)).toHaveTextContent('The installed toolchain refuses this package; it stays as evidence.');
+    expect(
+      await screen.findByText(
+        /The compiled form couldn’t be read \(422 · revision_not_recompilable\)/
+      )
+    ).toHaveTextContent('The installed toolchain refuses this package; it stays as evidence.');
     expect(screen.queryByRole('region', { name: 'Rules and objectives' })).not.toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Identity' })).toBeInTheDocument();
   });
@@ -172,16 +289,25 @@ describe('Overview tab of the problem page', () => {
     problems.compilation.mockRejectedValueOnce(refusal(503, 'unavailable'));
     renderRevision();
 
-    expect(await screen.findByText(/The compiled form couldn’t be read \(503 · unavailable\)/)).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 1, name: 'Flujo de checkout' })).toBeInTheDocument();
+    expect(
+      await screen.findByText(/The compiled form couldn’t be read \(503 · unavailable\)/)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Flujo de checkout' })
+    ).toBeInTheDocument();
   });
 
   it('answers a missing version in neutral words', async () => {
     problems.revision.mockRejectedValue(refusal(404, 'not_found'));
     renderRevision('9');
 
-    expect(await screen.findByRole('heading', { name: 'This version doesn’t exist (404)' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'See all versions' })).toHaveAttribute('href', `${root}/problems/flujo-checkout/versions`);
+    expect(
+      await screen.findByRole('heading', { name: 'This version doesn’t exist (404)' })
+    ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'See all versions' })).toHaveAttribute(
+      'href',
+      `${root}/problems/flujo-checkout/versions`
+    );
     expect(problems.revision).toHaveBeenCalledWith('isa-demo', 'flujo-checkout', '9');
   });
 
@@ -204,6 +330,10 @@ describe('Overview tab of the problem page', () => {
     problems.get.mockRejectedValue(refusal(404, 'not_found'));
     renderRevision();
 
-    expect(await screen.findByRole('heading', { name: 'No problem with this address in ISA Demo Group (404)' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', {
+        name: 'No problem with this address in ISA Demo Group (404)',
+      })
+    ).toBeInTheDocument();
   });
 });

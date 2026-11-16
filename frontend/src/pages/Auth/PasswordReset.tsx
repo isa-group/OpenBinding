@@ -21,7 +21,8 @@ function RequestForm() {
   const emailRef = useRef<HTMLInputElement>(null);
 
   const emailOk = EMAIL_PATTERN.test(email);
-  const emailError = (touched && !emailOk) || failure === 'invalid' ? 'Enter a valid email address.' : undefined;
+  const emailError =
+    (touched && !emailOk) || failure === 'invalid' ? 'Enter a valid email address.' : undefined;
   const sent = delivery !== null;
 
   const submit = async (event: FormEvent) => {
@@ -39,7 +40,13 @@ function RequestForm() {
       setDelivery(result.delivery);
     } catch (caught) {
       const result = classifyAuthError(caught);
-      setFailure(result.kind === 'invalid' ? 'invalid' : result.kind === 'unavailable' || result.kind === 'network' ? 'unavailable' : 'unknown');
+      setFailure(
+        result.kind === 'invalid'
+          ? 'invalid'
+          : result.kind === 'unavailable' || result.kind === 'network'
+            ? 'unavailable'
+            : 'unknown'
+      );
     } finally {
       setBusy(false);
     }
@@ -47,13 +54,15 @@ function RequestForm() {
 
   return (
     <AuthShell backTo="/login" backLabel="Back">
-      <span className={`auth-icon-tile${sent ? ' is-ok' : ''}`} aria-hidden="true"><Mail /></span>
+      <span className={`auth-icon-tile${sent ? ' is-ok' : ''}`} aria-hidden="true">
+        <Mail />
+      </span>
       <h1 className="auth-title">{sent ? 'Check your inbox' : 'Forgot your password?'}</h1>
       <p className="auth-lede">
         {sent
-          ? (delivery === 'email'
+          ? delivery === 'email'
             ? 'If an account exists for that email, we’ve sent it a one-time link to set a new password.'
-            : 'If an account exists for that email, reset instructions are now available to the operator of this deployment.')
+            : 'If an account exists for that email, reset instructions are now available to the operator of this deployment.'
           : 'Enter the email you signed up with. We’ll send a one-time link to set a new password. We never reveal whether an address has an account.'}
       </p>
 
@@ -61,9 +70,15 @@ function RequestForm() {
         <>
           <div aria-live="assertive" className="auth-notices auth-spaced">
             {failure === 'unavailable' && (
-              <Notice tone="error">We can’t send email right now (503). Nothing was sent; try again in a few minutes.</Notice>
+              <Notice tone="error">
+                We can’t send email right now (503). Nothing was sent; try again in a few minutes.
+              </Notice>
             )}
-            {failure === 'unknown' && <Notice tone="error">Password reset is unavailable right now. Try again later.</Notice>}
+            {failure === 'unknown' && (
+              <Notice tone="error">
+                Password reset is unavailable right now. Try again later.
+              </Notice>
+            )}
           </div>
           <form className="auth-form" onSubmit={submit} noValidate>
             <AuthField
@@ -76,7 +91,7 @@ function RequestForm() {
               spellCheck={false}
               placeholder="you@example.org"
               value={email}
-              onChange={(event) => setEmail(event.target.value)}
+              onChange={event => setEmail(event.target.value)}
               disabled={busy}
               error={emailError}
               inputRef={emailRef}
@@ -91,12 +106,22 @@ function RequestForm() {
 
       {sent && (
         <div className="auth-actions auth-spaced">
-          <p role="status" className="auth-lede">The link works once and expires. If nothing arrives, check spam or request a new link.</p>
-          <button type="button" className="auth-btn auth-btn-secondary" onClick={() => setDelivery(null)}>Send another link</button>
+          <p role="status" className="auth-lede">
+            The link works once and expires. If nothing arrives, check spam or request a new link.
+          </p>
+          <button
+            type="button"
+            className="auth-btn auth-btn-secondary"
+            onClick={() => setDelivery(null)}
+          >
+            Send another link
+          </button>
         </div>
       )}
 
-      <Link className="auth-link auth-spaced" to="/login" viewTransition>Back to log in</Link>
+      <Link className="auth-link auth-spaced" to="/login" viewTransition>
+        Back to log in
+      </Link>
     </AuthShell>
   );
 }
@@ -136,18 +161,27 @@ function NewPasswordForm({ token }: { token: string }) {
   const chip = TOKEN_CHIP[state];
   const strength = passwordStrength(password);
   const passwordOk = password.length >= MIN_PASSWORD_LENGTH;
-  const passwordError = (touched && !passwordOk ? `Use at least ${MIN_PASSWORD_LENGTH} characters.` : undefined) ?? serverError ?? undefined;
-  const confirmationError = touched && confirmation !== password ? 'The passwords don’t match.' : undefined;
+  const passwordError =
+    (touched && !passwordOk ? `Use at least ${MIN_PASSWORD_LENGTH} characters.` : undefined) ??
+    serverError ??
+    undefined;
+  const confirmationError =
+    touched && confirmation !== password ? 'The passwords don’t match.' : undefined;
 
   const copy = {
-    ready: { title: 'Set a new password', intro: 'Choose a new password for your account. The link in your email works once.' },
+    ready: {
+      title: 'Set a new password',
+      intro: 'Choose a new password for your account. The link in your email works once.',
+    },
     refused: {
       title: 'This reset link can’t be used',
-      intro: 'It’s invalid, expired or was already used: the gateway doesn’t say which. Each link works once and expires, so request a new one.',
+      intro:
+        'It’s invalid, expired or was already used: the gateway doesn’t say which. Each link works once and expires, so request a new one.',
     },
     used: {
       title: 'Password changed',
-      intro: 'You can log in with your new password. Sessions that were open with the old one have been signed out.',
+      intro:
+        'You can log in with your new password. Sessions that were open with the old one have been signed out.',
     },
   }[state];
 
@@ -172,10 +206,16 @@ function NewPasswordForm({ token }: { token: string }) {
       if (result.kind === 'rejected' || result.kind === 'not-found') {
         setRefused(true);
       } else if (result.kind === 'invalid') {
-        setServerError(fieldErrorsFrom(caught).new_password
-          ?? (result.code === 'weak_password' && result.message ? result.message : `This password is too weak. Use at least ${MIN_PASSWORD_LENGTH} characters.`));
+        setServerError(
+          fieldErrorsFrom(caught).new_password ??
+            (result.code === 'weak_password' && result.message
+              ? result.message
+              : `This password is too weak. Use at least ${MIN_PASSWORD_LENGTH} characters.`)
+        );
       } else {
-        setFailure(result.kind === 'unavailable' || result.kind === 'network' ? 'unavailable' : 'unknown');
+        setFailure(
+          result.kind === 'unavailable' || result.kind === 'network' ? 'unavailable' : 'unknown'
+        );
       }
     } finally {
       setBusy(false);
@@ -184,7 +224,10 @@ function NewPasswordForm({ token }: { token: string }) {
 
   return (
     <AuthShell backTo="/login" backLabel="Back">
-      <span className={`auth-icon-tile${state === 'used' ? ' is-ok' : state === 'refused' ? ' is-bad' : ''}`} aria-hidden="true">
+      <span
+        className={`auth-icon-tile${state === 'used' ? ' is-ok' : state === 'refused' ? ' is-bad' : ''}`}
+        aria-hidden="true"
+      >
         <KeyRound />
       </span>
       <h1 className="auth-title">{copy.title}</h1>
@@ -195,9 +238,16 @@ function NewPasswordForm({ token }: { token: string }) {
         <>
           <div aria-live="assertive" className="auth-notices auth-spaced">
             {failure === 'unavailable' && (
-              <Notice tone="error">The password couldn’t be changed because OpenBinding isn’t reachable right now. Your link is still valid; try again.</Notice>
+              <Notice tone="error">
+                The password couldn’t be changed because OpenBinding isn’t reachable right now. Your
+                link is still valid; try again.
+              </Notice>
             )}
-            {failure === 'unknown' && <Notice tone="error">The password could not be changed. Try again in a moment.</Notice>}
+            {failure === 'unknown' && (
+              <Notice tone="error">
+                The password could not be changed. Try again in a moment.
+              </Notice>
+            )}
           </div>
           <form className="auth-form auth-spaced" onSubmit={submit} noValidate>
             <AuthField
@@ -208,18 +258,20 @@ function NewPasswordForm({ token }: { token: string }) {
               autoComplete="new-password"
               placeholder={`At least ${MIN_PASSWORD_LENGTH} characters`}
               value={password}
-              onChange={(event) => setPassword(event.target.value)}
+              onChange={event => setPassword(event.target.value)}
               disabled={busy}
               error={passwordError}
               inputRef={passwordRef}
-              below={(
+              below={
                 <div className="auth-strength">
                   <span className="auth-strength-bars" aria-hidden="true">
-                    {[1, 2, 3].map((level) => <i key={level} className={strength.level >= level ? 'is-on' : undefined} />)}
+                    {[1, 2, 3].map(level => (
+                      <i key={level} className={strength.level >= level ? 'is-on' : undefined} />
+                    ))}
                   </span>
                   <span className="auth-strength-label">Strength: {strength.label}</span>
                 </div>
-              )}
+              }
             />
             <AuthField
               id="reset-confirmation"
@@ -229,7 +281,7 @@ function NewPasswordForm({ token }: { token: string }) {
               autoComplete="new-password"
               placeholder="Repeat the password"
               value={confirmation}
-              onChange={(event) => setConfirmation(event.target.value)}
+              onChange={event => setConfirmation(event.target.value)}
               disabled={busy}
               error={confirmationError}
               inputRef={confirmationRef}
@@ -243,7 +295,9 @@ function NewPasswordForm({ token }: { token: string }) {
       )}
 
       {state === 'refused' && (
-        <Link className="auth-btn auth-btn-primary auth-spaced" to="/password-reset" viewTransition>Request a new link</Link>
+        <Link className="auth-btn auth-btn-primary auth-spaced" to="/password-reset" viewTransition>
+          Request a new link
+        </Link>
       )}
       {state === 'used' && (
         <Link
@@ -255,7 +309,9 @@ function NewPasswordForm({ token }: { token: string }) {
           Continue to log in
         </Link>
       )}
-      <Link className="auth-link auth-spaced" to="/login" viewTransition>Back to log in</Link>
+      <Link className="auth-link auth-spaced" to="/login" viewTransition>
+        Back to log in
+      </Link>
     </AuthShell>
   );
 }

@@ -26,7 +26,7 @@ function renderAt(path: string) {
         <Route path="/login" element={<h1>Log in page</h1>} />
       </Routes>
       <Where />
-    </MemoryRouter>,
+    </MemoryRouter>
   );
 }
 
@@ -40,17 +40,28 @@ describe('PasswordResetPage without a token', () => {
     strictRequest.mockResolvedValue({ accepted: true, delivery: 'email' });
     renderAt('/password-reset');
 
-    expect(screen.getByRole('heading', { level: 1, name: 'Forgot your password?' })).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText('Email address'), { target: { value: 'ada@example.org' } });
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Forgot your password?' })
+    ).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Email address'), {
+      target: { value: 'ada@example.org' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Send reset link' }));
 
     expect(await screen.findByRole('heading', { name: 'Check your inbox' })).toBeInTheDocument();
     expect(strictRequest).toHaveBeenCalledWith(
       '/v1/auth/password-reset/request',
-      expect.objectContaining({ method: 'POST', body: JSON.stringify({ email: 'ada@example.org' }) }),
-      undefined, false, true,
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ email: 'ada@example.org' }),
+      }),
+      undefined,
+      false,
+      true
     );
-    expect(screen.getByText(/If an account exists for that email, we’ve sent it a one-time link/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/If an account exists for that email, we’ve sent it a one-time link/)
+    ).toBeInTheDocument();
     expect(screen.queryByLabelText('Email address')).not.toBeInTheDocument();
   });
 
@@ -58,16 +69,22 @@ describe('PasswordResetPage without a token', () => {
     strictRequest.mockResolvedValue({ accepted: true, delivery: 'operator' });
     renderAt('/password-reset');
 
-    fireEvent.change(screen.getByLabelText('Email address'), { target: { value: 'ada@example.org' } });
+    fireEvent.change(screen.getByLabelText('Email address'), {
+      target: { value: 'ada@example.org' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Send reset link' }));
 
-    expect(await screen.findByText(/available to the operator of this deployment/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/available to the operator of this deployment/)
+    ).toBeInTheDocument();
   });
 
   it('lets the person ask for another link', async () => {
     strictRequest.mockResolvedValue({ accepted: true, delivery: 'email' });
     renderAt('/password-reset');
-    fireEvent.change(screen.getByLabelText('Email address'), { target: { value: 'ada@example.org' } });
+    fireEvent.change(screen.getByLabelText('Email address'), {
+      target: { value: 'ada@example.org' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Send reset link' }));
 
     fireEvent.click(await screen.findByRole('button', { name: 'Send another link' }));
@@ -93,20 +110,28 @@ describe('PasswordResetPage without a token', () => {
     strictRequest.mockRejectedValue(problem(422));
     renderAt('/password-reset');
 
-    fireEvent.change(screen.getByLabelText('Email address'), { target: { value: 'ada@example.org' } });
+    fireEvent.change(screen.getByLabelText('Email address'), {
+      target: { value: 'ada@example.org' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Send reset link' }));
 
-    await waitFor(() => expect(screen.getByLabelText('Email address')).toHaveAttribute('aria-invalid', 'true'));
+    await waitFor(() =>
+      expect(screen.getByLabelText('Email address')).toHaveAttribute('aria-invalid', 'true')
+    );
   });
 
   it('reports an email outage as such', async () => {
     strictRequest.mockRejectedValue(problem(503));
     renderAt('/password-reset');
 
-    fireEvent.change(screen.getByLabelText('Email address'), { target: { value: 'ada@example.org' } });
+    fireEvent.change(screen.getByLabelText('Email address'), {
+      target: { value: 'ada@example.org' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Send reset link' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('We can’t send email right now (503). Nothing was sent');
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'We can’t send email right now (503). Nothing was sent'
+    );
     expect(screen.getByLabelText('Email address')).toBeEnabled();
   });
 
@@ -124,14 +149,18 @@ describe('PasswordResetPage with a token', () => {
 
   const fill = (password: string, confirmation = password) => {
     fireEvent.change(screen.getByLabelText('New password'), { target: { value: password } });
-    fireEvent.change(screen.getByLabelText('Confirm password'), { target: { value: confirmation } });
+    fireEvent.change(screen.getByLabelText('Confirm password'), {
+      target: { value: confirmation },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Set new password' }));
   };
 
   it('shows the request form for an empty token', () => {
     renderAt('/password-reset?token=');
 
-    expect(screen.getByRole('heading', { level: 1, name: 'Forgot your password?' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Forgot your password?' })
+    ).toBeInTheDocument();
     expect(screen.getByLabelText('Email address')).toBeInTheDocument();
     expect(screen.queryByLabelText('New password')).not.toBeInTheDocument();
   });
@@ -148,18 +177,27 @@ describe('PasswordResetPage with a token', () => {
     strictRequest.mockResolvedValue(undefined);
     renderAt('/password-reset?token=obr_abc_def');
 
-    expect(screen.getByRole('heading', { level: 1, name: 'Set a new password' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Set a new password' })
+    ).toBeInTheDocument();
     expect(screen.getByText('Reset link · ready to use')).toBeInTheDocument();
     fill('a-long-enough-password');
 
     expect(await screen.findByRole('heading', { name: 'Password changed' })).toBeInTheDocument();
     expect(strictRequest).toHaveBeenCalledWith(
       '/v1/auth/password-reset/complete',
-      expect.objectContaining({ body: JSON.stringify({ token: 'obr_abc_def', new_password: 'a-long-enough-password' }) }),
-      undefined, false, true,
+      expect.objectContaining({
+        body: JSON.stringify({ token: 'obr_abc_def', new_password: 'a-long-enough-password' }),
+      }),
+      undefined,
+      false,
+      true
     );
     expect(screen.getByText('Reset link · used')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Continue to log in' })).toHaveAttribute('href', '/login');
+    expect(screen.getByRole('link', { name: 'Continue to log in' })).toHaveAttribute(
+      'href',
+      '/login'
+    );
     expect(screen.queryByLabelText('New password')).not.toBeInTheDocument();
   });
 
@@ -167,15 +205,23 @@ describe('PasswordResetPage with a token', () => {
     strictRequest.mockResolvedValue(undefined);
     renderAt('/password-reset?token=obr_abc_def&from=email');
 
-    expect(screen.getByTestId('where')).toHaveTextContent('/password-reset?token=obr_abc_def&from=email');
-    expect(screen.getByRole('heading', { level: 1, name: 'Set a new password' })).toBeInTheDocument();
+    expect(screen.getByTestId('where')).toHaveTextContent(
+      '/password-reset?token=obr_abc_def&from=email'
+    );
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Set a new password' })
+    ).toBeInTheDocument();
 
     fill('a-long-enough-password');
     expect(await screen.findByRole('heading', { name: 'Password changed' })).toBeInTheDocument();
     expect(strictRequest).toHaveBeenCalledWith(
       '/v1/auth/password-reset/complete',
-      expect.objectContaining({ body: JSON.stringify({ token: 'obr_abc_def', new_password: 'a-long-enough-password' }) }),
-      undefined, false, true,
+      expect.objectContaining({
+        body: JSON.stringify({ token: 'obr_abc_def', new_password: 'a-long-enough-password' }),
+      }),
+      undefined,
+      false,
+      true
     );
   });
 
@@ -185,9 +231,13 @@ describe('PasswordResetPage with a token', () => {
     fill('short', 'different');
 
     expect(strictRequest).not.toHaveBeenCalled();
-    expect(screen.getByLabelText('New password')).toHaveAccessibleDescription('Use at least 10 characters.');
+    expect(screen.getByLabelText('New password')).toHaveAccessibleDescription(
+      'Use at least 10 characters.'
+    );
     expect(screen.getByLabelText('New password')).toHaveFocus();
-    expect(screen.getByLabelText('Confirm password')).toHaveAccessibleDescription('The passwords don’t match.');
+    expect(screen.getByLabelText('Confirm password')).toHaveAccessibleDescription(
+      'The passwords don’t match.'
+    );
   });
 
   it('asks for the confirmation to match even when the password is long enough', () => {
@@ -218,19 +268,25 @@ describe('PasswordResetPage with a token', () => {
 
     fill('a-long-enough-password');
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'This reset link can’t be used' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'This reset link can’t be used' })
+    ).toBeInTheDocument();
     expect(screen.getByText('Reset link · not accepted')).toBeInTheDocument();
     expect(screen.queryByLabelText('New password')).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Request a new link' })).toBeInTheDocument();
   });
 
   it('keeps the form and the token when the gateway calls the password too weak', async () => {
-    strictRequest.mockRejectedValue(problem(422, 'weak_password', 'Password is on the common-passwords list.'));
+    strictRequest.mockRejectedValue(
+      problem(422, 'weak_password', 'Password is on the common-passwords list.')
+    );
     renderAt('/password-reset?token=obr_abc_def');
 
     fill('password1234');
 
-    expect(await screen.findByText('Password is on the common-passwords list.')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Password is on the common-passwords list.')
+    ).toBeInTheDocument();
     expect(screen.getByLabelText('New password')).toHaveAttribute('aria-invalid', 'true');
     expect(screen.getByText('Reset link · ready to use')).toBeInTheDocument();
   });

@@ -9,7 +9,7 @@ import { platformApi, type Organization } from '../../api/platform';
 import { routeDefinitions } from '../../routes/registry';
 
 vi.mock('../../api/platform', async () => ({
-  ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'),
+  ...(await vi.importActual<typeof import('../../api/platform')>('../../api/platform')),
   platformApi: {
     organizations: vi.fn(),
   },
@@ -19,11 +19,15 @@ vi.mock('../../api/platform', async () => ({
  * One address for each fixed first segment under /app that the registry answers with something other than an organization: the
  * screens. A segment that is a `:param` names an organization and is not listed.
  */
-const FIXED_ADDRESSES = [...new Map(routeDefinitions.flatMap((route) => {
-  const [, root, first] = route.path.split('/');
-  const address = route.path.replace(/\/:[A-Za-z]+\?/g, '').replace(/:[A-Za-z]+/g, 'sample');
-  return root === 'app' && first && !first.startsWith(':') ? [[first, address] as const] : [];
-})).values()];
+const FIXED_ADDRESSES = [
+  ...new Map(
+    routeDefinitions.flatMap(route => {
+      const [, root, first] = route.path.split('/');
+      const address = route.path.replace(/\/:[A-Za-z]+\?/g, '').replace(/:[A-Za-z]+/g, 'sample');
+      return root === 'app' && first && !first.startsWith(':') ? [[first, address] as const] : [];
+    })
+  ).values(),
+];
 
 const user: UserProfile = {
   id: 'user-1',
@@ -54,10 +58,14 @@ function ContextProbe() {
   const context = useOutletContext<PlatformOutletContext>();
   return (
     <section aria-label="Screen">
-      <output data-testid="organizations">{context.organizations.map((item) => item.slug).join(',')}</output>
+      <output data-testid="organizations">
+        {context.organizations.map(item => item.slug).join(',')}
+      </output>
       <output data-testid="organization">{context.organization?.slug ?? 'none'}</output>
       <output data-testid="loading">{String(context.loading)}</output>
-      <button type="button" onClick={() => void context.reload()}>Reload</button>
+      <button type="button" onClick={() => void context.reload()}>
+        Reload
+      </button>
     </section>
   );
 }
@@ -82,7 +90,7 @@ function renderShell(currentUser: UserProfile, initialPath = '/app') {
           </Route>
         </Routes>
       </AuthContext.Provider>
-    </MemoryRouter>,
+    </MemoryRouter>
   );
 }
 
@@ -105,8 +113,13 @@ describe('PlatformShell (application layout)', () => {
     expect(screen.getByRole('navigation', { name: 'Main' })).toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Screen' })).toBeInTheDocument();
     expect(screen.getByRole('contentinfo')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Skip to workspace' })).toHaveAttribute('href', '#platform-main');
-    expect(document.getElementById('platform-main')).toContainElement(screen.getByRole('region', { name: 'Screen' }));
+    expect(screen.getByRole('link', { name: 'Skip to workspace' })).toHaveAttribute(
+      'href',
+      '#platform-main'
+    );
+    expect(document.getElementById('platform-main')).toContainElement(
+      screen.getByRole('region', { name: 'Screen' })
+    );
   });
 
   it('keeps the outlet context contract: the organizations, and the first one by default', async () => {
@@ -132,12 +145,12 @@ describe('PlatformShell (application layout)', () => {
 
   it.each(FIXED_ADDRESSES)(
     'does not mistake the fixed screen %s for an organization',
-    async (path) => {
+    async path => {
       renderShell(user, path);
       await ready();
 
       expect(screen.getByTestId('organization')).toHaveTextContent('test-org');
-    },
+    }
   );
 
   it('reloads the workspace on request', async () => {
@@ -172,7 +185,10 @@ describe('PlatformShell (application layout)', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Account menu' }));
     const menu = document.getElementById('app-account-menu') as HTMLElement;
-    expect(within(menu).getByRole('link', { name: 'Profile' })).toHaveAttribute('href', '/app/account');
+    expect(within(menu).getByRole('link', { name: 'Profile' })).toHaveAttribute(
+      'href',
+      '/app/account'
+    );
     expect(within(menu).getByRole('button', { name: 'Sign out' })).toBeInTheDocument();
     expect(menu.textContent).not.toMatch(/theme|dark|light/i);
     expect(document.documentElement).not.toHaveAttribute('data-theme');
@@ -196,18 +212,31 @@ describe('PlatformShell (application layout)', () => {
     renderShell(user, '/app/test-org/problems');
     await ready();
 
-    const hrefs = Array.from(document.querySelectorAll('a[href]')).map((link) => link.getAttribute('href') ?? '');
+    const hrefs = Array.from(document.querySelectorAll('a[href]')).map(
+      link => link.getAttribute('href') ?? ''
+    );
     expect(hrefs.length).toBeGreaterThan(5);
-    expect(hrefs.filter((href) => /\/reports([/?#]|$)/.test(href))).toEqual([]);
+    expect(hrefs.filter(href => /\/reports([/?#]|$)/.test(href))).toEqual([]);
 
     fireEvent.click(screen.getAllByRole('button', { name: /Open command palette/ })[0]);
     const palette = await screen.findByRole('dialog', { name: 'Command palette' });
     const links = within(palette).getAllByRole('link');
-    expect(links.filter((link) => /\/reports([/?#]|$)/.test(link.getAttribute('href') ?? ''))).toEqual([]);
+    expect(
+      links.filter(link => /\/reports([/?#]|$)/.test(link.getAttribute('href') ?? ''))
+    ).toEqual([]);
     // The palette offers what paletteCommands.ts builds for the loaded workspace (the commands themselves are tested there).
-    const organizations = [organization('org-1', 'test-org', 'Test Org'), organization('org-2', 'other-org', 'Other Org')];
-    const expected = buildCommands({ organizations, organization: organizations[0], isAdmin: false });
-    expect(links.map((link) => link.getAttribute('href'))).toEqual(expected.map((command) => command.href));
+    const organizations = [
+      organization('org-1', 'test-org', 'Test Org'),
+      organization('org-2', 'other-org', 'Other Org'),
+    ];
+    const expected = buildCommands({
+      organizations,
+      organization: organizations[0],
+      isAdmin: false,
+    });
+    expect(links.map(link => link.getAttribute('href'))).toEqual(
+      expected.map(command => command.href)
+    );
   });
 
   it('does not offer the retired sidebar or direct links to the old public routes', async () => {
@@ -215,7 +244,14 @@ describe('PlatformShell (application layout)', () => {
     await ready();
 
     expect(screen.queryByRole('navigation', { name: /Workspace navigation/i })).toBeNull();
-    for (const retired of ['/schemas', '/profiles', '/playground', '/app/workbench', '/team', '/changelog']) {
+    for (const retired of [
+      '/schemas',
+      '/profiles',
+      '/playground',
+      '/app/workbench',
+      '/team',
+      '/changelog',
+    ]) {
       expect(document.querySelector(`a[href="${retired}"]`), retired).toBeNull();
     }
   });

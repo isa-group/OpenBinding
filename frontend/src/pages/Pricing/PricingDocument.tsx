@@ -17,7 +17,11 @@ const HIDDEN_SECTIONS = ['hero'] as const;
  * would read "Upgrade" or "Downgrade" against `current` by the order in which the document declares its plans,
  * and these plans are not a ladder. `current` marks the account's plan and add-ons, and starts selected.
  */
-export default function PricingDocument({ catalog, current, planAction }: {
+export default function PricingDocument({
+  catalog,
+  current,
+  planAction,
+}: {
   catalog: PricingCatalog;
   current?: Partial<PricingSelection>;
   planAction: (planId: string) => ReactNode;

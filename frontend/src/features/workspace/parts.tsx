@@ -17,7 +17,15 @@ export function Breadcrumb({ items }: { items: Crumb[] }) {
         {items.map((item, index) => (
           <li key={`${item.label}:${index}`}>
             {index > 0 && <span aria-hidden="true">/</span>}
-            {item.to && index < items.length - 1 ? <Link to={item.to} viewTransition>{item.label}</Link> : <span aria-current={index === items.length - 1 ? 'page' : undefined}>{item.label}</span>}
+            {item.to && index < items.length - 1 ? (
+              <Link to={item.to} viewTransition>
+                {item.label}
+              </Link>
+            ) : (
+              <span aria-current={index === items.length - 1 ? 'page' : undefined}>
+                {item.label}
+              </span>
+            )}
           </li>
         ))}
       </ol>
@@ -35,8 +43,17 @@ interface GateProps {
 export function Gate({ title, children, action }: GateProps) {
   return (
     <div className="org-gate">
-      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" aria-hidden="true">
-        <circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" />
+      <svg
+        width="40"
+        height="40"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1"
+        aria-hidden="true"
+      >
+        <circle cx="11" cy="11" r="7" />
+        <path d="m20 20-3.5-3.5" />
       </svg>
       <h2>{title}</h2>
       <p>{children}</p>

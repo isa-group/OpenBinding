@@ -5,7 +5,10 @@ import { formatNumber, formatValue, valueModels, valueStatus } from './values';
 
 const verified = fms as CompositionVersionView;
 
-const withOutcome = (outcome: 'verified' | 'binding_invalid' | 'semantics_changed' | 'declared', status: 'verified' | 'declared' = 'verified') => ({
+const withOutcome = (
+  outcome: 'verified' | 'binding_invalid' | 'semantics_changed' | 'declared',
+  status: 'verified' | 'declared' = 'verified'
+) => ({
   ...verified,
   values_status: status,
   current_evaluation: verified.current_evaluation && { ...verified.current_evaluation, outcome },
@@ -36,14 +39,22 @@ describe('valueStatus', () => {
 describe('valueModels', () => {
   it('lists the values in the order served, with units as written and the version status', () => {
     const models = valueModels(verified);
-    expect(models.map((model) => model.name)).toEqual(['availability', 'cost', 'execution_time', 'reliability', 'security']);
+    expect(models.map(model => model.name)).toEqual([
+      'availability',
+      'cost',
+      'execution_time',
+      'reliability',
+      'security',
+    ]);
     expect(models[1]).toEqual({ name: 'cost', value: 3060, unit: 'USD/month', status: 'verified' });
     expect(models[0].unit).toBe('1');
     expect(models[0].value).toBe(verified.values.availability.value);
   });
 
   it('marks every value of an unverified version unverified', () => {
-    expect(valueModels(withOutcome('semantics_changed')).every((model) => model.status === 'unverified')).toBe(true);
+    expect(
+      valueModels(withOutcome('semantics_changed')).every(model => model.status === 'unverified')
+    ).toBe(true);
   });
 });
 

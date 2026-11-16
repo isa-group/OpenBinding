@@ -2,14 +2,39 @@ import { describe, expect, it } from 'vitest';
 import { QuotaError } from '../api/auth';
 import { HttpError } from '../api/client';
 import { bindingSpaceFrom, limitNoticeFrom } from '../api/limitNotice';
-import { BINDING_SPACE_LIMIT_ID, combinations, limitProblemOf, sizeOf, slotsText, usageUnknownText } from './limitRefusals';
+import {
+  BINDING_SPACE_LIMIT_ID,
+  combinations,
+  limitProblemOf,
+  sizeOf,
+  slotsText,
+  usageUnknownText,
+} from './limitRefusals';
 
 describe('reading what a refusal says about its limit', () => {
   it('keeps the fields the screens show and nothing else', () => {
-    expect(limitNoticeFrom({ limit_id: 'x', state: 'exhausted', source: 'plan', unit: 'job', limit: 2, used: 2, path: '/srv', host: 'h' })).toEqual({
-      limit_id: 'x', state: 'exhausted', source: 'plan', unit: 'job', limit: 2, used: 2,
+    expect(
+      limitNoticeFrom({
+        limit_id: 'x',
+        state: 'exhausted',
+        source: 'plan',
+        unit: 'job',
+        limit: 2,
+        used: 2,
+        path: '/srv',
+        host: 'h',
+      })
+    ).toEqual({
+      limit_id: 'x',
+      state: 'exhausted',
+      source: 'plan',
+      unit: 'job',
+      limit: 2,
+      used: 2,
     });
-    expect(bindingSpaceFrom({ kind: 'estimate', log10: 3, digits: 4, cardinality: '1000', path: '/srv' })).toEqual({ log10: 3, digits: 4, cardinality: '1000' });
+    expect(
+      bindingSpaceFrom({ kind: 'estimate', log10: 3, digits: 4, cardinality: '1000', path: '/srv' })
+    ).toEqual({ log10: 3, digits: 4, cardinality: '1000' });
   });
 
   it('reads an absent state as exhausted (the old 402) and a state it does not know as unknown', () => {
@@ -17,11 +42,22 @@ describe('reading what a refusal says about its limit', () => {
     expect(limitNoticeFrom({ limit_id: 'apiKeys', state: 'new-thing' })?.state).toBe('unknown');
   });
 
-  it.each([undefined, null, 'text', 4, [], {}, { limit_id: '' }, { limit_id: 3 }])('has no notice in %j', (raw) => {
-    expect(limitNoticeFrom(raw)).toBeUndefined();
-  });
+  it.each([undefined, null, 'text', 4, [], {}, { limit_id: '' }, { limit_id: 3 }])(
+    'has no notice in %j',
+    raw => {
+      expect(limitNoticeFrom(raw)).toBeUndefined();
+    }
+  );
 
-  it.each([undefined, null, 'text', [], {}, { cardinality: 'abc', digits: 'x' }, { cardinality: '1'.repeat(41) }])('has no measure in %j', (raw) => {
+  it.each([
+    undefined,
+    null,
+    'text',
+    [],
+    {},
+    { cardinality: 'abc', digits: 'x' },
+    { cardinality: '1'.repeat(41) },
+  ])('has no measure in %j', raw => {
     expect(bindingSpaceFrom(raw)).toBeUndefined();
   });
 });
@@ -37,7 +73,9 @@ describe('the size of a problem in words', () => {
     expect(sizeOf({ cardinality: '1234567', log10: 6.09 })).toBe('1,234,567 combinations');
     expect(sizeOf({ log10: 6.09 })).toBe('about 10^6.1 combinations');
     expect(sizeOf({ digits: 4321 })).toBe('a number of combinations with 4,321 digits');
-    expect(sizeOf(undefined, { limit_id: 'x', state: 'exhausted', used: 3 })).toBe('about 10³ combinations');
+    expect(sizeOf(undefined, { limit_id: 'x', state: 'exhausted', used: 3 })).toBe(
+      'about 10³ combinations'
+    );
     expect(sizeOf(undefined, { limit_id: 'x', state: 'unknown', used: 3 })).toBeNull();
     expect(sizeOf()).toBeNull();
   });
@@ -46,10 +84,24 @@ describe('the size of a problem in words', () => {
 describe('the sentences about a limit', () => {
   it('only the three limit problems are recognised, by code', () => {
     const at = ' (422 · x)';
-    const codes = ['binding_space_over_technical_limit', 'binding_space_unmeasured', 'pricing_misconfigured'];
-    expect(codes.map((code) => limitProblemOf(Object.assign(new HttpError(422, 'x'), { code }), 'N.', at)?.kind)).toEqual(['technical', 'unmeasured', 'misconfigured']);
+    const codes = [
+      'binding_space_over_technical_limit',
+      'binding_space_unmeasured',
+      'pricing_misconfigured',
+    ];
+    expect(
+      codes.map(
+        code => limitProblemOf(Object.assign(new HttpError(422, 'x'), { code }), 'N.', at)?.kind
+      )
+    ).toEqual(['technical', 'unmeasured', 'misconfigured']);
     // No plan limits the size of a problem any more: the plan-size codes of pricing 0.1.0 are not limit problems.
-    for (const code of ['binding_space_limit_unknown', 'instance_complexity_too_large', 'feature_not_entitled', 'forbidden', undefined]) {
+    for (const code of [
+      'binding_space_limit_unknown',
+      'instance_complexity_too_large',
+      'feature_not_entitled',
+      'forbidden',
+      undefined,
+    ]) {
       expect(limitProblemOf(Object.assign(new HttpError(403, 'x'), { code }), 'N.', at)).toBeNull();
     }
     expect(limitProblemOf(new Error('x'), 'N.', at)).toBeNull();
@@ -57,13 +109,21 @@ describe('the sentences about a limit', () => {
   });
 
   it('puts the marker of the answer in the title and what was left undone at the end of the text', () => {
-    const problem = limitProblemOf(Object.assign(new HttpError(422, 'x'), { code: 'binding_space_over_technical_limit' }), 'Nothing was started.', ' (422 · binding_space_over_technical_limit)');
+    const problem = limitProblemOf(
+      Object.assign(new HttpError(422, 'x'), { code: 'binding_space_over_technical_limit' }),
+      'Nothing was started.',
+      ' (422 · binding_space_over_technical_limit)'
+    );
     expect(problem?.title.endsWith('(422 · binding_space_over_technical_limit)')).toBe(true);
     expect(problem?.text.endsWith('Nothing was started.')).toBe(true);
   });
 
   it('names the deployment setting when the answer names no limit', () => {
-    const problem = limitProblemOf(Object.assign(new HttpError(422, 'x'), { code: 'binding_space_unmeasured' }), 'N.', '');
+    const problem = limitProblemOf(
+      Object.assign(new HttpError(422, 'x'), { code: 'binding_space_unmeasured' }),
+      'N.',
+      ''
+    );
     expect(problem).toMatchObject({ kind: 'unmeasured', limitId: BINDING_SPACE_LIMIT_ID });
     expect(BINDING_SPACE_LIMIT_ID).toBe('MAX_BINDING_SPACE_LOG10');
   });
@@ -72,16 +132,23 @@ describe('the sentences about a limit', () => {
     expect(slotsText()).toBe('You have no free run slot.');
     expect(slotsText({ limit: 1 })).toBe('You can have 1 run going at once.');
     expect(slotsText({ limit: 1, source: 'plan' })).toBe('Your plan allows 1 run going at once.');
-    expect(slotsText({ limit: 3, source: 'technical' })).toBe('This deployment allows one account 3 runs going at once, whatever its plan.');
+    expect(slotsText({ limit: 3, source: 'technical' })).toBe(
+      'This deployment allows one account 3 runs going at once, whatever its plan.'
+    );
   });
 
   it('never talks about money, a balance or capacity units', () => {
     const texts = [
-      limitProblemOf(Object.assign(new HttpError(422, 'x'), { code: 'binding_space_over_technical_limit' }), 'N.', '')?.text ?? '',
+      limitProblemOf(
+        Object.assign(new HttpError(422, 'x'), { code: 'binding_space_over_technical_limit' }),
+        'N.',
+        ''
+      )?.text ?? '',
       usageUnknownText('N.'),
       slotsText({ limit: 1, source: 'plan' }),
       slotsText({ limit: 1, source: 'technical' }),
     ];
-    for (const text of texts) expect(text).not.toMatch(/credit|balance|capacity unit|\bCUs?\b|\bpay\b|\bprice\b/i);
+    for (const text of texts)
+      expect(text).not.toMatch(/credit|balance|capacity unit|\bCUs?\b|\bpay\b|\bprice\b/i);
   });
 });

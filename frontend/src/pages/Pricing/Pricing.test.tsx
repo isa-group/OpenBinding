@@ -18,18 +18,34 @@ const api = vi.hoisted(() => ({
 const stored = vi.hoisted(() => ({ token: null as string | null }));
 
 vi.mock('../../api/client', async () => ({
-  ...await vi.importActual<typeof import('../../api/client')>('../../api/client'),
+  ...(await vi.importActual<typeof import('../../api/client')>('../../api/client')),
   apiClient: api,
   getStoredPricingToken: () => stored.token,
 }));
 
 const person = (plan: string): UserProfile => ({
-  id: 'alice-id', username: 'alice', email: 'alice@example.test', role: 'user', plan, is_active: true, created_at: '2026-01-01T00:00:00Z',
+  id: 'alice-id',
+  username: 'alice',
+  email: 'alice@example.test',
+  role: 'user',
+  plan,
+  is_active: true,
+  created_at: '2026-01-01T00:00:00Z',
 });
 
-function makeToken(features: Record<string, { eval: boolean }>, claims: Record<string, unknown> = {}): string {
+function makeToken(
+  features: Record<string, { eval: boolean }>,
+  claims: Record<string, unknown> = {}
+): string {
   const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
-  const payload = btoa(JSON.stringify({ sub: 'alice-id', exp: Math.floor(Date.now() / 1000) + 3600 * 24, features, ...claims }));
+  const payload = btoa(
+    JSON.stringify({
+      sub: 'alice-id',
+      exp: Math.floor(Date.now() / 1000) + 3600 * 24,
+      features,
+      ...claims,
+    })
+  );
   return `${header}.${payload}.mock-signature`;
 }
 
@@ -52,9 +68,14 @@ vi.mock('pricing-renderer/react', async () => {
       return createElement(
         'div',
         { 'data-testid': 'pricing-renderer' },
-        Object.keys(props.pricing.plans ?? {}).map((planId) =>
-          createElement('div', { key: planId, 'data-plan': planId }, props.renderPlanCta({ planId }))),
-        createElement('div', { 'data-testid': 'summary-actions' }, props.renderSummaryActions()),
+        Object.keys(props.pricing.plans ?? {}).map(planId =>
+          createElement(
+            'div',
+            { key: planId, 'data-plan': planId },
+            props.renderPlanCta({ planId })
+          )
+        ),
+        createElement('div', { 'data-testid': 'summary-actions' }, props.renderSummaryActions())
       );
     },
   };
@@ -64,7 +85,9 @@ vi.mock('pricing-renderer/react', async () => {
 async function documentActions(): Promise<Record<string, HTMLElement>> {
   fireEvent.click(await screen.findByRole('button', { name: 'Show the full pricing document' }));
   const drawn = await screen.findByTestId('pricing-renderer');
-  return Object.fromEntries([...drawn.querySelectorAll<HTMLElement>('[data-plan]')].map((slot) => [slot.dataset.plan!, slot]));
+  return Object.fromEntries(
+    [...drawn.querySelectorAll<HTMLElement>('[data-plan]')].map(slot => [slot.dataset.plan!, slot])
+  );
 }
 
 function TokenUpdater({ token }: { token?: string }) {
@@ -78,7 +101,17 @@ function TokenUpdater({ token }: { token?: string }) {
 function renderPricing(user: UserProfile | null = null, token?: string) {
   const wrap = (children: ReactNode) => (
     <MemoryRouter>
-      <AuthContext.Provider value={{ user, loading: false, signIn: vi.fn(), register: vi.fn(), signOut: vi.fn(), refresh: vi.fn(), isAdmin: false }}>
+      <AuthContext.Provider
+        value={{
+          user,
+          loading: false,
+          signIn: vi.fn(),
+          register: vi.fn(),
+          signOut: vi.fn(),
+          refresh: vi.fn(),
+          isAdmin: false,
+        }}
+      >
         <SpaceProvider config={{ url: '', apiKey: '', allowConnectionWithSpace: false }}>
           <TokenUpdater token={token} />
           {children}
@@ -94,17 +127,23 @@ const withAddOns = {
   ...catalogFixture,
   addOns: {
     STORAGE_PACK: {
-      description: 'Adds 5 GB of repository storage.', availableFor: ['LAB'], unit: 'pack/month',
-      subscriptionConstraints: { minQuantity: 1, maxQuantity: 20 }, usageLimitsExtensions: { maxRepositoryStorage: { value: 5000 } },
+      description: 'Adds 5 GB of repository storage.',
+      availableFor: ['LAB'],
+      unit: 'pack/month',
+      subscriptionConstraints: { minQuantity: 1, maxQuantity: 20 },
+      usageLimitsExtensions: { maxRepositoryStorage: { value: 5000 } },
     },
     CAMPAIGN_ARCHIVE: {
-      description: 'Keeps the archive of every campaign.', availableFor: ['RESEARCH', 'LAB'], unit: 'archive/account',
+      description: 'Keeps the archive of every campaign.',
+      availableFor: ['RESEARCH', 'LAB'],
+      unit: 'archive/account',
       subscriptionConstraints: { minQuantity: 1, maxQuantity: 1 },
     },
   },
 };
 
-const heading = () => screen.findByRole('heading', { level: 1, name: 'Plans for every kind of binding work' });
+const heading = () =>
+  screen.findByRole('heading', { level: 1, name: 'Plans for every kind of binding work' });
 
 describe('Pricing', () => {
   beforeEach(() => {
@@ -134,7 +173,9 @@ describe('Pricing', () => {
     expect(screen.getByText('EUR · monthly periods')).toBeInTheDocument();
     expect(document.body.textContent).not.toMatch(/sha256-|\b[0-9a-f]{12}/);
     expect(screen.getByText('Development pricing.')).toBeInTheDocument();
-    expect(screen.getByText(/0\.2\.0 development copy and aren’t verified against the live pricing/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/0\.2\.0 development copy and aren’t verified against the live pricing/)
+    ).toBeInTheDocument();
   });
 
   it('offers no price and no checkout: paid plans say Contact us, free ones Free', async () => {
@@ -155,8 +196,15 @@ describe('Pricing', () => {
     renderPricing();
     await heading();
 
-    expect(await screen.findByRole('link', { name: 'Sign up' })).toHaveAttribute('href', '/register');
-    expect(screen.getAllByRole('link', { name: 'Log in with CAS' }).every((link) => link.getAttribute('href') === '/login')).toBe(true);
+    expect(await screen.findByRole('link', { name: 'Sign up' })).toHaveAttribute(
+      'href',
+      '/register'
+    );
+    expect(
+      screen
+        .getAllByRole('link', { name: 'Log in with CAS' })
+        .every(link => link.getAttribute('href') === '/login')
+    ).toBe(true);
     expect(screen.queryByText('Available to your account')).not.toBeInTheDocument();
     expect(screen.queryByText('Your current plan')).not.toBeInTheDocument();
   });
@@ -198,7 +246,10 @@ describe('Pricing', () => {
     renderPricing();
     await heading();
     const lab = await screen.findByRole('button', { name: 'LAB' });
-    expect(screen.getByRole('button', { name: 'Compare all' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Compare all' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
 
     fireEvent.click(lab);
 
@@ -213,18 +264,32 @@ describe('Pricing', () => {
     renderPricing();
     await heading();
 
-    expect(await screen.findByRole('heading', { name: 'What has to have room before you start' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: 'What has to have room before you start' })
+    ).toBeInTheDocument();
     expect(screen.getByText(/Three features also check your limits/)).toBeInTheDocument();
     const run = screen.getByText('Start a run').closest('.pricing-gate') as HTMLElement;
     expect(within(run).getByText('Solver hours left this month')).toBeInTheDocument();
-    expect(within(screen.getByText('Start a study run').closest('.pricing-gate') as HTMLElement).getByText('Solver hours left this month')).toBeInTheDocument();
-    expect(within(screen.getByText('Start a generation').closest('.pricing-gate') as HTMLElement).getByText('Generated instances left this month')).toBeInTheDocument();
+    expect(
+      within(
+        screen.getByText('Start a study run').closest('.pricing-gate') as HTMLElement
+      ).getByText('Solver hours left this month')
+    ).toBeInTheDocument();
+    expect(
+      within(
+        screen.getByText('Start a generation').closest('.pricing-gate') as HTMLElement
+      ).getByText('Generated instances left this month')
+    ).toBeInTheDocument();
   });
 
   it('explains the three outcomes of reaching a limit', async () => {
     renderPricing();
     await heading();
-    const section = within((await screen.findByRole('heading', { name: 'What happens when you reach a limit' })).closest('section') as HTMLElement);
+    const section = within(
+      (await screen.findByRole('heading', { name: 'What happens when you reach a limit' })).closest(
+        'section'
+      ) as HTMLElement
+    );
 
     expect(section.getByText('Reduced')).toBeInTheDocument();
     expect(section.getByText('Wait')).toBeInTheDocument();
@@ -273,7 +338,9 @@ describe('Pricing', () => {
   });
 
   it('says there is no live release (404) instead of showing a catalog', async () => {
-    api.getCurrentPricing.mockRejectedValue(new HttpError(404, 'No public pricing release is live.'));
+    api.getCurrentPricing.mockRejectedValue(
+      new HttpError(404, 'No public pricing release is live.')
+    );
     renderPricing();
     await heading();
 
@@ -314,8 +381,14 @@ describe('Pricing', () => {
 
     expect(await screen.findByText('Your current plan')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Sign up' })).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Link CAS identity' })).toHaveAttribute('href', '/app/account/identities');
-    expect(screen.getByRole('link', { name: 'Manage identities' })).toHaveAttribute('href', '/app/account/identities');
+    expect(screen.getByRole('link', { name: 'Link CAS identity' })).toHaveAttribute(
+      'href',
+      '/app/account/identities'
+    );
+    expect(screen.getByRole('link', { name: 'Manage identities' })).toHaveAttribute(
+      'href',
+      '/app/account/identities'
+    );
   });
 
   it('offers no CAS link to an account that is on RESEARCH already', async () => {
@@ -327,14 +400,21 @@ describe('Pricing', () => {
   });
 
   it('evaluates the signed features as Enabled or Not enabled from the SPACE token', async () => {
-    const token = makeToken({ 'openbinding-runs': { eval: true }, 'openbinding-studies': { eval: false } });
+    const token = makeToken({
+      'openbinding-runs': { eval: true },
+      'openbinding-studies': { eval: false },
+    });
     stored.token = token;
     renderPricing(person('LAB'), token);
 
     expect(await screen.findByText('Available to your account')).toBeInTheDocument();
     await waitFor(() => expect(screen.getAllByText('Enabled').length).toBeGreaterThanOrEqual(1));
-    await waitFor(() => expect(screen.getAllByText('Not enabled').length).toBeGreaterThanOrEqual(1));
-    expect(screen.getByText('Read from your signed pricing token for the LAB plan.')).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getAllByText('Not enabled').length).toBeGreaterThanOrEqual(1)
+    );
+    expect(
+      screen.getByText('Read from your signed pricing token for the LAB plan.')
+    ).toBeInTheDocument();
     expect(document.body.textContent).not.toContain(token);
   });
 
@@ -342,9 +422,18 @@ describe('Pricing', () => {
     renderPricing(person('FREE'));
 
     expect(await screen.findByText('Available to your account')).toBeInTheDocument();
-    await waitFor(() => expect(screen.getAllByText('Can’t confirm').length).toBeGreaterThanOrEqual(1));
-    expect(screen.getByText(/We can’t confirm your features right now, so none is shown as enabled or disabled/)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'See your plan' })).toHaveAttribute('href', '/app/account/usage');
+    await waitFor(() =>
+      expect(screen.getAllByText('Can’t confirm').length).toBeGreaterThanOrEqual(1)
+    );
+    expect(
+      screen.getByText(
+        /We can’t confirm your features right now, so none is shown as enabled or disabled/
+      )
+    ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'See your plan' })).toHaveAttribute(
+      'href',
+      '/app/account/usage'
+    );
   });
 
   it('draws the long form of the document with pricing-renderer when asked', async () => {
@@ -355,9 +444,14 @@ describe('Pricing', () => {
 
     fireEvent.click(toggle);
 
-    expect(await screen.findByRole('button', { name: 'Hide the full pricing document' })).toHaveAttribute('aria-expanded', 'true');
+    expect(
+      await screen.findByRole('button', { name: 'Hide the full pricing document' })
+    ).toHaveAttribute('aria-expanded', 'true');
     await waitFor(() => expect(document.querySelector('.pricing-renderer-shell')).not.toBeNull());
-    expect(screen.getByRole('link', { name: 'SPHERE' })).toHaveAttribute('href', CURRENT_FIXTURE.url);
+    expect(screen.getByRole('link', { name: 'SPHERE' })).toHaveAttribute(
+      'href',
+      CURRENT_FIXTURE.url
+    );
   });
 
   it('offers in the full document the actions of the comparison, under the page’s own title', async () => {
@@ -365,12 +459,23 @@ describe('Pricing', () => {
     await heading();
     const actions = await documentActions();
 
-    expect(Object.fromEntries(Object.entries(actions).map(([plan, slot]) => [plan, slot.textContent]))).toEqual({
-      FREE: 'Sign up', RESEARCH: 'Log in with CAS', LAB: 'Contact us',
+    expect(
+      Object.fromEntries(Object.entries(actions).map(([plan, slot]) => [plan, slot.textContent]))
+    ).toEqual({
+      FREE: 'Sign up',
+      RESEARCH: 'Log in with CAS',
+      LAB: 'Contact us',
     });
-    expect(within(actions.FREE).getByRole('link', { name: 'Sign up' })).toHaveAttribute('href', '/register');
+    expect(within(actions.FREE).getByRole('link', { name: 'Sign up' })).toHaveAttribute(
+      'href',
+      '/register'
+    );
     expect(screen.getByTestId('summary-actions')).toBeEmptyDOMElement();
-    expect(renderer.props).toMatchObject({ hideSections: ['hero'], theme: 'light', currentSelection: undefined });
+    expect(renderer.props).toMatchObject({
+      hideSections: ['hero'],
+      theme: 'light',
+      currentSelection: undefined,
+    });
     expect(renderer.props).not.toHaveProperty('pricingPath');
 
     fireEvent.click(within(actions.LAB).getByRole('button', { name: 'Contact us' }));
@@ -378,14 +483,17 @@ describe('Pricing', () => {
   });
 
   it('marks in the full document the plan and add-ons of the account, and offers nothing on its own plan', async () => {
-    const token = makeToken({}, {
-      subscription: {
-        contractedServices: { openbinding: '0.2.0' },
-        subscriptionPlans: { openbinding: 'LAB' },
-        subscriptionAddOns: { openbinding: { STORAGE_PACK: 2 } },
-        contractVersion: '4',
-      },
-    });
+    const token = makeToken(
+      {},
+      {
+        subscription: {
+          contractedServices: { openbinding: '0.2.0' },
+          subscriptionPlans: { openbinding: 'LAB' },
+          subscriptionAddOns: { openbinding: { STORAGE_PACK: 2 } },
+          contractVersion: '4',
+        },
+      }
+    );
     stored.token = token;
     api.getPricingCatalog.mockResolvedValue(withAddOns);
     renderPricing(person('LAB'), token);
@@ -396,7 +504,9 @@ describe('Pricing', () => {
     await waitFor(() => expect(renderer.props?.currentSelection).toEqual(mine));
     expect(renderer.props?.defaultSelection).toEqual(mine);
     expect(actions.LAB).toBeEmptyDOMElement();
-    expect(within(actions.RESEARCH).getByRole('link', { name: 'Link CAS identity' })).toHaveAttribute('href', '/app/account/identities');
+    expect(
+      within(actions.RESEARCH).getByRole('link', { name: 'Link CAS identity' })
+    ).toHaveAttribute('href', '/app/account/identities');
     expect(actions.FREE).toBeEmptyDOMElement();
   });
 

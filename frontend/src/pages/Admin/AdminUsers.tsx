@@ -37,32 +37,32 @@ const STATUSES = [
 
 const WORDING: Record<Kind, { title: (name: string) => string; text: string; confirm: string }> = {
   deactivate: {
-    title: (name) => `Deactivate ${name}?`,
+    title: name => `Deactivate ${name}?`,
     text: 'They can’t sign in or use their API keys from their next request, until you reactivate them. Their data stays.',
     confirm: 'Deactivate',
   },
   activate: {
-    title: (name) => `Reactivate ${name}?`,
+    title: name => `Reactivate ${name}?`,
     text: 'They can sign in again with their existing credentials.',
     confirm: 'Reactivate',
   },
   admin: {
-    title: (name) => `Make ${name} an administrator?`,
+    title: name => `Make ${name} an administrator?`,
     text: 'They’ll be able to use every administration tool, including pricing and other people’s agreements.',
     confirm: 'Make administrator',
   },
   user: {
-    title: (name) => `Remove administrator from ${name}?`,
+    title: name => `Remove administrator from ${name}?`,
     text: 'They keep their account and plan, but lose access to administration.',
     confirm: 'Make user',
   },
 };
 
 const SUCCESS: Record<Kind, (name: string) => string> = {
-  deactivate: (name) => `${name} was deactivated.`,
-  activate: (name) => `${name} was reactivated.`,
-  admin: (name) => `${name} is now an administrator.`,
-  user: (name) => `${name} is no longer an administrator.`,
+  deactivate: name => `${name} was deactivated.`,
+  activate: name => `${name} was reactivated.`,
+  admin: name => `${name} is now an administrator.`,
+  user: name => `${name} is no longer an administrator.`,
 };
 
 interface Message {
@@ -105,15 +105,26 @@ function UsersScreen() {
     return () => window.clearTimeout(timer);
   }, [draft]);
 
-  const list = useResource(`admin-users:${query}:${offset}`, () => apiClient.adminListUsers({ search: query || undefined, offset, limit: PAGE }));
+  const list = useResource(`admin-users:${query}:${offset}`, () =>
+    apiClient.adminListUsers({ search: query || undefined, offset, limit: PAGE })
+  );
   const page = list.data ?? list.stale;
-  const failure: Failure | null = list.status === 'error' ? describeAdminFailure(list.error, 'The accounts couldn’t be loaded') : null;
+  const failure: Failure | null =
+    list.status === 'error'
+      ? describeAdminFailure(list.error, 'The accounts couldn’t be loaded')
+      : null;
 
   const accounts = useMemo(() => page?.users ?? [], [page]);
-  const plans = useMemo(() => [...new Set(accounts.map((account) => account.plan))].sort(), [accounts]);
-  const visible = accounts.filter((account) => (
-    (role === 'all' || account.role === role) && matchesStatus(status, account) && (!plan || account.plan === plan)
-  ));
+  const plans = useMemo(
+    () => [...new Set(accounts.map(account => account.plan))].sort(),
+    [accounts]
+  );
+  const visible = accounts.filter(
+    account =>
+      (role === 'all' || account.role === role) &&
+      matchesStatus(status, account) &&
+      (!plan || account.plan === plan)
+  );
   const filtering = role !== 'all' || status !== 'all' || plan !== '';
 
   const ask = (kind: Kind, account: AdminUserView) => {
@@ -131,14 +142,21 @@ function UsersScreen() {
     const { kind, account } = pending;
     setBusy(true);
     try {
-      await apiClient.adminUpdateUser(account.id, kind === 'activate' || kind === 'deactivate' ? { is_active: kind === 'activate' } : { role: kind });
+      await apiClient.adminUpdateUser(
+        account.id,
+        kind === 'activate' || kind === 'deactivate'
+          ? { is_active: kind === 'activate' }
+          : { role: kind }
+      );
       setMessage({ tone: 'success', text: SUCCESS[kind](account.username) });
       list.reload();
     } catch (error: unknown) {
       const refused = describeAdminFailure(error, 'That change couldn’t be applied');
-      setMessage(refused.code === 'cannot_demote_self'
-        ? SELF_REFUSAL
-        : { tone: refused.tone, title: refused.title, text: refused.text });
+      setMessage(
+        refused.code === 'cannot_demote_self'
+          ? SELF_REFUSAL
+          : { tone: refused.tone, title: refused.title, text: refused.text }
+      );
     } finally {
       setBusy(false);
       setPending(null);
@@ -163,35 +181,79 @@ function UsersScreen() {
       title="Accounts"
       lede="Activate, deactivate or change the global role of an account. Passwords and email addresses can’t be changed here, and you can’t deactivate or demote yourself."
     >
-      <form className="adm-toolbar" role="search" onSubmit={(event) => { event.preventDefault(); setQuery(draft.trim()); setOffset(0); }}>
+      <form
+        className="adm-toolbar"
+        role="search"
+        onSubmit={event => {
+          event.preventDefault();
+          setQuery(draft.trim());
+          setOffset(0);
+        }}
+      >
         <label className="adm-search">
           <Search aria-hidden="true" />
           <span className="sr-only">Search accounts</span>
-          <input type="search" value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Username or email" autoComplete="off" spellCheck={false} />
+          <input
+            type="search"
+            value={draft}
+            onChange={event => setDraft(event.target.value)}
+            placeholder="Username or email"
+            autoComplete="off"
+            spellCheck={false}
+          />
         </label>
-        <FilterPills ariaLabel="Role" options={ROLES} value={role} onChange={(id) => setRole(id as RoleFilter)} />
-        <FilterPills ariaLabel="Status" options={STATUSES} value={status} onChange={(id) => setStatus(id as StatusFilter)} />
+        <FilterPills
+          ariaLabel="Role"
+          options={ROLES}
+          value={role}
+          onChange={id => setRole(id as RoleFilter)}
+        />
+        <FilterPills
+          ariaLabel="Status"
+          options={STATUSES}
+          value={status}
+          onChange={id => setStatus(id as StatusFilter)}
+        />
         <label className="adm-select">
           <span>Plan</span>
-          <select value={plan} onChange={(event) => setPlan(event.target.value)}>
+          <select value={plan} onChange={event => setPlan(event.target.value)}>
             <option value="">Any plan</option>
-            {plans.map((id) => <option key={id} value={id}>{id}</option>)}
+            {plans.map(id => (
+              <option key={id} value={id}>
+                {id}
+              </option>
+            ))}
           </select>
         </label>
       </form>
 
-      {message && <Notice tone={message.tone} title={message.title}>{message.text}</Notice>}
+      {message && (
+        <Notice tone={message.tone} title={message.title}>
+          {message.text}
+        </Notice>
+      )}
       {failure && <FailureNotice failure={failure} onRetry={list.reload} />}
 
-      {loading && <div aria-busy="true" className="adm-skeleton"><span className="sr-only">Loading accounts</span><Skeleton variant="panel" /></div>}
+      {loading && (
+        <div aria-busy="true" className="adm-skeleton">
+          <span className="sr-only">Loading accounts</span>
+          <Skeleton variant="panel" />
+        </div>
+      )}
 
       {page && visible.length === 0 && !(page.total === 0 && !query) && (
         <EmptyState
           icon={<UserX />}
           title="No account matches"
-          action={<Action size="sm" variant="secondary" onClick={clear}>Clear filters</Action>}
+          action={
+            <Action size="sm" variant="secondary" onClick={clear}>
+              Clear filters
+            </Action>
+          }
         >
-          {filtering && accounts.length > 0 ? 'No account on this page has that role, status and plan.' : 'Try another name or email.'}
+          {filtering && accounts.length > 0
+            ? 'No account on this page has that role, status and plan.'
+            : 'Try another name or email.'}
         </EmptyState>
       )}
 
@@ -206,30 +268,65 @@ function UsersScreen() {
                 <th scope="col">Status</th>
                 <th scope="col">Keys</th>
                 <th scope="col">Since</th>
-                <th scope="col"><span className="sr-only">Actions</span></th>
+                <th scope="col">
+                  <span className="sr-only">Actions</span>
+                </th>
               </tr>
             </thead>
             <tbody className="adm-rows">
-              {visible.map((account) => {
+              {visible.map(account => {
                 const you = account.id === self?.id;
                 return (
-                  <tr key={account.id} aria-label={account.username} className={account.is_active ? undefined : 'is-inactive'}>
+                  <tr
+                    key={account.id}
+                    aria-label={account.username}
+                    className={account.is_active ? undefined : 'is-inactive'}
+                  >
                     <td>
-                      <Link className="adm-name" to={`/app/admin/users/${account.id}`} viewTransition>{account.username}</Link>
-                      {you && <> <Tag tone="info">you</Tag></>}
+                      <Link
+                        className="adm-name"
+                        to={`/app/admin/users/${account.id}`}
+                        viewTransition
+                      >
+                        {account.username}
+                      </Link>
+                      {you && (
+                        <>
+                          {' '}
+                          <Tag tone="info">you</Tag>
+                        </>
+                      )}
                       <span className="adm-sub">{account.email}</span>
                     </td>
-                    <td data-label="Role"><Tag tone={account.role === 'admin' ? 'dark' : 'plain'}>{account.role === 'admin' ? 'Admin' : 'User'}</Tag></td>
+                    <td data-label="Role">
+                      <Tag tone={account.role === 'admin' ? 'dark' : 'plain'}>
+                        {account.role === 'admin' ? 'Admin' : 'User'}
+                      </Tag>
+                    </td>
                     <td data-label="Plan">
                       <Tag tone={planTone(account.plan)}>{account.plan}</Tag>
-                      {account.cas_verified && <> <Tag tone="success">Institutional identity verified</Tag></>}
+                      {account.cas_verified && (
+                        <>
+                          {' '}
+                          <Tag tone="success">Institutional identity verified</Tag>
+                        </>
+                      )}
                     </td>
                     <td data-label="Status">
-                      <Tag tone={account.is_active ? 'info' : 'plain'}>{account.is_active ? 'Active' : 'Inactive'}</Tag>
-                      {account.contract_pending && <> <Tag tone="warning">contract pending</Tag></>}
+                      <Tag tone={account.is_active ? 'info' : 'plain'}>
+                        {account.is_active ? 'Active' : 'Inactive'}
+                      </Tag>
+                      {account.contract_pending && (
+                        <>
+                          {' '}
+                          <Tag tone="warning">contract pending</Tag>
+                        </>
+                      )}
                     </td>
                     <td data-label="Keys">{account.api_key_count}</td>
-                    <td data-label="Since" className="adm-muted">{formatDate(account.created_at) ?? '—'}</td>
+                    <td data-label="Since" className="adm-muted">
+                      {formatDate(account.created_at) ?? '—'}
+                    </td>
                     <td>
                       <span className="adm-actions">
                         <Action
@@ -237,7 +334,9 @@ function UsersScreen() {
                           variant="link"
                           className={account.is_active ? 'adm-danger-link' : undefined}
                           aria-label={`${account.is_active ? 'Deactivate' : 'Reactivate'} ${account.username}`}
-                          onClick={() => ask(account.is_active ? 'deactivate' : 'activate', account)}
+                          onClick={() =>
+                            ask(account.is_active ? 'deactivate' : 'activate', account)
+                          }
                         >
                           {account.is_active ? 'Deactivate' : 'Reactivate'}
                         </Action>
@@ -256,13 +355,26 @@ function UsersScreen() {
               })}
             </tbody>
           </DataTable>
-          <Pager offset={page.offset} limit={page.limit} total={page.total} shown={accounts.length} onPage={setOffset} noun="accounts" />
-          {filtering && <span className="adm-muted">Filters narrow the accounts on this page; the search above covers every account.</span>}
+          <Pager
+            offset={page.offset}
+            limit={page.limit}
+            total={page.total}
+            shown={accounts.length}
+            onPage={setOffset}
+            noun="accounts"
+          />
+          {filtering && (
+            <span className="adm-muted">
+              Filters narrow the accounts on this page; the search above covers every account.
+            </span>
+          )}
         </>
       )}
 
       {page && page.total === 0 && !query && (
-        <EmptyState icon={<UserX />} title="There are no accounts yet" dashed>Accounts appear here as people register.</EmptyState>
+        <EmptyState icon={<UserX />} title="There are no accounts yet" dashed>
+          Accounts appear here as people register.
+        </EmptyState>
       )}
 
       {pending && (
@@ -285,5 +397,9 @@ function UsersScreen() {
 
 /** admin-users: every account, with search, filters and the changes an administrator may make. */
 export function AdminUsers() {
-  return <AdminOnly><UsersScreen /></AdminOnly>;
+  return (
+    <AdminOnly>
+      <UsersScreen />
+    </AdminOnly>
+  );
 }

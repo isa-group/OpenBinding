@@ -1,6 +1,15 @@
 import { useMemo, type ForwardRefExoticComponent, type RefAttributes } from 'react';
-import { compareSelections, normalizePricing, type IPricingLike, type PricingSelection } from 'pricing-renderer';
-import { PricingChangeReview, type PricingChangeReviewElement, type PricingChangeReviewProps } from 'pricing-renderer/react';
+import {
+  compareSelections,
+  normalizePricing,
+  type IPricingLike,
+  type PricingSelection,
+} from 'pricing-renderer';
+import {
+  PricingChangeReview,
+  type PricingChangeReviewElement,
+  type PricingChangeReviewProps,
+} from 'pricing-renderer/react';
 import 'pricing-renderer/styles.css';
 import { Action } from '../../components/ui/Action';
 import { Notice } from '../../components/ui/Notice';
@@ -10,7 +19,9 @@ import { Notice } from '../../components/ui/Notice';
  * element declares, so the prop reaches it all the same; only the type has to say so.
  */
 const ChangeReview = PricingChangeReview as ForwardRefExoticComponent<
-  PricingChangeReviewProps & Pick<PricingChangeReviewElement, 'hideSections'> & RefAttributes<PricingChangeReviewElement>
+  PricingChangeReviewProps &
+    Pick<PricingChangeReviewElement, 'hideSections'> &
+    RefAttributes<PricingChangeReviewElement>
 >;
 
 /**
@@ -25,7 +36,8 @@ const MESSAGES: Record<string, string> = {
   'pricing.reviewErrorTitle': 'The change couldn’t be applied.',
   'pricing.reviewNoChanges': 'This is the contract the account already has.',
   'pricing.contactSales': 'By agreement',
-  'pricing.reviewDifferenceQuote': 'No difference is shown: paid plans and add-ons are arranged by agreement.',
+  'pricing.reviewDifferenceQuote':
+    'No difference is shown: paid plans and add-ons are arranged by agreement.',
 };
 
 /** What keeps the change from being confirmed for now: the request that applies it, or a new reading of the subscription. */
@@ -64,30 +76,74 @@ export interface AgreementReviewProps {
  * offers. A document the renderer can't read still leaves the change reviewable in words, so that nobody is locked out of a
  * contract change by its drawing.
  */
-export default function AgreementReview({ pricing, before, after, title, confirmLabel, notices, pending, error, onConfirm, onBack }: AgreementReviewProps) {
+export default function AgreementReview({
+  pricing,
+  before,
+  after,
+  title,
+  confirmLabel,
+  notices,
+  pending,
+  error,
+  onConfirm,
+  onBack,
+}: AgreementReviewProps) {
   const read = useMemo(() => (pricing ? normalizePricing(pricing) : null), [pricing]);
   // One object for as long as the change stays the same: the element moves the focus to its heading on every new comparison.
-  const comparison = useMemo(() => (read?.value
-    ? compareSelections({ before: { pricing: read.value, selection: before }, after: { pricing: read.value, selection: after } })
-    : null), [read, before, after]);
+  const comparison = useMemo(
+    () =>
+      read?.value
+        ? compareSelections({
+            before: { pricing: read.value, selection: before },
+            after: { pricing: read.value, selection: after },
+          })
+        : null,
+    [read, before, after]
+  );
   const messages = useMemo(
-    () => ({ ...MESSAGES, 'pricing.reviewTitle': title, 'pricing.reviewPending': PENDING[pending ?? 'applying'] }),
-    [title, pending],
+    () => ({
+      ...MESSAGES,
+      'pricing.reviewTitle': title,
+      'pricing.reviewPending': PENDING[pending ?? 'applying'],
+    }),
+    [title, pending]
   );
 
   if (!comparison) {
-    const codes = (read?.diagnostics ?? []).filter((diagnostic) => diagnostic.severity === 'error').map((diagnostic) => diagnostic.code);
+    const codes = (read?.diagnostics ?? [])
+      .filter(diagnostic => diagnostic.severity === 'error')
+      .map(diagnostic => diagnostic.code);
     return (
       <div className="adm-review" role="group" aria-label={title}>
         <Notice tone="warning" title="The change can’t be drawn side by side">
-          The pricing document can’t be read for the comparison{codes.length > 0 ? ` (${codes.join(', ')})` : ''}. The gateway still checks the change when it’s applied.
+          The pricing document can’t be read for the comparison
+          {codes.length > 0 ? ` (${codes.join(', ')})` : ''}. The gateway still checks the change
+          when it’s applied.
         </Notice>
-        {notices.length > 0 && <ul className="adm-review-notes">{notices.map((notice) => <li key={notice}>{notice}</li>)}</ul>}
-        {error && <Notice tone="error" title={MESSAGES['pricing.reviewErrorTitle']}>{error}</Notice>}
-        {pending && <p className="adm-muted" role="status">{PENDING[pending]}</p>}
+        {notices.length > 0 && (
+          <ul className="adm-review-notes">
+            {notices.map(notice => (
+              <li key={notice}>{notice}</li>
+            ))}
+          </ul>
+        )}
+        {error && (
+          <Notice tone="error" title={MESSAGES['pricing.reviewErrorTitle']}>
+            {error}
+          </Notice>
+        )}
+        {pending && (
+          <p className="adm-muted" role="status">
+            {PENDING[pending]}
+          </p>
+        )}
         <div className="adm-buttons">
-          <Action variant="secondary" onClick={onBack}>Back</Action>
-          <Action variant="primary" busy={pending !== null} onClick={onConfirm}>{confirmLabel}</Action>
+          <Action variant="secondary" onClick={onBack}>
+            Back
+          </Action>
+          <Action variant="primary" busy={pending !== null} onClick={onConfirm}>
+            {confirmLabel}
+          </Action>
         </div>
       </div>
     );

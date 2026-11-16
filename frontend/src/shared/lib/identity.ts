@@ -4,7 +4,20 @@
 
 type Maybe<T> = T | null | undefined;
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
+const MONTHS = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+] as const;
 
 const SEPARATOR = ' · ';
 
@@ -24,7 +37,12 @@ function text(value: Maybe<string>): string | null {
 }
 
 function positiveInteger(value: Maybe<number | string>): number | null {
-  const n = typeof value === 'string' ? (/^v?\d+$/i.test(value.trim()) ? Number(value.trim().replace(/^v/i, '')) : NaN) : value;
+  const n =
+    typeof value === 'string'
+      ? /^v?\d+$/i.test(value.trim())
+        ? Number(value.trim().replace(/^v/i, ''))
+        : NaN
+      : value;
   return typeof n === 'number' && Number.isInteger(n) && n > 0 ? n : null;
 }
 
@@ -52,7 +70,8 @@ const words = (...parts: Array<string | null>): string | null => {
   return kept.length === 0 ? null : kept.join(' ');
 };
 
-const join = (segments: Array<string | null>): string => segments.filter((segment): segment is string => segment !== null).join(SEPARATOR);
+const join = (segments: Array<string | null>): string =>
+  segments.filter((segment): segment is string => segment !== null).join(SEPARATOR);
 
 export interface ProblemVersionInput {
   name?: Maybe<string>;
@@ -60,11 +79,17 @@ export interface ProblemVersionInput {
   sealedAt?: Maybe<string | number | Date>;
 }
 
-function problemVersionParts(input: Pick<ProblemVersionInput, 'name' | 'version'>): { name: string | null; version: string | null } {
+function problemVersionParts(input: Pick<ProblemVersionInput, 'name' | 'version'>): {
+  name: string | null;
+  version: string | null;
+} {
   return { name: text(input.name), version: version(input.version) };
 }
 
-function problemHead({ name, version: v }: { name: string | null; version: string | null }, fallback: string): string | null {
+function problemHead(
+  { name, version: v }: { name: string | null; version: string | null },
+  fallback: string
+): string | null {
   if (name === null && v === null) return null;
   return words(name ?? fallback, v);
 }
@@ -72,7 +97,10 @@ function problemHead({ name, version: v }: { name: string | null; version: strin
 /** `checkout-flow v3 · sealed 20 Aug 2026` */
 export function problemVersionLabel(input: ProblemVersionInput): string {
   const sealed = date(input.sealedAt);
-  return join([problemHead(problemVersionParts(input), 'problem') ?? 'problem version', sealed === null ? null : `sealed ${sealed}`]);
+  return join([
+    problemHead(problemVersionParts(input), 'problem') ?? 'problem version',
+    sealed === null ? null : `sealed ${sealed}`,
+  ]);
 }
 
 export interface StudyVersionInput {
@@ -82,7 +110,10 @@ export interface StudyVersionInput {
 
 /** `engines-vs-suite v2` */
 export function studyVersionLabel(input: StudyVersionInput): string {
-  return problemHead({ name: text(input.name), version: version(input.version) }, 'study') ?? 'study version';
+  return (
+    problemHead({ name: text(input.name), version: version(input.version) }, 'study') ??
+    'study version'
+  );
 }
 
 export interface EngineInput {
@@ -111,11 +142,17 @@ export interface RunInput {
 export function runLabel(input: RunInput): string {
   const number = positiveInteger(input.number);
   const problem = input.problem ? problemHead(problemVersionParts(input.problem), 'problem') : null;
-  const head = words('run', number === null ? null : String(number), problem === null ? null : 'of', problem);
+  const head = words(
+    'run',
+    number === null ? null : String(number),
+    problem === null ? null : 'of',
+    problem
+  );
   const name = text(input.engine?.name);
   const v = text(input.engine?.version);
   const mode = text(input.engine?.mode);
-  const engine = v === null && mode === null && name === null ? null : words(name ?? 'engine', v, mode);
+  const engine =
+    v === null && mode === null && name === null ? null : words(name ?? 'engine', v, mode);
   return join([head, engine, date(input.createdAt)]);
 }
 
@@ -128,7 +165,10 @@ export interface StudyRunInput {
 /** `engines-vs-suite run 3 · 21 Oct 2026` */
 export function studyRunLabel(input: StudyRunInput): string {
   const number = positiveInteger(input.number);
-  return join([words(text(input.study) ?? 'study', 'run', number === null ? null : String(number)), date(input.createdAt)]);
+  return join([
+    words(text(input.study) ?? 'study', 'run', number === null ? null : String(number)),
+    date(input.createdAt),
+  ]);
 }
 
 export interface PublishedResultInput {
@@ -139,5 +179,8 @@ export interface PublishedResultInput {
 /** `Engines versus the ICWS suite · published 22 Oct 2026` */
 export function publishedResultLabel(input: PublishedResultInput): string {
   const published = date(input.publishedAt);
-  return join([text(input.title) ?? 'published result', published === null ? null : `published ${published}`]);
+  return join([
+    text(input.title) ?? 'published result',
+    published === null ? null : `published ${published}`,
+  ]);
 }

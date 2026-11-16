@@ -11,7 +11,9 @@ function Harness({ dismissible = true }: { dismissible?: boolean }) {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)}>Open</button>
+      <button type="button" onClick={() => setOpen(true)}>
+        Open
+      </button>
       {open && (
         <Modal title="Sure?" onClose={() => setOpen(false)} dismissible={dismissible} tone="danger">
           <input aria-label="Name" />
@@ -82,14 +84,25 @@ describe('Modal', () => {
 
 describe('FormField', () => {
   it('ties its label, hint and error to the input', () => {
-    const { rerender } = render(<FormField label="Email address" hint="Used to log in." defaultValue="a@b.test" />);
+    const { rerender } = render(
+      <FormField label="Email address" hint="Used to log in." defaultValue="a@b.test" />
+    );
     const input = screen.getByLabelText('Email address');
     expect(input).toHaveAccessibleDescription('Used to log in.');
     expect(input).not.toHaveAttribute('aria-invalid');
 
-    rerender(<FormField label="Email address" hint="Used to log in." defaultValue="a@b.test" error="Enter a valid email address." />);
+    rerender(
+      <FormField
+        label="Email address"
+        hint="Used to log in."
+        defaultValue="a@b.test"
+        error="Enter a valid email address."
+      />
+    );
     expect(screen.getByLabelText('Email address')).toHaveAttribute('aria-invalid', 'true');
-    expect(screen.getByLabelText('Email address')).toHaveAccessibleDescription('Enter a valid email address.');
+    expect(screen.getByLabelText('Email address')).toHaveAccessibleDescription(
+      'Enter a valid email address.'
+    );
   });
 });
 
@@ -107,13 +120,26 @@ describe('Switch', () => {
 
 describe('Action', () => {
   it('renders a router link that looks like a button', () => {
-    render(<MemoryRouter><Action to="/app/account/keys?create=key" variant="primary">New key</Action></MemoryRouter>);
-    expect(screen.getByRole('link', { name: 'New key' })).toHaveAttribute('href', '/app/account/keys?create=key');
+    render(
+      <MemoryRouter>
+        <Action to="/app/account/keys?create=key" variant="primary">
+          New key
+        </Action>
+      </MemoryRouter>
+    );
+    expect(screen.getByRole('link', { name: 'New key' })).toHaveAttribute(
+      'href',
+      '/app/account/keys?create=key'
+    );
   });
 
   it('refuses clicks while busy and says so', () => {
     const onClick = vi.fn();
-    render(<Action busy onClick={onClick}>Save</Action>);
+    render(
+      <Action busy onClick={onClick}>
+        Save
+      </Action>
+    );
     const button = screen.getByRole('button', { name: 'Save' });
     expect(button).toBeDisabled();
     expect(button).toHaveAttribute('aria-busy', 'true');

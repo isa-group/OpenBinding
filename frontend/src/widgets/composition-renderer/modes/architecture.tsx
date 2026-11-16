@@ -22,7 +22,8 @@ interface UpstreamPlan {
 }
 
 /** The identity of a reference, field by field as written: two tasks share a card only when every field is the same. */
-const referenceKey = ({ sphere, registry = '', version, plan, addons = [] }: Provenance) => [sphere, registry, version, plan, ...addons].join('\u0000');
+const referenceKey = ({ sphere, registry = '', version, plan, addons = [] }: Provenance) =>
+  [sphere, registry, version, plan, ...addons].join('\u0000');
 
 /** Each distinct plan reference of the binding, in the order its first task appears. */
 function upstreamPlans(model: CompositionViewModel): UpstreamPlan[] {
@@ -45,18 +46,29 @@ export function ArchitectureMode({ model, sections }: ArchitectureModeProps) {
     <>
       {shows('providers') && (
         <RendererSection title="Providers">
-          <ProviderMap tasks={model.tasks} upstreamPricings={model.analytics?.upstreamPricings ?? null} />
+          <ProviderMap
+            tasks={model.tasks}
+            upstreamPricings={model.analytics?.upstreamPricings ?? null}
+          />
         </RendererSection>
       )}
       {shows('plans') && (
         <RendererSection title="Upstream plans">
-          {plans.length === 0 ? <p className="cr-muted">No candidate names the SPHERE plan it comes from.</p> : (
+          {plans.length === 0 ? (
+            <p className="cr-muted">No candidate names the SPHERE plan it comes from.</p>
+          ) : (
             <ul className="cr-plans" aria-label="Upstream plans">
               {plans.map(({ reference, tasks }) => (
                 <li key={referenceKey(reference)}>
                   <PricingCard reference={reference} />
                   <p className="cr-muted">
-                    For {tasks.map((task, index) => <span key={task}>{index > 0 && ', '}<code>{task}</code></span>)}
+                    For{' '}
+                    {tasks.map((task, index) => (
+                      <span key={task}>
+                        {index > 0 && ', '}
+                        <code>{task}</code>
+                      </span>
+                    ))}
                   </p>
                 </li>
               ))}

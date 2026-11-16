@@ -1,13 +1,26 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../api/client';
-import { createScheduler, DEFAULT_PAUSE_SECONDS, pausedMessage, type SchedulerStatus } from './lintScheduler';
+import {
+  createScheduler,
+  DEFAULT_PAUSE_SECONDS,
+  pausedMessage,
+  type SchedulerStatus,
+} from './lintScheduler';
 
 /** A check the test answers by hand, recording every call and its signal. */
 function manualRun() {
-  const calls: Array<{ input: string; signal: AbortSignal; resolve: (value: string) => void; reject: (error: unknown) => void }> = [];
-  const run = vi.fn((input: string, signal: AbortSignal) => new Promise<string>((resolve, reject) => {
-    calls.push({ input, signal, resolve, reject });
-  }));
+  const calls: Array<{
+    input: string;
+    signal: AbortSignal;
+    resolve: (value: string) => void;
+    reject: (error: unknown) => void;
+  }> = [];
+  const run = vi.fn(
+    (input: string, signal: AbortSignal) =>
+      new Promise<string>((resolve, reject) => {
+        calls.push({ input, signal, resolve, reject });
+      })
+  );
   return { run, calls };
 }
 
@@ -93,7 +106,13 @@ describe('createScheduler', () => {
     const { run, calls } = manualRun();
     const statuses: SchedulerStatus[] = [];
     const onError = vi.fn();
-    const scheduler = createScheduler({ delay: 600, run, onResult: vi.fn(), onError, onStatus: (status) => statuses.push(status) });
+    const scheduler = createScheduler({
+      delay: 600,
+      run,
+      onResult: vi.fn(),
+      onError,
+      onStatus: status => statuses.push(status),
+    });
 
     scheduler.schedule('a');
     await vi.advanceTimersByTimeAsync(600);
@@ -115,7 +134,12 @@ describe('createScheduler', () => {
     await vi.advanceTimersByTimeAsync(1);
     expect(run).toHaveBeenCalledTimes(2);
     expect(calls[1].input).toBe('ab');
-    expect(statuses.map((status) => status.state)).toEqual(['waiting', 'running', 'paused', 'running']);
+    expect(statuses.map(status => status.state)).toEqual([
+      'waiting',
+      'running',
+      'paused',
+      'running',
+    ]);
   });
 
   it('checks the same input again after a pause when nothing newer came, and waits the default without Retry-After', async () => {

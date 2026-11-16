@@ -4,14 +4,28 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { UserProfile } from '../../api/auth';
 import { HttpError, apiClient } from '../../api/client';
 import { AuthContext } from '../../contexts/auth';
-import { clearSessionEnded, forgetCasExchanges, forgetCasFlow, forgetPlanChanged, peekPlanChanged, readCasFlow, rememberCasFlow } from '../../utils/authFlow';
+import {
+  clearSessionEnded,
+  forgetCasExchanges,
+  forgetCasFlow,
+  forgetPlanChanged,
+  peekPlanChanged,
+  readCasFlow,
+  rememberCasFlow,
+} from '../../utils/authFlow';
 import { CasCallback } from './CasCallback';
 
 const exchange = vi.spyOn(apiClient, 'exchangeCasCode');
 
 const person = (overrides: Partial<UserProfile> = {}): UserProfile => ({
-  id: 'u1', username: 'lucia', email: 'lucia@example.org', role: 'user', plan: 'FREE', is_active: true,
-  created_at: '2026-01-01T00:00:00Z', ...overrides,
+  id: 'u1',
+  username: 'lucia',
+  email: 'lucia@example.org',
+  role: 'user',
+  plan: 'FREE',
+  is_active: true,
+  created_at: '2026-01-01T00:00:00Z',
+  ...overrides,
 });
 
 function problem(status: number, code?: string) {
@@ -25,13 +39,21 @@ function renderAt(search: string, user: UserProfile | null = person()) {
   const view = render(
     <MemoryRouter initialEntries={[`/auth/cas/callback${search}`]}>
       <AuthContext.Provider
-        value={{ user, loading: false, signIn: vi.fn(), register: vi.fn(), signOut: vi.fn(), refresh, isAdmin: false }}
+        value={{
+          user,
+          loading: false,
+          signIn: vi.fn(),
+          register: vi.fn(),
+          signOut: vi.fn(),
+          refresh,
+          isAdmin: false,
+        }}
       >
         <Routes>
           <Route path="/auth/cas/callback" element={<CasCallback />} />
         </Routes>
       </AuthContext.Provider>
-    </MemoryRouter>,
+    </MemoryRouter>
   );
   return { refresh, view };
 }
@@ -70,7 +92,9 @@ describe('CasCallback', () => {
 
       forgetCasExchanges();
       renderAt('?code=other&plan_changed=%3Cb%3Eboom%3C%2Fb%3E');
-      await waitFor(() => expect(screen.getAllByRole('heading', { name: 'You’re signed in' })).toHaveLength(2));
+      await waitFor(() =>
+        expect(screen.getAllByRole('heading', { name: 'You’re signed in' })).toHaveLength(2)
+      );
       expect(exchange).toHaveBeenCalledTimes(2);
       expect(peekPlanChanged()).toBeNull();
     });
@@ -91,26 +115,46 @@ describe('CasCallback', () => {
     ['account_inactive', 'This account is deactivated (account_inactive).', false],
     ['identity_in_use', 'This identity is already linked to another account.', false],
     ['account_collision', 'An account with these details already exists.', false],
-    ['username_unavailable', 'Your university username is reserved here (username_unavailable).', false],
+    [
+      'username_unavailable',
+      'Your university username is reserved here (username_unavailable).',
+      false,
+    ],
     ['pricing_unavailable', 'The pricing service didn’t answer (503 · pricing_unavailable).', true],
-    ['institutional_pricing_invalid', 'Institutional sign-in is paused (503 · institutional_pricing_invalid).', false],
+    [
+      'institutional_pricing_invalid',
+      'Institutional sign-in is paused (503 · institutional_pricing_invalid).',
+      false,
+    ],
     ['cas_error', 'The sign-in couldn’t be finished (cas_error).', true],
-  ])('names the failure the gateway reports as ?error=%s, and says what to do next', (reportedCode, title, canRetry) => {
-    renderAt(`?error=${reportedCode}`, null);
+  ])(
+    'names the failure the gateway reports as ?error=%s, and says what to do next',
+    (reportedCode, title, canRetry) => {
+      renderAt(`?error=${reportedCode}`, null);
 
-    expect(screen.getByText(title)).toBeInTheDocument();
-    expect(exchange).not.toHaveBeenCalled();
-    expect(screen.getByRole('link', { name: 'Back to log in' })).toHaveAttribute('href', '/login');
-    const retry = screen.queryByRole('link', { name: 'Try again' });
-    if (canRetry) expect(retry).toHaveAttribute('href', expect.stringContaining('/v1/auth/cas/start?mode=login'));
-    else expect(retry).not.toBeInTheDocument();
-  });
+      expect(screen.getByText(title)).toBeInTheDocument();
+      expect(exchange).not.toHaveBeenCalled();
+      expect(screen.getByRole('link', { name: 'Back to log in' })).toHaveAttribute(
+        'href',
+        '/login'
+      );
+      const retry = screen.queryByRole('link', { name: 'Try again' });
+      if (canRetry)
+        expect(retry).toHaveAttribute(
+          'href',
+          expect.stringContaining('/v1/auth/cas/start?mode=login')
+        );
+      else expect(retry).not.toBeInTheDocument();
+    }
+  );
 
   it('sends a signed-in person back to Identities to try linking again', () => {
     rememberCasFlow('link');
     renderAt('?error=cas_ticket_invalid');
 
-    expect(screen.getByRole('link', { name: 'Try again from Account › Identities' })).toHaveAttribute('href', '/app/account/identities');
+    expect(
+      screen.getByRole('link', { name: 'Try again from Account › Identities' })
+    ).toHaveAttribute('href', '/app/account/identities');
     expect(screen.queryByRole('link', { name: 'Try again' })).not.toBeInTheDocument();
   });
 
@@ -119,7 +163,7 @@ describe('CasCallback', () => {
     renderAt('?error=cas_state_invalid', null);
 
     // The browser would leave for the university; the test only watches what is remembered on the way out.
-    document.addEventListener('click', (event) => event.preventDefault(), { once: true });
+    document.addEventListener('click', event => event.preventDefault(), { once: true });
     fireEvent.click(screen.getByRole('link', { name: 'Try again' }));
     expect(readCasFlow()).toEqual({ mode: 'login', returnTo: '/app/org/project' });
   });
@@ -134,15 +178,25 @@ describe('CasCallback', () => {
     expect(exchange).toHaveBeenCalledWith('one-time-code');
     expect(refresh).toHaveBeenCalled();
     expect(screen.getByText('Universidad de Sevilla · CAS · log in')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Continue to your workspace' })).toHaveAttribute('href', '/app');
-    expect(screen.getByRole('link', { name: 'Account › Identities' })).toHaveAttribute('href', '/app/account/identities');
+    expect(screen.getByRole('link', { name: 'Continue to your workspace' })).toHaveAttribute(
+      'href',
+      '/app'
+    );
+    expect(screen.getByRole('link', { name: 'Account › Identities' })).toHaveAttribute(
+      'href',
+      '/app/account/identities'
+    );
   });
 
   it('keeps the plan the account has when it is not institutional', async () => {
     exchange.mockResolvedValue(null);
     renderAt('?code=one-time-code', person({ plan: 'FREE' }));
 
-    expect(await screen.findByText(/Your plan stays FREE; RESEARCH applies only when the pricing grants it\./)).toBeInTheDocument();
+    expect(
+      await screen.findByText(
+        /Your plan stays FREE; RESEARCH applies only when the pricing grants it\./
+      )
+    ).toBeInTheDocument();
     expect(screen.queryByText('Universidad de Sevilla · verified')).not.toBeInTheDocument();
   });
 
@@ -151,9 +205,16 @@ describe('CasCallback', () => {
     renderAt('?code=one-time-code', person({ plan: 'RESEARCH', email: 'lucia@us.es' }));
 
     expect(await screen.findByText('Universidad de Sevilla · verified')).toBeInTheDocument();
-    expect(screen.getByText(/qualifies for RESEARCH under the current pricing/)).toBeInTheDocument();
-    expect(screen.getByAltText('Universidad de Sevilla')).toHaveAttribute('src', '/brands/us-fama.png');
-    expect(screen.getByText(/it doesn’t give admin or organization permissions/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/qualifies for RESEARCH under the current pricing/)
+    ).toBeInTheDocument();
+    expect(screen.getByAltText('Universidad de Sevilla')).toHaveAttribute(
+      'src',
+      '/brands/us-fama.png'
+    );
+    expect(
+      screen.getByText(/it doesn’t give admin or organization permissions/)
+    ).toBeInTheDocument();
   });
 
   it('does not take an e-mail at us.es for an institutional account', async () => {
@@ -171,7 +232,10 @@ describe('CasCallback', () => {
 
     expect(screen.getByText('Universidad de Sevilla · CAS · link identity')).toBeInTheDocument();
     expect(await screen.findByRole('heading', { name: 'Identity linked' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Back to my account' })).toHaveAttribute('href', '/app/account/identities');
+    expect(screen.getByRole('link', { name: 'Back to my account' })).toHaveAttribute(
+      'href',
+      '/app/account/identities'
+    );
     expect(readCasFlow()).toBeNull();
   });
 
@@ -180,7 +244,10 @@ describe('CasCallback', () => {
     exchange.mockResolvedValue(null);
     renderAt('?code=one-time-code');
 
-    expect(await screen.findByRole('link', { name: 'Continue to your workspace' })).toHaveAttribute('href', '/app/org/project');
+    expect(await screen.findByRole('link', { name: 'Continue to your workspace' })).toHaveAttribute(
+      'href',
+      '/app/org/project'
+    );
   });
 
   it('does not spend the code twice when the screen is mounted again after it signed the person in', async () => {
@@ -193,7 +260,10 @@ describe('CasCallback', () => {
     view.unmount();
     renderAt('?code=one-time-code');
 
-    expect(await screen.findByRole('link', { name: 'Continue to your workspace' })).toHaveAttribute('href', '/app/org/project');
+    expect(await screen.findByRole('link', { name: 'Continue to your workspace' })).toHaveAttribute(
+      'href',
+      '/app/org/project'
+    );
     expect(exchange).toHaveBeenCalledTimes(1);
   });
 
@@ -212,7 +282,9 @@ describe('CasCallback', () => {
   it('explains the missing code and offers the way back', () => {
     renderAt('');
 
-    expect(screen.getByRole('heading', { name: 'There’s no code to finish sign-in' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'There’s no code to finish sign-in' })
+    ).toBeInTheDocument();
     expect(exchange).not.toHaveBeenCalled();
     expect(screen.getByRole('link', { name: 'Back to log in' })).toHaveAttribute('href', '/login');
   });
@@ -230,7 +302,9 @@ describe('CasCallback', () => {
     exchange.mockRejectedValue(problem(503, 'institutional_pricing_invalid'));
     renderAt('?code=any', null);
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Institutional sign-in is paused (503 · institutional_pricing_invalid).');
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Institutional sign-in is paused (503 · institutional_pricing_invalid).'
+    );
     expect(screen.getByText(/You can still log in with a password\./)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Service status' })).toHaveAttribute('href', '/about');
   });
@@ -239,22 +313,33 @@ describe('CasCallback', () => {
     exchange.mockRejectedValue(problem(503, 'cas_unavailable'));
     renderAt('?code=any', null);
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Institutional sign-in is unavailable right now (503).');
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Institutional sign-in is unavailable right now (503).'
+    );
   });
 
   it('explains an identity that is already linked to another account', async () => {
     exchange.mockRejectedValue(problem(409, 'identity_in_use'));
     renderAt('?code=any');
 
-    expect(await screen.findByRole('heading', { name: 'This identity can’t be used here' })).toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent('This identity is already linked to another account.');
-    expect(screen.getByRole('link', { name: 'Go to Account › Identities' })).toHaveAttribute('href', '/app/account/identities');
+    expect(
+      await screen.findByRole('heading', { name: 'This identity can’t be used here' })
+    ).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'This identity is already linked to another account.'
+    );
+    expect(screen.getByRole('link', { name: 'Go to Account › Identities' })).toHaveAttribute(
+      'href',
+      '/app/account/identities'
+    );
   });
 
   it('reads a failure the gateway reported in the address, when it does', () => {
     renderAt('?error=identity_in_use');
 
-    expect(screen.getByRole('status')).toHaveTextContent('This identity is already linked to another account.');
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'This identity is already linked to another account.'
+    );
     expect(exchange).not.toHaveBeenCalled();
   });
 

@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useEffectEvent, useState } from 'react';
 import type { ReactNode } from 'react';
-import { ACCESS_TOKEN_KEY, HttpError, apiClient, PRICING_TOKEN_UPDATED_EVENT, SESSION_ENDED_EVENT } from '../api/client';
+import {
+  ACCESS_TOKEN_KEY,
+  HttpError,
+  apiClient,
+  PRICING_TOKEN_UPDATED_EVENT,
+  SESSION_ENDED_EVENT,
+} from '../api/client';
 import type { UserProfile } from '../api/auth';
 import { ErrorState } from '../components/ui/ErrorState';
 import { clearSessionEnded, markSessionEnded } from '../utils/authFlow';
@@ -64,7 +70,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    void Promise.resolve().then(loadProfile).finally(() => setLoading(false));
+    void Promise.resolve()
+      .then(loadProfile)
+      .finally(() => setLoading(false));
   }, [loadProfile]);
 
   useEffect(() => {
@@ -155,11 +163,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           status="Unavailable"
           title="We couldn’t check your session"
           checking={retrying}
-          actions={<button type="button" className="ui-state-action is-primary" onClick={() => void retry()} disabled={retrying}>Try again</button>}
+          actions={
+            <button
+              type="button"
+              className="ui-state-action is-primary"
+              onClick={() => void retry()}
+              disabled={retrying}
+            >
+              Try again
+            </button>
+          }
         >
-          You’re still signed in. OpenBinding didn’t answer, so nothing was changed. Try again in a moment.
+          You’re still signed in. OpenBinding didn’t answer, so nothing was changed. Try again in a
+          moment.
         </ErrorState>
-      ) : children}
+      ) : (
+        children
+      )}
     </AuthContext.Provider>
   );
 }

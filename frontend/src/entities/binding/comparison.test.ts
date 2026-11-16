@@ -3,7 +3,14 @@ import { COMPARISON_WORDS, comparisonText, isComparisonWord } from './comparison
 
 describe('the comparison words of a neighbourhood', () => {
   it('words every comparison the gateway sends, a trade-off included', () => {
-    expect(Object.keys(COMPARISON_WORDS).sort()).toEqual(['better', 'equal', 'infeasible', 'repairs-feasibility', 'trade-off', 'worse']);
+    expect(Object.keys(COMPARISON_WORDS).sort()).toEqual([
+      'better',
+      'equal',
+      'infeasible',
+      'repairs-feasibility',
+      'trade-off',
+      'worse',
+    ]);
     expect(comparisonText('trade-off')).toEqual({ label: 'Trade-off', tone: 'plain' });
     expect(comparisonText('better')).toEqual({ label: 'Better', tone: 'success' });
     expect(comparisonText('infeasible')).toEqual({ label: 'Not feasible', tone: 'warning' });

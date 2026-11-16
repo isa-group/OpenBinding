@@ -36,10 +36,18 @@ export function readApiError(error: unknown): ApiError {
       ...(error.retryAfter !== undefined ? { retryAfter: error.retryAfter } : {}),
     };
   }
-  if (error instanceof QuotaError) return { status: 402, code: error.code, message: error.message, diagnostics: [] };
-  if (error instanceof PricingUnavailableError) return { status: 503, code: 'pricing_unavailable', message: error.message, diagnostics: [] };
-  if (error instanceof TypeError) return { status: 0, code: 'network', message: error.message, diagnostics: [] };
-  return { status: 0, code: 'unknown', message: error instanceof Error ? error.message : '', diagnostics: [] };
+  if (error instanceof QuotaError)
+    return { status: 402, code: error.code, message: error.message, diagnostics: [] };
+  if (error instanceof PricingUnavailableError)
+    return { status: 503, code: 'pricing_unavailable', message: error.message, diagnostics: [] };
+  if (error instanceof TypeError)
+    return { status: 0, code: 'network', message: error.message, diagnostics: [] };
+  return {
+    status: 0,
+    code: 'unknown',
+    message: error instanceof Error ? error.message : '',
+    diagnostics: [],
+  };
 }
 
 /**
@@ -68,17 +76,35 @@ export interface AuthFailure {
 }
 
 export function classifyAuthError(error: unknown): AuthFailure {
-  if (error instanceof QuotaError) return { kind: 'quota', status: 402, code: error.code, message: error.message };
-  if (error instanceof PricingUnavailableError) return { kind: 'unavailable', status: 503, code: 'pricing_unavailable', message: error.message };
+  if (error instanceof QuotaError)
+    return { kind: 'quota', status: 402, code: error.code, message: error.message };
+  if (error instanceof PricingUnavailableError)
+    return {
+      kind: 'unavailable',
+      status: 503,
+      code: 'pricing_unavailable',
+      message: error.message,
+    };
   if (error instanceof HttpError) {
-    const base = { status: error.status, code: error.code, message: error.message.replace(/^HTTP \d+: /, ''), retryAfter: error.retryAfter };
+    const base = {
+      status: error.status,
+      code: error.code,
+      message: error.message.replace(/^HTTP \d+: /, ''),
+      retryAfter: error.retryAfter,
+    };
     switch (error.status) {
-      case 401: return { kind: 'rejected', ...base };
-      case 404: return { kind: 'not-found', ...base };
-      case 409: return { kind: 'conflict', ...base };
-      case 422: return { kind: 'invalid', ...base };
-      case 429: return { kind: 'busy', ...base };
-      default: return { kind: error.status >= 500 ? 'unavailable' : 'unknown', ...base };
+      case 401:
+        return { kind: 'rejected', ...base };
+      case 404:
+        return { kind: 'not-found', ...base };
+      case 409:
+        return { kind: 'conflict', ...base };
+      case 422:
+        return { kind: 'invalid', ...base };
+      case 429:
+        return { kind: 'busy', ...base };
+      default:
+        return { kind: error.status >= 500 ? 'unavailable' : 'unknown', ...base };
     }
   }
   if (error instanceof TypeError) return { kind: 'network' };
@@ -87,6 +113,6 @@ export function classifyAuthError(error: unknown): AuthFailure {
 
 /** `(409 · last_owner)`: the status and the machine code the gateway sent, for people who need to quote them. */
 export function marker(failure: AuthFailure): string {
-  const parts = [failure.status, failure.code].filter((part) => part !== undefined && part !== '');
+  const parts = [failure.status, failure.code].filter(part => part !== undefined && part !== '');
   return parts.length ? ` (${parts.join(' · ')})` : '';
 }

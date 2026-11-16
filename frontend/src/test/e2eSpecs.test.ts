@@ -8,7 +8,9 @@ import ts from 'typescript';
  */
 
 // Under vitest the module URL is served as `/@fs/<absolute path>`.
-const root = ts.sys.resolvePath(new URL('../..', import.meta.url).pathname.replace(/^\/@fs/, '')).replace(/\/+$/, '');
+const root = ts.sys
+  .resolvePath(new URL('../..', import.meta.url).pathname.replace(/^\/@fs/, ''))
+  .replace(/\/+$/, '');
 const e2e = `${root}/e2e`;
 const live = `${e2e}/live`;
 
@@ -31,15 +33,22 @@ const options: ts.CompilerOptions = {
   noUnusedParameters: true,
 };
 
-const configs = [`${root}/playwright.config.ts`, `${root}/playwright.live.config.ts`, `${root}/playwright.acceptance.config.ts`];
+const configs = [
+  `${root}/playwright.config.ts`,
+  `${root}/playwright.live.config.ts`,
+  `${root}/playwright.acceptance.config.ts`,
+];
 const liveFiles = ts.sys.readDirectory(live, ['.ts']);
 const rootNames = [...ts.sys.readDirectory(e2e, ['.ts']), ...configs];
 const program = ts.createProgram({ rootNames, options });
 const own = (name: string) => name.startsWith(`${e2e}/`) || configs.includes(name);
-const diagnostics = ts.getPreEmitDiagnostics(program)
-  .filter((item) => item.file !== undefined && own(item.file.fileName))
-  .map((item) => {
-    const where = item.file ? item.file.getLineAndCharacterOfPosition(item.start ?? 0) : { line: 0, character: 0 };
+const diagnostics = ts
+  .getPreEmitDiagnostics(program)
+  .filter(item => item.file !== undefined && own(item.file.fileName))
+  .map(item => {
+    const where = item.file
+      ? item.file.getLineAndCharacterOfPosition(item.start ?? 0)
+      : { line: 0, character: 0 };
     return `${item.file?.fileName.replace(`${root}/`, '')}:${where.line + 1} TS${item.code} ${ts.flattenDiagnosticMessageText(item.messageText, ' ')}`;
   });
 
@@ -57,29 +66,46 @@ describe('the Playwright specs', () => {
   }, 180_000);
 
   it('walks each F2a journey closed so far in a mocked spec of its own: J1 derive, seal and compare; J2 showcase and fork; J5 evolution; J6 language', () => {
-    const journeys = ts.sys.readDirectory(e2e, ['.ts'], undefined, undefined, 1)
-      .map((name) => name.replace(`${e2e}/`, ''))
-      .filter((name) => name.startsWith('f2a-'));
-    expect(journeys.sort()).toEqual(['f2a-derive-seal-compare.spec.ts', 'f2a-evolution.spec.ts', 'f2a-language.spec.ts', 'f2a-showcase-fork.spec.ts']);
-    for (const name of journeys) expect(read(`${e2e}/${name}`), name).toMatch(/\btest\.describe\('J\d+ · /);
+    const journeys = ts.sys
+      .readDirectory(e2e, ['.ts'], undefined, undefined, 1)
+      .map(name => name.replace(`${e2e}/`, ''))
+      .filter(name => name.startsWith('f2a-'));
+    expect(journeys.sort()).toEqual([
+      'f2a-derive-seal-compare.spec.ts',
+      'f2a-evolution.spec.ts',
+      'f2a-language.spec.ts',
+      'f2a-showcase-fork.spec.ts',
+    ]);
+    for (const name of journeys)
+      expect(read(`${e2e}/${name}`), name).toMatch(/\btest\.describe\('J\d+ · /);
   });
 
   it('walks each F2b journey in a mocked spec of its own: J3 the problem editor; J4 study front to compositions', () => {
-    const journeys = ts.sys.readDirectory(e2e, ['.ts'], undefined, undefined, 1)
-      .map((name) => name.replace(`${e2e}/`, ''))
-      .filter((name) => name.startsWith('f2b-'));
+    const journeys = ts.sys
+      .readDirectory(e2e, ['.ts'], undefined, undefined, 1)
+      .map(name => name.replace(`${e2e}/`, ''))
+      .filter(name => name.startsWith('f2b-'));
     expect(journeys.sort()).toEqual(['f2b-problem-editor.spec.ts', 'f2b-study-front.spec.ts']);
-    for (const name of journeys) expect(read(`${e2e}/${name}`), name).toMatch(/\btest\.describe\('J\d+ · /);
+    for (const name of journeys)
+      expect(read(`${e2e}/${name}`), name).toMatch(/\btest\.describe\('J\d+ · /);
   });
 
   describe('the live project', () => {
-    const specs = liveFiles.filter((name) => name.endsWith('.spec.ts'));
+    const specs = liveFiles.filter(name => name.endsWith('.spec.ts'));
 
     it('covers login, navigation, the upload-run-study walk, a job, the viewer, the outsider, the plan page, J1 to J4 and the visual QA', () => {
-      expect(specs.map((name) => name.replace(`${live}/`, ''))).toEqual([
-        '01-login.spec.ts', '02-navigation.spec.ts', '03-upload-run-study.spec.ts', '04-job-random-search.spec.ts',
-        '05-viewer-read-only.spec.ts', '06-outsider-no-access.spec.ts', '07-plan-and-consoles.spec.ts',
-        '08-derive-seal-compare.spec.ts', '09-public-fork.spec.ts', '10-problem-editor.spec.ts', '11-study-front.spec.ts',
+      expect(specs.map(name => name.replace(`${live}/`, ''))).toEqual([
+        '01-login.spec.ts',
+        '02-navigation.spec.ts',
+        '03-upload-run-study.spec.ts',
+        '04-job-random-search.spec.ts',
+        '05-viewer-read-only.spec.ts',
+        '06-outsider-no-access.spec.ts',
+        '07-plan-and-consoles.spec.ts',
+        '08-derive-seal-compare.spec.ts',
+        '09-public-fork.spec.ts',
+        '10-problem-editor.spec.ts',
+        '11-study-front.spec.ts',
         'visual-qa.spec.ts',
       ]);
       for (const name of specs) expect(read(name), name).toMatch(/\btest\(|\btest\.describe\(/);
@@ -88,12 +114,24 @@ describe('the Playwright specs', () => {
     it('walks J1 and J2 against the lab: derive, seal and compare on lab-main; the public list, a showcase and a fork from lab-other', () => {
       const j1 = read(`${live}/08-derive-seal-compare.spec.ts`);
       expect(j1).toMatch(/test\.describe\('live · J1 /);
-      for (const step of ["'Derive composition'", "'Visual editor'", "'Seal version'", "'Compare with previous'", "'The text of 1.0.0 and 1.1.0'"]) {
+      for (const step of [
+        "'Derive composition'",
+        "'Visual editor'",
+        "'Seal version'",
+        "'Compare with previous'",
+        "'The text of 1.0.0 and 1.1.0'",
+      ]) {
         expect(j1, step).toContain(step);
       }
       const j2 = read(`${live}/09-public-fork.spec.ts`);
       expect(j2).toMatch(/test\.describe\('live · J2 /);
-      for (const step of ["'/compositions'", "'Fork this composition'", '/Fork without the problem/', "'Fork as a new composition'", "'No composition here, or you cannot see it'"]) {
+      for (const step of [
+        "'/compositions'",
+        "'Fork this composition'",
+        '/Fork without the problem/',
+        "'Fork as a new composition'",
+        "'No composition here, or you cannot see it'",
+      ]) {
         expect(j2, step).toContain(step);
       }
     });
@@ -101,13 +139,25 @@ describe('the Playwright specs', () => {
     it('walks J3 and J4 against the lab: a template edited in the matrix, refused by the compiler, fixed and saved; a study front derived into a composition', () => {
       const j3 = read(`${live}/10-problem-editor.spec.ts`);
       expect(j3).toMatch(/test\.describe\('live · J3 /);
-      for (const step of ["'demo/16_json_complete'", "'Candidates of each task'", "'pe-check-status'", "'candidates.json source'",
-        "'Save as a new problem'", "'Run this version'"]) {
+      for (const step of [
+        "'demo/16_json_complete'",
+        "'Candidates of each task'",
+        "'pe-check-status'",
+        "'candidates.json source'",
+        "'Save as a new problem'",
+        "'Run this version'",
+      ]) {
         expect(j3, step).toContain(step);
       }
       const j4 = read(`${live}/11-study-front.spec.ts`);
       expect(j4).toMatch(/test\.describe\('live · J4 /);
-      for (const step of ["'Problem versions'", "'Run study'", "'Pareto front'", "'Derive this point'", "'Derive 1 composition'"]) {
+      for (const step of [
+        "'Problem versions'",
+        "'Run study'",
+        "'Pareto front'",
+        "'Derive this point'",
+        "'Derive 1 composition'",
+      ]) {
         expect(j4, step).toContain(step);
       }
     });
@@ -117,12 +167,15 @@ describe('the Playwright specs', () => {
       // From a workstation LAB_SEED_PASSWORD; inside the `e2e` service of the lab, DEMO_SEED_PASSWORD (the name compose.lab.json uses).
       const either = 'process.env.LAB_SEED_PASSWORD || process.env.DEMO_SEED_PASSWORD';
       expect(support).toContain(either);
-      for (const user of ['lab-owner', 'lab-member', 'lab-viewer', 'lab-outsider']) expect(support).toContain(user);
+      for (const user of ['lab-owner', 'lab-member', 'lab-viewer', 'lab-outsider'])
+        expect(support).toContain(user);
       for (const name of liveFiles) {
         const text = read(name);
         // No literal password, no other fallback for the variables, and nothing that reads a .env file.
         expect(text, name).not.toMatch(/password['"]?\s*[:=]\s*['"`]/i);
-        expect(text.replace(either, ''), name).not.toMatch(/(LAB|DEMO)_SEED_PASSWORD\s*(\?\?|\|\|)/);
+        expect(text.replace(either, ''), name).not.toMatch(
+          /(LAB|DEMO)_SEED_PASSWORD\s*(\?\?|\|\|)/
+        );
         expect(text, name).not.toMatch(/['"`][^'"`]*\.env['"`]|dotenv|readFile/);
       }
     });
@@ -137,7 +190,7 @@ describe('the Playwright specs', () => {
     it('is a project of its own, against PLAYWRIGHT_BASE_URL and http://localhost:18100 by default', () => {
       const config = read(`${root}/playwright.config.ts`);
       expect(config).toContain("name: 'live'");
-      expect(config).toContain('process.env.PLAYWRIGHT_BASE_URL ?? \'http://localhost:18100\'');
+      expect(config).toContain("process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:18100'");
       expect(config).toContain("testIgnore: '**/live/**'");
     });
 
@@ -189,24 +242,56 @@ describe('the Playwright specs', () => {
       expect(qa).toContain('${RESULTS_DIR}/screenshots/');
       expect(qa).toMatch(/VQA viewport=/);
       // The screens the QA walks.
-      for (const screen of ["slug: 'login'", "slug: 'panel'", "slug: 'organization'", "slug: 'cases'", "slug: 'case'", "slug: 'jobs'",
-        "slug: 'job-result'", "slug: 'plan-permissions'", "slug: 'team-organization'"]) {
+      for (const screen of [
+        "slug: 'login'",
+        "slug: 'panel'",
+        "slug: 'organization'",
+        "slug: 'cases'",
+        "slug: 'case'",
+        "slug: 'jobs'",
+        "slug: 'job-result'",
+        "slug: 'plan-permissions'",
+        "slug: 'team-organization'",
+      ]) {
         expect(qa, screen).toContain(screen);
       }
       // The composition screens (F2a): the list, every tab of the detail and the three views of Versions, the public list, the
       // showcase and Language for a visitor, the viewer's list and detail, and on mobile the Editor's Visual and Problems tabs.
-      for (const screen of ["slug: 'compositions'", "slug: 'composition-overview'", "slug: 'composition-editor'",
-        "pane('composition-editor-visual'", "pane('composition-editor-problems'", "slug: 'composition-versions'",
-        "slug: 'composition-versions-compare'", "slug: 'composition-versions-file'", "slug: 'composition-versions-evolution'",
-        "slug: 'composition-analysis'", "slug: 'composition-settings'", "slug: 'public-compositions'", "slug: 'showcase'",
-        "slug: 'language'", "slug: 'viewer-compositions'", "slug: 'viewer-composition'"]) {
+      for (const screen of [
+        "slug: 'compositions'",
+        "slug: 'composition-overview'",
+        "slug: 'composition-editor'",
+        "pane('composition-editor-visual'",
+        "pane('composition-editor-problems'",
+        "slug: 'composition-versions'",
+        "slug: 'composition-versions-compare'",
+        "slug: 'composition-versions-file'",
+        "slug: 'composition-versions-evolution'",
+        "slug: 'composition-analysis'",
+        "slug: 'composition-settings'",
+        "slug: 'public-compositions'",
+        "slug: 'showcase'",
+        "slug: 'language'",
+        "slug: 'viewer-compositions'",
+        "slug: 'viewer-composition'",
+      ]) {
         expect(qa, screen).toContain(screen);
       }
       // The problem screens (F2b): the Candidates and Compositions tabs, the problem editor pane by pane (and on mobile its
       // Engines and Problems tabs), the run presets section and the study front.
-      for (const screen of ["slug: 'problem-candidates'", "slug: 'problem-compositions'", "slug: 'problem-editor'",
-        "pane('problem-editor-candidates'", "pane('problem-editor-rules'", "pane('problem-editor-files'", "pane('problem-editor-forms'",
-        "pane('problem-editor-engines'", "pane('problem-editor-problems'", "slug: 'presets'", "slug: 'study-front'"]) {
+      for (const screen of [
+        "slug: 'problem-candidates'",
+        "slug: 'problem-compositions'",
+        "slug: 'problem-editor'",
+        "pane('problem-editor-candidates'",
+        "pane('problem-editor-rules'",
+        "pane('problem-editor-files'",
+        "pane('problem-editor-forms'",
+        "pane('problem-editor-engines'",
+        "pane('problem-editor-problems'",
+        "slug: 'presets'",
+        "slug: 'study-front'",
+      ]) {
         expect(qa, screen).toContain(screen);
       }
       // A viewer is not offered a way to start a run.

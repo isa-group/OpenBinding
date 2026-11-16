@@ -24,9 +24,11 @@ export default defineConfig({
     trace: 'retain-on-failure',
   },
   projects: [{ name: 'acceptance' }],
-  webServer: stackGiven ? undefined : {
-    command: `"${process.execPath}" node_modules/vite/bin/vite.js --host 127.0.0.1 --port ${port}`,
-    url: `http://127.0.0.1:${port}`,
-    reuseExistingServer: !portGiven,
-  },
+  webServer: stackGiven
+    ? undefined
+    : {
+        command: `"${process.execPath}" node_modules/vite/bin/vite.js --host 127.0.0.1 --port ${port}`,
+        url: `http://127.0.0.1:${port}`,
+        reuseExistingServer: !portGiven,
+      },
 });

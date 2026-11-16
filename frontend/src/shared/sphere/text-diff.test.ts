@@ -3,10 +3,16 @@ import { describe, expect, it } from 'vitest';
 import { diffSequences, diffText, foldUnchanged, type DiffBlock } from './text-diff';
 
 const lines = (count: number, changedAt: number[] = []) =>
-  Array.from({ length: count }, (_, i) => (changedAt.includes(i) ? `changed ${i}` : `line ${i}`)).join('\n');
+  Array.from({ length: count }, (_, i) =>
+    changedAt.includes(i) ? `changed ${i}` : `line ${i}`
+  ).join('\n');
 
 const shape = (blocks: DiffBlock[]) =>
-  blocks.map(block => (block.type === 'collapsed' ? ['collapsed', block.id, block.rows.length] : ['rows', block.rows.length]));
+  blocks.map(block =>
+    block.type === 'collapsed'
+      ? ['collapsed', block.id, block.rows.length]
+      : ['rows', block.rows.length]
+  );
 
 describe('diffText', () => {
   it('reads equal texts as equal rows, whatever their line endings', () => {
@@ -54,12 +60,20 @@ describe('diffText', () => {
       left: {
         lineNumber: 2,
         text: 'cost: 30 ms',
-        segments: [{ text: 'cost: ', changed: false }, { text: '30', changed: true }, { text: ' ms', changed: false }],
+        segments: [
+          { text: 'cost: ', changed: false },
+          { text: '30', changed: true },
+          { text: ' ms', changed: false },
+        ],
       },
       right: {
         lineNumber: 2,
         text: 'cost: 40 ms',
-        segments: [{ text: 'cost: ', changed: false }, { text: '40', changed: true }, { text: ' ms', changed: false }],
+        segments: [
+          { text: 'cost: ', changed: false },
+          { text: '40', changed: true },
+          { text: ' ms', changed: false },
+        ],
       },
     });
   });
@@ -67,7 +81,9 @@ describe('diffText', () => {
   it('pairs as many lines as both sides have and lists the rest as removed or added', () => {
     const diff = diffText('x\na\nb\ny', 'x\nc\ny');
 
-    expect(diff.rows.map(row => [row.kind, row.left?.lineNumber ?? null, row.right?.lineNumber ?? null])).toEqual([
+    expect(
+      diff.rows.map(row => [row.kind, row.left?.lineNumber ?? null, row.right?.lineNumber ?? null])
+    ).toEqual([
       ['equal', 1, 1],
       ['change', 2, 2],
       ['remove', 3, null],
@@ -101,7 +117,10 @@ describe('diffSequences', () => {
     const ends = Array.from({ length: 3000 }, (_, i) => `same ${i}`);
     const ops = diffSequences([...ends, 'old', ...ends], [...ends, 'new', ...ends]);
 
-    expect(ops.filter(op => op.kind !== 'equal')).toEqual([{ kind: 'remove', value: 'old' }, { kind: 'add', value: 'new' }]);
+    expect(ops.filter(op => op.kind !== 'equal')).toEqual([
+      { kind: 'remove', value: 'old' },
+      { kind: 'add', value: 'new' },
+    ]);
   });
 });
 
@@ -109,23 +128,45 @@ describe('foldUnchanged', () => {
   it('folds long unchanged stretches and keeps the context lines around a difference', () => {
     const { rows } = diffText(lines(20), lines(20, [10]));
 
-    expect(shape(foldUnchanged(rows))).toEqual([['collapsed', 0, 7], ['rows', 7], ['collapsed', 1, 6]]);
-    expect(shape(foldUnchanged(rows, 1))).toEqual([['collapsed', 0, 9], ['rows', 3], ['collapsed', 1, 8]]);
+    expect(shape(foldUnchanged(rows))).toEqual([
+      ['collapsed', 0, 7],
+      ['rows', 7],
+      ['collapsed', 1, 6],
+    ]);
+    expect(shape(foldUnchanged(rows, 1))).toEqual([
+      ['collapsed', 0, 9],
+      ['rows', 3],
+      ['collapsed', 1, 8],
+    ]);
 
     const [first, kept] = foldUnchanged(rows);
     expect(first.rows[0].left?.lineNumber).toBe(1);
-    expect(kept.rows.map(row => row.kind)).toEqual(['equal', 'equal', 'equal', 'change', 'equal', 'equal', 'equal']);
+    expect(kept.rows.map(row => row.kind)).toEqual([
+      'equal',
+      'equal',
+      'equal',
+      'change',
+      'equal',
+      'equal',
+      'equal',
+    ]);
   });
 
   it('leaves a stretch shorter than the minimum unfolded', () => {
     const { rows } = diffText(lines(10), lines(10, [0, 8]));
 
     expect(shape(foldUnchanged(rows))).toEqual([['rows', 10]]);
-    expect(shape(foldUnchanged(rows, 3, 1))).toEqual([['rows', 4], ['collapsed', 0, 1], ['rows', 5]]);
+    expect(shape(foldUnchanged(rows, 3, 1))).toEqual([
+      ['rows', 4],
+      ['collapsed', 0, 1],
+      ['rows', 5],
+    ]);
   });
 
   it('folds a text with no difference into one block, unless it is short', () => {
-    expect(shape(foldUnchanged(diffText(lines(10), lines(10)).rows))).toEqual([['collapsed', 0, 10]]);
+    expect(shape(foldUnchanged(diffText(lines(10), lines(10)).rows))).toEqual([
+      ['collapsed', 0, 10],
+    ]);
     expect(shape(foldUnchanged(diffText(lines(3), lines(3)).rows))).toEqual([['rows', 3]]);
   });
 });

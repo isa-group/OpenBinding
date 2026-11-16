@@ -4,7 +4,10 @@ import { Check, TriangleAlert } from 'lucide-react';
 import { apiClient } from '../../api/client';
 import { Action } from '../../components/ui/Action';
 import { Chip } from '../../components/ui/Chip';
-import { INSTITUTION_NAME, useInstitutionalBranding } from '../../components/InstitutionMark/institution';
+import {
+  INSTITUTION_NAME,
+  useInstitutionalBranding,
+} from '../../components/InstitutionMark/institution';
 import { useAuth } from '../../contexts/auth';
 import { formatDate } from '../../utils/format';
 import { personInitials } from '../../utils/initials';
@@ -53,7 +56,9 @@ export function Account() {
     } catch {
       // The session is gone locally either way; the server could not be told.
       setLoggingOut(false);
-      setLogoutError('The server couldn’t be told, but this browser no longer holds your session. Reload the page.');
+      setLogoutError(
+        'The server couldn’t be told, but this browser no longer holds your session. Reload the page.'
+      );
     }
   };
 
@@ -72,23 +77,42 @@ export function Account() {
       section="profile"
       title="Account"
       lede="Your profile, sign-in details and account security."
-      actions={<Action variant="secondary" size="sm" onClick={() => void reload()} busy={refreshing}>Refresh profile</Action>}
+      actions={
+        <Action variant="secondary" size="sm" onClick={() => void reload()} busy={refreshing}>
+          Refresh profile
+        </Action>
+      }
     >
-      {forbidden && <PermissionNotice permissions={['account:read', 'account:write']} action="change account settings" />}
+      {forbidden && (
+        <PermissionNotice
+          permissions={['account:read', 'account:write']}
+          action="change account settings"
+        />
+      )}
       {toast && (
-        <div className="acct-toast" role="status"><Check aria-hidden="true" />{toast}</div>
+        <div className="acct-toast" role="status">
+          <Check aria-hidden="true" />
+          {toast}
+        </div>
       )}
 
       <section className="acct-section" aria-labelledby="acct-profile-title">
         <div>
           <h2 id="acct-profile-title">Profile</h2>
-          <p className="acct-muted">How OpenBinding knows you. Role and plan are separate: the plan sets quotas, the role sets platform permissions.</p>
+          <p className="acct-muted">
+            How OpenBinding knows you. Role and plan are separate: the plan sets quotas, the role
+            sets platform permissions.
+          </p>
         </div>
         <div className="acct-card acct-profile">
-          <span className="acct-avatar" aria-hidden="true">{personInitials(user.username)}</span>
+          <span className="acct-avatar" aria-hidden="true">
+            {personInitials(user.username)}
+          </span>
           <div className="acct-profile-who">
             <strong>{user.username}</strong>
-            <span>{user.email} · member since {formatDate(user.created_at) ?? '—'}</span>
+            <span>
+              {user.email} · member since {formatDate(user.created_at) ?? '—'}
+            </span>
           </div>
           <div className="acct-chips">
             <Chip>Role · {user.role}</Chip>
@@ -98,7 +122,10 @@ export function Account() {
           </div>
           <p className="acct-profile-note">
             Plan tiers and quotas are governed by administrators; there is no payment gateway.{' '}
-            <Link to="/app/account/usage" viewTransition>See your plan &amp; permissions</Link>.
+            <Link to="/app/account/usage" viewTransition>
+              See your plan &amp; permissions
+            </Link>
+            .
           </p>
         </div>
       </section>
@@ -126,22 +153,39 @@ export function Account() {
         </div>
         <div className="acct-card acct-row">
           <span>This browser</span>
-          <Action variant="secondary" onClick={() => void logOut()} busy={loggingOut}>Log out</Action>
+          <Action variant="secondary" onClick={() => void logOut()} busy={loggingOut}>
+            Log out
+          </Action>
         </div>
-        {logoutError && <p className="acct-dialog-error" role="alert">{logoutError}</p>}
+        {logoutError && (
+          <p className="acct-dialog-error" role="alert">
+            {logoutError}
+          </p>
+        )}
       </section>
 
       <section className="acct-section" aria-labelledby="acct-danger-title">
         <h2 id="acct-danger-title">Danger zone</h2>
         <div className="acct-card acct-danger">
           <div className="acct-danger-head">
-            <span className="acct-danger-icon" aria-hidden="true"><TriangleAlert /></span>
+            <span className="acct-danger-icon" aria-hidden="true">
+              <TriangleAlert />
+            </span>
             <div>
               <strong>Delete account</strong>
-              <p>Permanently deletes your account, its API keys and its runs. Organizations where you’re the last owner must be handed over first.</p>
+              <p>
+                Permanently deletes your account, its API keys and its runs. Organizations where
+                you’re the last owner must be handed over first.
+              </p>
             </div>
           </div>
-          <Action variant="danger-outline" className="acct-danger-button" onClick={() => setDeleting(true)}>Delete my account</Action>
+          <Action
+            variant="danger-outline"
+            className="acct-danger-button"
+            onClick={() => setDeleting(true)}
+          >
+            Delete my account
+          </Action>
         </div>
       </section>
 

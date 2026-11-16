@@ -13,13 +13,21 @@ interface NoticeProps {
   className?: string;
 }
 
-const ICONS = { info: Info, error: AlertCircle, success: CheckCircle2, warning: AlertTriangle } as const;
+const ICONS = {
+  info: Info,
+  error: AlertCircle,
+  success: CheckCircle2,
+  warning: AlertTriangle,
+} as const;
 
 /** A message that belongs to one place on the page: errors announce themselves, the rest are polite. */
 export function Notice({ tone = 'info', title, children, action, className = '' }: NoticeProps) {
   const Icon = ICONS[tone];
   return (
-    <div className={`ui-notice ui-notice-${tone} ${className}`.trim()} role={tone === 'error' ? 'alert' : 'status'}>
+    <div
+      className={`ui-notice ui-notice-${tone} ${className}`.trim()}
+      role={tone === 'error' ? 'alert' : 'status'}
+    >
       <Icon className="ui-notice-icon" aria-hidden="true" />
       <div className="ui-notice-body">
         {title && <strong>{title}</strong>}

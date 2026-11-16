@@ -10,28 +10,38 @@ const PROTOTYPE: Array<[string, string]> = [
   ['run-detail', '/app/:org/runs/:job'],
 ];
 
-const config = routeDefinitions.map((definition) => ({ id: definition.id, path: definition.path }));
+const config = routeDefinitions.map(definition => ({ id: definition.id, path: definition.path }));
 
 describe('area runs', () => {
   it('has 3 screens, with the ids and routes of the prototype', () => {
     expect(routesByArea.runs).toHaveLength(3);
-    expect(routesByArea.runs.map((definition) => [definition.id, definition.path])).toEqual(PROTOTYPE);
+    expect(routesByArea.runs.map(definition => [definition.id, definition.path])).toEqual(
+      PROTOTYPE
+    );
   });
 
   it('routes no path with a jobs segment, and names the segment once', () => {
-    expect(routeDefinitions.map((definition) => definition.path).filter((path) => path.split('/').includes('jobs'))).toEqual([]);
+    expect(
+      routeDefinitions
+        .map(definition => definition.path)
+        .filter(path => path.split('/').includes('jobs'))
+    ).toEqual([]);
     expect(RUNS_SEGMENT).toBe('runs');
   });
 
   it('has no run history: the account-wide runs address is no screen of the area', () => {
-    expect(routeDefinitions.map((definition) => definition.id)).not.toContain('job-history');
+    expect(routeDefinitions.map(definition => definition.id)).not.toContain('job-history');
     expect(matchRoutes(config, '/app/acme/runs/new')?.at(-1)?.route.id).toBe('run-launch');
     expect(matchRoutes(config, '/app/runs')?.at(-1)?.route.id).toBe('org-overview');
   });
 
   it('keeps runs out of the project: a project address has no runs screen', () => {
-    expect(matchRoutes(config, '/app/acme/atlas/runs')?.at(-1)?.route.id ?? null).not.toBe('run-list');
-    expect(matchRoutes(config, '/app/acme/atlas/runs/j1')?.at(-1)?.route.id ?? null).not.toBe('run-detail');
+    expect(matchRoutes(config, '/app/acme/atlas/runs')?.at(-1)?.route.id ?? null).not.toBe(
+      'run-list'
+    );
+    expect(matchRoutes(config, '/app/acme/atlas/runs/j1')?.at(-1)?.route.id ?? null).not.toBe(
+      'run-detail'
+    );
   });
 
   describe('address resolution', () => {

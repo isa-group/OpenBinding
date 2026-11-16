@@ -18,7 +18,9 @@ test.describe('live · J3 the problem editor on lab-main', () => {
   // The matrix is a table per task at this width (cards below 640 px), and the panes sit beside the engines.
   test.use({ viewport: { width: 1440, height: 1000 } });
 
-  test('a template, a value out of its domain in the matrix, the compiler’s finding on the cell and in the file, the fix, the save and a run', async ({ page }, testInfo) => {
+  test('a template, a value out of its domain in the matrix, the compiler’s finding on the cell and in the file, the fix, the save and a run', async ({
+    page,
+  }, testInfo) => {
     test.setTimeout(600_000);
     const errors = watchPageErrors(page);
     await signInByApi(page, 'owner');
@@ -30,7 +32,9 @@ test.describe('live · J3 the problem editor on lab-main', () => {
     // 1 · The template opens once the gateway has checked it.
     await page.goto(`${ORG_PATH}/problem-editor?template=${encodeURIComponent(TEMPLATE)}`);
     await expect(main.getByRole('heading', { level: 1, name: 'Problem editor' })).toBeVisible();
-    await expect(main.getByText(`Opened from template ${TEMPLATE}`)).toBeVisible({ timeout: 60_000 });
+    await expect(main.getByText(`Opened from template ${TEMPLATE}`)).toBeVisible({
+      timeout: 60_000,
+    });
     await expect(status).toHaveText('Valid package', { timeout: 60_000 });
     await expect(main.getByRole('group', { name: 'Workflow of the package' })).toContainText(TASK);
     await capture(page, testInfo, 'j3-1-template');
@@ -38,7 +42,8 @@ test.describe('live · J3 the problem editor on lab-main', () => {
     // 2 · Candidates: the latency goes out of its domain in the matrix. The edit is written to candidates.json and waits for the
     // live check; the real compiler refuses it, and its finding is placed on the cell and in the Problems panel.
     await main.getByRole('tab', { name: 'Candidates' }).click();
-    const row = main.getByRole('region', { name: 'Candidates of each task' })
+    const row = main
+      .getByRole('region', { name: 'Candidates of each task' })
       .getByRole('table', { name: new RegExp(`Task ${TASK}`) })
       .getByRole('row', { name: new RegExp(CANDIDATE) });
     const value = row.getByRole('textbox', { name: `latency for ${CANDIDATE}` });
@@ -50,7 +55,9 @@ test.describe('live · J3 the problem editor on lab-main', () => {
     await expect(row).toContainText('Pending check');
     await expect(main.getByText('Stale: showing the last valid package.')).toBeVisible();
     const problems = main.getByRole('region', { name: 'Problems' });
-    await expect(problems.getByRole('button', { name: new RegExp(FINDING) })).toContainText(POINTER);
+    await expect(problems.getByRole('button', { name: new RegExp(FINDING) })).toContainText(
+      POINTER
+    );
     await expect(main.getByRole('button', { name: 'Save as version…' })).toBeDisabled();
     await capture(page, testInfo, 'j3-2-refused');
 
@@ -76,14 +83,20 @@ test.describe('live · J3 the problem editor on lab-main', () => {
     const dialog = page.getByRole('dialog', { name: 'Save the package' });
     await dialog.getByRole('textbox', { name: 'Name of the new problem' }).fill(name);
     await dialog.getByRole('button', { name: 'Save as a new problem' }).click();
-    await expect(main.getByText(`Saved as version 1 of ${name}. Run it from its page.`)).toBeVisible({ timeout: 60_000 });
+    await expect(
+      main.getByText(`Saved as version 1 of ${name}. Run it from its page.`)
+    ).toBeVisible({ timeout: 60_000 });
     await capture(page, testInfo, 'j3-4-saved');
     await main.getByRole('link', { name: 'Open the problem' }).click();
     const run = main.getByRole('link', { name: 'Run this version' });
     await expect(run).toHaveAttribute('href', `${RUNS_PATH}/new?problem=${name}&revision=1`);
     await run.click();
     await expect(main.getByRole('heading', { level: 1, name: 'New run' })).toBeVisible();
-    await expect(main.getByRole('radiogroup', { name: 'Source' }).getByRole('radio', { name: new RegExp(`${name} · version 1`) })).toBeChecked({ timeout: 30_000 });
+    await expect(
+      main
+        .getByRole('radiogroup', { name: 'Source' })
+        .getByRole('radio', { name: new RegExp(`${name} · version 1`) })
+    ).toBeChecked({ timeout: 30_000 });
     await capture(page, testInfo, 'j3-5-launch');
     expect(errors).toEqual([]);
   });

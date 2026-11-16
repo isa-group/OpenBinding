@@ -45,7 +45,9 @@ export function pausedMessage(until: number, now: number = Date.now()): string {
   return `Checks paused, resuming in ${Math.max(1, Math.ceil((until - now) / 1000))} s`;
 }
 
-export function createScheduler<Input, Output>(options: SchedulerOptions<Input, Output>): Scheduler<Input> {
+export function createScheduler<Input, Output>(
+  options: SchedulerOptions<Input, Output>
+): Scheduler<Input> {
   const { delay, run, onResult, onError, onStatus } = options;
   const EMPTY = Symbol('empty');
   let pending: Input | typeof EMPTY = EMPTY;
@@ -59,7 +61,9 @@ export function createScheduler<Input, Output>(options: SchedulerOptions<Input, 
   let current: SchedulerStatus = { state: 'idle' };
 
   const report = (next: SchedulerStatus) => {
-    const same = next.state === current.state && (next.state !== 'paused' || (current.state === 'paused' && next.until === current.until));
+    const same =
+      next.state === current.state &&
+      (next.state !== 'paused' || (current.state === 'paused' && next.until === current.until));
     if (same) return;
     current = next;
     if (!disposed) onStatus?.(next);
@@ -84,26 +88,28 @@ export function createScheduler<Input, Output>(options: SchedulerOptions<Input, 
     const controller = new AbortController();
     inFlight = controller;
     report({ state: 'running' });
-    run(input, controller.signal).then(
-      (output) => {
-        if (!controller.signal.aborted && !disposed) onResult(output, input);
-      },
-      (error: unknown) => {
-        if (controller.signal.aborted || disposed) return;
-        const refusal = readApiError(error);
-        if (refusal.status === 429) {
-          // The same text is checked again after the pause, unless a newer one is already waiting.
-          if (pending === EMPTY) pending = input;
-          pause(refusal.retryAfter);
-          return;
+    run(input, controller.signal)
+      .then(
+        output => {
+          if (!controller.signal.aborted && !disposed) onResult(output, input);
+        },
+        (error: unknown) => {
+          if (controller.signal.aborted || disposed) return;
+          const refusal = readApiError(error);
+          if (refusal.status === 429) {
+            // The same text is checked again after the pause, unless a newer one is already waiting.
+            if (pending === EMPTY) pending = input;
+            pause(refusal.retryAfter);
+            return;
+          }
+          onError?.(error, input);
         }
-        onError?.(error, input);
-      },
-    ).finally(() => {
-      if (inFlight === controller) inFlight = null;
-      if (due) start();
-      settle();
-    });
+      )
+      .finally(() => {
+        if (inFlight === controller) inFlight = null;
+        if (due) start();
+        settle();
+      });
   };
 
   const pause = (seconds: number | undefined) => {

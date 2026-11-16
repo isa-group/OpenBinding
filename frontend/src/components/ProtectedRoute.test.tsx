@@ -20,25 +20,39 @@ function SignIn() {
   return <h1>Sign in{from ? ` (from ${from})` : ''}</h1>;
 }
 
-function renderGuard(user: UserProfile | null, requireAdmin = false, loading = false, entry = '/protected') {
+function renderGuard(
+  user: UserProfile | null,
+  requireAdmin = false,
+  loading = false,
+  entry = '/protected'
+) {
   return render(
     <MemoryRouter initialEntries={[entry]}>
-      <AuthContext.Provider value={{
-        user,
-        loading,
-        signIn: vi.fn(),
-        register: vi.fn(),
-        signOut: vi.fn(),
-        refresh: vi.fn(),
-        isAdmin: user?.role === 'admin',
-      }}>
+      <AuthContext.Provider
+        value={{
+          user,
+          loading,
+          signIn: vi.fn(),
+          register: vi.fn(),
+          signOut: vi.fn(),
+          refresh: vi.fn(),
+          isAdmin: user?.role === 'admin',
+        }}
+      >
         <Routes>
           <Route path="/login" element={<SignIn />} />
           <Route path="/app/account" element={<h1>Account</h1>} />
-          <Route path="/protected" element={<ProtectedRoute requireAdmin={requireAdmin}><h1>Protected content</h1></ProtectedRoute>} />
+          <Route
+            path="/protected"
+            element={
+              <ProtectedRoute requireAdmin={requireAdmin}>
+                <h1>Protected content</h1>
+              </ProtectedRoute>
+            }
+          />
         </Routes>
       </AuthContext.Provider>
-    </MemoryRouter>,
+    </MemoryRouter>
   );
 }
 
@@ -51,7 +65,9 @@ describe('ProtectedRoute', () => {
 
   it('remembers the query string too, so a deep link survives the sign-in detour', () => {
     renderGuard(null, false, false, '/protected?tab=queue');
-    expect(screen.getByRole('heading', { name: 'Sign in (from /protected?tab=queue)' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Sign in (from /protected?tab=queue)' })
+    ).toBeInTheDocument();
   });
 
   it('waits for the stored session instead of bouncing a signed-in user to sign in', () => {

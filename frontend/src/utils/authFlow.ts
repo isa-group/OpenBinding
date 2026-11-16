@@ -25,7 +25,13 @@ function storage(): Storage | null {
 /** `/c/<organization>/<composition>`: the public page of a composition, both segments slugs. */
 function isShowcasePath(path: string): boolean {
   const segments = path.split('/');
-  return segments.length === 4 && segments[0] === '' && segments[1] === 'c' && SLUG_PATTERN.test(segments[2]) && SLUG_PATTERN.test(segments[3]);
+  return (
+    segments.length === 4 &&
+    segments[0] === '' &&
+    segments[1] === 'c' &&
+    SLUG_PATTERN.test(segments[2]) &&
+    SLUG_PATTERN.test(segments[3])
+  );
 }
 
 /**
@@ -35,7 +41,13 @@ function isShowcasePath(path: string): boolean {
  * qualify: the value travels through router state and sessionStorage, so it is never used as an arbitrary redirect target.
  */
 export function safeReturnPath(value: unknown): string | null {
-  if (typeof value !== 'string' || !value.startsWith('/') || value.startsWith('//') || value.includes('\\')) return null;
+  if (
+    typeof value !== 'string' ||
+    !value.startsWith('/') ||
+    value.startsWith('//') ||
+    value.includes('\\')
+  )
+    return null;
   const path = value.split(/[?#]/)[0];
   if (path === '/app' || path.startsWith('/app/') || path === '/invitations/accept') return value;
   if (path === '/compositions' || isShowcasePath(path)) return value;
@@ -83,10 +95,17 @@ export interface PlanChangeNote {
 const PLAN_NAME = /^[A-Za-z0-9_-]{1,32}$/;
 
 /** Remember a plan change until the next screen has shown it. Anything that isn't a plan name is ignored. */
-export function notePlanChanged(change: { from?: string | null; to: string; extraCost?: boolean | null }): void {
+export function notePlanChanged(change: {
+  from?: string | null;
+  to: string;
+  extraCost?: boolean | null;
+}): void {
   if (!PLAN_NAME.test(change.to)) return;
   const from = change.from && PLAN_NAME.test(change.from) ? change.from : null;
-  storage()?.setItem(PLAN_CHANGE_KEY, JSON.stringify({ from, to: change.to, extraCost: change.extraCost ?? null }));
+  storage()?.setItem(
+    PLAN_CHANGE_KEY,
+    JSON.stringify({ from, to: change.to, extraCost: change.extraCost ?? null })
+  );
 }
 
 /** The remembered plan change, without forgetting it (a screen may be rendered twice before it has shown it). */
@@ -163,7 +182,10 @@ export interface CasFlow {
 
 /** Remember which CAS flow is about to leave the app, so that the callback page can tell them apart. */
 export function rememberCasFlow(mode: CasMode, returnTo?: unknown): void {
-  storage()?.setItem(CAS_FLOW_KEY, JSON.stringify({ mode, returnTo: safeReturnPath(returnTo), at: Date.now() }));
+  storage()?.setItem(
+    CAS_FLOW_KEY,
+    JSON.stringify({ mode, returnTo: safeReturnPath(returnTo), at: Date.now() })
+  );
 }
 
 /** Forget the remembered CAS flow, once the callback page has used it. */

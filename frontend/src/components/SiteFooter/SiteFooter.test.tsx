@@ -9,25 +9,42 @@ const auth = vi.hoisted(() => ({ user: null as UserProfile | null }));
 vi.mock('../../contexts/auth', () => ({ useAuth: () => auth }));
 
 const member: UserProfile = {
-  id: 'user-id', username: 'someone', email: 'someone@us.es', role: 'user', is_active: true,
-  plan: 'PRO', created_at: '2026-09-01T00:00:00Z',
+  id: 'user-id',
+  username: 'someone',
+  email: 'someone@us.es',
+  role: 'user',
+  is_active: true,
+  plan: 'PRO',
+  created_at: '2026-09-01T00:00:00Z',
 };
 
 function renderFooter() {
-  return render(<MemoryRouter><SiteFooter /></MemoryRouter>);
+  return render(
+    <MemoryRouter>
+      <SiteFooter />
+    </MemoryRouter>
+  );
 }
 
 describe('SiteFooter', () => {
-  beforeEach(() => { auth.user = null; });
+  beforeEach(() => {
+    auth.user = null;
+  });
 
   it('groups the platform and about links', () => {
     renderFooter();
 
     const nav = screen.getByRole('navigation', { name: 'Footer navigation' });
     for (const [name, href] of [
-      ['Compositions', '/compositions'], ['Language', '/language'], ['Engines', '/engines'], ['Pricing', '/pricing'], ['Workbench', '/workbench'],
-      ['Team', '/about?tab=team'], ['Research', '/about?tab=research'],
-      ['Funding', '/about?tab=funding'], ['Changelog', '/about?tab=changelog'],
+      ['Compositions', '/compositions'],
+      ['Language', '/language'],
+      ['Engines', '/engines'],
+      ['Pricing', '/pricing'],
+      ['Workbench', '/workbench'],
+      ['Team', '/about?tab=team'],
+      ['Research', '/about?tab=research'],
+      ['Funding', '/about?tab=funding'],
+      ['Changelog', '/about?tab=changelog'],
     ] as const) {
       expect(within(nav).getByRole('link', { name })).toHaveAttribute('href', href);
     }
@@ -38,15 +55,24 @@ describe('SiteFooter', () => {
     renderFooter();
 
     const platform = screen.getByText('Platform').closest('section') as HTMLElement;
-    expect(within(platform).getAllByRole('link').map((link) => link.textContent)).toEqual(['Compositions', 'Language', 'Engines', 'Pricing', 'Workbench']);
-    expect(screen.getByText(/^Define, version, evaluate, render and compare compositions; problems, written in BIM/)).toBeInTheDocument();
+    expect(
+      within(platform)
+        .getAllByRole('link')
+        .map(link => link.textContent)
+    ).toEqual(['Compositions', 'Language', 'Engines', 'Pricing', 'Workbench']);
+    expect(
+      screen.getByText(
+        /^Define, version, evaluate, render and compare compositions; problems, written in BIM/
+      )
+    ).toBeInTheDocument();
   });
 
   it('links to no status page', () => {
     renderFooter();
 
     expect(screen.queryByRole('link', { name: 'Status' })).not.toBeInTheDocument();
-    for (const link of screen.getAllByRole('link')) expect(link.getAttribute('href')).not.toBe('/status');
+    for (const link of screen.getAllByRole('link'))
+      expect(link.getAttribute('href')).not.toBe('/status');
   });
 
   it('renders the colour band and a dynamic copyright year', () => {
@@ -60,10 +86,22 @@ describe('SiteFooter', () => {
   it('keeps the institutional text links for every visitor', () => {
     renderFooter();
 
-    expect(screen.getByRole('link', { name: 'SCORE Lab' })).toHaveAttribute('href', 'https://score.us.es');
-    expect(screen.getByRole('link', { name: 'ISA Group' })).toHaveAttribute('href', 'https://www.isa.us.es/3.0/');
-    expect(screen.getByRole('link', { name: 'Universidad de Sevilla' })).toHaveAttribute('href', 'https://www.us.es');
-    expect(screen.getByRole('link', { name: 'GitHub Source' })).toHaveAttribute('href', 'https://github.com/isa-group/OpenBinding');
+    expect(screen.getByRole('link', { name: 'SCORE Lab' })).toHaveAttribute(
+      'href',
+      'https://score.us.es'
+    );
+    expect(screen.getByRole('link', { name: 'ISA Group' })).toHaveAttribute(
+      'href',
+      'https://www.isa.us.es/3.0/'
+    );
+    expect(screen.getByRole('link', { name: 'Universidad de Sevilla' })).toHaveAttribute(
+      'href',
+      'https://www.us.es'
+    );
+    expect(screen.getByRole('link', { name: 'GitHub Source' })).toHaveAttribute(
+      'href',
+      'https://github.com/isa-group/OpenBinding'
+    );
   });
 
   it('shows no institutional mark to guests or ordinary accounts', () => {

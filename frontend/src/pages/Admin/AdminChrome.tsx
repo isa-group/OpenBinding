@@ -52,11 +52,17 @@ export function AdminFrame({ section, trail, title, lede, badges, actions, child
       <div className="adm-bar">
         <span className="adm-admin-chip">Platform admin</span>
         <nav ref={nav} aria-label="Administration" className="adm-nav">
-          {ADMIN_SECTIONS.map((item) => (
-            item.id === section
-              ? <span key={item.id} aria-current="page">{item.label}</span>
-              : <Link key={item.id} to={item.to} viewTransition>{item.label}</Link>
-          ))}
+          {ADMIN_SECTIONS.map(item =>
+            item.id === section ? (
+              <span key={item.id} aria-current="page">
+                {item.label}
+              </span>
+            ) : (
+              <Link key={item.id} to={item.to} viewTransition>
+                {item.label}
+              </Link>
+            )
+          )}
         </nav>
       </div>
       <header className="adm-header">
@@ -75,12 +81,26 @@ export function AdminFrame({ section, trail, title, lede, badges, actions, child
 }
 
 /** A small rounded label; `dark` is the platform-admin chip’s ink. */
-export function Tag({ tone = 'plain', mono = false, children }: { tone?: ChipTone; mono?: boolean; children: ReactNode }) {
+export function Tag({
+  tone = 'plain',
+  mono = false,
+  children,
+}: {
+  tone?: ChipTone;
+  mono?: boolean;
+  children: ReactNode;
+}) {
   return <span className={`adm-tag is-${tone}${mono ? ' is-mono' : ''}`}>{children}</span>;
 }
 
 /** A horizontal meter. Decorative: the figure beside it is what assistive technology reads. */
-export function Meter({ value, tone = 'info' }: { value: number; tone?: 'info' | 'success' | 'warning' | 'error' | 'muted' }) {
+export function Meter({
+  value,
+  tone = 'info',
+}: {
+  value: number;
+  tone?: 'info' | 'success' | 'warning' | 'error' | 'muted';
+}) {
   const width = Math.max(0, Math.min(100, value));
   return (
     <span className="adm-meter" aria-hidden="true">
@@ -90,15 +110,33 @@ export function Meter({ value, tone = 'info' }: { value: number; tone?: 'info' |
 }
 
 /** A failure as a notice, with the way to try again when there is one. */
-export function FailureNotice({ failure, onRetry, retryLabel = 'Try again', className }: { failure: Failure; onRetry?: () => void; retryLabel?: string; className?: string }) {
+export function FailureNotice({
+  failure,
+  onRetry,
+  retryLabel = 'Try again',
+  className,
+}: {
+  failure: Failure;
+  onRetry?: () => void;
+  retryLabel?: string;
+  className?: string;
+}) {
   return (
     <Notice
       tone={failure.tone}
       title={failure.title}
       className={className}
-      action={failure.status === 401
-        ? <Action size="sm" variant="secondary" to="/login">Log in again</Action>
-        : onRetry && failure.status !== 403 ? <Action size="sm" variant="secondary" onClick={onRetry}>{retryLabel}</Action> : undefined}
+      action={
+        failure.status === 401 ? (
+          <Action size="sm" variant="secondary" to="/login">
+            Log in again
+          </Action>
+        ) : onRetry && failure.status !== 403 ? (
+          <Action size="sm" variant="secondary" onClick={onRetry}>
+            {retryLabel}
+          </Action>
+        ) : undefined
+      }
     >
       {failure.text}
     </Notice>
@@ -120,10 +158,28 @@ export function Pager({ offset, limit, total, shown, onPage, noun }: PagerProps)
   const last = offset + shown;
   return (
     <div className="adm-pager">
-      <span>{total === 0 ? `No ${noun}` : `Showing ${first.toLocaleString('en-US')}–${last.toLocaleString('en-US')} of ${total.toLocaleString('en-US')} ${noun}`}</span>
+      <span>
+        {total === 0
+          ? `No ${noun}`
+          : `Showing ${first.toLocaleString('en-US')}–${last.toLocaleString('en-US')} of ${total.toLocaleString('en-US')} ${noun}`}
+      </span>
       <span className="adm-pager-buttons">
-        <Action size="sm" variant="secondary" disabled={offset === 0} onClick={() => onPage(Math.max(0, offset - limit))}>Previous</Action>
-        <Action size="sm" variant="secondary" disabled={offset + limit >= total} onClick={() => onPage(offset + limit)}>Next</Action>
+        <Action
+          size="sm"
+          variant="secondary"
+          disabled={offset === 0}
+          onClick={() => onPage(Math.max(0, offset - limit))}
+        >
+          Previous
+        </Action>
+        <Action
+          size="sm"
+          variant="secondary"
+          disabled={offset + limit >= total}
+          onClick={() => onPage(offset + limit)}
+        >
+          Next
+        </Action>
       </span>
     </div>
   );

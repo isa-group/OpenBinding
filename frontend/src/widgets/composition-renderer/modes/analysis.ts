@@ -28,7 +28,8 @@ export interface AnalysisActions {
 }
 
 /** Why the analysis modes are not shown, on a version they cannot work on. */
-export const NOT_LINKED = 'Values are declared: the calculator and configurator need a linked problem you can read.';
+export const NOT_LINKED =
+  'Values are declared: the calculator and configurator need a linked problem you can read.';
 
 export interface AnalysisRefusal {
   message: string;
@@ -41,16 +42,29 @@ export interface AnalysisRefusal {
 /** A refusal of `evaluate` or `neighborhood`, in words. */
 export function analysisRefusal(caught: unknown, subject: string): AnalysisRefusal {
   const error = readApiError(caught);
-  const code = error.status ? ` (${error.status}${error.code !== 'unknown' ? ` · ${error.code}` : ''})` : '';
-  if (error.status === 422 && error.code === 'composition_not_linked') return { message: NOT_LINKED, findings: [], notLinked: true };
+  const code = error.status
+    ? ` (${error.status}${error.code !== 'unknown' ? ` · ${error.code}` : ''})`
+    : '';
+  if (error.status === 422 && error.code === 'composition_not_linked')
+    return { message: NOT_LINKED, findings: [], notLinked: true };
   if (error.status === 409 && error.code === 'composition_empty') {
-    return { message: `This composition has no version to evaluate yet${code}.`, findings: [], notLinked: false };
+    return {
+      message: `This composition has no version to evaluate yet${code}.`,
+      findings: [],
+      notLinked: false,
+    };
   }
   if (error.status === 429) {
-    const wait = error.retryAfter ? ` Try again in ${error.retryAfter} s.` : ' Try again in a moment.';
+    const wait = error.retryAfter
+      ? ` Try again in ${error.retryAfter} s.`
+      : ' Try again in a moment.';
     return { message: `The toolchain is busy${code}.${wait}`, findings: [], notLinked: false };
   }
-  return { message: `${subject}${code}${error.message ? `: ${error.message}` : '.'}`, findings: error.diagnostics, notLinked: false };
+  return {
+    message: `${subject}${code}${error.message ? `: ${error.message}` : '.'}`,
+    findings: error.diagnostics,
+    notLinked: false,
+  };
 }
 
 /** The task a finding points at, when it points into the request's binding (`/binding/<task>`, RFC 6901). */

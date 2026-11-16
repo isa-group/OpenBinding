@@ -5,7 +5,11 @@ import { originText } from './originText';
 import { VALUE_STATUS_TEXT } from './statusText';
 import './ValueBadge.css';
 
-const ICON: Record<ValueStatus, typeof BadgeCheck> = { verified: BadgeCheck, declared: CircleDashed, unverified: TriangleAlert };
+const ICON: Record<ValueStatus, typeof BadgeCheck> = {
+  verified: BadgeCheck,
+  declared: CircleDashed,
+  unverified: TriangleAlert,
+};
 
 interface ValueBadgeProps {
   status?: ValueStatus;
@@ -28,14 +32,15 @@ export function ValueBadge({ status, origin, compact = false }: ValueBadgeProps)
           {VALUE_STATUS_TEXT[status]}
         </span>
       )}
-      {origin && (compact ? (
-        <span className="vb-origin is-compact" title={originText(origin)}>
-          <FileText aria-hidden="true" />
-          <span className="sr-only">{originText(origin)}</span>
-        </span>
-      ) : (
-        <span className="vb-origin">{originText(origin)}</span>
-      ))}
+      {origin &&
+        (compact ? (
+          <span className="vb-origin is-compact" title={originText(origin)}>
+            <FileText aria-hidden="true" />
+            <span className="sr-only">{originText(origin)}</span>
+          </span>
+        ) : (
+          <span className="vb-origin">{originText(origin)}</span>
+        ))}
     </span>
   );
 }

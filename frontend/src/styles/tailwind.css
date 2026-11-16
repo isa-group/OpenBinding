@@ -345,24 +345,55 @@
    * minimum height is only ever added. The rule sits in `base`, under every component and legacy rule.
    */
   @media (max-width: 640px) {
-    button, summary, select, [role='button'], [role='tab'],
-    input:not([type='hidden'], [type='checkbox'], [type='radio']) { min-height: 24px; }
+    button,
+    summary,
+    select,
+    [role='button'],
+    [role='tab'],
+    input:not([type='hidden'], [type='checkbox'], [type='radio']) {
+      min-height: 24px;
+    }
 
     /* Every link that is not inside running text (p, headings, dd, small, label, prose) is a box that centres its content. */
-    :where(a[href]:not(:is(p, h1, h2, h3, h4, h5, h6, dd, small, label, .prose, [class*='prose']) a)) {
+    :where(
+      a[href]:not(:is(p, h1, h2, h3, h4, h5, h6, dd, small, label, .prose, [class*='prose']) a)
+    ) {
       display: inline-flex;
       min-height: 24px;
       align-items: center;
     }
 
     /* The links that the real run measured under 24 px, named so they stay covered even where they sit in a paragraph-like container. */
-    :where(.ui-action, .ui-action.is-link, .case-rev-links a, .usage-consoles a, .proj-job a, .job-wizard a, .job-fact a, .cr-muted a, .pcl-card-title a) {
+    :where(
+      .ui-action,
+      .ui-action.is-link,
+      .case-rev-links a,
+      .usage-consoles a,
+      .proj-job a,
+      .job-wizard a,
+      .job-fact a,
+      .cr-muted a,
+      .pcl-card-title a
+    ) {
       display: inline-flex;
       min-height: 24px;
       align-items: center;
     }
 
-    :where(:is(nav, header, footer, aside, [class*='crumb'], [class*='-head'], [class*='-nav'], [class*='-actions'], [class*='-brand']) a[href]:not(:is(p, h1, h2, h3, h4, h5, h6, dd, small) a)) {
+    :where(
+      :is(
+          nav,
+          header,
+          footer,
+          aside,
+          [class*='crumb'],
+          [class*='-head'],
+          [class*='-nav'],
+          [class*='-actions'],
+          [class*='-brand']
+        )
+        a[href]:not(:is(p, h1, h2, h3, h4, h5, h6, dd, small) a)
+    ) {
       display: inline-flex;
       min-height: 24px;
       align-items: center;
@@ -408,7 +439,9 @@
 
   .dual-range-low::-webkit-slider-thumb:hover,
   .dual-range-high::-webkit-slider-thumb:hover {
-    box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-tp-primary) 15%, transparent), 0 1px 3px rgba(0, 0, 0, 0.2);
+    box-shadow:
+      0 0 0 4px color-mix(in srgb, var(--color-tp-primary) 15%, transparent),
+      0 1px 3px rgba(0, 0, 0, 0.2);
   }
 
   .dual-range-low::-moz-range-thumb,
@@ -651,7 +684,8 @@
   }
 
   @keyframes wiggle-bubble {
-    0%, 100% {
+    0%,
+    100% {
       transform: rotate(0deg);
     }
 

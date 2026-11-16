@@ -74,7 +74,11 @@ export interface ExactStudyEngine {
   version?: string;
   digest?: string;
   mode?: string;
-  optimization?: { type: string; scalarization: string; weights?: Array<{ criteria: string; value: number }> };
+  optimization?: {
+    type: string;
+    scalarization: string;
+    weights?: Array<{ criteria: string; value: number }>;
+  };
   options?: Record<string, unknown>;
   preset?: { id: string; slug: string } | null;
 }
@@ -240,12 +244,29 @@ export function attachmentName(header: string | null, fallback: string): string 
   return name || fallback;
 }
 
-export interface JobOrganizationRef { id: string; slug: string }
-export interface JobProblemRef { id: string; slug: string; name: string }
-export interface JobRevisionRef { id: string; revision: number }
-export interface JobCompilationRef { id: string; compilation_digest: string; ir_digest: string }
+export interface JobOrganizationRef {
+  id: string;
+  slug: string;
+}
+export interface JobProblemRef {
+  id: string;
+  slug: string;
+  name: string;
+}
+export interface JobRevisionRef {
+  id: string;
+  revision: number;
+}
+export interface JobCompilationRef {
+  id: string;
+  compilation_digest: string;
+  ir_digest: string;
+}
 /** The member who launched (or retried) a run. */
-export interface JobCreatorRef { id: string; username: string }
+export interface JobCreatorRef {
+  id: string;
+  username: string;
+}
 
 export interface Job {
   id: string;
@@ -321,107 +342,215 @@ export const platformApi = {
   /** One organization by slug or id. 403 for an account that is not in it, platform administrators included. */
   organization: (org: string) => apiClient.request<Organization>(root(org)),
   createOrganization: (value: { slug: string; name: string; parent_id?: string | null }) =>
-    apiClient.request<Organization>('/v1/organizations', {
-      method: 'POST', body: JSON.stringify(value),
-    }, undefined, true, true),
+    apiClient.request<Organization>(
+      '/v1/organizations',
+      {
+        method: 'POST',
+        body: JSON.stringify(value),
+      },
+      undefined,
+      true,
+      true
+    ),
   /** Renaming and moving need ADMIN. The answer is always the organization (200). */
-  updateOrganization: (org: string, value: {
-    name?: string; parent_id?: string | null; move_to_root?: boolean;
-  }) =>
-    apiClient.request<Organization>(root(org), {
-      method: 'PATCH', body: JSON.stringify(value),
-    }, undefined, true, true),
+  updateOrganization: (
+    org: string,
+    value: {
+      name?: string;
+      parent_id?: string | null;
+      move_to_root?: boolean;
+    }
+  ) =>
+    apiClient.request<Organization>(
+      root(org),
+      {
+        method: 'PATCH',
+        body: JSON.stringify(value),
+      },
+      undefined,
+      true,
+      true
+    ),
   deleteOrganization: (org: string) =>
     apiClient.request<void>(root(org), { method: 'DELETE' }, undefined, true, true),
   /** The audit log needs ADMIN. `action` is an exact action name (`organization.member.removed`), filtered by the server. */
-  organizationAudit: (org: string, params: { action?: string; offset?: number; limit?: number } = {}) => {
+  organizationAudit: (
+    org: string,
+    params: { action?: string; offset?: number; limit?: number } = {}
+  ) => {
     const query = new URLSearchParams();
     if (params.action) query.set('action', params.action);
     if (params.offset) query.set('offset', String(params.offset));
     if (params.limit) query.set('limit', String(params.limit));
     const suffix = query.toString() ? `?${query}` : '';
-    return apiClient.request<OrganizationAuditPage>(`${root(org)}/audit${suffix}`, {}, undefined, true, true);
+    return apiClient.request<OrganizationAuditPage>(
+      `${root(org)}/audit${suffix}`,
+      {},
+      undefined,
+      true,
+      true
+    );
   },
-  members: (org: string) =>
-    apiClient.request<OrganizationMember[]>(`${root(org)}/members`),
+  members: (org: string) => apiClient.request<OrganizationMember[]>(`${root(org)}/members`),
   updateMember: (org: string, userId: string, role: OrganizationRole) =>
-    apiClient.request<OrganizationMember>(`${root(org)}/members/${encodeURIComponent(userId)}`, {
-      method: 'PUT', body: JSON.stringify({ user_id: userId, role }),
-    }, undefined, true, true),
+    apiClient.request<OrganizationMember>(
+      `${root(org)}/members/${encodeURIComponent(userId)}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify({ user_id: userId, role }),
+      },
+      undefined,
+      true,
+      true
+    ),
   /** `POST …/members/batch`: up to {@link MEMBER_BATCH_LIMIT} staged changes, applied together or not at all. Answers with the whole member list. */
   updateMembersBatch: (org: string, changes: MemberChange[]) =>
-    apiClient.request<OrganizationMember[]>(`${root(org)}/members/batch`, {
-      method: 'POST', body: JSON.stringify({ changes }),
-    }, undefined, true, true),
+    apiClient.request<OrganizationMember[]>(
+      `${root(org)}/members/batch`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ changes }),
+      },
+      undefined,
+      true,
+      true
+    ),
   removeMember: (org: string, userId: string) =>
-    apiClient.request<void>(`${root(org)}/members/${encodeURIComponent(userId)}`, { method: 'DELETE' }, undefined, true, true),
+    apiClient.request<void>(
+      `${root(org)}/members/${encodeURIComponent(userId)}`,
+      { method: 'DELETE' },
+      undefined,
+      true,
+      true
+    ),
   inviteMember: (org: string, value: { email: string; role: OrganizationRole }) =>
-    apiClient.request<OrganizationInvitation>(`${root(org)}/invitations`, {
-      method: 'POST', body: JSON.stringify(value),
-    }, undefined, true, true),
+    apiClient.request<OrganizationInvitation>(
+      `${root(org)}/invitations`,
+      {
+        method: 'POST',
+        body: JSON.stringify(value),
+      },
+      undefined,
+      true,
+      true
+    ),
   /**
    * POST /v1/invitations/accept. The token is a secret: it goes in the body only, never in a URL, a log or an error.
    * Answers with the new (or existing) membership; the organization's name is not part of it.
    */
   acceptInvitation: (token: string) =>
-    apiClient.request<OrganizationMember>('/v1/invitations/accept', {
-      method: 'POST', body: JSON.stringify({ token }),
-    }, undefined, true, true),
+    apiClient.request<OrganizationMember>(
+      '/v1/invitations/accept',
+      {
+        method: 'POST',
+        body: JSON.stringify({ token }),
+      },
+      undefined,
+      true,
+      true
+    ),
   studies: (org: string, includeArchived = false) =>
     apiClient.request<Study[]>(`${root(org)}/studies?include_archived=${includeArchived}`),
   /** One study with its ETag: the revision an edit names as `If-Match`. 404 for a study of another organization. */
   study: (org: string, study: string) =>
     apiClient.request<Revised<Study>>(
-      `${root(org)}/studies/${encodeURIComponent(study)}`, {}, undefined, true, true,
-      async (response) => ({ value: await response.json() as Study, etag: response.headers.get('ETag') }),
+      `${root(org)}/studies/${encodeURIComponent(study)}`,
+      {},
+      undefined,
+      true,
+      true,
+      async response => ({
+        value: (await response.json()) as Study,
+        etag: response.headers.get('ETag'),
+      })
     ),
   /**
    * Needs MEMBER. 403 `api_key_engine_forbidden`, 409 `slug_conflict`,
    * 422 for a revision of another organization (`foreign_case_revision`) or a matrix over 10,000 cells (`study_matrix_too_large`).
    */
   createStudy: (org: string, value: Pick<Study, 'slug' | 'name' | 'description' | 'definition'>) =>
-    apiClient.request<Study>(`${root(org)}/studies`, {
-      method: 'POST', body: JSON.stringify(value),
-    }, undefined, true, true),
+    apiClient.request<Study>(
+      `${root(org)}/studies`,
+      {
+        method: 'POST',
+        body: JSON.stringify(value),
+      },
+      undefined,
+      true,
+      true
+    ),
   /**
    * Needs MEMBER. `definition` replaces the current matrix (runs keep the copy they froze). With `ifMatch` the edit is
    * refused with 412 `precondition_failed` when the study changed since it was read; the answer carries the new ETag.
    */
   updateStudy: (
-    org: string, study: string,
-    value: { name?: string; description?: string; archived?: boolean; definition?: StudyDefinition },
-    ifMatch: string | null = null,
+    org: string,
+    study: string,
+    value: {
+      name?: string;
+      description?: string;
+      archived?: boolean;
+      definition?: StudyDefinition;
+    },
+    ifMatch: string | null = null
   ) =>
-    apiClient.request<Revised<Study>>(`${root(org)}/studies/${encodeURIComponent(study)}`, {
-      method: 'PATCH', body: JSON.stringify(value), ...(ifMatch ? { headers: { 'If-Match': ifMatch } } : {}),
-    }, undefined, true, true, async (response) => ({ value: await response.json() as Study, etag: response.headers.get('ETag') })),
+    apiClient.request<Revised<Study>>(
+      `${root(org)}/studies/${encodeURIComponent(study)}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(value),
+        ...(ifMatch ? { headers: { 'If-Match': ifMatch } } : {}),
+      },
+      undefined,
+      true,
+      true,
+      async response => ({
+        value: (await response.json()) as Study,
+        etag: response.headers.get('ETag'),
+      })
+    ),
   /** Needs ADMIN. 409 `study_history_retained` once the study has runs: archive it instead. */
   deleteStudy: (org: string, study: string) =>
-    apiClient.request<void>(`${root(org)}/studies/${encodeURIComponent(study)}`, { method: 'DELETE' }, undefined, true, true),
+    apiClient.request<void>(
+      `${root(org)}/studies/${encodeURIComponent(study)}`,
+      { method: 'DELETE' },
+      undefined,
+      true,
+      true
+    ),
   engineRevisions: () =>
     apiClient.request<{ revisions: EngineRevision[] }>('/v1/engines/revisions'),
   engineRevision: (namespace: string, name: string, version: string) =>
-    apiClient.request<EngineRevision>(`/v1/engines/${encodeURIComponent(namespace)}/${encodeURIComponent(name)}/revisions/${encodeURIComponent(version)}`),
+    apiClient.request<EngineRevision>(
+      `/v1/engines/${encodeURIComponent(namespace)}/${encodeURIComponent(name)}/revisions/${encodeURIComponent(version)}`
+    ),
   studyRuns: (org: string, study: string) =>
     apiClient.request<StudyRun[]>(`${root(org)}/studies/${encodeURIComponent(study)}/runs`),
   /** One run with the definition it froze and that definition's digest. */
   studyRun: (org: string, study: string, run: string) =>
     apiClient.request<StudyRun>(
-      `${root(org)}/studies/${encodeURIComponent(study)}/runs/${encodeURIComponent(run)}`, {}, undefined, true, true,
+      `${root(org)}/studies/${encodeURIComponent(study)}/runs/${encodeURIComponent(run)}`,
+      {},
+      undefined,
+      true,
+      true
     ),
   studyCells: (org: string, study: string, run: string) =>
     apiClient.request<StudyCell[]>(
-      `${root(org)}/studies/${encodeURIComponent(study)}/runs/${encodeURIComponent(run)}/cells`,
+      `${root(org)}/studies/${encodeURIComponent(study)}/runs/${encodeURIComponent(run)}/cells`
     ),
   /** One cell of a run. 404 whether the cell is missing or belongs to another run. */
   studyCell: (org: string, study: string, run: string, cell: string) =>
     apiClient.request<StudyCell>(
       `${root(org)}/studies/${encodeURIComponent(study)}/runs/${encodeURIComponent(run)}/cells/${encodeURIComponent(cell)}`,
-      {}, undefined, true, true,
+      {},
+      undefined,
+      true,
+      true
     ),
   analytics: (org: string, study: string, run: string) =>
     apiClient.request<Analytics>(
-      `${root(org)}/studies/${encodeURIComponent(study)}/runs/${encodeURIComponent(run)}/analytics`,
+      `${root(org)}/studies/${encodeURIComponent(study)}/runs/${encodeURIComponent(run)}/analytics`
     ),
   /**
    * The whole study run as one file (VIEWER): CSV with one row per cell, or JSON with the frozen definition and every cell. It is
@@ -430,12 +559,20 @@ export const platformApi = {
   exportStudyRun: (org: string, study: string, run: string, format: StudyRunExportFormat) =>
     apiClient.request<StudyRunFile>(
       `${root(org)}/studies/${encodeURIComponent(study)}/runs/${encodeURIComponent(run)}/export?format=${format}`,
-      {}, undefined, true, true,
-      async (response) => ({
+      {},
+      undefined,
+      true,
+      true,
+      async response => ({
         bytes: await response.arrayBuffer(),
-        fileName: attachmentName(response.headers.get('Content-Disposition'), `${study}-run.${format}`),
-        mediaType: response.headers.get('Content-Type') ?? (format === 'csv' ? 'text/csv' : 'application/json'),
-      }),
+        fileName: attachmentName(
+          response.headers.get('Content-Disposition'),
+          `${study}-run.${format}`
+        ),
+        mediaType:
+          response.headers.get('Content-Type') ??
+          (format === 'csv' ? 'text/csv' : 'application/json'),
+      })
     ),
   /**
    * Needs MEMBER. Freezes the study's current definition into a new run: 202 with it. 402 `quota_exceeded`,
@@ -445,24 +582,36 @@ export const platformApi = {
   runStudy: (org: string, study: string) =>
     apiClient.request<StudyRun>(
       `${root(org)}/studies/${encodeURIComponent(study)}/runs`,
-      { method: 'POST' }, undefined, true, true,
+      { method: 'POST' },
+      undefined,
+      true,
+      true
     ),
   /** Needs MEMBER. 409 `terminal_run` once it ended. */
   cancelStudyRun: (org: string, study: string, run: string) =>
     apiClient.request<StudyRun>(
       `${root(org)}/studies/${encodeURIComponent(study)}/runs/${encodeURIComponent(run)}/cancel`,
-      { method: 'POST' }, undefined, true, true,
+      { method: 'POST' },
+      undefined,
+      true,
+      true
     ),
   /** Needs MEMBER. Only failed or cancelled cells: 409 `cell_not_retryable` otherwise, 422 when the cell can't be launched again. */
   retryStudyCell: (org: string, study: string, run: string, cell: string) =>
     apiClient.request<StudyCellRetry>(
       `${root(org)}/studies/${encodeURIComponent(study)}/runs/${encodeURIComponent(run)}/cells/${encodeURIComponent(cell)}/retry`,
-      { method: 'POST' }, undefined, true, true,
+      { method: 'POST' },
+      undefined,
+      true,
+      true
     ),
   /** Needs MEMBER. Attaches a finished run of the organization as the cell's result: 404 for a run of another organization, 409 `job_not_finished`. */
   attachStudyCellResult: (org: string, study: string, run: string, cell: string, jobId: string) =>
     apiClient.request<StudyCellAttached>(
       `${root(org)}/studies/${encodeURIComponent(study)}/runs/${encodeURIComponent(run)}/cells/${encodeURIComponent(cell)}/result`,
-      { method: 'POST', body: JSON.stringify({ job_id: jobId }) }, undefined, true, true,
+      { method: 'POST', body: JSON.stringify({ job_id: jobId }) },
+      undefined,
+      true,
+      true
     ),
 };

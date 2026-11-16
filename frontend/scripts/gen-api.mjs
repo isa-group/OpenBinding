@@ -26,7 +26,9 @@ if (process.argv.includes('--check')) {
     // A missing file is a difference like any other.
   }
   if (current !== generated) {
-    console.error(`${fileURLToPath(target)} is out of date with docs/openapi.json. Run \`pnpm gen:api\` and commit the result.`);
+    console.error(
+      `${fileURLToPath(target)} is out of date with docs/openapi.json. Run \`pnpm gen:api\` and commit the result.`
+    );
     process.exit(1);
   }
   console.log('src/shared/api/openapi.ts matches docs/openapi.json.');

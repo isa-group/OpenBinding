@@ -17,7 +17,15 @@ interface NumberFieldProps {
  * A number typed by hand. What is typed is kept as typed (`0.` stays `0.` while the next digit is on its way) and only a complete
  * number reaches the document; text that isn't a number is flagged and leaves the document as it was.
  */
-export function NumberField({ value, onChange, label, id, disabled, required, className = '' }: NumberFieldProps) {
+export function NumberField({
+  value,
+  onChange,
+  label,
+  id,
+  disabled,
+  required,
+  className = '',
+}: NumberFieldProps) {
   const [typed, setTyped] = useState<{ text: string; value: number | null } | null>(null);
   const current = typed && typed.value === value ? typed.text : null;
   const shown = current ?? (value === null ? '' : String(value));
@@ -34,7 +42,7 @@ export function NumberField({ value, onChange, label, id, disabled, required, cl
       aria-invalid={invalid || missing || undefined}
       value={shown}
       disabled={disabled}
-      onChange={(event) => {
+      onChange={event => {
         const text = event.target.value;
         if (text.trim() === '') {
           setTyped({ text, value: null });

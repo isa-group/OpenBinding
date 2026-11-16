@@ -16,16 +16,19 @@ const NAME_MAX = 160;
 const DESCRIPTION_MAX = 2000;
 
 /** What publishing exposes, said before a composition is made public (A3's redaction, C2). */
-export const PUBLISH_CONFIRMATION = 'Public compositions show every version’s document to anyone, as written: the problem reference, the run '
-  + 'and point recorded as evidence, the values and their verification status. The problem itself, its runs and evaluation diagnostics '
-  + 'stay private. A fork’s source is named only while that source is public.';
+export const PUBLISH_CONFIRMATION =
+  'Public compositions show every version’s document to anyone, as written: the problem reference, the run ' +
+  'and point recorded as evidence, the values and their verification status. The problem itself, its runs and evaluation diagnostics ' +
+  'stay private. A fork’s source is named only while that source is public.';
 
 /** The change a section of the tab is making. */
 type Change = 'details' | 'archived' | 'visibility';
 
 /** How a refused change reads; a 412 says the composition was read again. */
 function refusalOf(error: ApiError, change: Change): string {
-  const code = error.status ? ` (${error.status}${error.code !== 'unknown' ? ` · ${error.code}` : ''})` : '';
+  const code = error.status
+    ? ` (${error.status}${error.code !== 'unknown' ? ` · ${error.code}` : ''})`
+    : '';
   if (error.status === 412) {
     return `This composition changed since you opened it${code}. It has been read again: check what it says now and save again.`;
   }
@@ -38,7 +41,15 @@ function refusalOf(error: ApiError, change: Change): string {
   return `The change couldn’t be saved${code}${error.message ? `: ${error.message}` : '.'}`;
 }
 
-function DeleteDialog({ org, composition, onClose }: { org: string; composition: CompositionView; onClose: () => void }) {
+function DeleteDialog({
+  org,
+  composition,
+  onClose,
+}: {
+  org: string;
+  composition: CompositionView;
+  onClose: () => void;
+}) {
   const navigate = useNavigate();
   const [typed, setTyped] = useState('');
   const [error, setError] = useState('');
@@ -52,38 +63,68 @@ function DeleteDialog({ org, composition, onClose }: { org: string; composition:
     setError('');
     try {
       await compositionsApi.remove(org, composition.slug);
-      void navigate(compositionsPath(org), { state: { toast: `Composition “${composition.name}” deleted.` } });
+      void navigate(compositionsPath(org), {
+        state: { toast: `Composition “${composition.name}” deleted.` },
+      });
     } catch (caught) {
       const refusal = readApiError(caught);
-      const code = refusal.status ? ` (${refusal.status}${refusal.code !== 'unknown' ? ` · ${refusal.code}` : ''})` : '';
-      if (refusal.status === 403) setError(`Deleting a composition needs ADMIN in this organization${code}. Nothing was deleted.`);
+      const code = refusal.status
+        ? ` (${refusal.status}${refusal.code !== 'unknown' ? ` · ${refusal.code}` : ''})`
+        : '';
+      if (refusal.status === 403)
+        setError(
+          `Deleting a composition needs ADMIN in this organization${code}. Nothing was deleted.`
+        );
       else if (refusal.status === 404) setError(`It is not there any more${code}.`);
-      else setError(`The composition couldn’t be deleted${code}${refusal.message ? `: ${refusal.message}` : '.'} Nothing was deleted.`);
+      else
+        setError(
+          `The composition couldn’t be deleted${code}${refusal.message ? `: ${refusal.message}` : '.'} Nothing was deleted.`
+        );
       setBusy(false);
     }
   };
 
   return (
-    <Modal title={`Delete ${composition.name}?`} tone="danger" size="md" onClose={() => !busy && onClose()} dismissible={!busy}>
-      <form className="org-dialog-form" onSubmit={(event) => void submit(event)} noValidate>
+    <Modal
+      title={`Delete ${composition.name}?`}
+      tone="danger"
+      size="md"
+      onClose={() => !busy && onClose()}
+      dismissible={!busy}
+    >
+      <form className="org-dialog-form" onSubmit={event => void submit(event)} noValidate>
         <p>
-          This deletes the composition with its {composition.version_count === 1 ? 'version' : `${composition.version_count} versions`} and
-          their evaluations. Forks made from it in other organizations stay. This can’t be undone.
+          This deletes the composition with its{' '}
+          {composition.version_count === 1 ? 'version' : `${composition.version_count} versions`}{' '}
+          and their evaluations. Forks made from it in other organizations stay. This can’t be
+          undone.
         </p>
         <FormField
           label={`Type ${composition.slug} to confirm`}
           value={typed}
-          onChange={(event) => { setTyped(event.target.value); setError(''); }}
+          onChange={event => {
+            setTyped(event.target.value);
+            setError('');
+          }}
           autoComplete="off"
           spellCheck={false}
           mono
         />
         <div aria-live="assertive">
-          {error && <div className="org-dialog-error" role="alert"><TriangleAlert aria-hidden="true" />{error}</div>}
+          {error && (
+            <div className="org-dialog-error" role="alert">
+              <TriangleAlert aria-hidden="true" />
+              {error}
+            </div>
+          )}
         </div>
         <div className="ui-modal-actions">
-          <Action variant="secondary" onClick={onClose} disabled={busy}>Cancel</Action>
-          <Action type="submit" variant="danger" disabled={!matches} busy={busy}>Delete permanently</Action>
+          <Action variant="secondary" onClick={onClose} disabled={busy}>
+            Cancel
+          </Action>
+          <Action type="submit" variant="danger" disabled={!matches} busy={busy}>
+            Delete permanently
+          </Action>
         </div>
       </form>
     </Modal>
@@ -107,7 +148,14 @@ interface SettingsTabProps {
  * change names the revision the page read (`If-Match`), so a change made meanwhile by someone else is refused (412) instead of
  * overwritten; the page then reads the composition again and says so. Making a composition public first says what that exposes.
  */
-export function SettingsTab({ org, organizationName, composition, etag, access, onChanged }: SettingsTabProps) {
+export function SettingsTab({
+  org,
+  organizationName,
+  composition,
+  etag,
+  access,
+  onChanged,
+}: SettingsTabProps) {
   const [draft, setDraft] = useState<{ name: string; description: string } | null>(null);
   const [busy, setBusy] = useState<Change | null>(null);
   const [saved, setSaved] = useState('');
@@ -125,7 +173,8 @@ export function SettingsTab({ org, organizationName, composition, etag, access, 
 
   const name = draft?.name ?? composition.name;
   const description = draft?.description ?? composition.description;
-  const unchanged = name.trim() === composition.name && description.trim() === composition.description;
+  const unchanged =
+    name.trim() === composition.name && description.trim() === composition.description;
   const isPublic = composition.visibility === 'public';
 
   const change = async (kind: Change, body: CompositionUpdate, done: string) => {
@@ -154,7 +203,11 @@ export function SettingsTab({ org, organizationName, composition, etag, access, 
       setErrors({ details: 'Give the composition a name.' });
       return;
     }
-    void change('details', { name: name.trim(), description: description.trim() }, 'Name and description saved.');
+    void change(
+      'details',
+      { name: name.trim(), description: description.trim() },
+      'Name and description saved.'
+    );
   };
 
   return (
@@ -173,17 +226,25 @@ export function SettingsTab({ org, organizationName, composition, etag, access, 
             label="Name"
             value={name}
             maxLength={NAME_MAX}
-            onChange={(event) => { setDraft({ name: event.target.value, description }); setErrors({}); }}
+            onChange={event => {
+              setDraft({ name: event.target.value, description });
+              setErrors({});
+            }}
           />
           <div className="ui-field">
-            <label htmlFor="cms-description">Description <span className="proj-optional">(optional)</span></label>
+            <label htmlFor="cms-description">
+              Description <span className="proj-optional">(optional)</span>
+            </label>
             <textarea
               id="cms-description"
               className="proj-textarea"
               rows={3}
               maxLength={DESCRIPTION_MAX}
               value={description}
-              onChange={(event) => { setDraft({ name, description: event.target.value }); setErrors({}); }}
+              onChange={event => {
+                setDraft({ name, description: event.target.value });
+                setErrors({});
+              }}
             />
           </div>
           <div className="ui-field">
@@ -192,7 +253,9 @@ export function SettingsTab({ org, organizationName, composition, etag, access, 
           </div>
           {errors.details && <Notice tone="error">{errors.details}</Notice>}
           <div className="org-form-actions">
-            <Action type="submit" variant="primary" disabled={unchanged} busy={busy === 'details'}>Save</Action>
+            <Action type="submit" variant="primary" disabled={unchanged} busy={busy === 'details'}>
+              Save
+            </Action>
           </div>
         </form>
       </section>
@@ -203,14 +266,21 @@ export function SettingsTab({ org, organizationName, composition, etag, access, 
           <div className="cms-row-text">
             <strong>{composition.archived ? 'Archived' : 'Active'}</strong>
             <span className="org-muted">
-              An archived composition leaves the list of active ones and keeps every version. It can be restored at any time.
+              An archived composition leaves the list of active ones and keeps every version. It can
+              be restored at any time.
             </span>
           </div>
           <Switch
             checked={composition.archived}
             label="Archived"
             disabled={busy !== null}
-            onChange={(checked) => void change('archived', { archived: checked }, checked ? 'Composition archived.' : 'Composition restored.')}
+            onChange={checked =>
+              void change(
+                'archived',
+                { archived: checked },
+                checked ? 'Composition archived.' : 'Composition restored.'
+              )
+            }
           />
         </div>
         {errors.archived && <Notice tone="error">{errors.archived}</Notice>}
@@ -229,20 +299,35 @@ export function SettingsTab({ org, organizationName, composition, etag, access, 
                 ? 'Anybody reads it and every version’s document, signed in or not, and can fork it into their own organization.'
                 : `Only the members of ${organizationName} read it.`}
             </span>
-            {!access.canAdminister && <span className="org-muted">Changing who reads it needs ADMIN.</span>}
+            {!access.canAdminister && (
+              <span className="org-muted">Changing who reads it needs ADMIN.</span>
+            )}
           </div>
-          {access.canAdminister && (isPublic ? (
-            <Action
-              variant="secondary"
-              busy={busy === 'visibility'}
-              disabled={busy !== null}
-              onClick={() => void change('visibility', { visibility: 'private' }, 'The composition is private: only members read it.')}
-            >
-              Make private
-            </Action>
-          ) : (
-            <Action variant="secondary" disabled={busy !== null} onClick={() => setPublishing(true)}>Make public</Action>
-          ))}
+          {access.canAdminister &&
+            (isPublic ? (
+              <Action
+                variant="secondary"
+                busy={busy === 'visibility'}
+                disabled={busy !== null}
+                onClick={() =>
+                  void change(
+                    'visibility',
+                    { visibility: 'private' },
+                    'The composition is private: only members read it.'
+                  )
+                }
+              >
+                Make private
+              </Action>
+            ) : (
+              <Action
+                variant="secondary"
+                disabled={busy !== null}
+                onClick={() => setPublishing(true)}
+              >
+                Make public
+              </Action>
+            ))}
         </div>
         {errors.visibility && <Notice tone="error">{errors.visibility}</Notice>}
       </section>
@@ -252,23 +337,37 @@ export function SettingsTab({ org, organizationName, composition, etag, access, 
           <h2 id="cms-danger">Danger zone</h2>
           <div className="org-card is-danger org-stack">
             <strong>Delete this composition</strong>
-            <span className="org-muted">Deletes the composition with every version and its evaluations. This can’t be undone.</span>
-            <Action variant="danger-outline" onClick={() => setDeleting(true)}>Delete composition</Action>
+            <span className="org-muted">
+              Deletes the composition with every version and its evaluations. This can’t be undone.
+            </span>
+            <Action variant="danger-outline" onClick={() => setDeleting(true)}>
+              Delete composition
+            </Action>
           </div>
         </section>
       )}
 
       {publishing && (
-        <Modal title={`Make ${composition.name} public?`} size="md" onClose={() => setPublishing(false)}>
+        <Modal
+          title={`Make ${composition.name} public?`}
+          size="md"
+          onClose={() => setPublishing(false)}
+        >
           <div className="org-dialog-form">
             <p>{PUBLISH_CONFIRMATION}</p>
             <div className="ui-modal-actions">
-              <Action variant="secondary" onClick={() => setPublishing(false)}>Cancel</Action>
+              <Action variant="secondary" onClick={() => setPublishing(false)}>
+                Cancel
+              </Action>
               <Action
                 variant="primary"
                 onClick={() => {
                   setPublishing(false);
-                  void change('visibility', { visibility: 'public' }, 'The composition is public: anybody reads it.');
+                  void change(
+                    'visibility',
+                    { visibility: 'public' },
+                    'The composition is public: anybody reads it.'
+                  );
                 }}
               >
                 Make public
@@ -277,7 +376,9 @@ export function SettingsTab({ org, organizationName, composition, etag, access, 
           </div>
         </Modal>
       )}
-      {deleting && <DeleteDialog org={org} composition={composition} onClose={() => setDeleting(false)} />}
+      {deleting && (
+        <DeleteDialog org={org} composition={composition} onClose={() => setDeleting(false)} />
+      )}
     </div>
   );
 }

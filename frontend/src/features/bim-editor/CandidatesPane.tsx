@@ -1,7 +1,11 @@
 import { useMemo, useState } from 'react';
 import { Action } from '../../components/ui/Action';
 import { Notice } from '../../components/ui/Notice';
-import { candidateMatrix, type MatrixCandidate, type MatrixCell } from '../../entities/binding/candidateMatrix';
+import {
+  candidateMatrix,
+  type MatrixCandidate,
+  type MatrixCell,
+} from '../../entities/binding/candidateMatrix';
 import { resourcePaths } from '../../shared/diagnostics/bim';
 import type { Located } from '../../shared/diagnostics/located';
 import { formatFeature, type FeatureSlot } from '../../utils/featureRange';
@@ -10,7 +14,13 @@ import { ValueBadge } from '../../widgets/value-badge/ValueBadge';
 import { instanceResources, parseJson, pretty, type WorkspaceFiles } from './documents';
 import { FeatureCell } from './FeatureCell';
 import { CandidateCatalogForm } from './forms/ResourceForms';
-import { cellFindings, isPending, parsedDocuments, sourceValue, type CellOrigin } from './matrixEdits';
+import {
+  cellFindings,
+  isPending,
+  parsedDocuments,
+  sourceValue,
+  type CellOrigin,
+} from './matrixEdits';
 import { NotChecked, StaleNote, type ModelProps } from './ModelPanes';
 import { addCandidate, packageContext } from './packageContext';
 
@@ -44,13 +54,33 @@ interface CandidatesPaneProps extends ModelProps {
  * package; a cell whose source no longer agrees with the last check is pending until the next one, and the check's findings about
  * a value are shown on its cell. A candidate's name opens its catalog form (providers, capabilities, values) beside the matrix.
  */
-export function CandidatesPane({ facts, stale, selection, task, onTask, files, diagnostics, onEdit, update, onOpenFile, onOpenFinding }: CandidatesPaneProps) {
+export function CandidatesPane({
+  facts,
+  stale,
+  selection,
+  task,
+  onTask,
+  files,
+  diagnostics,
+  onEdit,
+  update,
+  onOpenFile,
+  onOpenFinding,
+}: CandidatesPaneProps) {
   const [editing, setEditing] = useState(true);
   const [panel, setPanel] = useState<CandidatePlace | null>(null);
-  const matrix = useMemo(() => (facts ? candidateMatrix(facts, { selection }) : null), [facts, selection]);
+  const matrix = useMemo(
+    () => (facts ? candidateMatrix(facts, { selection }) : null),
+    [facts, selection]
+  );
   const documents = useMemo(() => parsedDocuments(files), [files]);
-  const resources = useMemo(() => instanceResources(parseJson(files['instance.json']), files), [files]);
-  const catalogs = resources.filter((resource) => resource.kind === 'CandidateCatalog' && resource.path);
+  const resources = useMemo(
+    () => instanceResources(parseJson(files['instance.json']), files),
+    [files]
+  );
+  const catalogs = resources.filter(
+    resource => resource.kind === 'CandidateCatalog' && resource.path
+  );
   // Where each candidate of the facts is written: the file of its values, else the file the Instance gives its catalog.
   const places = useMemo(() => {
     const ids = resourcePaths(files);
@@ -63,15 +93,19 @@ export function CandidatesPane({ facts, stale, selection, task, onTask, files, d
   }, [facts, files]);
 
   if (!facts || !matrix) return <NotChecked what="The candidates of each task appear" />;
-  const shown = task && matrix.rows.some((row) => row.task === task) ? { ...matrix, rows: matrix.rows.filter((row) => row.task === task) } : matrix;
+  const shown =
+    task && matrix.rows.some(row => row.task === task)
+      ? { ...matrix, rows: matrix.rows.filter(row => row.task === task) }
+      : matrix;
   const placeOf = (candidate: MatrixCandidate) => places.get(candidate.key) ?? null;
-  const isOpen = (place: CandidatePlace | null) => place !== null && panel !== null && place.path === panel.path && place.id === panel.id;
+  const isOpen = (place: CandidatePlace | null) =>
+    place !== null && panel !== null && place.path === panel.path && place.id === panel.id;
 
   const add = (path: string) => {
     const document = parseJson(files[path]);
     if (!document) return;
     const added = addCandidate(document.spec ?? {});
-    update((current) => ({ ...current, [path]: pretty({ ...document, spec: added.spec }) }));
+    update(current => ({ ...current, [path]: pretty({ ...document, spec: added.spec }) }));
     setPanel({ path, id: added.id });
   };
 
@@ -79,7 +113,13 @@ export function CandidatesPane({ facts, stale, selection, task, onTask, files, d
     const place = placeOf(candidate);
     if (!place) return <code>{candidate.written}</code>;
     return (
-      <button type="button" className="pe-candidate-name" aria-expanded={isOpen(place)} aria-label={`Edit candidate ${candidate.written}`} onClick={() => setPanel(isOpen(place) ? null : place)}>
+      <button
+        type="button"
+        className="pe-candidate-name"
+        aria-expanded={isOpen(place)}
+        aria-label={`Edit candidate ${candidate.written}`}
+        onClick={() => setPanel(isOpen(place) ? null : place)}
+      >
         <code>{candidate.written}</code>
       </button>
     );
@@ -92,7 +132,16 @@ export function CandidatesPane({ facts, stale, selection, task, onTask, files, d
       return (
         <span className="pe-cell">
           <span className="cm-none">not declared</span>
-          {place && <button type="button" className="pe-link" onClick={() => setPanel(place)} aria-label={`Add ${cell.feature} for ${candidate.written}`}>Add a value</button>}
+          {place && (
+            <button
+              type="button"
+              className="pe-link"
+              onClick={() => setPanel(place)}
+              aria-label={`Add ${cell.feature} for ${candidate.written}`}
+            >
+              Add a value
+            </button>
+          )}
         </span>
       );
     }
@@ -103,26 +152,35 @@ export function CandidatesPane({ facts, stale, selection, task, onTask, files, d
         <span className="pe-cell">
           <span>{formatFeature(cell.value, { unit: cell.unit !== '1' ? cell.unit : null })}</span>
           <button type="button" className="pe-link" onClick={() => onOpenFile(origin.path)}>
-            {source.kind === 'unreadable' ? `Repair ${origin.path} in Files to edit it` : `Edit it in ${origin.path}`}
+            {source.kind === 'unreadable'
+              ? `Repair ${origin.path} in Files to edit it`
+              : `Edit it in ${origin.path}`}
           </button>
         </span>
       );
     }
     const pending = isPending(cell.value, source);
     return (
-      <div className={`pe-cell${pending ? ' is-pending' : ''}${findings.length ? ' has-finding' : ''}`}>
+      <div
+        className={`pe-cell${pending ? ' is-pending' : ''}${findings.length ? ' has-finding' : ''}`}
+      >
         <FeatureCell
           feature={cell.feature}
           candidate={candidate.written}
           value={source.kind === 'value' ? source.value : undefined}
-          onChange={(value) => onEdit(origin, value)}
+          onChange={value => onEdit(origin, value)}
         />
         <span className="pe-cell-meta">
           <ValueBadge origin={origin} compact />
           {pending && <span className="pe-pending">Pending check</span>}
         </span>
         {findings.map((finding, index) => (
-          <button key={`${finding.code}-${index}`} type="button" className={`pe-cell-finding is-${finding.severity}`} onClick={() => onOpenFinding(finding)}>
+          <button
+            key={`${finding.code}-${index}`}
+            type="button"
+            className={`pe-cell-finding is-${finding.severity}`}
+            onClick={() => onOpenFinding(finding)}
+          >
             {finding.message}
           </button>
         ))}
@@ -130,7 +188,11 @@ export function CandidatesPane({ facts, stale, selection, task, onTask, files, d
     );
   };
 
-  const known = panel ? facts.candidates.some((candidate) => places.get(candidate.key)?.path === panel.path && candidate.id === panel.id) : false;
+  const known = panel
+    ? facts.candidates.some(
+        candidate => places.get(candidate.key)?.path === panel.path && candidate.id === panel.id
+      )
+    : false;
 
   return (
     <div className="pe-pane-body">
@@ -138,13 +200,28 @@ export function CandidatesPane({ facts, stale, selection, task, onTask, files, d
       <div className="pe-candidates-bar">
         <label className="pe-field">
           <span>Task</span>
-          <select aria-label="Task" value={shown === matrix ? '' : task ?? ''} onChange={(event) => onTask(event.target.value || null)}>
+          <select
+            aria-label="Task"
+            value={shown === matrix ? '' : (task ?? '')}
+            onChange={event => onTask(event.target.value || null)}
+          >
             <option value="">All tasks</option>
-            {matrix.rows.map((row) => <option key={row.task} value={row.task}>{row.task}</option>)}
+            {matrix.rows.map(row => (
+              <option key={row.task} value={row.task}>
+                {row.task}
+              </option>
+            ))}
           </select>
         </label>
-        <Action size="sm" variant="ghost" aria-pressed={editing} onClick={() => setEditing((value) => !value)}>Edit values</Action>
-        {catalogs.map((catalog) => (
+        <Action
+          size="sm"
+          variant="ghost"
+          aria-pressed={editing}
+          onClick={() => setEditing(value => !value)}
+        >
+          Edit values
+        </Action>
+        {catalogs.map(catalog => (
           <Action key={catalog.id} size="sm" variant="secondary" onClick={() => add(catalog.path!)}>
             {catalogs.length === 1 ? 'Add a candidate' : `Add a candidate to ${catalog.id}`}
           </Action>
@@ -152,8 +229,8 @@ export function CandidatesPane({ facts, stale, selection, task, onTask, files, d
       </div>
       {editing && (
         <p className="pe-muted">
-          Each value is written where the package declares it. An edited value is pending until the next check; a new candidate
-          appears under the tasks that can take it after the next check.
+          Each value is written where the package declares it. An edited value is pending until the
+          next check; a new candidate appears under the tasks that can take it after the next check.
         </p>
       )}
       <div className={panel ? 'pe-candidates has-panel' : 'pe-candidates'}>
@@ -180,7 +257,14 @@ export function CandidatesPane({ facts, stale, selection, task, onTask, files, d
 }
 
 /** One candidate's catalog form: the providers it can point to, its capabilities, provider and values, and the values it misses. */
-function CandidatePanel({ place, known, files, update, onOpenFile, onClose }: {
+function CandidatePanel({
+  place,
+  known,
+  files,
+  update,
+  onOpenFile,
+  onClose,
+}: {
   place: CandidatePlace;
   /** The last check has this candidate (a new one has not been checked yet). */
   known: boolean;
@@ -196,22 +280,47 @@ function CandidatePanel({ place, known, files, update, onOpenFile, onClose }: {
   return (
     <aside className="pe-candidate-panel" aria-labelledby="pe-candidate-title">
       <div className="pe-candidate-head">
-        <h3 id="pe-candidate-title">Candidate <code>{place.id}</code></h3>
-        <span className="pe-muted">in <code>{place.path}</code></span>
-        <Action size="sm" variant="ghost" onClick={onClose}>Close</Action>
+        <h3 id="pe-candidate-title">
+          Candidate <code>{place.id}</code>
+        </h3>
+        <span className="pe-muted">
+          in <code>{place.path}</code>
+        </span>
+        <Action size="sm" variant="ghost" onClick={onClose}>
+          Close
+        </Action>
       </div>
       {!document ? (
-        <Notice tone="error" action={<button type="button" className="pe-link" onClick={() => onOpenFile(place.path)}>Open {place.path} in Files</button>}>
+        <Notice
+          tone="error"
+          action={
+            <button type="button" className="pe-link" onClick={() => onOpenFile(place.path)}>
+              Open {place.path} in Files
+            </button>
+          }
+        >
           {`${place.path} is not a JSON document right now, so the candidate has no form. Repair its text in Files.`}
         </Notice>
       ) : (
         <>
-          {present && !known && <p className="pe-note" role="note">{`${place.id} is not in the matrix yet: it appears after the next check, under the tasks that can take it.`}</p>}
-          {!present && known && <p className="pe-note" role="note">{`${place.id} was removed from ${place.path}; it leaves the matrix after the next check.`}</p>}
+          {present && !known && (
+            <p
+              className="pe-note"
+              role="note"
+            >{`${place.id} is not in the matrix yet: it appears after the next check, under the tasks that can take it.`}</p>
+          )}
+          {!present && known && (
+            <p
+              className="pe-note"
+              role="note"
+            >{`${place.id} was removed from ${place.path}; it leaves the matrix after the next check.`}</p>
+          )}
           <div className="resource-form">
             <CandidateCatalogForm
               spec={document.spec ?? {}}
-              updateSpec={(spec) => update((current) => ({ ...current, [place.path]: pretty({ ...document, spec }) }))}
+              updateSpec={spec =>
+                update(current => ({ ...current, [place.path]: pretty({ ...document, spec }) }))
+              }
               context={context}
               candidate={place.id}
             />

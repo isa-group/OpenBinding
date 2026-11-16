@@ -29,7 +29,12 @@ export function TabBar({ items, value, onChange, ariaLabel, prefix }: TabBarProp
   };
 
   const onKeyDown = (event: KeyboardEvent, index: number) => {
-    const keys: Record<string, number> = { ArrowRight: index + 1, ArrowLeft: index - 1, Home: 0, End: items.length - 1 };
+    const keys: Record<string, number> = {
+      ArrowRight: index + 1,
+      ArrowLeft: index - 1,
+      Home: 0,
+      End: items.length - 1,
+    };
     if (!(event.key in keys)) return;
     event.preventDefault();
     move(keys[event.key]);
@@ -40,7 +45,9 @@ export function TabBar({ items, value, onChange, ariaLabel, prefix }: TabBarProp
       {items.map((item, index) => (
         <button
           key={item.id}
-          ref={(node) => { buttons.current[index] = node; }}
+          ref={node => {
+            buttons.current[index] = node;
+          }}
           id={`${prefix}-tab-${item.id}`}
           type="button"
           role="tab"
@@ -48,7 +55,7 @@ export function TabBar({ items, value, onChange, ariaLabel, prefix }: TabBarProp
           aria-controls={`${prefix}-panel`}
           tabIndex={item.id === value ? 0 : -1}
           onClick={() => onChange(item.id)}
-          onKeyDown={(event) => onKeyDown(event, index)}
+          onKeyDown={event => onKeyDown(event, index)}
         >
           {item.label}
           {item.count !== undefined && <span className="ui-tabbar-count">{item.count}</span>}
@@ -59,9 +66,23 @@ export function TabBar({ items, value, onChange, ariaLabel, prefix }: TabBarProp
 }
 
 /** The panel the selected tab controls. */
-export function TabPanel({ prefix, active, children }: { prefix: string; active: string; children: ReactNode }) {
+export function TabPanel({
+  prefix,
+  active,
+  children,
+}: {
+  prefix: string;
+  active: string;
+  children: ReactNode;
+}) {
   return (
-    <div id={`${prefix}-panel`} role="tabpanel" aria-labelledby={`${prefix}-tab-${active}`} tabIndex={-1} className="ui-tabpanel">
+    <div
+      id={`${prefix}-panel`}
+      role="tabpanel"
+      aria-labelledby={`${prefix}-tab-${active}`}
+      tabIndex={-1}
+      className="ui-tabpanel"
+    >
       {children}
     </div>
   );

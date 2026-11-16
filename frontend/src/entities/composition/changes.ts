@@ -18,17 +18,23 @@ function notComparableReason(diff: CompositionVersionDiff): string | null {
   if (comparison.comparable) return null;
   const reasons: string[] = [];
   const { before, after } = comparison.valueStatus;
-  if (before !== after) reasons.push(`the values of ${from.label} are ${before} and those of ${to.label} are ${after}`);
+  if (before !== after)
+    reasons.push(`the values of ${from.label} are ${before} and those of ${to.label} are ${after}`);
   if (comparison.problemRefChanged) reasons.push('the two versions link different problems');
-  else if (comparison.compilationChanged) reasons.push('the two versions were judged on different compilations');
-  return reasons.length ? `Values are not compared: ${reasons.join(', and ')}.` : 'Values are not compared.';
+  else if (comparison.compilationChanged)
+    reasons.push('the two versions were judged on different compilations');
+  return reasons.length
+    ? `Values are not compared: ${reasons.join(', and ')}.`
+    : 'Values are not compared.';
 }
 
 /**
  * Why the two sides' values are not compared, in a few words for a summary line: the problem changed, the compilation changed, or
  * one side's values are verified and the other's declared. Null when they compare. Built only from the gateway's flags.
  */
-export function notComparableShort(comparison: CompositionVersionDiff['comparison']): string | null {
+export function notComparableShort(
+  comparison: CompositionVersionDiff['comparison']
+): string | null {
   if (comparison.comparable) return null;
   const reasons: string[] = [];
   if (comparison.problemRefChanged) reasons.push('problem changed');

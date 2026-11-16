@@ -3,7 +3,12 @@ import { join } from 'node:path';
 import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { BindingTable } from './BindingTable';
-import { bindingFeaturesOf, bindingRowsOf, type BindingRow, type BindingProblemShape } from './bindingTableModel';
+import {
+  bindingFeaturesOf,
+  bindingRowsOf,
+  type BindingRow,
+  type BindingProblemShape,
+} from './bindingTableModel';
 
 const PROBLEM: BindingProblemShape = {
   features: { latency: { unit: 'ms' }, cost: { unit: 'EUR' }, availability: { unit: null } },
@@ -12,24 +17,42 @@ const PROBLEM: BindingProblemShape = {
       id: 'pay',
       name: 'Payment',
       candidates: [
-        { id: 'stripe', name: 'Stripe Payments', provider: 'Stripe', features: { latency: 120, cost: 0.3, availability: 0.999 } },
+        {
+          id: 'stripe',
+          name: 'Stripe Payments',
+          provider: 'Stripe',
+          features: { latency: 120, cost: 0.3, availability: 0.999 },
+        },
         { id: 'adyen', name: 'Adyen', provider: 'Adyen', features: { latency: 90, cost: 0.25 } },
       ],
     },
     {
       id: 'ship',
       name: 'Shipping',
-      candidates: [{ id: 'dhl', name: 'DHL Express', provider: 'DHL', features: { latency: { min: 200, max: 400 }, availability: 0.99 } }],
+      candidates: [
+        {
+          id: 'dhl',
+          name: 'DHL Express',
+          provider: 'DHL',
+          features: { latency: { min: 200, max: 400 }, availability: 0.99 },
+        },
+      ],
     },
   ],
 };
 
-const BINDING = { ship: { resource: 'carriers', id: 'dhl' }, pay: { resource: 'payments', id: 'stripe' } };
+const BINDING = {
+  ship: { resource: 'carriers', id: 'dhl' },
+  pay: { resource: 'payments', id: 'stripe' },
+};
 const PAYPAL = { pay: { resource: 'payments', id: 'paypal' } };
 
-const full = () => <BindingTable rows={bindingRowsOf(BINDING, PROBLEM)} features={bindingFeaturesOf(PROBLEM)} />;
-const headers = () => screen.getAllByRole('columnheader').map((cell) => cell.textContent);
-const rowOf = (name: string) => screen.getByRole('rowheader', { name: new RegExp(`^${name}`) }).closest('tr') as HTMLElement;
+const full = () => (
+  <BindingTable rows={bindingRowsOf(BINDING, PROBLEM)} features={bindingFeaturesOf(PROBLEM)} />
+);
+const headers = () => screen.getAllByRole('columnheader').map(cell => cell.textContent);
+const rowOf = (name: string) =>
+  screen.getByRole('rowheader', { name: new RegExp(`^${name}`) }).closest('tr') as HTMLElement;
 
 describe('BindingTable', () => {
   it('renders a named focusable region with a table, scoped headers and rows in order', () => {
@@ -37,10 +60,18 @@ describe('BindingTable', () => {
     const region = screen.getByRole('region', { name: 'Chosen providers' });
     expect(region).toHaveAttribute('tabindex', '0');
     expect(within(region).getByRole('table')).toHaveStyle({ minWidth: '680px' });
-    expect(headers()).toEqual(['Task', 'Candidate', 'Provider', 'latency (ms)', 'cost (EUR)', 'availability']);
-    for (const header of screen.getAllByRole('columnheader')) expect(header).toHaveAttribute('scope', 'col');
+    expect(headers()).toEqual([
+      'Task',
+      'Candidate',
+      'Provider',
+      'latency (ms)',
+      'cost (EUR)',
+      'availability',
+    ]);
+    for (const header of screen.getAllByRole('columnheader'))
+      expect(header).toHaveAttribute('scope', 'col');
     const rowHeaders = screen.getAllByRole('rowheader');
-    expect(rowHeaders.map((cell) => cell.textContent)).toEqual(['Payment pay', 'Shipping ship']);
+    expect(rowHeaders.map(cell => cell.textContent)).toEqual(['Payment pay', 'Shipping ship']);
     for (const header of rowHeaders) expect(header).toHaveAttribute('scope', 'row');
   });
 
@@ -51,7 +82,7 @@ describe('BindingTable', () => {
     expect(within(row).getByRole('rowheader').querySelector('code')).toHaveTextContent('pay');
     expect(cells[0]).toHaveTextContent('Stripe Payments');
     expect(cells[0].querySelector('code')).toHaveTextContent('stripe');
-    expect(cells.slice(1).map((cell) => cell.textContent)).toEqual(['Stripe', '120', '0.3', '0.999']);
+    expect(cells.slice(1).map(cell => cell.textContent)).toEqual(['Stripe', '120', '0.3', '0.999']);
     expect(screen.getAllByRole('row')).toHaveLength(3);
     expect(screen.queryByText(/total/i)).toBeNull();
   });
@@ -73,8 +104,17 @@ describe('BindingTable', () => {
       [1234.5678, '1,234.5678'],
     ];
     for (const [value, text] of cases) {
-      const row: BindingRow = { task: 't', taskName: 't', candidate: 'c', candidateName: 'c', provider: null, values: { latency: value } };
-      const { unmount } = render(<BindingTable rows={[row]} features={[{ name: 'latency', unit: 'ms' }]} />);
+      const row: BindingRow = {
+        task: 't',
+        taskName: 't',
+        candidate: 'c',
+        candidateName: 'c',
+        provider: null,
+        values: { latency: value },
+      };
+      const { unmount } = render(
+        <BindingTable rows={[row]} features={[{ name: 'latency', unit: 'ms' }]} />
+      );
       const cell = screen.getAllByRole('cell')[1];
       expect(cell.textContent).toBe(text);
       expect(cell.textContent).not.toContain('ms');
@@ -93,19 +133,31 @@ describe('BindingTable', () => {
 
   it('shows the Provider column only when a provider is known', () => {
     const features = bindingFeaturesOf(PROBLEM);
-    const { unmount } = render(<BindingTable rows={bindingRowsOf(PAYPAL, PROBLEM)} features={features} />);
+    const { unmount } = render(
+      <BindingTable rows={bindingRowsOf(PAYPAL, PROBLEM)} features={features} />
+    );
     expect(headers()).not.toContain('Provider');
     expect(screen.getAllByText('no value')).toHaveLength(3);
     unmount();
 
-    render(<BindingTable rows={bindingRowsOf({ ...PAYPAL, ship: { resource: 'carriers', id: 'dhl' } }, PROBLEM)} features={features} />);
+    render(
+      <BindingTable
+        rows={bindingRowsOf({ ...PAYPAL, ship: { resource: 'carriers', id: 'dhl' } }, PROBLEM)}
+        features={features}
+      />
+    );
     expect(headers()).toContain('Provider');
     expect(within(rowOf('Payment')).getAllByRole('cell')[1]).toHaveTextContent('no value');
     expect(within(rowOf('Shipping')).getAllByRole('cell')[1]).toHaveTextContent('DHL');
   });
 
   it('reads no value for a feature the rows do not carry', () => {
-    render(<BindingTable rows={bindingRowsOf(BINDING, PROBLEM)} features={[{ name: 'energy', unit: 'J' }]} />);
+    render(
+      <BindingTable
+        rows={bindingRowsOf(BINDING, PROBLEM)}
+        features={[{ name: 'energy', unit: 'J' }]}
+      />
+    );
     expect(headers()).toContain('energy (J)');
     for (const row of screen.getAllByRole('row').slice(1)) {
       expect(within(row).getAllByRole('cell').at(-1)).toHaveTextContent('no value');
@@ -113,7 +165,14 @@ describe('BindingTable', () => {
   });
 
   it('does not read inherited properties as values', () => {
-    const row: BindingRow = { task: 't', taskName: 't', candidate: 'c', candidateName: 'c', provider: null, values: {} };
+    const row: BindingRow = {
+      task: 't',
+      taskName: 't',
+      candidate: 'c',
+      candidateName: 'c',
+      provider: null,
+      values: {},
+    };
     render(<BindingTable rows={[row]} features={[{ name: 'toString', unit: null }]} />);
     expect(screen.getAllByRole('cell')[1]).toHaveTextContent('no value');
   });
@@ -154,7 +213,9 @@ describe('BindingTable', () => {
     const read = (name: string) => readFileSync(join(__dirname, name), 'utf8');
     expect(read('BindingTable.css')).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
     for (const source of ['BindingTable.tsx', 'bindingTableModel.ts']) {
-      const imports = read(source).split('\n').filter((line) => /^\s*import\b/.test(line) || /\bfrom\s+['"]/.test(line));
+      const imports = read(source)
+        .split('\n')
+        .filter(line => /^\s*import\b/.test(line) || /\bfrom\s+['"]/.test(line));
       for (const line of imports) expect(line).not.toContain('pages/');
     }
   });

@@ -52,7 +52,13 @@ export const DEFAULT_FILES: WorkspaceFiles = {
     spec: {
       tasks: { hello: 'http' },
       features: {
-        latency: { unit: 'ms', domain: 'real', direction: 'minimize', scope: 'invocation', aggregation: 'sum' },
+        latency: {
+          unit: 'ms',
+          domain: 'real',
+          direction: 'minimize',
+          scope: 'invocation',
+          aggregation: 'sum',
+        },
       },
       workflow: { bpmn: { resource: 'workflow', id: 'Process_1' } },
     },
@@ -75,7 +81,8 @@ export const DEFAULT_FILES: WorkspaceFiles = {
   'workflow.bpmn': DEFAULT_BPMN,
 };
 
-export type WorkspaceStatus = 'idle' | 'validating' | 'valid' | 'queued' | 'running' | 'completed' | 'failed';
+export type WorkspaceStatus =
+  'idle' | 'validating' | 'valid' | 'queued' | 'running' | 'completed' | 'failed';
 
 /**
  * The compiled form of the package on screen, as the gateway's validation returned it (nothing is stored): the IR, shown as
@@ -140,11 +147,13 @@ export interface InternalReference extends Record<string, unknown> {
   id?: string;
 }
 
-export type TaskDocument = string | {
-  kind?: 'service' | 'local';
-  requires?: string | { type?: string; predicate?: unknown };
-  [key: string]: unknown;
-};
+export type TaskDocument =
+  | string
+  | {
+      kind?: 'service' | 'local';
+      requires?: string | { type?: string; predicate?: unknown };
+      [key: string]: unknown;
+    };
 
 /** A quality the Application declares (`spec.features`). */
 export interface FeatureDocument extends Record<string, unknown> {
@@ -175,7 +184,10 @@ export function candidateFeatures(candidate: CandidateDocument): Record<string, 
 }
 
 /** The candidate with these qualities under `features`. */
-export function withCandidateFeatures(candidate: CandidateDocument, features: Record<string, FeatureSlot>): CandidateDocument {
+export function withCandidateFeatures(
+  candidate: CandidateDocument,
+  features: Record<string, FeatureSlot>
+): CandidateDocument {
   return { ...candidate, features };
 }
 
@@ -334,18 +346,20 @@ export function parseJson(source: string | undefined): BimDocument | null {
   if (!source) return null;
   try {
     const parsed: unknown = JSON.parse(source);
-    return isRecord(parsed) ? parsed as BimDocument : null;
+    return isRecord(parsed) ? (parsed as BimDocument) : null;
   } catch {
     return null;
   }
 }
 
 export function isRegisteredResourceRef(value: unknown): value is RegisteredResourceRef {
-  return isRecord(value)
-    && typeof value.namespace === 'string'
-    && typeof value.name === 'string'
-    && typeof value.version === 'string'
-    && (typeof value.digest === 'string' || typeof value.versionDigest === 'string');
+  return (
+    isRecord(value) &&
+    typeof value.namespace === 'string' &&
+    typeof value.name === 'string' &&
+    typeof value.version === 'string' &&
+    (typeof value.digest === 'string' || typeof value.versionDigest === 'string')
+  );
 }
 
 function kindForLocalResource(path: string, files: WorkspaceFiles): string {
@@ -356,15 +370,20 @@ function kindForLocalResource(path: string, files: WorkspaceFiles): string {
 }
 
 /** What the instance document points to, role by role: a file of the package or a registered resource. */
-export function instanceResources(root: BimDocument | null, files: WorkspaceFiles): ResourceEntry[] {
+export function instanceResources(
+  root: BimDocument | null,
+  files: WorkspaceFiles
+): ResourceEntry[] {
   const groups = root?.spec?.resources;
   if (!isRecord(groups)) return [];
-  return Object.keys(groups).flatMap((role) => {
+  return Object.keys(groups).flatMap(role => {
     const group = groups[role];
     if (!isRecord(group)) return [];
     return Object.entries(group).map(([id, target]): ResourceEntry => {
-      if (typeof target === 'string') return { id, role, path: target, kind: kindForLocalResource(target, files) };
-      if (isRegisteredResourceRef(target)) return { id, role, registered: target, kind: 'Registered' };
+      if (typeof target === 'string')
+        return { id, role, path: target, kind: kindForLocalResource(target, files) };
+      if (isRegisteredResourceRef(target))
+        return { id, role, registered: target, kind: 'Registered' };
       return { id, role, kind: 'Invalid target' };
     });
   });
@@ -382,39 +401,85 @@ export function errorDiagnostics(error: unknown, fallbackCode: string): Diagnost
 }
 
 const BINARY_EXPRESSION_OPERATORS = new Set([
-  'and', 'or', 'eq', 'ne', 'lt', 'lte', 'gt', 'gte', 'add', 'sub', 'mul', 'div', 'pow', 'scale', 'power',
+  'and',
+  'or',
+  'eq',
+  'ne',
+  'lt',
+  'lte',
+  'gt',
+  'gte',
+  'add',
+  'sub',
+  'mul',
+  'div',
+  'pow',
+  'scale',
+  'power',
 ]);
 const UNARY_EXPRESSION_OPERATORS = new Set(['not', 'negate']);
-const CALL_EXPRESSION_OPERATORS = new Set(['has', 'min', 'max', 'sum', 'product', 'weightedSum', 'weightedProduct']);
+const CALL_EXPRESSION_OPERATORS = new Set([
+  'has',
+  'min',
+  'max',
+  'sum',
+  'product',
+  'weightedSum',
+  'weightedProduct',
+]);
 export const IDENTIFIER_PATTERN = /^[A-Za-z][A-Za-z0-9_.-]{0,127}$/;
-export const DEFAULT_AST_ASSERTION = { op: 'gte', left: { path: 'features.latency' }, right: { literal: 0 } };
+export const DEFAULT_AST_ASSERTION = {
+  op: 'gte',
+  left: { path: 'features.latency' },
+  right: { literal: 0 },
+};
 export const DEFAULT_CEL_ASSERTION = 'features.latency >= 0';
 
 export function isSourceExpression(value: unknown, depth = 0): boolean {
-  if (depth > 32 || value === null || typeof value === 'string' || typeof value === 'boolean') return depth <= 32;
+  if (depth > 32 || value === null || typeof value === 'string' || typeof value === 'boolean')
+    return depth <= 32;
   if (typeof value === 'number') return Number.isFinite(value);
   if (!isRecord(value)) return false;
   const keys = Object.keys(value);
   if (keys.length === 1 && 'literal' in value) {
     const literal = value.literal;
-    return literal === null || typeof literal === 'string' || typeof literal === 'boolean'
-      || (typeof literal === 'number' && Number.isFinite(literal));
+    return (
+      literal === null ||
+      typeof literal === 'string' ||
+      typeof literal === 'boolean' ||
+      (typeof literal === 'number' && Number.isFinite(literal))
+    );
   }
   if (keys.length === 1 && 'path' in value) {
-    return (typeof value.path === 'string' && /^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*$/.test(value.path))
-      || (Array.isArray(value.path) && value.path.length > 0 && value.path.every((segment) => typeof segment === 'string' && segment.length > 0));
+    return (
+      (typeof value.path === 'string' &&
+        /^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*$/.test(value.path)) ||
+      (Array.isArray(value.path) &&
+        value.path.length > 0 &&
+        value.path.every(segment => typeof segment === 'string' && segment.length > 0))
+    );
   }
   if (typeof value.op !== 'string') return false;
   if (BINARY_EXPRESSION_OPERATORS.has(value.op)) {
-    return keys.length === 3 && 'left' in value && 'right' in value
-      && isSourceExpression(value.left, depth + 1) && isSourceExpression(value.right, depth + 1);
+    return (
+      keys.length === 3 &&
+      'left' in value &&
+      'right' in value &&
+      isSourceExpression(value.left, depth + 1) &&
+      isSourceExpression(value.right, depth + 1)
+    );
   }
   if (UNARY_EXPRESSION_OPERATORS.has(value.op)) {
     return keys.length === 2 && 'value' in value && isSourceExpression(value.value, depth + 1);
   }
   if (CALL_EXPRESSION_OPERATORS.has(value.op)) {
-    return keys.length === 2 && Array.isArray(value.args) && value.args.length >= 1 && value.args.length <= 16
-      && value.args.every((argument) => isSourceExpression(argument, depth + 1));
+    return (
+      keys.length === 2 &&
+      Array.isArray(value.args) &&
+      value.args.length >= 1 &&
+      value.args.length <= 16 &&
+      value.args.every(argument => isSourceExpression(argument, depth + 1))
+    );
   }
   return false;
 }

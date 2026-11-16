@@ -23,10 +23,13 @@ const plural = (count: number, one: string, many: string) => `${count} ${count =
 
 /** What the lint said of the file, in words. */
 function verdict(result: ValidateResult): string {
-  const errors = result.diagnostics.filter((item) => item.severity === 'error').length;
-  const warnings = result.diagnostics.filter((item) => item.severity === 'warning').length;
+  const errors = result.diagnostics.filter(item => item.severity === 'error').length;
+  const warnings = result.diagnostics.filter(item => item.severity === 'warning').length;
   if (!errors && !warnings) return 'The gateway found no problems in this file.';
-  const parts = [errors ? plural(errors, 'error', 'errors') : '', warnings ? plural(warnings, 'warning', 'warnings') : ''].filter(Boolean);
+  const parts = [
+    errors ? plural(errors, 'error', 'errors') : '',
+    warnings ? plural(warnings, 'warning', 'warnings') : '',
+  ].filter(Boolean);
   return `The gateway found ${parts.join(' and ')}. Open it to see where, and fix them before sealing.`;
 }
 
@@ -34,7 +37,13 @@ function verdict(result: ValidateResult): string {
  * Start a version from a Composition2Yaml file: it is read as text (at most 256 KiB, the gateway's own limit), linted, and opened
  * as a new draft of the editor. Over unsaved changes the editor asks first.
  */
-export function UploadDialog({ onClose, onLoad }: { onClose: () => void; onLoad: (text: string) => void }) {
+export function UploadDialog({
+  onClose,
+  onLoad,
+}: {
+  onClose: () => void;
+  onLoad: (text: string) => void;
+}) {
   const inputId = useId();
   const [file, setFile] = useState<{ name: string; text: string } | null>(null);
   const [result, setResult] = useState<ValidateResult | null>(null);
@@ -57,7 +66,9 @@ export function UploadDialog({ onClose, onLoad }: { onClose: () => void; onLoad:
       setFile({ name: chosen.name, text });
       setResult(await languageApi.validate(text));
     } catch (caught) {
-      setError(readApiError(caught).message || `${chosen.name} couldn’t be checked. You can still open it.`);
+      setError(
+        readApiError(caught).message || `${chosen.name} couldn’t be checked. You can still open it.`
+      );
     } finally {
       setBusy(false);
     }
@@ -68,17 +79,44 @@ export function UploadDialog({ onClose, onLoad }: { onClose: () => void; onLoad:
       <div className="org-dialog-form">
         <div className="ui-field">
           <label htmlFor={inputId}>Composition2Yaml file</label>
-          <input id={inputId} type="file" accept=".yml,.yaml" onChange={(event) => void choose(event)} disabled={busy} />
+          <input
+            id={inputId}
+            type="file"
+            accept=".yml,.yaml"
+            onChange={event => void choose(event)}
+            disabled={busy}
+          />
         </div>
-        <p className="org-muted">The file opens as a new draft of this editor. Nothing is sealed until you seal it.</p>
+        <p className="org-muted">
+          The file opens as a new draft of this editor. Nothing is sealed until you seal it.
+        </p>
         <div aria-live="polite">
-          {busy && <p className="org-muted" role="status">Checking the file…</p>}
+          {busy && (
+            <p className="org-muted" role="status">
+              Checking the file…
+            </p>
+          )}
           {file && result && <p className="ce-upload-verdict">{verdict(result)}</p>}
-          {error && <div className="org-dialog-error" role="alert"><TriangleAlert aria-hidden="true" />{error}</div>}
+          {error && (
+            <div className="org-dialog-error" role="alert">
+              <TriangleAlert aria-hidden="true" />
+              {error}
+            </div>
+          )}
         </div>
         <div className="ui-modal-actions">
-          <Action variant="secondary" onClick={onClose} disabled={busy}>Cancel</Action>
-          <Action variant="primary" disabled={!file || busy} onClick={() => { if (file) onLoad(file.text); }}>Open in the editor</Action>
+          <Action variant="secondary" onClick={onClose} disabled={busy}>
+            Cancel
+          </Action>
+          <Action
+            variant="primary"
+            disabled={!file || busy}
+            onClick={() => {
+              if (file) onLoad(file.text);
+            }}
+          >
+            Open in the editor
+          </Action>
         </div>
       </div>
     </Modal>

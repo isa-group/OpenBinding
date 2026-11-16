@@ -50,32 +50,46 @@ export interface CandidateMatrix {
 }
 
 /** The matrix of a problem's facts. `selection` (task → candidate key, as `EvaluationView.binding` has it) marks the chosen candidates. */
-export function candidateMatrix(facts: ProblemFacts, options: { selection?: Record<string, string> } = {}): CandidateMatrix {
+export function candidateMatrix(
+  facts: ProblemFacts,
+  options: { selection?: Record<string, string> } = {}
+): CandidateMatrix {
   const features: MatrixFeature[] = [
-    ...facts.features.filter((feature) => feature.required),
-    ...facts.features.filter((feature) => !feature.required),
-  ].map((feature) => ({ id: feature.id, unit: feature.unit, direction: feature.direction ?? null, required: feature.required }));
-  const byKey = new Map(facts.candidates.map((candidate) => [candidate.key, candidate]));
+    ...facts.features.filter(feature => feature.required),
+    ...facts.features.filter(feature => !feature.required),
+  ].map(feature => ({
+    id: feature.id,
+    unit: feature.unit,
+    direction: feature.direction ?? null,
+    required: feature.required,
+  }));
+  const byKey = new Map(facts.candidates.map(candidate => [candidate.key, candidate]));
   const selection = options.selection ?? {};
 
-  const rows: MatrixRow[] = facts.tasks.map((task) => ({
+  const rows: MatrixRow[] = facts.tasks.map(task => ({
     task: task.id,
     kind: task.kind,
-    candidates: task.kind === 'local' ? [] : task.eligible.map((eligible) => {
-      const candidate = byKey.get(eligible.candidate);
-      return {
-        key: eligible.candidate,
-        written: eligible.written,
-        provider: candidate?.provider ?? null,
-        cells: features.map((feature) => ({
-          feature: feature.id,
-          value: candidate && Object.hasOwn(candidate.values, feature.id) ? candidate.values[feature.id] : null,
-          unit: feature.unit,
-          origin: candidate?.origins[feature.id] ?? null,
-        })),
-        selected: selection[task.id] === eligible.candidate,
-      };
-    }),
+    candidates:
+      task.kind === 'local'
+        ? []
+        : task.eligible.map(eligible => {
+            const candidate = byKey.get(eligible.candidate);
+            return {
+              key: eligible.candidate,
+              written: eligible.written,
+              provider: candidate?.provider ?? null,
+              cells: features.map(feature => ({
+                feature: feature.id,
+                value:
+                  candidate && Object.hasOwn(candidate.values, feature.id)
+                    ? candidate.values[feature.id]
+                    : null,
+                unit: feature.unit,
+                origin: candidate?.origins[feature.id] ?? null,
+              })),
+              selected: selection[task.id] === eligible.candidate,
+            };
+          }),
   }));
   return { features, rows };
 }

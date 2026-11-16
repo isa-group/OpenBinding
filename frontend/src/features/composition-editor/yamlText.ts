@@ -17,7 +17,10 @@ const parse = (text: string): Tree => yamlLanguage.parser.parse(text);
 /** A scalar as YAML reads it: quotes removed (escapes inside a double-quoted scalar are left as written). */
 function unquote(raw: string): string {
   const text = raw.trim();
-  if (text.length >= 2 && ((text.startsWith('"') && text.endsWith('"')) || (text.startsWith("'") && text.endsWith("'")))) {
+  if (
+    text.length >= 2 &&
+    ((text.startsWith('"') && text.endsWith('"')) || (text.startsWith("'") && text.endsWith("'")))
+  ) {
     return text.slice(1, -1);
   }
   return text;
@@ -45,9 +48,8 @@ function rootMapping(tree: Tree): Node | null {
 }
 
 /** The pair of a mapping with this key. */
-const pairIn = (mapping: Node, key: string, text: string): Node | null => (
-  mapping.getChildren('Pair').find((pair) => keyOf(pair, text) === key) ?? null
-);
+const pairIn = (mapping: Node, key: string, text: string): Node | null =>
+  mapping.getChildren('Pair').find(pair => keyOf(pair, text) === key) ?? null;
 
 /** The key path of a node: the keys of the pairs around it, outermost first, with `[]` for each sequence item. */
 function pathOf(node: Node | null, text: string): string[] {
@@ -112,7 +114,8 @@ export interface CursorPlace {
 }
 
 /** The column of an offset in its line. */
-const columnOf = (text: string, offset: number) => offset - (text.lastIndexOf('\n', offset - 1) + 1);
+const columnOf = (text: string, offset: number) =>
+  offset - (text.lastIndexOf('\n', offset - 1) + 1);
 
 /**
  * The key path of the block mapping a line at `column` belongs to: the last pair of a block mapping that starts on an earlier
@@ -162,7 +165,7 @@ function openFlow(rest: string): { keys: string[]; segment: string } | null {
   }
   if (!stack.length) return null;
   // The first collection is the value of the line's own key, which the caller has already put in the path.
-  return { keys: stack.slice(1).map((open) => open.key), segment: rest.slice(segmentStart) };
+  return { keys: stack.slice(1).map(open => open.key), segment: rest.slice(segmentStart) };
 }
 
 /**
@@ -188,5 +191,7 @@ export function cursorPlace(text: string, pos: number): CursorPlace {
   const path = [...parent, key, ...flow.keys];
   const inner = /^\s*([^\s:,{}[\]]+)\s*:\s*(.*)$/.exec(flow.segment);
   if (path[path.length - 1] === ITEM && !inner) return { path, at: 'value', from, word };
-  return inner ? { path: [...path, unquote(inner[1])], at: 'value', key: unquote(inner[1]), from, word } : { path, at: 'key', from, word };
+  return inner
+    ? { path: [...path, unquote(inner[1])], at: 'value', key: unquote(inner[1]), from, word }
+    : { path, at: 'key', from, word };
 }

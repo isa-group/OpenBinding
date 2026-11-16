@@ -19,8 +19,14 @@ const DESCRIPTION_MAX = 2000;
  * Start a composition of the organization (`?create=composition`): its address, name, kind and description. It starts with no
  * version; a taken address is said beside the address, and nothing is created.
  */
-export function CreateCompositionDialog({ organization, onClose, onCreated }: {
-  organization: Organization; onClose: () => void; onCreated: (created: CompositionView) => void;
+export function CreateCompositionDialog({
+  organization,
+  onClose,
+  onCreated,
+}: {
+  organization: Organization;
+  onClose: () => void;
+  onCreated: (created: CompositionView) => void;
 }) {
   const [name, setName] = useState('');
   const [address, setAddress] = useState<string | null>(null);
@@ -47,25 +53,50 @@ export function CreateCompositionDialog({ organization, onClose, onCreated }: {
     setError('');
     setTaken(false);
     try {
-      onCreated(await compositionsApi.create(organization.slug, { slug, name: name.trim(), kind, description: description.trim() }));
+      onCreated(
+        await compositionsApi.create(organization.slug, {
+          slug,
+          name: name.trim(),
+          kind,
+          description: description.trim(),
+        })
+      );
     } catch (caught) {
       const refusal = readApiError(caught);
       if (refusal.code === 'slug_conflict') setTaken(true);
-      else setError(refusal.message || 'The composition couldn’t be created. Try again in a moment.');
+      else
+        setError(refusal.message || 'The composition couldn’t be created. Try again in a moment.');
       setBusy(false);
     }
   };
 
-  const slugError = taken ? `${slug} is in use in ${organization.name}. Choose another address.` : !slugOk ? 'Lowercase letters, numbers and hyphens.' : undefined;
+  const slugError = taken
+    ? `${slug} is in use in ${organization.name}. Choose another address.`
+    : !slugOk
+      ? 'Lowercase letters, numbers and hyphens.'
+      : undefined;
 
   return (
     <Modal title="New composition" size="md" onClose={() => !busy && onClose()}>
-      <form className="org-dialog-form" onSubmit={(event) => void submit(event)} noValidate>
-        <FormField label="Name" value={name} maxLength={NAME_MAX} onChange={(event) => { setName(event.target.value); setError(''); setTaken(false); }} />
+      <form className="org-dialog-form" onSubmit={event => void submit(event)} noValidate>
+        <FormField
+          label="Name"
+          value={name}
+          maxLength={NAME_MAX}
+          onChange={event => {
+            setName(event.target.value);
+            setError('');
+            setTaken(false);
+          }}
+        />
         <FormField
           label="Address"
           value={slug}
-          onChange={(event) => { setAddress(event.target.value); setError(''); setTaken(false); }}
+          onChange={event => {
+            setAddress(event.target.value);
+            setError('');
+            setTaken(false);
+          }}
           spellCheck={false}
           mono
           error={slugError}
@@ -73,21 +104,51 @@ export function CreateCompositionDialog({ organization, onClose, onCreated }: {
         />
         <div className="ui-field">
           <label htmlFor="cc-kind">Kind</label>
-          <select id="cc-kind" className="cmp-select" value={kind} onChange={(event) => setKind(event.target.value as Kind)}>
-            {KIND_OPTIONS.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
+          <select
+            id="cc-kind"
+            className="cmp-select"
+            value={kind}
+            onChange={event => setKind(event.target.value as Kind)}
+          >
+            {KIND_OPTIONS.map(option => (
+              <option key={option.id} value={option.id}>
+                {option.label}
+              </option>
+            ))}
           </select>
         </div>
         <div className="ui-field">
-          <label htmlFor="cc-description">Description <span className="proj-optional">(optional)</span></label>
-          <textarea id="cc-description" className="proj-textarea" rows={3} maxLength={DESCRIPTION_MAX} value={description} onChange={(event) => setDescription(event.target.value)} />
+          <label htmlFor="cc-description">
+            Description <span className="proj-optional">(optional)</span>
+          </label>
+          <textarea
+            id="cc-description"
+            className="proj-textarea"
+            rows={3}
+            maxLength={DESCRIPTION_MAX}
+            value={description}
+            onChange={event => setDescription(event.target.value)}
+          />
         </div>
-        <p className="org-muted">The composition starts with no version. Its first version is sealed from a Composition2Yaml document.</p>
+        <p className="org-muted">
+          The composition starts with no version. Its first version is sealed from a
+          Composition2Yaml document.
+        </p>
         <div aria-live="assertive">
-          {error && <div className="org-dialog-error" role="alert"><TriangleAlert aria-hidden="true" />{error}</div>}
+          {error && (
+            <div className="org-dialog-error" role="alert">
+              <TriangleAlert aria-hidden="true" />
+              {error}
+            </div>
+          )}
         </div>
         <div className="ui-modal-actions">
-          <Action variant="secondary" onClick={onClose} disabled={busy}>Cancel</Action>
-          <Action type="submit" variant="primary" busy={busy}>Create composition</Action>
+          <Action variant="secondary" onClick={onClose} disabled={busy}>
+            Cancel
+          </Action>
+          <Action type="submit" variant="primary" busy={busy}>
+            Create composition
+          </Action>
         </div>
       </form>
     </Modal>

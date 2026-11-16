@@ -2,7 +2,14 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { saveDraft } from '../../shared/editor/drafts';
 import { DEFAULT_FILES } from './documents';
-import { analysis, checkNow, DRAFT_SCOPE, openProblemEditor, sentFiles, showPane } from './editorTestKit';
+import {
+  analysis,
+  checkNow,
+  DRAFT_SCOPE,
+  openProblemEditor,
+  sentFiles,
+  showPane,
+} from './editorTestKit';
 
 // The contract between the problem editor and the compiler of the gateway. `src/test/fixtures/bim-package` holds the package the
 // editor writes (the default one, and variants after typical edits of its forms); `openbinding-gateway/tests/test_b6_workbench_package.py`
@@ -12,24 +19,50 @@ import { analysis, checkNow, DRAFT_SCOPE, openProblemEditor, sentFiles, showPane
 // Application, a penalty for a soft rule, a scale for criteria in different units); `test_b7_form_flows.py` compiles it and refuses the
 // same package without each of those parts.
 
-const problems = vi.hoisted(() => ({ list: vi.fn(), revisions: vi.fn(), source: vi.fn(), create: vi.fn(), createRevision: vi.fn() }));
+const problems = vi.hoisted(() => ({
+  list: vi.fn(),
+  revisions: vi.fn(),
+  source: vi.fn(),
+  create: vi.fn(),
+  createRevision: vi.fn(),
+}));
 const bim = vi.hoisted(() => ({ validate: vi.fn(), templates: vi.fn(), template: vi.fn() }));
 
 vi.mock('../../api/problems', () => ({ problemsApi: problems }));
 vi.mock('../../api/bim', () => ({ bimApi: bim }));
 vi.mock('../../components/CodeEditor/CodeEditor', () => ({
-  CodeEditor: ({ value, onChange, ariaLabel, readOnly }: { value: string; onChange: (value: string) => void; ariaLabel: string; readOnly?: boolean }) => (
-    <textarea aria-label={ariaLabel} value={value} readOnly={readOnly} onChange={(event) => onChange(event.target.value)} />
+  CodeEditor: ({
+    value,
+    onChange,
+    ariaLabel,
+    readOnly,
+  }: {
+    value: string;
+    onChange: (value: string) => void;
+    ariaLabel: string;
+    readOnly?: boolean;
+  }) => (
+    <textarea
+      aria-label={ariaLabel}
+      value={value}
+      readOnly={readOnly}
+      onChange={event => onChange(event.target.value)}
+    />
   ),
 }));
 vi.mock('./BpmnModeler', () => ({ BpmnModeler: () => <div data-testid="bpmn-modeler" /> }));
 
-const sources = import.meta.glob<string>('../../test/fixtures/bim-package/**/*.{json,bpmn}', { query: '?raw', import: 'default', eager: true });
+const sources = import.meta.glob<string>('../../test/fixtures/bim-package/**/*.{json,bpmn}', {
+  query: '?raw',
+  import: 'default',
+  eager: true,
+});
 
 /** A file of the reference package, by its path under `bim-package/` (`candidates.json`, `open-range/candidates.json`). */
 function reference(path: string): string {
   const source = sources[`../../test/fixtures/bim-package/${path}`];
-  if (source === undefined) throw new Error(`The reference file ${path} is missing from src/test/fixtures/bim-package.`);
+  if (source === undefined)
+    throw new Error(`The reference file ${path} is missing from src/test/fixtures/bim-package.`);
   return source;
 }
 
@@ -58,7 +91,13 @@ describe('ProblemEditor · the package it writes is the package the compiler is 
   });
 
   it('has one reference file for every file of the default package, with the same name and content', () => {
-    expect(Object.keys(DEFAULT_FILES).sort()).toEqual(['application.json', 'candidates.json', 'instance.json', 'optimization.json', 'workflow.bpmn']);
+    expect(Object.keys(DEFAULT_FILES).sort()).toEqual([
+      'application.json',
+      'candidates.json',
+      'instance.json',
+      'optimization.json',
+      'workflow.bpmn',
+    ]);
     for (const [path, source] of Object.entries(DEFAULT_FILES)) {
       if (path.endsWith('.json')) expect(JSON.parse(source), path).toEqual(referenceJson(path));
       else expect(source.trim(), path).toBe(reference(path).trim());
@@ -70,7 +109,8 @@ describe('ProblemEditor · the package it writes is the package the compiler is 
     const files = await validated();
     expect(Object.keys(files).sort()).toEqual(Object.keys(DEFAULT_FILES).sort());
     for (const path of Object.keys(files)) {
-      if (path.endsWith('.json')) expect(JSON.parse(files[path]), path).toEqual(referenceJson(path));
+      if (path.endsWith('.json'))
+        expect(JSON.parse(files[path]), path).toEqual(referenceJson(path));
       else expect(files[path].trim(), path).toBe(reference(path).trim());
     }
   });
@@ -79,14 +119,25 @@ describe('ProblemEditor · the package it writes is the package the compiler is 
     await openForms();
     fireEvent.click(screen.getByRole('button', { name: /candidates\.json/i }));
     fireEvent.click(screen.getByRole('button', { name: 'Add candidate' }));
-    fireEvent.change(screen.getByLabelText('candidate2 capability 1 type'), { target: { value: 'http' } });
-    fireEvent.click(within(screen.getByRole('group', { name: 'latency for candidate2: value or range' })).getByRole('button', { name: 'Range' }));
-    fireEvent.change(screen.getByLabelText('latency for candidate2 min'), { target: { value: '100' } });
+    fireEvent.change(screen.getByLabelText('candidate2 capability 1 type'), {
+      target: { value: 'http' },
+    });
+    fireEvent.click(
+      within(
+        screen.getByRole('group', { name: 'latency for candidate2: value or range' })
+      ).getByRole('button', { name: 'Range' })
+    );
+    fireEvent.change(screen.getByLabelText('latency for candidate2 min'), {
+      target: { value: '100' },
+    });
     fireEvent.click(screen.getByLabelText('latency for candidate2: no upper limit'));
 
     const files = await validated();
-    expect(JSON.parse(files['candidates.json'])).toEqual(referenceJson('open-range/candidates.json'));
-    for (const path of ['instance.json', 'application.json', 'optimization.json']) expect(JSON.parse(files[path]), path).toEqual(referenceJson(path));
+    expect(JSON.parse(files['candidates.json'])).toEqual(
+      referenceJson('open-range/candidates.json')
+    );
+    for (const path of ['instance.json', 'application.json', 'optimization.json'])
+      expect(JSON.parse(files[path]), path).toEqual(referenceJson(path));
   });
 
   it('writes the with-rules variant after adding a hard and a soft rule and the penalty that activates the soft one', async () => {
@@ -94,14 +145,19 @@ describe('ProblemEditor · the package it writes is the package the compiler is 
       ...DEFAULT_FILES,
       'instance.json': reference('with-rules/instance.json'),
       'constraints.json': JSON.stringify({
-        apiVersion: 'qos-binding/v1', kind: 'ConstraintSet', metadata: { name: 'hello-constraints' }, spec: { constraints: {} },
+        apiVersion: 'qos-binding/v1',
+        kind: 'ConstraintSet',
+        metadata: { name: 'hello-constraints' },
+        spec: { constraints: {} },
       }),
     });
     await openForms();
     fireEvent.click(await screen.findByRole('button', { name: /constraints\.json/i }));
     fireEvent.click(screen.getByRole('button', { name: 'Add CEL constraint' }));
     fireEvent.click(screen.getByRole('button', { name: 'Add AST constraint' }));
-    fireEvent.change(screen.getByLabelText('constraint2 enforcement'), { target: { value: 'soft' } });
+    fireEvent.change(screen.getByLabelText('constraint2 enforcement'), {
+      target: { value: 'soft' },
+    });
 
     fireEvent.click(screen.getByRole('button', { name: /optimization\.json/i }));
     // The penalty form offers the soft rules of the package: the soft one is the only choice, and it is already chosen.
@@ -112,14 +168,18 @@ describe('ProblemEditor · the package it writes is the package the compiler is 
     for (const path of ['instance.json', 'constraints.json', 'optimization.json']) {
       expect(JSON.parse(files[path]), path).toEqual(referenceJson(`with-rules/${path}`));
     }
-    for (const path of ['application.json', 'candidates.json']) expect(JSON.parse(files[path]), path).toEqual(referenceJson(path));
+    for (const path of ['application.json', 'candidates.json'])
+      expect(JSON.parse(files[path]), path).toEqual(referenceJson(path));
   });
 
   it('writes a complete package with only the forms: provider, candidates, a hard and a soft rule with its penalty, and two normalized criteria', async () => {
     await saveDraft(DRAFT_SCOPE, {
       ...DEFAULT_FILES,
       'constraints.json': JSON.stringify({
-        apiVersion: 'qos-binding/v1', kind: 'ConstraintSet', metadata: { name: 'hello-constraints' }, spec: { constraints: {} },
+        apiVersion: 'qos-binding/v1',
+        kind: 'ConstraintSet',
+        metadata: { name: 'hello-constraints' },
+        spec: { constraints: {} },
       }),
     });
     await openForms();
@@ -132,31 +192,45 @@ describe('ProblemEditor · the package it writes is the package the compiler is 
 
     // The rules file joins the package.
     fireEvent.click(screen.getByRole('button', { name: /instance\.json/i }));
-    fireEvent.change(screen.getByLabelText('New resource id'), { target: { value: 'constraints' } });
-    fireEvent.change(screen.getByLabelText('New resource package file'), { target: { value: 'constraints.json' } });
+    fireEvent.change(screen.getByLabelText('New resource id'), {
+      target: { value: 'constraints' },
+    });
+    fireEvent.change(screen.getByLabelText('New resource package file'), {
+      target: { value: 'constraints.json' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Add local reference' }));
 
     // A hard rule and a soft one; the soft one is listed in the Optimization with one click, from the rules.
     fireEvent.click(await screen.findByRole('button', { name: /constraints\.json/i }));
     fireEvent.click(screen.getByRole('button', { name: 'Add CEL constraint' }));
     fireEvent.click(screen.getByRole('button', { name: 'Add AST constraint' }));
-    fireEvent.change(screen.getByLabelText('constraint2 enforcement'), { target: { value: 'soft' } });
+    fireEvent.change(screen.getByLabelText('constraint2 enforcement'), {
+      target: { value: 'soft' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Add constraint2 to the Optimization' }));
-    expect(screen.queryByRole('button', { name: 'Add constraint2 to the Optimization' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Add constraint2 to the Optimization' })
+    ).not.toBeInTheDocument();
 
     // A feature binding for the new feature, a provider declared on the way, and a second candidate that uses it.
     fireEvent.click(screen.getByRole('button', { name: /candidates\.json/i }));
     fireEvent.click(screen.getByRole('button', { name: 'Add feature binding' }));
     fireEvent.change(screen.getByLabelText('service-a QoS cost'), { target: { value: '0.5' } });
     fireEvent.change(screen.getByLabelText('service-a provider'), { target: { value: '__new__' } });
-    fireEvent.change(screen.getByLabelText('service-a new provider id'), { target: { value: 'acme' } });
+    fireEvent.change(screen.getByLabelText('service-a new provider id'), {
+      target: { value: 'acme' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Create and use' }));
     fireEvent.click(screen.getByRole('button', { name: 'Add candidate' }));
-    fireEvent.change(screen.getByLabelText('candidate2 capability 1 type'), { target: { value: 'http' } });
+    fireEvent.change(screen.getByLabelText('candidate2 capability 1 type'), {
+      target: { value: 'http' },
+    });
     fireEvent.change(screen.getByLabelText('candidate2 provider'), { target: { value: 'acme' } });
     fireEvent.change(screen.getByLabelText('candidate2 QoS latency'), { target: { value: '20' } });
     fireEvent.change(screen.getByLabelText('candidate2 QoS cost'), { target: { value: '0.8' } });
-    expect(screen.queryByText('Some candidates give no value to a feature the Optimization uses')).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('Some candidates give no value to a feature the Optimization uses')
+    ).not.toBeInTheDocument();
 
     // Two criteria in different units: the form asks for a scale, and Normalize writes it.
     fireEvent.click(screen.getByRole('button', { name: /optimization\.json/i }));
@@ -166,7 +240,13 @@ describe('ProblemEditor · the package it writes is the package the compiler is 
     expect(screen.queryByText('These criteria need a scale')).not.toBeInTheDocument();
 
     const files = await validated();
-    for (const path of ['instance.json', 'application.json', 'candidates.json', 'constraints.json', 'optimization.json']) {
+    for (const path of [
+      'instance.json',
+      'application.json',
+      'candidates.json',
+      'constraints.json',
+      'optimization.json',
+    ]) {
       expect(JSON.parse(files[path]), path).toEqual(referenceJson(`form-flow/${path}`));
     }
     expect(files['workflow.bpmn'].trim()).toBe(reference('workflow.bpmn').trim());
@@ -180,13 +260,18 @@ describe('ProblemEditor · the package it writes is the package the compiler is 
     expect(screen.getByText('Every feature of the Application is bound.')).toBeInTheDocument();
     // Giving a candidate a provider declares it: the candidate points to the catalog that declares it.
     fireEvent.change(screen.getByLabelText('service-a provider'), { target: { value: '__new__' } });
-    fireEvent.change(screen.getByLabelText('service-a new provider id'), { target: { value: 'acme' } });
+    fireEvent.change(screen.getByLabelText('service-a new provider id'), {
+      target: { value: 'acme' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Create and use' }));
     expect(screen.getByLabelText('service-a provider')).toHaveValue('acme');
 
     const catalog = JSON.parse((await validated())['candidates.json']);
     expect(catalog.spec.providers).toEqual({ acme: {} });
-    expect(catalog.spec.candidates['service-a'].provider).toEqual({ resource: 'catalog', id: 'acme' });
+    expect(catalog.spec.candidates['service-a'].provider).toEqual({
+      resource: 'catalog',
+      id: 'acme',
+    });
   });
 
   it('writes the criterion renamed and normalized as the schema names them', async () => {
@@ -202,7 +287,15 @@ describe('ProblemEditor · the package it writes is the package the compiler is 
       apiVersion: 'qos-binding/v1',
       kind: 'Optimization',
       metadata: { name: 'hello-optimization' },
-      spec: { criteria: [{ id: 'response', feature: { resource: 'application', id: 'latency' }, normalize: { min: 0, max: 1, clamp: false } }] },
+      spec: {
+        criteria: [
+          {
+            id: 'response',
+            feature: { resource: 'application', id: 'latency' },
+            normalize: { min: 0, max: 1, clamp: false },
+          },
+        ],
+      },
     });
   });
 });

@@ -14,7 +14,12 @@ import { formatValue } from '../../entities/composition/values';
 import { COMPOSITION_FILE } from '../../entities/composition/viewModel';
 import { compositionPath } from '../../routes/paths/compositions';
 import { readApiError } from '../../shared/api/errors';
-import type { CompositionDerive, CompositionView, DeriveDraft, DeriveResult } from '../../shared/api/types';
+import type {
+  CompositionDerive,
+  CompositionView,
+  DeriveDraft,
+  DeriveResult,
+} from '../../shared/api/types';
 import { fromC2y } from '../../shared/diagnostics/located';
 import { SLUG_PATTERN, slugFromName } from '../../shared/lib/slug';
 import { compositionFragment } from '../../shared/sphere/composition-fragment';
@@ -23,8 +28,20 @@ import { ProblemsPanel } from '../../widgets/problems-panel/ProblemsPanel';
 import { ValueBadge } from '../../widgets/value-badge/ValueBadge';
 import { DeriveBatch, type DerivedPoint } from './DeriveBatch';
 import {
-  FIRST_LABEL, LABEL_PATTERN, bindingDerivation, criteriaOf, isPointsSource, isRunSource, nextMinor, pointsOf, previewValues, runDerivation,
-  type BindingSource, type DeriveSource, type Point, type SingleSource,
+  FIRST_LABEL,
+  LABEL_PATTERN,
+  bindingDerivation,
+  criteriaOf,
+  isPointsSource,
+  isRunSource,
+  nextMinor,
+  pointsOf,
+  previewValues,
+  runDerivation,
+  type BindingSource,
+  type DeriveSource,
+  type Point,
+  type SingleSource,
 } from './deriveModel';
 import { refusalOf, type Refusal } from './refusal';
 import './DeriveCompositionDialog.css';
@@ -39,40 +56,68 @@ const STEPS: ReadonlyArray<{ id: Step; label: string }> = [
 
 const NAME_MAX = 160;
 
-type Compositions = { status: 'loading' } | { status: 'ready'; list: CompositionView[] } | { status: 'failed'; message: string };
+type Compositions =
+  | { status: 'loading' }
+  | { status: 'ready'; list: CompositionView[] }
+  | { status: 'failed'; message: string };
 
-const isSealed = (result: DeriveResult | DeriveDraft): result is DeriveResult => 'version' in result;
+const isSealed = (result: DeriveResult | DeriveDraft): result is DeriveResult =>
+  'version' in result;
 
 function scoreText(score: Point['score']): string {
   if (score === null) return '—';
-  if (Array.isArray(score)) return score.map((item) => (item === null ? '—' : formatNumber(item, 4))).join(', ');
+  if (Array.isArray(score))
+    return score.map(item => (item === null ? '—' : formatNumber(item, 4))).join(', ');
   return formatNumber(score, 4);
 }
 
 /** The solutions of the run as its result gives them, one radio each: no order but the result's, no ranking. */
-function PointTable({ points, chosen, onChoose }: { points: Point[]; chosen: number; onChoose: (point: number) => void }) {
+function PointTable({
+  points,
+  chosen,
+  onChoose,
+}: {
+  points: Point[];
+  chosen: number;
+  onChoose: (point: number) => void;
+}) {
   const criteria = criteriaOf(points);
   return (
     <DataTable label="Solutions of the run" minWidth={360}>
       <thead>
         <tr>
           <th scope="col">Solution</th>
-          {criteria.map((criterion) => <th key={criterion} scope="col">{criterion}</th>)}
+          {criteria.map(criterion => (
+            <th key={criterion} scope="col">
+              {criterion}
+            </th>
+          ))}
           <th scope="col">Score</th>
         </tr>
       </thead>
       <tbody>
-        {points.map((point) => (
+        {points.map(point => (
           <tr key={point.point} aria-current={point.point === chosen ? 'true' : undefined}>
             <th scope="row">
               <label className="dc-point">
-                <input type="radio" name="dc-point" checked={point.point === chosen} onChange={() => onChoose(point.point)} />
+                <input
+                  type="radio"
+                  name="dc-point"
+                  checked={point.point === chosen}
+                  onChange={() => onChoose(point.point)}
+                />
                 {point.label}
               </label>
             </th>
-            {criteria.map((criterion) => {
-              const value = point.objectives.find((objective) => objective.criterion === criterion)?.value ?? null;
-              return <td key={criterion} className="dc-number">{value === null ? '—' : formatNumber(value, 4)}</td>;
+            {criteria.map(criterion => {
+              const value =
+                point.objectives.find(objective => objective.criterion === criterion)?.value ??
+                null;
+              return (
+                <td key={criterion} className="dc-number">
+                  {value === null ? '—' : formatNumber(value, 4)}
+                </td>
+              );
             })}
             <td className="dc-number">{scoreText(point.score)}</td>
           </tr>
@@ -93,8 +138,13 @@ function RefusalNotice({ refusal }: { refusal: Refusal }) {
             {refusal.findings.map((finding, index) => (
               <li key={`${finding.code}-${finding.pointer ?? ''}-${index}`}>
                 {finding.message}
-                {finding.pointer && <> <code>{finding.pointer}</code></>}
-                {' '}<code>{finding.code}</code>
+                {finding.pointer && (
+                  <>
+                    {' '}
+                    <code>{finding.pointer}</code>
+                  </>
+                )}{' '}
+                <code>{finding.code}</code>
               </li>
             ))}
           </ul>
@@ -108,7 +158,15 @@ function RefusalNotice({ refusal }: { refusal: Refusal }) {
 function BindingTable({ source }: { source: BindingSource }) {
   const tasks = Object.entries(source.binding);
   return (
-    <DataTable label="Binding to derive" minWidth={0} caption={<>On problem version <code>{source.revision}</code>. Local tasks stay local.</>}>
+    <DataTable
+      label="Binding to derive"
+      minWidth={0}
+      caption={
+        <>
+          On problem version <code>{source.revision}</code>. Local tasks stay local.
+        </>
+      }
+    >
       <thead>
         <tr>
           <th scope="col">Task</th>
@@ -118,8 +176,12 @@ function BindingTable({ source }: { source: BindingSource }) {
       <tbody>
         {tasks.map(([task, candidate]) => (
           <tr key={task}>
-            <th scope="row"><code>{task}</code></th>
-            <td><code>{candidate}</code></td>
+            <th scope="row">
+              <code>{task}</code>
+            </th>
+            <td>
+              <code>{candidate}</code>
+            </td>
           </tr>
         ))}
       </tbody>
@@ -144,8 +206,14 @@ export interface DeriveCompositionDialogProps {
  * Derive compositions: one from a run or a binding of a problem version, previewed before it is sealed; or, for the points of a
  * study front, one new composition per point, each sealed as 1.0.0 in turn (batch mode).
  */
-export function DeriveCompositionDialog({ org, source, onClose, onDerived }: DeriveCompositionDialogProps) {
-  if (isPointsSource(source)) return <DeriveBatch org={org} points={source.points} onClose={onClose} onDerived={onDerived} />;
+export function DeriveCompositionDialog({
+  org,
+  source,
+  onClose,
+  onDerived,
+}: DeriveCompositionDialogProps) {
+  if (isPointsSource(source))
+    return <DeriveBatch org={org} points={source.points} onClose={onClose} onDerived={onDerived} />;
   return <DeriveOne org={org} source={source} onClose={onClose} />;
 }
 
@@ -156,7 +224,15 @@ export function DeriveCompositionDialog({ org, source, onClose, onDerived }: Der
  * bytes are the previewed ones (F1 D15). The preview can also open in the Editor as a draft. A binding derived into a given
  * composition starts at the label step, with the next minor of that composition's latest label.
  */
-function DeriveOne({ org, source, onClose }: { org: string; source: SingleSource; onClose: () => void }) {
+function DeriveOne({
+  org,
+  source,
+  onClose,
+}: {
+  org: string;
+  source: SingleSource;
+  onClose: () => void;
+}) {
   const navigate = useNavigate();
   const ids = useId();
   const run = isRunSource(source) ? source : null;
@@ -182,31 +258,42 @@ function DeriveOne({ org, source, onClose }: { org: string; source: SingleSource
 
   const [busy, setBusy] = useState<'preview' | 'seal' | 'draft' | null>(null);
   const [refusal, setRefusal] = useState<Refusal | null>(null);
-  const [preview, setPreview] = useState<{ request: CompositionDerive; slug: string; draft: DeriveDraft } | null>(null);
+  const [preview, setPreview] = useState<{
+    request: CompositionDerive;
+    slug: string;
+    draft: DeriveDraft;
+  } | null>(null);
 
   useEffect(() => {
     let active = true;
     compositionsApi.list(org, { archived: false, sort: 'updated', limit: 200 }).then(
-      (page) => {
+      page => {
         if (!active) return;
         // A composition this dialog created before the list arrived stays in it.
-        setCompositions((now) => ({
+        setCompositions(now => ({
           status: 'ready',
-          list: [...(now.status === 'ready' ? now.list.filter((made) => !page.compositions.some((item) => item.slug === made.slug)) : []), ...page.compositions],
+          list: [
+            ...(now.status === 'ready'
+              ? now.list.filter(made => !page.compositions.some(item => item.slug === made.slug))
+              : []),
+            ...page.compositions,
+          ],
         }));
       },
       (caught: unknown) => {
         if (active) setCompositions({ status: 'failed', message: readApiError(caught).message });
-      },
+      }
     );
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [org]);
 
   const listed = compositions.status === 'ready' ? compositions.list : [];
   // The composition the binding is derived into is a choice even before (or without) the organization's list.
-  const list = into && !listed.some((item) => item.slug === into.slug) ? [into, ...listed] : listed;
-  const target = mode === 'existing' ? list.find((item) => item.slug === chosen) ?? null : null;
-  const slug = mode === 'existing' ? chosen : address ?? slugFromName(name);
+  const list = into && !listed.some(item => item.slug === into.slug) ? [into, ...listed] : listed;
+  const target = mode === 'existing' ? (list.find(item => item.slug === chosen) ?? null) : null;
+  const slug = mode === 'existing' ? chosen : (address ?? slugFromName(name));
   const targetKey = `${mode}:${slug}`;
   const suggested = target ? nextMinor(target.latest_version?.label) : FIRST_LABEL;
   // The label follows the target until the person writes one for it.
@@ -237,8 +324,17 @@ function DeriveOne({ org, source, onClose }: { org: string; source: SingleSource
   const ensureTarget = async (): Promise<string | null> => {
     if (mode === 'existing') return chosen;
     try {
-      const made = await compositionsApi.create(org, { slug, name: name.trim(), kind, description: '' });
-      setCompositions((now) => (now.status === 'ready' ? { status: 'ready', list: [made, ...now.list] } : { status: 'ready', list: [made] }));
+      const made = await compositionsApi.create(org, {
+        slug,
+        name: name.trim(),
+        kind,
+        description: '',
+      });
+      setCompositions(now =>
+        now.status === 'ready'
+          ? { status: 'ready', list: [made, ...now.list] }
+          : { status: 'ready', list: [made] }
+      );
       setMode('existing');
       setChosen(made.slug);
       setCreated(made.slug);
@@ -272,7 +368,9 @@ function DeriveOne({ org, source, onClose }: { org: string; source: SingleSource
       setBusy(null);
       return;
     }
-    const request = run ? runDerivation(run, point, version, false) : bindingDerivation(bound as BindingSource, version, false);
+    const request = run
+      ? runDerivation(run, point, version, false)
+      : bindingDerivation(bound as BindingSource, version, false);
     try {
       const answer = await compositionsApi.derive(org, into, request);
       if (isSealed(answer.result)) throw new Error('The gateway sealed a preview.');
@@ -294,7 +392,11 @@ function DeriveOne({ org, source, onClose }: { org: string; source: SingleSource
       const answer = await compositionsApi.derive(org, preview.slug, request);
       const sealed = isSealed(answer.result) ? answer.result.version.label : request.version;
       void navigate(compositionPath(org, preview.slug, 'versions', { version: sealed }), {
-        state: { toast: answer.created ? `Version ${sealed} sealed.` : `Version ${sealed} already holds this document.` },
+        state: {
+          toast: answer.created
+            ? `Version ${sealed} sealed.`
+            : `Version ${sealed} already holds this document.`,
+        },
         viewTransition: true,
       });
     } catch (caught) {
@@ -312,7 +414,10 @@ function DeriveOne({ org, source, onClose }: { org: string; source: SingleSource
   const openDraft = () => {
     if (!preview) return;
     setBusy('draft');
-    void navigate(`${compositionPath(org, preview.slug, 'editor')}${compositionFragment(preview.draft.content)}`, { viewTransition: true });
+    void navigate(
+      `${compositionPath(org, preview.slug, 'editor')}${compositionFragment(preview.draft.content)}`,
+      { viewTransition: true }
+    );
   };
 
   const back = (to: Step) => {
@@ -320,18 +425,29 @@ function DeriveOne({ org, source, onClose }: { org: string; source: SingleSource
     setStep(to);
   };
 
-  const close = () => { if (!busy) onClose(); };
+  const close = () => {
+    if (!busy) onClose();
+  };
   const values = preview ? previewValues(preview.draft) : [];
-  const findings = preview ? preview.draft.diagnostics.map((item) => fromC2y(item, preview.draft.content, COMPOSITION_FILE)) : [];
-  const slugError = slugTaken ? `${slug} is in use in this organization. Choose another address.`
-    : slug && !SLUG_PATTERN.test(slug) ? 'Lowercase letters, numbers and hyphens.' : undefined;
+  const findings = preview
+    ? preview.draft.diagnostics.map(item => fromC2y(item, preview.draft.content, COMPOSITION_FILE))
+    : [];
+  const slugError = slugTaken
+    ? `${slug} is in use in this organization. Choose another address.`
+    : slug && !SLUG_PATTERN.test(slug)
+      ? 'Lowercase letters, numbers and hyphens.'
+      : undefined;
 
   return (
     <Modal title="Derive a composition" size="lg" onClose={close}>
       <div className="dc">
         <ol className="dc-steps" aria-label="Steps">
           {STEPS.map((item, index) => (
-            <li key={item.id} aria-current={item.id === step ? 'step' : undefined} className={item.id === step ? 'is-current' : undefined}>
+            <li
+              key={item.id}
+              aria-current={item.id === step ? 'step' : undefined}
+              className={item.id === step ? 'is-current' : undefined}
+            >
               <span aria-hidden="true">{index + 1}</span>
               {item.label}
             </li>
@@ -343,7 +459,15 @@ function DeriveOne({ org, source, onClose }: { org: string; source: SingleSource
             <fieldset className="dc-choice">
               <legend>Where the version goes</legend>
               <label>
-                <input type="radio" name="dc-target" checked={mode === 'new'} onChange={() => { setMode('new'); setWhereError(''); }} />
+                <input
+                  type="radio"
+                  name="dc-target"
+                  checked={mode === 'new'}
+                  onChange={() => {
+                    setMode('new');
+                    setWhereError('');
+                  }}
+                />
                 A new composition
               </label>
               <label>
@@ -352,22 +476,43 @@ function DeriveOne({ org, source, onClose }: { org: string; source: SingleSource
                   name="dc-target"
                   checked={mode === 'existing'}
                   disabled={list.length === 0}
-                  onChange={() => { setMode('existing'); setWhereError(''); if (!chosen && list[0]) setChosen(list[0].slug); }}
+                  onChange={() => {
+                    setMode('existing');
+                    setWhereError('');
+                    if (!chosen && list[0]) setChosen(list[0].slug);
+                  }}
                 />
                 A composition of this organization
               </label>
             </fieldset>
-            {compositions.status === 'loading' && <p className="dc-muted" role="status">Reading the compositions of the organization…</p>}
+            {compositions.status === 'loading' && (
+              <p className="dc-muted" role="status">
+                Reading the compositions of the organization…
+              </p>
+            )}
             {compositions.status === 'failed' && (
               <Notice tone="warning">{`The compositions of the organization couldn’t be read${compositions.message ? `: ${compositions.message}` : '.'} A new one can still be made.`}</Notice>
             )}
             {mode === 'new' ? (
               <>
-                <FormField label="Name" value={name} maxLength={NAME_MAX} onChange={(event) => { setName(event.target.value); setSlugTaken(false); setWhereError(''); }} />
+                <FormField
+                  label="Name"
+                  value={name}
+                  maxLength={NAME_MAX}
+                  onChange={event => {
+                    setName(event.target.value);
+                    setSlugTaken(false);
+                    setWhereError('');
+                  }}
+                />
                 <FormField
                   label="Address"
                   value={slug}
-                  onChange={(event) => { setAddress(event.target.value); setSlugTaken(false); setWhereError(''); }}
+                  onChange={event => {
+                    setAddress(event.target.value);
+                    setSlugTaken(false);
+                    setWhereError('');
+                  }}
                   spellCheck={false}
                   mono
                   error={slugError}
@@ -375,8 +520,17 @@ function DeriveOne({ org, source, onClose }: { org: string; source: SingleSource
                 />
                 <div className="ui-field">
                   <label htmlFor={`${ids}-kind`}>Kind</label>
-                  <select id={`${ids}-kind`} className="dc-select" value={kind} onChange={(event) => setKind(event.target.value as Kind)}>
-                    {KIND_OPTIONS.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
+                  <select
+                    id={`${ids}-kind`}
+                    className="dc-select"
+                    value={kind}
+                    onChange={event => setKind(event.target.value as Kind)}
+                  >
+                    {KIND_OPTIONS.map(option => (
+                      <option key={option.id} value={option.id}>
+                        {option.label}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <p className="dc-muted">The composition is created when you ask for the preview.</p>
@@ -384,32 +538,52 @@ function DeriveOne({ org, source, onClose }: { org: string; source: SingleSource
             ) : (
               <div className="ui-field">
                 <label htmlFor={`${ids}-composition`}>Composition</label>
-                <select id={`${ids}-composition`} className="dc-select" value={chosen} onChange={(event) => setChosen(event.target.value)}>
-                  {list.map((item) => (
+                <select
+                  id={`${ids}-composition`}
+                  className="dc-select"
+                  value={chosen}
+                  onChange={event => setChosen(event.target.value)}
+                >
+                  {list.map(item => (
                     <option key={item.slug} value={item.slug}>
                       {`${item.name} (${item.slug}) · ${item.latest_version ? `latest ${item.latest_version.label}` : 'no version yet'}`}
                     </option>
                   ))}
                 </select>
-                {created && created === chosen && <span className="ui-field-note">{`${created} was created for this derivation.`}</span>}
+                {created && created === chosen && (
+                  <span className="ui-field-note">{`${created} was created for this derivation.`}</span>
+                )}
               </div>
             )}
-            {whereError && <p className="dc-error" role="alert">{whereError}</p>}
+            {whereError && (
+              <p className="dc-error" role="alert">
+                {whereError}
+              </p>
+            )}
             <div className="ui-modal-actions">
-              <Action variant="secondary" onClick={close}>Cancel</Action>
-              <Action type="submit" variant="primary">Next</Action>
+              <Action variant="secondary" onClick={close}>
+                Cancel
+              </Action>
+              <Action type="submit" variant="primary">
+                Next
+              </Action>
             </div>
           </form>
         )}
 
         {step === 'what' && (
-          <form className="dc-form" onSubmit={(event) => void toPreview(event)} noValidate>
+          <form className="dc-form" onSubmit={event => void toPreview(event)} noValidate>
             <p className="dc-muted">
               {`Into ${mode === 'existing' ? (target?.name ?? chosen) : name.trim()} (${slug}).`}
             </p>
-            {bound ? <BindingTable source={bound} /> : points.length > 1 ? (
+            {bound ? (
+              <BindingTable source={bound} />
+            ) : points.length > 1 ? (
               <>
-                <p className="dc-muted">The run found {points.length} solutions. Their objectives are as the run’s result gives them.</p>
+                <p className="dc-muted">
+                  The run found {points.length} solutions. Their objectives are as the run’s result
+                  gives them.
+                </p>
                 <PointTable points={points} chosen={point} onChoose={setPoint} />
               </>
             ) : (
@@ -418,7 +592,10 @@ function DeriveOne({ org, source, onClose }: { org: string; source: SingleSource
             <FormField
               label="Version label"
               value={labelValue}
-              onChange={(event) => { setLabel({ value: event.target.value, target: targetKey }); setLabelError(''); }}
+              onChange={event => {
+                setLabel({ value: event.target.value, target: targetKey });
+                setLabelError('');
+              }}
               spellCheck={false}
               mono
               error={labelError || undefined}
@@ -426,8 +603,12 @@ function DeriveOne({ org, source, onClose }: { org: string; source: SingleSource
             />
             {refusal && <RefusalNotice refusal={refusal} />}
             <div className="ui-modal-actions">
-              <Action variant="secondary" onClick={() => back('where')} disabled={busy !== null}>Back</Action>
-              <Action type="submit" variant="primary" busy={busy === 'preview'}>Preview</Action>
+              <Action variant="secondary" onClick={() => back('where')} disabled={busy !== null}>
+                Back
+              </Action>
+              <Action type="submit" variant="primary" busy={busy === 'preview'}>
+                Preview
+              </Action>
             </div>
           </form>
         )}
@@ -435,29 +616,47 @@ function DeriveOne({ org, source, onClose }: { org: string; source: SingleSource
         {step === 'preview' && preview && (
           <div className="dc-form">
             <p className="dc-muted">
-              {`${bound ? 'The binding' : points.find((item) => item.point === preview.request.point)?.label ?? 'The solution'} as version ${preview.request.version} of ${preview.slug}. Nothing is stored until you seal it.`}
+              {`${bound ? 'The binding' : (points.find(item => item.point === preview.request.point)?.label ?? 'The solution')} as version ${preview.request.version} of ${preview.slug}. Nothing is stored until you seal it.`}
             </p>
-            <SourceView source={preview.draft.content} label="Derived composition.yaml" language="yaml" maxHeight="16rem" />
+            <SourceView
+              source={preview.draft.content}
+              label="Derived composition.yaml"
+              language="yaml"
+              maxHeight="16rem"
+            />
             <section className="dc-values" aria-labelledby={`${ids}-values`}>
               <h3 id={`${ids}-values`}>Values</h3>
-              <p className="dc-muted">These values will be verified: <ValueBadge status="verified" /></p>
+              <p className="dc-muted">
+                These values will be verified: <ValueBadge status="verified" />
+              </p>
               {values.length > 0 ? (
                 <dl>
-                  {values.map((value) => (
+                  {values.map(value => (
                     <div key={value.name}>
                       <dt>{value.name}</dt>
                       <dd>{formatValue(value.value, value.unit)}</dd>
                     </div>
                   ))}
                 </dl>
-              ) : <p className="dc-muted">The document states no values.</p>}
+              ) : (
+                <p className="dc-muted">The document states no values.</p>
+              )}
             </section>
             <ProblemsPanel diagnostics={findings} title="Findings" />
             {refusal && <RefusalNotice refusal={refusal} />}
             <div className="ui-modal-actions">
-              <Action variant="secondary" onClick={() => back('what')} disabled={busy !== null}>Back</Action>
-              <Action variant="secondary" onClick={openDraft} disabled={busy !== null}>Open as draft</Action>
-              <Action variant="primary" busy={busy === 'seal'} disabled={busy !== null && busy !== 'seal'} onClick={() => void seal()}>
+              <Action variant="secondary" onClick={() => back('what')} disabled={busy !== null}>
+                Back
+              </Action>
+              <Action variant="secondary" onClick={openDraft} disabled={busy !== null}>
+                Open as draft
+              </Action>
+              <Action
+                variant="primary"
+                busy={busy === 'seal'}
+                disabled={busy !== null && busy !== 'seal'}
+                onClick={() => void seal()}
+              >
                 {`Seal ${preview.request.version}`}
               </Action>
             </div>

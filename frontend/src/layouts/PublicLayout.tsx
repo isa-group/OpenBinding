@@ -10,7 +10,9 @@ export function PublicLayout() {
   const location = useLocation();
   return (
     <div className="app-container">
-      <a className="skip-link" href="#main-content">Skip to content</a>
+      <a className="skip-link" href="#main-content">
+        Skip to content
+      </a>
       <Navigation />
       <main id="main-content" className="main-content" tabIndex={-1}>
         <ErrorBoundary resetKey={location.pathname}>

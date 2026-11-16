@@ -104,24 +104,32 @@ export function NewVersionMenu({ onVisualEditor, onCodeEditor, onUploadFile, der
       </Action>
       {open && (
         <div role="menu" aria-label="New version" className="nvm-menu">
-          {options.map(option => (option.to ? (
-            <Link key={option.key} role="menuitem" to={option.to} className="nvm-item" onClick={() => setOpen(false)}>
-              {body(option)}
-            </Link>
-          ) : (
-            <button
-              key={option.key}
-              type="button"
-              role="menuitem"
-              onClick={() => {
-                option.onSelect?.();
-                setOpen(false);
-              }}
-              className="nvm-item"
-            >
-              {body(option)}
-            </button>
-          )))}
+          {options.map(option =>
+            option.to ? (
+              <Link
+                key={option.key}
+                role="menuitem"
+                to={option.to}
+                className="nvm-item"
+                onClick={() => setOpen(false)}
+              >
+                {body(option)}
+              </Link>
+            ) : (
+              <button
+                key={option.key}
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  option.onSelect?.();
+                  setOpen(false);
+                }}
+                className="nvm-item"
+              >
+                {body(option)}
+              </button>
+            )
+          )}
         </div>
       )}
     </div>

@@ -16,7 +16,14 @@ import { usePricingTokenStatus } from '../../utils/pricingToken';
 import { safeExternalHref } from '../../utils/url';
 import { useResource } from '../../utils/useResource';
 import { classifyAuthError } from '../../shared/api/errors';
-import { currentSelectionOf, readCatalog, type Cell, type PlanColumn, type PricingView, type RowGroup } from './pricingModel';
+import {
+  currentSelectionOf,
+  readCatalog,
+  type Cell,
+  type PlanColumn,
+  type PricingView,
+  type RowGroup,
+} from './pricingModel';
 import './Pricing.css';
 
 const PricingDocument = lazy(() => import('./PricingDocument'));
@@ -49,9 +56,19 @@ const LIMIT_OUTCOMES = [
 function CellView({ cell }: { cell: Cell }) {
   switch (cell.kind) {
     case 'yes':
-      return <span className="pricing-cell-yes"><Check aria-hidden="true" />Included</span>;
+      return (
+        <span className="pricing-cell-yes">
+          <Check aria-hidden="true" />
+          Included
+        </span>
+      );
     case 'no':
-      return <span className="pricing-cell-no"><Minus aria-hidden="true" />Not included</span>;
+      return (
+        <span className="pricing-cell-no">
+          <Minus aria-hidden="true" />
+          Not included
+        </span>
+      );
     case 'addon':
       return <span className="pricing-cell-addon">With add-on</span>;
     case 'value':
@@ -72,33 +89,69 @@ function describeLoadFailure(error: unknown): string {
   if (failure.status === 503) {
     return 'Pricing can’t be loaded right now (503 · pricing_unavailable). The catalog is hidden rather than showing figures we can’t verify.';
   }
-  if (failure.kind === 'network') return 'Pricing can’t be reached right now. Check your connection and try again.';
+  if (failure.kind === 'network')
+    return 'Pricing can’t be reached right now. Check your connection and try again.';
   return `Pricing couldn’t be loaded${failure.status ? ` (${failure.status})` : ''}. Try again in a moment.`;
 }
 
-function planCta(plan: PlanColumn, signedIn: boolean, current: boolean, onContact: (plan: string) => void) {
+function planCta(
+  plan: PlanColumn,
+  signedIn: boolean,
+  current: boolean,
+  onContact: (plan: string) => void
+) {
   if (current) return null;
-  if (plan.byAgreement) return <Action variant="secondary" size="md" onClick={() => onContact(plan.id)}>Contact us</Action>;
+  if (plan.byAgreement)
+    return (
+      <Action variant="secondary" size="md" onClick={() => onContact(plan.id)}>
+        Contact us
+      </Action>
+    );
   if (plan.id === 'RESEARCH') {
-    return signedIn
-      ? <Action variant="primary" to="/app/account/identities">Link CAS identity</Action>
-      : <Action variant="primary" to="/login">Log in with CAS</Action>;
+    return signedIn ? (
+      <Action variant="primary" to="/app/account/identities">
+        Link CAS identity
+      </Action>
+    ) : (
+      <Action variant="primary" to="/login">
+        Log in with CAS
+      </Action>
+    );
   }
-  if (!signedIn && plan.priceLabel === 'Free') return <Action variant="primary" to="/register">Sign up</Action>;
+  if (!signedIn && plan.priceLabel === 'Free')
+    return (
+      <Action variant="primary" to="/register">
+        Sign up
+      </Action>
+    );
   return null;
 }
 
-function Matrix({ view, highlight, plan, onContact }: { view: PricingView; highlight: string; plan: string | null; onContact: (plan: string) => void }) {
+function Matrix({
+  view,
+  highlight,
+  plan,
+  onContact,
+}: {
+  view: PricingView;
+  highlight: string;
+  plan: string | null;
+  onContact: (plan: string) => void;
+}) {
   const [toggled, setToggled] = useState<ReadonlySet<string>>(new Set());
   const columns = view.plans.length;
 
-  const isOpen = (group: RowGroup, index: number) => openByDefault(group.id, index) !== toggled.has(group.id);
-  const toggle = (id: string) => setToggled((current) => {
-    const next = new Set(current);
-    if (next.has(id)) next.delete(id); else next.add(id);
-    return next;
-  });
-  const highlightIndex = highlight === 'all' ? -1 : view.plans.findIndex((item) => item.id === highlight);
+  const isOpen = (group: RowGroup, index: number) =>
+    openByDefault(group.id, index) !== toggled.has(group.id);
+  const toggle = (id: string) =>
+    setToggled(current => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  const highlightIndex =
+    highlight === 'all' ? -1 : view.plans.findIndex(item => item.id === highlight);
 
   return (
     <div className="pricing-scroller">
@@ -109,7 +162,9 @@ function Matrix({ view, highlight, plan, onContact }: { view: PricingView; highl
             const current = plan === item.id;
             return (
               <div key={item.id} role="listitem" className="pricing-plan">
-                <div className={`pricing-plan-tile is-tone-${index % 4}${highlightIndex === index ? ' is-picked' : ''}`}>
+                <div
+                  className={`pricing-plan-tile is-tone-${index % 4}${highlightIndex === index ? ' is-picked' : ''}`}
+                >
                   <span className="pricing-plan-name">{item.id}</span>
                   <span className="pricing-plan-price">{item.priceLabel}</span>
                   <span className="pricing-plan-unit">{item.unitLabel}</span>
@@ -128,36 +183,57 @@ function Matrix({ view, highlight, plan, onContact }: { view: PricingView; highl
           return (
             <section key={group.id} className="pricing-group">
               <h3>
-                <button type="button" aria-expanded={open} aria-controls={panelId} onClick={() => toggle(group.id)}>
-                  <span>{group.title} <span className="pricing-group-note">· {group.note}</span></span>
+                <button
+                  type="button"
+                  aria-expanded={open}
+                  aria-controls={panelId}
+                  onClick={() => toggle(group.id)}
+                >
+                  <span>
+                    {group.title} <span className="pricing-group-note">· {group.note}</span>
+                  </span>
                   {open ? <ChevronUp aria-hidden="true" /> : <ChevronDown aria-hidden="true" />}
                 </button>
               </h3>
               {open && (
                 <table id={panelId} className="pricing-table">
-                  <caption className="sr-only">{group.title}: {group.note}</caption>
+                  <caption className="sr-only">
+                    {group.title}: {group.note}
+                  </caption>
                   <thead className="sr-only">
                     <tr>
                       <th scope="col">{group.title}</th>
-                      {view.plans.map((item) => <th key={item.id} scope="col">{item.id}</th>)}
+                      {view.plans.map(item => (
+                        <th key={item.id} scope="col">
+                          {item.id}
+                        </th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {group.rows.map((row) => (
+                    {group.rows.map(row => (
                       <tr key={row.id}>
                         <th scope="row">
-                          <span className="pricing-row-name">
-                            {row.name}
-                          </span>
+                          <span className="pricing-row-name">{row.name}</span>
                           <span className="pricing-row-desc">{row.description}</span>
                           {row.appliesTo.length > 0 && (
                             <span className="pricing-affects">
-                              Applies to{row.appliesTo.map((name) => <span key={name} className="pricing-affects-chip">{name}</span>)}
+                              Applies to
+                              {row.appliesTo.map(name => (
+                                <span key={name} className="pricing-affects-chip">
+                                  {name}
+                                </span>
+                              ))}
                             </span>
                           )}
                         </th>
                         {row.cells.map((cell, index) => (
-                          <td key={view.plans[index].id} data-plan={view.plans[index].id} className={highlightIndex === index ? 'is-picked' : undefined} title={cell.kind === 'value' ? cell.exact : undefined}>
+                          <td
+                            key={view.plans[index].id}
+                            data-plan={view.plans[index].id}
+                            className={highlightIndex === index ? 'is-picked' : undefined}
+                            title={cell.kind === 'value' ? cell.exact : undefined}
+                          >
                             <CellView cell={cell} />
                           </td>
                         ))}
@@ -181,23 +257,34 @@ function Matrix({ view, highlight, plan, onContact }: { view: PricingView; highl
 function ContactDialog({ plan, onClose }: { plan: string; onClose: () => void }) {
   return (
     <Modal title={`Ask about ${plan}`} onClose={onClose}>
-      <p>{plan} is arranged as an institutional agreement. An administrator updates your contract; nothing is charged here.</p>
+      <p>
+        {plan} is arranged as an institutional agreement. An administrator updates your contract;
+        nothing is charged here.
+      </p>
       <ul className="pricing-contact-list">
         <li>Who it’s for: your organization or group</li>
         <li>What you need: concurrent runs, studies, storage</li>
         <li>Add-ons you’d need</li>
       </ul>
-      <p className="pricing-contact-note">This page doesn’t send anything. Take these details to the people who run this OpenBinding deployment, or to your institution’s administrator.</p>
-      <div className="ui-modal-actions"><Action variant="primary" onClick={onClose} data-autofocus>Got it</Action></div>
+      <p className="pricing-contact-note">
+        This page doesn’t send anything. Take these details to the people who run this OpenBinding
+        deployment, or to your institution’s administrator.
+      </p>
+      <div className="ui-modal-actions">
+        <Action variant="primary" onClick={onClose} data-autofocus>
+          Got it
+        </Action>
+      </div>
     </Modal>
   );
 }
 
 function Entitlements({ view, plan }: { view: PricingView; plan: string }) {
   const token = usePricingTokenStatus();
-  const note = token === 'valid'
-    ? `Read from your signed pricing token for the ${plan} plan.`
-    : 'We can’t confirm your features right now, so none is shown as enabled or disabled.';
+  const note =
+    token === 'valid'
+      ? `Read from your signed pricing token for the ${plan} plan.`
+      : 'We can’t confirm your features right now, so none is shown as enabled or disabled.';
   return (
     <section aria-labelledby="pricing-mine" className="pricing-mine">
       <div className="pricing-mine-head">
@@ -205,20 +292,32 @@ function Entitlements({ view, plan }: { view: PricingView; plan: string }) {
       </div>
       <p className="pricing-mine-note">{note}</p>
       <div className="pricing-mine-grid">
-        {view.features.map((feature) => (
+        {view.features.map(feature => (
           <div key={feature.id} className="pricing-mine-item">
             <span>{feature.name}</span>
             <Feature id={`${view.saasName.toLowerCase()}-${feature.id}`}>
-              <On><span className="pricing-state is-on">Enabled</span></On>
-              <Default><span className="pricing-state">Not enabled</span></Default>
-              <Loading><span className="pricing-state is-wait" aria-live="polite">Checking…</span></Loading>
-              <ErrorFallback><span className="pricing-state is-unknown">Can’t confirm</span></ErrorFallback>
+              <On>
+                <span className="pricing-state is-on">Enabled</span>
+              </On>
+              <Default>
+                <span className="pricing-state">Not enabled</span>
+              </Default>
+              <Loading>
+                <span className="pricing-state is-wait" aria-live="polite">
+                  Checking…
+                </span>
+              </Loading>
+              <ErrorFallback>
+                <span className="pricing-state is-unknown">Can’t confirm</span>
+              </ErrorFallback>
             </Feature>
           </div>
         ))}
       </div>
       <p className="pricing-mine-foot">
-        <Link to="/app/account/usage" viewTransition>See your plan</Link>
+        <Link to="/app/account/usage" viewTransition>
+          See your plan
+        </Link>
         <span>These states only guide the interface. The server checks every action.</span>
       </p>
     </section>
@@ -238,96 +337,151 @@ export function Pricing() {
   const view = useMemo(() => (catalog.data ? readCatalog(catalog.data) : null), [catalog.data]);
   const noRelease = current.status === 'error' && classifyAuthError(current.error).status === 404;
   const loading = catalog.status === 'loading' || current.status === 'loading';
-  const failed = !noRelease && (catalog.status === 'error' || (catalog.status === 'ready' && view === null));
+  const failed =
+    !noRelease && (catalog.status === 'error' || (catalog.status === 'ready' && view === null));
   const release = current.data;
   const plan = user?.plan ?? null;
   // Nothing about a pricing is announced while there is no live release to announce it for.
   const released = noRelease ? null : view;
 
-  const pills = useMemo(() => [
-    { id: 'all', label: 'Compare all' },
-    ...(view?.plans ?? []).map((item) => ({ id: item.id, label: item.id })),
-  ], [view]);
+  const pills = useMemo(
+    () => [
+      { id: 'all', label: 'Compare all' },
+      ...(view?.plans ?? []).map(item => ({ id: item.id, label: item.id })),
+    ],
+    [view]
+  );
 
-  const withoutAddOns = (view?.plans ?? []).filter((item) => !(view?.addOns ?? []).some((addOn) => addOn.plans.includes(item.id))).map((item) => item.id);
+  const withoutAddOns = (view?.plans ?? [])
+    .filter(item => !(view?.addOns ?? []).some(addOn => addOn.plans.includes(item.id)))
+    .map(item => item.id);
 
   // The full document marks what the account has and offers, on each plan, the action the comparison offers.
   const service = view?.saasName.toLowerCase() ?? '';
-  const mine = useMemo(() => currentSelectionOf(plan, subscription, service), [plan, subscription, service]);
+  const mine = useMemo(
+    () => currentSelectionOf(plan, subscription, service),
+    [plan, subscription, service]
+  );
   const planAction = (planId: string) => {
-    const column = view?.plans.find((item) => item.id === planId);
+    const column = view?.plans.find(item => item.id === planId);
     return column ? planCta(column, plan !== null, plan === planId, setContactPlan) : null;
   };
 
-  const retry = () => { catalog.reload(); current.reload(); };
+  const retry = () => {
+    catalog.reload();
+    current.reload();
+  };
 
   return (
     <div className="pricing-page">
       <header className="pricing-head">
         <h1>Plans for every kind of binding work</h1>
         <p>
-          Start free. Research accounts are free with a verified Universidad de Sevilla identity. Larger capacity
-          is arranged by institutional agreement; there’s no checkout.
+          Start free. Research accounts are free with a verified Universidad de Sevilla identity.
+          Larger capacity is arranged by institutional agreement; there’s no checkout.
         </p>
         {released && (
           <div className="pricing-chips">
-            <Chip>Pricing version <span className="pricing-mono">{released.version}</span></Chip>
-            {formatDate(released.createdAt) && <Chip>Published {formatDate(released.createdAt)}</Chip>}
-            {released.currency && <Chip>{released.currency}{released.periods ? ` · ${released.periods}` : ''}</Chip>}
+            <Chip>
+              Pricing version <span className="pricing-mono">{released.version}</span>
+            </Chip>
+            {formatDate(released.createdAt) && (
+              <Chip>Published {formatDate(released.createdAt)}</Chip>
+            )}
+            {released.currency && (
+              <Chip>
+                {released.currency}
+                {released.periods ? ` · ${released.periods}` : ''}
+              </Chip>
+            )}
           </div>
         )}
       </header>
 
       {released?.developmentCopy && (
         <Notice tone="warning" title="Development pricing.">
-          These figures come from the {released.version} development copy and aren’t verified against the live pricing. If they differ, the live release applies.
+          These figures come from the {released.version} development copy and aren’t verified
+          against the live pricing. If they differ, the live release applies.
         </Notice>
       )}
 
       <div aria-live="polite" aria-busy={loading} className="pricing-body">
         {loading && (
           <>
-            <div className="pricing-skeleton-row"><Skeleton variant="card" /><Skeleton variant="card" /><Skeleton variant="card" /><Skeleton variant="card" /></div>
+            <div className="pricing-skeleton-row">
+              <Skeleton variant="card" />
+              <Skeleton variant="card" />
+              <Skeleton variant="card" />
+              <Skeleton variant="card" />
+            </div>
             <Skeleton variant="panel" />
           </>
         )}
 
         {!loading && noRelease && (
           <EmptyState icon={<FileText />} title="No public pricing release is live">
-            There’s no live pricing to show right now (404). Accounts keep the plan they already have.
+            There’s no live pricing to show right now (404). Accounts keep the plan they already
+            have.
           </EmptyState>
         )}
 
         {!loading && failed && (
-          <Notice tone="error" action={<Action variant="secondary" size="sm" onClick={retry}>Retry</Action>}>
-            {catalog.status === 'error' ? describeLoadFailure(catalog.error) : 'The pricing document has no plans to show.'}
+          <Notice
+            tone="error"
+            action={
+              <Action variant="secondary" size="sm" onClick={retry}>
+                Retry
+              </Action>
+            }
+          >
+            {catalog.status === 'error'
+              ? describeLoadFailure(catalog.error)
+              : 'The pricing document has no plans to show.'}
           </Notice>
         )}
 
         {!loading && !noRelease && !failed && view && catalog.data && (
           <>
             <h2 className="sr-only">Compare plans</h2>
-            <FilterPills options={pills} value={highlight} onChange={setHighlight} ariaLabel="Highlight a plan" />
+            <FilterPills
+              options={pills}
+              value={highlight}
+              onChange={setHighlight}
+              ariaLabel="Highlight a plan"
+            />
             <Matrix view={view} highlight={highlight} plan={plan} onContact={setContactPlan} />
             <p className="pricing-legend">
-              Rounded figures show the exact value underneath. Monthly limits renew each month; capacity limits are freed when
-              work finishes; per-request ceilings apply to each run. Every limit counts for the account that does the work.
+              Rounded figures show the exact value underneath. Monthly limits renew each month;
+              capacity limits are freed when work finishes; per-request ceilings apply to each run.
+              Every limit counts for the account that does the work.
             </p>
 
             {view.gates.length > 0 && (
               <section aria-labelledby="pricing-gates" className="pricing-section">
                 <h2 id="pricing-gates">What has to have room before you start</h2>
                 <p>
-                  {GATE_COUNT[view.gates.length] ?? view.gates.length} {view.gates.length === 1 ? 'feature also checks' : 'features also check'} your
-                  limits each time you start something. Everything else only needs to be included in your plan.
+                  {GATE_COUNT[view.gates.length] ?? view.gates.length}{' '}
+                  {view.gates.length === 1 ? 'feature also checks' : 'features also check'} your
+                  limits each time you start something. Everything else only needs to be included in
+                  your plan.
                 </p>
                 <div className="pricing-gates">
-                  {view.gates.map((gate) => (
+                  {view.gates.map(gate => (
                     <div key={gate.starts} className="pricing-gate">
-                      <span className="pricing-gate-title"><span aria-hidden="true"><MoveRight /></span>Start {gate.starts}</span>
+                      <span className="pricing-gate-title">
+                        <span aria-hidden="true">
+                          <MoveRight />
+                        </span>
+                        Start {gate.starts}
+                      </span>
                       <span className="pricing-gate-lead">Needs all of:</span>
                       <ul>
-                        {gate.needs.map((need) => <li key={need}><Check aria-hidden="true" />{need}</li>)}
+                        {gate.needs.map(need => (
+                          <li key={need}>
+                            <Check aria-hidden="true" />
+                            {need}
+                          </li>
+                        ))}
                       </ul>
                     </div>
                   ))}
@@ -339,25 +493,34 @@ export function Pricing() {
 
             {view.addOns.length > 0 && (
               <section aria-labelledby="pricing-addons" className="pricing-section">
-                <h2 id="pricing-addons" className="pricing-section-center">Add-ons</h2>
+                <h2 id="pricing-addons" className="pricing-section-center">
+                  Add-ons
+                </h2>
                 <p className="pricing-section-center">
                   Arranged under an agreement, in whole packs.
-                  {withoutAddOns.length > 0 && ` ${withoutAddOns.join(' and ')} ${withoutAddOns.length === 1 ? 'has' : 'have'} no add-ons.`}
+                  {withoutAddOns.length > 0 &&
+                    ` ${withoutAddOns.join(' and ')} ${withoutAddOns.length === 1 ? 'has' : 'have'} no add-ons.`}
                 </p>
                 <div className="pricing-addons">
-                  {view.addOns.map((addOn) => {
+                  {view.addOns.map(addOn => {
                     const available = user ? addOn.plans.includes(user.plan) : null;
                     return (
                       <article key={addOn.id} className="pricing-addon">
                         <div className="pricing-addon-head">
-                          <span className="pricing-addon-initial" aria-hidden="true">{addOn.initial}</span>
+                          <span className="pricing-addon-initial" aria-hidden="true">
+                            {addOn.initial}
+                          </span>
                           <span className="pricing-addon-id">{addOn.id}</span>
                           <span className="pricing-contact-pill">Contact us</span>
                         </div>
                         <span className="pricing-addon-effect">{addOn.effect}</span>
-                        <span className="pricing-addon-meta">For {addOn.plans.join(', ')} · {addOn.quantity} · per {addOn.per}</span>
+                        <span className="pricing-addon-meta">
+                          For {addOn.plans.join(', ')} · {addOn.quantity} · per {addOn.per}
+                        </span>
                         {available !== null && (
-                          <span className={`pricing-state pricing-addon-mine${available ? ' is-on' : ''}`}>
+                          <span
+                            className={`pricing-state pricing-addon-mine${available ? ' is-on' : ''}`}
+                          >
                             {available ? 'Available under agreement' : 'Not available on your plan'}
                           </span>
                         )}
@@ -371,7 +534,7 @@ export function Pricing() {
             <section aria-labelledby="pricing-limits" className="pricing-section">
               <h2 id="pricing-limits">What happens when you reach a limit</h2>
               <div className="pricing-outcomes">
-                {LIMIT_OUTCOMES.map((outcome) => (
+                {LIMIT_OUTCOMES.map(outcome => (
                   <div key={outcome.mark} className="pricing-outcome">
                     <span className="pricing-outcome-mark">{outcome.mark}</span>
                     <strong>{outcome.title}</strong>
@@ -382,32 +545,70 @@ export function Pricing() {
             </section>
 
             {view.researchDescription !== null && (
-              <section className="pricing-research" aria-label="RESEARCH for Universidad de Sevilla">
-                <span className="pricing-research-tile" aria-hidden="true">US</span>
+              <section
+                className="pricing-research"
+                aria-label="RESEARCH for Universidad de Sevilla"
+              >
+                <span className="pricing-research-tile" aria-hidden="true">
+                  US
+                </span>
                 <div>
                   <strong>RESEARCH for Universidad de Sevilla</strong>
                   <p>
-                    Free for accounts with a verified CAS identity. It’s a plan, not a role: it doesn’t make you an admin or change
-                    your organization roles. Unlinking the identity can move you back to FREE.
+                    Free for accounts with a verified CAS identity. It’s a plan, not a role: it
+                    doesn’t make you an admin or change your organization roles. Unlinking the
+                    identity can move you back to FREE.
                   </p>
                 </div>
-                <Action variant="primary" to={user ? '/app/account/identities' : '/login'}>{user ? 'Manage identities' : 'Log in with CAS'}</Action>
+                <Action variant="primary" to={user ? '/app/account/identities' : '/login'}>
+                  {user ? 'Manage identities' : 'Log in with CAS'}
+                </Action>
               </section>
             )}
 
             <section className="pricing-document" aria-label="Full pricing document">
-              <Action variant="secondary" size="sm" onClick={() => setShowDocument((open) => !open)} aria-expanded={showDocument} aria-controls="pricing-document-body">
+              <Action
+                variant="secondary"
+                size="sm"
+                onClick={() => setShowDocument(open => !open)}
+                aria-expanded={showDocument}
+                aria-controls="pricing-document-body"
+              >
                 {showDocument ? 'Hide the full pricing document' : 'Show the full pricing document'}
               </Action>
               <p>
                 The same document drawn by <code>pricing-renderer</code>.
-                {safeExternalHref(release?.url) && <> Published in <a href={safeExternalHref(release?.url)} target="_blank" rel="noopener noreferrer">SPHERE</a>; enforced by{' '}
-                  <a href="https://github.com/isa-group/space" target="_blank" rel="noopener noreferrer">SPACE</a>.</>}
+                {safeExternalHref(release?.url) && (
+                  <>
+                    {' '}
+                    Published in{' '}
+                    <a
+                      href={safeExternalHref(release?.url)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      SPHERE
+                    </a>
+                    ; enforced by{' '}
+                    <a
+                      href="https://github.com/isa-group/space"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      SPACE
+                    </a>
+                    .
+                  </>
+                )}
               </p>
               <div id="pricing-document-body">
                 {showDocument && (
                   <Suspense fallback={<Skeleton variant="panel" />}>
-                    <PricingDocument catalog={catalog.data} current={mine} planAction={planAction} />
+                    <PricingDocument
+                      catalog={catalog.data}
+                      current={mine}
+                      planAction={planAction}
+                    />
                   </Suspense>
                 )}
               </div>

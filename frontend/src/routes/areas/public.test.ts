@@ -14,17 +14,19 @@ const PROTOTYPE: Array<[string, string]> = [
 describe('area public', () => {
   it('has 5 screens, with the ids and routes of the prototype', () => {
     expect(routesByArea.public).toHaveLength(5);
-    expect(routesByArea.public.map((definition) => [definition.id, definition.path])).toEqual(PROTOTYPE);
+    expect(routesByArea.public.map(definition => [definition.id, definition.path])).toEqual(
+      PROTOTYPE
+    );
   });
 
   it('declares neither pub-explore nor the examples', () => {
-    expect(routeDefinitions.map((definition) => definition.id)).not.toContain('pub-explore');
-    expect(routeDefinitions.map((definition) => definition.path)).not.toContain('/examples');
+    expect(routeDefinitions.map(definition => definition.id)).not.toContain('pub-explore');
+    expect(routeDefinitions.map(definition => definition.path)).not.toContain('/examples');
   });
 
   it('does not declare pub-status', () => {
-    expect(routeDefinitions.map((definition) => definition.id)).not.toContain('pub-status');
-    expect(routeDefinitions.map((definition) => definition.path)).not.toContain('/status');
+    expect(routeDefinitions.map(definition => definition.id)).not.toContain('pub-status');
+    expect(routeDefinitions.map(definition => definition.path)).not.toContain('/status');
   });
 
   it('serves every screen in the public layout, without a session', () => {
@@ -35,7 +37,10 @@ describe('area public', () => {
   });
 
   describe('address resolution', () => {
-    const config = routeDefinitions.map((definition) => ({ id: definition.id, path: definition.path }));
+    const config = routeDefinitions.map(definition => ({
+      id: definition.id,
+      path: definition.path,
+    }));
 
     it.each([
       ['/', 'pub-home'],

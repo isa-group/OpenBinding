@@ -2,7 +2,13 @@ import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { CheckCircle2, TriangleAlert, UserRoundPlus } from 'lucide-react';
 import { MEMBER_BATCH_LIMIT, platformApi } from '../../api/platform';
-import type { MemberChange, Organization, OrganizationInvitation, OrganizationMember, OrganizationRole } from '../../api/platform';
+import type {
+  MemberChange,
+  Organization,
+  OrganizationInvitation,
+  OrganizationMember,
+  OrganizationRole,
+} from '../../api/platform';
 import { Action } from '../../components/ui/Action';
 import { CopyField } from '../../components/ui/CopyField';
 import { DataTable } from '../../components/ui/DataTable';
@@ -15,7 +21,17 @@ import { problemField } from '../../api/problem';
 import { formatDate, formatDateTime } from '../../utils/format';
 import { personInitials } from '../../utils/initials';
 import { useResource } from '../../utils/useResource';
-import { ancestorsOf, atLeast, canGrantOwner, higherRole, OWNER_CHANGE_NOTE, OWNER_ROLE_NOTE, rankOf, ROLE_SUMMARY, ROLES } from './orgModel';
+import {
+  ancestorsOf,
+  atLeast,
+  canGrantOwner,
+  higherRole,
+  OWNER_CHANGE_NOTE,
+  OWNER_ROLE_NOTE,
+  rankOf,
+  ROLE_SUMMARY,
+  ROLES,
+} from './orgModel';
 import { isForbidden } from './orgErrors';
 import { generalFailure } from '../../features/workspace/errors';
 import { classifyAuthError, marker, type AuthFailure } from '../../shared/api/errors';
@@ -56,30 +72,40 @@ interface PendingInvitation {
 /** Everyone with a role here, whether it is their own or reaches them from an ancestor. */
 function buildRows(direct: OrganizationMember[], above: Snapshot['above']): Row[] {
   const rows = new Map<string, Row>();
-  const person = (member: OrganizationMember): Row => rows.get(member.user_id) ?? {
-    userId: member.user_id,
-    name: member.username ?? member.email ?? member.user_id,
-    email: member.email,
-    direct: null,
-    inherited: null,
-    addedAt: null,
-  };
+  const person = (member: OrganizationMember): Row =>
+    rows.get(member.user_id) ?? {
+      userId: member.user_id,
+      name: member.username ?? member.email ?? member.user_id,
+      email: member.email,
+      direct: null,
+      inherited: null,
+      addedAt: null,
+    };
   for (const member of direct) {
-    rows.set(member.user_id, { ...person(member), direct: member.role, addedAt: member.created_at });
+    rows.set(member.user_id, {
+      ...person(member),
+      direct: member.role,
+      addedAt: member.created_at,
+    });
   }
   for (const level of above) {
     for (const member of level.members) {
       const row = person(member);
       if (!row.inherited || rankOf(member.role) > rankOf(row.inherited.role)) {
-        rows.set(member.user_id, { ...row, inherited: { role: member.role, from: level.organization } });
+        rows.set(member.user_id, {
+          ...row,
+          inherited: { role: member.role, from: level.organization },
+        });
       } else {
         rows.set(member.user_id, row);
       }
     }
   }
-  return [...rows.values()].sort((a, b) => (
-    rankOf(higherRole(b.direct, b.inherited?.role)) - rankOf(higherRole(a.direct, a.inherited?.role)) || a.name.localeCompare(b.name)
-  ));
+  return [...rows.values()].sort(
+    (a, b) =>
+      rankOf(higherRole(b.direct, b.inherited?.role)) -
+        rankOf(higherRole(a.direct, a.inherited?.role)) || a.name.localeCompare(b.name)
+  );
 }
 
 function effectiveOf(row: Row): { role: OrganizationRole | null; source: string } {
@@ -106,15 +132,22 @@ function batchRefusal(failure: AuthFailure, who?: string): string {
     case 'organization_forbidden':
       return `You need ADMIN here to change members${marker(failure)}. Nothing changed.`;
     default:
-      if (failure.kind === 'not-found') return `One of these people no longer exists or isn’t a member${marker(failure)}. Refresh and try again; nothing changed.`;
-      if (failure.kind === 'invalid') return `The same person appears twice, or a change is malformed${marker(failure)}. Each person can have one change.`;
+      if (failure.kind === 'not-found')
+        return `One of these people no longer exists or isn’t a member${marker(failure)}. Refresh and try again; nothing changed.`;
+      if (failure.kind === 'invalid')
+        return `The same person appears twice, or a change is malformed${marker(failure)}. Each person can have one change.`;
       return generalFailure(failure, 'nothing changed');
   }
 }
 
 const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
-function InviteDialog({ organization, canOwner, onClose, onInvited }: {
+function InviteDialog({
+  organization,
+  canOwner,
+  onClose,
+  onInvited,
+}: {
   organization: Organization;
   /** Inviting someone as OWNER is granting OWNER: only an owner can. */
   canOwner: boolean;
@@ -136,13 +169,17 @@ function InviteDialog({ organization, canOwner, onClose, onInvited }: {
     setBusy(true);
     setError(undefined);
     try {
-      const invitation = await platformApi.inviteMember(organization.slug, { email: email.trim(), role });
+      const invitation = await platformApi.inviteMember(organization.slug, {
+        email: email.trim(),
+        role,
+      });
       onInvited(invitation);
       setCreated(invitation);
     } catch (caught) {
       const failure = classifyAuthError(caught);
       if (failure.kind === 'invalid') setError(`Enter a valid email address${marker(failure)}.`);
-      else if (failure.code === 'owner_role_requires_owner') setError(`${OWNER_ROLE_NOTE} Choose another role${marker(failure)}.`);
+      else if (failure.code === 'owner_role_requires_owner')
+        setError(`${OWNER_ROLE_NOTE} Choose another role${marker(failure)}.`);
       else if (isForbidden(failure)) setError(`You need ADMIN here to invite${marker(failure)}.`);
       else setError(generalFailure(failure, 'no invitation was created'));
     } finally {
@@ -152,18 +189,28 @@ function InviteDialog({ organization, canOwner, onClose, onInvited }: {
 
   if (created) {
     return (
-      <Modal title="Invitation created" tone="warning" size="md" dismissible={false} onClose={onClose}>
+      <Modal
+        title="Invitation created"
+        tone="warning"
+        size="md"
+        dismissible={false}
+        onClose={onClose}
+      >
         <div className="org-dialog-form">
           <Notice tone="warning">
-            <strong>Shown only once.</strong> Send this code to {created.email} yourself; it only works for that address and expires
-            {' '}{formatDateTime(created.expires_at) ?? 'in seven days'}.
+            <strong>Shown only once.</strong> Send this code to {created.email} yourself; it only
+            works for that address and expires{' '}
+            {formatDateTime(created.expires_at) ?? 'in seven days'}.
           </Notice>
           <CopyField value={created.token} label="invitation code" />
           <span className="org-muted">
-            They paste it on the <Link to="/invitations/accept">accept invitation</Link> page. They join as {created.role}.
+            They paste it on the <Link to="/invitations/accept">accept invitation</Link> page. They
+            join as {created.role}.
           </span>
           <div className="ui-modal-actions">
-            <Action variant="primary" onClick={onClose} data-autofocus>I’ve saved it</Action>
+            <Action variant="primary" onClick={onClose} data-autofocus>
+              I’ve saved it
+            </Action>
           </div>
         </div>
       </Modal>
@@ -177,22 +224,41 @@ function InviteDialog({ organization, canOwner, onClose, onInvited }: {
           label="Email"
           type="email"
           value={email}
-          onChange={(event) => { setEmail(event.target.value); setError(undefined); }}
+          onChange={event => {
+            setEmail(event.target.value);
+            setError(undefined);
+          }}
           autoComplete="off"
           spellCheck={false}
         />
-        <SelectField label="Role when they join" value={role} onChange={(value) => setRole(value as OrganizationRole)} hint={canOwner ? undefined : OWNER_ROLE_NOTE}>
-          {[...ROLES].reverse().map((item) => (
-            <option key={item} value={item} disabled={item === 'OWNER' && !canOwner}>{item} · {ROLE_SUMMARY[item]}</option>
+        <SelectField
+          label="Role when they join"
+          value={role}
+          onChange={value => setRole(value as OrganizationRole)}
+          hint={canOwner ? undefined : OWNER_ROLE_NOTE}
+        >
+          {[...ROLES].reverse().map(item => (
+            <option key={item} value={item} disabled={item === 'OWNER' && !canOwner}>
+              {item} · {ROLE_SUMMARY[item]}
+            </option>
           ))}
         </SelectField>
         <span className="org-muted">The invitation lasts 7 days.</span>
         <div aria-live="assertive">
-          {error && <div className="org-dialog-error" role="alert"><TriangleAlert aria-hidden="true" />{error}</div>}
+          {error && (
+            <div className="org-dialog-error" role="alert">
+              <TriangleAlert aria-hidden="true" />
+              {error}
+            </div>
+          )}
         </div>
         <div className="ui-modal-actions">
-          <Action variant="secondary" onClick={onClose} disabled={busy}>Cancel</Action>
-          <Action type="submit" variant="primary" busy={busy}>Create invitation</Action>
+          <Action variant="secondary" onClick={onClose} disabled={busy}>
+            Cancel
+          </Action>
+          <Action type="submit" variant="primary" busy={busy}>
+            Create invitation
+          </Action>
         </div>
       </form>
     </Modal>
@@ -212,9 +278,17 @@ function MembersBody({ organization }: { organization: Organization }) {
     const above = ancestorsOf(organization, context.organizations);
     const [direct, ...levels] = await Promise.all([
       platformApi.members(slug),
-      ...above.map((item) => platformApi.members(item.slug).then((members) => ({ organization: item, members })).catch(() => null)),
+      ...above.map(item =>
+        platformApi
+          .members(item.slug)
+          .then(members => ({ organization: item, members }))
+          .catch(() => null)
+      ),
     ]);
-    return { direct, above: levels.filter((level): level is NonNullable<typeof level> => level !== null) };
+    return {
+      direct,
+      above: levels.filter((level): level is NonNullable<typeof level> => level !== null),
+    };
   });
 
   const [applied, setApplied] = useState<OrganizationMember[] | null>(null);
@@ -233,24 +307,25 @@ function MembersBody({ organization }: { organization: Organization }) {
   const staged = Object.entries(changes);
   const queueFull = staged.length >= MEMBER_BATCH_LIMIT;
 
-  const nameOf = (userId: string) => rows.find((row) => row.userId === userId)?.name ?? userId;
+  const nameOf = (userId: string) => rows.find(row => row.userId === userId)?.name ?? userId;
 
   const stage = (row: Row, next: OrganizationRole | null) => {
     setToast('');
     setRefusal(null);
     setRejected(null);
-    setChanges((current) => {
+    setChanges(current => {
       const rest = { ...current };
       if (next === row.direct) delete rest[row.userId];
-      else if (!(row.userId in rest) && Object.keys(rest).length >= MEMBER_BATCH_LIMIT) return current;
+      else if (!(row.userId in rest) && Object.keys(rest).length >= MEMBER_BATCH_LIMIT)
+        return current;
       else rest[row.userId] = next;
       return rest;
     });
   };
 
   const undo = (userId: string) => {
-    setRejected((current) => (current === userId ? null : current));
-    setChanges((current) => {
+    setRejected(current => (current === userId ? null : current));
+    setChanges(current => {
       const rest = { ...current };
       delete rest[userId];
       return rest;
@@ -267,21 +342,23 @@ function MembersBody({ organization }: { organization: Organization }) {
       const members = await platformApi.updateMembersBatch(slug, batch);
       setApplied(members);
       setChanges({});
-      setToast(`${batch.length} change${batch.length === 1 ? '' : 's'} applied together. They’re recorded in the audit log.`);
+      setToast(
+        `${batch.length} change${batch.length === 1 ? '' : 's'} applied together. They’re recorded in the audit log.`
+      );
       await context.reload();
     } catch (caught) {
       const refused = classifyAuthError(caught);
       // The gateway names the first change it refused: by `user_id`, and by its `index` in the batch we sent.
       const named = problemField(caught, 'user_id');
       const at = problemField(caught, 'index');
-      const culprit = typeof named === 'string' ? named : typeof at === 'number' ? batch[at]?.user_id : undefined;
+      const culprit =
+        typeof named === 'string' ? named : typeof at === 'number' ? batch[at]?.user_id : undefined;
       if (refused.code === 'owner_role_requires_owner' && culprit) setRejected(culprit);
       setRefusal(batchRefusal(refused, culprit ? nameOf(culprit) : undefined));
     } finally {
       setApplying(false);
     }
   };
-
 
   return (
     <OrgSettingsLayout
@@ -290,15 +367,27 @@ function MembersBody({ organization }: { organization: Organization }) {
       title="Members"
       width="lg"
       lede={`${organization.name}${snapshot.status === 'ready' ? ` · ${rows.length} ${rows.length === 1 ? 'person' : 'people'} with a role` : ''}`}
-      actions={canWrite ? (
-        <Action variant="primary" onClick={() => setInviting(true)}><UserRoundPlus aria-hidden="true" className="org-inline-icon" />Invite by email</Action>
-      ) : undefined}
-      aside={(
+      actions={
+        canWrite ? (
+          <Action variant="primary" onClick={() => setInviting(true)}>
+            <UserRoundPlus aria-hidden="true" className="org-inline-icon" />
+            Invite by email
+          </Action>
+        ) : undefined
+      }
+      aside={
         <aside className="org-queue" aria-labelledby="org-queue-title">
-          <h2 id="org-queue-title">Pending changes <small>{staged.length} of {MEMBER_BATCH_LIMIT}</small></h2>
+          <h2 id="org-queue-title">
+            Pending changes{' '}
+            <small>
+              {staged.length} of {MEMBER_BATCH_LIMIT}
+            </small>
+          </h2>
           {staged.length === 0 && (
             <span className="org-muted">
-              {canWrite ? 'Change a role or remove someone in the table. Changes wait here until you apply them.' : 'Only admins can change roles.'}
+              {canWrite
+                ? 'Change a role or remove someone in the table. Changes wait here until you apply them.'
+                : 'Only admins can change roles.'}
             </span>
           )}
           <ul className="org-queue-list">
@@ -307,26 +396,45 @@ function MembersBody({ organization }: { organization: Organization }) {
                 <span>
                   <strong>{nameOf(userId)}</strong>
                   <span className="org-queue-change">
-                    <s>{rows.find((row) => row.userId === userId)?.direct ?? 'None'}</s>
+                    <s>{rows.find(row => row.userId === userId)?.direct ?? 'None'}</s>
                     <span aria-hidden="true">→</span>
                     <b className={next ? undefined : 'is-removed'}>{next ?? 'Removed'}</b>
                   </span>
                 </span>
-                <button type="button" onClick={() => undo(userId)} aria-label={`Undo change for ${nameOf(userId)}`}>Undo</button>
+                <button
+                  type="button"
+                  onClick={() => undo(userId)}
+                  aria-label={`Undo change for ${nameOf(userId)}`}
+                >
+                  Undo
+                </button>
               </li>
             ))}
           </ul>
-          {queueFull && <span className="org-muted">The queue is full: a batch holds at most {MEMBER_BATCH_LIMIT} changes. Apply these first.</span>}
-          <Action variant="primary" onClick={() => void apply()} disabled={staged.length === 0 || !canWrite} busy={applying}>
+          {queueFull && (
+            <span className="org-muted">
+              The queue is full: a batch holds at most {MEMBER_BATCH_LIMIT} changes. Apply these
+              first.
+            </span>
+          )}
+          <Action
+            variant="primary"
+            onClick={() => void apply()}
+            disabled={staged.length === 0 || !canWrite}
+            busy={applying}
+          >
             Apply {staged.length} change{staged.length === 1 ? '' : 's'}
           </Action>
-          <span className="org-muted">All changes apply together or not at all. At least one OWNER must remain.</span>
+          <span className="org-muted">
+            All changes apply together or not at all. At least one OWNER must remain.
+          </span>
         </aside>
-      )}
+      }
     >
       {!canWrite && (
         <Notice tone="info">
-          You’re a <strong>{role}</strong> here: you can see who’s in, but changing roles and inviting need ADMIN.
+          You’re a <strong>{role}</strong> here: you can see who’s in, but changing roles and
+          inviting need ADMIN.
         </Notice>
       )}
 
@@ -341,11 +449,21 @@ function MembersBody({ organization }: { organization: Organization }) {
       {refusal && <Notice tone="error">{refusal}</Notice>}
 
       {snapshot.status === 'loading' && (
-        <div aria-busy="true" role="status"><span className="sr-only">Loading members…</span><Skeleton variant="panel" /></div>
+        <div aria-busy="true" role="status">
+          <span className="sr-only">Loading members…</span>
+          <Skeleton variant="panel" />
+        </div>
       )}
 
       {failure && (
-        <Notice tone="error" action={<Action variant="secondary" size="sm" onClick={snapshot.reload}>Try again</Action>}>
+        <Notice
+          tone="error"
+          action={
+            <Action variant="secondary" size="sm" onClick={snapshot.reload}>
+              Try again
+            </Action>
+          }
+        >
           {isForbidden(failure)
             ? `You can’t see the members of this organization${marker(failure)}.`
             : `Members couldn’t be loaded${marker(failure)}. Nothing was changed.`}
@@ -361,11 +479,13 @@ function MembersBody({ organization }: { organization: Organization }) {
                 <th scope="col">Role here</th>
                 <th scope="col">Effective role</th>
                 <th scope="col">Added</th>
-                <th scope="col"><span className="sr-only">Actions</span></th>
+                <th scope="col">
+                  <span className="sr-only">Actions</span>
+                </th>
               </tr>
             </thead>
             <tbody>
-              {rows.map((row) => {
+              {rows.map(row => {
                 const hasChange = row.userId in changes;
                 const shown = hasChange ? changes[row.userId] : row.direct;
                 const effective = effectiveOf(row);
@@ -374,14 +494,26 @@ function MembersBody({ organization }: { organization: Organization }) {
                 const ownerLocked = !canOwner && row.direct === 'OWNER';
                 const isRejected = rejected === row.userId;
                 return (
-                  <tr key={row.userId} className={isRejected ? 'is-rejected' : hasChange ? 'is-staged' : undefined}>
+                  <tr
+                    key={row.userId}
+                    className={isRejected ? 'is-rejected' : hasChange ? 'is-staged' : undefined}
+                  >
                     <td>
                       <span className="org-person">
-                        <span className="org-avatar is-sm" aria-hidden="true">{personInitials(row.name)}</span>
+                        <span className="org-avatar is-sm" aria-hidden="true">
+                          {personInitials(row.name)}
+                        </span>
                         <span>
-                          <strong>{row.name}{isMe && <small> (you)</small>}</strong>
+                          <strong>
+                            {row.name}
+                            {isMe && <small> (you)</small>}
+                          </strong>
                           {row.email && <small>{row.email}</small>}
-                          {isRejected && <small className="org-row-error" id={`rejected-${row.userId}`}>Refused: {OWNER_ROLE_NOTE}</small>}
+                          {isRejected && (
+                            <small className="org-row-error" id={`rejected-${row.userId}`}>
+                              Refused: {OWNER_ROLE_NOTE}
+                            </small>
+                          )}
                         </span>
                       </span>
                     </td>
@@ -393,13 +525,38 @@ function MembersBody({ organization }: { organization: Organization }) {
                           value={shown ?? NO_DIRECT_ROLE}
                           disabled={ownerLocked}
                           aria-invalid={isRejected || undefined}
-                          aria-describedby={isRejected ? `rejected-${row.userId}` : ownerLocked || !canOwner ? 'owner-role-note' : undefined}
-                          onChange={(event) => stage(row, event.target.value === NO_DIRECT_ROLE ? null : event.target.value as OrganizationRole)}
+                          aria-describedby={
+                            isRejected
+                              ? `rejected-${row.userId}`
+                              : ownerLocked || !canOwner
+                                ? 'owner-role-note'
+                                : undefined
+                          }
+                          onChange={event =>
+                            stage(
+                              row,
+                              event.target.value === NO_DIRECT_ROLE
+                                ? null
+                                : (event.target.value as OrganizationRole)
+                            )
+                          }
                         >
-                          {ROLES.map((item) => <option key={item} value={item} disabled={item === 'OWNER' && !canOwner && row.direct !== 'OWNER'}>{item}</option>)}
+                          {ROLES.map(item => (
+                            <option
+                              key={item}
+                              value={item}
+                              disabled={item === 'OWNER' && !canOwner && row.direct !== 'OWNER'}
+                            >
+                              {item}
+                            </option>
+                          ))}
                           <option value={NO_DIRECT_ROLE}>No direct role</option>
                         </select>
-                      ) : row.direct ? <RoleChip role={row.direct} /> : <span className="org-role is-none">None here</span>}
+                      ) : row.direct ? (
+                        <RoleChip role={row.direct} />
+                      ) : (
+                        <span className="org-role is-none">None here</span>
+                      )}
                     </td>
                     <td>
                       <span className="org-effective">
@@ -418,7 +575,12 @@ function MembersBody({ organization }: { organization: Organization }) {
                           aria-describedby={ownerLocked ? 'owner-role-note' : undefined}
                           disabled={ownerLocked}
                           title={ownerLocked ? OWNER_CHANGE_NOTE : undefined}
-                          onClick={() => stage(row, hasChange && changes[row.userId] === null ? row.direct : null)}
+                          onClick={() =>
+                            stage(
+                              row,
+                              hasChange && changes[row.userId] === null ? row.direct : null
+                            )
+                          }
                         >
                           {hasChange && changes[row.userId] === null ? 'Will be removed' : 'Remove'}
                         </button>
@@ -427,15 +589,22 @@ function MembersBody({ organization }: { organization: Organization }) {
                   </tr>
                 );
               })}
-              {invited.map((item) => (
+              {invited.map(item => (
                 <tr key={item.id} className="is-pending">
                   <td>
                     <span className="org-person">
-                      <span className="org-avatar is-sm is-dashed" aria-hidden="true">@</span>
-                      <span><strong>{item.email}</strong><small>Invitation pending</small></span>
+                      <span className="org-avatar is-sm is-dashed" aria-hidden="true">
+                        @
+                      </span>
+                      <span>
+                        <strong>{item.email}</strong>
+                        <small>Invitation pending</small>
+                      </span>
                     </span>
                   </td>
-                  <td><RoleChip role={item.role} /></td>
+                  <td>
+                    <RoleChip role={item.role} />
+                  </td>
                   <td className="org-muted-cell">On accepting</td>
                   <td className="org-muted-cell">Expires {formatDate(item.expiresAt) ?? '—'}</td>
                   <td />
@@ -446,18 +615,27 @@ function MembersBody({ organization }: { organization: Organization }) {
 
           {rows.length <= 1 && invited.length === 0 && (
             <div className="org-empty is-row">
-              <span>You’re the only member so far. Invite people by email; they choose to accept.</span>
-              {canWrite && <Action variant="secondary" size="sm" onClick={() => setInviting(true)}>Invite someone</Action>}
+              <span>
+                You’re the only member so far. Invite people by email; they choose to accept.
+              </span>
+              {canWrite && (
+                <Action variant="secondary" size="sm" onClick={() => setInviting(true)}>
+                  Invite someone
+                </Action>
+              )}
             </div>
           )}
 
           {canWrite && !canOwner && (
-            <p id="owner-role-note" className="org-muted">{OWNER_ROLE_NOTE} {OWNER_CHANGE_NOTE}</p>
+            <p id="owner-role-note" className="org-muted">
+              {OWNER_ROLE_NOTE} {OWNER_CHANGE_NOTE}
+            </p>
           )}
 
           <p className="org-muted">
-            Inherited roles come from the parent organizations you can see and are changed there. Invitations are listed only until you leave this page:
-            the API returns an invitation once, when it is created.
+            Inherited roles come from the parent organizations you can see and are changed there.
+            Invitations are listed only until you leave this page: the API returns an invitation
+            once, when it is created.
           </p>
         </>
       )}
@@ -467,7 +645,17 @@ function MembersBody({ organization }: { organization: Organization }) {
           organization={organization}
           canOwner={canOwner}
           onClose={() => setInviting(false)}
-          onInvited={(invitation) => setInvited((current) => [...current, { id: invitation.id, email: invitation.email, role: invitation.role, expiresAt: invitation.expires_at }])}
+          onInvited={invitation =>
+            setInvited(current => [
+              ...current,
+              {
+                id: invitation.id,
+                email: invitation.email,
+                role: invitation.role,
+                expiresAt: invitation.expires_at,
+              },
+            ])
+          }
         />
       )}
     </OrgSettingsLayout>
@@ -477,7 +665,17 @@ function MembersBody({ organization }: { organization: Organization }) {
 /** Members and invitations (the `members` section of `org-settings`, `/app/:org/settings/members`). */
 export function OrgMembers() {
   const { organization, waiting } = useRouteOrganization();
-  if (waiting) return <div className="org-page"><PageSkeleton /></div>;
-  if (!organization) return <div className="org-page"><NeutralGate /></div>;
+  if (waiting)
+    return (
+      <div className="org-page">
+        <PageSkeleton />
+      </div>
+    );
+  if (!organization)
+    return (
+      <div className="org-page">
+        <NeutralGate />
+      </div>
+    );
   return <MembersBody organization={organization} />;
 }

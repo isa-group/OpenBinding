@@ -4,9 +4,21 @@
  * the same slugs (422 `slug_reserved`, `RESERVED_ORGANIZATION_SLUGS` in `models/platform.py`); keep the two lists equal.
  */
 export const RESERVED_SLUGS: ReadonlySet<string> = new Set([
-  'admin', 'account', 'engines', 'organizations', 'invitations',
-  'compositions', 'presets', 'runs', 'problems', 'studies', 'settings', 'problem-editor', 'new',
-  'join', 'public',
+  'admin',
+  'account',
+  'engines',
+  'organizations',
+  'invitations',
+  'compositions',
+  'presets',
+  'runs',
+  'problems',
+  'studies',
+  'settings',
+  'problem-editor',
+  'new',
+  'join',
+  'public',
 ]);
 
 export interface WorkspaceSlugs {

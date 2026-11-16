@@ -14,6 +14,7 @@ describe('the kinds of a composition', () => {
 
   it('tells a kind from any other text', () => {
     expect(isKind('system')).toBe(true);
-    for (const value of ['System', 'service', '', null, undefined]) expect(isKind(value), String(value)).toBe(false);
+    for (const value of ['System', 'service', '', null, undefined])
+      expect(isKind(value), String(value)).toBe(false);
   });
 });

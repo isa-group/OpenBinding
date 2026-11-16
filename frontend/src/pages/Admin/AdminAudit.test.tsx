@@ -9,34 +9,93 @@ import { refusal, renderAdmin } from './adminTestUtils';
 const api = vi.hoisted(() => ({ adminAudit: vi.fn() }));
 
 const at = (n: number) => `2026-10-0${n}T09:00:00Z`;
-const event = (n: number, action: string, detail: Record<string, unknown>, over: Partial<AdminAuditPage['events'][number]> = {}): AdminAuditPage['events'][number] => ({
-  id: `00000000-0000-4000-8000-00000000050${n}`, organizationId: null, organizationSlug: null, actorId: ALEX.id, action, targetType: 'User', targetId: SAM.id, detail, createdAt: at(n), ...over,
+const event = (
+  n: number,
+  action: string,
+  detail: Record<string, unknown>,
+  over: Partial<AdminAuditPage['events'][number]> = {}
+): AdminAuditPage['events'][number] => ({
+  id: `00000000-0000-4000-8000-00000000050${n}`,
+  organizationId: null,
+  organizationSlug: null,
+  actorId: ALEX.id,
+  action,
+  targetType: 'User',
+  targetId: SAM.id,
+  detail,
+  createdAt: at(n),
+  ...over,
 });
 
 /** What B2 added to the log: account actions, the CAS link and the events recorded inside an organization. */
 const RECENT: AdminAuditPage = {
   events: [
-    event(1, 'organization.updated', { name: 'ISA Demo' },
-      { organizationId: ORG.id, organizationSlug: 'isa-demo', targetType: 'Organization', targetId: ORG.id }),
-    event(2, 'admin.user.updated', { username: 'sam.okafor', changes: { role: { from: 'user', to: 'admin' }, is_active: { from: true, to: false } } }),
-    event(3, 'admin.api_key.revoked', { user_id: SAM.id, key: { id: 'key-1', name: 'ci pipeline', prefix: 'obk_ab12' } }, { targetType: 'ApiKey', targetId: 'key-1' }),
-    event(4, 'admin.usage.resynced', { username: 'sam.okafor', plan: 'BASIC', before: { concurrent_jobs_recorded: 2 }, after: { concurrent_jobs_recorded: 1 }, slots_in_flight: 1, corrected_by: -1 }),
-    event(5, 'account.cas.linked', { provider: 'us-cas', plan_changed: { from: 'BASIC', to: 'RESEARCH', extra_cost: false } }),
-    event(6, 'organization.member.upserted', { role: 'MEMBER', user_id: MARIA.id }, { organizationId: ORG.id, organizationSlug: 'isa-demo', targetType: 'OrganizationMembership', targetId: ORG.id }),
-    event(7, 'organization.invitation.created', { role: 'MEMBER', invited: PRIYA.id }, { organizationId: ORG.id, organizationSlug: 'isa-demo' }),
+    event(
+      1,
+      'organization.updated',
+      { name: 'ISA Demo' },
+      {
+        organizationId: ORG.id,
+        organizationSlug: 'isa-demo',
+        targetType: 'Organization',
+        targetId: ORG.id,
+      }
+    ),
+    event(2, 'admin.user.updated', {
+      username: 'sam.okafor',
+      changes: { role: { from: 'user', to: 'admin' }, is_active: { from: true, to: false } },
+    }),
+    event(
+      3,
+      'admin.api_key.revoked',
+      { user_id: SAM.id, key: { id: 'key-1', name: 'ci pipeline', prefix: 'obk_ab12' } },
+      { targetType: 'ApiKey', targetId: 'key-1' }
+    ),
+    event(4, 'admin.usage.resynced', {
+      username: 'sam.okafor',
+      plan: 'BASIC',
+      before: { concurrent_jobs_recorded: 2 },
+      after: { concurrent_jobs_recorded: 1 },
+      slots_in_flight: 1,
+      corrected_by: -1,
+    }),
+    event(5, 'account.cas.linked', {
+      provider: 'us-cas',
+      plan_changed: { from: 'BASIC', to: 'RESEARCH', extra_cost: false },
+    }),
+    event(
+      6,
+      'organization.member.upserted',
+      { role: 'MEMBER', user_id: MARIA.id },
+      {
+        organizationId: ORG.id,
+        organizationSlug: 'isa-demo',
+        targetType: 'OrganizationMembership',
+        targetId: ORG.id,
+      }
+    ),
+    event(
+      7,
+      'organization.invitation.created',
+      { role: 'MEMBER', invited: PRIYA.id },
+      { organizationId: ORG.id, organizationSlug: 'isa-demo' }
+    ),
   ],
-  total: 7, offset: 0, limit: 100,
+  total: 7,
+  offset: 0,
+  limit: 100,
 };
 
 vi.mock('../../api/client', async () => ({
-  ...await vi.importActual<typeof import('../../api/client')>('../../api/client'),
+  ...(await vi.importActual<typeof import('../../api/client')>('../../api/client')),
   apiClient: api,
 }));
 
 configure({ asyncUtilTimeout: 5000 });
 
 /** The audit section of admin-overview, where /app/admin?section=audit leads. */
-const renderAudit = (options: Parameters<typeof renderAdmin>[1] = {}) => renderAdmin(<AdminOverview />, { entry: overviewSectionPath('audit'), ...options });
+const renderAudit = (options: Parameters<typeof renderAdmin>[1] = {}) =>
+  renderAdmin(<AdminOverview />, { entry: overviewSectionPath('audit'), ...options });
 
 describe('admin-overview, audit section · the platform audit log', () => {
   beforeEach(() => {
@@ -53,11 +112,17 @@ describe('admin-overview, audit section · the platform audit log', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Audit log' })).toBeInTheDocument();
     expect(await screen.findByText('2 abandoned runs were reconciled.')).toBeInTheDocument();
     expect(screen.getByText('Pricing live activated: 0.1.0.')).toBeInTheDocument();
-    expect(screen.getByText('Agreement changed from BASIC to RESEARCH (no add-ons).')).toBeInTheDocument();
+    expect(
+      screen.getByText('Agreement changed from BASIC to RESEARCH (no add-ons).')
+    ).toBeInTheDocument();
     const timeline = screen.getByRole('list', { name: 'Events, newest first' });
     expect(within(timeline).getAllByRole('listitem')).toHaveLength(3);
     expect(api.adminAudit).toHaveBeenCalledWith({ action: undefined, offset: 0, limit: 100 });
-    expect(screen.getByText(/Events recorded inside an organization, such as a member change, appear here too with the organization named/)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /Events recorded inside an organization, such as a member change, appear here too with the organization named/
+      )
+    ).toBeInTheDocument();
     expect(screen.queryByText(/are in that organization’s own audit log/)).not.toBeInTheDocument();
   });
 
@@ -69,11 +134,25 @@ describe('admin-overview, audit section · the platform audit log', () => {
     it('words each new kind of event for a person', async () => {
       renderAudit();
 
-      expect(await screen.findByText('The organization’s settings were updated.')).toBeInTheDocument();
-      expect(screen.getByText('Account sam.okafor was updated: role user → admin; status active → inactive.')).toBeInTheDocument();
-      expect(screen.getByText('API key “ci pipeline” (obk_ab12…) was revoked.')).toBeInTheDocument();
-      expect(screen.getByText('Run slots of sam.okafor were recounted (corrected by -1).')).toBeInTheDocument();
-      expect(screen.getByText('An institutional identity was linked and the plan went from BASIC to RESEARCH at no extra cost.')).toBeInTheDocument();
+      expect(
+        await screen.findByText('The organization’s settings were updated.')
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          'Account sam.okafor was updated: role user → admin; status active → inactive.'
+        )
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText('API key “ci pipeline” (obk_ab12…) was revoked.')
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText('Run slots of sam.okafor were recounted (corrected by -1).')
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          'An institutional identity was linked and the plan went from BASIC to RESEARCH at no extra cost.'
+        )
+      ).toBeInTheDocument();
       expect(screen.getByText('Organization member upserted.')).toBeInTheDocument();
       expect(screen.getByText('Organization invitation created.')).toBeInTheDocument();
     });
@@ -112,11 +191,25 @@ describe('admin-overview, audit section · the platform audit log', () => {
       await screen.findByText('The organization’s settings were updated.');
 
       fireEvent.click(screen.getByRole('button', { name: 'Only this organization' }));
-      await waitFor(() => expect(api.adminAudit).toHaveBeenLastCalledWith({ action: undefined, organizationId: ORG.id, offset: 0, limit: 100 }));
+      await waitFor(() =>
+        expect(api.adminAudit).toHaveBeenLastCalledWith({
+          action: undefined,
+          organizationId: ORG.id,
+          offset: 0,
+          limit: 100,
+        })
+      );
       expect(screen.getByLabelText('Organization id (optional)')).toHaveValue(ORG.id);
 
       fireEvent.click(await screen.findByRole('button', { name: 'Clear organization filter' }));
-      await waitFor(() => expect(api.adminAudit).toHaveBeenLastCalledWith({ action: undefined, organizationId: undefined, offset: 0, limit: 100 }));
+      await waitFor(() =>
+        expect(api.adminAudit).toHaveBeenLastCalledWith({
+          action: undefined,
+          organizationId: undefined,
+          offset: 0,
+          limit: 100,
+        })
+      );
     });
 
     it('asks for an organization by id and refuses what is not one', async () => {
@@ -124,15 +217,26 @@ describe('admin-overview, audit section · the platform audit log', () => {
       await screen.findByText('The organization’s settings were updated.');
       const calls = api.adminAudit.mock.calls.length;
 
-      fireEvent.change(screen.getByLabelText('Organization id (optional)'), { target: { value: 'isa-demo' } });
+      fireEvent.change(screen.getByLabelText('Organization id (optional)'), {
+        target: { value: 'isa-demo' },
+      });
       fireEvent.click(screen.getByRole('button', { name: 'Filter' }));
       expect(await screen.findByRole('alert')).toHaveTextContent('Use the organization’s id');
       expect(screen.getByLabelText('Organization id (optional)')).toBeInvalid();
       expect(api.adminAudit).toHaveBeenCalledTimes(calls);
 
-      fireEvent.change(screen.getByLabelText('Organization id (optional)'), { target: { value: ORG.id } });
+      fireEvent.change(screen.getByLabelText('Organization id (optional)'), {
+        target: { value: ORG.id },
+      });
       fireEvent.click(screen.getByRole('button', { name: 'Filter' }));
-      await waitFor(() => expect(api.adminAudit).toHaveBeenLastCalledWith({ action: undefined, organizationId: ORG.id, offset: 0, limit: 100 }));
+      await waitFor(() =>
+        expect(api.adminAudit).toHaveBeenLastCalledWith({
+          action: undefined,
+          organizationId: ORG.id,
+          offset: 0,
+          limit: 100,
+        })
+      );
     });
 
     it('narrows the page to account events or to organization events', async () => {
@@ -141,9 +245,13 @@ describe('admin-overview, audit section · the platform audit log', () => {
       const kinds = screen.getByRole('group', { name: 'Kind of event' });
 
       fireEvent.click(within(kinds).getByRole('button', { name: 'Accounts' }));
-      expect(within(screen.getByRole('list', { name: 'Events, newest first' })).getAllByRole('listitem')).toHaveLength(4);
+      expect(
+        within(screen.getByRole('list', { name: 'Events, newest first' })).getAllByRole('listitem')
+      ).toHaveLength(4);
       fireEvent.click(within(kinds).getByRole('button', { name: 'Organizations' }));
-      expect(within(screen.getByRole('list', { name: 'Events, newest first' })).getAllByRole('listitem')).toHaveLength(3);
+      expect(
+        within(screen.getByRole('list', { name: 'Events, newest first' })).getAllByRole('listitem')
+      ).toHaveLength(3);
     });
   });
 
@@ -161,7 +269,10 @@ describe('admin-overview, audit section · the platform audit log', () => {
     expect(within(change).getByText('RESEARCH · no add-ons')).toBeInTheDocument();
     expect(within(aside).getByText('Institutional agreement')).toBeInTheDocument();
     expect(within(aside).getByText('Agreement 2026-14')).toBeInTheDocument();
-    expect(within(aside).getByRole('link', { name: '00000000…' })).toHaveAttribute('href', `/app/admin/users/${ALEX.id}`);
+    expect(within(aside).getByRole('link', { name: '00000000…' })).toHaveAttribute(
+      'href',
+      `/app/admin/users/${ALEX.id}`
+    );
     expect(within(aside).getByText('00000000-0000-4000-8000-000000000401')).toBeInTheDocument();
     expect(within(aside).getByText('View source')).toBeInTheDocument();
   });
@@ -182,11 +293,23 @@ describe('admin-overview, audit section · the platform audit log', () => {
   it('asks the gateway for an exact action, and can drop the filter again', async () => {
     renderAudit();
     await screen.findByText('2 abandoned runs were reconciled.');
-    fireEvent.change(screen.getByLabelText('Exact action'), { target: { value: 'contract.subscription.changed' } });
+    fireEvent.change(screen.getByLabelText('Exact action'), {
+      target: { value: 'contract.subscription.changed' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Filter' }));
-    await waitFor(() => expect(api.adminAudit).toHaveBeenLastCalledWith({ action: 'contract.subscription.changed', offset: 0, limit: 100 }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Clear “contract.subscription.changed”' }));
-    await waitFor(() => expect(api.adminAudit).toHaveBeenLastCalledWith({ action: undefined, offset: 0, limit: 100 }));
+    await waitFor(() =>
+      expect(api.adminAudit).toHaveBeenLastCalledWith({
+        action: 'contract.subscription.changed',
+        offset: 0,
+        limit: 100,
+      })
+    );
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Clear “contract.subscription.changed”' })
+    );
+    await waitFor(() =>
+      expect(api.adminAudit).toHaveBeenLastCalledWith({ action: undefined, offset: 0, limit: 100 })
+    );
   });
 
   it('says so when there are no events', async () => {
@@ -201,13 +324,21 @@ describe('admin-overview, audit section · the platform audit log', () => {
     renderAudit();
     expect(await screen.findByText('Showing 1–3 of 250 events')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
-    await waitFor(() => expect(api.adminAudit).toHaveBeenLastCalledWith({ action: undefined, offset: 100, limit: 100 }));
+    await waitFor(() =>
+      expect(api.adminAudit).toHaveBeenLastCalledWith({
+        action: undefined,
+        offset: 100,
+        limit: 100,
+      })
+    );
   });
 
   it('keeps a failure apart from an empty log and tries again', async () => {
     api.adminAudit.mockRejectedValueOnce(refusal(503, 'accounts_unavailable'));
     renderAudit();
-    expect(await screen.findByText('A service isn’t available right now (503 · accounts_unavailable)')).toBeInTheDocument();
+    expect(
+      await screen.findByText('A service isn’t available right now (503 · accounts_unavailable)')
+    ).toBeInTheDocument();
     expect(screen.queryByText('No events for this filter')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
     expect(await screen.findByText('2 abandoned runs were reconciled.')).toBeInTheDocument();

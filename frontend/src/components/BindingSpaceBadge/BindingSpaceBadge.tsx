@@ -28,7 +28,8 @@ export const BindingSpaceBadge: React.FC<BindingSpaceBadgeProps> = ({
       </div>
       <div className="binding-space-tooltip-exact">{parsed.exact} combinations</div>
       <div className="binding-space-tooltip-info">
-        Combinatorial search space (∏ |candidates(t)|). Order of magnitude ≈ 10<sup>{parsed.log10.toFixed(2)}</sup>.
+        Combinatorial search space (∏ |candidates(t)|). Order of magnitude ≈ 10
+        <sup>{parsed.log10.toFixed(2)}</sup>.
         {breakdown && Object.keys(breakdown).length > 0 && (
           <div className="binding-space-tooltip-tasks">
             <strong>Tasks ({Object.keys(breakdown).length}): </strong>
@@ -55,8 +56,12 @@ export const BindingSpaceBadge: React.FC<BindingSpaceBadgeProps> = ({
           <span className="binding-space-card-desc">{parsed.exact} candidate combinations</span>
         </div>
         {showScale && (
-          <div className="binding-space-meter" aria-hidden="true" title={`Scale tier: ${parsed.tierLabel}`}>
-            {[1, 2, 3, 4].map((dot) => (
+          <div
+            className="binding-space-meter"
+            aria-hidden="true"
+            title={`Scale tier: ${parsed.tierLabel}`}
+          >
+            {[1, 2, 3, 4].map(dot => (
               <span
                 key={dot}
                 className={`binding-space-meter-dot ${dot <= parsed.dots ? 'is-active' : ''}`}
@@ -83,7 +88,7 @@ export const BindingSpaceBadge: React.FC<BindingSpaceBadgeProps> = ({
       <span className="binding-space-value">{parsed.formatted}</span>
       {showScale && (
         <div className="binding-space-meter" aria-hidden="true">
-          {[1, 2, 3, 4].map((dot) => (
+          {[1, 2, 3, 4].map(dot => (
             <span
               key={dot}
               className={`binding-space-meter-dot ${dot <= parsed.dots ? 'is-active' : ''}`}

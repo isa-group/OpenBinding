@@ -1,10 +1,10 @@
-import js from '@eslint/js'
-import globals from 'globals'
-import reactHooks from 'eslint-plugin-react-hooks'
-import reactRefresh from 'eslint-plugin-react-refresh'
-import tseslint from 'typescript-eslint'
-import boundaries from 'eslint-plugin-boundaries'
-import { defineConfig, globalIgnores } from 'eslint/config'
+import js from '@eslint/js';
+import globals from 'globals';
+import reactHooks from 'eslint-plugin-react-hooks';
+import reactRefresh from 'eslint-plugin-react-refresh';
+import tseslint from 'typescript-eslint';
+import boundaries from 'eslint-plugin-boundaries';
+import { defineConfig, globalIgnores } from 'eslint/config';
 
 export default defineConfig([
   globalIgnores(['dist', 'src/shared/api/openapi.ts']),
@@ -54,7 +54,12 @@ export default defineConfig([
             {
               from: { element: { type: 'page' } },
               disallow: {
-                to: { element: { type: 'page', captured: { name: '!{{ from.element.captured.name }}' } } },
+                to: {
+                  element: {
+                    type: 'page',
+                    captured: { name: '!{{ from.element.captured.name }}' },
+                  },
+                },
               },
             },
           ],
@@ -75,7 +80,9 @@ export default defineConfig([
           policies: [
             {
               from: { element: { type: 'shared' } },
-              disallow: { to: { element: { types: { anyOf: ['entity', 'widget', 'feature', 'page'] } } } },
+              disallow: {
+                to: { element: { types: { anyOf: ['entity', 'widget', 'feature', 'page'] } } },
+              },
             },
             {
               from: { element: { type: 'entity' } },
@@ -92,7 +99,12 @@ export default defineConfig([
             {
               from: { element: { type: 'feature' } },
               disallow: {
-                to: { element: { type: 'feature', captured: { name: '!{{ from.element.captured.name }}' } } },
+                to: {
+                  element: {
+                    type: 'feature',
+                    captured: { name: '!{{ from.element.captured.name }}' },
+                  },
+                },
               },
             },
           ],
@@ -100,4 +112,4 @@ export default defineConfig([
       ],
     },
   },
-])
+]);

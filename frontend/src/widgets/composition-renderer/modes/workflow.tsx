@@ -18,9 +18,12 @@ interface WorkflowModeProps {
 
 /** What the drawing says of each task: its candidate as the document writes it, or that it is done in house. */
 function bindingOverlay(model: CompositionViewModel): Record<string, TaskOverlay> {
-  return Object.fromEntries(model.tasks.map((task): [string, TaskOverlay] => [
-    task.id, task.local ? { local: true } : task.candidate ? { candidate: task.candidate } : {},
-  ]));
+  return Object.fromEntries(
+    model.tasks.map((task): [string, TaskOverlay] => [
+      task.id,
+      task.local ? { local: true } : task.candidate ? { candidate: task.candidate } : {},
+    ])
+  );
 }
 
 export function WorkflowMode({ model, sections }: WorkflowModeProps) {
@@ -31,13 +34,18 @@ export function WorkflowMode({ model, sections }: WorkflowModeProps) {
     <>
       {shows('graph') && (
         <RendererSection title="Workflow">
-          <WorkflowGraph graph={model.workflow} overlay={bindingOverlay(model)} label={`The workflow of ${model.identity.name}`} />
+          <WorkflowGraph
+            graph={model.workflow}
+            overlay={bindingOverlay(model)}
+            label={`The workflow of ${model.identity.name}`}
+          />
         </RendererSection>
       )}
       {shows('candidates') && matrix && (
         <RendererSection title="Problem candidates">
           <p className="cr-muted">
-            What the linked problem offers each task, on the compilation these values were evaluated on. The candidate this version uses is selected.
+            What the linked problem offers each task, on the compilation these values were evaluated
+            on. The candidate this version uses is selected.
           </p>
           <CandidateMatrix matrix={matrix} mode="view" label="Candidates of the linked problem" />
         </RendererSection>

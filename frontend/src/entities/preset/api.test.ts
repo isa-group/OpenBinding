@@ -4,9 +4,11 @@ import { readApiError } from '../../shared/api/errors';
 import { presetsApi } from './api';
 import { presetFixture } from '../../test/fixtures/presets';
 
-const answer = (body: unknown, status = 200, headers: Record<string, string> = {}) => (
-  new Response(status === 204 ? null : JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json', ...headers } })
-);
+const answer = (body: unknown, status = 200, headers: Record<string, string> = {}) =>
+  new Response(status === 204 ? null : JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json', ...headers },
+  });
 
 describe('presetsApi', () => {
   const fetchMock = vi.fn<typeof fetch>();
@@ -21,7 +23,9 @@ describe('presetsApi', () => {
   });
 
   it('lists the presets of an organization by name, with the filters given', async () => {
-    fetchMock.mockImplementation(async () => answer({ presets: [presetFixture()], total: 1, limit: 200, offset: 0 }));
+    fetchMock.mockImplementation(async () =>
+      answer({ presets: [presetFixture()], total: 1, limit: 200, offset: 0 })
+    );
 
     const page = await presetsApi.list('isa demo', { q: 'fast', limit: 200 });
     await presetsApi.list('isa-demo');
@@ -37,20 +41,34 @@ describe('presetsApi', () => {
       .mockResolvedValueOnce(answer(presetFixture({ name: 'Faster' }), 200, { ETag: '"p-2"' }));
 
     const read = await presetsApi.get('isa-demo', 'fast-sampling');
-    const changed = await presetsApi.update('isa-demo', 'fast-sampling', { name: 'Faster', options: { iterations: 10 } }, read.etag);
+    const changed = await presetsApi.update(
+      'isa-demo',
+      'fast-sampling',
+      { name: 'Faster', options: { iterations: 10 } },
+      read.etag
+    );
 
     expect(read).toEqual({ value: presetFixture(), etag: '"p-1"' });
     expect(url(1)).toMatch(/\/presets\/fast-sampling$/);
     expect(init(1).method).toBe('PATCH');
     expect(header('If-Match', 1)).toBe('"p-1"');
-    expect(JSON.parse(String(init(1).body))).toEqual({ name: 'Faster', options: { iterations: 10 } });
+    expect(JSON.parse(String(init(1).body))).toEqual({
+      name: 'Faster',
+      options: { iterations: 10 },
+    });
     expect(changed.etag).toBe('"p-2"');
   });
 
   it('creates a preset with its settings, and deletes one', async () => {
-    fetchMock.mockResolvedValueOnce(answer(presetFixture(), 201, { ETag: '"p-1"' })).mockResolvedValueOnce(answer(null, 204));
+    fetchMock
+      .mockResolvedValueOnce(answer(presetFixture(), 201, { ETag: '"p-1"' }))
+      .mockResolvedValueOnce(answer(null, 204));
     const body = {
-      slug: 'fast-sampling', name: 'Fast sampling', engine: presetFixture().engine, mode: 'sampling', options: { time_budget_ms: 30000 },
+      slug: 'fast-sampling',
+      name: 'Fast sampling',
+      engine: presetFixture().engine,
+      mode: 'sampling',
+      options: { time_budget_ms: 30000 },
       optimization: { type: 'SINGLE' as const, scalarization: 'weighted-sum' },
     };
 
@@ -65,9 +83,21 @@ describe('presetsApi', () => {
   });
 
   it('throws the gateway’s refusal, readable as code and message', async () => {
-    fetchMock.mockImplementation(async () => answer({ detail: { code: 'slug_conflict', error: 'That preset slug is in use in this organization.' } }, 409));
+    fetchMock.mockImplementation(async () =>
+      answer(
+        {
+          detail: {
+            code: 'slug_conflict',
+            error: 'That preset slug is in use in this organization.',
+          },
+        },
+        409
+      )
+    );
 
-    const caught = await presetsApi.create('isa-demo', { slug: 'fast-sampling', name: 'Again', engine: 'random-search' }).catch((error: unknown) => error);
+    const caught = await presetsApi
+      .create('isa-demo', { slug: 'fast-sampling', name: 'Again', engine: 'random-search' })
+      .catch((error: unknown) => error);
 
     expect(caught).toBeInstanceOf(HttpError);
     expect(readApiError(caught)).toMatchObject({ status: 409, code: 'slug_conflict' });

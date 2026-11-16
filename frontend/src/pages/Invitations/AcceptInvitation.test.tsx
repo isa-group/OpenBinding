@@ -10,23 +10,39 @@ import { AcceptInvitation } from './AcceptInvitation';
 const api = vi.hoisted(() => ({ organizations: vi.fn(), acceptInvitation: vi.fn() }));
 
 vi.mock('../../api/platform', async () => ({
-  ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'),
+  ...(await vi.importActual<typeof import('../../api/platform')>('../../api/platform')),
   platformApi: api,
 }));
 
 const TOKEN = `obi_${'a1b2c3d4'.repeat(2)}_${'e5f6a7b8'.repeat(3)}`;
 
 const user: UserProfile = {
-  id: 'u1', username: 'sofia', email: 'sofia@example.org', role: 'user', plan: 'FREE', is_active: true, created_at: '2026-01-01T00:00:00Z',
+  id: 'u1',
+  username: 'sofia',
+  email: 'sofia@example.org',
+  role: 'user',
+  plan: 'FREE',
+  is_active: true,
+  created_at: '2026-01-01T00:00:00Z',
 };
 
 const isaDemo: Organization = {
-  id: 'org-1', slug: 'isa-demo', name: 'ISA Demo Group', parent_id: null, effective_role: 'MEMBER',
+  id: 'org-1',
+  slug: 'isa-demo',
+  name: 'ISA Demo Group',
+  parent_id: null,
+  effective_role: 'MEMBER',
   created_at: '2026-01-01T00:00:00Z',
 };
 
 const membership: OrganizationMember = {
-  id: 'm1', organization_id: 'org-1', user_id: 'u1', username: 'sofia', email: 'sofia@example.org', role: 'MEMBER', created_at: '2026-10-09T10:00:00Z',
+  id: 'm1',
+  organization_id: 'org-1',
+  user_id: 'u1',
+  username: 'sofia',
+  email: 'sofia@example.org',
+  role: 'MEMBER',
+  created_at: '2026-10-09T10:00:00Z',
 };
 
 function problem(status: number, code?: string) {
@@ -37,14 +53,30 @@ function problem(status: number, code?: string) {
 
 function Probe() {
   const location = useLocation();
-  return <output data-testid="probe">{JSON.stringify({ path: location.pathname, search: location.search, state: location.state })}</output>;
+  return (
+    <output data-testid="probe">
+      {JSON.stringify({ path: location.pathname, search: location.search, state: location.state })}
+    </output>
+  );
 }
 
-function renderPage(entry: string | { pathname: string; search?: string; state?: unknown }, account: UserProfile | null = user, loading = false) {
+function renderPage(
+  entry: string | { pathname: string; search?: string; state?: unknown },
+  account: UserProfile | null = user,
+  loading = false
+) {
   return render(
     <MemoryRouter initialEntries={[entry]}>
       <AuthContext.Provider
-        value={{ user: account, loading, signIn: vi.fn(), register: vi.fn(), signOut: vi.fn(), refresh: vi.fn(), isAdmin: false }}
+        value={{
+          user: account,
+          loading,
+          signIn: vi.fn(),
+          register: vi.fn(),
+          signOut: vi.fn(),
+          refresh: vi.fn(),
+          isAdmin: false,
+        }}
       >
         <Routes>
           <Route path="/invitations/accept" element={<AcceptInvitation />} />
@@ -54,11 +86,16 @@ function renderPage(entry: string | { pathname: string; search?: string; state?:
         </Routes>
         <Probe />
       </AuthContext.Provider>
-    </MemoryRouter>,
+    </MemoryRouter>
   );
 }
 
-const probe = () => JSON.parse(screen.getByTestId('probe').textContent ?? '{}') as { path: string; search: string; state: { token?: string; from?: string } | null };
+const probe = () =>
+  JSON.parse(screen.getByTestId('probe').textContent ?? '{}') as {
+    path: string;
+    search: string;
+    state: { token?: string; from?: string } | null;
+  };
 
 describe('AcceptInvitation', () => {
   beforeEach(() => {
@@ -112,10 +149,16 @@ describe('AcceptInvitation', () => {
   it('invites a signed-in visitor without a link to paste the token, and says what is not known yet', () => {
     renderPage('/invitations/accept');
 
-    expect(screen.getByRole('heading', { level: 1, name: 'Paste your invitation' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Paste your invitation' })
+    ).toBeInTheDocument();
     expect(screen.getByLabelText('Invitation token')).toHaveValue('');
-    expect(screen.getByLabelText('Invitation token')).toHaveAccessibleDescription('Tokens are valid for 7 days and work once.');
-    expect(screen.getByText(/the API has no endpoint to preview an invitation/)).toBeInTheDocument();
+    expect(screen.getByLabelText('Invitation token')).toHaveAccessibleDescription(
+      'Tokens are valid for 7 days and work once.'
+    );
+    expect(
+      screen.getByText(/the API has no endpoint to preview an invitation/)
+    ).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Not now' })).toHaveAttribute('href', '/app');
   });
 
@@ -123,11 +166,15 @@ describe('AcceptInvitation', () => {
     renderPage('/invitations/accept');
 
     fireEvent.click(screen.getByRole('button', { name: 'Accept invitation' }));
-    expect(screen.getByLabelText('Invitation token')).toHaveAccessibleDescription(expect.stringContaining('Paste the invitation token.'));
+    expect(screen.getByLabelText('Invitation token')).toHaveAccessibleDescription(
+      expect.stringContaining('Paste the invitation token.')
+    );
     expect(screen.getByLabelText('Invitation token')).toHaveFocus();
 
     fireEvent.change(screen.getByLabelText('Invitation token'), { target: { value: 'obi_short' } });
-    expect(screen.getByLabelText('Invitation token')).toHaveAccessibleDescription(expect.stringContaining('at least 32 characters'));
+    expect(screen.getByLabelText('Invitation token')).toHaveAccessibleDescription(
+      expect.stringContaining('at least 32 characters')
+    );
     expect(api.acceptInvitation).not.toHaveBeenCalled();
   });
 
@@ -136,15 +183,24 @@ describe('AcceptInvitation', () => {
     api.acceptInvitation.mockResolvedValue(membership);
     renderPage('/invitations/accept');
 
-    fireEvent.change(screen.getByLabelText('Invitation token'), { target: { value: `  ${TOKEN}  ` } });
+    fireEvent.change(screen.getByLabelText('Invitation token'), {
+      target: { value: `  ${TOKEN}  ` },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Accept invitation' }));
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'You joined ISA Demo Group' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'You joined ISA Demo Group' })
+    ).toBeInTheDocument();
     expect(api.acceptInvitation).toHaveBeenCalledWith(TOKEN);
     expect(screen.getByText('@isa-demo')).toBeInTheDocument();
     expect(screen.getByText('MEMBER')).toBeInTheDocument();
-    expect(screen.getByText(/As a member you can upload problems and launch runs and studies/)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Open the organization' })).toHaveAttribute('href', '/app/isa-demo');
+    expect(
+      screen.getByText(/As a member you can upload problems and launch runs and studies/)
+    ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Open the organization' })).toHaveAttribute(
+      'href',
+      '/app/isa-demo'
+    );
     expect(screen.queryByLabelText('Invitation token')).not.toBeInTheDocument();
   });
 
@@ -155,8 +211,15 @@ describe('AcceptInvitation', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Accept invitation' }));
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'You’re already a member of ISA Demo Group' })).toBeInTheDocument();
-    expect(screen.getByText('Nothing changed: your current role stays as it is.')).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', {
+        level: 1,
+        name: 'You’re already a member of ISA Demo Group',
+      })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('Nothing changed: your current role stays as it is.')
+    ).toBeInTheDocument();
     expect(screen.getByText('ADMIN')).toBeInTheDocument();
   });
 
@@ -167,8 +230,13 @@ describe('AcceptInvitation', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Accept invitation' }));
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'You joined the organization' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Open the organization' })).toHaveAttribute('href', '/app');
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'You joined the organization' })
+    ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Open the organization' })).toHaveAttribute(
+      'href',
+      '/app'
+    );
   });
 
   it('reports invalid, expired, used and wrong-email tokens together, because the gateway does', async () => {
@@ -190,18 +258,26 @@ describe('AcceptInvitation', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Accept invitation' }));
 
-    await waitFor(() => expect(screen.getByLabelText('Invitation token')).toHaveAttribute('aria-invalid', 'true'));
+    await waitFor(() =>
+      expect(screen.getByLabelText('Invitation token')).toHaveAttribute('aria-invalid', 'true')
+    );
   });
 
   it('reports an outage as such, and a network failure as another thing', async () => {
-    api.acceptInvitation.mockRejectedValueOnce(problem(503)).mockRejectedValueOnce(new TypeError('Failed to fetch'));
+    api.acceptInvitation
+      .mockRejectedValueOnce(problem(503))
+      .mockRejectedValueOnce(new TypeError('Failed to fetch'));
     renderPage({ pathname: '/invitations/accept', state: { token: TOKEN } });
 
     fireEvent.click(screen.getByRole('button', { name: 'Accept invitation' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent('Invitations are unavailable right now (503).');
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Invitations are unavailable right now (503).'
+    );
 
     fireEvent.click(screen.getByRole('button', { name: 'Accept invitation' }));
-    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('OpenBinding couldn’t be reached.'));
+    await waitFor(() =>
+      expect(screen.getByRole('alert')).toHaveTextContent('OpenBinding couldn’t be reached.')
+    );
   });
 
   it('disables the form while the invitation is being accepted', async () => {

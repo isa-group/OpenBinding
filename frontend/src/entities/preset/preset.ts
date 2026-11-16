@@ -33,40 +33,54 @@ export function presetRegistrationText(registration: RunPresetView['registration
   return `${namespace}${registration.name}${version}`;
 }
 
-const OPTION_WORDS: Record<string, string> = { time_budget_ms: 'time budget', max_evaluations: 'evaluations', population_size: 'population' };
+const OPTION_WORDS: Record<string, string> = {
+  time_budget_ms: 'time budget',
+  max_evaluations: 'evaluations',
+  population_size: 'population',
+};
 
 /** `time budget 30 s · iterations 100,000`; `Engine defaults` when it sets none. */
 export function presetOptionsText(options: Record<string, unknown> | null | undefined): string {
   const entries = Object.entries(options ?? {});
   if (entries.length === 0) return 'Engine defaults';
-  return entries.map(([name, value]) => {
-    const label = OPTION_WORDS[name] ?? name.replace(/[_-]+/g, ' ');
-    if (name === 'time_budget_ms' && typeof value === 'number') return `${label} ${(value / 1000).toLocaleString('en-US')} s`;
-    if (typeof value === 'number') return `${label} ${value.toLocaleString('en-US')}`;
-    return `${label} ${typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value)}`;
-  }).join(' · ');
+  return entries
+    .map(([name, value]) => {
+      const label = OPTION_WORDS[name] ?? name.replace(/[_-]+/g, ' ');
+      if (name === 'time_budget_ms' && typeof value === 'number')
+        return `${label} ${(value / 1000).toLocaleString('en-US')} s`;
+      if (typeof value === 'number') return `${label} ${value.toLocaleString('en-US')}`;
+      return `${label} ${typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value)}`;
+    })
+    .join(' · ');
 }
 
 /** `SINGLE · weighted-sum` (with its weights); `null` when the preset leaves the optimization to the run. */
 export function presetOptimizationText(optimization: RunPresetView['optimization']): string | null {
   if (!isRecord(optimization)) return null;
   const type = typeof optimization.type === 'string' ? optimization.type : '?';
-  const scalarization = typeof optimization.scalarization === 'string' ? optimization.scalarization : '?';
+  const scalarization =
+    typeof optimization.scalarization === 'string' ? optimization.scalarization : '?';
   const weights = Array.isArray(optimization.weights)
-    ? optimization.weights.filter(isRecord).map((weight) => `${String(weight.criteria)} ${String(weight.value)}`)
+    ? optimization.weights
+        .filter(isRecord)
+        .map(weight => `${String(weight.criteria)} ${String(weight.value)}`)
     : [];
   return `${type} · ${scalarization}${weights.length ? ` (weights ${weights.join(', ')})` : ''}`;
 }
 
 /** A preset that runs on a deployment of its own rather than the engine's installed one. */
-export const isFederatedPreset = (preset: Pick<RunPresetView, 'registration'>): boolean => isRecord(preset.registration);
+export const isFederatedPreset = (preset: Pick<RunPresetView, 'registration'>): boolean =>
+  isRecord(preset.registration);
 
 /**
  * Why a study cannot take this preset as one of its engines, in the words of the gateway's refusals (`preset_federated`,
  * `preset_incomplete`), or `null` when it can be offered. The gateway still decides when the study is saved and run.
  */
-export function studyPresetRefusal(preset: Pick<RunPresetView, 'registration' | 'optimization'>): string | null {
-  if (isFederatedPreset(preset)) return 'Runs on a federated deployment: presets of federated engines can’t join a study yet.';
+export function studyPresetRefusal(
+  preset: Pick<RunPresetView, 'registration' | 'optimization'>
+): string | null {
+  if (isFederatedPreset(preset))
+    return 'Runs on a federated deployment: presets of federated engines can’t join a study yet.';
   if (!isRecord(preset.optimization)) return 'Names no optimization, which a study engine needs.';
   return null;
 }

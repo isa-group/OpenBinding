@@ -15,7 +15,10 @@ import { defineConfig } from '@playwright/test';
  */
 const results = process.env.E2E_RESULTS_DIR ?? '/results';
 const baseURL = process.env.BASE_URL ?? 'http://web:8080';
-const browser = { browserName: 'chromium' as const, launchOptions: { args: ['--no-sandbox', '--disable-dev-shm-usage'] } };
+const browser = {
+  browserName: 'chromium' as const,
+  launchOptions: { args: ['--no-sandbox', '--disable-dev-shm-usage'] },
+};
 
 export default defineConfig({
   testDir: './e2e/live',

@@ -8,7 +8,9 @@ export function NotFoundScreen() {
       <span className="micro-label">404</span>
       <h1 id="not-found-title">Page not found</h1>
       <p>There is nothing at this address.</p>
-      <p><Link to="/">Back to the home page</Link></p>
+      <p>
+        <Link to="/">Back to the home page</Link>
+      </p>
     </section>
   );
 }

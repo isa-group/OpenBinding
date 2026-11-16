@@ -25,7 +25,13 @@ export function CopyField({ value, label, truncate = false, className = '' }: Co
       >
         {state === 'copied' ? 'Copied' : state === 'failed' ? 'Failed' : 'Copy'}
       </button>
-      <span className="sr-only" role="status">{state === 'copied' ? `${label} copied` : state === 'failed' ? `Could not copy the ${label}` : ''}</span>
+      <span className="sr-only" role="status">
+        {state === 'copied'
+          ? `${label} copied`
+          : state === 'failed'
+            ? `Could not copy the ${label}`
+            : ''}
+      </span>
     </div>
   );
 }

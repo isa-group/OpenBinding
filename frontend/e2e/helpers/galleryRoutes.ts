@@ -6,7 +6,15 @@ import { readdirSync, readFileSync } from 'node:fs';
 
 /** The registry order of the areas; an area file that is not listed comes after them, by name. */
 const AREA_ORDER = [
-  'public', 'auth', 'engines', 'account', 'organizations', 'compositions', 'problems', 'runs', 'studies',
+  'public',
+  'auth',
+  'engines',
+  'account',
+  'organizations',
+  'compositions',
+  'problems',
+  'runs',
+  'studies',
   'admin',
 ];
 
@@ -19,10 +27,10 @@ const areaRank = (area: string) => {
 export function readAreaSources(): Array<{ area: string; source: string }> {
   const directory = new URL('../../src/routes/areas/', import.meta.url);
   return readdirSync(directory)
-    .filter((file) => file.endsWith('.tsx'))
-    .map((file) => file.replace(/\.tsx$/, ''))
+    .filter(file => file.endsWith('.tsx'))
+    .map(file => file.replace(/\.tsx$/, ''))
     .sort((a, b) => areaRank(a) - areaRank(b) || a.localeCompare(b))
-    .map((area) => ({ area, source: readFileSync(new URL(`${area}.tsx`, directory), 'utf8') }));
+    .map(area => ({ area, source: readFileSync(new URL(`${area}.tsx`, directory), 'utf8') }));
 }
 
 /**
@@ -36,7 +44,10 @@ export function dropOptionalSegments(path: string): string {
 
 /** Every `live(` call the area files make: the screens that `readGalleryScreens` has to find. */
 export function countLiveCalls(): number {
-  return readAreaSources().reduce((total, { source }) => total + (source.match(/^\s*live\(/gm)?.length ?? 0), 0);
+  return readAreaSources().reduce(
+    (total, { source }) => total + (source.match(/^\s*live\(/gm)?.length ?? 0),
+    0
+  );
 }
 
 export interface GalleryScreen {
@@ -90,10 +101,13 @@ const QUERY_OF: Record<string, string> = {
 
 export function readGalleryScreens(): GalleryScreen[] {
   return readAreaSources().flatMap(({ area, source }) => {
-    return [...source.matchAll(/^\s*live\('([a-z0-9-]+)',\s*'(\/[^']*)'(.*)$/gm)].map((match) => {
+    return [...source.matchAll(/^\s*live\('([a-z0-9-]+)',\s*'(\/[^']*)'(.*)$/gm)].map(match => {
       const [, id, path, rest] = match;
       const params: Record<string, string> = { ...EXAMPLE, ...PARAMS_OF[id] };
-      const address = dropOptionalSegments(path).replace(/:([A-Za-z]+)/g, (_whole, name: string) => params[name] ?? 'sample');
+      const address = dropOptionalSegments(path).replace(
+        /:([A-Za-z]+)/g,
+        (_whole, name: string) => params[name] ?? 'sample'
+      );
       return {
         id,
         path,

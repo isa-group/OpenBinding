@@ -18,8 +18,18 @@ const STORE = 'drafts';
  * Where a draft is kept: per person, per editor, per organization, per thing edited and per version it started from. The person
  * comes first, so `clearUserDrafts` can forget everything one person kept.
  */
-export function draftScope({ user, kind, org, entity, base }: {
-  user: string | null | undefined; kind: DraftKind; org: string; entity: string; base: string;
+export function draftScope({
+  user,
+  kind,
+  org,
+  entity,
+  base,
+}: {
+  user: string | null | undefined;
+  kind: DraftKind;
+  org: string;
+  entity: string;
+  base: string;
 }): string {
   return `${user || 'anonymous'}:${kind}:${org}:${entity}:${base}`;
 }
@@ -31,7 +41,7 @@ export function draftsAvailable(): boolean {
 
 function readDraft(value: unknown): DraftFiles | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
-  if (!Object.values(value).every((entry) => typeof entry === 'string')) return null;
+  if (!Object.values(value).every(entry => typeof entry === 'string')) return null;
   return { ...(value as DraftFiles) };
 }
 
@@ -39,14 +49,20 @@ function open(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, 1);
     request.onupgradeneeded = () => request.result.createObjectStore(STORE);
-    request.onerror = () => reject(request.error ?? new Error('The drafts of this browser could not be opened.'));
-    request.onblocked = () => reject(new Error('The drafts of this browser are blocked by another tab.'));
+    request.onerror = () =>
+      reject(request.error ?? new Error('The drafts of this browser could not be opened.'));
+    request.onblocked = () =>
+      reject(new Error('The drafts of this browser are blocked by another tab.'));
     request.onsuccess = () => resolve(request.result);
   });
 }
 
 /** Run one transaction on the store, and settle when it has committed (or failed). */
-async function transact<T>(mode: IDBTransactionMode, work: (store: IDBObjectStore) => IDBRequest | void, read?: (result: unknown) => T): Promise<T | undefined> {
+async function transact<T>(
+  mode: IDBTransactionMode,
+  work: (store: IDBObjectStore) => IDBRequest | void,
+  read?: (result: unknown) => T
+): Promise<T | undefined> {
   const db = await open();
   return new Promise<T | undefined>((resolve, reject) => {
     let value: T | undefined;
@@ -59,8 +75,14 @@ async function transact<T>(mode: IDBTransactionMode, work: (store: IDBObjectStor
       return;
     }
     const request = work(transaction.objectStore(STORE));
-    if (request && read) request.onsuccess = () => { value = read(request.result); };
-    transaction.oncomplete = () => { db.close(); resolve(value); };
+    if (request && read)
+      request.onsuccess = () => {
+        value = read(request.result);
+      };
+    transaction.oncomplete = () => {
+      db.close();
+      resolve(value);
+    };
     transaction.onabort = transaction.onerror = () => {
       db.close();
       reject(transaction.error ?? new Error('The drafts of this browser could not be changed.'));
@@ -68,13 +90,14 @@ async function transact<T>(mode: IDBTransactionMode, work: (store: IDBObjectStor
   });
 }
 
-const NOT_SAVED = 'This draft could not be kept in the browser. Export or save it to keep your changes.';
+const NOT_SAVED =
+  'This draft could not be kept in the browser. Export or save it to keep your changes.';
 
 /** Keep the files of a scope. Nothing happens where drafts cannot be kept; a failure to write rejects. */
 export async function saveDraft(scope: string, files: DraftFiles): Promise<void> {
   if (!draftsAvailable()) return;
   try {
-    await transact('readwrite', (store) => store.put({ ...files }, scope));
+    await transact('readwrite', store => store.put({ ...files }, scope));
   } catch {
     throw new Error(NOT_SAVED);
   }
@@ -84,7 +107,7 @@ export async function saveDraft(scope: string, files: DraftFiles): Promise<void>
 export async function loadDraft(scope: string): Promise<DraftFiles | null> {
   if (!draftsAvailable()) return null;
   try {
-    return (await transact('readonly', (store) => store.get(scope), readDraft)) ?? null;
+    return (await transact('readonly', store => store.get(scope), readDraft)) ?? null;
   } catch {
     return null;
   }
@@ -94,8 +117,10 @@ export async function loadDraft(scope: string): Promise<DraftFiles | null> {
 export async function clearDraft(scope: string): Promise<void> {
   if (!draftsAvailable()) return;
   try {
-    await transact('readwrite', (store) => store.delete(scope));
-  } catch { /* Nothing kept can be forgotten. */ }
+    await transact('readwrite', store => store.delete(scope));
+  } catch {
+    /* Nothing kept can be forgotten. */
+  }
 }
 
 /**
@@ -106,7 +131,7 @@ export async function clearUserDrafts(userId: string): Promise<void> {
   if (!draftsAvailable() || !userId) return;
   const prefix = `${userId}:`;
   try {
-    await transact('readwrite', (store) => {
+    await transact('readwrite', store => {
       const keys = store.getAllKeys();
       keys.onsuccess = () => {
         for (const key of keys.result) {
@@ -114,5 +139,7 @@ export async function clearUserDrafts(userId: string): Promise<void> {
         }
       };
     });
-  } catch { /* Nothing kept can be forgotten. */ }
+  } catch {
+    /* Nothing kept can be forgotten. */
+  }
 }

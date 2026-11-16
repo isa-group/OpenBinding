@@ -20,10 +20,14 @@ export function CommandPalette({ organizations, organization, isAdmin }: Palette
 
   const commands = useMemo(
     () => buildCommands({ organizations, organization, isAdmin }),
-    [organizations, organization, isAdmin],
+    [organizations, organization, isAdmin]
   );
   const needle = query.trim().toLowerCase();
-  const results = needle ? commands.filter((item) => `${item.label} ${item.desc} ${item.group}`.toLowerCase().includes(needle)) : commands;
+  const results = needle
+    ? commands.filter(item =>
+        `${item.label} ${item.desc} ${item.group}`.toLowerCase().includes(needle)
+      )
+    : commands;
 
   const show = useCallback(() => {
     opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -37,7 +41,8 @@ export function CommandPalette({ organizations, organization, isAdmin }: Palette
     const keydown = (event: globalThis.KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault();
-        if (open) close(); else show();
+        if (open) close();
+        else show();
       }
     };
     window.addEventListener(OPEN_COMMAND_PALETTE_EVENT, show);
@@ -90,7 +95,8 @@ export function CommandPalette({ organizations, organization, isAdmin }: Palette
       if (input.current) stops.push(input.current);
       stops.push(...Array.from(panel.querySelectorAll<HTMLElement>('.app-palette-result')));
       const index = stops.indexOf(document.activeElement as HTMLElement);
-      const next = event.key === 'ArrowDown' ? Math.min(index + 1, stops.length - 1) : Math.max(index - 1, 0);
+      const next =
+        event.key === 'ArrowDown' ? Math.min(index + 1, stops.length - 1) : Math.max(index - 1, 0);
       stops[next]?.focus();
     }
   };
@@ -100,14 +106,20 @@ export function CommandPalette({ organizations, organization, isAdmin }: Palette
   return createPortal(
     <div className="app-palette-layer" onKeyDown={handleKeyDown}>
       <div className="app-palette-backdrop" onClick={close} aria-hidden="true" />
-      <div ref={dialog} className="app-palette" role="dialog" aria-modal="true" aria-label="Command palette">
+      <div
+        ref={dialog}
+        className="app-palette"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Command palette"
+      >
         <div className="app-palette-search">
           <Search aria-hidden="true" />
           <input
             ref={input}
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            onKeyDown={(event) => {
+            onChange={event => setQuery(event.target.value)}
+            onKeyDown={event => {
               if (event.key === 'Enter' && results[0]) {
                 event.preventDefault();
                 choose();
@@ -119,18 +131,37 @@ export function CommandPalette({ organizations, organization, isAdmin }: Palette
             autoComplete="off"
             spellCheck={false}
           />
-          <button type="button" className="app-palette-esc" onClick={close} aria-label="Close command palette">ESC</button>
+          <button
+            type="button"
+            className="app-palette-esc"
+            onClick={close}
+            aria-label="Close command palette"
+          >
+            ESC
+          </button>
         </div>
         <div className="app-palette-results">
           {results.length === 0 ? (
-            <p className="app-palette-empty">No matches. Search only covers data already loaded on this device.</p>
+            <p className="app-palette-empty">
+              No matches. Search only covers data already loaded on this device.
+            </p>
           ) : (
             <ul>
-              {results.map((item) => (
+              {results.map(item => (
                 <li key={`${item.group}:${item.href}:${item.label}`}>
-                  <Link to={item.href} viewTransition className="app-palette-result" onClick={choose}>
-                    <span className="app-palette-glyph" aria-hidden="true">{item.glyph}</span>
-                    <span className="app-palette-text"><strong>{item.label}</strong><small>{item.desc}</small></span>
+                  <Link
+                    to={item.href}
+                    viewTransition
+                    className="app-palette-result"
+                    onClick={choose}
+                  >
+                    <span className="app-palette-glyph" aria-hidden="true">
+                      {item.glyph}
+                    </span>
+                    <span className="app-palette-text">
+                      <strong>{item.label}</strong>
+                      <small>{item.desc}</small>
+                    </span>
                     <span className="app-palette-group">{item.group}</span>
                   </Link>
                 </li>
@@ -138,13 +169,15 @@ export function CommandPalette({ organizations, organization, isAdmin }: Palette
             </ul>
           )}
         </div>
-        <p className="sr-only" role="status">{results.length === 0 ? 'No matches' : `${results.length} results`}</p>
+        <p className="sr-only" role="status">
+          {results.length === 0 ? 'No matches' : `${results.length} results`}
+        </p>
         <div className="app-palette-footer">
           <span>↑↓ navigate · ↵ open · esc close</span>
           <span>Local search only</span>
         </div>
       </div>
     </div>,
-    document.body,
+    document.body
   );
 }

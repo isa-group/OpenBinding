@@ -15,13 +15,26 @@ interface ConfirmProps {
 }
 
 /** One question with a yes and a no, for a change that other people or later jobs would notice. */
-export function ConfirmDialog({ title, tone = 'default', confirmLabel, confirmVariant = 'primary', busy = false, onConfirm, onClose, children }: ConfirmProps) {
+export function ConfirmDialog({
+  title,
+  tone = 'default',
+  confirmLabel,
+  confirmVariant = 'primary',
+  busy = false,
+  onConfirm,
+  onClose,
+  children,
+}: ConfirmProps) {
   return (
     <Modal title={title} tone={tone} onClose={busy ? () => undefined : onClose} dismissible={!busy}>
       {children}
       <div className="ui-modal-actions">
-        <Action variant="secondary" onClick={onClose} disabled={busy}>Cancel</Action>
-        <Action variant={confirmVariant} busy={busy} onClick={onConfirm}>{confirmLabel}</Action>
+        <Action variant="secondary" onClick={onClose} disabled={busy}>
+          Cancel
+        </Action>
+        <Action variant={confirmVariant} busy={busy} onClick={onConfirm}>
+          {confirmLabel}
+        </Action>
       </div>
     </Modal>
   );
@@ -37,7 +50,14 @@ interface DeregisterProps {
 }
 
 /** Deleting a registration is not undone, so the registration’s name has to be typed. */
-export function DeregisterDialog({ name, version, published, busy = false, onConfirm, onClose }: DeregisterProps) {
+export function DeregisterDialog({
+  name,
+  version,
+  published,
+  busy = false,
+  onConfirm,
+  onClose,
+}: DeregisterProps) {
   const [typed, setTyped] = useState('');
   const inputId = useId();
   const submit = (event: FormEvent) => {
@@ -45,12 +65,21 @@ export function DeregisterDialog({ name, version, published, busy = false, onCon
     if (typed === name && !busy) onConfirm();
   };
   return (
-    <Modal title={`Delete ${name} ${version}?`} tone="danger" onClose={busy ? () => undefined : onClose} dismissible={!busy}>
+    <Modal
+      title={`Delete ${name} ${version}?`}
+      tone="danger"
+      onClose={busy ? () => undefined : onClose}
+      dismissible={!busy}
+    >
       <form className="eng-dialog-form" onSubmit={submit}>
-        <p>Its stored credential goes with it, and you can no longer pick it for runs. This can’t be undone.</p>
+        <p>
+          Its stored credential goes with it, and you can no longer pick it for runs. This can’t be
+          undone.
+        </p>
         {published && (
           <p className="eng-dialog-warning">
-            It’s published, so other people may rely on it. Administrators are told when you delete a published registration.
+            It’s published, so other people may rely on it. Administrators are told when you delete
+            a published registration.
           </p>
         )}
         <label htmlFor={inputId}>
@@ -60,13 +89,17 @@ export function DeregisterDialog({ name, version, published, busy = false, onCon
           id={inputId}
           className="eng-dialog-input"
           value={typed}
-          onChange={(event) => setTyped(event.target.value)}
+          onChange={event => setTyped(event.target.value)}
           autoComplete="off"
           spellCheck={false}
         />
         <div className="ui-modal-actions">
-          <Action variant="secondary" onClick={onClose} disabled={busy}>Cancel</Action>
-          <Action type="submit" variant="danger" busy={busy} disabled={typed !== name}>Delete registration</Action>
+          <Action variant="secondary" onClick={onClose} disabled={busy}>
+            Cancel
+          </Action>
+          <Action type="submit" variant="danger" busy={busy} disabled={typed !== name}>
+            Delete registration
+          </Action>
         </div>
       </form>
     </Modal>

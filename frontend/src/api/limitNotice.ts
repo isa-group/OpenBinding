@@ -40,18 +40,24 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-const finite = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value);
+const finite = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isFinite(value);
 
 /** The limit a `quota` member names, or `undefined` when it isn't one. A state that isn't recognised is read as `unknown`, never as `exhausted`. */
 export function limitNoticeFrom(raw: unknown): LimitNotice | undefined {
   if (!isRecord(raw) || typeof raw.limit_id !== 'string' || raw.limit_id === '') return undefined;
-  const state: LimitState = raw.state === undefined
-    ? 'exhausted'
-    : typeof raw.state === 'string' && STATES.includes(raw.state) ? (raw.state as LimitState) : 'unknown';
+  const state: LimitState =
+    raw.state === undefined
+      ? 'exhausted'
+      : typeof raw.state === 'string' && STATES.includes(raw.state)
+        ? (raw.state as LimitState)
+        : 'unknown';
   return {
     limit_id: raw.limit_id,
     state,
-    ...(typeof raw.source === 'string' && SOURCES.includes(raw.source) ? { source: raw.source as LimitSource } : {}),
+    ...(typeof raw.source === 'string' && SOURCES.includes(raw.source)
+      ? { source: raw.source as LimitSource }
+      : {}),
     ...(typeof raw.unit === 'string' ? { unit: raw.unit } : {}),
     ...(finite(raw.limit) ? { limit: raw.limit } : {}),
     ...(finite(raw.used) ? { used: raw.used } : {}),
@@ -64,7 +70,9 @@ export function bindingSpaceFrom(raw: unknown): BindingSpaceReport | undefined {
   const report: BindingSpaceReport = {
     ...(finite(raw.log10) ? { log10: raw.log10 } : {}),
     ...(finite(raw.digits) ? { digits: raw.digits } : {}),
-    ...(typeof raw.cardinality === 'string' && /^[0-9]{1,40}$/.test(raw.cardinality) ? { cardinality: raw.cardinality } : {}),
+    ...(typeof raw.cardinality === 'string' && /^[0-9]{1,40}$/.test(raw.cardinality)
+      ? { cardinality: raw.cardinality }
+      : {}),
   };
   return Object.keys(report).length ? report : undefined;
 }

@@ -23,25 +23,34 @@ import { FormsPane } from './FormsPane';
 import { writeAtOrigin, type CellOrigin } from './matrixEdits';
 import { EnginesPanel, WorkflowPane } from './ModelPanes';
 import { RulesPane } from './RulesPane';
-import { useProblemEditor, type Origin, type ProblemEditorState, type SaveOutcome, type SaveTarget } from './useProblemEditor';
+import {
+  useProblemEditor,
+  type Origin,
+  type ProblemEditorState,
+  type SaveOutcome,
+  type SaveTarget,
+} from './useProblemEditor';
 import './ProblemEditor.css';
 
-const BpmnModeler = lazy(() => import('./BpmnModeler').then((module) => ({ default: module.BpmnModeler })));
+const BpmnModeler = lazy(() =>
+  import('./BpmnModeler').then(module => ({ default: module.BpmnModeler }))
+);
 
-export type PaneId = 'workflow' | 'candidates' | 'rules' | 'files' | 'forms' | 'bpmn' | 'engines' | 'problems';
+export type PaneId =
+  'workflow' | 'candidates' | 'rules' | 'files' | 'forms' | 'bpmn' | 'engines' | 'problems';
 
 const NARROW = '(max-width: 640px)';
 
 /** Below 640 px the panes, the engines and the problems are tabs. */
 function useNarrow(): boolean {
   return useSyncExternalStore(
-    (notify) => {
+    notify => {
       const list = typeof window.matchMedia === 'function' ? window.matchMedia(NARROW) : null;
       list?.addEventListener?.('change', notify);
       return () => list?.removeEventListener?.('change', notify);
     },
     () => (typeof window.matchMedia === 'function' ? window.matchMedia(NARROW).matches : false),
-    () => false,
+    () => false
   );
 }
 
@@ -50,18 +59,28 @@ const plural = (count: number, one: string, many: string) => `${count} ${count =
 /** "Problems (2 errors)": the tab of the Problems panel on a phone. */
 function problemsTab(diagnostics: readonly Located[]): string {
   const tally = counts(diagnostics);
-  const parts = [tally.error ? plural(tally.error, 'error', 'errors') : '', tally.warning ? plural(tally.warning, 'warning', 'warnings') : ''].filter(Boolean);
+  const parts = [
+    tally.error ? plural(tally.error, 'error', 'errors') : '',
+    tally.warning ? plural(tally.warning, 'warning', 'warnings') : '',
+  ].filter(Boolean);
   return parts.length ? `Problems (${parts.join(', ')})` : 'Problems';
 }
 
 /** Where the package on screen came from, in words. */
 function originText(origin: Origin | null, problem: string | null): string {
   switch (origin?.kind) {
-    case 'template': return `Opened from template ${origin.template}`;
-    case 'revision': return `Loaded version ${origin.revision} of ${problem ?? 'the problem'}`;
-    case 'draft': return problem ? `Your draft of ${origin.revision !== null ? `version ${origin.revision} of ` : ''}${problem}, kept in this browser` : 'Your draft, kept in this browser';
-    case 'blank': return 'A blank package';
-    default: return '';
+    case 'template':
+      return `Opened from template ${origin.template}`;
+    case 'revision':
+      return `Loaded version ${origin.revision} of ${problem ?? 'the problem'}`;
+    case 'draft':
+      return problem
+        ? `Your draft of ${origin.revision !== null ? `version ${origin.revision} of ` : ''}${problem}, kept in this browser`
+        : 'Your draft, kept in this browser';
+    case 'blank':
+      return 'A blank package';
+    default:
+      return '';
   }
 }
 
@@ -80,20 +99,46 @@ function checkText(editor: ProblemEditorState): string {
 
 /** A refusal of the check that is not about the package (a credential, a size, an outage): said once, with a way to retry. */
 function CheckIssue({ issue, onRetry }: { issue: Refusal; onRetry: () => void }) {
-  const title = issue.kind === 'session' ? 'Checking the package needs a session' : issue.kind === 'too-large' ? 'The package is too large to check' : 'The package couldn’t be checked';
+  const title =
+    issue.kind === 'session'
+      ? 'Checking the package needs a session'
+      : issue.kind === 'too-large'
+        ? 'The package is too large to check'
+        : 'The package couldn’t be checked';
   return (
-    <Notice tone="error" title={`${title}${refusalMarker(issue)}`} action={<Action variant="secondary" size="sm" onClick={onRetry}>Check again</Action>}>
+    <Notice
+      tone="error"
+      title={`${title}${refusalMarker(issue)}`}
+      action={
+        <Action variant="secondary" size="sm" onClick={onRetry}>
+          Check again
+        </Action>
+      }
+    >
       {refusalText(issue, 'nothing was checked')}
     </Notice>
   );
 }
 
-function SavedNotice({ org, outcome }: { org: string; outcome: Exclude<SaveOutcome, { kind: 'refused' }> }) {
+function SavedNotice({
+  org,
+  outcome,
+}: {
+  org: string;
+  outcome: Exclude<SaveOutcome, { kind: 'refused' }>;
+}) {
   const { problem, revision } = outcome.upload;
   return (
     <Notice
       tone="success"
-      action={<Link to={problemPath(org, problem.slug, undefined, { version: revision.revision })} viewTransition>Open the problem</Link>}
+      action={
+        <Link
+          to={problemPath(org, problem.slug, undefined, { version: revision.revision })}
+          viewTransition
+        >
+          Open the problem
+        </Link>
+      }
     >
       {outcome.kind === 'unchanged'
         ? `Unchanged: version ${revision.revision} of ${problem.name} already holds this package.`
@@ -129,7 +174,17 @@ export function ProblemEditor({ organization, canSave, userId, delay }: ProblemE
   const composition = params.get('composition');
   const compositionVersion = params.get('compositionVersion');
   const blank = (location.state as { blank?: boolean } | null)?.blank === true;
-  const editor = useProblemEditor({ org, userId, problem, revision, template, composition, compositionVersion, blank, delay });
+  const editor = useProblemEditor({
+    org,
+    userId,
+    problem,
+    revision,
+    template,
+    composition,
+    compositionVersion,
+    blank,
+    delay,
+  });
 
   const [pane, setPane] = useState<PaneId>('workflow');
   const [filePath, setFilePath] = useState('instance.json');
@@ -147,7 +202,15 @@ export function ProblemEditor({ organization, canSave, userId, delay }: ProblemE
   if (editor.loadIssue) {
     const missing = editor.loadIssue.status === 404;
     return (
-      <Notice tone="error" title="The problem version couldn’t be loaded" action={<Action variant="secondary" size="sm" onClick={editor.retryLoad}>Try again</Action>}>
+      <Notice
+        tone="error"
+        title="The problem version couldn’t be loaded"
+        action={
+          <Action variant="secondary" size="sm" onClick={editor.retryLoad}>
+            Try again
+          </Action>
+        }
+      >
         {missing
           ? `That problem version doesn’t exist any more, or you’re not in the organization it belongs to${refusalMarker(editor.loadIssue)}. The package was not loaded.`
           : refusalText(editor.loadIssue, 'the package was not loaded')}
@@ -155,11 +218,16 @@ export function ProblemEditor({ organization, canSave, userId, delay }: ProblemE
     );
   }
   if (!editor.ready) {
-    return <div role="status" aria-busy="true"><span className="sr-only">Opening the package…</span><Skeleton variant="panel" /></div>;
+    return (
+      <div role="status" aria-busy="true">
+        <span className="sr-only">Opening the package…</span>
+        <Skeleton variant="panel" />
+      </div>
+    );
   }
 
   const files = editor.files;
-  const bpmnPath = filePaths(files).find((path) => /\.bpmn$/i.test(path));
+  const bpmnPath = filePaths(files).find(path => /\.bpmn$/i.test(path));
   const overlay = editor.overlay;
   const selected = overlay?.selection ?? {};
 
@@ -186,7 +254,7 @@ export function ProblemEditor({ organization, canSave, userId, delay }: ProblemE
   };
 
   const changeFile = (path: string, text: string) => {
-    if (editor.current()[path] !== text) editor.commit((now) => ({ ...now, [path]: text }));
+    if (editor.current()[path] !== text) editor.commit(now => ({ ...now, [path]: text }));
   };
 
   const update = (updater: (now: WorkspaceFiles) => WorkspaceFiles) => editor.commit(updater);
@@ -209,7 +277,7 @@ export function ProblemEditor({ organization, canSave, userId, delay }: ProblemE
   const acceptBpmn = (xml: string) => {
     if (!bpmnPath) return;
     const text = xml.replace(/\r\n?/g, '\n');
-    if (editor.current()[bpmnPath] !== text) editor.commit((now) => ({ ...now, [bpmnPath]: text }));
+    if (editor.current()[bpmnPath] !== text) editor.commit(now => ({ ...now, [bpmnPath]: text }));
     setBpmnIssue(null);
   };
 
@@ -217,7 +285,8 @@ export function ProblemEditor({ organization, canSave, userId, delay }: ProblemE
     setOpening(false);
     setSaved(null);
     if (choice.kind === 'template') navigate(problemEditorPath(org, { template: choice.template }));
-    else if (choice.kind === 'revision') navigate(problemEditorPath(org, { problem: choice.problem, revision: choice.revision }));
+    else if (choice.kind === 'revision')
+      navigate(problemEditorPath(org, { problem: choice.problem, revision: choice.revision }));
     else navigate(problemEditorPath(org), { state: { blank: true } });
   };
 
@@ -243,40 +312,73 @@ export function ProblemEditor({ organization, canSave, userId, delay }: ProblemE
     { id: 'files', label: 'Files' },
     { id: 'forms', label: 'Forms' },
     ...(bpmnPath ? [{ id: 'bpmn' as const, label: 'BPMN' }] : []),
-    ...(narrow ? [{ id: 'engines' as const, label: 'Engines' }, { id: 'problems' as const, label: problemsTab(editor.diagnostics) }] : []),
+    ...(narrow
+      ? [
+          { id: 'engines' as const, label: 'Engines' },
+          { id: 'problems' as const, label: problemsTab(editor.diagnostics) },
+        ]
+      : []),
   ];
-  const active = panes.some((item) => item.id === pane) ? pane : 'workflow';
+  const active = panes.some(item => item.id === pane) ? pane : 'workflow';
   const problems = <ProblemsPanel diagnostics={editor.diagnostics} onSelect={openFinding} groups />;
   const engines = <EnginesPanel response={editor.response} stale={editor.stale} />;
 
   return (
     <div className="pe">
       <div className="pe-bar" role="toolbar" aria-label="Problem editor">
-        <Action size="sm" variant="secondary" onClick={() => setOpening(true)}><FolderOpen aria-hidden="true" />Open…</Action>
-        <Action size="sm" variant="ghost" onClick={() => editor.undo()} disabled={!editor.canUndo}><Undo2 aria-hidden="true" />Undo</Action>
-        <Action size="sm" variant="ghost" onClick={() => editor.redo()} disabled={!editor.canRedo}><Redo2 aria-hidden="true" />Redo</Action>
-        <Action size="sm" variant="ghost" onClick={() => editor.reset()} disabled={!editor.dirty}><RotateCcw aria-hidden="true" />Reset</Action>
+        <Action size="sm" variant="secondary" onClick={() => setOpening(true)}>
+          <FolderOpen aria-hidden="true" />
+          Open…
+        </Action>
+        <Action size="sm" variant="ghost" onClick={() => editor.undo()} disabled={!editor.canUndo}>
+          <Undo2 aria-hidden="true" />
+          Undo
+        </Action>
+        <Action size="sm" variant="ghost" onClick={() => editor.redo()} disabled={!editor.canRedo}>
+          <Redo2 aria-hidden="true" />
+          Redo
+        </Action>
+        <Action size="sm" variant="ghost" onClick={() => editor.reset()} disabled={!editor.dirty}>
+          <RotateCcw aria-hidden="true" />
+          Reset
+        </Action>
         {canSave && (
           <Action
             size="sm"
             variant="primary"
             disabled={!editor.savable}
             title={editor.savable ? undefined : 'Save once the package passes its check'}
-            onClick={() => { setSaveIssue(null); setSaving(true); }}
+            onClick={() => {
+              setSaveIssue(null);
+              setSaving(true);
+            }}
           >
-            <Save aria-hidden="true" />Save as version…
+            <Save aria-hidden="true" />
+            Save as version…
           </Action>
         )}
         <span className="pe-status">
-          <span role="status" aria-live="polite" data-testid="pe-check-status">{status}</span>
-          <Action size="sm" variant="ghost" onClick={editor.checkNow} disabled={editor.unparsed.length > 0 || editor.pausedMessage !== null}>
-            <RefreshCw aria-hidden="true" />Check now
+          <span role="status" aria-live="polite" data-testid="pe-check-status">
+            {status}
+          </span>
+          <Action
+            size="sm"
+            variant="ghost"
+            onClick={editor.checkNow}
+            disabled={editor.unparsed.length > 0 || editor.pausedMessage !== null}
+          >
+            <RefreshCw aria-hidden="true" />
+            Check now
           </Action>
         </span>
       </div>
       <p className="pe-origin">{originText(editor.origin, problem)}</p>
 
-      {!canSave && <p className="pe-note" role="note">You can edit and check here; saving into the organization needs MEMBER.</p>}
+      {!canSave && (
+        <p className="pe-note" role="note">
+          You can edit and check here; saving into the organization needs MEMBER.
+        </p>
+      )}
       {editor.draftIssue && <Notice tone="warning">{editor.draftIssue}</Notice>}
       {editor.templateIssue && (
         <Notice tone="error" title={`The template ${editor.templateIssue.template} wasn’t opened`}>
@@ -285,24 +387,65 @@ export function ProblemEditor({ organization, canSave, userId, delay }: ProblemE
       )}
       {editor.checkIssue && <CheckIssue issue={editor.checkIssue} onRetry={editor.checkNow} />}
       {saved && <SavedNotice org={org} outcome={saved} />}
-      {composition && compositionVersion && editor.overlayLoading && <p className="pe-muted" role="status">Loading the composition version to highlight…</p>}
-      {editor.overlayIssue && <Notice tone="error">{`The composition version ${compositionVersion} of ${composition} couldn’t be loaded: ${editor.overlayIssue}`}</Notice>}
+      {composition && compositionVersion && editor.overlayLoading && (
+        <p className="pe-muted" role="status">
+          Loading the composition version to highlight…
+        </p>
+      )}
+      {editor.overlayIssue && (
+        <Notice tone="error">{`The composition version ${compositionVersion} of ${composition} couldn’t be loaded: ${editor.overlayIssue}`}</Notice>
+      )}
       {overlay && (
         <div className="pe-overlay" role="note">
           <span>
-            {Object.keys(overlay.selection).length
-              ? <>The candidates <strong>{overlay.name} {overlay.label}</strong> chose are selected{overlay.linked ? <>, as it chose them on <code>{overlay.linked}</code></> : null}.</>
-              : <>{overlay.name} {overlay.label} has no evaluated binding to highlight.</>}
+            {Object.keys(overlay.selection).length ? (
+              <>
+                The candidates{' '}
+                <strong>
+                  {overlay.name} {overlay.label}
+                </strong>{' '}
+                chose are selected
+                {overlay.linked ? (
+                  <>
+                    , as it chose them on <code>{overlay.linked}</code>
+                  </>
+                ) : null}
+                .
+              </>
+            ) : (
+              <>
+                {overlay.name} {overlay.label} has no evaluated binding to highlight.
+              </>
+            )}
           </span>
-          <Link to={compositionPath(org, overlay.composition, undefined, { version: overlay.label })} viewTransition>Back to {overlay.name} {overlay.label}</Link>
+          <Link
+            to={compositionPath(org, overlay.composition, undefined, { version: overlay.label })}
+            viewTransition
+          >
+            Back to {overlay.name} {overlay.label}
+          </Link>
         </div>
       )}
 
       <div className={narrow ? 'pe-body is-narrow' : 'pe-body'}>
         <div className="pe-main">
-          <TabBar items={panes} value={active} onChange={(id) => setPane(id as PaneId)} ariaLabel="Editor panes" prefix="pe-pane" />
+          <TabBar
+            items={panes}
+            value={active}
+            onChange={id => setPane(id as PaneId)}
+            ariaLabel="Editor panes"
+            prefix="pe-pane"
+          />
           <TabPanel prefix="pe-pane" active={active}>
-            {active === 'workflow' && <WorkflowPane facts={editor.facts} stale={editor.stale} selection={selected} response={editor.response} onSelectTask={selectTask} />}
+            {active === 'workflow' && (
+              <WorkflowPane
+                facts={editor.facts}
+                stale={editor.stale}
+                selection={selected}
+                response={editor.response}
+                onSelectTask={selectTask}
+              />
+            )}
             {active === 'candidates' && (
               <CandidatesPane
                 facts={editor.facts}
@@ -314,19 +457,29 @@ export function ProblemEditor({ organization, canSave, userId, delay }: ProblemE
                 diagnostics={editor.diagnostics}
                 onEdit={editValue}
                 update={update}
-                onOpenFile={(path) => openFile(path)}
+                onOpenFile={path => openFile(path)}
                 onOpenFinding={openFinding}
               />
             )}
             {active === 'rules' && (
-              <RulesPane facts={editor.facts} stale={editor.stale} files={files} update={update} onOpenOrigin={openOrigin} onOpenFile={(path) => openFile(path)} />
+              <RulesPane
+                facts={editor.facts}
+                stale={editor.stale}
+                files={files}
+                update={update}
+                onOpenOrigin={openOrigin}
+                onOpenFile={path => openFile(path)}
+              />
             )}
             {active === 'files' && (
               <FilesPane
                 files={files}
                 baseline={editor.baseline}
                 path={filePath}
-                onPath={(path) => { setFilePath(path); setSelection(undefined); }}
+                onPath={path => {
+                  setFilePath(path);
+                  setSelection(undefined);
+                }}
                 onChange={changeFile}
                 diagnostics={editor.diagnostics}
                 selection={selection}
@@ -335,12 +488,32 @@ export function ProblemEditor({ organization, canSave, userId, delay }: ProblemE
                 unparsed={editor.unparsed}
               />
             )}
-            {active === 'forms' && <FormsPane files={files} path={formPath} onPath={setFormPath} update={update} onOpenFile={(path) => openFile(path)} />}
+            {active === 'forms' && (
+              <FormsPane
+                files={files}
+                path={formPath}
+                onPath={setFormPath}
+                update={update}
+                onOpenFile={path => openFile(path)}
+              />
+            )}
             {active === 'bpmn' && bpmnPath && (
               <div className="pe-diagram">
                 {bpmnIssue && <Notice tone="warning">{bpmnIssue}</Notice>}
-                <Suspense fallback={<p className="pe-muted" role="status">Loading the diagram…</p>}>
-                  <BpmnModeler candidateXml={files[bpmnPath]} fallbackXml={editor.baseline[bpmnPath]} focusElement={bpmnFocus} onValidXml={acceptBpmn} onError={setBpmnIssue} />
+                <Suspense
+                  fallback={
+                    <p className="pe-muted" role="status">
+                      Loading the diagram…
+                    </p>
+                  }
+                >
+                  <BpmnModeler
+                    candidateXml={files[bpmnPath]}
+                    fallbackXml={editor.baseline[bpmnPath]}
+                    focusElement={bpmnFocus}
+                    onValidXml={acceptBpmn}
+                    onError={setBpmnIssue}
+                  />
                 </Suspense>
               </div>
             )}
@@ -360,7 +533,7 @@ export function ProblemEditor({ organization, canSave, userId, delay }: ProblemE
           initialProblem={problem}
           busy={editor.saving}
           issue={saveIssue}
-          onSave={(target) => void save(target)}
+          onSave={target => void save(target)}
           onClose={() => setSaving(false)}
         />
       )}

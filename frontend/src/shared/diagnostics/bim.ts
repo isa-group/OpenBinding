@@ -20,7 +20,8 @@ import type { Located, Severity, Where } from './located';
 export type PackageTexts = Readonly<Record<string, string>>;
 
 const INSTANCE = 'instance.json';
-const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
 
 /** The file of each resource id `instance.json` declares with a package path (registered resources have none). */
 export function resourcePaths(files: PackageTexts): Record<string, string> {
@@ -30,11 +31,15 @@ export function resourcePaths(files: PackageTexts): Record<string, string> {
   } catch {
     return {};
   }
-  const groups = isRecord(root) && isRecord(root.spec) && isRecord(root.spec.resources) ? root.spec.resources : {};
+  const groups =
+    isRecord(root) && isRecord(root.spec) && isRecord(root.spec.resources)
+      ? root.spec.resources
+      : {};
   const paths: Record<string, string> = {};
   for (const group of Object.values(groups)) {
     if (!isRecord(group)) continue;
-    for (const [id, target] of Object.entries(group)) if (typeof target === 'string') paths[id] = target;
+    for (const [id, target] of Object.entries(group))
+      if (typeof target === 'string') paths[id] = target;
   }
   return paths;
 }
@@ -43,7 +48,11 @@ const isXml = (path: string) => /\.(bpmn|xml)$/i.test(path);
 const isJson = (path: string) => /\.json$/i.test(path);
 
 /** The file a resource names: itself when it is a file of the package, else the file its id is declared with. */
-function fileOf(resource: string | undefined, files: PackageTexts, ids: Readonly<Record<string, string>>): string | null {
+function fileOf(
+  resource: string | undefined,
+  files: PackageTexts,
+  ids: Readonly<Record<string, string>>
+): string | null {
   if (!resource) return null;
   if (resource in files) return resource;
   const path = ids[resource];
@@ -60,7 +69,8 @@ interface Place {
   span?: Record<string, number> | null;
 }
 
-const textOf = (value: unknown): string | undefined => (typeof value === 'string' && value ? value : undefined);
+const textOf = (value: unknown): string | undefined =>
+  typeof value === 'string' && value ? value : undefined;
 
 function textWhere(file: string, text: string, from: number, to: number): Where {
   const { line, column } = lineColumn(text, from);
@@ -71,11 +81,14 @@ function textWhere(file: string, text: string, from: number, to: number): Where 
 function whereOf(place: Place, files: PackageTexts, ids: Readonly<Record<string, string>>): Where {
   const file = fileOf(place.resource, files, ids);
   if (!file) return { kind: 'package' };
-  const element = place.bpmnElement ?? (isXml(file) ? /^\/process\/([^/]+)/.exec(place.pointer ?? '')?.[1] : undefined);
+  const element =
+    place.bpmnElement ??
+    (isXml(file) ? /^\/process\/([^/]+)/.exec(place.pointer ?? '')?.[1] : undefined);
   if (element) return { kind: 'bpmn', file, element };
   const text = files[file];
   const span = place.span;
-  if (span && typeof span.offset === 'number') return textWhere(file, text, span.offset, span.offset + 1);
+  if (span && typeof span.offset === 'number')
+    return textWhere(file, text, span.offset, span.offset + 1);
   if (!isJson(file) || place.pointer === undefined) return { kind: 'file', file };
   const target = resolvePointer(text, place.pointer);
   if (!target) return { kind: 'file', file };
@@ -88,7 +101,8 @@ function whereOf(place: Place, files: PackageTexts, ids: Readonly<Record<string,
 
 /** What the panel prints beside the place: the pointer, and the resource when the finding is about the package. */
 function shownPath(place: Place, where: Where): string | undefined {
-  if (where.kind === 'package' && place.resource) return place.pointer ? `${place.resource} ${place.pointer}` : place.resource;
+  if (where.kind === 'package' && place.resource)
+    return place.pointer ? `${place.resource} ${place.pointer}` : place.resource;
   return place.pointer || undefined;
 }
 
@@ -99,7 +113,10 @@ function shownPath(place: Place, where: Where): string | undefined {
 export function fromBim(
   diagnostic: BimDiagnostic,
   files: PackageTexts,
-  { fallback = 'error', ids = resourcePaths(files) }: { fallback?: Severity; ids?: Readonly<Record<string, string>> } = {},
+  {
+    fallback = 'error',
+    ids = resourcePaths(files),
+  }: { fallback?: Severity; ids?: Readonly<Record<string, string>> } = {}
 ): Located {
   const place: Place = {
     resource: textOf(diagnostic.resource),
@@ -108,14 +125,30 @@ export function fromBim(
     span: isRecord(diagnostic.span) ? diagnostic.span : null,
   };
   const where = whereOf(place, files, ids);
-  const message = textOf(diagnostic.message) ?? textOf(diagnostic.code) ?? 'The gateway sent no message for this finding.';
-  const severity = SEVERITIES.find((item) => item === diagnostic.severity) ?? fallback;
-  const related = (Array.isArray(diagnostic.related) ? diagnostic.related : []).filter(isRecord).map((item): Located => {
-    const at: Place = { resource: textOf(item.resource), pointer: textOf(item.pointer), bpmnElement: textOf(item.bpmnElement) };
-    const located = whereOf(at, files, ids);
-    const path = shownPath(at, located);
-    return { code: diagnostic.code, message: `Related to: ${message}`, severity: 'info', where: located, ...(path ? { path } : {}), ...(at.pointer ? { pointer: at.pointer } : {}) };
-  });
+  const message =
+    textOf(diagnostic.message) ??
+    textOf(diagnostic.code) ??
+    'The gateway sent no message for this finding.';
+  const severity = SEVERITIES.find(item => item === diagnostic.severity) ?? fallback;
+  const related = (Array.isArray(diagnostic.related) ? diagnostic.related : [])
+    .filter(isRecord)
+    .map((item): Located => {
+      const at: Place = {
+        resource: textOf(item.resource),
+        pointer: textOf(item.pointer),
+        bpmnElement: textOf(item.bpmnElement),
+      };
+      const located = whereOf(at, files, ids);
+      const path = shownPath(at, located);
+      return {
+        code: diagnostic.code,
+        message: `Related to: ${message}`,
+        severity: 'info',
+        where: located,
+        ...(path ? { path } : {}),
+        ...(at.pointer ? { pointer: at.pointer } : {}),
+      };
+    });
   const path = shownPath(place, where);
   return {
     code: diagnostic.code,
@@ -129,9 +162,13 @@ export function fromBim(
 }
 
 /** Every finding of a check, located, each followed by its related locations as entries of their own (notes). */
-export function fromBimAll(diagnostics: readonly BimDiagnostic[], files: PackageTexts, fallback: Severity = 'error'): Located[] {
+export function fromBimAll(
+  diagnostics: readonly BimDiagnostic[],
+  files: PackageTexts,
+  fallback: Severity = 'error'
+): Located[] {
   const ids = resourcePaths(files);
-  return diagnostics.flatMap((diagnostic) => {
+  return diagnostics.flatMap(diagnostic => {
     const located = fromBim(diagnostic, files, { fallback, ids });
     return [located, ...(located.related ?? [])];
   });

@@ -18,7 +18,11 @@ vi.mock('pricing-renderer/react', async () => {
   };
 });
 
-const STARTER: Provenance = { sphere: 'brevo/brevo', version: '665f1c2e9b1d4a0012ab34cd', plan: 'STARTER' };
+const STARTER: Provenance = {
+  sphere: 'brevo/brevo',
+  version: '665f1c2e9b1d4a0012ab34cd',
+  plan: 'STARTER',
+};
 
 describe('PricingCard', () => {
   beforeEach(() => {
@@ -37,7 +41,17 @@ describe('PricingCard', () => {
   });
 
   it('names the registry and the add-ons when the reference has them', () => {
-    render(<PricingCard reference={{ sphere: 'acme/picking', registry: 'lab', version: 'v7', plan: 'Pro', addons: ['Priority support', 'SSO'] }} />);
+    render(
+      <PricingCard
+        reference={{
+          sphere: 'acme/picking',
+          registry: 'lab',
+          version: 'v7',
+          plan: 'Pro',
+          addons: ['Priority support', 'SSO'],
+        }}
+      />
+    );
     const card = screen.getByRole('article', { name: 'Plan Pro' });
     expect(card).toHaveTextContent('SPHERERegistry lab');
     expect(card).toHaveTextContent('Add-onsPriority support, SSO');
@@ -48,7 +62,7 @@ describe('PricingCard', () => {
       <>
         <PricingCard reference={STARTER} />
         <PricingCard reference={{ ...STARTER, registry: 'lab' }} />
-      </>,
+      </>
     );
     expect(screen.queryAllByRole('link')).toEqual([]);
   });
@@ -56,7 +70,9 @@ describe('PricingCard', () => {
   it('draws the plan from its document with pricing-renderer, read only and with nothing to buy', async () => {
     render(<PricingCard reference={STARTER} yaml={brevo} />);
     expect(await screen.findByTestId('pricing-renderer')).toBeInTheDocument();
-    expect(screen.getByTestId('pricing-renderer').parentElement).toHaveClass('pricing-renderer-shell');
+    expect(screen.getByTestId('pricing-renderer').parentElement).toHaveClass(
+      'pricing-renderer-shell'
+    );
     expect(renderer.props).toMatchObject({
       yaml: brevo,
       mode: 'catalog',
@@ -68,6 +84,8 @@ describe('PricingCard', () => {
     expect(renderer.props).not.toHaveProperty('renderPlanCta');
     expect(renderer.props).not.toHaveProperty('renderSummaryActions');
     expect(brevo).toContain('STARTER:');
-    expect(screen.getByRole('article', { name: 'Plan STARTER' })).not.toHaveTextContent('kept in SPHERE');
+    expect(screen.getByRole('article', { name: 'Plan STARTER' })).not.toHaveTextContent(
+      'kept in SPHERE'
+    );
   });
 });

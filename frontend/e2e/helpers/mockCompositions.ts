@@ -38,44 +38,123 @@ const uuid = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0
 const digest = (char: string) => `sha256-${char.repeat(64)}`;
 
 /** The text of the declared versions: the fixture, at their label and cost. */
-const DECLARED_TEXT = readFileSync(new URL('../../src/test/fixtures/compositions/declared.yaml', import.meta.url), 'utf8');
-const declaredText = (label: string, cost: number) => DECLARED_TEXT.replace('version: 1.0.0', `version: ${label}`).replace('value: 42.5', `value: ${cost}`);
+const DECLARED_TEXT = readFileSync(
+  new URL('../../src/test/fixtures/compositions/declared.yaml', import.meta.url),
+  'utf8'
+);
+const declaredText = (label: string, cost: number) =>
+  DECLARED_TEXT.replace('version: 1.0.0', `version: ${label}`).replace(
+    'value: 42.5',
+    `value: ${cost}`
+  );
 
-const core = (file: string): Record<string, unknown> => JSON.parse(readFileSync(new URL(`../../src/test/fixtures/core/${file}`, import.meta.url), 'utf8'));
+const core = (file: string): Record<string, unknown> =>
+  JSON.parse(
+    readFileSync(new URL(`../../src/test/fixtures/core/${file}`, import.meta.url), 'utf8')
+  );
 
 // -- The declared composition: an order desk whose author wrote its values
 
 const orderWorkflow = {
-  seq: ['signIn', { and: ['notify', 'archive'] }, { xor: [{ probability: 0.7, flow: 'post' }, { probability: 0.3, flow: 'courier' }] }],
+  seq: [
+    'signIn',
+    { and: ['notify', 'archive'] },
+    {
+      xor: [
+        { probability: 0.7, flow: 'post' },
+        { probability: 0.3, flow: 'courier' },
+      ],
+    },
+  ],
 };
 const orderBinding = {
   signIn: { local: true },
-  notify: { candidate: 'email.brevo.starter', from: { sphere: 'brevo/brevo', version: '665f1c2e9b1d4a0012ab34cd', plan: 'STARTER' } },
+  notify: {
+    candidate: 'email.brevo.starter',
+    from: { sphere: 'brevo/brevo', version: '665f1c2e9b1d4a0012ab34cd', plan: 'STARTER' },
+  },
   archive: { candidate: 'storage.dropbox.plus' },
   post: { candidate: 'shipping.post.standard' },
   courier: { candidate: 'shipping.courier.express' },
 };
 const ORDER_OFFERING = { url: 'https://pricings.example.org/order-desk/pricing.yml' };
 const ORDER_ANALYTICS = {
-  tasks: 5, boundTasks: 4, localTasks: 1, providers: 4, upstreamPricings: 1, hasOffering: true, workflow: { depth: 2, and: 1, xor: 1, loop: 0 },
+  tasks: 5,
+  boundTasks: 4,
+  localTasks: 1,
+  providers: 4,
+  upstreamPricings: 1,
+  hasOffering: true,
+  workflow: { depth: 2, and: 1, xor: 1, loop: 0 },
 };
 
-function declaredVersion(n: number, label: string, cost: number, createdAt: string): CompositionVersionView {
-  const values = { availability: { value: 0.995, unit: '1' }, cost: { value: cost, unit: 'EUR/month' }, latency: { value: 380, unit: 'ms' } };
+function declaredVersion(
+  n: number,
+  label: string,
+  cost: number,
+  createdAt: string
+): CompositionVersionView {
+  const values = {
+    availability: { value: 0.995, unit: '1' },
+    cost: { value: cost, unit: 'EUR/month' },
+    latency: { value: 380, unit: 'ms' },
+  };
   const evaluation = uuid(0xc100 + n);
   return {
-    id: uuid(0xc000 + n), ordinal: n, label, syntax_version: '1.0', kind: 'application', values_status: 'declared', verified: false,
-    content_digest: digest(String(n)), size_bytes: 980 + n, values, problem: null, offering: ORDER_OFFERING, evidence_run: null, based_on: null,
-    forked_from: null, derivation: null, analytics: ORDER_ANALYTICS, created_by_id: AUTHOR, created_at: createdAt,
+    id: uuid(0xc000 + n),
+    ordinal: n,
+    label,
+    syntax_version: '1.0',
+    kind: 'application',
+    values_status: 'declared',
+    verified: false,
+    content_digest: digest(String(n)),
+    size_bytes: 980 + n,
+    values,
+    problem: null,
+    offering: ORDER_OFFERING,
+    evidence_run: null,
+    based_on: null,
+    forked_from: null,
+    derivation: null,
+    analytics: ORDER_ANALYTICS,
+    created_by_id: AUTHOR,
+    created_at: createdAt,
     current_evaluation_id: evaluation,
-    current_evaluation: { id: evaluation, basis: 'declared', outcome: 'declared', compilation: null, created_at: createdAt },
-    evaluations: [{
-      id: evaluation, basis: 'declared', outcome: 'declared', values, violations: [], diagnostics: [], compilation: null, binding: null,
-      current: true, created_at: createdAt,
-    }],
+    current_evaluation: {
+      id: evaluation,
+      basis: 'declared',
+      outcome: 'declared',
+      compilation: null,
+      created_at: createdAt,
+    },
+    evaluations: [
+      {
+        id: evaluation,
+        basis: 'declared',
+        outcome: 'declared',
+        values,
+        violations: [],
+        diagnostics: [],
+        compilation: null,
+        binding: null,
+        current: true,
+        created_at: createdAt,
+      },
+    ],
     document: {
-      syntaxVersion: '1.0', composition: 'order-desk', version: label, kind: 'application', workflow: orderWorkflow, binding: orderBinding,
-      values: { availability: 0.995, cost: { value: cost, unit: 'EUR/month' }, latency: { value: 380, unit: 'ms' } }, offering: ORDER_OFFERING,
+      syntaxVersion: '1.0',
+      composition: 'order-desk',
+      version: label,
+      kind: 'application',
+      workflow: orderWorkflow,
+      binding: orderBinding,
+      values: {
+        availability: 0.995,
+        cost: { value: cost, unit: 'EUR/month' },
+        latency: { value: 380, unit: 'ms' },
+      },
+      offering: ORDER_OFFERING,
       evidence: { evaluatedBy: 'declared' },
     },
   };
@@ -86,21 +165,59 @@ function declaredVersion(n: number, label: string, cost: number, createdAt: stri
 const FMS = core('fms.version.json') as unknown as CompositionVersionView;
 const PROBLEM_REF = `${COMPOSITIONS_ORG}/checkout-flow@2`;
 
-function linkedVersion(n: number, label: string, cost: number, createdAt: string, over: Partial<CompositionVersionView> = {}): CompositionVersionView {
+function linkedVersion(
+  n: number,
+  label: string,
+  cost: number,
+  createdAt: string,
+  over: Partial<CompositionVersionView> = {}
+): CompositionVersionView {
   const version = structuredClone(FMS);
   const id = uuid(0xd000 + n);
   const evaluation = uuid(0xd100 + n);
   const values = { ...version.values, cost: { value: cost, unit: 'USD/month' } };
-  const document = { ...version.document, composition: 'fleet-routing', version: label, kind: 'workflow', problem: { ...(version.document?.problem as object), ref: PROBLEM_REF } };
+  const document = {
+    ...version.document,
+    composition: 'fleet-routing',
+    version: label,
+    kind: 'workflow',
+    problem: { ...(version.document?.problem as object), ref: PROBLEM_REF },
+  };
   return {
     ...version,
-    id, ordinal: n, label, kind: 'workflow', values, created_at: createdAt, created_by_id: AUTHOR, content_digest: digest(String.fromCharCode(96 + n)),
-    document: { ...document, values: { ...(version.document?.values as object), cost: { value: cost, unit: 'USD/month' } } },
-    problem: version.problem && { ...version.problem, problem: { id: 'case-checkout', slug: 'checkout-flow', name: 'Checkout flow' }, revision: { id: 'rev-2', revision: 2 } },
+    id,
+    ordinal: n,
+    label,
+    kind: 'workflow',
+    values,
+    created_at: createdAt,
+    created_by_id: AUTHOR,
+    content_digest: digest(String.fromCharCode(96 + n)),
+    document: {
+      ...document,
+      values: { ...(version.document?.values as object), cost: { value: cost, unit: 'USD/month' } },
+    },
+    problem: version.problem && {
+      ...version.problem,
+      problem: { id: 'case-checkout', slug: 'checkout-flow', name: 'Checkout flow' },
+      revision: { id: 'rev-2', revision: 2 },
+    },
     current_evaluation_id: evaluation,
-    current_evaluation: version.current_evaluation && { ...version.current_evaluation, id: evaluation, created_at: createdAt },
-    evaluations: version.evaluations.map((item) => ({ ...item, id: evaluation, values, created_at: createdAt })),
-    derivation: version.derivation && { ...version.derivation, revision: { id: 'rev-2', revision: 2 } },
+    current_evaluation: version.current_evaluation && {
+      ...version.current_evaluation,
+      id: evaluation,
+      created_at: createdAt,
+    },
+    evaluations: version.evaluations.map(item => ({
+      ...item,
+      id: evaluation,
+      values,
+      created_at: createdAt,
+    })),
+    derivation: version.derivation && {
+      ...version.derivation,
+      revision: { id: 'rev-2', revision: 2 },
+    },
     ...over,
   };
 }
@@ -110,8 +227,14 @@ function semanticsChanged(version: CompositionVersionView): CompositionVersionVi
   return {
     ...version,
     verified: false,
-    current_evaluation: version.current_evaluation && { ...version.current_evaluation, outcome: 'semantics_changed' },
-    evaluations: version.evaluations.map((item) => ({ ...item, outcome: 'semantics_changed' as const })),
+    current_evaluation: version.current_evaluation && {
+      ...version.current_evaluation,
+      outcome: 'semantics_changed',
+    },
+    evaluations: version.evaluations.map(item => ({
+      ...item,
+      outcome: 'semantics_changed' as const,
+    })),
   };
 }
 
@@ -123,42 +246,97 @@ const RUN = uuid(0xa1);
 const FMS_DIFF = core('fms.diff.json') as {
   from: { id: string; label: string };
   to: { id: string; label: string };
-  sections: Array<{ key: string; entries: Array<{ name: string; changes: Array<{ path: string; before: unknown; after: unknown }> }> }>;
+  sections: Array<{
+    key: string;
+    entries: Array<{
+      name: string;
+      changes: Array<{ path: string; before: unknown; after: unknown }>;
+    }>;
+  }>;
 };
-const goldenChange = (section: string, name: string) => FMS_DIFF.sections.find((item) => item.key === section)?.entries.find((entry) => entry.name === name)?.changes[0];
+const goldenChange = (section: string, name: string) =>
+  FMS_DIFF.sections.find(item => item.key === section)?.entries.find(entry => entry.name === name)
+    ?.changes[0];
 const T1_BEFORE = String(goldenChange('binding', 'T1')?.before);
 const T1_AFTER = String(goldenChange('binding', 'T1')?.after);
 type Values = CompositionVersionView['values'];
 /** The values of the FMS binding by T1's candidate: 1.0.0's, and 1.1.0's as the golden changes them. */
 const FMS_VALUES: Record<string, Values> = {
   [T1_BEFORE]: FMS.values,
-  [T1_AFTER]: Object.fromEntries(Object.entries(FMS.values).map(([name, value]) => {
-    const change = goldenChange('values', name);
-    return [name, change ? { ...value, value: Number(change.after) } : value];
-  })),
+  [T1_AFTER]: Object.fromEntries(
+    Object.entries(FMS.values).map(([name, value]) => {
+      const change = goldenChange('values', name);
+      return [name, change ? { ...value, value: Number(change.after) } : value];
+    })
+  ),
 };
 const DERIVED_REF = `${COMPOSITIONS_ORG}/problems/checkout-flow@1`;
 const DERIVED_REVISION = { id: 'rev-checkout-1', revision: 1 };
 
 /** The facts of the compilation the linked versions were evaluated on: what each task can take instead. */
-const FMS_FACTS = core('fms.facts.json') as { tasks: Array<{ id: string; kind: string; eligible: Array<{ candidate: string; written: string }> }> };
+const FMS_FACTS = core('fms.facts.json') as {
+  tasks: Array<{
+    id: string;
+    kind: string;
+    eligible: Array<{ candidate: string; written: string }>;
+  }>;
+};
 /** The words the mock's toolchain gives the moves, in turn: one of each the gateway sends. */
-const COMPARISONS = ['better', 'trade-off', 'worse', 'infeasible', 'equal', 'repairs-feasibility'] as const;
+const COMPARISONS = [
+  'better',
+  'trade-off',
+  'worse',
+  'infeasible',
+  'equal',
+  'repairs-feasibility',
+] as const;
 
 /** T1's candidate in a document's binding. */
-const t1Of = (document: Record<string, unknown>) => String((asFields(asFields(document.binding).T1)).candidate ?? '');
+const t1Of = (document: Record<string, unknown>) =>
+  String(asFields(asFields(document.binding).T1).candidate ?? '');
 /** What the mock's toolchain computes for a document of the FMS problem; the 1.0.0 values for a binding it does not know. */
-const evaluated = (document: Record<string, unknown>): Values => FMS_VALUES[t1Of(document)] ?? FMS.values;
+const evaluated = (document: Record<string, unknown>): Values =>
+  FMS_VALUES[t1Of(document)] ?? FMS.values;
 /** Values as a document writes them: a bare number for unit `1`. */
-const documentValues = (values: Values) => Object.fromEntries(Object.entries(values).map(([name, { value, unit }]) => [name, unit === '1' ? value : { value, unit }]));
+const documentValues = (values: Values) =>
+  Object.fromEntries(
+    Object.entries(values).map(([name, { value, unit }]) => [
+      name,
+      unit === '1' ? value : { value, unit },
+    ])
+  );
 
-function composition(n: number, slug: string, name: string, over: Partial<CompositionView>, versions: CompositionVersionView[]): CompositionView {
+function composition(
+  n: number,
+  slug: string,
+  name: string,
+  over: Partial<CompositionView>,
+  versions: CompositionVersionView[]
+): CompositionView {
   const latest = versions[versions.length - 1];
   return {
-    id: uuid(0xb000 + n), slug, name, description: '', kind: 'application', archived: false, visibility: 'private',
-    organization: ORGANIZATION, created_by_id: AUTHOR, created_at: versions[0]?.created_at ?? '2026-09-01T00:00:00Z',
-    updated_at: latest?.created_at ?? '2026-09-01T00:00:00Z', version_count: versions.length,
-    latest_version: latest ? { id: latest.id, ordinal: latest.ordinal, label: latest.label, values_status: latest.values_status, verified: latest.verified, created_at: latest.created_at } : null,
+    id: uuid(0xb000 + n),
+    slug,
+    name,
+    description: '',
+    kind: 'application',
+    archived: false,
+    visibility: 'private',
+    organization: ORGANIZATION,
+    created_by_id: AUTHOR,
+    created_at: versions[0]?.created_at ?? '2026-09-01T00:00:00Z',
+    updated_at: latest?.created_at ?? '2026-09-01T00:00:00Z',
+    version_count: versions.length,
+    latest_version: latest
+      ? {
+          id: latest.id,
+          ordinal: latest.ordinal,
+          label: latest.label,
+          values_status: latest.values_status,
+          verified: latest.verified,
+          created_at: latest.created_at,
+        }
+      : null,
     ...over,
   };
 }
@@ -176,23 +354,51 @@ interface Entry {
  * USD/month), then to checkout-flow@2, whose last version the installed toolchain no longer verifies.
  */
 function evolutionEntry(): Entry {
-  const hub = (version: CompositionVersionView, n: number, analytics: Record<string, unknown>): CompositionVersionView => {
+  const hub = (
+    version: CompositionVersionView,
+    n: number,
+    analytics: Record<string, unknown>
+  ): CompositionVersionView => {
     const evaluation = uuid(0xf100 + n);
     return {
       ...version,
-      id: uuid(0xf000 + n), kind: 'application', analytics, content_digest: digest(String.fromCharCode(103 + n)), derivation: null,
+      id: uuid(0xf000 + n),
+      kind: 'application',
+      analytics,
+      content_digest: digest(String.fromCharCode(103 + n)),
+      derivation: null,
       current_evaluation_id: evaluation,
-      current_evaluation: version.current_evaluation && { ...version.current_evaluation, id: evaluation },
-      evaluations: version.evaluations.map((item) => ({ ...item, id: evaluation })),
-      document: version.document && { ...version.document, composition: 'notification-hub', kind: 'application' },
+      current_evaluation: version.current_evaluation && {
+        ...version.current_evaluation,
+        id: evaluation,
+      },
+      evaluations: version.evaluations.map(item => ({ ...item, id: evaluation })),
+      document: version.document && {
+        ...version.document,
+        composition: 'notification-hub',
+        kind: 'application',
+      },
     };
   };
   const onRevisionOne = (version: CompositionVersionView): CompositionVersionView => ({
     ...version,
     problem: version.problem && { ...version.problem, revision: { id: 'rev-1', revision: 1 } },
-    document: version.document && { ...version.document, problem: { ...(version.document.problem as object), ref: `${COMPOSITIONS_ORG}/checkout-flow@1` } },
+    document: version.document && {
+      ...version.document,
+      problem: {
+        ...(version.document.problem as object),
+        ref: `${COMPOSITIONS_ORG}/checkout-flow@1`,
+      },
+    },
   });
-  const small = { ...ORDER_ANALYTICS, tasks: 4, boundTasks: 3, providers: 3, hasOffering: false, workflow: { depth: 2, and: 1, xor: 0, loop: 0 } };
+  const small = {
+    ...ORDER_ANALYTICS,
+    tasks: 4,
+    boundTasks: 3,
+    providers: 3,
+    hasOffering: false,
+    workflow: { depth: 2, and: 1, xor: 0, loop: 0 },
+  };
   const linked = core('fms.version.json').analytics as Record<string, unknown>;
   const versions = [
     hub(declaredVersion(1, '1.0.0', 30, '2026-07-06T09:00:00Z'), 1, small),
@@ -202,7 +408,13 @@ function evolutionEntry(): Entry {
     hub(semanticsChanged(linkedVersion(5, '2.2.0', 29, '2026-10-12T16:30:00Z')), 5, linked),
   ];
   return {
-    view: composition(4, 'notification-hub', 'Notification hub', { description: 'Tells customers about their orders by e-mail and text message.' }, versions),
+    view: composition(
+      4,
+      'notification-hub',
+      'Notification hub',
+      { description: 'Tells customers about their orders by e-mail and text message.' },
+      versions
+    ),
     versions,
   };
 }
@@ -215,32 +427,64 @@ const OTHER_FROM: Record<string, Record<string, string>> = {
   T6: { sphere: 'paypal/checkout', version: '6650a1b2c3d4e5f600445566', plan: 'STANDARD' },
 };
 
-function otherVersion(n: number, label: string, cost: number, createdAt: string): CompositionVersionView {
+function otherVersion(
+  n: number,
+  label: string,
+  cost: number,
+  createdAt: string
+): CompositionVersionView {
   const version = linkedVersion(n, label, cost, createdAt);
   const evaluation = uuid(0x9100 + n);
   const document = asFields(version.document);
-  const binding = Object.fromEntries(Object.entries(asFields(document.binding)).map(([task, entry]) => (
-    [task, OTHER_FROM[task] ? { ...asFields(entry), from: OTHER_FROM[task] } : entry]
-  )));
+  const binding = Object.fromEntries(
+    Object.entries(asFields(document.binding)).map(([task, entry]) => [
+      task,
+      OTHER_FROM[task] ? { ...asFields(entry), from: OTHER_FROM[task] } : entry,
+    ])
+  );
   return {
     ...version,
-    id: uuid(0x9000 + n), content_digest: digest(String.fromCharCode(108 + n)),
-    document: { ...document, problem: { ...asFields(document.problem), ref: `${PUBLIC_ORG}/problems/route-planning@3` }, binding },
-    problem: version.problem && { ...version.problem, problem: { id: 'case-route-planning', slug: 'route-planning', name: 'Route planning' }, revision: { id: 'rev-route-3', revision: 3 } },
+    id: uuid(0x9000 + n),
+    content_digest: digest(String.fromCharCode(108 + n)),
+    document: {
+      ...document,
+      problem: { ...asFields(document.problem), ref: `${PUBLIC_ORG}/problems/route-planning@3` },
+      binding,
+    },
+    problem: version.problem && {
+      ...version.problem,
+      problem: { id: 'case-route-planning', slug: 'route-planning', name: 'Route planning' },
+      revision: { id: 'rev-route-3', revision: 3 },
+    },
     current_evaluation_id: evaluation,
-    current_evaluation: version.current_evaluation && { ...version.current_evaluation, id: evaluation },
-    evaluations: version.evaluations.map((item) => ({ ...item, id: evaluation })),
+    current_evaluation: version.current_evaluation && {
+      ...version.current_evaluation,
+      id: evaluation,
+    },
+    evaluations: version.evaluations.map(item => ({ ...item, id: evaluation })),
     derivation: null,
   };
 }
 
 /** The compositions of `lab-other`: one public, linked one. */
 function otherEntries(): Entry[] {
-  const versions = [otherVersion(1, '1.0.0', 3240, '2026-08-20T09:00:00Z'), otherVersion(2, '1.1.0', 3105, '2026-09-30T14:00:00Z')];
-  const view = composition(5, 'fleet-routing', 'Fleet routing', {
-    organization: OTHER_ORGANIZATION, kind: 'workflow', visibility: 'public',
-    description: 'Plans the delivery routes of a fleet: cloud compute, a routing API and payments, each priced from a SPHERE plan.',
-  }, versions);
+  const versions = [
+    otherVersion(1, '1.0.0', 3240, '2026-08-20T09:00:00Z'),
+    otherVersion(2, '1.1.0', 3105, '2026-09-30T14:00:00Z'),
+  ];
+  const view = composition(
+    5,
+    'fleet-routing',
+    'Fleet routing',
+    {
+      organization: OTHER_ORGANIZATION,
+      kind: 'workflow',
+      visibility: 'public',
+      description:
+        'Plans the delivery routes of a fleet: cloud compute, a routing API and payments, each priced from a SPHERE plan.',
+    },
+    versions
+  );
   return [{ view, versions }];
 }
 
@@ -253,17 +497,58 @@ function seed(): Entry[] {
   const fleet = [
     linkedVersion(1, '1.0.0', 3060, '2026-09-10T11:00:00Z'),
     semanticsChanged(linkedVersion(2, '1.1.0', 3120, '2026-09-25T15:45:00Z')),
-    linkedVersion(3, '1.2.0', 2980, '2026-10-08T16:20:00Z', { derivation: { source: 'run', run: { id: RUN }, point: 3, revision: { id: 'rev-2', revision: 2 } } }),
+    linkedVersion(3, '1.2.0', 2980, '2026-10-08T16:20:00Z', {
+      derivation: {
+        source: 'run',
+        run: { id: RUN },
+        point: 3,
+        revision: { id: 'rev-2', revision: 2 },
+      },
+    }),
   ];
   return [
     {
-      view: composition(1, 'order-desk', 'Order desk', {
-        description: 'Signs customers in, sends a notice and archives each order, then ships by post or courier.', visibility: 'public',
-      }, order),
+      view: composition(
+        1,
+        'order-desk',
+        'Order desk',
+        {
+          description:
+            'Signs customers in, sends a notice and archives each order, then ships by post or courier.',
+          visibility: 'public',
+        },
+        order
+      ),
       versions: order,
     },
-    { view: composition(2, 'fleet-routing', 'Fleet routing', { description: 'Routes the delivery fleet across the providers of each leg.', kind: 'workflow' }, fleet), versions: fleet },
-    { view: composition(3, 'legacy-intake', 'Legacy intake', { kind: 'pipeline', archived: true, updated_at: '2026-06-01T00:00:00Z', created_at: '2026-05-01T00:00:00Z' }, []), versions: [] },
+    {
+      view: composition(
+        2,
+        'fleet-routing',
+        'Fleet routing',
+        {
+          description: 'Routes the delivery fleet across the providers of each leg.',
+          kind: 'workflow',
+        },
+        fleet
+      ),
+      versions: fleet,
+    },
+    {
+      view: composition(
+        3,
+        'legacy-intake',
+        'Legacy intake',
+        {
+          kind: 'pipeline',
+          archived: true,
+          updated_at: '2026-06-01T00:00:00Z',
+          created_at: '2026-05-01T00:00:00Z',
+        },
+        []
+      ),
+      versions: [],
+    },
   ];
 }
 
@@ -295,13 +580,22 @@ export interface MockOrganization {
 
 export interface CompositionStore {
   /** Answers `/v1/organizations/{org}/compositions…` for the organization `org`; a fork may go to one of `organizations`. */
-  route: (request: CompositionRequest, org: string, organizations?: readonly MockOrganization[]) => CompositionReply;
+  route: (
+    request: CompositionRequest,
+    org: string,
+    organizations?: readonly MockOrganization[]
+  ) => CompositionReply;
   /**
    * Answers `/v1/organizations/{org}/compositions…` for a reader who is not a member of `org`, signed in or not: the reads of a
    * public composition, redacted as the gateway redacts them, and its fork for a signed-in reader. Anything else is missing (404) to
    * somebody signed in, and asks a visitor for a session (401).
    */
-  publicRoute: (request: CompositionRequest, org: string, signedIn: boolean, organizations?: readonly MockOrganization[]) => CompositionReply;
+  publicRoute: (
+    request: CompositionRequest,
+    org: string,
+    signedIn: boolean,
+    organizations?: readonly MockOrganization[]
+  ) => CompositionReply;
   /** `GET /v1/compositions`: the public compositions of every organization, with the gateway's filters and paging. */
   publicList: (request: CompositionRequest) => CompositionReply;
   /** Answers the language services `/v1/compositions/{validate,parse,serialise,schema}`; null for anything else. */
@@ -314,13 +608,27 @@ const KINDS = ['application', 'workflow', 'pipeline', 'system'];
 const SCHEMA = {
   type: 'object',
   properties: {
-    syntaxVersion: { const: '1.0' }, composition: { type: 'string' }, version: { type: 'string' }, kind: { enum: KINDS },
-    problem: { type: 'object', properties: { ref: { type: 'string' }, compilation: { type: 'string' } } },
-    workflow: {}, binding: { type: 'object' }, values: { type: 'object' }, offering: { type: 'object' }, evidence: { type: 'object' },
+    syntaxVersion: { const: '1.0' },
+    composition: { type: 'string' },
+    version: { type: 'string' },
+    kind: { enum: KINDS },
+    problem: {
+      type: 'object',
+      properties: { ref: { type: 'string' }, compilation: { type: 'string' } },
+    },
+    workflow: {},
+    binding: { type: 'object' },
+    values: { type: 'object' },
+    offering: { type: 'object' },
+    evidence: { type: 'object' },
   },
 };
 
-const scalar = (text: string, key: string) => new RegExp(`^${key}:[ \\t]*(.*)$`, 'm').exec(text)?.[1]?.trim().replace(/^["']|["']$/g, '') ?? null;
+const scalar = (text: string, key: string) =>
+  new RegExp(`^${key}:[ \\t]*(.*)$`, 'm')
+    .exec(text)?.[1]
+    ?.trim()
+    .replace(/^["']|["']$/g, '') ?? null;
 
 const NUMBER_LIKE = /^[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?$/;
 const RESERVED = /^(?:true|false|null|yes|no|on|off|~)$/i;
@@ -328,26 +636,33 @@ const RESERVED = /^(?:true|false|null|yes|no|on|off|~)$/i;
 function yamlScalar(value: unknown): string {
   if (value === null || value === undefined) return 'null';
   if (typeof value !== 'string') return String(value);
-  return /^[A-Za-z0-9_][\w./@+-]*$/.test(value) && !NUMBER_LIKE.test(value) && !RESERVED.test(value) ? value : JSON.stringify(value);
+  return /^[A-Za-z0-9_][\w./@+-]*$/.test(value) && !NUMBER_LIKE.test(value) && !RESERVED.test(value)
+    ? value
+    : JSON.stringify(value);
 }
 
-const isContainer = (value: unknown): value is Record<string, unknown> | unknown[] => typeof value === 'object' && value !== null;
-const isEmpty = (value: Record<string, unknown> | unknown[]) => (Array.isArray(value) ? value.length === 0 : Object.keys(value).length === 0);
-const inline = (value: unknown) => (isContainer(value) && isEmpty(value) ? (Array.isArray(value) ? '[]' : '{}') : yamlScalar(value));
+const isContainer = (value: unknown): value is Record<string, unknown> | unknown[] =>
+  typeof value === 'object' && value !== null;
+const isEmpty = (value: Record<string, unknown> | unknown[]) =>
+  Array.isArray(value) ? value.length === 0 : Object.keys(value).length === 0;
+const inline = (value: unknown) =>
+  isContainer(value) && isEmpty(value) ? (Array.isArray(value) ? '[]' : '{}') : yamlScalar(value);
 
 function yamlLines(value: Record<string, unknown> | unknown[], indent: number): string[] {
   const pad = ' '.repeat(indent);
   if (Array.isArray(value)) {
-    return value.flatMap((item) => {
+    return value.flatMap(item => {
       if (!isContainer(item) || isEmpty(item)) return [`${pad}- ${inline(item)}`];
       if (Array.isArray(item)) return [`${pad}-`, ...yamlLines(item, indent + 2)];
       const [first, ...rest] = yamlLines(item, indent + 2);
       return [`${pad}- ${first.trimStart()}`, ...rest];
     });
   }
-  return Object.entries(value).flatMap(([key, item]) => (
-    isContainer(item) && !isEmpty(item) ? [`${pad}${key}:`, ...yamlLines(item, indent + 2)] : [`${pad}${key}: ${inline(item)}`]
-  ));
+  return Object.entries(value).flatMap(([key, item]) =>
+    isContainer(item) && !isEmpty(item)
+      ? [`${pad}${key}:`, ...yamlLines(item, indent + 2)]
+      : [`${pad}${key}: ${inline(item)}`]
+  );
 }
 
 /** A document as the mock writes it (`serialise`, a derivation, a check's canonical form): block YAML. */
@@ -364,24 +679,43 @@ function lint(text: string) {
   const column = match[0].indexOf(value, 'kind:'.length) + 1;
   return {
     valid: false,
-    diagnostics: [{
-      code: 'c2y_kind_unknown', message: `'${value}' is not a kind; a composition is one of ${KINDS.join(', ')}`, severity: 'error', path: 'kind', pointer: '/kind',
-      span: { line, column, end_line: line, end_column: column + value.length },
-    }],
+    diagnostics: [
+      {
+        code: 'c2y_kind_unknown',
+        message: `'${value}' is not a kind; a composition is one of ${KINDS.join(', ')}`,
+        severity: 'error',
+        path: 'kind',
+        pointer: '/kind',
+        span: { line, column, end_line: line, end_column: column + value.length },
+      },
+    ],
   };
 }
 
 const refused = (diagnostics: unknown[]): CompositionReply => ({
   status: 422,
-  json: { type: 'about:blank', title: 'Unprocessable Content', status: 422, code: 'composition_invalid', detail: 'The document is not valid Composition2Yaml.', diagnostics },
+  json: {
+    type: 'about:blank',
+    title: 'Unprocessable Content',
+    status: 422,
+    code: 'composition_invalid',
+    detail: 'The document is not valid Composition2Yaml.',
+    diagnostics,
+  },
 });
 
 const ok = (json: unknown, status = 200): CompositionReply => ({ status, json });
-const missing = (): CompositionReply => ({ status: 404, json: { detail: { code: 'not_found', error: 'Composition not found.' } } });
+const missing = (): CompositionReply => ({
+  status: 404,
+  json: { detail: { code: 'not_found', error: 'Composition not found.' } },
+});
 
 /** The light row of a version, as the versions list serves it: analytics only when `include` names them. */
 const lightRow = (version: CompositionVersionView, include: string[]): CompositionVersionView => ({
-  ...version, document: null, evaluations: [], analytics: include.includes('analytics') ? version.analytics : null,
+  ...version,
+  document: null,
+  evaluations: [],
+  analytics: include.includes('analytics') ? version.analytics : null,
 });
 
 /** Whether a version was sealed within `created_after` (inclusive) and `created_before` (exclusive), as the gateway filters. */
@@ -397,26 +731,39 @@ type FieldChange = { path: string; before: unknown; after: unknown };
 type DiffEntry = { kind: 'added' | 'removed' | 'changed'; name: string; changes: FieldChange[] };
 
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
-const asFields = (value: unknown): Fields => (typeof value === 'object' && value !== null && !Array.isArray(value) ? value as Fields : {});
+const asFields = (value: unknown): Fields =>
+  typeof value === 'object' && value !== null && !Array.isArray(value) ? (value as Fields) : {};
 
 /** The fields that differ between two entries, dotted (`from.version`), with `null` on the side where a field is absent. */
 function fieldChanges(before: Fields, after: Fields, prefix = ''): FieldChange[] {
-  return [...new Set([...Object.keys(before), ...Object.keys(after)])].flatMap((key) => {
+  return [...new Set([...Object.keys(before), ...Object.keys(after)])].flatMap(key => {
     const [b, a] = [before[key], after[key]];
     if (same(b, a)) return [];
-    const nested = typeof b === 'object' && b !== null && typeof a === 'object' && a !== null && !Array.isArray(b) && !Array.isArray(a);
-    return nested ? fieldChanges(b as Fields, a as Fields, `${prefix}${key}.`) : [{ path: `${prefix}${key}`, before: b ?? null, after: a ?? null }];
+    const nested =
+      typeof b === 'object' &&
+      b !== null &&
+      typeof a === 'object' &&
+      a !== null &&
+      !Array.isArray(b) &&
+      !Array.isArray(a);
+    return nested
+      ? fieldChanges(b as Fields, a as Fields, `${prefix}${key}.`)
+      : [{ path: `${prefix}${key}`, before: b ?? null, after: a ?? null }];
   });
 }
 
 /** The entries of a section: by name, added, removed or changed in some field. */
 function entries(before: Fields, after: Fields): DiffEntry[] {
-  return [...new Set([...Object.keys(before), ...Object.keys(after)])].flatMap((name): DiffEntry[] => {
-    if (!(name in before)) return [{ kind: 'added', name, changes: fieldChanges({}, asFields(after[name])) }];
-    if (!(name in after)) return [{ kind: 'removed', name, changes: fieldChanges(asFields(before[name]), {}) }];
-    const changes = fieldChanges(asFields(before[name]), asFields(after[name]));
-    return changes.length ? [{ kind: 'changed', name, changes }] : [];
-  });
+  return [...new Set([...Object.keys(before), ...Object.keys(after)])].flatMap(
+    (name): DiffEntry[] => {
+      if (!(name in before))
+        return [{ kind: 'added', name, changes: fieldChanges({}, asFields(after[name])) }];
+      if (!(name in after))
+        return [{ kind: 'removed', name, changes: fieldChanges(asFields(before[name]), {}) }];
+      const changes = fieldChanges(asFields(before[name]), asFields(after[name]));
+      return changes.length ? [{ kind: 'changed', name, changes }] : [];
+    }
+  );
 }
 
 /**
@@ -425,40 +772,78 @@ function entries(before: Fields, after: Fields): DiffEntry[] {
  */
 function versionDiff(before: CompositionVersionView, after: CompositionVersionView) {
   const [b, a] = [asFields(before.document), asFields(after.document)];
-  const comparable = before.values_status === after.values_status && same(asFields(b.problem).ref, asFields(a.problem).ref);
+  const comparable =
+    before.values_status === after.values_status &&
+    same(asFields(b.problem).ref, asFields(a.problem).ref);
   const sections = [
-    { key: 'binding', label: 'Binding', entries: entries(asFields(b.binding), asFields(a.binding)) },
-    { key: 'values', label: 'Values', entries: comparable ? entries(before.values, after.values) : [] },
-    { key: 'offering', label: 'Offering', entries: entries(before.offering ? { offering: before.offering } : {}, after.offering ? { offering: after.offering } : {}) },
+    {
+      key: 'binding',
+      label: 'Binding',
+      entries: entries(asFields(b.binding), asFields(a.binding)),
+    },
+    {
+      key: 'values',
+      label: 'Values',
+      entries: comparable ? entries(before.values, after.values) : [],
+    },
+    {
+      key: 'offering',
+      label: 'Offering',
+      entries: entries(
+        before.offering ? { offering: before.offering } : {},
+        after.offering ? { offering: after.offering } : {}
+      ),
+    },
   ];
-  const general = ['kind', 'workflow'].filter((key) => !same(b[key], a[key])).map((key) => ({ path: key, before: b[key] ?? null, after: a[key] ?? null }));
-  const all = sections.flatMap((section) => section.entries);
-  const count = (kind: DiffEntry['kind']) => all.filter((entry) => entry.kind === kind).length;
+  const general = ['kind', 'workflow']
+    .filter(key => !same(b[key], a[key]))
+    .map(key => ({ path: key, before: b[key] ?? null, after: a[key] ?? null }));
+  const all = sections.flatMap(section => section.entries);
+  const count = (kind: DiffEntry['kind']) => all.filter(entry => entry.kind === kind).length;
   return {
     from: { id: before.id, label: before.label },
     to: { id: after.id, label: after.label },
     comparison: {
-      comparable, problemRefChanged: !same(asFields(b.problem).ref, asFields(a.problem).ref), compilationChanged: false,
+      comparable,
+      problemRefChanged: !same(asFields(b.problem).ref, asFields(a.problem).ref),
+      compilationChanged: false,
       valueStatus: { before: before.values_status, after: after.values_status },
     },
     sections,
     general,
-    totals: { added: count('added'), removed: count('removed'), changed: count('changed') + general.length },
+    totals: {
+      added: count('added'),
+      removed: count('removed'),
+      changed: count('changed') + general.length,
+    },
     isEmpty: all.length === 0 && general.length === 0,
   };
 }
 
 /** A version as a public reader gets it: what the document does not say is removed; lineage only to a public source. */
-function publicVersion(version: CompositionVersionView, sourceIsPublic: (id: string | null | undefined) => boolean): CompositionVersionView {
-  const current = version.evaluations.find((item) => item.current) ?? version.evaluations[0];
+function publicVersion(
+  version: CompositionVersionView,
+  sourceIsPublic: (id: string | null | undefined) => boolean
+): CompositionVersionView {
+  const current = version.evaluations.find(item => item.current) ?? version.evaluations[0];
   const forked = version.forked_from;
   return {
     ...version,
     created_by_id: null,
     based_on: null,
-    forked_from: forked && (sourceIsPublic(forked.compositionId) ? forked : {
-      droppedProblem: forked.droppedProblem, compositionId: null, versionId: null, label: null, organization: null, slug: null, name: null,
-    }),
+    forked_from:
+      forked &&
+      (sourceIsPublic(forked.compositionId)
+        ? forked
+        : {
+            droppedProblem: forked.droppedProblem,
+            compositionId: null,
+            versionId: null,
+            label: null,
+            organization: null,
+            slug: null,
+            name: null,
+          }),
     problem: version.problem && {
       ...version.problem,
       problem: { ...version.problem.problem, id: null, name: null },
@@ -467,12 +852,26 @@ function publicVersion(version: CompositionVersionView, sourceIsPublic: (id: str
     },
     current_evaluation: version.current_evaluation && {
       ...version.current_evaluation,
-      compilation: version.current_evaluation.compilation && { ...version.current_evaluation.compilation, id: null },
+      compilation: version.current_evaluation.compilation && {
+        ...version.current_evaluation.compilation,
+        id: null,
+      },
     },
-    evaluations: current ? [{
-      ...current, diagnostics: [], violations: [], binding: null, compilation: current.compilation && { ...current.compilation, id: null },
-    }] : [],
-    derivation: version.derivation && { ...version.derivation, revision: { ...version.derivation.revision, id: null } },
+    evaluations: current
+      ? [
+          {
+            ...current,
+            diagnostics: [],
+            violations: [],
+            binding: null,
+            compilation: current.compilation && { ...current.compilation, id: null },
+          },
+        ]
+      : [],
+    derivation: version.derivation && {
+      ...version.derivation,
+      revision: { ...version.derivation.revision, id: null },
+    },
   } as CompositionVersionView;
 }
 
@@ -496,7 +895,12 @@ export function compositionStore(options: CompositionSeed = {}): CompositionStor
   for (const entry of allEntries()) {
     for (const version of entry.versions) {
       const cost = (version.values.cost as { value: number } | undefined)?.value ?? 0;
-      texts.set(version.id, version.values_status === 'declared' ? declaredText(version.label, cost) : `${JSON.stringify(version.document, null, 2)}\n`);
+      texts.set(
+        version.id,
+        version.values_status === 'declared'
+          ? declaredText(version.label, cost)
+          : `${JSON.stringify(version.document, null, 2)}\n`
+      );
     }
   }
 
@@ -514,39 +918,78 @@ export function compositionStore(options: CompositionSeed = {}): CompositionStor
    */
   const documentOf = (text: string): Record<string, unknown> => {
     const slug = scalar(text, 'composition') ?? '';
-    const latest = entries.find((entry) => entry.view.slug === slug)?.versions.at(-1);
-    const base = written.get(readingKey(text)) ?? (latest?.document as Record<string, unknown> | null | undefined)
-      ?? { syntaxVersion: '1.0', composition: slug, workflow: null, binding: {}, values: {} };
-    return { ...structuredClone(base), version: scalar(text, 'version') ?? '', kind: scalar(text, 'kind') ?? '' };
+    const latest = entries.find(entry => entry.view.slug === slug)?.versions.at(-1);
+    const base = written.get(readingKey(text)) ??
+      (latest?.document as Record<string, unknown> | null | undefined) ?? {
+        syntaxVersion: '1.0',
+        composition: slug,
+        workflow: null,
+        binding: {},
+        values: {},
+      };
+    return {
+      ...structuredClone(base),
+      version: scalar(text, 'version') ?? '',
+      kind: scalar(text, 'kind') ?? '',
+    };
   };
 
   /** A new version of an entry with this label, text and document: a copy of `from` (by default its latest version), changed by `over`. */
   const store = (
-    entry: Entry, label: string, text: string, document: Record<string, unknown>, over: Partial<CompositionVersionView> = {},
-    from: CompositionVersionView | undefined = entry.versions.at(-1),
+    entry: Entry,
+    label: string,
+    text: string,
+    document: Record<string, unknown>,
+    over: Partial<CompositionVersionView> = {},
+    from: CompositionVersionView | undefined = entry.versions.at(-1)
   ) => {
     sealed += 1;
     const now = new Date().toISOString();
     const version: CompositionVersionView = {
       ...structuredClone(from ?? declaredVersion(0, label, 0, now)),
-      id: uuid(0xe000 + sealed), ordinal: entry.versions.length + 1, label, created_at: now, content_digest: digest('e'),
+      id: uuid(0xe000 + sealed),
+      ordinal: entry.versions.length + 1,
+      label,
+      created_at: now,
+      content_digest: digest('e'),
       document: { ...document, composition: entry.view.slug },
       ...over,
     };
     entry.versions.push(version);
     texts.set(version.id, text);
     entry.view = {
-      ...entry.view, updated_at: now, version_count: entry.versions.length,
-      latest_version: { id: version.id, ordinal: version.ordinal, label, values_status: version.values_status, verified: version.verified, created_at: now },
+      ...entry.view,
+      updated_at: now,
+      version_count: entry.versions.length,
+      latest_version: {
+        id: version.id,
+        ordinal: version.ordinal,
+        label,
+        values_status: version.values_status,
+        verified: version.verified,
+        created_at: now,
+      },
     };
     return version;
   };
 
   /** What an evaluated entry's version holds for these values: its values and its evaluation's. */
-  const evaluatedFields = (version: CompositionVersionView, values: Values): Partial<CompositionVersionView> => ({
-    values, values_status: 'verified', verified: true,
-    evaluations: version.evaluations.map((item) => ({ ...item, values, outcome: 'verified' as const })),
-    current_evaluation: version.current_evaluation && { ...version.current_evaluation, outcome: 'verified' as const },
+  const evaluatedFields = (
+    version: CompositionVersionView,
+    values: Values
+  ): Partial<CompositionVersionView> => ({
+    values,
+    values_status: 'verified',
+    verified: true,
+    evaluations: version.evaluations.map(item => ({
+      ...item,
+      values,
+      outcome: 'verified' as const,
+    })),
+    current_evaluation: version.current_evaluation && {
+      ...version.current_evaluation,
+      outcome: 'verified' as const,
+    },
   });
 
   /**
@@ -554,56 +997,142 @@ export function compositionStore(options: CompositionSeed = {}): CompositionStor
    * (`revision`, `binding`), the FMS binding with the tasks it names bound otherwise, on that problem version.
    */
   const derive = (entry: Entry, request: CompositionRequest): CompositionReply => {
-    const sent = request.body() as { run?: string; point?: number; revision?: string; binding?: Record<string, string>; version?: string; seal?: boolean };
+    const sent = request.body() as {
+      run?: string;
+      point?: number;
+      revision?: string;
+      binding?: Record<string, string>;
+      version?: string;
+      seal?: boolean;
+    };
     const label = String(sent.version ?? '');
     const run = sent.run ? String(sent.run) : null;
-    const point = run ? sent.point ?? 0 : null;
+    const point = run ? (sent.point ?? 0) : null;
     const fms = FMS.document as Record<string, unknown>;
-    const rebound = Object.fromEntries(Object.entries(sent.binding ?? {}).map(([task, candidate]) => [task, { candidate }]));
+    const rebound = Object.fromEntries(
+      Object.entries(sent.binding ?? {}).map(([task, candidate]) => [task, { candidate }])
+    );
     const binding = { ...asFields(fms.binding), ...rebound };
-    const revision = run ? DERIVED_REVISION : { id: `rev-${String(sent.revision)}`, revision: Number(String(sent.revision).split('@')[1] ?? 1) };
+    const revision = run
+      ? DERIVED_REVISION
+      : {
+          id: `rev-${String(sent.revision)}`,
+          revision: Number(String(sent.revision).split('@')[1] ?? 1),
+        };
     const ref = run ? DERIVED_REF : `${COMPOSITIONS_ORG}/problems/${String(sent.revision)}`;
     const values = evaluated({ binding });
     const document = {
-      syntaxVersion: '1.0', composition: entry.view.slug, version: label, kind: entry.view.kind,
-      problem: { ref, compilation: asFields(fms.problem).compilation }, workflow: fms.workflow, binding,
+      syntaxVersion: '1.0',
+      composition: entry.view.slug,
+      version: label,
+      kind: entry.view.kind,
+      problem: { ref, compilation: asFields(fms.problem).compilation },
+      workflow: fms.workflow,
+      binding,
       values: documentValues(values),
-      evidence: run ? { run, point, evaluatedBy: 'gateway', toolchain: 'bim-core 0.2.0' } : { evaluatedBy: 'gateway', toolchain: 'bim-core 0.2.0' },
+      evidence: run
+        ? { run, point, evaluatedBy: 'gateway', toolchain: 'bim-core 0.2.0' }
+        : { evaluatedBy: 'gateway', toolchain: 'bim-core 0.2.0' },
     };
     const text = write(document);
     entry.evaluated = true;
     if (sent.seal === false) return ok({ content: text, document, values, diagnostics: [] });
-    const existing = entry.versions.find((version) => version.label === label);
+    const existing = entry.versions.find(version => version.label === label);
     if (existing && texts.get(existing.id) !== text) {
-      return { status: 409, json: { detail: { code: 'version_label_taken', error: `Version ${label} already holds another content.` } } };
+      return {
+        status: 409,
+        json: {
+          detail: {
+            code: 'version_label_taken',
+            error: `Version ${label} already holds another content.`,
+          },
+        },
+      };
     }
     const base = structuredClone(FMS);
-    const version = existing ?? store(entry, label, text, document, {
-      ...evaluatedFields(base, values), kind: entry.view.kind, created_by_id: AUTHOR, evidence_run: run ? { id: run } : null,
-      problem: base.problem && { ...base.problem, problem: { id: 'case-checkout-flow', slug: 'checkout-flow', name: 'Checkout flow' }, revision },
-      derivation: run ? { source: 'run', run: { id: run }, point, revision } : { source: 'binding', run: null, point: null, revision },
-    }, base);
+    const version =
+      existing ??
+      store(
+        entry,
+        label,
+        text,
+        document,
+        {
+          ...evaluatedFields(base, values),
+          kind: entry.view.kind,
+          created_by_id: AUTHOR,
+          evidence_run: run ? { id: run } : null,
+          problem: base.problem && {
+            ...base.problem,
+            problem: { id: 'case-checkout-flow', slug: 'checkout-flow', name: 'Checkout flow' },
+            revision,
+          },
+          derivation: run
+            ? { source: 'run', run: { id: run }, point, revision }
+            : { source: 'binding', run: null, point: null, revision },
+        },
+        base
+      );
     const derivation = {
-      id: uuid(0xe200 + version.ordinal), source: run ? 'run' : 'binding', revision_id: revision.id, compilation_id: base.problem?.linked_compilation?.id,
-      binding: {}, binding_digest: digest('d'), provenance: {}, job_id: run, point, created_by_id: AUTHOR, created_at: version.created_at,
+      id: uuid(0xe200 + version.ordinal),
+      source: run ? 'run' : 'binding',
+      revision_id: revision.id,
+      compilation_id: base.problem?.linked_compilation?.id,
+      binding: {},
+      binding_digest: digest('d'),
+      provenance: {},
+      job_id: run,
+      point,
+      created_by_id: AUTHOR,
+      created_at: version.created_at,
     };
-    return ok({ version, evaluation: version.evaluations[0], derivation, diagnostics: [] }, existing ? 200 : 201);
+    return ok(
+      { version, evaluation: version.evaluations[0], derivation, diagnostics: [] },
+      existing ? 200 : 201
+    );
   };
 
   /** The version a request names (`version`: an id, a label or an ordinal), the latest by default; null when there is none. */
-  const named = (entry: Entry, ref: unknown) => (ref === undefined || ref === null || ref === ''
-    ? entry.versions.at(-1) ?? null
-    : entry.versions.find((item) => item.id === ref || item.label === ref || String(item.ordinal) === String(ref)) ?? null);
+  const named = (entry: Entry, ref: unknown) =>
+    ref === undefined || ref === null || ref === ''
+      ? (entry.versions.at(-1) ?? null)
+      : (entry.versions.find(
+          item => item.id === ref || item.label === ref || String(item.ordinal) === String(ref)
+        ) ?? null);
 
   /** What `evaluate` and `neighborhood` refuse before the toolchain has a say: no version, or a version that links no problem. */
-  const unanalysable = (entry: Entry, version: CompositionVersionView | null): CompositionReply | null => {
+  const unanalysable = (
+    entry: Entry,
+    version: CompositionVersionView | null
+  ): CompositionReply | null => {
     if (!version) {
       return entry.versions.length === 0
-        ? { status: 409, json: { detail: { code: 'composition_empty', error: 'This composition has no version yet: seal one before evaluating it.' } } }
-        : { status: 404, json: { detail: { code: 'not_found', error: 'Composition version not found.' } } };
+        ? {
+            status: 409,
+            json: {
+              detail: {
+                code: 'composition_empty',
+                error: 'This composition has no version yet: seal one before evaluating it.',
+              },
+            },
+          }
+        : {
+            status: 404,
+            json: { detail: { code: 'not_found', error: 'Composition version not found.' } },
+          };
     }
     if (!version.problem) {
-      return { status: 422, json: { type: 'about:blank', title: 'Unprocessable Content', status: 422, code: 'composition_not_linked', detail: `Version ${version.label} links no problem.`, diagnostics: [] } };
+      return {
+        status: 422,
+        json: {
+          type: 'about:blank',
+          title: 'Unprocessable Content',
+          status: 422,
+          code: 'composition_not_linked',
+          detail: `Version ${version.label} links no problem.`,
+          diagnostics: [],
+        },
+      };
     }
     return null;
   };
@@ -615,20 +1144,41 @@ export function compositionStore(options: CompositionSeed = {}): CompositionStor
     const refusal = unanalysable(entry, version);
     if (refusal || !version) return refusal ?? missing();
     const document = asFields(version.document);
-    const tasks = new Set(FMS_FACTS.tasks.map((task) => task.id));
-    const unknown = Object.keys(sent.binding ?? {}).filter((task) => !tasks.has(task));
+    const tasks = new Set(FMS_FACTS.tasks.map(task => task.id));
+    const unknown = Object.keys(sent.binding ?? {}).filter(task => !tasks.has(task));
     if (unknown.length) {
       return {
         status: 422,
         json: {
-          type: 'about:blank', title: 'Unprocessable Content', status: 422, code: 'evaluation_invalid', detail: 'The binding names what the version does not have.',
-          diagnostics: unknown.map((task) => ({ code: 'c2y_binding_unknown_task', message: `the version's workflow has no task '${task}'`, severity: 'error', path: `binding.${task}`, pointer: `/binding/${task}`, span: null })),
+          type: 'about:blank',
+          title: 'Unprocessable Content',
+          status: 422,
+          code: 'evaluation_invalid',
+          detail: 'The binding names what the version does not have.',
+          diagnostics: unknown.map(task => ({
+            code: 'c2y_binding_unknown_task',
+            message: `the version's workflow has no task '${task}'`,
+            severity: 'error',
+            path: `binding.${task}`,
+            pointer: `/binding/${task}`,
+            span: null,
+          })),
         },
       };
     }
-    const rebound = Object.fromEntries(Object.entries(sent.binding ?? {}).map(([task, candidate]) => [task, { candidate }]));
-    const values = Object.keys(rebound).length ? evaluated({ binding: { ...asFields(document.binding), ...rebound } }) : version.values;
-    return ok({ version: { id: version.id, label: version.label }, valid: true, values, violations: [], diagnostics: [] });
+    const rebound = Object.fromEntries(
+      Object.entries(sent.binding ?? {}).map(([task, candidate]) => [task, { candidate }])
+    );
+    const values = Object.keys(rebound).length
+      ? evaluated({ binding: { ...asFields(document.binding), ...rebound } })
+      : version.values;
+    return ok({
+      version: { id: version.id, label: version.label },
+      valid: true,
+      values,
+      violations: [],
+      diagnostics: [],
+    });
   };
 
   /** `GET …/neighborhood`: one move per other candidate of each service task, with the mock toolchain's words and deltas. */
@@ -639,29 +1189,69 @@ export function compositionStore(options: CompositionSeed = {}): CompositionStor
     const bound = asFields(asFields(version.document).binding);
     const limit = Number(request.query.get('limit') ?? 64);
     const task = request.query.get('task');
-    const tasks = FMS_FACTS.tasks.filter((item) => item.kind === 'service' && (!task || item.id === task));
-    const choices = tasks.flatMap((item) => item.eligible
-      .filter((eligible) => eligible.written !== String(asFields(bound[item.id]).candidate ?? ''))
-      .map((eligible) => ({ task: item.id, eligible, from: String(asFields(bound[item.id]).candidate ?? '') })));
+    const tasks = FMS_FACTS.tasks.filter(
+      item => item.kind === 'service' && (!task || item.id === task)
+    );
+    const choices = tasks.flatMap(item =>
+      item.eligible
+        .filter(eligible => eligible.written !== String(asFields(bound[item.id]).candidate ?? ''))
+        .map(eligible => ({
+          task: item.id,
+          eligible,
+          from: String(asFields(bound[item.id]).candidate ?? ''),
+        }))
+    );
     const moves = choices.slice(0, limit).map(({ task: id, eligible, from }, index) => {
       const comparison = COMPARISONS[index % COMPARISONS.length];
       const [resource, ...rest] = eligible.candidate.split('/');
       const step = (index + 1) * 10;
       return {
-        task: id, candidate: eligible.written, from: { resource, id: from }, to: { resource, id: rest.join('/') }, decision: { kind: 'binding' }, objectives: {},
-        feasible: comparison !== 'infeasible', comparison,
-        componentDeltas: [{ feature: 'cost', value: comparison === 'better' ? -step : step, loss: 0 }, { feature: 'execution_time', value: comparison === 'trade-off' ? -step : step, loss: 0 }],
+        task: id,
+        candidate: eligible.written,
+        from: { resource, id: from },
+        to: { resource, id: rest.join('/') },
+        decision: { kind: 'binding' },
+        objectives: {},
+        feasible: comparison !== 'infeasible',
+        comparison,
+        componentDeltas: [
+          { feature: 'cost', value: comparison === 'better' ? -step : step, loss: 0 },
+          { feature: 'execution_time', value: comparison === 'trade-off' ? -step : step, loss: 0 },
+        ],
         penaltyDelta: comparison === 'infeasible' ? 5 : 0,
-        violations: comparison === 'infeasible' ? [{ constraint: { resource: 'rules', id: 'eu-only' }, enforcement: 'hard', penalty: 5, message: 'Keep the data in the EU' }] : [],
+        violations:
+          comparison === 'infeasible'
+            ? [
+                {
+                  constraint: { resource: 'rules', id: 'eu-only' },
+                  enforcement: 'hard',
+                  penalty: 5,
+                  message: 'Keep the data in the EU',
+                },
+              ]
+            : [],
       };
     });
-    const improving = moves.filter((move) => move.comparison === 'better' || move.comparison === 'repairs-feasibility').length;
+    const improving = moves.filter(
+      move => move.comparison === 'better' || move.comparison === 'repairs-feasibility'
+    ).length;
     return ok({
-      version: { id: version.id, label: version.label }, kind: 'canonical-one-task-counterfactuals', irDigest: digest('f'),
-      scope: task ? 'selected-service-task' : 'all-service-tasks', task, base: {}, moves, failures: [],
+      version: { id: version.id, label: version.label },
+      kind: 'canonical-one-task-counterfactuals',
+      irDigest: digest('f'),
+      scope: task ? 'selected-service-task' : 'all-service-tasks',
+      task,
+      base: {},
+      moves,
+      failures: [],
       coverage: {
-        total: choices.length, attempted: moves.length, evaluated: moves.length, complete: moves.length === choices.length, limit,
-        stopReason: moves.length === choices.length ? null : 'evaluation-limit', perTask: Object.fromEntries(tasks.map((item) => [item.id, item.eligible.length - 1])),
+        total: choices.length,
+        attempted: moves.length,
+        evaluated: moves.length,
+        complete: moves.length === choices.length,
+        limit,
+        stopReason: moves.length === choices.length ? null : 'evaluation-limit',
+        perTask: Object.fromEntries(tasks.map(item => [item.id, item.eligible.length - 1])),
       },
       conclusion: `Found ${improving} feasible canonical improvements or feasibility repairs. Every eligible one-task move in this scope was evaluated.`,
       semantics: 'Re-evaluated with the current canonical evaluator.',
@@ -672,31 +1262,62 @@ export function compositionStore(options: CompositionSeed = {}): CompositionStor
     const linted = lint(text);
     if (!linted.valid) return refused(linted.diagnostics);
     const label = scalar(text, 'version') ?? '';
-    const existing = entry.versions.find((version) => version.label === label);
-    if (existing && texts.get(existing.id) === text) return ok({ version: existing, evaluation: existing.evaluations[0], diagnostics: [] });
-    if (existing) return { status: 409, json: { detail: { code: 'version_label_taken', error: `Version ${label} already holds another content.` } } };
+    const existing = entry.versions.find(version => version.label === label);
+    if (existing && texts.get(existing.id) === text)
+      return ok({ version: existing, evaluation: existing.evaluations[0], diagnostics: [] });
+    if (existing)
+      return {
+        status: 409,
+        json: {
+          detail: {
+            code: 'version_label_taken',
+            error: `Version ${label} already holds another content.`,
+          },
+        },
+      };
     const document = documentOf(text);
     const latest = entry.versions.at(-1);
-    const over = entry.evaluated && latest ? { ...evaluatedFields(latest, evaluated(document)), derivation: null, evidence_run: null } : {};
+    const over =
+      entry.evaluated && latest
+        ? { ...evaluatedFields(latest, evaluated(document)), derivation: null, evidence_run: null }
+        : {};
     const version = store(entry, label, text, document, over);
     return ok({ version, evaluation: version.evaluations[0], diagnostics: [] }, 201);
   };
 
   const check = (entry: Entry, text: string): CompositionReply => {
     const linted = lint(text);
-    if (!linted.valid) return ok({ valid: false, values_status: null, values: null, content: null, diagnostics: linted.diagnostics });
+    if (!linted.valid)
+      return ok({
+        valid: false,
+        values_status: null,
+        values: null,
+        content: null,
+        diagnostics: linted.diagnostics,
+      });
     if (entry.evaluated && /^problem\s*:/m.test(text)) {
       // The toolchain computes the values of the binding the text names; the canonical form states them.
       const document = documentOf(text);
       const values = evaluated(document);
-      return ok({ valid: true, values_status: 'verified', values, content: write({ ...document, values: documentValues(values) }), diagnostics: [] });
+      return ok({
+        valid: true,
+        values_status: 'verified',
+        values,
+        content: write({ ...document, values: documentValues(values) }),
+        diagnostics: [],
+      });
     }
     return ok({
-      valid: true, values_status: /^problem\s*:/m.test(text) ? 'verified' : 'declared', values: entry.versions.at(-1)?.values ?? {}, content: text, diagnostics: [],
+      valid: true,
+      values_status: /^problem\s*:/m.test(text) ? 'verified' : 'declared',
+      values: entry.versions.at(-1)?.values ?? {},
+      content: text,
+      diagnostics: [],
     });
   };
 
-  const poolOf = (org: string): Entry[] => (org === COMPOSITIONS_ORG ? entries : others.get(org) ?? []);
+  const poolOf = (org: string): Entry[] =>
+    org === COMPOSITIONS_ORG ? entries : (others.get(org) ?? []);
   /** The compositions of an organization, kept from now on (a fork goes there). */
   const keptPoolOf = (org: string): Entry[] => {
     if (org === COMPOSITIONS_ORG) return entries;
@@ -705,7 +1326,8 @@ export function compositionStore(options: CompositionSeed = {}): CompositionStor
     return pool;
   };
   /** Whether the composition with this id is public now: a public reader's lineage names only such a source. */
-  const isPublic = (id: string | null | undefined) => allEntries().some((entry) => entry.view.id === id && entry.view.visibility === 'public');
+  const isPublic = (id: string | null | undefined) =>
+    allEntries().some(entry => entry.view.id === id && entry.view.visibility === 'public');
 
   const list = (request: CompositionRequest, pool: Entry[]): CompositionReply => {
     const { query } = request;
@@ -715,35 +1337,78 @@ export function compositionStore(options: CompositionSeed = {}): CompositionStor
     // `problem`: the compositions with a version linking a revision of that problem (its slug or id).
     const problem = query.get('problem');
     const rows = pool
-      .filter((entry) => !problem || entry.versions.some((version) => version.problem?.problem.slug === problem || version.problem?.problem.id === problem))
-      .map((entry) => entry.view)
-      .filter((view) => (!kind || view.kind === kind) && (archived === null || String(view.archived) === archived))
-      .filter((view) => !needle || `${view.name} ${view.slug}`.toLowerCase().includes(needle))
-      .sort((a, b) => (query.get('sort') === 'updated' ? b.updated_at.localeCompare(a.updated_at) : a.name.localeCompare(b.name)));
+      .filter(
+        entry =>
+          !problem ||
+          entry.versions.some(
+            version =>
+              version.problem?.problem.slug === problem || version.problem?.problem.id === problem
+          )
+      )
+      .map(entry => entry.view)
+      .filter(
+        view =>
+          (!kind || view.kind === kind) && (archived === null || String(view.archived) === archived)
+      )
+      .filter(view => !needle || `${view.name} ${view.slug}`.toLowerCase().includes(needle))
+      .sort((a, b) =>
+        query.get('sort') === 'updated'
+          ? b.updated_at.localeCompare(a.updated_at)
+          : a.name.localeCompare(b.name)
+      );
     const limit = Number(query.get('limit') ?? 50);
     return ok({ compositions: rows.slice(0, limit), total: rows.length, limit, offset: 0 });
   };
 
   const create = (request: CompositionRequest): CompositionReply => {
-    const sent = request.body() as { slug?: string; name?: string; kind?: CompositionView['kind']; description?: string };
-    if (entries.some((entry) => entry.view.slug === sent.slug)) {
-      return { status: 409, json: { detail: { code: 'slug_conflict', error: 'That composition slug is in use in this organization.' } } };
+    const sent = request.body() as {
+      slug?: string;
+      name?: string;
+      kind?: CompositionView['kind'];
+      description?: string;
+    };
+    if (entries.some(entry => entry.view.slug === sent.slug)) {
+      return {
+        status: 409,
+        json: {
+          detail: {
+            code: 'slug_conflict',
+            error: 'That composition slug is in use in this organization.',
+          },
+        },
+      };
     }
     created += 1;
     const now = new Date().toISOString();
-    const view = composition(0x100 + created, String(sent.slug), String(sent.name), {
-      kind: sent.kind ?? 'application', description: sent.description ?? '', created_at: now, updated_at: now,
-    }, []);
+    const view = composition(
+      0x100 + created,
+      String(sent.slug),
+      String(sent.name),
+      {
+        kind: sent.kind ?? 'application',
+        description: sent.description ?? '',
+        created_at: now,
+        updated_at: now,
+      },
+      []
+    );
     entries.push({ view, versions: [] });
     return ok(view, 201);
   };
 
   /** `PATCH` a composition: its name, description, archived state and visibility, as sent. */
   const update = (entry: Entry, request: CompositionRequest): CompositionReply => {
-    const sent = request.body() as Partial<Pick<CompositionView, 'name' | 'description' | 'archived' | 'visibility'>>;
-    const changed = Object.fromEntries(Object.entries(sent).filter(([key, value]) => (
-      ['name', 'description', 'archived', 'visibility'].includes(key) && value !== null && value !== undefined
-    )));
+    const sent = request.body() as Partial<
+      Pick<CompositionView, 'name' | 'description' | 'archived' | 'visibility'>
+    >;
+    const changed = Object.fromEntries(
+      Object.entries(sent).filter(
+        ([key, value]) =>
+          ['name', 'description', 'archived', 'visibility'].includes(key) &&
+          value !== null &&
+          value !== undefined
+      )
+    );
     entry.view = { ...entry.view, ...changed, updated_at: new Date().toISOString() };
     return ok(entry.view);
   };
@@ -752,63 +1417,170 @@ export function compositionStore(options: CompositionSeed = {}): CompositionStor
    * `POST …/fork`: the version named into another organization of the account, as a new private composition. A version that links a
    * problem needs `dropProblem`, and its copy is declared; without `slug`, a target that has the source's slug answers `nameTaken`.
    */
-  const fork = (entry: Entry, request: CompositionRequest, organizations: readonly MockOrganization[], source: string): CompositionReply => {
-    const sent = request.body() as { version?: string; targetOrganization?: string; dropProblem?: boolean; slug?: string; name?: string; description?: string };
+  const fork = (
+    entry: Entry,
+    request: CompositionRequest,
+    organizations: readonly MockOrganization[],
+    source: string
+  ): CompositionReply => {
+    const sent = request.body() as {
+      version?: string;
+      targetOrganization?: string;
+      dropProblem?: boolean;
+      slug?: string;
+      name?: string;
+      description?: string;
+    };
     const version = named(entry, sent.version);
-    if (!version) return { status: 404, json: { detail: { code: 'not_found', error: 'Composition version not found.' } } };
-    const target = organizations.find((item) => item.slug === sent.targetOrganization || item.id === sent.targetOrganization);
+    if (!version)
+      return {
+        status: 404,
+        json: { detail: { code: 'not_found', error: 'Composition version not found.' } },
+      };
+    const target = organizations.find(
+      item => item.slug === sent.targetOrganization || item.id === sent.targetOrganization
+    );
     if (!target || target.effective_role === null || target.effective_role === 'VIEWER') {
-      return { status: 403, json: { detail: { code: 'organization_forbidden', error: 'This action requires MEMBER access to the organization.' } } };
+      return {
+        status: 403,
+        json: {
+          detail: {
+            code: 'organization_forbidden',
+            error: 'This action requires MEMBER access to the organization.',
+          },
+        },
+      };
     }
     if (target.slug === source) {
-      return { status: 409, json: { detail: { code: 'composition_fork_same_organization', error: 'A fork goes to another organization; to change this composition, seal a new version of it instead.' } } };
+      return {
+        status: 409,
+        json: {
+          detail: {
+            code: 'composition_fork_same_organization',
+            error:
+              'A fork goes to another organization; to change this composition, seal a new version of it instead.',
+          },
+        },
+      };
     }
     const linked = version.problem !== null;
     if (linked && !sent.dropProblem) {
-      return { status: 409, json: { detail: { code: 'composition_fork_problem_unreadable', error: 'This version links a problem of its own organization, which the target organization cannot read.' } } };
+      return {
+        status: 409,
+        json: {
+          detail: {
+            code: 'composition_fork_problem_unreadable',
+            error:
+              'This version links a problem of its own organization, which the target organization cannot read.',
+          },
+        },
+      };
     }
     const pool = keptPoolOf(target.slug);
     const wanted = sent.slug ?? entry.view.slug;
-    const holder = pool.find((item) => item.view.slug === wanted);
-    if (holder && !sent.slug) return ok({ nameTaken: true, existingComposition: { id: holder.view.id, slug: holder.view.slug, name: holder.view.name } });
-    if (holder) return { status: 409, json: { detail: { code: 'slug_conflict', error: 'That composition slug is in use in this organization.' } } };
+    const holder = pool.find(item => item.view.slug === wanted);
+    if (holder && !sent.slug)
+      return ok({
+        nameTaken: true,
+        existingComposition: { id: holder.view.id, slug: holder.view.slug, name: holder.view.name },
+      });
+    if (holder)
+      return {
+        status: 409,
+        json: {
+          detail: {
+            code: 'slug_conflict',
+            error: 'That composition slug is in use in this organization.',
+          },
+        },
+      };
 
     created += 1;
     const now = new Date().toISOString();
-    const document: Fields = { ...structuredClone(asFields(version.document)), composition: wanted };
+    const document: Fields = {
+      ...structuredClone(asFields(version.document)),
+      composition: wanted,
+    };
     if (linked) {
       delete document.problem;
       delete document.evidence;
     }
     const copy: CompositionVersionView = {
       ...structuredClone(version),
-      id: uuid(0xe800 + created), ordinal: 1, created_at: now, created_by_id: AUTHOR, document,
+      id: uuid(0xe800 + created),
+      ordinal: 1,
+      created_at: now,
+      created_by_id: AUTHOR,
+      document,
       based_on: { composition_id: entry.view.id, version_id: version.id, label: version.label },
       forked_from: {
-        droppedProblem: linked, compositionId: entry.view.id, versionId: version.id, label: version.label, name: entry.view.name, slug: entry.view.slug,
-        organization: { id: entry.view.organization.id, name: entry.view.organization.slug, displayName: entry.view.organization.name },
+        droppedProblem: linked,
+        compositionId: entry.view.id,
+        versionId: version.id,
+        label: version.label,
+        name: entry.view.name,
+        slug: entry.view.slug,
+        organization: {
+          id: entry.view.organization.id,
+          name: entry.view.organization.slug,
+          displayName: entry.view.organization.name,
+        },
       },
-      ...(linked ? {
-        problem: null, values_status: 'declared', verified: false, evidence_run: null, derivation: null,
-        current_evaluation: version.current_evaluation && { ...version.current_evaluation, basis: 'declared', outcome: 'declared', compilation: null },
-        evaluations: version.evaluations.map((item) => ({ ...item, basis: 'declared', outcome: 'declared', compilation: null, binding: null, diagnostics: [], violations: [] })),
-      } as Partial<CompositionVersionView> : {}),
+      ...(linked
+        ? ({
+            problem: null,
+            values_status: 'declared',
+            verified: false,
+            evidence_run: null,
+            derivation: null,
+            current_evaluation: version.current_evaluation && {
+              ...version.current_evaluation,
+              basis: 'declared',
+              outcome: 'declared',
+              compilation: null,
+            },
+            evaluations: version.evaluations.map(item => ({
+              ...item,
+              basis: 'declared',
+              outcome: 'declared',
+              compilation: null,
+              binding: null,
+              diagnostics: [],
+              violations: [],
+            })),
+          } as Partial<CompositionVersionView>)
+        : {}),
     };
     texts.set(copy.id, write(document));
-    const view = composition(0x200 + created, wanted, sent.name ?? entry.view.name, {
-      organization: { id: target.id, slug: target.slug, name: target.name }, kind: entry.view.kind,
-      description: sent.description ?? entry.view.description, visibility: 'private',
-    }, [copy]);
+    const view = composition(
+      0x200 + created,
+      wanted,
+      sent.name ?? entry.view.name,
+      {
+        organization: { id: target.id, slug: target.slug, name: target.name },
+        kind: entry.view.kind,
+        description: sent.description ?? entry.view.description,
+        visibility: 'private',
+      },
+      [copy]
+    );
     pool.push({ view, versions: [copy] });
     return ok({ composition: view, version: copy, droppedProblem: linked }, 201);
   };
 
   /** The answer to a member of `org`. */
-  const answer = (request: CompositionRequest, org: string, organizations: readonly MockOrganization[] = []): CompositionReply => {
+  const answer = (
+    request: CompositionRequest,
+    org: string,
+    organizations: readonly MockOrganization[] = []
+  ): CompositionReply => {
     const [, , , , slug, section, ref, tail] = request.parts;
     const pool = poolOf(org);
-    if (!slug) return request.method === 'POST' && org === COMPOSITIONS_ORG ? create(request) : list(request, pool);
-    const entry = pool.find((item) => item.view.slug === slug);
+    if (!slug)
+      return request.method === 'POST' && org === COMPOSITIONS_ORG
+        ? create(request)
+        : list(request, pool);
+    const entry = pool.find(item => item.view.slug === slug);
     if (!entry) return missing();
     if (!section && request.method === 'PATCH') return update(entry, request);
     if (!section && request.method === 'DELETE') {
@@ -816,18 +1588,39 @@ export function compositionStore(options: CompositionSeed = {}): CompositionStor
       return { status: 204 };
     }
     if (!section) return ok(entry.view);
-    if (section === 'fork' && request.method === 'POST') return fork(entry, request, organizations, org);
+    if (section === 'fork' && request.method === 'POST')
+      return fork(entry, request, organizations, org);
     if (section === 'derive' && request.method === 'POST') return derive(entry, request);
     if (section === 'evaluate' && request.method === 'POST') return evaluate(entry, request);
-    if (section === 'neighborhood' && request.method === 'GET') return neighbourhood(entry, request);
-    const find = (value: string | null) => entry.versions.find((item) => item.id === value || item.label === value || String(item.ordinal) === value);
+    if (section === 'neighborhood' && request.method === 'GET')
+      return neighbourhood(entry, request);
+    const find = (value: string | null) =>
+      entry.versions.find(
+        item => item.id === value || item.label === value || String(item.ordinal) === value
+      );
     if (section === 'diff') {
       const to = request.query.get('to') ? find(request.query.get('to')) : entry.versions.at(-1);
-      const from = request.query.get('from') ? find(request.query.get('from')) : to && entry.versions[entry.versions.indexOf(to) - 1];
-      if (!to || !from) return { status: 409, json: { detail: { code: 'diff_version_missing', error: 'There is no version to compare with.' } } };
+      const from = request.query.get('from')
+        ? find(request.query.get('from'))
+        : to && entry.versions[entry.versions.indexOf(to) - 1];
+      if (!to || !from)
+        return {
+          status: 409,
+          json: {
+            detail: { code: 'diff_version_missing', error: 'There is no version to compare with.' },
+          },
+        };
       // The pair the gateway's F1 diff golden compares answers that golden, under these versions' ids and labels.
-      const golden = entry.evaluated && t1Of(asFields(from.document)) === T1_BEFORE && t1Of(asFields(to.document)) === T1_AFTER;
-      if (golden) return ok({ ...structuredClone(FMS_DIFF), from: { id: from.id, label: from.label }, to: { id: to.id, label: to.label } });
+      const golden =
+        entry.evaluated &&
+        t1Of(asFields(from.document)) === T1_BEFORE &&
+        t1Of(asFields(to.document)) === T1_AFTER;
+      if (golden)
+        return ok({
+          ...structuredClone(FMS_DIFF),
+          from: { id: from.id, label: from.label },
+          to: { id: to.id, label: to.label },
+        });
       return ok(versionDiff(from, to));
     }
     if (section !== 'versions') return { status: 404, json: { detail: 'not mocked' } };
@@ -835,26 +1628,48 @@ export function compositionStore(options: CompositionSeed = {}): CompositionStor
     if (!ref && request.method === 'POST') return seal(entry, request.text());
     if (ref === 'check' && request.method === 'POST') return check(entry, request.text());
     if (!ref) {
-      const ordered = (request.query.get('order') === 'oldest' ? entry.versions : newest).filter((version) => sealedWithin(version, request.query));
+      const ordered = (request.query.get('order') === 'oldest' ? entry.versions : newest).filter(
+        version => sealedWithin(version, request.query)
+      );
       const include = (request.query.get('include') ?? '').split(',');
-      return ok({ versions: ordered.map((version) => lightRow(version, include)), total: ordered.length, limit: 200, offset: 0 });
+      return ok({
+        versions: ordered.map(version => lightRow(version, include)),
+        total: ordered.length,
+        limit: 200,
+        offset: 0,
+      });
     }
     const version = find(ref);
-    if (!version) return { status: 404, json: { detail: { code: 'not_found', error: 'Composition version not found.' } } };
-    if (tail === 'content') return { status: 200, text: texts.get(version.id) ?? '', type: 'application/yaml' };
+    if (!version)
+      return {
+        status: 404,
+        json: { detail: { code: 'not_found', error: 'Composition version not found.' } },
+      };
+    if (tail === 'content')
+      return { status: 200, text: texts.get(version.id) ?? '', type: 'application/yaml' };
     // The installed toolchain has evaluated every version already: its evaluation, 200.
     if (tail === 'evaluations' && request.method === 'POST') return ok(version.evaluations[0]);
-    return ok(request.query.get('include') === 'document' ? version : { ...version, document: null });
+    return ok(
+      request.query.get('include') === 'document' ? version : { ...version, document: null }
+    );
   };
 
   /** A member's answer to a read, as a public reader gets it. */
-  const redacted = (reply: CompositionReply, section: string | undefined, ref: string | undefined, tail: string | undefined): CompositionReply => {
+  const redacted = (
+    reply: CompositionReply,
+    section: string | undefined,
+    ref: string | undefined,
+    tail: string | undefined
+  ): CompositionReply => {
     if (reply.status !== 200 || reply.json === undefined) return reply;
     if (!section) return ok({ ...(reply.json as CompositionView), created_by_id: null });
     if (section !== 'versions' || tail) return reply;
     if (ref) return ok(publicVersion(reply.json as CompositionVersionView, isPublic));
     const page = reply.json as { versions: CompositionVersionView[] };
-    return ok({ ...page, versions: page.versions.map((version) => publicVersion(version, isPublic)) });
+    return ok({
+      ...page,
+      versions: page.versions.map(version => publicVersion(version, isPublic)),
+    });
   };
 
   return {
@@ -862,14 +1677,27 @@ export function compositionStore(options: CompositionSeed = {}): CompositionStor
 
     publicRoute(request, org, signedIn, organizations = []) {
       const [, , , , slug, section, ref, tail] = request.parts;
-      const refused = (): CompositionReply => (signedIn
-        ? missing()
-        : { status: 401, json: { detail: { code: 'not_authenticated', error: 'Authentication required.' } } });
-      if (!slug) return signedIn ? { status: 404, json: { detail: { code: 'not_found', error: 'Organization not found.' } } } : refused();
-      const entry = poolOf(org).find((item) => item.view.slug === slug);
-      if (!entry || entry.view.visibility !== 'public') return request.method === 'GET' ? missing() : refused();
-      if (section === 'fork' && request.method === 'POST') return signedIn ? fork(entry, request, organizations, org) : refused();
-      const reads = request.method === 'GET' && (!section || section === 'versions' || section === 'diff');
+      const refused = (): CompositionReply =>
+        signedIn
+          ? missing()
+          : {
+              status: 401,
+              json: { detail: { code: 'not_authenticated', error: 'Authentication required.' } },
+            };
+      if (!slug)
+        return signedIn
+          ? {
+              status: 404,
+              json: { detail: { code: 'not_found', error: 'Organization not found.' } },
+            }
+          : refused();
+      const entry = poolOf(org).find(item => item.view.slug === slug);
+      if (!entry || entry.view.visibility !== 'public')
+        return request.method === 'GET' ? missing() : refused();
+      if (section === 'fork' && request.method === 'POST')
+        return signedIn ? fork(entry, request, organizations, org) : refused();
+      const reads =
+        request.method === 'GET' && (!section || section === 'versions' || section === 'diff');
       if (!reads) return refused();
       return redacted(answer(request, org, organizations), section, ref, tail);
     },
@@ -880,21 +1708,48 @@ export function compositionStore(options: CompositionSeed = {}): CompositionStor
       const organization = query.get('organization');
       const needle = (query.get('q') ?? '').toLowerCase();
       const rows = allEntries()
-        .filter(({ view, versions }) => view.visibility === 'public' && !view.archived && versions.length > 0)
-        .filter(({ view }) => (!kind || view.kind === kind) && (!organization || view.organization.slug === organization))
+        .filter(
+          ({ view, versions }) =>
+            view.visibility === 'public' && !view.archived && versions.length > 0
+        )
+        .filter(
+          ({ view }) =>
+            (!kind || view.kind === kind) &&
+            (!organization || view.organization.slug === organization)
+        )
         .filter(({ view }) => !needle || `${view.name} ${view.slug}`.toLowerCase().includes(needle))
-        .sort((a, b) => b.view.updated_at.localeCompare(a.view.updated_at) || a.view.slug.localeCompare(b.view.slug))
+        .sort(
+          (a, b) =>
+            b.view.updated_at.localeCompare(a.view.updated_at) ||
+            a.view.slug.localeCompare(b.view.slug)
+        )
         .map(({ view, versions }) => {
           const latest = versions[versions.length - 1];
           return {
-            organization: { slug: view.organization.slug, name: view.organization.name }, slug: view.slug, name: view.name,
-            description: view.description, kind: view.kind, version_count: versions.length, updated_at: view.updated_at,
-            latest_version: { label: latest.label, ordinal: latest.ordinal, values_status: latest.values_status, verified: latest.verified, created_at: latest.created_at },
+            organization: { slug: view.organization.slug, name: view.organization.name },
+            slug: view.slug,
+            name: view.name,
+            description: view.description,
+            kind: view.kind,
+            version_count: versions.length,
+            updated_at: view.updated_at,
+            latest_version: {
+              label: latest.label,
+              ordinal: latest.ordinal,
+              values_status: latest.values_status,
+              verified: latest.verified,
+              created_at: latest.created_at,
+            },
           };
         });
       const limit = Number(query.get('limit') ?? 24);
       const offset = Number(query.get('offset') ?? 0);
-      return ok({ compositions: rows.slice(offset, offset + limit), total: rows.length, limit, offset });
+      return ok({
+        compositions: rows.slice(offset, offset + limit),
+        total: rows.length,
+        limit,
+        offset,
+      });
     },
 
     language(request) {
@@ -902,13 +1757,18 @@ export function compositionStore(options: CompositionSeed = {}): CompositionStor
       if (request.method === 'GET' && operation === 'schema') return ok(SCHEMA);
       if (request.method !== 'POST') return null;
       switch (operation) {
-        case 'validate': return ok(lint(request.text()));
+        case 'validate':
+          return ok(lint(request.text()));
         case 'parse': {
           const linted = lint(request.text());
-          return linted.valid ? ok({ document: documentOf(request.text()), diagnostics: [] }) : refused(linted.diagnostics);
+          return linted.valid
+            ? ok({ document: documentOf(request.text()), diagnostics: [] })
+            : refused(linted.diagnostics);
         }
-        case 'serialise': return { status: 200, text: write(request.body()), type: 'application/yaml' };
-        default: return null;
+        case 'serialise':
+          return { status: 200, text: write(request.body()), type: 'application/yaml' };
+        default:
+          return null;
       }
     },
   };

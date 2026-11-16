@@ -16,7 +16,7 @@ export function Alert({ type, variant, style, children, title, onClose }: AlertP
     success: '✓',
     warning: '⚠',
     error: '✕',
-    info: 'ℹ'
+    info: 'ℹ',
   };
 
   return (
@@ -25,7 +25,9 @@ export function Alert({ type, variant, style, children, title, onClose }: AlertP
       style={style}
       role={type === 'error' || type === 'warning' ? 'alert' : 'status'}
     >
-      <div className="alert-icon" aria-hidden="true">{icons[type]}</div>
+      <div className="alert-icon" aria-hidden="true">
+        {icons[type]}
+      </div>
       <div className="alert-content">
         {title && <div className="alert-title">{title}</div>}
         <div className="alert-message">{children}</div>

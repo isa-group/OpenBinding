@@ -3,9 +3,24 @@ import { pickVersion } from './versionRef';
 
 // Newest first, as the versions route lists them by default.
 const versions = [
-  { id: '0B5E7A10-0000-4000-8000-000000000003', label: '2.0.0', ordinal: 3, values_status: 'verified' },
-  { id: '0b5e7a10-0000-4000-8000-000000000002', label: '1.1.0', ordinal: 2, values_status: 'declared' },
-  { id: '0b5e7a10-0000-4000-8000-000000000001', label: '1.0.0', ordinal: 1, values_status: 'declared' },
+  {
+    id: '0B5E7A10-0000-4000-8000-000000000003',
+    label: '2.0.0',
+    ordinal: 3,
+    values_status: 'verified',
+  },
+  {
+    id: '0b5e7a10-0000-4000-8000-000000000002',
+    label: '1.1.0',
+    ordinal: 2,
+    values_status: 'declared',
+  },
+  {
+    id: '0b5e7a10-0000-4000-8000-000000000001',
+    label: '1.0.0',
+    ordinal: 1,
+    values_status: 'declared',
+  },
 ];
 
 describe('pickVersion', () => {

@@ -1,25 +1,115 @@
 @layer legacy {
-/* What a version changed, inline: sections with counts and names, candidate and value lines. Colour repeats the sign and words. */
-.cs { display: flex; min-width: 0; flex-direction: column; gap: 6px; font-size: 0.8125rem; color: var(--tp-slate); }
-.cs-heading { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin: 0; color: var(--tp-ink); font-weight: 500; }
-.cs-date { color: var(--tp-steel); font-size: 0.75rem; font-weight: 400; }
-.cs-note { margin: 0; color: var(--tp-steel); }
+  /* What a version changed, inline: sections with counts and names, candidate and value lines. Colour repeats the sign and words. */
+  .cs {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 0.8125rem;
+    color: var(--tp-slate);
+  }
+  .cs-heading {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 10px;
+    margin: 0;
+    color: var(--tp-ink);
+    font-weight: 500;
+  }
+  .cs-date {
+    color: var(--tp-steel);
+    font-size: 0.75rem;
+    font-weight: 400;
+  }
+  .cs-note {
+    margin: 0;
+    color: var(--tp-steel);
+  }
 
-.cs-sections { display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 0; list-style: none; }
-.cs-section { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
-.cs-section-head { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; color: var(--tp-ink); font-weight: 500; }
-.cs-section-head svg { width: 14px; height: 14px; flex-shrink: 0; color: var(--tp-steel); }
-.cs-count { font-family: var(--font-mono); font-size: 0.75rem; font-variant-numeric: tabular-nums; }
-.cs-names { padding-left: 20px; color: var(--tp-steel); overflow-wrap: anywhere; }
-.cs-sign { margin-right: 1px; font-family: var(--font-mono); font-weight: 600; }
+  .cs-sections {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .cs-section {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .cs-section-head {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    color: var(--tp-ink);
+    font-weight: 500;
+  }
+  .cs-section-head svg {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    color: var(--tp-steel);
+  }
+  .cs-count {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+  }
+  .cs-names {
+    padding-left: 20px;
+    color: var(--tp-steel);
+    overflow-wrap: anywhere;
+  }
+  .cs-sign {
+    margin-right: 1px;
+    font-family: var(--font-mono);
+    font-weight: 600;
+  }
 
-.cs-count.is-added, .cs-sign.is-added { color: color-mix(in srgb, var(--tp-diff-added) 60%, var(--tp-ink)); }
-.cs-count.is-removed, .cs-sign.is-removed { color: color-mix(in srgb, var(--tp-diff-removed) 70%, var(--tp-ink)); }
-.cs-count.is-changed, .cs-sign.is-changed { color: color-mix(in srgb, var(--tp-diff-changed) 55%, var(--tp-ink)); }
+  .cs-count.is-added,
+  .cs-sign.is-added {
+    color: color-mix(in srgb, var(--tp-diff-added) 60%, var(--tp-ink));
+  }
+  .cs-count.is-removed,
+  .cs-sign.is-removed {
+    color: color-mix(in srgb, var(--tp-diff-removed) 70%, var(--tp-ink));
+  }
+  .cs-count.is-changed,
+  .cs-sign.is-changed {
+    color: color-mix(in srgb, var(--tp-diff-changed) 55%, var(--tp-ink));
+  }
 
-.cs-lines { display: flex; flex-direction: column; gap: 2px; margin: 0; padding: 0; list-style: none; overflow-wrap: anywhere; }
-.cs-lines code { font-family: var(--font-mono); font-size: 0.75rem; }
-.cs-other { display: inline-flex; align-items: center; gap: 6px; margin: 0; }
-.cs-other svg { width: 14px; height: 14px; color: var(--tp-steel); }
-.cs-not-comparable { margin: 0; color: var(--tp-ink); }
+  .cs-lines {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    overflow-wrap: anywhere;
+  }
+  .cs-lines code {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+  }
+  .cs-other {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+  }
+  .cs-other svg {
+    width: 14px;
+    height: 14px;
+    color: var(--tp-steel);
+  }
+  .cs-not-comparable {
+    margin: 0;
+    color: var(--tp-ink);
+  }
 }

@@ -8,8 +8,8 @@ import { describe, expect, it } from 'vitest';
 
 const root = join(process.cwd(), 'src');
 const sheets = readdirSync(root, { recursive: true, encoding: 'utf8' })
-  .filter((name) => name.endsWith('.css'))
-  .map((name) => name.replaceAll('\\', '/'));
+  .filter(name => name.endsWith('.css'))
+  .map(name => name.replaceAll('\\', '/'));
 
 /** The sheet without its leading comments and `@import` lines, which must come before any layer block. */
 function body(text: string): string {
@@ -24,13 +24,17 @@ describe('the legacy cascade layer', () => {
 
   it('opens with the layer order, with legacy between base and components', () => {
     const text = body(readFileSync(join(root, 'styles/tailwind.css'), 'utf8'));
-    expect(text.startsWith('@layer theme, base, legacy, components, pricing-renderer, pricing-renderer.theme, utilities;')).toBe(true);
+    expect(
+      text.startsWith(
+        '@layer theme, base, legacy, components, pricing-renderer, pricing-renderer.theme, utilities;'
+      )
+    ).toBe(true);
   });
 
   it('wraps every other stylesheet whole in @layer legacy', () => {
     const unlayered = sheets
-      .filter((name) => name !== 'styles/tailwind.css')
-      .filter((name) => {
+      .filter(name => name !== 'styles/tailwind.css')
+      .filter(name => {
         const text = body(readFileSync(join(root, name), 'utf8')).trimEnd();
         return !text.startsWith('@layer legacy {') || !text.endsWith('}');
       });

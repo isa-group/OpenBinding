@@ -27,8 +27,29 @@ export interface Finding {
 
 /** The attributes and object properties whose value is text that a person reads. */
 export const TEXT_PROPS: ReadonlySet<string> = new Set([
-  'label', 'title', 'aria-label', 'ariaLabel', 'aria-description', 'placeholder', 'alt', 'crumb', 'heading', 'description', 'hint', 'text',
-  'message', 'summary', 'caption', 'subtitle', 'tooltip', 'legend', 'error', 'empty', 'confirmLabel', 'helper', 'note',
+  'label',
+  'title',
+  'aria-label',
+  'ariaLabel',
+  'aria-description',
+  'placeholder',
+  'alt',
+  'crumb',
+  'heading',
+  'description',
+  'hint',
+  'text',
+  'message',
+  'summary',
+  'caption',
+  'subtitle',
+  'tooltip',
+  'legend',
+  'error',
+  'empty',
+  'confirmLabel',
+  'helper',
+  'note',
 ]);
 
 /** The elements whose subtree the rule leaves out. */
@@ -37,23 +58,30 @@ const EXEMPT_TAGS: ReadonlySet<string> = new Set(['code', 'SourceView', 'LogPane
 const escapeRegExp = (word: string): string => word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /** The pattern of the given words as whole words in any letter case. It has no `g` flag, so `test` keeps no state. */
-export const wordPattern = (words: readonly string[]): RegExp => new RegExp(`\\b(?:${words.map(escapeRegExp).join('|')})\\b`, 'i');
+export const wordPattern = (words: readonly string[]): RegExp =>
+  new RegExp(`\\b(?:${words.map(escapeRegExp).join('|')})\\b`, 'i');
 
 /** True for a file that is not application code: tests, test kits and utilities, fixtures (`fixtures.ts`, `pricingFixture.ts`), declarations and everything under `test/`. */
-export const isTestSupport = (path: string): boolean => (
-  /(\.test\.[cm]?[jt]sx?$|[Tt]est[Kk]it\.[jt]sx?$|[Tt]est[Uu]tils\.[jt]sx?$|\.d\.ts$|[Ff]ixtures?\.[jt]sx?$|(^|\/)(test|__tests__|fixtures)\/)/
-).test(path);
+export const isTestSupport = (path: string): boolean =>
+  /(\.test\.[cm]?[jt]sx?$|[Tt]est[Kk]it\.[jt]sx?$|[Tt]est[Uu]tils\.[jt]sx?$|\.d\.ts$|[Ff]ixtures?\.[jt]sx?$|(^|\/)(test|__tests__|fixtures)\/)/.test(
+    path
+  );
 
 const PATH_LIKE = /^\s*(?:https?:|mailto:|\/|\.{1,2}\/|#)|:\/\//;
 
 /** The operators whose two operands both reach the screen: `a + b`, `a || b`, `a ?? b`. (`a && b` shows only `b`.) */
-const JOINS: readonly ts.SyntaxKind[] = [ts.SyntaxKind.PlusToken, ts.SyntaxKind.BarBarToken, ts.SyntaxKind.QuestionQuestionToken];
+const JOINS: readonly ts.SyntaxKind[] = [
+  ts.SyntaxKind.PlusToken,
+  ts.SyntaxKind.BarBarToken,
+  ts.SyntaxKind.QuestionQuestionToken,
+];
 
 const wordsOf = (text: string): string[] => text.trim().split(/\s+/).filter(Boolean);
 
 function stringValue(node: ts.Node): string | undefined {
   if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) return node.text;
-  if (ts.isTemplateExpression(node)) return node.head.text + node.templateSpans.map((span) => `X${span.literal.text}`).join('');
+  if (ts.isTemplateExpression(node))
+    return node.head.text + node.templateSpans.map(span => `X${span.literal.text}`).join('');
   return undefined;
 }
 
@@ -61,8 +89,14 @@ function stringValue(node: ts.Node): string | undefined {
 function valueStrings(expression: ts.Node | undefined, out: ts.Node[] = []): ts.Node[] {
   if (!expression) return out;
   if (stringValue(expression) !== undefined) out.push(expression);
-  else if (ts.isParenthesizedExpression(expression) || ts.isAsExpression(expression) || ts.isNonNullExpression(expression)
-    || ts.isSatisfiesExpression(expression) || ts.isJsxExpression(expression)) valueStrings(expression.expression, out);
+  else if (
+    ts.isParenthesizedExpression(expression) ||
+    ts.isAsExpression(expression) ||
+    ts.isNonNullExpression(expression) ||
+    ts.isSatisfiesExpression(expression) ||
+    ts.isJsxExpression(expression)
+  )
+    valueStrings(expression.expression, out);
   else if (ts.isConditionalExpression(expression)) {
     valueStrings(expression.whenTrue, out);
     valueStrings(expression.whenFalse, out);
@@ -73,7 +107,8 @@ function valueStrings(expression: ts.Node | undefined, out: ts.Node[] = []): ts.
       valueStrings(expression.left, out);
       valueStrings(expression.right, out);
     }
-  } else if (ts.isArrayLiteralExpression(expression)) expression.elements.forEach((element) => valueStrings(element, out));
+  } else if (ts.isArrayLiteralExpression(expression))
+    expression.elements.forEach(element => valueStrings(element, out));
   return out;
 }
 
@@ -83,9 +118,8 @@ const tagOf = (node: ts.Node): string | undefined => {
   return undefined;
 };
 
-const propertyName = (name: ts.PropertyName): string | undefined => (
-  ts.isIdentifier(name) || ts.isStringLiteral(name) ? name.text : undefined
-);
+const propertyName = (name: ts.PropertyName): string | undefined =>
+  ts.isIdentifier(name) || ts.isStringLiteral(name) ? name.text : undefined;
 
 /**
  * The places in `source` that show a word of `words` (see `wordPattern`). `file` names the file in the findings and tells TSX from TS by its
@@ -99,7 +133,12 @@ export function scanSource(source: string, words: RegExp, file = 'source.tsx'): 
   const report = (node: ts.Node, where: string, value: string) => {
     const start = node.getStart(tree);
     if (found.has(start) || PATH_LIKE.test(value) || !words.test(value)) return;
-    found.set(start, { file, line: tree.getLineAndCharacterOfPosition(start).line + 1, where, text: value.trim().replace(/\s+/g, ' ').slice(0, 80) });
+    found.set(start, {
+      file,
+      line: tree.getLineAndCharacterOfPosition(start).line + 1,
+      where,
+      text: value.trim().replace(/\s+/g, ' ').slice(0, 80),
+    });
   };
   const reportValue = (expression: ts.Node | undefined, where: string) => {
     for (const node of valueStrings(expression)) report(node, where, stringValue(node) ?? '');
@@ -108,13 +147,20 @@ export function scanSource(source: string, words: RegExp, file = 'source.tsx'): 
     const value = stringValue(node);
     if (value === undefined || PATH_LIKE.test(value)) return;
     // Prose: two or more words, of which at least one is not joined by `-`, `_` or `/` (class names, identifiers, paths).
-    const prose = wordsOf(value).filter((token) => !/[-_/\\]/.test(token));
+    const prose = wordsOf(value).filter(token => !/[-_/\\]/.test(token));
     if (wordsOf(value).length >= 2 && prose.length >= 1) report(node, 'string', prose.join(' '));
   };
 
   const visit = (node: ts.Node): void => {
-    if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node) || ts.isImportEqualsDeclaration(node) || ts.isTypeNode(node)
-      || ts.isTypeAliasDeclaration(node) || ts.isInterfaceDeclaration(node)) return;
+    if (
+      ts.isImportDeclaration(node) ||
+      ts.isExportDeclaration(node) ||
+      ts.isImportEqualsDeclaration(node) ||
+      ts.isTypeNode(node) ||
+      ts.isTypeAliasDeclaration(node) ||
+      ts.isInterfaceDeclaration(node)
+    )
+      return;
     const tag = tagOf(node);
     if (tag !== undefined && EXEMPT_TAGS.has(tag)) return;
     if (ts.isJsxText(node)) {
@@ -125,11 +171,15 @@ export function scanSource(source: string, words: RegExp, file = 'source.tsx'): 
       const name = node.name.getText(tree);
       if (TEXT_PROPS.has(name)) reportValue(node.initializer, `attribute ${name}`);
       else if (node.initializer && ts.isStringLiteral(node.initializer)) return;
-    } else if (ts.isJsxExpression(node) && (ts.isJsxElement(node.parent) || ts.isJsxFragment(node.parent))) {
+    } else if (
+      ts.isJsxExpression(node) &&
+      (ts.isJsxElement(node.parent) || ts.isJsxFragment(node.parent))
+    ) {
       reportValue(node.expression, 'JSX expression');
     } else if (ts.isPropertyAssignment(node)) {
       const name = propertyName(node.name);
-      if (name !== undefined && TEXT_PROPS.has(name)) reportValue(node.initializer, `property ${name}`);
+      if (name !== undefined && TEXT_PROPS.has(name))
+        reportValue(node.initializer, `property ${name}`);
     }
     reportProse(node);
     ts.forEachChild(node, visit);
@@ -157,16 +207,36 @@ const API_PATH = /(^|\/)v\d+\//;
  * engine's endpoint) and the HTTP client layer (`src/api/`, which names the gateway's paths) are not reported, nor are test files, test kits
  * and fixtures.
  */
-export function scanAddresses(files: Readonly<Record<string, string>>, segments: readonly string[] = OLD_ADDRESS_SEGMENTS): string[] {
+export function scanAddresses(
+  files: Readonly<Record<string, string>>,
+  segments: readonly string[] = OLD_ADDRESS_SEGMENTS
+): string[] {
   const old = new RegExp(`/(?:${segments.map(escapeRegExp).join('|')})(?=$|[/?#$])`);
-  return Object.keys(files).sort()
-    .filter((path) => /\.tsx?$/.test(path) && !isTestSupport(path) && !/(^|\/)src\/api\//.test(path))
-    .flatMap((path) => {
-      const tree = ts.createSourceFile(path, files[path], ts.ScriptTarget.ES2022, true, /\.tsx$/.test(path) ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
+  return Object.keys(files)
+    .sort()
+    .filter(path => /\.tsx?$/.test(path) && !isTestSupport(path) && !/(^|\/)src\/api\//.test(path))
+    .flatMap(path => {
+      const tree = ts.createSourceFile(
+        path,
+        files[path],
+        ts.ScriptTarget.ES2022,
+        true,
+        /\.tsx$/.test(path) ? ts.ScriptKind.TSX : ts.ScriptKind.TS
+      );
       const hits: string[] = [];
       const visit = (node: ts.Node): void => {
-        if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node) || ts.isImportEqualsDeclaration(node) || ts.isTypeNode(node)) return;
-        if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node) || ts.isTemplateExpression(node)) {
+        if (
+          ts.isImportDeclaration(node) ||
+          ts.isExportDeclaration(node) ||
+          ts.isImportEqualsDeclaration(node) ||
+          ts.isTypeNode(node)
+        )
+          return;
+        if (
+          ts.isStringLiteral(node) ||
+          ts.isNoSubstitutionTemplateLiteral(node) ||
+          ts.isTemplateExpression(node)
+        ) {
           // The text between the quotes or backticks, the substitutions as written.
           const text = node.getText(tree).slice(1, -1);
           if (old.test(text) && !API_PATH.test(text)) hits.push(`${path}: ${text}`);
@@ -180,14 +250,16 @@ export function scanAddresses(files: Readonly<Record<string, string>>, segments:
 }
 
 /** `file:line  where: "text"`. */
-export const formatFinding = (finding: Finding): string => `${finding.file}:${finding.line}  ${finding.where}: "${finding.text}"`;
+export const formatFinding = (finding: Finding): string =>
+  `${finding.file}:${finding.line}  ${finding.where}: "${finding.text}"`;
 
 /**
  * The findings of many files (path to source). Test files, test kits, fixtures and declarations are not application code and are skipped.
  * `.ts` and `.tsx` files only.
  */
 export function scanFiles(files: Readonly<Record<string, string>>, words: RegExp): Finding[] {
-  return Object.keys(files).sort()
-    .filter((path) => /\.tsx?$/.test(path) && !isTestSupport(path))
-    .flatMap((path) => scanSource(files[path], words, path));
+  return Object.keys(files)
+    .sort()
+    .filter(path => /\.tsx?$/.test(path) && !isTestSupport(path))
+    .flatMap(path => scanSource(files[path], words, path));
 }

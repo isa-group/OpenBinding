@@ -64,32 +64,49 @@ function fieldName(field: DiffField): ReactNode {
 
 /** Both sides are numbers that read the same at six decimals: show them unrounded so they stay apart. */
 function needsExact({ claimed, evaluated }: DiffRow): boolean {
-  return claimed.kind === 'number' && evaluated.kind === 'number' && number.format(claimed.value) === number.format(evaluated.value);
+  return (
+    claimed.kind === 'number' &&
+    evaluated.kind === 'number' &&
+    number.format(claimed.value) === number.format(evaluated.value)
+  );
 }
 
 /** Engine-claimed against gateway-evaluated values, with the engine's notes and the gateway's downgrade reasons. */
-export function EvaluationDiff({ evaluated, claimed, notes, downgrades, label = 'Claimed and evaluated values' }: EvaluationDiffProps) {
+export function EvaluationDiff({
+  evaluated,
+  claimed,
+  notes,
+  downgrades,
+  label = 'Claimed and evaluated values',
+}: EvaluationDiffProps) {
   const view = evaluationDiffOf(evaluated, claimed);
   const termination = view.evaluated.termination ?? 'no termination';
   const solutions = plural(view.evaluated.solutions, 'solution', 'solutions');
   const shown = view.rows.slice(0, MAX_ROWS);
   const hiddenRows = view.rows.length - shown.length;
 
-  const noteItems = Array.isArray(notes) ? notes.filter((n) => typeof n === 'string' && n.trim() !== '') : [];
+  const noteItems = Array.isArray(notes)
+    ? notes.filter(n => typeof n === 'string' && n.trim() !== '')
+    : [];
   const hiddenNotes = Math.max(0, noteItems.length - MAX_NOTES);
   const reasons = (Array.isArray(downgrades) ? downgrades : []).filter(
-    (d) => typeof d === 'object' && d !== null && typeof d.message === 'string' && d.message !== '',
+    d => typeof d === 'object' && d !== null && typeof d.message === 'string' && d.message !== ''
   );
 
   return (
     <section aria-label={label} className="evaluation-diff">
       <p>
-        {view.status === 'no-claim' && `The values the engine claimed are not kept for this run. Gateway evaluation: ${termination}, ${solutions}.`}
-        {view.status === 'agrees' && `The engine claim agrees with the gateway evaluation: ${termination}, ${solutions}.`}
-        {view.status === 'differs' && `The engine claim differs from the gateway evaluation in ${plural(view.rows.length, 'value', 'values')}.`}
+        {view.status === 'no-claim' &&
+          `The values the engine claimed are not kept for this run. Gateway evaluation: ${termination}, ${solutions}.`}
+        {view.status === 'agrees' &&
+          `The engine claim agrees with the gateway evaluation: ${termination}, ${solutions}.`}
+        {view.status === 'differs' &&
+          `The engine claim differs from the gateway evaluation in ${plural(view.rows.length, 'value', 'values')}.`}
       </p>
       {view.claimed && !view.paired && (
-        <p className="evaluation-diff__hint">Solutions are compared one by one only when both sides have the same number of solutions.</p>
+        <p className="evaluation-diff__hint">
+          Solutions are compared one by one only when both sides have the same number of solutions.
+        </p>
       )}
       {shown.length > 0 && (
         <>
@@ -117,7 +134,11 @@ export function EvaluationDiff({ evaluated, claimed, notes, downgrades, label = 
             </tbody>
           </DataTable>
           {hiddenRows > 0 && (
-            <p className="evaluation-diff__more">{hiddenRows === 1 ? '1 more difference is not shown.' : `${hiddenRows} more differences are not shown.`}</p>
+            <p className="evaluation-diff__more">
+              {hiddenRows === 1
+                ? '1 more difference is not shown.'
+                : `${hiddenRows} more differences are not shown.`}
+            </p>
           )}
         </>
       )}
@@ -151,7 +172,11 @@ export function EvaluationDiff({ evaluated, claimed, notes, downgrades, label = 
             ))}
           </ul>
           {hiddenNotes > 0 && (
-            <p className="evaluation-diff__more">{hiddenNotes === 1 ? '1 more note is not shown.' : `${hiddenNotes} more notes are not shown.`}</p>
+            <p className="evaluation-diff__more">
+              {hiddenNotes === 1
+                ? '1 more note is not shown.'
+                : `${hiddenNotes} more notes are not shown.`}
+            </p>
           )}
         </>
       )}

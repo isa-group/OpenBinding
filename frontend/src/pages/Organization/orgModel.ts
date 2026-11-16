@@ -10,7 +10,10 @@ export function rankOf(role: OrganizationRole | null | undefined): number {
 }
 
 /** Does `role` reach `minimum`? A missing role reaches nothing. */
-export function atLeast(role: OrganizationRole | null | undefined, minimum: OrganizationRole): boolean {
+export function atLeast(
+  role: OrganizationRole | null | undefined,
+  minimum: OrganizationRole
+): boolean {
   return rankOf(role) >= RANK[minimum];
 }
 
@@ -22,12 +25,18 @@ export const OWNER_CHANGE_NOTE = 'Only an owner can change or remove an owner.';
  * Can this person grant OWNER, or change or remove an existing OWNER? Only an effective OWNER of the organization can; a platform
  * administrator keeps what the gateway allows them, which is that same reach when they already have ADMIN access.
  */
-export function canGrantOwner(role: OrganizationRole | null | undefined, platformAdmin = false): boolean {
+export function canGrantOwner(
+  role: OrganizationRole | null | undefined,
+  platformAdmin = false
+): boolean {
   return role === 'OWNER' || (platformAdmin && atLeast(role, 'ADMIN'));
 }
 
-export function higherRole(a: OrganizationRole | null | undefined, b: OrganizationRole | null | undefined): OrganizationRole | null {
-  return rankOf(a) >= rankOf(b) ? a ?? null : b ?? null;
+export function higherRole(
+  a: OrganizationRole | null | undefined,
+  b: OrganizationRole | null | undefined
+): OrganizationRole | null {
+  return rankOf(a) >= rankOf(b) ? (a ?? null) : (b ?? null);
 }
 
 /** What each role can do, in the words the invitation dialog and the tooltips use. */
@@ -40,7 +49,10 @@ export const ROLE_SUMMARY: Record<OrganizationRole, string> = {
 
 /** Two letters for the tile of an organization: the initials of its first two words, or its first two letters. */
 export function initialsOf(name: string): string {
-  const words = name.replace(/\([^)]*\)/g, ' ').split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+  const words = name
+    .replace(/\([^)]*\)/g, ' ')
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter(Boolean);
   if (words.length >= 2) return `${words[0][0]}${words[1][0]}`.toUpperCase();
   return (words[0] ?? name).slice(0, 2).toUpperCase() || '··';
 }
@@ -64,11 +76,14 @@ export function byName(a: Organization, b: Organization): number {
 }
 
 /** The chain of visible ancestors, nearest parent first. An ancestor you cannot see ends the chain. */
-export function ancestorsOf(organization: Organization, all: readonly Organization[]): Organization[] {
+export function ancestorsOf(
+  organization: Organization,
+  all: readonly Organization[]
+): Organization[] {
   const chain: Organization[] = [];
   let parentId = organization.parent_id;
   while (parentId) {
-    const parent = all.find((item) => item.id === parentId);
+    const parent = all.find(item => item.id === parentId);
     if (!parent || chain.includes(parent)) break;
     chain.push(parent);
     parentId = parent.parent_id;
@@ -77,10 +92,13 @@ export function ancestorsOf(organization: Organization, all: readonly Organizati
 }
 
 /** Every visible organization below `organization`, at any depth. */
-export function descendantsOf(organization: Organization, all: readonly Organization[]): Organization[] {
+export function descendantsOf(
+  organization: Organization,
+  all: readonly Organization[]
+): Organization[] {
   const found: Organization[] = [];
   const visit = (parentId: string) => {
-    for (const child of all.filter((item) => item.parent_id === parentId)) {
+    for (const child of all.filter(item => item.parent_id === parentId)) {
       if (found.includes(child)) continue;
       found.push(child);
       visit(child.id);
@@ -98,17 +116,23 @@ export interface TreeNode {
 
 /** The visible organizations as a forest: an organization whose parent you cannot see starts its own tree. */
 export function buildForest(all: readonly Organization[]): TreeNode[] {
-  const ids = new Set(all.map((item) => item.id));
+  const ids = new Set(all.map(item => item.id));
   const build = (organization: Organization, depth: number): TreeNode => ({
     organization,
     depth,
-    children: all.filter((item) => item.parent_id === organization.id).sort(byName).map((child) => build(child, depth + 1)),
+    children: all
+      .filter(item => item.parent_id === organization.id)
+      .sort(byName)
+      .map(child => build(child, depth + 1)),
   });
-  return all.filter((item) => !item.parent_id || !ids.has(item.parent_id)).sort(byName).map((root) => build(root, 0));
+  return all
+    .filter(item => !item.parent_id || !ids.has(item.parent_id))
+    .sort(byName)
+    .map(root => build(root, 0));
 }
 
 export function flatten(forest: readonly TreeNode[]): TreeNode[] {
-  return forest.flatMap((node) => [node, ...flatten(node.children)]);
+  return forest.flatMap(node => [node, ...flatten(node.children)]);
 }
 
 export interface RoleSource {
@@ -126,11 +150,17 @@ export interface RoleSource {
  */
 export function roleSource(organization: Organization, all: readonly Organization[]): RoleSource {
   const role = organization.effective_role;
-  const explaining = ancestorsOf(organization, all).find((ancestor) => rankOf(ancestor.effective_role) >= rankOf(role) && rankOf(role) > 0);
-  if (explaining) return { kind: 'inherited', from: explaining, text: `Inherited from ${explaining.name}` };
+  const explaining = ancestorsOf(organization, all).find(
+    ancestor => rankOf(ancestor.effective_role) >= rankOf(role) && rankOf(role) > 0
+  );
+  if (explaining)
+    return { kind: 'inherited', from: explaining, text: `Inherited from ${explaining.name}` };
   const parent = ancestorsOf(organization, all)[0];
   if (parent && rankOf(parent.effective_role) > 0) {
-    return { kind: 'own', text: `Your own role here (higher than ${parent.effective_role} inherited from ${parent.name})` };
+    return {
+      kind: 'own',
+      text: `Your own role here (higher than ${parent.effective_role} inherited from ${parent.name})`,
+    };
   }
   return { kind: 'own', text: 'Your own role' };
 }
@@ -142,10 +172,15 @@ interface Person {
 }
 
 /** A person by the name the accounts know them by: username, then email; `fallback` when no list names them. */
-export function personName(userId: string | null | undefined, people: readonly Person[], me: { id: string; username: string } | null, fallback = 'Not recorded'): string {
+export function personName(
+  userId: string | null | undefined,
+  people: readonly Person[],
+  me: { id: string; username: string } | null,
+  fallback = 'Not recorded'
+): string {
   if (!userId) return fallback;
   if (me && me.id === userId) return me.username;
-  const found = people.find((item) => item.user_id === userId);
+  const found = people.find(item => item.user_id === userId);
   return found?.username ?? found?.email ?? fallback;
 }
 

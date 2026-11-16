@@ -13,8 +13,13 @@ const api = vi.hoisted(() => ({
 const touched = vi.hoisted(() => new Set<string>());
 
 vi.mock('../../api/client', async () => ({
-  ...await vi.importActual<typeof import('../../api/client')>('../../api/client'),
-  apiClient: new Proxy(api, { get: (target, key) => { touched.add(String(key)); return Reflect.get(target, key); } }),
+  ...(await vi.importActual<typeof import('../../api/client')>('../../api/client')),
+  apiClient: new Proxy(api, {
+    get: (target, key) => {
+      touched.add(String(key));
+      return Reflect.get(target, key);
+    },
+  }),
 }));
 
 const mockUnreadNotification: Notification = {
@@ -140,7 +145,9 @@ describe('NotificationDropdown', () => {
     const trigger = await screen.findByRole('button', { name: '1 unread notifications' });
     fireEvent.click(trigger);
 
-    const notifItem = screen.getByRole('button', { name: /Mark as read: Job completed successfully/ });
+    const notifItem = screen.getByRole('button', {
+      name: /Mark as read: Job completed successfully/,
+    });
     fireEvent.click(notifItem);
 
     await waitFor(() => {
@@ -190,11 +197,15 @@ describe('NotificationDropdown', () => {
   it('counts only notifications: it asks the gateway for nothing about sponsorship', async () => {
     api.listNotifications.mockResolvedValue([mockReadNotification]);
 
-    render(<MemoryRouter><NotificationDropdown /></MemoryRouter>);
+    render(
+      <MemoryRouter>
+        <NotificationDropdown />
+      </MemoryRouter>
+    );
 
     await waitFor(() => expect(api.listNotifications).toHaveBeenCalled());
     fireEvent.click(screen.getByRole('button', { name: 'Notifications' }));
     expect(screen.queryByText(/sponsor/i)).toBeNull();
-    expect([...touched].filter((name) => /sponsor/i.test(name))).toEqual([]);
+    expect([...touched].filter(name => /sponsor/i.test(name))).toEqual([]);
   });
 });

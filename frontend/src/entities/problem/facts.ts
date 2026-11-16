@@ -30,7 +30,12 @@ export function clearProblemFactsCache(): void {
 
 export const problemFactsApi = {
   /** The facts of one compilation (an id or a `compilation_digest`) of a revision of a problem. */
-  async get(org: string, problem: string, revision: number | string, compilation: string): Promise<ProblemFacts> {
+  async get(
+    org: string,
+    problem: string,
+    revision: number | string,
+    compilation: string
+  ): Promise<ProblemFacts> {
     const url = factsPath(org, problem, revision, compilation);
     const cached = cache.get(url);
     try {
@@ -40,7 +45,10 @@ export const problemFactsApi = {
         undefined,
         true,
         true,
-        async (response) => ({ facts: await response.json() as ProblemFacts, etag: response.headers.get('ETag') }),
+        async response => ({
+          facts: (await response.json()) as ProblemFacts,
+          etag: response.headers.get('ETag'),
+        })
       );
       cache.set(url, answer);
       return answer.facts;
@@ -56,19 +64,21 @@ export const problemFactsApi = {
    */
   async validate(archive: Uint8Array, signal?: AbortSignal): Promise<ProblemFacts> {
     const answer = await bimApi.validate(archive, { include: ['facts'], signal });
-    if (!answer.facts) throw new HttpError(422, 'The gateway did not return the facts of the package.');
+    if (!answer.facts)
+      throw new HttpError(422, 'The gateway did not return the facts of the package.');
     return answer.facts;
   },
 };
 
-const isRange = (value: FeatureValue): value is FeatureRange => typeof value === 'object' && value !== null;
+const isRange = (value: FeatureValue): value is FeatureRange =>
+  typeof value === 'object' && value !== null;
 
 /**
  * Does any candidate of any catalog hold a range? That is what the gateway looks at to decide whether an engine mode must
  * declare `interval` values, not only the candidates a task can take. A shape test on the facts, nothing is evaluated.
  */
 export function hasRanges(facts: ProblemFacts): boolean {
-  return facts.candidates.some((candidate) => Object.values(candidate.values).some(isRange));
+  return facts.candidates.some(candidate => Object.values(candidate.values).some(isRange));
 }
 
 export interface RangeCandidate {
@@ -80,10 +90,14 @@ export interface RangeCandidate {
 
 /** The candidates each task can take that declare a range, with the features that are one: what an engine without interval values refuses. */
 export function rangeCandidates(facts: ProblemFacts): RangeCandidate[] {
-  const byKey = new Map(facts.candidates.map((candidate) => [candidate.key, candidate]));
-  return facts.tasks.flatMap((task) => task.eligible.flatMap((eligible) => {
-    const values = byKey.get(eligible.candidate)?.values ?? {};
-    const features = Object.entries(values).flatMap(([name, value]) => (isRange(value) ? [{ name, value }] : []));
-    return features.length ? [{ task: task.id, candidate: eligible.written, features }] : [];
-  }));
+  const byKey = new Map(facts.candidates.map(candidate => [candidate.key, candidate]));
+  return facts.tasks.flatMap(task =>
+    task.eligible.flatMap(eligible => {
+      const values = byKey.get(eligible.candidate)?.values ?? {};
+      const features = Object.entries(values).flatMap(([name, value]) =>
+        isRange(value) ? [{ name, value }] : []
+      );
+      return features.length ? [{ task: task.id, candidate: eligible.written, features }] : [];
+    })
+  );
 }

@@ -9,7 +9,11 @@ export type ModelState =
   | { state: 'failed'; failure: AuthFailure };
 
 /** The compilation of a revision by the installed toolchain and its facts (what the workflow graph and the candidate matrix read). */
-export async function loadModel(org: string, problem: string, revision: number | string): Promise<ModelState> {
+export async function loadModel(
+  org: string,
+  problem: string,
+  revision: number | string
+): Promise<ModelState> {
   try {
     const compilation = await problemsApi.compilation(org, problem, revision);
     const facts = await problemFactsApi.get(org, problem, revision, compilation.id);
@@ -20,4 +24,5 @@ export async function loadModel(org: string, problem: string, revision: number |
 }
 
 /** The key a screen caches the model of a revision under. */
-export const modelKey = (org: string, problem: string, revision: { id: string }): string => `model:${org}/${problem}/${revision.id}`;
+export const modelKey = (org: string, problem: string, revision: { id: string }): string =>
+  `model:${org}/${problem}/${revision.id}`;

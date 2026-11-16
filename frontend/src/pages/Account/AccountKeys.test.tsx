@@ -7,36 +7,76 @@ import { AuthContext } from '../../contexts/auth';
 import { AccountKeys } from './AccountKeys';
 
 const api = vi.hoisted(() => ({
-  listApiKeys: vi.fn(), getOwnUsage: vi.fn(), revokeApiKey: vi.fn(), rotateApiKey: vi.fn(),
-  getEngines: vi.fn(), createApiKey: vi.fn(),
+  listApiKeys: vi.fn(),
+  getOwnUsage: vi.fn(),
+  revokeApiKey: vi.fn(),
+  rotateApiKey: vi.fn(),
+  getEngines: vi.fn(),
+  createApiKey: vi.fn(),
 }));
 const platform = vi.hoisted(() => ({ organizations: vi.fn() }));
 
-vi.mock('../../api/client', async () => ({ ...await vi.importActual<typeof import('../../api/client')>('../../api/client'), apiClient: api }));
-vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'), platformApi: platform }));
+vi.mock('../../api/client', async () => ({
+  ...(await vi.importActual<typeof import('../../api/client')>('../../api/client')),
+  apiClient: api,
+}));
+vi.mock('../../api/platform', async () => ({
+  ...(await vi.importActual<typeof import('../../api/platform')>('../../api/platform')),
+  platformApi: platform,
+}));
 
 const pablo: UserProfile = {
-  id: 'user-id', username: 'pablo', email: 'pablo@example.test', role: 'user', is_active: true, plan: 'PRO', created_at: '2026-05-05T00:00:00Z',
+  id: 'user-id',
+  username: 'pablo',
+  email: 'pablo@example.test',
+  role: 'user',
+  is_active: true,
+  plan: 'PRO',
+  created_at: '2026-05-05T00:00:00Z',
 };
 
 const DIGEST = `sha256-${'b2c3d4e5'.repeat(8)}`;
 
 const reader: ApiKeySummary = {
-  id: 'k1', name: 'ci-lectura-resultados', prefix: 'obk_demo0001', created_at: '2026-09-01T00:00:00Z', last_used_at: '2026-10-08T00:00:00Z',
-  expires_at: '2099-12-31T00:00:00Z', permissions: ['jobs:read', 'studies:read'], engine_access: { all: true, engines: [] },
+  id: 'k1',
+  name: 'ci-lectura-resultados',
+  prefix: 'obk_demo0001',
+  created_at: '2026-09-01T00:00:00Z',
+  last_used_at: '2026-10-08T00:00:00Z',
+  expires_at: '2099-12-31T00:00:00Z',
+  permissions: ['jobs:read', 'studies:read'],
+  engine_access: { all: true, engines: [] },
   // The API sends null for every restriction that is not set.
-  boundary: { methods: ['GET'], organizations: ['isa-demo'], resource_kinds: ['runs', 'studies'], slugs: null } as unknown as ApiKeySummary['boundary'],
+  boundary: {
+    methods: ['GET'],
+    organizations: ['isa-demo'],
+    resource_kinds: ['runs', 'studies'],
+    slugs: null,
+  } as unknown as ApiKeySummary['boundary'],
 };
 
 const runner: ApiKeySummary = {
-  id: 'k2', name: 'ejecucion-engine-fijo', prefix: 'obk_demo0002', created_at: '2026-09-10T00:00:00Z', last_used_at: null, expires_at: null,
+  id: 'k2',
+  name: 'ejecucion-engine-fijo',
+  prefix: 'obk_demo0002',
+  created_at: '2026-09-10T00:00:00Z',
+  last_used_at: null,
+  expires_at: null,
   permissions: ['engines:read', 'engines:execute'],
-  engine_access: { all: false, engines: [{ namespace: 'bim.builtin', name: 'random-search', version: '1.0.0', digest: DIGEST }] },
+  engine_access: {
+    all: false,
+    engines: [
+      { namespace: 'bim.builtin', name: 'random-search', version: '1.0.0', digest: DIGEST },
+    ],
+  },
   boundary: {},
 };
 
 const usageWith = (maxApiKeys: number | null) => ({
-  plan: 'LAB', contract_pending: false, features: {}, capabilities: { maxApiKeys },
+  plan: 'LAB',
+  contract_pending: false,
+  features: {},
+  capabilities: { maxApiKeys },
 });
 
 /** The address the router holds, as the browser would show it. */
@@ -48,11 +88,21 @@ function Where() {
 function renderKeys(address = '/app/account/keys') {
   render(
     <MemoryRouter initialEntries={[address]}>
-      <AuthContext.Provider value={{ user: pablo, loading: false, signIn: vi.fn(), register: vi.fn(), signOut: vi.fn(), refresh: vi.fn(), isAdmin: false }}>
+      <AuthContext.Provider
+        value={{
+          user: pablo,
+          loading: false,
+          signIn: vi.fn(),
+          register: vi.fn(),
+          signOut: vi.fn(),
+          refresh: vi.fn(),
+          isAdmin: false,
+        }}
+      >
         <AccountKeys />
         <Where />
       </AuthContext.Provider>
-    </MemoryRouter>,
+    </MemoryRouter>
   );
 }
 
@@ -72,8 +122,13 @@ describe('API keys', () => {
 
   describe('the New API key dialog', () => {
     const created: CreatedApiKey = {
-      id: 'k3', name: 'ci-nightly', prefix: 'obk_demo0003', created_at: '2026-10-09T10:00:00Z', permissions: ['account:read'],
-      engine_access: { all: true, engines: [] }, secret: 'obk_demo0003_ONLY-SHOWN-ONCE',
+      id: 'k3',
+      name: 'ci-nightly',
+      prefix: 'obk_demo0003',
+      created_at: '2026-10-09T10:00:00Z',
+      permissions: ['account:read'],
+      engine_access: { all: true, engines: [] },
+      secret: 'obk_demo0003_ONLY-SHOWN-ONCE',
     };
 
     it('is closed at /app/account/keys', async () => {
@@ -108,13 +163,19 @@ describe('API keys', () => {
 
     it('leaves /app/account/keys when it is closed with ×, and with Escape', async () => {
       renderKeys('/app/account/keys?create=key');
-      fireEvent.click(within(await screen.findByRole('dialog', { name: 'New API key' })).getByRole('button', { name: 'Close' }));
+      fireEvent.click(
+        within(await screen.findByRole('dialog', { name: 'New API key' })).getByRole('button', {
+          name: 'Close',
+        })
+      );
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
       expect(address()).toBe('/app/account/keys');
 
       fireEvent.click(await screen.findByRole('link', { name: 'New key' }));
       expect(address()).toBe('/app/account/keys?create=key');
-      fireEvent.keyDown(await screen.findByRole('dialog', { name: 'New API key' }), { key: 'Escape' });
+      fireEvent.keyDown(await screen.findByRole('dialog', { name: 'New API key' }), {
+        key: 'Escape',
+      });
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
       expect(address()).toBe('/app/account/keys');
     });
@@ -131,7 +192,9 @@ describe('API keys', () => {
 
     it('shows the secret once after a key is created, then returns to the refreshed list at /app/account/keys', async () => {
       api.createApiKey.mockResolvedValue(created);
-      api.listApiKeys.mockResolvedValueOnce([reader]).mockResolvedValueOnce([reader, { ...reader, id: 'k3', name: 'ci-nightly' }]);
+      api.listApiKeys
+        .mockResolvedValueOnce([reader])
+        .mockResolvedValueOnce([reader, { ...reader, id: 'k3', name: 'ci-nightly' }]);
       renderKeys('/app/account/keys?create=key');
       await screen.findByRole('dialog', { name: 'New API key' });
 
@@ -146,7 +209,9 @@ describe('API keys', () => {
       await screen.findByRole('heading', { name: 'Review' });
       fireEvent.click(screen.getByRole('button', { name: 'Create key' }));
 
-      const secret = within(await screen.findByRole('dialog', { name: '“ci-nightly” is ready. Copy its secret now' }));
+      const secret = within(
+        await screen.findByRole('dialog', { name: '“ci-nightly” is ready. Copy its secret now' })
+      );
       expect(screen.queryByRole('dialog', { name: 'New API key' })).not.toBeInTheDocument();
       expect(secret.getByText('obk_demo0003_ONLY-SHOWN-ONCE')).toBeInTheDocument();
       fireEvent.click(secret.getByLabelText('I’ve stored the secret somewhere safe'));
@@ -163,9 +228,15 @@ describe('API keys', () => {
     renderKeys();
 
     expect(await screen.findByRole('heading', { level: 1, name: 'API keys' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'New key' })).toHaveAttribute('href', '/app/account/keys?create=key');
+    expect(screen.getByRole('link', { name: 'New key' })).toHaveAttribute(
+      'href',
+      '/app/account/keys?create=key'
+    );
     expect(screen.getByRole('link', { name: 'API keys', current: 'page' })).toBeInTheDocument();
-    expect(screen.getByRole('meter', { name: 'Active keys' })).toHaveAttribute('aria-valuenow', '2');
+    expect(screen.getByRole('meter', { name: 'Active keys' })).toHaveAttribute(
+      'aria-valuenow',
+      '2'
+    );
     expect(screen.getByText('2 of 25 keys')).toBeInTheDocument();
 
     const first = within(await card('ci-lectura-resultados'));
@@ -178,7 +249,8 @@ describe('API keys', () => {
     expect(first.getByText('created Sep 1, 2026').parentElement?.textContent).not.toMatch(/·/);
     expect(first.getByText('jobs:read')).toBeInTheDocument();
     expect(first.getByText('All engines, including future ones')).toBeInTheDocument();
-    for (const label of ['GET only', 'org isa-demo', 'runs, studies']) expect(first.getByText(label)).toBeInTheDocument();
+    for (const label of ['GET only', 'org isa-demo', 'runs, studies'])
+      expect(first.getByText(label)).toBeInTheDocument();
 
     const second = within(await card('ejecucion-engine-fijo'));
     expect(second.getByText('last used never')).toBeInTheDocument();
@@ -202,10 +274,14 @@ describe('API keys', () => {
     Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
     renderKeys();
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Copy prefix of ci-lectura-resultados' }));
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Copy prefix of ci-lectura-resultados' })
+    );
 
     expect(writeText).toHaveBeenCalledWith('obk_demo0001');
-    expect(await screen.findByRole('button', { name: 'Copy prefix of ci-lectura-resultados' })).toHaveTextContent('Copied');
+    expect(
+      await screen.findByRole('button', { name: 'Copy prefix of ci-lectura-resultados' })
+    ).toHaveTextContent('Copied');
   });
 
   it('says there are no keys and offers the first one', async () => {
@@ -213,7 +289,10 @@ describe('API keys', () => {
     renderKeys();
 
     expect(await screen.findByText('No API keys')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Create your first key' })).toHaveAttribute('href', '/app/account/keys?create=key');
+    expect(screen.getByRole('link', { name: 'Create your first key' })).toHaveAttribute(
+      'href',
+      '/app/account/keys?create=key'
+    );
     expect(screen.getByText('0 of 25 keys')).toBeInTheDocument();
   });
 
@@ -221,7 +300,9 @@ describe('API keys', () => {
     api.getOwnUsage.mockResolvedValue(usageWith(2));
     renderKeys();
 
-    expect(await screen.findByText(/You’ve reached your plan’s API key limit \(2\)\./)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/You’ve reached your plan’s API key limit \(2\)\./)
+    ).toBeInTheDocument();
     expect(screen.getByText(/creating one now returns 402/)).toBeInTheDocument();
   });
 
@@ -237,7 +318,9 @@ describe('API keys', () => {
       renderKeys();
 
       fireEvent.click(await screen.findByRole('button', { name: 'Revoke ci-lectura-resultados' }));
-      const dialog = within(screen.getByRole('dialog', { name: 'Revoke “ci-lectura-resultados”?' }));
+      const dialog = within(
+        screen.getByRole('dialog', { name: 'Revoke “ci-lectura-resultados”?' })
+      );
       expect(dialog.getByText(/This can’t be undone/)).toBeInTheDocument();
       fireEvent.click(dialog.getByRole('button', { name: 'Cancel' }));
       expect(api.revokeApiKey).not.toHaveBeenCalled();
@@ -248,7 +331,9 @@ describe('API keys', () => {
       await waitFor(() => expect(api.revokeApiKey).toHaveBeenCalledWith('k1'));
       expect(await screen.findByText('“ci-lectura-resultados” was revoked.')).toBeInTheDocument();
       expect(await card('ejecucion-engine-fijo')).toBeInTheDocument();
-      expect(screen.queryByRole('article', { name: 'ci-lectura-resultados' })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('article', { name: 'ci-lectura-resultados' })
+      ).not.toBeInTheDocument();
     });
 
     it('says the key is gone when it no longer exists (404) and refreshes the list', async () => {
@@ -259,7 +344,11 @@ describe('API keys', () => {
       fireEvent.click(await screen.findByRole('button', { name: 'Revoke ci-lectura-resultados' }));
       fireEvent.click(screen.getByRole('button', { name: 'Revoke key' }));
 
-      expect(await screen.findByText('That key no longer exists or isn’t yours (404). The list was refreshed.')).toBeInTheDocument();
+      expect(
+        await screen.findByText(
+          'That key no longer exists or isn’t yours (404). The list was refreshed.'
+        )
+      ).toBeInTheDocument();
       await waitFor(() => expect(api.listApiKeys).toHaveBeenCalledTimes(2));
     });
   });
@@ -272,13 +361,19 @@ describe('API keys', () => {
       renderKeys();
 
       fireEvent.click(await screen.findByRole('button', { name: 'Rotate ci-lectura-resultados' }));
-      const confirm = within(screen.getByRole('dialog', { name: 'Rotate “ci-lectura-resultados”?' }));
+      const confirm = within(
+        screen.getByRole('dialog', { name: 'Rotate “ci-lectura-resultados”?' })
+      );
       expect(confirm.getByText(/the current one stops working immediately/)).toBeInTheDocument();
       fireEvent.click(confirm.getByRole('button', { name: 'Rotate key' }));
 
       const dialog = await screen.findByRole('dialog', { name: 'Copy your new secret now' });
       expect(within(dialog).getByText('obk_demo0001_ONLY-SHOWN-ONCE')).toBeInTheDocument();
-      expect(within(dialog).getByText(/The previous secret of “ci-lectura-resultados” has stopped working; permissions didn’t change\./)).toBeInTheDocument();
+      expect(
+        within(dialog).getByText(
+          /The previous secret of “ci-lectura-resultados” has stopped working; permissions didn’t change\./
+        )
+      ).toBeInTheDocument();
       expect(api.rotateApiKey).toHaveBeenCalledWith('k1');
 
       const done = within(dialog).getByRole('button', { name: 'Done' });
@@ -309,7 +404,11 @@ describe('API keys', () => {
       fireEvent.click(await screen.findByRole('button', { name: 'Rotate ci-lectura-resultados' }));
       fireEvent.click(screen.getByRole('button', { name: 'Rotate key' }));
 
-      expect(await screen.findByText('That key no longer exists or isn’t yours (404). The list was refreshed.')).toBeInTheDocument();
+      expect(
+        await screen.findByText(
+          'That key no longer exists or isn’t yours (404). The list was refreshed.'
+        )
+      ).toBeInTheDocument();
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
   });

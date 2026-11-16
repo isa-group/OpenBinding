@@ -1,4 +1,9 @@
-import type { ApiKeyEngineAccess, ApiKeyPermission, ApiKeySummary, CreateApiKeyRequest } from '../../api/auth';
+import type {
+  ApiKeyEngineAccess,
+  ApiKeyPermission,
+  ApiKeySummary,
+  CreateApiKeyRequest,
+} from '../../api/auth';
 
 /**
  * What an API key can be given. The permission set is closed (`ApiKeyPermission`): every one appears exactly
@@ -28,8 +33,14 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
   {
     name: 'Problems',
     permissions: [
-      { id: 'problems:read', description: 'Read problems, their versions and compilations; validate packages' },
-      { id: 'problems:write', description: 'Upload problems and versions, edit and delete problems' },
+      {
+        id: 'problems:read',
+        description: 'Read problems, their versions and compilations; validate packages',
+      },
+      {
+        id: 'problems:write',
+        description: 'Upload problems and versions, edit and delete problems',
+      },
     ],
   },
   {
@@ -72,26 +83,49 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
 
 // Exhaustive by construction: a Record over the closed permission set.
 const CATALOGUED: Record<ApiKeyPermission, true> = {
-  'account:read': true, 'account:write': true, 'keys:read': true, 'keys:write': true,
-  'problems:read': true, 'problems:write': true,
-  'compositions:read': true, 'compositions:write': true,
-  'jobs:read': true, 'engines:read': true, 'engines:execute': true, 'engines:register': true, 'engines:publish': true, 'engines:moderate': true,
-  'organizations:read': true, 'organizations:write': true,
-  'studies:read': true, 'studies:write': true,
-  'notifications:read': true, 'pricing:read': true, 'admin:accounts:read': true, 'admin:accounts:write': true,
+  'account:read': true,
+  'account:write': true,
+  'keys:read': true,
+  'keys:write': true,
+  'problems:read': true,
+  'problems:write': true,
+  'compositions:read': true,
+  'compositions:write': true,
+  'jobs:read': true,
+  'engines:read': true,
+  'engines:execute': true,
+  'engines:register': true,
+  'engines:publish': true,
+  'engines:moderate': true,
+  'organizations:read': true,
+  'organizations:write': true,
+  'studies:read': true,
+  'studies:write': true,
+  'notifications:read': true,
+  'pricing:read': true,
+  'admin:accounts:read': true,
+  'admin:accounts:write': true,
 };
 
 export const ALL_PERMISSIONS = Object.keys(CATALOGUED) as ApiKeyPermission[];
 
 /** Only a global administrator may grant these; the API answers 403 `permission_not_grantable` to anybody else. */
 export const ADMIN_ONLY: ReadonlySet<ApiKeyPermission> = new Set<ApiKeyPermission>([
-  'engines:moderate', 'admin:accounts:read', 'admin:accounts:write',
+  'engines:moderate',
+  'admin:accounts:read',
+  'admin:accounts:write',
 ]);
 
 /** These need all Engines or at least one exact revision (the API's `ENGINE_LIMITED_PERMISSIONS`). */
 export const ENGINE_LIMITED: ReadonlySet<ApiKeyPermission> = new Set<ApiKeyPermission>([
-  'engines:read', 'engines:execute', 'engines:register', 'engines:publish', 'engines:moderate',
-  'jobs:read', 'studies:read', 'studies:write',
+  'engines:read',
+  'engines:execute',
+  'engines:register',
+  'engines:publish',
+  'engines:moderate',
+  'jobs:read',
+  'studies:read',
+  'studies:write',
 ]);
 
 export const PRESETS: Record<'read' | 'run', ApiKeyPermission[]> = {
@@ -110,13 +144,13 @@ export type ExpiryId = (typeof EXPIRY_PRESETS)[number]['id'];
 
 /** The instant a preset ends, counted from `now` (ms). `null` for a key that never expires. */
 export function expiryFor(id: ExpiryId, now: number): string | null {
-  const preset = EXPIRY_PRESETS.find((item) => item.id === id);
+  const preset = EXPIRY_PRESETS.find(item => item.id === id);
   return preset?.days ? new Date(now + preset.days * 86_400_000).toISOString() : null;
 }
 
 export function describeDescription(permission: ApiKeyPermission): string {
   for (const group of PERMISSION_GROUPS) {
-    const found = group.permissions.find((item) => item.id === permission);
+    const found = group.permissions.find(item => item.id === permission);
     if (found) return found.description;
   }
   return permission;
@@ -130,18 +164,19 @@ export function needsEngines(permissions: Iterable<ApiKeyPermission>): boolean {
 export function describeEngineAccess(access: ApiKeyEngineAccess): string {
   if (access.all) return 'All engines, including future ones';
   if (access.engines.length === 0) return 'No engines';
-  return `Only ${access.engines.map((engine) => `${engine.namespace}/${engine.name}@${engine.version}`).join(', ')}`;
+  return `Only ${access.engines.map(engine => `${engine.namespace}/${engine.name}@${engine.version}`).join(', ')}`;
 }
 
 type Boundary = NonNullable<CreateApiKeyRequest['boundary']>;
 
 /** One short label per restriction: `GET only`, `org isa-demo`, `runs, studies`. Empty when there is none. */
 export function boundaryLabels(boundary: ApiKeySummary['boundary'] | undefined): string[] {
-  const value: Partial<Record<keyof Boundary, readonly string[] | null | undefined>> = boundary ?? {};
+  const value: Partial<Record<keyof Boundary, readonly string[] | null | undefined>> =
+    boundary ?? {};
   const labels: string[] = [];
   if (value.methods?.length) labels.push(`${value.methods.join(', ')} only`);
-  if (value.organizations?.length) labels.push(...value.organizations.map((slug) => `org ${slug}`));
+  if (value.organizations?.length) labels.push(...value.organizations.map(slug => `org ${slug}`));
   if (value.resource_kinds?.length) labels.push(value.resource_kinds.join(', '));
-  if (value.slugs?.length) labels.push(...value.slugs.map((slug) => `slug ${slug}`));
+  if (value.slugs?.length) labels.push(...value.slugs.map(slug => `slug ${slug}`));
   return labels;
 }

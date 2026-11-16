@@ -32,16 +32,43 @@ export function PricingCard({ reference, yaml }: PricingCardProps) {
         <span className="pc-pricing">{sphere}</span>
       </header>
       <dl className="pc-facts">
-        <div><dt>Version</dt><dd><code>{version}</code></dd></div>
-        <div><dt>SPHERE</dt><dd>{registry ? <>Registry <code>{registry}</code></> : 'This installation’s'}</dd></div>
-        <div><dt>Add-ons</dt><dd>{addons.length ? addons.join(', ') : 'None'}</dd></div>
+        <div>
+          <dt>Version</dt>
+          <dd>
+            <code>{version}</code>
+          </dd>
+        </div>
+        <div>
+          <dt>SPHERE</dt>
+          <dd>
+            {registry ? (
+              <>
+                Registry <code>{registry}</code>
+              </>
+            ) : (
+              'This installation’s'
+            )}
+          </dd>
+        </div>
+        <div>
+          <dt>Add-ons</dt>
+          <dd>{addons.length ? addons.join(', ') : 'None'}</dd>
+        </div>
       </dl>
       {yaml !== undefined ? (
-        <Suspense fallback={<p className="pc-note" role="status">Drawing the plan…</p>}>
+        <Suspense
+          fallback={
+            <p className="pc-note" role="status">
+              Drawing the plan…
+            </p>
+          }
+        >
           <PricingPlan yaml={yaml} plan={plan} />
         </Suspense>
       ) : (
-        <p className="pc-note">A reference to a SPHERE plan: its prices and limits are kept in SPHERE.</p>
+        <p className="pc-note">
+          A reference to a SPHERE plan: its prices and limits are kept in SPHERE.
+        </p>
       )}
     </article>
   );

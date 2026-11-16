@@ -4,7 +4,12 @@ import { Check } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Notice } from '../../components/ui/Notice';
 import { useAuth } from '../../contexts/auth';
-import { afterSignInTarget, clearSignInNote, hasRecentSignIn, noteSignInStarted } from '../../utils/authFlow';
+import {
+  afterSignInTarget,
+  clearSignInNote,
+  hasRecentSignIn,
+  noteSignInStarted,
+} from '../../utils/authFlow';
 import { fieldErrorsFrom, type FieldErrors } from './authErrors';
 import { classifyAuthError } from '../../shared/api/errors';
 import { AuthField, AuthShell, AuthSpinner } from './AuthShell';
@@ -46,10 +51,14 @@ export function Register() {
   const emailOk = EMAIL_PATTERN.test(email);
   const passwordOk = password.length >= MIN_PASSWORD_LENGTH;
 
-  const usernameError = (touched && !usernameOk ? USERNAME_RULE : undefined) ?? serverFields.username;
-  const emailError = (touched && !emailOk ? 'Enter a valid email address.' : undefined) ?? serverFields.email;
-  const passwordError = (touched && !passwordOk ? `Password must be at least ${MIN_PASSWORD_LENGTH} characters long.` : undefined)
-    ?? serverFields.password;
+  const usernameError =
+    (touched && !usernameOk ? USERNAME_RULE : undefined) ?? serverFields.username;
+  const emailError =
+    (touched && !emailOk ? 'Enter a valid email address.' : undefined) ?? serverFields.email;
+  const passwordError =
+    (touched && !passwordOk
+      ? `Password must be at least ${MIN_PASSWORD_LENGTH} characters long.`
+      : undefined) ?? serverFields.password;
 
   const passwordHint = !password
     ? `At least ${MIN_PASSWORD_LENGTH} characters. Length is the only rule.`
@@ -88,8 +97,10 @@ export function Register() {
         setFailure('conflict');
       } else if (result.kind === 'invalid') {
         const fields = fieldErrorsFrom(caught);
-        if (result.code === 'weak_password') fields.password = result.message || 'That password is not acceptable. Try a longer one.';
-        if (!Object.keys(fields).length) fields.password = 'That password is not acceptable. Try a longer one.';
+        if (result.code === 'weak_password')
+          fields.password = result.message || 'That password is not acceptable. Try a longer one.';
+        if (!Object.keys(fields).length)
+          fields.password = 'That password is not acceptable. Try a longer one.';
         setServerFields(fields);
       } else if (result.kind === 'unavailable' || result.kind === 'network') {
         setFailure(result.kind);
@@ -106,9 +117,19 @@ export function Register() {
       <AuthShell>
         <div className="auth-stack">
           <h1 className="auth-title">You already have an account</h1>
-          <p className="auth-lede">Signed in as {user.username}. Log out first to create another account.</p>
-          <Link className="auth-btn auth-btn-primary" to={target} viewTransition>Continue to your workspace</Link>
-          <button type="button" className="auth-btn auth-btn-secondary" onClick={() => void signOut()}>Log out</button>
+          <p className="auth-lede">
+            Signed in as {user.username}. Log out first to create another account.
+          </p>
+          <Link className="auth-btn auth-btn-primary" to={target} viewTransition>
+            Continue to your workspace
+          </Link>
+          <button
+            type="button"
+            className="auth-btn auth-btn-secondary"
+            onClick={() => void signOut()}
+          >
+            Log out
+          </button>
         </div>
       </AuthShell>
     );
@@ -118,12 +139,17 @@ export function Register() {
     return (
       <AuthShell>
         <div className="auth-stack" role="status">
-          <span className="auth-icon-tile is-ok" aria-hidden="true"><Check /></span>
+          <span className="auth-icon-tile is-ok" aria-hidden="true">
+            <Check />
+          </span>
           <h1 className="auth-title">Your account is ready</h1>
           <p className="auth-lede">
-            You’re signed in{user ? ` on the ${user.plan} plan` : ''}. Taking you to {target === '/app' ? 'your workspace' : 'the page you asked for'}.
+            You’re signed in{user ? ` on the ${user.plan} plan` : ''}. Taking you to{' '}
+            {target === '/app' ? 'your workspace' : 'the page you asked for'}.
           </p>
-          <Link className="auth-btn auth-btn-primary" to={target} viewTransition>Continue</Link>
+          <Link className="auth-btn auth-btn-primary" to={target} viewTransition>
+            Continue
+          </Link>
         </div>
       </AuthShell>
     );
@@ -139,17 +165,26 @@ export function Register() {
       <div aria-live="assertive" className="auth-notices auth-spaced">
         {failure === 'conflict' && (
           <Notice tone="error">
-            That username or email is already registered (409). <Link to="/login" state={state}>Log in</Link> or{' '}
-            <Link to="/password-reset">reset your password</Link>.
+            That username or email is already registered (409).{' '}
+            <Link to="/login" state={state}>
+              Log in
+            </Link>{' '}
+            or <Link to="/password-reset">reset your password</Link>.
           </Notice>
         )}
         {failure === 'unavailable' && (
-          <Notice tone="error">Accounts can’t be created right now (503). Nothing was saved; try again later.</Notice>
+          <Notice tone="error">
+            Accounts can’t be created right now (503). Nothing was saved; try again later.
+          </Notice>
         )}
         {failure === 'network' && (
-          <Notice tone="error">OpenBinding couldn’t be reached. Nothing was saved; check your connection and try again.</Notice>
+          <Notice tone="error">
+            OpenBinding couldn’t be reached. Nothing was saved; check your connection and try again.
+          </Notice>
         )}
-        {failure === 'unknown' && <Notice tone="error">The account could not be created. Try again in a moment.</Notice>}
+        {failure === 'unknown' && (
+          <Notice tone="error">The account could not be created. Try again in a moment.</Notice>
+        )}
       </div>
 
       <form className="auth-form" onSubmit={handleSubmit} noValidate>
@@ -162,7 +197,7 @@ export function Register() {
           spellCheck={false}
           placeholder="e.g. ada.lovelace"
           value={username}
-          onChange={(event) => setUsername(event.target.value)}
+          onChange={event => setUsername(event.target.value)}
           disabled={busy}
           error={usernameError}
           hint={username ? (usernameOk ? '✓ Looks good' : USERNAME_RULE) : USERNAME_RULE}
@@ -179,7 +214,7 @@ export function Register() {
           spellCheck={false}
           placeholder="you@example.org"
           value={email}
-          onChange={(event) => setEmail(event.target.value)}
+          onChange={event => setEmail(event.target.value)}
           disabled={busy}
           error={emailError}
           hint="Used to log in and to reach you."
@@ -193,7 +228,7 @@ export function Register() {
           autoComplete="new-password"
           placeholder={`At least ${MIN_PASSWORD_LENGTH} characters`}
           value={password}
-          onChange={(event) => setPassword(event.target.value)}
+          onChange={event => setPassword(event.target.value)}
           disabled={busy}
           error={passwordError}
           hint={passwordHint}
@@ -209,13 +244,21 @@ export function Register() {
       <div className="auth-plan">
         <span className="auth-plan-head">
           <span>New accounts start on the free plan</span>
-          <Link to="/pricing" viewTransition>Compare plans</Link>
+          <Link to="/pricing" viewTransition>
+            Compare plans
+          </Link>
         </span>
-        <p>Your allowances and plan are on your account page once you’re in. A verified Universidad de Sevilla CAS identity can move you to RESEARCH later.</p>
+        <p>
+          Your allowances and plan are on your account page once you’re in. A verified Universidad
+          de Sevilla CAS identity can move you to RESEARCH later.
+        </p>
       </div>
 
       <p className="auth-switch">
-        Already have an account? <Link to="/login" state={state?.from ? { from: state.from } : undefined} viewTransition>Log in</Link>
+        Already have an account?{' '}
+        <Link to="/login" state={state?.from ? { from: state.from } : undefined} viewTransition>
+          Log in
+        </Link>
       </p>
     </AuthShell>
   );

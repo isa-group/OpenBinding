@@ -21,8 +21,28 @@ const encode = (yaml: string) => LZString.compressToEncodedURIComponent(yaml);
 function largeComposition(targetBytes: number): string {
   // Candidate names made of varied words, so that the sample compresses about as
   // well as real documents do, not like a repeated template.
-  const words = ['access', 'reports', 'team', 'workspace', 'custom', 'priority', 'export', 'audit', 'storage', 'guests',
-    'automation', 'integrations', 'dashboards', 'permissions', 'history', 'templates', 'sync', 'api', 'support', 'roles'];
+  const words = [
+    'access',
+    'reports',
+    'team',
+    'workspace',
+    'custom',
+    'priority',
+    'export',
+    'audit',
+    'storage',
+    'guests',
+    'automation',
+    'integrations',
+    'dashboards',
+    'permissions',
+    'history',
+    'templates',
+    'sync',
+    'api',
+    'support',
+    'roles',
+  ];
   let seed = 7;
   const nextWord = () => {
     seed = (seed * 1103515245 + 12345) % 2147483648;
@@ -32,9 +52,15 @@ function largeComposition(targetBytes: number): string {
   const steps: string[] = [];
   const binding: string[] = [];
   const values: string[] = [];
-  for (let i = 0; steps.join('').length + binding.join('').length + values.join('').length < targetBytes - 500; i++) {
+  for (
+    let i = 0;
+    steps.join('').length + binding.join('').length + values.join('').length < targetBytes - 500;
+    i++
+  ) {
     steps.push(`    - task${i}\n`);
-    binding.push(`  task${i}: {candidate: ${nextWord()}.${nextWord()}.${nextWord()}${seed % 9973}}\n`);
+    binding.push(
+      `  task${i}: {candidate: ${nextWord()}.${nextWord()}.${nextWord()}${seed % 9973}}\n`
+    );
     values.push(`  ${nextWord()}_${i}: {value: ${seed % 9973}.5, unit: ${nextWord()}/month}\n`);
   }
 
@@ -59,9 +85,15 @@ describe('the composition fragment', () => {
   it('decodes #composition= to the YAML that was encoded', () => {
     const encoded = encode(declared);
 
-    expect(readCompositionFragment(`#composition=${encoded}`)).toEqual({ status: 'ok', yaml: declared });
+    expect(readCompositionFragment(`#composition=${encoded}`)).toEqual({
+      status: 'ok',
+      yaml: declared,
+    });
     // `location.hash` includes the `#`, but the leading `#` is optional.
-    expect(readCompositionFragment(`composition=${encoded}`)).toEqual({ status: 'ok', yaml: declared });
+    expect(readCompositionFragment(`composition=${encoded}`)).toEqual({
+      status: 'ok',
+      yaml: declared,
+    });
   });
 
   it('writes the fragment it reads', () => {
@@ -74,7 +106,10 @@ describe('the composition fragment', () => {
   it('reads only the composition key of the fragment', () => {
     const encoded = encode(declared);
 
-    expect(readCompositionFragment(`#foo=bar&composition=${encoded}&baz=1`)).toEqual({ status: 'ok', yaml: declared });
+    expect(readCompositionFragment(`#foo=bar&composition=${encoded}&baz=1`)).toEqual({
+      status: 'ok',
+      yaml: declared,
+    });
   });
 
   it('decodes the value whether or not it was percent-encoded again', () => {
@@ -84,24 +119,40 @@ describe('the composition fragment', () => {
     // The sample must exercise the characters that form decoding alters.
     expect(encoded).toMatch(/[+$-]/);
     expect(readCompositionFragment(`#composition=${encoded}`)).toEqual({ status: 'ok', yaml });
-    expect(readCompositionFragment(`#composition=${encodeURIComponent(encoded)}`)).toEqual({ status: 'ok', yaml });
+    expect(readCompositionFragment(`#composition=${encodeURIComponent(encoded)}`)).toEqual({
+      status: 'ok',
+      yaml,
+    });
   });
 
   it('answers an empty composition fragment with an error', () => {
-    for (const hash of ['#composition', '#composition=', '#composition=%20%20', `#composition=${encode('  \n ')}`]) {
+    for (const hash of [
+      '#composition',
+      '#composition=',
+      '#composition=%20%20',
+      `#composition=${encode('  \n ')}`,
+    ]) {
       const result = readCompositionFragment(hash);
 
       expect(result.status, hash).toBe('invalid');
-      expect((result as { error: string }).error, hash).toMatch(/could not be read: it carries no composition/);
+      expect((result as { error: string }).error, hash).toMatch(
+        /could not be read: it carries no composition/
+      );
     }
   });
 
   it('answers a value that is not lz-string output with an error', () => {
-    for (const hash of ['#composition=<script>alert(1)</script>', '#composition=syntaxVersion%3A%20X', '#composition=a.b']) {
+    for (const hash of [
+      '#composition=<script>alert(1)</script>',
+      '#composition=syntaxVersion%3A%20X',
+      '#composition=a.b',
+    ]) {
       const result = readCompositionFragment(hash);
 
       expect(result.status, hash).toBe('invalid');
-      expect((result as { error: string }).error, hash).toMatch(/not lz-string compressToEncodedURIComponent output/);
+      expect((result as { error: string }).error, hash).toMatch(
+        /not lz-string compressToEncodedURIComponent output/
+      );
     }
   });
 
@@ -167,7 +218,9 @@ describe('the composition fragment', () => {
 
   it('keeps the path and the query in the URL without its fragment', () => {
     expect(urlWithoutFragment({ pathname: '/language', search: '' })).toBe('/language');
-    expect(urlWithoutFragment({ pathname: '/language', search: '?a=1&b=2' })).toBe('/language?a=1&b=2');
+    expect(urlWithoutFragment({ pathname: '/language', search: '?a=1&b=2' })).toBe(
+      '/language?a=1&b=2'
+    );
   });
 
   it('decodes a large composition (~53 KB) whole and quickly', () => {

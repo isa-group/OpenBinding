@@ -54,7 +54,7 @@ export function useRouteProblem(): RouteProblem {
         problemsApi.revisions(organization.slug, caseSlug),
       ]);
       return { item, revisions: newestFirst(revisions) };
-    },
+    }
   );
   const stale = content.stale;
   const previous = stale && stale.item.slug === caseSlug ? stale : undefined;

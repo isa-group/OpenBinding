@@ -34,7 +34,8 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   }
 
   componentDidUpdate(previous: ErrorBoundaryProps) {
-    if (this.state.error && previous.resetKey !== this.props.resetKey) this.setState({ error: null });
+    if (this.state.error && previous.resetKey !== this.props.resetKey)
+      this.setState({ error: null });
   }
 
   private reload = () => {
@@ -48,14 +49,19 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
         layout="page"
         status="Error"
         title="Something went wrong"
-        actions={(
+        actions={
           <>
-            <button type="button" className="ui-state-action is-primary" onClick={this.reload}>Reload</button>
-            <a className="ui-state-action is-link" href="/">Go to the home page</a>
+            <button type="button" className="ui-state-action is-primary" onClick={this.reload}>
+              Reload
+            </button>
+            <a className="ui-state-action is-link" href="/">
+              Go to the home page
+            </a>
           </>
-        )}
+        }
       >
-        This screen couldn’t be shown. Reload the page; if it happens again, go back to the home page.
+        This screen couldn’t be shown. Reload the page; if it happens again, go back to the home
+        page.
       </ErrorState>
     );
   }

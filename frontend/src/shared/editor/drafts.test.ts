@@ -1,13 +1,32 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { clearDraft, clearUserDrafts, draftScope, draftsAvailable, loadDraft, saveDraft } from './drafts';
+import {
+  clearDraft,
+  clearUserDrafts,
+  draftScope,
+  draftsAvailable,
+  loadDraft,
+  saveDraft,
+} from './drafts';
 
 // The setup file gives every test an empty IndexedDB (fake-indexeddb).
 
 describe('the scope of a draft', () => {
   it('names the person, the editor, the organization, the thing edited and the version it started from', () => {
-    expect(draftScope({ user: 'user-1', kind: 'problem', org: 'isa', entity: 'checkout', base: '2' })).toBe('user-1:problem:isa:checkout:2');
-    expect(draftScope({ user: 'user-1', kind: 'composition', org: 'isa', entity: 'order-desk', base: 'new' })).toBe('user-1:composition:isa:order-desk:new');
-    expect(draftScope({ user: undefined, kind: 'problem', org: 'isa', entity: 'new', base: 'none' })).toBe('anonymous:problem:isa:new:none');
+    expect(
+      draftScope({ user: 'user-1', kind: 'problem', org: 'isa', entity: 'checkout', base: '2' })
+    ).toBe('user-1:problem:isa:checkout:2');
+    expect(
+      draftScope({
+        user: 'user-1',
+        kind: 'composition',
+        org: 'isa',
+        entity: 'order-desk',
+        base: 'new',
+      })
+    ).toBe('user-1:composition:isa:order-desk:new');
+    expect(
+      draftScope({ user: undefined, kind: 'problem', org: 'isa', entity: 'new', base: 'none' })
+    ).toBe('anonymous:problem:isa:new:none');
   });
 });
 
@@ -15,10 +34,14 @@ describe('drafts in the browser', () => {
   it('keeps a draft per scope, reads it back and forgets it', async () => {
     expect(draftsAvailable()).toBe(true);
     await saveDraft('user-1:problem:isa:new:none', { 'instance.json': '{}' });
-    await saveDraft('user-1:composition:isa:order-desk:new', { 'composition.yaml': 'name: order-desk\n' });
+    await saveDraft('user-1:composition:isa:order-desk:new', {
+      'composition.yaml': 'name: order-desk\n',
+    });
 
     expect(await loadDraft('user-1:problem:isa:new:none')).toEqual({ 'instance.json': '{}' });
-    expect(await loadDraft('user-1:composition:isa:order-desk:new')).toEqual({ 'composition.yaml': 'name: order-desk\n' });
+    expect(await loadDraft('user-1:composition:isa:order-desk:new')).toEqual({
+      'composition.yaml': 'name: order-desk\n',
+    });
     expect(await loadDraft('user-2:problem:isa:new:none')).toBeNull();
 
     await saveDraft('user-1:problem:isa:new:none', { 'instance.json': '{"a":1}' });
@@ -52,8 +75,13 @@ describe('drafts in the browser', () => {
       request.onerror = () => reject(request.error);
       request.onsuccess = () => {
         const transaction = request.result.transaction('drafts', 'readwrite');
-        transaction.objectStore('drafts').put({ 'instance.json': 3 }, 'user-1:problem:isa:new:none');
-        transaction.oncomplete = () => { request.result.close(); resolve(); };
+        transaction
+          .objectStore('drafts')
+          .put({ 'instance.json': 3 }, 'user-1:problem:isa:new:none');
+        transaction.oncomplete = () => {
+          request.result.close();
+          resolve();
+        };
       };
     });
 
@@ -62,7 +90,9 @@ describe('drafts in the browser', () => {
 
   describe('where this browser has no IndexedDB', () => {
     const indexedDb = globalThis.indexedDB;
-    afterEach(() => { globalThis.indexedDB = indexedDb; });
+    afterEach(() => {
+      globalThis.indexedDB = indexedDb;
+    });
 
     it('keeps nothing and says so: saves do nothing and loads give nothing', async () => {
       await saveDraft('user-1:problem:isa:new:none', { 'instance.json': 'kept before' });
@@ -71,14 +101,18 @@ describe('drafts in the browser', () => {
       delete globalThis.indexedDB;
 
       expect(draftsAvailable()).toBe(false);
-      await expect(saveDraft('user-1:problem:isa:new:none', { 'instance.json': '{}' })).resolves.toBeUndefined();
+      await expect(
+        saveDraft('user-1:problem:isa:new:none', { 'instance.json': '{}' })
+      ).resolves.toBeUndefined();
       expect(await loadDraft('user-1:problem:isa:new:none')).toBeNull();
       await expect(clearUserDrafts('user-1')).resolves.toBeUndefined();
       await expect(clearDraft('user-1:problem:isa:new:none')).resolves.toBeUndefined();
       expect(localStorage.length).toBe(0);
 
       globalThis.indexedDB = factory;
-      expect(await loadDraft('user-1:problem:isa:new:none')).toEqual({ 'instance.json': 'kept before' });
+      expect(await loadDraft('user-1:problem:isa:new:none')).toEqual({
+        'instance.json': 'kept before',
+      });
     });
   });
 });

@@ -18,26 +18,36 @@ function screenElement(definition: RouteDefinition) {
   return element;
 }
 
-const publicScreens = routeDefinitions.filter((definition) => definition.layout === 'public' && !definition.sessionHeader);
-const sessionScreens = routeDefinitions.filter((definition) => definition.layout === 'public' && definition.sessionHeader);
-const appScreens = routeDefinitions.filter((definition) => definition.layout === 'app');
+const publicScreens = routeDefinitions.filter(
+  definition => definition.layout === 'public' && !definition.sessionHeader
+);
+const sessionScreens = routeDefinitions.filter(
+  definition => definition.layout === 'public' && definition.sessionHeader
+);
+const appScreens = routeDefinitions.filter(definition => definition.layout === 'app');
 
 export function AppRoutes() {
   return (
     <Routes>
       <Route element={<PublicLayout />}>
-        {publicScreens.map((definition) => (
+        {publicScreens.map(definition => (
           <Route key={definition.id} path={definition.path} element={screenElement(definition)} />
         ))}
         <Route path="*" element={<NotFoundScreen />} />
       </Route>
       <Route element={<SessionLayout />}>
-        {sessionScreens.map((definition) => (
+        {sessionScreens.map(definition => (
           <Route key={definition.id} path={definition.path} element={screenElement(definition)} />
         ))}
       </Route>
-      <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
-        {appScreens.map((definition) => (
+      <Route
+        element={
+          <ProtectedRoute>
+            <AppLayout />
+          </ProtectedRoute>
+        }
+      >
+        {appScreens.map(definition => (
           <Route key={definition.id} path={definition.path} element={screenElement(definition)} />
         ))}
       </Route>

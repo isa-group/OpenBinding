@@ -8,15 +8,34 @@ import { AuthContext } from '../../contexts/auth';
 import { ALEX } from '../../test/fixtures/admin';
 
 /** Render a screen as a signed-in account would see it. Administrators by default; give `path` to read route parameters. */
-export function renderAdmin(element: ReactElement, options: { user?: UserProfile; entry?: string; path?: string } = {}) {
+export function renderAdmin(
+  element: ReactElement,
+  options: { user?: UserProfile; entry?: string; path?: string } = {}
+) {
   const user = options.user ?? ALEX;
-  const page = options.path ? <Routes><Route path={options.path} element={element} /></Routes> : element;
+  const page = options.path ? (
+    <Routes>
+      <Route path={options.path} element={element} />
+    </Routes>
+  ) : (
+    element
+  );
   return render(
     <MemoryRouter initialEntries={[options.entry ?? '/']}>
-      <AuthContext.Provider value={{ user, loading: false, signIn: vi.fn(), register: vi.fn(), signOut: vi.fn(), refresh: vi.fn(), isAdmin: user.role === 'admin' }}>
+      <AuthContext.Provider
+        value={{
+          user,
+          loading: false,
+          signIn: vi.fn(),
+          register: vi.fn(),
+          signOut: vi.fn(),
+          refresh: vi.fn(),
+          isAdmin: user.role === 'admin',
+        }}
+      >
         {page}
       </AuthContext.Provider>
-    </MemoryRouter>,
+    </MemoryRouter>
   );
 }
 

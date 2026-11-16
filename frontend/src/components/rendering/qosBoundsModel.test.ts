@@ -8,13 +8,29 @@ const and = (left: unknown, right: unknown) => ({ kind: 'and', left, right });
 const add = (left: unknown, right: unknown) => ({ kind: 'arithmetic', op: 'add', left, right });
 const ref = (id: string, resource = 'rules') => ({ resource, id });
 // A constraint of a problem's facts: `<resource>/<id>`, its enforcement, and the IR expressions it passes through.
-const rule = (id: string, enforcement: string, when: unknown, expression: unknown, extra: object = {}) => ({
-  id: `rules/${id}`, enforcement, when, expression, ...extra,
+const rule = (
+  id: string,
+  enforcement: string,
+  when: unknown,
+  expression: unknown,
+  extra: object = {}
+) => ({
+  id: `rules/${id}`,
+  enforcement,
+  when,
+  expression,
+  ...extra,
 });
 
 const QOS = [
   rule('max-latency', 'hard', lit(true), cmp('lte', x('latency'), lit(600))),
-  rule('cost-band', 'soft', undefined, and(cmp('lte', lit(2), x('cost')), cmp('lt', x('cost'), lit(10))), { penalty: lit(5) }),
+  rule(
+    'cost-band',
+    'soft',
+    undefined,
+    and(cmp('lte', lit(2), x('cost')), cmp('lt', x('cost'), lit(10))),
+    { penalty: lit(5) }
+  ),
   rule('busy-latency', 'hard', cmp('gt', x('load'), lit(5)), cmp('lte', x('latency'), lit(400))),
   rule('bundle-cost', 'hard', lit(true), cmp('lte', add(x('cost'), x('fee')), lit(12))),
 ];
@@ -26,9 +42,38 @@ describe('qosBoundsOf', () => {
   it('turns comparisons of one quality with a number into bounds, flipping a number on the left', () => {
     const { bounds } = qosBoundsOf(QOS, FEATURES, VIOLATIONS, UNITS);
     expect(bounds).toEqual([
-      { rule: 'rules/max-latency', feature: 'latency', op: 'lte', limit: 600, value: 412, unit: 'ms', enforcement: 'hard', met: true },
-      { rule: 'rules/cost-band', feature: 'cost', op: 'gte', limit: 2, value: 11.5, unit: 'EUR', enforcement: 'soft', met: false, penalty: 2.5 },
-      { rule: 'rules/cost-band', feature: 'cost', op: 'lt', limit: 10, value: 11.5, unit: 'EUR', enforcement: 'soft', met: false, penalty: 2.5 },
+      {
+        rule: 'rules/max-latency',
+        feature: 'latency',
+        op: 'lte',
+        limit: 600,
+        value: 412,
+        unit: 'ms',
+        enforcement: 'hard',
+        met: true,
+      },
+      {
+        rule: 'rules/cost-band',
+        feature: 'cost',
+        op: 'gte',
+        limit: 2,
+        value: 11.5,
+        unit: 'EUR',
+        enforcement: 'soft',
+        met: false,
+        penalty: 2.5,
+      },
+      {
+        rule: 'rules/cost-band',
+        feature: 'cost',
+        op: 'lt',
+        limit: 10,
+        value: 11.5,
+        unit: 'EUR',
+        enforcement: 'soft',
+        met: false,
+        penalty: 2.5,
+      },
     ]);
     expect(bounds[0]).not.toHaveProperty('penalty');
   });
@@ -36,11 +81,23 @@ describe('qosBoundsOf', () => {
   it('turns other rules into text, with their condition', () => {
     const { rules } = qosBoundsOf(QOS, FEATURES, VIOLATIONS, UNITS);
     expect(rules).toEqual([
-      { rule: 'rules/busy-latency', text: 'features.latency ≤ 400', when: 'features.load > 5', enforcement: 'hard', met: true },
-      { rule: 'rules/bundle-cost', text: '(features.cost + features.fee) ≤ 12', when: null, enforcement: 'hard', met: true },
+      {
+        rule: 'rules/busy-latency',
+        text: 'features.latency ≤ 400',
+        when: 'features.load > 5',
+        enforcement: 'hard',
+        met: true,
+      },
+      {
+        rule: 'rules/bundle-cost',
+        text: '(features.cost + features.fee) ≤ 12',
+        when: null,
+        enforcement: 'hard',
+        met: true,
+      },
     ]);
     const { bounds } = qosBoundsOf(QOS, FEATURES, VIOLATIONS, UNITS);
-    expect(bounds.some((b) => b.rule === 'rules/busy-latency')).toBe(false);
+    expect(bounds.some(b => b.rule === 'rules/busy-latency')).toBe(false);
   });
 
   it('keeps shapes that are not a bound as text', () => {
@@ -52,13 +109,17 @@ describe('qosBoundsOf', () => {
       cmp('lte', { kind: 'path', segments: ['tasks', 'pay', 'latency'] }, lit(600)),
       cmp('lte', x('latency'), { kind: 'negate', value: lit(5) }),
       cmp('eq', x('region'), lit('eu')),
-      { kind: 'or', left: cmp('lte', x('latency'), lit(600)), right: cmp('lte', x('cost'), lit(10)) },
+      {
+        kind: 'or',
+        left: cmp('lte', x('latency'), lit(600)),
+        right: cmp('lte', x('cost'), lit(10)),
+      },
       { kind: 'not', value: cmp('gt', x('latency'), lit(600)) },
     ];
     const constraints = asserts.map((a, i) => rule(`r${i}`, 'hard', lit(true), a));
     const { bounds, rules } = qosBoundsOf(constraints, FEATURES, [], UNITS);
     expect(bounds).toEqual([]);
-    expect(rules.map((r) => r.text)).toEqual([
+    expect(rules.map(r => r.text)).toEqual([
       'features.latency = 600',
       'features.latency ≠ 600',
       'features.latency ≤ features.cost',
@@ -69,30 +130,51 @@ describe('qosBoundsOf', () => {
       '(features.latency ≤ 600) or (features.cost ≤ 10)',
       'not (features.latency > 600)',
     ]);
-    expect(rules.map((r) => r.rule)).toEqual(asserts.map((_, i) => `rules/r${i}`));
+    expect(rules.map(r => r.rule)).toEqual(asserts.map((_, i) => `rules/r${i}`));
   });
 
   it('never splits a mixed conjunction and flattens nested ones', () => {
-    const mixed = rule('mixed', 'hard', lit(true), and(cmp('lte', x('latency'), lit(600)), cmp('eq', x('region'), lit('eu'))));
-    const nested = rule('nested', 'hard', lit(true),
-      and(and(cmp('gte', x('cost'), lit(1)), cmp('lte', x('cost'), lit(9))), cmp('lt', x('latency'), lit(700))));
+    const mixed = rule(
+      'mixed',
+      'hard',
+      lit(true),
+      and(cmp('lte', x('latency'), lit(600)), cmp('eq', x('region'), lit('eu')))
+    );
+    const nested = rule(
+      'nested',
+      'hard',
+      lit(true),
+      and(
+        and(cmp('gte', x('cost'), lit(1)), cmp('lte', x('cost'), lit(9))),
+        cmp('lt', x('latency'), lit(700))
+      )
+    );
     const { bounds, rules } = qosBoundsOf([mixed, nested], FEATURES, [], UNITS);
     expect(rules).toHaveLength(1);
     expect(rules[0].rule).toBe('rules/mixed');
     expect(rules[0].text).toBe('(features.latency ≤ 600) and (features.region = “eu”)');
-    expect(bounds.map((b) => [b.rule, b.op, b.limit])).toEqual([['rules/nested', 'gte', 1], ['rules/nested', 'lte', 9], ['rules/nested', 'lt', 700]]);
+    expect(bounds.map(b => [b.rule, b.op, b.limit])).toEqual([
+      ['rules/nested', 'gte', 1],
+      ['rules/nested', 'lte', 9],
+      ['rules/nested', 'lt', 700],
+    ]);
   });
 
   it('takes the status from the gateway, not from the value', () => {
     const one = [QOS[0]];
     const first = qosBoundsOf(one, { latency: 700 }, [], UNITS).bounds[0];
     expect(first.met).toBe(true);
-    const second = qosBoundsOf(one, { latency: 412 }, [{ constraint: ref('max-latency'), enforcement: 'hard', penalty: 0 }], UNITS).bounds[0];
+    const second = qosBoundsOf(
+      one,
+      { latency: 412 },
+      [{ constraint: ref('max-latency'), enforcement: 'hard', penalty: 0 }],
+      UNITS
+    ).bounds[0];
     expect(second.met).toBe(false);
     expect(second).not.toHaveProperty('penalty');
   });
 
-  it.each([undefined, null, {}])('reads %j violations as not checked', (violations) => {
+  it.each([undefined, null, {}])('reads %j violations as not checked', violations => {
     const { bounds, rules } = qosBoundsOf(QOS, FEATURES, violations, UNITS);
     expect(bounds).toHaveLength(3);
     expect(rules).toHaveLength(2);
@@ -104,36 +186,79 @@ describe('qosBoundsOf', () => {
 
   it('reports violations of rules the compiled problem does not hold', () => {
     const violations = [
-      { constraint: ref('edge-capacity', 'placement'), enforcement: 'hard', penalty: 0, message: 'Pool edge over capacity' },
+      {
+        constraint: ref('edge-capacity', 'placement'),
+        enforcement: 'hard',
+        penalty: 0,
+        message: 'Pool edge over capacity',
+      },
       { constraint: ref('core-capacity', 'placement'), enforcement: 'soft', penalty: 1.25 },
       { constraint: ref('core-capacity', 'placement'), enforcement: 'soft', penalty: 0.75 },
     ];
     const expected = [
-      { rule: 'placement/edge-capacity', text: 'Pool edge over capacity', when: null, enforcement: 'hard', met: false },
-      { rule: 'placement/core-capacity', text: 'Reported by the gateway; not a rule of the compiled problem.', when: null, enforcement: 'soft', met: false, penalty: 2 },
+      {
+        rule: 'placement/edge-capacity',
+        text: 'Pool edge over capacity',
+        when: null,
+        enforcement: 'hard',
+        met: false,
+      },
+      {
+        rule: 'placement/core-capacity',
+        text: 'Reported by the gateway; not a rule of the compiled problem.',
+        when: null,
+        enforcement: 'soft',
+        met: false,
+        penalty: 2,
+      },
     ];
     expect(qosBoundsOf([], {}, violations)).toEqual({ bounds: [], rules: expected });
     const mixed = qosBoundsOf(QOS, FEATURES, [...VIOLATIONS, ...violations], UNITS);
-    expect(mixed.rules.map((r) => r.rule)).toEqual(['rules/busy-latency', 'rules/bundle-cost', 'placement/edge-capacity', 'placement/core-capacity']);
+    expect(mixed.rules.map(r => r.rule)).toEqual([
+      'rules/busy-latency',
+      'rules/bundle-cost',
+      'placement/edge-capacity',
+      'placement/core-capacity',
+    ]);
   });
 
   it('matches a violation by its resource and id, the name the facts give the constraint', () => {
-    const { bounds, rules } = qosBoundsOf([QOS[0]], FEATURES, [{ constraint: ref('max-latency', 'other'), enforcement: 'hard', penalty: 0 }], UNITS);
+    const { bounds, rules } = qosBoundsOf(
+      [QOS[0]],
+      FEATURES,
+      [{ constraint: ref('max-latency', 'other'), enforcement: 'hard', penalty: 0 }],
+      UNITS
+    );
     expect(bounds[0].met).toBe(true);
     expect(rules).toEqual([
-      { rule: 'other/max-latency', text: 'Reported by the gateway; not a rule of the compiled problem.', when: null, enforcement: 'hard', met: false },
+      {
+        rule: 'other/max-latency',
+        text: 'Reported by the gateway; not a rule of the compiled problem.',
+        when: null,
+        enforcement: 'hard',
+        met: false,
+      },
     ]);
   });
 
   it('leaves unexpected input out without throwing', () => {
     const empty = { bounds: [], rules: [] };
     expect(qosBoundsOf('x', null, null)).toEqual(empty);
-    expect(qosBoundsOf('x', null, [null, { constraint: {} }, { enforcement: 'hard' }])).toEqual(empty);
-    const junk = [null, 7, { enforcement: 'hard' }, { id: '', expression: cmp('lte', x('latency'), lit(1)) }];
-    expect(qosBoundsOf(junk, null, [null, { constraint: {} }, { enforcement: 'hard' }])).toEqual(empty);
+    expect(qosBoundsOf('x', null, [null, { constraint: {} }, { enforcement: 'hard' }])).toEqual(
+      empty
+    );
+    const junk = [
+      null,
+      7,
+      { enforcement: 'hard' },
+      { id: '', expression: cmp('lte', x('latency'), lit(1)) },
+    ];
+    expect(qosBoundsOf(junk, null, [null, { constraint: {} }, { enforcement: 'hard' }])).toEqual(
+      empty
+    );
   });
 
-  it.each([{ latency: 'fast' }, {}, undefined])('gives a missing value as null (%j)', (features) => {
+  it.each([{ latency: 'fast' }, {}, undefined])('gives a missing value as null (%j)', features => {
     expect(qosBoundsOf([QOS[0]], features, [], UNITS).bounds[0].value).toBeNull();
   });
 });

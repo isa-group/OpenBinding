@@ -77,15 +77,30 @@ function notFound(): HttpError {
 /** The modes of an Engine document, for a revision the catalog list does not carry. */
 function entryFromRevision(revision: EngineRevision): EngineCatalogEntry | null {
   const spec = isRecord(revision.document) ? revision.document.spec : undefined;
-  const modes = isRecord(spec) && Array.isArray(spec.modes) ? spec.modes as EngineMode[] : null;
+  const modes = isRecord(spec) && Array.isArray(spec.modes) ? (spec.modes as EngineMode[]) : null;
   if (!modes) return null;
-  const ref = { namespace: revision.namespace, name: revision.name, version: revision.version, digest: revision.digest };
+  const ref = {
+    namespace: revision.namespace,
+    name: revision.name,
+    version: revision.version,
+    digest: revision.digest,
+  };
   return { ...ref, id: `${ref.namespace}/${ref.name}`, ref, modes };
 }
 
-async function loadEngine(username: string | null, namespace: string, name: string, version: string): Promise<Loaded> {
-  const engines = username ? (await apiClient.getCatalogEngines()).engines : await apiClient.getPublicEngines();
-  const found = engines.find((engine) => engine.namespace === namespace && engine.name === name && engine.version === version) ?? null;
+async function loadEngine(
+  username: string | null,
+  namespace: string,
+  name: string,
+  version: string
+): Promise<Loaded> {
+  const engines = username
+    ? (await apiClient.getCatalogEngines()).engines
+    : await apiClient.getPublicEngines();
+  const found =
+    engines.find(
+      engine => engine.namespace === namespace && engine.name === name && engine.version === version
+    ) ?? null;
   let revision: EngineRevision | null = null;
   if (username) {
     try {
@@ -101,15 +116,18 @@ async function loadEngine(username: string | null, namespace: string, name: stri
 }
 
 function downloadManifest(entry: EngineCatalogEntry, revision: EngineRevision | null) {
-  const manifest: unknown = revision && isRecord(revision.document) && Object.keys(revision.document).length > 0
-    ? revision.document
-    : ({
-      apiVersion: 'bim/v1',
-      kind: 'Engine',
-      metadata: { namespace: entry.namespace, name: entry.name, version: entry.version },
-      spec: { modes: entry.modes },
-    } satisfies EngineManifest);
-  const url = URL.createObjectURL(new Blob([JSON.stringify(manifest, null, 2)], { type: 'application/json' }));
+  const manifest: unknown =
+    revision && isRecord(revision.document) && Object.keys(revision.document).length > 0
+      ? revision.document
+      : ({
+          apiVersion: 'bim/v1',
+          kind: 'Engine',
+          metadata: { namespace: entry.namespace, name: entry.name, version: entry.version },
+          spec: { modes: entry.modes },
+        } satisfies EngineManifest);
+  const url = URL.createObjectURL(
+    new Blob([JSON.stringify(manifest, null, 2)], { type: 'application/json' })
+  );
   const anchor = document.createElement('a');
   anchor.href = url;
   anchor.download = `${entry.namespace}-${entry.name}-${entry.version}.engine.json`;
@@ -130,20 +148,29 @@ export function EngineDetail() {
   const { user } = useAuth();
   const username = user?.username ?? null;
   const { copy, status: copyStatus } = useCopy();
-  const detail = useResource(`engine:${namespace}/${name}/${version}:${username ?? 'visitor'}`, () => loadEngine(username, namespace, name, version));
+  const detail = useResource(
+    `engine:${namespace}/${name}/${version}:${username ?? 'visitor'}`,
+    () => loadEngine(username, namespace, name, version)
+  );
   // The live catalog (GET /v1/pricing/catalog); the deprecated YAML endpoint is no longer read.
-  const pricing = useResource('plan-ceilings', async () => planCeilings(await apiClient.getPricingCatalog()));
-  const registrations = useResource(`engine-registrations:${username ?? 'visitor'}`, async () => (
+  const pricing = useResource('plan-ceilings', async () =>
+    planCeilings(await apiClient.getPricingCatalog())
+  );
+  const registrations = useResource(`engine-registrations:${username ?? 'visitor'}`, async () =>
     username ? apiClient.listEngineRegistrations() : []
-  ));
+  );
   const [modeChoice, setModeChoice] = useState('');
   const [planChoice, setPlanChoice] = useState('');
 
   const tabParam = params.get('tab');
-  const tab: TabId = TABS.some((item) => item.id === tabParam) ? tabParam as TabId : 'modes';
+  const tab: TabId = TABS.some(item => item.id === tabParam) ? (tabParam as TabId) : 'modes';
   // After a failed refresh the last copy of this very revision stays on screen; never another revision or account's.
   const kept = detail.stale;
-  const sameRevision = kept?.forUser === username && kept.entry.namespace === namespace && kept.entry.name === name && kept.entry.version === version;
+  const sameRevision =
+    kept?.forUser === username &&
+    kept.entry.namespace === namespace &&
+    kept.entry.name === name &&
+    kept.entry.version === version;
   const data = detail.data ?? (sameRevision ? kept : undefined);
   const failure = detail.status === 'error' ? detail.error : null;
   const hidden = isNeutralNotFound(failure);
@@ -155,7 +182,10 @@ export function EngineDetail() {
         <div role="alert" className="engine-detail-neutral">
           <Search aria-hidden="true" />
           <h1>Engine revision not found</h1>
-          <p>There’s no engine revision you can see at this address. Check the namespace, name and version.</p>
+          <p>
+            There’s no engine revision you can see at this address. Check the namespace, name and
+            version.
+          </p>
           <Link to="/engines">Back to the catalog</Link>
         </div>
       </div>
@@ -167,8 +197,19 @@ export function EngineDetail() {
       <div className="engine-detail-page">
         <Breadcrumb namespace={namespace} name={name} />
         {detail.status === 'error' ? (
-          <Notice tone="error" action={<Button size="sm" variant="secondary" onClick={detail.reload}>Retry</Button>}>
-            The engine contract couldn’t be loaded ({failure instanceof HttpError ? `HTTP ${failure.status}` : 'the gateway can’t be reached'}).
+          <Notice
+            tone="error"
+            action={
+              <Button size="sm" variant="secondary" onClick={detail.reload}>
+                Retry
+              </Button>
+            }
+          >
+            The engine contract couldn’t be loaded (
+            {failure instanceof HttpError
+              ? `HTTP ${failure.status}`
+              : 'the gateway can’t be reached'}
+            ).
           </Notice>
         ) : (
           <div aria-busy="true" aria-live="polite" className="engine-detail-loading">
@@ -188,19 +229,33 @@ export function EngineDetail() {
   const digestMismatch = Boolean(expectedDigest) && expectedDigest !== entry.digest;
   const conflict = failure instanceof HttpError && failure.status === 409;
   const refused = failure instanceof HttpError && !conflict ? failure : null;
-  const visibility = revision ? (revision.state === 'private' ? 'Private' : 'Public') : (entry.namespace === username ? 'Private' : 'Public');
+  const visibility = revision
+    ? revision.state === 'private'
+      ? 'Private'
+      : 'Public'
+    : entry.namespace === username
+      ? 'Private'
+      : 'Public';
 
-  const mode = entry.modes.find((item) => item.id === modeChoice) ?? entry.modes[0];
+  const mode = entry.modes.find(item => item.id === modeChoice) ?? entry.modes[0];
   const ceilings: PlanCeilings | null = pricing.data ?? null;
-  const planNames = ceilings?.plans.map((item) => item.plan) ?? [];
+  const planNames = ceilings?.plans.map(item => item.plan) ?? [];
   const userPlan = user?.plan && planNames.includes(user.plan) ? user.plan : '';
-  const plan = planNames.includes(planChoice) ? planChoice : userPlan || (planNames.includes('FREE') ? 'FREE' : planNames[0] ?? '');
-  const limits = ceilings?.plans.find((item) => item.plan === plan) ?? null;
-  const own = (registrations.data ?? []).filter((item) => item.namespace === entry.namespace && item.name === entry.name && item.version === entry.version);
+  const plan = planNames.includes(planChoice)
+    ? planChoice
+    : userPlan || (planNames.includes('FREE') ? 'FREE' : (planNames[0] ?? ''));
+  const limits = ceilings?.plans.find(item => item.plan === plan) ?? null;
+  const own = (registrations.data ?? []).filter(
+    item =>
+      item.namespace === entry.namespace &&
+      item.name === entry.name &&
+      item.version === entry.version
+  );
 
   const setTab = (id: string) => {
     const next = new URLSearchParams(params);
-    if (id === 'modes') next.delete('tab'); else next.set('tab', id);
+    if (id === 'modes') next.delete('tab');
+    else next.set('tab', id);
     setParams(next, { replace: true });
   };
 
@@ -212,12 +267,25 @@ export function EngineDetail() {
         <div className="engine-detail-identity">
           <span className="engine-detail-kicker">
             Engine revision
-            <Chip tone={digestMismatch ? 'warning' : visibility === 'Public' ? 'success' : 'plain'}>{digestMismatch ? 'Digest mismatch' : visibility}</Chip>
+            <Chip tone={digestMismatch ? 'warning' : visibility === 'Public' ? 'success' : 'plain'}>
+              {digestMismatch ? 'Digest mismatch' : visibility}
+            </Chip>
           </span>
-          <h1>{entry.namespace}/{entry.name}<span>@{entry.version}</span></h1>
+          <h1>
+            {entry.namespace}/{entry.name}
+            <span>@{entry.version}</span>
+          </h1>
           <div className="engine-detail-digest">
-            <button type="button" className={copyStatus() === 'copied' ? 'is-copied' : undefined} onClick={() => void copy(ref)}>
-              {copyStatus() === 'copied' ? 'Copied' : copyStatus() === 'failed' ? 'Failed' : 'Copy exact reference'}
+            <button
+              type="button"
+              className={copyStatus() === 'copied' ? 'is-copied' : undefined}
+              onClick={() => void copy(ref)}
+            >
+              {copyStatus() === 'copied'
+                ? 'Copied'
+                : copyStatus() === 'failed'
+                  ? 'Failed'
+                  : 'Copy exact reference'}
             </button>
           </div>
           {data.siblings.length > 1 && (
@@ -225,12 +293,16 @@ export function EngineDetail() {
               Revision
               <select
                 value={engineKey(entry)}
-                onChange={(event) => {
-                  const next = data.siblings.find((item) => engineKey(item) === event.target.value);
+                onChange={event => {
+                  const next = data.siblings.find(item => engineKey(item) === event.target.value);
                   if (next) void navigate(engineHref(next));
                 }}
               >
-                {data.siblings.map((item) => <option key={engineKey(item)} value={engineKey(item)}>{engineKey(item)}</option>)}
+                {data.siblings.map(item => (
+                  <option key={engineKey(item)} value={engineKey(item)}>
+                    {engineKey(item)}
+                  </option>
+                ))}
               </select>
             </label>
           )}
@@ -238,34 +310,60 @@ export function EngineDetail() {
         <div className="engine-detail-actions">
           {user ? (
             <>
-              <OrganizationPicker variant="primary" label="Run with this engine" destination={(org) => launchPath(org, { engine: ref })} />
-              <OrganizationPicker label="Add to a study" destination={(org) => newStudyPath(org, { engine: ref })} />
+              <OrganizationPicker
+                variant="primary"
+                label="Run with this engine"
+                destination={org => launchPath(org, { engine: ref })}
+              />
+              <OrganizationPicker
+                label="Add to a study"
+                destination={org => newStudyPath(org, { engine: ref })}
+              />
             </>
           ) : (
-            <Link className="engine-detail-login" to="/login">Log in to run</Link>
+            <Link className="engine-detail-login" to="/login">
+              Log in to run
+            </Link>
           )}
         </div>
       </header>
 
       {digestMismatch && (
         <Notice tone="error" title="This reference points to a different digest (409).">
-          The link asked for a digest that doesn’t match this revision’s contract, so the revision isn’t shown as verified. Copy the exact
-          reference above to use the correct one.
+          The link asked for a digest that doesn’t match this revision’s contract, so the revision
+          isn’t shown as verified. Copy the exact reference above to use the correct one.
         </Notice>
       )}
       {conflict && (
         <Notice tone="error" title="The gateway reports a conflict (409).">
-          The reference doesn’t match the revision it holds. Copy the exact reference above to use the correct one.
+          The reference doesn’t match the revision it holds. Copy the exact reference above to use
+          the correct one.
         </Notice>
       )}
       {refused && (
-        <Notice tone="error" action={<Button size="sm" variant="secondary" onClick={detail.reload}>Retry</Button>}>
-          The engine contract couldn’t be refreshed (HTTP {refused.status}). You’re seeing the last copy loaded.
+        <Notice
+          tone="error"
+          action={
+            <Button size="sm" variant="secondary" onClick={detail.reload}>
+              Retry
+            </Button>
+          }
+        >
+          The engine contract couldn’t be refreshed (HTTP {refused.status}). You’re seeing the last
+          copy loaded.
         </Notice>
       )}
       {detail.status === 'error' && !(failure instanceof HttpError) && (
-        <Notice tone="error" action={<Button size="sm" variant="secondary" onClick={detail.reload}>Retry</Button>}>
-          The engine contract couldn’t be refreshed: the gateway can’t be reached. You’re seeing the last copy loaded.
+        <Notice
+          tone="error"
+          action={
+            <Button size="sm" variant="secondary" onClick={detail.reload}>
+              Retry
+            </Button>
+          }
+        >
+          The engine contract couldn’t be refreshed: the gateway can’t be reached. You’re seeing the
+          last copy loaded.
         </Notice>
       )}
 
@@ -274,10 +372,17 @@ export function EngineDetail() {
         ariaLabel="Engine sections"
         value={tab}
         onChange={setTab}
-        items={TABS.map((item) => ({
+        items={TABS.map(item => ({
           id: item.id,
           label: item.label,
-          count: item.id === 'modes' ? entry.modes.length : item.id === 'regs' && user ? (registrations.status === 'ready' ? own.length : '…') : undefined,
+          count:
+            item.id === 'modes'
+              ? entry.modes.length
+              : item.id === 'regs' && user
+                ? registrations.status === 'ready'
+                  ? own.length
+                  : '…'
+                : undefined,
         }))}
       />
 
@@ -286,13 +391,13 @@ export function EngineDetail() {
           {entry.modes.length > 1 && tab !== 'regs' && (
             <FilterPills
               ariaLabel="Mode"
-              options={entry.modes.map((item) => ({ id: item.id, label: `Mode · ${item.id}` }))}
+              options={entry.modes.map(item => ({ id: item.id, label: `Mode · ${item.id}` }))}
               value={mode?.id ?? ''}
               onChange={setModeChoice}
             />
           )}
-          {tab === 'modes' && (mode
-            ? (
+          {tab === 'modes' &&
+            (mode ? (
               <ModePanel
                 mode={mode}
                 ceilings={ceilings}
@@ -304,8 +409,9 @@ export function EngineDetail() {
                 onPlan={setPlanChoice}
                 limits={limits}
               />
-            )
-            : <p className="engine-detail-muted">This revision advertises no modes.</p>)}
+            ) : (
+              <p className="engine-detail-muted">This revision advertises no modes.</p>
+            ))}
           {tab === 'caps' && <CapabilitiesPanel modes={entry.modes} signedIn={Boolean(user)} />}
           {tab === 'regs' && (
             <RegistrationsPanel
@@ -323,15 +429,34 @@ export function EngineDetail() {
           <section aria-label="Exact reference">
             <h2>Exact reference</h2>
             <dl>
-              <dt>Namespace</dt><dd className="is-mono">{entry.namespace}</dd>
-              <dt>Name</dt><dd className="is-mono">{entry.name}</dd>
-              <dt>Version</dt><dd>{entry.version}</dd>
-              <dt>Visibility</dt><dd><Chip tone={visibility === 'Public' ? 'success' : 'plain'}>{visibility}</Chip></dd>
+              <dt>Namespace</dt>
+              <dd className="is-mono">{entry.namespace}</dd>
+              <dt>Name</dt>
+              <dd className="is-mono">{entry.name}</dd>
+              <dt>Version</dt>
+              <dd>{entry.version}</dd>
+              <dt>Visibility</dt>
+              <dd>
+                <Chip tone={visibility === 'Public' ? 'success' : 'plain'}>{visibility}</Chip>
+              </dd>
               <dt>Modes</dt>
-              <dd>{entry.modes.length} · {entry.modes.map((item) => `${item.id} (${optionFacts(item).length} option${optionFacts(item).length === 1 ? '' : 's'})`).join(', ') || 'none'}</dd>
+              <dd>
+                {entry.modes.length} ·{' '}
+                {entry.modes
+                  .map(
+                    item =>
+                      `${item.id} (${optionFacts(item).length} option${optionFacts(item).length === 1 ? '' : 's'})`
+                  )
+                  .join(', ') || 'none'}
+              </dd>
             </dl>
-            <Button size="sm" variant="secondary" onClick={() => downloadManifest(entry, revision)}>Download manifest</Button>
-            <small>Everything in the engine’s manifest is shown on this page; the download is for tools that need the file.</small>
+            <Button size="sm" variant="secondary" onClick={() => downloadManifest(entry, revision)}>
+              Download manifest
+            </Button>
+            <small>
+              Everything in the engine’s manifest is shown on this page; the download is for tools
+              that need the file.
+            </small>
           </section>
           <section aria-label="Your plan" className="engine-detail-plan">
             <h2>Your plan</h2>
@@ -346,21 +471,49 @@ export function EngineDetail() {
 function Breadcrumb({ namespace, name }: { namespace: string; name: string }) {
   return (
     <nav aria-label="Breadcrumb" className="engine-detail-crumbs">
-      <Link to="/engines">Engines</Link><span aria-hidden="true">/</span>
-      <span className="is-mono">{namespace}</span><span aria-hidden="true">/</span>
-      <span className="is-mono is-current" aria-current="page">{name}</span>
+      <Link to="/engines">Engines</Link>
+      <span aria-hidden="true">/</span>
+      <span className="is-mono">{namespace}</span>
+      <span aria-hidden="true">/</span>
+      <span className="is-mono is-current" aria-current="page">
+        {name}
+      </span>
     </nav>
   );
 }
 
-function PlanNote({ ceilings, plan, signedIn }: { ceilings: PlanCeilings | null; plan: string; signedIn: boolean }) {
-  const source = ceilings ? `Figures from pricing ${ceilings.version ?? 'as served by the gateway'}.` : 'The pricing document couldn’t be read.';
-  const row = ceilings?.plans.find((item) => item.plan === (signedIn ? plan : 'FREE'));
-  if (!ceilings || !row) return <p>{signedIn ? `${plan}: ceilings unavailable.` : 'Ceilings depend on your plan.'} {source}</p>;
-  const timeout = row.maxRunMinutes === null ? 'no plan limit' : `${row.maxRunMinutes.toLocaleString('en-US')} min`;
-  return signedIn
-    ? <p>{row.plan}: max {timeout} per run. {source}</p>
-    : <p>Ceilings depend on your plan. {row.plan} allows {timeout} per run. {source}</p>;
+function PlanNote({
+  ceilings,
+  plan,
+  signedIn,
+}: {
+  ceilings: PlanCeilings | null;
+  plan: string;
+  signedIn: boolean;
+}) {
+  const source = ceilings
+    ? `Figures from pricing ${ceilings.version ?? 'as served by the gateway'}.`
+    : 'The pricing document couldn’t be read.';
+  const row = ceilings?.plans.find(item => item.plan === (signedIn ? plan : 'FREE'));
+  if (!ceilings || !row)
+    return (
+      <p>
+        {signedIn ? `${plan}: ceilings unavailable.` : 'Ceilings depend on your plan.'} {source}
+      </p>
+    );
+  const timeout =
+    row.maxRunMinutes === null
+      ? 'no plan limit'
+      : `${row.maxRunMinutes.toLocaleString('en-US')} min`;
+  return signedIn ? (
+    <p>
+      {row.plan}: max {timeout} per run. {source}
+    </p>
+  ) : (
+    <p>
+      Ceilings depend on your plan. {row.plan} allows {timeout} per run. {source}
+    </p>
+  );
 }
 
 interface ModePanelProps {
@@ -375,7 +528,17 @@ interface ModePanelProps {
   limits: PlanLimits | null;
 }
 
-function ModePanel({ mode, ceilings, loading, failed, plan, signedIn, ownPlan, onPlan, limits }: ModePanelProps) {
+function ModePanel({
+  mode,
+  ceilings,
+  loading,
+  failed,
+  plan,
+  signedIn,
+  ownPlan,
+  onPlan,
+  limits,
+}: ModePanelProps) {
   const facts = optionFacts(mode);
   const limitEntries = Object.entries(mode.limits ?? {});
   const termination: string[] = mode.guarantees?.termination ?? [];
@@ -383,21 +546,39 @@ function ModePanel({ mode, ceilings, loading, failed, plan, signedIn, ownPlan, o
     <>
       <div className="engine-detail-card">
         <div className="engine-detail-card-head">
-          <span>Mode · <span className="is-mono">{mode.id}</span></span>
+          <span>
+            Mode · <span className="is-mono">{mode.id}</span>
+          </span>
           {ceilings && ceilings.plans.length > 0 ? (
             <label>
               {signedIn && plan === ownPlan ? 'Your plan' : 'Preview plan'}
-              <select value={plan} onChange={(event) => onPlan(event.target.value)} aria-label="Plan to preview">
-                {ceilings.plans.map((item) => <option key={item.plan} value={item.plan}>{item.plan}</option>)}
+              <select
+                value={plan}
+                onChange={event => onPlan(event.target.value)}
+                aria-label="Plan to preview"
+              >
+                {ceilings.plans.map(item => (
+                  <option key={item.plan} value={item.plan}>
+                    {item.plan}
+                  </option>
+                ))}
               </select>
               <small>(pricing {ceilings.version ?? 'as served'})</small>
             </label>
           ) : (
-            <small>{loading ? 'Reading the pricing document…' : failed ? 'The pricing document couldn’t be read, so ceilings are not shown.' : 'No plans in the pricing document.'}</small>
+            <small>
+              {loading
+                ? 'Reading the pricing document…'
+                : failed
+                  ? 'The pricing document couldn’t be read, so ceilings are not shown.'
+                  : 'No plans in the pricing document.'}
+            </small>
           )}
         </div>
         {facts.length === 0 ? (
-          <p className="engine-detail-muted engine-detail-pad">This mode takes no caller options.</p>
+          <p className="engine-detail-muted engine-detail-pad">
+            This mode takes no caller options.
+          </p>
         ) : (
           <DataTable label={`Options of mode ${mode.id}`} minWidth={640}>
             <thead>
@@ -405,23 +586,35 @@ function ModePanel({ mode, ceilings, loading, failed, plan, signedIn, ownPlan, o
                 <th scope="col">Option</th>
                 <th scope="col">Unit</th>
                 <th scope="col">Default</th>
-                <th scope="col">{signedIn && plan === ownPlan ? 'Your plan’s ceiling' : 'Plan ceiling'}</th>
+                <th scope="col">
+                  {signedIn && plan === ownPlan ? 'Your plan’s ceiling' : 'Plan ceiling'}
+                </th>
                 <th scope="col">With the default</th>
               </tr>
             </thead>
             <tbody>
-              {facts.map((fact) => {
+              {facts.map(fact => {
                 const preview = previewOption(fact, limits);
                 return (
                   <tr key={fact.name}>
-                    <td className="is-mono">{preview.name}{preview.required && <small className="engine-detail-required">required</small>}</td>
+                    <td className="is-mono">
+                      {preview.name}
+                      {preview.required && (
+                        <small className="engine-detail-required">required</small>
+                      )}
+                    </td>
                     <td>{preview.unit}</td>
                     <td>{preview.default}</td>
                     <td>{preview.ceiling}</td>
                     <td>
-                      {preview.outcome.kind === 'clamped'
-                        ? <span className="engine-detail-clamp"><AlertTriangle aria-hidden="true" />OPTION_CLAMPED → {preview.outcome.applied}</span>
-                        : <span className="engine-detail-fit">{preview.outcome.text}</span>}
+                      {preview.outcome.kind === 'clamped' ? (
+                        <span className="engine-detail-clamp">
+                          <AlertTriangle aria-hidden="true" />
+                          OPTION_CLAMPED → {preview.outcome.applied}
+                        </span>
+                      ) : (
+                        <span className="engine-detail-fit">{preview.outcome.text}</span>
+                      )}
                     </td>
                   </tr>
                 );
@@ -431,22 +624,45 @@ function ModePanel({ mode, ceilings, loading, failed, plan, signedIn, ownPlan, o
         )}
       </div>
       <p className="engine-detail-muted">
-        Time and effort options (<code>time_budget_ms</code>, <code>iterations</code>, <code>max_evaluations</code>) are reduced to the plan’s
-        ceiling and the run carries an OPTION_CLAMPED warning; it isn’t an error. Every other option applies as requested.
+        Time and effort options (<code>time_budget_ms</code>, <code>iterations</code>,{' '}
+        <code>max_evaluations</code>) are reduced to the plan’s ceiling and the run carries an
+        OPTION_CLAMPED warning; it isn’t an error. Every other option applies as requested.
       </p>
 
       <section className="engine-detail-card engine-detail-pad" aria-label="Mode contract">
         <h2>Mode contract</h2>
         <dl className="engine-detail-facts">
-          <div><dt>Profile</dt><dd className="is-mono">{mode.profile}</dd><small>must match exactly</small></div>
-          <div><dt>Output IR</dt><dd className="is-mono">{mode.ir?.apiVersion} · {mode.ir?.kind}</dd><small>must match exactly</small></div>
-          <div><dt>Algorithm</dt><dd>{mode.algorithm}</dd><small>does not imply a guarantee</small></div>
-          <div><dt>Guarantee</dt><dd>{mode.guarantees?.exact ? 'Exact mode' : 'Heuristic mode'}</dd><small>{termination.join(' · ') || 'No termination declared'}</small></div>
+          <div>
+            <dt>Profile</dt>
+            <dd className="is-mono">{mode.profile}</dd>
+            <small>must match exactly</small>
+          </div>
+          <div>
+            <dt>Output IR</dt>
+            <dd className="is-mono">
+              {mode.ir?.apiVersion} · {mode.ir?.kind}
+            </dd>
+            <small>must match exactly</small>
+          </div>
+          <div>
+            <dt>Algorithm</dt>
+            <dd>{mode.algorithm}</dd>
+            <small>does not imply a guarantee</small>
+          </div>
+          <div>
+            <dt>Guarantee</dt>
+            <dd>{mode.guarantees?.exact ? 'Exact mode' : 'Heuristic mode'}</dd>
+            <small>{termination.join(' · ') || 'No termination declared'}</small>
+          </div>
         </dl>
         {limitEntries.length > 0 && (
           <div className="engine-detail-limits">
             <span>Declared ceilings</span>
-            {limitEntries.map(([limit, value]) => <Chip key={limit} mono>{limit}: {value.toLocaleString('en-US')}</Chip>)}
+            {limitEntries.map(([limit, value]) => (
+              <Chip key={limit} mono>
+                {limit}: {value.toLocaleString('en-US')}
+              </Chip>
+            ))}
           </div>
         )}
       </section>
@@ -454,15 +670,21 @@ function ModePanel({ mode, ceilings, loading, failed, plan, signedIn, ownPlan, o
       <section className="engine-detail-card engine-detail-pad" aria-label="How a run can end">
         <h2>How a run can end</h2>
         <div className="engine-detail-ends">
-          {TERMINATIONS.map((item) => (
-            <div key={item.id} className={termination.includes(item.id) ? 'is-declared' : undefined}>
+          {TERMINATIONS.map(item => (
+            <div
+              key={item.id}
+              className={termination.includes(item.id) ? 'is-declared' : undefined}
+            >
               <span className="is-mono">{item.id}</span>
               <p>{item.text}</p>
               {termination.includes(item.id) && <small>Declared by this mode</small>}
             </div>
           ))}
         </div>
-        <small className="engine-detail-muted">Which of these this revision can guarantee is part of its contract; the mode declares {termination.length ? termination.join(', ') : 'none'}.</small>
+        <small className="engine-detail-muted">
+          Which of these this revision can guarantee is part of its contract; the mode declares{' '}
+          {termination.length ? termination.join(', ') : 'none'}.
+        </small>
       </section>
     </>
   );
@@ -485,14 +707,22 @@ function CapabilitiesPanel({ modes, signedIn }: { modes: EngineMode[]; signedIn:
         <thead>
           <tr>
             <th scope="col">Dimension</th>
-            {modes.map((mode) => <th key={mode.id} scope="col">Mode {mode.id}</th>)}
+            {modes.map(mode => (
+              <th key={mode.id} scope="col">
+                Mode {mode.id}
+              </th>
+            ))}
           </tr>
         </thead>
         <tbody>
-          {DIMENSIONS.map((dimension) => (
+          {DIMENSIONS.map(dimension => (
             <tr key={dimension.id}>
               <td>{dimension.label}</td>
-              {modes.map((mode) => <td key={mode.id}><SelectorChip selector={mode.capabilities?.[dimension.id]} /></td>)}
+              {modes.map(mode => (
+                <td key={mode.id}>
+                  <SelectorChip selector={mode.capabilities?.[dimension.id]} />
+                </td>
+              ))}
             </tr>
           ))}
         </tbody>
@@ -502,10 +732,15 @@ function CapabilitiesPanel({ modes, signedIn }: { modes: EngineMode[]; signedIn:
           ? 'Compatibility with your last validated package is checked when you launch a run.'
           : 'Validate a package in the Workbench, then log in to check it against this mode.'}
       </Notice>
-      <small className="engine-detail-muted"><code>none</code> rejects the dimension. <code>only</code> names exact values. <code>all</code> is valid only when the Profile closes the vocabulary.</small>
       <small className="engine-detail-muted">
-        Feature values: <code>scalar</code> is a single number; <code>interval</code> is a range, and includes open ranges (an end <code>null</code>, such as ≤ 200 or ≥ 100).
-        A package with a range runs only on a mode that declares <code>interval</code>; the others refuse it with <code>unsupported_capability_value</code>.
+        <code>none</code> rejects the dimension. <code>only</code> names exact values.{' '}
+        <code>all</code> is valid only when the Profile closes the vocabulary.
+      </small>
+      <small className="engine-detail-muted">
+        Feature values: <code>scalar</code> is a single number; <code>interval</code> is a range,
+        and includes open ranges (an end <code>null</code>, such as ≤ 200 or ≥ 100). A package with
+        a range runs only on a mode that declares <code>interval</code>; the others refuse it with{' '}
+        <code>unsupported_capability_value</code>.
       </small>
     </>
   );
@@ -520,29 +755,47 @@ interface RegistrationsPanelProps {
   onRetry: () => void;
 }
 
-function RegistrationsPanel({ signedIn, status, own, revision, builtin, onRetry }: RegistrationsPanelProps) {
+function RegistrationsPanel({
+  signedIn,
+  status,
+  own,
+  revision,
+  builtin,
+  onRetry,
+}: RegistrationsPanelProps) {
   if (!signedIn) {
     return (
       <div className="engine-detail-card engine-detail-pad">
-        No deployment registrations are listed for this revision. Registrations and their conformance reports appear here for federated
-        engines you can access. <Link to="/login">Log in</Link> to see yours.
+        No deployment registrations are listed for this revision. Registrations and their
+        conformance reports appear here for federated engines you can access.{' '}
+        <Link to="/login">Log in</Link> to see yours.
       </div>
     );
   }
   if (status === 'loading') return <Skeleton variant="panel" />;
   if (status === 'error') {
     return (
-      <Notice tone="error" action={<Button size="sm" variant="secondary" onClick={onRetry}>Retry</Button>}>
+      <Notice
+        tone="error"
+        action={
+          <Button size="sm" variant="secondary" onClick={onRetry}>
+            Retry
+          </Button>
+        }
+      >
         Your registrations couldn’t be loaded.
       </Notice>
     );
   }
-  const anyActive = own.some((item) => item.active);
+  const anyActive = own.some(item => item.active);
   const needsRegistration = own.length > 0 ? !anyActive : revision?.state === 'private';
   return (
     <>
       {needsRegistration && (
-        <Notice tone="warning">No active registration. This revision can’t be executed until a deployment registration is active.</Notice>
+        <Notice tone="warning">
+          No active registration. This revision can’t be executed until a deployment registration is
+          active.
+        </Notice>
       )}
       {own.length === 0 && (
         <div className="engine-detail-card engine-detail-pad">
@@ -551,8 +804,12 @@ function RegistrationsPanel({ signedIn, status, own, revision, builtin, onRetry 
             : 'No deployment registrations are listed for this revision.'}
         </div>
       )}
-      {own.map((registration) => <RegistrationItem key={bimResourceKey(registration)} registration={registration} />)}
-      <Link to="/app/engines/registrations" className="engine-detail-link">Manage your registrations</Link>
+      {own.map(registration => (
+        <RegistrationItem key={bimResourceKey(registration)} registration={registration} />
+      ))}
+      <Link to="/app/engines/registrations" className="engine-detail-link">
+        Manage your registrations
+      </Link>
     </>
   );
 }
@@ -561,24 +818,54 @@ function RegistrationItem({ registration }: { registration: EngineRegistrationRe
   const [open, setOpen] = useState(false);
   const report = useResource<EngineRegistrationReport | null>(
     `report:${bimResourceKey(registration)}:${open}`,
-    async () => (open ? apiClient.getEngineRegistrationReport(registration) : null),
+    async () => (open ? apiClient.getEngineRegistrationReport(registration) : null)
   );
   return (
-    <section className="engine-detail-card engine-detail-pad" aria-label={`Registration ${registration.name}`}>
+    <section
+      className="engine-detail-card engine-detail-pad"
+      aria-label={`Registration ${registration.name}`}
+    >
       <div className="engine-detail-registration">
         <div>
-          <strong className="is-mono">{registration.namespace}/{registration.name}@{registration.version}</strong>
+          <strong className="is-mono">
+            {registration.namespace}/{registration.name}@{registration.version}
+          </strong>
         </div>
-        <Chip tone={registration.status === 'published' ? 'success' : registration.status === 'rejected' ? 'warning' : 'plain'}>{registration.status.replace('_', ' ')}</Chip>
-        <Chip tone={registration.active ? 'success' : 'plain'}>{registration.active ? 'active for you' : 'inactive for you'}</Chip>
-        <Button size="sm" variant="secondary" aria-expanded={open} onClick={() => setOpen((value) => !value)}>
+        <Chip
+          tone={
+            registration.status === 'published'
+              ? 'success'
+              : registration.status === 'rejected'
+                ? 'warning'
+                : 'plain'
+          }
+        >
+          {registration.status.replace('_', ' ')}
+        </Chip>
+        <Chip tone={registration.active ? 'success' : 'plain'}>
+          {registration.active ? 'active for you' : 'inactive for you'}
+        </Chip>
+        <Button
+          size="sm"
+          variant="secondary"
+          aria-expanded={open}
+          onClick={() => setOpen(value => !value)}
+        >
           {open ? 'Hide conformance report' : 'Show conformance report'}
         </Button>
       </div>
       {open && report.status === 'loading' && <Skeleton variant="tile" />}
       {open && report.status === 'error' && (
-        <Notice tone="error" action={<Button size="sm" variant="secondary" onClick={report.reload}>Retry</Button>}>
-          {report.error instanceof HttpError && (report.error.status === 404 || report.error.status === 403)
+        <Notice
+          tone="error"
+          action={
+            <Button size="sm" variant="secondary" onClick={report.reload}>
+              Retry
+            </Button>
+          }
+        >
+          {report.error instanceof HttpError &&
+          (report.error.status === 404 || report.error.status === 403)
             ? 'No conformance report is visible for this registration.'
             : `The conformance report couldn’t be loaded (${report.error instanceof HttpError ? `HTTP ${report.error.status}` : 'the gateway can’t be reached'}).`}
         </Notice>

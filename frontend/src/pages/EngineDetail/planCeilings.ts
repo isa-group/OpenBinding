@@ -32,11 +32,17 @@ function numeric(value: unknown): number | null {
  * A plan's own value for a limit, or the document's default when the plan does not override it.
  * An unlimited plan (`.inf`, which the catalog serves as `null`) has no ceiling to preview: `null`, not the default.
  */
-function limitOf(pricing: Record<string, unknown>, plan: Record<string, unknown>, id: string): number | null {
+function limitOf(
+  pricing: Record<string, unknown>,
+  plan: Record<string, unknown>,
+  id: string
+): number | null {
   const ownLimits: Record<string, unknown> = isRecord(plan.usageLimits) ? plan.usageLimits : {};
   const own = ownLimits[id];
   if (isRecord(own) && 'value' in own) return numeric(own.value);
-  const sharedLimits: Record<string, unknown> = isRecord(pricing.usageLimits) ? pricing.usageLimits : {};
+  const sharedLimits: Record<string, unknown> = isRecord(pricing.usageLimits)
+    ? pricing.usageLimits
+    : {};
   const shared = sharedLimits[id];
   return isRecord(shared) ? numeric(shared.defaultValue) : null;
 }
@@ -47,10 +53,12 @@ export function planCeilings(pricing: unknown): PlanCeilings {
   const plans = pricing.plans;
   return {
     version: typeof pricing.version === 'string' ? pricing.version : null,
-    plans: Object.entries(plans).filter((entry): entry is [string, Record<string, unknown>] => isRecord(entry[1])).map(([plan, value]) => ({
-      plan,
-      maxRunMinutes: limitOf(pricing, value, LIMIT.maxRunMinutes),
-    })),
+    plans: Object.entries(plans)
+      .filter((entry): entry is [string, Record<string, unknown>] => isRecord(entry[1]))
+      .map(([plan, value]) => ({
+        plan,
+        maxRunMinutes: limitOf(pricing, value, LIMIT.maxRunMinutes),
+      })),
   };
 }
 
@@ -73,7 +81,10 @@ export interface OptionPreview {
   /** The plan's ceiling in words, or why there is none. */
   ceiling: string;
   /** What the default becomes under this plan. */
-  outcome: { kind: 'clamped'; applied: string } | { kind: 'fits'; text: string } | { kind: 'none'; text: string };
+  outcome:
+    | { kind: 'clamped'; applied: string }
+    | { kind: 'fits'; text: string }
+    | { kind: 'none'; text: string };
 }
 
 function whole(value: number): string {
@@ -86,22 +97,45 @@ export function previewOption(fact: OptionFact, limits: PlanLimits | null): Opti
   const base = {
     name: fact.name,
     // The mode's own schema names the unit; when it does not, the gateway's names say it (`_ms`, iterations).
-    unit: fact.unit ?? (kind === 'time' ? 'ms' : kind === 'effort' ? (fact.name === 'iterations' ? 'iteration' : 'evaluation') : '—'),
+    unit:
+      fact.unit ??
+      (kind === 'time'
+        ? 'ms'
+        : kind === 'effort'
+          ? fact.name === 'iterations'
+            ? 'iteration'
+            : 'evaluation'
+          : '—'),
     default: fact.default !== null ? formatDefault(fact.default) : '—',
     required: fact.required,
   };
   if (kind === 'unmapped-by-plan') {
-    return { ...base, ceiling: 'Not reduced by plan', outcome: { kind: 'none', text: 'Applies as requested' } };
+    return {
+      ...base,
+      ceiling: 'Not reduced by plan',
+      outcome: { kind: 'none', text: 'Applies as requested' },
+    };
   }
   if (kind === 'effort') {
-    return { ...base, ceiling: 'Set by the deployment', outcome: { kind: 'none', text: 'Not reduced by plan' } };
+    return {
+      ...base,
+      ceiling: 'Set by the deployment',
+      outcome: { kind: 'none', text: 'Not reduced by plan' },
+    };
   }
-  const ceiling = limits === null || limits.maxRunMinutes === null ? null : limits.maxRunMinutes * 60_000;
+  const ceiling =
+    limits === null || limits.maxRunMinutes === null ? null : limits.maxRunMinutes * 60_000;
   if (ceiling === null) {
-    return { ...base, ceiling: 'Not mapped', outcome: { kind: 'none', text: 'The pricing document has no ceiling for it' } };
+    return {
+      ...base,
+      ceiling: 'Not mapped',
+      outcome: { kind: 'none', text: 'The pricing document has no ceiling for it' },
+    };
   }
   const words = `${whole(ceiling)} ms (${whole(ceiling / 60_000)} min)`;
-  if (typeof fact.default !== 'number') return { ...base, ceiling: words, outcome: { kind: 'none', text: 'No default to compare' } };
-  if (fact.default > ceiling) return { ...base, ceiling: words, outcome: { kind: 'clamped', applied: whole(ceiling) } };
+  if (typeof fact.default !== 'number')
+    return { ...base, ceiling: words, outcome: { kind: 'none', text: 'No default to compare' } };
+  if (fact.default > ceiling)
+    return { ...base, ceiling: words, outcome: { kind: 'clamped', applied: whole(ceiling) } };
   return { ...base, ceiling: words, outcome: { kind: 'fits', text: 'Within the ceiling' } };
 }

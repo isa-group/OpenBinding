@@ -1,7 +1,16 @@
 import changelogJson from '../../content/changelog.json';
 import {
-  contributionTracks, fundingEntities, relatedProjects, researchCorpus, researchFacts, team,
-  type ContributionTrack, type FundingEntity, type RelatedProject, type ResearchPaper, type TeamMember,
+  contributionTracks,
+  fundingEntities,
+  relatedProjects,
+  researchCorpus,
+  researchFacts,
+  team,
+  type ContributionTrack,
+  type FundingEntity,
+  type RelatedProject,
+  type ResearchPaper,
+  type TeamMember,
 } from '../../content/platform';
 
 export interface Release {
@@ -46,7 +55,7 @@ export const aboutData: AboutData = {
 /** `?tab=` as the footer and header write it; `contributions` is accepted as the long form of `contrib`. */
 export function parseAboutTab(value: string | null): AboutTab {
   if (value === 'contributions') return 'contrib';
-  return ABOUT_TABS.find((tab) => tab.id === value)?.id ?? 'team';
+  return ABOUT_TABS.find(tab => tab.id === value)?.id ?? 'team';
 }
 
 const STREAM_LABELS: Readonly<Record<string, string>> = {
@@ -66,10 +75,13 @@ export interface ChangelogEntry extends Release {
 const isDated = (date: string) => /^\d{4}-\d{2}-\d{2}/.test(date);
 
 /** Every release of the chosen stream (or of all of them): unreleased first, then newest first. */
-export function changelogEntries(changelog: AboutData['changelog'], stream: string): ChangelogEntry[] {
+export function changelogEntries(
+  changelog: AboutData['changelog'],
+  stream: string
+): ChangelogEntry[] {
   const entries = Object.entries(changelog)
     .filter(([name]) => stream === 'all' || name === stream)
-    .flatMap(([name, releases]) => releases.map((release) => ({ ...release, stream: name })));
+    .flatMap(([name, releases]) => releases.map(release => ({ ...release, stream: name })));
   return entries.sort((a, b) => {
     if (isDated(a.date) !== isDated(b.date)) return isDated(a.date) ? 1 : -1;
     return b.date.localeCompare(a.date);
@@ -77,7 +89,10 @@ export function changelogEntries(changelog: AboutData['changelog'], stream: stri
 }
 
 const LINK_LABELS: Readonly<Record<string, string>> = {
-  orcid: 'ORCID', github: 'GitHub', scholar: 'Google Scholar', profile: 'Research profile',
+  orcid: 'ORCID',
+  github: 'GitHub',
+  scholar: 'Google Scholar',
+  profile: 'Research profile',
 };
 
 export function linkLabel(name: string): string {

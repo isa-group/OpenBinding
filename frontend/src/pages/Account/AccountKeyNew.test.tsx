@@ -9,20 +9,37 @@ import { AccountKeyNew } from './AccountKeyNew';
 const api = vi.hoisted(() => ({ getEngines: vi.fn(), createApiKey: vi.fn() }));
 const platform = vi.hoisted(() => ({ organizations: vi.fn() }));
 
-vi.mock('../../api/client', async () => ({ ...await vi.importActual<typeof import('../../api/client')>('../../api/client'), apiClient: api }));
-vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'), platformApi: platform }));
+vi.mock('../../api/client', async () => ({
+  ...(await vi.importActual<typeof import('../../api/client')>('../../api/client')),
+  apiClient: api,
+}));
+vi.mock('../../api/platform', async () => ({
+  ...(await vi.importActual<typeof import('../../api/platform')>('../../api/platform')),
+  platformApi: platform,
+}));
 
 const DIGEST = `sha256-${'b2c3d4e5'.repeat(8)}`;
 const ref = { namespace: 'bim.builtin', name: 'random-search', version: '1.0.0', digest: DIGEST };
 const engine: EngineCatalogEntry = { ...ref, id: 'bim.builtin/random-search', ref, modes: [] };
 
 const person = (role: 'user' | 'admin' = 'user'): UserProfile => ({
-  id: 'user-id', username: 'iker', email: 'iker@example.test', role, is_active: true, plan: 'PRO', created_at: '2026-01-10T00:00:00Z',
+  id: 'user-id',
+  username: 'iker',
+  email: 'iker@example.test',
+  role,
+  is_active: true,
+  plan: 'PRO',
+  created_at: '2026-01-10T00:00:00Z',
 });
 
 const created: CreatedApiKey = {
-  id: 'k3', name: 'ci-nightly', prefix: 'obk_demo0003', created_at: '2026-10-09T10:00:00Z', permissions: ['jobs:read'],
-  engine_access: { all: true, engines: [] }, secret: 'obk_demo0003_ONLY-SHOWN-ONCE',
+  id: 'k3',
+  name: 'ci-nightly',
+  prefix: 'obk_demo0003',
+  created_at: '2026-10-09T10:00:00Z',
+  permissions: ['jobs:read'],
+  engine_access: { all: true, engines: [] },
+  secret: 'obk_demo0003_ONLY-SHOWN-ONCE',
 };
 
 function renderWizard(user: UserProfile = person()) {
@@ -30,10 +47,20 @@ function renderWizard(user: UserProfile = person()) {
   const onCreated = vi.fn();
   render(
     <MemoryRouter initialEntries={['/app/account/keys?create=key']}>
-      <AuthContext.Provider value={{ user, loading: false, signIn: vi.fn(), register: vi.fn(), signOut: vi.fn(), refresh: vi.fn(), isAdmin: user.role === 'admin' }}>
+      <AuthContext.Provider
+        value={{
+          user,
+          loading: false,
+          signIn: vi.fn(),
+          register: vi.fn(),
+          signOut: vi.fn(),
+          refresh: vi.fn(),
+          isAdmin: user.role === 'admin',
+        }}
+      >
         <AccountKeyNew onClose={onClose} onCreated={onCreated} />
       </AuthContext.Provider>
-    </MemoryRouter>,
+    </MemoryRouter>
   );
   return { onClose, onCreated };
 }
@@ -54,7 +81,9 @@ describe('New API key', () => {
     vi.clearAllMocks();
     api.getEngines.mockResolvedValue([engine]);
     api.createApiKey.mockResolvedValue(created);
-    platform.organizations.mockResolvedValue([{ id: 'org-1', slug: 'isa-demo', name: 'ISA Demo Group' }]);
+    platform.organizations.mockResolvedValue([
+      { id: 'org-1', slug: 'isa-demo', name: 'ISA Demo Group' },
+    ]);
   });
 
   it('starts with the name and expiry, in a five-step wizard inside the dialog New API key', async () => {
@@ -105,8 +134,12 @@ describe('New API key', () => {
       expect(permission('jobs:read')).toBeEnabled();
       expect(screen.getAllByText('ADMIN')).toHaveLength(3);
       expect(screen.getAllByText('Only global administrators can grant this.')).toHaveLength(3);
-      expect(screen.getByText(/Permissions marked ADMIN are only granted to global administrators/)).toBeInTheDocument();
-      expect(permission('engines:moderate')).toHaveAccessibleDescription('Only global administrators can grant this.');
+      expect(
+        screen.getByText(/Permissions marked ADMIN are only granted to global administrators/)
+      ).toBeInTheDocument();
+      expect(permission('engines:moderate')).toHaveAccessibleDescription(
+        'Only global administrators can grant this.'
+      );
     });
 
     it('unlocks them for a global administrator', async () => {
@@ -114,7 +147,9 @@ describe('New API key', () => {
       await nameIt();
 
       expect(permission('engines:moderate')).toBeEnabled();
-      expect(screen.queryByText(/Permissions marked ADMIN are only granted/)).not.toBeInTheDocument();
+      expect(
+        screen.queryByText(/Permissions marked ADMIN are only granted/)
+      ).not.toBeInTheDocument();
     });
 
     it('fills in a preset and clears it', async () => {
@@ -122,7 +157,8 @@ describe('New API key', () => {
       await nameIt();
 
       fireEvent.click(screen.getByRole('button', { name: 'Preset: read results' }));
-      for (const id of ['jobs:read', 'studies:read', 'problems:read', 'compositions:read']) expect(permission(id)).toBeChecked();
+      for (const id of ['jobs:read', 'studies:read', 'problems:read', 'compositions:read'])
+        expect(permission(id)).toBeChecked();
       expect(permission('engines:execute')).not.toBeChecked();
 
       fireEvent.click(screen.getByRole('button', { name: 'Preset: run an engine' }));
@@ -130,7 +166,9 @@ describe('New API key', () => {
       expect(permission('studies:read')).not.toBeChecked();
 
       fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
-      expect(screen.getAllByRole('checkbox').some((box) => (box as HTMLInputElement).checked)).toBe(false);
+      expect(screen.getAllByRole('checkbox').some(box => (box as HTMLInputElement).checked)).toBe(
+        false
+      );
     });
 
     it('needs at least one', async () => {
@@ -163,10 +201,14 @@ describe('New API key', () => {
       fireEvent.click(screen.getByRole('radio', { name: /Only these engines/ }));
       next();
 
-      expect(await screen.findByRole('alert')).toHaveTextContent('422 · The permissions you chose need all engines or at least one exact engine.');
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        '422 · The permissions you chose need all engines or at least one exact engine.'
+      );
       expect(screen.getByRole('heading', { name: 'Engine access' })).toBeInTheDocument();
 
-      const pick = await screen.findByRole('checkbox', { name: /bim\.builtin\/random-search@1\.0\.0/ });
+      const pick = await screen.findByRole('checkbox', {
+        name: /bim\.builtin\/random-search@1\.0\.0/,
+      });
       expect(document.body.textContent).not.toMatch(/sha256-|\b[0-9a-f]{12}/);
       fireEvent.click(pick);
       next();
@@ -184,7 +226,9 @@ describe('New API key', () => {
       api.getEngines.mockResolvedValue([]);
       await toEngines('account:read');
       fireEvent.click(screen.getByRole('radio', { name: /Only these engines/ }));
-      expect(await screen.findByText('No visible engines are available to select.')).toBeInTheDocument();
+      expect(
+        await screen.findByText('No visible engines are available to select.')
+      ).toBeInTheDocument();
     });
   });
 
@@ -204,9 +248,17 @@ describe('New API key', () => {
 
       const methods = within(screen.getByRole('group', { name: 'HTTP methods' }));
       expect(methods.getAllByRole('button')).toHaveLength(5);
-      expect(await within(screen.getByRole('group', { name: 'Organizations' })).findByRole('button', { name: 'isa-demo' })).toBeInTheDocument();
+      expect(
+        await within(screen.getByRole('group', { name: 'Organizations' })).findByRole('button', {
+          name: 'isa-demo',
+        })
+      ).toBeInTheDocument();
       expect(screen.queryByRole('group', { name: 'Projects' })).not.toBeInTheDocument();
-      expect(within(screen.getByRole('group', { name: 'Resource kinds' })).getByRole('button', { name: 'studies' })).toHaveAttribute('aria-pressed', 'false');
+      expect(
+        within(screen.getByRole('group', { name: 'Resource kinds' })).getByRole('button', {
+          name: 'studies',
+        })
+      ).toHaveAttribute('aria-pressed', 'false');
     });
 
     it('lets an exact identifier that is not listed be added, with Enter or the button', async () => {
@@ -217,8 +269,14 @@ describe('New API key', () => {
       fireEvent.change(field, { target: { value: 'latency-study, other-case' } });
       fireEvent.keyDown(field, { key: 'Enter' });
 
-      expect(slugs.getByRole('button', { name: 'latency-study' })).toHaveAttribute('aria-pressed', 'true');
-      expect(slugs.getByRole('button', { name: 'other-case' })).toHaveAttribute('aria-pressed', 'true');
+      expect(slugs.getByRole('button', { name: 'latency-study' })).toHaveAttribute(
+        'aria-pressed',
+        'true'
+      );
+      expect(slugs.getByRole('button', { name: 'other-case' })).toHaveAttribute(
+        'aria-pressed',
+        'true'
+      );
       // Pressing an identifier that was typed in takes it out again: there is nothing else to pick it back from.
       fireEvent.click(slugs.getByRole('button', { name: 'other-case' }));
       expect(slugs.queryByRole('button', { name: 'other-case' })).not.toBeInTheDocument();
@@ -230,19 +288,32 @@ describe('New API key', () => {
     async function toReview(options: { expiry?: string } = {}) {
       const wizard = renderWizard();
       fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'ci-nightly' } });
-      if (options.expiry) fireEvent.change(screen.getByLabelText('Expires'), { target: { value: options.expiry } });
+      if (options.expiry)
+        fireEvent.change(screen.getByLabelText('Expires'), { target: { value: options.expiry } });
       next();
       await heading('Permissions');
       fireEvent.click(permission('jobs:read'));
       next();
       await heading('Engine access');
       fireEvent.click(screen.getByRole('radio', { name: /Only these engines/ }));
-      fireEvent.click(await screen.findByRole('checkbox', { name: /bim\.builtin\/random-search@1\.0\.0/ }));
+      fireEvent.click(
+        await screen.findByRole('checkbox', { name: /bim\.builtin\/random-search@1\.0\.0/ })
+      );
       next();
       await heading(/^Limits/);
-      fireEvent.click(within(screen.getByRole('group', { name: 'HTTP methods' })).getByRole('button', { name: 'GET' }));
-      fireEvent.click(await within(screen.getByRole('group', { name: 'Organizations' })).findByRole('button', { name: 'isa-demo' }));
-      const field = within(screen.getByRole('group', { name: 'Slugs' })).getByLabelText('Add slugs');
+      fireEvent.click(
+        within(screen.getByRole('group', { name: 'HTTP methods' })).getByRole('button', {
+          name: 'GET',
+        })
+      );
+      fireEvent.click(
+        await within(screen.getByRole('group', { name: 'Organizations' })).findByRole('button', {
+          name: 'isa-demo',
+        })
+      );
+      const field = within(screen.getByRole('group', { name: 'Slugs' })).getByLabelText(
+        'Add slugs'
+      );
       fireEvent.change(field, { target: { value: 'my-slug' } });
       fireEvent.keyDown(field, { key: 'Enter' });
       next();
@@ -252,14 +323,22 @@ describe('New API key', () => {
 
     it('reviews everything that was chosen before it creates anything', async () => {
       await toReview();
-      const review = within(screen.getByText('Name', { selector: 'dt' }).closest('dl') as HTMLElement);
+      const review = within(
+        screen.getByText('Name', { selector: 'dt' }).closest('dl') as HTMLElement
+      );
 
       expect(review.getByText('ci-nightly')).toBeInTheDocument();
       expect(review.getByText('In 90 days')).toBeInTheDocument();
-      expect(review.getByText('jobs:read').closest('li')).toHaveTextContent('Read runs and results (jobs:read)');
+      expect(review.getByText('jobs:read').closest('li')).toHaveTextContent(
+        'Read runs and results (jobs:read)'
+      );
       expect(review.getByText('bim.builtin/random-search@1.0.0')).toBeInTheDocument();
-      expect(review.getByText('my-slug').closest('dd')).toHaveTextContent('GET · isa-demo · my-slug');
-      expect(screen.getByText(/After creation the key’s authority can’t be edited/)).toBeInTheDocument();
+      expect(review.getByText('my-slug').closest('dd')).toHaveTextContent(
+        'GET · isa-demo · my-slug'
+      );
+      expect(
+        screen.getByText(/After creation the key’s authority can’t be edited/)
+      ).toBeInTheDocument();
       expect(api.createApiKey).not.toHaveBeenCalled();
     });
 
@@ -293,7 +372,9 @@ describe('New API key', () => {
       const { onClose, onCreated } = await toReview();
       fireEvent.click(screen.getByRole('button', { name: 'Create key' }));
 
-      const dialog = within(await screen.findByRole('dialog', { name: '“ci-nightly” is ready. Copy its secret now' }));
+      const dialog = within(
+        await screen.findByRole('dialog', { name: '“ci-nightly” is ready. Copy its secret now' })
+      );
       expect(screen.queryByRole('dialog', { name: 'New API key' })).not.toBeInTheDocument();
       expect(dialog.getByText('obk_demo0003_ONLY-SHOWN-ONCE')).toBeInTheDocument();
       expect(dialog.getByText('X-API-Key')).toBeInTheDocument();
@@ -317,9 +398,15 @@ describe('New API key', () => {
       await toReview();
       fireEvent.click(screen.getByRole('button', { name: 'Back' }));
       await heading(/^Limits/);
-      expect(within(screen.getByRole('group', { name: 'HTTP methods' })).getByRole('button', { name: 'GET' })).toHaveAttribute('aria-pressed', 'true');
+      expect(
+        within(screen.getByRole('group', { name: 'HTTP methods' })).getByRole('button', {
+          name: 'GET',
+        })
+      ).toHaveAttribute('aria-pressed', 'true');
 
-      fireEvent.click(within(screen.getByRole('list', { name: 'Steps' })).getByRole('button', { name: /^Name/ }));
+      fireEvent.click(
+        within(screen.getByRole('list', { name: 'Steps' })).getByRole('button', { name: /^Name/ })
+      );
       expect(await heading('Name and expiry')).toBeInTheDocument();
       expect(screen.getByLabelText('Name')).toHaveValue('ci-nightly');
     });
@@ -339,24 +426,48 @@ describe('New API key', () => {
       }
 
       it('402: the plan’s key limit', async () => {
-        const alert = await createAndRefuse(new QuotaError('quota_exceeded', 'Your plan allows 1 API key', { limit_id: 'apiKeys', limit: 1, used: 1 }));
+        const alert = await createAndRefuse(
+          new QuotaError('quota_exceeded', 'Your plan allows 1 API key', {
+            limit_id: 'apiKeys',
+            limit: 1,
+            used: 1,
+          })
+        );
         expect(alert).toHaveTextContent('402 · You’ve reached your plan’s API key limit.');
         expect(screen.queryByRole('dialog', { name: /is ready/ })).not.toBeInTheDocument();
       });
 
       it('403: a key cannot grant more than it has (escalation)', async () => {
-        const alert = await createAndRefuse(refusal(403, 'api_key_escalation', 'A key may create only keys whose permissions are a subset of its own.'));
-        expect(alert).toHaveTextContent('403 · api_key_escalation: A key may create only keys whose permissions are a subset of its own.');
+        const alert = await createAndRefuse(
+          refusal(
+            403,
+            'api_key_escalation',
+            'A key may create only keys whose permissions are a subset of its own.'
+          )
+        );
+        expect(alert).toHaveTextContent(
+          '403 · api_key_escalation: A key may create only keys whose permissions are a subset of its own.'
+        );
       });
 
       it('403: an admin permission only an administrator can grant', async () => {
-        const alert = await createAndRefuse(refusal(403, 'permission_not_grantable', 'Only an administrator account may grant this.'));
+        const alert = await createAndRefuse(
+          refusal(403, 'permission_not_grantable', 'Only an administrator account may grant this.')
+        );
         expect(alert).toHaveTextContent('403 · permission_not_grantable');
       });
 
       it('422: engines missing, taking the person back to the engines step', async () => {
-        const alert = await createAndRefuse(refusal(422, 'validation_error', 'Engine discovery, analysis, execution and job access require all Engines or at least one exact Engine revision'));
-        expect(alert).toHaveTextContent('422 · The permissions you chose need all engines or at least one exact engine.');
+        const alert = await createAndRefuse(
+          refusal(
+            422,
+            'validation_error',
+            'Engine discovery, analysis, execution and job access require all Engines or at least one exact Engine revision'
+          )
+        );
+        expect(alert).toHaveTextContent(
+          '422 · The permissions you chose need all engines or at least one exact engine.'
+        );
         expect(await heading('Engine access')).toBeInTheDocument();
       });
 

@@ -10,14 +10,32 @@ import { AuthContext } from '../../contexts/auth';
 
 /** Accounts and organizations, shared by the tests of the workspace and of the organization screens. */
 export const lucia: UserProfile = {
-  id: 'user-lucia', username: 'lucia.vega', email: 'lucia@example.test', role: 'user', is_active: true, plan: 'RESEARCH', created_at: '2026-03-01T00:00:00Z',
+  id: 'user-lucia',
+  username: 'lucia.vega',
+  email: 'lucia@example.test',
+  role: 'user',
+  is_active: true,
+  plan: 'RESEARCH',
+  created_at: '2026-03-01T00:00:00Z',
 };
 
-export const iker: UserProfile = { ...lucia, id: 'user-iker', username: 'iker.mora', email: 'iker@example.test', role: 'admin', plan: 'LAB' };
+export const iker: UserProfile = {
+  ...lucia,
+  id: 'user-iker',
+  username: 'iker.mora',
+  email: 'iker@example.test',
+  role: 'admin',
+  plan: 'LAB',
+};
 
 export function org(slug: string, over: Partial<Organization> = {}): Organization {
   return {
-    id: `org-${slug}`, slug, name: slug.toUpperCase(), parent_id: null, effective_role: 'OWNER', created_at: '2026-03-03T00:00:00Z',
+    id: `org-${slug}`,
+    slug,
+    name: slug.toUpperCase(),
+    parent_id: null,
+    effective_role: 'OWNER',
+    created_at: '2026-03-03T00:00:00Z',
     ...over,
   };
 }
@@ -37,11 +55,24 @@ export function renderOrgScreen(ui: ReactElement, options: RenderOptions) {
   const organizations = options.organizations ?? [];
   const reload = options.reload ?? vi.fn().mockResolvedValue(undefined);
   const context: PlatformOutletContext = {
-    organizations, organization: organizations[0], loading: options.loading ?? false, reload,
+    organizations,
+    organization: organizations[0],
+    loading: options.loading ?? false,
+    reload,
   };
   const view = render(
     <MemoryRouter initialEntries={[options.url]}>
-      <AuthContext.Provider value={{ user, loading: false, signIn: vi.fn(), register: vi.fn(), signOut: vi.fn(), refresh: vi.fn(), isAdmin: user.role === 'admin' }}>
+      <AuthContext.Provider
+        value={{
+          user,
+          loading: false,
+          signIn: vi.fn(),
+          register: vi.fn(),
+          signOut: vi.fn(),
+          refresh: vi.fn(),
+          isAdmin: user.role === 'admin',
+        }}
+      >
         <Routes>
           <Route element={<Outlet context={context} />}>
             <Route path={options.path} element={ui} />
@@ -49,7 +80,7 @@ export function renderOrgScreen(ui: ReactElement, options: RenderOptions) {
           </Route>
         </Routes>
       </AuthContext.Provider>
-    </MemoryRouter>,
+    </MemoryRouter>
   );
   return { ...view, reload, context };
 }
@@ -58,7 +89,7 @@ export function renderOrgScreen(ui: ReactElement, options: RenderOptions) {
 export async function ensureSubtleCrypto(): Promise<void> {
   if (globalThis.crypto?.subtle) return;
   const specifier = 'node:crypto';
-  const { webcrypto } = await import(/* @vite-ignore */ specifier) as { webcrypto: Crypto };
+  const { webcrypto } = (await import(/* @vite-ignore */ specifier)) as { webcrypto: Crypto };
   vi.stubGlobal('crypto', webcrypto);
 }
 
@@ -67,41 +98,87 @@ export function researchPlanUsage(): UsageView {
     plan: 'RESEARCH',
     contract_pending: false,
     features: {},
-    capabilities: { maxProblems: null, maxRepositoryStorage: null, maxRunMinutes: 30, maxConcurrentRuns: 4 },
+    capabilities: {
+      maxProblems: null,
+      maxRepositoryStorage: null,
+      maxRunMinutes: 30,
+      maxConcurrentRuns: 4,
+    },
   };
 }
 
 export function caseOf(slug: string, name = slug, over: Partial<Problem> = {}): Problem {
   return {
-    id: `case-${slug}`, organization_id: 'org-isa', slug, name, description: '', created_by_id: lucia.id,
-    created_at: '2026-04-02T00:00:00Z', updated_at: '2026-04-02T00:00:00Z', ...over,
+    id: `case-${slug}`,
+    organization_id: 'org-isa',
+    slug,
+    name,
+    description: '',
+    created_by_id: lucia.id,
+    created_at: '2026-04-02T00:00:00Z',
+    updated_at: '2026-04-02T00:00:00Z',
+    ...over,
   };
 }
 
-export function revisionOf(caseItem: Problem, revision: number, over: Partial<ProblemRevision> = {}): ProblemRevision {
+export function revisionOf(
+  caseItem: Problem,
+  revision: number,
+  over: Partial<ProblemRevision> = {}
+): ProblemRevision {
   return {
-    id: `${caseItem.id}-r${revision}`, problem_id: caseItem.id, revision, package_digest: `sha256-${String(revision).repeat(64)}`.slice(0, 71),
-    package_size: 2048, created_by_id: lucia.id, created_at: `2026-04-0${revision}T00:00:00Z`, ...over,
+    id: `${caseItem.id}-r${revision}`,
+    problem_id: caseItem.id,
+    revision,
+    package_digest: `sha256-${String(revision).repeat(64)}`.slice(0, 71),
+    package_size: 2048,
+    created_by_id: lucia.id,
+    created_at: `2026-04-0${revision}T00:00:00Z`,
+    ...over,
   };
 }
 
 export function studyOf(slug: string, over: Partial<Study> = {}): Study {
   return {
-    archived: false, id: `study-${slug}`, organization_id: 'org-isa', slug, name: slug,
-    description: '', definition: { revision_ids: ['a', 'b'], engines: [{}, {}], parameter_sets: [{}], seeds: [1, 2] },
-    definition_digest: `sha256-${'e'.repeat(64)}`, state: 'active', created_by_id: lucia.id,
-    created_at: '2026-09-20T00:00:00Z', ...over,
+    archived: false,
+    id: `study-${slug}`,
+    organization_id: 'org-isa',
+    slug,
+    name: slug,
+    description: '',
+    definition: {
+      revision_ids: ['a', 'b'],
+      engines: [{}, {}],
+      parameter_sets: [{}],
+      seeds: [1, 2],
+    },
+    definition_digest: `sha256-${'e'.repeat(64)}`,
+    state: 'active',
+    created_by_id: lucia.id,
+    created_at: '2026-09-20T00:00:00Z',
+    ...over,
   };
 }
 
 export function runOf(study: Study, runNumber: number, over: Partial<StudyRun> = {}): StudyRun {
   return {
-    id: `run-${study.slug}-${runNumber}`, study_id: study.id, run_number: runNumber, state: 'partial',
-    matrix_digest: `sha256-${'d'.repeat(64)}`, cells: 8, summary: {}, created_at: '2026-09-21T00:00:00Z', finished_at: null,
+    id: `run-${study.slug}-${runNumber}`,
+    study_id: study.id,
+    run_number: runNumber,
+    state: 'partial',
+    matrix_digest: `sha256-${'d'.repeat(64)}`,
+    cells: 8,
+    summary: {},
+    created_at: '2026-09-21T00:00:00Z',
+    finished_at: null,
     definition: {
-      apiVersion: 'openbinding/study-run/v1', problems: [], engines: study.definition.engines as StudyRun['definition']['engines'],
-      parameterSets: study.definition.parameter_sets, seeds: study.definition.seeds,
+      apiVersion: 'openbinding/study-run/v1',
+      problems: [],
+      engines: study.definition.engines as StudyRun['definition']['engines'],
+      parameterSets: study.definition.parameter_sets,
+      seeds: study.definition.seeds,
     },
-    definition_digest: `sha256-${'9'.repeat(64)}`, ...over,
+    definition_digest: `sha256-${'9'.repeat(64)}`,
+    ...over,
   };
 }

@@ -1,6 +1,11 @@
 import { config } from '../config';
 import { PricingUnavailableError, QuotaError } from './auth';
-import { bindingSpaceFrom, limitNoticeFrom, type BindingSpaceReport, type LimitNotice } from './limitNotice';
+import {
+  bindingSpaceFrom,
+  limitNoticeFrom,
+  type BindingSpaceReport,
+  type LimitNotice,
+} from './limitNotice';
 import type {
   AdminUserPage,
   AdminSubscriptionView,
@@ -404,7 +409,11 @@ export class ApiClient {
     const notice = limitNoticeFrom(rawQuota);
     const bindingSpace = bindingSpaceFrom(detail?.binding_space ?? problemObject?.binding_space);
     if (response.status === 402) {
-      const quotaError = new QuotaError(code ?? 'quota_exceeded', message, quotaFromProblem(rawQuota));
+      const quotaError = new QuotaError(
+        code ?? 'quota_exceeded',
+        message,
+        quotaFromProblem(rawQuota)
+      );
       quotaError.notice = notice;
       quotaError.bindingSpace = bindingSpace;
       return quotaError;
@@ -415,7 +424,11 @@ export class ApiClient {
       const err = new HttpError(429, message);
       err.code = code ?? 'concurrency_limit_exceeded';
       err.problem = problem;
-      if (isRecord(rawConcurrency) && typeof rawConcurrency.limit_id === 'string' && typeof rawConcurrency.limit === 'number') {
+      if (
+        isRecord(rawConcurrency) &&
+        typeof rawConcurrency.limit_id === 'string' &&
+        typeof rawConcurrency.limit === 'number'
+      ) {
         err.concurrency = {
           limit_id: rawConcurrency.limit_id,
           limit: rawConcurrency.limit,
@@ -444,7 +457,9 @@ export class ApiClient {
     error.bindingSpace = bindingSpace;
     error.diagnostics = Array.isArray(problemObject?.diagnostics)
       ? problemObject.diagnostics
-      : Array.isArray(detail?.diagnostics) ? detail.diagnostics : [];
+      : Array.isArray(detail?.diagnostics)
+        ? detail.diagnostics
+        : [];
     return error;
   }
 
@@ -460,7 +475,7 @@ export class ApiClient {
     timeoutMs?: number,
     retryOnUnauthorized = true,
     throwOnValidation = true,
-    read: (response: Response) => Promise<T> = (response) => response.json(),
+    read: (response: Response) => Promise<T> = response => response.json()
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
     const controller = new AbortController();
@@ -494,7 +509,7 @@ export class ApiClient {
         throw await this.errorFor(response);
       }
       if (response.status === 422) {
-        return await response.json() as T;
+        return (await response.json()) as T;
       }
 
       if (!response.ok) {
@@ -524,14 +539,21 @@ export class ApiClient {
    * A conditional write, or the read it is decided on. `ifMatch` is the revision the change was decided on, sent as `If-Match`; with
    * none nothing is sent, and the gateway behaves as it does without one. The answer comes back with its `ETag`.
    */
-  private revised<T>(endpoint: string, ifMatch: string | null, init: Omit<RequestInit, 'headers'> = {}): Promise<Revised<T>> {
+  private revised<T>(
+    endpoint: string,
+    ifMatch: string | null,
+    init: Omit<RequestInit, 'headers'> = {}
+  ): Promise<Revised<T>> {
     return this.request<Revised<T>>(
       endpoint,
       ifMatch ? { ...init, headers: { 'If-Match': ifMatch } } : init,
       undefined,
       true,
       true,
-      async (response) => ({ value: await response.json() as T, etag: response.headers.get('ETag') }),
+      async response => ({
+        value: (await response.json()) as T,
+        etag: response.headers.get('ETag'),
+      })
     );
   }
 
@@ -582,7 +604,7 @@ export class ApiClient {
   async requestBinary(
     endpoint: string,
     timeoutMs?: number,
-    retryOnUnauthorized = true,
+    retryOnUnauthorized = true
   ): Promise<ArrayBuffer> {
     const controller = new AbortController();
     const timeoutId = timeoutMs ? setTimeout(() => controller.abort(), timeoutMs) : undefined;
@@ -648,17 +670,29 @@ export class ApiClient {
     email: string;
     password: string;
   }): Promise<UserProfile> {
-    return this.request<UserProfile>('/v1/auth/register', {
-      method: 'POST',
-      body: JSON.stringify(details),
-    }, undefined, false, true);
+    return this.request<UserProfile>(
+      '/v1/auth/register',
+      {
+        method: 'POST',
+        body: JSON.stringify(details),
+      },
+      undefined,
+      false,
+      true
+    );
   }
 
   async login(usernameOrEmail: string, password: string): Promise<TokenPair> {
-    const tokens = await this.request<TokenPair>('/v1/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ username_or_email: usernameOrEmail, password }),
-    }, undefined, false, true);
+    const tokens = await this.request<TokenPair>(
+      '/v1/auth/login',
+      {
+        method: 'POST',
+        body: JSON.stringify({ username_or_email: usernameOrEmail, password }),
+      },
+      undefined,
+      false,
+      true
+    );
     this.setTokens(tokens);
     return tokens;
   }
@@ -688,22 +722,44 @@ export class ApiClient {
     current_password?: string;
     new_password?: string;
   }): Promise<UserProfile> {
-    return this.request<UserProfile>('/v1/users/me', {
-      method: 'PATCH',
-      body: JSON.stringify(changes),
-    }, undefined, true, true);
+    return this.request<UserProfile>(
+      '/v1/users/me',
+      {
+        method: 'PATCH',
+        body: JSON.stringify(changes),
+      },
+      undefined,
+      true,
+      true
+    );
   }
 
-  async requestPasswordReset(email: string): Promise<{ accepted: boolean; delivery: string; token?: string }> {
-    return this.request('/v1/auth/password-reset/request', {
-      method: 'POST', body: JSON.stringify({ email }),
-    }, undefined, false, true);
+  async requestPasswordReset(
+    email: string
+  ): Promise<{ accepted: boolean; delivery: string; token?: string }> {
+    return this.request(
+      '/v1/auth/password-reset/request',
+      {
+        method: 'POST',
+        body: JSON.stringify({ email }),
+      },
+      undefined,
+      false,
+      true
+    );
   }
 
   async completePasswordReset(token: string, newPassword: string): Promise<void> {
-    await this.request('/v1/auth/password-reset/complete', {
-      method: 'POST', body: JSON.stringify({ token, new_password: newPassword }),
-    }, undefined, false, true);
+    await this.request(
+      '/v1/auth/password-reset/complete',
+      {
+        method: 'POST',
+        body: JSON.stringify({ token, new_password: newPassword }),
+      },
+      undefined,
+      false,
+      true
+    );
   }
 
   casStartUrl(mode: 'login' | 'link' = 'login'): string {
@@ -711,7 +767,9 @@ export class ApiClient {
   }
 
   async createCasLinkIntent(): Promise<string> {
-    const response = await this.request<{ url: string }>('/v1/auth/cas/link-intent', { method: 'POST' });
+    const response = await this.request<{ url: string }>('/v1/auth/cas/link-intent', {
+      method: 'POST',
+    });
     // The caller navigates to this URL next; the callback page needs to know it is a link, not a login.
     rememberCasFlow('link');
     return response.url;
@@ -722,9 +780,16 @@ export class ApiClient {
    * FREE to RESEARCH, at no extra cost), or `null` when the plan did not change.
    */
   async exchangeCasCode(code: string): Promise<PlanChange | null> {
-    const session = await this.request<CasSession>('/v1/auth/cas/exchange', {
-      method: 'POST', body: JSON.stringify({ code }),
-    }, undefined, false, true);
+    const session = await this.request<CasSession>(
+      '/v1/auth/cas/exchange',
+      {
+        method: 'POST',
+        body: JSON.stringify({ code }),
+      },
+      undefined,
+      false,
+      true
+    );
     this.setTokens(session);
     const change = session.plan_changed;
     return change && typeof change.to === 'string' ? change : null;
@@ -736,19 +801,30 @@ export class ApiClient {
 
   async unlinkOwnIdentity(identityId: string, confirmation?: string): Promise<void> {
     const query = confirmation ? `?confirmation=${encodeURIComponent(confirmation)}` : '';
-    await this.request(`/v1/users/me/identities/${encodeURIComponent(identityId)}${query}`, { method: 'DELETE' });
+    await this.request(`/v1/users/me/identities/${encodeURIComponent(identityId)}${query}`, {
+      method: 'DELETE',
+    });
   }
 
   async deleteOwnAccount(confirmation: string, currentPassword?: string): Promise<void> {
-    await this.request('/v1/users/me', {
-      method: 'DELETE', body: JSON.stringify({ confirmation, current_password: currentPassword || null }),
-    }, undefined, true, true);
+    await this.request(
+      '/v1/users/me',
+      {
+        method: 'DELETE',
+        body: JSON.stringify({ confirmation, current_password: currentPassword || null }),
+      },
+      undefined,
+      true,
+      true
+    );
   }
 
   async listNotifications(unreadOnly = false): Promise<Notification[]> {
-    const list = await this.request<Notification[]>(`/v1/notifications${unreadOnly ? '?unread_only=true' : ''}`);
+    const list = await this.request<Notification[]>(
+      `/v1/notifications${unreadOnly ? '?unread_only=true' : ''}`
+    );
     const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
-    return list.filter((item) => new Date(item.created_at).getTime() >= cutoff);
+    return list.filter(item => new Date(item.created_at).getTime() >= cutoff);
   }
 
   async markAllNotificationsRead(): Promise<Notification[]> {
@@ -756,15 +832,25 @@ export class ApiClient {
   }
 
   async markNotificationRead(notificationId: string): Promise<Notification> {
-    return this.request(`/v1/notifications/${encodeURIComponent(notificationId)}/read`, { method: 'POST' });
+    return this.request(`/v1/notifications/${encodeURIComponent(notificationId)}/read`, {
+      method: 'POST',
+    });
   }
 
   async getNotificationPreferences(): Promise<NotificationPreferences> {
     return this.request('/v1/notifications/preferences');
   }
 
-  async updateNotificationPreferences(value: NotificationPreferences): Promise<NotificationPreferences> {
-    return this.request('/v1/notifications/preferences', { method: 'PUT', body: JSON.stringify(value) }, undefined, true, true);
+  async updateNotificationPreferences(
+    value: NotificationPreferences
+  ): Promise<NotificationPreferences> {
+    return this.request(
+      '/v1/notifications/preferences',
+      { method: 'PUT', body: JSON.stringify(value) },
+      undefined,
+      true,
+      true
+    );
   }
 
   async listApiKeys(): Promise<ApiKeySummary[]> {
@@ -775,10 +861,16 @@ export class ApiClient {
   /** The response carries the secret. It is the only one that ever will. */
   async createApiKey(payload: CreateApiKeyRequest): Promise<CreatedApiKey> {
     // A 422 (engines missing for the chosen permissions, past expiry) throws: its body is not a key.
-    return this.request<CreatedApiKey>('/v1/users/me/api-keys', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    }, undefined, true, true);
+    return this.request<CreatedApiKey>(
+      '/v1/users/me/api-keys',
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+      undefined,
+      true,
+      true
+    );
   }
 
   async revokeApiKey(keyId: string): Promise<void> {
@@ -792,7 +884,6 @@ export class ApiClient {
   async getOwnUsage(): Promise<UsageView> {
     return this.request<UsageView>('/v1/users/me/usage');
   }
-
 
   /**
    * The active Pricing2Yaml document, digest-verified by the gateway and served as JSON.
@@ -822,11 +913,13 @@ export class ApiClient {
 
   // -- Administration --------------------------------------------------
 
-  async adminListUsers(params: {
-    search?: string;
-    offset?: number;
-    limit?: number;
-  } = {}): Promise<AdminUserPage> {
+  async adminListUsers(
+    params: {
+      search?: string;
+      offset?: number;
+      limit?: number;
+    } = {}
+  ): Promise<AdminUserPage> {
     const query = new URLSearchParams();
     if (params.search) query.set('search', params.search);
     if (params.offset != null) query.set('offset', String(params.offset));
@@ -839,10 +932,16 @@ export class ApiClient {
     userId: string,
     changes: { is_active?: boolean; role?: RoleName }
   ): Promise<AdminUserView> {
-    return this.request<AdminUserView>(`/v1/admin/users/${userId}`, {
-      method: 'PATCH',
-      body: JSON.stringify(changes),
-    }, undefined, true, true);
+    return this.request<AdminUserView>(
+      `/v1/admin/users/${userId}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(changes),
+      },
+      undefined,
+      true,
+      true
+    );
   }
 
   /**
@@ -851,7 +950,11 @@ export class ApiClient {
    * `ifMatch` is the revision of the subscription the change was decided on (from `adminGetSubscription`): a subscription that has
    * moved since is refused with 412 `precondition_failed` and nothing is written. The answer carries the new revision.
    */
-  async adminChangePlan(userId: string, plan: string, ifMatch: string | null): Promise<Revised<AdminUserView>> {
+  async adminChangePlan(
+    userId: string,
+    plan: string,
+    ifMatch: string | null
+  ): Promise<Revised<AdminUserView>> {
     return this.revised<AdminUserView>(`/v1/admin/users/${userId}/plan`, ifMatch, {
       method: 'POST',
       body: JSON.stringify({ plan }),
@@ -872,7 +975,7 @@ export class ApiClient {
       reason: ContractChangeReason;
       detail?: string;
     },
-    ifMatch: string | null,
+    ifMatch: string | null
   ): Promise<Revised<AdminSubscriptionView>> {
     return this.revised<AdminSubscriptionView>(`/v1/admin/users/${userId}/subscription`, ifMatch, {
       method: 'POST',
@@ -899,10 +1002,13 @@ export class ApiClient {
    * `organizationSlug`). `action` is an exact action name and `organizationId` keeps one organization's events;
    * the gateway's page is 100 events unless `limit` (at most 500) says otherwise.
    */
-  async adminAudit(filter?: string | { action?: string; organizationId?: string; offset?: number; limit?: number }): Promise<AdminAuditPage> {
-    const { action, organizationId, offset, limit } = typeof filter === 'string'
-      ? { action: filter, organizationId: undefined, offset: undefined, limit: undefined }
-      : filter ?? {};
+  async adminAudit(
+    filter?: string | { action?: string; organizationId?: string; offset?: number; limit?: number }
+  ): Promise<AdminAuditPage> {
+    const { action, organizationId, offset, limit } =
+      typeof filter === 'string'
+        ? { action: filter, organizationId: undefined, offset: undefined, limit: undefined }
+        : (filter ?? {});
     const query = new URLSearchParams();
     if (action) query.set('action', action);
     if (organizationId) query.set('organization_id', organizationId);
@@ -922,7 +1028,9 @@ export class ApiClient {
   }
 
   async adminMaintenancePreview(retentionDays = 365): Promise<MaintenancePreview> {
-    return this.request(`/v1/admin/maintenance/preview?terminal_job_retention_days=${retentionDays}`);
+    return this.request(
+      `/v1/admin/maintenance/preview?terminal_job_retention_days=${retentionDays}`
+    );
   }
 
   async adminReconcileJobs(): Promise<{ settled: number }> {
@@ -930,7 +1038,11 @@ export class ApiClient {
   }
 
   /** `errorRetentionDays` is how long error events are kept (1–3650, the gateway defaults to 90); it isn't part of the preview. */
-  async adminPurgeExpired(confirmation: string, retentionDays = 365, errorRetentionDays?: number): Promise<Record<string, number>> {
+  async adminPurgeExpired(
+    confirmation: string,
+    retentionDays = 365,
+    errorRetentionDays?: number
+  ): Promise<Record<string, number>> {
     return this.request('/v1/admin/maintenance/purge', {
       method: 'POST',
       body: JSON.stringify({
@@ -943,7 +1055,10 @@ export class ApiClient {
 
   private requireExactResourceRef<T extends object>(body: T): T & ImmutableResourceRef {
     for (const field of ['namespace', 'name', 'version', 'digest'] as const) {
-      if (typeof (body as Record<string, unknown>)[field] !== 'string' || !(body as Record<string, string>)[field]) {
+      if (
+        typeof (body as Record<string, unknown>)[field] !== 'string' ||
+        !(body as Record<string, string>)[field]
+      ) {
         throw new Error(`The gateway response omitted the immutable resource pin ${field}.`);
       }
     }
@@ -979,14 +1094,21 @@ export class ApiClient {
     protocolDigest: string;
     digest: string;
   }> {
-    const profile = (await this.getProtocolProfiles()).find((item) => item.id === 'qos-binding/v1');
+    const profile = (await this.getProtocolProfiles()).find(item => item.id === 'qos-binding/v1');
     const output = profile?.output;
-    if (!profile || output?.apiVersion !== 'bim/v1' || output?.kind !== 'BindingProblem'
-      || profile.protocol !== 'bim-engine/v1') {
+    if (
+      !profile ||
+      output?.apiVersion !== 'bim/v1' ||
+      output?.kind !== 'BindingProblem' ||
+      profile.protocol !== 'bim-engine/v1'
+    ) {
       throw new Error('The gateway does not advertise the BIM v1 binding profile.');
     }
-    if (typeof output.schemaDigest !== 'string' || typeof profile.protocolDigest !== 'string'
-      || typeof profile.digest !== 'string') {
+    if (
+      typeof output.schemaDigest !== 'string' ||
+      typeof profile.protocolDigest !== 'string' ||
+      typeof profile.digest !== 'string'
+    ) {
       throw new Error('The gateway did not publish complete immutable BIM profile pins.');
     }
     return profile as {
@@ -1000,7 +1122,7 @@ export class ApiClient {
 
   /** Register private deployment material separately from the portable Engine. */
   async createEngineRegistration(
-    manifest: EngineRegistrationManifest,
+    manifest: EngineRegistrationManifest
   ): Promise<EngineRegistrationRevision> {
     return this.requireExactResourceRef(
       await this.request<EngineRegistrationRevision>('/v1/engine-registrations', {
@@ -1011,8 +1133,12 @@ export class ApiClient {
   }
 
   async listEngineRegistrations(): Promise<EngineRegistrationRevision[]> {
-    const body = await this.request<{ registrations: EngineRegistrationRevision[] }>('/v1/engine-registrations');
-    return (body.registrations || []).map((registration) => this.requireExactResourceRef(registration));
+    const body = await this.request<{ registrations: EngineRegistrationRevision[] }>(
+      '/v1/engine-registrations'
+    );
+    return (body.registrations || []).map(registration =>
+      this.requireExactResourceRef(registration)
+    );
   }
 
   private engineRegistrationEndpoint(ref: ImmutableResourceRef, action?: string): string {
@@ -1036,15 +1162,27 @@ export class ApiClient {
   }
 
   async activateEngineRegistration(ref: ImmutableResourceRef): Promise<EngineRegistrationRevision> {
-    return this.requireExactResourceRef(await this.request<EngineRegistrationRevision>(this.engineRegistrationEndpoint(ref, 'activate'), {
-      method: 'POST',
-    }));
+    return this.requireExactResourceRef(
+      await this.request<EngineRegistrationRevision>(
+        this.engineRegistrationEndpoint(ref, 'activate'),
+        {
+          method: 'POST',
+        }
+      )
+    );
   }
 
-  async deactivateEngineRegistration(ref: ImmutableResourceRef): Promise<EngineRegistrationRevision> {
-    return this.requireExactResourceRef(await this.request<EngineRegistrationRevision>(this.engineRegistrationEndpoint(ref, 'deactivate'), {
-      method: 'POST',
-    }));
+  async deactivateEngineRegistration(
+    ref: ImmutableResourceRef
+  ): Promise<EngineRegistrationRevision> {
+    return this.requireExactResourceRef(
+      await this.request<EngineRegistrationRevision>(
+        this.engineRegistrationEndpoint(ref, 'deactivate'),
+        {
+          method: 'POST',
+        }
+      )
+    );
   }
 
   async deleteEngineRegistration(ref: ImmutableResourceRef): Promise<void> {
@@ -1053,37 +1191,70 @@ export class ApiClient {
     });
   }
 
-  async requestEngineRegistrationPublication(ref: ImmutableResourceRef): Promise<EngineRegistrationRevision> {
-    return this.requireExactResourceRef(await this.request<EngineRegistrationRevision>(this.engineRegistrationEndpoint(ref, 'publication-request'), {
-      method: 'POST',
-    }));
+  async requestEngineRegistrationPublication(
+    ref: ImmutableResourceRef
+  ): Promise<EngineRegistrationRevision> {
+    return this.requireExactResourceRef(
+      await this.request<EngineRegistrationRevision>(
+        this.engineRegistrationEndpoint(ref, 'publication-request'),
+        {
+          method: 'POST',
+        }
+      )
+    );
   }
 
   async setEngineRegistrationCredential(
     ref: ImmutableResourceRef,
-    secret: string,
+    secret: string
   ): Promise<EngineRegistrationRevision> {
-    return this.requireExactResourceRef(await this.request<EngineRegistrationRevision>(this.engineRegistrationEndpoint(ref, 'credential'), {
-      method: 'PUT',
-      body: JSON.stringify({ secret }),
-    }, undefined, true, true));
+    return this.requireExactResourceRef(
+      await this.request<EngineRegistrationRevision>(
+        this.engineRegistrationEndpoint(ref, 'credential'),
+        {
+          method: 'PUT',
+          body: JSON.stringify({ secret }),
+        },
+        undefined,
+        true,
+        true
+      )
+    );
   }
 
   async adminListEngineRegistrations(): Promise<EngineRegistrationRevision[]> {
-    const body = await this.request<{ registrations: EngineRegistrationRevision[] }>('/v1/engine-registrations?review=true');
-    return (body.registrations || []).map((registration) => this.requireExactResourceRef(registration));
+    const body = await this.request<{ registrations: EngineRegistrationRevision[] }>(
+      '/v1/engine-registrations?review=true'
+    );
+    return (body.registrations || []).map(registration =>
+      this.requireExactResourceRef(registration)
+    );
   }
 
-  async adminApproveEngineRegistration(ref: ImmutableResourceRef): Promise<EngineRegistrationRevision> {
-    return this.requireExactResourceRef(await this.request<EngineRegistrationRevision>(this.engineRegistrationEndpoint(ref, 'approve'), {
-      method: 'POST',
-    }));
+  async adminApproveEngineRegistration(
+    ref: ImmutableResourceRef
+  ): Promise<EngineRegistrationRevision> {
+    return this.requireExactResourceRef(
+      await this.request<EngineRegistrationRevision>(
+        this.engineRegistrationEndpoint(ref, 'approve'),
+        {
+          method: 'POST',
+        }
+      )
+    );
   }
 
-  async adminRejectEngineRegistration(ref: ImmutableResourceRef): Promise<EngineRegistrationRevision> {
-    return this.requireExactResourceRef(await this.request<EngineRegistrationRevision>(this.engineRegistrationEndpoint(ref, 'reject'), {
-      method: 'POST',
-    }));
+  async adminRejectEngineRegistration(
+    ref: ImmutableResourceRef
+  ): Promise<EngineRegistrationRevision> {
+    return this.requireExactResourceRef(
+      await this.request<EngineRegistrationRevision>(
+        this.engineRegistrationEndpoint(ref, 'reject'),
+        {
+          method: 'POST',
+        }
+      )
+    );
   }
 
   async adminErrorOverview(): Promise<AdminErrorOverview> {

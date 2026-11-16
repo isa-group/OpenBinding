@@ -48,8 +48,14 @@ function StudyLoader({ organization, children }: LoaderProps) {
 
   if (found.status === 'loading' && value === undefined) {
     return (
-      <StudyFrame organization={organization} trail={[{ label: 'Studies', to: list }, { label: 'Loading…' }]}>
-        <div role="status" aria-busy="true"><span className="sr-only">Loading the study…</span><Skeleton variant="panel" /></div>
+      <StudyFrame
+        organization={organization}
+        trail={[{ label: 'Studies', to: list }, { label: 'Loading…' }]}
+      >
+        <div role="status" aria-busy="true">
+          <span className="sr-only">Loading the study…</span>
+          <Skeleton variant="panel" />
+        </div>
       </StudyFrame>
     );
   }
@@ -57,7 +63,14 @@ function StudyLoader({ organization, children }: LoaderProps) {
     const problem = classifyAuthError(found.error);
     return (
       <StudyFrame organization={organization} trail={trail}>
-        <Notice tone="error" action={<Action variant="secondary" size="sm" onClick={found.reload}>Retry</Action>}>
+        <Notice
+          tone="error"
+          action={
+            <Action variant="secondary" size="sm" onClick={found.reload}>
+              Retry
+            </Action>
+          }
+        >
           {problem.status === 403
             ? `This credential can’t read studies${marker(problem)}. Use a session, or a key with studies:read.`
             : `The study couldn’t be loaded${marker(problem)}.`}
@@ -68,7 +81,14 @@ function StudyLoader({ organization, children }: LoaderProps) {
   if (value === null) {
     return (
       <StudyFrame organization={organization} trail={trail} width="lg">
-        <StudyGate title="Study not found" action={<Action to={list} variant="primary">All studies</Action>}>
+        <StudyGate
+          title="Study not found"
+          action={
+            <Action to={list} variant="primary">
+              All studies
+            </Action>
+          }
+        >
           No study with this address in {organization.name} (404).
         </StudyGate>
       </StudyFrame>
@@ -77,8 +97,12 @@ function StudyLoader({ organization, children }: LoaderProps) {
   return (
     <>
       {children({
-        organization, access: problemAccess(organization), study: value.value, etag: value.etag,
-        studyPath: studyPath(org, value.value.slug), reloadStudy: found.reload,
+        organization,
+        access: problemAccess(organization),
+        study: value.value,
+        etag: value.etag,
+        studyPath: studyPath(org, value.value.slug),
+        reloadStudy: found.reload,
       })}
     </>
   );
@@ -92,5 +116,9 @@ export function StudyScope({ children }: { children: (scope: StudyScopeValue) =>
   const { organization, waiting } = useRouteOrganization();
   if (waiting) return <OrgSkeleton label="Loading organization…" />;
   if (!organization) return <OrgGate failure={null} />;
-  return <StudyLoader key={organization.slug} organization={organization}>{children}</StudyLoader>;
+  return (
+    <StudyLoader key={organization.slug} organization={organization}>
+      {children}
+    </StudyLoader>
+  );
 }

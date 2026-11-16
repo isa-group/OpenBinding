@@ -2,12 +2,23 @@ import { Badge } from '../ui/Badge';
 import './VerdictBadge.css';
 
 interface VerdictBadgeProps {
-  verdict: 'OPTIMAL' | 'FEASIBLE' | 'INFEASIBLE' | 'UNKNOWN' | 'UNSAT' | 'TIMEOUT' | 'INCOMPATIBLE' | (string & {});
+  verdict:
+    | 'OPTIMAL'
+    | 'FEASIBLE'
+    | 'INFEASIBLE'
+    | 'UNKNOWN'
+    | 'UNSAT'
+    | 'TIMEOUT'
+    | 'INCOMPATIBLE'
+    | (string & {});
   reasons?: string[];
   size?: 'sm' | 'md';
 }
 
-const KNOWN: Record<string, { variant: 'success' | 'info' | 'error' | 'warning' | 'default'; description: string }> = {
+const KNOWN: Record<
+  string,
+  { variant: 'success' | 'info' | 'error' | 'warning' | 'default'; description: string }
+> = {
   OPTIMAL: { variant: 'success', description: 'proven best combination' },
   FEASIBLE: { variant: 'info', description: 'a valid combination, not proven best' },
   INFEASIBLE: { variant: 'error', description: 'no combination meets the rules' },
@@ -24,12 +35,16 @@ export function VerdictBadge({ verdict, reasons = [], size = 'sm' }: VerdictBadg
   return (
     <div className="rendering-verdict">
       <span>
-        <Badge variant={known?.variant ?? 'default'} size={size}>{verdict}</Badge>
+        <Badge variant={known?.variant ?? 'default'} size={size}>
+          {verdict}
+        </Badge>
         {known && <span className="sr-only">, {known.description}</span>}
       </span>
       {reasons.length > 0 && (
         <ul aria-label="Reasons" className="rendering-verdict__reasons">
-          {reasons.map((reason, i) => <li key={i}>{reason}</li>)}
+          {reasons.map((reason, i) => (
+            <li key={i}>{reason}</li>
+          ))}
         </ul>
       )}
     </div>

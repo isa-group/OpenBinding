@@ -3,13 +3,14 @@ import { readApiError } from '../../shared/api/errors';
 import version from '../../test/fixtures/core/fms.version.json';
 import { clearCompositionContentCache, compositionsApi, languageApi } from './api';
 
-const answer = (body: unknown, status = 200, headers: Record<string, string> = {}) => (
+const answer = (body: unknown, status = 200, headers: Record<string, string> = {}) =>
   new Response(status === 304 || status === 204 ? null : JSON.stringify(body), {
-    status, headers: { 'Content-Type': 'application/json', ...headers },
-  })
-);
+    status,
+    headers: { 'Content-Type': 'application/json', ...headers },
+  });
 
-const YAML_TEXT = 'syntaxVersion: "1.0"\ncomposition: shop\nversion: 1.0.0\nkind: application\nworkflow: pick\nbinding: {pick: {candidate: c_pick}}\nvalues: {}\n';
+const YAML_TEXT =
+  'syntaxVersion: "1.0"\ncomposition: shop\nversion: 1.0.0\nkind: application\nworkflow: pick\nbinding: {pick: {candidate: c_pick}}\nvalues: {}\n';
 
 describe('compositionsApi', () => {
   const fetchMock = vi.fn<typeof fetch>();
@@ -54,8 +55,17 @@ describe('compositionsApi', () => {
 
   it('writes a document as its canonical text and compares two texts as JSON', async () => {
     fetchMock
-      .mockResolvedValueOnce(new Response(YAML_TEXT, { status: 200, headers: { 'Content-Type': 'application/yaml' } }))
-      .mockResolvedValueOnce(answer({ general: [], sections: [], totals: { added: 0, removed: 0, changed: 0 }, isEmpty: true }));
+      .mockResolvedValueOnce(
+        new Response(YAML_TEXT, { status: 200, headers: { 'Content-Type': 'application/yaml' } })
+      )
+      .mockResolvedValueOnce(
+        answer({
+          general: [],
+          sections: [],
+          totals: { added: 0, removed: 0, changed: 0 },
+          isEmpty: true,
+        })
+      );
 
     expect(await languageApi.serialise({ composition: 'shop' })).toBe(YAML_TEXT);
     expect(header('Content-Type', 0)).toBe('application/json');
@@ -71,16 +81,26 @@ describe('compositionsApi', () => {
 
     const body = { version: '1.0.0', targetOrganization: 'lab-other', dropProblem: false };
     expect((await compositionsApi.fork('isa-demo', 'fms', body)).status).toBe('forked');
-    expect(await compositionsApi.fork('isa-demo', 'fms', body)).toEqual({ status: 'nameTaken', existing });
+    expect(await compositionsApi.fork('isa-demo', 'fms', body)).toEqual({
+      status: 'nameTaken',
+      existing,
+    });
   });
 
   it('tells a new derivation and re-evaluation from one that existed', async () => {
     fetchMock
-      .mockResolvedValueOnce(answer({ content: YAML_TEXT, document: {}, values: {}, diagnostics: [] }, 200))
+      .mockResolvedValueOnce(
+        answer({ content: YAML_TEXT, document: {}, values: {}, diagnostics: [] }, 200)
+      )
       .mockResolvedValueOnce(answer(version.evaluations[0], 201));
 
-    expect((await compositionsApi.derive('isa-demo', 'fms', { version: '1.0.0', seal: false })).created).toBe(false);
-    expect(await compositionsApi.reevaluate('isa-demo', 'fms', '1.0.0')).toEqual({ created: true, evaluation: version.evaluations[0] });
+    expect(
+      (await compositionsApi.derive('isa-demo', 'fms', { version: '1.0.0', seal: false })).created
+    ).toBe(false);
+    expect(await compositionsApi.reevaluate('isa-demo', 'fms', '1.0.0')).toEqual({
+      created: true,
+      evaluation: version.evaluations[0],
+    });
     expect(url(1)).toMatch(/\/compositions\/fms\/versions\/1\.0\.0\/evaluations$/);
   });
 
@@ -101,11 +121,21 @@ describe('compositionsApi', () => {
   it('asks for versions with their include list, order and date bounds, and pages until the total', async () => {
     const row = { ...version, document: undefined };
     fetchMock
-      .mockResolvedValueOnce(answer({ versions: Array.from({ length: 200 }, () => row), total: 201, limit: 200, offset: 0 }))
+      .mockResolvedValueOnce(
+        answer({
+          versions: Array.from({ length: 200 }, () => row),
+          total: 201,
+          limit: 200,
+          offset: 0,
+        })
+      )
       .mockResolvedValueOnce(answer({ versions: [row], total: 201, limit: 200, offset: 200 }));
 
     const rows = await compositionsApi.allVersions('isa-demo', 'fms', {
-      include: ['analytics'], order: 'oldest', createdAfter: '2026-01-01T00:00:00Z', createdBefore: '2026-02-01T00:00:00Z',
+      include: ['analytics'],
+      order: 'oldest',
+      createdAfter: '2026-01-01T00:00:00Z',
+      createdBefore: '2026-02-01T00:00:00Z',
     });
 
     expect(rows).toHaveLength(201);
@@ -128,7 +158,9 @@ describe('compositionsApi', () => {
     expect(url(0)).toMatch(/\/compositions\/fms\/versions\/1\?include=document$/);
     expect(url(1)).toMatch(/\/v1\/organizations\/isa-demo\/compositions\?sort=updated$/);
     expect(url(2)).toMatch(/\/v1\/compositions\?organization=lab-other$/);
-    expect(url(3)).toMatch(/\/v1\/organizations\/isa-demo\/compositions\?problem=checkout-flow&limit=200$/);
+    expect(url(3)).toMatch(
+      /\/v1\/organizations\/isa-demo\/compositions\?problem=checkout-flow&limit=200$/
+    );
   });
 
   it('caches the text of a version and revalidates it with If-None-Match', async () => {
@@ -147,24 +179,79 @@ describe('compositionsApi', () => {
   });
 
   it('throws refusals in both envelopes, which readApiError reads alike', async () => {
-    const diagnostic = { code: 'c2y_task_unbound', message: 'Task ship has no binding entry.', severity: 'error', path: 'workflow', pointer: '/workflow', span: null };
+    const diagnostic = {
+      code: 'c2y_task_unbound',
+      message: 'Task ship has no binding entry.',
+      severity: 'error',
+      path: 'workflow',
+      pointer: '/workflow',
+      span: null,
+    };
     fetchMock
-      .mockResolvedValueOnce(answer({
-        type: 'about:blank', title: 'composition_invalid', status: 422, code: 'composition_invalid',
-        detail: 'The document is not valid.', diagnostics: [diagnostic],
-      }, 422))
-      .mockResolvedValueOnce(answer({ code: 'not_found', detail: { code: 'not_found', error: 'Composition not found.' } }, 404))
-      .mockResolvedValueOnce(answer({ code: 'precondition_failed', detail: { code: 'precondition_failed', error: 'Changed.' } }, 412, { ETag: '"c-9"' }))
-      .mockResolvedValueOnce(answer({ code: 'composition_busy', detail: { code: 'composition_busy', error: 'Busy.' } }, 429, { 'Retry-After': '1' }));
+      .mockResolvedValueOnce(
+        answer(
+          {
+            type: 'about:blank',
+            title: 'composition_invalid',
+            status: 422,
+            code: 'composition_invalid',
+            detail: 'The document is not valid.',
+            diagnostics: [diagnostic],
+          },
+          422
+        )
+      )
+      .mockResolvedValueOnce(
+        answer(
+          { code: 'not_found', detail: { code: 'not_found', error: 'Composition not found.' } },
+          404
+        )
+      )
+      .mockResolvedValueOnce(
+        answer(
+          {
+            code: 'precondition_failed',
+            detail: { code: 'precondition_failed', error: 'Changed.' },
+          },
+          412,
+          { ETag: '"c-9"' }
+        )
+      )
+      .mockResolvedValueOnce(
+        answer(
+          { code: 'composition_busy', detail: { code: 'composition_busy', error: 'Busy.' } },
+          429,
+          { 'Retry-After': '1' }
+        )
+      );
 
-    const refused = async (call: Promise<unknown>) => readApiError(await call.then(() => null, (error: unknown) => error));
+    const refused = async (call: Promise<unknown>) =>
+      readApiError(
+        await call.then(
+          () => null,
+          (error: unknown) => error
+        )
+      );
 
     const invalid = await refused(languageApi.parse('workflow: {seq: [pick, ship]}'));
     expect(invalid).toMatchObject({ status: 422, code: 'composition_invalid' });
-    expect(invalid.diagnostics[0]).toMatchObject({ code: 'c2y_task_unbound', pointer: '/workflow' });
+    expect(invalid.diagnostics[0]).toMatchObject({
+      code: 'c2y_task_unbound',
+      pointer: '/workflow',
+    });
 
-    expect(await refused(compositionsApi.get('lab-other', 'secret'))).toMatchObject({ status: 404, code: 'not_found', message: 'Composition not found.' });
-    expect(await refused(compositionsApi.update('isa-demo', 'fms', { name: 'x' }, '"c-3"'))).toMatchObject({ status: 412, etag: '"c-9"' });
-    expect(await refused(compositionsApi.check('isa-demo', 'fms', YAML_TEXT))).toMatchObject({ status: 429, code: 'composition_busy', retryAfter: 1 });
+    expect(await refused(compositionsApi.get('lab-other', 'secret'))).toMatchObject({
+      status: 404,
+      code: 'not_found',
+      message: 'Composition not found.',
+    });
+    expect(
+      await refused(compositionsApi.update('isa-demo', 'fms', { name: 'x' }, '"c-3"'))
+    ).toMatchObject({ status: 412, etag: '"c-9"' });
+    expect(await refused(compositionsApi.check('isa-demo', 'fms', YAML_TEXT))).toMatchObject({
+      status: 429,
+      code: 'composition_busy',
+      retryAfter: 1,
+    });
   });
 });

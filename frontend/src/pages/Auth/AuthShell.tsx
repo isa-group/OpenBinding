@@ -15,7 +15,16 @@ interface AuthShellProps {
 /** The binding diagram drawn on the brand panel: an input, two candidates, a chosen binding and its verdict. */
 function BindingDiagram() {
   return (
-    <svg className="auth-brand-diagram" width="260" height="150" viewBox="0 0 260 150" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+    <svg
+      className="auth-brand-diagram"
+      width="260"
+      height="150"
+      viewBox="0 0 260 150"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      aria-hidden="true"
+    >
       <rect x="8" y="60" width="44" height="30" rx="8" />
       <path d="M52 75h24" />
       <rect x="76" y="28" width="44" height="30" rx="8" />
@@ -34,7 +43,12 @@ function BindingDiagram() {
  * The split layout of every authentication screen: a brand panel on the left (a banner on narrow screens)
  * and the form on the right. It lives inside the public layout, so the public header stays above it.
  */
-export function AuthShell({ children, backTo = '/', backLabel = 'Back', backState }: AuthShellProps) {
+export function AuthShell({
+  children,
+  backTo = '/',
+  backLabel = 'Back',
+  backState,
+}: AuthShellProps) {
   return (
     <div className="auth-split">
       <aside className="auth-brand" aria-hidden="true">
@@ -52,8 +66,13 @@ export function AuthShell({ children, backTo = '/', backLabel = 'Back', backStat
       </aside>
 
       <div className="auth-pane">
-        <Link className="auth-back" to={backTo} state={backState} viewTransition><ChevronLeft aria-hidden="true" />{backLabel}</Link>
-        <div className="auth-banner" aria-hidden="true">OpenBinding</div>
+        <Link className="auth-back" to={backTo} state={backState} viewTransition>
+          <ChevronLeft aria-hidden="true" />
+          {backLabel}
+        </Link>
+        <div className="auth-banner" aria-hidden="true">
+          OpenBinding
+        </div>
         <div className="auth-pane-body">
           <div className="auth-panel">{children}</div>
         </div>
@@ -81,7 +100,18 @@ interface AuthFieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'id
 }
 
 /** A labelled input whose note (hint or error) is announced with it. */
-export function AuthField({ id, label, error, invalid, hint, hintTone = 'neutral', aside, below, inputRef, ...input }: AuthFieldProps) {
+export function AuthField({
+  id,
+  label,
+  error,
+  invalid,
+  hint,
+  hintTone = 'neutral',
+  aside,
+  below,
+  inputRef,
+  ...input
+}: AuthFieldProps) {
   const note = error ?? hint;
   const noteId = `${id}-note`;
   return (
@@ -98,7 +128,14 @@ export function AuthField({ id, label, error, invalid, hint, hintTone = 'neutral
         aria-describedby={note ? noteId : undefined}
       />
       {below}
-      {note && <span id={noteId} className={`auth-note${error ? ' is-error' : hintTone === 'ok' ? ' is-ok' : ''}`}>{note}</span>}
+      {note && (
+        <span
+          id={noteId}
+          className={`auth-note${error ? ' is-error' : hintTone === 'ok' ? ' is-ok' : ''}`}
+        >
+          {note}
+        </span>
+      )}
     </div>
   );
 }

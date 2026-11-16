@@ -5,9 +5,15 @@ import type { RouteDefinition } from '../types';
 // Area: organizations. The workspace home and the organization pages. A new organization is made in the dialog over the home,
 // open at `/app?create=organization`.
 
-const AppHome = lazy(() => import('../../pages/AppHome/AppHome').then((module) => ({ default: module.AppHome })));
-const OrgOverview = lazy(() => import('../../pages/Organization/OrgOverview').then((module) => ({ default: module.OrgOverview })));
-const OrgSettings = lazy(() => import('../../pages/Organization/OrgSettings').then((module) => ({ default: module.OrgSettings })));
+const AppHome = lazy(() =>
+  import('../../pages/AppHome/AppHome').then(module => ({ default: module.AppHome }))
+);
+const OrgOverview = lazy(() =>
+  import('../../pages/Organization/OrgOverview').then(module => ({ default: module.OrgOverview }))
+);
+const OrgSettings = lazy(() =>
+  import('../../pages/Organization/OrgSettings').then(module => ({ default: module.OrgSettings }))
+);
 
 export const routes: RouteDefinition[] = [
   live('app-home', '/app', <AppHome />),

@@ -16,7 +16,17 @@ interface FormFieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'id
 }
 
 /** A labelled input whose note (hint or error) is read together with it. */
-export function FormField({ label, error, hint, hintTone = 'neutral', mono = false, inputRef, maxWidth, className = '', ...input }: FormFieldProps) {
+export function FormField({
+  label,
+  error,
+  hint,
+  hintTone = 'neutral',
+  mono = false,
+  inputRef,
+  maxWidth,
+  className = '',
+  ...input
+}: FormFieldProps) {
   const id = useId();
   const noteId = `${id}-note`;
   const note = error ?? hint;
@@ -31,7 +41,14 @@ export function FormField({ label, error, hint, hintTone = 'neutral', mono = fal
         aria-invalid={error ? true : undefined}
         aria-describedby={note ? noteId : undefined}
       />
-      {note && <span id={noteId} className={`ui-field-note${error ? ' is-error' : hintTone === 'ok' ? ' is-ok' : ''}`}>{note}</span>}
+      {note && (
+        <span
+          id={noteId}
+          className={`ui-field-note${error ? ' is-error' : hintTone === 'ok' ? ' is-ok' : ''}`}
+        >
+          {note}
+        </span>
+      )}
     </div>
   );
 }

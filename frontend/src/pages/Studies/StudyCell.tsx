@@ -21,31 +21,62 @@ import { StateChip, StudyGate } from './parts';
 import { loadRun } from './runData';
 import type { StudyScopeValue } from './StudyScope';
 import {
-  RUNTIME, describeParameters, engineKeyOf, engineTitle, enginesOf, explainFailure, formatMeasure, formatSeconds, isActiveState, isRetryable, measureLabel,
-  measureValue, measuresOf, metricsOf, revisionLabel, rivalsOf, seedsOf, studyPageHref,
+  RUNTIME,
+  describeParameters,
+  engineKeyOf,
+  engineTitle,
+  enginesOf,
+  explainFailure,
+  formatMeasure,
+  formatSeconds,
+  isActiveState,
+  isRetryable,
+  measureLabel,
+  measureValue,
+  measuresOf,
+  metricsOf,
+  revisionLabel,
+  rivalsOf,
+  seedsOf,
+  studyPageHref,
 } from './studiesModel';
 import { studyRefusal, type Refusal } from './studyErrors';
 import { POLL_MS, usePolling } from './usePolling';
 import { useRevisionIndex } from './useRevisionIndex';
 
-const TABS = [{ id: 'result', label: 'Result' }, { id: 'source', label: 'Source' }];
+const TABS = [
+  { id: 'result', label: 'Result' },
+  { id: 'source', label: 'Source' },
+];
 
-type Outcome =
-  | { tone: 'success'; text: string }
-  | { tone: 'error'; refusal: Refusal };
+type Outcome = { tone: 'success'; text: string } | { tone: 'error'; refusal: Refusal };
 
 const TERMINAL_JOB = new Set(['completed', 'failed', 'cancelled']);
 
 /** The finished runs of this organization, whoever launched them, newest first: the ones whose result can stand in for a cell's. */
 async function loadAttachable(org: string): Promise<{ jobs: Job[] }> {
   const { runs } = await runsApi.list(org, { limit: 200 });
-  const finished = runs.filter((job) => TERMINAL_JOB.has(normalizeStatus(job.status)));
+  const finished = runs.filter(job => TERMINAL_JOB.has(normalizeStatus(job.status)));
   return { jobs: finished.sort((a, b) => b.created_at.localeCompare(a.created_at)) };
 }
 
-function AttachDialog({ scope, runId, cell, onClose, onAttached }: { scope: StudyScopeValue; runId: string; cell: StudyCellView; onClose: () => void; onAttached: () => void }) {
+function AttachDialog({
+  scope,
+  runId,
+  cell,
+  onClose,
+  onAttached,
+}: {
+  scope: StudyScopeValue;
+  runId: string;
+  cell: StudyCellView;
+  onClose: () => void;
+  onAttached: () => void;
+}) {
   const { organization, study } = scope;
-  const jobs = useResource(`attachable:${organization.slug}`, () => loadAttachable(organization.slug));
+  const jobs = useResource(`attachable:${organization.slug}`, () =>
+    loadAttachable(organization.slug)
+  );
   const [chosen, setChosen] = useState('');
   const [busy, setBusy] = useState(false);
   const [refusal, setRefusal] = useState<Refusal | null>(null);
@@ -55,7 +86,13 @@ function AttachDialog({ scope, runId, cell, onClose, onAttached }: { scope: Stud
     setBusy(true);
     setRefusal(null);
     try {
-      await platformApi.attachStudyCellResult(organization.slug, study.slug, runId, cell.id, chosen);
+      await platformApi.attachStudyCellResult(
+        organization.slug,
+        study.slug,
+        runId,
+        cell.id,
+        chosen
+      );
       onAttached();
     } catch (caught) {
       setRefusal(studyRefusal(caught, 'attach'));
@@ -64,13 +101,35 @@ function AttachDialog({ scope, runId, cell, onClose, onAttached }: { scope: Stud
   };
   return (
     <Modal title="Use an existing run’s result" size="lg" onClose={() => !busy && onClose()}>
-      <p>A finished run of this organization becomes this cell’s result as it is. It has to be a run of this cell: the same problem version, engine, mode and seed. The gateway checks, and names what differs if it isn’t.</p>
-      {jobs.status === 'loading' && <div role="status" aria-busy="true"><span className="sr-only">Loading the organization’s runs…</span><Skeleton variant="tile" /></div>}
-      {jobs.status === 'error' && <Notice tone="error" action={<Action variant="secondary" size="sm" onClick={jobs.reload}>Retry</Action>}>The organization’s runs couldn’t be loaded{marker(classifyAuthError(jobs.error))}.</Notice>}
-      {jobs.status === 'ready' && list.length === 0 && <p className="org-muted">This organization has no finished run to attach.</p>}
+      <p>
+        A finished run of this organization becomes this cell’s result as it is. It has to be a run
+        of this cell: the same problem version, engine, mode and seed. The gateway checks, and names
+        what differs if it isn’t.
+      </p>
+      {jobs.status === 'loading' && (
+        <div role="status" aria-busy="true">
+          <span className="sr-only">Loading the organization’s runs…</span>
+          <Skeleton variant="tile" />
+        </div>
+      )}
+      {jobs.status === 'error' && (
+        <Notice
+          tone="error"
+          action={
+            <Action variant="secondary" size="sm" onClick={jobs.reload}>
+              Retry
+            </Action>
+          }
+        >
+          The organization’s runs couldn’t be loaded{marker(classifyAuthError(jobs.error))}.
+        </Notice>
+      )}
+      {jobs.status === 'ready' && list.length === 0 && (
+        <p className="org-muted">This organization has no finished run to attach.</p>
+      )}
       {list.length > 0 && (
         <div className="st-choices" role="radiogroup" aria-label="Finished runs">
-          {list.map((job) => (
+          {list.map(job => (
             <Choice
               key={job.id}
               name="attach-job"
@@ -85,19 +144,37 @@ function AttachDialog({ scope, runId, cell, onClose, onAttached }: { scope: Stud
       )}
       {refusal && <RefusalNotice refusal={refusal} />}
       <div className="ui-modal-actions">
-        <Action variant="secondary" onClick={onClose} disabled={busy}>Cancel</Action>
-        <Action variant="primary" busy={busy} disabled={!chosen} onClick={() => void attach()}>Attach this result</Action>
+        <Action variant="secondary" onClick={onClose} disabled={busy}>
+          Cancel
+        </Action>
+        <Action variant="primary" busy={busy} disabled={!chosen} onClick={() => void attach()}>
+          Attach this result
+        </Action>
       </div>
     </Modal>
   );
 }
 
-function RivalsCard({ cell, cells, measure, onMeasure, measures, cellHref }: {
-  cell: StudyCellView; cells: readonly StudyCellView[]; measure: string; onMeasure: (name: string) => void; measures: string[]; cellHref: (cellId: string) => string;
+function RivalsCard({
+  cell,
+  cells,
+  measure,
+  onMeasure,
+  measures,
+  cellHref,
+}: {
+  cell: StudyCellView;
+  cells: readonly StudyCellView[];
+  measure: string;
+  onMeasure: (name: string) => void;
+  measures: string[];
+  cellHref: (cellId: string) => string;
 }) {
   const rivals = rivalsOf(cell, cells);
-  const labels = new Map(enginesOf(rivals).map((engine) => [engine.key, engine.label]));
-  const values = rivals.map((item) => measureValue(item, measure)).filter((value): value is number => value !== null);
+  const labels = new Map(enginesOf(rivals).map(engine => [engine.key, engine.label]));
+  const values = rivals
+    .map(item => measureValue(item, measure))
+    .filter((value): value is number => value !== null);
   const top = values.length ? Math.max(...values) : 0;
   const best = values.length ? Math.min(...values) : null;
   const seeds = seedsOf(cell, cells);
@@ -108,26 +185,62 @@ function RivalsCard({ cell, cells, measure, onMeasure, measures, cellHref }: {
         {measures.length > 1 && (
           <label className="job-select">
             <span>Compare by</span>
-            <select aria-label="Compare by" value={measure} onChange={(event) => onMeasure(event.target.value)}>
-              {measures.map((name) => <option key={name} value={name}>{measureLabel(name)}</option>)}
+            <select
+              aria-label="Compare by"
+              value={measure}
+              onChange={event => onMeasure(event.target.value)}
+            >
+              {measures.map(name => (
+                <option key={name} value={name}>
+                  {measureLabel(name)}
+                </option>
+              ))}
             </select>
           </label>
         )}
       </div>
       {rivals.length < 2 ? (
-        <p className="org-muted">No other engine ran this problem with the same setting and seed in this run.</p>
+        <p className="org-muted">
+          No other engine ran this problem with the same setting and seed in this run.
+        </p>
       ) : (
-        <ul className="st-rivals" aria-label={`${measureLabel(measure)} of each engine on this input`}>
-          {rivals.map((item) => {
+        <ul
+          className="st-rivals"
+          aria-label={`${measureLabel(measure)} of each engine on this input`}
+        >
+          {rivals.map(item => {
             const value = measureValue(item, measure);
             const isThis = item.id === cell.id;
             return (
               <li key={item.id} className={isThis ? 'is-this' : undefined}>
                 <span className="st-rival-name">
-                  {isThis ? <b>{labels.get(engineKeyOf(item.engine_ref)) ?? engineTitle(item.engine_ref)} (this cell)</b> : <Link to={cellHref(item.id)} viewTransition>{labels.get(engineKeyOf(item.engine_ref)) ?? engineTitle(item.engine_ref)}</Link>}
+                  {isThis ? (
+                    <b>
+                      {labels.get(engineKeyOf(item.engine_ref)) ?? engineTitle(item.engine_ref)}{' '}
+                      (this cell)
+                    </b>
+                  ) : (
+                    <Link to={cellHref(item.id)} viewTransition>
+                      {labels.get(engineKeyOf(item.engine_ref)) ?? engineTitle(item.engine_ref)}
+                    </Link>
+                  )}
                 </span>
-                <span className="st-rival-bar" aria-hidden="true"><i className={value !== null && best !== null && value === best ? 'is-best' : undefined} style={{ width: `${value !== null && top > 0 ? Math.max(3, Math.round((value / top) * 100)) : 0}%` }} /></span>
-                <span className="st-rival-value">{value !== null ? formatMeasure(value) : <StateChip state={item.state} />}{value !== null && best !== null && value === best && rivals.length > 1 ? <small> best</small> : null}</span>
+                <span className="st-rival-bar" aria-hidden="true">
+                  <i
+                    className={
+                      value !== null && best !== null && value === best ? 'is-best' : undefined
+                    }
+                    style={{
+                      width: `${value !== null && top > 0 ? Math.max(3, Math.round((value / top) * 100)) : 0}%`,
+                    }}
+                  />
+                </span>
+                <span className="st-rival-value">
+                  {value !== null ? formatMeasure(value) : <StateChip state={item.state} />}
+                  {value !== null && best !== null && value === best && rivals.length > 1 ? (
+                    <small> best</small>
+                  ) : null}
+                </span>
               </li>
             );
           })}
@@ -135,10 +248,14 @@ function RivalsCard({ cell, cells, measure, onMeasure, measures, cellHref }: {
       )}
       {seeds.length > 1 && (
         <p className="st-caption">
-          Same engine, other seeds: {seeds.map((item) => {
-            const value = measureValue(item, measure);
-            return `seed ${item.seed} ${value !== null ? formatMeasure(value) : item.state}`;
-          }).join(' · ')}.
+          Same engine, other seeds:{' '}
+          {seeds
+            .map(item => {
+              const value = measureValue(item, measure);
+              return `seed ${item.seed} ${value !== null ? formatMeasure(value) : item.state}`;
+            })
+            .join(' · ')}
+          .
         </p>
       )}
     </section>
@@ -146,15 +263,27 @@ function RivalsCard({ cell, cells, measure, onMeasure, measures, cellHref }: {
 }
 
 /** One cell of the study run `runId`, shown inside the Results tab: what it ran on, how it ended, and how the engines compare on it. */
-export function CellPanel({ scope, runId, cellId }: { scope: StudyScopeValue; runId: string; cellId: string }) {
+export function CellPanel({
+  scope,
+  runId,
+  cellId,
+}: {
+  scope: StudyScopeValue;
+  runId: string;
+  cellId: string;
+}) {
   const { study, organization, access, studyPath } = scope;
   const org = organization.slug;
   const navigate = useNavigate();
   const resultsHref = studyPageHref(studyPath, 'results', { run: runId });
   const cellHref = (id: string) => studyPageHref(studyPath, 'results', { run: runId, cell: id });
   const { index } = useRevisionIndex(org);
-  const siblings = useResource(`cell-run:${study.id}/${runId}`, () => loadRun(org, study.slug, runId));
-  const one = useResource(`cell:${runId}/${cellId}`, () => platformApi.studyCell(org, study.slug, runId, cellId));
+  const siblings = useResource(`cell-run:${study.id}/${runId}`, () =>
+    loadRun(org, study.slug, runId)
+  );
+  const one = useResource(`cell:${runId}/${cellId}`, () =>
+    platformApi.studyCell(org, study.slug, runId, cellId)
+  );
   const [measureChoice, setMeasureChoice] = useState<string | null>(null);
   const [outcome, setOutcome] = useState<Outcome | null>(null);
   const [retrying, setRetrying] = useState(false);
@@ -163,31 +292,62 @@ export function CellPanel({ scope, runId, cellId }: { scope: StudyScopeValue; ru
 
   const cell = one.data ?? one.stale;
   const all = siblings.data ?? siblings.stale;
-  const reloadAll = () => { one.reload(); siblings.reload(); };
+  const reloadAll = () => {
+    one.reload();
+    siblings.reload();
+  };
   usePolling(Boolean(cell && isActiveState(cell.state)), reloadAll, POLL_MS);
 
   if (one.status === 'error' && !cell) {
     const problem = classifyAuthError(one.error);
     if (problem.status === 404) {
       return (
-        <StudyGate title="Cell not found" action={<Action to={studyPath} variant="primary">Back to the study</Action>}>
+        <StudyGate
+          title="Cell not found"
+          action={
+            <Action to={studyPath} variant="primary">
+              Back to the study
+            </Action>
+          }
+        >
           No such cell here (404). It may belong to another run, or the run no longer exists.
         </StudyGate>
       );
     }
     if (problem.status === 403) {
-      return <Notice tone="warning" title={`This API key can’t show this cell${marker(problem)}`}>The key isn’t allowed to use the engine this cell pins.</Notice>;
+      return (
+        <Notice tone="warning" title={`This API key can’t show this cell${marker(problem)}`}>
+          The key isn’t allowed to use the engine this cell pins.
+        </Notice>
+      );
     }
-    return <Notice tone="error" action={<Action variant="secondary" size="sm" onClick={one.reload}>Retry</Action>}>The cell couldn’t be loaded{marker(problem)}.</Notice>;
+    return (
+      <Notice
+        tone="error"
+        action={
+          <Action variant="secondary" size="sm" onClick={one.reload}>
+            Retry
+          </Action>
+        }
+      >
+        The cell couldn’t be loaded{marker(problem)}.
+      </Notice>
+    );
   }
   if (!cell) {
-    return <div role="status" aria-busy="true"><span className="sr-only">Loading the cell…</span><Skeleton variant="panel" /></div>;
+    return (
+      <div role="status" aria-busy="true">
+        <span className="sr-only">Loading the cell…</span>
+        <Skeleton variant="panel" />
+      </div>
+    );
   }
 
   const cells = all?.cells ?? [];
   const metrics = metricsOf(cell);
   const measures = measuresOf(cells.length ? cells : [cell]);
-  const measure = measureChoice && measures.includes(measureChoice) ? measureChoice : measures[0] ?? RUNTIME;
+  const measure =
+    measureChoice && measures.includes(measureChoice) ? measureChoice : (measures[0] ?? RUNTIME);
   const info = index.get(cell.binding_case_revision_id);
   const failure = cell.state === 'failed' ? explainFailure(metrics) : null;
   const ref = cell.engine_ref;
@@ -207,12 +367,36 @@ export function CellPanel({ scope, runId, cellId }: { scope: StudyScopeValue; ru
   };
 
   const inputs: Array<[string, ReactNode]> = [
-    ['Problem', info ? <Link to={problemPath(org, info.caseSlug, undefined, { version: info.revision })} viewTransition>{revisionLabel(index, cell.binding_case_revision_id)}</Link> : revisionLabel(index, cell.binding_case_revision_id)],
+    [
+      'Problem',
+      info ? (
+        <Link
+          to={problemPath(org, info.caseSlug, undefined, { version: info.revision })}
+          viewTransition
+        >
+          {revisionLabel(index, cell.binding_case_revision_id)}
+        </Link>
+      ) : (
+        revisionLabel(index, cell.binding_case_revision_id)
+      ),
+    ],
     ['Engine', engineTitle(ref)],
     ['Mode', ref.mode ?? '—'],
     ['Settings', describeParameters(cell.parameters)],
     ['Seed', String(cell.seed)],
-    ['Source', info ? <Link to={problemPath(org, info.caseSlug, 'source', { version: info.revision })} viewTransition>Package and compiled form</Link> : '—'],
+    [
+      'Source',
+      info ? (
+        <Link
+          to={problemPath(org, info.caseSlug, 'source', { version: info.revision })}
+          viewTransition
+        >
+          Package and compiled form
+        </Link>
+      ) : (
+        '—'
+      ),
+    ],
   ];
 
   return (
@@ -226,10 +410,18 @@ export function CellPanel({ scope, runId, cellId }: { scope: StudyScopeValue; ru
           {cells.length > 1 && (
             <label className="job-select">
               <span>Other cell</span>
-              <select aria-label="Other cell" value={cell.id} onChange={(event) => void navigate(cellHref(event.target.value), { viewTransition: true })}>
-                {cells.map((item) => (
+              <select
+                aria-label="Other cell"
+                value={cell.id}
+                onChange={event =>
+                  void navigate(cellHref(event.target.value), { viewTransition: true })
+                }
+              >
+                {cells.map(item => (
                   <option key={item.id} value={item.id}>
-                    Cell {item.ordinal} · {revisionLabel(index, item.binding_case_revision_id, true)} · {item.engine_ref.name ?? 'engine'} · seed {item.seed} · {item.state}
+                    Cell {item.ordinal} ·{' '}
+                    {revisionLabel(index, item.binding_case_revision_id, true)} ·{' '}
+                    {item.engine_ref.name ?? 'engine'} · seed {item.seed} · {item.state}
                   </option>
                 ))}
               </select>
@@ -238,70 +430,153 @@ export function CellPanel({ scope, runId, cellId }: { scope: StudyScopeValue; ru
         </div>
         {access.canCreate && (
           <div className="proj-actions">
-            {isRetryable(cell.state) && <Action variant="primary" busy={retrying} onClick={() => void retry()}>Retry this cell</Action>}
-            <Action variant="secondary" disabled={retrying} onClick={() => setAttaching(true)}>Use an existing run’s result</Action>
+            {isRetryable(cell.state) && (
+              <Action variant="primary" busy={retrying} onClick={() => void retry()}>
+                Retry this cell
+              </Action>
+            )}
+            <Action variant="secondary" disabled={retrying} onClick={() => setAttaching(true)}>
+              Use an existing run’s result
+            </Action>
           </div>
         )}
       </header>
 
       {outcome?.tone === 'success' && <Notice tone="success">{outcome.text}</Notice>}
       {outcome?.tone === 'error' && <RefusalNotice refusal={outcome.refusal} usageTo />}
-      {!access.canCreate && <p className="org-muted">Read-only: retrying and attaching a result need MEMBER in {organization.name}.</p>}
+      {!access.canCreate && (
+        <p className="org-muted">
+          Read-only: retrying and attaching a result need MEMBER in {organization.name}.
+        </p>
+      )}
 
-      <TabBar items={TABS} value={tab} onChange={(id) => setTab(id as 'result' | 'source')} ariaLabel="Cell views" prefix="st-cell-view" />
+      <TabBar
+        items={TABS}
+        value={tab}
+        onChange={id => setTab(id as 'result' | 'source')}
+        ariaLabel="Cell views"
+        prefix="st-cell-view"
+      />
       <TabPanel prefix="st-cell-view" active={tab}>
-      {tab === 'source' ? (
-        <SourceView
-          source={{ state: cell.state, job_id: cell.job_id, engine: cell.engine_ref, parameters: cell.parameters, seed: cell.seed, metrics: cell.metrics }}
-          label="Cell metrics source"
-          filename={`cell-${cell.ordinal}.json`}
-        />
-      ) : (
-      <>
-      <section className="st-card" aria-labelledby="st-inputs-title">
-        <h2 id="st-inputs-title">Frozen inputs</h2>
-        <div className="job-facts-grid">
-          {inputs.map(([label, value]) => (
-            <div key={label} className="job-fact"><div>{label}</div><div>{value}</div></div>
-          ))}
-        </div>
-        <div className="st-fingerprint">
-          <span>Fingerprint</span>
-          <CopyDigest value={cell.fingerprint} label="Copy cell digest" />
-        </div>
-        <span className="st-caption">These never change between runs: the same cell in the next run has the same fingerprint.</span>
-      </section>
+        {tab === 'source' ? (
+          <SourceView
+            source={{
+              state: cell.state,
+              job_id: cell.job_id,
+              engine: cell.engine_ref,
+              parameters: cell.parameters,
+              seed: cell.seed,
+              metrics: cell.metrics,
+            }}
+            label="Cell metrics source"
+            filename={`cell-${cell.ordinal}.json`}
+          />
+        ) : (
+          <>
+            <section className="st-card" aria-labelledby="st-inputs-title">
+              <h2 id="st-inputs-title">Frozen inputs</h2>
+              <div className="job-facts-grid">
+                {inputs.map(([label, value]) => (
+                  <div key={label} className="job-fact">
+                    <div>{label}</div>
+                    <div>{value}</div>
+                  </div>
+                ))}
+              </div>
+              <div className="st-fingerprint">
+                <span>Fingerprint</span>
+                <CopyDigest value={cell.fingerprint} label="Copy cell digest" />
+              </div>
+              <span className="st-caption">
+                These never change between runs: the same cell in the next run has the same
+                fingerprint.
+              </span>
+            </section>
 
-      {cell.state === 'completed' && (
-        <section aria-labelledby="st-result-title" className="st-result">
-          <h2 id="st-result-title" className="sr-only">Result</h2>
-          <ul className="job-figures">
-            <li><span>Outcome</span><b>{metrics.feasible === false ? 'Infeasible' : 'Feasible'}</b><small>{metrics.termination ? metrics.termination.toLowerCase() : 'meets every must-hold rule'}</small></li>
-            {Object.entries(metrics.objectives).map(([name, value]) => <li key={name}><span>{measureLabel(name)}</span><b>{formatMeasure(value)}</b><small>objective · lower is better</small></li>)}
-            <li><span>Took</span><b>{formatSeconds(metrics.runtimeSeconds)}</b><small>from queued to finished</small></li>
-          </ul>
-        </section>
-      )}
-      {cell.state === 'failed' && failure && (
-        <Notice tone="error" title={`Failed: ${failure.title}`}>
-          {metrics.code ? `Code ${metrics.code}${failure.detail ? ` · ${failure.detail}` : ''}. ` : ''}Retrying usually helps.
-        </Notice>
-      )}
-      {cell.state === 'cancelled' && <Notice tone="info">Cancelled before it ran. Retry it, or attach the result of a run of the organization with the same inputs.</Notice>}
-      {isActiveState(cell.state) && <Notice tone="info">{cell.state === 'queued' ? 'Waiting for a run slot.' : 'The engine is solving it.'} This page updates by itself.</Notice>}
+            {cell.state === 'completed' && (
+              <section aria-labelledby="st-result-title" className="st-result">
+                <h2 id="st-result-title" className="sr-only">
+                  Result
+                </h2>
+                <ul className="job-figures">
+                  <li>
+                    <span>Outcome</span>
+                    <b>{metrics.feasible === false ? 'Infeasible' : 'Feasible'}</b>
+                    <small>
+                      {metrics.termination
+                        ? metrics.termination.toLowerCase()
+                        : 'meets every must-hold rule'}
+                    </small>
+                  </li>
+                  {Object.entries(metrics.objectives).map(([name, value]) => (
+                    <li key={name}>
+                      <span>{measureLabel(name)}</span>
+                      <b>{formatMeasure(value)}</b>
+                      <small>objective · lower is better</small>
+                    </li>
+                  ))}
+                  <li>
+                    <span>Took</span>
+                    <b>{formatSeconds(metrics.runtimeSeconds)}</b>
+                    <small>from queued to finished</small>
+                  </li>
+                </ul>
+              </section>
+            )}
+            {cell.state === 'failed' && failure && (
+              <Notice tone="error" title={`Failed: ${failure.title}`}>
+                {metrics.code
+                  ? `Code ${metrics.code}${failure.detail ? ` · ${failure.detail}` : ''}. `
+                  : ''}
+                Retrying usually helps.
+              </Notice>
+            )}
+            {cell.state === 'cancelled' && (
+              <Notice tone="info">
+                Cancelled before it ran. Retry it, or attach the result of a run of the organization
+                with the same inputs.
+              </Notice>
+            )}
+            {isActiveState(cell.state) && (
+              <Notice tone="info">
+                {cell.state === 'queued' ? 'Waiting for a run slot.' : 'The engine is solving it.'}{' '}
+                This page updates by itself.
+              </Notice>
+            )}
 
-      {cell.state === 'completed' && <RivalsCard cell={cell} cells={cells} measure={measure} onMeasure={setMeasureChoice} measures={measures} cellHref={cellHref} />}
+            {cell.state === 'completed' && (
+              <RivalsCard
+                cell={cell}
+                cells={cells}
+                measure={measure}
+                onMeasure={setMeasureChoice}
+                measures={measures}
+                cellHref={cellHref}
+              />
+            )}
 
-      <p className="st-job-line">
-        <span className="org-muted">Ran as:</span>{' '}
-        {cell.job_id
-          ? <><Link to={runPath(organization.slug, cell.job_id)} viewTransition>Open run</Link></>
-          : <span>none yet</span>}
-        {' · '}<Link to={resultsHref} viewTransition>Back to the results</Link>
-        {' · '}<Link to={studyPageHref(studyPath, 'progress', { run: runId })} viewTransition>Back to the progress</Link>
-      </p>
-      </>
-      )}
+            <p className="st-job-line">
+              <span className="org-muted">Ran as:</span>{' '}
+              {cell.job_id ? (
+                <>
+                  <Link to={runPath(organization.slug, cell.job_id)} viewTransition>
+                    Open run
+                  </Link>
+                </>
+              ) : (
+                <span>none yet</span>
+              )}
+              {' · '}
+              <Link to={resultsHref} viewTransition>
+                Back to the results
+              </Link>
+              {' · '}
+              <Link to={studyPageHref(studyPath, 'progress', { run: runId })} viewTransition>
+                Back to the progress
+              </Link>
+            </p>
+          </>
+        )}
       </TabPanel>
 
       {attaching && (
@@ -310,7 +585,14 @@ export function CellPanel({ scope, runId, cellId }: { scope: StudyScopeValue; ru
           runId={runId}
           cell={cell}
           onClose={() => setAttaching(false)}
-          onAttached={() => { setAttaching(false); setOutcome({ tone: 'success', text: 'Result attached. It now counts as this cell’s result.' }); reloadAll(); }}
+          onAttached={() => {
+            setAttaching(false);
+            setOutcome({
+              tone: 'success',
+              text: 'Result attached. It now counts as this cell’s result.',
+            });
+            reloadAll();
+          }}
         />
       )}
     </>

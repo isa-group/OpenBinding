@@ -23,13 +23,13 @@ const NARROW = '(max-width: 640px)';
 /** Below 640 px the panes are tabs. */
 function useNarrow(): boolean {
   return useSyncExternalStore(
-    (notify) => {
+    notify => {
       const list = typeof window.matchMedia === 'function' ? window.matchMedia(NARROW) : null;
       list?.addEventListener?.('change', notify);
       return () => list?.removeEventListener?.('change', notify);
     },
     () => (typeof window.matchMedia === 'function' ? window.matchMedia(NARROW).matches : false),
-    () => false,
+    () => false
   );
 }
 
@@ -71,26 +71,57 @@ interface CompositionEditorProps {
  * tabs, and the seal bar stays at the bottom.
  */
 export function CompositionEditor({
-  org, composition, version, userId, canSeal, initialPane = 'code', openUpload = false, onSealed, versionHref, delays,
+  org,
+  composition,
+  version,
+  userId,
+  canSeal,
+  initialPane = 'code',
+  openUpload = false,
+  onSealed,
+  versionHref,
+  delays,
 }: CompositionEditorProps) {
   const narrow = useNarrow();
   const [pane, setPane] = useState<EditorPane>(initialPane);
-  const editor = useCompositionEditor({ org, composition, version, userId, delays, visual: !narrow || pane === 'visual' });
+  const editor = useCompositionEditor({
+    org,
+    composition,
+    version,
+    userId,
+    delays,
+    visual: !narrow || pane === 'visual',
+  });
   const [selection, setSelection] = useState<{ anchor: number; head: number } | undefined>();
   const [uploading, setUploading] = useState(openUpload && canSeal);
-  const [outcome, setOutcome] = useState<{ text: string; outcome: Exclude<SealOutcome, { kind: 'created' }> } | null>(null);
+  const [outcome, setOutcome] = useState<{
+    text: string;
+    outcome: Exclude<SealOutcome, { kind: 'created' }>;
+  } | null>(null);
   const { copy, status: copied } = useCopy();
   const readOnly = !canSeal;
 
   if (editor.loadError !== null) {
     return (
-      <Notice tone="error" action={<Action variant="secondary" size="sm" onClick={editor.retry}>Retry</Action>}>
+      <Notice
+        tone="error"
+        action={
+          <Action variant="secondary" size="sm" onClick={editor.retry}>
+            Retry
+          </Action>
+        }
+      >
         {`The text of version ${version?.label ?? ''} couldn’t be loaded${editor.loadError ? `: ${editor.loadError}` : '.'}`}
       </Notice>
     );
   }
   if (!editor.ready) {
-    return <div role="status" aria-busy="true"><span className="sr-only">Loading the editor…</span><Skeleton variant="panel" /></div>;
+    return (
+      <div role="status" aria-busy="true">
+        <span className="sr-only">Loading the editor…</span>
+        <Skeleton variant="panel" />
+      </div>
+    );
   }
 
   const select = (diagnostic: Located) => {
@@ -119,59 +150,123 @@ export function CompositionEditor({
     />
   );
   const visual = (
-    <VisualPane document={editor.document} issue={editor.documentIssue} facts={editor.facts} mutate={editor.mutate} busy={editor.mutating} readOnly={readOnly} />
+    <VisualPane
+      document={editor.document}
+      issue={editor.documentIssue}
+      facts={editor.facts}
+      mutate={editor.mutate}
+      busy={editor.mutating}
+      readOnly={readOnly}
+    />
   );
 
   return (
     <div className="ce">
       <p className="cmp-muted">
-        {version
-          ? <>Editing from version <strong>{version.label}</strong>. Sealing makes a new version; this one stays as it is.</>
-          : <>No version yet. Start from this document and seal its first version.</>}
+        {version ? (
+          <>
+            Editing from version <strong>{version.label}</strong>. Sealing makes a new version; this
+            one stays as it is.
+          </>
+        ) : (
+          <>No version yet. Start from this document and seal its first version.</>
+        )}
       </p>
 
       <div className="ce-toolbar" role="toolbar" aria-label="Editor">
         {!readOnly && (
           <>
-            <Action size="sm" variant="ghost" onClick={() => editor.undo()} disabled={!editor.canUndo}><Undo2 aria-hidden="true" />Undo</Action>
-            <Action size="sm" variant="ghost" onClick={() => editor.redo()} disabled={!editor.canRedo}><Redo2 aria-hidden="true" />Redo</Action>
-            <Action size="sm" variant="ghost" onClick={() => editor.discard()} disabled={!editor.dirty}><RotateCcw aria-hidden="true" />Discard changes</Action>
-            <Action size="sm" variant="ghost" onClick={() => setUploading(true)}><UploadCloud aria-hidden="true" />Upload</Action>
+            <Action
+              size="sm"
+              variant="ghost"
+              onClick={() => editor.undo()}
+              disabled={!editor.canUndo}
+            >
+              <Undo2 aria-hidden="true" />
+              Undo
+            </Action>
+            <Action
+              size="sm"
+              variant="ghost"
+              onClick={() => editor.redo()}
+              disabled={!editor.canRedo}
+            >
+              <Redo2 aria-hidden="true" />
+              Redo
+            </Action>
+            <Action
+              size="sm"
+              variant="ghost"
+              onClick={() => editor.discard()}
+              disabled={!editor.dirty}
+            >
+              <RotateCcw aria-hidden="true" />
+              Discard changes
+            </Action>
+            <Action size="sm" variant="ghost" onClick={() => setUploading(true)}>
+              <UploadCloud aria-hidden="true" />
+              Upload
+            </Action>
           </>
         )}
-        <Action size="sm" variant="ghost" onClick={() => void copy(editor.shareLink(), 'share')}><Link2 aria-hidden="true" />Copy share link</Action>
+        <Action size="sm" variant="ghost" onClick={() => void copy(editor.shareLink(), 'share')}>
+          <Link2 aria-hidden="true" />
+          Copy share link
+        </Action>
         <span className="ce-status" role="status" aria-live="polite">
-          {copied('share') === 'copied' && 'Share link copied. It carries the text in its fragment; nothing is sent to the gateway.'}
+          {copied('share') === 'copied' &&
+            'Share link copied. It carries the text in its fragment; nothing is sent to the gateway.'}
           {copied('share') === 'failed' && 'The share link couldn’t be copied.'}
-          {copied('share') === 'idle' && (editor.pausedMessage ?? (editor.checking ? 'Checking…' : editor.dirty ? 'Unsaved changes' : ''))}
+          {copied('share') === 'idle' &&
+            (editor.pausedMessage ??
+              (editor.checking ? 'Checking…' : editor.dirty ? 'Unsaved changes' : ''))}
         </span>
       </div>
 
       {editor.draftIssue && <Notice tone="warning">{editor.draftIssue}</Notice>}
       {editor.linkIssue && (
-        <Notice tone="error" action={<Action variant="secondary" size="sm" onClick={editor.dismissLinkIssue}>Dismiss</Action>}>{editor.linkIssue}</Notice>
+        <Notice
+          tone="error"
+          action={
+            <Action variant="secondary" size="sm" onClick={editor.dismissLinkIssue}>
+              Dismiss
+            </Action>
+          }
+        >
+          {editor.linkIssue}
+        </Notice>
       )}
-      {editor.lintIssue && <Notice tone="warning">{`The gateway couldn’t check the text: ${editor.lintIssue}`}</Notice>}
+      {editor.lintIssue && (
+        <Notice tone="warning">{`The gateway couldn’t check the text: ${editor.lintIssue}`}</Notice>
+      )}
 
       {narrow ? (
         <>
           <TabBar
-            items={[{ id: 'code', label: 'Code' }, { id: 'visual', label: 'Visual' }, { id: 'problems', label: problemsTab(editor.diagnostics) }]}
+            items={[
+              { id: 'code', label: 'Code' },
+              { id: 'visual', label: 'Visual' },
+              { id: 'problems', label: problemsTab(editor.diagnostics) },
+            ]}
             value={pane}
-            onChange={(id) => setPane(id as EditorPane)}
+            onChange={id => setPane(id as EditorPane)}
             ariaLabel="Editor panes"
             prefix="ce-pane"
           />
           <TabPanel prefix="ce-pane" active={pane}>
             {pane === 'code' && code}
             {pane === 'visual' && visual}
-            {pane === 'problems' && <ProblemsPanel diagnostics={editor.diagnostics} onSelect={select} />}
+            {pane === 'problems' && (
+              <ProblemsPanel diagnostics={editor.diagnostics} onSelect={select} />
+            )}
           </TabPanel>
         </>
       ) : (
         <div className="ce-panes">
           {code}
-          <div className="ce-visual-column" aria-label="Visual editor" role="region">{visual}</div>
+          <div className="ce-visual-column" aria-label="Visual editor" role="region">
+            {visual}
+          </div>
         </div>
       )}
 
@@ -180,7 +275,9 @@ export function CompositionEditor({
           check={editor.check}
           canonical={editor.check.content === editor.text}
           readOnly={readOnly}
-          onUseCanonical={() => { if (editor.check?.content) editor.setText(editor.check.content); }}
+          onUseCanonical={() => {
+            if (editor.check?.content) editor.setText(editor.check.content);
+          }}
         />
       )}
 
@@ -198,7 +295,7 @@ export function CompositionEditor({
       {uploading && (
         <UploadDialog
           onClose={() => setUploading(false)}
-          onLoad={(text) => {
+          onLoad={text => {
             setUploading(false);
             editor.bringIn(text, 'upload');
           }}
@@ -207,12 +304,18 @@ export function CompositionEditor({
       {editor.incoming && (
         <Modal title="Replace your unsaved changes?" size="sm" onClose={editor.declineIncoming}>
           <p>
-            {editor.incoming.source === 'upload' ? 'The uploaded file' : 'The composition in this link'} replaces the text you have not sealed.
-            Undo brings your text back.
+            {editor.incoming.source === 'upload'
+              ? 'The uploaded file'
+              : 'The composition in this link'}{' '}
+            replaces the text you have not sealed. Undo brings your text back.
           </p>
           <div className="ui-modal-actions">
-            <Action variant="secondary" onClick={editor.declineIncoming}>Keep my changes</Action>
-            <Action variant="primary" onClick={editor.acceptIncoming}>Replace</Action>
+            <Action variant="secondary" onClick={editor.declineIncoming}>
+              Keep my changes
+            </Action>
+            <Action variant="primary" onClick={editor.acceptIncoming}>
+              Replace
+            </Action>
           </div>
         </Modal>
       )}

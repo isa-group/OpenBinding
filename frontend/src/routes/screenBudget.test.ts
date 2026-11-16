@@ -2,15 +2,23 @@ import { describe, expect, it } from 'vitest';
 import { routeDefinitions, routesByArea } from './registry';
 
 /** The source of every area test, as text: importing them would run their tests a second time. */
-const areaTests = import.meta.glob<string>('./areas/*.test.ts', { query: '?raw', import: 'default', eager: true });
+const areaTests = import.meta.glob<string>('./areas/*.test.ts', {
+  query: '?raw',
+  import: 'default',
+  eager: true,
+});
 
 /** The `['id', '/path'],` lines each area test lists as the screens it expects (one pair per line). */
 const PAIR = /^\s*\['([a-z0-9-]+)',\s*'(\/[^']*)'\],?\s*$/gm;
 
-const expectedOf = (source: string) => [...source.matchAll(PAIR)].map((match) => [match[1], match[2]]);
+const expectedOf = (source: string) =>
+  [...source.matchAll(PAIR)].map(match => [match[1], match[2]]);
 
 const expectations = Object.fromEntries(
-  Object.entries(areaTests).map(([file, source]) => [file.replace(/^\.\/areas\/(.+)\.test\.ts$/, '$1'), expectedOf(source)]),
+  Object.entries(areaTests).map(([file, source]) => [
+    file.replace(/^\.\/areas\/(.+)\.test\.ts$/, '$1'),
+    expectedOf(source),
+  ])
 );
 
 describe('screen budget', () => {
@@ -22,7 +30,9 @@ describe('screen budget', () => {
     const expected = Object.values(expectations).flat();
     expect(expected.length).toBeGreaterThan(0);
     expect(routeDefinitions).toHaveLength(expected.length);
-    expect(routeDefinitions.map((definition) => definition.id).sort()).toEqual(expected.map(([id]) => id).sort());
+    expect(routeDefinitions.map(definition => definition.id).sort()).toEqual(
+      expected.map(([id]) => id).sort()
+    );
   });
 
   it('keeps every area at the size its test expects', () => {
@@ -32,14 +42,19 @@ describe('screen budget', () => {
   });
 
   it('has at most 36 screens', () => {
-    expect(routeDefinitions.length, `${routeDefinitions.length} screens against a ceiling of 36`).toBeLessThanOrEqual(36);
+    expect(
+      routeDefinitions.length,
+      `${routeDefinitions.length} screens against a ceiling of 36`
+    ).toBeLessThanOrEqual(36);
   });
 
   // `pub-workbench` is registered in the public area (problems 3). The compositions area adds the list and the composition page
   // (33), then the public list and the showcase (35), and the language reference (public 5) brings F2 to 36: 33 after F5 retires
   // auth-register, auth-reset-request and auth-cas-callback.
   it('has the area sizes of the registry, 36 screens in all', () => {
-    const sizes = Object.fromEntries(Object.entries(routesByArea).map(([area, routes]) => [area, routes.length]));
+    const sizes = Object.fromEntries(
+      Object.entries(routesByArea).map(([area, routes]) => [area, routes.length])
+    );
     expect(sizes).toEqual({
       public: 5,
       auth: 5,
@@ -56,12 +71,20 @@ describe('screen budget', () => {
   });
 
   it('keeps no per-domain route file and no mention of routesByDomain under routes/', () => {
-    const files = import.meta.glob('./**/*.{ts,tsx}', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
+    const files = import.meta.glob('./**/*.{ts,tsx}', {
+      query: '?raw',
+      import: 'default',
+      eager: true,
+    }) as Record<string, string>;
     const paths = Object.keys(files);
     expect(paths.length).toBeGreaterThan(5);
-    expect(paths.filter((path) => /^\.\/d[1-8]\.tsx$/.test(path))).toEqual([]);
+    expect(paths.filter(path => /^\.\/d[1-8]\.tsx$/.test(path))).toEqual([]);
     // This file names the identifier to forbid it; every other file must not.
-    expect(paths.filter((path) => !path.endsWith('screenBudget.test.ts') && files[path].includes('routesByDomain'))).toEqual([]);
+    expect(
+      paths.filter(
+        path => !path.endsWith('screenBudget.test.ts') && files[path].includes('routesByDomain')
+      )
+    ).toEqual([]);
   });
 
   it('reports an id registered in two areas, naming both', () => {
@@ -77,7 +100,9 @@ describe('screen budget', () => {
       }
       return found;
     };
-    expect(duplicates({ public: [{ id: 'a' }, { id: 'b' }], runs: [{ id: 'b' }, { id: 'c' }] })).toEqual(['b: public, runs']);
+    expect(
+      duplicates({ public: [{ id: 'a' }, { id: 'b' }], runs: [{ id: 'b' }, { id: 'c' }] })
+    ).toEqual(['b: public, runs']);
     expect(duplicates(routesByArea)).toEqual([]);
   });
 });

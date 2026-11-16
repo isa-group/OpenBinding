@@ -17,7 +17,8 @@ export const catalogFixture: PricingCatalog = {
   tags: ['Repository', 'Laboratory', 'Engines', 'Collaboration'],
   features: {
     repository: {
-      description: 'Author, version and publish binding problems and collections, with permanent links, citations and verification.',
+      description:
+        'Author, version and publish binding problems and collections, with permanent links, citations and verification.',
       tag: 'Repository',
       type: 'DOMAIN',
       valueType: 'BOOLEAN',
@@ -25,20 +26,24 @@ export const catalogFixture: PricingCatalog = {
       expression: "pricingContext['features']['repository']",
     },
     runs: {
-      description: 'Run problem versions on the built-in engines; the platform re-evaluates every result.',
+      description:
+        'Run problem versions on the built-in engines; the platform re-evaluates every result.',
       tag: 'Laboratory',
       type: 'DOMAIN',
       valueType: 'BOOLEAN',
       defaultValue: true,
-      expression: "pricingContext['features']['runs'] && subscriptionContext['solverHours'] < pricingContext['usageLimits']['solverHours']",
+      expression:
+        "pricingContext['features']['runs'] && subscriptionContext['solverHours'] < pricingContext['usageLimits']['solverHours']",
     },
     studies: {
-      description: 'Compare engines over problems or a collection with budgets and seeds, read the protocol metrics and publish frozen, citable results.',
+      description:
+        'Compare engines over problems or a collection with budgets and seeds, read the protocol metrics and publish frozen, citable results.',
       tag: 'Laboratory',
       type: 'DOMAIN',
       valueType: 'BOOLEAN',
       defaultValue: true,
-      expression: "pricingContext['features']['studies'] && subscriptionContext['solverHours'] < pricingContext['usageLimits']['solverHours']",
+      expression:
+        "pricingContext['features']['studies'] && subscriptionContext['solverHours'] < pricingContext['usageLimits']['solverHours']",
     },
     generator: {
       description: 'Generate problem collections with the solver-aware generator, with provenance.',
@@ -46,7 +51,8 @@ export const catalogFixture: PricingCatalog = {
       type: 'DOMAIN',
       valueType: 'BOOLEAN',
       defaultValue: true,
-      expression: "pricingContext['features']['generator'] && subscriptionContext['generatedInstances'] < pricingContext['usageLimits']['generatedInstances']",
+      expression:
+        "pricingContext['features']['generator'] && subscriptionContext['generatedInstances'] < pricingContext['usageLimits']['generatedInstances']",
     },
     federatedEngines: {
       description: 'Register remote engines that pass conformance and run problems on them.',
@@ -58,7 +64,8 @@ export const catalogFixture: PricingCatalog = {
       expression: "pricingContext['features']['federatedEngines']",
     },
     collaboration: {
-      description: 'Organizations, projects and members with roles; projects are public or private.',
+      description:
+        'Organizations, projects and members with roles; projects are public or private.',
       tag: 'Collaboration',
       type: 'MANAGEMENT',
       valueType: 'BOOLEAN',
@@ -107,7 +114,8 @@ export const catalogFixture: PricingCatalog = {
       linkedFeatures: ['repository'],
     },
     solverHours: {
-      description: 'Solver time on the built-in engines per account and month; each run counts its time budget when it starts.',
+      description:
+        'Solver time on the built-in engines per account and month; each run counts its time budget when it starts.',
       tag: 'Laboratory',
       type: 'RENEWABLE',
       period: {
@@ -130,7 +138,8 @@ export const catalogFixture: PricingCatalog = {
       linkedFeatures: ['runs', 'studies'],
     },
     maxConcurrentRuns: {
-      description: 'Runs of one account executing at the same time, on built-in or federated engines.',
+      description:
+        'Runs of one account executing at the same time, on built-in or federated engines.',
       tag: 'Laboratory',
       type: 'NON_RENEWABLE',
       trackable: false,
@@ -150,7 +159,8 @@ export const catalogFixture: PricingCatalog = {
       linkedFeatures: ['studies'],
     },
     generatedInstances: {
-      description: 'Problem instances the generator writes per account and month; each generated instance counts once.',
+      description:
+        'Problem instances the generator writes per account and month; each generated instance counts once.',
       tag: 'Laboratory',
       type: 'RENEWABLE',
       period: {
@@ -205,7 +215,8 @@ export const catalogFixture: PricingCatalog = {
   },
   plans: {
     FREE: {
-      description: 'For any researcher. Author, run, compare, generate and publish binding problems, with a repository sized for one author.',
+      description:
+        'For any researcher. Author, run, compare, generate and publish binding problems, with a repository sized for one author.',
       price: 0,
       unit: 'user/month',
       features: {
@@ -271,7 +282,8 @@ export const catalogFixture: PricingCatalog = {
       },
     },
     RESEARCH: {
-      description: 'Free for Universidad de Sevilla members who sign in with CAS. An unlimited repository and research-scale laboratory limits.',
+      description:
+        'Free for Universidad de Sevilla members who sign in with CAS. An unlimited repository and research-scale laboratory limits.',
       price: 0,
       unit: 'user/month',
       features: {
@@ -337,7 +349,8 @@ export const catalogFixture: PricingCatalog = {
       },
     },
     LAB: {
-      description: 'By agreement, for groups that run benchmark campaigns or operate engines. Campaign-scale solver time, concurrency and generation.',
+      description:
+        'By agreement, for groups that run benchmark campaigns or operate engines. Campaign-scale solver time, concurrency and generation.',
       price: 'Contact us',
       unit: 'user/month',
       features: {

@@ -8,7 +8,11 @@ import type { RouteDefinition } from '../types';
 
 // Area: auth. Signing in, registering, password reset and the invitation link.
 
-const AcceptInvitation = lazy(() => import('../../pages/Invitations/AcceptInvitation').then((module) => ({ default: module.AcceptInvitation })));
+const AcceptInvitation = lazy(() =>
+  import('../../pages/Invitations/AcceptInvitation').then(module => ({
+    default: module.AcceptInvitation,
+  }))
+);
 
 export const routes: RouteDefinition[] = [
   live('auth-login', '/login', <Login />),

@@ -1,4 +1,11 @@
-import type { ExactStudyEngine, PresetStudyEngine, Study, StudyCell, StudyEngine, StudyRun } from '../../api/platform';
+import type {
+  ExactStudyEngine,
+  PresetStudyEngine,
+  Study,
+  StudyCell,
+  StudyEngine,
+  StudyRun,
+} from '../../api/platform';
 import type { ProblemRevision } from '../../api/problems';
 import type { EngineCatalogEntry, EngineMode } from '../../api/client';
 import type { ImmutableResourceRef } from '../../shared/api/types';
@@ -19,7 +26,8 @@ export const MAX_ENGINES = 50;
 export const MAX_SETTINGS = 100;
 export const MAX_SEEDS = 100;
 
-export const plural = (count: number, one: string, many = `${one}s`): string => `${count.toLocaleString('en-US')} ${count === 1 ? one : many}`;
+export const plural = (count: number, one: string, many = `${one}s`): string =>
+  `${count.toLocaleString('en-US')} ${count === 1 ? one : many}`;
 
 export interface MatrixSize {
   cases: number;
@@ -29,7 +37,12 @@ export interface MatrixSize {
   cells: number;
 }
 
-export function matrixSize(parts: { cases: number; engines: number; settings: number; seeds: number }): MatrixSize {
+export function matrixSize(parts: {
+  cases: number;
+  engines: number;
+  settings: number;
+  seeds: number;
+}): MatrixSize {
   return { ...parts, cells: parts.cases * parts.engines * parts.settings * parts.seeds };
 }
 
@@ -64,17 +77,28 @@ export function readSeeds(text: string): SeedReading {
   const seen = new Set<number>();
   for (const token of tokens) {
     const range = token.match(/^(-?\d+)-(\d+)$/);
-    const parts = range ? [Number(range[1]), Number(range[2])] : /^-?\d+$/.test(token) ? [Number(token), Number(token)] : null;
+    const parts = range
+      ? [Number(range[1]), Number(range[2])]
+      : /^-?\d+$/.test(token)
+        ? [Number(token), Number(token)]
+        : null;
     if (!parts || !Number.isSafeInteger(parts[0]) || !Number.isSafeInteger(parts[1])) {
-      return { seeds: [], error: `“${token}” isn’t a whole number. Use numbers like 1, 2, 3 or a range like 1-5.` };
+      return {
+        seeds: [],
+        error: `“${token}” isn’t a whole number. Use numbers like 1, 2, 3 or a range like 1-5.`,
+      };
     }
-    if (parts[1] < parts[0]) return { seeds: [], error: `“${token}” runs backwards. Write the smaller number first.` };
-    if (parts[1] - parts[0] + 1 > MAX_SEEDS) return { seeds: [], error: `A study takes at most ${MAX_SEEDS} seeds.` };
+    if (parts[1] < parts[0])
+      return { seeds: [], error: `“${token}” runs backwards. Write the smaller number first.` };
+    if (parts[1] - parts[0] + 1 > MAX_SEEDS)
+      return { seeds: [], error: `A study takes at most ${MAX_SEEDS} seeds.` };
     for (let value = parts[0]; value <= parts[1]; value += 1) {
-      if (seen.has(value)) return { seeds, error: `Seed ${value} appears twice. Each value can appear once.` };
+      if (seen.has(value))
+        return { seeds, error: `Seed ${value} appears twice. Each value can appear once.` };
       seen.add(value);
       seeds.push(value);
-      if (seeds.length > MAX_SEEDS) return { seeds, error: `A study takes at most ${MAX_SEEDS} seeds.` };
+      if (seeds.length > MAX_SEEDS)
+        return { seeds, error: `A study takes at most ${MAX_SEEDS} seeds.` };
     }
   }
   return { seeds };
@@ -91,7 +115,12 @@ export interface Variant {
   extra: string;
 }
 
-export const emptyVariant = (id: string): Variant => ({ id, seconds: '', iterations: '', extra: '' });
+export const emptyVariant = (id: string): Variant => ({
+  id,
+  seconds: '',
+  iterations: '',
+  extra: '',
+});
 
 export interface VariantReading {
   parameters: Record<string, unknown>;
@@ -104,7 +133,11 @@ export function readVariant(variant: Variant): VariantReading {
   if (variant.extra.trim()) {
     try {
       const parsed: unknown = JSON.parse(variant.extra);
-      if (!isRecord(parsed)) return { parameters, error: 'Other options must be a JSON object, like {"population_size": 40}.' };
+      if (!isRecord(parsed))
+        return {
+          parameters,
+          error: 'Other options must be a JSON object, like {"population_size": 40}.',
+        };
       Object.assign(parameters, parsed);
     } catch {
       return { parameters, error: 'Other options aren’t valid JSON.' };
@@ -112,12 +145,14 @@ export function readVariant(variant: Variant): VariantReading {
   }
   if (variant.seconds.trim()) {
     const seconds = Number(variant.seconds.replace(/,/g, ''));
-    if (!Number.isFinite(seconds) || seconds <= 0) return { parameters, error: 'The time budget must be a number of seconds above zero.' };
+    if (!Number.isFinite(seconds) || seconds <= 0)
+      return { parameters, error: 'The time budget must be a number of seconds above zero.' };
     parameters.time_budget_ms = Math.round(seconds * 1000);
   }
   if (variant.iterations.trim()) {
     const iterations = Number(variant.iterations.replace(/,/g, ''));
-    if (!Number.isInteger(iterations) || iterations <= 0) return { parameters, error: 'Iterations must be a whole number above zero.' };
+    if (!Number.isInteger(iterations) || iterations <= 0)
+      return { parameters, error: 'Iterations must be a whole number above zero.' };
     parameters.iterations = iterations;
   }
   return { parameters };
@@ -125,7 +160,11 @@ export function readVariant(variant: Variant): VariantReading {
 
 const stable = (value: unknown): string => {
   if (Array.isArray(value)) return `[${value.map(stable).join(',')}]`;
-  if (isRecord(value)) return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stable(value[key])}`).join(',')}}`;
+  if (isRecord(value))
+    return `{${Object.keys(value)
+      .sort()
+      .map(key => `${JSON.stringify(key)}:${stable(value[key])}`)
+      .join(',')}}`;
   return JSON.stringify(value);
 };
 
@@ -135,10 +174,13 @@ export const parametersKey = (parameters: unknown): string => stable(parameters 
 export function describeParameters(parameters: Record<string, unknown> | undefined): string {
   const entries = Object.entries(parameters ?? {});
   if (entries.length === 0) return 'Engine defaults';
-  return entries.map(([key, value]) => {
-    if (key === 'time_budget_ms' && typeof value === 'number') return `time budget ${value / 1000} s`;
-    return `${key.replace(/_/g, ' ')} ${typeof value === 'object' ? JSON.stringify(value) : String(value)}`;
-  }).join(' · ');
+  return entries
+    .map(([key, value]) => {
+      if (key === 'time_budget_ms' && typeof value === 'number')
+        return `time budget ${value / 1000} s`;
+      return `${key.replace(/_/g, ' ')} ${typeof value === 'object' ? JSON.stringify(value) : String(value)}`;
+    })
+    .join(' · ');
 }
 
 // --- engines
@@ -158,19 +200,27 @@ export interface EngineChoice {
 
 /** One choice per exact engine revision and mode: the study pins both. */
 export function engineChoices(engines: readonly EngineCatalogEntry[]): EngineChoice[] {
-  return engines.flatMap((engine) => engine.modes.map((mode) => {
-    const budget = mode.optionsSchema?.properties?.time_budget_ms;
-    const fallback = isRecord(budget) && typeof budget.default === 'number' ? budget.default / 1000 : null;
-    return {
-      key: `${bimResourceKey(engine.ref)}#${mode.id}`,
-      ref: { namespace: engine.namespace, name: engine.name, version: engine.version, digest: engine.digest },
-      mode: mode.id,
-      title: `${engine.name} ${engine.version}`,
-      defaultSeconds: fallback,
-      federated: engine.namespace !== 'bim.builtin',
-      declared: mode,
-    };
-  }));
+  return engines.flatMap(engine =>
+    engine.modes.map(mode => {
+      const budget = mode.optionsSchema?.properties?.time_budget_ms;
+      const fallback =
+        isRecord(budget) && typeof budget.default === 'number' ? budget.default / 1000 : null;
+      return {
+        key: `${bimResourceKey(engine.ref)}#${mode.id}`,
+        ref: {
+          namespace: engine.namespace,
+          name: engine.name,
+          version: engine.version,
+          digest: engine.digest,
+        },
+        mode: mode.id,
+        title: `${engine.name} ${engine.version}`,
+        defaultSeconds: fallback,
+        federated: engine.namespace !== 'bim.builtin',
+        declared: mode,
+      };
+    })
+  );
 }
 
 /**
@@ -178,7 +228,9 @@ export function engineChoices(engines: readonly EngineCatalogEntry[]): EngineCho
  * can be read, which {@link studyOptimization} treats as a single criterion.
  */
 export function studyCriteriaCount(compiled: readonly unknown[]): number | null {
-  const counts = compiled.map((document) => criteriaCountOf(document)).filter((count): count is number => count !== null);
+  const counts = compiled
+    .map(document => criteriaCountOf(document))
+    .filter((count): count is number => count !== null);
   return counts.length > 0 ? Math.max(...counts) : null;
 }
 
@@ -188,18 +240,34 @@ export function studyCriteriaCount(compiled: readonly unknown[]): number | null 
  * conventional one (`feasibility` without criteria, `weighted-sum` otherwise), so the gateway answers about compatibility rather than a
  * missing field.
  */
-export function studyOptimization(mode: EngineMode | undefined, criteria: number | null): ExecutionOptimization {
+export function studyOptimization(
+  mode: EngineMode | undefined,
+  criteria: number | null
+): ExecutionOptimization {
   const count = criteria ?? 1;
-  return optimizationFor(mode, count) ?? { type: optimizationTypeOf(count), scalarization: count === 0 ? 'feasibility' : 'weighted-sum' };
+  return (
+    optimizationFor(mode, count) ?? {
+      type: optimizationTypeOf(count),
+      scalarization: count === 0 ? 'feasibility' : 'weighted-sum',
+    }
+  );
 }
 
 /**
  * The `definition.engines[]` entries: for each chosen engine mode the pinned revision, the mode and its optimization; then one
  * `{preset}` row for each chosen run preset, which every run expands into an exact engine with the preset's options.
  */
-export function definitionEngines(chosen: readonly EngineChoice[], criteria: number | null, presets: readonly string[] = []): StudyEngine[] {
+export function definitionEngines(
+  chosen: readonly EngineChoice[],
+  criteria: number | null,
+  presets: readonly string[] = []
+): StudyEngine[] {
   return [
-    ...chosen.map((choice) => ({ ...choice.ref, mode: choice.mode, optimization: studyOptimization(choice.declared, criteria) })),
+    ...chosen.map(choice => ({
+      ...choice.ref,
+      mode: choice.mode,
+      optimization: studyOptimization(choice.declared, criteria),
+    })),
     ...presets.map((preset): PresetStudyEngine => ({ preset })),
   ];
 }
@@ -216,7 +284,13 @@ export function isPresetEngine(engine: StudyEngine): engine is PresetStudyEngine
 export function engineIdentity(engine: StudyEngine): string {
   if (isPresetEngine(engine)) return `preset:${engine.preset}`;
   return stable([
-    [engine.namespace ?? '', engine.name ?? '', engine.version ?? '', engine.digest ?? '', engine.mode ?? ''],
+    [
+      engine.namespace ?? '',
+      engine.name ?? '',
+      engine.version ?? '',
+      engine.digest ?? '',
+      engine.mode ?? '',
+    ],
     engine.optimization ?? {},
     engine.options ?? {},
   ]);
@@ -229,8 +303,14 @@ export function engineRowLabel(engine: StudyEngine): string {
 }
 
 /** What one frozen engine ran with: the options of its cells (before each setting's own), the optimization and the preset it came from. */
-export function frozenEngineFacts(engine: ExactStudyEngine): { options: string; optimization: string | null; preset: string | null } {
-  const optimization = engine.optimization ? `${engine.optimization.type} · ${engine.optimization.scalarization}` : null;
+export function frozenEngineFacts(engine: ExactStudyEngine): {
+  options: string;
+  optimization: string | null;
+  preset: string | null;
+} {
+  const optimization = engine.optimization
+    ? `${engine.optimization.type} · ${engine.optimization.scalarization}`
+    : null;
   return {
     options: describeParameters(engine.options),
     optimization,
@@ -255,7 +335,11 @@ export function revisionIndex(cases: readonly CaseContent[]): Map<string, Revisi
   for (const entry of cases) {
     for (const revision of entry.revisions) {
       index.set(revision.id, {
-        id: revision.id, caseSlug: entry.item.slug, caseName: entry.item.name, revision: revision.revision, digest: revision.package_digest,
+        id: revision.id,
+        caseSlug: entry.item.slug,
+        caseName: entry.item.name,
+        revision: revision.revision,
+        digest: revision.package_digest,
         createdAt: revision.created_at,
       });
     }
@@ -264,28 +348,41 @@ export function revisionIndex(cases: readonly CaseContent[]): Map<string, Revisi
 }
 
 /** The revisions of the organization's problems that have one of the given ids; ids it doesn't hold are skipped. */
-export function revisionsOf(cases: readonly CaseContent[], ids: readonly string[]): ProblemRevision[] {
+export function revisionsOf(
+  cases: readonly CaseContent[],
+  ids: readonly string[]
+): ProblemRevision[] {
   const wanted = new Set(ids);
-  return cases.flatMap((entry) => entry.revisions.filter((revision) => wanted.has(revision.id)));
+  return cases.flatMap(entry => entry.revisions.filter(revision => wanted.has(revision.id)));
 }
 
 /** `Flujo de checkout · version 2`; a version the organization doesn't hold (any more) reads as such. */
-export function revisionLabel(index: ReadonlyMap<string, RevisionInfo>, id: string, short = false): string {
+export function revisionLabel(
+  index: ReadonlyMap<string, RevisionInfo>,
+  id: string,
+  short = false
+): string {
   const found = index.get(id);
   if (!found) return 'Version of another organization';
-  return short ? `${found.caseName} r${found.revision}` : `${found.caseName} · version ${found.revision}`;
+  return short
+    ? `${found.caseName} r${found.revision}`
+    : `${found.caseName} · version ${found.revision}`;
 }
 
 /** Every revision of every problem, problem by problem and newest first: the list the builder offers (each one is a sealed package). */
-export function offeredRevisions(cases: readonly CaseContent[]): Array<{ caseName: string; caseSlug: string; revision: ProblemRevision }> {
-  return cases.flatMap((entry) => [...entry.revisions]
-    .sort((a, b) => b.revision - a.revision)
-    .map((revision) => ({ caseName: entry.item.name, caseSlug: entry.item.slug, revision })));
+export function offeredRevisions(
+  cases: readonly CaseContent[]
+): Array<{ caseName: string; caseSlug: string; revision: ProblemRevision }> {
+  return cases.flatMap(entry =>
+    [...entry.revisions]
+      .sort((a, b) => b.revision - a.revision)
+      .map(revision => ({ caseName: entry.item.name, caseSlug: entry.item.slug, revision }))
+  );
 }
 
 /** The newest revision of each problem. */
 export function latestExecutable(cases: readonly CaseContent[]): string[] {
-  return cases.flatMap((entry) => {
+  return cases.flatMap(entry => {
     const newest = [...entry.revisions].sort((a, b) => b.revision - a.revision)[0];
     return newest ? [newest.id] : [];
   });
@@ -302,11 +399,11 @@ interface SelectionInput {
 /** What the builder starts with when another screen sent the person here ("Add to study", "Start a study from this"). */
 export function defaultSelection({ cases, caseSlug, revision }: SelectionInput): string[] {
   const picked = new Set<string>();
-  const entry = caseSlug ? cases.find((item) => item.item.slug === caseSlug) : undefined;
+  const entry = caseSlug ? cases.find(item => item.item.slug === caseSlug) : undefined;
   if (entry) {
     // A version the address names that the problem doesn't have selects nothing rather than another version.
     const chosen = revision
-      ? entry.revisions.find((item) => String(item.revision) === revision || item.id === revision)
+      ? entry.revisions.find(item => String(item.revision) === revision || item.id === revision)
       : [...entry.revisions].sort((a, b) => b.revision - a.revision)[0];
     if (chosen) picked.add(chosen.id);
   }
@@ -320,7 +417,7 @@ export function defaultSelection({ cases, caseSlug, revision }: SelectionInput):
 export function definitionOfRun(run: Pick<StudyRun, 'definition'>): Study['definition'] {
   const frozen = run.definition;
   return {
-    revision_ids: (frozen.problems ?? []).map((problem) => problem.revisionId),
+    revision_ids: (frozen.problems ?? []).map(problem => problem.revisionId),
     engines: frozen.engines ?? [],
     parameter_sets: frozen.parameterSets ?? [],
     seeds: frozen.seeds ?? [],
@@ -329,7 +426,10 @@ export function definitionOfRun(run: Pick<StudyRun, 'definition'>): Study['defin
 
 /** Whether two definitions say the same thing, in any key order (the gateway sorts the revisions of a stored one). */
 export function sameDefinition(a: Study['definition'], b: Study['definition']): boolean {
-  const sorted = (definition: Study['definition']) => ({ ...definition, revision_ids: [...(definition.revision_ids ?? [])].sort() });
+  const sorted = (definition: Study['definition']) => ({
+    ...definition,
+    revision_ids: [...(definition.revision_ids ?? [])].sort(),
+  });
   return stable(sorted(a)) === stable(sorted(b));
 }
 
@@ -338,7 +438,10 @@ export function sameDefinition(a: Study['definition'], b: Study['definition']): 
 export const isActiveState = (state: string): boolean => state === 'queued' || state === 'running';
 export const isRetryable = (state: string): boolean => state === 'failed' || state === 'cancelled';
 
-export const STATE_WORDS: Record<string, { label: string; tone: 'running' | 'queued' | 'ok' | 'warn' | 'bad' | 'off' }> = {
+export const STATE_WORDS: Record<
+  string,
+  { label: string; tone: 'running' | 'queued' | 'ok' | 'warn' | 'bad' | 'off' }
+> = {
   queued: { label: 'Queued', tone: 'queued' },
   running: { label: 'Running', tone: 'running' },
   completed: { label: 'Completed', tone: 'ok' },
@@ -347,12 +450,18 @@ export const STATE_WORDS: Record<string, { label: string; tone: 'running' | 'que
   cancelled: { label: 'Cancelled', tone: 'off' },
 };
 
-export function stateWord(state: string): { label: string; tone: 'running' | 'queued' | 'ok' | 'warn' | 'bad' | 'off' } {
+export function stateWord(state: string): {
+  label: string;
+  tone: 'running' | 'queued' | 'ok' | 'warn' | 'bad' | 'off';
+} {
   return STATE_WORDS[state] ?? { label: state, tone: 'off' };
 }
 
 export function latestOf(runs: readonly StudyRun[]): StudyRun | undefined {
-  return runs.reduce<StudyRun | undefined>((best, run) => (!best || run.run_number > best.run_number ? run : best), undefined);
+  return runs.reduce<StudyRun | undefined>(
+    (best, run) => (!best || run.run_number > best.run_number ? run : best),
+    undefined
+  );
 }
 
 export interface CellMetrics {
@@ -380,7 +489,10 @@ export function metricsOf(cell: Pick<StudyCell, 'metrics'>): CellMetrics {
     feasible: typeof raw.feasible === 'boolean' ? raw.feasible : undefined,
     termination: typeof raw.termination === 'string' ? raw.termination : undefined,
     objectives,
-    runtimeSeconds: typeof raw.runtimeSeconds === 'number' && Number.isFinite(raw.runtimeSeconds) ? raw.runtimeSeconds : undefined,
+    runtimeSeconds:
+      typeof raw.runtimeSeconds === 'number' && Number.isFinite(raw.runtimeSeconds)
+        ? raw.runtimeSeconds
+        : undefined,
     engine: typeof raw.engine === 'string' ? raw.engine : undefined,
     code: typeof raw.code === 'string' ? raw.code : undefined,
     detail: typeof raw.detail === 'string' ? raw.detail : undefined,
@@ -397,27 +509,39 @@ const FAILURES: Record<string, string> = {
 };
 
 /** What a failed cell says about itself: the code the gateway recorded, in words, and its own detail. */
-export function explainFailure(metrics: Pick<CellMetrics, 'code' | 'detail'>): { title: string; detail: string | null } {
-  const title = metrics.code ? FAILURES[metrics.code] ?? 'The engine could not produce a result for this cell.' : 'The engine could not produce a result for this cell.';
+export function explainFailure(metrics: Pick<CellMetrics, 'code' | 'detail'>): {
+  title: string;
+  detail: string | null;
+} {
+  const title = metrics.code
+    ? (FAILURES[metrics.code] ?? 'The engine could not produce a result for this cell.')
+    : 'The engine could not produce a result for this cell.';
   return { title, detail: metrics.detail ?? null };
 }
 
 export const engineName = (ref: Record<string, string>): string => ref.name ?? 'engine';
-export const engineTitle = (ref: Record<string, string>): string => (ref.version ? `${engineName(ref)} ${ref.version}` : engineName(ref));
-export const engineKeyOf = (ref: Record<string, string>): string => [ref.namespace, ref.name, ref.version, ref.digest, ref.mode ?? ''].join('|');
+export const engineTitle = (ref: Record<string, string>): string =>
+  ref.version ? `${engineName(ref)} ${ref.version}` : engineName(ref);
+export const engineKeyOf = (ref: Record<string, string>): string =>
+  [ref.namespace, ref.name, ref.version, ref.digest, ref.mode ?? ''].join('|');
 
 /** The engines of a set of cells, in order of appearance, each with a label that tells two modes of one engine apart. */
-export function enginesOf(cells: readonly StudyCell[]): Array<{ key: string; label: string; mode: string | undefined }> {
+export function enginesOf(
+  cells: readonly StudyCell[]
+): Array<{ key: string; label: string; mode: string | undefined }> {
   const seen = new Map<string, { key: string; ref: Record<string, string> }>();
   for (const cell of cells) {
     const key = engineKeyOf(cell.engine_ref);
     if (!seen.has(key)) seen.set(key, { key, ref: cell.engine_ref });
   }
-  const names = [...seen.values()].map((entry) => engineName(entry.ref));
+  const names = [...seen.values()].map(entry => engineName(entry.ref));
   return [...seen.values()].map(({ key, ref }) => ({
     key,
     mode: ref.mode,
-    label: names.filter((name) => name === engineName(ref)).length > 1 && ref.mode ? `${engineName(ref)} (${ref.mode})` : engineName(ref),
+    label:
+      names.filter(name => name === engineName(ref)).length > 1 && ref.mode
+        ? `${engineName(ref)} (${ref.mode})`
+        : engineName(ref),
   }));
 }
 
@@ -436,7 +560,9 @@ export function measuresOf(cells: readonly StudyCell[]): string[] {
 }
 
 export function measureLabel(measure: string): string {
-  return measure === RUNTIME ? 'Time taken' : measure.replace(/[_-]+/g, ' ').replace(/^./, (letter) => letter.toUpperCase());
+  return measure === RUNTIME
+    ? 'Time taken'
+    : measure.replace(/[_-]+/g, ' ').replace(/^./, letter => letter.toUpperCase());
 }
 
 export function measureValue(cell: StudyCell, measure: string): number | null {
@@ -493,7 +619,7 @@ export const slot = (row: string, column: string): string => `${row}\u0000${colu
 /** The cells laid out as the matrix they came from: one row per case revision, one column per engine × setting × seed. */
 export function matrixView(cells: readonly StudyCell[]): MatrixView {
   const engines = enginesOf(cells);
-  const labelOf = new Map(engines.map((engine) => [engine.key, engine.label]));
+  const labelOf = new Map(engines.map(engine => [engine.key, engine.label]));
   const settingKeys: string[] = [];
   const rows: string[] = [];
   const columns: Column[] = [];
@@ -513,7 +639,11 @@ export function matrixView(cells: readonly StudyCell[]): MatrixView {
       known.add(key);
       const engine = labelOf.get(engineKey) ?? engineName(cell.engine_ref);
       columns.push({
-        key, engineKey, engine, seed: cell.seed, settingIndex,
+        key,
+        engineKey,
+        engine,
+        seed: cell.seed,
+        settingIndex,
         label: `${engine}${settingKeys.length > 1 ? ` · set ${settingIndex + 1}` : ''} · seed ${cell.seed}`,
       });
     }
@@ -535,10 +665,15 @@ export interface DefinitionGrid {
  */
 export function definitionGrid(definition: Study['definition']): DefinitionGrid {
   const rows = [...(definition.revision_ids ?? [])].sort();
-  const sortKey = (engine: StudyEngine) => (isPresetEngine(engine)
-    ? `\u0001${engine.preset}`
-    : [engine.namespace, engine.name, engine.version, engine.digest, engine.mode ?? ''].join('\u0000'));
-  const engines = [...(definition.engines ?? [])].sort((a, b) => sortKey(a).localeCompare(sortKey(b)));
+  const sortKey = (engine: StudyEngine) =>
+    isPresetEngine(engine)
+      ? `\u0001${engine.preset}`
+      : [engine.namespace, engine.name, engine.version, engine.digest, engine.mode ?? ''].join(
+          '\u0000'
+        );
+  const engines = [...(definition.engines ?? [])].sort((a, b) =>
+    sortKey(a).localeCompare(sortKey(b))
+  );
   const presets = engines.some(isPresetEngine);
   const settings = definition.parameter_sets?.length ?? 0;
   const seeds = [...(definition.seeds ?? [])].sort((a, b) => a - b);
@@ -559,9 +694,12 @@ export function definitionGrid(definition: Study['definition']): DefinitionGrid 
 /** The cells that got the same input as this one (same case revision, same setting, same seed), one per engine: the fair comparison. */
 export function rivalsOf(cell: StudyCell, cells: readonly StudyCell[]): StudyCell[] {
   const setting = parametersKey(cell.parameters);
-  return cells.filter((other) => (
-    other.binding_case_revision_id === cell.binding_case_revision_id && other.seed === cell.seed && parametersKey(other.parameters) === setting
-  ));
+  return cells.filter(
+    other =>
+      other.binding_case_revision_id === cell.binding_case_revision_id &&
+      other.seed === cell.seed &&
+      parametersKey(other.parameters) === setting
+  );
 }
 
 /** The cells of the same engine on the same case and setting, one per seed: how steady the engine is. */
@@ -569,7 +707,12 @@ export function seedsOf(cell: StudyCell, cells: readonly StudyCell[]): StudyCell
   const setting = parametersKey(cell.parameters);
   const engine = engineKeyOf(cell.engine_ref);
   return cells
-    .filter((other) => other.binding_case_revision_id === cell.binding_case_revision_id && engineKeyOf(other.engine_ref) === engine && parametersKey(other.parameters) === setting)
+    .filter(
+      other =>
+        other.binding_case_revision_id === cell.binding_case_revision_id &&
+        engineKeyOf(other.engine_ref) === engine &&
+        parametersKey(other.parameters) === setting
+    )
     .sort((a, b) => a.seed - b.seed);
 }
 
@@ -584,8 +727,8 @@ export function breakdownText(cells: readonly StudyCell[]): string {
   if (cells.length === 0) return 'No cells';
   const counts = countStates(cells);
   const parts = (['completed', 'failed', 'cancelled', 'running', 'queued'] as const)
-    .filter((state) => counts[state])
-    .map((state) => `${counts[state]} ${state}`);
+    .filter(state => counts[state])
+    .map(state => `${counts[state]} ${state}`);
   return `${parts.join(', ') || 'No cells'} of ${plural(cells.length, 'cell')}`;
 }
 
@@ -599,10 +742,15 @@ export const STUDY_TABS = [
 
 export type StudyTabId = (typeof STUDY_TABS)[number]['id'];
 
-export const isStudyTab = (value: string): value is StudyTabId => STUDY_TABS.some((tab) => tab.id === value);
+export const isStudyTab = (value: string): value is StudyTabId =>
+  STUDY_TABS.some(tab => tab.id === value);
 
 /** An address on the study page: a tab, the study run it shows (`run`) and the cell inside Results (`cell`). */
-export function studyPageHref(studyPath: string, tab: StudyTabId, show: { run?: string; cell?: string } = {}): string {
+export function studyPageHref(
+  studyPath: string,
+  tab: StudyTabId,
+  show: { run?: string; cell?: string } = {}
+): string {
   const query = new URLSearchParams();
   if (show.run) query.set('run', show.run);
   if (show.cell) query.set('cell', show.cell);

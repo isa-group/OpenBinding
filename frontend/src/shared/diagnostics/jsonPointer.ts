@@ -10,7 +10,15 @@ import { jsonLanguage } from '@codemirror/lang-json';
 type SyntaxNode = ReturnType<typeof jsonLanguage.parser.parse>['topNode'];
 
 /** The kinds of node that are a JSON value. */
-const VALUES: ReadonlySet<string> = new Set(['Object', 'Array', 'String', 'Number', 'True', 'False', 'Null']);
+const VALUES: ReadonlySet<string> = new Set([
+  'Object',
+  'Array',
+  'String',
+  'Number',
+  'True',
+  'False',
+  'Null',
+]);
 
 /** Where a pointer landed. `exact` is false when the text stops before the pointer does: the range is the deepest value reached. */
 export interface PointerTarget {
@@ -25,7 +33,10 @@ export interface PointerTarget {
 export function parsePointer(pointer: string): string[] | null {
   if (pointer === '') return [];
   if (!pointer.startsWith('/')) return null;
-  return pointer.slice(1).split('/').map((token) => token.replace(/~1/g, '/').replace(/~0/g, '~'));
+  return pointer
+    .slice(1)
+    .split('/')
+    .map(token => token.replace(/~1/g, '/').replace(/~0/g, '~'));
 }
 
 function children(node: SyntaxNode): SyntaxNode[] {
@@ -34,7 +45,7 @@ function children(node: SyntaxNode): SyntaxNode[] {
   return found;
 }
 
-const valuesOf = (node: SyntaxNode) => children(node).filter((child) => VALUES.has(child.name));
+const valuesOf = (node: SyntaxNode) => children(node).filter(child => VALUES.has(child.name));
 
 /** The name of a member as JSON reads it (escapes resolved); `null` when its spelling does not parse. */
 function memberName(property: SyntaxNode, text: string): string | null {
@@ -123,11 +134,19 @@ function characterOffsets(raw: string, start: number): number[] {
  * exclusive), so its place in the text is the start of the string's value (one past the opening quote) plus `start`, read
  * through the escapes the text writes. Answers `null` when `target` is not a string.
  */
-export function expressionRange(text: string, target: Pick<PointerTarget, 'from' | 'to' | 'kind'>, span: { start: number; end: number }): { from: number; to: number } | null {
+export function expressionRange(
+  text: string,
+  target: Pick<PointerTarget, 'from' | 'to' | 'kind'>,
+  span: { start: number; end: number }
+): { from: number; to: number } | null {
   if (target.kind !== 'String') return null;
   const closed = target.to - target.from >= 2 && text[target.to - 1] === '"';
-  const offsets = characterOffsets(text.slice(target.from + 1, closed ? target.to - 1 : target.to), target.from + 1);
-  const at = (position: number) => offsets[Math.max(0, Math.min(offsets.length - 1, Math.trunc(position)))];
+  const offsets = characterOffsets(
+    text.slice(target.from + 1, closed ? target.to - 1 : target.to),
+    target.from + 1
+  );
+  const at = (position: number) =>
+    offsets[Math.max(0, Math.min(offsets.length - 1, Math.trunc(position)))];
   const from = at(span.start);
   return { from, to: Math.max(from, at(span.end)) };
 }

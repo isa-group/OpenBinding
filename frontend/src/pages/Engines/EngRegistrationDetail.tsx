@@ -1,8 +1,12 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom';
 import {
-  apiClient, bimResourceKey, HttpError,
-  type EngineRegistrationManifest, type EngineRegistrationReport, type EngineRegistrationRevision,
+  apiClient,
+  bimResourceKey,
+  HttpError,
+  type EngineRegistrationManifest,
+  type EngineRegistrationReport,
+  type EngineRegistrationRevision,
 } from '../../api/client';
 import type { ImmutableResourceRef } from '../../shared/api/types';
 import { Action } from '../../components/ui/Action';
@@ -18,8 +22,17 @@ import { useResource } from '../../utils/useResource';
 import { ConfirmDialog, DeregisterDialog } from './EngineDialogs';
 import { ConformanceChecklist, CopyButton, Crumbs, ManifestPanel, StatusChip } from './EngineParts';
 import {
-  activityOf, describeFailure, exactReference, newVersionHref, publicationOf, publicationStep, readDeployment, readProbe,
-  refFromAddress, registrationHref, sameRevision,
+  activityOf,
+  describeFailure,
+  exactReference,
+  newVersionHref,
+  publicationOf,
+  publicationStep,
+  readDeployment,
+  readProbe,
+  refFromAddress,
+  registrationHref,
+  sameRevision,
   type Probe,
 } from './registrationModel';
 import './Registrations.css';
@@ -37,12 +50,16 @@ type Resolved =
   | { kind: 'ready'; data: Loaded }
   | { kind: 'choose'; forUser: string; name: string; options: EngineRegistrationRevision[] };
 
-async function loadRegistration(username: string, name: string, addressed: ImmutableResourceRef | null): Promise<Resolved> {
+async function loadRegistration(
+  username: string,
+  name: string,
+  addressed: ImmutableResourceRef | null
+): Promise<Resolved> {
   const listing = apiClient.listEngineRegistrations().catch((): EngineRegistrationRevision[] => []);
   let found = addressed;
   if (!found) {
     // A bare name: the exact identity is found among the revisions that are visible, if there is only one.
-    const options = (await listing).filter((item) => item.name === name);
+    const options = (await listing).filter(item => item.name === name);
     if (options.length === 0) throw new HttpError(404, 'Engine registration not found');
     if (options.length > 1) return { kind: 'choose', forUser: username, name, options };
     found = options[0];
@@ -55,7 +72,13 @@ async function loadRegistration(username: string, name: string, addressed: Immut
   ]);
   return {
     kind: 'ready',
-    data: { forUser: username, ref, detail, manifest, revisions: all.filter((item) => item.namespace === ref.namespace && item.name === ref.name) },
+    data: {
+      forUser: username,
+      ref,
+      detail,
+      manifest,
+      revisions: all.filter(item => item.namespace === ref.namespace && item.name === ref.name),
+    },
   };
 }
 
@@ -78,7 +101,13 @@ const STEPS = [
   { label: 'Published', at: 2 },
 ] as const;
 
-function CredentialPanel({ scheme, published, busy, autoOpen, onReplace }: {
+function CredentialPanel({
+  scheme,
+  published,
+  busy,
+  autoOpen,
+  onReplace,
+}: {
   scheme: string;
   published: boolean;
   busy: boolean;
@@ -103,41 +132,80 @@ function CredentialPanel({ scheme, published, busy, autoOpen, onReplace }: {
   };
 
   return (
-    <section id="credential" ref={anchor} className="reg-card" aria-labelledby="reg-credential-title">
+    <section
+      id="credential"
+      ref={anchor}
+      className="reg-card"
+      aria-labelledby="reg-credential-title"
+    >
       <h2 id="reg-credential-title">Credential</h2>
       {scheme === 'none' ? (
         <div className="reg-secret">
-          <span className="eng-muted">This deployment is an open endpoint, so OpenBinding sends no sign-in and there is nothing to store.</span>
+          <span className="eng-muted">
+            This deployment is an open endpoint, so OpenBinding sends no sign-in and there is
+            nothing to store.
+          </span>
         </div>
       ) : (
         <>
           <div className="reg-secret">
-            <span aria-hidden="true" className="reg-dots">••••••••••••</span>
-            <span>The credential is stored encrypted. Nobody can read it back: not you, not support, not this page.</span>
+            <span aria-hidden="true" className="reg-dots">
+              ••••••••••••
+            </span>
+            <span>
+              The credential is stored encrypted. Nobody can read it back: not you, not support, not
+              this page.
+            </span>
           </div>
-          {published && <span className="eng-muted">Published registrations can’t be changed. Register a new version to use another credential.</span>}
+          {published && (
+            <span className="eng-muted">
+              Published registrations can’t be changed. Register a new version to use another
+              credential.
+            </span>
+          )}
           {!open && (
-            <Action variant="secondary" className="reg-self-start" disabled={published || busy} onClick={() => setOpen(true)}>Replace credential</Action>
+            <Action
+              variant="secondary"
+              className="reg-self-start"
+              disabled={published || busy}
+              onClick={() => setOpen(true)}
+            >
+              Replace credential
+            </Action>
           )}
           {open && (
-            <form className="reg-credential-form" onSubmit={(event) => void submit(event)}>
+            <form className="reg-credential-form" onSubmit={event => void submit(event)}>
               <label>
-                <span>{scheme === 'basic' ? 'New username and password (user:password)' : 'New token'}</span>
+                <span>
+                  {scheme === 'basic' ? 'New username and password (user:password)' : 'New token'}
+                </span>
                 <input
                   type="password"
                   value={secret}
-                  onChange={(event) => setSecret(event.target.value)}
+                  onChange={event => setSecret(event.target.value)}
                   autoComplete="new-password"
                   spellCheck={false}
                   placeholder="Paste it here; it won’t be shown"
                 />
               </label>
               <span className="eng-muted">
-                The old one stops being used as soon as you save. The registration becomes private and inactive until it passes its check again.
+                The old one stops being used as soon as you save. The registration becomes private
+                and inactive until it passes its check again.
               </span>
               <div className="reg-form-actions">
-                <Action variant="secondary" onClick={() => { setOpen(false); setSecret(''); }} disabled={busy}>Cancel</Action>
-                <Action type="submit" variant="primary" busy={busy} disabled={!secret}>Save new credential</Action>
+                <Action
+                  variant="secondary"
+                  onClick={() => {
+                    setOpen(false);
+                    setSecret('');
+                  }}
+                  disabled={busy}
+                >
+                  Cancel
+                </Action>
+                <Action type="submit" variant="primary" busy={busy} disabled={!secret}>
+                  Save new credential
+                </Action>
               </div>
             </form>
           )}
@@ -147,25 +215,54 @@ function CredentialPanel({ scheme, published, busy, autoOpen, onReplace }: {
   );
 }
 
-function RevisionHistory({ current, revisions }: { current: ImmutableResourceRef; revisions: EngineRegistrationRevision[] }) {
-  const others = revisions.filter((item) => !sameRevision(item, current));
+function RevisionHistory({
+  current,
+  revisions,
+}: {
+  current: ImmutableResourceRef;
+  revisions: EngineRegistrationRevision[];
+}) {
+  const others = revisions.filter(item => !sameRevision(item, current));
   return (
     <section className="reg-card" aria-labelledby="reg-history-title">
       <h2 id="reg-history-title">Other revisions</h2>
       {others.length === 0 ? (
-        <span className="eng-muted">This is the only revision of {current.namespace}/{current.name} you can see. A new version is a new registration; it appears here once registered.</span>
+        <span className="eng-muted">
+          This is the only revision of {current.namespace}/{current.name} you can see. A new version
+          is a new registration; it appears here once registered.
+        </span>
       ) : (
         <DataTable label="Other revisions of this registration" minWidth={560}>
           <thead>
-            <tr><th scope="col">Version</th><th scope="col">Use</th><th scope="col">Publication</th><th scope="col"><span className="sr-only">Open</span></th></tr>
+            <tr>
+              <th scope="col">Version</th>
+              <th scope="col">Use</th>
+              <th scope="col">Publication</th>
+              <th scope="col">
+                <span className="sr-only">Open</span>
+              </th>
+            </tr>
           </thead>
           <tbody>
-            {others.map((item) => (
+            {others.map(item => (
               <tr key={bimResourceKey(item)}>
                 <td>{item.version}</td>
-                <td><StatusChip tone={activityOf(item).tone}>{activityOf(item).label}</StatusChip></td>
-                <td><StatusChip tone={publicationOf(item.status).tone}>{publicationOf(item.status).label}</StatusChip></td>
-                <td><Link to={registrationHref(item)} aria-label={`Open ${item.name} ${item.version}`}>Open</Link></td>
+                <td>
+                  <StatusChip tone={activityOf(item).tone}>{activityOf(item).label}</StatusChip>
+                </td>
+                <td>
+                  <StatusChip tone={publicationOf(item.status).tone}>
+                    {publicationOf(item.status).label}
+                  </StatusChip>
+                </td>
+                <td>
+                  <Link
+                    to={registrationHref(item)}
+                    aria-label={`Open ${item.name} ${item.version}`}
+                  >
+                    Open
+                  </Link>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -190,25 +287,46 @@ export function EngRegistrationDetail() {
   const [failedProbe, setFailedProbe] = useState<Probe | null>(null);
   const [deleted, setDeleted] = useState(false);
 
-  const resource = useResource(`registration:${username}:${name}?${params.toString()}`, () => loadRegistration(username, name, addressed));
+  const resource = useResource(`registration:${username}:${name}?${params.toString()}`, () =>
+    loadRegistration(username, name, addressed)
+  );
   const kept = resource.stale;
-  const keptReady = kept?.kind === 'ready' && kept.data.forUser === username && kept.data.ref.name === name
-    && (!addressed || sameRevision(kept.data.ref, addressed)) ? kept : undefined;
+  const keptReady =
+    kept?.kind === 'ready' &&
+    kept.data.forUser === username &&
+    kept.data.ref.name === name &&
+    (!addressed || sameRevision(kept.data.ref, addressed))
+      ? kept
+      : undefined;
   const resolved = resource.data ?? keptReady;
   const failure = resource.status === 'error' ? resource.error : null;
 
   if (resolved?.kind === 'choose') {
     return (
       <div className="reg-page">
-        <Crumbs items={[{ label: 'Home', to: '/app' }, { label: 'My engines', to: '/app/engines/registrations' }, { label: resolved.name, mono: true }]} />
+        <Crumbs
+          items={[
+            { label: 'Home', to: '/app' },
+            { label: 'My engines', to: '/app/engines/registrations' },
+            { label: resolved.name, mono: true },
+          ]}
+        />
         <section className="reg-card" aria-labelledby="reg-choose-title">
-          <h1 id="reg-choose-title" className="reg-h1">Which revision of {resolved.name}?</h1>
-          <p className="eng-muted">More than one registration is called {resolved.name}. Pick the exact one.</p>
+          <h1 id="reg-choose-title" className="reg-h1">
+            Which revision of {resolved.name}?
+          </h1>
+          <p className="eng-muted">
+            More than one registration is called {resolved.name}. Pick the exact one.
+          </p>
           <ul className="reg-choices">
-            {resolved.options.map((item) => (
+            {resolved.options.map(item => (
               <li key={bimResourceKey(item)}>
-                <Link to={registrationHref(item)}>{item.namespace}/{item.name}@{item.version}</Link>
-                <StatusChip tone={publicationOf(item.status).tone}>{publicationOf(item.status).label}</StatusChip>
+                <Link to={registrationHref(item)}>
+                  {item.namespace}/{item.name}@{item.version}
+                </Link>
+                <StatusChip tone={publicationOf(item.status).tone}>
+                  {publicationOf(item.status).label}
+                </StatusChip>
               </li>
             ))}
           </ul>
@@ -218,7 +336,11 @@ export function EngRegistrationDetail() {
   }
 
   if (!resolved) {
-    const crumbs = [{ label: 'Home', to: '/app' }, { label: 'My engines', to: '/app/engines/registrations' }, { label: name, mono: true }];
+    const crumbs = [
+      { label: 'Home', to: '/app' },
+      { label: 'My engines', to: '/app/engines/registrations' },
+      { label: name, mono: true },
+    ];
     if (isNeutralNotFound(failure)) {
       return (
         <div className="reg-page">
@@ -228,27 +350,51 @@ export function EngRegistrationDetail() {
             layout="card"
             title="Not found"
             code="not_found"
-            actions={<StateAction tone="primary" to="/app/engines/registrations">Back to My engines</StateAction>}
+            actions={
+              <StateAction tone="primary" to="/app/engines/registrations">
+                Back to My engines
+              </StateAction>
+            }
           >
-            There’s no registration with this exact identity that you can see. Private registrations only open for their owner; everyone else, administrators included, gets this same answer.
+            There’s no registration with this exact identity that you can see. Private registrations
+            only open for their owner; everyone else, administrators included, gets this same
+            answer.
           </ErrorState>
         </div>
       );
     }
     if (failure instanceof HttpError && failure.status === 401) {
-      return <div className="reg-page"><Crumbs items={crumbs} /><ErrorState variant="401" layout="card" /></div>;
+      return (
+        <div className="reg-page">
+          <Crumbs items={crumbs} />
+          <ErrorState variant="401" layout="card" />
+        </div>
+      );
     }
     return (
       <div className="reg-page">
         <Crumbs items={crumbs} />
         {resource.status === 'error' ? (
-          <Notice tone="error" action={<Action size="sm" variant="secondary" onClick={resource.reload}>Retry</Action>}>
-            The registration couldn’t be loaded ({failure instanceof HttpError ? `HTTP ${failure.status}` : 'the gateway can’t be reached'}).
+          <Notice
+            tone="error"
+            action={
+              <Action size="sm" variant="secondary" onClick={resource.reload}>
+                Retry
+              </Action>
+            }
+          >
+            The registration couldn’t be loaded (
+            {failure instanceof HttpError
+              ? `HTTP ${failure.status}`
+              : 'the gateway can’t be reached'}
+            ).
           </Notice>
         ) : (
           <div className="reg-skeleton" aria-busy="true" aria-live="polite">
             <h1 className="sr-only">Loading registration</h1>
-            <Skeleton variant="panel" /><Skeleton variant="tile" /><Skeleton variant="panel" />
+            <Skeleton variant="panel" />
+            <Skeleton variant="tile" />
+            <Skeleton variant="panel" />
           </div>
         )}
       </div>
@@ -270,11 +416,19 @@ export function EngRegistrationDetail() {
   const refuse = (error: unknown, fallback: string) => {
     const refused = describeFailure(error, fallback);
     setFailedProbe(refused.probe);
-    setMessage({ tone: refused.tone, title: refused.title, text: [refused.text, ...refused.details].join(' ') });
+    setMessage({
+      tone: refused.tone,
+      title: refused.title,
+      text: [refused.text, ...refused.details].join(' '),
+    });
     return refused;
   };
 
-  const run = async (label: string, task: () => Promise<unknown>, success: string): Promise<boolean> => {
+  const run = async (
+    label: string,
+    task: () => Promise<unknown>,
+    success: string
+  ): Promise<boolean> => {
     setBusy(label);
     setMessage(null);
     try {
@@ -292,8 +446,18 @@ export function EngRegistrationDetail() {
     }
   };
 
-  const activate = () => run('activate', () => apiClient.activateEngineRegistration(ref), `${ref.name} passed its check and is active for you.`);
-  const deactivate = () => run('deactivate', () => apiClient.deactivateEngineRegistration(ref), 'Deactivated. You can’t pick it for new runs until you activate it again.');
+  const activate = () =>
+    run(
+      'activate',
+      () => apiClient.activateEngineRegistration(ref),
+      `${ref.name} passed its check and is active for you.`
+    );
+  const deactivate = () =>
+    run(
+      'deactivate',
+      () => apiClient.deactivateEngineRegistration(ref),
+      'Deactivated. You can’t pick it for new runs until you activate it again.'
+    );
 
   const toggle = () => {
     if (!detail.active) void activate();
@@ -303,29 +467,47 @@ export function EngRegistrationDetail() {
 
   const askPublication = () => {
     if (!detail.active) {
-      setMessage({ tone: 'warning', title: 'Activate it first', text: 'Activate it before requesting publication. Activation re-checks your deployment.' });
+      setMessage({
+        tone: 'warning',
+        title: 'Activate it first',
+        text: 'Activate it before requesting publication. Activation re-checks your deployment.',
+      });
       return;
     }
     setDialog('publish');
   };
 
   const confirmDialog = async () => {
-    if (dialog === 'publish') await run('publish', () => apiClient.requestEngineRegistrationPublication(ref), 'Publication requested. An administrator will review it.');
+    if (dialog === 'publish')
+      await run(
+        'publish',
+        () => apiClient.requestEngineRegistrationPublication(ref),
+        'Publication requested. An administrator will review it.'
+      );
     if (dialog === 'deactivate') await deactivate();
     if (dialog === 'delete') {
-      const removed = await run('delete', () => apiClient.deleteEngineRegistration(ref), `Deleted ${ref.name} ${ref.version}.`);
+      const removed = await run(
+        'delete',
+        () => apiClient.deleteEngineRegistration(ref),
+        `Deleted ${ref.name} ${ref.version}.`
+      );
       if (removed) setDeleted(true);
     }
     setDialog(null);
   };
 
-  const replaceCredential = (secret: string) => run(
-    'credential',
-    () => apiClient.setEngineRegistrationCredential(ref, secret),
-    'Credential replaced. The old one is no longer used; the registration is private and inactive until it passes its check again.',
-  );
+  const replaceCredential = (secret: string) =>
+    run(
+      'credential',
+      () => apiClient.setEngineRegistrationCredential(ref, secret),
+      'Credential replaced. The old one is no longer used; the registration is private and inactive until it passes its check again.'
+    );
 
-  const crumbs = [{ label: 'Home', to: '/app' }, { label: 'My engines', to: '/app/engines/registrations' }, { label: `${ref.name} ${ref.version}`, mono: true }];
+  const crumbs = [
+    { label: 'Home', to: '/app' },
+    { label: 'My engines', to: '/app/engines/registrations' },
+    { label: `${ref.name} ${ref.version}`, mono: true },
+  ];
 
   if (deleted) {
     return (
@@ -335,8 +517,12 @@ export function EngRegistrationDetail() {
           <strong>This registration was deleted</strong>
           <span>Its slot is free. You can register the engine again any time.</span>
           <span className="reg-form-actions">
-            <Action to="/app/engines/new" variant="primary">Register an engine</Action>
-            <Action to="/app/engines/registrations" variant="secondary">Back to My engines</Action>
+            <Action to="/app/engines/new" variant="primary">
+              Register an engine
+            </Action>
+            <Action to="/app/engines/registrations" variant="secondary">
+              Back to My engines
+            </Action>
           </span>
         </div>
       </div>
@@ -364,47 +550,106 @@ export function EngRegistrationDetail() {
         </div>
         <div className="reg-header-actions">
           {owner && (
-            <Action variant={detail.active ? 'secondary' : 'primary'} busy={busy === 'activate' || busy === 'deactivate'} onClick={toggle}>
+            <Action
+              variant={detail.active ? 'secondary' : 'primary'}
+              busy={busy === 'activate' || busy === 'deactivate'}
+              onClick={toggle}
+            >
               {detail.active ? 'Deactivate' : 'Activate'}
             </Action>
           )}
           {owner && detail.active && (
-            <Action variant="secondary" busy={busy === 'check'} onClick={() => void run('check', () => apiClient.activateEngineRegistration(ref), 'Checked again. The deployment still passes.')}>
+            <Action
+              variant="secondary"
+              busy={busy === 'check'}
+              onClick={() =>
+                void run(
+                  'check',
+                  () => apiClient.activateEngineRegistration(ref),
+                  'Checked again. The deployment still passes.'
+                )
+              }
+            >
               Check again
             </Action>
           )}
-          {owner && <Action to={newVersionHref(ref)} variant="secondary">Edit as a new version</Action>}
+          {owner && (
+            <Action to={newVersionHref(ref)} variant="secondary">
+              Edit as a new version
+            </Action>
+          )}
           {engineRef && (
             <OrganizationPicker
               label="Launch a run with it"
-              destination={(org) => launchPath(org, { engine: bimResourceKey(engineRef) })}
+              destination={org => launchPath(org, { engine: bimResourceKey(engineRef) })}
             />
           )}
         </div>
       </header>
 
-      {message && <Notice tone={message.tone} title={message.title}>{message.text}</Notice>}
+      {message && (
+        <Notice tone={message.tone} title={message.title}>
+          {message.text}
+        </Notice>
+      )}
       {refreshFailed && (
-        <Notice tone="error" action={<Action size="sm" variant="secondary" onClick={resource.reload}>Retry</Action>}>
-          The registration couldn’t be refreshed{failure instanceof HttpError ? ` (HTTP ${failure.status})` : ''}. You’re seeing the last copy loaded.
+        <Notice
+          tone="error"
+          action={
+            <Action size="sm" variant="secondary" onClick={resource.reload}>
+              Retry
+            </Action>
+          }
+        >
+          The registration couldn’t be refreshed
+          {failure instanceof HttpError ? ` (HTTP ${failure.status})` : ''}. You’re seeing the last
+          copy loaded.
         </Notice>
       )}
 
       <section className="reg-card" aria-labelledby="reg-identity-title">
         <div className="reg-card-head">
           <h2 id="reg-identity-title">Exact identity</h2>
-          <button type="button" className="reg-text-button" onClick={() => void copy(exactReference(ref))}>
-            {copyStatus() === 'copied' ? 'Reference copied' : copyStatus() === 'failed' ? 'Copy failed' : 'Copy exact reference'}
+          <button
+            type="button"
+            className="reg-text-button"
+            onClick={() => void copy(exactReference(ref))}
+          >
+            {copyStatus() === 'copied'
+              ? 'Reference copied'
+              : copyStatus() === 'failed'
+                ? 'Copy failed'
+                : 'Copy exact reference'}
           </button>
         </div>
         <dl className="reg-ident">
-          <div><dt>Namespace</dt><dd className="is-mono">{ref.namespace}</dd></div>
-          <div><dt>Name</dt><dd className="is-mono">{ref.name}</dd></div>
-          <div><dt>Version</dt><dd className="is-mono">{ref.version}</dd></div>
+          <div>
+            <dt>Namespace</dt>
+            <dd className="is-mono">{ref.namespace}</dd>
+          </div>
+          <div>
+            <dt>Name</dt>
+            <dd className="is-mono">{ref.name}</dd>
+          </div>
+          <div>
+            <dt>Version</dt>
+            <dd className="is-mono">{ref.version}</dd>
+          </div>
         </dl>
         <span className="eng-muted">
           These three together name this deployment exactly. A new version is a new registration.
-          {engineRef && <> Engine revision: <Link to={`/engines/${encodeURIComponent(engineRef.namespace)}/${encodeURIComponent(engineRef.name)}/${encodeURIComponent(engineRef.version)}`}>see it in the catalog</Link>.</>}
+          {engineRef && (
+            <>
+              {' '}
+              Engine revision:{' '}
+              <Link
+                to={`/engines/${encodeURIComponent(engineRef.namespace)}/${encodeURIComponent(engineRef.name)}/${encodeURIComponent(engineRef.version)}`}
+              >
+                see it in the catalog
+              </Link>
+              .
+            </>
+          )}
         </span>
       </section>
 
@@ -417,12 +662,22 @@ export function EngRegistrationDetail() {
         </div>
         <ol className="reg-track" aria-label="Publication">
           <li className="reg-track-label">Publication</li>
-          {STEPS.map((item) => (
+          {STEPS.map(item => (
             <li key={item.label} className="reg-track-step">
-              <span className={`reg-step${item.at === step ? ' is-current' : item.at < step ? ' is-done' : ''}`} aria-current={item.at === step ? 'step' : undefined}>
-                <span aria-hidden="true">{item.at < step ? '✓' : item.at === step ? '●' : '○'}</span> {item.label}
+              <span
+                className={`reg-step${item.at === step ? ' is-current' : item.at < step ? ' is-done' : ''}`}
+                aria-current={item.at === step ? 'step' : undefined}
+              >
+                <span aria-hidden="true">
+                  {item.at < step ? '✓' : item.at === step ? '●' : '○'}
+                </span>{' '}
+                {item.label}
               </span>
-              {item.at < 2 && <span aria-hidden="true" className="reg-arrow">→</span>}
+              {item.at < 2 && (
+                <span aria-hidden="true" className="reg-arrow">
+                  →
+                </span>
+              )}
             </li>
           ))}
           <li className="eng-muted">A rejected request returns to Private</li>
@@ -437,8 +692,16 @@ export function EngRegistrationDetail() {
           </div>
           <ConformanceChecklist
             probe={probe}
-            failedText={failedProbe ? 'A check failed. Nothing was activated; the registration itself is unchanged.' : 'The last check did not pass.'}
-            pendingText={owner ? 'It has not been checked yet. Activating it runs the check against your deployment.' : 'It has not been checked yet.'}
+            failedText={
+              failedProbe
+                ? 'A check failed. Nothing was activated; the registration itself is unchanged.'
+                : 'The last check did not pass.'
+            }
+            pendingText={
+              owner
+                ? 'It has not been checked yet. Activating it runs the check against your deployment.'
+                : 'It has not been checked yet.'
+            }
           />
         </section>
         {owner && (
@@ -455,28 +718,62 @@ export function EngRegistrationDetail() {
       <section className="reg-card" aria-labelledby="reg-deploy-title">
         <h2 id="reg-deploy-title">Deployment</h2>
         <dl className="reg-ident">
-          <div><dt>Endpoint</dt><dd className="is-mono">{deployment.endpoint ?? 'Not shown'}</dd></div>
-          <div><dt>Sign-in</dt><dd>{deployment.auth}</dd></div>
-          <div><dt>Protocol</dt><dd className="is-mono">{deployment.protocol ?? '—'}</dd></div>
+          <div>
+            <dt>Endpoint</dt>
+            <dd className="is-mono">{deployment.endpoint ?? 'Not shown'}</dd>
+          </div>
+          <div>
+            <dt>Sign-in</dt>
+            <dd>{deployment.auth}</dd>
+          </div>
+          <div>
+            <dt>Protocol</dt>
+            <dd className="is-mono">{deployment.protocol ?? '—'}</dd>
+          </div>
           <div>
             <dt>Contract</dt>
-            <dd>{deployment.contractTitle ? `${deployment.contractTitle} ${deployment.contractVersion ?? ''}`.trim() : '—'}{deployment.contractPaths !== null ? ` · ${deployment.contractPaths} path${deployment.contractPaths === 1 ? '' : 's'}` : ''}</dd>
+            <dd>
+              {deployment.contractTitle
+                ? `${deployment.contractTitle} ${deployment.contractVersion ?? ''}`.trim()
+                : '—'}
+              {deployment.contractPaths !== null
+                ? ` · ${deployment.contractPaths} path${deployment.contractPaths === 1 ? '' : 's'}`
+                : ''}
+            </dd>
           </div>
         </dl>
         {deployment.mappings.length > 0 && (
           <ul className="reg-paths" aria-label="Paths on the deployment">
-            {deployment.mappings.map((item) => <li key={item.id}><span>{item.label}</span><code>{item.path}</code></li>)}
+            {deployment.mappings.map(item => (
+              <li key={item.id}>
+                <span>{item.label}</span>
+                <code>{item.path}</code>
+              </li>
+            ))}
           </ul>
         )}
         {deployment.contractDigest && (
-          <div className="reg-digest"><span>Pinned contract</span><CopyButton value={deployment.contractDigest} label="contract fingerprint" /></div>
+          <div className="reg-digest">
+            <span>Pinned contract</span>
+            <CopyButton value={deployment.contractDigest} label="contract fingerprint" />
+          </div>
         )}
-        {!manifest && <span className="eng-muted">The registration manifest couldn’t be read, so the endpoint and paths aren’t shown.</span>}
+        {!manifest && (
+          <span className="eng-muted">
+            The registration manifest couldn’t be read, so the endpoint and paths aren’t shown.
+          </span>
+        )}
       </section>
 
       <section className="reg-card" aria-labelledby="reg-manifest-title">
         <h2 id="reg-manifest-title">Engine manifest</h2>
-        {detail.engine ? <ManifestPanel document={detail.engine} /> : <span className="eng-muted">The gateway didn’t return the engine manifest for this registration.</span>}
+        {detail.engine ? (
+          <ManifestPanel document={detail.engine} />
+        ) : (
+          <span className="eng-muted">
+            The gateway didn’t return the engine manifest for this registration.
+          </span>
+        )}
       </section>
 
       <RevisionHistory current={ref} revisions={revisions} />
@@ -497,7 +794,9 @@ export function EngRegistrationDetail() {
               </p>
             </div>
             {(detail.status === 'private' || detail.status === 'rejected') && (
-              <Action variant="primary" busy={busy === 'publish'} onClick={askPublication}>Request publication</Action>
+              <Action variant="primary" busy={busy === 'publish'} onClick={askPublication}>
+                Request publication
+              </Action>
             )}
           </section>
 
@@ -510,7 +809,9 @@ export function EngRegistrationDetail() {
                   : 'Removes this deployment and its stored credential. It can’t be undone.'}
               </p>
             </div>
-            <Action variant="danger-outline" onClick={() => setDialog('delete')}>Delete</Action>
+            <Action variant="danger-outline" onClick={() => setDialog('delete')}>
+              Delete
+            </Action>
           </section>
         </>
       )}
@@ -523,7 +824,10 @@ export function EngRegistrationDetail() {
           onConfirm={() => void confirmDialog()}
           onClose={() => setDialog(null)}
         >
-          <p>Administrators will then be able to discover and review this exact revision. It stays private until they approve it.</p>
+          <p>
+            Administrators will then be able to discover and review this exact revision. It stays
+            private until they approve it.
+          </p>
         </ConfirmDialog>
       )}
       {dialog === 'deactivate' && (
@@ -535,7 +839,10 @@ export function EngRegistrationDetail() {
           onConfirm={() => void confirmDialog()}
           onClose={() => setDialog(null)}
         >
-          <p>It is published, so other people may be using it. Deactivating pauses it for everyone; its publication state doesn’t change. Administrators are told.</p>
+          <p>
+            It is published, so other people may be using it. Deactivating pauses it for everyone;
+            its publication state doesn’t change. Administrators are told.
+          </p>
         </ConfirmDialog>
       )}
       {dialog === 'delete' && (

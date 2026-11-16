@@ -9,14 +9,28 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 const list = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
 
-const OPERATORS: Record<string, string> = { eq: '=', ne: '≠', lt: '<', lte: '≤', gt: '>', gte: '≥', add: '+', sub: '−', mul: '×', div: '÷', pow: '^' };
+const OPERATORS: Record<string, string> = {
+  eq: '=',
+  ne: '≠',
+  lt: '<',
+  lte: '≤',
+  gt: '>',
+  gte: '≥',
+  add: '+',
+  sub: '−',
+  mul: '×',
+  div: '÷',
+  pow: '^',
+};
 
 /** An expression of the compiled form as a short formula: `features.latency ≤ 600`. */
 export function describeExpression(expression: unknown, depth = 0): string {
   if (!isRecord(expression) || depth > 8) return '…';
   const wrap = (inner: unknown) => {
     const shown = describeExpression(inner, depth + 1);
-    return isRecord(inner) && ['and', 'or', 'compare', 'arithmetic'].includes(String(inner.kind)) ? `(${shown})` : shown;
+    return isRecord(inner) && ['and', 'or', 'compare', 'arithmetic'].includes(String(inner.kind))
+      ? `(${shown})`
+      : shown;
   };
   switch (expression.kind) {
     case 'literal': {
@@ -26,18 +40,26 @@ export function describeExpression(expression: unknown, depth = 0): string {
     }
     case 'path':
       return list(expression.segments).map(String).join('.');
-    case 'not': return `not ${wrap(expression.value)}`;
-    case 'negate': return `−${wrap(expression.value)}`;
-    case 'and': return `${wrap(expression.left)} and ${wrap(expression.right)}`;
-    case 'or': return `${wrap(expression.left)} or ${wrap(expression.right)}`;
+    case 'not':
+      return `not ${wrap(expression.value)}`;
+    case 'negate':
+      return `−${wrap(expression.value)}`;
+    case 'and':
+      return `${wrap(expression.left)} and ${wrap(expression.right)}`;
+    case 'or':
+      return `${wrap(expression.left)} or ${wrap(expression.right)}`;
     case 'compare':
     case 'arithmetic':
       return `${wrap(expression.left)} ${OPERATORS[String(expression.op)] ?? String(expression.op)} ${wrap(expression.right)}`;
     case 'call':
-      return `${String(expression.name)}(${list(expression.args).map((arg) => describeExpression(arg, depth + 1)).join(', ')})`;
-    default: return '…';
+      return `${String(expression.name)}(${list(expression.args)
+        .map(arg => describeExpression(arg, depth + 1))
+        .join(', ')})`;
+    default:
+      return '…';
   }
 }
 
 /** Is it the literal `true`, the `when` of a rule that always applies? */
-export const isAlways = (expression: unknown): boolean => isRecord(expression) && expression.kind === 'literal' && expression.value === true;
+export const isAlways = (expression: unknown): boolean =>
+  isRecord(expression) && expression.kind === 'literal' && expression.value === true;

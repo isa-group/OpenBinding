@@ -15,7 +15,12 @@ export interface FactsSource {
 export function factsSource(version: CompositionVersionView | null): FactsSource | null {
   const link = version?.problem;
   if (!version || !link || link.problem.id === null) return null;
-  const evaluation = version.evaluations.find((item) => item.current) ?? null;
-  const compilation = evaluation?.compilation?.id ?? version.current_evaluation?.compilation?.compilation_digest ?? null;
-  return compilation ? { problem: link.problem.slug, revision: link.revision.revision, compilation } : null;
+  const evaluation = version.evaluations.find(item => item.current) ?? null;
+  const compilation =
+    evaluation?.compilation?.id ??
+    version.current_evaluation?.compilation?.compilation_digest ??
+    null;
+  return compilation
+    ? { problem: link.problem.slug, revision: link.revision.revision, compilation }
+    : null;
 }

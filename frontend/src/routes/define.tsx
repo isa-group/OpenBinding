@@ -10,7 +10,12 @@ export function layoutFor(path: string): ScreenLayout {
  * A screen of the application. Keep one call per line with a literal id and path:
  * the end-to-end smoke test and the QA gallery read them straight from the area files (routes/areas).
  */
-export function live(id: string, path: string, element: ReactNode, options: ScreenOptions = {}): RouteDefinition {
+export function live(
+  id: string,
+  path: string,
+  element: ReactNode,
+  options: ScreenOptions = {}
+): RouteDefinition {
   const layout = layoutFor(path);
   return {
     id,

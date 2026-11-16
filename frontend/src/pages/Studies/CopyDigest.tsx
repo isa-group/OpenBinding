@@ -5,7 +5,12 @@ export function CopyDigest({ value, label }: { value: string; label: string }) {
   const { copy, status } = useCopy();
   const state = status();
   return (
-    <button type="button" className="job-link-button" aria-label={label} onClick={() => void copy(value)}>
+    <button
+      type="button"
+      className="job-link-button"
+      aria-label={label}
+      onClick={() => void copy(value)}
+    >
       {state === 'copied' ? 'Copied' : state === 'failed' ? 'Copy failed' : 'Copy digest'}
     </button>
   );

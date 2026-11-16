@@ -16,7 +16,9 @@ export interface RevisionDirectory {
  * its rows read by id.
  */
 export function useRevisionIndex(org: string): RevisionDirectory {
-  const resource = useResource<CaseContent[]>(`study-problems:${org}`, () => loadProblems(org).catch(() => []));
+  const resource = useResource<CaseContent[]>(`study-problems:${org}`, () =>
+    loadProblems(org).catch(() => [])
+  );
   const { data, stale } = resource;
   const cases = useMemo(() => data ?? stale ?? [], [data, stale]);
   const index = useMemo(() => revisionIndex(cases), [cases]);

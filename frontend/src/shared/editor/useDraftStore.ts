@@ -7,7 +7,8 @@ export const HISTORY_LIMIT = 40;
 export const SAVE_DELAY_MS = 500;
 
 /** What the editors say where this browser cannot keep drafts. */
-export const DRAFTS_UNAVAILABLE = 'This browser does not keep drafts, so unsaved changes are lost when you leave. Export or save them to keep them.';
+export const DRAFTS_UNAVAILABLE =
+  'This browser does not keep drafts, so unsaved changes are lost when you leave. Export or save them to keep them.';
 
 export interface DraftStoreOptions<F extends DraftFiles> {
   /** Where the draft is kept (`draftScope`). A new scope starts unhydrated: nothing is kept until `start` gives it its files. */
@@ -21,7 +22,7 @@ export interface DraftStoreOptions<F extends DraftFiles> {
 const sameFiles = (left: DraftFiles, right: DraftFiles) => {
   if (left === right) return true;
   const keys = Object.keys(left);
-  return keys.length === Object.keys(right).length && keys.every((key) => right[key] === left[key]);
+  return keys.length === Object.keys(right).length && keys.every(key => right[key] === left[key]);
 };
 
 /**
@@ -34,7 +35,11 @@ const sameFiles = (left: DraftFiles, right: DraftFiles) => {
  * - `start` hydrates the scope: its files become the files and the baseline, and the history is forgotten. Only then is the draft
  *   kept, `delay` ms after the last change, and once more right away when the scope changes or the editor goes away.
  */
-export function useDraftStore<F extends DraftFiles>({ scope, initial, delay = SAVE_DELAY_MS }: DraftStoreOptions<F>) {
+export function useDraftStore<F extends DraftFiles>({
+  scope,
+  initial,
+  delay = SAVE_DELAY_MS,
+}: DraftStoreOptions<F>) {
   const [files, setFiles] = useState<F>(initial);
   const [baseline, setBaseline] = useState<F>(initial);
   const [hydratedScope, setHydratedScope] = useState<string | null>(null);
@@ -47,7 +52,9 @@ export function useDraftStore<F extends DraftFiles>({ scope, initial, delay = SA
   const scopeRef = useRef(scope);
   const pendingRef = useRef<{ scope: string; files: F } | null>(null);
 
-  useEffect(() => { scopeRef.current = scope; }, [scope]);
+  useEffect(() => {
+    scopeRef.current = scope;
+  }, [scope]);
 
   const hydrated = hydratedScope === scope;
 
@@ -56,21 +63,27 @@ export function useDraftStore<F extends DraftFiles>({ scope, initial, delay = SA
     setFiles(next);
   }, []);
 
-  const countHistory = useCallback(() => setDepth({ past: pastRef.current.length, future: futureRef.current.length }), []);
+  const countHistory = useCallback(
+    () => setDepth({ past: pastRef.current.length, future: futureRef.current.length }),
+    []
+  );
 
   /** The files as they are now, including changes the screen has not drawn yet. */
   const current = useCallback(() => filesRef.current, []);
 
   /** Change the files as one undo step. */
-  const commit = useCallback((next: F | ((now: F) => F)) => {
-    const now = filesRef.current;
-    const value = typeof next === 'function' ? (next as (now: F) => F)(now) : next as F;
-    pastRef.current = [...pastRef.current.slice(-(HISTORY_LIMIT - 1)), now];
-    futureRef.current = [];
-    show(value);
-    countHistory();
-    return value;
-  }, [show, countHistory]);
+  const commit = useCallback(
+    (next: F | ((now: F) => F)) => {
+      const now = filesRef.current;
+      const value = typeof next === 'function' ? (next as (now: F) => F)(now) : (next as F);
+      pastRef.current = [...pastRef.current.slice(-(HISTORY_LIMIT - 1)), now];
+      futureRef.current = [];
+      show(value);
+      countHistory();
+      return value;
+    },
+    [show, countHistory]
+  );
 
   /** Go back one step; answers the files now shown, or `null` when there is nothing to undo. */
   const undo = useCallback((): F | null => {
@@ -98,25 +111,31 @@ export function useDraftStore<F extends DraftFiles>({ scope, initial, delay = SA
   const reset = useCallback(() => commit(baselineRef.current), [commit]);
 
   /** Whole files replace the edit as one undo step; with `asBaseline` they are also what `reset` and `dirty` compare against. */
-  const replace = useCallback((next: F, { asBaseline = false }: { asBaseline?: boolean } = {}) => {
-    if (asBaseline) {
-      baselineRef.current = next;
-      setBaseline(next);
-    }
-    return commit(next);
-  }, [commit]);
+  const replace = useCallback(
+    (next: F, { asBaseline = false }: { asBaseline?: boolean } = {}) => {
+      if (asBaseline) {
+        baselineRef.current = next;
+        setBaseline(next);
+      }
+      return commit(next);
+    },
+    [commit]
+  );
 
   /** Hydrate the scope: these files (or the files on screen) start it, as files and baseline, with no history. */
-  const start = useCallback((next?: F) => {
-    const value = next ?? filesRef.current;
-    pastRef.current = [];
-    futureRef.current = [];
-    baselineRef.current = value;
-    setBaseline(value);
-    show(value);
-    countHistory();
-    setHydratedScope(scopeRef.current);
-  }, [show, countHistory]);
+  const start = useCallback(
+    (next?: F) => {
+      const value = next ?? filesRef.current;
+      pastRef.current = [];
+      futureRef.current = [];
+      baselineRef.current = value;
+      setBaseline(value);
+      show(value);
+      countHistory();
+      setHydratedScope(scopeRef.current);
+    },
+    [show, countHistory]
+  );
 
   /** The draft kept for this scope, if any. */
   const restore = useCallback(() => loadDraft(scopeRef.current) as Promise<F | null>, []);
@@ -127,7 +146,11 @@ export function useDraftStore<F extends DraftFiles>({ scope, initial, delay = SA
     if (!pending) return Promise.resolve();
     return saveDraft(pending.scope, pending.files)
       .then(() => setSaveIssue(null))
-      .catch((reason: unknown) => setSaveIssue(reason instanceof Error ? reason.message : 'This draft could not be kept in the browser.'));
+      .catch((reason: unknown) =>
+        setSaveIssue(
+          reason instanceof Error ? reason.message : 'This draft could not be kept in the browser.'
+        )
+      );
   }, []);
 
   /**
@@ -158,7 +181,15 @@ export function useDraftStore<F extends DraftFiles>({ scope, initial, delay = SA
     canRedo: depth.future > 0,
     /** Why the draft is not being kept, if it is not. */
     issue: draftsAvailable() ? saveIssue : DRAFTS_UNAVAILABLE,
-    current, commit, undo, redo, reset, replace, start, restore, forget,
+    current,
+    commit,
+    undo,
+    redo,
+    reset,
+    replace,
+    start,
+    restore,
+    forget,
   };
 }
 

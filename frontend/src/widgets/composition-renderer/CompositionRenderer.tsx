@@ -41,17 +41,44 @@ interface CompositionRendererProps extends RendererLinks {
  * the screen chooses the rest by props: nothing about the presentation is read from or written to the document.
  */
 export function CompositionRenderer({
-  model, mode, hideSections = [], density = 'comfortable', onlyDifferences = true, comparison, analysis, showcase, problemHref = null, runHref = null,
+  model,
+  mode,
+  hideSections = [],
+  density = 'comfortable',
+  onlyDifferences = true,
+  comparison,
+  analysis,
+  showcase,
+  problemHref = null,
+  runHref = null,
 }: CompositionRendererProps) {
   const sections = sectionsOf(mode, hideSections);
   return (
     <div className={`cr is-${density}`} data-mode={mode}>
-      {mode === 'catalog' && <CatalogMode model={model} sections={sections} problemHref={problemHref} runHref={runHref} />}
+      {mode === 'catalog' && (
+        <CatalogMode
+          model={model}
+          sections={sections}
+          problemHref={problemHref}
+          runHref={runHref}
+        />
+      )}
       {mode === 'architecture' && <ArchitectureMode model={model} sections={sections} />}
       {mode === 'workflow' && <WorkflowMode model={model} sections={sections} />}
-      {mode === 'comparison' && comparison && <Comparison {...comparison} model={model} sections={sections} onlyDifferences={onlyDifferences} />}
-      {mode === 'calculator' && <CalculatorMode model={model} sections={sections} actions={analysis} />}
-      {mode === 'configurator' && <ConfiguratorMode model={model} sections={sections} actions={analysis} />}
+      {mode === 'comparison' && comparison && (
+        <Comparison
+          {...comparison}
+          model={model}
+          sections={sections}
+          onlyDifferences={onlyDifferences}
+        />
+      )}
+      {mode === 'calculator' && (
+        <CalculatorMode model={model} sections={sections} actions={analysis} />
+      )}
+      {mode === 'configurator' && (
+        <ConfiguratorMode model={model} sections={sections} actions={analysis} />
+      )}
       {mode === 'showcase' && <ShowcaseMode model={model} sections={sections} actions={showcase} />}
     </div>
   );

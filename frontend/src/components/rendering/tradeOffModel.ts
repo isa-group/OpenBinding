@@ -51,8 +51,13 @@ export function tradeOffPointsOf(solutions: readonly TradeOffSolution[]): TradeO
 /** The criteria every point carries, in the order of the first point. */
 export function tradeOffObjectivesOf(points: readonly TradeOffPoint[]): string[] {
   if (points.length === 0) return [];
-  return Object.keys(points[0].values).filter((o) =>
-    points.every((p) => Object.prototype.hasOwnProperty.call(p.values, o) && Object.prototype.hasOwnProperty.call(p.losses, o)));
+  return Object.keys(points[0].values).filter(o =>
+    points.every(
+      p =>
+        Object.prototype.hasOwnProperty.call(p.values, o) &&
+        Object.prototype.hasOwnProperty.call(p.losses, o)
+    )
+  );
 }
 
 function dominates(a: TradeOffPoint, b: TradeOffPoint, objectives: readonly string[]): boolean {
@@ -65,7 +70,10 @@ function dominates(a: TradeOffPoint, b: TradeOffPoint, objectives: readonly stri
 }
 
 /** The points no other point dominates by `loss` (lower is better), in input order. */
-export function nonDominated(points: readonly TradeOffPoint[], objectives?: readonly string[]): TradeOffPoint[] {
+export function nonDominated(
+  points: readonly TradeOffPoint[],
+  objectives?: readonly string[]
+): TradeOffPoint[] {
   const keys = objectives ?? tradeOffObjectivesOf(points);
-  return points.filter((p) => !points.some((q) => q !== p && dominates(q, p, keys)));
+  return points.filter(p => !points.some(q => q !== p && dominates(q, p, keys)));
 }

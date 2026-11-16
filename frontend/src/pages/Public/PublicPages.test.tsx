@@ -21,21 +21,36 @@ vi.mock('../../api/platform', () => ({ platformApi: platform }));
 const valid = simpleSeq as unknown as BimValidateResponse;
 const refusedFiles = refusedPackage as Record<string, string>;
 const refused: BimRefusal = {
-  valid: false, status: 422, code: refusedBody.code, message: refusedBody.detail, diagnostics: refusedBody.diagnostics as BimDiagnostic[],
+  valid: false,
+  status: 422,
+  code: refusedBody.code,
+  message: refusedBody.detail,
+  diagnostics: refusedBody.diagnostics as BimDiagnostic[],
 };
 
 const files = {
   'instance.json': {
     kind: 'Instance',
     metadata: { name: 'checkout' },
-    spec: { profile: 'qos-binding/v1', resources: { application: { application: 'application.json' }, candidateCatalog: { catalog: 'candidates.json' } } },
+    spec: {
+      profile: 'qos-binding/v1',
+      resources: {
+        application: { application: 'application.json' },
+        candidateCatalog: { catalog: 'candidates.json' },
+      },
+    },
   },
   'application.json': { kind: 'Application', spec: { tasks: { t1: 'service/auth' } } },
-  'candidates.json': { kind: 'CandidateCatalog', spec: { candidates: { a: { provides: 'service/auth', features: { latency: 10 } } } } },
+  'candidates.json': {
+    kind: 'CandidateCatalog',
+    spec: { candidates: { a: { provides: 'service/auth', features: { latency: 10 } } } },
+  },
 };
 
 function packageBytes(): Uint8Array {
-  return zipStore(Object.fromEntries(Object.entries(files).map(([path, value]) => [path, JSON.stringify(value)])));
+  return zipStore(
+    Object.fromEntries(Object.entries(files).map(([path, value]) => [path, JSON.stringify(value)]))
+  );
 }
 
 function asFile(bytes: Uint8Array, name = 'checkout.bim.zip'): File {
@@ -45,15 +60,33 @@ function asFile(bytes: Uint8Array, name = 'checkout.bim.zip'): File {
   return file;
 }
 
-const lucia: UserProfile = { id: 'u', username: 'lucia', email: 'l@example.test', role: 'user', is_active: true, plan: 'RESEARCH', created_at: '2026-01-01T00:00:00Z' };
+const lucia: UserProfile = {
+  id: 'u',
+  username: 'lucia',
+  email: 'l@example.test',
+  role: 'user',
+  is_active: true,
+  plan: 'RESEARCH',
+  created_at: '2026-01-01T00:00:00Z',
+};
 
 function renderPage(path = '/workbench', user: UserProfile | null = null) {
   return render(
     <MemoryRouter initialEntries={[path]}>
-      <AuthContext.Provider value={{ user, loading: false, signIn: vi.fn(), register: vi.fn(), signOut: vi.fn(), refresh: vi.fn(), isAdmin: false }}>
+      <AuthContext.Provider
+        value={{
+          user,
+          loading: false,
+          signIn: vi.fn(),
+          register: vi.fn(),
+          signOut: vi.fn(),
+          refresh: vi.fn(),
+          isAdmin: false,
+        }}
+      >
         <WorkbenchPage />
       </AuthContext.Provider>
-    </MemoryRouter>,
+    </MemoryRouter>
   );
 }
 
@@ -65,7 +98,12 @@ async function choose(file: File) {
 describe('public workbench', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    api.templates.mockResolvedValue(['demo/01_simple_seq', 'demo/02_parallel', 'placement/01_small_placement', 'literature/zhang']);
+    api.templates.mockResolvedValue([
+      'demo/01_simple_seq',
+      'demo/02_parallel',
+      'placement/01_small_placement',
+      'literature/zhang',
+    ]);
     api.validate.mockResolvedValue(valid);
   });
 
@@ -78,7 +116,10 @@ describe('public workbench', () => {
     expect(screen.getByLabelText('Package limits')).toHaveTextContent('≤ 256 entries');
     expect(screen.getByText('No package yet')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Log in to run' })).toHaveAttribute('href', '/login');
-    expect(screen.getByRole('link', { name: 'Create account' })).toHaveAttribute('href', '/register');
+    expect(screen.getByRole('link', { name: 'Create account' })).toHaveAttribute(
+      'href',
+      '/register'
+    );
     expect(screen.queryByRole('navigation', { name: 'Language sections' })).not.toBeInTheDocument();
     expect(await screen.findByRole('button', { name: /demo\/01_simple_seq/ })).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: /Template package/ })).toHaveLength(3);
@@ -110,19 +151,32 @@ describe('public workbench', () => {
     expect(holds).toHaveTextContent('3tasks');
     expect(holds).toHaveTextContent('4candidates');
     expect(holds).toHaveTextContent('0rules');
-    expect(within(holds).getByRole('status', { name: /Binding space size: 2 combinations/i })).toBeInTheDocument();
+    expect(
+      within(holds).getByRole('status', { name: /Binding space size: 2 combinations/i })
+    ).toBeInTheDocument();
     const workflow = screen.getByRole('group', { name: 'Workflow of the package' });
     for (const task of valid.facts!.tasks) expect(workflow).toHaveTextContent(task.id);
     const candidates = screen.getByRole('region', { name: 'Candidates' });
     expect(within(candidates).getByRole('row', { name: /c1a/ })).toHaveTextContent('10 ms');
     expect(within(candidates).queryByRole('textbox')).not.toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 2, name: 'Rules and objectives' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { level: 2, name: 'Rules and objectives' })
+    ).toBeInTheDocument();
     // A valid package without findings has no problems list.
     expect(screen.queryByRole('region', { name: 'Problems' })).not.toBeInTheDocument();
   });
 
   it('lists the warnings of a valid package beside its structure', async () => {
-    api.validate.mockResolvedValue({ ...valid, diagnostics: [{ code: 'unused_feature', message: 'Feature cost is declared but never used.', resource: 'candidates.json' }] });
+    api.validate.mockResolvedValue({
+      ...valid,
+      diagnostics: [
+        {
+          code: 'unused_feature',
+          message: 'Feature cost is declared but never used.',
+          resource: 'candidates.json',
+        },
+      ],
+    });
     renderPage();
     await choose(asFile(packageBytes()));
     fireEvent.click(screen.getByRole('button', { name: 'Validate package' }));
@@ -141,31 +195,51 @@ describe('public workbench', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Validate package' }));
 
     expect(await screen.findByText(/^Not valid · \d+ errors$/)).toBeInTheDocument();
-    expect(screen.getByText(/^422 invalid_instance\. Each problem names the file and the place to fix\./)).toBeInTheDocument();
+    expect(
+      screen.getByText(/^422 invalid_instance\. Each problem names the file and the place to fix\./)
+    ).toBeInTheDocument();
     expect(screen.queryByText('Instance digest')).not.toBeInTheDocument();
-    expect(screen.queryByRole('group', { name: 'Workflow of the package' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('group', { name: 'Workflow of the package' })
+    ).not.toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'Candidates' })).not.toBeInTheDocument();
 
     const problems = screen.getByRole('region', { name: 'Problems' });
     // Grouped by file: the value out of its domain is placed on its line in candidates.json, the orphan task in the diagram.
-    const groups = [...problems.querySelectorAll('.pp-group-name')].map((element) => element.textContent);
+    const groups = [...problems.querySelectorAll('.pp-group-name')].map(
+      element => element.textContent
+    );
     expect(groups).toEqual(expect.arrayContaining(['candidates.json', 'workflow.bpmn']));
-    const domain = within(problems).getByText('candidate feature value is above its declared domain').closest('.pp-item') as HTMLElement;
+    const domain = within(problems)
+      .getByText('candidate feature value is above its declared domain')
+      .closest('.pp-item') as HTMLElement;
     expect(domain).toHaveTextContent(/Line \d+, column \d+/);
     expect(domain).toHaveTextContent('/spec/candidates/auth-edge/features/latency');
-    expect(within(problems).getByText("BPMN task 'orphan' has no Application task").closest('.pp-item')).toHaveTextContent('Diagram element orphan');
+    expect(
+      within(problems).getByText("BPMN task 'orphan' has no Application task").closest('.pp-item')
+    ).toHaveTextContent('Diagram element orphan');
     // Read-only: the public page has no file to open.
-    expect(within(problems).queryByRole('button', { name: /declared domain/ })).not.toBeInTheDocument();
+    expect(
+      within(problems).queryByRole('button', { name: /declared domain/ })
+    ).not.toBeInTheDocument();
   });
 
   it('says what the gateway said when it refuses a package without itemising why', async () => {
-    api.validate.mockResolvedValue({ valid: false, status: 422, code: 'invalid_request', message: 'The archive is not a BIM package.', diagnostics: [] } satisfies BimRefusal);
+    api.validate.mockResolvedValue({
+      valid: false,
+      status: 422,
+      code: 'invalid_request',
+      message: 'The archive is not a BIM package.',
+      diagnostics: [],
+    } satisfies BimRefusal);
     renderPage();
     await choose(asFile(packageBytes()));
     fireEvent.click(screen.getByRole('button', { name: 'Validate package' }));
 
     expect(await screen.findByText('Not valid · 1 error')).toBeInTheDocument();
-    expect(screen.getByText('422 invalid_request. The archive is not a BIM package.')).toBeInTheDocument();
+    expect(
+      screen.getByText('422 invalid_request. The archive is not a BIM package.')
+    ).toBeInTheDocument();
     const problems = screen.getByRole('region', { name: 'Problems' });
     expect(problems).toHaveTextContent('The archive is not a BIM package.');
     expect(problems).toHaveTextContent('Package');
@@ -192,7 +266,9 @@ describe('public workbench', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Validate package' }));
 
     expect(await screen.findByText('Too many validations right now (429).')).toBeInTheDocument();
-    expect(screen.getByText(/Try again in 5 s\. Your file is still selected\./)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Try again in 5 s\. Your file is still selected\./)
+    ).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
     expect(await screen.findByText('Valid package')).toBeInTheDocument();
     expect(api.validate).toHaveBeenCalledTimes(2);
@@ -204,14 +280,18 @@ describe('public workbench', () => {
     await choose(asFile(packageBytes()));
     fireEvent.click(screen.getByRole('button', { name: 'Validate package' }));
 
-    expect(await screen.findByText('Validation is unavailable right now (HTTP 503)')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Validation is unavailable right now (HTTP 503)')
+    ).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     expect(await screen.findByText('Valid package')).toBeInTheDocument();
   });
 
   it('does not upload a file that is not a readable package', async () => {
     renderPage();
-    await choose(asFile(new TextEncoder().encode('this is not a zip archive at all'), 'notes.bim.zip'));
+    await choose(
+      asFile(new TextEncoder().encode('this is not a zip archive at all'), 'notes.bim.zip')
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Validate package' }));
 
     expect(await screen.findByText('This file can’t be read as a BIM package')).toBeInTheDocument();
@@ -246,7 +326,9 @@ describe('public workbench', () => {
   });
 
   it('offers a signed-in account the problem editor of one of its organizations instead of the login prompt', async () => {
-    platform.organizations.mockResolvedValue([{ id: 'o', slug: 'isa-demo', name: 'ISA Demo Group' }]);
+    platform.organizations.mockResolvedValue([
+      { id: 'o', slug: 'isa-demo', name: 'ISA Demo Group' },
+    ]);
     api.template.mockResolvedValue(packageBytes().slice().buffer);
     renderPage('/workbench?template=demo%2F01_simple_seq', lucia);
 
@@ -254,17 +336,29 @@ describe('public workbench', () => {
     expect(screen.queryByRole('link', { name: 'Log in to run' })).not.toBeInTheDocument();
     await screen.findByText('Valid package');
     fireEvent.click(screen.getByRole('button', { name: 'Open in the problem editor' }));
-    expect(await screen.findByRole('link', { name: 'ISA Demo Group' })).toHaveAttribute('href', '/app/isa-demo/problem-editor?template=demo%2F01_simple_seq');
+    expect(await screen.findByRole('link', { name: 'ISA Demo Group' })).toHaveAttribute(
+      'href',
+      '/app/isa-demo/problem-editor?template=demo%2F01_simple_seq'
+    );
     expect(screen.queryByText(/An uploaded file isn’t carried across/)).not.toBeInTheDocument();
   });
 
   it('tells a signed-in account that an uploaded file is not carried into the editor', async () => {
-    platform.organizations.mockResolvedValue([{ id: 'o', slug: 'isa-demo', name: 'ISA Demo Group' }]);
+    platform.organizations.mockResolvedValue([
+      { id: 'o', slug: 'isa-demo', name: 'ISA Demo Group' },
+    ]);
     renderPage('/workbench', lucia);
     await choose(asFile(packageBytes()));
 
-    expect(screen.getByText(/An uploaded file isn’t carried across: upload it on the organization’s problem list/)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /An uploaded file isn’t carried across: upload it on the organization’s problem list/
+      )
+    ).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Open in the problem editor' }));
-    expect(await screen.findByRole('link', { name: 'ISA Demo Group' })).toHaveAttribute('href', '/app/isa-demo/problem-editor');
+    expect(await screen.findByRole('link', { name: 'ISA Demo Group' })).toHaveAttribute(
+      'href',
+      '/app/isa-demo/problem-editor'
+    );
   });
 });

@@ -17,7 +17,11 @@ export { bimResourceKey as registrationKey };
 
 /** The detail address: the name is the path; the other three parts of the exact identity travel in the query. */
 export function registrationHref(ref: ImmutableResourceRef, hash = ''): string {
-  const query = new URLSearchParams({ namespace: ref.namespace, version: ref.version, digest: ref.digest });
+  const query = new URLSearchParams({
+    namespace: ref.namespace,
+    version: ref.version,
+    digest: ref.digest,
+  });
   return `/app/engines/registrations/${encodeURIComponent(ref.name)}?${query.toString()}${hash}`;
 }
 
@@ -35,24 +39,57 @@ export function exactReference(ref: ImmutableResourceRef): string {
 }
 
 export function sameRevision(a: ImmutableResourceRef, b: ImmutableResourceRef): boolean {
-  return a.namespace === b.namespace && a.name === b.name && a.version === b.version && a.digest === b.digest;
+  return (
+    a.namespace === b.namespace &&
+    a.name === b.name &&
+    a.version === b.version &&
+    a.digest === b.digest
+  );
 }
 
 // -- Lifecycle wording -----------------------------------------------------------
 
-export const PUBLICATION: Record<EngineRegistrationState, { label: string; tone: ChipTone; text: string }> = {
-  private: { label: 'Private', tone: 'plain', text: 'Only your account can see and use it. Administrators cannot discover it until you request publication.' },
-  pending_review: { label: 'Waiting for review', tone: 'warning', text: 'An administrator is reviewing this exact revision. It stays private until then.' },
-  published: { label: 'Published', tone: 'success', text: 'Everyone can pick it when launching a run.' },
-  rejected: { label: 'Rejected', tone: 'error', text: 'A reviewer declined the request, so it is private again. You can ask again.' },
+export const PUBLICATION: Record<
+  EngineRegistrationState,
+  { label: string; tone: ChipTone; text: string }
+> = {
+  private: {
+    label: 'Private',
+    tone: 'plain',
+    text: 'Only your account can see and use it. Administrators cannot discover it until you request publication.',
+  },
+  pending_review: {
+    label: 'Waiting for review',
+    tone: 'warning',
+    text: 'An administrator is reviewing this exact revision. It stays private until then.',
+  },
+  published: {
+    label: 'Published',
+    tone: 'success',
+    text: 'Everyone can pick it when launching a run.',
+  },
+  rejected: {
+    label: 'Rejected',
+    tone: 'error',
+    text: 'A reviewer declined the request, so it is private again. You can ask again.',
+  },
 };
 
-export function publicationOf(status: EngineRegistrationState): { label: string; tone: ChipTone; text: string } {
+export function publicationOf(status: EngineRegistrationState): {
+  label: string;
+  tone: ChipTone;
+  text: string;
+} {
   return PUBLICATION[status] ?? PUBLICATION.private;
 }
 
-export function activityOf(registration: Pick<EngineRegistrationRevision, 'active'>): { label: string; tone: ChipTone } {
-  return registration.active ? { label: 'Active', tone: 'info' } : { label: 'Inactive', tone: 'plain' };
+export function activityOf(registration: Pick<EngineRegistrationRevision, 'active'>): {
+  label: string;
+  tone: ChipTone;
+} {
+  return registration.active
+    ? { label: 'Active', tone: 'info' }
+    : { label: 'Inactive', tone: 'plain' };
 }
 
 /** Where a registration stands on the way to publication: 0 private, 1 waiting for review, 2 published. */
@@ -86,7 +123,11 @@ const PASSED = new Set(['passed', 'pass', 'ok', 'verified', 'success', 'succeede
 const FAILED = new Set(['failed', 'fail', 'error', 'rejected', 'refused']);
 
 function humanize(id: string): string {
-  const words = id.replace(/[-_.]+/g, ' ').replace(/([a-z0-9])([A-Z])/g, '$1 $2').trim().toLowerCase();
+  const words = id
+    .replace(/[-_.]+/g, ' ')
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .trim()
+    .toLowerCase();
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
@@ -103,19 +144,48 @@ export function describeCheck(raw: unknown, index: number): ProbeCheck {
   const message = text(entry.message) ?? text(entry.detail) ?? text(entry.error);
   switch (id) {
     case 'openapi': {
-      const modes = Array.isArray(entry.responseModes) ? entry.responseModes.filter((item): item is string => typeof item === 'string') : [];
+      const modes = Array.isArray(entry.responseModes)
+        ? entry.responseModes.filter((item): item is string => typeof item === 'string')
+        : [];
       const path = text(entry.requestPath);
-      const parts = [path ? `Solve path ${path}` : null, modes.length ? `${modes.join(' and ')} answers` : null].filter((part): part is string => part !== null);
-      return { id, state, label: 'Contract matches bim-engine/v1', detail: message ?? (parts.join(' · ') || 'The served OpenAPI document is the pinned one.') };
+      const parts = [
+        path ? `Solve path ${path}` : null,
+        modes.length ? `${modes.join(' and ')} answers` : null,
+      ].filter((part): part is string => part !== null);
+      return {
+        id,
+        state,
+        label: 'Contract matches bim-engine/v1',
+        detail: message ?? (parts.join(' · ') || 'The served OpenAPI document is the pinned one.'),
+      };
     }
     case 'health':
-      return { id, state, label: 'Health path answered', detail: message ?? 'The mapped health operation answered 200.' };
+      return {
+        id,
+        state,
+        label: 'Health path answered',
+        detail: message ?? 'The mapped health operation answered 200.',
+      };
     case 'binding-result': {
       const termination = text(entry.termination);
-      return { id, state, label: 'Sample problem solved', detail: message ?? (termination ? `It ended ${termination} with the expected binding.` : 'The answer has the expected shape.') };
+      return {
+        id,
+        state,
+        label: 'Sample problem solved',
+        detail:
+          message ??
+          (termination
+            ? `It ended ${termination} with the expected binding.`
+            : 'The answer has the expected shape.'),
+      };
     }
     case 'conformance':
-      return { id, state, label: 'Conformance check', detail: message ?? 'The deployment did not pass.' };
+      return {
+        id,
+        state,
+        label: 'Conformance check',
+        detail: message ?? 'The deployment did not pass.',
+      };
     default:
       return { id, state, label: humanize(id), detail: message ?? '' };
   }
@@ -126,7 +196,8 @@ export function readProbe(report: unknown): Probe {
   const body = isRecord(report) ? report : {};
   const checks = Array.isArray(body.checks) ? body.checks.map(describeCheck) : [];
   const word = text(body.status)?.toLowerCase() ?? 'pending';
-  const verdict: ProbeVerdict = word === 'verified' ? 'verified' : word === 'failed' ? 'failed' : 'pending';
+  const verdict: ProbeVerdict =
+    word === 'verified' ? 'verified' : word === 'failed' ? 'failed' : 'pending';
   return {
     verdict,
     checks,
@@ -141,7 +212,14 @@ export function readProbe(report: unknown): Probe {
 export function probeFromFailure(error: unknown): Probe | null {
   if (!(error instanceof HttpError) || error.code !== 'conformance_failed') return null;
   const checks = (error.diagnostics ?? []).map(describeCheck);
-  return { verdict: 'failed', checks, verifiedAt: null, durationMs: null, protocol: null, protocolDigest: null };
+  return {
+    verdict: 'failed',
+    checks,
+    verifiedAt: null,
+    durationMs: null,
+    protocol: null,
+    protocolDigest: null,
+  };
 }
 
 export function probeSummary(probe: Probe): { label: string; tone: ChipTone } {
@@ -214,32 +292,53 @@ const BY_CODE: Record<string, [string, string]> = {
     'That registration version already exists with other content',
     'Registration revisions are immutable. Use a new registration version.',
   ],
-  invalid_engine: ['The engine manifest was refused', 'It doesn’t satisfy the bim/v1 Engine contract. The gateway says where below.'],
-  invalid_registration: ['The registration was refused', 'It doesn’t satisfy the bim/v1 EngineRegistration contract. The gateway says where below.'],
+  invalid_engine: [
+    'The engine manifest was refused',
+    'It doesn’t satisfy the bim/v1 Engine contract. The gateway says where below.',
+  ],
+  invalid_registration: [
+    'The registration was refused',
+    'It doesn’t satisfy the bim/v1 EngineRegistration contract. The gateway says where below.',
+  ],
   invalid_credential: [
     'That credential was refused',
     'It was empty or not in the expected form. Nothing was replaced; the previous credential is still in use.',
   ],
-  unknown_engine: ['That engine revision isn’t known', 'The registration points at an engine revision the gateway can’t find. Create the engine revision first.'],
-  engine_digest_mismatch: ['The engine fingerprint doesn’t match', 'The registration must pin the exact engine revision it deploys.'],
-  engine_revision_unavailable: ['The engine revision is unavailable', 'The revision this registration pins can’t be read right now.'],
+  unknown_engine: [
+    'That engine revision isn’t known',
+    'The registration points at an engine revision the gateway can’t find. Create the engine revision first.',
+  ],
+  engine_digest_mismatch: [
+    'The engine fingerprint doesn’t match',
+    'The registration must pin the exact engine revision it deploys.',
+  ],
+  engine_revision_unavailable: [
+    'The engine revision is unavailable',
+    'The revision this registration pins can’t be read right now.',
+  ],
   accounts_unavailable: [
     'Accounts are unavailable right now',
     'Registrations are tied to accounts, so this can’t be done. Nothing has changed; try again in a moment.',
   ],
-  credential_store_unavailable: ['The credential store is unavailable', 'Nothing was stored. Try again in a moment.'],
-  payload_too_large: ['That document is too large', 'Shorten the OpenAPI document or the manifest and try again.'],
+  credential_store_unavailable: [
+    'The credential store is unavailable',
+    'Nothing was stored. Try again in a moment.',
+  ],
+  payload_too_large: [
+    'That document is too large',
+    'Shorten the OpenAPI document or the manifest and try again.',
+  ],
 };
 
 function diagnosticLines(error: HttpError): string[] {
   return (error.diagnostics ?? [])
     .filter(isRecord)
-    .map((item) => {
+    .map(item => {
       const message = text(item.message) ?? text(item.code) ?? '';
       const where = text(item.pointer);
       return where ? `${where}: ${message}` : message;
     })
-    .filter((line) => line !== '')
+    .filter(line => line !== '')
     .slice(0, 6);
 }
 
@@ -247,9 +346,14 @@ function diagnosticLines(error: HttpError): string[] {
 export function describeFailure(error: unknown, fallback = 'The request was refused.'): Failure {
   if (error instanceof QuotaError) {
     const quota = error.quota;
-    const counts = quota && quota.used !== undefined ? `You’ve used ${quota.used} of ${quota.limit}. ` : '';
+    const counts =
+      quota && quota.used !== undefined ? `You’ve used ${quota.used} of ${quota.limit}. ` : '';
     return {
-      status: 402, code: error.code, tone: 'error', details: [], probe: null,
+      status: 402,
+      code: error.code,
+      tone: 'error',
+      details: [],
+      probe: null,
       title: 'Engine limit reached (402)',
       text: `${counts}Delete a registration you no longer use, or ask about a larger plan.`,
     };
@@ -259,30 +363,77 @@ export function describeFailure(error: unknown, fallback = 'The request was refu
     const suffix = error.code ? ` (${error.status} · ${error.code})` : ` (${error.status})`;
     if (known) {
       return {
-        status: error.status, code: error.code ?? null, tone: error.status === 503 ? 'warning' : 'error',
-        title: `${known[0]}${suffix}`, text: known[1], details: error.code === 'conformance_failed' ? [] : diagnosticLines(error), probe: probeFromFailure(error),
+        status: error.status,
+        code: error.code ?? null,
+        tone: error.status === 503 ? 'warning' : 'error',
+        title: `${known[0]}${suffix}`,
+        text: known[1],
+        details: error.code === 'conformance_failed' ? [] : diagnosticLines(error),
+        probe: probeFromFailure(error),
       };
     }
     if (error.status === 401) {
-      return { status: 401, code: error.code ?? null, tone: 'error', title: 'Your session ended (401)', text: 'Log in again to continue.', details: [], probe: null };
+      return {
+        status: 401,
+        code: error.code ?? null,
+        tone: 'error',
+        title: 'Your session ended (401)',
+        text: 'Log in again to continue.',
+        details: [],
+        probe: null,
+      };
     }
     if (error.status === 403) {
-      return { status: 403, code: error.code ?? null, tone: 'error', title: `You can’t do this${suffix}`, text: 'Your account or key is valid but doesn’t include what this needs.', details: diagnosticLines(error), probe: null };
+      return {
+        status: 403,
+        code: error.code ?? null,
+        tone: 'error',
+        title: `You can’t do this${suffix}`,
+        text: 'Your account or key is valid but doesn’t include what this needs.',
+        details: diagnosticLines(error),
+        probe: null,
+      };
     }
     if (error.status === 404) {
-      return { status: 404, code: error.code ?? null, tone: 'error', title: 'Not found (404)', text: 'It doesn’t exist, or it isn’t yours. The answer is the same either way.', details: [], probe: null };
+      return {
+        status: 404,
+        code: error.code ?? null,
+        tone: 'error',
+        title: 'Not found (404)',
+        text: 'It doesn’t exist, or it isn’t yours. The answer is the same either way.',
+        details: [],
+        probe: null,
+      };
     }
     if (error.status === 503) {
-      return { status: 503, code: error.code ?? null, tone: 'warning', title: `This isn’t available right now${suffix}`, text: 'A service OpenBinding depends on didn’t answer. Nothing has changed; try again in a moment.', details: [], probe: null };
+      return {
+        status: 503,
+        code: error.code ?? null,
+        tone: 'warning',
+        title: `This isn’t available right now${suffix}`,
+        text: 'A service OpenBinding depends on didn’t answer. Nothing has changed; try again in a moment.',
+        details: [],
+        probe: null,
+      };
     }
     return {
-      status: error.status, code: error.code ?? null, tone: 'error', title: `${fallback}${suffix}`,
-      text: error.message.replace(/^HTTP \d+:\s*/, ''), details: diagnosticLines(error), probe: null,
+      status: error.status,
+      code: error.code ?? null,
+      tone: 'error',
+      title: `${fallback}${suffix}`,
+      text: error.message.replace(/^HTTP \d+:\s*/, ''),
+      details: diagnosticLines(error),
+      probe: null,
     };
   }
   return {
-    status: null, code: null, tone: 'error', title: fallback,
-    text: error instanceof Error ? error.message : 'The gateway can’t be reached.', details: [], probe: null,
+    status: null,
+    code: null,
+    tone: 'error',
+    title: fallback,
+    text: error instanceof Error ? error.message : 'The gateway can’t be reached.',
+    details: [],
+    probe: null,
   };
 }
 
@@ -294,7 +445,12 @@ export const AUTH_LABELS: Record<string, string> = {
   basic: 'Username and password (stored encrypted)',
 };
 
-const MAPPING_LABELS: Record<string, string> = { request: 'Solve', health: 'Health', openapi: 'Contract', job: 'Run status' };
+const MAPPING_LABELS: Record<string, string> = {
+  request: 'Solve',
+  health: 'Health',
+  openapi: 'Contract',
+  job: 'Run status',
+};
 const MAPPING_ORDER = ['request', 'health', 'openapi', 'job'];
 
 export interface DeploymentView {
@@ -311,22 +467,28 @@ export interface DeploymentView {
 }
 
 /** The secret-free description of a deployment, from its EngineRegistration manifest and the OpenAPI document pinned with it. */
-export function readDeployment(manifest: unknown, openapi: unknown, contractDigest: string | null): DeploymentView {
+export function readDeployment(
+  manifest: unknown,
+  openapi: unknown,
+  contractDigest: string | null
+): DeploymentView {
   const spec = isRecord(manifest) && isRecord(manifest.spec) ? manifest.spec : {};
   const mappings = isRecord(spec.mappings) ? spec.mappings : {};
-  const scheme = isRecord(spec.auth) && typeof spec.auth.scheme === 'string' ? spec.auth.scheme : 'none';
+  const scheme =
+    isRecord(spec.auth) && typeof spec.auth.scheme === 'string' ? spec.auth.scheme : 'none';
   const protocol = isRecord(spec.protocol) ? spec.protocol : {};
   const info = isRecord(openapi) && isRecord(openapi.info) ? openapi.info : {};
-  const paths = isRecord(openapi) && isRecord(openapi.paths) ? Object.keys(openapi.paths).length : null;
+  const paths =
+    isRecord(openapi) && isRecord(openapi.paths) ? Object.keys(openapi.paths).length : null;
   return {
     endpoint: text(spec.endpoint),
     auth: AUTH_LABELS[scheme] ?? scheme,
     authScheme: scheme,
     protocol: text(protocol.id),
     protocolDigest: text(protocol.digest),
-    mappings: MAPPING_ORDER
-      .filter((id) => typeof mappings[id] === 'string' && mappings[id] !== '')
-      .map((id) => ({ id, label: MAPPING_LABELS[id], path: String(mappings[id]) })),
+    mappings: MAPPING_ORDER.filter(
+      id => typeof mappings[id] === 'string' && mappings[id] !== ''
+    ).map(id => ({ id, label: MAPPING_LABELS[id], path: String(mappings[id]) })),
     contractTitle: text(info.title),
     contractVersion: text(info.version),
     contractPaths: paths,
@@ -336,7 +498,12 @@ export function readDeployment(manifest: unknown, openapi: unknown, contractDige
 
 /** The address that opens the registration form filled in from this one, to register it again under a new version. */
 export function newVersionHref(ref: ImmutableResourceRef): string {
-  const query = new URLSearchParams({ from: ref.name, namespace: ref.namespace, version: ref.version, digest: ref.digest });
+  const query = new URLSearchParams({
+    from: ref.name,
+    namespace: ref.namespace,
+    version: ref.version,
+    digest: ref.digest,
+  });
   return `/app/engines/new?${query.toString()}`;
 }
 
@@ -350,7 +517,10 @@ export interface Allowance {
 }
 
 /** How many federated engines the plan allows and how many are in use, from the usage view; `null` when it says nothing. */
-export function allowanceOf(usage: UsageView | null | undefined, ownCount: number): Allowance | null {
+export function allowanceOf(
+  usage: UsageView | null | undefined,
+  ownCount: number
+): Allowance | null {
   if (!usage) return null;
   const capability = usage.capabilities?.[LIMIT.maxFederatedEngines];
   if (capability === undefined) return null;

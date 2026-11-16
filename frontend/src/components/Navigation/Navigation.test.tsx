@@ -13,20 +13,36 @@ const auth = vi.hoisted(() => ({
 vi.mock('../../contexts/auth', () => ({ useAuth: () => auth }));
 
 const member: UserProfile = {
-  id: 'user-1', username: 'alice', email: 'alice@example.com', role: 'user', is_active: true,
-  plan: 'FREE', created_at: '2026-01-01T00:00:00Z',
+  id: 'user-1',
+  username: 'alice',
+  email: 'alice@example.com',
+  role: 'user',
+  is_active: true,
+  plan: 'FREE',
+  created_at: '2026-01-01T00:00:00Z',
 };
 
 const PUBLIC_LINKS = [
-  ['Home', '/'], ['Compositions', '/compositions'], ['Language', '/language'], ['Engines', '/engines'], ['Pricing', '/pricing'],
-  ['About', '/about'], ['Log in', '/login'], ['Sign up', '/register'],
+  ['Home', '/'],
+  ['Compositions', '/compositions'],
+  ['Language', '/language'],
+  ['Engines', '/engines'],
+  ['Pricing', '/pricing'],
+  ['About', '/about'],
+  ['Log in', '/login'],
+  ['Sign up', '/register'],
 ] as const;
 
 function renderHeader(path = '/') {
-  return render(<MemoryRouter initialEntries={[path]}><Navigation /></MemoryRouter>);
+  return render(
+    <MemoryRouter initialEntries={[path]}>
+      <Navigation />
+    </MemoryRouter>
+  );
 }
 
-const labelsOf = (links: HTMLElement[]) => links.map((link) => [link.textContent?.replace('↗', '').trim(), link.getAttribute('href')]);
+const labelsOf = (links: HTMLElement[]) =>
+  links.map(link => [link.textContent?.replace('↗', '').trim(), link.getAttribute('href')]);
 
 describe('Public header', () => {
   beforeEach(() => {
@@ -39,15 +55,22 @@ describe('Public header', () => {
     renderHeader();
 
     const nav = screen.getByRole('navigation', { name: 'Primary navigation' });
-    const actions = [screen.getByRole('link', { name: 'Log in' }), screen.getByRole('link', { name: 'Sign up' })];
-    expect(labelsOf([...within(nav).getAllByRole('link'), ...actions])).toEqual(PUBLIC_LINKS.map(([name, href]) => [name, href]));
+    const actions = [
+      screen.getByRole('link', { name: 'Log in' }),
+      screen.getByRole('link', { name: 'Sign up' }),
+    ];
+    expect(labelsOf([...within(nav).getAllByRole('link'), ...actions])).toEqual(
+      PUBLIC_LINKS.map(([name, href]) => [name, href])
+    );
     expect(screen.getByRole('link', { name: /OpenBinding home/i })).toHaveAttribute('href', '/');
   });
 
   it('has no menu and none of the links of the former header', () => {
     renderHeader();
 
-    expect(screen.queryAllByRole('button').map((button) => button.getAttribute('aria-label'))).toEqual(['Open menu']);
+    expect(
+      screen.queryAllByRole('button').map(button => button.getAttribute('aria-label'))
+    ).toEqual(['Open menu']);
     for (const name of ['Profiles & dialects', 'Schemas', 'Examples', 'Workbench']) {
       expect(screen.queryByRole('link', { name })).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name })).not.toBeInTheDocument();
@@ -63,9 +86,16 @@ describe('Public header', () => {
   });
 
   it('marks Compositions on the public list and on the public page of a composition', () => {
-    for (const path of ['/compositions', '/compositions?kind=workflow', '/c/lab-other/fleet-routing']) {
+    for (const path of [
+      '/compositions',
+      '/compositions?kind=workflow',
+      '/c/lab-other/fleet-routing',
+    ]) {
       const { unmount } = renderHeader(path);
-      expect(screen.getByRole('link', { name: 'Compositions' }), path).toHaveAttribute('aria-current', 'page');
+      expect(screen.getByRole('link', { name: 'Compositions' }), path).toHaveAttribute(
+        'aria-current',
+        'page'
+      );
       expect(screen.getByRole('link', { name: 'Home' }), path).not.toHaveAttribute('aria-current');
       unmount();
     }
@@ -85,10 +115,22 @@ describe('Public header', () => {
   it('links to the Composition2Yaml reference after Compositions, and marks it on /language', () => {
     const { unmount } = renderHeader('/language');
     const primary = screen.getByRole('navigation', { name: 'Primary navigation' });
-    expect(within(primary).getAllByRole('link').map((link) => link.textContent)).toEqual(['Home', 'Compositions', 'Language', 'Engines', 'Pricing', 'About']);
-    expect(within(primary).getByRole('link', { name: 'Language' })).toHaveAttribute('href', '/language');
-    expect(within(primary).getByRole('link', { name: 'Language' })).toHaveAttribute('aria-current', 'page');
-    expect(within(primary).getByRole('link', { name: 'Compositions' })).not.toHaveAttribute('aria-current');
+    expect(
+      within(primary)
+        .getAllByRole('link')
+        .map(link => link.textContent)
+    ).toEqual(['Home', 'Compositions', 'Language', 'Engines', 'Pricing', 'About']);
+    expect(within(primary).getByRole('link', { name: 'Language' })).toHaveAttribute(
+      'href',
+      '/language'
+    );
+    expect(within(primary).getByRole('link', { name: 'Language' })).toHaveAttribute(
+      'aria-current',
+      'page'
+    );
+    expect(within(primary).getByRole('link', { name: 'Compositions' })).not.toHaveAttribute(
+      'aria-current'
+    );
     unmount();
 
     renderHeader('/compositions');
@@ -117,8 +159,13 @@ describe('Public header', () => {
 
     fireEvent.click(toggle);
     const mobile = screen.getByRole('navigation', { name: 'Mobile navigation' });
-    expect(screen.getByRole('button', { name: 'Close menu' })).toHaveAttribute('aria-expanded', 'true');
-    expect(labelsOf(within(mobile).getAllByRole('link'))).toEqual(PUBLIC_LINKS.map(([name, href]) => [name, href]));
+    expect(screen.getByRole('button', { name: 'Close menu' })).toHaveAttribute(
+      'aria-expanded',
+      'true'
+    );
+    expect(labelsOf(within(mobile).getAllByRole('link'))).toEqual(
+      PUBLIC_LINKS.map(([name, href]) => [name, href])
+    );
 
     fireEvent.click(within(mobile).getByRole('link', { name: 'Pricing' }));
     expect(screen.queryByRole('navigation', { name: 'Mobile navigation' })).not.toBeInTheDocument();
@@ -128,7 +175,12 @@ describe('Public header', () => {
     renderHeader();
 
     fireEvent.click(screen.getByRole('button', { name: 'Open menu' }));
-    fireEvent.keyDown(within(screen.getByRole('navigation', { name: 'Mobile navigation' })).getByRole('link', { name: 'About' }), { key: 'Escape' });
+    fireEvent.keyDown(
+      within(screen.getByRole('navigation', { name: 'Mobile navigation' })).getByRole('link', {
+        name: 'About',
+      }),
+      { key: 'Escape' }
+    );
 
     expect(screen.queryByRole('navigation', { name: 'Mobile navigation' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Open menu' })).toHaveFocus();
@@ -149,7 +201,10 @@ describe('Public header', () => {
     const menu = document.getElementById('public-account-menu') as HTMLElement;
     expect(within(menu).getByText('alice@example.com')).toBeInTheDocument();
     expect(within(menu).getByRole('link', { name: 'Workspace' })).toHaveAttribute('href', '/app');
-    expect(within(menu).getByRole('link', { name: 'Account' })).toHaveAttribute('href', '/app/account');
+    expect(within(menu).getByRole('link', { name: 'Account' })).toHaveAttribute(
+      'href',
+      '/app/account'
+    );
     expect(within(menu).queryByRole('link', { name: 'Administration' })).not.toBeInTheDocument();
 
     fireEvent.click(within(menu).getByRole('button', { name: 'Log out' }));
@@ -162,7 +217,10 @@ describe('Public header', () => {
     renderHeader();
 
     fireEvent.click(screen.getByRole('button', { name: 'Account menu' }));
-    expect(screen.getByRole('link', { name: 'Administration' })).toHaveAttribute('href', '/app/admin');
+    expect(screen.getByRole('link', { name: 'Administration' })).toHaveAttribute(
+      'href',
+      '/app/admin'
+    );
   });
 
   it('has no theme switch and does not touch theme state', () => {

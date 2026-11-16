@@ -2,20 +2,33 @@ import { describe, expect, it } from 'vitest';
 import { formatFinding, isTestSupport, scanFiles, scanSource, wordPattern } from './vocabulary';
 
 const CASE = wordPattern(['case', 'cases']);
-const found = (source: string, words: RegExp = CASE) => scanSource(source, words).map((finding) => `${finding.where}: ${finding.text}`);
+const found = (source: string, words: RegExp = CASE) =>
+  scanSource(source, words).map(finding => `${finding.where}: ${finding.text}`);
 
 describe('the vocabulary scanner', () => {
   it('takes the words as a parameter and matches whole words in any letter case', () => {
-    expect(['case', 'Case', 'CASES', 'No case matches', 'Cases:'].every((text) => CASE.test(text))).toBe(true);
-    expect(['showcase', 'cased', 'suitcases', 'Problem'].some((text) => CASE.test(text))).toBe(false);
+    expect(
+      ['case', 'Case', 'CASES', 'No case matches', 'Cases:'].every(text => CASE.test(text))
+    ).toBe(true);
+    expect(['showcase', 'cased', 'suitcases', 'Problem'].some(text => CASE.test(text))).toBe(false);
     expect(wordPattern(['job', 'jobs']).test('Jobs by state')).toBe(true);
     expect(CASE.test('Jobs by state')).toBe(false);
   });
 
   it('reports the words in JSX text with the line of the text', () => {
-    const source = ['export const A = () => (', '  <section>', '    <h1>Cases</h1>', '    <p>Compare a case with another</p>', '  </section>', ');'].join('\n');
-    expect(scanSource(source, CASE).map((finding) => [finding.line, finding.where, finding.text])).toEqual([
-      [3, 'JSX text', 'Cases'], [4, 'JSX text', 'Compare a case with another'],
+    const source = [
+      'export const A = () => (',
+      '  <section>',
+      '    <h1>Cases</h1>',
+      '    <p>Compare a case with another</p>',
+      '  </section>',
+      ');',
+    ].join('\n');
+    expect(
+      scanSource(source, CASE).map(finding => [finding.line, finding.where, finding.text])
+    ).toEqual([
+      [3, 'JSX text', 'Cases'],
+      [4, 'JSX text', 'Compare a case with another'],
     ]);
     expect(found('const A = () => <p>Problems and versions</p>;')).toEqual([]);
   });
@@ -27,24 +40,38 @@ describe('the vocabulary scanner', () => {
       ');',
     ].join('\n');
     expect(found(source)).toHaveLength(7);
-    expect(found('const A = () => <Field label={`Case ${n}`} />;')).toEqual(['attribute label: Case X']);
-    expect(found('const A = () => <Field label={ok ? "Case" : "Run"} />;')).toEqual(['attribute label: Case']);
+    expect(found('const A = () => <Field label={`Case ${n}`} />;')).toEqual([
+      'attribute label: Case X',
+    ]);
+    expect(found('const A = () => <Field label={ok ? "Case" : "Run"} />;')).toEqual([
+      'attribute label: Case',
+    ]);
   });
 
   it('reports a single word in an object property such as label', () => {
-    expect(found("const trail = [{ label: 'Cases' }, { label: 'Problems' }];")).toEqual(['property label: Cases']);
-    expect(found("const entry = { 'aria-label': 'Case', to: '/x' };")).toEqual(['property aria-label: Case']);
-    expect(found("const entry = { label: `Case ${n}` };")).toEqual(['property label: Case X']);
+    expect(found("const trail = [{ label: 'Cases' }, { label: 'Problems' }];")).toEqual([
+      'property label: Cases',
+    ]);
+    expect(found("const entry = { 'aria-label': 'Case', to: '/x' };")).toEqual([
+      'property aria-label: Case',
+    ]);
+    expect(found('const entry = { label: `Case ${n}` };')).toEqual(['property label: Case X']);
   });
 
   it('reports a multi-word string literal or template anywhere', () => {
-    expect(found("const message = 'No case matches your search';")).toEqual(['string: No case matches your search']);
-    expect(found('const message = `Case “${name}” deleted.`;')).toEqual(['string: Case “X” deleted.']);
+    expect(found("const message = 'No case matches your search';")).toEqual([
+      'string: No case matches your search',
+    ]);
+    expect(found('const message = `Case “${name}” deleted.`;')).toEqual([
+      'string: Case “X” deleted.',
+    ]);
     expect(found("throw new Error('the case is gone');")).toEqual(['string: the case is gone']);
   });
 
   it('reports the strings of a JSX child expression, one word included', () => {
-    expect(found("const A = () => <p>{ok ? 'Case' : 'Run'}</p>;")).toEqual(['JSX expression: Case']);
+    expect(found("const A = () => <p>{ok ? 'Case' : 'Run'}</p>;")).toEqual([
+      'JSX expression: Case',
+    ]);
     expect(found("const A = () => <p>{count + ' cases'}</p>;")).toEqual(['JSX expression: cases']);
     expect(found("const A = () => <p>{kind === 'case' && 'ready'}</p>;")).toEqual([]);
   });
@@ -53,7 +80,7 @@ describe('the vocabulary scanner', () => {
     const source = [
       "const kind = 'case';",
       "if (entry.kind === 'case') run('cases');",
-      "const A = () => <li className=\"case\" id=\"case\" data-testid=\"case\" role=\"case\" to=\"cases\" />;",
+      'const A = () => <li className="case" id="case" data-testid="case" role="case" to="cases" />;',
       "switch (kind) { case 'case': break; }",
       "const row = { type: 'case', slug: 'cases', name: 'case' };",
     ].join('\n');
@@ -68,7 +95,7 @@ describe('the vocabulary scanner', () => {
       "type Kind = 'a case' | 'cases';",
       "interface Row { label: 'Case'; note: 'the case' }",
       'const row = load() as { label: "a case" };',
-      "// a case in a comment",
+      '// a case in a comment',
       '/* New case */',
       '/** Case */',
       '{/* a case */}',
@@ -100,20 +127,48 @@ describe('the vocabulary scanner', () => {
       '  </div>',
       ');',
     ].join('\n');
-    expect(scanSource(source, CASE).map((finding) => [finding.line, finding.text])).toEqual([[6, 'One case']]);
+    expect(scanSource(source, CASE).map(finding => [finding.line, finding.text])).toEqual([
+      [6, 'One case'],
+    ]);
   });
 
   it('reads TypeScript files that hold no JSX and numbers lines from 1', () => {
-    const source = ["export const messages = {", "  empty: 'Case',", "  full: 'All cases',", '};'].join('\n');
-    expect(scanSource(source, CASE, 'model.ts').map((finding) => [finding.line, finding.where])).toEqual([[2, 'property empty'], [3, 'string']]);
-    expect(formatFinding({ file: 'model.ts', line: 2, where: 'property empty', text: 'Case' })).toBe('model.ts:2  property empty: "Case"');
+    const source = [
+      'export const messages = {',
+      "  empty: 'Case',",
+      "  full: 'All cases',",
+      '};',
+    ].join('\n');
+    expect(
+      scanSource(source, CASE, 'model.ts').map(finding => [finding.line, finding.where])
+    ).toEqual([
+      [2, 'property empty'],
+      [3, 'string'],
+    ]);
+    expect(
+      formatFinding({ file: 'model.ts', line: 2, where: 'property empty', text: 'Case' })
+    ).toBe('model.ts:2  property empty: "Case"');
   });
 
   it('tells application code from test support files', () => {
-    for (const path of ['/src/a/X.test.tsx', '/src/a/xTestKit.tsx', '/src/a/testUtils.ts', '/src/test/fixtures/jobs.ts', '/src/a/fixtures.ts', '/src/pages/Pricing/pricingFixture.ts', '/src/components/rendering/runResultFixtures.ts', '/src/test/setup.ts', '/src/a/x.d.ts']) {
+    for (const path of [
+      '/src/a/X.test.tsx',
+      '/src/a/xTestKit.tsx',
+      '/src/a/testUtils.ts',
+      '/src/test/fixtures/jobs.ts',
+      '/src/a/fixtures.ts',
+      '/src/pages/Pricing/pricingFixture.ts',
+      '/src/components/rendering/runResultFixtures.ts',
+      '/src/test/setup.ts',
+      '/src/a/x.d.ts',
+    ]) {
       expect(isTestSupport(path), path).toBe(true);
     }
-    for (const path of ['/src/pages/Problems/ProblemList.tsx', '/src/features/bim-editor/useProblemEditor.ts', '/src/pages/Studies/StudyList.tsx']) {
+    for (const path of [
+      '/src/pages/Problems/ProblemList.tsx',
+      '/src/features/bim-editor/useProblemEditor.ts',
+      '/src/pages/Studies/StudyList.tsx',
+    ]) {
       expect(isTestSupport(path), path).toBe(false);
     }
   });
@@ -121,28 +176,39 @@ describe('the vocabulary scanner', () => {
   it('scans many files in order, skips test support and takes the words it is given', () => {
     const files = {
       '/src/b/B.tsx': 'export const B = () => <p>A case</p>;',
-      '/src/a/A.tsx': "export const A = () => <p>A job</p>;",
+      '/src/a/A.tsx': 'export const A = () => <p>A job</p>;',
       '/src/a/A.test.tsx': "it('a case', () => render(<p>A case</p>));",
       '/src/a/style.css': '.case { color: red }',
     };
-    expect(scanFiles(files, CASE).map(formatFinding)).toEqual(['/src/b/B.tsx:1  JSX text: "A case"']);
-    expect(scanFiles(files, wordPattern(['job'])).map(formatFinding)).toEqual(['/src/a/A.tsx:1  JSX text: "A job"']);
-    expect(scanFiles(files, wordPattern(['case', 'job'])).map((finding) => finding.file)).toEqual(['/src/a/A.tsx', '/src/b/B.tsx']);
+    expect(scanFiles(files, CASE).map(formatFinding)).toEqual([
+      '/src/b/B.tsx:1  JSX text: "A case"',
+    ]);
+    expect(scanFiles(files, wordPattern(['job'])).map(formatFinding)).toEqual([
+      '/src/a/A.tsx:1  JSX text: "A job"',
+    ]);
+    expect(scanFiles(files, wordPattern(['case', 'job'])).map(finding => finding.file)).toEqual([
+      '/src/a/A.tsx',
+      '/src/b/B.tsx',
+    ]);
   });
 });
 
 // The sources of the problem area: the problem list and page, and the problem editor with its forms.
 const area = import.meta.glob(
   ['/src/pages/Problems/**/*.{ts,tsx}', '/src/features/bim-editor/**/*.{ts,tsx}'],
-  { query: '?raw', import: 'default', eager: true },
+  { query: '?raw', import: 'default', eager: true }
 ) as Record<string, string>;
 
 describe('the problem area', () => {
   it('reads the sources of pages/Problems and features/bim-editor', () => {
     const paths = Object.keys(area);
-    expect(paths.filter((path) => path.includes('/pages/Problems/') && !isTestSupport(path)).length).toBeGreaterThan(10);
-    expect(paths.filter((path) => path.includes('/features/bim-editor/') && !isTestSupport(path)).length).toBeGreaterThan(10);
-    expect(paths.some((path) => path.includes('/pages/Workbench/'))).toBe(false);
+    expect(
+      paths.filter(path => path.includes('/pages/Problems/') && !isTestSupport(path)).length
+    ).toBeGreaterThan(10);
+    expect(
+      paths.filter(path => path.includes('/features/bim-editor/') && !isTestSupport(path)).length
+    ).toBeGreaterThan(10);
+    expect(paths.some(path => path.includes('/pages/Workbench/'))).toBe(false);
   });
 
   it('shows no text with the word case or cases', () => {

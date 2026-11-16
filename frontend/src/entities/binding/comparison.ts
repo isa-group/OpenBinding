@@ -24,9 +24,8 @@ export const COMPARISON_WORDS: Readonly<Record<ComparisonWord, ComparisonText>> 
 };
 
 /** Whether a value is one of the gateway's comparison words. */
-export const isComparisonWord = (value: unknown): value is ComparisonWord => (
-  typeof value === 'string' && Object.hasOwn(COMPARISON_WORDS, value)
-);
+export const isComparisonWord = (value: unknown): value is ComparisonWord =>
+  typeof value === 'string' && Object.hasOwn(COMPARISON_WORDS, value);
 
 /** How a comparison word reads; a word this frontend does not know is shown as the gateway wrote it. */
 export function comparisonText(value: unknown): ComparisonText {

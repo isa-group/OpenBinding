@@ -16,8 +16,13 @@ interface FilterPillsProps {
 export function FilterPills({ options, value, onChange, ariaLabel }: FilterPillsProps) {
   return (
     <div className="ui-pills" role="group" aria-label={ariaLabel}>
-      {options.map((option) => (
-        <button key={option.id} type="button" aria-pressed={option.id === value} onClick={() => onChange(option.id)}>
+      {options.map(option => (
+        <button
+          key={option.id}
+          type="button"
+          aria-pressed={option.id === value}
+          onClick={() => onChange(option.id)}
+        >
           {option.label}
         </button>
       ))}

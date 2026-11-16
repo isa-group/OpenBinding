@@ -1,5 +1,11 @@
 import { useId } from 'react';
-import { blockLabel, loopTimes, type TaskOverlay, type WNode, type WorkflowGraph as Graph } from '../../entities/binding/workflowGraph';
+import {
+  blockLabel,
+  loopTimes,
+  type TaskOverlay,
+  type WNode,
+  type WorkflowGraph as Graph,
+} from '../../entities/binding/workflowGraph';
 import './WorkflowGraph.css';
 
 interface WorkflowGraphProps {
@@ -15,11 +21,22 @@ interface WorkflowGraphProps {
 }
 
 const STATUS_TEXT: Record<NonNullable<TaskOverlay['status']>, string> = {
-  selected: 'selected', added: 'added', removed: 'removed', changed: 'changed',
+  selected: 'selected',
+  added: 'added',
+  removed: 'removed',
+  changed: 'changed',
 };
 
-function Task({ id, overlay, probability, onSelect }: {
-  id: string; overlay: TaskOverlay | undefined; probability?: number | null; onSelect?: (task: string) => void;
+function Task({
+  id,
+  overlay,
+  probability,
+  onSelect,
+}: {
+  id: string;
+  overlay: TaskOverlay | undefined;
+  probability?: number | null;
+  onSelect?: (task: string) => void;
 }) {
   const local = overlay?.local === true;
   const body = (
@@ -29,26 +46,66 @@ function Task({ id, overlay, probability, onSelect }: {
         {probability !== undefined && probability !== null && <b>{probability}</b>}
       </span>
       {probability !== undefined && probability !== null && (
-        <span className="wg-bar" aria-hidden="true"><i style={{ width: `${Math.round(Math.min(1, Math.max(0, probability)) * 100)}%` }} /></span>
+        <span className="wg-bar" aria-hidden="true">
+          <i style={{ width: `${Math.round(Math.min(1, Math.max(0, probability)) * 100)}%` }} />
+        </span>
       )}
-      {local ? <small>local task · not bound</small> : overlay?.candidate ? <small>candidate <code>{overlay.candidate}</code></small> : null}
-      {overlay?.status && <span className={`wg-status is-${overlay.status}`}>{STATUS_TEXT[overlay.status]}</span>}
+      {local ? (
+        <small>local task · not bound</small>
+      ) : overlay?.candidate ? (
+        <small>
+          candidate <code>{overlay.candidate}</code>
+        </small>
+      ) : null}
+      {overlay?.status && (
+        <span className={`wg-status is-${overlay.status}`}>{STATUS_TEXT[overlay.status]}</span>
+      )}
     </>
   );
   const className = `wg-task${local ? ' is-local' : ''}${overlay?.status ? ` is-${overlay.status}` : ''}`;
-  return onSelect
-    ? <button type="button" className={className} onClick={() => onSelect(id)}>{body}</button>
-    : <span className={className}>{body}</span>;
+  return onSelect ? (
+    <button type="button" className={className} onClick={() => onSelect(id)}>
+      {body}
+    </button>
+  ) : (
+    <span className={className}>{body}</span>
+  );
 }
 
-function Step({ node, overlay, onSelect, probability }: {
-  node: WNode; overlay: Record<string, TaskOverlay>; onSelect?: (task: string) => void; probability?: number | null;
+function Step({
+  node,
+  overlay,
+  onSelect,
+  probability,
+}: {
+  node: WNode;
+  overlay: Record<string, TaskOverlay>;
+  onSelect?: (task: string) => void;
+  probability?: number | null;
 }) {
   switch (node.kind) {
-    case 'task': return <Task id={node.id} overlay={overlay[node.id]} probability={probability} onSelect={onSelect} />;
-    case 'empty': return <span className="wg-empty">nothing happens{probability !== undefined && probability !== null ? ` · ${probability}` : ''}</span>;
+    case 'task':
+      return (
+        <Task
+          id={node.id}
+          overlay={overlay[node.id]}
+          probability={probability}
+          onSelect={onSelect}
+        />
+      );
+    case 'empty':
+      return (
+        <span className="wg-empty">
+          nothing happens
+          {probability !== undefined && probability !== null ? ` · ${probability}` : ''}
+        </span>
+      );
     case 'unreadable':
-      return <span className="wg-unreadable" role="note">This step can’t be drawn: {node.reason}.</span>;
+      return (
+        <span className="wg-unreadable" role="note">
+          This step can’t be drawn: {node.reason}.
+        </span>
+      );
     case 'seq':
       return (
         <ol className="wg-seq" aria-label={blockLabel(node)}>
@@ -63,26 +120,43 @@ function Step({ node, overlay, onSelect, probability }: {
     case 'and':
       return (
         <div className="wg-block" role="group" aria-label={blockLabel(node)}>
-          <span className="wg-block-label" aria-hidden="true">Parallel · all at once</span>
-          <ul>{node.children.map((child, index) => <li key={index}><Step node={child} overlay={overlay} onSelect={onSelect} /></li>)}</ul>
+          <span className="wg-block-label" aria-hidden="true">
+            Parallel · all at once
+          </span>
+          <ul>
+            {node.children.map((child, index) => (
+              <li key={index}>
+                <Step node={child} overlay={overlay} onSelect={onSelect} />
+              </li>
+            ))}
+          </ul>
         </div>
       );
     case 'xor': {
-      const stated = node.branches.some((branch) => branch.probability !== null);
+      const stated = node.branches.some(branch => branch.probability !== null);
       return (
         <div className="wg-block" role="group" aria-label={blockLabel(node)}>
-          <span className="wg-block-label" aria-hidden="true">{node.uniform ? 'One of · equal' : stated ? 'One of · by probability' : 'One of'}</span>
+          <span className="wg-block-label" aria-hidden="true">
+            {node.uniform ? 'One of · equal' : stated ? 'One of · by probability' : 'One of'}
+          </span>
           <ul>
             {node.branches.map((branch, index) => (
               <li key={index}>
-                {branch.node.kind === 'task' || branch.node.kind === 'empty'
-                  ? <Step node={branch.node} overlay={overlay} onSelect={onSelect} probability={branch.probability} />
-                  : (
-                    <>
-                      {branch.probability !== null && <b className="wg-branch-p">{branch.probability}</b>}
-                      <Step node={branch.node} overlay={overlay} onSelect={onSelect} />
-                    </>
-                  )}
+                {branch.node.kind === 'task' || branch.node.kind === 'empty' ? (
+                  <Step
+                    node={branch.node}
+                    overlay={overlay}
+                    onSelect={onSelect}
+                    probability={branch.probability}
+                  />
+                ) : (
+                  <>
+                    {branch.probability !== null && (
+                      <b className="wg-branch-p">{branch.probability}</b>
+                    )}
+                    <Step node={branch.node} overlay={overlay} onSelect={onSelect} />
+                  </>
+                )}
               </li>
             ))}
           </ul>
@@ -92,29 +166,53 @@ function Step({ node, overlay, onSelect, probability }: {
     case 'loop':
       return (
         <div className="wg-block" role="group" aria-label={blockLabel(node)}>
-          <span className="wg-block-label" aria-hidden="true">Repeat · {loopTimes(node)}</span>
+          <span className="wg-block-label" aria-hidden="true">
+            Repeat · {loopTimes(node)}
+          </span>
           <Step node={node.body} overlay={overlay} onSelect={onSelect} />
         </div>
       );
-    default: return null;
+    default:
+      return null;
   }
 }
 
 /** A workflow drawn as nested lists: what runs in sequence, in parallel, as alternatives or repeated, with each task in words. */
-export function WorkflowGraph({ graph, overlay = {}, orientation = 'auto', label, onSelectTask }: WorkflowGraphProps) {
+export function WorkflowGraph({
+  graph,
+  overlay = {},
+  orientation = 'auto',
+  label,
+  onSelectTask,
+}: WorkflowGraphProps) {
   const describedBy = useId();
-  const local = Object.values(overlay).some((entry) => entry.local);
+  const local = Object.values(overlay).some(entry => entry.local);
   return (
-    <figure className={`wg${orientation === 'vertical' ? ' is-vertical' : ''}`} role="group" aria-label={label} aria-describedby={describedBy}>
-      <p id={describedBy} className="sr-only">{graph.description}</p>
+    <figure
+      className={`wg${orientation === 'vertical' ? ' is-vertical' : ''}`}
+      role="group"
+      aria-label={label}
+      aria-describedby={describedBy}
+    >
+      <p id={describedBy} className="sr-only">
+        {graph.description}
+      </p>
       <div className="wg-scroll">
         <div className="wg-canvas">
           <Step node={graph.root} overlay={overlay} onSelect={onSelectTask} />
         </div>
       </div>
       <figcaption className="wg-legend">
-        <span><i className="wg-key" />Service task (gets a candidate)</span>
-        {local && <span><i className="wg-key is-local" />Local task</span>}
+        <span>
+          <i className="wg-key" />
+          Service task (gets a candidate)
+        </span>
+        {local && (
+          <span>
+            <i className="wg-key is-local" />
+            Local task
+          </span>
+        )}
       </figcaption>
     </figure>
   );

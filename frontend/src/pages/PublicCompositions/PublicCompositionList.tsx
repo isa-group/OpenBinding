@@ -39,19 +39,28 @@ function CompositionCard({ row }: { row: Row }) {
   return (
     <li>
       <article className="pcl-card">
-        <span className="pcl-card-meta">{kindLabel(row.kind)} · {row.organization.name}</span>
+        <span className="pcl-card-meta">
+          {kindLabel(row.kind)} · {row.organization.name}
+        </span>
         <h2 className="pcl-card-title">
-          <Link to={showcasePath(row.organization.slug, row.slug)} viewTransition>{row.name}</Link>
+          <Link to={showcasePath(row.organization.slug, row.slug)} viewTransition>
+            {row.name}
+          </Link>
         </h2>
         {row.description && <p className="pcl-card-description">{row.description}</p>}
         <dl className="pcl-card-facts">
           <div>
             <dt>Latest version</dt>
-            <dd><code>{row.latest_version.label}</code>{row.version_count > 1 ? ` of ${row.version_count}` : ''}</dd>
+            <dd>
+              <code>{row.latest_version.label}</code>
+              {row.version_count > 1 ? ` of ${row.version_count}` : ''}
+            </dd>
           </div>
           <div>
             <dt>Values</dt>
-            <dd><ValueBadge status={valueStatus(row.latest_version)} /></dd>
+            <dd>
+              <ValueBadge status={valueStatus(row.latest_version)} />
+            </dd>
           </div>
           {updated && (
             <div>
@@ -80,19 +89,25 @@ export function PublicCompositionList() {
   const [text, setText] = useState(q);
   const filtered = Boolean(kind) || q.trim() !== '';
 
-  const show = (next: { kind?: typeof kind; q?: string; page?: number }) => void navigate(
-    publicCompositionsPath({ kind, q, ...next }), { replace: true },
-  );
+  const show = (next: { kind?: typeof kind; q?: string; page?: number }) =>
+    void navigate(publicCompositionsPath({ kind, q, ...next }), { replace: true });
 
   useEffect(() => {
     if (text.trim() === q.trim()) return undefined;
-    const timer = window.setTimeout(() => void navigate(publicCompositionsPath({ kind, q: text }), { replace: true }), SEARCH_DELAY);
+    const timer = window.setTimeout(
+      () => void navigate(publicCompositionsPath({ kind, q: text }), { replace: true }),
+      SEARCH_DELAY
+    );
     return () => window.clearTimeout(timer);
   }, [text, q, kind, navigate]);
 
-  const list = useResource(
-    `public-compositions:${kind ?? 'all'}:${q.trim()}:${page}`,
-    () => compositionsApi.publicList({ kind, q: q.trim() || undefined, limit: PUBLIC_PAGE_SIZE, offset: (page - 1) * PUBLIC_PAGE_SIZE }),
+  const list = useResource(`public-compositions:${kind ?? 'all'}:${q.trim()}:${page}`, () =>
+    compositionsApi.publicList({
+      kind,
+      q: q.trim() || undefined,
+      limit: PUBLIC_PAGE_SIZE,
+      offset: (page - 1) * PUBLIC_PAGE_SIZE,
+    })
   );
   const rows = list.data?.compositions ?? [];
   const total = list.data?.total ?? 0;
@@ -110,55 +125,119 @@ export function PublicCompositionList() {
 
       <div className="pcl-toolbar">
         <div className="ui-field pcl-search">
-          <label htmlFor="pcl-search" className="sr-only">Search public compositions</label>
-          <input id="pcl-search" type="search" value={text} placeholder="Search by name or address…" onChange={(event) => setText(event.target.value)} />
+          <label htmlFor="pcl-search" className="sr-only">
+            Search public compositions
+          </label>
+          <input
+            id="pcl-search"
+            type="search"
+            value={text}
+            placeholder="Search by name or address…"
+            onChange={event => setText(event.target.value)}
+          />
         </div>
-        <FilterPills ariaLabel="Kind" options={KIND_PILLS} value={kind ?? 'all'} onChange={(id) => show({ kind: isKind(id) ? id : undefined, page: 1 })} />
+        <FilterPills
+          ariaLabel="Kind"
+          options={KIND_PILLS}
+          value={kind ?? 'all'}
+          onChange={id => show({ kind: isKind(id) ? id : undefined, page: 1 })}
+        />
       </div>
 
       <div className="pcl-results" aria-live="polite" aria-busy={list.status === 'loading'}>
         {list.status === 'loading' && (
           <div role="status" className="pcl-grid">
             <span className="sr-only">Loading public compositions…</span>
-            <Skeleton variant="card" /><Skeleton variant="card" /><Skeleton variant="card" />
+            <Skeleton variant="card" />
+            <Skeleton variant="card" />
+            <Skeleton variant="card" />
           </div>
         )}
         {failure && (
-          <Notice tone="error" action={<Action variant="secondary" size="sm" onClick={list.reload}>Retry</Action>}>
+          <Notice
+            tone="error"
+            action={
+              <Action variant="secondary" size="sm" onClick={list.reload}>
+                Retry
+              </Action>
+            }
+          >
             {`Public compositions couldn’t be loaded${marker(failure)}.`}
           </Notice>
         )}
 
         {ready && total === 0 && !filtered && (
           <EmptyState dashed icon={<Layers />} title="No public compositions yet">
-            When an organization makes one of its compositions public, it is listed here for anybody to read and fork.
+            When an organization makes one of its compositions public, it is listed here for anybody
+            to read and fork.
           </EmptyState>
         )}
         {ready && total === 0 && filtered && (
           <EmptyState icon={<Layers />} title="No public composition matches">
-            Nothing public has {[kind && `the kind ${kindLabel(kind)}`, q.trim() && `“${q.trim()}” in its name or address`].filter(Boolean).join(' and ')}.
+            Nothing public has{' '}
+            {[
+              kind && `the kind ${kindLabel(kind)}`,
+              q.trim() && `“${q.trim()}” in its name or address`,
+            ]
+              .filter(Boolean)
+              .join(' and ')}
+            .
           </EmptyState>
         )}
         {ready && total > 0 && rows.length === 0 && (
-          <EmptyState icon={<Layers />} title="Nothing on this page" action={<Action to={publicCompositionsPath({ kind, q })} variant="secondary">First page</Action>}>
+          <EmptyState
+            icon={<Layers />}
+            title="Nothing on this page"
+            action={
+              <Action to={publicCompositionsPath({ kind, q })} variant="secondary">
+                First page
+              </Action>
+            }
+          >
             {`There ${total === 1 ? 'is 1 public composition' : `are ${total} public compositions`}; this page lists none of them.`}
           </EmptyState>
         )}
 
         {rows.length > 0 && (
           <section className="pcl-section" aria-label="Public compositions">
-            <span className="pcl-count">{total === 1 ? '1 composition' : `${total} compositions`}</span>
+            <span className="pcl-count">
+              {total === 1 ? '1 composition' : `${total} compositions`}
+            </span>
             <ul className="pcl-grid">
-              {rows.map((row) => <CompositionCard key={`${row.organization.slug}/${row.slug}`} row={row} />)}
+              {rows.map(row => (
+                <CompositionCard key={`${row.organization.slug}/${row.slug}`} row={row} />
+              ))}
             </ul>
           </section>
         )}
 
         {ready && pages > 1 && (
           <nav className="pcl-paging" aria-label="Pages">
-            {page > 1 ? <Action to={publicCompositionsPath({ kind, q, page: page - 1 })} variant="secondary" size="sm">Previous</Action> : <span />}
-            <span className="pcl-count">Page {page} of {pages}</span>
-            {page < pages ? <Action to={publicCompositionsPath({ kind, q, page: page + 1 })} variant="secondary" size="sm">Next</Action> : <span />}
+            {page > 1 ? (
+              <Action
+                to={publicCompositionsPath({ kind, q, page: page - 1 })}
+                variant="secondary"
+                size="sm"
+              >
+                Previous
+              </Action>
+            ) : (
+              <span />
+            )}
+            <span className="pcl-count">
+              Page {page} of {pages}
+            </span>
+            {page < pages ? (
+              <Action
+                to={publicCompositionsPath({ kind, q, page: page + 1 })}
+                variant="secondary"
+                size="sm"
+              >
+                Next
+              </Action>
+            ) : (
+              <span />
+            )}
           </nav>
         )}
       </div>

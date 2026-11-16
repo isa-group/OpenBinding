@@ -1,5 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { applyBrand, BRAND_STORAGE_KEY, currentBrand, defaultBrand, initialBrand, setBrand, storedBrand } from './brand';
+import {
+  applyBrand,
+  BRAND_STORAGE_KEY,
+  currentBrand,
+  defaultBrand,
+  initialBrand,
+  setBrand,
+  storedBrand,
+} from './brand';
 
 afterEach(() => {
   localStorage.clear();

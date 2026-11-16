@@ -11,13 +11,15 @@ const PROTOTYPE: Array<[string, string]> = [
   ['eng-registration-detail', '/app/engines/registrations/:name'],
 ];
 
-const config = routeDefinitions.map((definition) => ({ id: definition.id, path: definition.path }));
+const config = routeDefinitions.map(definition => ({ id: definition.id, path: definition.path }));
 const resolve = (path: string) => matchRoutes(config, path)?.at(-1)?.route.id;
 
 describe('area engines', () => {
   it('has 5 screens, with the ids and routes of the prototype', () => {
     expect(routesByArea.engines).toHaveLength(5);
-    expect(routesByArea.engines.map((definition) => [definition.id, definition.path])).toEqual(PROTOTYPE);
+    expect(routesByArea.engines.map(definition => [definition.id, definition.path])).toEqual(
+      PROTOTYPE
+    );
   });
 
   it('reads the registration detail below the registrations list and /engines/new as no screen', () => {

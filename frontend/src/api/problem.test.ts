@@ -1,10 +1,32 @@
 import { describe, expect, it } from 'vitest';
 import { HttpError } from './client';
-import { diagnosticLines, diagnosticsByField, diagnosticsByPointer, diagnosticsOf, fieldOf, pointerOf, problemField, readDiagnostics } from './problem';
+import {
+  diagnosticLines,
+  diagnosticsByField,
+  diagnosticsByPointer,
+  diagnosticsOf,
+  fieldOf,
+  pointerOf,
+  problemField,
+  readDiagnostics,
+} from './problem';
 
 const DIAGNOSTICS = [
-  { code: 'greater_than', message: 'Input should be greater than 0', in: 'body', pointer: '/spec/limits/maxTasks', loc: ['body', 'spec', 'limits', 'maxTasks'], context: { gt: 0 } },
-  { code: 'missing', message: 'Field required', in: 'query', parameter: 'limit', loc: ['query', 'limit'] },
+  {
+    code: 'greater_than',
+    message: 'Input should be greater than 0',
+    in: 'body',
+    pointer: '/spec/limits/maxTasks',
+    loc: ['body', 'spec', 'limits', 'maxTasks'],
+    context: { gt: 0 },
+  },
+  {
+    code: 'missing',
+    message: 'Field required',
+    in: 'query',
+    parameter: 'limit',
+    loc: ['query', 'limit'],
+  },
   { code: 'string_type', message: 'Input should be a string', loc: ['body', 'features', 0] },
   { code: 'invalid_pricing', message: 'The document is invalid' },
 ];
@@ -24,13 +46,23 @@ describe('reading the diagnostics of a 422', () => {
   });
 
   it('gives a finding without a code the code of its problem', () => {
-    expect(readDiagnostics([{ message: 'open interval' }, { code: 'schema', message: 'bad' }], 'engine_mode_incompatible')).toEqual([
+    expect(
+      readDiagnostics(
+        [{ message: 'open interval' }, { code: 'schema', message: 'bad' }],
+        'engine_mode_incompatible'
+      )
+    ).toEqual([
       { code: 'engine_mode_incompatible', message: 'open interval' },
       { code: 'schema', message: 'bad' },
     ]);
-    const error = Object.assign(new HttpError(422, 'refused'), { code: 'invalid_instance', diagnostics: [{ message: 'no code' }] });
+    const error = Object.assign(new HttpError(422, 'refused'), {
+      code: 'invalid_instance',
+      diagnostics: [{ message: 'no code' }],
+    });
     expect(diagnosticsOf(error)).toEqual([{ code: 'invalid_instance', message: 'no code' }]);
-    const wrapped = Object.assign(new HttpError(422, 'refused'), { problem: { code: 'invalid_pricing', diagnostics: [{ message: 'no code' }] } });
+    const wrapped = Object.assign(new HttpError(422, 'refused'), {
+      problem: { code: 'invalid_pricing', diagnostics: [{ message: 'no code' }] },
+    });
     expect(diagnosticsOf(wrapped)).toEqual([{ code: 'invalid_pricing', message: 'no code' }]);
   });
 
@@ -49,8 +81,19 @@ describe('reading the diagnostics of a 422', () => {
       allowed: ['scalar'],
     };
     expect(readDiagnostics([finding])).toEqual([finding]);
-    expect(readDiagnostics([{ ...finding, span: 'x', related: 'y', unsupported: [1], allowed: [], bpmnElement: '' }])).toEqual([
-      { code: finding.code, message: finding.message, resource: finding.resource, pointer: finding.pointer, irPath: finding.irPath, category: 'featureValues' },
+    expect(
+      readDiagnostics([
+        { ...finding, span: 'x', related: 'y', unsupported: [1], allowed: [], bpmnElement: '' },
+      ])
+    ).toEqual([
+      {
+        code: finding.code,
+        message: finding.message,
+        resource: finding.resource,
+        pointer: finding.pointer,
+        irPath: finding.irPath,
+        category: 'featureValues',
+      },
     ]);
   });
 
@@ -71,7 +114,10 @@ describe('reading the diagnostics of a 422', () => {
   });
 
   it('paints one message per pointer, the first one winning', () => {
-    const byPointer = diagnosticsByPointer([...readDiagnostics(DIAGNOSTICS), { code: 'x', message: 'again', pointer: '/spec/limits/maxTasks' }]);
+    const byPointer = diagnosticsByPointer([
+      ...readDiagnostics(DIAGNOSTICS),
+      { code: 'x', message: 'again', pointer: '/spec/limits/maxTasks' },
+    ]);
     expect(byPointer).toEqual({
       '/spec/limits/maxTasks': 'Input should be greater than 0',
       limit: 'Field required',
@@ -80,14 +126,25 @@ describe('reading the diagnostics of a 422', () => {
   });
 
   it('keys a flat form by the field name', () => {
-    expect(diagnosticsByField(readDiagnostics(DIAGNOSTICS))).toEqual({ maxTasks: 'Input should be greater than 0', limit: 'Field required', 0: 'Input should be a string' });
+    expect(diagnosticsByField(readDiagnostics(DIAGNOSTICS))).toEqual({
+      maxTasks: 'Input should be greater than 0',
+      limit: 'Field required',
+      0: 'Input should be a string',
+    });
   });
 
   it('lists the findings of a refusal, leaving out the one that only restates its own sentence', () => {
-    const restating = Object.assign(new HttpError(422, 'The mode cannot run it.'), { diagnostics: [{ code: 'engine_mode_incompatible', message: 'The mode cannot run it.' }] });
+    const restating = Object.assign(new HttpError(422, 'The mode cannot run it.'), {
+      diagnostics: [{ code: 'engine_mode_incompatible', message: 'The mode cannot run it.' }],
+    });
     expect(diagnosticLines(restating)).toEqual([]);
     const specific = Object.assign(new HttpError(422, 'Request validation failed'), {
-      diagnostics: [{ code: 'missing', message: 'Field required' }, { code: 'json_invalid' }, { foo: 1 }, { message: 'Request validation failed' }],
+      diagnostics: [
+        { code: 'missing', message: 'Field required' },
+        { code: 'json_invalid' },
+        { foo: 1 },
+        { message: 'Request validation failed' },
+      ],
     });
     expect(diagnosticLines(specific)).toEqual(['Field required', 'json_invalid']);
     expect(diagnosticLines(specific, 1)).toEqual(['Field required']);
@@ -97,7 +154,11 @@ describe('reading the diagnostics of a 422', () => {
   it('reads the diagnostics from a thrown error and from its problem', () => {
     const error = Object.assign(new HttpError(409, 'refused'), {
       diagnostics: [{ code: 'x', message: 'where' }],
-      problem: { code: 'cell_job_mismatch', detail: { code: 'cell_job_mismatch', fields: ['seed'] }, extra: 1 },
+      problem: {
+        code: 'cell_job_mismatch',
+        detail: { code: 'cell_job_mismatch', fields: ['seed'] },
+        extra: 1,
+      },
     });
     expect(diagnosticsOf(error)).toEqual([{ code: 'x', message: 'where' }]);
     expect(diagnosticsOf(new Error('nope'))).toEqual([]);

@@ -9,13 +9,15 @@ const PROTOTYPE: Array<[string, string]> = [
   ['study-detail', '/app/:org/studies/:study/:tab?'],
 ];
 
-const config = routeDefinitions.map((definition) => ({ id: definition.id, path: definition.path }));
+const config = routeDefinitions.map(definition => ({ id: definition.id, path: definition.path }));
 const resolve = (path: string) => matchRoutes(config, path)?.at(-1)?.route.id ?? null;
 
 describe('area studies', () => {
   it('has 3 screens: the study page replaces the run, cell and analytics screens, and nothing is about reports', () => {
     expect(routesByArea.studies).toHaveLength(3);
-    expect(routesByArea.studies.map((definition) => [definition.id, definition.path])).toEqual(PROTOTYPE);
+    expect(routesByArea.studies.map(definition => [definition.id, definition.path])).toEqual(
+      PROTOTYPE
+    );
   });
 
   it('reads /studies/new as the builder and any other address below /studies as a study with an optional tab', () => {

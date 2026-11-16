@@ -26,7 +26,9 @@ const WHOLE: Located = {
 
 describe('ProblemsPanel', () => {
   it('counts errors and warnings in words, in the header and in a polite live region', () => {
-    const { container } = render(<ProblemsPanel diagnostics={[UNKNOWN, MISSING, WHOLE]} onSelect={vi.fn()} />);
+    const { container } = render(
+      <ProblemsPanel diagnostics={[UNKNOWN, MISSING, WHOLE]} onSelect={vi.fn()} />
+    );
     const header = screen.getByRole('button', { name: /Problems/ });
     expect(header).toHaveTextContent('2 errors');
     expect(header).toHaveTextContent('1 warning');
@@ -43,7 +45,9 @@ describe('ProblemsPanel', () => {
   });
 
   it('updates the live region when a new check answers', () => {
-    const { container, rerender } = render(<ProblemsPanel diagnostics={[MISSING]} onSelect={vi.fn()} />);
+    const { container, rerender } = render(
+      <ProblemsPanel diagnostics={[MISSING]} onSelect={vi.fn()} />
+    );
     const live = container.querySelector('[aria-live="polite"]');
     expect(live).toHaveTextContent('1 error');
     rerender(<ProblemsPanel diagnostics={[]} onSelect={vi.fn()} />);
@@ -54,7 +58,7 @@ describe('ProblemsPanel', () => {
     render(<ProblemsPanel diagnostics={[UNKNOWN, MISSING, WHOLE]} onSelect={vi.fn()} />);
     const list = screen.getByRole('list');
     const entries = within(list).getAllByRole('button');
-    expect(entries.map((entry) => entry.textContent)).toEqual([
+    expect(entries.map(entry => entry.textContent)).toEqual([
       'Error: version is required.Line 1, column 1versionc2y_missing_key',
       'Warning: Unknown key presentation.Line 4, column 1presentationc2y_unknown_key',
       'Error: The document is empty.composition.yamlc2y_empty',
@@ -92,12 +96,33 @@ describe('ProblemsPanel', () => {
   });
 
   it('groups findings by file, with the package last', () => {
-    const catalog: Located = { code: 'bim_unknown_feature', message: 'Unknown feature.', severity: 'error', where: { kind: 'text', file: 'candidates.json', from: 3, to: 9, line: 2, column: 3 } };
-    const flow: Located = { code: 'bim_bpmn', message: 'Task without a name.', severity: 'warning', where: { kind: 'bpmn', file: 'workflow.bpmn', element: 'Task_1' } };
-    const pack: Located = { code: 'bim_no_objective', message: 'No objective.', severity: 'info', where: { kind: 'package' } };
+    const catalog: Located = {
+      code: 'bim_unknown_feature',
+      message: 'Unknown feature.',
+      severity: 'error',
+      where: { kind: 'text', file: 'candidates.json', from: 3, to: 9, line: 2, column: 3 },
+    };
+    const flow: Located = {
+      code: 'bim_bpmn',
+      message: 'Task without a name.',
+      severity: 'warning',
+      where: { kind: 'bpmn', file: 'workflow.bpmn', element: 'Task_1' },
+    };
+    const pack: Located = {
+      code: 'bim_no_objective',
+      message: 'No objective.',
+      severity: 'info',
+      where: { kind: 'package' },
+    };
     render(<ProblemsPanel diagnostics={[pack, flow, catalog]} onSelect={vi.fn()} groups />);
-    const groups = screen.getAllByRole('listitem').filter((item) => item.classList.contains('pp-group'));
-    expect(groups.map((group) => group.firstChild?.textContent)).toEqual(['candidates.json', 'workflow.bpmn', 'Package']);
+    const groups = screen
+      .getAllByRole('listitem')
+      .filter(item => item.classList.contains('pp-group'));
+    expect(groups.map(group => group.firstChild?.textContent)).toEqual([
+      'candidates.json',
+      'workflow.bpmn',
+      'Package',
+    ]);
     expect(within(groups[1]).getByRole('button')).toHaveTextContent('Diagram element Task_1');
     expect(screen.getByRole('button', { name: /Problems/ })).toHaveTextContent('1 note');
   });

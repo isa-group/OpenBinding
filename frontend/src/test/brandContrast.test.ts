@@ -8,7 +8,12 @@ import { describe, expect, it } from 'vitest';
 const css = readFileSync(`${process.cwd()}/src/styles/tailwind.css`, 'utf8');
 
 function declarations(block: string): Map<string, string> {
-  return new Map([...block.matchAll(/--(color-tp-[a-z0-9-]+):\s*([^;]+);/g)].map((match) => [match[1], match[2].trim()]));
+  return new Map(
+    [...block.matchAll(/--(color-tp-[a-z0-9-]+):\s*([^;]+);/g)].map(match => [
+      match[1],
+      match[2].trim(),
+    ])
+  );
 }
 
 function blockAfter(marker: string): string {
@@ -22,18 +27,24 @@ function blockAfter(marker: string): string {
 }
 
 const sphere = declarations(blockAfter('@theme {'));
-const openbinding = new Map([...sphere, ...declarations(blockAfter(":root[data-brand='openbinding']"))]);
+const openbinding = new Map([
+  ...sphere,
+  ...declarations(blockAfter(":root[data-brand='openbinding']")),
+]);
 
 function resolve(palette: Map<string, string>, name: string): string {
   let value = palette.get(name);
-  for (let hops = 0; value?.startsWith('var(') && hops < 5; hops += 1) value = palette.get(value.slice(6, -1));
-  if (!value || !/^#[0-9a-f]{6}$/i.test(value)) throw new Error(`--${name} does not resolve to a hex colour: ${value}`);
+  for (let hops = 0; value?.startsWith('var(') && hops < 5; hops += 1)
+    value = palette.get(value.slice(6, -1));
+  if (!value || !/^#[0-9a-f]{6}$/i.test(value))
+    throw new Error(`--${name} does not resolve to a hex colour: ${value}`);
   return value;
 }
 
 function luminance(hex: string): number {
-  const [r, g, b] = [1, 3, 5].map((at) => Number.parseInt(hex.slice(at, at + 2), 16) / 255)
-    .map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+  const [r, g, b] = [1, 3, 5]
+    .map(at => Number.parseInt(hex.slice(at, at + 2), 16) / 255)
+    .map(c => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
 
@@ -72,14 +83,21 @@ const NON_TEXT: Array<[string, string]> = [
   ['color-tp-accent', 'color-tp-cream'],
 ];
 
-for (const [name, palette] of [['sphere', sphere], ['openbinding', openbinding]] as const) {
+for (const [name, palette] of [
+  ['sphere', sphere],
+  ['openbinding', openbinding],
+] as const) {
   describe(`the ${name} palette`, () => {
     it.each(TEXT)('sets %s on %s at 4.5:1 or more', (foreground, background) => {
-      expect(ratio(resolve(palette, foreground), resolve(palette, background))).toBeGreaterThanOrEqual(4.5);
+      expect(
+        ratio(resolve(palette, foreground), resolve(palette, background))
+      ).toBeGreaterThanOrEqual(4.5);
     });
 
     it.each(NON_TEXT)('draws %s on %s at 3:1 or more', (foreground, background) => {
-      expect(ratio(resolve(palette, foreground), resolve(palette, background))).toBeGreaterThanOrEqual(3);
+      expect(
+        ratio(resolve(palette, foreground), resolve(palette, background))
+      ).toBeGreaterThanOrEqual(3);
     });
   });
 }
@@ -92,6 +110,7 @@ describe('the two palettes', () => {
   });
 
   it('give the OpenBinding palette only names the theme already has', () => {
-    for (const key of declarations(blockAfter(":root[data-brand='openbinding']")).keys()) expect(sphere.has(key)).toBe(true);
+    for (const key of declarations(blockAfter(":root[data-brand='openbinding']")).keys())
+      expect(sphere.has(key)).toBe(true);
   });
 });

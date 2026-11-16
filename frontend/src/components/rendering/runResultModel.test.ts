@@ -1,14 +1,24 @@
 import { describe, expect, it } from 'vitest';
-import { figuresOf, notesOf, optimizationTypeOf, remoteOf, solutionsOf, unitsOf, verdictOf } from './runResultModel';
+import {
+  figuresOf,
+  notesOf,
+  optimizationTypeOf,
+  remoteOf,
+  solutionsOf,
+  unitsOf,
+  verdictOf,
+} from './runResultModel';
 import { PROBLEM, REPORT, RESULT, S1, S2 } from './runResultFixtures';
 
 describe('verdictOf', () => {
   it('returns a non-empty string as it is', () => {
-    for (const termination of ['OPTIMAL', 'FEASIBLE', 'INFEASIBLE', 'UNKNOWN', 'TIMEOUT']) expect(verdictOf(termination)).toBe(termination);
+    for (const termination of ['OPTIMAL', 'FEASIBLE', 'INFEASIBLE', 'UNKNOWN', 'TIMEOUT'])
+      expect(verdictOf(termination)).toBe(termination);
   });
 
   it('gives UNKNOWN for anything that is not a non-empty string', () => {
-    for (const termination of [undefined, null, '', 7, true, {}, ['FEASIBLE']]) expect(verdictOf(termination)).toBe('UNKNOWN');
+    for (const termination of [undefined, null, '', 7, true, {}, ['FEASIBLE']])
+      expect(verdictOf(termination)).toBe('UNKNOWN');
   });
 });
 
@@ -22,18 +32,27 @@ describe('solutionsOf', () => {
   });
 
   it('gives an empty list when solutions is not an array', () => {
-    for (const solutions of [undefined, null, 'x', 3, { 0: S1 }]) expect(solutionsOf({ solutions })).toEqual([]);
+    for (const solutions of [undefined, null, 'x', 3, { 0: S1 }])
+      expect(solutionsOf({ solutions })).toEqual([]);
     expect(solutionsOf({})).toEqual([]);
   });
 });
 
 describe('figuresOf', () => {
   it('reads the features in key order', () => {
-    expect(figuresOf(S1)).toEqual([['latency', 420], ['cost', 9.5]]);
+    expect(figuresOf(S1)).toEqual([
+      ['latency', 420],
+      ['cost', 9.5],
+    ]);
   });
 
   it('prefers features to metrics', () => {
-    expect(figuresOf({ features: { latency: 420, cost: 9.5 }, metrics: { latency: 999, cost: 1 } })).toEqual([['latency', 420], ['cost', 9.5]]);
+    expect(
+      figuresOf({ features: { latency: 420, cost: 9.5 }, metrics: { latency: 999, cost: 1 } })
+    ).toEqual([
+      ['latency', 420],
+      ['cost', 9.5],
+    ]);
   });
 
   it('does not fall back to metrics while features is an object', () => {
@@ -52,8 +71,20 @@ describe('figuresOf', () => {
   });
 
   it('leaves out values that are not finite numbers', () => {
-    const features = { latency: 'fast', cost: 9.5, region: { min: 1, max: 2 }, a: Number.NaN, b: Infinity, c: null, d: true, e: 0 };
-    expect(figuresOf({ features })).toEqual([['cost', 9.5], ['e', 0]]);
+    const features = {
+      latency: 'fast',
+      cost: 9.5,
+      region: { min: 1, max: 2 },
+      a: Number.NaN,
+      b: Infinity,
+      c: null,
+      d: true,
+      e: 0,
+    };
+    expect(figuresOf({ features })).toEqual([
+      ['cost', 9.5],
+      ['e', 0],
+    ]);
   });
 
   it('never reads objectives.mode', () => {
@@ -62,7 +93,10 @@ describe('figuresOf', () => {
 
   it('ignores inherited keys', () => {
     // A plain object is non-null, an object and not an array, as in bindingTableModel.ts.
-    const inherited = Object.create({ features: { latency: 1 }, metrics: { latency: 2 } }) as Record<string, unknown>;
+    const inherited = Object.create({
+      features: { latency: 1 },
+      metrics: { latency: 2 },
+    }) as Record<string, unknown>;
     expect(figuresOf(inherited)).toEqual([]);
     const own = { features: Object.create({ latency: 1 }) as Record<string, unknown> };
     expect(figuresOf(own)).toEqual([]);
@@ -75,12 +109,27 @@ describe('figuresOf', () => {
 describe('optimizationTypeOf', () => {
   it('reads objectives.type of the first solution that has one', () => {
     expect(optimizationTypeOf([S1, S2])).toBe('MULTI');
-    expect(optimizationTypeOf([{}, { objectives: { type: '' } }, { objectives: { type: 7 } }, { objectives: { type: 'SINGLE' } }, S1])).toBe('SINGLE');
+    expect(
+      optimizationTypeOf([
+        {},
+        { objectives: { type: '' } },
+        { objectives: { type: 7 } },
+        { objectives: { type: 'SINGLE' } },
+        S1,
+      ])
+    ).toBe('SINGLE');
   });
 
   it('gives null when no solution has one', () => {
     expect(optimizationTypeOf([])).toBeNull();
-    expect(optimizationTypeOf([{}, { objectives: null }, { objectives: [] }, { objectives: { type: '' } }])).toBeNull();
+    expect(
+      optimizationTypeOf([
+        {},
+        { objectives: null },
+        { objectives: [] },
+        { objectives: { type: '' } },
+      ])
+    ).toBeNull();
   });
 
   it('never reads objectives.mode', () => {
@@ -99,7 +148,9 @@ describe('unitsOf', () => {
   });
 
   it('keeps a feature without a unit as null', () => {
-    expect(unitsOf({ ...PROBLEM, features: { availability: { unit: null }, cost: { unit: 'EUR' } } })).toEqual({ availability: null, cost: 'EUR' });
+    expect(
+      unitsOf({ ...PROBLEM, features: { availability: { unit: null }, cost: { unit: 'EUR' } } })
+    ).toEqual({ availability: null, cost: 'EUR' });
   });
 
   it('gives an empty map without a problem', () => {
@@ -114,12 +165,13 @@ describe('notesOf', () => {
   });
 
   it('keeps the string items only, a blank one included', () => {
-    expect(notesOf({ remote: { divergence: { notes: ['Solved with presolve', 7, null, '', '  ', { a: 1 }, 'b'] } } })).toEqual([
-      'Solved with presolve',
-      '',
-      '  ',
-      'b',
-    ]);
+    expect(
+      notesOf({
+        remote: {
+          divergence: { notes: ['Solved with presolve', 7, null, '', '  ', { a: 1 }, 'b'] },
+        },
+      })
+    ).toEqual(['Solved with presolve', '', '  ', 'b']);
   });
 
   it('gives an empty list when anything on the path is missing or not as expected', () => {
@@ -139,7 +191,10 @@ describe('notesOf', () => {
   it('ignores inherited keys', () => {
     const divergence = Object.create({ notes: ['inherited'] }) as Record<string, unknown>;
     expect(notesOf({ remote: { divergence } })).toEqual([]);
-    const remote = Object.create({ divergence: { notes: ['inherited'] } }) as Record<string, unknown>;
+    const remote = Object.create({ divergence: { notes: ['inherited'] } }) as Record<
+      string,
+      unknown
+    >;
     expect(notesOf({ remote })).toEqual([]);
   });
 });

@@ -63,7 +63,15 @@ async function probe({ name, path }: { name: ProbeName; path: string }): Promise
     } catch {
       /* a probe that answers without JSON is still an answer */
     }
-    return { name, request, reached: true, status: response.status, ok: response.ok, ms: Math.round(performance.now() - started), body };
+    return {
+      name,
+      request,
+      reached: true,
+      status: response.status,
+      ok: response.ok,
+      ms: Math.round(performance.now() - started),
+      body,
+    };
   } catch {
     return { name, request, reached: false, status: null, ok: false, ms: null, body: null };
   } finally {
@@ -72,8 +80,26 @@ async function probe({ name, path }: { name: ProbeName; path: string }): Promise
 }
 
 const OK_WORDS = new Set(['ok', 'ready', 'up', 'healthy', 'configured', 'available', 'connected']);
-const INACTIVE_WORDS = new Set(['not-required', 'not_required', 'not required', 'disabled', 'skipped', 'off']);
-const DOWN_WORDS = new Set(['unavailable', 'down', 'error', 'failed', 'failing', 'unhealthy', 'degraded', 'not-ready', 'not_ready', 'timeout']);
+const INACTIVE_WORDS = new Set([
+  'not-required',
+  'not_required',
+  'not required',
+  'disabled',
+  'skipped',
+  'off',
+]);
+const DOWN_WORDS = new Set([
+  'unavailable',
+  'down',
+  'error',
+  'failed',
+  'failing',
+  'unhealthy',
+  'degraded',
+  'not-ready',
+  'not_ready',
+  'timeout',
+]);
 
 function classify(value: string): DependencyState {
   const word = value.trim().toLowerCase();
@@ -99,9 +125,10 @@ function describe(value: unknown): string {
  */
 export function parseDependencies(body: unknown): Dependency[] {
   if (!isRecord(body)) return [];
-  const source = body.dependencies ?? (isRecord(body.detail) ? body.detail.dependencies : undefined);
+  const source =
+    body.dependencies ?? (isRecord(body.detail) ? body.detail.dependencies : undefined);
   if (Array.isArray(source)) {
-    return source.flatMap((entry) => {
+    return source.flatMap(entry => {
       if (!isRecord(entry) || typeof entry.name !== 'string') return [];
       const value = describe(entry.status ?? entry.state);
       return [{ name: entry.name, value, state: classify(value) }];
@@ -119,5 +146,9 @@ export function parseDependencies(body: unknown): Dependency[] {
 /** Run the three probes side by side. A probe that cannot reach the gateway is a result, not an exception. */
 export async function checkGateway(): Promise<GatewayStatus> {
   const [health, live, ready] = await Promise.all(PROBES.map(probe));
-  return { checkedAt: new Date(), probes: { health, live, ready }, dependencies: parseDependencies(ready.body) };
+  return {
+    checkedAt: new Date(),
+    probes: { health, live, ready },
+    dependencies: parseDependencies(ready.body),
+  };
 }

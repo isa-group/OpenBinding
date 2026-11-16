@@ -28,8 +28,7 @@ export type AreaName = keyof typeof areas;
 
 /** One list of screens per area. */
 export const routesByArea = Object.fromEntries(
-  Object.entries(areas).map(([name, area]) => [name, area.routes]),
+  Object.entries(areas).map(([name, area]) => [name, area.routes])
 ) as Record<AreaName, RouteDefinition[]>;
 
 export const routeDefinitions: RouteDefinition[] = Object.values(routesByArea).flat();
-

@@ -8,13 +8,19 @@ import { latestOf } from './studiesModel';
  */
 export async function loadStudies(org: string, withCells = 0): Promise<StudyContent[]> {
   const studies = await platformApi.studies(org, true);
-  const live = studies.filter((study) => !study.archived).slice(0, withCells).map((study) => study.id);
-  return Promise.all(studies.map(async (study) => {
-    const runs = await platformApi.studyRuns(org, study.slug).catch(() => []);
-    const run = latestOf(runs);
-    const latestCells = run && live.includes(study.id)
-      ? await platformApi.studyCells(org, study.slug, run.id).catch(() => undefined)
-      : undefined;
-    return { study, runs, latestCells };
-  }));
+  const live = studies
+    .filter(study => !study.archived)
+    .slice(0, withCells)
+    .map(study => study.id);
+  return Promise.all(
+    studies.map(async study => {
+      const runs = await platformApi.studyRuns(org, study.slug).catch(() => []);
+      const run = latestOf(runs);
+      const latestCells =
+        run && live.includes(study.id)
+          ? await platformApi.studyCells(org, study.slug, run.id).catch(() => undefined)
+          : undefined;
+      return { study, runs, latestCells };
+    })
+  );
 }

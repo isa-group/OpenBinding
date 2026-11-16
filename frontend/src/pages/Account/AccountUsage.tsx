@@ -1,7 +1,10 @@
 import { Link } from 'react-router-dom';
 import { apiClient } from '../../api/client';
 import type { PricingCatalog, UsageView } from '../../api/auth';
-import { INSTITUTION_NAME, useInstitutionalBranding } from '../../components/InstitutionMark/institution';
+import {
+  INSTITUTION_NAME,
+  useInstitutionalBranding,
+} from '../../components/InstitutionMark/institution';
 import { Action } from '../../components/ui/Action';
 import { Chip } from '../../components/ui/Chip';
 import { DataTable } from '../../components/ui/DataTable';
@@ -21,8 +24,14 @@ import './AccountUsage.css';
 
 const ALLOWANCE_NOTES: Record<string, { note: string; link?: { to: string; label: string } }> = {
   [LIMIT.maxConcurrentRuns]: { note: 'Runs that may run at once' },
-  [LIMIT.maxFederatedEngines]: { note: 'Federated engines you may have active', link: { to: '/app/engines/registrations', label: 'My engines' } },
-  [LIMIT.maxApiKeys]: { note: 'Active keys', link: { to: '/app/account/keys', label: 'Manage keys' } },
+  [LIMIT.maxFederatedEngines]: {
+    note: 'Federated engines you may have active',
+    link: { to: '/app/engines/registrations', label: 'My engines' },
+  },
+  [LIMIT.maxApiKeys]: {
+    note: 'Active keys',
+    link: { to: '/app/account/keys', label: 'Manage keys' },
+  },
   [LIMIT.maxProblems]: { note: 'Problems you own' },
   [LIMIT.maxRepositoryStorage]: { note: 'Stored size of your problem revisions' },
 };
@@ -34,13 +43,19 @@ const TOKEN_CHIP: Record<PricingTokenStatus, string> = {
 };
 
 const TOKEN_BANNER: Partial<Record<PricingTokenStatus, string>> = {
-  stale: 'Your plan check has expired, so features can’t be confirmed from it right now. Log in again or reload the page to renew it. Nothing is blocked because of this: the server decides what you can do.',
-  missing: 'No plan check is available yet, so features can’t be confirmed. This usually settles on your next request. Nothing is blocked because of this: the server decides what you can do.',
+  stale:
+    'Your plan check has expired, so features can’t be confirmed from it right now. Log in again or reload the page to renew it. Nothing is blocked because of this: the server decides what you can do.',
+  missing:
+    'No plan check is available yet, so features can’t be confirmed. This usually settles on your next request. Nothing is blocked because of this: the server decides what you can do.',
 };
 
-function limitDefinitions(catalog: PricingCatalog | null | undefined): Record<string, LimitDefinition> {
+function limitDefinitions(
+  catalog: PricingCatalog | null | undefined
+): Record<string, LimitDefinition> {
   const limits = catalog?.usageLimits;
-  return typeof limits === 'object' && limits !== null ? limits as Record<string, LimitDefinition> : {};
+  return typeof limits === 'object' && limits !== null
+    ? (limits as Record<string, LimitDefinition>)
+    : {};
 }
 
 function valueText(row: UsageRow): string {
@@ -48,7 +63,7 @@ function valueText(row: UsageRow): string {
 }
 
 function priceLine(plan: string, view: PricingView | null): string | null {
-  const column = view?.plans.find((item) => item.id === plan);
+  const column = view?.plans.find(item => item.id === plan);
   if (!column) return null;
   if (column.byAgreement) return 'Institutional agreement';
   return column.unitLabel === 'with verified CAS' ? 'Free with verified CAS' : column.priceLabel;
@@ -61,20 +76,31 @@ function ConsoleLinks() {
       <div>
         <h2 id="usage-consoles">Plans, prices and contracts</h2>
         <p className="acct-muted">
-          OpenBinding shows your plan and what it lets you do. Prices, pricing versions and contracts are managed in the native
-          SPACE and SPHERE consoles, not here.
+          OpenBinding shows your plan and what it lets you do. Prices, pricing versions and
+          contracts are managed in the native SPACE and SPHERE consoles, not here.
         </p>
       </div>
       <p className="usage-consoles">
-        <a href={config.spaceFrontendUrl} target="_blank" rel="noopener noreferrer">Open SPACE console</a>
-        <a href={config.sphereUrl} target="_blank" rel="noopener noreferrer">Open SPHERE console</a>
-        <Link to="/pricing" viewTransition>See the published plans</Link>
+        <a href={config.spaceFrontendUrl} target="_blank" rel="noopener noreferrer">
+          Open SPACE console
+        </a>
+        <a href={config.sphereUrl} target="_blank" rel="noopener noreferrer">
+          Open SPHERE console
+        </a>
+        <Link to="/pricing" viewTransition>
+          See the published plans
+        </Link>
       </p>
     </section>
   );
 }
 
-function UsageBody({ usage, catalog, release, token }: {
+function UsageBody({
+  usage,
+  catalog,
+  release,
+  token,
+}: {
   usage: UsageView;
   catalog: PricingCatalog | null | undefined;
   release: { version: string } | null | undefined;
@@ -83,28 +109,34 @@ function UsageBody({ usage, catalog, release, token }: {
   const institutional = useInstitutionalBranding();
   const { user } = useAuth();
   const rows = usageRows(usage, limitDefinitions(catalog));
-  const inGroup = (...groups: Array<UsageRow['info']['group']>) => rows.filter((row) => groups.includes(row.info.group));
+  const inGroup = (...groups: Array<UsageRow['info']['group']>) =>
+    rows.filter(row => groups.includes(row.info.group));
   const allowances = inGroup('monthly', 'capacity');
   const ceilings = inGroup('ceiling');
   const pending = usage.contract_pending;
   const view = catalog ? readCatalog(catalog) : null;
   const price = priceLine(usage.plan, view);
-  const features = view && view.features.length > 0
-    ? view.features
-    : Object.keys(usage.features).map((id) => ({ id, name: featureName(id) }));
+  const features =
+    view && view.features.length > 0
+      ? view.features
+      : Object.keys(usage.features).map(id => ({ id, name: featureName(id) }));
   const confirmed = !pending && token === 'valid';
 
   return (
     <>
       {pending && (
         <Notice tone="info" title="Your contract is pending.">
-          Pricing wasn’t reachable when you signed up. It’s settled on your next request; until then no feature or limit can be
-          confirmed, and nothing here is shown as allowed or blocked.
+          Pricing wasn’t reachable when you signed up. It’s settled on your next request; until then
+          no feature or limit can be confirmed, and nothing here is shown as allowed or blocked.
         </Notice>
       )}
 
       <section className="usage-plan" aria-label="Your plan">
-        {usage.plan && <span className="usage-plan-tile" aria-hidden="true">{usage.plan.charAt(0)}</span>}
+        {usage.plan && (
+          <span className="usage-plan-tile" aria-hidden="true">
+            {usage.plan.charAt(0)}
+          </span>
+        )}
         <div className="usage-plan-body">
           <div className="usage-plan-name">
             <strong>{usage.plan || 'No remote plan (local demo)'}</strong>
@@ -117,7 +149,9 @@ function UsageBody({ usage, catalog, release, token }: {
           </span>
         </div>
         <div className="usage-plan-actions">
-          <Action to="/pricing" variant="secondary" size="md">See plans</Action>
+          <Action to="/pricing" variant="secondary" size="md">
+            See plans
+          </Action>
         </div>
       </section>
 
@@ -127,24 +161,31 @@ function UsageBody({ usage, catalog, release, token }: {
         <div>
           <h2 id="usage-permissions">Your permissions</h2>
           <p className="acct-muted">
-            Your platform role is <strong>{user?.role ?? 'user'}</strong>. Your plan decides which features you have; your role in each
-            organization decides what you can change there, and an API key can never exceed your account.
+            Your platform role is <strong>{user?.role ?? 'user'}</strong>. Your plan decides which
+            features you have; your role in each organization decides what you can change there, and
+            an API key can never exceed your account.
           </p>
         </div>
         <p className="usage-consoles">
-          <Link to="/app" viewTransition>Your organizations and roles</Link>
-          <Link to="/app/account/keys" viewTransition>Your API keys</Link>
+          <Link to="/app" viewTransition>
+            Your organizations and roles
+          </Link>
+          <Link to="/app/account/keys" viewTransition>
+            Your API keys
+          </Link>
         </p>
       </section>
 
       <section className="acct-section" aria-labelledby="usage-features">
         <div className="usage-features-head">
           <h2 id="usage-features">Features</h2>
-          <Chip tone={token === 'valid' && !pending ? 'success' : 'warning'}>{pending ? 'Contract pending' : TOKEN_CHIP[token]}</Chip>
+          <Chip tone={token === 'valid' && !pending ? 'success' : 'warning'}>
+            {pending ? 'Contract pending' : TOKEN_CHIP[token]}
+          </Chip>
         </div>
         {!pending && token !== 'valid' && <Notice tone="warning">{TOKEN_BANNER[token]}</Notice>}
         <ul className="usage-features">
-          {features.map((feature) => {
+          {features.map(feature => {
             const on = usage.features[feature.id] === true;
             return (
               <li key={feature.id}>
@@ -166,17 +207,25 @@ function UsageBody({ usage, catalog, release, token }: {
         <section className="acct-section" aria-labelledby="usage-allowances">
           <div>
             <h2 id="usage-allowances">What your plan allows</h2>
-            <p className="acct-muted">The most your plan permits at a time. Nothing is metered or charged per request.</p>
+            <p className="acct-muted">
+              The most your plan permits at a time. Nothing is metered or charged per request.
+            </p>
           </div>
           <div className="usage-grid">
-            {allowances.map((row) => {
+            {allowances.map(row => {
               const extra = ALLOWANCE_NOTES[row.id];
               return (
                 <div key={row.id} className="usage-card">
                   <span className="usage-card-name">{row.info.label}</span>
-                  <span className="usage-card-big">{row.limit === null ? 'Unlimited' : formatCount(row.limit)}</span>
+                  <span className="usage-card-big">
+                    {row.limit === null ? 'Unlimited' : formatCount(row.limit)}
+                  </span>
                   {extra && <span className="acct-muted">{extra.note}</span>}
-                  {extra?.link && <Link to={extra.link.to} viewTransition>{extra.link.label}</Link>}
+                  {extra?.link && (
+                    <Link to={extra.link.to} viewTransition>
+                      {extra.link.label}
+                    </Link>
+                  )}
                 </div>
               );
             })}
@@ -188,17 +237,28 @@ function UsageBody({ usage, catalog, release, token }: {
         <section className="acct-section" aria-labelledby="usage-ceilings">
           <div>
             <h2 id="usage-ceilings">Per-request ceilings</h2>
-            <p className="acct-muted">Budgets above these are reduced with an OPTION_CLAMPED note; bigger problems are rejected.</p>
+            <p className="acct-muted">
+              Budgets above these are reduced with an OPTION_CLAMPED note; bigger problems are
+              rejected.
+            </p>
           </div>
           <DataTable label="Ceilings table" minWidth={480}>
             <thead>
-              <tr><th scope="col">Ceiling</th><th scope="col">Your limit</th><th scope="col">Exact value</th></tr>
+              <tr>
+                <th scope="col">Ceiling</th>
+                <th scope="col">Your limit</th>
+                <th scope="col">Exact value</th>
+              </tr>
             </thead>
             <tbody>
-              {ceilings.map((row) => (
+              {ceilings.map(row => (
                 <tr key={row.id}>
-                  <th scope="row" className="usage-ceiling">{row.info.label}</th>
-                  <td><strong>{valueText(row)}</strong></td>
+                  <th scope="row" className="usage-ceiling">
+                    {row.info.label}
+                  </th>
+                  <td>
+                    <strong>{valueText(row)}</strong>
+                  </td>
                   <td className="usage-exact">{exactValueText(row)}</td>
                 </tr>
               ))}
@@ -209,12 +269,21 @@ function UsageBody({ usage, catalog, release, token }: {
 
       <details className="usage-all">
         <summary>All entitlement values</summary>
-        <p className="acct-muted">Every limit of your plan as the gateway reports it, by its technical name. Nothing here is secret: it is the contract, not a credential.</p>
+        <p className="acct-muted">
+          Every limit of your plan as the gateway reports it, by its technical name. Nothing here is
+          secret: it is the contract, not a credential.
+        </p>
         <dl>
-          {rows.map((row) => (
+          {rows.map(row => (
             <div key={row.id}>
-              <dt><code>{row.id}</code></dt>
-              <dd>{row.limit === null || !Number.isFinite(row.limit) ? NO_LIMIT_TEXT : formatCount(row.limit)}</dd>
+              <dt>
+                <code>{row.id}</code>
+              </dt>
+              <dd>
+                {row.limit === null || !Number.isFinite(row.limit)
+                  ? NO_LIMIT_TEXT
+                  : formatCount(row.limit)}
+              </dd>
             </div>
           ))}
         </dl>
@@ -229,44 +298,61 @@ export function AccountUsage() {
   const token = usePricingTokenStatus();
   const usage = useResource(`plan:${user?.id ?? ''}`, () => apiClient.getOwnUsage());
   // The plan's wording and the published release are context; the page works without them.
-  const catalog = useResource('plan-catalog', () => apiClient.getPricingCatalog().catch(() => null));
-  const release = useResource('plan-release', () => apiClient.getCurrentPricing().catch(() => null));
+  const catalog = useResource('plan-catalog', () =>
+    apiClient.getPricingCatalog().catch(() => null)
+  );
+  const release = useResource('plan-release', () =>
+    apiClient.getCurrentPricing().catch(() => null)
+  );
 
   const failure = usage.status === 'error' ? classifyAuthError(usage.error) : null;
-  const refresh = () => { usage.reload(); catalog.reload(); release.reload(); };
+  const refresh = () => {
+    usage.reload();
+    catalog.reload();
+    release.reload();
+  };
 
   return (
     <AccountLayout
       section="usage"
       title="Plan & permissions"
       lede="What your plan includes, what it lets you do, and where it is managed."
-      actions={<Action variant="secondary" size="sm" onClick={refresh}>Refresh plan</Action>}
+      actions={
+        <Action variant="secondary" size="sm" onClick={refresh}>
+          Refresh plan
+        </Action>
+      }
     >
       {usage.status === 'loading' && (
         <div aria-busy="true" className="usage-skeleton">
-          <Skeleton variant="card" /><Skeleton variant="panel" /><Skeleton variant="panel" />
+          <Skeleton variant="card" />
+          <Skeleton variant="panel" />
+          <Skeleton variant="panel" />
         </div>
       )}
 
-      {failure?.status === 403 && <PermissionNotice permissions={['account:read']} action="see your plan" />}
+      {failure?.status === 403 && (
+        <PermissionNotice permissions={['account:read']} action="see your plan" />
+      )}
       {failure && failure.status !== 403 && (
         <>
           <LoadFailure onRetry={refresh}>
-            {failure.status === 503
-              ? <><strong>We can’t read your plan right now (503 · pricing_unavailable).</strong> We don’t show old figures as your current plan, and this doesn’t mean your plan has changed.</>
-              : fallbackMessage(failure, 'loaded')}
+            {failure.status === 503 ? (
+              <>
+                <strong>We can’t read your plan right now (503 · pricing_unavailable).</strong> We
+                don’t show old figures as your current plan, and this doesn’t mean your plan has
+                changed.
+              </>
+            ) : (
+              fallbackMessage(failure, 'loaded')
+            )}
           </LoadFailure>
           <ConsoleLinks />
         </>
       )}
 
       {usage.data && (
-        <UsageBody
-          usage={usage.data}
-          catalog={catalog.data}
-          release={release.data}
-          token={token}
-        />
+        <UsageBody usage={usage.data} catalog={catalog.data} release={release.data} token={token} />
       )}
     </AccountLayout>
   );

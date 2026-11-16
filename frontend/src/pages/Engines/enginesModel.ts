@@ -44,7 +44,7 @@ export function engineHref(ref: { namespace: string; name: string; version: stri
 }
 
 function titleCase(value: string): string {
-  return value.replace(/[-_]+/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
+  return value.replace(/[-_]+/g, ' ').replace(/\b\w/g, letter => letter.toUpperCase());
 }
 
 /** `Not declared` when the engine's contract does not list the dimension; the others as the selector spells them. */
@@ -72,12 +72,22 @@ export function optionFacts(mode: EngineMode): OptionFact[] {
   const properties = mode.optionsSchema?.properties ?? {};
   return Object.entries(properties).map(([name, schema]) => {
     const entry: Record<string, unknown> = isRecord(schema) ? schema : {};
-    const unit = typeof entry.unit === 'string' ? entry.unit : typeof entry['x-unit'] === 'string' ? entry['x-unit'] : null;
+    const unit =
+      typeof entry.unit === 'string'
+        ? entry.unit
+        : typeof entry['x-unit'] === 'string'
+          ? entry['x-unit']
+          : null;
     const fallback = entry.default;
     return {
       name,
       unit,
-      default: typeof fallback === 'number' || typeof fallback === 'string' || typeof fallback === 'boolean' ? fallback : null,
+      default:
+        typeof fallback === 'number' ||
+        typeof fallback === 'string' ||
+        typeof fallback === 'boolean'
+          ? fallback
+          : null,
       required: Boolean(mode.optionsSchema?.required?.includes(name)),
       type: typeof entry.type === 'string' ? entry.type : null,
     };
@@ -90,12 +100,14 @@ export function formatDefault(value: OptionFact['default']): string {
 
 /** `time_budget_ms (ms, 30,000)`: the one-line form used in tables. */
 export function optionLine(fact: OptionFact): string {
-  const parts = [fact.unit, fact.default !== null ? formatDefault(fact.default) : null].filter((part): part is string => part !== null);
+  const parts = [fact.unit, fact.default !== null ? formatDefault(fact.default) : null].filter(
+    (part): part is string => part !== null
+  );
   return parts.length ? `${fact.name} (${parts.join(', ')})` : fact.name;
 }
 
 export function modeRows(engine: EngineCatalogEntry): ModeRow[] {
-  return engine.modes.map((mode) => {
+  return engine.modes.map(mode => {
     const options = optionFacts(mode).map(optionLine);
     return {
       id: `${engineKey(engine)}::${mode.id}`,
@@ -124,21 +136,44 @@ interface RowContext {
 
 /** One row per revision, with the visibility and publication the gateway reports (or the best honest reading of it). */
 export function engineRows(engines: EngineCatalogEntry[], context: RowContext): EngineRow[] {
-  return engines.map((engine) => {
+  return engines.map(engine => {
     const key = engineKey(engine);
-    const revision = context.revisions.find((item) => item.namespace === engine.namespace && item.name === engine.name && item.version === engine.version);
-    const registration = context.registrations.find((item) => item.namespace === engine.namespace && item.name === engine.name && item.version === engine.version);
+    const revision = context.revisions.find(
+      item =>
+        item.namespace === engine.namespace &&
+        item.name === engine.name &&
+        item.version === engine.version
+    );
+    const registration = context.registrations.find(
+      item =>
+        item.namespace === engine.namespace &&
+        item.name === engine.name &&
+        item.version === engine.version
+    );
     const builtin = engine.namespace === BUILTIN_NAMESPACE;
     const owned = context.username !== null && engine.namespace === context.username;
-    const visibility: Visibility = revision ? (revision.state === 'private' ? 'private' : 'public') : owned && !builtin ? 'private' : 'public';
-    const publication: Publication = registration ? PUBLICATION[registration.status] : visibility === 'public' ? 'published' : 'not requested';
+    const visibility: Visibility = revision
+      ? revision.state === 'private'
+        ? 'private'
+        : 'public'
+      : owned && !builtin
+        ? 'private'
+        : 'public';
+    const publication: Publication = registration
+      ? PUBLICATION[registration.status]
+      : visibility === 'public'
+        ? 'published'
+        : 'not requested';
     const yours = visibility === 'private' && owned;
     const chips: string[] = [];
     if (visibility === 'public') chips.push('Public');
     else chips.push(yours ? 'Private · yours' : 'Private');
-    if (registration) chips.push(registration.active ? 'Registration active' : 'Registration inactive');
-    if (revision?.registration?.verificationReport?.status === 'verified') chips.push('Conformance passed');
-    else if (revision?.registration?.verificationReport?.status === 'failed') chips.push('Conformance failed');
+    if (registration)
+      chips.push(registration.active ? 'Registration active' : 'Registration inactive');
+    if (revision?.registration?.verificationReport?.status === 'verified')
+      chips.push('Conformance passed');
+    else if (revision?.registration?.verificationReport?.status === 'failed')
+      chips.push('Conformance failed');
     if (visibility === 'private') chips.push(`Listing ${publication}`);
     return {
       key,
@@ -159,7 +194,10 @@ export function familyOptions(rows: EngineRow[]): Array<{ id: string; label: str
   for (const row of rows) if (!seen.has(row.family)) seen.set(row.family, row.familyLabel);
   const builtin = [...seen].filter(([id]) => id !== 'federated');
   const federated = seen.has('federated') ? [['federated', 'Federated'] as const] : [];
-  return [{ id: 'all', label: 'All' }, ...[...builtin, ...federated].map(([id, label]) => ({ id, label }))];
+  return [
+    { id: 'all', label: 'All' },
+    ...[...builtin, ...federated].map(([id, label]) => ({ id, label })),
+  ];
 }
 
 export function glyphOf(name: string): string {

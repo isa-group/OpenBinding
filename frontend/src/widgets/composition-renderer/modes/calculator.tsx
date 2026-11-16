@@ -11,7 +11,17 @@ import type { CompositionNeighborhoodResponse } from '../../../shared/api/types'
 import type { Section } from '../presets';
 import { RendererSection } from '../RendererSection';
 import { analysisRefusal, type AnalysisActions, type AnalysisRefusal } from './analysis';
-import { NO_FILTER, moveRows, rowChoices, signed, visibleRows, withMove, writtenBinding, type MoveFilter, type MoveRow } from './calculatorModel';
+import {
+  NO_FILTER,
+  moveRows,
+  rowChoices,
+  signed,
+  visibleRows,
+  withMove,
+  writtenBinding,
+  type MoveFilter,
+  type MoveRow,
+} from './calculatorModel';
 import './analysis.css';
 
 /**
@@ -41,16 +51,28 @@ function Deltas({ row }: { row: MoveRow }) {
       {row.deltas.map((delta, position) => (
         <li key={`${delta.feature}-${position}`}>
           <span>{delta.feature}</span>{' '}
-          <b>{delta.value === null ? '—' : `${signed(delta.value)}${delta.unit && delta.unit !== '1' ? ` ${delta.unit}` : ''}`}</b>
+          <b>
+            {delta.value === null
+              ? '—'
+              : `${signed(delta.value)}${delta.unit && delta.unit !== '1' ? ` ${delta.unit}` : ''}`}
+          </b>
           {delta.loss !== null && <small>{` loss ${signed(delta.loss)}`}</small>}
         </li>
       ))}
-      <li><span>penalty</span> <b>{signed(row.penaltyDelta)}</b></li>
+      <li>
+        <span>penalty</span> <b>{signed(row.penaltyDelta)}</b>
+      </li>
     </ul>
   );
 }
 
-function Neighbourhood({ model, actions = {} }: { model: CompositionViewModel; actions?: AnalysisActions }) {
+function Neighbourhood({
+  model,
+  actions = {},
+}: {
+  model: CompositionViewModel;
+  actions?: AnalysisActions;
+}) {
   const { org, slug } = model.identity;
   const version = model.version?.id ?? '';
   const [attempt, setAttempt] = useState(0);
@@ -61,30 +83,50 @@ function Neighbourhood({ model, actions = {} }: { model: CompositionViewModel; a
   // The page's answer to a version that links no problem after all; read when the gateway says so, so a new callback each render
   // never asks for the moves again.
   const notLinked = useRef(actions.onNotLinked);
-  useEffect(() => { notLinked.current = actions.onNotLinked; });
+  useEffect(() => {
+    notLinked.current = actions.onNotLinked;
+  });
 
   useEffect(() => {
     let active = true;
     compositionsApi.neighborhood(org, slug, { version, limit: NEIGHBOURHOOD_LIMIT }).then(
-      (response) => { if (active) setLoaded({ key, value: { state: 'ready', response } }); },
+      response => {
+        if (active) setLoaded({ key, value: { state: 'ready', response } });
+      },
       (caught: unknown) => {
         if (!active) return;
         const refusal = analysisRefusal(caught, 'The moves couldn’t be evaluated');
         setLoaded({ key, value: { state: 'refused', refusal } });
         if (refusal.notLinked) notLinked.current?.();
-      },
+      }
     );
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [org, slug, version, key]);
 
-  const neighbourhood: Neighbourhood = loaded && loaded.key === key ? loaded.value : { state: 'loading' };
+  const neighbourhood: Neighbourhood =
+    loaded && loaded.key === key ? loaded.value : { state: 'loading' };
   if (neighbourhood.state === 'loading') {
-    return <p className="cr-muted" role="status">The toolchain is evaluating each candidate a task could take instead…</p>;
+    return (
+      <p className="cr-muted" role="status">
+        The toolchain is evaluating each candidate a task could take instead…
+      </p>
+    );
   }
   if (neighbourhood.state === 'refused') {
     const { refusal } = neighbourhood;
-    return refusal.notLinked ? <p className="cr-muted">{refusal.message}</p> : (
-      <Notice tone="error" action={<Action variant="secondary" size="sm" onClick={() => setAttempt((n) => n + 1)}>Retry</Action>}>
+    return refusal.notLinked ? (
+      <p className="cr-muted">{refusal.message}</p>
+    ) : (
+      <Notice
+        tone="error"
+        action={
+          <Action variant="secondary" size="sm" onClick={() => setAttempt(n => n + 1)}>
+            Retry
+          </Action>
+        }
+      >
         {refusal.message}
       </Notice>
     );
@@ -94,11 +136,17 @@ function Neighbourhood({ model, actions = {} }: { model: CompositionViewModel; a
   const rows = moveRows(response.moves, model);
   const shown = visibleRows(rows, filter);
   const choices = rowChoices(rows);
-  const at = Math.max(0, shown.findIndex((row) => row.index === focus));
+  const at = Math.max(
+    0,
+    shown.findIndex(row => row.index === focus)
+  );
   const focused = shown[at] ?? null;
   const current = writtenBinding(model);
   const revision = model.status.problemRevision;
-  const narrow = (next: Partial<MoveFilter>) => { setFilter((now) => ({ ...now, ...next })); setFocus(null); };
+  const narrow = (next: Partial<MoveFilter>) => {
+    setFilter(now => ({ ...now, ...next }));
+    setFocus(null);
+  };
   const coverage = response.coverage;
 
   return (
@@ -113,38 +161,77 @@ function Neighbourhood({ model, actions = {} }: { model: CompositionViewModel; a
               value={filter.query}
               placeholder="Candidate or provider"
               aria-label="Search candidates and providers"
-              onChange={(event) => narrow({ query: event.target.value })}
+              onChange={event => narrow({ query: event.target.value })}
             />
           </label>
           <label>
             <span>Task</span>
-            <select aria-label="Task" value={filter.task} onChange={(event) => narrow({ task: event.target.value })}>
+            <select
+              aria-label="Task"
+              value={filter.task}
+              onChange={event => narrow({ task: event.target.value })}
+            >
               <option value="">All tasks</option>
-              {choices.tasks.map((task) => <option key={task} value={task}>{task}</option>)}
+              {choices.tasks.map(task => (
+                <option key={task} value={task}>
+                  {task}
+                </option>
+              ))}
             </select>
           </label>
           <label>
             <span>Comparison</span>
-            <select aria-label="Comparison" value={filter.comparison} onChange={(event) => narrow({ comparison: event.target.value })}>
+            <select
+              aria-label="Comparison"
+              value={filter.comparison}
+              onChange={event => narrow({ comparison: event.target.value })}
+            >
               <option value="">Any comparison</option>
-              {choices.comparisons.map((word) => <option key={word} value={word}>{comparisonText(word).label}</option>)}
+              {choices.comparisons.map(word => (
+                <option key={word} value={word}>
+                  {comparisonText(word).label}
+                </option>
+              ))}
             </select>
           </label>
         </div>
       )}
-      {rows.length > 0 && shown.length === 0 && <p className="cr-muted">No move matches. Clear the search or choose another task or comparison.</p>}
+      {rows.length > 0 && shown.length === 0 && (
+        <p className="cr-muted">
+          No move matches. Clear the search or choose another task or comparison.
+        </p>
+      )}
       {focused && (
         <div className="cr-calc-focus">
           <p aria-live="polite">
-            {`Move ${at + 1} of ${shown.length}: `}<code>{focused.task}</code>{' '}
-            <code>{focused.from ?? '—'}</code>{' → '}<code>{focused.to}</code>
+            {`Move ${at + 1} of ${shown.length}: `}
+            <code>{focused.task}</code> <code>{focused.from ?? '—'}</code>
+            {' → '}
+            <code>{focused.to}</code>
           </p>
-          <Action variant="secondary" size="sm" disabled={at === 0} onClick={() => setFocus(shown[at - 1].index)}>Previous</Action>
-          <Action variant="secondary" size="sm" disabled={at >= shown.length - 1} onClick={() => setFocus(shown[at + 1].index)}>Next</Action>
+          <Action
+            variant="secondary"
+            size="sm"
+            disabled={at === 0}
+            onClick={() => setFocus(shown[at - 1].index)}
+          >
+            Previous
+          </Action>
+          <Action
+            variant="secondary"
+            size="sm"
+            disabled={at >= shown.length - 1}
+            onClick={() => setFocus(shown[at + 1].index)}
+          >
+            Next
+          </Action>
         </div>
       )}
       {shown.length > 0 && (
-        <DataTable label={`Moves of ${model.identity.name} ${model.version?.label ?? ''}`.trim()} minWidth={0}>
+        <DataTable
+          label={`Moves of ${model.identity.name} ${model.version?.label ?? ''}`.trim()}
+          minWidth={0}
+        >
           <thead>
             <tr>
               <th scope="col">Task</th>
@@ -156,33 +243,66 @@ function Neighbourhood({ model, actions = {} }: { model: CompositionViewModel; a
             </tr>
           </thead>
           <tbody className="cr-calc-table">
-            {shown.map((row) => {
-              const word = row.comparison ? COMPARISON_WORDS[row.comparison] : comparisonText(row.comparisonSent);
+            {shown.map(row => {
+              const word = row.comparison
+                ? COMPARISON_WORDS[row.comparison]
+                : comparisonText(row.comparisonSent);
               const binding = withMove(current, row.task, row.to);
               return (
-                <tr key={row.index} className={row === focused ? 'is-focused' : undefined} aria-current={row === focused ? 'true' : undefined}>
-                  <th scope="row" data-label="Task"><code>{row.task}</code></th>
+                <tr
+                  key={row.index}
+                  className={row === focused ? 'is-focused' : undefined}
+                  aria-current={row === focused ? 'true' : undefined}
+                >
+                  <th scope="row" data-label="Task">
+                    <code>{row.task}</code>
+                  </th>
                   <td data-label="Change">
-                    <code>{row.from ?? '—'}</code> <span aria-hidden="true">→</span><span className="sr-only">to</span> <code>{row.to}</code>
+                    <code>{row.from ?? '—'}</code> <span aria-hidden="true">→</span>
+                    <span className="sr-only">to</span> <code>{row.to}</code>
                     {row.provider && <small className="cr-calc-provider">{row.provider}</small>}
                   </td>
-                  <td data-label="Comparison"><Chip tone={word.tone}>{word.label}</Chip></td>
-                  <td data-label="Objectives"><Deltas row={row} /></td>
+                  <td data-label="Comparison">
+                    <Chip tone={word.tone}>{word.label}</Chip>
+                  </td>
+                  <td data-label="Objectives">
+                    <Deltas row={row} />
+                  </td>
                   <td data-label="Rules">
                     {row.feasible ? 'Feasible' : 'Breaks a hard rule'}
                     {row.violations.length > 0 && (
                       <ul className="cr-calc-violations" aria-label="Rules broken">
-                        {row.violations.map((text, position) => <li key={`${text}-${position}`}>{text}</li>)}
+                        {row.violations.map((text, position) => (
+                          <li key={`${text}-${position}`}>{text}</li>
+                        ))}
                       </ul>
                     )}
                   </td>
                   {(actions.onTry || actions.onDerive) && (
                     <td data-label="Actions" className="cr-calc-actions">
                       {actions.onTry && (
-                        <Action variant="secondary" size="sm" onClick={() => { setFocus(row.index); actions.onTry?.(binding); }}>Try in configurator</Action>
+                        <Action
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => {
+                            setFocus(row.index);
+                            actions.onTry?.(binding);
+                          }}
+                        >
+                          Try in configurator
+                        </Action>
                       )}
                       {actions.onDerive && revision && (
-                        <Action variant="secondary" size="sm" onClick={() => { setFocus(row.index); actions.onDerive?.({ revision, binding }); }}>Derive composition</Action>
+                        <Action
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => {
+                            setFocus(row.index);
+                            actions.onDerive?.({ revision, binding });
+                          }}
+                        >
+                          Derive composition
+                        </Action>
                       )}
                     </td>
                   )}
@@ -194,7 +314,9 @@ function Neighbourhood({ model, actions = {} }: { model: CompositionViewModel; a
       )}
       <p className="cr-muted">
         {`Evaluated ${coverage.evaluated} of ${coverage.total} moves (up to ${coverage.limit}) on the installed toolchain.`}
-        {coverage.complete ? '' : ' Coverage is incomplete: moves left unchecked may change the picture.'}
+        {coverage.complete
+          ? ''
+          : ' Coverage is incomplete: moves left unchecked may change the picture.'}
         {response.failures.length > 0 ? ` ${response.failures.length} could not be evaluated.` : ''}
       </p>
     </div>
@@ -202,12 +324,13 @@ function Neighbourhood({ model, actions = {} }: { model: CompositionViewModel; a
 }
 
 export function CalculatorMode({ model, sections, actions }: CalculatorModeProps) {
-  if (!model.version || !model.modes.includes('calculator') || !sections.includes('moves')) return null;
+  if (!model.version || !model.modes.includes('calculator') || !sections.includes('moves'))
+    return null;
   return (
     <RendererSection title="One change at a time">
       <p className="cr-muted">
-        Each candidate one task could take instead of this version’s, evaluated by the toolchain against this binding. The comparison
-        and every change are the gateway’s.
+        Each candidate one task could take instead of this version’s, evaluated by the toolchain
+        against this binding. The comparison and every change are the gateway’s.
       </p>
       <Neighbourhood key={model.version.id} model={model} actions={actions} />
     </RendererSection>

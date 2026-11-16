@@ -3,14 +3,21 @@ import { AlertTriangle, Check, X } from 'lucide-react';
 import { FormField } from '../../components/ui/FormField';
 import { issueAt, type Issue } from './engineDraft';
 import {
-  MAPPING_FIELDS, endpointProblem,
-  type AuthScheme, type ContractReading, type DeploymentDraft,
+  MAPPING_FIELDS,
+  endpointProblem,
+  type AuthScheme,
+  type ContractReading,
+  type DeploymentDraft,
 } from './deploymentDraft';
 
 const AUTHS: ReadonlyArray<{ id: AuthScheme; label: string; help: string }> = [
   { id: 'none', label: 'None', help: 'Open endpoint (for example inside your network).' },
   { id: 'bearer', label: 'Bearer token', help: 'We send a token you give us in the next step.' },
-  { id: 'basic', label: 'Username and password', help: 'Basic sign-in; you give both in the next step.' },
+  {
+    id: 'basic',
+    label: 'Username and password',
+    help: 'Basic sign-in; you give both in the next step.',
+  },
 ];
 
 interface DeploymentFormProps {
@@ -27,7 +34,8 @@ export function DeploymentForm({ draft, onChange, reading, issues, locked }: Dep
   const [fileError, setFileError] = useState<string | null>(null);
   const editorId = useId();
   const patch = (next: Partial<DeploymentDraft>) => onChange({ ...draft, ...next });
-  const endpointIssue = draft.endpoint === '' ? undefined : endpointProblem(draft.endpoint) ?? undefined;
+  const endpointIssue =
+    draft.endpoint === '' ? undefined : (endpointProblem(draft.endpoint) ?? undefined);
   const plainHttp = /^http:\/\//i.test(draft.endpoint.trim());
 
   const readFile = async (file: File | undefined) => {
@@ -54,7 +62,10 @@ export function DeploymentForm({ draft, onChange, reading, issues, locked }: Dep
     <div className="rg-form">
       <div role="note" className="rg-warning">
         <AlertTriangle aria-hidden="true" />
-        <span>Nothing on this step may contain a secret. Tokens or passwords inside the address or the contract are refused; they go in the next step.</span>
+        <span>
+          Nothing on this step may contain a secret. Tokens or passwords inside the address or the
+          contract are refused; they go in the next step.
+        </span>
       </div>
 
       <FormField
@@ -67,16 +78,23 @@ export function DeploymentForm({ draft, onChange, reading, issues, locked }: Dep
         spellCheck={false}
         placeholder="https://engine.example"
         error={endpointIssue}
-        hint={plainHttp ? 'Plain http is accepted only in development; production requires https.' : 'HTTPS. OpenBinding calls it from its own servers, never from your browser, and blocks private-network destinations in production.'}
-        onChange={(event) => patch({ endpoint: event.target.value })}
+        hint={
+          plainHttp
+            ? 'Plain http is accepted only in development; production requires https.'
+            : 'HTTPS. OpenBinding calls it from its own servers, never from your browser, and blocks private-network destinations in production.'
+        }
+        onChange={event => patch({ endpoint: event.target.value })}
       />
 
       <div className="rg-block">
         <div className="rg-field-label">Paths on your deployment</div>
         <div className="rg-paths">
-          {MAPPING_FIELDS.map((field) => (
+          {MAPPING_FIELDS.map(field => (
             <label key={field.id} className="rg-path">
-              <span className="rg-path-head"><strong>{field.label}</strong><small>{field.required ? 'required' : 'optional'}</small></span>
+              <span className="rg-path-head">
+                <strong>{field.label}</strong>
+                <small>{field.required ? 'required' : 'optional'}</small>
+              </span>
               <input
                 aria-label={`${field.label} path`}
                 className="is-mono"
@@ -85,9 +103,11 @@ export function DeploymentForm({ draft, onChange, reading, issues, locked }: Dep
                 spellCheck={false}
                 placeholder={field.id === 'job' ? '/internal/v1/jobs/{id}' : undefined}
                 aria-invalid={issueAt(issues, field.id) ? true : undefined}
-                onChange={(event) => onChange({ ...draft, [field.id]: event.target.value })}
+                onChange={event => onChange({ ...draft, [field.id]: event.target.value })}
               />
-              <small className={issueAt(issues, field.id) ? 'rg-error' : undefined}>{issueAt(issues, field.id) ?? field.help}</small>
+              <small className={issueAt(issues, field.id) ? 'rg-error' : undefined}>
+                {issueAt(issues, field.id) ?? field.help}
+              </small>
             </label>
           ))}
         </div>
@@ -96,32 +116,63 @@ export function DeploymentForm({ draft, onChange, reading, issues, locked }: Dep
       <div className="rg-block">
         <div className="rg-field-label">How OpenBinding signs in to it</div>
         <div className="rg-auths" role="radiogroup" aria-label="Authentication">
-          {AUTHS.map((auth) => (
-            <button key={auth.id} type="button" role="radio" aria-checked={draft.auth === auth.id} disabled={locked} onClick={() => patch({ auth: auth.id })}>
+          {AUTHS.map(auth => (
+            <button
+              key={auth.id}
+              type="button"
+              role="radio"
+              aria-checked={draft.auth === auth.id}
+              disabled={locked}
+              onClick={() => patch({ auth: auth.id })}
+            >
               <span aria-hidden="true" className="rg-radio" />
-              <span><strong>{auth.label}</strong><small>{auth.help}</small></span>
+              <span>
+                <strong>{auth.label}</strong>
+                <small>{auth.help}</small>
+              </span>
             </button>
           ))}
         </div>
-        <small className="eng-muted">The sign-in method must match the security of the solve, health and optional run operations in the contract.</small>
+        <small className="eng-muted">
+          The sign-in method must match the security of the solve, health and optional run
+          operations in the contract.
+        </small>
       </div>
 
       <div className="rg-block">
         <div className="rg-field-label">Pinned contract (OpenAPI)</div>
         <div
           className={`rg-drop${dragging ? ' is-over' : ''}`}
-          onDragOver={(event) => { event.preventDefault(); if (!locked) setDragging(true); }}
+          onDragOver={event => {
+            event.preventDefault();
+            if (!locked) setDragging(true);
+          }}
           onDragLeave={() => setDragging(false)}
           onDrop={onDrop}
         >
-          <strong>{draft.fileName ? `Read ${draft.fileName}` : 'Drop your deployment’s OpenAPI file'}</strong>
-          <span>We pin this exact document, so later changes on your side are detected. It has to be the same document the deployment serves at its contract path.</span>
+          <strong>
+            {draft.fileName ? `Read ${draft.fileName}` : 'Drop your deployment’s OpenAPI file'}
+          </strong>
+          <span>
+            We pin this exact document, so later changes on your side are detected. It has to be the
+            same document the deployment serves at its contract path.
+          </span>
           <label className="rg-file">
             <span>{draft.contract ? 'Choose another file' : 'Choose file'}</span>
-            <input type="file" accept="application/json,.json" aria-label="Deployment OpenAPI file" disabled={locked} onChange={onPick} />
+            <input
+              type="file"
+              accept="application/json,.json"
+              aria-label="Deployment OpenAPI file"
+              disabled={locked}
+              onChange={onPick}
+            />
           </label>
         </div>
-        {fileError && <span className="rg-error" role="alert">{fileError}</span>}
+        {fileError && (
+          <span className="rg-error" role="alert">
+            {fileError}
+          </span>
+        )}
 
         <details className="rg-paste">
           <summary>Paste the JSON instead</summary>
@@ -133,19 +184,31 @@ export function DeploymentForm({ draft, onChange, reading, issues, locked }: Dep
             value={draft.contract}
             disabled={locked}
             spellCheck={false}
-            placeholder={'{\n  "openapi": "3.1.0",\n  "info": { "title": "My engine", "version": "1.0.0" },\n  "x-bim-protocol": "bim-engine/v1",\n  "x-bim-protocol-digest": "…",\n  "paths": { … }\n}'}
-            onChange={(event) => patch({ contract: event.target.value, fileName: '' })}
+            placeholder={
+              '{\n  "openapi": "3.1.0",\n  "info": { "title": "My engine", "version": "1.0.0" },\n  "x-bim-protocol": "bim-engine/v1",\n  "x-bim-protocol-digest": "…",\n  "paths": { … }\n}'
+            }
+            onChange={event => patch({ contract: event.target.value, fileName: '' })}
           />
         </details>
 
-        {reading.state === 'invalid' && <span className="rg-error" role="alert">{reading.message}</span>}
+        {reading.state === 'invalid' && (
+          <span className="rg-error" role="alert">
+            {reading.message}
+          </span>
+        )}
         {reading.state === 'read' && (
           <>
             <ul className="rg-spec" aria-label="What we read from the contract">
-              {reading.checks.map((check) => (
+              {reading.checks.map(check => (
                 <li key={check.id} className={check.ok ? 'is-ok' : 'is-bad'}>
                   <span aria-hidden="true">{check.ok ? <Check /> : <X />}</span>
-                  <span><strong>{check.label}</strong><small>{check.value}<span className="sr-only">{check.ok ? ' (passes)' : ' (fails)'}</span></small></span>
+                  <span>
+                    <strong>{check.label}</strong>
+                    <small>
+                      {check.value}
+                      <span className="sr-only">{check.ok ? ' (passes)' : ' (fails)'}</span>
+                    </small>
+                  </span>
                 </li>
               ))}
             </ul>
@@ -157,10 +220,32 @@ export function DeploymentForm({ draft, onChange, reading, issues, locked }: Dep
       </div>
 
       <details className="rg-more">
-        <summary>Registration name and version <span>optional · default to the engine’s</span></summary>
+        <summary>
+          Registration name and version <span>optional · default to the engine’s</span>
+        </summary>
         <div className="rg-grid">
-          <FormField label="Registration name" mono value={draft.name} disabled={locked} spellCheck={false} placeholder="my-engine-deployment" error={issueAt(issues, 'name')} hint="Defaults to the engine name plus -deployment." onChange={(event) => patch({ name: event.target.value })} />
-          <FormField label="Registration version" mono value={draft.version} disabled={locked} spellCheck={false} placeholder="1.0.0" error={issueAt(issues, 'version')} hint="Defaults to the engine version." onChange={(event) => patch({ version: event.target.value })} />
+          <FormField
+            label="Registration name"
+            mono
+            value={draft.name}
+            disabled={locked}
+            spellCheck={false}
+            placeholder="my-engine-deployment"
+            error={issueAt(issues, 'name')}
+            hint="Defaults to the engine name plus -deployment."
+            onChange={event => patch({ name: event.target.value })}
+          />
+          <FormField
+            label="Registration version"
+            mono
+            value={draft.version}
+            disabled={locked}
+            spellCheck={false}
+            placeholder="1.0.0"
+            error={issueAt(issues, 'version')}
+            hint="Defaults to the engine version."
+            onChange={event => patch({ version: event.target.value })}
+          />
         </div>
       </details>
     </div>

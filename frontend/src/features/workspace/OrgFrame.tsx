@@ -22,10 +22,19 @@ interface OrgFrameProps {
  * The frame of every screen of an organization's workspace: the band with the breadcrumb (and a title, when the screen has one) and
  * the content column. The content column is one live region, so a message that appears is read out.
  */
-export function OrgFrame({ organization, trail = [], header, width = 'wide', bodyClassName, children }: OrgFrameProps) {
+export function OrgFrame({
+  organization,
+  trail = [],
+  header,
+  width = 'wide',
+  bodyClassName,
+  children,
+}: OrgFrameProps) {
   const items: Crumb[] = [
     { label: 'Home', to: '/app' },
-    trail.length > 0 ? { label: organization.name, to: `/app/${organization.slug}` } : { label: organization.name },
+    trail.length > 0
+      ? { label: organization.name, to: `/app/${organization.slug}` }
+      : { label: organization.name },
     ...trail,
   ];
   return (
@@ -36,7 +45,12 @@ export function OrgFrame({ organization, trail = [], header, width = 'wide', bod
           {header}
         </div>
       </div>
-      <div className={`proj-body${bodyClassName ? ` ${bodyClassName}` : ''} is-${width}`} aria-live="polite">{children}</div>
+      <div
+        className={`proj-body${bodyClassName ? ` ${bodyClassName}` : ''} is-${width}`}
+        aria-live="polite"
+      >
+        {children}
+      </div>
     </div>
   );
 }
@@ -66,8 +80,16 @@ export function OrgGate({ failure, organizationName, onRetry }: OrgGateProps) {
   if (failure?.status === 403) {
     return (
       <div className="proj-body is-wide">
-        <Gate title={`Your role doesn’t reach this${marker(failure)}`} action={<Action to="/app" variant="primary">Back to Home</Action>}>
-          This needs a higher role in {organizationName ?? 'the organization'}. Ask one of its admins.
+        <Gate
+          title={`Your role doesn’t reach this${marker(failure)}`}
+          action={
+            <Action to="/app" variant="primary">
+              Back to Home
+            </Action>
+          }
+        >
+          This needs a higher role in {organizationName ?? 'the organization'}. Ask one of its
+          admins.
         </Gate>
       </div>
     );
@@ -77,12 +99,18 @@ export function OrgGate({ failure, organizationName, onRetry }: OrgGateProps) {
       <div className="proj-body is-wide">
         <Gate
           title={`The organization couldn’t be loaded${marker(failure)}`}
-          action={(
+          action={
             <>
-              {onRetry && <Action variant="primary" onClick={onRetry}>Try again</Action>}
-              <Action to="/app" variant="secondary">Back to Home</Action>
+              {onRetry && (
+                <Action variant="primary" onClick={onRetry}>
+                  Try again
+                </Action>
+              )}
+              <Action to="/app" variant="secondary">
+                Back to Home
+              </Action>
             </>
-          )}
+          }
         >
           {failure.kind === 'unavailable' || failure.kind === 'network'
             ? 'A service OpenBinding depends on didn’t answer. This says nothing about your access. Try again in a moment.'
@@ -93,8 +121,16 @@ export function OrgGate({ failure, organizationName, onRetry }: OrgGateProps) {
   }
   return (
     <div className="proj-body is-wide">
-      <Gate title="Organization not available" action={<Action to="/app" variant="primary">Back to Home</Action>}>
-        It doesn’t exist, or you’re not a member. We show the same message either way so organization names stay private.
+      <Gate
+        title="Organization not available"
+        action={
+          <Action to="/app" variant="primary">
+            Back to Home
+          </Action>
+        }
+      >
+        It doesn’t exist, or you’re not a member. We show the same message either way so
+        organization names stay private.
       </Gate>
     </div>
   );

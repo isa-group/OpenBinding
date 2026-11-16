@@ -51,21 +51,30 @@ describe('ViewSource', () => {
     expect(source).toBeVisible();
     expect(source).toHaveAttribute('data-language', 'json');
     expect(source.querySelector('pre code')?.textContent).toBe(JSON.stringify(value, null, 2));
-    expect(within(source).getByRole('button', { name: 'Copy Source document' })).toBeInTheDocument();
+    expect(
+      within(source).getByRole('button', { name: 'Copy Source document' })
+    ).toBeInTheDocument();
     expect(within(source).queryByRole('button', { name: /^Download/ })).not.toBeInTheDocument();
   });
 
   it('names the summary and the viewer after a custom label', () => {
-    const disclosure = open(<ViewSource value={{ openapi: '3.1.0' }} label="Submitted OpenAPI" />, 'Submitted OpenAPI');
+    const disclosure = open(
+      <ViewSource value={{ openapi: '3.1.0' }} label="Submitted OpenAPI" />,
+      'Submitted OpenAPI'
+    );
 
     expect(within(disclosure).getByRole('region', { name: 'Submitted OpenAPI' })).toBeVisible();
-    expect(within(disclosure).getByRole('button', { name: 'Copy Submitted OpenAPI' })).toBeInTheDocument();
+    expect(
+      within(disclosure).getByRole('button', { name: 'Copy Submitted OpenAPI' })
+    ).toBeInTheDocument();
   });
 
   it('names the viewer after sourceLabel and keeps the summary', () => {
     const disclosure = open(<ViewSource value={{ a: 1 }} sourceLabel="Engine manifest source" />);
 
-    expect(within(disclosure).getByRole('region', { name: 'Engine manifest source' })).toBeVisible();
+    expect(
+      within(disclosure).getByRole('region', { name: 'Engine manifest source' })
+    ).toBeVisible();
     expect(within(disclosure).getByText('View source').tagName).toBe('SUMMARY');
   });
 
@@ -77,7 +86,9 @@ describe('ViewSource', () => {
   ])('shows %s as text, not as a quoted JSON document', (_name, value, text) => {
     open(<ViewSource value={value} />);
 
-    expect(screen.getByRole('region', { name: 'Source document' }).querySelector('pre code')?.textContent).toBe(text);
+    expect(
+      screen.getByRole('region', { name: 'Source document' }).querySelector('pre code')?.textContent
+    ).toBe(text);
   });
 
   it('says Empty for an undefined value', () => {
@@ -94,13 +105,19 @@ describe('ViewSource', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Copy Source document' }));
 
     expect(writeText).toHaveBeenCalledWith(JSON.stringify({ k: 'v' }, null, 2));
-    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Source document copied'));
+    await waitFor(() =>
+      expect(screen.getByRole('status')).toHaveTextContent('Source document copied')
+    );
   });
 
   it('offers a Download under the given filename: an object as application/json, a string as text/plain', () => {
     open(<ViewSource value={{ kind: 'Engine' }} filename="engine.json" />);
     fireEvent.click(screen.getByRole('button', { name: 'Download Source document' }));
-    expect(saveText).toHaveBeenLastCalledWith(JSON.stringify({ kind: 'Engine' }, null, 2), 'engine.json', 'application/json');
+    expect(saveText).toHaveBeenLastCalledWith(
+      JSON.stringify({ kind: 'Engine' }, null, 2),
+      'engine.json',
+      'application/json'
+    );
   });
 
   it('downloads a string value as written, as text/plain', () => {

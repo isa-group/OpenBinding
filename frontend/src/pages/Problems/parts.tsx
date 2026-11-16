@@ -26,7 +26,15 @@ export function CaseFrame({ organization, trail, width = 'wide', children }: Cas
 }
 
 /** The case, or the revision, isn't there: one card with the way out. */
-export function CaseMissing({ title, children, actions }: { title: string; children?: ReactNode; actions: ReactNode }) {
+export function CaseMissing({
+  title,
+  children,
+  actions,
+}: {
+  title: string;
+  children?: ReactNode;
+  actions: ReactNode;
+}) {
   return (
     <Gate title={title} action={actions}>
       {children ?? ''}
@@ -39,19 +47,44 @@ export function ReadOnlyNote({ role, children }: { role: string | null; children
   return (
     <div className="proj-note is-info" role="note">
       <Lock aria-hidden="true" className="org-inline-icon" />
-      <span>{role ? <>You’re {role === 'VIEWER' ? 'a ' : 'an '}<strong>{role}</strong>. </> : null}{children}</span>
+      <span>
+        {role ? (
+          <>
+            You’re {role === 'VIEWER' ? 'a ' : 'an '}
+            <strong>{role}</strong>.{' '}
+          </>
+        ) : null}
+        {children}
+      </span>
     </div>
   );
 }
 
 /** A fingerprint named in words, with a button that copies the whole of it. */
-export function DigestLine({ digest, label, copyKey }: { digest: string; label: string; copyKey: string }) {
+export function DigestLine({
+  digest,
+  label,
+  copyKey,
+}: {
+  digest: string;
+  label: string;
+  copyKey: string;
+}) {
   const { copy, status } = useCopy();
   return (
     <span className="case-digest">
       <span>Recorded</span>
-      <button type="button" className="case-link-button" onClick={() => void copy(digest, copyKey)} aria-label={`Copy ${label} fingerprint`}>
-        {status(copyKey) === 'copied' ? 'Copied' : status(copyKey) === 'failed' ? 'Copy failed' : 'Copy digest'}
+      <button
+        type="button"
+        className="case-link-button"
+        onClick={() => void copy(digest, copyKey)}
+        aria-label={`Copy ${label} fingerprint`}
+      >
+        {status(copyKey) === 'copied'
+          ? 'Copied'
+          : status(copyKey) === 'failed'
+            ? 'Copy failed'
+            : 'Copy digest'}
       </button>
     </span>
   );

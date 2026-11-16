@@ -18,6 +18,6 @@ export interface RouteOrganization {
 export function useRouteOrganization(): RouteOrganization {
   const context = useOutletContext<PlatformOutletContext>();
   const { org: slug = '' } = useParams();
-  const organization = context.organizations.find((item) => item.slug === slug);
+  const organization = context.organizations.find(item => item.slug === slug);
   return { context, slug, organization, waiting: !organization && context.loading };
 }

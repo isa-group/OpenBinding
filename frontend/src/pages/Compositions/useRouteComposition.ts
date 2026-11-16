@@ -53,7 +53,7 @@ export function useRouteComposition(): RouteComposition {
         compositionsApi.allVersions(organization.slug, compositionSlug, { order: 'newest' }),
       ]);
       return { composition: read.value, etag: read.etag, versions };
-    },
+    }
   );
   const stale = content.stale;
   const previous = stale && stale.composition.slug === compositionSlug ? stale : undefined;

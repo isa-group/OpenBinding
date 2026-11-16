@@ -21,7 +21,15 @@ describe('pickRequestedVersion', () => {
     expect(pickRequestedVersion(versions, 'c0ffee02')).toBe(versions[0]);
     // Labels are not matched loosely.
     expect(pickRequestedVersion(versions, '1.0')).toBe(versions[0]);
-    expect(pickRequestedVersion([{ id: 'a1', version: 'Beta' }, { id: 'a2', version: 'beta' }], 'beta')?.id).toBe('a2');
+    expect(
+      pickRequestedVersion(
+        [
+          { id: 'a1', version: 'Beta' },
+          { id: 'a2', version: 'beta' },
+        ],
+        'beta'
+      )?.id
+    ).toBe('a2');
   });
 
   it('falls back to the first version when none is requested or none matches', () => {

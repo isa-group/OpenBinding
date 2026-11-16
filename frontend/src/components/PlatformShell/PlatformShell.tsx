@@ -43,25 +43,42 @@ export function PlatformShell() {
     }
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    void load();
+  }, [load]);
   // The organization the address names, once it is one of the account's: Home shows its recent runs.
   useEffect(() => {
-    if (org && organizations.some((item) => item.slug === org)) rememberOrganization(org);
+    if (org && organizations.some(item => item.slug === org)) rememberOrganization(org);
   }, [org, organizations]);
 
-  const organization = (org ? organizations.find((item) => item.slug === org) : null) ?? organizations[0];
-  const context = useMemo<PlatformOutletContext>(() => ({
-    organizations, organization, loading, reload: load,
-  }), [organizations, organization, loading, load]);
+  const organization =
+    (org ? organizations.find(item => item.slug === org) : null) ?? organizations[0];
+  const context = useMemo<PlatformOutletContext>(
+    () => ({
+      organizations,
+      organization,
+      loading,
+      reload: load,
+    }),
+    [organizations, organization, loading, load]
+  );
 
   return (
     <div className="platform-shell">
-      <a className="skip-link" href="#platform-main">Skip to workspace</a>
+      <a className="skip-link" href="#platform-main">
+        Skip to workspace
+      </a>
       <AppHeader organizations={organizations} organization={organization} />
       <main id="platform-main" className="platform-main" tabIndex={-1}>
-        {error && <div className="platform-error" role="alert">{error}</div>}
+        {error && (
+          <div className="platform-error" role="alert">
+            {error}
+          </div>
+        )}
         {/* A plan changed by signing in is told once, wherever the person lands; Identities tells it itself, where they link. */}
-        {location.pathname !== '/app/account/identities' && <PlanChangedNotice className="platform-plan-notice" />}
+        {location.pathname !== '/app/account/identities' && (
+          <PlanChangedNotice className="platform-plan-notice" />
+        )}
         <ErrorBoundary resetKey={location.pathname}>
           <Suspense fallback={<RouteFallback />}>
             <Outlet context={context} key={location.pathname} />

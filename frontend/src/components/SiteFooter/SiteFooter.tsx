@@ -32,15 +32,20 @@ export function SiteFooter() {
           <div className="site-footer-statement">
             <span className="micro-label">OpenBinding</span>
             <strong>Compositions you can define, evaluate and compare</strong>
-            <p>Define, version, evaluate, render and compare compositions; problems, written in BIM, say what was possible.</p>
+            <p>
+              Define, version, evaluate, render and compare compositions; problems, written in BIM,
+              say what was possible.
+            </p>
           </div>
 
           <nav className="site-footer-nav" aria-label="Footer navigation">
-            {columns.map((column) => (
+            {columns.map(column => (
               <section key={column.title}>
                 <span className="micro-label">{column.title}</span>
-                {column.links.map((link) => (
-                  <Link key={link.label} to={link.to} viewTransition>{link.label}</Link>
+                {column.links.map(link => (
+                  <Link key={link.label} to={link.to} viewTransition>
+                    {link.label}
+                  </Link>
                 ))}
               </section>
             ))}
@@ -49,10 +54,18 @@ export function SiteFooter() {
           <div className="site-footer-meta">
             <span>© {new Date().getFullYear()} OpenBinding</span>
             <div>
-              <a href="https://score.us.es" target="_blank" rel="noreferrer">SCORE Lab</a>
-              <a href="https://www.isa.us.es/3.0/" target="_blank" rel="noreferrer">ISA Group</a>
-              <a href="https://www.us.es" target="_blank" rel="noreferrer">Universidad de Sevilla</a>
-              <a href="https://github.com/isa-group/OpenBinding" target="_blank" rel="noreferrer">GitHub Source</a>
+              <a href="https://score.us.es" target="_blank" rel="noreferrer">
+                SCORE Lab
+              </a>
+              <a href="https://www.isa.us.es/3.0/" target="_blank" rel="noreferrer">
+                ISA Group
+              </a>
+              <a href="https://www.us.es" target="_blank" rel="noreferrer">
+                Universidad de Sevilla
+              </a>
+              <a href="https://github.com/isa-group/OpenBinding" target="_blank" rel="noreferrer">
+                GitHub Source
+              </a>
               <InstitutionMark variant="wide" className="site-footer-institution" />
             </div>
           </div>

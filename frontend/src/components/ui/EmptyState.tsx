@@ -15,7 +15,9 @@ interface EmptyStateProps {
 export function EmptyState({ icon, title, children, action, dashed = false }: EmptyStateProps) {
   return (
     <div className={`ui-empty${dashed ? ' is-dashed' : ''}`}>
-      <span className="ui-empty-icon" aria-hidden="true">{icon}</span>
+      <span className="ui-empty-icon" aria-hidden="true">
+        {icon}
+      </span>
       <strong>{title}</strong>
       {children && <span className="ui-empty-text">{children}</span>}
       {action}

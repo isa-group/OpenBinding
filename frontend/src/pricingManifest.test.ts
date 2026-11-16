@@ -95,12 +95,17 @@ describe('a pricing document drives the frontend model', () => {
     let changed = source.replaceAll(planId, renamedPlan);
     changed = changed.replace(
       'features:\n',
-      `features:\n  ${addedFeature}:\n    description: Added dynamically.\n    type: DOMAIN\n    valueType: BOOLEAN\n    defaultValue: true\n    expression: pricingContext['features']['${addedFeature}']\n`,
+      `features:\n  ${addedFeature}:\n    description: Added dynamically.\n    type: DOMAIN\n    valueType: BOOLEAN\n    defaultValue: true\n    expression: pricingContext['features']['${addedFeature}']\n`
     );
     changed = changed.replace('maxQuantity: 10', 'maxQuantity: 9');
     const changedLimit = Number(original.usageLimits?.[limitId]?.defaultValue) + 1;
-    const limitBlock = new RegExp(`(  ${limitId}:\\n(?:(?!  [A-Za-z]).*\\n)*?    defaultValue: )[^\\n]+`);
-    changed = changed.replace(limitBlock, (_match: string, prefix: string) => `${prefix}${changedLimit}`);
+    const limitBlock = new RegExp(
+      `(  ${limitId}:\\n(?:(?!  [A-Za-z]).*\\n)*?    defaultValue: )[^\\n]+`
+    );
+    changed = changed.replace(
+      limitBlock,
+      (_match: string, prefix: string) => `${prefix}${changedLimit}`
+    );
     const pricing = retrievePricingFromYaml(changed);
 
     expect(pricing.plans?.[renamedPlan]).toBeDefined();

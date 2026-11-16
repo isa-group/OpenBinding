@@ -11,7 +11,12 @@ import {
 const SEALED = '2026-08-20T09:30:00Z';
 const PV = { name: 'checkout-flow', version: 3, sealedAt: SEALED };
 const ENGINE = { name: 'minizinc-csp', version: '1.1.1', mode: 'exact' };
-const RUN = { number: 14, problem: { name: 'checkout-flow', version: 3 }, engine: ENGINE, createdAt: '2026-10-21T16:05:00Z' };
+const RUN = {
+  number: 14,
+  problem: { name: 'checkout-flow', version: 3 },
+  engine: ENGINE,
+  createdAt: '2026-10-21T16:05:00Z',
+};
 const STUDY_RUN = { study: 'engines-vs-suite', number: 3, createdAt: '2026-10-21T08:00:00Z' };
 const PUBLISHED = { title: 'Engines versus the ICWS suite', publishedAt: '2026-10-22T12:00:00Z' };
 const STUDY_VERSION = { name: 'engines-vs-suite', version: 2 };
@@ -22,7 +27,11 @@ const HEX_40 = 'e'.repeat(40);
 const HEX_64 = '0'.repeat(64);
 const UUID_VALUE = '3f2b9c1e-8a4d-4f6b-9c2e-1a2b3c4d5e6f';
 
-const SHAPES = [/sha256-/i, /[0-9a-f]{40}/i, /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i];
+const SHAPES = [
+  /sha256-/i,
+  /[0-9a-f]{40}/i,
+  /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i,
+];
 
 describe('identity labels', () => {
   it('problem version', () => {
@@ -34,14 +43,19 @@ describe('identity labels', () => {
   });
 
   it('run, study run, published result and engine', () => {
-    expect(runLabel(RUN)).toBe('run 14 of checkout-flow v3 · minizinc-csp 1.1.1 exact · 21 Oct 2026');
+    expect(runLabel(RUN)).toBe(
+      'run 14 of checkout-flow v3 · minizinc-csp 1.1.1 exact · 21 Oct 2026'
+    );
     expect(studyRunLabel(STUDY_RUN)).toBe('engines-vs-suite run 3 · 21 Oct 2026');
-    expect(publishedResultLabel(PUBLISHED)).toBe('Engines versus the ICWS suite · published 22 Oct 2026');
+    expect(publishedResultLabel(PUBLISHED)).toBe(
+      'Engines versus the ICWS suite · published 22 Oct 2026'
+    );
     expect(engineLabel(ENGINE)).toBe('minizinc-csp 1.1.1 · mode exact');
   });
 
   it('dates are UTC with fixed month names and no leading zero', () => {
-    const at = (sealedAt: string) => problemVersionLabel({ name: 'checkout-flow', version: 3, sealedAt });
+    const at = (sealedAt: string) =>
+      problemVersionLabel({ name: 'checkout-flow', version: 3, sealedAt });
     expect(at('2026-09-01T23:30:00-02:00')).toBe('checkout-flow v3 · sealed 2 Sep 2026');
     expect(at('2026-12-05T00:00:00Z')).toBe('checkout-flow v3 · sealed 5 Dec 2026');
     expect(at('soon')).toBe('checkout-flow v3');
@@ -51,7 +65,9 @@ describe('identity labels', () => {
 
   it('drops missing parts of a problem version', () => {
     expect(problemVersionLabel({ ...PV, sealedAt: undefined })).toBe('checkout-flow v3');
-    expect(problemVersionLabel({ ...PV, version: null })).toBe('checkout-flow · sealed 20 Aug 2026');
+    expect(problemVersionLabel({ ...PV, version: null })).toBe(
+      'checkout-flow · sealed 20 Aug 2026'
+    );
     expect(problemVersionLabel({ ...PV, name: '  ' })).toBe('problem v3 · sealed 20 Aug 2026');
     expect(problemVersionLabel({ ...PV, version: 0 })).toBe('checkout-flow · sealed 20 Aug 2026');
     expect(problemVersionLabel({})).toBe('problem version');
@@ -61,14 +77,24 @@ describe('identity labels', () => {
   it('drops missing parts of the other labels', () => {
     expect(studyVersionLabel({ ...STUDY_VERSION, version: undefined })).toBe('engines-vs-suite');
     expect(studyVersionLabel({})).toBe('study version');
-    expect(runLabel({ ...RUN, number: undefined })).toBe('run of checkout-flow v3 · minizinc-csp 1.1.1 exact · 21 Oct 2026');
-    expect(runLabel({ ...RUN, problem: undefined, engine: { ...ENGINE, mode: undefined } })).toBe('run 14 · minizinc-csp 1.1.1 · 21 Oct 2026');
+    expect(runLabel({ ...RUN, number: undefined })).toBe(
+      'run of checkout-flow v3 · minizinc-csp 1.1.1 exact · 21 Oct 2026'
+    );
+    expect(runLabel({ ...RUN, problem: undefined, engine: { ...ENGINE, mode: undefined } })).toBe(
+      'run 14 · minizinc-csp 1.1.1 · 21 Oct 2026'
+    );
     expect(runLabel({})).toBe('run');
     expect(studyRunLabel({ ...STUDY_RUN, study: undefined })).toBe('study run 3 · 21 Oct 2026');
-    expect(studyRunLabel({ ...STUDY_RUN, number: undefined })).toBe('engines-vs-suite run · 21 Oct 2026');
+    expect(studyRunLabel({ ...STUDY_RUN, number: undefined })).toBe(
+      'engines-vs-suite run · 21 Oct 2026'
+    );
     expect(studyRunLabel({})).toBe('study run');
-    expect(publishedResultLabel({ ...PUBLISHED, publishedAt: undefined })).toBe('Engines versus the ICWS suite');
-    expect(publishedResultLabel({ ...PUBLISHED, title: undefined })).toBe('published result · published 22 Oct 2026');
+    expect(publishedResultLabel({ ...PUBLISHED, publishedAt: undefined })).toBe(
+      'Engines versus the ICWS suite'
+    );
+    expect(publishedResultLabel({ ...PUBLISHED, title: undefined })).toBe(
+      'published result · published 22 Oct 2026'
+    );
     expect(publishedResultLabel({})).toBe('published result');
     expect(engineLabel({ ...ENGINE, mode: undefined })).toBe('minizinc-csp 1.1.1');
     expect(engineLabel({ ...ENGINE, name: undefined })).toBe('engine 1.1.1 · mode exact');
@@ -76,9 +102,13 @@ describe('identity labels', () => {
   });
 
   it('treats an identifier-shaped value as missing, as a whole', () => {
-    expect(problemVersionLabel({ ...PV, name: UUID_VALUE })).toBe('problem v3 · sealed 20 Aug 2026');
+    expect(problemVersionLabel({ ...PV, name: UUID_VALUE })).toBe(
+      'problem v3 · sealed 20 Aug 2026'
+    );
     expect(engineLabel({ ...ENGINE, version: FULL_DIGEST })).toBe('minizinc-csp · mode exact');
-    expect(publishedResultLabel({ ...PUBLISHED, title: `Edition ${'e5f6'.repeat(10)}` })).toBe('published result · published 22 Oct 2026');
+    expect(publishedResultLabel({ ...PUBLISHED, title: `Edition ${'e5f6'.repeat(10)}` })).toBe(
+      'published result · published 22 Oct 2026'
+    );
     expect(studyRunLabel({ ...STUDY_RUN, study: SHORT_DIGEST })).toBe('study run 3 · 21 Oct 2026');
   });
 
@@ -99,38 +129,65 @@ describe('identity labels', () => {
   });
 
   it('never carries an identifier and is never empty, for a table of values', () => {
-    const texts: Array<string | undefined> = ['valid', undefined, FULL_DIGEST, SHORT_DIGEST, HEX_40, HEX_64, UUID_VALUE];
+    const texts: Array<string | undefined> = [
+      'valid',
+      undefined,
+      FULL_DIGEST,
+      SHORT_DIGEST,
+      HEX_40,
+      HEX_64,
+      UUID_VALUE,
+    ];
     const numbers: Array<number | undefined> = [3, undefined, 0, -1];
     const dates: Array<string | undefined> = ['2026-08-20T09:30:00Z', undefined, 'soon'];
     let calls = 0;
     const bad: string[] = [];
     const check = (result: string) => {
       calls += 1;
-      if (result === '' || SHAPES.some((shape) => shape.test(result))) bad.push(result);
+      if (result === '' || SHAPES.some(shape => shape.test(result))) bad.push(result);
     };
-    for (const a of texts) for (const n of numbers) for (const d of dates) {
-      check(problemVersionLabel({ name: a, version: n, sealedAt: d }));
-      check(studyVersionLabel({ name: a, version: n }));
-      check(studyRunLabel({ study: a, number: n, createdAt: d }));
-      check(publishedResultLabel({ title: a, publishedAt: d }));
-      for (const v of texts) for (const m of texts) check(engineLabel({ name: a, version: v, mode: m }));
-    }
-    for (const pn of texts) for (const ev of texts) for (const en of texts) for (const em of texts) {
-      for (const number of numbers) for (const pv of numbers) for (const d of dates) {
-        check(runLabel({ number, problem: { name: pn, version: pv }, engine: { name: en, version: ev, mode: em }, createdAt: d }));
-      }
-    }
+    for (const a of texts)
+      for (const n of numbers)
+        for (const d of dates) {
+          check(problemVersionLabel({ name: a, version: n, sealedAt: d }));
+          check(studyVersionLabel({ name: a, version: n }));
+          check(studyRunLabel({ study: a, number: n, createdAt: d }));
+          check(publishedResultLabel({ title: a, publishedAt: d }));
+          for (const v of texts)
+            for (const m of texts) check(engineLabel({ name: a, version: v, mode: m }));
+        }
+    for (const pn of texts)
+      for (const ev of texts)
+        for (const en of texts)
+          for (const em of texts) {
+            for (const number of numbers)
+              for (const pv of numbers)
+                for (const d of dates) {
+                  check(
+                    runLabel({
+                      number,
+                      problem: { name: pn, version: pv },
+                      engine: { name: en, version: ev, mode: em },
+                      createdAt: d,
+                    })
+                  );
+                }
+          }
     expect(calls).toBeGreaterThan(115_000);
     expect(bad).toEqual([]);
   });
 
   it('reads a date-time without an offset as UTC', () => {
-    expect(problemVersionLabel({ name: 'p', version: 1, sealedAt: '2026-08-20T23:30:00' })).toBe('p v1 · sealed 20 Aug 2026');
-    expect(problemVersionLabel({ name: 'p', version: 1, sealedAt: '2026-08-20' })).toBe('p v1 · sealed 20 Aug 2026');
+    expect(problemVersionLabel({ name: 'p', version: 1, sealedAt: '2026-08-20T23:30:00' })).toBe(
+      'p v1 · sealed 20 Aug 2026'
+    );
+    expect(problemVersionLabel({ name: 'p', version: 1, sealedAt: '2026-08-20' })).toBe(
+      'p v1 · sealed 20 Aug 2026'
+    );
   });
 });
 
-describe.each(['Pacific/Kiritimati', 'America/Los_Angeles'])('dates in the %s time zone', (zone) => {
+describe.each(['Pacific/Kiritimati', 'America/Los_Angeles'])('dates in the %s time zone', zone => {
   const originalTz = process.env.TZ;
   beforeAll(() => {
     process.env.TZ = zone;

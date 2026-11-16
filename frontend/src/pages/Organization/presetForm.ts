@@ -33,30 +33,57 @@ export interface EngineOption {
 }
 
 /** `name:random-search` for a built-in name, `namespace/name@version#digest` for an exact engine. */
-export const engineKeyOf = (engine: RunPresetView['engine']): string => (
-  typeof engine === 'string' ? `name:${engine}` : `${engine.namespace}/${engine.name}@${engine.version}#${engine.digest}`
-);
+export const engineKeyOf = (engine: RunPresetView['engine']): string =>
+  typeof engine === 'string'
+    ? `name:${engine}`
+    : `${engine.namespace}/${engine.name}@${engine.version}#${engine.digest}`;
 
 function modeOption(mode: EngineCatalogEntry['modes'][number]): ModeOption {
-  const declared = isRecord(mode.capabilities) ? (mode.capabilities as unknown as Record<string, unknown>).scalarizations : undefined;
-  const values = isRecord(declared) && Array.isArray(declared.values) ? declared.values.filter(isRecord) : [];
+  const declared = isRecord(mode.capabilities)
+    ? (mode.capabilities as unknown as Record<string, unknown>).scalarizations
+    : undefined;
+  const values =
+    isRecord(declared) && Array.isArray(declared.values) ? declared.values.filter(isRecord) : [];
   return {
     id: mode.id,
     options: Object.keys(mode.optionsSchema?.properties ?? {}),
     scalarizations: values
-      .filter((item) => typeof item.id === 'string')
-      .map((item) => ({ id: item.id as string, types: Array.isArray(item.objectiveTypes) ? item.objectiveTypes.filter((type): type is string => typeof type === 'string') : [] })),
+      .filter(item => typeof item.id === 'string')
+      .map(item => ({
+        id: item.id as string,
+        types: Array.isArray(item.objectiveTypes)
+          ? item.objectiveTypes.filter((type): type is string => typeof type === 'string')
+          : [],
+      })),
   };
 }
 
 /** Every exact engine of the catalog with its modes, and the engine a preset already names when the catalog does not list it. */
-export function engineOptions(catalog: readonly EngineCatalogEntry[], current?: RunPresetView['engine']): EngineOption[] {
+export function engineOptions(
+  catalog: readonly EngineCatalogEntry[],
+  current?: RunPresetView['engine']
+): EngineOption[] {
   const options = catalog.map((entry): EngineOption => {
-    const engine = { namespace: entry.namespace, name: entry.name, version: entry.version, digest: entry.digest };
-    return { key: engineKeyOf(engine), label: `${entry.name} ${entry.version} · ${entry.namespace}`, engine, modes: entry.modes.map(modeOption) };
+    const engine = {
+      namespace: entry.namespace,
+      name: entry.name,
+      version: entry.version,
+      digest: entry.digest,
+    };
+    return {
+      key: engineKeyOf(engine),
+      label: `${entry.name} ${entry.version} · ${entry.namespace}`,
+      engine,
+      modes: entry.modes.map(modeOption),
+    };
   });
-  if (current !== undefined && !options.some((option) => option.key === engineKeyOf(current))) {
-    options.unshift({ key: engineKeyOf(current), label: `${presetEngineLabel(current)} (as the preset names it)`, engine: current, modes: [] });
+  if (current !== undefined && !options.some(option => option.key === engineKeyOf(current))) {
+    options.unshift({
+      key: engineKeyOf(current),
+      label: `${presetEngineLabel(current)} (as the preset names it)`,
+      engine: current,
+      modes: [],
+    });
   }
   return options;
 }
@@ -79,16 +106,25 @@ export interface PresetDraft {
 /** The form filled with a preset, or empty for a new one. Weights an optimization carries are kept as they are. */
 export function draftOf(preset: RunPresetView | null): PresetDraft {
   const optimization = isRecord(preset?.optimization) ? preset.optimization : null;
-  const type = optimization && OPTIMIZATION_TYPES.includes(optimization.type as OptimizationType) ? optimization.type as OptimizationType : '';
+  const type =
+    optimization && OPTIMIZATION_TYPES.includes(optimization.type as OptimizationType)
+      ? (optimization.type as OptimizationType)
+      : '';
   return {
     name: preset?.name ?? '',
     slug: preset ? preset.slug : null,
     description: preset?.description ?? '',
     engineKey: preset ? engineKeyOf(preset.engine) : '',
     mode: preset?.mode ?? '',
-    options: preset && Object.keys(preset.options).length > 0 ? JSON.stringify(preset.options, null, 2) : '',
+    options:
+      preset && Object.keys(preset.options).length > 0
+        ? JSON.stringify(preset.options, null, 2)
+        : '',
     optimizationType: type,
-    scalarization: optimization && typeof optimization.scalarization === 'string' ? optimization.scalarization : '',
+    scalarization:
+      optimization && typeof optimization.scalarization === 'string'
+        ? optimization.scalarization
+        : '',
   };
 }
 
@@ -103,11 +139,15 @@ export interface DraftReading {
 }
 
 /** The settings a draft stands for, or what is wrong with each field. `weights` of the preset being edited are kept. */
-export function readDraft(draft: PresetDraft, engines: readonly EngineOption[], kept: RunPresetView | null = null): DraftReading {
+export function readDraft(
+  draft: PresetDraft,
+  engines: readonly EngineOption[],
+  kept: RunPresetView | null = null
+): DraftReading {
   const errors: DraftReading['errors'] = {};
   if (!draft.name.trim()) errors.name = 'Give the preset a name.';
   if (!SLUG_PATTERN.test(draftSlug(draft))) errors.slug = 'Lowercase letters, numbers and hyphens.';
-  const engine = engines.find((option) => option.key === draft.engineKey);
+  const engine = engines.find(option => option.key === draft.engineKey);
   if (!engine) errors.engine = 'Choose the engine the preset runs.';
   let options: Record<string, unknown> = {};
   if (draft.options.trim()) {
@@ -121,11 +161,21 @@ export function readDraft(draft: PresetDraft, engines: readonly EngineOption[], 
   }
   let optimization: PresetOptimization | null = null;
   if (draft.optimizationType) {
-    if (!draft.scalarization.trim()) errors.optimization = 'Name the scalarization, or leave the optimization to the run.';
-    const weights = isRecord(kept?.optimization) && Array.isArray(kept.optimization.weights)
-      ? { weights: kept.optimization.weights as PresetOptimization['weights'] } : {};
-    optimization = { type: draft.optimizationType, scalarization: draft.scalarization.trim(), ...weights };
+    if (!draft.scalarization.trim())
+      errors.optimization = 'Name the scalarization, or leave the optimization to the run.';
+    const weights =
+      isRecord(kept?.optimization) && Array.isArray(kept.optimization.weights)
+        ? { weights: kept.optimization.weights as PresetOptimization['weights'] }
+        : {};
+    optimization = {
+      type: draft.optimizationType,
+      scalarization: draft.scalarization.trim(),
+      ...weights,
+    };
   }
   if (Object.keys(errors).length > 0 || !engine) return { settings: null, errors };
-  return { settings: { engine: engine.engine, mode: draft.mode || null, options, optimization }, errors };
+  return {
+    settings: { engine: engine.engine, mode: draft.mode || null, options, optimization },
+    errors,
+  };
 }

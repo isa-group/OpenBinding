@@ -85,7 +85,10 @@ export function CodeEditor({
   const linted = diagnostics !== undefined;
 
   const extensions = useMemo(() => {
-    const list: Extension[] = [EditorView.lineWrapping, EditorView.contentAttributes.of({ 'aria-label': ariaLabel })];
+    const list: Extension[] = [
+      EditorView.lineWrapping,
+      EditorView.contentAttributes.of({ 'aria-label': ariaLabel }),
+    ];
     if (language === 'json') list.push(json());
     if (language === 'yaml') list.push(yaml());
     if (language === 'xml') list.push(xml());
@@ -98,7 +101,9 @@ export function CodeEditor({
 
   // One change handler for the editor's life: a new function from the screen must not reconfigure the editor.
   const changeRef = useRef(onChange);
-  useEffect(() => { changeRef.current = onChange; }, [onChange]);
+  useEffect(() => {
+    changeRef.current = onChange;
+  }, [onChange]);
   const change = useCallback((next: string) => changeRef.current(next), []);
 
   // The cursor follows `selection` without a remount; only a change after the first placement takes the focus with it.
@@ -107,7 +112,10 @@ export function CodeEditor({
     if (!view || !selection) return;
     const length = view.state.doc.length;
     const anchor = clamp(selection.anchor, length);
-    view.dispatch({ selection: { anchor, head: clamp(selection.head ?? selection.anchor, length) }, scrollIntoView: true });
+    view.dispatch({
+      selection: { anchor, head: clamp(selection.head ?? selection.anchor, length) },
+      scrollIntoView: true,
+    });
     if (placed.current) view.focus();
     placed.current = true;
   }, [view, selection]);

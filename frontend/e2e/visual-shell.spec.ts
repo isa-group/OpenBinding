@@ -5,33 +5,70 @@ import { expect, test, type Page } from '@playwright/test';
 const API = 'http://localhost:8000';
 
 const personas = {
-  user: { id: 'shell-user-id', username: 'lucia', email: 'lucia@example.org', role: 'user', is_active: true, plan: 'FREE', created_at: '2026-09-01T00:00:00Z' },
-  research: { id: 'shell-research-id', username: 'ana', email: 'ana@example.org', role: 'user', is_active: true, plan: 'RESEARCH', created_at: '2026-09-01T00:00:00Z' },
+  user: {
+    id: 'shell-user-id',
+    username: 'lucia',
+    email: 'lucia@example.org',
+    role: 'user',
+    is_active: true,
+    plan: 'FREE',
+    created_at: '2026-09-01T00:00:00Z',
+  },
+  research: {
+    id: 'shell-research-id',
+    username: 'ana',
+    email: 'ana@example.org',
+    role: 'user',
+    is_active: true,
+    plan: 'RESEARCH',
+    created_at: '2026-09-01T00:00:00Z',
+  },
 } as const;
 
 const organization = {
-  id: 'org-1', slug: 'isa-demo', name: 'ISA Demo Group', parent_id: null, effective_role: 'OWNER', created_at: '2026-09-01T00:00:00Z',
+  id: 'org-1',
+  slug: 'isa-demo',
+  name: 'ISA Demo Group',
+  parent_id: null,
+  effective_role: 'OWNER',
+  created_at: '2026-09-01T00:00:00Z',
 };
 
 const notifications = [
   {
-    id: 'n1', kind: 'agreement', subject: 'Your OpenBinding agreement changed', body: 'Plan: FREE → RESEARCH. Reason: institutional_agreement.',
-    payload: {}, read_at: null, created_at: new Date().toISOString(),
+    id: 'n1',
+    kind: 'agreement',
+    subject: 'Your OpenBinding agreement changed',
+    body: 'Plan: FREE → RESEARCH. Reason: institutional_agreement.',
+    payload: {},
+    read_at: null,
+    created_at: new Date().toISOString(),
   },
   {
-    id: 'n2', kind: 'job', subject: 'Job completed', body: 'Job 0000…f1 finished with FEASIBLE.',
-    payload: {}, read_at: new Date().toISOString(), created_at: new Date(Date.now() - 86_400_000).toISOString(),
+    id: 'n2',
+    kind: 'job',
+    subject: 'Job completed',
+    body: 'Job 0000…f1 finished with FEASIBLE.',
+    payload: {},
+    read_at: new Date().toISOString(),
+    created_at: new Date(Date.now() - 86_400_000).toISOString(),
   },
 ];
 
 /** Answers what the application shell loads; everything else on the API origin gets an empty 404. */
 async function signIn(page: Page, persona: keyof typeof personas) {
-  await page.addInitScript(() => localStorage.setItem('openbinding-access-token', 'visual-shell-token'));
-  await page.route(`${API}/**`, (route) => route.fulfill({ status: 404, json: { detail: 'not mocked' } }));
-  await page.route(`${API}/v1/users/me`, (route) => route.fulfill({ json: personas[persona] }));
-  await page.route(`${API}/v1/users/me/pricing-token`, (route) => route.fulfill({ json: { pricing_token: 'visual-token' } }));
-  await page.route(`${API}/v1/organizations`, (route) => route.fulfill({ json: [organization] }));
-  await page.route(`${API}/v1/notifications**`, (route) => route.fulfill({ json: notifications }));
+  await page.addInitScript(() =>
+    localStorage.setItem('openbinding-access-token', 'visual-shell-token')
+  );
+  await page.route(`${API}/**`, route =>
+    route.fulfill({ status: 404, json: { detail: 'not mocked' } })
+  );
+  await page.route(`${API}/v1/users/me`, route => route.fulfill({ json: personas[persona] }));
+  await page.route(`${API}/v1/users/me/pricing-token`, route =>
+    route.fulfill({ json: { pricing_token: 'visual-token' } })
+  );
+  await page.route(`${API}/v1/organizations`, route => route.fulfill({ json: [organization] }));
+  await page.route(`${API}/v1/notifications**`, route => route.fulfill({ json: notifications }));
 }
 
 async function openWorkspace(page: Page) {
@@ -46,7 +83,12 @@ async function openWorkspace(page: Page) {
 test.setTimeout(90_000);
 
 const viewports = [
-  { name: 'desktop', viewport: { width: 1440, height: 900 }, isMobile: false, deviceScaleFactor: 1 },
+  {
+    name: 'desktop',
+    viewport: { width: 1440, height: 900 },
+    isMobile: false,
+    deviceScaleFactor: 1,
+  },
   { name: 'mobile', viewport: { width: 390, height: 844 }, isMobile: true, deviceScaleFactor: 2 },
 ] as const;
 
@@ -60,10 +102,17 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         await openWorkspace(page);
 
         const header = page.locator('header.app-header');
-        const shot = (label: string) => page.screenshot({ path: testInfo.outputPath(`${label}-${name}-${persona}.png`), animations: 'disabled' });
+        const shot = (label: string) =>
+          page.screenshot({
+            path: testInfo.outputPath(`${label}-${name}-${persona}.png`),
+            animations: 'disabled',
+          });
 
         // Brand, co-brand and no horizontal overflow.
-        await expect(header.getByRole('link', { name: 'OpenBinding home' })).toHaveAttribute('href', '/app');
+        await expect(header.getByRole('link', { name: 'OpenBinding home' })).toHaveAttribute(
+          'href',
+          '/app'
+        );
         const mark = header.getByRole('img', { name: 'Universidad de Sevilla' });
         if (persona === 'research') {
           await expect(mark).toBeVisible();
@@ -74,8 +123,13 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         } else {
           await expect(mark).toHaveCount(0);
         }
-        expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
-        await header.screenshot({ path: testInfo.outputPath(`header-${name}-${persona}.png`), animations: 'disabled' });
+        expect(
+          await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
+        ).toBeLessThanOrEqual(1);
+        await header.screenshot({
+          path: testInfo.outputPath(`header-${name}-${persona}.png`),
+          animations: 'disabled',
+        });
 
         if (isMobile) {
           await expect(header.getByRole('navigation', { name: 'Main' })).toBeHidden();
@@ -84,18 +138,44 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
           const toggle = header.getByRole('button', { name: 'Open menu' });
           await toggle.click();
           const menu = header.getByRole('navigation', { name: 'Mobile navigation' });
-          for (const label of ['Home', 'Problems', 'Runs', 'Studies', 'Engines', 'Problem', 'Study', 'Run']) {
-            await expect(menu.getByRole('link', { name: label, exact: true }).first(), label).toBeVisible();
+          for (const label of [
+            'Home',
+            'Problems',
+            'Runs',
+            'Studies',
+            'Engines',
+            'Problem',
+            'Study',
+            'Run',
+          ]) {
+            await expect(
+              menu.getByRole('link', { name: label, exact: true }).first(),
+              label
+            ).toBeVisible();
           }
-          for (const label of ['Language', 'Jobs', 'Explore', 'Verifier', 'Engine catalog', 'Organization', 'API key']) {
-            await expect(menu.getByRole('link', { name: label, exact: true }), label).toHaveCount(0);
+          for (const label of [
+            'Language',
+            'Jobs',
+            'Explore',
+            'Verifier',
+            'Engine catalog',
+            'Organization',
+            'API key',
+          ]) {
+            await expect(menu.getByRole('link', { name: label, exact: true }), label).toHaveCount(
+              0
+            );
           }
           await expect(menu.getByRole('link', { name: 'Admin', exact: true })).toHaveCount(0);
           await expect(menu.getByRole('link', { name: 'Analysis', exact: true })).toHaveCount(0);
-          if (persona === 'research') await expect(menu.getByRole('img', { name: 'Universidad de Sevilla' })).toHaveAttribute('src', '/brands/universidad-sevilla.svg');
+          if (persona === 'research')
+            await expect(menu.getByRole('img', { name: 'Universidad de Sevilla' })).toHaveAttribute(
+              'src',
+              '/brands/universidad-sevilla.svg'
+            );
           await shot('menu-open');
           // Scrolled to the end so the lower groups are on record too.
-          await menu.evaluate((element) => element.scrollTo(0, element.scrollHeight));
+          await menu.evaluate(element => element.scrollTo(0, element.scrollHeight));
           await shot('menu-open-end');
 
           await page.keyboard.press('Escape');
@@ -109,16 +189,38 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
           const nav = header.getByRole('navigation', { name: 'Main' });
           await expect(nav.getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/app');
           // The studies of the organization mark Studies, not Home.
-          await expect(nav.getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current', 'page');
-          await expect(nav.getByRole('link', { name: 'Studies' })).toHaveAttribute('aria-current', 'page');
-          await expect(nav.getByRole('link', { name: 'Problems' })).toHaveAttribute('href', '/app/isa-demo/problems');
-          await expect(nav.getByRole('link', { name: 'Runs' })).toHaveAttribute('href', '/app/isa-demo/runs');
-          await expect(nav.getByRole('link', { name: 'Studies' })).toHaveAttribute('href', '/app/isa-demo/studies');
-          await expect(nav.getByRole('link', { name: 'Engines' })).toHaveAttribute('href', '/engines');
-          for (const label of ['Language', 'Jobs', 'Analysis', 'Explore', 'Admin']) await expect(nav.getByRole('link', { name: label })).toHaveCount(0);
+          await expect(nav.getByRole('link', { name: 'Home' })).not.toHaveAttribute(
+            'aria-current',
+            'page'
+          );
+          await expect(nav.getByRole('link', { name: 'Studies' })).toHaveAttribute(
+            'aria-current',
+            'page'
+          );
+          await expect(nav.getByRole('link', { name: 'Problems' })).toHaveAttribute(
+            'href',
+            '/app/isa-demo/problems'
+          );
+          await expect(nav.getByRole('link', { name: 'Runs' })).toHaveAttribute(
+            'href',
+            '/app/isa-demo/runs'
+          );
+          await expect(nav.getByRole('link', { name: 'Studies' })).toHaveAttribute(
+            'href',
+            '/app/isa-demo/studies'
+          );
+          await expect(nav.getByRole('link', { name: 'Engines' })).toHaveAttribute(
+            'href',
+            '/engines'
+          );
+          for (const label of ['Language', 'Jobs', 'Analysis', 'Explore', 'Admin'])
+            await expect(nav.getByRole('link', { name: label })).toHaveCount(0);
           await expect(nav.getByRole('button', { name: /Tools/ })).toHaveCount(0);
           await expect(nav.getByRole('button', { name: /^Lab/ })).toHaveCount(0);
-          await expect(header.getByRole('link', { name: 'ISA Demo Group' })).toHaveAttribute('href', '/app');
+          await expect(header.getByRole('link', { name: 'ISA Demo Group' })).toHaveAttribute(
+            'href',
+            '/app'
+          );
           await expect(header.getByRole('button', { name: 'Open menu' })).toBeHidden();
 
           // New.
@@ -127,7 +229,10 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
           await page.keyboard.press('Enter');
           await expect(create).toHaveAttribute('aria-expanded', 'true');
           for (const label of ['Composition', 'Problem', 'Study', 'Run']) {
-            await expect(header.locator('#app-new-menu').getByRole('link', { name: label, exact: true }), label).toBeVisible();
+            await expect(
+              header.locator('#app-new-menu').getByRole('link', { name: label, exact: true }),
+              label
+            ).toBeVisible();
           }
           await expect(header.locator('#app-new-menu').getByRole('link')).toHaveCount(4);
           await shot('menu-new');
@@ -138,10 +243,15 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
           const account = header.getByRole('button', { name: 'Account menu' });
           await account.click();
           const accountMenu = header.locator('#app-account-menu');
-          await expect(accountMenu.getByRole('link', { name: 'Plan', exact: true })).toHaveAttribute('href', '/app/account/usage');
+          await expect(
+            accountMenu.getByRole('link', { name: 'Plan', exact: true })
+          ).toHaveAttribute('href', '/app/account/usage');
           await expect(accountMenu.getByRole('button', { name: 'Sign out' })).toBeVisible();
           await expect(accountMenu.getByRole('link', { name: 'Administration' })).toHaveCount(0);
-          if (persona === 'research') await expect(accountMenu.getByText('Universidad de Sevilla · Institutional account')).toBeVisible();
+          if (persona === 'research')
+            await expect(
+              accountMenu.getByText('Universidad de Sevilla · Institutional account')
+            ).toBeVisible();
           else await expect(accountMenu.getByText(/Institutional account/)).toHaveCount(0);
           await shot('menu-account');
           await page.keyboard.press('Escape');
@@ -158,10 +268,14 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         await expect(search).toBeFocused();
         await shot('palette');
         await search.fill('isa');
-        await expect(page.getByRole('dialog').getByRole('link', { name: /^ISA Demo Group/ })).toBeVisible();
+        await expect(
+          page.getByRole('dialog').getByRole('link', { name: /^ISA Demo Group/ })
+        ).toBeVisible();
         await shot('palette-filtered');
         await search.fill('zzzz-nothing');
-        await expect(page.getByText('Search only covers data already loaded on this device.')).toBeVisible();
+        await expect(
+          page.getByText('Search only covers data already loaded on this device.')
+        ).toBeVisible();
         await shot('palette-empty');
         await page.keyboard.press('Escape');
         await expect(page.getByRole('dialog', { name: 'Command palette' })).toBeHidden();
@@ -172,7 +286,10 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         const panel = page.getByRole('dialog', { name: 'Notifications panel' });
         await expect(panel).toBeVisible();
         await expect(panel.getByText('Your OpenBinding agreement changed')).toBeVisible();
-        await expect(panel.getByRole('link', { name: 'View all notifications' })).toHaveAttribute('href', '/app/account/notifications');
+        await expect(panel.getByRole('link', { name: 'View all notifications' })).toHaveAttribute(
+          'href',
+          '/app/account/notifications'
+        );
         const panelBox = await panel.boundingBox();
         expect(panelBox?.x).toBeGreaterThanOrEqual(0);
         expect((panelBox?.x ?? 0) + (panelBox?.width ?? 0)).toBeLessThanOrEqual(viewport.width + 1);

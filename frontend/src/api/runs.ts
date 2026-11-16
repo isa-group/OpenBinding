@@ -1,6 +1,12 @@
 import type { ImmutableResourceRef, NeighborhoodResponse } from '../shared/api/types';
 import { apiClient } from './client';
-import type { Job, JobCompilationRef, JobOrganizationRef, JobProblemRef, JobRevisionRef } from './platform';
+import type {
+  Job,
+  JobCompilationRef,
+  JobOrganizationRef,
+  JobProblemRef,
+  JobRevisionRef,
+} from './platform';
 
 const enc = encodeURIComponent;
 
@@ -8,10 +14,19 @@ export type JobState = 'queued' | 'running' | 'completed' | 'failed' | 'cancelle
 
 /** One solution of a result, as the gateway re-evaluated it. */
 export interface JobSolution {
-  decision?: { kind?: string; binding?: Record<string, { resource?: string; id?: string }> } & Record<string, unknown>;
+  decision?: {
+    kind?: string;
+    binding?: Record<string, { resource?: string; id?: string }>;
+  } & Record<string, unknown>;
   metrics?: Record<string, number>;
   features?: Record<string, unknown>;
-  objectives?: { type?: string; scalarization?: string; components?: Array<Record<string, unknown>>; penalty?: number; score?: number | number[] } & Record<string, unknown>;
+  objectives?: {
+    type?: string;
+    scalarization?: string;
+    components?: Array<Record<string, unknown>>;
+    penalty?: number;
+    score?: number | number[];
+  } & Record<string, unknown>;
   penalties?: number[];
   violations?: Array<Record<string, unknown>>;
   [key: string]: unknown;
@@ -120,31 +135,71 @@ function query(filters: RunFilters): string {
  */
 export const runsApi = {
   /** The organization's runs, newest first (at most 200 a page). */
-  list: (org: string, filters: RunFilters = {}) => apiClient.request<RunList>(`${runsPath(org)}${query(filters)}`),
+  list: (org: string, filters: RunFilters = {}) =>
+    apiClient.request<RunList>(`${runsPath(org)}${query(filters)}`),
   /** 404 for anyone outside the organization, platform administrators included. */
-  get: (org: string, run: string) => apiClient.request<JobDetail>(runPath(org, run), {}, undefined, true, true),
+  get: (org: string, run: string) =>
+    apiClient.request<JobDetail>(runPath(org, run), {}, undefined, true, true),
   /** Needs MEMBER. 402, 403, 404, 409, 422, 429 and 503 each say why nothing started. */
   create: (org: string, request: LaunchRequest, idempotencyKey: string) =>
-    apiClient.request<JobReceipt>(runsPath(org), {
-      method: 'POST',
-      headers: { 'Idempotency-Key': idempotencyKey },
-      body: JSON.stringify(request),
-    }, undefined, true, true),
+    apiClient.request<JobReceipt>(
+      runsPath(org),
+      {
+        method: 'POST',
+        headers: { 'Idempotency-Key': idempotencyKey },
+        body: JSON.stringify(request),
+      },
+      undefined,
+      true,
+      true
+    ),
   /** 409 `terminal_job` when it had already finished. */
-  cancel: (org: string, run: string) => apiClient.request<Job>(`${runPath(org, run)}/cancel`, { method: 'POST' }, undefined, true, true),
+  cancel: (org: string, run: string) =>
+    apiClient.request<Job>(
+      `${runPath(org, run)}/cancel`,
+      { method: 'POST' },
+      undefined,
+      true,
+      true
+    ),
   /** Only failed or cancelled runs; a new attempt launched by the caller (402, 429, 403 and 503 as for a launch). */
-  retry: (org: string, run: string) => apiClient.request<Job>(`${runPath(org, run)}/retry`, { method: 'POST' }, undefined, true, true),
+  retry: (org: string, run: string) =>
+    apiClient.request<Job>(`${runPath(org, run)}/retry`, { method: 'POST' }, undefined, true, true),
   /** Evaluate again the engine answer kept for a run that failed with `bim_evaluation_failed`. */
-  reevaluate: (org: string, run: string) => apiClient.request<Job>(`${runPath(org, run)}/reevaluate`, { method: 'POST' }, undefined, true, true),
+  reevaluate: (org: string, run: string) =>
+    apiClient.request<Job>(
+      `${runPath(org, run)}/reevaluate`,
+      { method: 'POST' },
+      undefined,
+      true,
+      true
+    ),
   /** The server-sent events of one run (state snapshots), as a path for an `EventSource`. */
   events: (org: string, run: string) => `${runPath(org, run)}/events`,
   /** The bounded single-task swaps of one solution, checked without running the engine again. */
-  neighborhood: async (org: string, run: string, solutionIndex: number, task: string, limit: number, signal?: AbortSignal): Promise<NeighborhoodResponse> => {
-    const params = new URLSearchParams({ solution_index: String(solutionIndex), limit: String(limit) });
+  neighborhood: async (
+    org: string,
+    run: string,
+    solutionIndex: number,
+    task: string,
+    limit: number,
+    signal?: AbortSignal
+  ): Promise<NeighborhoodResponse> => {
+    const params = new URLSearchParams({
+      solution_index: String(solutionIndex),
+      limit: String(limit),
+    });
     if (task) params.set('task', task);
-    const result = await apiClient.request<NeighborhoodResponse & { detail?: string; title?: string }>(`${runPath(org, run)}/neighborhood?${params}`, { signal });
+    const result = await apiClient.request<
+      NeighborhoodResponse & { detail?: string; title?: string }
+    >(`${runPath(org, run)}/neighborhood?${params}`, { signal });
     // A 422 throws; this guards a 200 whose body is not an evaluation.
-    if (!result.coverage || !Array.isArray(result.moves)) throw new Error(typeof result.detail === 'string' ? result.detail : result.title || 'Neighborhood evaluation could not be completed');
+    if (!result.coverage || !Array.isArray(result.moves))
+      throw new Error(
+        typeof result.detail === 'string'
+          ? result.detail
+          : result.title || 'Neighborhood evaluation could not be completed'
+      );
     return result;
   },
 };

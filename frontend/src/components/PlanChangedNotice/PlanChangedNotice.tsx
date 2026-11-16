@@ -26,7 +26,11 @@ export function PlanChangedNotice({ className }: { className?: string }) {
       <Notice
         tone="success"
         title="Plan updated"
-        action={<Action variant="secondary" size="sm" onClick={() => setChange(null)}>Dismiss</Action>}
+        action={
+          <Action variant="secondary" size="sm" onClick={() => setChange(null)}>
+            Dismiss
+          </Action>
+        }
       >
         {planChangedText(change)}
       </Notice>

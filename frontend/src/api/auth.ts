@@ -152,10 +152,7 @@ export interface AdminUserPage {
 }
 
 export type ContractChangeReason =
-  | 'new_feature'
-  | 'administrative_decision'
-  | 'institutional_agreement'
-  | 'retirement_or_discount';
+  'new_feature' | 'administrative_decision' | 'institutional_agreement' | 'retirement_or_discount';
 
 export interface AdminSubscriptionView {
   user: AdminUserView;

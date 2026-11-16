@@ -61,10 +61,25 @@ interface StateActionProps {
 }
 
 /** One action under a state message: a link to another screen, or a button that retries. */
-export function StateAction({ children, tone = 'secondary', to, onClick, disabled }: StateActionProps) {
+export function StateAction({
+  children,
+  tone = 'secondary',
+  to,
+  onClick,
+  disabled,
+}: StateActionProps) {
   const className = `ui-state-action is-${tone}`;
-  if (to) return <Link className={className} to={to} viewTransition>{children}</Link>;
-  return <button type="button" className={className} onClick={onClick} disabled={disabled}>{children}</button>;
+  if (to)
+    return (
+      <Link className={className} to={to} viewTransition>
+        {children}
+      </Link>
+    );
+  return (
+    <button type="button" className={className} onClick={onClick} disabled={disabled}>
+      {children}
+    </button>
+  );
 }
 
 interface ErrorStateProps {
@@ -95,16 +110,35 @@ interface ErrorStateProps {
   layout?: 'card' | 'page';
 }
 
-function Countdown({ seconds, onRetry, doneText }: { seconds: number; onRetry?: () => void; doneText: string }) {
+function Countdown({
+  seconds,
+  onRetry,
+  doneText,
+}: {
+  seconds: number;
+  onRetry?: () => void;
+  doneText: string;
+}) {
   const { left, done, restart } = useCountdown(seconds);
   return (
     <>
       <div className="ui-state-countdown">
-        <span className="ui-state-countdown-value" aria-hidden="true">{done ? '0s' : `${left}s`}</span>
+        <span className="ui-state-countdown-value" aria-hidden="true">
+          {done ? '0s' : `${left}s`}
+        </span>
         <span role="status">{done ? doneText : 'Retry is available when the countdown ends.'}</span>
       </div>
       <div className="ui-state-actions">
-        <StateAction tone="primary" disabled={!done} onClick={() => { onRetry?.(); restart(); }}>Retry now</StateAction>
+        <StateAction
+          tone="primary"
+          disabled={!done}
+          onClick={() => {
+            onRetry?.();
+            restart();
+          }}
+        >
+          Retry now
+        </StateAction>
       </div>
     </>
   );
@@ -116,11 +150,25 @@ function Countdown({ seconds, onRetry, doneText }: { seconds: number; onRetry?: 
  * turned into the same props, so people never see a raw answer.
  */
 export function ErrorState({
-  variant, status, code, title, children, details, actions, retryAfter, retryReadyText = 'A slot may be free now.', onRetry, checking = false, tone = 'default', layout = 'card',
+  variant,
+  status,
+  code,
+  title,
+  children,
+  details,
+  actions,
+  retryAfter,
+  retryReadyText = 'A slot may be free now.',
+  onRetry,
+  checking = false,
+  tone = 'default',
+  layout = 'card',
 }: ErrorStateProps) {
   const preset = variant ? PRESETS[variant] : undefined;
   const chip = status ?? variant ?? '';
-  const defaultActions = variant ? defaultActionsFor(variant, { onRetry, checking, hasCountdown: retryAfter !== undefined }) : null;
+  const defaultActions = variant
+    ? defaultActionsFor(variant, { onRetry, checking, hasCountdown: retryAfter !== undefined })
+    : null;
   const shownActions = actions === undefined ? defaultActions : actions;
 
   return (
@@ -132,35 +180,65 @@ export function ErrorState({
       <h2 className="ui-state-title">{title ?? preset?.title}</h2>
       {(children ?? preset?.body) && <p className="ui-state-body">{children ?? preset?.body}</p>}
       {details}
-      {variant === '429' && retryAfter !== undefined && <Countdown seconds={retryAfter} onRetry={onRetry} doneText={retryReadyText} />}
-      {checking && <span className="ui-state-checking" role="status"><i aria-hidden="true" />Checking…</span>}
+      {variant === '429' && retryAfter !== undefined && (
+        <Countdown seconds={retryAfter} onRetry={onRetry} doneText={retryReadyText} />
+      )}
+      {checking && (
+        <span className="ui-state-checking" role="status">
+          <i aria-hidden="true" />
+          Checking…
+        </span>
+      )}
       {shownActions && <div className="ui-state-actions">{shownActions}</div>}
     </article>
   );
 }
 
-function defaultActionsFor(variant: ErrorVariant, options: { onRetry?: () => void; checking: boolean; hasCountdown: boolean }): ReactNode {
+function defaultActionsFor(
+  variant: ErrorVariant,
+  options: { onRetry?: () => void; checking: boolean; hasCountdown: boolean }
+): ReactNode {
   switch (variant) {
     case '401':
-      return <StateAction tone="primary" to="/login">Log in again</StateAction>;
+      return (
+        <StateAction tone="primary" to="/login">
+          Log in again
+        </StateAction>
+      );
     case '402':
       return (
         <>
-          <StateAction tone="primary" to="/app/account/usage">See your plan</StateAction>
+          <StateAction tone="primary" to="/app/account/usage">
+            See your plan
+          </StateAction>
           <StateAction to="/pricing">Request an agreement</StateAction>
         </>
       );
     case '403':
     case '404':
-      return <StateAction tone="primary" to="/app">Back to the workspace</StateAction>;
+      return (
+        <StateAction tone="primary" to="/app">
+          Back to the workspace
+        </StateAction>
+      );
     case '429':
       // With a countdown the retry button belongs to it; without one, a plain retry.
-      return options.hasCountdown || !options.onRetry ? null : <StateAction tone="primary" onClick={options.onRetry}>Retry now</StateAction>;
+      return options.hasCountdown || !options.onRetry ? null : (
+        <StateAction tone="primary" onClick={options.onRetry}>
+          Retry now
+        </StateAction>
+      );
     case '503':
       return (
         <>
-          {options.onRetry && <StateAction onClick={options.onRetry} disabled={options.checking}>Try again</StateAction>}
-          <StateAction tone="link" to="/about">Service status</StateAction>
+          {options.onRetry && (
+            <StateAction onClick={options.onRetry} disabled={options.checking}>
+              Try again
+            </StateAction>
+          )}
+          <StateAction tone="link" to="/about">
+            Service status
+          </StateAction>
         </>
       );
   }

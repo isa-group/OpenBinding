@@ -1,6 +1,15 @@
 import type { StudyCell } from '../../api/platform';
 import {
-  RUNTIME, describeParameters, engineKeyOf, enginesOf, measureLabel, measureValue, metricsOf, parametersKey, revisionLabel, type RevisionInfo,
+  RUNTIME,
+  describeParameters,
+  engineKeyOf,
+  enginesOf,
+  measureLabel,
+  measureValue,
+  metricsOf,
+  parametersKey,
+  revisionLabel,
+  type RevisionInfo,
 } from './studiesModel';
 
 export interface Spread {
@@ -51,13 +60,13 @@ export interface EngineRow {
 /** One row per engine: how many cells it ran, how many completed and were feasible, and where its values fall. */
 export function engineRows(cells: readonly StudyCell[], measure: string): EngineRow[] {
   return enginesOf(cells).map((engine, position) => {
-    const own = cells.filter((cell) => engineKeyOf(cell.engine_ref) === engine.key);
-    const completed = own.filter((cell) => cell.state === 'completed');
-    const values = completed.flatMap((cell) => {
+    const own = cells.filter(cell => engineKeyOf(cell.engine_ref) === engine.key);
+    const completed = own.filter(cell => cell.state === 'completed');
+    const values = completed.flatMap(cell => {
       const value = measureValue(cell, measure);
       return value === null ? [] : [{ cell, value }];
     });
-    const seconds = completed.flatMap((cell) => {
+    const seconds = completed.flatMap(cell => {
       const took = metricsOf(cell).runtimeSeconds;
       return took === undefined ? [] : [took];
     });
@@ -67,10 +76,12 @@ export function engineRows(cells: readonly StudyCell[], measure: string): Engine
       position,
       cells: own,
       completed,
-      feasible: completed.filter((cell) => metricsOf(cell).feasible === true).length,
+      feasible: completed.filter(cell => metricsOf(cell).feasible === true).length,
       values,
-      spread: spreadOf(values.map((item) => item.value)),
-      meanSeconds: seconds.length ? seconds.reduce((total, value) => total + value, 0) / seconds.length : null,
+      spread: spreadOf(values.map(item => item.value)),
+      meanSeconds: seconds.length
+        ? seconds.reduce((total, value) => total + value, 0) / seconds.length
+        : null,
     };
   });
 }
@@ -86,7 +97,14 @@ export function rankEngines(rows: readonly EngineRow[]): EngineRow[] {
 }
 
 /** A palette in the tokens of the design, one colour per engine. */
-const PALETTE = ['var(--tp-primary)', 'var(--tp-sunshine-500)', 'var(--tp-primary-deep)', 'var(--tp-severity-warning)', 'var(--tp-severity-success)', 'var(--tp-stone)'];
+const PALETTE = [
+  'var(--tp-primary)',
+  'var(--tp-sunshine-500)',
+  'var(--tp-primary-deep)',
+  'var(--tp-severity-warning)',
+  'var(--tp-severity-success)',
+  'var(--tp-stone)',
+];
 export const engineColor = (position: number): string => PALETTE[position % PALETTE.length];
 
 /** Where `value` falls between `low` and `high`, as a percentage; the middle when they are the same. */
@@ -105,7 +123,8 @@ export function axisOf(values: readonly number[]): Axis {
   if (values.length === 0) return { low: 0, high: 1 };
   const low = Math.min(...values);
   const high = Math.max(...values);
-  if (high === low) return { low: low - Math.abs(low) * 0.05 - 0.5, high: high + Math.abs(high) * 0.05 + 0.5 };
+  if (high === low)
+    return { low: low - Math.abs(low) * 0.05 - 0.5, high: high + Math.abs(high) * 0.05 + 0.5 };
   const margin = (high - low) * 0.06;
   return { low: low - margin, high: high + margin };
 }
@@ -124,11 +143,15 @@ export interface Point {
  * compared here: which cells are on the front is the gateway's answer (`analytics.pareto`).
  */
 export function scatterOf(
-  cells: readonly StudyCell[], caseRevisionId: string, xMeasure: string, yMeasure: string, frontCells: ReadonlySet<string>,
+  cells: readonly StudyCell[],
+  caseRevisionId: string,
+  xMeasure: string,
+  yMeasure: string,
+  frontCells: ReadonlySet<string>
 ): Point[] {
   return cells
-    .filter((cell) => cell.binding_case_revision_id === caseRevisionId)
-    .flatMap((cell) => {
+    .filter(cell => cell.binding_case_revision_id === caseRevisionId)
+    .flatMap(cell => {
       const x = measureValue(cell, xMeasure);
       const y = measureValue(cell, yMeasure);
       return x === null || y === null ? [] : [{ cell, x, y, front: frontCells.has(cell.id) }];
@@ -146,8 +169,12 @@ export interface SeedGroup {
 }
 
 /** Same case, engine and setting, different seed: how much the result moves with the seed alone. */
-export function seedGroups(cells: readonly StudyCell[], measure: string, index: ReadonlyMap<string, RevisionInfo>): SeedGroup[] {
-  const engines = new Map(enginesOf(cells).map((engine) => [engine.key, engine.label]));
+export function seedGroups(
+  cells: readonly StudyCell[],
+  measure: string,
+  index: ReadonlyMap<string, RevisionInfo>
+): SeedGroup[] {
+  const engines = new Map(enginesOf(cells).map(engine => [engine.key, engine.label]));
   const groups = new Map<string, SeedGroup>();
   for (const cell of [...cells].sort((a, b) => a.ordinal - b.ordinal)) {
     const engine = engineKeyOf(cell.engine_ref);
@@ -155,15 +182,27 @@ export function seedGroups(cells: readonly StudyCell[], measure: string, index: 
     const key = `${cell.binding_case_revision_id}|${engine}|${setting}`;
     let group = groups.get(key);
     if (!group) {
-      group = { key, caseId: cell.binding_case_revision_id, label: `${revisionLabel(index, cell.binding_case_revision_id, true)} · ${engines.get(engine) ?? engine}`, setting: describeParameters(cell.parameters), seeds: [], spread: null };
+      group = {
+        key,
+        caseId: cell.binding_case_revision_id,
+        label: `${revisionLabel(index, cell.binding_case_revision_id, true)} · ${engines.get(engine) ?? engine}`,
+        setting: describeParameters(cell.parameters),
+        seeds: [],
+        spread: null,
+      };
       groups.set(key, group);
     }
     group.seeds.push({ seed: cell.seed, value: measureValue(cell, measure), cell });
   }
-  return [...groups.values()].map((group) => {
-    const values = group.seeds.flatMap((item) => (item.value === null ? [] : [item.value]));
-    return { ...group, seeds: group.seeds.sort((a, b) => a.seed - b.seed), spread: values.length >= 2 ? Math.max(...values) - Math.min(...values) : null };
+  return [...groups.values()].map(group => {
+    const values = group.seeds.flatMap(item => (item.value === null ? [] : [item.value]));
+    return {
+      ...group,
+      seeds: group.seeds.sort((a, b) => a.seed - b.seed),
+      spread: values.length >= 2 ? Math.max(...values) - Math.min(...values) : null,
+    };
   });
 }
 
-export const measureTitle = (measure: string): string => (measure === RUNTIME ? 'Time taken' : `${measureLabel(measure)} found`);
+export const measureTitle = (measure: string): string =>
+  measure === RUNTIME ? 'Time taken' : `${measureLabel(measure)} found`;

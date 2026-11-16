@@ -470,6 +470,11 @@ jobs:
         working-directory: frontend
         run: pnpm gen:api --check
 
+      # Prettier with SPHERE's settings (frontend/.prettierrc), the formatting every frontend change is held to.
+      - name: Check the frontend's formatting
+        working-directory: frontend
+        run: pnpm format:check
+
       - name: Lint and test frontend
         working-directory: frontend
         run: |

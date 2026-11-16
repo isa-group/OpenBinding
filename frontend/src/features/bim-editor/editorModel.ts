@@ -14,15 +14,22 @@ export function fileLanguage(path: string): CodeLanguage {
 }
 
 /** The files in the order a reader expects them: the Instance first, then by path. */
-export const filePaths = (files: WorkspaceFiles) => Object.keys(files).sort((a, b) => (a === 'instance.json' ? -1 : b === 'instance.json' ? 1 : a.localeCompare(b)));
+export const filePaths = (files: WorkspaceFiles) =>
+  Object.keys(files).sort((a, b) =>
+    a === 'instance.json' ? -1 : b === 'instance.json' ? 1 : a.localeCompare(b)
+  );
 
 /** Each task as the workflow graph shows it: local or not, and the candidate the highlighted composition version chose for it. */
-export function overlayOf(facts: ProblemFacts, matrix: CandidateMatrix): Record<string, TaskOverlay> {
+export function overlayOf(
+  facts: ProblemFacts,
+  matrix: CandidateMatrix
+): Record<string, TaskOverlay> {
   const overlay: Record<string, TaskOverlay> = {};
   for (const task of facts.tasks) overlay[task.id] = { local: task.kind === 'local' };
   for (const row of matrix.rows) {
-    const chosen = row.candidates.find((candidate) => candidate.selected);
-    if (chosen) overlay[row.task] = { ...overlay[row.task], candidate: chosen.written, status: 'selected' };
+    const chosen = row.candidates.find(candidate => candidate.selected);
+    if (chosen)
+      overlay[row.task] = { ...overlay[row.task], candidate: chosen.written, status: 'selected' };
   }
   return overlay;
 }

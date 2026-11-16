@@ -13,7 +13,7 @@ const api = vi.hoisted(() => ({
 }));
 
 vi.mock('../../api/client', async () => ({
-  ...await vi.importActual<typeof import('../../api/client')>('../../api/client'),
+  ...(await vi.importActual<typeof import('../../api/client')>('../../api/client')),
   apiClient: api,
 }));
 
@@ -30,14 +30,19 @@ const adminUser: UserProfile = { ...user, role: 'admin' };
 const researchUser: UserProfile = { ...user, plan: 'RESEARCH' };
 
 const organization: Organization = {
-  id: 'org-1', name: 'ISA Demo Group', slug: 'isa-demo', parent_id: null, effective_role: 'OWNER', created_at: '2026-01-01T00:00:00Z',
+  id: 'org-1',
+  name: 'ISA Demo Group',
+  slug: 'isa-demo',
+  parent_id: null,
+  effective_role: 'OWNER',
+  created_at: '2026-01-01T00:00:00Z',
 };
 
 const signOut = vi.fn();
 
 function renderHeader(
   currentUser: UserProfile = user,
-  { path = '/app', withOrganization = true }: { path?: string; withOrganization?: boolean } = {},
+  { path = '/app', withOrganization = true }: { path?: string; withOrganization?: boolean } = {}
 ) {
   return render(
     <MemoryRouter initialEntries={[path]}>
@@ -52,9 +57,12 @@ function renderHeader(
           isAdmin: currentUser.role === 'admin',
         }}
       >
-        <AppHeader organizations={[organization]} organization={withOrganization ? organization : undefined} />
+        <AppHeader
+          organizations={[organization]}
+          organization={withOrganization ? organization : undefined}
+        />
       </AuthContext.Provider>
-    </MemoryRouter>,
+    </MemoryRouter>
   );
 }
 
@@ -62,11 +70,12 @@ const mainNav = () => screen.getByRole('navigation', { name: 'Main' });
 const mobileNav = () => screen.getByRole('navigation', { name: 'Mobile navigation' });
 const newToggle = () => screen.getByRole('button', { name: /^New/ });
 /** The entries of a header scope in document order: links by name and address, disabled entries by name and hint. */
-const entriesOf = (scope: HTMLElement) => [...scope.querySelectorAll<HTMLElement>('a[href], [aria-disabled="true"]')].map((item) => {
-  if (item.hasAttribute('href')) return [item.textContent, item.getAttribute('href')];
-  const hint = document.getElementById(item.getAttribute('aria-describedby') ?? '');
-  return [item.textContent, `disabled: ${hint?.textContent}`];
-});
+const entriesOf = (scope: HTMLElement) =>
+  [...scope.querySelectorAll<HTMLElement>('a[href], [aria-disabled="true"]')].map(item => {
+    if (item.hasAttribute('href')) return [item.textContent, item.getAttribute('href')];
+    const hint = document.getElementById(item.getAttribute('aria-describedby') ?? '');
+    return [item.textContent, `disabled: ${hint?.textContent}`];
+  });
 
 describe('AppHeader', () => {
   beforeEach(() => {
@@ -78,14 +87,31 @@ describe('AppHeader', () => {
     renderHeader(adminUser, { path: '/app/isa-demo/problems' });
 
     expect(screen.getByRole('link', { name: 'OpenBinding home' })).toHaveAttribute('href', '/app');
-    const items = [...mainNav().children].map((item) => item.textContent?.trim());
-    expect(items).toEqual(['Home', 'Compositions', 'Problems', 'Runs', 'Studies', 'Engines', 'Admin']);
+    const items = [...mainNav().children].map(item => item.textContent?.trim());
+    expect(items).toEqual([
+      'Home',
+      'Compositions',
+      'Problems',
+      'Runs',
+      'Studies',
+      'Engines',
+      'Admin',
+    ]);
     const nav = within(mainNav());
     expect(nav.getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/app');
-    expect(nav.getByRole('link', { name: 'Compositions' })).toHaveAttribute('href', '/app/isa-demo/compositions');
-    expect(nav.getByRole('link', { name: 'Problems' })).toHaveAttribute('href', '/app/isa-demo/problems');
+    expect(nav.getByRole('link', { name: 'Compositions' })).toHaveAttribute(
+      'href',
+      '/app/isa-demo/compositions'
+    );
+    expect(nav.getByRole('link', { name: 'Problems' })).toHaveAttribute(
+      'href',
+      '/app/isa-demo/problems'
+    );
     expect(nav.getByRole('link', { name: 'Runs' })).toHaveAttribute('href', '/app/isa-demo/runs');
-    expect(nav.getByRole('link', { name: 'Studies' })).toHaveAttribute('href', '/app/isa-demo/studies');
+    expect(nav.getByRole('link', { name: 'Studies' })).toHaveAttribute(
+      'href',
+      '/app/isa-demo/studies'
+    );
     expect(nav.getByRole('link', { name: 'Engines' })).toHaveAttribute('href', '/engines');
     expect(nav.getByRole('link', { name: 'Admin' })).toHaveAttribute('href', '/app/admin');
   });
@@ -97,7 +123,10 @@ describe('AppHeader', () => {
     unmount();
 
     renderHeader(adminUser);
-    expect(within(mainNav()).getByRole('link', { name: 'Admin' })).toHaveAttribute('href', '/app/admin');
+    expect(within(mainNav()).getByRole('link', { name: 'Admin' })).toHaveAttribute(
+      'href',
+      '/app/admin'
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Account menu' }));
     expect(screen.queryByRole('link', { name: 'Administration' })).toBeNull();
   });
@@ -105,11 +134,22 @@ describe('AppHeader', () => {
   it('has none of the former entries', () => {
     renderHeader(adminUser);
 
-    for (const name of ['Jobs', 'Explore', 'Tools', 'Verifier', 'Engine catalog', 'Analysis', 'Lab', 'Projects']) {
+    for (const name of [
+      'Jobs',
+      'Explore',
+      'Tools',
+      'Verifier',
+      'Engine catalog',
+      'Analysis',
+      'Lab',
+      'Projects',
+    ]) {
       expect(screen.queryByRole('link', { name })).toBeNull();
       expect(screen.queryByRole('button', { name })).toBeNull();
     }
-    const retired = screen.getAllByRole('link').filter((link) => (link.getAttribute('href') ?? '').startsWith('/app/analysis'));
+    const retired = screen
+      .getAllByRole('link')
+      .filter(link => (link.getAttribute('href') ?? '').startsWith('/app/analysis'));
     expect(retired).toEqual([]);
   });
 
@@ -140,7 +180,10 @@ describe('AppHeader', () => {
     expect(chip).toHaveTextContent('ISA Demo Group');
     expect(chip).toHaveAttribute('href', '/app');
     // The mobile menu repeats it.
-    expect(within(mobileNav()).getByRole('link', { name: 'ISA Demo Group' })).toHaveAttribute('href', '/app');
+    expect(within(mobileNav()).getByRole('link', { name: 'ISA Demo Group' })).toHaveAttribute(
+      'href',
+      '/app'
+    );
   });
 
   it.each([
@@ -159,8 +202,10 @@ describe('AppHeader', () => {
     renderHeader(adminUser, { path });
 
     const marked = [...mainNav().querySelectorAll<HTMLElement>('a, button')]
-      .filter((item) => item.getAttribute('aria-current') === 'page' || item.classList.contains('is-active'))
-      .map((item) => item.textContent?.trim());
+      .filter(
+        item => item.getAttribute('aria-current') === 'page' || item.classList.contains('is-active')
+      )
+      .map(item => item.textContent?.trim());
     expect(marked).toEqual(expected ? [expected] : []);
   });
 
@@ -209,7 +254,8 @@ describe('AppHeader', () => {
     ]);
     const last = [...menu.querySelectorAll('a, button')].at(-1);
     expect(last).toHaveTextContent('Sign out');
-    for (const former of ['Account', 'Plan & permissions', 'Log out']) expect(within(menu).queryByText(former)).toBeNull();
+    for (const former of ['Account', 'Plan & permissions', 'Log out'])
+      expect(within(menu).queryByText(former)).toBeNull();
     expect(within(menu).queryByText(/Institutional account/)).toBeNull();
 
     fireEvent.click(within(menu).getByRole('button', { name: 'Sign out' }));
@@ -224,14 +270,24 @@ describe('AppHeader', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Account menu' }));
 
     expect(create).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.getByRole('button', { name: 'Account menu' })).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('button', { name: 'Account menu' })).toHaveAttribute(
+      'aria-expanded',
+      'true'
+    );
   });
 
   it('shows the unread count on the bell', async () => {
-    api.listNotifications.mockResolvedValue([{
-      id: 'n1', kind: 'info', subject: 'Run completed', body: 'Done', payload: {},
-      read_at: null, created_at: new Date().toISOString(),
-    }]);
+    api.listNotifications.mockResolvedValue([
+      {
+        id: 'n1',
+        kind: 'info',
+        subject: 'Run completed',
+        body: 'Done',
+        payload: {},
+        read_at: null,
+        created_at: new Date().toISOString(),
+      },
+    ]);
     renderHeader();
 
     const bell = await screen.findByRole('button', { name: '1 unread notifications' });
@@ -266,12 +322,17 @@ describe('AppHeader', () => {
 
       expect(entriesOf(mobileNav())).toEqual([
         ['ISA Demo Group', '/app'],
-        ['Home', '/app'], ['Compositions', '/app/isa-demo/compositions'], ['Problems', '/app/isa-demo/problems'],
-        ['Runs', '/app/isa-demo/runs'], ['Studies', '/app/isa-demo/studies'],
-        ['Engines', '/engines'], ['Admin', '/app/admin'],
+        ['Home', '/app'],
+        ['Compositions', '/app/isa-demo/compositions'],
+        ['Problems', '/app/isa-demo/problems'],
+        ['Runs', '/app/isa-demo/runs'],
+        ['Studies', '/app/isa-demo/studies'],
+        ['Engines', '/engines'],
+        ['Admin', '/app/admin'],
         ['Composition', '/app/isa-demo/compositions?create=composition'],
         ['Problem', '/app/isa-demo/problems?create=problem'],
-        ['Study', '/app/isa-demo/studies/new'], ['Run', '/app/isa-demo/runs/new'],
+        ['Study', '/app/isa-demo/studies/new'],
+        ['Run', '/app/isa-demo/runs/new'],
       ]);
       expect(within(mobileNav()).getByRole('button', { name: 'Search' })).toBeInTheDocument();
     });
@@ -282,9 +343,10 @@ describe('AppHeader', () => {
       const disabled = [...document.querySelectorAll<HTMLElement>('[aria-disabled="true"]')];
       // Problems, Runs, Studies and the New items, in the header menus and in the phone menu.
       expect(disabled.length).toBeGreaterThanOrEqual(2);
-      const hints = disabled.map((item) => item.getAttribute('aria-describedby'));
+      const hints = disabled.map(item => item.getAttribute('aria-describedby'));
       expect(new Set(hints).size).toBe(hints.length);
-      for (const item of disabled) expect(item).toHaveAccessibleDescription('Needs an organization');
+      for (const item of disabled)
+        expect(item).toHaveAccessibleDescription('Needs an organization');
     });
 
     it('closes after following a link', () => {
@@ -313,9 +375,14 @@ describe('AppHeader', () => {
 
       fireEvent.click(screen.getByRole('button', { name: 'Account menu' }));
       const menu = document.getElementById('app-account-menu') as HTMLElement;
-      expect(within(menu).getByText('Universidad de Sevilla · Institutional account')).toBeInTheDocument();
+      expect(
+        within(menu).getByText('Universidad de Sevilla · Institutional account')
+      ).toBeInTheDocument();
 
-      expect(within(mobileNav()).getByRole('link', mark)).toHaveAttribute('href', 'https://www.us.es');
+      expect(within(mobileNav()).getByRole('link', mark)).toHaveAttribute(
+        'href',
+        'https://www.us.es'
+      );
     });
   });
 });

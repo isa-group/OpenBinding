@@ -14,9 +14,17 @@ import { languageApi } from '../../entities/composition/api';
 import { readApiError } from '../../shared/api/errors';
 import type { ValidateResult } from '../../shared/api/types';
 import { fromC2y, type Located } from '../../shared/diagnostics/located';
-import { createScheduler, pausedMessage, type Scheduler, type SchedulerStatus } from '../../shared/editor/lintScheduler';
 import {
-  compositionFragment, readCompositionFragment, takeCompositionFragment, type CompositionFragment,
+  createScheduler,
+  pausedMessage,
+  type Scheduler,
+  type SchedulerStatus,
+} from '../../shared/editor/lintScheduler';
+import {
+  compositionFragment,
+  readCompositionFragment,
+  takeCompositionFragment,
+  type CompositionFragment,
 } from '../../shared/sphere/composition-fragment';
 import { ProblemsPanel } from '../../widgets/problems-panel/ProblemsPanel';
 import './LanguagePage.css';
@@ -28,7 +36,8 @@ export const LANGUAGE_LINT_DELAY_MS = 800;
 const FILE = 'composition.yaml';
 
 /** The normative specification, on GitHub. */
-export const SPECIFICATION_URL = 'https://github.com/isa-group/OpenBinding/blob/main/docs/COMPOSITION2YAML.md';
+export const SPECIFICATION_URL =
+  'https://github.com/isa-group/OpenBinding/blob/main/docs/COMPOSITION2YAML.md';
 /** The JSON Schema of the latest syntax version, as the gateway serves it. */
 export const SCHEMA_URL = `${config.apiBaseUrl}/v1/compositions/schema`;
 
@@ -44,16 +53,33 @@ export const STARTER: string = examples.starter;
 export const SECTIONS: readonly LanguageExample[] = examples.sections;
 
 const NOT_IN_THE_LANGUAGE: readonly { title: string; text: string }[] = [
-  { title: 'The alternatives', text: 'Candidates to choose from, constraints, objectives, demand and its variants are the BIM problem’s. A different demand is a different problem revision.' },
-  { title: 'Optimisation settings', text: 'Weights and scalarisation belong to a run preset, never to a document.' },
-  { title: 'The offering’s content', text: 'Plans, prices and limits stay in SPHERE or in the Pricing2Yaml file. The document holds one reference, without a version.' },
-  { title: 'Presentation', text: 'Sections, highlights, labels and layout are decided by the screen that renders a composition, never written in the document.' },
-  { title: 'Identity and visibility', text: 'Who owns a composition, who may read it and whether it is public belong to the platform, not to the document.' },
+  {
+    title: 'The alternatives',
+    text: 'Candidates to choose from, constraints, objectives, demand and its variants are the BIM problem’s. A different demand is a different problem revision.',
+  },
+  {
+    title: 'Optimisation settings',
+    text: 'Weights and scalarisation belong to a run preset, never to a document.',
+  },
+  {
+    title: 'The offering’s content',
+    text: 'Plans, prices and limits stay in SPHERE or in the Pricing2Yaml file. The document holds one reference, without a version.',
+  },
+  {
+    title: 'Presentation',
+    text: 'Sections, highlights, labels and layout are decided by the screen that renders a composition, never written in the document.',
+  },
+  {
+    title: 'Identity and visibility',
+    text: 'Who owns a composition, who may read it and whether it is public belong to the platform, not to the document.',
+  },
 ];
 
 /** `backticks` in the content are code. */
 function withCode(text: string): ReactNode[] {
-  return text.split('`').map((part, index) => (index % 2 === 1 ? <code key={index}>{part}</code> : part));
+  return text
+    .split('`')
+    .map((part, index) => (index % 2 === 1 ? <code key={index}>{part}</code> : part));
 }
 
 /** The text the playground opens with: the composition a share link carries, or the starter (with why the link could not be read). */
@@ -114,7 +140,8 @@ export function LanguagePage({ delay = LANGUAGE_LINT_DELAY_MS }: LanguagePagePro
         setValidated({ text: input, result });
         setLintIssue(null);
       },
-      onError: (reason) => setLintIssue(readApiError(reason).message || 'The text couldn’t be checked.'),
+      onError: reason =>
+        setLintIssue(readApiError(reason).message || 'The text couldn’t be checked.'),
       onStatus: setStatus,
     });
     linter.current = lints;
@@ -130,13 +157,16 @@ export function LanguagePage({ delay = LANGUAGE_LINT_DELAY_MS }: LanguagePagePro
   const [, tick] = useState(0);
   useEffect(() => {
     if (pausedUntil === null) return undefined;
-    const timer = window.setInterval(() => tick((value) => value + 1), 1000);
+    const timer = window.setInterval(() => tick(value => value + 1), 1000);
     return () => window.clearInterval(timer);
   }, [pausedUntil]);
 
   const diagnostics: Located[] = useMemo(
-    () => (validated ? validated.result.diagnostics.map((item) => fromC2y(item, validated.text, FILE)) : []),
-    [validated],
+    () =>
+      validated
+        ? validated.result.diagnostics.map(item => fromC2y(item, validated.text, FILE))
+        : [],
+    [validated]
   );
   const current = validated && validated.text === text ? validated.result : null;
 
@@ -147,14 +177,19 @@ export function LanguagePage({ delay = LANGUAGE_LINT_DELAY_MS }: LanguagePagePro
   useEffect(() => {
     const canonicals = createScheduler<string, string>({
       delay,
-      run: async (input, signal) => languageApi.serialise((await languageApi.parse(input, signal)).document, signal),
-      onResult: (written, input) => setCanonical({ text: input, canonical: written, message: null }),
+      run: async (input, signal) =>
+        languageApi.serialise((await languageApi.parse(input, signal)).document, signal),
+      onResult: (written, input) =>
+        setCanonical({ text: input, canonical: written, message: null }),
       onError: (reason, input) => {
         const refusal = readApiError(reason);
         setCanonical({
           text: input,
           canonical: null,
-          message: refusal.status === 422 ? 'The text has errors: fix them to see its canonical form.' : refusal.message || 'The canonical form couldn’t be read.',
+          message:
+            refusal.status === 422
+              ? 'The text has errors: fix them to see its canonical form.'
+              : refusal.message || 'The canonical form couldn’t be read.',
         });
       },
     });
@@ -172,7 +207,8 @@ export function LanguagePage({ delay = LANGUAGE_LINT_DELAY_MS }: LanguagePagePro
   // -- Actions
 
   const select = (diagnostic: Located) => {
-    if (diagnostic.where.kind === 'text') setSelection({ anchor: diagnostic.where.from, head: diagnostic.where.to });
+    if (diagnostic.where.kind === 'text')
+      setSelection({ anchor: diagnostic.where.from, head: diagnostic.where.to });
   };
 
   const load = (yaml: string) => {
@@ -187,11 +223,14 @@ export function LanguagePage({ delay = LANGUAGE_LINT_DELAY_MS }: LanguagePagePro
   };
 
   let statusText = '';
-  if (copied('share') === 'copied') statusText = 'Share link copied. It carries the text in its fragment; nothing is sent to the gateway.';
+  if (copied('share') === 'copied')
+    statusText =
+      'Share link copied. It carries the text in its fragment; nothing is sent to the gateway.';
   else if (copied('share') === 'failed') statusText = 'The share link couldn’t be copied.';
   else if (pausedUntil !== null) statusText = pausedMessage(pausedUntil);
   else if (lintIssue && !current) statusText = '';
-  else if (status.state === 'waiting' || status.state === 'running' || !current) statusText = 'Checking…';
+  else if (status.state === 'waiting' || status.state === 'running' || !current)
+    statusText = 'Checking…';
   else statusText = current.valid ? 'Valid Composition2Yaml' : 'Not valid yet';
 
   return (
@@ -200,37 +239,77 @@ export function LanguagePage({ delay = LANGUAGE_LINT_DELAY_MS }: LanguagePagePro
         eyebrow="Language"
         title="Composition2Yaml"
         lede="The document of a final composition: the candidate chosen for each task of a workflow, where each one came from, and the values the choice yields. The alternatives it was chosen from live in a BIM problem, which a composition may link to have its values computed and verified."
-        actions={(
+        actions={
           <>
-            <a className="ui-action is-secondary is-md" href={SPECIFICATION_URL} target="_blank" rel="noreferrer">
+            <a
+              className="ui-action is-secondary is-md"
+              href={SPECIFICATION_URL}
+              target="_blank"
+              rel="noreferrer"
+            >
               Read the specification <ArrowUpRight aria-hidden="true" />
             </a>
-            <a className="ui-action is-secondary is-md" href={SCHEMA_URL} target="_blank" rel="noreferrer" download="composition.schema.json">
+            <a
+              className="ui-action is-secondary is-md"
+              href={SCHEMA_URL}
+              target="_blank"
+              rel="noreferrer"
+              download="composition.schema.json"
+            >
               <Download aria-hidden="true" /> Download the schema
             </a>
           </>
-        )}
+        }
       />
 
-      <section ref={playground} className="lang-section lang-playground" aria-labelledby="lang-playground-title">
+      <section
+        ref={playground}
+        className="lang-section lang-playground"
+        aria-labelledby="lang-playground-title"
+      >
         <div className="lang-section-head">
           <h2 id="lang-playground-title">Playground</h2>
           <p>
-            Write a composition and the gateway checks it as you type. Nothing is stored: the checks are the stateless language
-            services, and a share link keeps the text in the address, after the <code>#</code>.
+            Write a composition and the gateway checks it as you type. Nothing is stored: the checks
+            are the stateless language services, and a share link keeps the text in the address,
+            after the <code>#</code>.
           </p>
         </div>
 
         <div className="lang-toolbar" role="toolbar" aria-label="Playground">
-          <Action size="sm" variant="ghost" onClick={() => void copy(shareLink(), 'share')}><Link2 aria-hidden="true" />Copy share link</Action>
-          <Action size="sm" variant="ghost" onClick={() => load(STARTER)} disabled={text === STARTER}><RotateCcw aria-hidden="true" />Start over</Action>
-          <span className="lang-status" role="status" aria-live="polite">{statusText}</span>
+          <Action size="sm" variant="ghost" onClick={() => void copy(shareLink(), 'share')}>
+            <Link2 aria-hidden="true" />
+            Copy share link
+          </Action>
+          <Action
+            size="sm"
+            variant="ghost"
+            onClick={() => load(STARTER)}
+            disabled={text === STARTER}
+          >
+            <RotateCcw aria-hidden="true" />
+            Start over
+          </Action>
+          <span className="lang-status" role="status" aria-live="polite">
+            {statusText}
+          </span>
         </div>
 
         {linkIssue && (
-          <Notice tone="error" action={<Action variant="secondary" size="sm" onClick={() => setLinkIssue(null)}>Dismiss</Action>}>{linkIssue}</Notice>
+          <Notice
+            tone="error"
+            action={
+              <Action variant="secondary" size="sm" onClick={() => setLinkIssue(null)}>
+                Dismiss
+              </Action>
+            }
+          >
+            {linkIssue}
+          </Notice>
         )}
-        {lintIssue && <Notice tone="warning">{`The gateway couldn’t check the text: ${lintIssue}`}</Notice>}
+        {lintIssue && (
+          <Notice tone="warning">{`The gateway couldn’t check the text: ${lintIssue}`}</Notice>
+        )}
 
         <div className="lang-workspace">
           <CodeEditor
@@ -245,23 +324,46 @@ export function LanguagePage({ delay = LANGUAGE_LINT_DELAY_MS }: LanguagePagePro
           />
           <div className="lang-side">
             <TabBar
-              items={[{ id: 'problems', label: 'Problems' }, { id: 'canonical', label: 'Canonical form' }]}
+              items={[
+                { id: 'problems', label: 'Problems' },
+                { id: 'canonical', label: 'Canonical form' },
+              ]}
               value={panel}
-              onChange={(id) => setPanel(id === 'canonical' ? 'canonical' : 'problems')}
+              onChange={id => setPanel(id === 'canonical' ? 'canonical' : 'problems')}
               ariaLabel="Playground results"
               prefix="lang-results"
             />
             <TabPanel prefix="lang-results" active={panel}>
-              {panel === 'problems' && <ProblemsPanel diagnostics={diagnostics} onSelect={select} />}
+              {panel === 'problems' && (
+                <ProblemsPanel diagnostics={diagnostics} onSelect={select} />
+              )}
               {panel === 'canonical' && (
                 <div className="lang-canonical">
-                  <p className="lang-muted">The exact text a seal would store: keys in order, block style, quotes only where YAML needs them.</p>
-                  {!canonicalNow && <p className="lang-muted" role="status">Reading the canonical form…</p>}
+                  <p className="lang-muted">
+                    The exact text a seal would store: keys in order, block style, quotes only where
+                    YAML needs them.
+                  </p>
+                  {!canonicalNow && (
+                    <p className="lang-muted" role="status">
+                      Reading the canonical form…
+                    </p>
+                  )}
                   {canonicalNow?.message && <Notice tone="info">{canonicalNow.message}</Notice>}
                   {typeof canonicalNow?.canonical === 'string' && (
                     <>
-                      <SourceView source={canonicalNow.canonical} label="Canonical form" language="yaml" filename="composition.yaml" maxHeight="60vh" />
-                      <Action size="sm" variant="secondary" onClick={() => setText(canonicalNow.canonical ?? text)} disabled={canonicalNow.canonical === text}>
+                      <SourceView
+                        source={canonicalNow.canonical}
+                        label="Canonical form"
+                        language="yaml"
+                        filename="composition.yaml"
+                        maxHeight="60vh"
+                      />
+                      <Action
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => setText(canonicalNow.canonical ?? text)}
+                        disabled={canonicalNow.canonical === text}
+                      >
                         Use the canonical form
                       </Action>
                     </>
@@ -278,32 +380,63 @@ export function LanguagePage({ delay = LANGUAGE_LINT_DELAY_MS }: LanguagePagePro
           <h2 id="lang-versions-title">Versions of the language</h2>
         </div>
         <ul className="lang-points">
-          <li>Every document starts with <code>syntaxVersion: &quot;1.0&quot;</code>, quoted: the version of the language, not of the document. The document’s own label is <code>version</code>, a semantic version such as <code>1.3.0</code>.</li>
-          <li>A minor version (<code>1.x</code>) only adds optional keys, so every <code>1.0</code> document keeps its meaning. A major version changes the meaning of something already there.</li>
+          <li>
+            Every document starts with <code>syntaxVersion: &quot;1.0&quot;</code>, quoted: the
+            version of the language, not of the document. The document’s own label is{' '}
+            <code>version</code>, a semantic version such as <code>1.3.0</code>.
+          </li>
+          <li>
+            A minor version (<code>1.x</code>) only adds optional keys, so every <code>1.0</code>{' '}
+            document keeps its meaning. A major version changes the meaning of something already
+            there.
+          </li>
           <li>A sealed version keeps the syntax version it was sealed with.</li>
-          <li>Composition2Yaml is versioned on its own: its syntax version never follows a BIM or toolchain release.</li>
+          <li>
+            Composition2Yaml is versioned on its own: its syntax version never follows a BIM or
+            toolchain release.
+          </li>
         </ul>
       </section>
 
       <section className="lang-section" aria-labelledby="lang-examples-title">
         <div className="lang-section-head">
           <h2 id="lang-examples-title">The language by example</h2>
-          <p>Each example is read by the gateway’s tests, so what it says about itself holds. Open any of them in the playground.</p>
+          <p>
+            Each example is read by the gateway’s tests, so what it says about itself holds. Open
+            any of them in the playground.
+          </p>
         </div>
         <ol className="lang-examples">
-          {SECTIONS.map((example) => (
+          {SECTIONS.map(example => (
             <li key={example.name}>
-              <article className="lang-example" aria-labelledby={`lang-example-${slugOf(example.name)}`}>
+              <article
+                className="lang-example"
+                aria-labelledby={`lang-example-${slugOf(example.name)}`}
+              >
                 <div className="lang-example-head">
                   <h3 id={`lang-example-${slugOf(example.name)}`}>{example.name}</h3>
-                  {example.expect === 'valid'
-                    ? <Badge variant="success">Valid</Badge>
-                    : <Badge variant="error">Refused: <code>{example.expect}</code></Badge>}
+                  {example.expect === 'valid' ? (
+                    <Badge variant="success">Valid</Badge>
+                  ) : (
+                    <Badge variant="error">
+                      Refused: <code>{example.expect}</code>
+                    </Badge>
+                  )}
                 </div>
                 <p>{withCode(example.description)}</p>
-                <SourceView source={example.yaml} label={`${example.name} source`} language="yaml" />
-                <Action size="sm" variant="secondary" onClick={() => load(example.yaml)} aria-label={`Open “${example.name}” in the playground`}>
-                  <Play aria-hidden="true" />Open in the playground
+                <SourceView
+                  source={example.yaml}
+                  label={`${example.name} source`}
+                  language="yaml"
+                />
+                <Action
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => load(example.yaml)}
+                  aria-label={`Open “${example.name}” in the playground`}
+                >
+                  <Play aria-hidden="true" />
+                  Open in the playground
                 </Action>
               </article>
             </li>
@@ -316,7 +449,7 @@ export function LanguagePage({ delay = LANGUAGE_LINT_DELAY_MS }: LanguagePagePro
           <h2 id="lang-outside-title">What is not in the language</h2>
         </div>
         <dl className="lang-outside">
-          {NOT_IN_THE_LANGUAGE.map((item) => (
+          {NOT_IN_THE_LANGUAGE.map(item => (
             <div key={item.title}>
               <dt>{item.title}</dt>
               <dd>{item.text}</dd>
@@ -328,4 +461,8 @@ export function LanguagePage({ delay = LANGUAGE_LINT_DELAY_MS }: LanguagePagePro
   );
 }
 
-const slugOf = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+const slugOf = (name: string) =>
+  name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
