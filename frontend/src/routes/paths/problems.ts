@@ -56,14 +56,26 @@ export function problemPath(org: string, problem: string, tab?: ProblemTabSegmen
   });
 }
 
-/** What the problem editor opens: a revision of a problem (the newest without `revision`), or a template. */
+/**
+ * What the problem editor opens: a revision of a problem (the newest without `revision`), or a template; and the composition
+ * version whose selection it highlights (`composition`, `compositionVersion`: a label, an id or an ordinal), named as on the
+ * problem page.
+ */
 export interface ProblemEditorTarget {
   problem?: string;
   revision?: number | string;
   template?: string;
+  composition?: string;
+  compositionVersion?: number | string;
 }
 
-/** The problem editor of an organization: `/app/<org>/problem-editor`, with `?problem=&revision=` or `?template=`. */
+/**
+ * The problem editor of an organization: `/app/<org>/problem-editor`, with `?problem=&revision=` or `?template=`, and
+ * `&composition=&compositionVersion=` for a highlight.
+ */
 export function problemEditorPath(org: string, target: ProblemEditorTarget = {}): string {
-  return withQuery(`${organizationPath(org)}/problem-editor`, { problem: target.problem, revision: target.revision, template: target.template });
+  return withQuery(`${organizationPath(org)}/problem-editor`, {
+    problem: target.problem, revision: target.revision, template: target.template,
+    composition: target.composition, compositionVersion: target.compositionVersion,
+  });
 }

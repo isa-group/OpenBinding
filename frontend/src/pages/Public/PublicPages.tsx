@@ -13,9 +13,9 @@ import { problemEditorPath } from '../../routes/paths/problems';
 import { BIM_PACKAGE_LIMITS, BimPackageError } from '../../utils/bimZip';
 import { formatBytes } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
-import { groupDiagnostics, readDiagnostics } from '../Workbench/diagnostics';
-import { readPackageModel, type PackageModel } from '../Workbench/packageModel';
-import { DiagnosticsPanel, StructurePanel } from '../Workbench/WorkbenchResult';
+import { groupDiagnostics, readDiagnostics } from './diagnostics';
+import { readPackageModel, type PackageModel } from './packageModel';
+import { DiagnosticsPanel, StructurePanel } from './WorkbenchResult';
 import './PublicPages.css';
 
 interface Selected {

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import CodeMirror from '@uiw/react-codemirror';
 import { autocompletion, type CompletionSource } from '@codemirror/autocomplete';
 import { json } from '@codemirror/lang-json';
+import { xml } from '@codemirror/lang-xml';
 import { yaml } from '@codemirror/lang-yaml';
 import { linter, lintGutter, setDiagnostics, type Diagnostic } from '@codemirror/lint';
 import type { Extension } from '@codemirror/state';
@@ -18,7 +19,6 @@ interface CodeEditorProps {
   placeholder?: string;
   minHeight?: string;
   maxHeight?: string;
-  /** `xml` is shown as plain text for now. */
   language?: CodeLanguage;
   ariaLabel?: string;
   /** Where the cursor goes. A new object moves it, in the same editor: history and lint markers stay. */
@@ -88,6 +88,7 @@ export function CodeEditor({
     const list: Extension[] = [EditorView.lineWrapping, EditorView.contentAttributes.of({ 'aria-label': ariaLabel })];
     if (language === 'json') list.push(json());
     if (language === 'yaml') list.push(yaml());
+    if (language === 'xml') list.push(xml());
     if (completions) list.push(autocompletion({ override: [completions] }));
     // The lint state is part of the configuration itself (a linter with no source: the findings are pushed), so it survives
     // every reconfiguration instead of being appended by the first `setDiagnostics` and dropped by the next reconfigure.

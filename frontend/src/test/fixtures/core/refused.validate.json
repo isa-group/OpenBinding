@@ -1,0 +1,68 @@
+{
+  "code": "invalid_instance",
+  "detail": "invalid_instance: /spec/candidates/auth-edge/features/latency: candidate feature value is above its declared domain (+8 more)",
+  "diagnostics": [
+    {
+      "code": "feature_value_domain",
+      "message": "candidate feature value is above its declared domain",
+      "pointer": "/spec/candidates/auth-edge/features/latency",
+      "resource": "candidates.json"
+    },
+    {
+      "bpmnElement": "orphan",
+      "code": "bpmn_task_ref",
+      "message": "BPMN task 'orphan' has no Application task",
+      "pointer": "/process/orphan",
+      "resource": "workflow.bpmn"
+    },
+    {
+      "code": "bpmn_unreachable",
+      "message": "BPMN has unreachable elements: orphan",
+      "pointer": "/process",
+      "resource": "workflow.bpmn"
+    },
+    {
+      "code": "expression",
+      "message": "invalid CEL expression at 18: invalid syntax",
+      "pointer": "/spec/constraints/end_to_end_latency/assert",
+      "resource": "constraints.json",
+      "span": {
+        "end": 19,
+        "start": 18
+      }
+    },
+    {
+      "code": "placement_event_pool",
+      "message": "unknown event latency pool {'resource': 'placement', 'id': 'nowhere'}",
+      "pointer": "/spec/events/client-request/latency/1/pool",
+      "resource": "placement.json"
+    },
+    {
+      "code": "placement_capacity_rule",
+      "message": "capacity rule uses unknown dimensions: gpu",
+      "pointer": "/spec/capacityRules/0/resources",
+      "resource": "placement.json"
+    },
+    {
+      "code": "placement_capacity_dimension",
+      "message": "pool 'edge' does not declare constrained dimensions: gpu",
+      "pointer": "/spec/pools",
+      "resource": "placement"
+    },
+    {
+      "code": "placement_capacity_dimension",
+      "message": "pool 'fog' does not declare constrained dimensions: gpu",
+      "pointer": "/spec/pools",
+      "resource": "placement"
+    },
+    {
+      "code": "placement_capacity_dimension",
+      "message": "pool 'cloud' does not declare constrained dimensions: gpu",
+      "pointer": "/spec/pools",
+      "resource": "placement"
+    }
+  ],
+  "status": 422,
+  "title": "invalid_instance",
+  "type": "https://openbinding.dev/problems/invalid_instance"
+}

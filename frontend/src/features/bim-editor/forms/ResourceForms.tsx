@@ -17,6 +17,7 @@ import {
   bindingIsDeclared, candidatesMissingValues, chooseProvider, criteriaNeedingScale, declareProvider, declaredProviders, featureKey, findFeature,
   normalizedCriteria, providerIsDeclared, removeProvider, scaleFor, unboundFeatures, withPenaltyFor, type PackageContext,
 } from '../packageContext';
+import './ResourceForms.css';
 
 /** One form per kind of document a package holds. They edit the document in place and never see raw JSON unless the person asks for the source. */
 

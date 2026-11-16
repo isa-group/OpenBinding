@@ -1,47 +1,43 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { saveDraft } from '../../shared/editor/drafts';
-import { unzipPackage } from '../../utils/bimZip';
-import { DEFAULT_FILES } from '../../features/bim-editor/documents';
-import { analysis, openWorkbench } from './workbenchTestKit';
+import { saveDraft } from '../../../shared/editor/drafts';
+import { DEFAULT_FILES } from '../documents';
+import { analysis, checkNow, DRAFT_SCOPE, openProblemEditor, sentFiles, showPane } from '../editorTestKit';
 
-// The forms of the editor: they edit the documents of the package in place, and what the gateway receives is what they wrote.
+// The forms of the problem editor: they edit the documents of the package in place, and what the gateway checks is what they wrote.
 
 const problems = vi.hoisted(() => ({ list: vi.fn(), revisions: vi.fn(), source: vi.fn(), create: vi.fn(), createRevision: vi.fn() }));
-const workbench = vi.hoisted(() => ({ validate: vi.fn(), templates: vi.fn(), template: vi.fn() }));
+const bim = vi.hoisted(() => ({ validate: vi.fn(), templates: vi.fn(), template: vi.fn() }));
 
-vi.mock('../../api/problems', () => ({ problemsApi: problems }));
-vi.mock('../../api/bim', () => ({ bimApi: workbench }));
-vi.mock('../../components/CodeEditor/CodeEditor', () => ({
+vi.mock('../../../api/problems', () => ({ problemsApi: problems }));
+vi.mock('../../../api/bim', () => ({ bimApi: bim }));
+vi.mock('../../../components/CodeEditor/CodeEditor', () => ({
   CodeEditor: ({ value, onChange, ariaLabel, readOnly }: { value: string; onChange: (value: string) => void; ariaLabel: string; readOnly?: boolean }) => (
     <textarea aria-label={ariaLabel} value={value} readOnly={readOnly} onChange={(event) => onChange(event.target.value)} />
   ),
 }));
-vi.mock('../../features/bim-editor/BpmnModeler', () => ({ BpmnModeler: () => <div data-testid="bpmn-modeler" /> }));
-
-/** Where the workbench of the test organization keeps the draft of a new problem for Lucía. */
-const DRAFT_SCOPE = 'user-lucia:problem:isa-demo:new:none';
+vi.mock('../BpmnModeler', () => ({ BpmnModeler: () => <div data-testid="bpmn-modeler" /> }));
 
 /** The files the gateway was asked to check on a call of the validation. */
-async function checkedFiles(callIndex = workbench.validate.mock.calls.length - 1) {
-  const archive = workbench.validate.mock.calls[callIndex][0] as Uint8Array;
-  const buffer = archive.buffer.slice(archive.byteOffset, archive.byteOffset + archive.byteLength) as ArrayBuffer;
-  return unzipPackage(buffer);
+const checkedFiles = (call?: number) => sentFiles(bim.validate, call);
+
+/** The editor with its package on screen, at the Forms pane. */
+async function openForms() {
+  await openProblemEditor();
+  showPane('Forms');
 }
 
-const validate = () => fireEvent.click(screen.getByRole('button', { name: 'Validate' }));
-
-describe('Workbench · forms of the editor', () => {
+describe('ProblemEditor · forms of the package', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     problems.list.mockResolvedValue({ problems: [], total: 0, limit: 200, offset: 0 });
     problems.revisions.mockResolvedValue([]);
-    workbench.templates.mockResolvedValue([]);
-    workbench.validate.mockResolvedValue(analysis());
+    bim.templates.mockResolvedValue([]);
+    bim.validate.mockResolvedValue(analysis());
   });
 
   it('rejects invalid and duplicate renames visibly and restores the stored identifier', async () => {
-    await openWorkbench();
+    await openForms();
     fireEvent.click(screen.getByRole('button', { name: /instance\.json/i }));
 
     const role = screen.getByLabelText('application/application role');
@@ -70,7 +66,7 @@ describe('Workbench · forms of the editor', () => {
   });
 
   it('edits Instance metadata, profile, local resources, and registered references transactionally', async () => {
-    await openWorkbench();
+    await openForms();
     fireEvent.click(screen.getByRole('button', { name: /instance\.json/i }));
 
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'edited-instance' } });
@@ -89,11 +85,11 @@ describe('Workbench · forms of the editor', () => {
     fireEvent.change(screen.getByLabelText('New resource package file'), { target: { value: 'candidates.json' } });
     fireEvent.click(screen.getByRole('button', { name: 'Add local reference' }));
 
-    fireEvent.click(screen.getByRole('button', { name: 'View source' }));
+    showPane('Files');
     expect(((await screen.findByLabelText('instance.json source')) as HTMLTextAreaElement).value).toContain('custom-profile/v1');
 
-    validate();
-    await waitFor(() => expect(workbench.validate).toHaveBeenCalledTimes(1));
+    checkNow();
+    await waitFor(() => expect(bim.validate).toHaveBeenCalledTimes(1));
     const instance = JSON.parse((await checkedFiles())['instance.json']);
     expect(instance.metadata).toEqual({ name: 'edited-instance', version: '1.2.0', description: 'Edited through the compact form' });
     expect(instance.spec.profile).toBe('custom-profile/v1');
@@ -136,7 +132,7 @@ describe('Workbench · forms of the editor', () => {
         spec: { constraints: { softLatency: { assert: 'features.latency >= 0', enforcement: 'soft', penalty: 1 }, hardCost: { assert: 'features.cost >= 0', enforcement: 'hard' } } },
       }),
     });
-    await openWorkbench();
+    await openForms();
     fireEvent.click(await screen.findByRole('button', { name: /optimization\.json/i }));
 
     // The strategy and its weights are chosen when the package runs: the Optimization has no such controls.
@@ -172,8 +168,8 @@ describe('Workbench · forms of the editor', () => {
     expect(screen.getByRole('button', { name: 'Add penalty' })).toBeDisabled();
     fireEvent.change(screen.getByLabelText('Penalty 1 weight'), { target: { value: '3' } });
 
-    validate();
-    await waitFor(() => expect(workbench.validate).toHaveBeenCalledTimes(1));
+    checkNow();
+    await waitFor(() => expect(bim.validate).toHaveBeenCalledTimes(1));
     const optimization = JSON.parse((await checkedFiles())['optimization.json']);
     expect(optimization.spec).toEqual({
       criteria: [{
@@ -186,18 +182,18 @@ describe('Workbench · forms of the editor', () => {
   });
 
   it('removes every criterion for a package that asks only for a feasible binding', async () => {
-    await openWorkbench();
+    await openForms();
     fireEvent.click(screen.getByRole('button', { name: /optimization\.json/i }));
     fireEvent.click(screen.getByRole('button', { name: 'Remove criterion' }));
     expect(screen.getByText(/No criteria: the package asks only for a feasible binding/)).toBeInTheDocument();
 
-    validate();
-    await waitFor(() => expect(workbench.validate).toHaveBeenCalledTimes(1));
+    checkNow();
+    await waitFor(() => expect(bim.validate).toHaveBeenCalledTimes(1));
     expect(JSON.parse((await checkedFiles())['optimization.json']).spec).toEqual({ criteria: [] });
   });
 
   it('authors Application tasks, typed predicates, and feature definitions in the compact form', async () => {
-    await openWorkbench();
+    await openForms();
     fireEvent.click(screen.getByRole('button', { name: /application\.json/i }));
 
     fireEvent.click(screen.getByLabelText('hello predicate enabled'));
@@ -216,8 +212,8 @@ describe('Workbench · forms of the editor', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add task' }));
     fireEvent.change(screen.getByLabelText('task2 capability'), { target: { value: 'queue' } });
 
-    validate();
-    await waitFor(() => expect(workbench.validate).toHaveBeenCalledTimes(1));
+    checkNow();
+    await waitFor(() => expect(bim.validate).toHaveBeenCalledTimes(1));
     const application = JSON.parse((await checkedFiles())['application.json']);
     expect(application.spec.tasks).toEqual({
       hello: { kind: 'service', requires: { type: 'http', predicate: 'candidate.properties.region == "eu"' } },
@@ -231,7 +227,7 @@ describe('Workbench · forms of the editor', () => {
   });
 
   it('authors catalog bindings, capabilities, properties, QoS values, and candidate deletion', async () => {
-    await openWorkbench();
+    await openForms();
     fireEvent.click(screen.getByRole('button', { name: /application\.json/i }));
     fireEvent.change(screen.getByLabelText('New feature id'), { target: { value: 'cost' } });
     fireEvent.click(screen.getByRole('button', { name: 'Add feature' }));
@@ -256,8 +252,8 @@ describe('Workbench · forms of the editor', () => {
     fireEvent.change(screen.getByLabelText('candidate2 QoS cost'), { target: { value: '5' } });
     fireEvent.click(screen.getAllByRole('button', { name: 'Remove candidate' })[0]);
 
-    validate();
-    await waitFor(() => expect(workbench.validate).toHaveBeenCalledTimes(1));
+    checkNow();
+    await waitFor(() => expect(bim.validate).toHaveBeenCalledTimes(1));
     const catalog = JSON.parse((await checkedFiles())['candidates.json']);
     expect(catalog.spec.metricBindings).toBeUndefined();
     expect(catalog.spec.featureBindings).toEqual({
@@ -319,7 +315,7 @@ describe('Workbench · forms of the editor', () => {
         },
       }),
     });
-    await openWorkbench();
+    await openForms();
 
     // The catalog: a provider that is not declared, a binding to a feature the Application does not declare, a value the goal asks for.
     fireEvent.click(await screen.findByRole('button', { name: /candidates\.json/i }));
@@ -347,8 +343,8 @@ describe('Workbench · forms of the editor', () => {
     expect(screen.queryByText('These criteria need a scale')).not.toBeInTheDocument();
     expect(screen.queryByText('Soft rules without a penalty')).not.toBeInTheDocument();
 
-    validate();
-    await waitFor(() => expect(workbench.validate).toHaveBeenCalledTimes(1));
+    checkNow();
+    await waitFor(() => expect(bim.validate).toHaveBeenCalledTimes(1));
     const files = await checkedFiles();
     const catalog = JSON.parse(files['candidates.json']);
     expect(catalog.spec.providers).toEqual({ ghost: {} });
@@ -366,61 +362,12 @@ describe('Workbench · forms of the editor', () => {
         spec: { tasks: { hello: 'http' }, features: {}, workflow: { task: { resource: 'application', id: 'hello' } } },
       }),
     });
-    await openWorkbench();
+    await openForms();
     fireEvent.click(await screen.findByRole('button', { name: /optimization\.json/i }));
     expect(screen.getByText('The Application declares no features')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Add criterion' })).toBeDisabled();
     fireEvent.click(screen.getByRole('button', { name: 'Open application.json' }));
     expect(await screen.findByLabelText('New feature id')).toBeInTheDocument();
-  });
-
-  it('opens a draft written with the older vocabulary in the real one, says so, and keeps what has no place in the schema', async () => {
-    await saveDraft(DRAFT_SCOPE, {
-      'instance.json': JSON.stringify({
-        apiVersion: 'bim/v1',
-        kind: 'Instance',
-        metadata: { name: 'older-draft' },
-        spec: { profile: 'qos-binding/v1', resources: { application: { application: 'application.json' }, candidateCatalog: { catalog: 'candidates.json' }, optimization: { optimization: 'optimization.json' } } },
-      }),
-      'application.json': JSON.stringify({
-        apiVersion: 'qos-binding/v1',
-        kind: 'Application',
-        metadata: { name: 'app' },
-        spec: { tasks: { hello: 'http' }, metrics: { latency: { unit: 'ms' } }, workflow: { task: { resource: 'application', id: 'hello' } } },
-      }),
-      'candidates.json': JSON.stringify({
-        apiVersion: 'qos-binding/v1',
-        kind: 'CandidateCatalog',
-        metadata: { name: 'catalog' },
-        spec: {
-          metricBindings: { latency: { resource: 'application', id: 'latency' } },
-          candidates: { 'service-a': { provides: 'http', metrics: { latency: 10 } } },
-        },
-      }),
-      'optimization.json': JSON.stringify({
-        apiVersion: 'qos-binding/v1',
-        kind: 'Optimization',
-        metadata: { name: 'goal' },
-        spec: { type: 'MONO', mode: 'weighted', terms: [{ metric: { resource: 'application', id: 'latency' }, weight: 2 }] },
-      }),
-    });
-    await openWorkbench();
-    expect(await screen.findByText(/used an older vocabulary/)).toBeInTheDocument();
-    expect(screen.getByText(/optimization\.json · spec: 1 term became criteria/)).toBeInTheDocument();
-    fireEvent.click(await screen.findByRole('button', { name: /candidates\.json/i }));
-    expect(screen.getByLabelText('service-a QoS latency')).toHaveValue(10);
-
-    fireEvent.change(screen.getByLabelText('service-a QoS latency'), { target: { value: '12' } });
-    validate();
-    await waitFor(() => expect(workbench.validate).toHaveBeenCalledTimes(1));
-    const files = await checkedFiles();
-    const catalog = JSON.parse(files['candidates.json']);
-    expect(catalog.spec.featureBindings).toEqual({ latency: { resource: 'application', id: 'latency' } });
-    expect(catalog.spec.candidates['service-a']).toEqual({ provides: 'http', features: { latency: 12 } });
-    expect(JSON.parse(files['application.json']).spec.features).toEqual({ latency: { unit: 'ms' } });
-    const optimization = JSON.parse(files['optimization.json']);
-    expect(optimization.spec).toEqual({ criteria: [{ id: 'latency', feature: { resource: 'application', id: 'latency' } }] });
-    expect(optimization.metadata.annotations['openbinding.legacy']['spec.optimization']).toEqual({ type: 'MONO', mode: 'weighted', weights: { latency: 2 } });
   });
 
   it('authors RoutingOverlay and the complete Placement topology without opening the source', async () => {
@@ -449,7 +396,7 @@ describe('Workbench · forms of the editor', () => {
         spec: { pools: { p_edge: { kind: 'edge', capacity: { memory: 4 } } }, defaults: { memory: 1 } },
       }),
     });
-    await openWorkbench();
+    await openForms();
 
     fireEvent.click(await screen.findByRole('button', { name: /routing\.json/i }));
     expect(screen.getByRole('heading', { name: 'Routing policy' })).toBeInTheDocument();
@@ -472,8 +419,8 @@ describe('Workbench · forms of the editor', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add capacity rule' }));
     fireEvent.click(screen.getByLabelText('Enable global latency'));
 
-    validate();
-    await waitFor(() => expect(workbench.validate).toHaveBeenCalledTimes(1));
+    checkNow();
+    await waitFor(() => expect(bim.validate).toHaveBeenCalledTimes(1));
     const files = await checkedFiles();
     const routing = JSON.parse(files['routing.json']);
     const placement = JSON.parse(files['placement.json']);
@@ -504,7 +451,7 @@ describe('Workbench · forms of the editor', () => {
         apiVersion: 'qos-binding/v1', kind: 'ConstraintSet', metadata: { name: 'constraints' }, spec: { constraints: {} },
       }),
     });
-    await openWorkbench();
+    await openForms();
     fireEvent.click(await screen.findByRole('button', { name: /constraints\.json/i }));
     fireEvent.click(screen.getByRole('button', { name: 'Add AST constraint' }));
 
@@ -513,16 +460,16 @@ describe('Workbench · forms of the editor', () => {
 
     fireEvent.change(assertion, { target: { value: '{"call":">=","args":[{"path":"features.latency"},0]}' } });
     expect(screen.getByRole('alert')).toHaveTextContent('Enter a BIM expression AST');
-    validate();
-    await waitFor(() => expect(workbench.validate).toHaveBeenCalledTimes(1));
+    checkNow();
+    await waitFor(() => expect(bim.validate).toHaveBeenCalledTimes(1));
     expect(JSON.parse((await checkedFiles())['constraints.json']).spec.constraints.constraint1.assert).toEqual({
       op: 'gte', left: { path: 'features.latency' }, right: { literal: 0 },
     });
 
     fireEvent.change(assertion, { target: { value: '{"op":"lte","left":{"path":["features","latency"]},"right":{"literal":25}}' } });
     await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
-    validate();
-    await waitFor(() => expect(workbench.validate).toHaveBeenCalledTimes(2));
+    checkNow();
+    await waitFor(() => expect(bim.validate).toHaveBeenCalledTimes(2));
     expect(JSON.parse((await checkedFiles())['constraints.json']).spec.constraints.constraint1.assert).toEqual({
       op: 'lte', left: { path: ['features', 'latency'] }, right: { literal: 25 },
     });

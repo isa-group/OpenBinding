@@ -47,7 +47,7 @@ const HEADING: Record<string, RegExp> = {
   'composition-detail': /Fleet routing/,
   'problem-list': /^Problems$/,
   'problem-detail': /Checkout flow/,
-  'problem-editor': /Workbench/,
+  'problem-editor': /^Problem editor$/,
   'run-launch': /New run/,
   'run-list': /^Runs$/,
   'run-detail': /random-search run/,

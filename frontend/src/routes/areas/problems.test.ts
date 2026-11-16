@@ -31,7 +31,7 @@ describe('area problems', () => {
     for (const id of ['case-revision', 'case-compare', 'snap-detail']) expect(ids, id).not.toContain(id);
   });
 
-  it('declares no composer screen, and keeps the case screens and the workbench', () => {
+  it('declares no composer screen, and keeps the problem screens and the problem editor', () => {
     const ids = routeDefinitions.map((definition) => definition.id);
     const paths = routeDefinitions.map((definition) => definition.path);
     expect(ids).not.toContain('case-composer');
@@ -40,12 +40,12 @@ describe('area problems', () => {
     expect(matchRoutes(config, '/app/acme/problems/flujo/compose')?.at(-1)?.route.id).toBe('problem-detail');
   });
 
-  it('keeps the case list and the workbench', () => {
+  it('keeps the problem list and the problem editor', () => {
     const ids = routeDefinitions.map((definition) => definition.id);
     for (const id of ['problem-list', 'problem-editor']) expect(ids, id).toContain(id);
   });
 
-  it('has the workbench at the organization', () => {
+  it('has the problem editor at the organization', () => {
     expect(routeDefinitions.find((definition) => definition.id === 'problem-editor')?.path).toBe('/app/:org/problem-editor');
   });
 
@@ -91,10 +91,12 @@ describe('the address builders of the problems area', () => {
     expect(problemPath('acme', 'a b/c', undefined, { version: 'sha256-x' })).toBe('/app/acme/problems/a%20b%2Fc?version=sha256-x');
   });
 
-  it('builds the Workbench of the organization and what it opens', () => {
+  it('builds the problem editor of the organization, what it opens and what it highlights', () => {
     expect(problemEditorPath('acme')).toBe('/app/acme/problem-editor');
     expect(problemEditorPath('acme', { problem: 'routing', revision: 2 })).toBe('/app/acme/problem-editor?problem=routing&revision=2');
     expect(problemEditorPath('acme', { template: 'demo/01_simple_seq' })).toBe('/app/acme/problem-editor?template=demo%2F01_simple_seq');
+    expect(problemEditorPath('acme', { problem: 'routing', revision: 2, composition: 'checkout', compositionVersion: '1.1.0' }))
+      .toBe('/app/acme/problem-editor?problem=routing&revision=2&composition=checkout&compositionVersion=1.1.0');
   });
 
   it('builds the runs of the organization and the launcher of a run of a problem version or with an engine', () => {

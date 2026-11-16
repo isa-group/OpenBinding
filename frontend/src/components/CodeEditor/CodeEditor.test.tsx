@@ -48,6 +48,11 @@ describe('CodeEditor', () => {
     expect(screen.getByRole('textbox', { name: 'composition.yaml source' })).toBe(view.contentDOM);
   });
 
+  it('reads BPMN XML', () => {
+    const { container } = render(<CodeEditor value={'<bpmn:definitions id="d" />'} onChange={() => undefined} language="xml" ariaLabel="workflow.bpmn source" />);
+    expect(viewOf(container).contentDOM).toHaveAttribute('data-language', 'xml');
+  });
+
   it('marks the gateway findings at their offsets and leaves the rest to the Problems panel', async () => {
     const { container, rerender } = render(<Holder diagnostics={[KIND, WHOLE]} />);
     const view = viewOf(container);

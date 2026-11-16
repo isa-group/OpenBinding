@@ -64,11 +64,11 @@ describe('the Playwright specs', () => {
     for (const name of journeys) expect(read(`${e2e}/${name}`), name).toMatch(/\btest\.describe\('J\d+ · /);
   });
 
-  it('walks each F2b journey closed so far in a mocked spec of its own: J4 study front to compositions', () => {
+  it('walks each F2b journey closed so far in a mocked spec of its own: J3 the problem editor (its first steps); J4 study front to compositions', () => {
     const journeys = ts.sys.readDirectory(e2e, ['.ts'], undefined, undefined, 1)
       .map((name) => name.replace(`${e2e}/`, ''))
       .filter((name) => name.startsWith('f2b-'));
-    expect(journeys.sort()).toEqual(['f2b-study-front.spec.ts']);
+    expect(journeys.sort()).toEqual(['f2b-problem-editor.spec.ts', 'f2b-study-front.spec.ts']);
     for (const name of journeys) expect(read(`${e2e}/${name}`), name).toMatch(/\btest\.describe\('J\d+ · /);
   });
 

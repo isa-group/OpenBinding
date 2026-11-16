@@ -3,12 +3,13 @@ import { API, PUBLIC_ENGINES, installMockApi } from './helpers/mockApi';
 import { failureBody } from './helpers/problems';
 import { checkoutFacts, digestOf } from '../src/pages/Problems/fixtures';
 import { REGISTRATION, detailOf } from '../src/test/fixtures/jobs';
+import { DEFAULT_FILES } from '../src/features/bim-editor/documents';
 
-// F2 · ranges of candidate features, from the problems to the engines.
+// Candidate ranges · ranges of candidate features, from the problems to the engines (the milestone once called F2 ranges).
 // A feature of a candidate is a number or a range { min, max } whose ends are numbers or null (no limit). This walks it through the
 // screens that read it (the Candidates and Versions tabs of a problem page) and decide on it
-// (the engine step of a run, a run the engine refused, the workbench's check result, a run that failed for ranges). The Source tab is covered by its unit tests. The API origin is the shared mock of the QA gallery with a few answers of
-// its own on top. Unlike the other specs, the pictures are always taken (test-results/, ignored by git): they are the evidence of F2.
+// (the engine step of a run, a run the engine refused, the problem editor's engines, a run that failed for ranges). The Source tab is covered by its unit tests. The API origin is the shared mock of the QA gallery with a few answers of
+// its own on top. Unlike the other specs, the pictures are always taken (test-results/, ignored by git): they are the evidence of the ranges.
 
 // The first screens are slow to open under load (the problem page reads the problem and then its compilation), so a wait is generous.
 const expect = baseExpect.configure({ timeout: 20_000 });
@@ -71,7 +72,7 @@ const viewports = [
 ] as const;
 
 for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
-  test.describe(`${name} · F2 ranges`, () => {
+  test.describe(`${name} · candidate ranges`, () => {
     test.describe.configure({ mode: 'serial' });
     test.use({ viewport, isMobile, deviceScaleFactor });
 
@@ -170,46 +171,51 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
   });
 }
 
-// The two places the other specs do not reach: the workbench (a package edited into a range) and a run that failed for ranges.
-test.describe('desktop · F2 ranges in the workbench and in a failed run', () => {
+// The two places the other specs do not reach: the problem editor (a package edited into a range) and a run that failed for ranges.
+test.describe('desktop · candidate ranges in the problem editor and in a failed run', () => {
   test.describe.configure({ mode: 'serial' });
   test.use({ viewport: viewports[0].viewport });
 
-  test('workbench · a candidate edited into an open range turns the engines that only take single values off', async ({ page }, testInfo) => {
+  test('problem editor · a candidate edited into an open range in Files turns the engines that only take single values off', async ({ page }, testInfo) => {
     const critical = watchCriticalErrors(page);
     await installMockApi(page, 'admin');
     const refusal = [{ code: 'unsupported_capability_value', message: 'featureValues interval is not declared by this mode', pointer: '/spec/candidates/service-a/features/latency' }];
-    await page.route(`${API}/v1/bim/validate`, (route) => route.fulfill({
-      status: 200,
-      json: {
-        valid: true, instanceDigest: digestOf('a'), packageDigest: digestOf('b'), irDigest: digestOf('c'), fileDigests: {}, resourceDigests: {}, diagnostics: [],
-        analysis: { tasks: 1, candidates: 1, constraints: 0, placement: false, bindingSpace: '1' },
-        compatibleModes: [
-          { engine: PUBLIC_ENGINES[0].ref, registration: REGISTRATION, mode: 'sampling', compatible: false, diagnostics: refusal },
-          { engine: PUBLIC_ENGINES[2].ref, registration: { ...REGISTRATION, name: 'minizinc-deployment' }, mode: 'cp', compatible: true },
-        ],
-      },
-    }));
+    const sent: string[] = [];
+    await page.route(`${API}/v1/bim/validate**`, (route) => {
+      sent.push((route.request().postDataBuffer() ?? Buffer.alloc(0)).toString('utf8'));
+      return route.fulfill({
+        status: 200,
+        json: {
+          valid: true, instanceDigest: digestOf('a'), packageDigest: digestOf('b'), irDigest: digestOf('c'), fileDigests: {}, resourceDigests: {}, diagnostics: [],
+          analysis: { tasks: 1, candidates: 1, constraints: 0, placement: false, bindingSpace: '1' },
+          compatibleModes: [
+            { engine: PUBLIC_ENGINES[0].ref, registration: REGISTRATION, mode: 'sampling', compatible: false, diagnostics: refusal },
+            { engine: PUBLIC_ENGINES[2].ref, registration: { ...REGISTRATION, name: 'minizinc-deployment' }, mode: 'cp', compatible: true },
+          ],
+        },
+      });
+    });
     const main = page.locator('#platform-main');
 
     await page.goto('/app/isa-demo/problem-editor');
-    await main.getByRole('navigation', { name: 'BIM resources' }).getByRole('button', { name: /candidates\.json/ }).click();
-    await expect(main.getByLabel('service-a QoS latency')).toHaveValue('10');
-    await main.getByRole('group', { name: 'latency for service-a: value or range' }).getByRole('button', { name: 'Range' }).click();
-    await main.getByLabel('latency for service-a: no upper limit', { exact: true }).check();
-    await expect(main.getByLabel('latency for service-a min', { exact: true })).toHaveValue('10');
-    await expect(main.getByLabel('latency for service-a max', { exact: true })).toHaveValue('+∞');
+    await main.getByRole('tab', { name: 'Files' }).click();
+    await main.getByRole('navigation', { name: 'Files of the package' }).getByRole('button', { name: /candidates\.json/ }).click();
+    const ranged = JSON.parse(DEFAULT_FILES['candidates.json']);
+    ranged.spec.candidates['service-a'].features.latency = { min: 10, max: null };
+    await main.getByRole('textbox', { name: 'candidates.json source' }).click();
+    await page.keyboard.press('ControlOrMeta+A');
+    await page.keyboard.insertText(JSON.stringify(ranged, null, 2));
 
-    await main.getByRole('button', { name: 'Validate', exact: true }).click();
-    // The check result says which modes are off and why; the Workbench runs nothing itself (a saved version runs from its problem page).
-    await main.getByRole('tab', { name: /Engines that can run it/ }).click();
-    const table = main.getByRole('table', { name: 'Engine modes and whether they can run this package' });
-    const off = table.getByRole('row').filter({ hasText: 'random-search' });
-    await expect(off).toContainText('No');
+    // The live check sends the range, and the engines beside the panes say which modes are off and why; the editor runs nothing
+    // itself (a saved version runs from its problem page).
+    await expect.poll(() => sent.some((body) => body.includes('"latency":{"max":null,"min":10}'))).toBe(true);
+    const engines = main.getByRole('list', { name: 'Engine modes' });
+    const off = engines.getByRole('listitem').filter({ hasText: 'random-search' });
+    await expect(off).toContainText('Cannot run it');
     await expect(off).toContainText('This package has range features; this engine only accepts single values');
-    await expect(table.getByRole('row').filter({ hasText: 'minizinc' })).toContainText('Yes');
+    await expect(engines.getByRole('listitem').filter({ hasText: 'minizinc' })).toContainText('Can run it');
     await expect(main.getByRole('button', { name: 'Solve' })).toHaveCount(0);
-    await capture(page, testInfo, 'workbench-desktop-ranges');
+    await capture(page, testInfo, 'problem-editor-desktop-ranges');
     expect(critical).toEqual([]);
   });
 

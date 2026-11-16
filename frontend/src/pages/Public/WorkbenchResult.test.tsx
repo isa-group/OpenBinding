@@ -3,7 +3,52 @@ import { describe, expect, it, vi } from 'vitest';
 import { zipStore } from '../../utils/bimZip';
 import { StructurePanel } from './WorkbenchResult';
 import { readPackageModel } from './packageModel';
-import { packageFilesNamed } from './workbenchTestKit';
+
+const json = (value: unknown) => `${JSON.stringify(value, null, 2)}\n`;
+
+/** The files of a small package whose name is `name`. */
+function packageFilesNamed(name: string): Record<string, string> {
+  return {
+    'instance.json': json({
+      apiVersion: 'bim/v1',
+      kind: 'Instance',
+      metadata: { name },
+      spec: {
+        profile: 'qos-binding/v1',
+        resources: {
+          application: { application: 'application.json' },
+          candidateCatalog: { catalog: 'candidates.json' },
+          optimization: { optimization: 'optimization.json' },
+        },
+      },
+    }),
+    'application.json': json({
+      apiVersion: 'qos-binding/v1',
+      kind: 'Application',
+      metadata: { name: `${name}-application` },
+      spec: {
+        tasks: { hello: 'http' },
+        features: { latency: { unit: 'ms', domain: 'real', direction: 'minimize', scope: 'invocation', aggregation: 'sum' } },
+        workflow: { task: { resource: 'application', id: 'hello' } },
+      },
+    }),
+    'candidates.json': json({
+      apiVersion: 'qos-binding/v1',
+      kind: 'CandidateCatalog',
+      metadata: { name: `${name}-candidates` },
+      spec: {
+        featureBindings: { latency: { resource: 'application', id: 'latency' } },
+        candidates: { candidate: { provides: 'http', features: { latency: 10 } } },
+      },
+    }),
+    'optimization.json': json({
+      apiVersion: 'qos-binding/v1',
+      kind: 'Optimization',
+      metadata: { name: `${name}-optimization` },
+      spec: { criteria: [{ id: 'latency', feature: { resource: 'application', id: 'latency' } }] },
+    }),
+  };
+}
 
 const FULL = `sha256-${'ab'.repeat(32)}`;
 

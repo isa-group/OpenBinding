@@ -18,7 +18,7 @@ import { kindLabel } from '../../entities/composition/kinds';
 import { valueStatus } from '../../entities/composition/values';
 import { lastOrganization } from '../../features/workspace/lastOrganization';
 import { compositionPath, compositionsPath } from '../../routes/paths/compositions';
-import { problemsPath } from '../../routes/paths/problems';
+import { problemEditorPath, problemsPath } from '../../routes/paths/problems';
 import { launchPath, runPath, runsPath } from '../../routes/paths/runs';
 import { formatDate } from '../../utils/format';
 import { formatCount, formatDuration, LIMIT } from '../../utils/limits';
@@ -180,7 +180,7 @@ function ActivityBlock({ organization }: { organization: Organization | undefine
           <ol>
             <li>
               {org
-                ? <><Link to={`${problemsPath(org)}?create=problem`}>Upload a BIM package</Link> as a problem of {organization?.name ?? org}, or write one in its Workbench.</>
+                ? <><Link to={`${problemsPath(org)}?create=problem`}>Upload a BIM package</Link> as a problem of {organization?.name ?? org}, or write one in its <Link to={problemEditorPath(org)}>problem editor</Link>.</>
                 : <>Create an organization, then upload a BIM package as one of its problems. <Link to="/workbench">Check a package</Link> first if you like.</>}
             </li>
             <li>Launch a run of it; it appears here while it works.</li>

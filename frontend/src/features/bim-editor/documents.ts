@@ -1,7 +1,7 @@
 import type { ProblemFacts } from '../../shared/api/types';
 import type { FeatureSlot } from '../../utils/featureRange';
 
-/** The documents of a BIM package as the workbench reads them: tolerant types over JSON, and the small readers the editor and the summaries share. */
+/** The documents of a BIM package as the problem editor reads them: tolerant types over JSON, and the small readers the editor and the summaries share. */
 
 /** The files of a package, by path. */
 export type WorkspaceFiles = Record<string, string>;
@@ -30,7 +30,7 @@ export function pretty(value: unknown): string {
   return `${JSON.stringify(value, null, 2)}\n`;
 }
 
-/** The small package the workbench starts from when nothing else was asked for. */
+/** The blank package the problem editor starts from when nothing else was asked for. */
 export const DEFAULT_FILES: WorkspaceFiles = {
   'instance.json': pretty({
     apiVersion: 'bim/v1',

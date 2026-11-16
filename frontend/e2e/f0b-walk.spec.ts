@@ -78,21 +78,24 @@ test('the F0b walk: upload, edit in the problem editor, a template, a run and a 
   await expect(files).toBeVisible();
   await expect(files).toContainText('candidates.json');
 
-  // 4 · Edit in the problem editor: one candidate value changes, the edit is checked and saved as version 2.
+  // 4 · Edit in the problem editor: one candidate value changes in its form, the live check sends it, and it is saved as version 2.
   await main.getByRole('tab', { name: 'Overview' }).click();
   const edit = main.getByRole('link', { name: 'Edit in the problem editor' });
   await expect(edit).toHaveAttribute('href', `${ORG_PATH}/problem-editor?problem=simple-seq&revision=1`);
   await edit.click();
-  await expect(main.getByText('Loaded version 1')).toBeVisible();
+  await expect(main.getByText('Loaded version 1 of simple-seq')).toBeVisible();
+  const status = main.getByTestId('pe-check-status');
+  await expect(status).toHaveText('Valid package');
+  await main.getByRole('tab', { name: 'Forms' }).click();
   await main.getByRole('navigation', { name: 'BIM resources' }).getByRole('button', { name: /candidates\.json/ }).click();
   await expect(main.getByLabel('c1b QoS latency')).toHaveValue('20');
   await main.getByLabel('c1b QoS latency').fill('12');
-  await main.getByRole('button', { name: 'Validate', exact: true }).click();
-  await expect(main.getByRole('heading', { name: 'Valid package' })).toBeVisible();
-  const checked = await candidatesOf(api.sent.validated[api.sent.validated.length - 1]);
-  expect(checked.spec.candidates.c1b.features.latency).toBe(12);
-  const bar = main.getByRole('region', { name: 'Package actions' });
-  await bar.getByRole('button', { name: 'Save as a new version of simple-seq' }).click();
+  await expect.poll(async () => (await candidatesOf(api.sent.validated[api.sent.validated.length - 1])).spec.candidates.c1b.features.latency).toBe(12);
+  await expect(status).toHaveText('Valid package');
+  await main.getByRole('button', { name: 'Save as version…' }).click();
+  const save = page.getByRole('dialog', { name: 'Save the package' });
+  await expect(save.getByRole('combobox', { name: 'Save into problem' })).toHaveValue('simple-seq');
+  await save.getByRole('button', { name: 'Save as a new version of simple-seq' }).click();
   await expect(main.getByText('Saved as version 2 of simple-seq. Run it from its page.')).toBeVisible();
   expect(api.sent.uploads.map(({ problem, revision }) => `${problem}@${revision}`)).toEqual(['simple-seq@1', 'simple-seq@2']);
   expect((await candidatesOf(api.sent.uploads[1].bytes)).spec.candidates.c1b.features.latency).toBe(12);
@@ -105,10 +108,12 @@ test('the F0b walk: upload, edit in the problem editor, a template, a run and a 
   await page.goto(PROBLEMS);
   await main.getByRole('link', { name: 'Start from a template' }).click();
   await expect(page).toHaveURL(new RegExp(`${ORG_PATH}/problem-editor\\?template=demo%2F01_simple_seq$`));
-  await expect(main.getByRole('heading', { name: 'Valid package' })).toBeVisible();
+  await expect(main.getByText('Opened from template demo/01_simple_seq')).toBeVisible();
+  await expect(status).toHaveText('Valid package');
   expect(api.sent.validated[api.sent.validated.length - 1].equals(template)).toBe(true);
-  await expect(bar.getByRole('combobox', { name: 'Save into problem' })).toHaveValue('');
-  await bar.getByRole('button', { name: 'Save as a new problem' }).click();
+  await main.getByRole('button', { name: 'Save as version…' }).click();
+  await expect(save.getByRole('combobox', { name: 'Save into problem' })).toHaveValue('');
+  await save.getByRole('button', { name: 'Save as a new problem' }).click();
   await expect(main.getByText('Saved as version 1 of demo_01_simple_seq. Run it from its page.')).toBeVisible();
   expect(api.sent.uploads[2]).toMatchObject({ problem: 'demo-01-simple-seq', revision: 1 });
   await main.getByRole('link', { name: 'Open the problem' }).click();

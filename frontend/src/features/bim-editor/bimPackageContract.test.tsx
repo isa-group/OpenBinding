@@ -1,12 +1,11 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { saveDraft } from '../../shared/editor/drafts';
-import { unzipPackage } from '../../utils/bimZip';
-import { DEFAULT_FILES } from '../../features/bim-editor/documents';
-import { analysis, openWorkbench } from './workbenchTestKit';
+import { DEFAULT_FILES } from './documents';
+import { analysis, checkNow, DRAFT_SCOPE, openProblemEditor, sentFiles, showPane } from './editorTestKit';
 
-// The contract between the workbench and the compiler of the gateway. `src/test/fixtures/bim-package` holds the package the workbench
-// writes (the default one, and variants after typical edits of its forms); `openbinding-gateway/tests/test_b6_workbench_package.py`
+// The contract between the problem editor and the compiler of the gateway. `src/test/fixtures/bim-package` holds the package the
+// editor writes (the default one, and variants after typical edits of its forms); `openbinding-gateway/tests/test_b6_workbench_package.py`
 // compiles those very files with the real compiler. So a change of what the forms write fails here until the fixtures follow it, and
 // the fixtures only ever change together with a package the compiler accepts. The `form-flow` variant is a package built with nothing but
 // the forms, including the parts the compiler checks across documents (a provider the catalog declares, a binding to a feature of the
@@ -14,19 +13,16 @@ import { analysis, openWorkbench } from './workbenchTestKit';
 // same package without each of those parts.
 
 const problems = vi.hoisted(() => ({ list: vi.fn(), revisions: vi.fn(), source: vi.fn(), create: vi.fn(), createRevision: vi.fn() }));
-const workbench = vi.hoisted(() => ({ validate: vi.fn(), templates: vi.fn(), template: vi.fn() }));
+const bim = vi.hoisted(() => ({ validate: vi.fn(), templates: vi.fn(), template: vi.fn() }));
 
 vi.mock('../../api/problems', () => ({ problemsApi: problems }));
-vi.mock('../../api/bim', () => ({ bimApi: workbench }));
+vi.mock('../../api/bim', () => ({ bimApi: bim }));
 vi.mock('../../components/CodeEditor/CodeEditor', () => ({
   CodeEditor: ({ value, onChange, ariaLabel, readOnly }: { value: string; onChange: (value: string) => void; ariaLabel: string; readOnly?: boolean }) => (
     <textarea aria-label={ariaLabel} value={value} readOnly={readOnly} onChange={(event) => onChange(event.target.value)} />
   ),
 }));
-vi.mock('../../features/bim-editor/BpmnModeler', () => ({ BpmnModeler: () => <div data-testid="bpmn-modeler" /> }));
-
-/** Where the workbench of the test organization keeps the draft of a new problem for Lucía. */
-const DRAFT_SCOPE = 'user-lucia:problem:isa-demo:new:none';
+vi.mock('./BpmnModeler', () => ({ BpmnModeler: () => <div data-testid="bpmn-modeler" /> }));
 
 const sources = import.meta.glob<string>('../../test/fixtures/bim-package/**/*.{json,bpmn}', { query: '?raw', import: 'default', eager: true });
 
@@ -39,26 +35,26 @@ function reference(path: string): string {
 
 const referenceJson = (path: string): unknown => JSON.parse(reference(path));
 
-/** The files the gateway was asked to check on a call of the validation. */
-async function checkedFiles(callIndex = workbench.validate.mock.calls.length - 1) {
-  const archive = workbench.validate.mock.calls[callIndex][0] as Uint8Array;
-  const buffer = archive.buffer.slice(archive.byteOffset, archive.byteOffset + archive.byteLength) as ArrayBuffer;
-  return unzipPackage(buffer);
-}
-
+/** What the gateway was asked to check when the package was checked now. */
 async function validated() {
-  fireEvent.click(screen.getByRole('button', { name: 'Validate' }));
-  await waitFor(() => expect(workbench.validate).toHaveBeenCalledTimes(1));
-  return checkedFiles();
+  checkNow();
+  await waitFor(() => expect(bim.validate).toHaveBeenCalledTimes(1));
+  return sentFiles(bim.validate);
 }
 
-describe('Workbench · the package it writes is the package the compiler is tested with', () => {
+/** The editor with its package on screen, at the Forms pane. */
+async function openForms() {
+  await openProblemEditor();
+  showPane('Forms');
+}
+
+describe('ProblemEditor · the package it writes is the package the compiler is tested with', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     problems.list.mockResolvedValue({ problems: [], total: 0, limit: 200, offset: 0 });
     problems.revisions.mockResolvedValue([]);
-    workbench.templates.mockResolvedValue([]);
-    workbench.validate.mockResolvedValue(analysis());
+    bim.templates.mockResolvedValue([]);
+    bim.validate.mockResolvedValue(analysis());
   });
 
   it('has one reference file for every file of the default package, with the same name and content', () => {
@@ -70,7 +66,7 @@ describe('Workbench · the package it writes is the package the compiler is test
   });
 
   it('sends the default package to the gateway as the reference files hold it', async () => {
-    await openWorkbench();
+    await openForms();
     const files = await validated();
     expect(Object.keys(files).sort()).toEqual(Object.keys(DEFAULT_FILES).sort());
     for (const path of Object.keys(files)) {
@@ -80,7 +76,7 @@ describe('Workbench · the package it writes is the package the compiler is test
   });
 
   it('writes the open-range variant after adding a candidate and giving its latency a range with no upper limit', async () => {
-    await openWorkbench();
+    await openForms();
     fireEvent.click(screen.getByRole('button', { name: /candidates\.json/i }));
     fireEvent.click(screen.getByRole('button', { name: 'Add candidate' }));
     fireEvent.change(screen.getByLabelText('candidate2 capability 1 type'), { target: { value: 'http' } });
@@ -101,7 +97,7 @@ describe('Workbench · the package it writes is the package the compiler is test
         apiVersion: 'qos-binding/v1', kind: 'ConstraintSet', metadata: { name: 'hello-constraints' }, spec: { constraints: {} },
       }),
     });
-    await openWorkbench();
+    await openForms();
     fireEvent.click(await screen.findByRole('button', { name: /constraints\.json/i }));
     fireEvent.click(screen.getByRole('button', { name: 'Add CEL constraint' }));
     fireEvent.click(screen.getByRole('button', { name: 'Add AST constraint' }));
@@ -126,7 +122,7 @@ describe('Workbench · the package it writes is the package the compiler is test
         apiVersion: 'qos-binding/v1', kind: 'ConstraintSet', metadata: { name: 'hello-constraints' }, spec: { constraints: {} },
       }),
     });
-    await openWorkbench();
+    await openForms();
 
     // A second feature, in another unit.
     fireEvent.click(screen.getByRole('button', { name: /application\.json/i }));
@@ -177,7 +173,7 @@ describe('Workbench · the package it writes is the package the compiler is test
   }, 15000);
 
   it('declares the provider a candidate is given in the catalog, and offers no binding when every feature is bound', async () => {
-    await openWorkbench();
+    await openForms();
     fireEvent.click(screen.getByRole('button', { name: /candidates\.json/i }));
     // The default package binds its only feature, so the form has nothing left to bind.
     expect(screen.getByRole('button', { name: 'Add feature binding' })).toBeDisabled();
@@ -194,7 +190,7 @@ describe('Workbench · the package it writes is the package the compiler is test
   });
 
   it('writes the criterion renamed and normalized as the schema names them', async () => {
-    await openWorkbench();
+    await openForms();
     fireEvent.click(screen.getByRole('button', { name: /optimization\.json/i }));
     const id = screen.getByLabelText('Criterion 1 id');
     fireEvent.change(id, { target: { value: 'response' } });
