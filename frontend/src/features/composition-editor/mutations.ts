@@ -22,6 +22,8 @@ export type OfferingChoice =
 
 /** What a candidate change says about the provenance it dropped. */
 export const PROVENANCE_REMOVED = 'Provenance removed; derive fills it.';
+/** What a candidate change says about the run it no longer cites. */
+export const RUN_EVIDENCE_REMOVED = 'The run is no longer cited: its solution is another binding.';
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
 
@@ -43,7 +45,9 @@ export function setKind(document: DocumentModel, kind: Kind): DocumentModel {
 
 /**
  * Bind a task to a candidate, as the problem writes it. The entry's `from` is dropped: it named where the previous candidate came
- * from, and a derivation writes it again for the new one.
+ * from, and a derivation writes it again for the new one. So are the `run` and `point` of the evidence: the binding is no longer
+ * the solution that run found (the gateway refuses a run that does not hold the binding, `c2y_run_binding_mismatch`), and the seal
+ * stamps the evidence of a binding chosen by hand.
  */
 export function setCandidate(document: DocumentModel, task: string, candidate: string): { document: DocumentModel; note: string | null } {
   const next = clone(document);
@@ -51,7 +55,17 @@ export function setCandidate(document: DocumentModel, task: string, candidate: s
   const previous = binding[task];
   const dropped = isRecord(previous) && 'from' in previous;
   next.binding = { ...binding, [task]: { candidate } };
-  return { document: next, note: dropped ? PROVENANCE_REMOVED : null };
+  const evidence = next.evidence;
+  const cited = isRecord(evidence) && ('run' in evidence || 'point' in evidence);
+  if (cited) {
+    const kept = { ...evidence };
+    delete kept.run;
+    delete kept.point;
+    if (Object.keys(kept).length > 0) next.evidence = kept;
+    else delete next.evidence;
+  }
+  const notes = [dropped ? PROVENANCE_REMOVED : '', cited ? RUN_EVIDENCE_REMOVED : ''].filter(Boolean);
+  return { document: next, note: notes.length > 0 ? notes.join(' ') : null };
 }
 
 /** Declare a value: a dimensionless one (unit `"1"` or none) is written as a bare number, any other as `{value, unit}`. */

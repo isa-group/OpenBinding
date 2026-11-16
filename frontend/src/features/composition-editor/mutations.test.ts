@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
-  DOCUMENT_KEYS, PROVENANCE_REMOVED, offeringChoice, removeValue, setCandidate, setKind, setOffering, setValue, setVersion,
+  DOCUMENT_KEYS, PROVENANCE_REMOVED, RUN_EVIDENCE_REMOVED, offeringChoice, removeValue, setCandidate, setKind, setOffering, setValue, setVersion,
   type DocumentModel,
 } from './mutations';
 
@@ -72,6 +72,26 @@ describe('the visual editor’s changes', () => {
     const local = setCandidate(declared(), 'signIn', 'auth.okta.basic').document.binding as Record<string, unknown>;
     expect(local.signIn).toEqual({ candidate: 'auth.okta.basic' });
     expect(local.post).toEqual({ candidate: 'shipping.post.standard' });
+  });
+
+  it('stops citing the run a derived version came from, since the new binding is not its solution, saying so', () => {
+    const derived = {
+      ...declared(),
+      problem: { ref: 'lab-main/problems/simple-seq@1', compilation: `sha256-${'a'.repeat(64)}` },
+      evidence: { run: '7c1e5a90-0000-4000-8000-0000000000b1', point: 0, evaluatedBy: 'gateway', toolchain: 'bim-core 0.2.0' },
+    };
+    const changed = setCandidate(derived, 'archive', 'storage.box.business');
+    expect(changed.document.evidence).toEqual({ evaluatedBy: 'gateway', toolchain: 'bim-core 0.2.0' });
+    expect(changed.note).toBe(RUN_EVIDENCE_REMOVED);
+    expect(derived.evidence.run).toBe('7c1e5a90-0000-4000-8000-0000000000b1');
+    // Both notes when the old candidate also had a provenance; an evidence of nothing but the run goes entirely.
+    const both = setCandidate({ ...derived, evidence: { run: derived.evidence.run } }, 'notify', 'email.mailgun.basic');
+    expect(both.document).not.toHaveProperty('evidence');
+    expect(both.note).toBe(`${PROVENANCE_REMOVED} ${RUN_EVIDENCE_REMOVED}`);
+    // A hand-chosen binding keeps its evidence as it is.
+    const manual = setCandidate({ ...derived, evidence: { manual: true } }, 'archive', 'storage.box.business');
+    expect(manual.document.evidence).toEqual({ manual: true });
+    expect(manual.note).toBeNull();
   });
 
   it('declares a value with its unit, a dimensionless one as a bare number, and removes one', () => {
