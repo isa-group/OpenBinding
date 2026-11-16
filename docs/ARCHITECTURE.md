@@ -192,7 +192,8 @@ frontend/src/
   shared/api/             openapi.ts (generated from docs/openapi.json by `pnpm gen:api`; never edited), types.ts (named
                           schemas), errors.ts (readApiError: both error envelopes, 412 with the current ETag, 429 with
                           Retry-After)
-  shared/diagnostics/     Located and fromC2y: one shape for every finding on screen (fromBim joins in F2b)
+  shared/diagnostics/     Located, fromC2y and fromBim (bim.ts): one shape for every finding on screen; jsonPointer.ts
+                          resolves a BIM pointer on the parsed JSON text to the range it names
   shared/editor/          the draft store (drafts.ts, useDraftStore.ts, IndexedDB) and lintScheduler.ts (debounce, abort,
                           one check of a kind at a time, Retry-After)
   shared/sphere/          text-diff.ts, requested-version.ts (verbatim); change-summary.ts, composition-fragment.ts
@@ -205,15 +206,19 @@ frontend/src/
   widgets/                workflow-graph, candidate-matrix, value-badge, problems-panel, provider-map, pricing-card,
                           change-summary, evolution-charts, rules-and-objectives, composition-renderer (CompositionRenderer,
                           presets.ts and the modes)
-  features/               composition-editor (code and visual Composition2Yaml editor), derive (DeriveCompositionDialog),
-                          fork (ForkCompositionDialog), workspace (the organization frame: breadcrumb, gate)
+  features/               composition-editor (code and visual Composition2Yaml editor), bim-editor (the BIM problem editor:
+                          ProblemEditor, useProblemEditor, its panes, the resource forms, the BPMN modeler, matrix edits),
+                          derive (DeriveCompositionDialog, and the batch of a study front), fork (ForkCompositionDialog),
+                          workspace (the organization frame: breadcrumb, gate)
   pages/                  route-level screens: Compositions (list, detail and its tabs), PublicCompositions (public list,
-                          showcase), Language (reference and playground), and the older Cases (problems), Jobs (runs),
-                          Studies, Workbench, Organization, Account, Admin, Engines, Home, About, Pricing, Auth
+                          showcase), Language (reference and playground), Problems (list, page and tabs, and the page
+                          that mounts the problem editor), Public (the anonymous Workbench), and the older Runs, Studies,
+                          Organization, Account, Admin, Engines, Home, About, Pricing, Auth
   components/, api/, utils/, contexts/
                           the older shared code: the design system (components/ui), the run-result catalogue
-                          (components/rendering), the shell, CodeEditor; api/client.ts keeps transport, auth, admin,
-                          engines and pricing until those areas are rewritten
+                          (components/rendering), the shell, CodeEditor; api/bim.ts holds the BIM validation types
+                          (generated aliases, since F2b); api/client.ts keeps transport, auth, admin, engines (with
+                          the engine protocol's profile types) and pricing until those areas are rewritten
 ```
 
 Dependency rules, checked by `eslint-plugin-boundaries` at **error** for the new layers (`boundariesLint.test.ts`):
@@ -237,8 +242,11 @@ groups by identical unit strings and compares identifiers; it never sums, ranks,
 
 **Deletion rule.** Nothing is in production: what a change replaces is deleted in that change, with no
 compatibility shim, alias, redirect, re-export or deprecation. F2a deleted the Workbench's dead chart, digest and
-diagnostics code, the client IR reader (`pages/Cases/bindingModel.ts`) and the client comparison words; F2b deletes
-the Workbench shell, the BIM types of `api/client.ts` and the client Pareto check and CSV export.
+diagnostics code, the client IR reader (`pages/Cases/bindingModel.ts`) and the client comparison words. F2b deleted
+the Workbench shell (`pages/Workbench`, replaced by `features/bim-editor`), the public Workbench's client reader of BIM
+source files (`pages/Public/packageModel.ts`, its diagnostics wording and result panels), the BIM types of
+`api/client.ts` and the client Pareto check and CSV export ([ADR 0051](adr/0051-problem-editor-on-the-shared-core.md),
+[ADR 0052](adr/0052-study-front-export-and-presets-on-the-server.md)).
 
 ### 5.2 Information architecture
 
@@ -247,31 +255,42 @@ the Workbench shell, the BIM types of `api/client.ts` and the client Pareto chec
   **showcase**, is `/c/:org/:composition` (`?version=<id|label|ordinal>` is its permalink). Language is the
   Composition2Yaml reference and playground (`/language`), whose examples the gateway checks
   (`tests/composition/test_the_spec_examples.py` reads `content/composition2yaml-examples.json`). The anonymous
-  Workbench stays at `/workbench`.
+  Workbench stays at `/workbench`: it validates a package with its facts and draws a valid one with the shared
+  workflow graph and candidate matrix, or places a refused one's findings in its files; nothing is drawn from the
+  files themselves.
 - **Signed in:** the header leads with the organization's Compositions, then Problems, Runs and Studies, Engines and
   Admin (administrators); "+ New" (composition, problem, study, run); the command palette (⌘K); notifications; the
   account menu (Profile · Plan · API keys · Identities · Notifications). Home shows the recent compositions of an
   organization above its recent activity.
 - **Organization:** overview (its compositions first, then problems, runs, studies and sub-organizations) · Settings
-  (General · Members · Audit). An organization's screens are
-  `/app/:org/{compositions,problems,runs,studies,workbench,settings}`.
+  (General · Members · Run presets · Audit). An organization's screens are
+  `/app/:org/{compositions,problems,problem-editor,runs,studies,settings}`.
 - **Composition page:** `/app/:org/compositions/:composition/:tab?` with the tabs Overview · Editor · Versions ·
   Analysis · Settings, a version selector (`?version=`), the value status, the lineage (forked from, derived from a
   run) and, for a member, "New version" (code, visual, upload, derive) and Fork. Versions has the views table,
   compare and file (`?view=compare|file&from=&to=`) and evolution (`?view=evolution`); Analysis shows for a member
   reading a version linked to a problem it can read; Settings for MEMBER and above (visibility: ADMIN). Operations
   joins in F4.
-- **Problem page:** header with the version selector; tabs Overview (workflow graph and candidate matrix from the
-  facts) · Runs · Versions · Source · Settings.
+- **Problem page:** header with the version selector; tabs Overview (workflow graph, binding space, rules and
+  objectives from the facts) · Candidates (the candidate matrix; `?composition=&compositionVersion=` highlights what a
+  composition version chose) · Versions · Runs · Compositions (the compositions that link it) · Source · Settings. The
+  problem list filters by origin (uploaded, problem editor, QACOForge) and by linking composition.
+- **Problem editor:** `/app/:org/problem-editor` (`?template=`, `?problem=&revision=`, and the composition overlay
+  `&composition=&compositionVersion=`). Panes Workflow · Candidates (the matrix, edited in place) · Rules · Files ·
+  Forms · BPMN, the engines beside them and the Problems panel below; on a phone every one of them is a tab. It checks
+  the package live and saves it as a problem version ([ADR 0051](adr/0051-problem-editor-on-the-shared-core.md)).
 - **Run page:** verdict, engine mode and budget first; then the binding table, QoS against bounds, the objective
   breakdown and engine-claimed versus evaluated values; the trade-off set when there are several objectives; "Keep it
   as a composition" (derive) for a member; the log collapsed at the bottom.
-- **Study page:** Setup · Progress · Results.
+- **Study page:** Setup · Progress · Results (the gateway's Pareto front of each problem version, derive a
+  composition per point, compare two, export CSV or JSON from the gateway). Runs and studies start from run presets
+  ([ADR 0052](adr/0052-study-front-export-and-presets-on-the-server.md)).
 - **Screen budget:** exactly **36** routed screens (`routes/screenBudget.test.ts`): F2 added the composition list
   and detail, the public list, the showcase and Language. F5 retires register, password reset and the CAS callback,
   which brings it to **33**. Each user journey has a Playwright walk of at most five screens, mocked
-  (`e2e/f2a-*.spec.ts`) and, for J1 and J2, live against the lab (`e2e/live/08-derive-seal-compare.spec.ts`,
-  `09-public-fork.spec.ts`).
+  (`e2e/f2a-*.spec.ts`, `e2e/f2b-*.spec.ts`) and, for J1 to J4, live against the lab
+  (`e2e/live/08-derive-seal-compare.spec.ts`, `09-public-fork.spec.ts`, `10-problem-editor.spec.ts`,
+  `11-study-front.spec.ts`).
 
 ### 5.3 Rendering catalogue
 
@@ -296,18 +315,19 @@ completion from the problem, the visual form, the Problems panel, the seal bar) 
 
 | Component | Shows | Used in |
 |---|---|---|
-| `WorkflowGraph` | a Composition2Yaml workflow (seq, and, xor with probabilities, loop) as nested groups, each task with its candidate and status in words | problem Overview, composition Overview, editor, comparison, showcase |
-| `CandidateMatrix` | tasks × candidates × features from the facts, units in headers, the selected candidate marked, cards below 640 px; `select` mode for choosing | problem Overview, composition Overview, editor, configurator |
+| `WorkflowGraph` | a Composition2Yaml workflow (seq, and, xor with probabilities, loop) as nested groups, each task with its candidate and status in words | problem Overview, composition Overview, both editors, comparison, showcase, public Workbench |
+| `CandidateMatrix` | tasks × candidates × features from the facts, units in headers, the selected candidate marked, cards below 640 px; `select` mode for choosing, `edit` mode for the problem editor's cells | problem Candidates, composition Overview, both editors, configurator, public Workbench |
 | `ValueBadge` | Verified · Declared · Unverified, always in words, and a value's origin | every composition screen |
-| `ProblemsPanel` | located findings as buttons that jump to the place, counts announced | editor, Language, derive preview, catalog (read-only) |
+| `ProblemsPanel` | located findings as buttons that jump to the place, counts announced, grouped by file for a BIM package | both editors, Language, derive preview, catalog and public Workbench (read-only) |
+| `RulesAndObjectives` | the rules (must or should), objectives and penalties of the facts, each rule with where the package writes it | problem Overview, problem editor (Rules) |
 | `ProviderMap`, `PricingCard` | tasks grouped by provider; a plan's reference face, or pricing-renderer when given Pricing2Yaml (F3) | composition Overview, showcase |
 | `ChangeSummary` | what changed between two versions, or "Not comparable: <reason>" | Versions |
 | `EvolutionCharts` | structure and values per version over time, verified, declared and unverified apart, problem and compilation changes marked, a table for each chart | Versions (evolution) |
 | `MetricCards` | a row of key numbers with units | dashboards, headers |
 | `BindingTable`, `QoSAgainstBounds`, `ObjectiveBreakdown`, `EvaluationDiff`, `TradeOffChart`, `RunResult` | the run result: binding, QoS against bounds, objective terms, claimed against evaluated values, the trade-off set | run page, study cell |
 | `VerdictBadge` | OPTIMAL · FEASIBLE · UNSAT · TIMEOUT · INCOMPATIBLE | everywhere a run appears |
-| `BindingSpaceBadge` | the size of the binding space the analysis gives | Workbench, study analytics |
-| `CodeEditor` | CodeMirror (JSON, YAML) with located diagnostics and completion | editors, Language |
+| `BindingSpaceBadge` | the size of the binding space the analysis gives | problem pages, problem editor, public Workbench, study analytics |
+| `CodeEditor` | CodeMirror (JSON, YAML, XML) with located diagnostics and completion | editors, Language |
 | `LogPanel` | collapsed, searchable, downloadable log | run result, admin errors |
 | `SourceView` | read-only code viewer with copy and download | Source tabs, examples, previews |
 
@@ -413,14 +433,14 @@ them with the subtree.
 ```mermaid
 sequenceDiagram
   actor U as Researcher
-  participant W as Web (Workbench)
+  participant W as Web (problem editor)
   participant G as Gateway (problems)
   participant B as BIM toolchain
-  U->>W: edit resources or upload a package
-  W->>G: POST /v1/bim/validate (package)
+  U->>W: edit a value in the matrix, a form, a file or the diagram
+  W->>G: POST /v1/bim/validate?include=facts (package, 2 s after the last edit)
   G->>B: resolve contracts, lower dialects, compile profile chain
   B-->>G: IR, diagnostics, digests
-  G-->>W: diagnostics, summary metrics, compatible engine modes
+  G-->>W: facts, located diagnostics, summary metrics, compatible engine modes
   U->>W: save as a new revision
   W->>G: POST /v1/organizations/{org}/problems/{p}/revisions (package)
   G->>B: compile (exact contracts)
@@ -570,8 +590,9 @@ resources and takes no submissions: what it compiles is what the installed `bim-
 | `POST /v1/language/compile` | compile a package or an exact problem version: diagnostics, summary metrics, compatible engine modes |
 
 Today the gateway serves `GET /v1/engines/protocol` (the installed Profiles with the engine protocol digest, read by
-the engine registration form), `GET /v1/bim/templates` and `POST /v1/bim/validate` (the Workbench validates there and
-saves through the problems API, `POST /v1/organizations/{org}/problems` and `…/revisions`). `GET /v1/profiles`,
+the engine registration form), `GET /v1/bim/templates` and `POST /v1/bim/validate` (the problem editor checks there
+live and saves through the problems API, `POST /v1/organizations/{org}/problems` and `…/revisions`; the public
+Workbench validates there on demand). `GET /v1/profiles`,
 `GET /v1/dialects`, `/v1/examples`, `/v1/validate`, `/v1/instances` and `/v1/snapshots` were removed in F0b, with
 no deprecation period. The registry routes (`POST /v1/dialects`, `/v1/resources`, their
 approvals), `/v1/schemas/{kind}`, `/v1/catalog` and the deprecated pricing YAML proxy `GET /v1/pricing` were removed in
@@ -775,7 +796,7 @@ Each move is one `refactor/<id>` change that updates CI, Dockerfiles, documentat
 | [0022](adr/0022-one-schema-baseline.md) | one schema baseline, regenerated by script (D1) |
 | [0023](adr/0023-trigger-ddl-single-source.md) | trigger DDL has one source, `db/triggers.py` (D2) |
 | [0024](adr/0024-immutable-means-no-update.md) | immutable rows reject UPDATE; history is kept by `RESTRICT` foreign keys (D3) |
-| [0025](adr/0025-workbench-stays-bim-editor.md) | the Workbench stays as the BIM problem editor (D4) |
+| [0025](adr/0025-workbench-stays-bim-editor.md) | the Workbench stays as the BIM problem editor (D4); superseded by 0051 |
 | [0026](adr/0026-engine-ir-from-problem-compilations.md) | a run executes the IR of its compilation and never copies it (D5) |
 | [0027](adr/0027-compile-or-get.md) | compile-or-get, keyed by the compiler digest (D6) |
 | [0028](adr/0028-frozen-study-definitions.md) | study runs freeze their definitions and pin compilations (D7) |
@@ -801,6 +822,8 @@ Each move is one `refactor/<id>` change that updates CI, Dockerfiles, documentat
 | [0048](adr/0048-problem-facts-projection.md) | one facts projection of a compiled problem, with the workflow in Composition2Yaml's shape and the naming rule in the gateway (F2 D4, D9, D25) |
 | [0049](adr/0049-composition-renderer-core.md) | the composition renderer: a headless core, modes over gateway data, stored documents, no client semantics, hints outside the document (F2 D5, D6, D14) |
 | [0050](adr/0050-frontend-layers-and-sphere-reuse.md) | frontend layers, generated API types and the SPHERE copies (F2 D7, D12, D13, D24) |
+| [0051](adr/0051-problem-editor-on-the-shared-core.md) | the BIM problem editor on the shared core: the matrix from the last checked facts, edits written through origins, live checks within the compile budget, one undo history; the Workbench deleted (F2 D9, D11, D15; supersedes 0025) |
+| [0052](adr/0052-study-front-export-and-presets-on-the-server.md) | the study front, the export and study presets on the server: one front per revision and objective set, no client dominance, presets expanded and frozen at `runStudy` (F2 D14, D16, D18) |
 
 The earlier records, 0001 to 0021 (BIM behind a port, engines as services, durable jobs, the frontend stack,
 problem+json, the layered gateway, the OpenAPI snapshot, plans through SPACE and SPHERE, extensible profiles, the

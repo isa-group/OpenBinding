@@ -19,3 +19,7 @@ compile-class budget for anonymous callers. It stores nothing and reads no entit
 - It costs one screen; dropping it would leave BIM with no public entry point.
 
 Where: `frontend/src/routes/areas/public.tsx`, `frontend/src/components/ui/OrganizationPicker.tsx`.
+
+Later: F2b draws a valid package from the gateway's facts with the shared workflow graph and candidate matrix,
+shows a refused one's findings placed in its files and no structure, and opens the problem editor of an organization
+for a signed-in visitor ([ADR 0051](0051-problem-editor-on-the-shared-core.md)).

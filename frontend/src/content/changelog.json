@@ -1,6 +1,25 @@
 {
   "platform": [
     {
+      "version": "F2b",
+      "date": "Unreleased",
+      "title": "Problems and the laboratory on the shared core: the problem editor, study fronts and presets",
+      "changes": [
+        "Record the F2b decisions as ADRs 0051 and 0052 and walk the problem editor and a study front end to end in the lab",
+        "Validate public BIM packages on the shared core: the workflow graph, the candidate matrix and located findings",
+        "Edit candidates in the problem editor's matrix, with rules and objectives beside them",
+        "Rebuild the problem editor around live checks, located diagnostics and the shared core; delete the Workbench",
+        "Move the BIM forms, the modeler and the BIM API types out of the Workbench and the monolithic client",
+        "Derive one composition per point of a study's Pareto front, compare two, and export study runs from the server",
+        "Show candidates, rules and linked compositions on the problem page",
+        "Pick and save run presets when launching runs and building studies",
+        "Start study engines from run presets, frozen with each study run",
+        "Compute the Pareto front of each problem version and export study runs as CSV and JSON in the gateway",
+        "Filter problems by origin and by linking composition",
+        "Name problem, run and editor screens after the vocabulary, and a run's creator created_by_id"
+      ]
+    },
+    {
       "version": "F2a",
       "date": "Unreleased",
       "title": "Compositions on the web: list, detail, editor, versions, analysis, showcase and fork",

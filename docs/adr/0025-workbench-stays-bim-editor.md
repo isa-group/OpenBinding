@@ -1,6 +1,6 @@
 # 0025. The Workbench stays as the BIM problem editor
 
-- Status: accepted
+- Status: superseded by [ADR 0051](0051-problem-editor-on-the-shared-core.md)
 - Date: 2026-11-14 (F0b, decision D4 of the F0b implementation plan)
 
 ## Context
@@ -25,3 +25,6 @@ check result are unchanged. Nothing runs from the Workbench: a saved version run
 - `frontend/e2e/f0b-walk.spec.ts` walks an edit and a template through it to a saved version.
 
 Where: `frontend/src/pages/Workbench/`, `frontend/src/routes/areas/problems.tsx`.
+
+Later: F2b replaced the Workbench with the problem editor in `frontend/src/features/bim-editor/` at
+`/app/:org/problem-editor` and deleted `pages/Workbench` ([ADR 0051](0051-problem-editor-on-the-shared-core.md)).
