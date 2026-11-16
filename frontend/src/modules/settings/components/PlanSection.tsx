@@ -50,7 +50,8 @@ const TOKEN_BANNER: Partial<Record<PricingTokenStatus, string>> = {
     'No plan check is available yet, so features can’t be confirmed. This usually settles on your next request. Nothing is blocked because of this: the server decides what you can do.',
 };
 
-const LINK = 'cursor-pointer text-sm font-medium text-tp-link hover:underline';
+const LINK =
+  'inline-flex min-h-6 cursor-pointer items-center gap-1 text-sm font-medium text-tp-link hover:underline';
 
 function limitDefinitions(
   catalog: PricingCatalog | null | undefined
