@@ -99,10 +99,11 @@ function OrgTreeNode({
               <Iconify icon={isExpanded ? 'mdi:chevron-down' : 'mdi:chevron-right'} width={14} />
             </button>
           ) : (
-            <span className="h-6 w-6 shrink-0" />
+            // Lines up leaves with their expandable siblings; a phone keeps the room for the name.
+            <span className="hidden h-6 w-6 shrink-0 sm:block" />
           )}
 
-          <OrgAvatar name={org.name} {...avatarProps(org.avatar)} size={level > 0 ? 36 : 52} />
+          <OrgAvatar name={org.name} {...avatarProps(org.avatar)} size={level > 0 ? 36 : 44} />
 
           <div className="min-w-0 flex-1">
             {/* The whole row opens the organization; the controls above sit over the link. */}
@@ -138,11 +139,13 @@ function OrgTreeNode({
             </button>
           )}
 
-          <Iconify
-            icon="mdi:chevron-right"
-            width={18}
-            className="hidden shrink-0 text-tp-muted transition-transform group-hover:translate-x-0.5 group-hover:text-tp-steel sm:inline-flex dark:text-tp-stone"
-          />
+          <span className="hidden shrink-0 sm:inline-flex">
+            <Iconify
+              icon="mdi:chevron-right"
+              width={18}
+              className="text-tp-muted transition-transform group-hover:translate-x-0.5 group-hover:text-tp-steel dark:text-tp-stone"
+            />
+          </span>
         </div>
       </motion.div>
 
