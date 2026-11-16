@@ -40,10 +40,20 @@
 .cr-conf-values thead th { color: var(--tp-steel); font-size: 0.75rem; font-weight: 600; }
 
 /* Below 640 px each move is a card: its cells stack under their column name. */
+/* The column names move into the cells (`data-label`), so the header row is not drawn, and the scroller's frame gives way to the cards'
+   own borders; the move in focus is the card with the dark border. */
 @media (max-width: 640px) {
-  .cr-calc .ui-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .cr-calc-focus p { flex-basis: 100%; }
+  .cr-calc .ui-table-wrap { border: 0; border-radius: 0; background: none; }
+  .cr-calc .ui-table thead { display: none; }
   .cr-calc .ui-table, .cr-calc-table, .cr-calc-table tr, .cr-calc-table th, .cr-calc-table td { display: block; width: 100%; box-sizing: border-box; }
-  .cr-calc-table tr { margin-bottom: var(--tp-spacing-sm); border: 1px solid var(--tp-hairline); border-radius: var(--tp-radius-lg); background: var(--tp-canvas); }
+  .cr-calc .cr-calc-table tr { overflow: hidden; margin-bottom: var(--tp-spacing-sm); border: 1px solid var(--tp-hairline); border-radius: var(--tp-radius-lg); background: var(--tp-canvas); }
+  .cr-calc-table tr:last-child { margin-bottom: 0; }
+  .cr-calc .cr-calc-table tr > :is(th, td) { padding: 6px var(--tp-spacing-md); }
+  .cr-calc .cr-calc-table tr > :first-child { padding-top: var(--tp-spacing-sm); }
+  .cr-calc .cr-calc-table tr > :last-child { padding-bottom: var(--tp-spacing-sm); }
+  .cr-calc .cr-calc-table tr.is-focused { border-color: var(--tp-ink); background: var(--tp-surface-cream-soft); }
+  .cr-calc-table tr.is-focused > th { box-shadow: none; }
   .cr-calc-table [data-label]::before { display: block; color: var(--tp-steel); content: attr(data-label); font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; }
   .cr-calc-table td[data-label='Actions']::before { content: none; }
   .cr-calc-actions { white-space: normal; }

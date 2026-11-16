@@ -51,10 +51,18 @@
 .cmv-actions { display: flex; flex-wrap: wrap; gap: 4px; }
 .cmv-failure { margin: 4px 0 0; color: var(--tp-ink); font-size: 0.75rem; }
 
+/* Below 640 px each version is a card: the column names move into the cells (`data-label`), so the header row is not drawn, and the
+   scroller's frame gives way to the cards' own borders. */
 @media (max-width: 640px) {
-  .cmv .ui-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .cmv .ui-table-wrap { border: 0; border-radius: 0; background: none; }
+  .cmv .ui-table thead { display: none; }
+  .cmv .ui-table-caption { display: block; padding: 0 0 var(--tp-spacing-xs); }
   .cmv .ui-table, .cmv-table, .cmv-table tr, .cmv-table th, .cmv-table td { display: block; width: 100%; box-sizing: border-box; }
-  .cmv-table tr { margin-bottom: var(--tp-spacing-sm); border: 1px solid var(--tp-hairline); border-radius: var(--tp-radius-lg); background: var(--tp-canvas); }
+  .cmv .cmv-table tr { overflow: hidden; margin-bottom: var(--tp-spacing-sm); border: 1px solid var(--tp-hairline); border-radius: var(--tp-radius-lg); background: var(--tp-canvas); }
+  .cmv-table tr:last-child { margin-bottom: 0; }
+  .cmv .cmv-table tr > :is(th, td) { padding: 6px var(--tp-spacing-md); }
+  .cmv .cmv-table tr > :first-child { padding-top: var(--tp-spacing-sm); }
+  .cmv .cmv-table tr > :last-child { padding-bottom: var(--tp-spacing-sm); }
   .cmv-table td[data-label]::before { display: block; color: var(--tp-steel); content: attr(data-label); font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; }
   .cmv-table td[data-label='Actions']::before { content: none; }
   .cmv-changes { min-width: 0; }

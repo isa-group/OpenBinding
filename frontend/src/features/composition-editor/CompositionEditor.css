@@ -69,4 +69,6 @@
   .ce-value { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   .ce-value-name { grid-column: 1 / -1; }
   .ce-status { width: 100%; margin-left: 0; }
+  /* A shorter label field keeps the seal bar on one line, so it covers less of the screen it stays on. */
+  .ce-label-input { width: 6.5rem; }
 }
