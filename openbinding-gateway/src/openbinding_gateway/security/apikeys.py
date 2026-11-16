@@ -350,6 +350,9 @@ def required_permissions(path: str, method: str) -> frozenset[str]:
         )
     if path == "/v1/auth/cas/link-intent":
         return frozenset({ApiKeyPermission.ACCOUNT_WRITE.value})
+    if path == "/v1/users":
+        # Finding users by username, to invite them to an organization.
+        return frozenset({ApiKeyPermission.ORGANIZATIONS_READ.value})
     if path.startswith("/v1/users/me"):
         return frozenset(
             {ApiKeyPermission.ACCOUNT_READ.value}

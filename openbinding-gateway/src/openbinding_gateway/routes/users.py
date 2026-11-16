@@ -5,7 +5,7 @@ from __future__ import annotations
 import secrets
 import uuid
 
-from fastapi import APIRouter, Depends, Request, Response, status
+from fastapi import APIRouter, Depends, Query, Request, Response, status
 from sqlalchemy import delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -28,6 +28,8 @@ from ..models.accounts import (
     UsageView,
     UserProfile,
 )
+from ..core.like import LIKE_ESCAPE, like_contains
+from ..models.platform import UserRef
 from ..models.errors import (
     CONFLICT_RESPONSE,
     ErrorResponse,
@@ -104,6 +106,37 @@ async def profile_of(session: AsyncSession, user: User) -> UserProfile:
         created_at=user.created_at,
         cas_verified=cas_verified,
     )
+
+
+#: The shortest text a user search takes, and the most users it answers (SPHERE's user search).
+USER_SEARCH_MIN = 4
+USER_SEARCH_LIMIT = 20
+
+
+@router.get(
+    "",
+    response_model=list[UserRef],
+    operation_id="searchUsers",
+    summary="Find users by username",
+    responses={401: UNAUTHORIZED_RESPONSE},
+)
+async def search_users(
+    q: str = Query(..., min_length=USER_SEARCH_MIN, max_length=64, description="Text in the username."),
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> list[UserRef]:
+    """Active users whose username holds ``q`` (at least four characters), by username, at most twenty: their
+    id, username and avatar only, never an email. What inviting users to an organization picks from."""
+    pattern = like_contains(q.strip())
+    rows = (await session.scalars(
+        select(User).where(
+            User.username.ilike(pattern, escape=LIKE_ESCAPE),
+            User.is_active.is_(True),
+            User.deleted_at.is_(None),
+            User.id != user.id,
+        ).order_by(User.username).limit(USER_SEARCH_LIMIT)
+    )).all()
+    return [UserRef(id=row.id, username=row.username) for row in rows]
 
 
 @router.get(

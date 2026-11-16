@@ -183,6 +183,35 @@ class OrganizationInvitation(Base):
     )
 
 
+class OrganizationInvitationCode(Base):
+    """A shareable invitation to an organization, as SPHERE's: whoever holds the code joins as MEMBER.
+
+    It may expire and may be used a bounded number of times (``use_count`` against ``max_uses``); an
+    invitation to named users (``invite-users``) is a code with as many uses as users, sent to each of them.
+    """
+
+    __tablename__ = "organization_invitation_codes"
+    __table_args__ = (
+        CheckConstraint("use_count >= 0", name="invitation_code_use_count_nonnegative"),
+        CheckConstraint("max_uses IS NULL OR max_uses > 0", name="invitation_code_max_uses_positive"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    code: Mapped[str] = mapped_column(String(32), unique=True, index=True, nullable=False)
+    created_by_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    max_uses: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    use_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
+    )
+
+
 class BindingCase(Base):
     """A problem: a named BIM problem of an organization, whose revisions are uploaded packages."""
 

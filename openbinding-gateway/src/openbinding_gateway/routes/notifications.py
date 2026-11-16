@@ -44,7 +44,7 @@ async def list_notifications(
         delete(Notification).where(
             Notification.user_id == user.id,
             Notification.created_at < cutoff,
-        )
+        ).execution_options(synchronize_session=False)
     )
     query = select(Notification).where(
         Notification.user_id == user.id,
@@ -66,7 +66,7 @@ async def mark_all_notifications_read(
         delete(Notification).where(
             Notification.user_id == user.id,
             Notification.created_at < cutoff,
-        )
+        ).execution_options(synchronize_session=False)
     )
     query = select(Notification).where(
         Notification.user_id == user.id,

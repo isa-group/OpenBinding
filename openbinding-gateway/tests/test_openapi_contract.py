@@ -160,6 +160,7 @@ def test_authentication_and_role_requirements_are_explicit(document):
         ("/v1/compositions", "get"),
         ("/v1/organizations/public", "get"),
         ("/v1/organizations/{org}/profile", "get"),
+        ("/v1/invitations/{code}/preview", "get"),
         (composition, "get"),
         (f"{composition}/versions", "get"),
         (f"{composition}/versions/{{version}}", "get"),

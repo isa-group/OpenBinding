@@ -12,7 +12,7 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision: str = '4ce1fdb88a41'
+revision: str = 'd01cc5bfaa0d'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -323,6 +323,23 @@ def upgrade() -> None:
     op.create_index(op.f('ix_compositions_created_by_id'), 'compositions', ['created_by_id'], unique=False)
     op.create_index(op.f('ix_compositions_organization_id'), 'compositions', ['organization_id'], unique=False)
     op.create_index('ix_compositions_visibility_updated', 'compositions', ['visibility', 'updated_at'], unique=False)
+    op.create_table('organization_invitation_codes',
+    sa.Column('id', sa.Uuid(), nullable=False),
+    sa.Column('organization_id', sa.Uuid(), nullable=False),
+    sa.Column('code', sa.String(length=32), nullable=False),
+    sa.Column('created_by_id', sa.Uuid(), nullable=False),
+    sa.Column('expires_at', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('max_uses', sa.Integer(), nullable=True),
+    sa.Column('use_count', sa.Integer(), server_default='0', nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.CheckConstraint('max_uses IS NULL OR max_uses > 0', name=op.f('ck_organization_invitation_codes_invitation_code_max_uses_positive')),
+    sa.CheckConstraint('use_count >= 0', name=op.f('ck_organization_invitation_codes_invitation_code_use_count_nonnegative')),
+    sa.ForeignKeyConstraint(['created_by_id'], ['users.id'], name=op.f('fk_organization_invitation_codes_created_by_id_users'), ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['organization_id'], ['organizations.id'], name=op.f('fk_organization_invitation_codes_organization_id_organizations'), ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_organization_invitation_codes'))
+    )
+    op.create_index(op.f('ix_organization_invitation_codes_code'), 'organization_invitation_codes', ['code'], unique=True)
+    op.create_index(op.f('ix_organization_invitation_codes_organization_id'), 'organization_invitation_codes', ['organization_id'], unique=False)
     op.create_table('organization_invitations',
     sa.Column('id', sa.Uuid(), nullable=False),
     sa.Column('organization_id', sa.Uuid(), nullable=False),
@@ -747,6 +764,9 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_organization_invitations_organization_id'), table_name='organization_invitations')
     op.drop_index(op.f('ix_organization_invitations_email'), table_name='organization_invitations')
     op.drop_table('organization_invitations')
+    op.drop_index(op.f('ix_organization_invitation_codes_organization_id'), table_name='organization_invitation_codes')
+    op.drop_index(op.f('ix_organization_invitation_codes_code'), table_name='organization_invitation_codes')
+    op.drop_table('organization_invitation_codes')
     op.drop_index('ix_compositions_visibility_updated', table_name='compositions')
     op.drop_index(op.f('ix_compositions_organization_id'), table_name='compositions')
     op.drop_index(op.f('ix_compositions_created_by_id'), table_name='compositions')

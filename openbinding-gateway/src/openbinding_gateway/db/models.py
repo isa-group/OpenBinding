@@ -465,6 +465,7 @@ from .platform_models import (  # noqa: E402,F401
     Notification,
     Organization,
     OrganizationInvitation,
+    OrganizationInvitationCode,
     OrganizationMembership,
     OrganizationRole,
     RunPreset,

@@ -33,6 +33,7 @@ from ..db.models import (
     Job,
     Organization,
     OrganizationInvitation,
+    OrganizationInvitationCode,
     OrganizationMembership,
     OrganizationRole,
     ProblemCompilation,
@@ -46,6 +47,11 @@ from ..core import revision
 from ..models.errors import ErrorResponse, api_error
 from ..models.platform import (
     AvatarSelection,
+    CodeInvitationCreate,
+    CodeInvitationView,
+    InvitationPreview,
+    InviteUsers,
+    UserRef,
     HierarchyNode,
     OrganizationRef,
     PublicOrganizationList,
@@ -64,7 +70,7 @@ from ..models.platform import (
 from ..repositories import organizations as organization_repository
 from ..access.dependencies import get_current_user, get_reader, session_dependency
 from ..access.work_limits import charge_anonymous_read
-from ..modules.shared.application import put_row, read_verified, write_file
+from ..modules.shared.application import notifications, notify, put_row, read_verified, write_file
 from ..services import organizations as profiles
 
 router = APIRouter(prefix="/v1/organizations", tags=["Organizations"])
@@ -675,6 +681,9 @@ async def _delete_subtree(session: AsyncSession, organization: Organization, uni
             delete(OrganizationInvitation).where(OrganizationInvitation.organization_id == oid)
         )
         await session.execute(
+            delete(OrganizationInvitationCode).where(OrganizationInvitationCode.organization_id == oid)
+        )
+        await session.execute(
             delete(AuditEvent).where(AuditEvent.organization_id == oid)
         )
         await session.execute(delete(Study).where(Study.organization_id == oid))
@@ -931,17 +940,84 @@ async def remove_member(
     _audit(session, user, "organization.member.removed", membership, organization.id)
 
 
+def _code_view(invitation: OrganizationInvitationCode, creator: User | None) -> CodeInvitationView:
+    return CodeInvitationView(
+        id=invitation.id, organization_id=invitation.organization_id, code=invitation.code,
+        created_by=_user_ref(creator), expires_at=invitation.expires_at, max_uses=invitation.max_uses,
+        use_count=invitation.use_count, created_at=invitation.created_at,
+    )
+
+
+def _user_ref(user: User | None) -> UserRef | None:
+    return UserRef(id=user.id, username=user.username) if user is not None else None
+
+
+async def _new_code(
+    session: AsyncSession, organization: Organization, user: User, *, expires_in_days: int | None, max_uses: int | None,
+) -> OrganizationInvitationCode:
+    invitation = OrganizationInvitationCode(
+        organization_id=organization.id,
+        code=secrets.token_hex(8),
+        created_by_id=user.id,
+        expires_at=utcnow() + timedelta(days=expires_in_days) if expires_in_days else None,
+        max_uses=max_uses,
+        use_count=0,
+    )
+    session.add(invitation)
+    await session.flush()
+    await session.refresh(invitation, ["created_at"])
+    _audit(session, user, "organization.invitation_code.created", invitation, organization.id, max_uses=max_uses)
+    return invitation
+
+
+@router.get(
+    "/{org}/invitations",
+    response_model=list[CodeInvitationView],
+    operation_id="listOrganizationInvitations",
+    responses=_MANAGE_RESPONSES,
+)
+async def list_invitations(
+    org: str,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> list[CodeInvitationView]:
+    """The organization's invitation codes, the newest first, used up and expired ones too (ADMIN)."""
+    organization, _ = await _readable_org(session, org, user, OrganizationRole.ADMIN)
+    rows = (await session.scalars(
+        select(OrganizationInvitationCode).where(OrganizationInvitationCode.organization_id == organization.id)
+        .order_by(OrganizationInvitationCode.created_at.desc(), OrganizationInvitationCode.id)
+    )).all()
+    creators = {
+        row.id: row for row in (await session.scalars(
+            select(User).where(User.id.in_({invitation.created_by_id for invitation in rows}))
+        )).all()
+    } if rows else {}
+    return [_code_view(row, creators.get(row.created_by_id)) for row in rows]
+
+
 @router.post(
-    "/{org}/invitations", response_model=InvitationCreated,
+    "/{org}/invitations", response_model=InvitationCreated | CodeInvitationView,
     status_code=201, operation_id="inviteOrganizationMember",
-    responses=OWNER_ROLE_RESPONSES,
+    responses={**OWNER_ROLE_RESPONSES, 404: _MANAGE_RESPONSES[404]},
 )
 async def invite_member(
     org: str,
-    payload: InvitationCreate,
+    payload: InvitationCreate | CodeInvitationCreate,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(session_dependency, scope="function"),
-) -> InvitationCreated:
+) -> InvitationCreated | CodeInvitationView:
+    """Invite to the organization (ADMIN).
+
+    With ``expires_in_days`` and ``max_uses`` (or an empty body): a shareable code, as SPHERE's, that joins
+    whoever holds it as MEMBER (``POST /v1/invitations/{code}/join``); a non-member gets 404. With ``email``
+    and ``role``: the email invitation and its ``obi_`` token, until B8 removes them.
+    """
+    if isinstance(payload, CodeInvitationCreate):
+        organization, _ = await _readable_org(session, org, user, OrganizationRole.ADMIN)
+        invitation = await _new_code(
+            session, organization, user, expires_in_days=payload.expires_in_days, max_uses=payload.max_uses,
+        )
+        return _code_view(invitation, user)
     organization = await _required_org(session, org)
     actor_role = await require_role(session, organization, user, OrganizationRole.ADMIN)
     if _touches_owner(None, payload.role) and not _may_manage_owners(actor_role, user):
@@ -965,6 +1041,138 @@ async def invite_member(
         id=invitation.id, organization_id=organization.id, email=invitation.email,
         role=invitation.role.value, expires_at=invitation.expires_at, token=token
     )
+
+
+@router.post(
+    "/{org}/invitations/invite-users",
+    response_model=CodeInvitationView,
+    status_code=201,
+    operation_id="inviteUsersToOrganization",
+    responses={
+        **_MANAGE_RESPONSES,
+        409: {"model": ErrorResponse, "description": "`already_member`: every user named is a member already."},
+    },
+)
+async def invite_users(
+    org: str,
+    payload: InviteUsers,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> CodeInvitationView:
+    """Invite named users (ADMIN): one code, valid seven days, with a use for each user who is not a member
+    yet, and an ``OrganizationInvitation`` notification to each of them, as SPHERE's ``inviteUsers``. A user
+    who is a member already is left out; an unknown or inactive one is 404."""
+    organization, _ = await _readable_org(session, org, user, OrganizationRole.ADMIN)
+    found = {
+        row.id: row for row in (await session.scalars(
+            select(User).where(User.id.in_(payload.user_ids), User.is_active.is_(True), User.deleted_at.is_(None))
+        )).all()
+    }
+    missing = sorted(str(user_id) for user_id in payload.user_ids if user_id not in found)
+    if missing:
+        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Every invited user must be an active user.", user_ids=missing)
+    invited = [found[user_id] for user_id in payload.user_ids if await effective_role(session, organization.id, found[user_id]) is None]
+    if not invited:
+        raise api_error(status.HTTP_409_CONFLICT, "already_member", "Every user named is a member already.")
+    invitation = await _new_code(session, organization, user, expires_in_days=7, max_uses=len(invited))
+    for person in invited:
+        notify(
+            session, person.id, notifications.ORGANIZATION_INVITATION,
+            f"You've been invited to join {organization.name}",
+            f"@{user.username} has invited you to join \"{organization.name}\". Open the invitation to accept it.",
+            invitation_code=invitation.code, organization_id=str(organization.id),
+            organization_slug=organization.slug, organization_name=organization.name,
+            invited_by=user.username, invited_by_id=str(user.id),
+        )
+    return _code_view(invitation, user)
+
+
+@router.delete(
+    "/{org}/invitations/{invitation_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    operation_id="revokeOrganizationInvitation",
+    responses={**_MANAGE_RESPONSES, 404: {"model": ErrorResponse, "description": "No such organization or invitation, or the caller is not a member."}},
+)
+async def revoke_invitation(
+    org: str,
+    invitation_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> None:
+    """Revoke an invitation code (ADMIN): it stops working at once."""
+    organization, _ = await _readable_org(session, org, user, OrganizationRole.ADMIN)
+    invitation = await session.get(OrganizationInvitationCode, invitation_id)
+    if invitation is None or invitation.organization_id != organization.id:
+        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Invitation not found.")
+    _audit(session, user, "organization.invitation_code.revoked", invitation, organization.id)
+    await session.delete(invitation)
+
+
+async def _usable_code(session: AsyncSession, code: str, *, lock: bool = False) -> OrganizationInvitationCode:
+    """The invitation ``code`` while it can still be used; else the one 404 (unknown, expired, used up)."""
+    query = select(OrganizationInvitationCode).where(OrganizationInvitationCode.code == code)
+    invitation = await session.scalar(query.with_for_update() if lock else query)
+    if invitation is not None and invitation.expires_at is not None:
+        expires = invitation.expires_at.replace(tzinfo=invitation.expires_at.tzinfo or utcnow().tzinfo)
+        if expires <= utcnow():
+            invitation = None
+    if invitation is not None and invitation.max_uses is not None and invitation.use_count >= invitation.max_uses:
+        invitation = None
+    if invitation is None:
+        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Invitation not found, expired or used up.")
+    return invitation
+
+
+@invitation_router.get(
+    "/{code}/preview",
+    response_model=InvitationPreview,
+    operation_id="previewInvitation",
+    dependencies=[Depends(charge_anonymous_read)],
+    responses={404: {"model": ErrorResponse, "description": "No such code, or it expired or was used up."}},
+)
+async def preview_invitation(
+    code: str,
+    user: User | None = Depends(get_reader),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> InvitationPreview:
+    """What an invitation code joins, for its holder to decide: the organization's identity, avatar and
+    description, who invited them and until when. Anybody holding the code reads it."""
+    invitation = await _usable_code(session, code)
+    organization = await session.get(Organization, invitation.organization_id)
+    creator = await session.get(User, invitation.created_by_id)
+    count = await profiles.public_composition_count(session, organization.id)
+    return InvitationPreview(
+        code=invitation.code, organization=_public_view(organization, count),
+        expires_at=invitation.expires_at, invited_by=_user_ref(creator),
+    )
+
+
+@invitation_router.post(
+    "/{code}/join",
+    response_model=OrganizationView,
+    operation_id="joinOrganization",
+    responses={
+        404: {"model": ErrorResponse, "description": "No such code, or it expired or was used up."},
+        409: {"model": ErrorResponse, "description": "`already_member`: the caller holds a role there already."},
+    },
+)
+async def join_organization(
+    code: str,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> OrganizationView:
+    """Join the organization of an invitation code as MEMBER, using one of its uses, as SPHERE's
+    ``joinViaInvitation``. A caller who holds a role there already (directly or above it) gets 409."""
+    invitation = await _usable_code(session, code, lock=True)
+    organization = await session.get(Organization, invitation.organization_id)
+    if await effective_role(session, organization.id, user) is not None:
+        raise api_error(status.HTTP_409_CONFLICT, "already_member", "You are a member of this organization already.")
+    membership = OrganizationMembership(organization_id=organization.id, user_id=user.id, role=OrganizationRole.MEMBER)
+    session.add(membership)
+    invitation.use_count += 1
+    await session.flush()
+    _audit(session, user, "organization.invitation_code.joined", invitation, organization.id)
+    return await _org_view(session, organization, user)
 
 
 @invitation_router.post("/accept", response_model=MemberView, operation_id="acceptOrganizationInvitation")

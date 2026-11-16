@@ -194,6 +194,57 @@ class InvitationAccept(BaseModel):
     token: str = Field(..., min_length=32)
 
 
+class CodeInvitationCreate(BaseModel):
+    """A shareable invitation code (SPHERE's ``createInvitation``): whoever holds it joins as MEMBER."""
+
+    model_config = ConfigDict(extra="forbid")
+    expires_in_days: Optional[int] = Field(
+        default=7, ge=1, le=365, description="Days the code is valid for; null for a code that never expires.",
+    )
+    max_uses: Optional[int] = Field(default=None, ge=1, le=10_000, description="How many may join with it; null for any.")
+
+
+class UserRef(BaseModel):
+    """A user as another user may see them: never an email."""
+
+    id: uuid.UUID
+    username: str
+    avatar: Optional[str] = Field(default=None, description="The user's avatar URL; none yet (Identity, F5).")
+
+
+class CodeInvitationView(BaseModel):
+    id: uuid.UUID
+    organization_id: uuid.UUID
+    code: str
+    created_by: Optional[UserRef]
+    expires_at: Optional[datetime]
+    max_uses: Optional[int]
+    use_count: int
+    created_at: datetime
+
+
+class InviteUsers(BaseModel):
+    """Invite named users: one code with a use for each, and a notification to each of them."""
+
+    model_config = ConfigDict(extra="forbid")
+    user_ids: list[uuid.UUID] = Field(..., min_length=1, max_length=50)
+
+    @model_validator(mode="after")
+    def unique_users(self) -> "InviteUsers":
+        if len(set(self.user_ids)) != len(self.user_ids):
+            raise ValueError("Each user may appear only once.")
+        return self
+
+
+class InvitationPreview(BaseModel):
+    """What a code invites to, before joining (``GET /v1/invitations/{code}/preview``)."""
+
+    code: str
+    organization: "PublicOrganizationView"
+    expires_at: Optional[datetime]
+    invited_by: Optional[UserRef]
+
+
 def study_preset_ref(engine: Mapping[str, Any]) -> str | None:
     """The run preset a study engine entry starts from (``{"preset": <slug or id>}``), else ``None``."""
     if set(engine) == {"preset"} and isinstance(engine["preset"], str) and engine["preset"]:
