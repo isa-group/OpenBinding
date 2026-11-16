@@ -62,7 +62,7 @@ export function newEntries(organization: string | undefined): MenuEntry[] {
 export function userEntries(isAdmin: boolean): MenuEntry[] {
   return [
     { label: 'Organizations', to: '/me/orgs' },
-    { label: 'Notifications', to: '/app/account/notifications' },
+    { label: 'Inbox', to: '/notifications' },
     { label: 'Engines', to: '/app/engines/registrations' },
     { label: 'API keys', to: '/app/account/keys' },
     { label: 'Account', to: '/app/account' },

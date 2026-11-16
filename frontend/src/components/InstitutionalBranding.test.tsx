@@ -20,8 +20,9 @@ const platform = vi.hoisted(() => ({ organizations: vi.fn(), projects: vi.fn() }
 
 vi.mock('../modules/auth/hooks/useAuth', () => ({ useAuth: () => auth }));
 vi.mock('../api/platform', () => ({ platformApi: platform }));
-vi.mock('./NotificationDropdown/NotificationDropdown', () => ({
-  NotificationDropdown: () => null,
+vi.mock('../modules/notification/components/notification-bell', () => ({ default: () => null }));
+vi.mock('../modules/notification/hooks/useNotificationsContext', () => ({
+  useNotificationsContext: () => ({ unreadCount: 0 }),
 }));
 
 const researchUser: UserProfile = {

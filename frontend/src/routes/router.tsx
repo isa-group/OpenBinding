@@ -50,6 +50,7 @@ const OrganizationDetailPage = lazy(
   () => import('../modules/organization/pages/organization-detail')
 );
 const OrganizationJoinPage = lazy(() => import('../modules/organization/pages/organization-join'));
+const InboxPage = lazy(() => import('../modules/notification/pages/inbox'));
 const CreateOrganizationPage = lazy(
   () => import('../modules/organization/pages/create-organization')
 );
@@ -137,6 +138,7 @@ export const screens: Screen[] = [
   { id: 'org-list', path: '/me/orgs', layout: 'protected', element: <OrganizationsListPage /> },
   { id: 'org-new', path: '/orgs/new', layout: 'protected', element: <CreateOrganizationPage /> },
   { id: 'org-join', path: '/orgs/join/:code', layout: 'protected', element: <OrganizationJoinPage /> },
+  { id: 'notifications', path: '/notifications', layout: 'protected', element: <InboxPage /> },
 
   // ═══════════════════════════════════════════════════════════
   // PROTECTED ROUTES (the old workspace under /app, until its screens are poured into SPHERE's pages)

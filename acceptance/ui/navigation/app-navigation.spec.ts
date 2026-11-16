@@ -111,7 +111,7 @@ test('account menu lists the person\'s places then Sign out, with Administration
   await banner(page).getByRole('button', { name: 'Account menu' }).click();
   const items: Array<[string, string]> = [
     ['Organizations', '/me/orgs'],
-    ['Notifications', '/app/account/notifications'],
+    ['Inbox', '/notifications'],
     ['Engines', '/app/engines/registrations'],
     ['API keys', '/app/account/keys'],
     ['Account', '/app/account'],

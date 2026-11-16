@@ -3,6 +3,7 @@ import { matchRoutes, MemoryRouter, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { UserProfile } from '../api/auth';
 import { AuthContext } from '../modules/auth/hooks/useAuth';
+import { NotificationsProvider } from '../modules/notification/contexts/notificationsProvider';
 import { createElement } from 'react';
 import Router, { screens as routeDefinitions } from './router';
 
@@ -89,11 +90,13 @@ function renderAt(path: string, user: UserProfile | null = person, loading = fal
           signOut: vi.fn(),
           refresh: vi.fn(),
           isAdmin: user?.role === 'admin',
-          fetchWithInterceptor: vi.fn(),
+          fetchWithInterceptor: vi.fn(async () => new Response('[]', { status: 200 })),
         }}
       >
-        <Router table={table} />
-        <Location />
+        <NotificationsProvider>
+          <Router table={table} />
+          <Location />
+        </NotificationsProvider>
       </AuthContext.Provider>
     </MemoryRouter>
   );

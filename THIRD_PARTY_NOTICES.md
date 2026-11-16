@@ -172,6 +172,17 @@ Generated from the origin header of each file.
 | `frontend/src/modules/core/utils/motion-variants.ts` | `frontend/src/modules/core/utils/motion-variants.ts` | verbatim |
 | `frontend/src/modules/core/utils/offer-reload.ts` | `frontend/src/modules/pricing/pages/card/index.tsx` | adapted (extracted) |
 | `frontend/src/modules/core/utils/recentItems.ts` | `frontend/src/modules/core/utils/recentItems.ts` | adapted |
+| `frontend/src/modules/notification/api/notificationsApi.ts` | `frontend/src/modules/notification/api/notificationsApi.ts` | adapted |
+| `frontend/src/modules/notification/components/notification-bell/index.tsx` | `frontend/src/modules/notification/components/notification-bell/index.tsx` | adapted |
+| `frontend/src/modules/notification/components/notification-dropdown/index.tsx` | `frontend/src/modules/notification/components/notification-dropdown/index.tsx` | adapted |
+| `frontend/src/modules/notification/components/notification-item/index.tsx` | `frontend/src/modules/notification/components/notification-item/index.tsx` | adapted |
+| `frontend/src/modules/notification/components/notifications-sse-bridge/index.tsx` | `frontend/src/App.tsx` | pattern-only |
+| `frontend/src/modules/notification/contexts/notificationsContext.ts` | `frontend/src/modules/notification/contexts/notificationsContext.tsx` | adapted |
+| `frontend/src/modules/notification/contexts/notificationsProvider.tsx` | `frontend/src/modules/notification/contexts/notificationsContext.tsx` | adapted |
+| `frontend/src/modules/notification/hooks/useNotificationsContext.ts` | `frontend/src/modules/notification/hooks/useNotificationsContext.ts` | verbatim |
+| `frontend/src/modules/notification/hooks/useNotificationsSSE.ts` | `frontend/src/modules/notification/hooks/useNotificationsSSE.ts` | adapted |
+| `frontend/src/modules/notification/pages/inbox/index.tsx` | `frontend/src/modules/notification/pages/inbox/index.tsx` | adapted |
+| `frontend/src/modules/notification/utils/notification-link.ts` | `frontend/src/modules/notification/components/notification-item/index.tsx` | adapted |
 | `frontend/src/modules/organization/api/organizationsApi.ts` | `frontend/src/modules/organization/api/organizationsApi.ts` | adapted |
 | `frontend/src/modules/organization/components/move-organization-modal/index.tsx` | `frontend/src/modules/organization/pages/organizations-list/index.tsx` | pattern-only |
 | `frontend/src/modules/organization/components/org-dnd/index.tsx` | `frontend/src/modules/organization/components/org-dnd/index.tsx` | adapted |

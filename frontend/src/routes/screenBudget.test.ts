@@ -26,6 +26,7 @@ const SCREENS: Array<[string, string, string]> = [
   ['org-list', '/me/orgs', 'protected'],
   ['org-new', '/orgs/new', 'protected'],
   ['org-join', '/orgs/join/:code', 'protected'],
+  ['notifications', '/notifications', 'protected'],
   ['eng-register', '/app/engines/new', 'app'],
   ['eng-registrations', '/app/engines/registrations', 'app'],
   ['eng-registration-detail', '/app/engines/registrations/:name', 'app'],
@@ -48,7 +49,7 @@ const SCREENS: Array<[string, string, string]> = [
   ['admin-moderation', '/app/admin/moderation', 'app'],
 ];
 
-const CEILING = 38;
+const CEILING = 39;
 
 describe('screen budget', () => {
   it('serves exactly the listed screens, with their addresses and layouts, in table order', () => {

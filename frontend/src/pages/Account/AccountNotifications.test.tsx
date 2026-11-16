@@ -170,9 +170,7 @@ describe('Notifications', () => {
     );
   });
 
-  it('marks one as read and tells the header bell', async () => {
-    const heard = vi.fn();
-    window.addEventListener('openbinding:notifications-updated', heard);
+  it('marks one as read', async () => {
     renderNotifications();
     fireEvent.click(await row('Your OpenBinding agreement changed'));
 
@@ -181,8 +179,6 @@ describe('Notifications', () => {
     await waitFor(() => expect(api.markNotificationRead).toHaveBeenCalledWith('n1'));
     expect(await screen.findByText('You have 1 unread notification')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Mark as read' })).not.toBeInTheDocument();
-    expect(heard).toHaveBeenCalled();
-    window.removeEventListener('openbinding:notifications-updated', heard);
   });
 
   it('marks all as read', async () => {

@@ -19,7 +19,6 @@ import {
   contractChange,
   groupOf,
   NOTIFICATION_FILTERS,
-  NOTIFICATIONS_UPDATED,
   unreadCount,
   type NotificationGroup,
 } from './notificationsModel';
@@ -64,11 +63,6 @@ const PREFERENCES: ReadonlyArray<{
     aria: 'Keep notifications in the account inbox',
   },
 ];
-
-/** The header bell listens for this to refresh its count. */
-function announceChange() {
-  window.dispatchEvent(new CustomEvent(NOTIFICATIONS_UPDATED));
-}
 
 function Detail({
   item,
@@ -160,7 +154,6 @@ export function AccountNotifications() {
         ...current,
         [item.id]: updated.read_at ?? new Date().toISOString(),
       }));
-      announceChange();
     } catch (caught) {
       setProblem(fallbackMessage(classifyAuthError(caught), 'marked as read'));
     } finally {
@@ -181,7 +174,6 @@ export function AccountNotifications() {
           updated.filter(item => item.read_at).map(item => [item.id, item.read_at as string])
         ),
       }));
-      announceChange();
     } catch (caught) {
       setProblem(fallbackMessage(classifyAuthError(caught), 'marked as read'));
     } finally {
