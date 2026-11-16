@@ -509,7 +509,7 @@ html:active-view-transition :where(
   }
 
   /* The links that the real run measured under 24 px, named so they stay covered even where they sit in a paragraph-like container. */
-  :where(.ui-action, .ui-action.is-link, .case-rev-links a, .usage-consoles a, .proj-job a, .job-wizard a, .job-fact a) {
+  :where(.ui-action, .ui-action.is-link, .case-rev-links a, .usage-consoles a, .proj-job a, .job-wizard a, .job-fact a, .cr-muted a, .pcl-card-title a) {
     display: inline-flex;
     min-height: 24px;
     align-items: center;
