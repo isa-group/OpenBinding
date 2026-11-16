@@ -2,7 +2,7 @@ import { expect as baseExpect, test, type Locator, type Page, type Route, type T
 import { failureBody } from './helpers/problems';
 import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
 
-// S4a · organization and collaboration, part 1: app-home, the New organization dialog (was org-create), org-overview, org-settings (General, with the members and audit sections at /settings/members and /settings/audit).
+// S4a · organization and collaboration, part 1: app-home, the New organization dialog (was org-create), org-overview, org-settings (General, with the members, run presets and audit sections at /settings/members, /settings/presets and /settings/audit).
 // There is no backend: the API origin is answered by page.route(). Screenshots go to testInfo.outputPath()
 // (test-results/, ignored by git) so they can be looked at after a run.
 // One test per screen and viewport: each walks the states of its screen in order, on one page. The phone gets the
@@ -277,11 +277,12 @@ async function capture(page: Page, testInfo: TestInfo, name: string) {
   if (process.env.E2E_SCREENSHOTS) await page.screenshot({ path: testInfo.outputPath(`${name}.png`), fullPage: true, animations: 'disabled' });
 }
 
-/** The organization settings side navigation: three destinations, the current one marked. */
+/** The organization settings side navigation: four destinations, the current one marked. */
 async function expectSettingsNav(main: Locator, slug: string, current: string) {
   const nav = main.getByRole('navigation', { name: 'Organization settings' });
   const destinations: Array<[string, string]> = [
-    ['General', `/app/${slug}/settings`], ['Members', `/app/${slug}/settings/members`], ['Audit', `/app/${slug}/settings/audit`],
+    ['General', `/app/${slug}/settings`], ['Members', `/app/${slug}/settings/members`], ['Run presets', `/app/${slug}/settings/presets`],
+    ['Audit', `/app/${slug}/settings/audit`],
   ];
   for (const [label, href] of destinations) await expect(nav.getByRole('link', { name: new RegExp(`^${label}`) })).toHaveAttribute('href', href);
   await expect(nav.getByRole('link', { name: new RegExp(`^${current}`) })).toHaveAttribute('aria-current', 'page');

@@ -18,6 +18,7 @@ import { NEIGHBORHOOD, REGISTRATION, RESULT, RUN_REFS, SOLUTION, detailOf as job
 import {
   RANDOM_SEARCH, REVISION_2, analyticsFixture, cellsFixture, revisionFixture, runFixture, studyFixture,
 } from '../../src/test/fixtures/studies';
+import { presetPage } from '../../src/test/fixtures/presets';
 import { compositionStore, type CompositionSeed, type CompositionStore } from './mockCompositions';
 
 // One mock of the gateway for the whole QA gallery: a platform administrator of a RESEARCH (institutional) account, one organization
@@ -398,6 +399,7 @@ function organizationRoutes(request: Request): Reply {
     case 'problems': return problemRoutes(request, found.slug);
     case 'runs': return runRoutes(request, found.slug);
     case 'studies': return studyRoutes(request, found.slug);
+    case 'presets': return parts[4] ? notFound('Run preset not found.') : ok(presetPage(found.slug === 'isa-demo' ? undefined : []));
     case 'compositions': return request.compositions.route(request, found.slug, ORGANIZATIONS);
     default: return notFound('Not mocked.');
   }
@@ -820,7 +822,8 @@ export async function installWalkApi(page: Page, template: Buffer): Promise<Walk
               compilationId: found?.refs.compilation.id ?? '', compilationDigest: found?.refs.compilation.compilation_digest ?? '', irDigest: found?.refs.compilation.ir_digest ?? '',
             };
           }),
-          engines: definition.engines, parameterSets: definition.parameter_sets, seeds: definition.seeds,
+          // The walk's study names exact engines only, so the run freezes them as they are.
+          engines: definition.engines as StudyRun['definition']['engines'], parameterSets: definition.parameter_sets, seeds: definition.seeds,
         };
         const cells: StudyCell[] = [];
         for (const revisionId of definition.revision_ids) {

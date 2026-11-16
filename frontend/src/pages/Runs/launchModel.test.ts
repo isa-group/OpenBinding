@@ -5,7 +5,7 @@ import type { ProblemRevision } from '../../api/problems';
 import { RANGE_REFUSAL } from '../../utils/featureRange';
 import {
   acceptsIntervals, buildRequest, ceilingOf, criteriaCountOf, forecastOf, initialChoice, modeChoices, modeOfCatalog, optimizationFor, optionInputs, parseAmount,
-  parseEngineParam, planCeilingsOf, planOptions, requestOptions, sourceChoices,
+  parseEngineParam, planCeilingsOf, planOptions, presetModeOf, presetSettingsOf, presetValues, requestOptions, sourceChoices,
 } from './launchModel';
 
 const ENGINE = { namespace: 'bim.builtin', name: 'random-search', version: '1.0.0', digest: 'sha256-a' };
@@ -222,6 +222,53 @@ describe('the request', () => {
     expect(buildRequest({ ...base, revision: '' })).toBeNull();
     expect(buildRequest({ ...base, mode: null })).toBeNull();
     expect(buildRequest({ ...base, mode: { ...yes, compat: 'no' } })).toBeNull();
+  });
+
+  it('sends the revision and the preset alone when a preset is attached, and every setting once it is detached', () => {
+    const optimization = { type: 'SINGLE' as const, scalarization: 'weighted-sum' };
+    const attached = buildRequest({ ...base, optimization, preset: 'fast-sampling' });
+    expect(attached).toEqual({ revision: 'rev-2', preset: 'fast-sampling' });
+    // With a preset no mode needs to be chosen here: the preset names it.
+    expect(buildRequest({ ...base, mode: null, preset: 'fast-sampling' })).toEqual({ revision: 'rev-2', preset: 'fast-sampling' });
+    expect(buildRequest({ ...base, revision: '', preset: 'fast-sampling' })).toBeNull();
+    const detached = buildRequest({ ...base, optimization, preset: null });
+    expect(detached).toEqual({ revision: 'rev-2', engine: ENGINE, registration: REGISTRATION, mode: 'sampling', options: { iterations: 100 }, optimization });
+    expect(detached).not.toHaveProperty('preset');
+  });
+});
+
+describe('run presets', () => {
+  const modes = modeChoices([
+    { engine: ENGINE, registration: REGISTRATION, mode: 'sampling', compatible: true },
+    { engine: EDGE, registration: { ...REGISTRATION, namespace: 'lucia-vega', name: 'edge-eu' }, mode: 'placement', compatible: false },
+  ], catalog);
+  const [sampling, placement] = modes;
+
+  it('finds the offered mode a preset names: exact engine, mode and deployment', () => {
+    expect(presetModeOf({ engine: ENGINE, mode: 'sampling', registration: null }, modes)).toBe(sampling);
+    expect(presetModeOf({ engine: ENGINE, mode: null, registration: null }, modes)).toBe(sampling);
+    expect(presetModeOf({ engine: 'random-search', mode: 'sampling', registration: null }, modes)).toBe(sampling);
+    expect(presetModeOf({ engine: EDGE, mode: 'placement', registration: { ...REGISTRATION, namespace: 'lucia-vega', name: 'edge-eu' } }, modes)).toBe(placement);
+    // The same engine on a deployment the gateway did not list, another mode, or another revision: not offered.
+    expect(presetModeOf({ engine: EDGE, mode: 'placement', registration: null }, modes)).toBeNull();
+    expect(presetModeOf({ engine: ENGINE, mode: 'exhaustive', registration: null }, modes)).toBeNull();
+    expect(presetModeOf({ engine: { ...ENGINE, version: '2.0.0' }, mode: 'sampling', registration: null }, modes)).toBeNull();
+  });
+
+  it('fills the settings form with a detached preset’s options, a time budget in seconds', () => {
+    const inputs = optionInputs(catalog[0].modes[0], { seconds: null, iterations: null, complexity: null });
+    expect(presetValues({ time_budget_ms: 45000, iterations: 200, label: 'x' }, inputs)).toEqual({ time_budget_ms: '45', iterations: '200' });
+    expect(presetValues({}, inputs)).toEqual({});
+  });
+
+  it('saves the settings chosen here as a preset: the deployment only when it is the account’s own', () => {
+    const optimization = { type: 'SINGLE' as const, scalarization: 'weighted-sum' };
+    expect(presetSettingsOf(sampling, { iterations: 100 }, optimization)).toEqual({
+      engine: ENGINE, registration: null, mode: 'sampling', options: { iterations: 100 }, optimization,
+    });
+    expect(presetSettingsOf(placement, {}, null)).toEqual({
+      engine: EDGE, registration: { ...REGISTRATION, namespace: 'lucia-vega', name: 'edge-eu' }, mode: 'placement', options: {}, optimization: null,
+    });
   });
 });
 

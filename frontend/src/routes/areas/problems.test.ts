@@ -99,6 +99,7 @@ describe('the address builders of the problems area', () => {
     expect(runPath('acme', 'r 1')).toBe('/app/acme/runs/r%201');
     expect(launchPath('acme', { problem: 'routing', revision: 2 })).toBe('/app/acme/runs/new?problem=routing&revision=2');
     expect(launchPath('acme', { engine: 'bim.builtin/random-search' })).toBe('/app/acme/runs/new?engine=bim.builtin%2Frandom-search');
+    expect(launchPath('acme', { problem: 'routing', revision: 2, preset: 'fast-sampling' })).toBe('/app/acme/runs/new?problem=routing&revision=2&preset=fast-sampling');
     expect(launchPath('acme')).toBe('/app/acme/runs/new');
   });
 

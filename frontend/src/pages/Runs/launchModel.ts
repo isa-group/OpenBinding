@@ -1,6 +1,8 @@
 import type { UsageView } from '../../api/auth';
 import type { BimResourceRef, EngineCatalogEntry, EngineMode } from '../../api/client';
 import type { ExecutionOptimization, LaunchRequest } from '../../api/runs';
+import type { PresetSettings } from '../../entities/preset/api';
+import type { RunPresetView } from '../../shared/api/types';
 import type { ProblemRevision } from '../../api/problems';
 import type { CaseContent } from '../../features/workspace/model';
 import { planLimit } from '../../features/workspace/model';
@@ -322,6 +324,50 @@ export function optimizationFor(mode: EngineMode | undefined, criteria: number |
   return picked ? { type, scalarization: picked.id as string } : null;
 }
 
+// --- run presets
+
+const sameRef = (a: BimResourceRef, b: BimResourceRef) => a.namespace === b.namespace && a.name === b.name && a.version === b.version && a.digest === b.digest;
+
+/**
+ * The engine mode of the offered ones that a preset names: its exact engine (or the built-in one of that name), its mode (any of the
+ * engine's when it names none) and its deployment (a built-in one when it names none). `null` when none is offered: the gateway then
+ * decides when the run is sent.
+ */
+export function presetModeOf(preset: Pick<RunPresetView, 'engine' | 'mode' | 'registration'>, modes: readonly ModeChoice[]): ModeChoice | null {
+  const exact = typeof preset.engine === 'string' ? null : preset.engine;
+  const registration = isRef(preset.registration) ? preset.registration : null;
+  return modes.find((mode) => (
+    (exact ? sameRef(mode.engine, exact) : mode.engine.name === preset.engine && !mode.federated)
+    && (!preset.mode || mode.mode === preset.mode)
+    && (registration ? mode.registration !== null && sameRef(mode.registration, registration) : !mode.federated)
+  )) ?? null;
+}
+
+/** What the settings form shows for a preset's options once it is detached: seconds for a time budget, the number as written for the rest. */
+export function presetValues(options: Readonly<Record<string, unknown>>, inputs: readonly OptionInput[]): Record<string, string> {
+  const values: Record<string, string> = {};
+  for (const input of inputs) {
+    const value = options[input.name];
+    if (typeof value !== 'number' || !Number.isFinite(value)) continue;
+    values[input.name] = String(input.kind === 'time' ? value / 1000 : value);
+  }
+  return values;
+}
+
+/**
+ * The settings chosen by hand as a preset holds them: the exact engine and mode, the deployment only when it is the account's own
+ * (a built-in one is the engine's installed deployment, which a preset leaves out), the options and the optimization.
+ */
+export function presetSettingsOf(mode: ModeChoice, options: Record<string, unknown>, optimization: ExecutionOptimization | null): PresetSettings {
+  return {
+    engine: mode.engine,
+    registration: mode.federated && mode.registration ? mode.registration : null,
+    mode: mode.mode,
+    options,
+    optimization,
+  };
+}
+
 // --- the request
 
 export interface RequestInput {
@@ -331,11 +377,14 @@ export interface RequestInput {
   options: Record<string, unknown>;
   /** What the mode and the problem allow, from {@link optimizationFor}; left out of the request when `null`. */
   optimization?: ExecutionOptimization | null;
+  /** The slug of the run preset the run starts from: it carries every setting, so nothing else is sent. */
+  preset?: string | null;
 }
 
 /** What `createRun` gets, or `null` while something is missing. */
 export function buildRequest(input: RequestInput): LaunchRequest | null {
   if (!input.revision) return null;
+  if (input.preset) return { revision: input.revision, preset: input.preset };
   if (!input.mode || input.mode.compat === 'no') return null;
   // Without a named deployment the gateway finds the built-in one installed with the engine from the engine reference alone.
   return {

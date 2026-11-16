@@ -4,6 +4,7 @@ import { QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import { org, renderOrgScreen } from '../../features/workspace/testKit';
 import { CHECKOUT, EVOLUTIONARY, RANDOM_SEARCH, REVISION_1, REVISION_2, studyFixture } from '../../test/fixtures/studies';
+import { presetPage } from '../../test/fixtures/presets';
 import { StudyBuilder } from './StudyBuilder';
 
 const platform = vi.hoisted(() => ({
@@ -15,6 +16,8 @@ const problems = vi.hoisted(() => ({ list: vi.fn(), revisions: vi.fn(), compilat
 vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'), platformApi: platform }));
 vi.mock('../../api/problems', () => ({ problemsApi: problems }));
 vi.mock('../../api/client', async () => ({ ...await vi.importActual<typeof import('../../api/client')>('../../api/client'), apiClient: client }));
+const presets = vi.hoisted(() => ({ list: vi.fn() }));
+vi.mock('../../entities/preset/api', async (actual) => ({ ...await actual<typeof import('../../entities/preset/api')>(), presetsApi: presets }));
 
 const group = org('isa-demo', { name: 'ISA Demo Group' });
 const viewing = org('read-lab', { name: 'Read Lab', effective_role: 'VIEWER' });
@@ -60,6 +63,7 @@ describe('A new study', () => {
     client.getEngines.mockResolvedValue([engineEntry(RANDOM_SEARCH), engineEntry(EVOLUTIONARY)]);
     client.getOwnUsage.mockResolvedValue(usage);
     client.getPricingCatalog.mockResolvedValue({});
+    presets.list.mockResolvedValue(presetPage());
   });
 
   it('offers the versions of the organization’s problems, the engine modes, the settings and the seeds', async () => {
@@ -78,7 +82,7 @@ describe('A new study', () => {
     const needed = screen.getByRole('list', { name: 'Still needed' });
     expect(within(needed).getByText('Give the study a name.')).toBeInTheDocument();
     expect(within(needed).getByText('Choose at least one problem version.')).toBeInTheDocument();
-    expect(within(needed).getByText('Choose at least one engine mode.')).toBeInTheDocument();
+    expect(within(needed).getByText('Choose at least one engine mode or run preset.')).toBeInTheDocument();
   });
 
   it('counts the cells as the choices are made and meters nothing: a run consumes no allowance', async () => {
@@ -193,6 +197,89 @@ describe('A new study', () => {
     platform.createStudy.mockRejectedValueOnce(refusal(422, 'engine_mode_incompatible', 'MiniZinc has no mode that supports this goal type.'));
     fireEvent.click(create());
     expect(await screen.findByText(/MiniZinc has no mode that supports this goal type\./)).toBeInTheDocument();
+  });
+
+  describe('run presets', () => {
+    const presetBox = async (name: RegExp) => within(await screen.findByRole('group', { name: 'Run presets' })).findByRole('checkbox', { name });
+
+    it('lists the organization’s presets, and turns off with the reason those a study cannot take', async () => {
+      renderBuilder();
+
+      expect(await presetBox(/Fast sampling/)).toBeEnabled();
+      expect(presets.list).toHaveBeenCalledWith('isa-demo', { limit: 200 });
+      const federated = await presetBox(/Edge deployment/);
+      expect(federated).toBeDisabled();
+      expect(federated.closest('label')).toHaveTextContent('Runs on a federated deployment: presets of federated engines can’t join a study yet.');
+      const noGoal = await presetBox(/No goal/);
+      expect(noGoal).toBeDisabled();
+      expect(noGoal.closest('label')).toHaveTextContent('Names no optimization, which a study engine needs.');
+    });
+
+    it('adds a {preset} engine row for each preset picked, counted in the matrix', async () => {
+      platform.createStudy.mockResolvedValue(studyFixture());
+      renderBuilder();
+      fireEvent.click(await checkbox(/Checkout flow · version 2/));
+      fireEvent.click(await checkbox(/random-search 1\.0\.0/));
+      fireEvent.click(await presetBox(/Fast sampling/));
+      fireEvent.change(screen.getByLabelText('Study name'), { target: { value: 'With a preset' } });
+
+      const aside = screen.getByRole('complementary', { name: 'Matrix and plan' });
+      expect(within(aside).getByText('1 problem version × 2 engines × 1 setting × 2 seeds')).toBeInTheDocument();
+      fireEvent.click(create());
+
+      await waitFor(() => expect(platform.createStudy).toHaveBeenCalledTimes(1));
+      const { mode: randomMode, ...randomIdentity } = RANDOM_SEARCH;
+      const sent = platform.createStudy.mock.calls[0][1] as { definition: { engines: unknown[] } };
+      expect(sent.definition.engines).toEqual([
+        { ...randomIdentity, mode: randomMode, optimization: { type: 'SINGLE', scalarization: 'weighted-sum' } },
+        { preset: 'fast-sampling' },
+      ]);
+    });
+
+    it('takes a study whose only engine is a preset', async () => {
+      platform.createStudy.mockResolvedValue(studyFixture());
+      renderBuilder();
+      fireEvent.click(await checkbox(/Checkout flow · version 2/));
+      fireEvent.click(await presetBox(/Fast sampling/));
+      fireEvent.change(screen.getByLabelText('Study name'), { target: { value: 'Preset only' } });
+      expect(create()).toBeEnabled();
+      fireEvent.click(create());
+
+      await waitFor(() => expect(platform.createStudy).toHaveBeenCalledTimes(1));
+      expect((platform.createStudy.mock.calls[0][1] as { definition: { engines: unknown[] } }).definition.engines).toEqual([{ preset: 'fast-sampling' }]);
+    });
+
+    it('says how the gateway refused a preset: gone, federated, without an optimization, or the same as another engine', async () => {
+      renderBuilder();
+      fireEvent.click(await checkbox(/Checkout flow · version 2/));
+      fireEvent.click(await presetBox(/Fast sampling/));
+      fireEvent.change(screen.getByLabelText('Study name'), { target: { value: 'Refused' } });
+
+      platform.createStudy.mockRejectedValueOnce(refusal(422, 'preset_not_found', 'This organization has no run preset \'fast-sampling\'.'));
+      fireEvent.click(create());
+      expect(await screen.findByText('A run preset of the study no longer exists (422 · preset_not_found)')).toBeInTheDocument();
+
+      platform.createStudy.mockRejectedValueOnce(refusal(422, 'preset_federated', 'Presets of federated engines cannot join a study yet.'));
+      fireEvent.click(create());
+      expect(await screen.findByText('A run preset runs on a federated deployment (422 · preset_federated)')).toBeInTheDocument();
+
+      platform.createStudy.mockRejectedValueOnce(refusal(422, 'preset_incomplete'));
+      fireEvent.click(create());
+      expect(await screen.findByText('A run preset names no optimization (422 · preset_incomplete)')).toBeInTheDocument();
+
+      platform.createStudy.mockRejectedValueOnce(refusal(422, 'duplicate_study_engines'));
+      fireEvent.click(create());
+      expect(await screen.findByText('Two engines of the study are the same (422 · duplicate_study_engines)')).toBeInTheDocument();
+      expect(screen.getByText(/Once its presets are expanded, two engines name the same revision, mode, optimization and options/)).toBeInTheDocument();
+    });
+
+    it('builds the study from the engines alone when the presets can’t be read', async () => {
+      presets.list.mockRejectedValue(refusal(503, 'unavailable'));
+      renderBuilder();
+
+      expect(await screen.findByText('The organization’s run presets couldn’t be loaded.')).toBeInTheDocument();
+      expect(await checkbox(/random-search 1\.0\.0/)).toBeEnabled();
+    });
   });
 
   it('starts from the revision another screen named', async () => {

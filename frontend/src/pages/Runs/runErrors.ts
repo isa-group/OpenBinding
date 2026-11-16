@@ -160,6 +160,19 @@ export function refusalOf(caught: unknown, action: RunAction = 'launch'): Refusa
     return rangeRefusal(diagnostics, at, failure.status);
   }
 
+  if (failure.status === 422 && failure.code === 'preset_not_found') {
+    return {
+      ...base, kind: 'not-found', title: `That run preset no longer exists${at}`,
+      text: `It may have been deleted or renamed. Pick another preset, or choose the settings here. ${nothing}`,
+    };
+  }
+  if (failure.status === 422 && failure.code === 'preset_with_settings') {
+    return {
+      ...base, kind: 'other', title: `A run from a preset takes every setting from it${at}`,
+      text: `The request named a preset and settings of its own. Send the preset alone, or detach it and choose the settings. ${nothing}`,
+    };
+  }
+
   if (failure.status === 422) {
     const incompatible = failure.code === 'engine_mode_incompatible';
     return {

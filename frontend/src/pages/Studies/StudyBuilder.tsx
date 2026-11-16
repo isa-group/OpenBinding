@@ -13,6 +13,9 @@ import { planCeilingsOf } from '../Runs/launchModel';
 import { RefusalNotice } from '../Runs/parts';
 import { OrgGate, OrgSkeleton } from '../../features/workspace/OrgFrame';
 import { problemsApi } from '../../api/problems';
+import { PRESET_PAGE, presetsApi } from '../../entities/preset/api';
+import { studyPresetRefusal } from '../../entities/preset/preset';
+import type { RunPresetList } from '../../shared/api/types';
 import { loadProblems } from '../Problems/problemsData';
 import type { CaseContent } from '../../features/workspace/model';
 import { SLUG_PATTERN, slugFromName } from '../../shared/lib/slug';
@@ -36,12 +39,14 @@ function BuilderBody({ organization, canCreate }: { organization: Organization; 
   const engines = useResource<EngineCatalogEntry[]>('builder-engines', () => apiClient.getEngines());
   const usage = useResource<UsageView | null>('builder-usage', () => apiClient.getOwnUsage().catch(() => null));
   const pricing = useResource<Record<string, unknown> | null>('builder-pricing', () => apiClient.getPricingCatalog().catch(() => null));
+  const presets = useResource<RunPresetList | null>(`builder-presets:${org}`, () => presetsApi.list(org, { limit: PRESET_PAGE }).catch(() => null));
 
   const [name, setName] = useState('');
   const [address, setAddress] = useState<string | null>(null);
   const [description, setDescription] = useState('');
   const [picked, setPicked] = useState<string[] | null>(null);
   const [pickedEngines, setPickedEngines] = useState<string[]>([]);
+  const [pickedPresets, setPickedPresets] = useState<string[]>([]);
   const [variants, setVariants] = useState<Variant[]>([emptyVariant('v1')]);
   const [serial, setSerial] = useState(1);
   const [seedText, setSeedText] = useState('1, 2');
@@ -58,13 +63,17 @@ function BuilderBody({ organization, canCreate }: { organization: Organization; 
 
   const choices = engineChoices(engines.data ?? []);
   const chosen = choices.filter((choice) => pickedEngines.includes(choice.key));
+  // The organization's run presets: `[]` while they load, `null` when they can't be read. Only one a study can take stays chosen.
+  const presetList = presets.data === undefined ? [] : presets.data?.presets ?? null;
+  const chosenPresets = (presetList ?? []).filter((preset) => pickedPresets.includes(preset.slug) && studyPresetRefusal(preset) === null).map((preset) => preset.slug);
+  const engineCount = chosen.length + chosenPresets.length;
   const readings = variants.map(readVariant);
   const settings = readings.map((reading) => reading.parameters);
   const settingKeys = settings.map(parametersKey);
   const duplicateSettings = new Set(settingKeys).size !== settingKeys.length;
   const seeds = readSeeds(seedText);
   const caseCount = new Set(selected).size;
-  const size = matrixSize({ cases: caseCount, engines: chosen.length, settings: variants.length, seeds: seeds.seeds.length });
+  const size = matrixSize({ cases: caseCount, engines: engineCount, settings: variants.length, seeds: seeds.seeds.length });
 
   const ceilings = planCeilingsOf(usage.data ?? null, pricing.data ?? null, user?.plan);
   const cells = size.cells;
@@ -76,13 +85,13 @@ function BuilderBody({ organization, canCreate }: { organization: Organization; 
   if (!effectiveName.trim()) blockers.push('Give the study a name.');
   else if (!SLUG_PATTERN.test(effectiveAddress)) blockers.push('Give it an address of lowercase letters, numbers and hyphens.');
   if (caseCount === 0) blockers.push('Choose at least one problem version.');
-  if (chosen.length === 0) blockers.push('Choose at least one engine mode.');
+  if (engineCount === 0) blockers.push('Choose at least one engine mode or run preset.');
   if (seeds.error) blockers.push(seeds.error);
   if (readings.some((reading) => reading.error)) blockers.push('Fix the settings marked in red.');
   if (duplicateSettings) blockers.push('Two settings are identical.');
   if (size.cells > MAX_CELLS) blockers.push(`${size.cells.toLocaleString('en-US')} cells is over the ${MAX_CELLS.toLocaleString('en-US')} limit. Remove an engine, a setting or some seeds.`);
   if (caseCount > MAX_CASES) blockers.push(`A study takes at most ${MAX_CASES} problem versions.`);
-  if (chosen.length > MAX_ENGINES) blockers.push(`A study takes at most ${MAX_ENGINES} engine modes.`);
+  if (engineCount > MAX_ENGINES) blockers.push(`A study takes at most ${MAX_ENGINES} engine modes and run presets.`);
   if (variants.length > MAX_SETTINGS) blockers.push(`A study takes at most ${MAX_SETTINGS} settings.`);
   const ready = canCreate && blockers.length === 0;
 
@@ -96,7 +105,7 @@ function BuilderBody({ organization, canCreate }: { organization: Organization; 
         ...head,
         definition: {
           revision_ids: selected,
-          engines: definitionEngines(chosen, studyCriteriaCount(await compiledForms(org, caseList ?? [], selected))),
+          engines: definitionEngines(chosen, studyCriteriaCount(await compiledForms(org, caseList ?? [], selected)), chosenPresets),
           parameter_sets: settings,
           seeds: seeds.seeds,
         },
@@ -165,7 +174,16 @@ function BuilderBody({ organization, canCreate }: { organization: Organization; 
                 onChange={(ids) => { setPicked(ids); setRefusal(null); }}
                 org={org}
               />
-              <EnginesField choices={choices} selected={pickedEngines} onChange={(keys) => { setPickedEngines(keys); setRefusal(null); }} failed={engines.status === 'error'} />
+              <EnginesField
+                choices={choices}
+                selected={pickedEngines}
+                onChange={(keys) => { setPickedEngines(keys); setRefusal(null); }}
+                failed={engines.status === 'error'}
+                presets={{
+                  presets: presetList, selected: chosenPresets, manageHref: `/app/${org}/settings/presets`,
+                  onChange: (slugs) => { setPickedPresets(slugs); setRefusal(null); },
+                }}
+              />
               <SettingsField
                 variants={variants}
                 onChange={(next) => { setVariants(next); setRefusal(null); }}

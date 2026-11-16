@@ -63,17 +63,30 @@ export interface OrganizationAuditPage {
   limit: number;
 }
 
-/** One engine of a study definition: the pinned revision, the mode and the optimization the gateway requires of each. */
-export interface StudyEngine {
+/**
+ * One exact engine of a study: the pinned revision, the mode and the optimization the gateway requires of each, the options every cell
+ * of it runs with, and the run preset it came from (`{id, slug}`, set by a run that expanded one; `null` otherwise).
+ */
+export interface ExactStudyEngine {
   namespace?: string;
   name?: string;
   version?: string;
   digest?: string;
   mode?: string;
-  optimization?: { type: string; scalarization: string };
+  optimization?: { type: string; scalarization: string; weights?: Array<{ criteria: string; value: number }> };
+  options?: Record<string, unknown>;
+  preset?: { id: string; slug: string } | null;
 }
 
-/** The editable matrix of a study: problem revisions of its organization, engines (with a resolved mode), parameter sets and seeds. */
+/** An engine of a study named by a run preset of the organization (its slug or id): each run expands it into an exact engine. */
+export interface PresetStudyEngine {
+  preset: string;
+}
+
+/** One engine of a study definition (`StudyDefinition.engines[]`): an exact engine, or a run preset each run expands. */
+export type StudyEngine = ExactStudyEngine | PresetStudyEngine;
+
+/** The editable matrix of a study: problem revisions of its organization, engines (exact or from a preset), parameter sets and seeds. */
 export interface StudyDefinition {
   revision_ids: string[];
   engines: StudyEngine[];
@@ -107,11 +120,11 @@ export interface StudyRunProblem {
   irDigest: string;
 }
 
-/** The definition a study run froze when it started (`openbinding/study-run/v1`). */
+/** The definition a study run froze when it started (`openbinding/study-run/v1`): every engine exact, with its options and the preset it came from. */
 export interface StudyRunDefinition {
   apiVersion: string;
   problems: StudyRunProblem[];
-  engines: StudyEngine[];
+  engines: ExactStudyEngine[];
   parameterSets: Array<Record<string, unknown>>;
   seeds: number[];
 }

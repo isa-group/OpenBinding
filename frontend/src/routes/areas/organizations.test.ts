@@ -18,9 +18,10 @@ describe('area organizations', () => {
     expect(routesByArea.organizations.map((definition) => [definition.id, definition.path])).toEqual(PROTOTYPE);
   });
 
-  it('declares neither org-members nor org-audit: they are sections of org-settings', () => {
+  it('declares neither org-members, org-presets nor org-audit: they are sections of org-settings', () => {
     const ids = routeDefinitions.map((definition) => definition.id);
     expect(ids).not.toContain('org-members');
+    expect(ids).not.toContain('org-presets');
     expect(ids).not.toContain('org-audit');
   });
 
@@ -40,6 +41,7 @@ describe('area organizations', () => {
       ['/app/acme', 'org-overview'],
       ['/app/acme/settings', 'org-settings'],
       ['/app/acme/settings/members', 'org-settings'],
+      ['/app/acme/settings/presets', 'org-settings'],
       ['/app/acme/settings/audit', 'org-settings'],
       ['/app/settings/settings', 'org-settings'],
     ])('%s -> %s', (path, id) => {

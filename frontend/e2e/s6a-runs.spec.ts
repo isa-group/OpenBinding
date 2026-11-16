@@ -5,8 +5,9 @@ import type { Problem, ProblemRevision } from '../src/api/problems';
 import { ENGINE, NEIGHBORHOOD, PROBLEM_FACTS, REGISTRATION, detailOf, jobOf, provenanceOf } from '../src/test/fixtures/jobs';
 import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
 import { digestOf, usageOf } from '../src/test/fixtures/resources';
+import { FEDERATED_PRESET, presetFixture, presetPage } from '../src/test/fixtures/presets';
 
-// S6a · execution: run-launch, run-list and run-detail (with deriving a composition from a finished run).
+// S6a · execution: run-launch (with run presets), run-list and run-detail (with deriving a composition from a finished run).
 // There is no backend: the API origin is answered by page.route(). Screenshots go to testInfo.outputPath() (test-results/, ignored by git)
 // so they can be looked at after a run. Every test walks a screen through its states on a desktop and on a phone.
 
@@ -137,13 +138,13 @@ const derivedDraft = (body: Record<string, unknown>) => {
   return { content, document: {}, values: { cost: { value: 9.5, unit: 'EUR' }, latency: { value: 420, unit: 'ms' } }, diagnostics: [] };
 };
 
-type Overridable = 'launch' | 'cancel' | 'retry' | 'compilation' | 'runs' | 'detail' | 'neighborhood' | 'seal';
+type Overridable = 'launch' | 'cancel' | 'retry' | 'compilation' | 'runs' | 'detail' | 'neighborhood' | 'seal' | 'preset';
 
 interface State {
   /** A handler that replaces the default answer of one call. */
   refuse: Partial<Record<Overridable, Handler>>;
   /** The last body or key each write carried, to check what was sent. */
-  sent: { launch?: unknown; key?: string; cancel?: string; retry?: string; create?: unknown; derive: unknown[] };
+  sent: { launch?: unknown; key?: string; cancel?: string; retry?: string; create?: unknown; derive: unknown[]; preset?: unknown };
   /** The live run has finished: the next time it is asked about it says so. */
   liveDone: boolean;
 }
@@ -190,6 +191,16 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
 
     if (!orgSlug) return json(organizations)(route);
     if (section === 'members' || section === 'library') return json([])(route);
+    if (section === 'presets') {
+      // The run presets of the organization: the launcher lists them and saves the settings chosen by hand as a new one.
+      if (!found) return detail(404, 'not_found', 'Organization not found.')(route);
+      if (route.request().method() === 'POST') {
+        state.sent.preset = bodyOf(route);
+        const body = bodyOf(route) as { slug: string; name: string };
+        return (state.refuse.preset ?? json(presetFixture({ id: 'preset-new', slug: body.slug, name: body.name }), 201))(route);
+      }
+      return json(orgSlug === 'isa-demo' ? presetPage([presetFixture(), FEDERATED_PRESET]) : presetPage([]))(route);
+    }
     if (section === 'runs') {
       // The runs of the organization: the list, one run, and what a member does to one.
       const [, , , , id, action] = parts;
@@ -706,6 +717,72 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
+    test('run-launch /app/:org/runs/new · from a run preset, detached with Edit, and the settings saved as a new preset', async ({ page }, testInfo) => {
+      const critical = watchCriticalErrors(page);
+      const state = await mockApi(page);
+      await page.goto(`${ROOT}/runs/new?problem=checkout-flow&revision=2`);
+      const main = page.locator('#platform-main');
+      const next = main.getByRole('button', { name: 'Continue' });
+
+      // Start from a preset: the engine, mode, options and optimization come from it, read-only.
+      await next.click();
+      const picker = main.getByLabel('Start from a preset');
+      await expect(picker).toBeEnabled();
+      await picker.selectOption('fast-sampling');
+      const attached = main.getByRole('region', { name: 'Run preset Fast sampling' });
+      await expect(attached).toContainText('random-search 1.0.0 · mode sampling');
+      await expect(attached).toContainText('time budget 30 s · iterations 5,000');
+      await expect(attached).toContainText('Can run this');
+      await expect(main.getByRole('radiogroup', { name: 'Engine' })).toHaveCount(0);
+      await expect(main.getByRole('link', { name: 'Manage run presets' })).toHaveAttribute('href', `${ROOT}/settings/presets`);
+      await capture(page, testInfo, `launch-${name}-preset`);
+      await next.click();
+      await expect(main.getByText('The settings come from the preset Fast sampling: time budget 30 s · iterations 5,000.')).toBeVisible();
+      await next.click();
+      await expect(main.getByText('Fast sampling (fast-sampling)')).toBeVisible();
+      await expect(main.getByRole('button', { name: 'Save these settings as a preset' })).toHaveCount(0);
+      await capture(page, testInfo, `launch-${name}-preset-review`);
+      await main.getByRole('button', { name: 'Send run' }).click();
+      await expect(main.getByRole('heading', { name: 'Run accepted · queued' })).toBeVisible();
+      expect(state.sent.launch).toEqual({ revision: 'rev-checkout-2', preset: 'fast-sampling' });
+
+      // Edit detaches it: the settings move into the form, and every one of them is sent.
+      await page.goto(`${ROOT}/runs/new?problem=checkout-flow&revision=2&preset=fast-sampling`);
+      await next.click();
+      await main.getByRole('region', { name: 'Run preset Fast sampling' }).getByRole('button', { name: 'Edit' }).click();
+      await expect(main.getByRole('radiogroup', { name: 'Engine' }).getByRole('radio', { name: /^random-search/ })).toBeChecked();
+      await next.click();
+      await expect(main.getByLabel('Time budget')).toHaveValue('30');
+      await expect(main.getByLabel('Iterations')).toHaveValue('5000');
+      await next.click();
+
+      // Save these settings as a preset (MEMBER).
+      await main.getByRole('button', { name: 'Save these settings as a preset' }).click();
+      const dialog = page.getByRole('dialog', { name: 'Save as a run preset' });
+      await dialog.getByLabel('Preset name').fill('Checkout sampling');
+      await expect(dialog.getByLabel('Preset address')).toHaveValue('checkout-sampling');
+      await capture(page, testInfo, `launch-${name}-save-preset`);
+      await dialog.getByRole('button', { name: 'Save preset' }).click();
+      await expect(main.getByText(/Saved as the run preset Checkout sampling\./)).toBeVisible();
+      expect(state.sent.preset).toEqual({
+        slug: 'checkout-sampling', name: 'Checkout sampling', description: '', engine: ENGINE, registration: null, mode: 'sampling',
+        options: { time_budget_ms: 30000, iterations: 5000 }, optimization: { type: 'SINGLE', scalarization: 'weighted-sum' },
+      });
+
+      // A taken address keeps the dialog open and says so.
+      state.refuse.preset = detail(409, 'slug_conflict', 'That preset slug is in use in this organization.');
+      await page.goto(`${ROOT}/runs/new?problem=checkout-flow&revision=2`);
+      await next.click();
+      await next.click();
+      await next.click();
+      await main.getByRole('button', { name: 'Save these settings as a preset' }).click();
+      await dialog.getByLabel('Preset name').fill('Fast sampling');
+      await dialog.getByRole('button', { name: 'Save preset' }).click();
+      await expect(dialog.getByRole('alert')).toContainText('Another preset of this organization has that address (409 · slug_conflict).');
+      await capture(page, testInfo, `launch-${name}-save-preset-409`);
+      expect(critical).toEqual([]);
+    });
+
     test('run-launch /app/:org/runs/new · a viewer, a version that is gone and a problem too big for the deployment', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
@@ -714,6 +791,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await page.goto('/app/read-lab/runs/new');
       await expect(main.getByRole('note')).toContainText('You’re a VIEWER of Read Lab. You can look through the steps, but starting a run needs MEMBER.');
       await expect(main.getByText(/Nothing to solve yet\./)).toBeVisible();
+      await expect(main.getByRole('button', { name: 'Save these settings as a preset' })).toHaveCount(0);
       await capture(page, testInfo, `launch-${name}-viewer`);
 
       state.refuse.compilation = detail(404, 'not_found', 'Problem revision not found.');

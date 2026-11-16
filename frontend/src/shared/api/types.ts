@@ -112,3 +112,18 @@ export type ParseResult = Schemas['ParseResult'];
 
 /** What changed between two Composition2Yaml texts (`POST /v1/compositions/diff`). */
 export type DiffResult = Schemas['DiffResult'];
+
+/** A run preset of an organization (`GET …/presets/{preset}`); below MEMBER its options are redacted, as a run's are. */
+export type RunPresetView = Schemas['RunPresetView'];
+
+/** A page of an organization's run presets, by name (`GET …/presets`). */
+export type RunPresetList = Schemas['RunPresetList'];
+
+/** What creating a run preset takes (`POST …/presets`). */
+export type RunPresetCreate = Schemas['RunPresetCreate'];
+
+/** What a change of a run preset may name (`PATCH …/presets/{preset}`); absent fields stay. */
+export type RunPresetUpdate = Schemas['RunPresetUpdate'];
+
+/** An exact engine or deployment reference: namespace, name, version and digest. */
+export type ImmutableResourceRef = Schemas['ImmutableResourceRef'];

@@ -287,6 +287,13 @@
   .job-feed.is-live .job-feed-dot, .job-timeline li.is-current .job-timeline-track i, .job-spinner { animation: none; }
 }
 
+/* Run presets: the picker above the engines, the attached preset and the dialog that saves the settings as one. */
+.job-preset-picker { display: flex; flex-direction: column; gap: var(--tp-spacing-xs); max-width: 640px; }
+.job-preset-picker .ui-field-note a { white-space: nowrap; }
+.job-preset h3 { margin: 0; font-size: 0.9375rem; }
+.job-preset-form { display: flex; flex-direction: column; gap: var(--tp-spacing-sm); }
+.job-preset-error { display: flex; align-items: center; gap: 6px; margin: 0; }
+
 @media (max-width: 767px) {
   .job-timeline li { flex-basis: 100%; }
   .job-options table, .job-options tbody { display: block; min-width: 0; }

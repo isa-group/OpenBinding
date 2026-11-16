@@ -284,13 +284,44 @@ describe('One study', () => {
 
     const card = await screen.findByRole('region', { name: 'Frozen definition' });
     expect(within(card).getByRole('button', { name: 'Copy the digest of the frozen definition' })).toBeInTheDocument();
-    expect(within(card).getAllByRole('listitem')).toHaveLength(2);
+    expect(within(within(card).getByRole('list', { name: 'Problem versions of the run' })).getAllByRole('listitem')).toHaveLength(2);
     expect(await within(card).findByRole('button', { name: 'Copy the compilation digest of Checkout flow r2' })).toBeInTheDocument();
     expect(card.textContent).not.toMatch(/sha256-/);
     fireEvent.click(within(card).getByRole('button', { name: 'Use it for the next runs' }));
 
     expect(await screen.findByText(/The study’s definition is now the one run #1 froze/)).toBeInTheDocument();
     expect(platform.updateStudy).toHaveBeenCalledWith('isa-demo', 'engines-vs-seeds', { definition: studyFixture().definition }, ETAG);
+  });
+
+  it('shows the options and the run preset each frozen engine ran with', async () => {
+    const frozen = runFixture();
+    frozen.definition.engines = [
+      { ...frozen.definition.engines[0], optimization: { type: 'SINGLE', scalarization: 'weighted-sum' }, options: { time_budget_ms: 30000 }, preset: { id: 'p-1', slug: 'fast-sampling' } },
+      { ...frozen.definition.engines[1], options: {}, preset: null },
+    ];
+    withRuns([frozen]);
+    renderDetail('isa-demo', 'engines-vs-seeds', `/progress?run=${RUN_ID}`);
+
+    const card = await screen.findByRole('region', { name: 'Frozen definition' });
+    const engines = within(card).getByRole('list', { name: 'Engines of the run' });
+    const [first, second] = within(engines).getAllByRole('listitem');
+    expect(first).toHaveTextContent('random-search 1.0.0 (sampling)');
+    expect(first).toHaveTextContent('Options: time budget 30 s · optimization SINGLE · weighted-sum · from the run preset fast-sampling, as it was when the run started');
+    expect(second).toHaveTextContent('evolutionary 1.0.0 (genetic)');
+    expect(second).toHaveTextContent('Options: Engine defaults');
+    expect(second).not.toHaveTextContent('run preset');
+  });
+
+  it('names a preset row of the definition in the matrix and says each run expands it', async () => {
+    platform.study.mockResolvedValue({
+      value: studyFixture({ definition: { ...studyFixture().definition, engines: [studyFixture().definition.engines[0], { preset: 'fast-sampling' }] } }), etag: ETAG,
+    });
+    renderDetail();
+
+    const matrix = await screen.findByRole('region', { name: 'The cells of the matrix' });
+    expect(within(matrix).getByRole('columnheader', { name: 'preset fast-sampling · seed 1' })).toBeInTheDocument();
+    expect(within(matrix).queryByText('cell 0')).not.toBeInTheDocument();
+    expect(screen.getByText(/Each run expands the run preset fast-sampling into the engine, mode and options it holds then\./)).toBeInTheDocument();
   });
 
   it('edits the name and the description', async () => {

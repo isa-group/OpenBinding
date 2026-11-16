@@ -5,7 +5,7 @@ import type { Job } from '../../api/platform';
 import { org, renderOrgScreen } from '../../features/workspace/testKit';
 import { saveBytes } from '../../features/workspace/download';
 import type { JobDetail as RunView } from '../../api/runs';
-import { NEIGHBORHOOD, PROBLEM_FACTS, RESULT, S1, detailOf, jobOf } from '../../test/fixtures/jobs';
+import { NEIGHBORHOOD, PROBLEM_FACTS, RESULT, S1, detailOf, jobOf, provenanceOf } from '../../test/fixtures/jobs';
 import { RunDetail } from './RunDetail';
 
 const runsApi = vi.hoisted(() => ({ get: vi.fn(), list: vi.fn(), cancel: vi.fn(), retry: vi.fn(), neighborhood: vi.fn() }));
@@ -184,6 +184,21 @@ describe('One run', () => {
     expect(within(where).getByText('60 s per run')).toBeInTheDocument();
     expect(document.body.textContent).not.toMatch(/sha256-|[0-9a-f]{12}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-|job-/i);
     expect(within(where).getAllByRole('button', { name: /^Copy .* digest$/ }).length).toBeGreaterThan(0);
+  });
+
+  it('names the run preset a run started from, and none for a run whose settings were chosen by hand', async () => {
+    runsApi.get.mockResolvedValue(full('completed', { provenance: provenanceOf({ preset: { id: 'p-1', slug: 'fast-sampling' } }) }));
+    const { unmount } = renderJob();
+
+    const where = (await screen.findByRole('heading', { name: 'Where this result comes from' })).closest('section') as HTMLElement;
+    expect(within(where).getByRole('link', { name: 'fast-sampling' })).toHaveAttribute('href', '/app/isa-demo/settings/presets');
+    expect(within(where).getByText('its settings were copied when the run started')).toBeInTheDocument();
+    unmount();
+
+    runsApi.get.mockResolvedValue(full('completed'));
+    renderJob();
+    const plain = (await screen.findByRole('heading', { name: 'Where this result comes from' })).closest('section') as HTMLElement;
+    expect(within(plain).queryByText('Run preset')).not.toBeInTheDocument();
   });
 
   it('offers no way to add the result to a report', async () => {

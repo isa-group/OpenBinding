@@ -5,17 +5,20 @@ import { HttpError, type EngineCatalogEntry, type EngineMode } from '../../api/c
 import { caseOf, org, renderOrgScreen, revisionOf } from '../../features/workspace/testKit';
 import { ENGINE, REGISTRATION, digestOf } from '../../test/fixtures/jobs';
 import { usageOf } from '../../test/fixtures/resources';
+import { FEDERATED_PRESET, presetFixture, presetPage } from '../../test/fixtures/presets';
 import { RunLaunch } from './RunLaunch';
 
 const runsApi = vi.hoisted(() => ({ create: vi.fn() }));
 const client = vi.hoisted(() => ({ getOwnUsage: vi.fn(), getPricingCatalog: vi.fn(), getEngines: vi.fn() }));
 const problems = vi.hoisted(() => ({ list: vi.fn(), revisions: vi.fn(), compilation: vi.fn() }));
 const facts = vi.hoisted(() => ({ get: vi.fn() }));
+const presets = vi.hoisted(() => ({ list: vi.fn(), create: vi.fn() }));
 
 vi.mock('../../api/runs', async () => ({ ...await vi.importActual<typeof import('../../api/runs')>('../../api/runs'), runsApi }));
 vi.mock('../../api/problems', () => ({ problemsApi: problems }));
 vi.mock('../../entities/problem/facts', async (actual) => ({ ...await actual<typeof import('../../entities/problem/facts')>(), problemFactsApi: facts }));
 vi.mock('../../api/client', async () => ({ ...await vi.importActual<typeof import('../../api/client')>('../../api/client'), apiClient: client }));
+vi.mock('../../entities/preset/api', async (actual) => ({ ...await actual<typeof import('../../entities/preset/api')>(), presetsApi: presets }));
 
 /** The facts of the compilation of a revision: candidates with these values, and an objective with these criteria. */
 const factsWith = (values: Array<Record<string, unknown>>, criteria: string[] = []) => ({
@@ -92,6 +95,8 @@ describe('Start a run', () => {
     problems.compilation.mockResolvedValue(analysis());
     facts.get.mockResolvedValue(factsWith([{ latency: 40 }]));
     runsApi.create.mockResolvedValue({ id: 'job-new-7', status: 'queued', irDigest: digestOf('c') });
+    presets.list.mockResolvedValue(presetPage([presetFixture(), FEDERATED_PRESET]));
+    presets.create.mockImplementation(async (_org: string, body: { slug: string; name: string }) => ({ value: presetFixture({ slug: body.slug, name: body.name, id: 'p-new' }), etag: '"p-new"' }));
   });
 
   it('opens on the revision the address names and walks four steps', async () => {
@@ -330,14 +335,124 @@ describe('Start a run', () => {
     expect(runsApi.create).toHaveBeenCalledWith('isa-demo', expect.objectContaining({ engine: ENGINE }), expect.any(String));
   });
 
-  it('offers no saved settings: the settings are set here', async () => {
-    renderLaunch();
-    fireEvent.click(await screen.findByRole('button', { name: 'Continue' }));
-    await screen.findByRole('radiogroup', { name: 'Engine' });
-    await next();
-    expect(await screen.findByRole('heading', { name: 'Settings' })).toBeInTheDocument();
-    expect(screen.queryByRole('radio', { name: 'Use saved settings' })).not.toBeInTheDocument();
-    expect(screen.getByRole('region', { name: 'Settings against your plan' })).toBeInTheDocument();
+  describe('run presets', () => {
+    const picker = () => screen.findByLabelText('Start from a preset');
+
+    it('starts from a preset: its engine, mode and options read-only, and sends the preset alone', async () => {
+      renderLaunch();
+      fireEvent.click(await screen.findByRole('button', { name: 'Continue' }));
+      fireEvent.change(await picker(), { target: { value: 'fast-sampling' } });
+
+      const card = screen.getByRole('region', { name: 'Run preset Fast sampling' });
+      expect(within(card).getByText('random-search 1.0.0 · mode sampling')).toBeInTheDocument();
+      expect(within(card).getByText('time budget 30 s · iterations 5,000')).toBeInTheDocument();
+      expect(within(card).getByText('SINGLE · weighted-sum')).toBeInTheDocument();
+      expect(within(card).getByText('Can run this')).toBeInTheDocument();
+      expect(screen.queryByRole('radiogroup', { name: 'Engine' })).not.toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Manage run presets' })).toHaveAttribute('href', '/app/isa-demo/settings/presets');
+      expect(presets.list).toHaveBeenCalledWith('isa-demo', { limit: 200 });
+
+      await next();
+      expect(await screen.findByText('The settings come from the preset Fast sampling: time budget 30 s · iterations 5,000.')).toBeInTheDocument();
+      expect(screen.queryByRole('region', { name: 'Settings against your plan' })).not.toBeInTheDocument();
+      await next();
+      const review = (await screen.findByText('Solve')).closest('dl') as HTMLElement;
+      expect(within(review).getByText('Fast sampling (fast-sampling)')).toBeInTheDocument();
+      expect(within(review).getByText('random-search 1.0.0 · mode sampling')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Save these settings as a preset' })).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Send run' }));
+      expect(await screen.findByRole('heading', { name: 'Run accepted · queued' })).toBeInTheDocument();
+      expect(runsApi.create).toHaveBeenCalledWith('isa-demo', { revision: 'case-flujo-r2', preset: 'fast-sampling' }, expect.any(String));
+      expect(screen.getByText(/It runs with the settings of the preset Fast sampling/)).toBeInTheDocument();
+    });
+
+    it('opens on the preset the address names, and names a federated one’s deployment', async () => {
+      presets.list.mockResolvedValue(presetPage([presetFixture(), FEDERATED_PRESET]));
+      renderLaunch('?problem=flujo&revision=2&preset=edge-deployment');
+      fireEvent.click(await screen.findByRole('button', { name: 'Continue' }));
+
+      const card = await screen.findByRole('region', { name: 'Run preset Edge deployment' });
+      expect(within(card).getByText('lucia-vega/edge-solver-eu 1')).toBeInTheDocument();
+      expect(within(card).getByText('Can’t run this')).toBeInTheDocument();
+      expect(within(card).getByText('It cannot read a RoutingOverlay.')).toBeInTheDocument();
+      expect(await picker()).toHaveValue('edge-deployment');
+    });
+
+    it('detaches with Edit: the preset’s settings move into the form and every setting is sent', async () => {
+      renderLaunch();
+      fireEvent.click(await screen.findByRole('button', { name: 'Continue' }));
+      fireEvent.change(await picker(), { target: { value: 'fast-sampling' } });
+      fireEvent.click(within(screen.getByRole('region', { name: 'Run preset Fast sampling' })).getByRole('button', { name: 'Edit' }));
+
+      const engines = await screen.findByRole('radiogroup', { name: 'Engine' });
+      expect(within(engines).getByRole('radio', { name: /^random-search/ })).toBeChecked();
+      expect(await picker()).toHaveValue('');
+      await next();
+      expect(await screen.findByLabelText('Time budget')).toHaveValue('30');
+      expect(screen.getByLabelText('Iterations')).toHaveValue('5000');
+      await next();
+      await screen.findByRole('heading', { name: 'Before you send' });
+      fireEvent.click(screen.getByRole('button', { name: 'Send run' }));
+      await screen.findByRole('heading', { name: 'Run accepted · queued' });
+      expect(runsApi.create).toHaveBeenCalledWith('isa-demo', {
+        revision: 'case-flujo-r2', engine: ENGINE, registration: REGISTRATION, mode: 'sampling',
+        options: { time_budget_ms: 30000, iterations: 5000 }, optimization: { type: 'SINGLE', scalarization: 'weighted-sum' },
+      }, expect.any(String));
+    });
+
+    it('saves the settings chosen here as a preset of the organization', async () => {
+      renderLaunch();
+      await toReview();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Save these settings as a preset' }));
+      const dialog = await screen.findByRole('dialog', { name: 'Save as a run preset' });
+      fireEvent.change(within(dialog).getByLabelText('Preset name'), { target: { value: 'My sampling' } });
+      expect(within(dialog).getByLabelText('Preset address')).toHaveValue('my-sampling');
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Save preset' }));
+
+      await waitFor(() => expect(presets.create).toHaveBeenCalledWith('isa-demo', {
+        slug: 'my-sampling', name: 'My sampling', description: '', engine: ENGINE, registration: null, mode: 'sampling',
+        options: { time_budget_ms: 30000, iterations: 100000 }, optimization: null,
+      }));
+      expect(await screen.findByText(/Saved as the run preset My sampling\./)).toBeInTheDocument();
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      await waitFor(() => expect(presets.list).toHaveBeenCalledTimes(2));
+    });
+
+    it('says when the address of a new preset is taken, and keeps the dialog open', async () => {
+      presets.create.mockRejectedValue(refused(409, 'slug_conflict'));
+      renderLaunch();
+      await toReview();
+      fireEvent.click(screen.getByRole('button', { name: 'Save these settings as a preset' }));
+      const dialog = await screen.findByRole('dialog', { name: 'Save as a run preset' });
+      fireEvent.change(within(dialog).getByLabelText('Preset name'), { target: { value: 'Fast sampling' } });
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Save preset' }));
+
+      expect(await within(dialog).findByRole('alert')).toHaveTextContent('Another preset of this organization has that address (409 · slug_conflict). Change it.');
+    });
+
+    it('explains a preset that no longer exists when the run is sent', async () => {
+      runsApi.create.mockRejectedValue(refused(422, 'preset_not_found'));
+      renderLaunch();
+      fireEvent.click(await screen.findByRole('button', { name: 'Continue' }));
+      fireEvent.change(await picker(), { target: { value: 'fast-sampling' } });
+      await next();
+      await next();
+      fireEvent.click(await screen.findByRole('button', { name: 'Send run' }));
+
+      expect(await screen.findByText('That run preset no longer exists (422 · preset_not_found)')).toBeInTheDocument();
+    });
+
+    it('offers the settings here when the organization has no preset or they can’t be read', async () => {
+      presets.list.mockRejectedValue(refused(503, 'unavailable'));
+      renderLaunch();
+      fireEvent.click(await screen.findByRole('button', { name: 'Continue' }));
+
+      expect(await picker()).toBeDisabled();
+      expect(screen.getByText(/The organization’s run presets couldn’t be loaded; choose the settings here\./)).toBeInTheDocument();
+      expect(screen.getByRole('radiogroup', { name: 'Engine' })).toBeInTheDocument();
+    });
   });
 
   it('keeps a version that is gone out of the next step, with the neutral answer', async () => {
@@ -471,6 +586,7 @@ describe('Start a run', () => {
     expect(note).toHaveTextContent('You’re a VIEWER of Read Lab. You can look through the steps, but starting a run needs MEMBER.');
     await toReview();
     expect(screen.getByRole('button', { name: 'Send run' })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'Save these settings as a preset' })).not.toBeInTheDocument();
     expect(runsApi.create).not.toHaveBeenCalled();
   });
 

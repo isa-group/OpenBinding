@@ -46,15 +46,30 @@ export function SourceStep({ choices, value, onChange, problemsHref }: {
 
 // --- 2 · engine
 
-export function EngineStep({ modes, value, onChange, analysisNote, compareHref, hasPrepared, ranges = false }: {
+export function EngineStep({ modes, value, onChange, analysisNote, compareHref, hasPrepared, ranges = false, preset, attached }: {
   modes: readonly ModeChoice[]; value: string; onChange: (key: string) => void; analysisNote: ReactNode; compareHref: string; hasPrepared: boolean;
   /** The package has ranges. */
   ranges?: boolean;
+  /** "Start from a preset", above the engines. */
+  preset?: ReactNode;
+  /** The attached preset, shown instead of the engines: it carries the engine and the mode. */
+  attached?: ReactNode;
 }) {
+  if (attached) {
+    return (
+      <>
+        <h2>Engine</h2>
+        {analysisNote}
+        {preset}
+        {attached}
+      </>
+    );
+  }
   return (
     <>
       <h2>Engine</h2>
       {analysisNote}
+      {preset}
       <div role="radiogroup" aria-label="Engine" className="job-choices is-grid">
         {modes.map((mode) => (
           <Choice

@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { Lock } from 'lucide-react';
 import type { PricingCatalog, UsageView } from '../../api/auth';
 import { apiClient, type EngineCatalogEntry } from '../../api/client';
-import { runsApi, type JobReceipt } from '../../api/runs';
+import { runsApi, type ExecutionOptimization, type JobReceipt } from '../../api/runs';
 import type { Organization } from '../../api/platform';
 import { Action } from '../../components/ui/Action';
 import { Notice } from '../../components/ui/Notice';
@@ -14,6 +14,9 @@ import { randomUUID } from '../../utils/uuid';
 import { classifyAuthError } from '../../shared/api/errors';
 import { problemsApi } from '../../api/problems';
 import { hasRanges, problemFactsApi } from '../../entities/problem/facts';
+import { PRESET_PAGE, presetsApi } from '../../entities/preset/api';
+import { presetEngineText, presetOptionsText, presetRegistrationText } from '../../entities/preset/preset';
+import type { RunPresetList, RunPresetView } from '../../shared/api/types';
 import { loadProblems } from '../Problems/problemsData';
 import { problemsPath } from '../../routes/paths/problems';
 import { runPath, runsPath } from '../../routes/paths/runs';
@@ -25,8 +28,9 @@ import { refusalOf, type Refusal } from './runErrors';
 import { EngineStep, ForecastBars, SettingsStep, SlotCountdown, SourceStep, type Prepared } from './LaunchSteps';
 import {
   buildRequest, forecastOf, initialChoice, modeChoices, modeOfCatalog, optimizationFor, optionInputs, parseEngineParam,
-  planCeilingsOf, planOptions, requestOptions, sourceChoices,
+  planCeilingsOf, planOptions, presetModeOf, presetSettingsOf, presetValues, requestOptions, sourceChoices,
 } from './launchModel';
+import { AttachedPreset, PresetPicker, SavePresetDialog } from './PresetPicker';
 import { JobFrame, RefusalNotice } from './parts';
 
 const STEPS = ['What', 'Engine', 'Settings', 'Send'] as const;
@@ -50,12 +54,14 @@ function LaunchBody({ organization, canLaunch, role }: { organization: Organizat
   const problemParam = params.get('problem');
   const revisionParam = params.get('revision');
   const engineParam = parseEngineParam(params.get('engine'));
+  const presetParam = params.get('preset');
   const org = organization.slug;
 
   const cases = useResource<CaseContent[]>(`launch-problems:${org}`, () => loadProblems(org));
   const usage = useResource<UsageView | null>('launch-usage', () => apiClient.getOwnUsage().catch(() => null));
   const pricing = useResource<PricingCatalog | null>('launch-pricing', () => apiClient.getPricingCatalog().catch(() => null));
   const catalog = useResource<EngineCatalogEntry[]>('launch-engines', () => apiClient.getEngines().catch(() => []));
+  const presets = useResource<RunPresetList | null>(`launch-presets:${org}`, () => presetsApi.list(org, { limit: PRESET_PAGE }).catch(() => null));
 
   const [step, setStep] = useState(1);
   const [picked, setPicked] = useState<string | null>(null);
@@ -67,6 +73,11 @@ function LaunchBody({ organization, canLaunch, role }: { organization: Organizat
   const [sending, setSending] = useState(false);
   const [refusal, setRefusal] = useState<Refusal | null>(null);
   const [receipt, setReceipt] = useState<JobReceipt | null>(null);
+  const [attachedSlug, setAttachedSlug] = useState<string | null>(presetParam);
+  /** The optimization of a preset that was detached: kept while the mode it names stays chosen. */
+  const [inherited, setInherited] = useState<{ modeKey: string; optimization: ExecutionOptimization } | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState<RunPresetView | null>(null);
   const attempt = useRef<{ fingerprint: string; key: string } | null>(null);
 
   const choices = sourceChoices({ cases: cases.data ?? [], problem: problemParam, revision: revisionParam });
@@ -83,14 +94,41 @@ function LaunchBody({ organization, canLaunch, role }: { organization: Organizat
   const selectedKey = pickedMode && modes.some((mode) => mode.key === pickedMode) ? pickedMode : fallbackKey;
   const mode = modes.find((candidate) => candidate.key === selectedKey) ?? null;
 
+  // The organization's run presets: `[]` while they load, `null` when they can't be read (the settings are then chosen here).
+  const presetList = presets.data === undefined ? [] : presets.data?.presets ?? null;
+  const attached = attachedSlug ? presetList?.find((preset) => preset.slug === attachedSlug || preset.id === attachedSlug) ?? null : null;
+  const attachedMode = attached ? presetModeOf(attached, modes) : null;
+
   const ceilings = planCeilingsOf(usage.data ?? null, pricing.data ?? null, user?.plan);
   const inputs = optionInputs(modeOfCatalog(catalog.data ?? [], mode), ceilings);
   const plans = planOptions(inputs, values);
-  const invalid = plans.some((plan) => plan.invalid);
-  const reduced = plans.filter((plan) => plan.reduced);
-  const optimization = optimizationFor(modeOfCatalog(catalog.data ?? [], mode), ready?.criteria ?? null);
-  const request = buildRequest({ revision: ready ? choice?.revision.id ?? '' : '', mode, options: requestOptions(plans), optimization });
+  // A preset carries its own settings: the form's are neither checked nor sent while one is attached.
+  const invalid = !attached && plans.some((plan) => plan.invalid);
+  const reduced = attached ? [] : plans.filter((plan) => plan.reduced);
+  const optimization = inherited && inherited.modeKey === selectedKey
+    ? inherited.optimization
+    : optimizationFor(modeOfCatalog(catalog.data ?? [], mode), ready?.criteria ?? null);
+  const options = requestOptions(plans);
+  const request = buildRequest({ revision: ready ? choice?.revision.id ?? '' : '', mode, options, optimization, preset: attached?.slug ?? null });
   const sendable = canLaunch && request !== null && !invalid && !sending && receipt === null;
+
+  const pickPreset = (slug: string | null) => {
+    setAttachedSlug(slug);
+    setInherited(null);
+    setSaved(null);
+    setRefusal(null);
+  };
+
+  /** "Edit": the preset's engine, mode and options move into the form, where they can be changed; nothing refers to the preset any more. */
+  const detach = () => {
+    if (!attached) return;
+    const matched = presetModeOf(attached, modes);
+    if (matched) setPickedMode(matched.key);
+    setValues(presetValues(attached.options, optionInputs(modeOfCatalog(catalog.data ?? [], matched ?? mode), ceilings)));
+    setInherited(matched && attached.optimization ? { modeKey: matched.key, optimization: attached.optimization as unknown as ExecutionOptimization } : null);
+    setAttachedSlug(null);
+    setRefusal(null);
+  };
 
   const prepare = async () => {
     if (!choice) return;
@@ -145,14 +183,19 @@ function LaunchBody({ organization, canLaunch, role }: { organization: Organizat
   const forecast = forecastOf({ ceilings, bindingSpace, plan: user?.plan });
 
   const modeLabel = mode ? `${mode.engine.name} · ${mode.mode}` : 'the engine you pick';
-  const engineText = mode ? `${mode.engine.name} ${mode.engine.version} · mode ${mode.mode}${mode.federated ? ' · your deployment' : ''}` : 'None chosen';
-  const settingsText = plans.length ? plans.map((plan) => `${plan.input.label} ${plan.effective === null ? 'default' : `${plan.effective.toLocaleString('en-US')} ${plan.input.unit}`}${plan.reduced ? ' (reduced)' : ''}`).join(' · ') : 'Engine defaults';
+  const manualEngineText = mode ? `${mode.engine.name} ${mode.engine.version} · mode ${mode.mode}${mode.federated ? ' · your deployment' : ''}` : 'None chosen';
+  const manualSettingsText = plans.length ? plans.map((plan) => `${plan.input.label} ${plan.effective === null ? 'default' : `${plan.effective.toLocaleString('en-US')} ${plan.input.unit}`}${plan.reduced ? ' (reduced)' : ''}`).join(' · ') : 'Engine defaults';
+  const attachedRegistration = attached ? presetRegistrationText(attached.registration) : null;
+  const engineText = attached ? `${presetEngineText(attached)}${attachedRegistration ? ` · ${attachedRegistration}` : ''}` : manualEngineText;
+  const settingsText = attached ? presetOptionsText(attached.options) : manualSettingsText;
   const stepNotes = [
     choice?.label ?? 'Pick one',
-    mode ? mode.engine.name : 'Pick one',
-    reduced.length ? 'Some reduced' : 'Within plan',
+    attached ? attached.name : mode ? mode.engine.name : 'Pick one',
+    attached ? 'From the preset' : reduced.length ? 'Some reduced' : 'Within plan',
     'Review',
   ];
+  const manageHref = `/app/${org}/settings/presets`;
+  const canSave = canLaunch && !attached && request !== null && mode !== null && !invalid;
 
   if (receipt) {
     const followed = runPath(org, receipt.id);
@@ -164,9 +207,11 @@ function LaunchBody({ organization, canLaunch, role }: { organization: Organizat
             <h1>Run accepted · {receipt.status === 'queued' ? 'queued' : receipt.status}</h1>
             <p>
               Your run was sent. {receipt.idempotent ? 'This exact run had already been sent, so no second run was started. ' : ''}
-              {reduced.length > 0
-                ? `${reduced.map((plan) => `${plan.input.label} was reduced to ${plan.effective} ${plan.input.unit}`).join(', ')}, what your plan allows; the run carries that note.`
-                : 'Nothing was reduced.'}
+              {attached
+                ? `It runs with the settings of the preset ${attached.name}; your plan’s ceilings apply to them and the run records any reduction.`
+                : reduced.length > 0
+                  ? `${reduced.map((plan) => `${plan.input.label} was reduced to ${plan.effective} ${plan.input.unit}`).join(', ')}, what your plan allows; the run carries that note.`
+                  : 'Nothing was reduced.'}
             </p>
           </div>
           <Action to={followed} variant="primary">Follow the run</Action>
@@ -230,13 +275,23 @@ function LaunchBody({ organization, canLaunch, role }: { organization: Organizat
                 hasPrepared
                 ranges={ranges}
                 compareHref="/engines"
+                preset={<PresetPicker presets={presetList} value={attached?.slug ?? null} onChange={pickPreset} manageHref={manageHref} />}
+                attached={attached ? <AttachedPreset preset={attached} mode={attachedMode} onDetach={detach} /> : undefined}
                 analysisNote={ready.analysis.state === 'failed'
                   ? <RefusalNotice refusal={ready.analysis.refusal} usageTo />
                   : undefined}
               />
             )}
 
-            {step === 3 && ready && (
+            {step === 3 && ready && attached && (
+              <>
+                <h2>Settings</h2>
+                <p className="org-muted">The settings come from the preset {attached.name}: {presetOptionsText(attached.options)}.</p>
+                <p className="org-muted">Your plan’s ceilings still apply: what is above them runs at the ceiling, and the run records it.</p>
+                <span className="job-buttons"><Action variant="secondary" size="sm" onClick={detach}>Edit</Action></span>
+              </>
+            )}
+            {step === 3 && ready && !attached && (
               <SettingsStep
                 plans={plans} values={values}
                 onValue={(name, value) => setValues((current) => ({ ...current, [name]: value }))}
@@ -249,9 +304,29 @@ function LaunchBody({ organization, canLaunch, role }: { organization: Organizat
                 <h2>Before you send</h2>
                 <dl className="job-review">
                   <dt>Solve</dt><dd>{choice?.label}</dd>
+                  {attached && <><dt>Run preset</dt><dd>{attached.name} ({attached.slug})</dd></>}
                   <dt>Engine</dt><dd>{engineText}</dd>
                   <dt>Settings</dt><dd>{settingsText}</dd>
                 </dl>
+                {canSave && !saved && (
+                  <span className="job-buttons">
+                    <Action variant="secondary" size="sm" onClick={() => setSaving(true)}>Save these settings as a preset</Action>
+                  </span>
+                )}
+                {saved && (
+                  <Notice tone="success">
+                    Saved as the run preset {saved.name}. Runs and studies of {organization.name} can start from it.
+                  </Notice>
+                )}
+                {saving && mode && (
+                  <SavePresetDialog
+                    org={org}
+                    settings={presetSettingsOf(mode, options, optimization)}
+                    summary={`${manualEngineText} · ${manualSettingsText}`}
+                    onClose={() => setSaving(false)}
+                    onSaved={(preset) => { setSaving(false); setSaved(preset); presets.reload(); }}
+                  />
+                )}
                 <ForecastBars bars={forecast} />
                 <span className="org-muted">Sending twice by accident won’t start two runs: each send carries a one-time key.</span>
                 {refusal && (

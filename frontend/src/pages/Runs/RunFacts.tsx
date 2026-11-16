@@ -113,6 +113,12 @@ export function Provenance({ provenance, compilation, origin, root, created, ret
           {pins.engine?.digest && <> {digest(pins.engine.digest, 'engine', 'engine')}</>}
         </Fact>
         <Fact label="Deployment">{pinText(pins.registration) ?? 'Built-in pool'}</Fact>
+        {pins.preset && (
+          <Fact label="Run preset">
+            <Link to={`${root}/settings/presets`} viewTransition>{pins.preset.slug}</Link>{' '}
+            <small className="org-muted">its settings were copied when the run started</small>
+          </Fact>
+        )}
         <Fact label="Checked by">{pins.checkedBy ?? 'bim-reference-evaluator'}</Fact>
         <Fact label="Limits applied">{pins.limits.length ? pins.limits.join(' · ') : 'Plan defaults'}</Fact>
         {created && <Fact label="Sent">{formatDateTime(created) ?? '—'}</Fact>}

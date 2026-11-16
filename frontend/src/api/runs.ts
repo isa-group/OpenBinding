@@ -79,8 +79,8 @@ export interface ExecutionOptimization {
   scalarization: string;
 }
 
-/** What `createRun` takes: a revision of the organization's problem and one exact engine mode with its options and optimization. */
-export interface LaunchRequest {
+/** What `createRun` takes for settings chosen by hand: a revision of the organization's problem and one exact engine mode with its options and optimization. */
+export interface EngineLaunchRequest {
   revision: string;
   engine: BimResourceRef;
   registration?: BimResourceRef;
@@ -88,6 +88,15 @@ export interface LaunchRequest {
   options: Record<string, unknown>;
   optimization?: ExecutionOptimization;
 }
+
+/** What `createRun` takes for a run started from a run preset of the organization: the revision and the preset, which carries every setting. */
+export interface PresetLaunchRequest {
+  revision: string;
+  /** The preset's slug or id; the gateway refuses it beside any setting of its own (`preset_with_settings`). */
+  preset: string;
+}
+
+export type LaunchRequest = EngineLaunchRequest | PresetLaunchRequest;
 
 /** The runs of an organization: `/v1/organizations/{org}/runs`. */
 export const runsPath = (org: string): string => `/v1/organizations/${enc(org)}/runs`;

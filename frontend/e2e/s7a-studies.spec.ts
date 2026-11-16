@@ -3,6 +3,7 @@ import { failureBody } from './helpers/problems';
 import type { Job, Study, StudyCell, StudyRun } from '../src/api/platform';
 import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
 import { jobOf } from '../src/test/fixtures/jobs';
+import { presetPage } from '../src/test/fixtures/presets';
 import { usageOf } from '../src/test/fixtures/resources';
 import {
   CHECKOUT, EVOLUTIONARY, RANDOM_SEARCH, REVISION_1, REVISION_2, RUN_ID, analyticsFixture, cellFixture, cellsFixture, runFixture, studyFixture,
@@ -153,6 +154,8 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
 
     if (!orgSlug) return json(organizations)(route);
     if (section === 'members') return json([])(route);
+    // The run presets the builder offers as engines: one a study can take, a federated one and one without an optimization.
+    if (section === 'presets') return json(orgSlug === 'isa-demo' ? presetPage() : presetPage([]))(route);
     if (section === 'runs') {
       // The runs of the organization: the attach dialog offers the finished ones, whoever launched them; a cell's run opens here.
       if (!runId) return json({ runs: [...mineJobs, ...otherJobs], total: mineJobs.length + otherJobs.length })(route);
@@ -424,7 +427,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByText('Pick the problems, engines, settings and seeds. Every combination becomes one cell.')).toBeVisible();
       await expect(main.getByRole('checkbox', { name: /Checkout flow · version 2/ })).toBeEnabled();
       await expect(create).toBeDisabled();
-      await expect(main.getByRole('list', { name: 'Still needed' })).toContainText('Choose at least one engine mode.');
+      await expect(main.getByRole('list', { name: 'Still needed' })).toContainText('Choose at least one engine mode or run preset.');
       await capture(page, testInfo, `builder-${name}-empty`);
 
       await main.getByRole('checkbox', { name: /Checkout flow · version 1/ }).check();
@@ -461,6 +464,51 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await main.getByRole('link', { name: 'Open the study' }).click();
       await expect(main.getByRole('heading', { level: 1, name: 'Budgets and seeds' })).toBeVisible();
       await expect(main.getByText('No runs yet. Running uses 1 study run from your month and runs up to 24 cells.')).toBeVisible();
+      expect(critical).toEqual([]);
+    });
+
+    test('study-builder /app/:org/studies/new · run presets as engines, the ones a study cannot take, and how a preset is refused', async ({ page }, testInfo) => {
+      const critical = watchCriticalErrors(page);
+      const state = await mockApi(page);
+      await page.goto(`${ROOT}/studies/new?case=checkout-flow&revision=2`);
+      const main = page.locator('#platform-main');
+      const create = main.getByRole('button', { name: 'Create study' });
+      const presets = main.getByRole('group', { name: 'Run presets' });
+
+      await expect(presets.getByRole('checkbox', { name: 'Fast sampling · run preset' })).toBeEnabled();
+      await expect(presets.getByRole('checkbox', { name: 'Edge deployment · run preset' })).toBeDisabled();
+      await expect(presets.getByRole('checkbox', { name: 'Edge deployment · run preset' })).toHaveAccessibleDescription(/presets of federated engines can’t join a study yet/);
+      await expect(presets.getByRole('checkbox', { name: 'No goal · run preset' })).toBeDisabled();
+      await expect(presets.getByRole('checkbox', { name: 'No goal · run preset' })).toHaveAccessibleDescription(/Names no optimization, which a study engine needs\./);
+
+      await main.getByRole('checkbox', { name: /random-search 1\.0\.0/ }).check();
+      await presets.getByRole('checkbox', { name: 'Fast sampling · run preset' }).check();
+      await main.getByLabel('Study name').fill('Engines and a preset');
+      const aside = main.getByRole('complementary', { name: 'Matrix and plan' });
+      await expect(aside.getByText('1 problem version × 2 engines × 1 setting × 2 seeds')).toBeVisible();
+      await capture(page, testInfo, `builder-${name}-presets`, { height: 1800 });
+
+      // The gateway expands each preset when the study is saved and refuses what no run could expand.
+      state.refuse.create = detail(422, 'preset_federated', 'Presets of federated engines cannot join a study yet.');
+      await create.click();
+      await expect(aside.getByText('A run preset runs on a federated deployment (422 · preset_federated)')).toBeVisible();
+      state.refuse.create = detail(422, 'duplicate_study_engines', 'Two engines of the study (after its presets are expanded) are the same.');
+      await create.click();
+      await expect(aside.getByText('Two engines of the study are the same (422 · duplicate_study_engines)')).toBeVisible();
+      await capture(page, testInfo, `builder-${name}-422-preset`, { area: aside });
+
+      state.refuse.create = undefined;
+      await create.click();
+      await expect(main.getByRole('heading', { name: 'Study created' })).toBeVisible();
+      expect((state.sent.create as { definition: { engines: unknown[] } }).definition.engines).toEqual([
+        { namespace: RANDOM_SEARCH.namespace, name: RANDOM_SEARCH.name, version: RANDOM_SEARCH.version, digest: RANDOM_SEARCH.digest, mode: RANDOM_SEARCH.mode, optimization: { type: 'SINGLE', scalarization: 'weighted-sum' } },
+        { preset: 'fast-sampling' },
+      ]);
+
+      // The new study names the preset in its matrix: each run expands it.
+      await main.getByRole('link', { name: 'Open the study' }).click();
+      await expect(main.getByRole('columnheader', { name: 'preset fast-sampling · seed 1' })).toBeVisible();
+      await expect(main.getByText(/Each run expands the run preset fast-sampling into the engine, mode and options it holds then\./)).toBeVisible();
       expect(critical).toEqual([]);
     });
 
@@ -670,7 +718,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('heading', { level: 2, name: 'Run #1' })).toBeVisible();
       // What the run froze when it started: its problem versions, each with the compilation it ran, and the matrix.
       const frozen = main.getByRole('region', { name: 'Frozen definition' });
-      await expect(frozen.getByRole('listitem')).toHaveCount(2);
+      await expect(frozen.getByRole('list', { name: 'Problem versions of the run' }).getByRole('listitem')).toHaveCount(2);
+      await expect(frozen.getByRole('list', { name: 'Engines of the run' }).getByRole('listitem')).toHaveCount(2);
+      await expect(frozen.getByRole('list', { name: 'Engines of the run' })).toContainText('random-search 1.0.0 (sampling)');
       await expect(frozen.getByRole('button', { name: 'Copy the digest of the frozen definition' })).toBeVisible();
       await expect(frozen).toContainText('The study’s current definition is this one.');
       await expect(frozen).not.toContainText('sha256-');

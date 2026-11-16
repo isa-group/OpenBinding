@@ -189,6 +189,26 @@ export function studyRefusal(caught: unknown, action: StudyAction): Refusal {
       case 'engine_mode_incompatible':
       case 'invalid_engine':
         return { ...base, kind: 'incompatible', title: `An engine can’t run this${at}`, text: `${gateway}Pick another engine or mode. ${nothing}` };
+      case 'preset_not_found':
+        return {
+          ...base, kind: 'not-found', title: `A run preset of the study no longer exists${at}`,
+          text: `${gateway}It may have been deleted or renamed. Remove that preset from the engines, or pick another. ${nothing}`,
+        };
+      case 'preset_federated':
+        return {
+          ...base, kind: 'incompatible', title: `A run preset runs on a federated deployment${at}`,
+          text: `Presets of federated engines can’t join a study yet. Remove it from the engines, or pick the engine itself. ${nothing}`,
+        };
+      case 'preset_incomplete':
+        return {
+          ...base, kind: 'incompatible', title: `A run preset names no optimization${at}`,
+          text: `${gateway}A study engine needs one. Give the preset an optimization in the organization’s settings, or pick another. ${nothing}`,
+        };
+      case 'duplicate_study_engines':
+        return {
+          ...base, kind: 'conflict', title: `Two engines of the study are the same${at}`,
+          text: `Once its presets are expanded, two engines name the same revision, mode, optimization and options, so they would repeat the same cells. Remove one. ${nothing}`,
+        };
       default:
         return { ...base, kind: 'other', title: `The gateway refused these choices${at}`, text: `${gateway}Check the problems, engines, settings and seeds. ${nothing}` };
     }

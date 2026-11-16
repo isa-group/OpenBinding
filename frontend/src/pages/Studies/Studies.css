@@ -143,6 +143,10 @@
 .st-option-text { display: flex; min-width: 0; flex-direction: column; gap: 2px; overflow-wrap: anywhere; }
 .st-option-text small { color: var(--tp-steel); font-size: 0.75rem; }
 .st-option-line { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.st-presets { display: flex; flex-direction: column; gap: 6px; margin-top: var(--tp-spacing-sm); padding-top: var(--tp-spacing-sm); border-top: 1px solid var(--tp-hairline-soft); }
+.st-subhead { color: var(--tp-slate); font-size: 0.8125rem; font-weight: 500; }
+.st-frozen-engines { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.st-frozen-engines li { display: flex; flex-direction: column; gap: 2px; overflow-wrap: anywhere; }
 .st-tools { display: flex; flex-wrap: wrap; gap: var(--tp-spacing-xs); }
 .st-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: var(--tp-spacing-sm); }
 .st-pair label, .st-variant-fields label, .st-seeds, .st-more label { display: flex; min-width: 0; flex-direction: column; gap: 6px; color: var(--tp-steel); font-size: 0.75rem; font-weight: 500; }

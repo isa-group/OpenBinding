@@ -163,6 +163,8 @@ export interface RunPins {
   package: string | null;
   checkedBy: string | null;
   configuration: string | null;
+  /** The run preset the run was started from (`provenance.preset`): it copied the preset's settings, so a later edit changes nothing here. */
+  preset: { id: string | null; slug: string } | null;
   limits: string[];
 }
 
@@ -183,6 +185,7 @@ export function readPins(provenance: Record<string, unknown> | null | undefined)
     package: text(p.packageDigest),
     checkedBy: text(p.evaluator),
     configuration: configuration ? `${text(configuration.name) ?? 'configuration'}@${text(configuration.version) ?? '?'}` : null,
+    preset: isRecord(p.preset) && text(p.preset.slug) ? { id: text(p.preset.id), slug: text(p.preset.slug) as string } : null,
     limits: limitLines,
   };
 }

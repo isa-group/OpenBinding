@@ -47,6 +47,13 @@ describe('refusals of a launch', () => {
     expect(key.title).toBe('This credential can’t start runs (403)');
   });
 
+  it('422 for a run preset that is gone, or a preset sent with settings of its own', () => {
+    expect(refusalOf(refused(422, 'preset_not_found'))).toMatchObject({ kind: 'not-found', title: 'That run preset no longer exists (422 · preset_not_found)' });
+    const mixed = refusalOf(refused(422, 'preset_with_settings'));
+    expect(mixed.title).toBe('A run from a preset takes every setting from it (422 · preset_with_settings)');
+    expect(mixed.text).toContain('Nothing was started.');
+  });
+
   it('422 for a mode that cannot run the problem lists what the gateway said', () => {
     const refusal = refusalOf(refused(422, 'engine_mode_incompatible', { diagnostics: [{ message: 'It cannot read a RoutingOverlay.' }] }));
     expect(refusal).toMatchObject({ kind: 'incompatible', details: ['It cannot read a RoutingOverlay.'] });
