@@ -8,7 +8,8 @@ import secrets
 import uuid
 from datetime import timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
+from fastapi.responses import FileResponse
 from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -44,6 +45,7 @@ from ..db.models import (
 from ..core import revision
 from ..models.errors import ErrorResponse, api_error
 from ..models.platform import (
+    AvatarSelection,
     InvitationAccept,
     InvitationCreate,
     InvitationCreated,
@@ -57,9 +59,13 @@ from ..models.platform import (
 )
 from ..repositories import organizations as organization_repository
 from ..access.dependencies import get_current_user, session_dependency
+from ..modules.shared.application import put_row, read_verified, write_file
+from ..services import organizations as profiles
 
 router = APIRouter(prefix="/v1/organizations", tags=["Organizations"])
 invitation_router = APIRouter(prefix="/v1/invitations", tags=["Organizations"])
+#: The predefined avatars, open to anybody (an ``<img>`` sends no credential).
+avatar_router = APIRouter(prefix="/v1/avatars", tags=["Organizations"])
 
 
 def _audit(session: AsyncSession, user: User, action: str, target, organization_id=None, **detail) -> None:
@@ -117,16 +123,24 @@ async def _required_org(session: AsyncSession, reference: str) -> Organization:
     return organization
 
 
-async def _org_view(session: AsyncSession, organization: Organization, user: User) -> OrganizationView:
-    role = await effective_role(session, organization.id, user)
+def _profile_view(organization: Organization, role: OrganizationRole | None, stats=None) -> OrganizationView:
     return OrganizationView(
         id=organization.id,
         slug=organization.slug,
         name=organization.name,
+        description=organization.description or "",
+        avatar=profiles.avatar_view(organization),
         parent_id=organization.parent_id,
         effective_role=role.value if role else None,
+        stats=stats,
         created_at=organization.created_at,
     )
+
+
+async def _org_view(session: AsyncSession, organization: Organization, user: User) -> OrganizationView:
+    role = await effective_role(session, organization.id, user)
+    counted = await profiles.stats(session, [organization.id])
+    return _profile_view(organization, role, counted[organization.id])
 
 
 @router.get("", response_model=list[OrganizationView], operation_id="listOrganizations")
@@ -135,8 +149,13 @@ async def list_organizations(
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> list[OrganizationView]:
     organizations = await organization_repository.list_all(session)
-    views = [await _org_view(session, organization, user) for organization in organizations]
-    return [view for view in views if view.effective_role is not None]
+    readable = []
+    for organization in organizations:
+        role = await effective_role(session, organization.id, user)
+        if role is not None:
+            readable.append((organization, role))
+    counted = await profiles.stats(session, [organization.id for organization, _ in readable])
+    return [_profile_view(organization, role, counted[organization.id]) for organization, role in readable]
 
 
 @router.post(
@@ -147,7 +166,8 @@ async def list_organizations(
     responses={
         409: {"model": ErrorResponse, "description": "`slug_conflict`: the slug is in use."},
         422: {
-            "description": "`slug_reserved` (the slug names a page of the application) and request validation errors.",
+            "description": "`slug_reserved` (the slug names a page of the application), `slug_underivable` (no "
+            "slug given, and the name yields fewer than three letters or digits) and request validation errors.",
         },
     },
 )
@@ -156,13 +176,24 @@ async def create_organization(
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> OrganizationView:
-    if payload.slug in RESERVED_ORGANIZATION_SLUGS:
+    """Create an organization, its caller its OWNER. Without a slug, one is derived from the name and made
+    unique with a numeric suffix (SPHERE's ``deduplicateSlug``); a derived slug is never a reserved one."""
+    slug = payload.slug
+    if slug is None:
+        slug = await profiles.derived_slug(session, payload.name)
+        if slug is None:
+            raise api_error(
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+                "slug_underivable",
+                "The name must yield a slug of at least three letters or digits; give a slug instead.",
+            )
+    elif slug in RESERVED_ORGANIZATION_SLUGS:
         raise api_error(
             status.HTTP_422_UNPROCESSABLE_ENTITY,
             "slug_reserved",
-            f"The slug '{payload.slug}' names a page of the application; choose another.",
+            f"The slug '{slug}' names a page of the application; choose another.",
         )
-    if await organization_by_ref(session, payload.slug) is not None:
+    elif await organization_by_ref(session, slug) is not None:
         raise api_error(status.HTTP_409_CONFLICT, "slug_conflict", "That organization slug is in use.")
     parent = await session.get(Organization, payload.parent_id) if payload.parent_id else None
     if payload.parent_id and parent is None:
@@ -171,8 +202,9 @@ async def create_organization(
         await require_role(session, parent, user, OrganizationRole.ADMIN)
     organization = Organization(
         parent_id=parent.id if parent else None,
-        slug=payload.slug,
+        slug=slug,
         name=payload.name,
+        description=payload.description,
         created_by_id=user.id,
     )
     session.add(organization)
@@ -231,6 +263,8 @@ async def update_organization(
     await revision.guard(session, organization, if_match)
     if payload.name is not None:
         organization.name = payload.name
+    if payload.description is not None:
+        organization.description = payload.description
     if payload.move_to_root and payload.parent_id is not None:
         raise api_error(status.HTTP_422_UNPROCESSABLE_ENTITY, "ambiguous_parent", "Choose a parent or root, not both.")
     if payload.move_to_root or payload.parent_id is not None:
@@ -242,6 +276,214 @@ async def update_organization(
     await session.refresh(organization, ["updated_at"])
     revision.set_etag(response, organization)
     return await _org_view(session, organization, user)
+
+
+async def _readable_org(
+    session: AsyncSession, reference: str, user: User, minimum: OrganizationRole = OrganizationRole.VIEWER,
+) -> tuple[Organization, OrganizationRole]:
+    """The organization ``reference`` for a caller who holds ``minimum`` there.
+
+    404 ``not_found`` when it does not exist **or the caller holds no role in it or above it**, so a
+    non-member learns nothing of it; 403 ``organization_forbidden`` for a member whose role is too weak.
+    """
+    organization = await organization_by_ref(session, reference)
+    role = await effective_role(session, organization.id, user) if organization is not None else None
+    if organization is None or role is None:
+        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Organization not found.")
+    return organization, await require_role(session, organization, user, minimum)
+
+
+_MANAGE_RESPONSES = {
+    404: {"model": ErrorResponse, "description": "No such organization, or the caller is not a member of it."},
+    403: {"model": ErrorResponse, "description": "The caller is a member without ADMIN (`organization_forbidden`)."},
+}
+
+
+async def _avatar_changed(
+    session: AsyncSession, organization: Organization, user: User, response: Response, **detail,
+) -> OrganizationView:
+    _audit(session, user, "organization.avatar.updated", organization, organization.id, **detail)
+    await session.flush()
+    await session.refresh(organization, ["updated_at"])
+    revision.set_etag(response, organization)
+    return await _org_view(session, organization, user)
+
+
+_AVATAR_BODY = {
+    "requestBody": {
+        "required": True,
+        "description": "The image itself as the raw request body: PNG, JPEG or WebP, at most 2 MiB.",
+        "content": {media: {"schema": {"type": "string", "format": "binary"}} for media in profiles.AVATAR_MEDIA_TYPES},
+    }
+}
+
+
+@router.post(
+    "/{org}/avatar",
+    response_model=OrganizationView,
+    operation_id="uploadOrganizationAvatar",
+    openapi_extra=_AVATAR_BODY,
+    responses={
+        **revision.EDIT_RESPONSES,
+        **_MANAGE_RESPONSES,
+        413: {"model": ErrorResponse, "description": "`avatar_too_large`: the image is over 2 MiB."},
+        415: {"model": ErrorResponse, "description": "`avatar_unsupported`: the body is not a PNG, JPEG or WebP image."},
+    },
+)
+async def upload_organization_avatar(
+    org: str,
+    request: Request,
+    response: Response,
+    if_match: str | None = revision.IF_MATCH_HEADER,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> OrganizationView:
+    """Set an uploaded image as the organization's avatar (ADMIN), keeping its colours.
+
+    The image is the raw body (no multipart). Its type is read from its bytes, never from the request's
+    ``Content-Type``, and only PNG, JPEG and WebP are kept, so an upload is only ever served as an image. It
+    is stored once per content as a blob of the organization; the previous upload's file is never deleted on
+    the request path (D14).
+    """
+    organization, _ = await _readable_org(session, org, user, OrganizationRole.ADMIN)
+    data = bytearray()
+    async for chunk in request.stream():
+        data.extend(chunk)
+        if len(data) > profiles.MAX_AVATAR_BYTES:
+            raise api_error(413, "avatar_too_large", "The avatar must be at most 2 MiB.")
+    media_type = profiles.sniff_image(bytes(data))
+    if media_type is None:
+        raise api_error(415, "avatar_unsupported", "The avatar must be a PNG, JPEG or WebP image.")
+    await revision.guard(session, organization, if_match)
+    stored = write_file(bytes(data))
+    await put_row(session, organization.id, stored, media_type, user.id)
+    organization.avatar = stored.digest
+    return await _avatar_changed(session, organization, user, response, kind="upload")
+
+
+@router.put(
+    "/{org}/avatar-colors",
+    response_model=OrganizationView,
+    operation_id="selectOrganizationAvatar",
+    responses={
+        **revision.EDIT_RESPONSES,
+        **_MANAGE_RESPONSES,
+        422: {"description": "`avatar_unknown` (not one of the predefined avatars) and request validation errors."},
+    },
+)
+async def select_organization_avatar(
+    org: str,
+    payload: AvatarSelection,
+    response: Response,
+    if_match: str | None = revision.IF_MATCH_HEADER,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> OrganizationView:
+    """Choose a predefined avatar, or none (the initials), and the colours it is drawn with (ADMIN).
+
+    As SPHERE's ``updateAvatarColors``: a colour left out is SPHERE's default. ``avatar`` left out keeps the
+    current image, an upload too, so the colours change alone.
+    """
+    organization, _ = await _readable_org(session, org, user, OrganizationRole.ADMIN)
+    choosing = "avatar" in payload.model_fields_set
+    if choosing and not profiles.is_selectable_avatar(payload.avatar):
+        raise api_error(
+            status.HTTP_422_UNPROCESSABLE_ENTITY, "avatar_unknown", "The avatar must be one of the predefined avatars.",
+        )
+    await revision.guard(session, organization, if_match)
+    if choosing:
+        organization.avatar = payload.avatar
+    organization.avatar_bg_color = payload.bg_color or profiles.DEFAULT_AVATAR_BG_COLOR
+    organization.avatar_fg_color = payload.fg_color or profiles.DEFAULT_AVATAR_FG_COLOR
+    return await _avatar_changed(session, organization, user, response, kind="predefined" if choosing else "colors")
+
+
+@router.delete(
+    "/{org}/avatar",
+    response_model=OrganizationView,
+    operation_id="removeOrganizationAvatar",
+    responses={**revision.EDIT_RESPONSES, **_MANAGE_RESPONSES},
+)
+async def remove_organization_avatar(
+    org: str,
+    response: Response,
+    if_match: str | None = revision.IF_MATCH_HEADER,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> OrganizationView:
+    """Clear the image and its colours, leaving the initials (ADMIN), as SPHERE's ``removeAvatar``."""
+    organization, _ = await _readable_org(session, org, user, OrganizationRole.ADMIN)
+    await revision.guard(session, organization, if_match)
+    organization.avatar = None
+    organization.avatar_bg_color = None
+    organization.avatar_fg_color = None
+    return await _avatar_changed(session, organization, user, response, kind="removed")
+
+
+_IMAGE_RESPONSE = {
+    200: {
+        "description": "The image.",
+        "content": {media: {"schema": {"type": "string", "format": "binary"}} for media in profiles.AVATAR_MEDIA_TYPES},
+    },
+    404: {"model": ErrorResponse, "description": "No such organization, or the digest is not its current avatar."},
+}
+#: An avatar is served to anybody holding its URL (an ``<img>`` sends no credential), and never sniffed or run.
+_IMAGE_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+}
+
+
+@router.get(
+    "/{org}/avatar/{digest}",
+    operation_id="getOrganizationAvatar",
+    response_class=Response,
+    responses=_IMAGE_RESPONSE,
+)
+async def get_organization_avatar(
+    org: uuid.UUID,
+    digest: str,
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> Response:
+    """An organization's uploaded avatar, by the organization's id and the image's digest (64 hex characters).
+
+    Anybody holding the URL reads it, as SPHERE serves avatars from its static folder: the URL is in the
+    organization's views, and names both the organization's id and the content. Any other digest, an image no
+    longer current included, answers 404 as a missing organization does.
+    """
+    organization = await session.get(Organization, org)
+    blob = await profiles.uploaded_avatar(session, organization, digest) if organization is not None else None
+    if blob is None:
+        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Avatar not found.")
+    return Response(
+        read_verified(blob), media_type=blob.media_type,
+        headers={**_IMAGE_HEADERS, "Cache-Control": "private, max-age=31536000, immutable"},
+    )
+
+
+@avatar_router.get("", response_model=list[str], operation_id="listDefaultAvatars")
+async def list_default_avatars() -> list[str]:
+    """The predefined avatars' file names, the ones ``PUT /v1/organizations/{org}/avatar-colors`` accepts."""
+    return list(profiles.DEFAULT_AVATAR_FILES)
+
+
+@avatar_router.get(
+    "/{name}",
+    operation_id="getDefaultAvatar",
+    response_class=FileResponse,
+    responses={
+        200: {"description": "The SVG, drawn in `currentColor`.", "content": {"image/svg+xml": {"schema": {"type": "string"}}}},
+        404: {"model": ErrorResponse, "description": "Not a predefined avatar."},
+    },
+)
+async def get_default_avatar(name: str) -> FileResponse:
+    """A predefined avatar (SPHERE's ``static/avatars/users/default``), open to anybody."""
+    if name not in profiles.DEFAULT_AVATAR_FILES:
+        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Avatar not found.")
+    return FileResponse(
+        profiles.DEFAULT_AVATAR_DIRECTORY / name, media_type="image/svg+xml",
+        headers={**_IMAGE_HEADERS, "Cache-Control": "public, max-age=86400"},
+    )
 
 
 @router.delete(

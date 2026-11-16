@@ -148,6 +148,10 @@ def test_authentication_and_role_requirements_are_explicit(document):
         ("/v1/compositions/serialise", "post"),
         ("/v1/compositions/diff", "post"),
         ("/v1/compositions/schema", "get"),
+        # Avatars: an ``<img>`` sends no credential. The predefined SVGs, and an upload by its capability URL.
+        ("/v1/avatars", "get"),
+        ("/v1/avatars/{name}", "get"),
+        ("/v1/organizations/{org}/avatar/{digest}", "get"),
     }
     # The list of public compositions and the reads of one: a credential is optional (`{}`), and one that names
     # nobody is a 401.

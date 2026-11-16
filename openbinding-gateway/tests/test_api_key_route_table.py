@@ -48,7 +48,7 @@ def is_open(method: str, path: str) -> bool:
 
 
 def test_the_route_table_has_the_v1_surface():
-    assert len(ROUTES) == 138
+    assert len(ROUTES) == 144
 
 
 def test_the_unclassified_permission_cannot_be_granted():
@@ -137,10 +137,13 @@ def test_projects_are_gone_with_their_permissions_and_boundary():
     assert not [route for route in ROUTES if "/projects" in route[1] or "{project}" in route[1]]
     assert not {"projects:read", "projects:write"} & set(ALL_PERMISSIONS)
     assert "projects" not in apikeys.BOUNDARY_FIELDS
-    # The organization tree holds only the organization, its members, invitations, audit, problems, runs, run
-    # presets, studies and compositions.
+    # The organization tree holds only the organization, its avatar, members, invitations, audit, problems, runs,
+    # run presets, studies and compositions.
     sections = {route[1].split("/")[4] for route in ROUTES if route[1].startswith("/v1/organizations/{org}/")}
-    assert sections == {"members", "invitations", "audit", "problems", "runs", "presets", "studies", "compositions"}
+    assert sections == {
+        "avatar", "avatar-colors", "members", "invitations", "audit", "problems", "runs", "presets", "studies",
+        "compositions",
+    }
     # A stored boundary that still names projects is malformed, and a malformed boundary denies everything.
     stale = SimpleNamespace(grants={"boundary": {"projects": ["p"]}})
     assert not allows_request(stale, method="GET", path_params={"org": "acme"}, path="/v1/organizations/{org}")

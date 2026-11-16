@@ -90,6 +90,8 @@ UNCLASSIFIED_ROUTE_PERMISSION = "route:unclassified"
 OPEN_V1_PREFIXES = (
     "/v1/auth",
     "/v1/bim/templates",
+    # The predefined avatars: static SVGs an ``<img>`` loads with no credential.
+    "/v1/avatars",
 )
 OPEN_V1_GET_PATHS = frozenset({
     "/v1/engines/protocol",

@@ -12,7 +12,7 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision: str = '6cac9ddc360f'
+revision: str = '4ce1fdb88a41'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -156,6 +156,10 @@ def upgrade() -> None:
     sa.Column('parent_id', sa.Uuid(), nullable=True),
     sa.Column('slug', sa.String(length=64), nullable=False),
     sa.Column('name', sa.String(length=160), nullable=False),
+    sa.Column('description', sa.String(length=500), server_default='', nullable=False),
+    sa.Column('avatar', sa.String(length=80), nullable=True),
+    sa.Column('avatar_bg_color', sa.String(length=7), nullable=True),
+    sa.Column('avatar_fg_color', sa.String(length=7), nullable=True),
     sa.Column('created_by_id', sa.Uuid(), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),

@@ -122,6 +122,13 @@ class Organization(Base):
     )
     slug: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False)
     name: Mapped[str] = mapped_column(String(160), nullable=False)
+    description: Mapped[str] = mapped_column(String(500), nullable=False, default="", server_default="")
+    #: The organization's image: one of the predefined avatars (its file name, ``avatar-3.svg``), or the
+    #: ``sha256-`` digest of an uploaded image kept as a blob of the organization; null for the initials.
+    avatar: Mapped[Optional[str]] = mapped_column(String(80), nullable=True)
+    #: The colours the avatar (or the initials) is drawn with, ``#rgb`` or ``#rrggbb``.
+    avatar_bg_color: Mapped[Optional[str]] = mapped_column(String(7), nullable=True)
+    avatar_fg_color: Mapped[Optional[str]] = mapped_column(String(7), nullable=True)
     created_by_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
     )

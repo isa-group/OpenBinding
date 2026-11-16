@@ -21,35 +21,84 @@ SLUG = r"^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$"
 DIGEST = r"^sha256-[0-9a-f]{64}$"
 
 
-#: Organization slugs that would collide with a fixed place of the application (``/app/<slug>``) or a
-#: section under an organization; the frontend mirrors them in ``PlatformShell/workspacePath.ts``.
+#: Organization slugs that would collide with a fixed place of the application (``/app/<slug>``, and the
+#: static children ``/orgs/new`` and ``/orgs/join/:code``) or a section under an organization; the frontend
+#: mirrors them in ``PlatformShell/workspacePath.ts``. A slug derived from a name never takes one either.
 RESERVED_ORGANIZATION_SLUGS = frozenset({
     "admin", "account", "engines", "organizations", "invitations",
-    "compositions", "presets", "runs", "problems", "studies", "settings", "problem-editor", "new",
+    "compositions", "presets", "runs", "problems", "studies", "settings", "problem-editor", "new", "join",
 })
+
+#: A colour the avatar pickers produce: ``#rgb`` or ``#rrggbb``.
+HEX_COLOR = r"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$"
+
+Role = Literal["OWNER", "ADMIN", "MEMBER", "VIEWER"]
 
 
 class OrganizationCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    slug: str = Field(..., pattern=SLUG)
+    #: Absent: derived from the name and made unique with a suffix, as SPHERE does.
+    slug: Optional[str] = Field(default=None, pattern=SLUG)
     name: str = Field(..., min_length=1, max_length=160)
+    description: str = Field(default="", max_length=500)
     parent_id: Optional[uuid.UUID] = None
 
 
 class OrganizationUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
     name: Optional[str] = Field(default=None, min_length=1, max_length=160)
+    description: Optional[str] = Field(default=None, max_length=500)
     parent_id: Optional[uuid.UUID] = None
     move_to_root: bool = False
+
+
+class OrganizationStats(BaseModel):
+    """What an organization holds: its direct members and sub-organizations, and its own resources."""
+
+    members: int
+    sub_organizations: int
+    compositions: int
+    problems: int
+    runs: int
+    studies: int
+
+
+class OrganizationAvatar(BaseModel):
+    """How an organization is drawn: an image URL (a predefined avatar or an upload) and its colours.
+
+    ``url`` is a path of the gateway (``/v1/avatars/avatar-3.svg``, ``/v1/organizations/{id}/avatar/{digest}``),
+    null for the initials. A predefined avatar is drawn in ``fg_color`` over ``bg_color``.
+    """
+
+    url: Optional[str] = None
+    kind: Optional[Literal["predefined", "upload"]] = None
+    bg_color: Optional[str] = None
+    fg_color: Optional[str] = None
 
 
 class OrganizationView(BaseModel):
     id: uuid.UUID
     slug: str
     name: str
+    description: str = ""
+    avatar: OrganizationAvatar = Field(default_factory=OrganizationAvatar)
     parent_id: Optional[uuid.UUID]
-    effective_role: Optional[Literal["OWNER", "ADMIN", "MEMBER", "VIEWER"]] = None
+    effective_role: Optional[Role] = None
+    stats: Optional[OrganizationStats] = None
     created_at: datetime
+
+
+class AvatarSelection(BaseModel):
+    """A predefined avatar, or none (the initials), and the colours to draw it with."""
+
+    model_config = ConfigDict(extra="forbid")
+    avatar: Optional[str] = Field(
+        default=None, max_length=80,
+        description="A predefined avatar's file name (`GET /v1/avatars`), or null for the initials. Absent "
+        "keeps the current image.",
+    )
+    bg_color: Optional[str] = Field(default=None, pattern=HEX_COLOR)
+    fg_color: Optional[str] = Field(default=None, pattern=HEX_COLOR)
 
 
 class MemberUpsert(BaseModel):

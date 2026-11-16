@@ -42,7 +42,8 @@ must not be used to imply an endorsement.
 
 ## Code ported from SPHERE
 
-Eight files port SPHERE code at revision `73779a8a`, and each names its origin in its header. A ported test is
+The files below port SPHERE code at revision `73779a8a`, and each names its origin in its header (the SVGs, which
+cannot carry one, are named here). A ported test is
 listed with its module:
 
 | File | SPHERE origin |
@@ -55,6 +56,8 @@ listed with its module:
 | `frontend/src/shared/sphere/composition-fragment.ts`, with its test `composition-fragment.test.ts` | `frontend/src/modules/pricing-editor/services/pricing-fragment.ts`, the encoder of `frontend/src/modules/pricing-editor/services/export.service.ts` and `frontend/test/pricing-fragment.test.ts` (adapted: the `#composition=` fragment) |
 | `frontend/src/features/composition-editor/NewVersionMenu.tsx` | `frontend/src/modules/pricing/components/new-version-menu/index.tsx` (adapted: the outside-click, Escape and `role=menu` logic kept; the Composition2Yaml editor's options and OpenBinding's markup) |
 | `frontend/src/widgets/change-summary/useVersionChanges.ts`, with its test `useVersionChanges.test.ts` | `frontend/src/modules/pricing/components/pricing-version-graph/use-version-changes.ts` and `use-version-changes.test.tsx` (adapted: the 150 ms delay, the cache keyed by credential and version pair, the retry and the stale guard kept; the gateway's diff instead of both YAML files; the test on `renderHook`) |
+| `openbinding-gateway/src/openbinding_gateway/services/organizations.py` | `api/src/main/utils/slug-manager.ts` (`generateSlug`, `deduplicateSlug`), `api/src/main/config/defaultAvatars.ts` (the predefined avatars, the colour check) and `api/src/main/services/OrganizationService.ts` (`updateAvatar`, `removeAvatar`, the default colours) (adapted: accents folded, reserved slugs never derived, uploads kept as blobs) |
+| `openbinding-gateway/src/openbinding_gateway/static/avatars/avatar-*.svg` | `api/public/static/avatars/users/default/avatar-*.svg` (copied verbatim) |
 
 SPHERE's licence, verbatim:
 
