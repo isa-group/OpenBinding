@@ -28,11 +28,11 @@ export default function AnimatedLogo({ className = '' }: { className?: string })
           <motion.circle
             cx="236"
             cy="75"
-            r="18"
+            r="16"
             fill="currentColor"
             stroke="none"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: [0.08, 0.22, 0.08], r: [16, 21, 16] }}
+            initial={{ opacity: 0, scale: 1 }}
+            animate={{ opacity: [0.08, 0.22, 0.08], scale: [1, 1.3, 1] }}
             transition={{ delay: 1.6, duration: 3.5, repeat: Infinity, ease: 'easeInOut' }}
           />
 
