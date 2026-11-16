@@ -16,9 +16,10 @@ describe('/orgs/new', () => {
     });
     const { organizations } = renderModule(<CreateOrganizationPage />, {
       entry: '/orgs/new?parent=isa-demo',
+      path: '/orgs/new',
       tree: [group, reader],
       gateway,
-      routes: { '/app/:org': <p>Organization page</p> },
+      routes: { '/orgs/:org': <p>Organization page</p> },
     });
     expect(screen.getByRole('button', { name: /Parent organization/ })).toHaveTextContent(
       'ISA Demo Group'
@@ -27,7 +28,7 @@ describe('/orgs/new', () => {
     expect(screen.getByText('distributed-lab')).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Description'), { target: { value: 'Systems.' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create organization' }));
-    await waitFor(() => expect(addressNow()).toBe('/app/distributed-lab'));
+    await waitFor(() => expect(addressNow()).toBe('/orgs/distributed-lab'));
     expect(gateway).toHaveBeenCalledWith(
       '/v1/organizations',
       expect.objectContaining({

@@ -1,28 +1,28 @@
 import { useId, useState, type FormEvent } from 'react';
 import { Plus, TriangleAlert } from 'lucide-react';
-import { apiClient, type EngineCatalogEntry } from '../../api/client';
-import type { Organization } from '../../api/platform';
-import { Action } from '../../modules/core/components/action-button';
-import { FormField } from '../../modules/core/components/form-field';
-import { Modal } from '../../modules/core/components/modal';
-import { Notice } from '../../modules/core/components/notice';
-import { Skeleton } from '../../modules/core/components/skeleton';
-import { PRESET_PAGE, presetsApi } from '../../modules/run/api/presetsApi';
+import { apiClient, type EngineCatalogEntry } from '../../../../../api/client';
+import type { Organization } from '../../../../../api/platform';
+import { Action } from '../../../../core/components/action-button';
+import { FormField } from '../../../../core/components/form-field';
+import { Modal } from '../../../../core/components/modal';
+import { Notice } from '../../../../core/components/notice';
+import { Skeleton } from '../../../../core/components/skeleton';
+import { PRESET_PAGE, presetsApi } from '../../../../run/api/presetsApi';
 import {
   presetEngineText,
   presetOptimizationText,
   presetOptionsText,
   presetRegistrationText,
   studyPresetRefusal,
-} from '../../modules/run/utils/preset';
-import { generalFailure } from '../../features/workspace/errors';
-import { launchPath } from '../../routes/paths/runs';
-import { classifyAuthError, marker } from '../../modules/core/api/errors';
-import type { RunPresetList, RunPresetView } from '../../modules/core/api/types';
-import { formatDate } from '../../utils/format';
-import { useResource } from '../../utils/useResource';
-import { atLeast } from '../../modules/organization/utils/org-tree';
-import { NeutralGate, PageSkeleton, SelectField } from './parts';
+} from '../../../../run/api/presetText';
+import { generalFailure } from '../../../../../features/workspace/errors';
+import { launchPath } from '../../../../../routes/paths/runs';
+import { classifyAuthError, marker } from '../../../../core/api/errors';
+import type { RunPresetList, RunPresetView } from '../../../../core/api/types';
+import { formatDate } from '../../../../../utils/format';
+import { useResource } from '../../../../../utils/useResource';
+import { atLeast } from '../../../utils/org-tree';
+import { SelectField } from '../../../../../pages/Organization/parts';
 import {
   OPTIMIZATION_TYPES,
   draftOf,
@@ -31,10 +31,9 @@ import {
   readDraft,
   type EngineOption,
   type PresetDraft,
-} from './presetForm';
-import { OrgSettingsLayout } from './OrgSettingsLayout';
-import { useRouteOrganization } from './useRouteOrganization';
-import './Organization.css';
+} from '../presetForm';
+import TabCard from './TabCard';
+import '../../../../../pages/Organization/Organization.css';
 
 /** The words for a refused save or delete of a preset. */
 function presetRefusal(caught: unknown, nothing: string): string {
@@ -363,7 +362,7 @@ function PresetCard({
   );
 }
 
-function PresetsBody({ organization }: { organization: Organization }) {
+export default function PresetsBody({ organization }: { organization: Organization }) {
   const slug = organization.slug;
   const role = organization.effective_role;
   const canWrite = atLeast(role, 'MEMBER');
@@ -383,9 +382,8 @@ function PresetsBody({ organization }: { organization: Organization }) {
   const list = page?.presets ?? [];
 
   return (
-    <OrgSettingsLayout
-      organization={organization}
-      section="presets"
+    <TabCard
+      id="presets"
       title="Run presets"
       lede={`Named run settings of ${organization.name}: the engine, mode, options and optimization a run or a study starts from.`}
       actions={
@@ -496,24 +494,6 @@ function PresetsBody({ organization }: { organization: Organization }) {
           }}
         />
       )}
-    </OrgSettingsLayout>
+    </TabCard>
   );
-}
-
-/** The run presets of an organization (the `presets` section of `org-settings`, `/app/:org/settings/presets`): every member reads them, MEMBER and above change them. */
-export function PresetsSection() {
-  const { organization, waiting } = useRouteOrganization();
-  if (waiting)
-    return (
-      <div className="org-page">
-        <PageSkeleton />
-      </div>
-    );
-  if (!organization)
-    return (
-      <div className="org-page">
-        <NeutralGate />
-      </div>
-    );
-  return <PresetsBody organization={organization} />;
 }

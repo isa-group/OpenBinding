@@ -1,11 +1,4 @@
-import {
-  expect as baseExpect,
-  test,
-  type Locator,
-  type Page,
-  type Route,
-  type TestInfo,
-} from '@playwright/test';
+import { expect as baseExpect, test, type Page, type Route, type TestInfo } from '@playwright/test';
 import { failureBody } from './helpers/problems';
 import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
 
@@ -300,6 +293,7 @@ type Refusable =
 interface State {
   organizations: Org[];
   members: Record<string, Member[]>;
+  invitations: Record<string, unknown[]>;
   problems: Record<string, ReturnType<typeof problem>[]>;
   jobs: ReturnType<typeof jobs>;
   notifications: ReturnType<typeof notifications>;
@@ -330,6 +324,7 @@ async function mockApi(page: Page, overrides: Partial<State> = {}): Promise<Stat
   const state: State = {
     organizations: [isaDemo, qosLab, consultora, researchHub, partnerLab],
     members: membersOf(),
+    invitations: {},
     problems: problemsOf(),
     jobs: jobs(),
     notifications: notifications(),
@@ -430,7 +425,22 @@ async function mockApi(page: Page, overrides: Partial<State> = {}): Promise<Stat
       state.organizations = state.organizations.filter(item => item.slug !== slug);
       return noContent(route);
     }
-    return found ? json(found)(route) : detail(404, 'not_found', 'Organization not found.')(route);
+    return found
+      ? json({
+          ...found,
+          description: '',
+          avatar: { url: null, kind: null, bg_color: null, fg_color: null },
+          stats: {
+            members: state.members[slug]?.length ?? 0,
+            sub_organizations: state.organizations.filter(item => item.parent_id === found.id)
+              .length,
+            compositions: 0,
+            problems: state.problems[slug]?.length ?? 0,
+            runs: state.jobs.runs.length,
+            studies: 0,
+          },
+        })(route)
+      : detail(404, 'not_found', 'Organization not found.')(route);
   });
 
   await page.route(orgPath('/runs'), route =>
@@ -469,20 +479,69 @@ async function mockApi(page: Page, overrides: Partial<State> = {}): Promise<Stat
     return json(next)(route);
   });
   await page.route(orgPath('/invitations'), async route => {
+    const slug = slugOf(route, '/invitations');
+    if (methodOf(route) === 'GET') return json(state.invitations[slug] ?? [])(route);
     if (state.refuse.invite) return state.refuse.invite(route);
-    const body = route.request().postDataJSON() as { email: string; role: Role };
+    const body = (route.request().postDataJSON() ?? {}) as {
+      expires_in_days?: number;
+      max_uses?: number;
+    };
+    const created = {
+      id: `inv-${(state.invitations[slug]?.length ?? 0) + 1}`,
+      organization_id: 'org-1',
+      code: `c0de${(state.invitations[slug]?.length ?? 0) + 1}`.padEnd(16, '0'),
+      created_by: { id: 'user-1', username: 'lucia.vega', avatar: null },
+      expires_at: new Date(Date.now() + (body.expires_in_days ?? 7) * 86_400_000).toISOString(),
+      max_uses: body.max_uses ?? null,
+      use_count: 0,
+      created_at: new Date().toISOString(),
+    };
+    state.invitations[slug] = [...(state.invitations[slug] ?? []), created];
+    return json(created, 201)(route);
+  });
+  await page.route(orgPath('/hierarchy'), route => {
+    const slug = slugOf(route, '/hierarchy');
+    const found = state.organizations.find(item => item.slug === slug);
+    if (!found) return detail(404, 'not_found', 'Organization not found.')(route);
+    let root = found;
+    while (root.parent_id) {
+      const parent = state.organizations.find(item => item.id === root.parent_id);
+      if (!parent) break;
+      root = parent;
+    }
+    const branch: Org[] = [];
+    const walk = (item: Org) => {
+      branch.push(item);
+      state.organizations.filter(child => child.parent_id === item.id).forEach(walk);
+    };
+    walk(root);
     return json(
-      {
-        id: 'inv-2',
-        organization_id: 'org-1',
-        email: body.email,
-        role: body.role,
-        expires_at: '2026-10-16T09:00:00Z',
-        token: 'obi_a1b2c3d4e5f6_UN-SOLO-USO-DE-PRUEBA-0000',
-      },
-      201
+      branch.map(item => ({
+        id: item.id,
+        slug: item.slug,
+        name: item.name,
+        avatar: {},
+        parent_id: item.parent_id,
+        has_access: true,
+        effective_role: item.effective_role,
+      }))
     )(route);
   });
+  await page.route(orgPath('/owner'), route => {
+    const slug = slugOf(route, '/owner');
+    const { user_id } = route.request().postDataJSON() as { user_id: string };
+    state.members[slug] = (state.members[slug] ?? []).map(item =>
+      item.user_id === user_id
+        ? { ...item, role: 'OWNER' as Role }
+        : item.role === 'OWNER'
+          ? { ...item, role: 'ADMIN' as Role }
+          : item
+    );
+    return json(state.members[slug])(route);
+  });
+  await page.route(orgPath('/profile'), detail(404, 'not_found', 'Organization not found.'));
+  await page.route(orgPath('/presets'), json({ presets: [], total: 0, limit: 200, offset: 0 }));
+  await page.route(`${API}/v1/engines`, json({ engines: [] }));
   await page.route(orgPath('/audit'), async route => {
     if (state.refuse.audit) return state.refuse.audit(route);
     const url = new URL(route.request().url());
@@ -520,27 +579,6 @@ async function capture(page: Page, testInfo: TestInfo, name: string) {
       fullPage: true,
       animations: 'disabled',
     });
-}
-
-/** The organization settings side navigation: four destinations, the current one marked. */
-async function expectSettingsNav(main: Locator, slug: string, current: string) {
-  const nav = main.getByRole('navigation', { name: 'Organization settings' });
-  const destinations: Array<[string, string]> = [
-    ['General', `/app/${slug}/settings`],
-    ['Members', `/app/${slug}/settings/members`],
-    ['Run presets', `/app/${slug}/settings/presets`],
-    ['Audit', `/app/${slug}/settings/audit`],
-  ];
-  for (const [label, href] of destinations)
-    await expect(nav.getByRole('link', { name: new RegExp(`^${label}`) })).toHaveAttribute(
-      'href',
-      href
-    );
-  await expect(nav.getByRole('link', { name: new RegExp(`^${current}`) })).toHaveAttribute(
-    'aria-current',
-    'page'
-  );
-  await expect(nav.locator('[aria-current="page"]')).toHaveCount(1);
 }
 
 const request = (page: Page, method: string, path: string) =>
@@ -757,514 +795,126 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         name: 'Distributed Systems Lab',
         parent_id: 'org-1',
       });
-      await expect(page).toHaveURL(/\/app\/distributed-systems-lab$/);
+      await expect(page).toHaveURL(/\/orgs\/distributed-systems-lab$/);
       await expect(
         page.locator('main').getByRole('heading', { level: 1, name: 'Distributed Systems Lab' })
       ).toBeVisible();
       expect(critical).toEqual([]);
     });
 
-    test('org-overview /app/:org', async ({ page }, testInfo) => {
+    test('org-detail /orgs/:org: the hero, its tabs and the hierarchy', async ({
+      page,
+    }, testInfo) => {
       const critical = watchCriticalErrors(page);
-      const state = await mockApi(page);
-      await page.goto('/app/isa-demo');
+      await mockApi(page);
+      await page.goto('/orgs/isa-demo');
       const main = page.locator('main');
 
-      const title = main.getByRole('heading', { level: 1, name: 'ISA Demo Group' });
-      await expect(title).toBeVisible();
-      const hero = title.locator('xpath=ancestor::header[1]');
-      await expect(hero.getByText('/app/isa-demo')).toBeVisible();
-      await expect(hero.getByText('OWNER')).toBeVisible();
-      await expect(hero.getByRole('link', { name: 'Upload BIM package' })).toHaveAttribute(
-        'href',
-        '/app/isa-demo/problems?create=problem'
-      );
-      await expect(hero.getByRole('link', { name: 'Members' })).toHaveAttribute(
-        'href',
-        '/app/isa-demo/settings/members'
-      );
-      await expect(hero.getByRole('link', { name: 'Audit' })).toHaveAttribute(
-        'href',
-        '/app/isa-demo/settings/audit'
-      );
-      await expect(hero.getByRole('link', { name: 'Settings' })).toHaveAttribute(
-        'href',
-        '/app/isa-demo/settings'
-      );
+      await expect(main.getByRole('heading', { level: 1, name: 'ISA Demo Group' })).toBeVisible();
+      await expect(main.getByText('@isa-demo')).toBeVisible();
+      await expect(main.getByText('Owner', { exact: true }).first()).toBeVisible();
+      await capture(page, testInfo, `org-${name}-overview`);
 
-      // The compositions, problems, runs and studies of the organization, each with the way to all of them; no projects.
-      const compositions = main
-        .getByRole('heading', { name: /^Compositions/ })
-        .locator('xpath=ancestor::section[1]');
-      await expect(
-        compositions.getByText(/^None yet\. A composition is the binding the organization keeps/)
-      ).toBeVisible();
-      await expect(compositions.getByRole('link', { name: 'All compositions' })).toHaveAttribute(
+      // The tabs are in the address: a phone picks them from a select, a desktop from links.
+      if (isMobile) {
+        await main.getByRole('combobox', { name: 'Section' }).selectOption('hierarchy');
+      } else {
+        await main
+          .getByRole('navigation', { name: 'Organization sections' })
+          .getByRole('link', { name: 'Hierarchy' })
+          .click();
+      }
+      await expect(page).toHaveURL(/\/orgs\/isa-demo\/hierarchy$/);
+      const tree = main.getByRole('list', { name: 'Organization tree' });
+      await expect(tree.getByText('(current)')).toBeVisible();
+      await main.getByRole('button', { name: 'Expand ISA Demo Group' }).click();
+      await expect(tree.getByRole('link', { name: /QoS Lab/ })).toHaveAttribute(
         'href',
-        '/app/isa-demo/compositions'
+        '/orgs/qos-lab'
       );
-      await expect(compositions.getByRole('link', { name: '+ New composition' })).toHaveAttribute(
-        'href',
-        '/app/isa-demo/compositions?create=composition'
-      );
-      const problems = main
-        .getByRole('heading', { name: /^Problems/ })
-        .locator('xpath=ancestor::section[1]');
-      await expect(problems.getByRole('link', { name: /Checkout flow/ })).toHaveAttribute(
-        'href',
-        '/app/isa-demo/problems/checkout-flow'
-      );
-      await expect(problems.getByRole('link', { name: 'All problems' })).toHaveAttribute(
-        'href',
-        '/app/isa-demo/problems'
-      );
-      await expect(main.getByRole('heading', { name: /^Runs/ })).toBeVisible();
-      await expect(main.getByRole('heading', { name: /^Studies/ })).toBeVisible();
-      await expect(main.getByRole('heading', { name: /^Projects/ })).toHaveCount(0);
-      await expect(main.getByRole('searchbox', { name: 'Find a project' })).toHaveCount(0);
-      const subs = main
-        .getByRole('heading', { name: 'Sub-organizations' })
-        .locator('xpath=ancestor::section[1]');
-      await expect(subs.getByRole('link', { name: /QoS Lab/ })).toHaveAttribute(
-        'href',
-        '/app/qos-lab'
-      );
-      await expect(subs.getByText('Inherited from ISA Demo Group')).toBeVisible();
-      await expect(main.getByRole('heading', { name: 'Sponsor’s room' })).toHaveCount(0);
-      await expect(hero.getByText(/sponsor/i)).toHaveCount(0);
-      await capture(page, testInfo, `overview-${name}-success`);
+      await capture(page, testInfo, `org-${name}-hierarchy`);
 
-      // A VIEWER sees the organization, has no way to upload or launch, and is told why.
-      await page.goto('/app/consultora-demo');
-      await expect(main.getByRole('heading', { level: 1, name: 'Consultora Demo' })).toBeVisible();
-      await expect(main.getByText(/You’re a VIEWER here: you read everything/)).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Upload BIM package' })).toHaveCount(0);
-      await expect(main.getByRole('link', { name: '+ Upload' })).toHaveCount(0);
-      await expect(main.getByRole('link', { name: 'Audit' })).toHaveCount(0);
-      await capture(page, testInfo, `overview-${name}-viewer-empty`);
+      // A tab the address names but does not exist is the in-place 404.
+      await page.goto('/orgs/isa-demo/settings');
+      await expect(main.getByRole('heading', { name: /not found/i })).toBeVisible();
+      expect(critical).toEqual([]);
+    });
 
-      // The same neutral message for an organization that does not exist and one the account is not in.
-      await page.goto('/app/ghost-lab');
-      await expect(main.getByRole('heading', { name: 'Organization not available' })).toBeVisible();
-      await expect(main.getByText(/It doesn’t exist, or you’re not a member\./)).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Back to Home' })).toHaveAttribute(
-        'href',
-        '/app'
-      );
-      await capture(page, testInfo, `overview-${name}-not-available`);
+    test('org-detail members /orgs/:org/members', async ({ page }, testInfo) => {
+      const critical = watchCriticalErrors(page);
+      const state = await mockApi(page);
+      await page.goto('/orgs/isa-demo/members');
+      const main = page.locator('main');
+      const members = main.getByRole('region', { name: 'Members' });
+      await expect(members.getByText('@marco')).toBeVisible();
+      await capture(page, testInfo, `members-${name}`);
       if (isMobile) {
         expect(critical).toEqual([]);
         return;
       }
 
-      // The problems panel fails on its own: the rest of the page is there.
-      state.refuse.problems = unavailable;
-      await page.goto('/app/isa-demo');
-      await expect(main.getByText('Problems couldn’t be loaded (503).')).toBeVisible();
-      await expect(main.getByRole('heading', { name: 'Sub-organizations' })).toBeVisible();
-      await expect(main.getByRole('heading', { name: /^Runs/ })).toBeVisible();
-      await capture(page, testInfo, `overview-${name}-problems-503`);
-      state.refuse.problems = undefined;
+      // Drafted changes wait, then go together through the batch.
+      await members.getByRole('combobox', { name: 'Role for marco' }).selectOption('ADMIN');
+      await members.getByRole('button', { name: 'Remove sofia' }).click();
+      await expect(main.getByText('2 member changes ready to save')).toBeVisible();
+      const batch = request(page, 'POST', '/v1/organizations/isa-demo/members/batch');
+      await members.getByRole('button', { name: 'Save changes' }).click();
+      expect((await batch).postDataJSON()).toEqual({
+        changes: [
+          { user_id: 'user-marco', role: 'ADMIN' },
+          { user_id: 'user-sofia', role: null },
+        ],
+      });
+      await page.getByRole('alertdialog').getByRole('button', { name: 'OK' }).click();
+      await expect(members.getByText('@sofia')).toHaveCount(0);
 
-      // The selector that moves to another organization.
-      await main.getByLabel('Switch organization').selectOption('qos-lab');
-      await expect(page).toHaveURL(/\/app\/qos-lab$/);
-      await expect(main.getByRole('heading', { level: 1, name: /QoS Lab/ })).toBeVisible();
-      await expect(
-        main
-          .getByRole('navigation', { name: 'Breadcrumb' })
-          .getByRole('link', { name: 'ISA Demo Group' })
-      ).toHaveAttribute('href', '/app/isa-demo');
-      expect(critical).toEqual([]);
-    });
-
-    test('org-settings /app/:org/settings', async ({ page }, testInfo) => {
-      const critical = watchCriticalErrors(page);
-      const state = await mockApi(page);
-      await page.goto('/app/isa-demo/settings');
-      const main = page.locator('main');
-
-      await expect(main.getByRole('heading', { level: 1, name: 'Settings' })).toBeVisible();
-      await expectSettingsNav(main, 'isa-demo', 'General');
-      await expect(main.getByLabel('Name', { exact: true })).toHaveValue('ISA Demo Group');
-      await expect(main.getByText('/app/isa-demo', { exact: true })).toBeVisible();
-      await expect(main.getByText(/sponsor/i)).toHaveCount(0);
-      await expect(main.getByRole('button', { name: 'Save name' })).toBeDisabled();
-      const impact = main.getByLabel('What deleting removes');
-      await expect(impact).toContainText('problems2');
-      await expect(impact).toContainText('studies0');
-      await expect(impact).toContainText('sub-organization1');
-      await expect(impact).toContainText('direct members3');
-      await capture(page, testInfo, `settings-${name}-success`);
-
-      // Read-only below ADMIN, with the reason.
-      await page.goto('/app/consultora-demo/settings');
-      await expect(main.getByText(/these settings are read-only/)).toBeVisible();
-      await expect(main.getByLabel('Name', { exact: true })).toBeDisabled();
-      await expect(main.getByRole('button', { name: 'Save name' })).toHaveCount(0);
-      await expect(main.getByRole('button', { name: 'Delete organization' })).toHaveCount(0);
-      await expect(
-        main.getByRole('navigation', { name: 'Organization settings' }).getByText('ADMIN')
-      ).toBeVisible();
-      await capture(page, testInfo, `settings-${name}-read-only`);
-      if (isMobile) {
-        await page.goto('/app/isa-demo/settings');
-        await main.getByRole('button', { name: 'Delete organization' }).click();
-        await expect(page.getByRole('dialog', { name: 'Delete ISA Demo Group?' })).toBeVisible();
-        await capture(page, testInfo, `settings-${name}-delete-dialog`);
-        expect(critical).toEqual([]);
-        return;
-      }
-
-      // Rename.
-      await page.goto('/app/isa-demo/settings');
-      await main.getByLabel('Name', { exact: true }).fill('ISA Research Group');
-      const renamed = request(page, 'PATCH', '/v1/organizations/isa-demo');
-      await main.getByRole('button', { name: 'Save name' }).click();
-      expect((await renamed).postDataJSON()).toEqual({ name: 'ISA Research Group' });
-      await expect(
-        main.getByText('Name saved as “ISA Research Group”. An audit entry was recorded.')
-      ).toBeVisible();
-      await expect(main.getByRole('link', { name: 'See it in the audit log' })).toHaveAttribute(
-        'href',
-        '/app/isa-demo/settings/audit'
+      // A refused batch says so, and nothing changes.
+      state.refuse.batch = detail(409, 'last_owner', 'At least one owner must remain.');
+      await members.getByRole('combobox', { name: 'Role for marco' }).selectOption('VIEWER');
+      await members.getByRole('button', { name: 'Save changes' }).click();
+      await expect(page.getByRole('alertdialog')).toContainText(
+        'The organization keeps one owner (409 · last_owner)'
       );
-      await capture(page, testInfo, `settings-${name}-renamed`);
-
-      // Moving: a loop and a parent without ADMIN are refused up front; the gateway's 409 still reads clearly.
-      const places = main.getByRole('group', { name: 'New parent' });
-      await expect(places.getByRole('radio', { name: /QoS Lab/ })).toBeDisabled();
-      await expect(
-        places.getByText('It sits inside this organization: moving here would make a loop')
-      ).toBeVisible();
-      await expect(places.getByRole('radio', { name: /Consultora Demo/ })).toBeDisabled();
-      await expect(places.getByText('Needs ADMIN there; you’re VIEWER')).toBeVisible();
-      await places.getByRole('radio', { name: /Research Hub/ }).check();
-      const tree = main.getByRole('list', { name: 'Organization tree after the move' });
-      await expect(tree.getByRole('listitem')).toHaveCount(3);
-      await expect(
-        main.getByText('Members of Research Hub will inherit their roles here.')
-      ).toBeVisible();
-      state.refuse.patch = detail(
-        409,
-        'organization_cycle',
-        'An organization cannot be moved below one of its descendants.'
-      );
-      await main.getByRole('button', { name: 'Move organization' }).click();
-      await expect(main.getByRole('alert')).toContainText(
-        'That move would put the organization inside itself (409 · organization_cycle). Choose another parent.'
-      );
-      await capture(page, testInfo, `settings-${name}-move-409`);
-      state.refuse.patch = undefined;
-      const moved = request(page, 'PATCH', '/v1/organizations/isa-demo');
-      await main.getByRole('button', { name: 'Move organization' }).click();
-      expect((await moved).postDataJSON()).toEqual({ parent_id: 'org-4' });
-      await expect(main.getByText('Moved ISA Research Group inside Research Hub.')).toBeVisible();
-
-      // There is no sponsor to change: quotas are per account. An ADMIN can edit.
-      await page.goto('/app/research-hub/settings');
-      await expect(main.getByRole('button', { name: 'Make me the sponsor' })).toHaveCount(0);
-      await expect(main.getByRole('button', { name: 'Save name' })).toBeVisible();
-      expect(critical).toEqual([]);
-    });
-
-    test('org-settings /app/:org/settings · deleting', async ({ page }, testInfo) => {
-      const critical = watchCriticalErrors(page);
-      const state = await mockApi(page);
-      const main = page.locator('main');
-
-      // Deleting asks for the address and the gateway refuses an organization with runs or study runs.
-      await page.goto('/app/isa-demo/settings');
-      await main.getByRole('button', { name: 'Delete organization' }).click();
-      const dialog = page.getByRole('dialog', { name: 'Delete ISA Demo Group?' });
-      const confirm = dialog.getByRole('button', { name: 'Delete permanently' });
-      await expect(confirm).toBeDisabled();
-      await dialog.getByLabel('Type isa-demo to confirm').fill('isa-dem');
-      await expect(confirm).toBeDisabled();
-      await dialog.getByLabel('Type isa-demo to confirm').fill('isa-demo');
-      await expect(confirm).toBeEnabled();
-      state.refuse.remove = detail(
-        409,
-        'historical_references',
-        'Organizations with runs or study runs cannot be deleted; their history is kept.'
-      );
-      await confirm.click();
-      await expect(dialog.getByRole('alert')).toContainText(
-        'It has runs or study runs, so it can’t be deleted (409 · historical_references).'
-      );
-      await capture(page, testInfo, `settings-${name}-delete-409`);
-      state.refuse.remove = undefined;
-      const deleted = request(page, 'DELETE', '/v1/organizations/isa-demo');
-      await confirm.click();
-      await deleted;
-      await expect(page).toHaveURL(/\/app$/);
-      await expect(
-        main.getByText('ISA Demo Group was deleted, together with everything inside it.')
-      ).toBeVisible();
-      expect(critical).toEqual([]);
-    });
-
-    test('org-settings members section /app/:org/settings/members', async ({ page }, testInfo) => {
-      const critical = watchCriticalErrors(page);
-      const state = await mockApi(page);
-      await page.goto('/app/isa-demo/settings/members');
-      const main = page.locator('main');
-
-      await expect(main.getByRole('heading', { level: 1, name: 'Members' })).toBeVisible();
-      await expect(main.getByText('ISA Demo Group · 3 people with a role')).toBeVisible();
-      await expectSettingsNav(main, 'isa-demo', 'Members');
-      const table = main.getByRole('table');
-      await expect(table.getByRole('columnheader')).toHaveText([
-        'Person',
-        'Role here',
-        'Effective role',
-        'Added',
-        'Actions',
-      ]);
-      await expect(
-        table.getByRole('row', { name: /lucia\.vega@example\.org/ }).getByText('(you)')
-      ).toBeVisible();
-      await expect(main.getByLabel('Role for marco')).toHaveValue('MEMBER');
-      await expect(
-        table.getByRole('row', { name: /marco@example\.org/ }).getByText('Apr 12, 2026')
-      ).toBeVisible();
-      // Members are not a plan limit: the screen states no allowance.
-      await expect(main.getByText(/unique members/)).toHaveCount(0);
-      await expect(main.getByText('To confirm')).toHaveCount(0);
-      await capture(page, testInfo, `members-${name}-success`);
-
-      // Own and inherited roles, side by side.
-      await page.goto('/app/qos-lab/settings/members');
-      await expect(
-        main.getByText('QoS Lab (sub-organización) · 3 people with a role')
-      ).toBeVisible();
-      await expect(
-        table
-          .getByRole('row', { name: /lucia\.vega@example\.org/ })
-          .getByText('Inherited from ISA Demo Group')
-      ).toBeVisible();
-      await expect(main.getByLabel('Role for lucia.vega')).toHaveValue('__none');
-      await expect(
-        table
-          .getByRole('row', { name: /marco@example\.org/ })
-          .getByText('Own role (higher than inherited MEMBER)')
-      ).toBeVisible();
-      await capture(page, testInfo, `members-${name}-inherited`);
-
-      if (isMobile) {
-        await page.goto('/app/isa-demo/settings/members');
-        await main.getByRole('button', { name: 'Invite by email' }).click();
-        await expect(page.getByRole('dialog', { name: 'Invite to ISA Demo Group' })).toBeVisible();
-        await capture(page, testInfo, `members-${name}-invite-dialog`);
-        expect(critical).toEqual([]);
-        return;
-      }
-
-      // The queue: stage a change and an undo, then apply one batch.
-      await page.goto('/app/isa-demo/settings/members');
-      const queue = main.getByRole('complementary', { name: /Pending changes/ });
-      await expect(
-        queue.getByText(
-          'Change a role or remove someone in the table. Changes wait here until you apply them.'
-        )
-      ).toBeVisible();
-      await expect(queue.getByRole('button', { name: 'Apply 0 changes' })).toBeDisabled();
-      await main.getByLabel('Role for marco').selectOption('ADMIN');
-      await main.getByRole('button', { name: 'Remove sofia' }).click();
-      await expect(queue.getByRole('button', { name: 'Apply 2 changes' })).toBeEnabled();
-      await expect(queue.getByText('Removed', { exact: true })).toBeVisible();
-      await capture(page, testInfo, `members-${name}-queued`);
-      await queue.getByRole('button', { name: 'Undo change for sofia' }).click();
-      await expect(queue.getByRole('button', { name: 'Apply 1 change' })).toBeEnabled();
-
-      // The gateway's refusals, one by one: 409 last owner, 422 mismatch.
-      await main.getByLabel('Role for lucia.vega').selectOption('VIEWER');
-      state.refuse.batch = detail(409, 'last_owner', 'The last owner cannot be removed.');
-      await queue.getByRole('button', { name: 'Apply 2 changes' }).click();
-      await expect(main.getByRole('alert')).toContainText(
-        'At least one OWNER must remain (409 · last_owner). Keep someone as OWNER, or make another person OWNER in the same batch.'
-      );
-      await capture(page, testInfo, `members-${name}-409`);
-      state.refuse.batch = detail(422, 'member_mismatch', 'Path and payload user differ.');
-      await queue.getByRole('button', { name: 'Apply 2 changes' }).click();
-      await expect(main.getByRole('alert')).toContainText(
-        'One of these people isn’t a member of this organization (422 · member_mismatch).'
-      );
-      // Granting OWNER is for owners: if the gateway still refuses, the row it names is marked and the whole queue stays.
-      state.refuse.batch = detail(
-        403,
-        'owner_role_requires_owner',
-        'Only an owner can grant the owner role.',
-        { index: 0, user_id: 'user-marco' }
-      );
-      await queue.getByRole('button', { name: 'Apply 2 changes' }).click();
-      await expect(main.getByRole('alert')).toContainText(
-        'Only an owner can grant the owner role. The change for marco was refused (403 · owner_role_requires_owner), so nothing changed'
-      );
-      await expect(table.getByRole('row', { name: /marco@example\.org/ })).toContainText(
-        'Refused: Only an owner can grant the owner role.'
-      );
-      await expect(queue.getByRole('button', { name: 'Apply 2 changes' })).toBeEnabled();
-      await capture(page, testInfo, `members-${name}-owner-refused`);
-
+      await page.getByRole('alertdialog').getByRole('button', { name: 'OK' }).click();
       state.refuse.batch = undefined;
-      await queue.getByRole('button', { name: 'Undo change for lucia.vega' }).click();
-      const applied = request(page, 'POST', '/v1/organizations/isa-demo/members/batch');
-      await queue.getByRole('button', { name: 'Apply 1 change' }).click();
-      expect((await applied).postDataJSON()).toEqual({
-        changes: [{ user_id: 'user-marco', role: 'ADMIN' }],
-      });
-      await expect(
-        main.getByText('1 change applied together. They’re recorded in the audit log.')
-      ).toBeVisible();
-      await expect(main.getByLabel('Role for marco')).toHaveValue('ADMIN');
-      await capture(page, testInfo, `members-${name}-applied`);
 
-      // Inviting: the one-time code is shown once, and the invitation is listed as pending.
-      await main.getByRole('button', { name: 'Invite by email' }).click();
-      const invite = page.getByRole('dialog', { name: 'Invite to ISA Demo Group' });
-      await invite.getByLabel('Email').fill('nope');
-      await invite.getByRole('button', { name: 'Create invitation' }).click();
-      await expect(invite.getByRole('alert')).toContainText('Enter a valid email address (422).');
-      await invite.getByLabel('Email').fill('invitada@example.org');
-      await invite.getByLabel('Role when they join').selectOption('ADMIN');
-      await capture(page, testInfo, `members-${name}-invite-dialog`);
-      const invited = request(page, 'POST', '/v1/organizations/isa-demo/invitations');
-      await invite.getByRole('button', { name: 'Create invitation' }).click();
-      expect((await invited).postDataJSON()).toEqual({
-        email: 'invitada@example.org',
-        role: 'ADMIN',
-      });
-      const created = page.getByRole('dialog', { name: 'Invitation created' });
-      await expect(created.getByText('obi_a1b2c3d4e5f6_UN-SOLO-USO-DE-PRUEBA-0000')).toBeVisible();
-      await expect(created.getByText(/Shown only once\./)).toBeVisible();
-      await expect(created.getByRole('link', { name: 'accept invitation' })).toHaveAttribute(
-        'href',
-        '/invitations/accept'
-      );
-      await capture(page, testInfo, `members-${name}-invite-code`);
-      await created.getByRole('button', { name: 'I’ve saved it' }).click();
-      await expect(created).toBeHidden();
-      await expect(page.getByText('obi_a1b2c3d4e5f6_UN-SOLO-USO-DE-PRUEBA-0000')).toHaveCount(0);
-      const pending = table.getByRole('row', { name: /invitada@example\.org/ });
-      await expect(pending.getByText('Invitation pending')).toBeVisible();
-      await expect(pending.getByText('Expires Oct 16, 2026')).toBeVisible();
-
-      // Read-only below ADMIN.
-      await page.goto('/app/consultora-demo/settings/members');
-      await expect(
-        main.getByText(/you can see who’s in, but changing roles and inviting need ADMIN/)
-      ).toBeVisible();
-      await expect(main.getByLabel('Role for nora')).toHaveCount(0);
-      await expect(main.getByRole('button', { name: 'Invite by email' })).toHaveCount(0);
-      await expect(main.getByText('Only admins can change roles.')).toBeVisible();
-      await capture(page, testInfo, `members-${name}-read-only`);
-
-      // An ADMIN manages everybody but the owners: OWNER can't be granted, and an owner can't be changed or removed.
-      await page.goto('/app/research-hub/settings/members');
-      await expect(main.getByLabel('Role for lucia.vega')).toBeEnabled();
-      await expect(
-        main.getByLabel('Role for lucia.vega').locator('option', { hasText: /^OWNER$/ })
-      ).toBeDisabled();
-      await expect(
-        main.getByLabel('Role for lucia.vega').locator('option', { hasText: /^VIEWER$/ })
-      ).toBeEnabled();
-      await expect(main.getByLabel('Role for nora')).toBeDisabled();
-      await expect(main.getByRole('button', { name: 'Remove nora' })).toBeDisabled();
-      await expect(main.locator('#owner-role-note')).toContainText(
-        'Only an owner can grant the owner role.'
-      );
-      await main.getByRole('button', { name: 'Invite by email' }).click();
-      const adminInvite = page.getByRole('dialog', { name: 'Invite to Research Hub' });
-      await expect(
-        adminInvite.getByLabel('Role when they join').locator('option', { hasText: /^OWNER/ })
-      ).toBeDisabled();
-      await expect(adminInvite.getByText('Only an owner can grant the owner role.')).toBeVisible();
-      await capture(page, testInfo, `members-${name}-admin`);
+      // The crown hands the organization over.
+      await members.getByRole('button', { name: 'Transfer ownership to marco' }).click();
+      const owner = request(page, 'PUT', '/v1/organizations/isa-demo/owner');
+      await page.getByRole('dialog').getByRole('button', { name: 'Transfer ownership' }).click();
+      expect((await owner).postDataJSON()).toEqual({ user_id: 'user-marco' });
       expect(critical).toEqual([]);
     });
 
-    test('org-settings audit section /app/:org/settings/audit', async ({ page }, testInfo) => {
+    test('org-detail invitations /orgs/:org/invitations', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
-      const state = await mockApi(page);
-      await page.goto('/app/isa-demo/settings/audit');
+      await mockApi(page);
+      await page.goto('/orgs/isa-demo/invitations');
       const main = page.locator('main');
+      await expect(main.getByText('No invitations yet.')).toBeVisible();
+      await main.getByRole('button', { name: 'Generate invite' }).click();
+      const dialog = page.getByRole('dialog', { name: 'Invite members' });
+      await dialog.getByLabel('Max uses (optional)').fill('5');
+      const created = request(page, 'POST', '/v1/organizations/isa-demo/invitations');
+      await dialog.getByRole('button', { name: 'Generate link' }).click();
+      expect((await created).postDataJSON()).toEqual({ expires_in_days: 7, max_uses: 5 });
+      await expect(dialog.getByText(/\/orgs\/join\/c0de1/)).toBeVisible();
+      await capture(page, testInfo, `invite-${name}`);
+      await page.keyboard.press('Escape');
+      await expect(main.getByText('0 uses / 5')).toBeVisible();
+      expect(critical).toEqual([]);
+    });
 
-      await expect(main.getByRole('heading', { level: 1, name: 'Audit log' })).toBeVisible();
-      await expect(main.getByText('Who did what in ISA Demo Group.')).toBeVisible();
-      await expectSettingsNav(main, 'isa-demo', 'Audit');
-      const timeline = main.getByRole('list', { name: 'Audit events, newest first' });
-      await expect(timeline.getByRole('listitem')).toHaveCount(4);
-      await expect(timeline.getByRole('listitem').first()).toContainText('Invitation created');
-      await expect(timeline.getByRole('listitem').first()).toContainText('Oct 8, 2026, 09:15 UTC');
-      await expect(main.getByText('Showing 1–4 of 4 · newest first')).toBeVisible();
-      await expect(
-        main.getByText(
-          'Action is filtered by the server; actor and period are filtered in this view.'
-        )
-      ).toBeVisible();
-      await capture(page, testInfo, `audit-${name}-success`);
-
-      await timeline.getByRole('button', { name: /2 member changes applied together/ }).click();
-      const open = timeline
-        .getByRole('listitem')
-        .filter({ hasText: '2 member changes applied together' });
-      await expect(open).toContainText('lucia.vega');
-      await expect(open).toContainText('organization.members.batch_updated');
-      await expect(open.getByText('marco → ADMIN')).toBeVisible();
-      await expect(open.getByText('sofia → removed')).toBeVisible();
-      await capture(page, testInfo, `audit-${name}-expanded`);
-
-      // Below ADMIN the log is closed, and the explanation names the role.
-      await page.goto('/app/consultora-demo/settings/audit');
-      await expect(main.getByRole('alert')).toContainText('The audit log needs ADMIN (403)');
-      await expect(main.getByRole('alert')).toContainText(
-        'Your role in Consultora Demo is VIEWER.'
-      );
-      await expect(main.getByRole('button', { name: 'Export this view' })).toHaveCount(0);
-      await capture(page, testInfo, `audit-${name}-403`);
-      if (isMobile) {
-        expect(critical).toEqual([]);
-        return;
-      }
-
-      // The action filter is the server's: the request carries it.
-      await page.goto('/app/isa-demo/settings/audit');
-      const filtered = page.waitForRequest(
-        candidate =>
-          candidate.url().startsWith(`${API}/v1/organizations/isa-demo/audit`) &&
-          candidate.url().includes('action=problem.created')
-      );
-      await main.getByLabel('Action').selectOption('problem.created');
-      await filtered;
-      await expect(timeline.getByRole('listitem')).toHaveCount(1);
-      await expect(timeline.getByRole('listitem').first()).toContainText('Problem created');
-      await capture(page, testInfo, `audit-${name}-filtered`);
-
-      // Actor in the view; and a filter nothing matches.
-      await main.getByLabel('Action').selectOption('');
-      await expect(timeline.getByRole('listitem')).toHaveCount(4);
-      await main.getByLabel('Actor').selectOption('__none');
-      await expect(timeline.getByRole('listitem')).toHaveCount(1);
-      await main.getByLabel('Actor').selectOption('');
-      await main.getByLabel('Action').selectOption('problem.deleted');
-      await expect(main.getByText(/No events match these filters\./)).toBeVisible();
-      await capture(page, testInfo, `audit-${name}-empty`);
-      await main.getByRole('button', { name: 'Clear filters' }).click();
-      await expect(timeline.getByRole('listitem')).toHaveCount(4);
-
-      // Failure, and the way to try again.
-      state.refuse.audit = unavailable;
-      await page.reload();
-      await expect(main.getByRole('alert')).toContainText(
-        'The audit log couldn’t be loaded (503).'
-      );
-      await capture(page, testInfo, `audit-${name}-503`);
-      state.refuse.audit = undefined;
-      await main.getByRole('button', { name: 'Retry' }).click();
+    test('org-detail audit /orgs/:org/audit', async ({ page }, testInfo) => {
+      const critical = watchCriticalErrors(page);
+      await mockApi(page);
+      await page.goto('/orgs/isa-demo/audit');
+      const main = page.locator('main');
+      await expect(main.getByRole('heading', { level: 2, name: 'Audit log' })).toBeVisible();
       await expect(
         main.getByRole('list', { name: 'Audit events, newest first' }).getByRole('listitem')
       ).toHaveCount(4);
+      await capture(page, testInfo, `audit-${name}`);
       expect(critical).toEqual([]);
     });
   });

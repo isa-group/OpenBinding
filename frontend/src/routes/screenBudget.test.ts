@@ -20,6 +20,7 @@ const SCREENS: Array<[string, string, string]> = [
   ['eng-catalog', '/engines', 'public'],
   ['eng-detail', '/engines/:namespace/:name/:version', 'public'],
   ['org-explore', '/organizations', 'session'],
+  ['org-detail', '/orgs/:org/:tab?', 'session'],
   ['org-invite-accept', '/invitations/accept', 'session'],
   ['pub-compositions', '/compositions', 'session'],
   ['pub-showcase', '/c/:org/:composition', 'session'],
@@ -30,8 +31,6 @@ const SCREENS: Array<[string, string, string]> = [
   ['eng-registration-detail', '/app/engines/registrations/:name', 'app'],
   ['acct-profile', '/app/account/:section?', 'app'],
   ['app-home', '/app', 'app'],
-  ['org-overview', '/app/:org', 'app'],
-  ['org-settings', '/app/:org/settings/:section?', 'app'],
   ['composition-list', '/app/:org/compositions', 'app'],
   ['composition-detail', '/app/:org/compositions/:composition/:tab?', 'app'],
   ['problem-list', '/app/:org/problems', 'app'],
@@ -49,7 +48,7 @@ const SCREENS: Array<[string, string, string]> = [
   ['admin-moderation', '/app/admin/moderation', 'app'],
 ];
 
-const CEILING = 39;
+const CEILING = 38;
 
 describe('screen budget', () => {
   it('serves exactly the listed screens, with their addresses and layouts, in table order', () => {

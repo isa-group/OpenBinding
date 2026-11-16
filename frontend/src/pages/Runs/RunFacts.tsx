@@ -201,7 +201,7 @@ export function Provenance({
         <Fact label="Deployment">{pinText(pins.registration) ?? 'Built-in pool'}</Fact>
         {pins.preset && (
           <Fact label="Run preset">
-            <Link to={`${root}/settings/presets`} viewTransition>
+            <Link to={`${root.replace(/^\/app\//, '/orgs/')}/presets`} viewTransition>
               {pins.preset.slug}
             </Link>{' '}
             <small className="org-muted">its settings were copied when the run started</small>

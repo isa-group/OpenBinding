@@ -181,10 +181,30 @@ Generated from the origin header of each file.
 | `frontend/src/modules/organization/components/organization-selector/index.tsx` | `frontend/src/modules/pricing/components/organization-selector/index.tsx` | adapted |
 | `frontend/src/modules/organization/components/role-badge/index.tsx` | `frontend/src/modules/organization/pages/organization-detail/constants.ts`, `frontend/src/modules/organization/pages/organizations-list/index.tsx` | adapted |
 | `frontend/src/modules/organization/components/role-badge/roles.ts` | `frontend/src/modules/organization/pages/organization-detail/constants.ts` | adapted |
+| `frontend/src/modules/organization/components/user-search-input/index.tsx` | `frontend/src/modules/organization/components/user-search-input/index.tsx` | adapted |
 | `frontend/src/modules/organization/contexts/organizationContext.ts` | `frontend/src/modules/organization/contexts/organizationContext.ts` | adapted |
 | `frontend/src/modules/organization/hooks/useOrgReparenting.ts` | `frontend/src/modules/organization/hooks/useOrgReparenting.ts` | adapted |
 | `frontend/src/modules/organization/hooks/useOrganization.ts` | `frontend/src/modules/organization/hooks/useOrganization.ts` | adapted |
 | `frontend/src/modules/organization/pages/create-organization/index.tsx` | `frontend/src/modules/organization/pages/create-organization/index.tsx` | adapted |
+| `frontend/src/modules/organization/pages/organization-detail/components/AddMemberModal.tsx` | `frontend/src/modules/organization/pages/organization-detail/components/AddMemberModal.tsx` | adapted |
+| `frontend/src/modules/organization/pages/organization-detail/components/ChildRolesManager.tsx` | `frontend/src/modules/organization/pages/organization-detail/components/ChildRolesManager.tsx` | adapted |
+| `frontend/src/modules/organization/pages/organization-detail/components/CreateSubOrgModal.tsx` | `frontend/src/modules/organization/pages/organization-detail/components/CreateSubOrgModal.tsx` | adapted |
+| `frontend/src/modules/organization/pages/organization-detail/components/EditOrgModal.tsx` | `frontend/src/modules/organization/pages/organization-detail/components/EditOrgModal.tsx` | adapted |
+| `frontend/src/modules/organization/pages/organization-detail/components/HierarchyTab.tsx` | `frontend/src/modules/organization/pages/organization-detail/components/HierarchyTab.tsx` | adapted |
+| `frontend/src/modules/organization/pages/organization-detail/components/InvitationsTab.tsx` | `frontend/src/modules/organization/pages/organization-detail/components/InvitationsTab.tsx` | adapted |
+| `frontend/src/modules/organization/pages/organization-detail/components/InviteModal.tsx` | `frontend/src/modules/organization/pages/organization-detail/components/InviteModal.tsx` | adapted |
+| `frontend/src/modules/organization/pages/organization-detail/components/MembersTab.tsx` | `frontend/src/modules/organization/pages/organization-detail/components/MembersTab.tsx` | adapted |
+| `frontend/src/modules/organization/pages/organization-detail/components/OrgAvatarModal.tsx` | `frontend/src/modules/organization/pages/organization-detail/components/OrgAvatarModal.tsx` | adapted |
+| `frontend/src/modules/organization/pages/organization-detail/components/OrgTreeNode.tsx` | `frontend/src/modules/organization/pages/organization-detail/components/OrgTreeNode.tsx` | adapted |
+| `frontend/src/modules/organization/pages/organization-detail/components/OrganizationExitButton.tsx` | `frontend/src/modules/organization/pages/organization-detail/components/OrganizationExitButton.tsx` | adapted |
+| `frontend/src/modules/organization/pages/organization-detail/components/OverviewTab.tsx` | `frontend/src/modules/organization/pages/organization-detail/components/OverviewTab.tsx` | adapted |
+| `frontend/src/modules/organization/pages/organization-detail/components/ResourceTab.tsx` | `frontend/src/modules/organization/pages/organization-detail/components/PricingsTab.tsx` | pattern-only |
+| `frontend/src/modules/organization/pages/organization-detail/components/ShareOrgMenu.tsx` | `frontend/src/modules/organization/pages/organization-detail/components/ShareOrgMenu.tsx` | adapted |
+| `frontend/src/modules/organization/pages/organization-detail/components/TabCard.tsx` | `frontend/src/modules/organization/pages/organization-detail/components/MembersTab.tsx`, `frontend/src/modules/organization/pages/organization-detail/components/InvitationsTab.tsx` | pattern-only |
+| `frontend/src/modules/organization/pages/organization-detail/constants.ts` | `frontend/src/modules/organization/pages/organization-detail/constants.ts` | adapted |
+| `frontend/src/modules/organization/pages/organization-detail/hooks.ts` | `frontend/src/modules/organization/pages/organization-detail/hooks.ts` | verbatim |
+| `frontend/src/modules/organization/pages/organization-detail/index.tsx` | `frontend/src/modules/organization/pages/organization-detail/index.tsx` | adapted |
+| `frontend/src/modules/organization/pages/organization-detail/types.ts` | `frontend/src/modules/organization/pages/organization-detail/types.ts` | adapted |
 | `frontend/src/modules/organization/pages/organizations-list/index.tsx` | `frontend/src/modules/organization/pages/organizations-list/index.tsx` | adapted |
 | `frontend/src/modules/organization/pages/public-organizations-list/index.tsx` | `frontend/src/modules/organization/pages/public-organizations-list/index.tsx` | adapted |
 | `frontend/src/modules/organization/utils/filter-tree.ts` | `frontend/src/modules/organization/pages/organizations-list/index.tsx` | adapted |

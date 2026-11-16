@@ -1,5 +1,5 @@
-import type { OrganizationAuditEvent } from '../../api/platform';
-import { inInterfaceWords } from '../../components/ui/interfaceWords';
+import type { OrganizationAuditEvent } from '../../../../api/platform';
+import { inInterfaceWords } from '../../../../components/ui/interfaceWords';
 
 /** The kinds the timeline groups events into, with the dot colour of each. */
 export type AuditKind = 'organization' | 'members' | 'problems' | 'content' | 'other';

@@ -1,25 +1,28 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { HttpError } from '../../api/client';
-import type { OrganizationAuditEvent } from '../../api/platform';
-import { auditFixture } from './auditFixture';
-import { org } from '../../features/workspace/testKit';
-import { member, renderScreen } from './testKit';
-import { OrgAudit } from './OrgAudit';
+import { HttpError } from '../../../../../api/client';
+import type { OrganizationAuditEvent } from '../../../../../api/platform';
+import { auditFixture } from '../auditFixture';
+import { org } from '../../../../../features/workspace/testKit';
+import { member, renderScreen } from '../../../../../pages/Organization/testKit';
+import AuditTab from './AuditTab';
 
 const platform = vi.hoisted(() => ({ organizationAudit: vi.fn(), members: vi.fn() }));
 
-vi.mock('../../api/platform', async () => ({
-  ...(await vi.importActual<typeof import('../../api/platform')>('../../api/platform')),
+vi.mock('../../../../../api/platform', async () => ({
+  ...(await vi.importActual<typeof import('../../../../../api/platform')>(
+    '../../../../../api/platform'
+  )),
   platformApi: platform,
 }));
 
 const group = org('isa-demo', { name: 'ISA Demo Group' });
 
 function renderAudit(organizations = [group], slug = 'isa-demo') {
-  return renderScreen(<OrgAudit />, {
-    path: '/app/:org/settings/audit',
-    url: `/app/${slug}/settings/audit`,
+  const organization = organizations.find(item => item.slug === slug) ?? group;
+  return renderScreen(<AuditTab organization={organization} />, {
+    path: '/orgs/:org/audit',
+    url: `/orgs/${slug}/audit`,
     organizations,
   });
 }
@@ -60,7 +63,7 @@ describe('Audit log', () => {
   it('draws the events as a timeline, newest first, each with its kind, sentence and time', async () => {
     renderAudit();
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Audit log' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 2, name: 'Audit log' })).toBeInTheDocument();
     expect(screen.getByText('Who did what in ISA Demo Group.')).toBeInTheDocument();
     const timeline = await screen.findByRole('list', { name: 'Audit events, newest first' });
     const items = within(timeline).getAllByRole('listitem');
@@ -325,14 +328,11 @@ describe('Audit log', () => {
     expect(alert).toHaveTextContent('Your role in ISA Demo Group is MEMBER.');
     expect(within(alert).getByRole('link', { name: 'Members' })).toHaveAttribute(
       'href',
-      '/app/isa-demo/settings/members'
+      '/orgs/isa-demo/members'
     );
     expect(platform.organizationAudit).not.toHaveBeenCalled();
     expect(screen.queryByRole('button', { name: 'Export this view' })).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Action')).not.toBeInTheDocument();
-    expect(
-      within(screen.getByRole('navigation', { name: 'Organization settings' })).getByText('ADMIN')
-    ).toBeInTheDocument();
   });
 
   it('shows the same explanation when the server refuses a role that looked sufficient', async () => {
@@ -358,14 +358,5 @@ describe('Audit log', () => {
       await screen.findByRole('list', { name: 'Audit events, newest first' })
     ).toBeInTheDocument();
     expect(platform.organizationAudit).toHaveBeenCalledTimes(2);
-  });
-
-  it('answers the neutral message for an organization the account cannot see', async () => {
-    renderAudit([group], 'ghost');
-
-    expect(
-      await screen.findByRole('heading', { name: 'Organization not available' })
-    ).toBeInTheDocument();
-    expect(platform.organizationAudit).not.toHaveBeenCalled();
   });
 });

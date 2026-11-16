@@ -168,7 +168,7 @@ export function AcceptInvitation() {
           <p className="invite-note">{ROLE_COPY[member.role]}</p>
           <Link
             className="invite-btn invite-btn-primary"
-            to={organization ? `/app/${organization.slug}` : '/app'}
+            to={organization ? `/orgs/${organization.slug}` : '/me/orgs'}
             viewTransition
           >
             Open the organization

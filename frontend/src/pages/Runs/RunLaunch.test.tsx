@@ -601,7 +601,7 @@ describe('Start a run', () => {
       expect(screen.queryByRole('radiogroup', { name: 'Engine' })).not.toBeInTheDocument();
       expect(screen.getByRole('link', { name: 'Manage run presets' })).toHaveAttribute(
         'href',
-        '/app/isa-demo/settings/presets'
+        '/orgs/isa-demo/presets'
       );
       expect(presets.list).toHaveBeenCalledWith('isa-demo', { limit: 200 });
 

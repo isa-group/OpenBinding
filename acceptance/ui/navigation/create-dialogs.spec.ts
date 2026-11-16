@@ -13,7 +13,7 @@ test('New organization opens the creation page, and creating lab-two opens the n
   await expect.poll(() => pathAndSearch(page)).toBe('/orgs/new');
   await page.getByLabel(/^Name/).fill('lab-two');
   await page.getByRole('button', { name: 'Create organization' }).click();
-  await expect.poll(() => pathAndSearch(page)).toBe('/app/lab-two');
+  await expect.poll(() => pathAndSearch(page)).toBe('/orgs/lab-two');
 });
 
 test('cancelling the creation page goes back and creates nothing', async ({ page }) => {

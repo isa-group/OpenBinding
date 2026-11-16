@@ -33,7 +33,7 @@ export function OrgFrame({
   const items: Crumb[] = [
     { label: 'Home', to: '/app' },
     trail.length > 0
-      ? { label: organization.name, to: `/app/${organization.slug}` }
+      ? { label: organization.name, to: `/orgs/${organization.slug}` }
       : { label: organization.name },
     ...trail,
   ];

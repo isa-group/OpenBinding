@@ -1287,7 +1287,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('radiogroup', { name: 'Engine' })).toHaveCount(0);
       await expect(main.getByRole('link', { name: 'Manage run presets' })).toHaveAttribute(
         'href',
-        `${ROOT}/settings/presets`
+        '/orgs/isa-demo/presets'
       );
       await capture(page, testInfo, `launch-${name}-preset`);
       await next.click();

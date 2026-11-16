@@ -1,5 +1,5 @@
-import { QuotaError } from '../../api/auth';
-import type { AuthFailure } from '../../modules/core/api/errors';
+import { QuotaError } from '../../../../api/auth';
+import type { AuthFailure } from '../../../core/api/errors';
 
 /** The allowance a 402 names: `{ limit_id: 'members', limit: 15, used: 16 }`. */
 export function quotaOf(error: unknown): QuotaError['quota'] | undefined {

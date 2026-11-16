@@ -26,7 +26,7 @@ describe('OrgFrame', () => {
     expect(crumbs()).toEqual(['Home', 'ISA Demo Group', 'Workbench']);
     expect(screen.getByRole('link', { name: 'ISA Demo Group' })).toHaveAttribute(
       'href',
-      '/app/isa-demo'
+      '/orgs/isa-demo'
     );
     expect(screen.queryByRole('link', { name: 'Overview' })).not.toBeInTheDocument();
     expect(screen.getByText('content').parentElement).toHaveAttribute('aria-live', 'polite');

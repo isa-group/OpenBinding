@@ -1,6 +1,6 @@
 import type { Organization } from '../../api/platform';
 import { COMPOSITIONS_SEGMENT } from '../../routes/paths/compositions';
-import { PROBLEMS_SEGMENT } from '../../routes/paths/problems';
+import { organizationPath, PROBLEMS_SEGMENT } from '../../routes/paths/problems';
 import { RUNS_SEGMENT } from '../../routes/paths/runs';
 import { STUDIES_SEGMENT } from '../../routes/paths/studies';
 
@@ -48,7 +48,7 @@ function inOrganization(
   suffix: string
 ): MenuEntry {
   return organization
-    ? { label, to: `/app/${organization.slug}${suffix}` }
+    ? { label, to: `${organizationPath(organization.slug)}${suffix}` }
     : { label, hint: NEEDS_ORGANIZATION };
 }
 

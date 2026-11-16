@@ -1,8 +1,8 @@
-import type { EngineCatalogEntry } from '../../api/client';
-import type { PresetOptimization, PresetSettings } from '../../modules/run/api/presetsApi';
-import { presetEngineLabel } from '../../modules/run/utils/preset';
-import type { RunPresetView } from '../../modules/core/api/types';
-import { SLUG_PATTERN, slugFromName } from '../../modules/core/utils/slug';
+import type { EngineCatalogEntry } from '../../../../api/client';
+import type { PresetOptimization, PresetSettings } from '../../../run/api/presetsApi';
+import { presetEngineLabel } from '../../../run/api/presetText';
+import type { RunPresetView } from '../../../core/api/types';
+import { SLUG_PATTERN, slugFromName } from '../../../core/utils/slug';
 
 /**
  * The form of a run preset in the organization settings: what it offers (the engines of the catalog and their modes) and what it

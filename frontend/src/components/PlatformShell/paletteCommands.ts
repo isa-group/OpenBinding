@@ -45,7 +45,7 @@ export function buildCommands({
   ];
 
   for (const item of organizations) {
-    commands.push(command('Organization', item.name, 'Organization', `/app/${item.slug}`));
+    commands.push(command('Organization', item.name, 'Organization', `/orgs/${item.slug}`));
   }
   if (organization) {
     const entries = Object.fromEntries(

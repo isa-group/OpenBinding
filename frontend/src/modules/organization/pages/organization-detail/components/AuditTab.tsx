@@ -1,19 +1,19 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Download } from 'lucide-react';
-import { platformApi } from '../../api/platform';
+import { platformApi } from '../../../../../api/platform';
 import type {
   Organization,
   OrganizationAuditEvent,
   OrganizationAuditPage,
-} from '../../api/platform';
-import { Action } from '../../modules/core/components/action-button';
-import { Notice } from '../../modules/core/components/notice';
-import { Skeleton } from '../../modules/core/components/skeleton';
-import { useCopy } from '../../modules/core/hooks/useCopy';
-import { useAuth } from '../../modules/auth/hooks/useAuth';
-import { formatDateTime } from '../../utils/format';
-import { useResource } from '../../utils/useResource';
+} from '../../../../../api/platform';
+import { Action } from '../../../../core/components/action-button';
+import { Notice } from '../../../../core/components/notice';
+import { Skeleton } from '../../../../core/components/skeleton';
+import { useCopy } from '../../../../core/hooks/useCopy';
+import { useAuth } from '../../../../auth/hooks/useAuth';
+import { formatDateTime } from '../../../../../utils/format';
+import { useResource } from '../../../../../utils/useResource';
 import {
   AUDIT_KINDS,
   KNOWN_ACTIONS,
@@ -24,15 +24,14 @@ import {
   kindOf,
   toCsv,
   type DetailValue,
-} from './auditModel';
-import { atLeast, personName } from '../../modules/organization/utils/org-tree';
-import { isForbidden } from './orgErrors';
-import { generalFailure } from '../../features/workspace/errors';
-import { classifyAuthError, marker } from '../../modules/core/api/errors';
-import { NeutralGate, PageSkeleton, SelectField } from './parts';
-import { OrgSettingsLayout } from './OrgSettingsLayout';
-import { useRouteOrganization } from './useRouteOrganization';
-import './Organization.css';
+} from '../auditModel';
+import { atLeast, personName } from '../../../utils/org-tree';
+import { isForbidden } from '../orgErrors';
+import { generalFailure } from '../../../../../features/workspace/errors';
+import { classifyAuthError, marker } from '../../../../core/api/errors';
+import { SelectField } from '../../../../../pages/Organization/parts';
+import TabCard from './TabCard';
+import '../../../../../pages/Organization/Organization.css';
 
 const PAGE_SIZE = 50;
 const NOT_RECORDED = '__none';
@@ -193,7 +192,7 @@ function EventCard({
   );
 }
 
-function AuditBody({ organization }: { organization: Organization }) {
+export default function AuditBody({ organization }: { organization: Organization }) {
   const { user } = useAuth();
   const slug = organization.slug;
   const role = organization.effective_role;
@@ -250,9 +249,8 @@ function AuditBody({ organization }: { organization: Organization }) {
   };
 
   return (
-    <OrgSettingsLayout
-      organization={organization}
-      section="audit"
+    <TabCard
+      id="audit"
       title="Audit log"
       lede={`Who did what in ${organization.name}.`}
       actions={
@@ -278,7 +276,7 @@ function AuditBody({ organization }: { organization: Organization }) {
           <strong>The audit log needs ADMIN (403)</strong>
           <span>
             Your role in {organization.name} is {role ?? 'none'}. An owner or admin can raise it in{' '}
-            <Link to={`/app/${slug}/settings/members`}>Members</Link>.
+            <Link to={`/orgs/${slug}/members`}>Members</Link>.
           </span>
         </div>
       )}
@@ -411,24 +409,6 @@ function AuditBody({ organization }: { organization: Organization }) {
           )}
         </>
       )}
-    </OrgSettingsLayout>
+    </TabCard>
   );
-}
-
-/** The audit log of an organization (the `audit` section of `org-settings`, `/app/:org/settings/audit`); ADMIN or above. */
-export function OrgAudit() {
-  const { organization, waiting } = useRouteOrganization();
-  if (waiting)
-    return (
-      <div className="org-page">
-        <PageSkeleton />
-      </div>
-    );
-  if (!organization)
-    return (
-      <div className="org-page">
-        <NeutralGate />
-      </div>
-    );
-  return <AuditBody organization={organization} />;
 }

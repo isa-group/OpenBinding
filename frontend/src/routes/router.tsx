@@ -46,6 +46,9 @@ const PublicOrganizationsPage = lazy(
 const OrganizationsListPage = lazy(
   () => import('../modules/organization/pages/organizations-list')
 );
+const OrganizationDetailPage = lazy(
+  () => import('../modules/organization/pages/organization-detail')
+);
 const CreateOrganizationPage = lazy(
   () => import('../modules/organization/pages/create-organization')
 );
@@ -72,8 +75,6 @@ const EngRegistrationDetail = named(
 );
 const AccountPage = named(() => import('../pages/Account/AccountPage'), 'AccountPage');
 const AppHome = named(() => import('../pages/AppHome/AppHome'), 'AppHome');
-const OrgOverview = named(() => import('../pages/Organization/OrgOverview'), 'OrgOverview');
-const OrgSettings = named(() => import('../pages/Organization/OrgSettings'), 'OrgSettings');
 const PublicCompositionList = named(
   () => import('../pages/PublicCompositions/PublicCompositionList'),
   'PublicCompositionList'
@@ -129,6 +130,7 @@ export const screens: Screen[] = [
   // PUBLIC ROUTES (AppLayout: public or authenticated chrome, by session)
   // ═══════════════════════════════════════════════════════════
   { id: 'org-explore', path: '/organizations', layout: 'session', element: <PublicOrganizationsPage /> },
+  { id: 'org-detail', path: '/orgs/:org/:tab?', layout: 'session', element: <OrganizationDetailPage /> },
   { id: 'org-invite-accept', path: '/invitations/accept', layout: 'session', element: <AcceptInvitation /> },
   { id: 'pub-compositions', path: '/compositions', layout: 'session', element: <PublicCompositionList /> },
   { id: 'pub-showcase', path: '/c/:org/:composition', layout: 'session', element: <Showcase /> },
@@ -147,8 +149,6 @@ export const screens: Screen[] = [
   { id: 'eng-registration-detail', path: '/app/engines/registrations/:name', layout: 'app', element: <EngRegistrationDetail /> },
   { id: 'acct-profile', path: '/app/account/:section?', layout: 'app', element: <AccountPage /> },
   { id: 'app-home', path: '/app', layout: 'app', element: <AppHome /> },
-  { id: 'org-overview', path: '/app/:org', layout: 'app', element: <OrgOverview /> },
-  { id: 'org-settings', path: '/app/:org/settings/:section?', layout: 'app', element: <OrgSettings /> },
   { id: 'composition-list', path: '/app/:org/compositions', layout: 'app', element: <CompositionList /> },
   { id: 'composition-detail', path: '/app/:org/compositions/:composition/:tab?', layout: 'app', element: <CompositionDetail /> },
   { id: 'problem-list', path: '/app/:org/problems', layout: 'app', element: <ProblemList /> },

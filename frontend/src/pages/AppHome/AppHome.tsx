@@ -27,7 +27,7 @@ import { useResource } from '../../utils/useResource';
 import { ValueBadge } from '../../modules/core/components/value-badge/ValueBadge';
 import { contractChange } from '../Account/notificationsModel';
 import { usageRows } from '../Account/usageModel';
-import { isForbidden } from '../Organization/orgErrors';
+import { isForbidden } from '../../modules/organization/pages/organization-detail/orgErrors';
 import { generalFailure } from '../../features/workspace/errors';
 import { classifyAuthError, marker } from '../../modules/core/api/errors';
 import {
@@ -83,7 +83,7 @@ function OrgBranch({ node, all }: { node: TreeNode; all: Organization[] }) {
   const source = roleSource(organization, all);
   return (
     <li>
-      <Link to={`/app/${organization.slug}`} viewTransition className="home-org">
+      <Link to={`/orgs/${organization.slug}`} viewTransition className="home-org">
         {node.depth > 0 && <span className="home-org-elbow" aria-hidden="true" />}
         <OrgTile organization={organization} />
         <span className="home-org-body">

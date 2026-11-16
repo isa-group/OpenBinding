@@ -21,7 +21,7 @@ describe('/me/orgs', () => {
     expect(screen.getByText('4 organizations')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'ISA Demo Group' })).toHaveAttribute(
       'href',
-      '/app/isa-demo'
+      '/orgs/isa-demo'
     );
     expect(screen.getByText('Viewer')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'QoS Lab' })).not.toBeInTheDocument();

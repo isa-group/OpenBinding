@@ -1,16 +1,16 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { HttpError, type EngineCatalogEntry, type EngineMode } from '../../api/client';
-import { org } from '../../features/workspace/testKit';
+import { HttpError, type EngineCatalogEntry, type EngineMode } from '../../../../../api/client';
+import { org } from '../../../../../features/workspace/testKit';
 import {
   FEDERATED_PRESET,
   NO_GOAL_PRESET,
   PRESET_ENGINE,
   presetFixture,
   presetPage,
-} from '../../test/fixtures/presets';
-import { renderScreen } from './testKit';
-import { OrgSettings } from './OrgSettings';
+} from '../../../../../test/fixtures/presets';
+import { renderScreen } from '../../../../../pages/Organization/testKit';
+import PresetsTab from './PresetsTab';
 
 const presets = vi.hoisted(() => ({
   list: vi.fn(),
@@ -20,12 +20,14 @@ const presets = vi.hoisted(() => ({
 }));
 const client = vi.hoisted(() => ({ getEngines: vi.fn() }));
 
-vi.mock('../../modules/run/api/presetsApi', async actual => ({
-  ...(await actual<typeof import('../../modules/run/api/presetsApi')>()),
+vi.mock('../../../../run/api/presetsApi', async actual => ({
+  ...(await actual<typeof import('../../../../run/api/presetsApi')>()),
   presetsApi: presets,
 }));
-vi.mock('../../api/client', async () => ({
-  ...(await vi.importActual<typeof import('../../api/client')>('../../api/client')),
+vi.mock('../../../../../api/client', async () => ({
+  ...(await vi.importActual<typeof import('../../../../../api/client')>(
+    '../../../../../api/client'
+  )),
   apiClient: client,
 }));
 
@@ -65,9 +67,10 @@ const refused = (status: number, code: string, message = 'refused') =>
   Object.assign(new HttpError(status, message), { code });
 
 function renderPresets(slug = 'isa-demo') {
-  return renderScreen(<OrgSettings />, {
-    path: '/app/:org/settings/:section?',
-    url: `/app/${slug}/settings/presets`,
+  const organization = [group, viewing].find(item => item.slug === slug) ?? group;
+  return renderScreen(<PresetsTab organization={organization} />, {
+    path: '/orgs/:org/presets',
+    url: `/orgs/${slug}/presets`,
     organizations: [group, viewing],
   });
 }
@@ -98,7 +101,7 @@ describe('the run presets of an organization', () => {
     renderPresets();
 
     expect(
-      await screen.findByRole('heading', { level: 1, name: 'Run presets' })
+      await screen.findByRole('heading', { level: 2, name: 'Run presets' })
     ).toBeInTheDocument();
     expect(presets.list).toHaveBeenCalledWith('isa-demo', { limit: 200 });
     const fast = await card('Fast sampling');
@@ -125,11 +128,6 @@ describe('the run presets of an organization', () => {
     expect(
       within(await card('No goal')).getByText('Chosen for the problem when a run starts')
     ).toBeInTheDocument();
-    expect(
-      within(screen.getByRole('navigation', { name: 'Organization settings' })).getByRole('link', {
-        name: 'Run presets',
-      })
-    ).toHaveAttribute('aria-current', 'page');
   });
 
   it('creates a preset from the engine catalogue, the mode, the options and the optimization', async () => {

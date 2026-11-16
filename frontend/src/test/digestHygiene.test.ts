@@ -63,7 +63,7 @@ const EXEMPT_FILES: readonly string[] = [
   // fixtures: sample data for tests and demos, with realistic digests and ids
   '/src/components/rendering/runResultFixtures.ts',
   '/src/pages/Problems/fixtures.ts',
-  '/src/pages/Organization/auditFixture.ts',
+  '/src/modules/organization/pages/organization-detail/auditFixture.ts',
   '/src/pages/Pricing/pricingFixture.ts',
   '/src/test/fixtures/admin.ts',
   '/src/test/fixtures/agreementCatalog.ts',

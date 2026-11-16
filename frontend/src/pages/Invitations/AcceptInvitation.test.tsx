@@ -200,7 +200,7 @@ describe('AcceptInvitation', () => {
     ).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Open the organization' })).toHaveAttribute(
       'href',
-      '/app/isa-demo'
+      '/orgs/isa-demo'
     );
     expect(screen.queryByLabelText('Invitation token')).not.toBeInTheDocument();
   });
@@ -236,7 +236,7 @@ describe('AcceptInvitation', () => {
     ).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Open the organization' })).toHaveAttribute(
       'href',
-      '/app'
+      '/me/orgs'
     );
   });
 

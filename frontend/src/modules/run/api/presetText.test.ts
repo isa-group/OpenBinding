@@ -9,7 +9,7 @@ import {
   presetOptionsText,
   presetRegistrationText,
   studyPresetRefusal,
-} from './preset';
+} from './presetText';
 
 describe('a run preset on screen', () => {
   it('names an exact engine by name and version, and a built-in one by the name the preset gives', () => {

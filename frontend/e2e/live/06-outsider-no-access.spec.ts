@@ -36,13 +36,14 @@ test.describe('live · lab-outsider has no access to lab-main', () => {
     });
     const token = await signInByApi(page, 'outsider');
 
-    await page.goto(`/app/${ORG}`);
-    await expect(page.getByRole('heading', { name: 'Organization not available' })).toBeVisible();
-    await expect(page.getByText(/It doesn’t exist, or you’re not a member/)).toBeVisible();
+    // The organization page of an organization that publishes nothing is the same in-place 404 as a missing one, and so is
+    // any of its tabs.
+    await page.goto(`/orgs/${ORG}`);
+    await expect(page.getByRole('heading', { name: 'Page not found' })).toBeVisible();
     await capture(page, testInfo, 'outsider-organization');
 
-    await page.goto(`/app/${ORG}/settings`);
-    await expect(page.getByRole('heading', { name: 'Organization not available' })).toBeVisible();
+    await page.goto(`/orgs/${ORG}/members`);
+    await expect(page.getByRole('heading', { name: 'Page not found' })).toBeVisible();
     await capture(page, testInfo, 'outsider-organization-settings');
 
     // Nothing of the organization is on screen. The interface resolves an organization from the account's own list, so it may not

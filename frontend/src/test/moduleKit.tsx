@@ -6,6 +6,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { vi, type Mock } from 'vitest';
 import type { UserProfile } from '../api/auth';
 import { AuthContext } from '../modules/auth/hooks/useAuth';
+import DialogHost from '../modules/core/components/dialog-host';
 import type { Organization } from '../modules/organization/api/organizationsApi';
 import OrganizationContext, {
   type OrganizationContextInterface,
@@ -147,6 +148,7 @@ export function renderModule(element: ReactElement, options: ModuleRenderOptions
               ))}
             </Routes>
             <Where />
+            <DialogHost />
           </OrganizationContext.Provider>
         </AuthContext.Provider>
       </MemoryRouter>

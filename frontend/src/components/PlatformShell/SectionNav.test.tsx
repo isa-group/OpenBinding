@@ -2,7 +2,6 @@ import { render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AccountNav, type AccountSection } from './AccountNav';
-import { OrgNav } from './OrgNav';
 
 const currentOf = (nav: HTMLElement) =>
   within(nav)
@@ -100,16 +99,6 @@ describe('a side navigation that becomes a row that scrolls sideways', () => {
       expect(scrolled).toEqual([{ left: 300 }]);
     }
   );
-
-  it('centres the current settings screen of an organization', () => {
-    render(
-      <MemoryRouter>
-        <OrgNav active="audit" orgName="ISA Demo Group" orgSlug="isa-demo" />
-      </MemoryRouter>
-    );
-
-    expect(scrolled).toEqual([{ left: 300 }]);
-  });
 
   it('never scrolls to before the start of the row', () => {
     vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function rect(

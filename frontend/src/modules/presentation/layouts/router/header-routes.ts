@@ -27,7 +27,7 @@ export const headerRoutes: HeaderRoute[] = [
     name: 'Explore',
     disabled: false,
     children: [
-      { name: 'Organizations', disabled: false, to: '/organizations', match: ['/orgs/'] },
+      { name: 'Organizations', disabled: false, to: '/organizations' },
       { name: 'Compositions', disabled: false, to: '/compositions', match: ['/c/'] },
       { name: 'Engines', disabled: false, to: '/engines' },
     ],

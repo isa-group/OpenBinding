@@ -158,13 +158,13 @@ describe('Home', () => {
     const tree = await screen.findByRole('list', { name: 'Organizations' });
     const items = within(tree).getAllByRole('link');
     expect(items).toHaveLength(3);
-    expect(items[0]).toHaveAttribute('href', '/app/consultora-demo');
+    expect(items[0]).toHaveAttribute('href', '/orgs/consultora-demo');
     expect(within(items[0]).getByText('VIEWER')).toBeInTheDocument();
     expect(within(items[0]).getByText(/consultora-demo · own role/)).toBeInTheDocument();
 
-    const root = items.find(item => item.getAttribute('href') === '/app/isa-demo')!;
+    const root = items.find(item => item.getAttribute('href') === '/orgs/isa-demo')!;
     expect(within(root).getByText(/isa-demo · own role/)).toBeInTheDocument();
-    const child = items.find(item => item.getAttribute('href') === '/app/qos-lab')!;
+    const child = items.find(item => item.getAttribute('href') === '/orgs/qos-lab')!;
     expect(within(child).getByText('OWNER')).toHaveAttribute(
       'title',
       'Inherited from ISA Demo Group'

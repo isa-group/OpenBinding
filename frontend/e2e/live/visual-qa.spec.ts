@@ -404,7 +404,7 @@ const OWNER_STOPS: Stop[] = [
   },
   {
     slug: 'team-organization',
-    path: `/app/${ORG}/settings/members`,
+    path: `/orgs/${ORG}/members`,
     ready: page => page.locator('main').getByRole('heading', { level: 1 }),
   },
 ];
@@ -489,8 +489,8 @@ function problemStops(mobile: boolean): Stop[] {
       : []),
     {
       slug: 'presets',
-      path: `/app/${ORG}/settings/presets`,
-      ready: page => main(page).getByRole('heading', { level: 1, name: 'Run presets' }),
+      path: `/orgs/${ORG}/presets`,
+      ready: page => main(page).getByRole('heading', { level: 2, name: 'Run presets' }),
     },
   ];
 }
