@@ -234,10 +234,15 @@ async def test_an_unreadable_composition_answers_as_a_missing_one(api_client, re
     assert (await api_client.get(f"{base}/private", headers=headers)).status_code == 200
 
 
-async def test_an_anonymous_caller_is_refused(api_client, registration, db_session, gate):  # noqa: F811
+async def test_an_anonymous_caller_finds_no_organization_that_publishes_nothing(
+    api_client, registration, db_session, gate,  # noqa: F811
+):
     _, headers, org = await owner(api_client, registration, db_session, gate)
+    await create(api_client, headers, org, "private")
 
-    assert (await api_client.get(f"/v1/organizations/{org}/compositions")).status_code == 401
+    # The list is open to anybody, for an organization's public compositions only (F2c G6, Q8).
+    assert (await api_client.get(f"/v1/organizations/{org}/compositions")).status_code == 404
+    assert (await api_client.post(f"/v1/organizations/{org}/compositions", json={"slug": "x", "name": "X"})).status_code == 401
 
 
 async def test_the_list_filters_on_the_problem_a_version_links(api_client, registration, db_session, gate):  # noqa: F811

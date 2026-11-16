@@ -61,10 +61,11 @@ from ....models.errors import (
     api_error,
 )
 from ....security.apikeys import authenticated_api_key, boundary_of
-from ..application import compositions, derive, evaluate, language, seal, versions
+from ..application import compositions, derive, evaluate, language, listing, seal, versions
 from ..application.fork import NameTaken, fork_composition
 from ..application.language import diagnostic_view
 from ..domain.records import values_json
+from .list_query import ListQuery, facets_view, list_query
 from .language_routes import MAX_DOCUMENT_BYTES, YAML_BODY, YAML_MEDIA_TYPES, document_body
 from .schemas import (
     CheckResult,
@@ -150,9 +151,16 @@ async def _viewed(session: AsyncSession, composition: Composition, organization:
     return _view(composition, organization, summary)
 
 
-@router.get("", response_model=CompositionList, operation_id="listCompositions", responses=_UNREADABLE)
+@router.get(
+    "",
+    response_model=CompositionList,
+    operation_id="listCompositions",
+    responses=_UNREADABLE,
+    dependencies=[Depends(charge_anonymous_read)],
+)
 async def list_compositions(
     org: str,
+    response: Response,
     kind: CompositionKindName | None = Query(default=None),
     q: str | None = Query(default=None, max_length=160, description="Text in the name or the slug."),
     archived: bool | None = Query(default=None, description="Only archived (`true`) or only active (`false`) ones."),
@@ -161,24 +169,47 @@ async def list_compositions(
         description="Only compositions with a version linking a revision of this problem (slug or id); none for an "
         "unknown one.",
     ),
-    sort: Literal["name", "updated"] = Query(
-        default="name", description="By `name` (the default), or the most recently `updated` first.",
-    ),
+    query: ListQuery = Depends(list_query("name")),
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
-    user: User = Depends(get_current_user),
+    user: User | None = Depends(get_reader),
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> CompositionList:
-    """The organization's compositions, by name or the most recently updated first."""
-    organization = await compositions.organization_for(session, org, user, OrganizationRole.VIEWER)
-    page = await compositions.list_compositions(
-        session, organization.id, kind=CompositionKind(kind) if kind else None, q=q, archived=archived,
-        problem=problem, sort=sort, limit=limit, offset=offset,
+    """The organization's compositions, by name, the most recently updated first, by tasks or by cost, with the
+    facets of every match.
+
+    A member reads them all. Anybody else, with no credential too, reads its public compositions (public, not
+    archived, with a version), redacted as a public reader's; an organization that publishes none answers as a
+    missing one, the same 404 as an unreadable composition (Q8).
+    """
+    organization = await compositions.organization_by_ref(session, org)
+    missing = api_error(status.HTTP_404_NOT_FOUND, "not_found", "Organization not found.")
+    if organization is None:
+        raise missing
+    role = await compositions.effective_role(session, organization.id, user) if user is not None else None
+    reader = compositions.Reader.member(role) if role is not None else compositions.Reader.anybody()
+    if reader.public and not await compositions.publishes(session, organization.id):
+        raise missing
+    problem_id = None
+    if problem is not None:
+        problem_id = await compositions.problem_id_of(session, organization.id, problem)
+        if problem_id is None:
+            return CompositionList(compositions=[], total=0, limit=limit, offset=offset)
+    kinds = (query.kinds or set()) | ({CompositionKind(kind)} if kind else set())
+    rows = await compositions.matching(
+        session, organization_ids=[organization.id], public_only=reader.public, kinds=kinds or None, q=q,
+        archived=archived, problem_id=problem_id,
     )
-    found = await versions.summaries(session, [row.id for row in page.compositions])
+    listed = listing.arrange(
+        await listing.gather(session, rows), owners=query.owners, bounds=query.bounds, sort=query.sort,
+        order=query.order, limit=limit, offset=offset,
+    )
+    _read_headers(response.headers, reader)
+    views = [_view(entry.composition, entry.organization, entry.summary) for entry in listed.entries]
+    if reader.public:
+        views = [view.model_copy(update={"created_by_id": None}) for view in views]
     return CompositionList(
-        compositions=[_view(row, organization, found[row.id]) for row in page.compositions],
-        total=page.total, limit=limit, offset=offset,
+        compositions=views, total=listed.total, limit=limit, offset=offset, facets=facets_view(listed.facets),
     )
 
 

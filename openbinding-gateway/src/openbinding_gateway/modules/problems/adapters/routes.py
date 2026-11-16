@@ -132,8 +132,10 @@ def _problem_view(
     problem: BindingCase,
     latest: BindingCaseRevision | None = None,
     compilation: ProblemCompilation | None = None,
+    revision_count: int | None = None,
 ) -> ProblemView:
     return ProblemView(
+        revision_count=revision_count if revision_count is not None else (latest.revision if latest else 0),
         id=problem.id, organization_id=problem.organization_id, slug=problem.slug, name=problem.name,
         description=problem.description, created_by_id=problem.created_by_id,
         created_at=problem.created_at, updated_at=problem.updated_at,
@@ -199,9 +201,13 @@ async def list_problems(
     rows = (await session.scalars(query.order_by(BindingCase.name, BindingCase.slug).offset(offset).limit(limit))).all()
     latest = await problems.latest_revisions(session, [row.id for row in rows])
     compiled = await problems.current_compilations(session, [revision.id for revision in latest.values()])
+    counted = await problems.revision_counts(session, [row.id for row in rows])
     return ProblemList(
         problems=[
-            _problem_view(row, latest.get(row.id), compiled.get(latest[row.id].id) if row.id in latest else None)
+            _problem_view(
+                row, latest.get(row.id), compiled.get(latest[row.id].id) if row.id in latest else None,
+                counted.get(row.id, 0),
+            )
             for row in rows
         ],
         total=total, limit=limit, offset=offset,

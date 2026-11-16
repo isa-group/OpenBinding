@@ -353,6 +353,9 @@ def required_permissions(path: str, method: str) -> frozenset[str]:
     if path == "/v1/users":
         # Finding users by username, to invite them to an organization.
         return frozenset({ApiKeyPermission.ORGANIZATIONS_READ.value})
+    if path.startswith("/v1/users/me/compositions"):
+        # The caller's compositions across their organizations: a read of compositions.
+        return frozenset({ApiKeyPermission.COMPOSITIONS_READ.value})
     if path.startswith("/v1/users/me"):
         return frozenset(
             {ApiKeyPermission.ACCOUNT_READ.value}

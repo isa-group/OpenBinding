@@ -22,7 +22,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 from fastapi import HTTPException, status
-from sqlalchemy import delete, func, or_, select
+from sqlalchemy import delete, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -36,6 +36,7 @@ from ....db.models import (
     CompositionKind,
     CompositionVersion,
     Organization,
+    OrganizationMembership,
     OrganizationRole,
     User,
 )
@@ -49,14 +50,6 @@ from ...shared.application import audit
 TARGET = "Composition"
 #: The visibility anybody reads; the other one, ``private``, is for the organization's members.
 PUBLIC = "public"
-
-
-@dataclass(frozen=True)
-class Page:
-    """One page of an organization's compositions, and how many match in all."""
-
-    compositions: list[Composition]
-    total: int
 
 
 # -- Access ----------------------------------------------------------------------------------------------
@@ -104,7 +97,7 @@ class Reader:
         return cls(None, True)
 
 
-def _unreadable() -> HTTPException:
+def unreadable() -> HTTPException:
     """The one 404 a caller who is not a member gets: the same body for a missing organization, a missing
     composition and a private one, so it says nothing of what exists."""
     return api_error(status.HTTP_404_NOT_FOUND, "not_found", "Composition not found.")
@@ -121,13 +114,13 @@ async def readable_composition(
     """
     organization = await organization_by_ref(session, org)
     if organization is None:
-        raise _unreadable()
+        raise unreadable()
     role = await effective_role(session, organization.id, user) if user is not None else None
     if role is not None:
         return organization, await required_composition(session, organization, ref), Reader.member(role)
     found = await composition_by_ref(session, organization.id, ref)
     if found is None or found.visibility != PUBLIC:
-        raise _unreadable()
+        raise unreadable()
     return organization, found, Reader.anybody()
 
 
@@ -167,103 +160,78 @@ async def required_composition(session: AsyncSession, organization: Organization
 # -- Listing ---------------------------------------------------------------------------------------------
 
 
-#: How ``list_compositions`` orders: by name, or the most recently updated first; the slug breaks ties.
-_ORDER = {
-    "name": (Composition.name, Composition.slug),
-    "updated": (Composition.updated_at.desc(), Composition.slug),
-}
+def published():
+    """What makes a composition one anybody reads in a list: public, not archived, with a version."""
+    return (
+        Composition.visibility == PUBLIC,
+        Composition.archived.is_(False),
+        select(CompositionVersion.id).where(CompositionVersion.composition_id == Composition.id).exists(),
+    )
 
 
-async def list_compositions(
+async def readable_organization_ids(session: AsyncSession, user: User) -> list[uuid.UUID]:
+    """Every organization ``user`` holds a role in, directly or through an ancestor, in one recursive query."""
+    direct = select(OrganizationMembership.organization_id).where(OrganizationMembership.user_id == user.id)
+    below = select(Organization.id.label("id")).where(Organization.id.in_(direct)).cte(
+        name="readable_organizations", recursive=True,
+    )
+    below = below.union_all(select(Organization.id).join(below, Organization.parent_id == below.c.id))
+    return list(dict.fromkeys((await session.scalars(select(below.c.id))).all()))
+
+
+async def matching(
     session: AsyncSession,
-    organization_id: uuid.UUID,
     *,
-    kind: CompositionKind | None = None,
+    organization_ids: list[uuid.UUID] | None = None,
+    public_only: bool = False,
+    kinds: set[CompositionKind] | None = None,
     q: str | None = None,
     archived: bool | None = None,
-    problem: str | None = None,
-    sort: Literal["name", "updated"] = "name",
-    limit: int = 50,
-    offset: int = 0,
-) -> Page:
-    """The organization's compositions by name (or the most recently updated first), filtered by kind, by a
-    text in name or slug, by archived, and by ``problem`` (slug or id): a version links one of its revisions.
-    An unknown problem matches nothing."""
-    query = select(Composition).where(Composition.organization_id == organization_id)
-    if problem is not None:
-        found = await problem_by_ref(session, organization_id, problem)
-        if found is None:
-            return Page([], 0)
+    problem_id: uuid.UUID | None = None,
+    organization_slug: str | None = None,
+) -> list[tuple[Composition, Organization]]:
+    """Every composition, with its organization, that the filters keep, unpaged and unordered: of
+    ``organization_ids`` (any when ``None``), only the ``published`` ones when ``public_only``, of one of
+    ``kinds``, with a text in name or slug, archived or not, with a version linking a revision of the problem
+    ``problem_id``, and of the organization ``organization_slug``. Sorting, bounds, paging and facets are
+    ``listing``'s."""
+    query = select(Composition, Organization).join(Organization, Organization.id == Composition.organization_id)
+    if organization_ids is not None:
+        query = query.where(Composition.organization_id.in_(organization_ids))
+    if public_only:
+        query = query.where(*published())
+    if problem_id is not None:
         query = query.where(Composition.id.in_(
             select(CompositionVersion.composition_id)
             .join(BindingCaseRevision, BindingCaseRevision.id == CompositionVersion.revision_id)
-            .where(BindingCaseRevision.binding_case_id == found.id)
+            .where(BindingCaseRevision.binding_case_id == problem_id)
         ))
-    if kind is not None:
-        query = query.where(Composition.kind == kind)
+    if kinds:
+        query = query.where(Composition.kind.in_(list(kinds)))
     if archived is not None:
         query = query.where(Composition.archived.is_(archived))
+    if organization_slug:
+        query = query.where(Organization.slug == organization_slug)
     if q:
         pattern = like_contains(q)
         query = query.where(or_(
             Composition.name.ilike(pattern, escape=LIKE_ESCAPE),
             Composition.slug.ilike(pattern, escape=LIKE_ESCAPE),
         ))
-    total = int(await session.scalar(select(func.count()).select_from(query.subquery())) or 0)
-    rows = (await session.scalars(
-        query.order_by(*_ORDER[sort]).offset(offset).limit(limit)
-    )).all()
-    return Page(list(rows), total)
+    return [(composition, owner) for composition, owner in (await session.execute(query)).all()]
 
 
-@dataclass(frozen=True)
-class PublicPage:
-    """One page of the public compositions of every organization, each with its organization, and how many
-    match in all."""
-
-    compositions: list[tuple[Composition, Organization]]
-    total: int
+async def publishes(session: AsyncSession, organization_id: uuid.UUID) -> bool:
+    """Whether the organization has a composition anybody reads in a list (``published``)."""
+    return await session.scalar(
+        select(Composition.id).where(Composition.organization_id == organization_id, *published()).limit(1)
+    ) is not None
 
 
-async def list_public(
-    session: AsyncSession,
-    *,
-    kind: CompositionKind | None = None,
-    q: str | None = None,
-    organization: str | None = None,
-    limit: int = 24,
-    offset: int = 0,
-) -> PublicPage:
-    """The public compositions of every organization that are not archived and have a version, the most
-    recently changed first, filtered by kind, by a text in name or slug, and by the organization's slug.
-
-    Only what anybody reads is listed, so an organization with no public composition does not appear, and a
-    filter on one answers an empty page whether it exists or not.
-    """
-    query = (
-        select(Composition, Organization)
-        .join(Organization, Organization.id == Composition.organization_id)
-        .where(
-            Composition.visibility == PUBLIC,
-            Composition.archived.is_(False),
-            select(CompositionVersion.id).where(CompositionVersion.composition_id == Composition.id).exists(),
-        )
-    )
-    if kind is not None:
-        query = query.where(Composition.kind == kind)
-    if organization:
-        query = query.where(Organization.slug == organization)
-    if q:
-        pattern = like_contains(q)
-        query = query.where(or_(
-            Composition.name.ilike(pattern, escape=LIKE_ESCAPE),
-            Composition.slug.ilike(pattern, escape=LIKE_ESCAPE),
-        ))
-    total = int(await session.scalar(select(func.count()).select_from(query.subquery())) or 0)
-    rows = (await session.execute(
-        query.order_by(Composition.updated_at.desc(), Composition.slug, Composition.id).offset(offset).limit(limit)
-    )).all()
-    return PublicPage([(composition, owner) for composition, owner in rows], total)
+async def problem_id_of(session: AsyncSession, organization_id: uuid.UUID, problem: str) -> uuid.UUID | None:
+    """The id of the organization's problem ``problem`` (slug or id), ``None`` when there is none."""
+    found = await problem_by_ref(session, organization_id, problem)
+    return found.id if found is not None else None
 
 
 # -- Writing ---------------------------------------------------------------------------------------------

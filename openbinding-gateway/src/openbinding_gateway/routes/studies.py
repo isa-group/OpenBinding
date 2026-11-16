@@ -215,17 +215,33 @@ async def _definition(
     return stored
 
 
-@router.get("/studies", response_model=list[StudyView], operation_id="listStudies")
+@router.get(
+    "/studies",
+    response_model=list[StudyView],
+    operation_id="listStudies",
+    responses={200: {"headers": {"X-Total-Count": {
+        "description": "How many studies the caller reads in all, whatever the page.", "schema": {"type": "integer"},
+    }}}},
+)
 async def list_studies(
-    org: str, include_archived: bool = False,
+    org: str,
+    response: Response,
+    include_archived: bool = False,
+    limit: int | None = Query(default=None, ge=1, le=200, description="At most this many; all when absent."),
+    offset: int = Query(default=0, ge=0),
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> list[StudyView]:
+    """The organization's studies by name, paged with ``limit`` and ``offset``; the total is ``X-Total-Count``."""
     organization = await _organization(session, org, user, OrganizationRole.VIEWER)
     rows = (await session.execute(
-        select(Study).where(Study.organization_id == organization.id).order_by(Study.name)
+        select(Study).where(Study.organization_id == organization.id).order_by(Study.name, Study.slug)
     )).scalars().all()
-    return [_study_view(row) for row in rows if (include_archived or not row.archived) and _study_engines_allowed(user, row.definition)]
+    readable = [
+        row for row in rows if (include_archived or not row.archived) and _study_engines_allowed(user, row.definition)
+    ]
+    response.headers["X-Total-Count"] = str(len(readable))
+    return [_study_view(row) for row in readable[offset:offset + limit if limit is not None else None]]
 
 
 @router.post("/studies", response_model=StudyView, status_code=201, operation_id="createStudy")

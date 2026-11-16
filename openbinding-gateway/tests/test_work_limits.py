@@ -469,6 +469,7 @@ COMPOSITION = "/v1/organizations/{org}/compositions/{composition}"
 ANONYMOUS_REQUESTS = {
     ("GET", "/v1/compositions"): ("/v1/compositions", 200),
     ("GET", "/v1/organizations/public"): ("/v1/organizations/public", 200),
+    ("GET", "/v1/organizations/{org}/compositions"): ("/v1/organizations/no-such-org/compositions", 404),
     ("GET", "/v1/organizations/{org}/profile"): ("/v1/organizations/no-such-org/profile", 404),
     ("GET", "/v1/invitations/{code}/preview"): ("/v1/invitations/0000000000000000/preview", 404),
     ("GET", COMPOSITION): ("/v1/organizations/{org}/compositions/none", 404),
