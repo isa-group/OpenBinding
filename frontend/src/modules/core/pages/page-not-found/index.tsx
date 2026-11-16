@@ -29,7 +29,7 @@ export default function NotFoundPage() {
             Check the address, or sign in if it belongs to an organization you are part of.
           </p>
 
-          <div className="mx-auto mt-10 mb-16 h-65 sm:mt-20 sm:mb-20">
+          <div className="mx-auto mt-10 mb-16 h-65 w-full max-w-[480px] sm:mt-20 sm:mb-20">
             <Logo404 />
           </div>
 

@@ -1,10 +1,17 @@
 // Adapted from SPHERE frontend/src/modules/core/components/404-logo/index.tsx (revision 73779a8a),
 // https://github.com/SCORELabUS/SPHERE. Copyright (c) 2024 Alejandro García Fernández.
 // MIT licence: the full text is in THIRD_PARTY_NOTICES.md.
-// Changes: the illustration colours are theme tokens (styles/tailwind.css) instead of hex values.
+// Changes: the illustration colours are theme tokens (styles/tailwind.css) instead of hex values; it scales to its box
+// (a viewBox instead of a fixed 480 px width, which widened a phone by 106 px) and is hidden from assistive technology.
 
 const Logo404 = () => (
-  <svg width={480} height={360} fill="none" xmlns="http://www.w3.org/2000/svg">
+  <svg
+    viewBox="0 0 480 360"
+    className="h-full w-full max-w-[480px]"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    aria-hidden="true"
+  >
     <path
       fillRule="evenodd"
       clipRule="evenodd"
