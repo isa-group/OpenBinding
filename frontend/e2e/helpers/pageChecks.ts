@@ -282,11 +282,24 @@ export async function measurePage(page: Page): Promise<PageMeasure> {
       );
     }
 
+    // A class that names a backdrop counts (`ui-modal-backdrop`), a Tailwind backdrop filter (`backdrop-blur-xl`) does not.
+    const namesBackdrop = (element: Element) =>
+      String(element.getAttribute('class') ?? '')
+        .split(/\s+/)
+        .some(token => /backdrop$/i.test(token));
     const overlays = [
       ...document.querySelectorAll(
         '[role="dialog"], [aria-modal="true"], [class*="cookie" i], [class*="consent" i], [class*="overlay" i], [class*="backdrop" i]'
       ),
     ]
+      .filter(
+        element =>
+          !/backdrop/i.test(element.getAttribute('class') ?? '') ||
+          element.matches(
+            '[role="dialog"], [aria-modal="true"], [class*="cookie" i], [class*="consent" i], [class*="overlay" i]'
+          ) ||
+          namesBackdrop(element)
+      )
       .filter(visible)
       .map(describe)
       .slice(0, 4);
