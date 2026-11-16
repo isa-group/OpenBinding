@@ -171,13 +171,17 @@ async def test_account_deletion_keeps_authorship_on_the_pseudonymised_account_no
     assert org_res.status_code == 201
     org_id = uuid.UUID(org_res.json()["id"])
 
-    # Add owner2 as OWNER
+    # Owner1 hands the organization over to owner2 (one owner, B8): owner1 stays on as an admin.
     add_owner2 = await api_client.put(
         f"/v1/organizations/{org_slug}/members/{owner2['id']}",
         headers=owner1_headers,
-        json={"user_id": owner2["id"], "role": "OWNER"},
+        json={"user_id": owner2["id"], "role": "ADMIN"},
     )
     assert add_owner2.status_code == 200
+    handed = await api_client.put(
+        f"/v1/organizations/{org_slug}/owner", headers=owner1_headers, json={"user_id": owner2["id"]}
+    )
+    assert handed.status_code == 200, handed.text
 
     # Owner1 uploads a problem of the organization
     await upload_problem(api_client, owner1_headers, org_slug, slug="case-1")

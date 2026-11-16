@@ -1075,23 +1075,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/invitations/accept": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Accept Invitation */
-        post: operations["acceptOrganizationInvitation"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/invitations/{code}/join": {
         parameters: {
             query?: never;
@@ -1808,14 +1791,11 @@ export interface paths {
         get: operations["listOrganizationInvitations"];
         put?: never;
         /**
-         * Invite Member
-         * @description Invite to the organization (ADMIN).
-         *
-         *     With ``expires_in_days`` and ``max_uses`` (or an empty body): a shareable code, as SPHERE's, that joins
-         *     whoever holds it as MEMBER (``POST /v1/invitations/{code}/join``); a non-member gets 404. With ``email``
-         *     and ``role``: the email invitation and its ``obi_`` token, until B8 removes them.
+         * Create Invitation
+         * @description A shareable invitation code (ADMIN), as SPHERE's: whoever holds it joins as MEMBER
+         *     (``POST /v1/invitations/{code}/join``); an empty body takes the defaults. A non-member gets 404.
          */
-        post: operations["inviteOrganizationMember"];
+        post: operations["createOrganizationInvitation"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5432,55 +5412,6 @@ export interface components {
                 resourceTarget: components["schemas"]["InstanceManifest"]["$defs"]["localPath"] | components["schemas"]["InstanceManifest"]["$defs"]["registeredRef"] | components["schemas"]["InstanceManifest"]["$defs"]["artifactRef"];
             };
         };
-        /** InvitationAccept */
-        InvitationAccept: {
-            /** Token */
-            token: string;
-        };
-        /** InvitationCreate */
-        InvitationCreate: {
-            /**
-             * Email
-             * Format: email
-             */
-            email: string;
-            /**
-             * Role
-             * @default MEMBER
-             * @enum {string}
-             */
-            role: "OWNER" | "ADMIN" | "MEMBER" | "VIEWER";
-        };
-        /** InvitationCreated */
-        InvitationCreated: {
-            /**
-             * Email
-             * Format: email
-             */
-            email: string;
-            /**
-             * Expires At
-             * Format: date-time
-             */
-            expires_at: string;
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /**
-             * Organization Id
-             * Format: uuid
-             */
-            organization_id: string;
-            /** Role */
-            role: string;
-            /**
-             * Token
-             * @description Shown once; send it to the invited person.
-             */
-            token: string;
-        };
         /**
          * InvitationPreview
          * @description What a code invites to, before joining (``GET /v1/invitations/{code}/preview``).
@@ -5720,7 +5651,7 @@ export interface components {
          */
         MemberBatchChange: {
             /** Role */
-            role?: ("OWNER" | "ADMIN" | "MEMBER" | "VIEWER") | null;
+            role?: ("ADMIN" | "MEMBER" | "VIEWER") | null;
             /**
              * User Id
              * Format: uuid
@@ -5732,13 +5663,16 @@ export interface components {
             /** Changes */
             changes: components["schemas"]["MemberBatchChange"][];
         };
-        /** MemberUpsert */
+        /**
+         * MemberUpsert
+         * @description A direct role to set. The owner's seat is not one of them: it moves only by ``PUT .../owner``.
+         */
         MemberUpsert: {
             /**
              * Role
              * @enum {string}
              */
-            role: "OWNER" | "ADMIN" | "MEMBER" | "VIEWER";
+            role: "ADMIN" | "MEMBER" | "VIEWER";
             /**
              * User Id
              * Format: uuid
@@ -11288,66 +11222,6 @@ export interface operations {
             };
         };
     };
-    acceptOrganizationInvitation: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["InvitationAccept"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MemberView"];
-                };
-            };
-            /** @description Missing or invalid account credential. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description The account role, API-key permission, or Engine allow-list does not permit this request. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description The request does not satisfy the contract; `diagnostics` says where. */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description Account authentication is not configured on this deployment. */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-        };
-    };
     joinOrganization: {
         parameters: {
             query?: never;
@@ -14618,7 +14492,7 @@ export interface operations {
             };
         };
     };
-    inviteOrganizationMember: {
+    createOrganizationInvitation: {
         parameters: {
             query?: never;
             header?: never;
@@ -14629,7 +14503,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["InvitationCreate"] | components["schemas"]["CodeInvitationCreate"];
+                "application/json": components["schemas"]["CodeInvitationCreate"];
             };
         };
         responses: {
@@ -14639,7 +14513,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["InvitationCreated"] | components["schemas"]["CodeInvitationView"];
+                    "application/json": components["schemas"]["CodeInvitationView"];
                 };
             };
             /** @description Missing or invalid account credential. */
@@ -14651,13 +14525,13 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description The caller lacks ADMIN access to the organization (code `organization_forbidden`), or the change grants OWNER or alters or removes an existing owner and the caller is not an organization owner (code `owner_role_requires_owner`). */
+            /** @description The account role, API-key permission, or Engine allow-list does not permit this request. */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
             /** @description No such organization, or the caller is not a member of it. */
@@ -14926,8 +14800,17 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description The caller lacks ADMIN access to the organization (code `organization_forbidden`), or the change grants OWNER or alters or removes an existing owner and the caller is not an organization owner (code `owner_role_requires_owner`). */
+            /** @description The account role, API-key permission, or Engine allow-list does not permit this request. */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The change names the owner (code `owner_transfer_required`): an organization has one owner, and the seat moves only by `PUT .../owner`. */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -14989,8 +14872,17 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description The caller lacks ADMIN access to the organization (code `organization_forbidden`), or the change grants OWNER or alters or removes an existing owner and the caller is not an organization owner (code `owner_role_requires_owner`). */
+            /** @description The account role, API-key permission, or Engine allow-list does not permit this request. */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The change names the owner (code `owner_transfer_required`): an organization has one owner, and the seat moves only by `PUT .../owner`. */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -15046,8 +14938,17 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description The caller lacks ADMIN access to the organization (code `organization_forbidden`), or the change grants OWNER or alters or removes an existing owner and the caller is not an organization owner (code `owner_role_requires_owner`). */
+            /** @description The account role, API-key permission, or Engine allow-list does not permit this request. */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description No such member, or a caller leaving is not a member. */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -15055,8 +14956,8 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description No such member, or a caller leaving is not a member. */
-            404: {
+            /** @description The change names the owner (code `owner_transfer_required`): an organization has one owner, and the seat moves only by `PUT .../owner`. */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

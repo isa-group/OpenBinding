@@ -11,11 +11,9 @@ from openbinding_gateway import collaboration
 from openbinding_gateway.db.models import (
     AuditEvent,
     Organization,
-    OrganizationInvitation,
     OrganizationMembership,
     OrganizationRole,
     User,
-    utcnow,
 )
 from openbinding_gateway.repositories import organizations as organization_repository
 from _pricing import pricing_catalog
@@ -143,22 +141,6 @@ async def test_listing_every_organization_is_ordered_by_name(db_session, two_ten
     names = [o.name for o in await organization_repository.list_all(db_session)]
     assert names == sorted(names)
     assert {t.org_a.id, t.org_b.id} <= {o.id for o in await organization_repository.list_all(db_session)}
-
-
-@pytest.mark.asyncio
-async def test_invitations_resolve_by_prefix_only(db_session, two_tenants):
-    t = two_tenants
-    invitation = OrganizationInvitation(
-        organization_id=t.org_a.id, email="x@example.org", role=OrganizationRole.MEMBER,
-        token_prefix="obi_aaaaaaaaaaaa", token_hash="0" * 64, invited_by_id=t.owner_a.id,
-        expires_at=utcnow(),
-    )
-    db_session.add(invitation)
-    await db_session.flush()
-
-    found = await organization_repository.find_invitation_by_prefix(db_session, "obi_aaaaaaaaaaaa")
-    assert found.id == invitation.id and found.organization_id == t.org_a.id
-    assert await organization_repository.find_invitation_by_prefix(db_session, "obi_bbbbbbbbbbbb") is None
 
 
 @pytest.mark.asyncio

@@ -159,30 +159,6 @@ class OrganizationMembership(Base):
     )
 
 
-class OrganizationInvitation(Base):
-    __tablename__ = "organization_invitations"
-
-    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    organization_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
-    )
-    email: Mapped[str] = mapped_column(String(320), nullable=False, index=True)
-    role: Mapped[OrganizationRole] = enum_column(OrganizationRole, OrganizationRole.MEMBER)
-    token_prefix: Mapped[str] = mapped_column(String(24), unique=True, index=True, nullable=False)
-    token_hash: Mapped[str] = mapped_column(String(64), nullable=False)
-    invited_by_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"), nullable=False
-    )
-    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    accepted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
-    accepted_by_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
-    )
-
-
 class OrganizationInvitationCode(Base):
     """A shareable invitation to an organization, as SPHERE's: whoever holds the code joins as MEMBER.
 

@@ -12,7 +12,7 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision: str = 'e5a6b40a375a'
+revision: str = '3276929bc950'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -351,26 +351,6 @@ def upgrade() -> None:
     )
     op.create_index(op.f('ix_organization_invitation_codes_code'), 'organization_invitation_codes', ['code'], unique=True)
     op.create_index(op.f('ix_organization_invitation_codes_organization_id'), 'organization_invitation_codes', ['organization_id'], unique=False)
-    op.create_table('organization_invitations',
-    sa.Column('id', sa.Uuid(), nullable=False),
-    sa.Column('organization_id', sa.Uuid(), nullable=False),
-    sa.Column('email', sa.String(length=320), nullable=False),
-    sa.Column('role', sa.Enum('OWNER', 'ADMIN', 'MEMBER', 'VIEWER', name='organizationrole', native_enum=False, length=32), nullable=False),
-    sa.Column('token_prefix', sa.String(length=24), nullable=False),
-    sa.Column('token_hash', sa.String(length=64), nullable=False),
-    sa.Column('invited_by_id', sa.Uuid(), nullable=False),
-    sa.Column('expires_at', sa.DateTime(timezone=True), nullable=False),
-    sa.Column('accepted_at', sa.DateTime(timezone=True), nullable=True),
-    sa.Column('accepted_by_id', sa.Uuid(), nullable=True),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
-    sa.ForeignKeyConstraint(['accepted_by_id'], ['users.id'], name=op.f('fk_organization_invitations_accepted_by_id_users'), ondelete='SET NULL'),
-    sa.ForeignKeyConstraint(['invited_by_id'], ['users.id'], name=op.f('fk_organization_invitations_invited_by_id_users'), ondelete='CASCADE'),
-    sa.ForeignKeyConstraint(['organization_id'], ['organizations.id'], name=op.f('fk_organization_invitations_organization_id_organizations'), ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('id', name=op.f('pk_organization_invitations'))
-    )
-    op.create_index(op.f('ix_organization_invitations_email'), 'organization_invitations', ['email'], unique=False)
-    op.create_index(op.f('ix_organization_invitations_organization_id'), 'organization_invitations', ['organization_id'], unique=False)
-    op.create_index(op.f('ix_organization_invitations_token_prefix'), 'organization_invitations', ['token_prefix'], unique=True)
     op.create_table('organization_memberships',
     sa.Column('id', sa.Uuid(), nullable=False),
     sa.Column('organization_id', sa.Uuid(), nullable=False),
@@ -786,10 +766,6 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_organization_memberships_user_id'), table_name='organization_memberships')
     op.drop_index(op.f('ix_organization_memberships_organization_id'), table_name='organization_memberships')
     op.drop_table('organization_memberships')
-    op.drop_index(op.f('ix_organization_invitations_token_prefix'), table_name='organization_invitations')
-    op.drop_index(op.f('ix_organization_invitations_organization_id'), table_name='organization_invitations')
-    op.drop_index(op.f('ix_organization_invitations_email'), table_name='organization_invitations')
-    op.drop_table('organization_invitations')
     op.drop_index(op.f('ix_organization_invitation_codes_organization_id'), table_name='organization_invitation_codes')
     op.drop_index(op.f('ix_organization_invitation_codes_code'), table_name='organization_invitation_codes')
     op.drop_table('organization_invitation_codes')

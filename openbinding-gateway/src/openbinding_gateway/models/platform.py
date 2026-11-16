@@ -142,12 +142,16 @@ class AvatarSelection(BaseModel):
 
 
 class MemberUpsert(BaseModel):
+    """A direct role to set. The owner's seat is not one of them: it moves only by ``PUT .../owner``."""
+
     model_config = ConfigDict(extra="forbid")
     user_id: uuid.UUID
+    role: Literal["ADMIN", "MEMBER", "VIEWER"]
+
+
+class MemberView(BaseModel):
+    user_id: uuid.UUID
     role: Literal["OWNER", "ADMIN", "MEMBER", "VIEWER"]
-
-
-class MemberView(MemberUpsert):
     id: uuid.UUID
     organization_id: uuid.UUID
     username: Optional[str] = None
@@ -167,7 +171,7 @@ class MemberBatchChange(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
     user_id: uuid.UUID
-    role: Optional[Literal["OWNER", "ADMIN", "MEMBER", "VIEWER"]] = None
+    role: Optional[Literal["ADMIN", "MEMBER", "VIEWER"]] = None
 
 
 class MemberBatchUpdate(BaseModel):
@@ -180,25 +184,6 @@ class MemberBatchUpdate(BaseModel):
         if len(user_ids) != len(set(user_ids)):
             raise ValueError("Each user may appear only once in a membership batch.")
         return self
-
-
-class InvitationCreate(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    email: EmailStr
-    role: Literal["OWNER", "ADMIN", "MEMBER", "VIEWER"] = "MEMBER"
-
-
-class InvitationCreated(BaseModel):
-    id: uuid.UUID
-    organization_id: uuid.UUID
-    email: EmailStr
-    role: str
-    expires_at: datetime
-    token: str = Field(..., description="Shown once; send it to the invited person.")
-
-
-class InvitationAccept(BaseModel):
-    token: str = Field(..., min_length=32)
 
 
 class CodeInvitationCreate(BaseModel):

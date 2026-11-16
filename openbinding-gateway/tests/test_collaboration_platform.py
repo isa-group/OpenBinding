@@ -82,7 +82,7 @@ async def test_roles_inherit_downward_and_cross_org_access_is_hidden(
     assert hidden.status_code == 403
 
 
-async def test_cycles_and_removing_the_last_owner_are_refused(
+async def test_cycles_and_touching_the_owner_seat_are_refused(
     api_client, registration, platform_gate
 ) -> None:
     owner, headers = await account(api_client, registration)
@@ -106,9 +106,9 @@ async def test_cycles_and_removing_the_last_owner_are_refused(
     assert cycle.status_code == 409
     assert cycle.json()["detail"]["code"] == "organization_cycle"
     assert last_owner.status_code == 409
-    assert last_owner.json()["detail"]["code"] == "last_owner"
+    assert last_owner.json()["detail"]["code"] == "owner_transfer_required"
     assert demoted_owner.status_code == 409
-    assert demoted_owner.json()["detail"]["code"] == "last_owner"
+    assert demoted_owner.json()["detail"]["code"] == "owner_transfer_required"
 
 
 async def test_organizations_carry_no_sponsor_and_no_subtree_quota(

@@ -143,28 +143,26 @@ The `dev` profile of `docker-compose.yml` passes `SEED_DEFAULT_ADMIN` through
 and listens on `127.0.0.1:8000` only; it is not meant to be reachable from other
 machines.
 
-## Organization roles and owner-only changes
+## Organization roles and the owner
 
 Within an organization the roles are VIEWER < MEMBER < ADMIN < OWNER, and a role
-on an organization applies to its descendants. Managing members needs ADMIN, with
-one exception: **only an OWNER may grant the OWNER role or change or remove an
-existing OWNER**. An ADMIN who tries receives `403` with code
-`owner_role_requires_owner`; otherwise an ADMIN could promote a second account to
-OWNER and, with it, outvote the real owners. This covers
-`PUT /v1/organizations/{org}/members/{user}`,
-`DELETE /v1/organizations/{org}/members/{user}`,
-`POST /v1/organizations/{org}/members/batch` and invitations created with
-`role: "OWNER"` (`POST /v1/organizations/{org}/invitations`).
+on an organization applies to its descendants. Managing members needs ADMIN.
+As in SPHERE, **an organization has one owner**, and the owner's seat moves only by
+a transfer (`PUT /v1/organizations/{org}/owner {user_id}`): the recipient, already a
+member here or above, becomes the owner of the whole branch and the previous owner
+stays on as an ADMIN.
 
-* **Batch policy** is unchanged: all-or-nothing. If any change in the batch
-  grants OWNER or touches an owner and the caller is not an OWNER, the whole
-  batch is refused with `403` (the body carries `index` and `user_id` of the
-  first offending change) and nothing is written.
-* The "last owner" protection still applies to owners: removing or demoting the
-  only OWNER is `409 last_owner`.
-* A platform administrator who also holds ADMIN access to the organization keeps
-  the ability to manage owners. A platform role alone grants no access to a
-  private organization.
+* No member route grants OWNER: `PUT /v1/organizations/{org}/members/{user}` and
+  `POST /v1/organizations/{org}/members/batch` take VIEWER, MEMBER or ADMIN only (422
+  otherwise).
+* No member route changes or removes the owner: an upsert, a batch change or a
+  `DELETE /v1/organizations/{org}/members/{user}` that names the owner is `409
+  owner_transfer_required`, and a batch that names the owner is refused whole
+  (the body carries `index` and `user_id` of the change) with nothing written.
+* Anybody but the owner may leave (`DELETE .../members/{me}`); the owner hands the
+  organization over first.
+* Invitations are shareable codes that join as MEMBER (`POST .../invitations`,
+  `POST /v1/invitations/{code}/join`); managers adjust the role afterwards.
 
 ### What each role may do with work
 
@@ -390,9 +388,9 @@ back to `GET /v1/auth/cas/callback`. The callback is a browser navigation, so it
 **always answers with a `303` redirect to the frontend** (`FRONTEND_URL`, from
 configuration only; nothing in the request can change the destination):
 
-- success: `{FRONTEND_URL}/auth/cas/callback?code=<one-time code>`; the frontend
+- success: `{FRONTEND_URL}/sso/callback?code=<one-time code>`; the frontend
   exchanges the code at `POST /v1/auth/cas/exchange` for the session.
-- failure: `{FRONTEND_URL}/auth/cas/callback?error=<code>`, with a code from this
+- failure: `{FRONTEND_URL}/sso/callback?error=<code>`, with a code from this
   closed list:
 
 | `error` | Meaning |
@@ -629,7 +627,7 @@ does for a declared size.
 | `CORS_ALLOW_CREDENTIALS` | Whether credentialed cross-origin requests are allowed (default `true`; ignored when the list contains `*`). |
 | `APP_ENV` | `dev` (default), `test` or `prod`; `prod` enables the startup checks above. |
 | `FEDERATION_REQUIRE_HTTPS` | Plain-http switch for a trusted development or lab network (federated engines over `http`). With `APP_ENV=prod`, `FEDERATION_REQUIRE_HTTPS=false` makes the gateway **refuse to start**, like `SPACE_ENABLED=false`. `dev`, `test` and the lab are unaffected. |
-| `FRONTEND_URL` | Where the CAS callback returns the browser (`/auth/cas/callback?code=…` or `?error=…`). It must be `scheme://host[:port]`, with no path, query, fragment or userinfo. |
+| `FRONTEND_URL` | Where the CAS callback returns the browser (`/sso/callback?code=…` or `?error=…`) and where the password-reset email links to (`/reset-password?token=…`). It must be `scheme://host[:port]`, with no path, query, fragment or userinfo. |
 
 Origin values (`FRONTEND_URL` and every `CORS_ALLOW_ORIGINS` entry) must be
 `scheme://host[:port]` with no path, query, fragment or userinfo, and
