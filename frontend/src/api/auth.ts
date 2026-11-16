@@ -238,7 +238,7 @@ export interface AdminQueueStatus {
   counts: Record<string, number>;
   oldestInFlight: Array<{
     id: string;
-    ownerId: string | null;
+    createdById: string | null;
     engine: string;
     state: string;
     createdAt: string;
