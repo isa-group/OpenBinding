@@ -499,8 +499,8 @@ def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_o
                 "description": "The raw request-validation location (`body`, field names, array indexes).",
                 "items": {"oneOf": [{"type": "string"}, {"type": "integer"}]},
             },
-            "context": {"type": "object", "description": "Limits that were exceeded (`gt`, `max_length`, ...)."},
-            "related": {"type": "array", "items": {"type": "object"}},
+            "context": {"type": "object", "additionalProperties": True, "description": "Limits that were exceeded (`gt`, `max_length`, ...)."},
+            "related": {"type": "array", "items": {"type": "object", "additionalProperties": True}},
             "bpmnElement": {"type": "string", "description": "The BPMN element the finding is about, when `resource` is a BPMN file."},
             "irPath": {"type": "string", "description": "RFC 6901 JSON Pointer to the same value in the compiled BindingProblem."},
             "category": {"type": "string", "description": "Capability dimension of an engine-mode incompatibility (`featureValues`, ...)."},
@@ -581,7 +581,7 @@ def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_o
     )
     schemas["ProfileManifest"] = embedded_schema("profile.schema.json", "ProfileManifest")
     digest_schema = {"type": "string", "pattern": "^sha256-[0-9a-f]{64}$"}
-    diagnostic_list = {"type": "array", "items": {"type": "object"}}
+    diagnostic_list = {"type": "array", "items": {"type": "object", "additionalProperties": True}}
     digest_map = {"type": "object", "additionalProperties": digest_schema}
     resource_ref_required = ["namespace", "name", "version", "digest"]
     resource_ref_properties = {
@@ -664,11 +664,11 @@ def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_o
         "properties": {
             "apiVersion": {"const": "bim/v1"},
             "kind": {"const": "Profile"},
-            "metadata": {"type": "object"},
-            "spec": {"type": "object"},
+            "metadata": {"type": "object", "additionalProperties": True},
+            "spec": {"type": "object", "additionalProperties": True},
             "id": {"type": "string"},
             "digest": digest_schema,
-            "output": {"type": "object"},
+            "output": {"type": "object", "additionalProperties": True},
             "protocol": {"const": "bim-engine/v1"},
             "protocolDigest": digest_schema,
         },
@@ -713,7 +713,7 @@ def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_o
                 "pattern": "^sha256-[0-9a-f]{64}$",
             },
             "status": {"type": "string", "enum": ["pending", "verified", "failed"]},
-            "checks": {"type": "array", "items": {"type": "object"}},
+            "checks": {"type": "array", "items": {"type": "object", "additionalProperties": True}},
             "durationMs": {"type": "number", "minimum": 0},
             "verifiedAt": {"type": "string", "format": "date-time"},
         },
@@ -832,7 +832,7 @@ def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_o
                 "items": {"$ref": "#/components/schemas/EngineCompatibility"},
             },
             "ir": {"$ref": "#/components/schemas/BindingProblem"},
-            "sourceMap": {"type": "object"},
+            "sourceMap": {"type": "object", "additionalProperties": True},
             "facts": {"$ref": "#/components/schemas/ProblemFactsView"},
         },
         "additionalProperties": False,
@@ -854,8 +854,8 @@ def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_o
             },
             "registration": {"$ref": "#/components/schemas/ImmutableResourceRef"},
             "mode": {"type": "string"},
-            "options": {"type": "object"},
-            "optimization": {"type": "object"},
+            "options": {"type": "object", "additionalProperties": True},
+            "optimization": {"type": "object", "additionalProperties": True},
             "preset": {
                 "type": "string",
                 "minLength": 1,
@@ -890,8 +890,8 @@ def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_o
                 "type": "string",
                 "enum": ["OPTIMAL", "FEASIBLE", "INFEASIBLE", "UNKNOWN"],
             },
-            "solutions": {"type": "array", "items": {"type": "object"}},
-            "provenance": {"type": "object"},
+            "solutions": {"type": "array", "items": {"type": "object", "additionalProperties": True}},
+            "provenance": {"type": "object", "additionalProperties": True},
             "error": {"type": "string"},
             # Why a failed job failed: a code of the job failure catalog (docs/ERRORS.md). No enum, so that a new
             # code is not a breaking change for clients.

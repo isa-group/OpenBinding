@@ -2434,7 +2434,9 @@ export interface components {
                 tasks: number;
             };
             compatibleModes: components["schemas"]["EngineCompatibility"][];
-            diagnostics: Record<string, never>[];
+            diagnostics: {
+                [key: string]: unknown;
+            }[];
             facts?: components["schemas"]["ProblemFactsView"];
             fileDigests: {
                 [key: string]: string;
@@ -2446,7 +2448,9 @@ export interface components {
             resourceDigests: {
                 [key: string]: string;
             };
-            sourceMap?: Record<string, never>;
+            sourceMap?: {
+                [key: string]: unknown;
+            };
             /** @constant */
             valid: true;
         };
@@ -3918,7 +3922,9 @@ export interface components {
             /** @description Stable identifier of this particular finding. */
             code: string;
             /** @description Limits that were exceeded (`gt`, `max_length`, ...). */
-            context?: Record<string, never>;
+            context?: {
+                [key: string]: unknown;
+            };
             /**
              * @description On a refused diff: which of the two documents the finding is about.
              * @enum {string}
@@ -3944,7 +3950,9 @@ export interface components {
             path?: string;
             /** @description RFC 6901 JSON Pointer to the offending field (inside the request body, or the document named by `resource`). */
             pointer?: string;
-            related?: Record<string, never>[];
+            related?: {
+                [key: string]: unknown;
+            }[];
             /** @description The package file or resource the finding is about. */
             resource?: string;
             /**
@@ -4023,7 +4031,9 @@ export interface components {
         };
         EngineCompatibility: {
             compatible: boolean;
-            diagnostics: Record<string, never>[];
+            diagnostics: {
+                [key: string]: unknown;
+            }[];
             engine: components["schemas"]["ImmutableResourceRef"];
             mode: string;
             registration: components["schemas"]["ImmutableResourceRef"];
@@ -4236,7 +4246,9 @@ export interface components {
             version: string;
         };
         EngineVerificationReport: {
-            checks: Record<string, never>[];
+            checks: {
+                [key: string]: unknown;
+            }[];
             durationMs?: number;
             /** @constant */
             protocol: "bim-engine/v1";
@@ -4577,8 +4589,12 @@ export interface components {
             code?: string;
             correlationId?: string;
             error?: string;
-            provenance?: Record<string, never>;
-            solutions: Record<string, never>[];
+            provenance?: {
+                [key: string]: unknown;
+            };
+            solutions: {
+                [key: string]: unknown;
+            }[];
             /** @enum {string} */
             termination: "OPTIMAL" | "FEASIBLE" | "INFEASIBLE" | "UNKNOWN";
         };
@@ -4754,8 +4770,12 @@ export interface components {
         JobRequest: {
             engine?: string | components["schemas"]["ImmutableResourceRef"];
             mode?: string;
-            optimization?: Record<string, never>;
-            options?: Record<string, never>;
+            optimization?: {
+                [key: string]: unknown;
+            };
+            options?: {
+                [key: string]: unknown;
+            };
             /** @description A run preset of the organization (`listRunPresets`), by slug or id, whose settings the run copies; not together with `engine`, `registration`, `mode`, `options` or `optimization`. */
             preset?: string;
             registration?: components["schemas"]["ImmutableResourceRef"];
@@ -5540,12 +5560,18 @@ export interface components {
             id: string;
             /** @constant */
             kind: "Profile";
-            metadata: Record<string, never>;
-            output: Record<string, never>;
+            metadata: {
+                [key: string]: unknown;
+            };
+            output: {
+                [key: string]: unknown;
+            };
             /** @constant */
             protocol: "bim-engine/v1";
             protocolDigest: string;
-            spec: Record<string, never>;
+            spec: {
+                [key: string]: unknown;
+            };
         };
         ProfileList: {
             profiles: components["schemas"]["ProfileCatalogEntry"][];
@@ -5965,12 +5991,16 @@ export interface components {
              * Optimization
              * @description `{type: SINGLE|MULTI|MANY, scalarization, weights?: [{criteria, value}]}`, resolved against the problem's criteria when a run uses the preset.
              */
-            optimization?: Record<string, never> | null;
+            optimization?: {
+                [key: string]: unknown;
+            } | null;
             /**
              * Options
              * @description The engine options, as a run request's (at most 65536 bytes as JSON).
              */
-            options?: Record<string, never>;
+            options?: {
+                [key: string]: unknown;
+            };
             /**
              * Registration
              * @description The deployment to run on, an immutable reference; null for the engine's installed one.
@@ -6019,12 +6049,16 @@ export interface components {
              * Optimization
              * @description `{type: SINGLE|MULTI|MANY, scalarization, weights?: [{criteria, value}]}`, resolved against the problem's criteria when a run uses the preset.
              */
-            optimization?: Record<string, never> | null;
+            optimization?: {
+                [key: string]: unknown;
+            } | null;
             /**
              * Options
              * @description The engine options, as a run request's (at most 65536 bytes as JSON).
              */
-            options?: Record<string, never>;
+            options?: {
+                [key: string]: unknown;
+            };
             /**
              * Registration
              * @description The deployment to run on, an immutable reference; null for the engine's installed one.
@@ -6618,7 +6652,9 @@ export interface components {
             valid: boolean;
         };
         ValidationResult: {
-            diagnostics: Record<string, never>[];
+            diagnostics: {
+                [key: string]: unknown;
+            }[];
             fileDigests: {
                 [key: string]: string;
             };
@@ -8690,7 +8726,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/schema+json": Record<string, never>;
+                    "application/schema+json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description The request does not satisfy the contract; `diagnostics` says where. */
@@ -8714,7 +8752,9 @@ export interface operations {
         /** @description A Composition2Yaml document as JSON, at most 524288 bytes. */
         requestBody: {
             content: {
-                "application/json": Record<string, never>;
+                "application/json": {
+                    [key: string]: unknown;
+                };
             };
         };
         responses: {

@@ -299,6 +299,7 @@
           },
           "diagnostics": {
             "items": {
+              "additionalProperties": true,
               "type": "object"
             },
             "type": "array"
@@ -336,6 +337,7 @@
             "type": "object"
           },
           "sourceMap": {
+            "additionalProperties": true,
             "type": "object"
           },
           "valid": {
@@ -4275,6 +4277,7 @@
             "type": "string"
           },
           "context": {
+            "additionalProperties": true,
             "description": "Limits that were exceeded (`gt`, `max_length`, ...).",
             "type": "object"
           },
@@ -4340,6 +4343,7 @@
           },
           "related": {
             "items": {
+              "additionalProperties": true,
               "type": "object"
             },
             "type": "array"
@@ -4535,6 +4539,7 @@
           },
           "diagnostics": {
             "items": {
+              "additionalProperties": true,
               "type": "object"
             },
             "type": "array"
@@ -5458,6 +5463,7 @@
         "properties": {
           "checks": {
             "items": {
+              "additionalProperties": true,
               "type": "object"
             },
             "type": "array"
@@ -6105,10 +6111,12 @@
             "type": "string"
           },
           "provenance": {
+            "additionalProperties": true,
             "type": "object"
           },
           "solutions": {
             "items": {
+              "additionalProperties": true,
               "type": "object"
             },
             "type": "array"
@@ -6599,9 +6607,11 @@
             "type": "string"
           },
           "optimization": {
+            "additionalProperties": true,
             "type": "object"
           },
           "options": {
+            "additionalProperties": true,
             "type": "object"
           },
           "preset": {
@@ -8367,9 +8377,11 @@
             "const": "Profile"
           },
           "metadata": {
+            "additionalProperties": true,
             "type": "object"
           },
           "output": {
+            "additionalProperties": true,
             "type": "object"
           },
           "protocol": {
@@ -8380,6 +8392,7 @@
             "type": "string"
           },
           "spec": {
+            "additionalProperties": true,
             "type": "object"
           }
         },
@@ -9376,6 +9389,7 @@
           "optimization": {
             "anyOf": [
               {
+                "additionalProperties": true,
                 "type": "object"
               },
               {
@@ -9386,6 +9400,7 @@
             "title": "Optimization"
           },
           "options": {
+            "additionalProperties": true,
             "description": "The engine options, as a run request's (at most 65536 bytes as JSON).",
             "title": "Options",
             "type": "object"
@@ -9508,6 +9523,7 @@
           "optimization": {
             "anyOf": [
               {
+                "additionalProperties": true,
                 "type": "object"
               },
               {
@@ -9518,6 +9534,7 @@
             "title": "Optimization"
           },
           "options": {
+            "additionalProperties": true,
             "description": "The engine options, as a run request's (at most 65536 bytes as JSON).",
             "title": "Options",
             "type": "object"
@@ -10801,6 +10818,7 @@
         "properties": {
           "diagnostics": {
             "items": {
+              "additionalProperties": true,
               "type": "object"
             },
             "type": "array"
@@ -14099,6 +14117,7 @@
             "content": {
               "application/schema+json": {
                 "schema": {
+                  "additionalProperties": true,
                   "type": "object"
                 }
               }
@@ -14138,6 +14157,7 @@
           "content": {
             "application/json": {
               "schema": {
+                "additionalProperties": true,
                 "type": "object"
               }
             }

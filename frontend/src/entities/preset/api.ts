@@ -12,27 +12,21 @@ const enc = encodeURIComponent;
 const presetsRoot = (org: string) => `/v1/organizations/${enc(org)}/presets`;
 const presetRoot = (org: string, preset: string) => `${presetsRoot(org)}/${enc(preset)}`;
 
-/**
- * What a preset holds, as the forms send it. The generated `RunPresetCreate` types `options` and `optimization` as empty objects
- * (the schema says only "object"), so the settings are typed here as the gateway reads them.
- */
-export interface PresetSettings {
-  engine: RunPresetCreate['engine'];
-  registration?: RunPresetCreate['registration'];
-  mode?: string | null;
-  options?: Record<string, unknown>;
-  /** `{type: SINGLE|MULTI|MANY, scalarization, weights?}`; null leaves it to the run. */
-  optimization?: PresetOptimization | null;
-}
+/** What a preset holds, as the forms send it: its engine, deployment, mode, options and optimization. */
+export type PresetSettings = Pick<RunPresetCreate, 'engine' | 'registration' | 'mode' | 'options' | 'optimization'>;
 
-export interface PresetOptimization {
+/** The optimization a preset's form writes: `{type: SINGLE|MULTI|MANY, scalarization, weights?}`; null leaves it to the run. */
+export type PresetOptimization = {
   type: 'SINGLE' | 'MULTI' | 'MANY';
   scalarization: string;
   weights?: Array<{ criteria: string; value: number }>;
-}
+};
 
-export type PresetCreate = Omit<RunPresetCreate, keyof PresetSettings | 'description'> & { description?: string } & PresetSettings;
-export type PresetUpdate = Omit<RunPresetUpdate, keyof PresetSettings> & Partial<PresetSettings>;
+/**
+ * A new preset as the forms send it. `description` has a default in the gateway, which openapi-typescript renders as required, so
+ * here it is optional.
+ */
+export type PresetCreate = Omit<RunPresetCreate, 'description'> & Partial<Pick<RunPresetCreate, 'description'>>;
 
 export interface PresetListOptions {
   /** Text in the name or the slug. */
@@ -66,7 +60,7 @@ export const presetsApi = {
   /** Needs MEMBER. 409 `slug_conflict` when the slug is taken; 422 `invalid_request_fields` for a setting of the wrong shape. */
   create: (org: string, body: PresetCreate) => revised<RunPresetView>(presetsRoot(org), { method: 'POST', body: JSON.stringify(body) }),
   /** Needs MEMBER. Runs already started keep the settings they copied; with `ifMatch`, 412 when someone changed it meanwhile. */
-  update: (org: string, preset: string, body: PresetUpdate, ifMatch: string | null = null) => revised<RunPresetView>(
+  update: (org: string, preset: string, body: RunPresetUpdate, ifMatch: string | null = null) => revised<RunPresetView>(
     presetRoot(org, preset),
     { method: 'PATCH', body: JSON.stringify(body), ...(ifMatch ? { headers: { 'If-Match': ifMatch } } : {}) },
   ),

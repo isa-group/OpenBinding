@@ -47,13 +47,14 @@ _MODE_SCHEMA = {
 _OPTIONS_SCHEMA = {
     "description": f"The engine options, as a run request's (at most {MAX_OPTIONS_BYTES} bytes as JSON).",
     "type": "object",
+    "additionalProperties": True,
 }
 _OPTIMIZATION_SCHEMA = {
     "description": (
         "`{type: SINGLE|MULTI|MANY, scalarization, weights?: [{criteria, value}]}`, resolved against the problem's "
         "criteria when a run uses the preset."
     ),
-    "anyOf": [{"type": "object"}, {"type": "null"}],
+    "anyOf": [{"type": "object", "additionalProperties": True}, {"type": "null"}],
 }
 
 _UNREADABLE: dict[int | str, dict[str, Any]] = {

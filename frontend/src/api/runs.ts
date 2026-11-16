@@ -74,10 +74,10 @@ export interface RunFilters {
  * The optimization an execution selects (`optimization` of `createRun`). The gateway answers 422 `optimization_required` without it;
  * weights are left out and the toolchain fills equal ones where the scalarization needs them.
  */
-export interface ExecutionOptimization {
+export type ExecutionOptimization = {
   type: 'SINGLE' | 'MULTI' | 'MANY';
   scalarization: string;
-}
+};
 
 /** What `createRun` takes for settings chosen by hand: a revision of the organization's problem and one exact engine mode with its options and optimization. */
 export interface EngineLaunchRequest {
