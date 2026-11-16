@@ -1,4 +1,4 @@
-import { DataTable } from '../ui/DataTable';
+import { DataTable } from '../../modules/core/components/data-table';
 import type { ObjectiveBreakdownData, ObjectiveTerm } from './objectiveModel';
 import './ObjectiveBreakdown.css';
 

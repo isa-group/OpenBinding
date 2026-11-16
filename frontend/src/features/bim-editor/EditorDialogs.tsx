@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { bimApi } from '../../api/bim';
 import { problemsApi, type Problem, type ProblemRevision } from '../../api/problems';
-import { Action } from '../../components/ui/Action';
-import { Modal } from '../../components/ui/Modal';
-import { Notice } from '../../components/ui/Notice';
+import { Action } from '../../modules/core/components/action-button';
+import { Modal } from '../../modules/core/components/modal';
+import { Notice } from '../../modules/core/components/notice';
 import { SLUG_PATTERN, slugFromName } from '../../shared/lib/slug';
 import { useResource } from '../../utils/useResource';
 import type { SaveTarget } from './useProblemEditor';

@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Action } from '../../components/ui/Action';
-import { FormField } from '../../components/ui/FormField';
+import { Action } from '../../modules/core/components/action-button';
+import { FormField } from '../../modules/core/components/form-field';
 import { StatusChip } from '../Engines/EngineParts';
 import { describeFixedOption, dimensionLabel, valueLabel } from '../Engines/manifestModel';
 import {

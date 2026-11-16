@@ -1,8 +1,8 @@
 import { Link } from 'react-router-dom';
 import { problemsApi } from '../../api/problems';
 import { parseBindingSpace } from '../../components/BindingSpaceBadge/bindingSpace';
-import { Chip } from '../../components/ui/Chip';
-import { useCopy } from '../../components/ui/useCopy';
+import { Chip } from '../../modules/core/components/chip';
+import { useCopy } from '../../modules/core/hooks/useCopy';
 import { problemPath } from '../../routes/paths/problems';
 import { formatBytes, formatDate } from '../../utils/format';
 import { useResource } from '../../utils/useResource';

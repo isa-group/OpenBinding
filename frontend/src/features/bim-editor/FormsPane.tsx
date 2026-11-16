@@ -1,5 +1,5 @@
-import { Chip } from '../../components/ui/Chip';
-import { Notice } from '../../components/ui/Notice';
+import { Chip } from '../../modules/core/components/chip';
+import { Notice } from '../../modules/core/components/notice';
 import {
   RESOURCE_ROLE_LABELS,
   instanceResources,

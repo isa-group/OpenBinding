@@ -8,11 +8,11 @@ import type {
   PricingCurrentView,
 } from '../../api/auth';
 import { apiClient } from '../../api/client';
-import { Action } from '../../components/ui/Action';
-import { DataTable } from '../../components/ui/DataTable';
+import { Action } from '../../modules/core/components/action-button';
+import { DataTable } from '../../modules/core/components/data-table';
 import { inInterfaceWords } from '../../components/ui/interfaceWords';
-import { Notice } from '../../components/ui/Notice';
-import { Skeleton } from '../../components/ui/Skeleton';
+import { Notice } from '../../modules/core/components/notice';
+import { Skeleton } from '../../modules/core/components/skeleton';
 import { useAuth } from '../../modules/auth/hooks/useAuth';
 import { describeLimit, limitInfo } from '../../utils/limits';
 import { formatDateTime } from '../../utils/format';

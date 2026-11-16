@@ -1,6 +1,6 @@
 import { useId, useState, type ChangeEvent, type DragEvent } from 'react';
 import { AlertTriangle, Check, X } from 'lucide-react';
-import { FormField } from '../../components/ui/FormField';
+import { FormField } from '../../modules/core/components/form-field';
 import { issueAt, type Issue } from './engineDraft';
 import {
   MAPPING_FIELDS,

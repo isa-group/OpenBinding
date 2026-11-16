@@ -1,11 +1,11 @@
 import type { ReactNode } from 'react';
 import type { Organization } from '../../api/platform';
-import { Action } from '../../components/ui/Action';
-import { Notice } from '../../components/ui/Notice';
+import { Action } from '../../modules/core/components/action-button';
+import { Notice } from '../../modules/core/components/notice';
 import { Gate, type Crumb } from '../../features/workspace/parts';
 import '../Organization/Organization.css';
 import { OrgFrame } from '../../features/workspace/OrgFrame';
-import { Chip } from '../../components/ui/Chip';
+import { Chip } from '../../modules/core/components/chip';
 import { normalizeStatus, outcomeOf } from './runsModel';
 import { jobStatus } from '../../features/workspace/model';
 import type { Refusal } from './runErrors';

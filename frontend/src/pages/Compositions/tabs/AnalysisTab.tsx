@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Action } from '../../../components/ui/Action';
-import { Notice } from '../../../components/ui/Notice';
+import { Action } from '../../../modules/core/components/action-button';
+import { Notice } from '../../../modules/core/components/notice';
 import { compositionsApi } from '../../../entities/composition/api';
 import type { CompositionViewModel } from '../../../entities/composition/viewModel';
 import { DeriveCompositionDialog } from '../../../features/derive/DeriveCompositionDialog';

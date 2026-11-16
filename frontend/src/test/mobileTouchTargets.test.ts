@@ -54,14 +54,9 @@ describe('mobile touch targets (max-width: 640px)', () => {
     expect(css.slice(layer, css.indexOf(block))).not.toMatch(/\n\}\n/);
   });
 
-  it('beats the min-height: 0 of the link action with a phone rule of its own stylesheet, after it', () => {
-    const action = read('components/ui/Action.css');
-    const zero = action.search(/\.ui-action\.is-link \{\s*min-height: 0;/);
-    const phone =
-      /@media \(max-width: 640px\) \{\s*:is\(a, button\)\.ui-action\.is-link \{\s*min-height: 24px;\s*align-items: center;\s*vertical-align: middle;\s*\}/;
-    expect(zero).toBeGreaterThan(-1);
-    expect(action.slice(zero)).toMatch(phone);
-    expect(action.slice(0, zero)).not.toMatch(phone);
+  it('keeps the link action a 24 px touch target on phones, in its own classes', () => {
+    const action = read('modules/core/components/action-button/index.tsx');
+    expect(action).toMatch(/link: '[^']*max-sm:!min-h-6/);
   });
 
   it('keeps the job-result links in a container that exists in the markup', () => {

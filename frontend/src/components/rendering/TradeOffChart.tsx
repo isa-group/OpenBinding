@@ -8,7 +8,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { DataTable } from '../ui/DataTable';
+import { DataTable } from '../../modules/core/components/data-table';
 import { nonDominated, type TradeOffChartProps, type TradeOffPoint } from './tradeOffModel';
 import './TradeOffChart.css';
 

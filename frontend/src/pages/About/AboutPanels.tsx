@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ArrowUpRight, Clock, FlaskConical, Github, Landmark } from 'lucide-react';
-import { Chip } from '../../components/ui/Chip';
-import { Modal } from '../../components/ui/Modal';
+import { Chip } from '../../modules/core/components/chip';
+import { Modal } from '../../modules/core/components/modal';
 import type { ContributionTrack } from '../../content/platform';
 import { ABOUT_TABS, changelogEntries, linkLabel, streamLabel, type AboutData } from './aboutModel';
 

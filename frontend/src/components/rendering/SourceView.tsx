@@ -1,4 +1,4 @@
-import { useCopy } from '../ui/useCopy';
+import { useCopy } from '../../modules/core/hooks/useCopy';
 import { saveText } from './download';
 import './SourceView.css';
 

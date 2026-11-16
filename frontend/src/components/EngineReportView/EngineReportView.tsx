@@ -1,8 +1,8 @@
 import type { EngineRegistrationReport } from '../../api/client';
 import { formatDateTime } from '../../utils/format';
-import { Badge } from '../ui/Badge';
-import { DataTable } from '../ui/DataTable';
-import { useCopy } from '../ui/useCopy';
+import { Badge } from '../../modules/core/components/badge';
+import { DataTable } from '../../modules/core/components/data-table';
+import { useCopy } from '../../modules/core/hooks/useCopy';
 import './EngineReportView.css';
 
 // The engine's own answer view (solutions, provenance and raw response dumped in <pre>) is retired; only the registration report remains.

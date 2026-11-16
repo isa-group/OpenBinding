@@ -2,12 +2,12 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Layers } from 'lucide-react';
-import { Action } from '../../components/ui/Action';
-import { EmptyState } from '../../components/ui/EmptyState';
-import { FilterPills } from '../../components/ui/FilterPills';
-import { Notice } from '../../components/ui/Notice';
-import { PageHeader } from '../../components/ui/PageHeader';
-import { Skeleton } from '../../components/ui/Skeleton';
+import { Action } from '../../modules/core/components/action-button';
+import { EmptyState } from '../../modules/core/components/empty-state';
+import { FilterPills } from '../../modules/core/components/filter-pills';
+import { Notice } from '../../modules/core/components/notice';
+import { PageHeader } from '../../modules/core/components/page-header';
+import { Skeleton } from '../../modules/core/components/skeleton';
 import { compositionsApi } from '../../entities/composition/api';
 import { KIND_OPTIONS, isKind, kindLabel } from '../../entities/composition/kinds';
 import { valueStatus } from '../../entities/composition/values';

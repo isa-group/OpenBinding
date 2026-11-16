@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { DataTable } from '../ui/DataTable';
+import { DataTable } from '../../modules/core/components/data-table';
 import {
   MAX_NOTES,
   MAX_ROWS,

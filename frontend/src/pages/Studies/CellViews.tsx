@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { StudyCell } from '../../api/platform';
-import { Action } from '../../components/ui/Action';
-import { DataTable } from '../../components/ui/DataTable';
-import { EmptyState } from '../../components/ui/EmptyState';
-import { FilterPills } from '../../components/ui/FilterPills';
+import { Action } from '../../modules/core/components/action-button';
+import { DataTable } from '../../modules/core/components/data-table';
+import { EmptyState } from '../../modules/core/components/empty-state';
+import { FilterPills } from '../../modules/core/components/filter-pills';
 import { LayoutGrid } from 'lucide-react';
 import { StateChip } from './parts';
 import {

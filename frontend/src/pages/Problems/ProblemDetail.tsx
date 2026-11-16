@@ -3,10 +3,10 @@ import { useLocation, useNavigate, useParams, useSearchParams } from 'react-rout
 import { CheckCircle2, Lock } from 'lucide-react';
 import type { Organization } from '../../api/platform';
 import { problemsApi, type ProblemRevision } from '../../api/problems';
-import { Action } from '../../components/ui/Action';
-import { Chip } from '../../components/ui/Chip';
-import { Skeleton } from '../../components/ui/Skeleton';
-import { TabBar, TabPanel } from '../../components/ui/TabBar';
+import { Action } from '../../modules/core/components/action-button';
+import { Chip } from '../../modules/core/components/chip';
+import { Skeleton } from '../../modules/core/components/skeleton';
+import { TabBar, TabPanel } from '../../modules/core/components/tab-bar';
 import NotFoundScreen from '../../modules/core/pages/page-not-found';
 import {
   isProblemTabSegment,

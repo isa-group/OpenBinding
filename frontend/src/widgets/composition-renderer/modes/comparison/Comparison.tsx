@@ -11,8 +11,8 @@ import {
   X,
   type LucideIcon,
 } from 'lucide-react';
-import { Action } from '../../../../components/ui/Action';
-import { Notice } from '../../../../components/ui/Notice';
+import { Action } from '../../../../modules/core/components/action-button';
+import { Notice } from '../../../../modules/core/components/notice';
 import { fieldPath, versionChanges } from '../../../../entities/composition/changes';
 import type { CompositionViewModel } from '../../../../entities/composition/viewModel';
 import type { Section } from '../../presets';

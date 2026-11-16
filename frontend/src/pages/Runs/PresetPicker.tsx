@@ -1,10 +1,10 @@
 import { useId, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { TriangleAlert } from 'lucide-react';
-import { Action } from '../../components/ui/Action';
-import { Chip } from '../../components/ui/Chip';
-import { FormField } from '../../components/ui/FormField';
-import { Modal } from '../../components/ui/Modal';
+import { Action } from '../../modules/core/components/action-button';
+import { Chip } from '../../modules/core/components/chip';
+import { FormField } from '../../modules/core/components/form-field';
+import { Modal } from '../../modules/core/components/modal';
 import { presetsApi, type PresetSettings } from '../../entities/preset/api';
 import {
   presetEngineText,
@@ -16,7 +16,6 @@ import { classifyAuthError, marker } from '../../modules/core/api/errors';
 import { SLUG_PATTERN, slugFromName } from '../../shared/lib/slug';
 import type { RunPresetView } from '../../modules/core/api/types';
 import type { ModeChoice } from './launchModel';
-import '../../components/ui/FormField.css';
 
 interface PresetPickerProps {
   /** The organization's presets; `null` when they could not be read. */

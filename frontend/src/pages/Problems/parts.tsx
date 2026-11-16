@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Lock } from 'lucide-react';
 import type { Organization } from '../../api/platform';
-import { useCopy } from '../../components/ui/useCopy';
+import { useCopy } from '../../modules/core/hooks/useCopy';
 import { Gate, type Crumb } from '../../features/workspace/parts';
 import '../Organization/Organization.css';
 import { OrgFrame } from '../../features/workspace/OrgFrame';

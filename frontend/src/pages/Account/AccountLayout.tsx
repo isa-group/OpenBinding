@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react';
 import { Lock } from 'lucide-react';
 import { AccountNav, type AccountSection } from '../../components/PlatformShell/AccountNav';
-import { Action } from '../../components/ui/Action';
-import { Notice } from '../../components/ui/Notice';
+import { Action } from '../../modules/core/components/action-button';
+import { Notice } from '../../modules/core/components/notice';
 import './Account.css';
 
 interface AccountLayoutProps {

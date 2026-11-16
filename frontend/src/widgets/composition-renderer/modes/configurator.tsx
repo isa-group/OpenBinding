@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Action } from '../../../components/ui/Action';
-import { Notice } from '../../../components/ui/Notice';
+import { Action } from '../../../modules/core/components/action-button';
+import { Notice } from '../../../modules/core/components/notice';
 import type { CandidateMatrix as Matrix } from '../../../entities/binding/candidateMatrix';
 import { compositionsApi } from '../../../entities/composition/api';
 import { formatValue } from '../../../entities/composition/values';

@@ -1,10 +1,10 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import type { ProblemCompilation } from '../../api/problems';
-import { Action } from '../../components/ui/Action';
-import { Chip } from '../../components/ui/Chip';
-import { Notice } from '../../components/ui/Notice';
-import { useCountdown } from '../../components/ui/useCountdown';
+import { Action } from '../../modules/core/components/action-button';
+import { Chip } from '../../modules/core/components/chip';
+import { Notice } from '../../modules/core/components/notice';
+import { useCountdown } from '../../modules/core/hooks/useCountdown';
 import { Choice } from '../Organization/parts';
 import type { Refusal } from './runErrors';
 import type { ForecastBar } from './runsModel';

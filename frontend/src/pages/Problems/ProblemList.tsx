@@ -2,12 +2,12 @@ import { useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { CheckCircle2 } from 'lucide-react';
 import type { Organization } from '../../api/platform';
-import { Action } from '../../components/ui/Action';
-import { Badge } from '../../components/ui/Badge';
-import { Chip } from '../../components/ui/Chip';
-import { FilterPills } from '../../components/ui/FilterPills';
-import { Notice } from '../../components/ui/Notice';
-import { Skeleton } from '../../components/ui/Skeleton';
+import { Action } from '../../modules/core/components/action-button';
+import { Badge } from '../../modules/core/components/badge';
+import { Chip } from '../../modules/core/components/chip';
+import { FilterPills } from '../../modules/core/components/filter-pills';
+import { Notice } from '../../modules/core/components/notice';
+import { Skeleton } from '../../modules/core/components/skeleton';
 import { compositionsApi } from '../../entities/composition/api';
 import {
   problemPath,

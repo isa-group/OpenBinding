@@ -1,10 +1,9 @@
 import { useId, type ReactNode } from 'react';
 import type { Organization, OrganizationRole } from '../../api/platform';
-import { Action } from '../../components/ui/Action';
-import { Skeleton } from '../../components/ui/Skeleton';
+import { Action } from '../../modules/core/components/action-button';
+import { Skeleton } from '../../modules/core/components/skeleton';
 import { Gate } from '../../features/workspace/parts';
 import { initialsOf, tileColour } from './orgModel';
-import '../../components/ui/FormField.css';
 import './Organization.css';
 
 /** A role as a small coloured label. `PLATFORM ADMIN` is not an organization role; it is shown to administrators. */

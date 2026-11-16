@@ -1,9 +1,9 @@
 // Design follows SPHERE frontend/src/modules/pricing/components/configuration-space-view/index.tsx (revision 73779a8a); no code copied
 import { useEffect, useRef, useState } from 'react';
-import { Action } from '../../../components/ui/Action';
-import { Chip } from '../../../components/ui/Chip';
-import { DataTable } from '../../../components/ui/DataTable';
-import { Notice } from '../../../components/ui/Notice';
+import { Action } from '../../../modules/core/components/action-button';
+import { Chip } from '../../../modules/core/components/chip';
+import { DataTable } from '../../../modules/core/components/data-table';
+import { Notice } from '../../../modules/core/components/notice';
 import { COMPARISON_WORDS, comparisonText } from '../../../entities/binding/comparison';
 import { compositionsApi } from '../../../entities/composition/api';
 import type { CompositionViewModel } from '../../../entities/composition/viewModel';

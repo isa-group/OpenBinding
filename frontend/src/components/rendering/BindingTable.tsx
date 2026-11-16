@@ -1,4 +1,4 @@
-import { DataTable } from '../ui/DataTable';
+import { DataTable } from '../../modules/core/components/data-table';
 import { formatFeature } from '../../utils/featureRange';
 import type { BindingFeature, BindingRow, BindingValue } from './bindingTableModel';
 import './BindingTable.css';

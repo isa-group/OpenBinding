@@ -8,11 +8,11 @@ import {
   type EngineRegistrationRevision,
   type EngineRegistrationState,
 } from '../../api/client';
-import { Badge } from '../../components/ui/Badge';
-import { Button } from '../../components/ui/Button';
-import { EmptyState } from '../../components/ui/EmptyState';
-import { Notice } from '../../components/ui/Notice';
-import { Skeleton } from '../../components/ui/Skeleton';
+import { Badge } from '../../modules/core/components/badge';
+import { Button } from '../../modules/core/components/action-button';
+import { EmptyState } from '../../modules/core/components/empty-state';
+import { Notice } from '../../modules/core/components/notice';
+import { Skeleton } from '../../modules/core/components/skeleton';
 
 const deploymentStates: Record<
   EngineRegistrationState,

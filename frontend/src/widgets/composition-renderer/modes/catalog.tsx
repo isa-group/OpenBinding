@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { Notice } from '../../../components/ui/Notice';
+import { Notice } from '../../../modules/core/components/notice';
 import type { Evidence, Provenance } from '../../../entities/composition/document';
 import { kindLabel } from '../../../entities/composition/kinds';
 import { formatValue } from '../../../entities/composition/values';

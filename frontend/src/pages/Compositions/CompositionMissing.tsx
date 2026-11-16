@@ -1,4 +1,4 @@
-import { Action } from '../../components/ui/Action';
+import { Action } from '../../modules/core/components/action-button';
 import { Gate } from '../../features/workspace/parts';
 import { compositionsPath } from '../../routes/paths/compositions';
 

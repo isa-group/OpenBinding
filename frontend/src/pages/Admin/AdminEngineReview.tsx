@@ -6,10 +6,10 @@ import {
   type EngineRegistrationReport,
   type EngineRegistrationRevision,
 } from '../../api/client';
-import { Action } from '../../components/ui/Action';
-import { EmptyState } from '../../components/ui/EmptyState';
-import { Notice } from '../../components/ui/Notice';
-import { Skeleton } from '../../components/ui/Skeleton';
+import { Action } from '../../modules/core/components/action-button';
+import { EmptyState } from '../../modules/core/components/empty-state';
+import { Notice } from '../../modules/core/components/notice';
+import { Skeleton } from '../../modules/core/components/skeleton';
 import { engineLabel } from '../../shared/lib/identity';
 import { useResource } from '../../utils/useResource';
 import { ConfirmDialog } from '../Engines/EngineDialogs';

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Action } from '../ui/Action';
-import { Notice } from '../ui/Notice';
+import { Action } from '../../modules/core/components/action-button';
+import { Notice } from '../../modules/core/components/notice';
 import { forgetPlanChanged, peekPlanChanged, type PlanChangeNote } from '../../utils/authFlow';
 
 /** The sentence for a plan the sign-in changed. Linking CAS raises FREE to RESEARCH, and it costs nothing. */

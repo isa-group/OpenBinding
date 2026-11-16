@@ -1,4 +1,4 @@
-import { Badge } from '../ui/Badge';
+import { Badge } from '../../modules/core/components/badge';
 import './VerdictBadge.css';
 
 interface VerdictBadgeProps {

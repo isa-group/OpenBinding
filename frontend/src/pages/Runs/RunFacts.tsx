@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import type { JobCompilationRef } from '../../api/platform';
-import { Chip } from '../../components/ui/Chip';
-import { DataTable } from '../../components/ui/DataTable';
-import { useCopy } from '../../components/ui/useCopy';
+import { Chip } from '../../modules/core/components/chip';
+import { DataTable } from '../../modules/core/components/data-table';
+import { useCopy } from '../../modules/core/hooks/useCopy';
 import { problemPath } from '../../routes/paths/problems';
 import { formatDateTime } from '../../utils/format';
 import type { Origin } from './RunOutcome';

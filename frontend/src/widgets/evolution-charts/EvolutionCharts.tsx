@@ -10,10 +10,10 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { Action } from '../../components/ui/Action';
-import { DataTable } from '../../components/ui/DataTable';
-import { FilterPills } from '../../components/ui/FilterPills';
-import { Notice } from '../../components/ui/Notice';
+import { Action } from '../../modules/core/components/action-button';
+import { DataTable } from '../../modules/core/components/data-table';
+import { FilterPills } from '../../modules/core/components/filter-pills';
+import { Notice } from '../../modules/core/components/notice';
 import { compositionsApi } from '../../entities/composition/api';
 import {
   evolutionModel,

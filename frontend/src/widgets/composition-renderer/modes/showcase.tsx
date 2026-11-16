@@ -1,8 +1,8 @@
 // Design follows SPHERE frontend/src/modules/pricing/pages/card/index.tsx (revision 73779a8a); no code copied
 import { Link } from 'react-router-dom';
 import { ExternalLink, GitFork, Link2 } from 'lucide-react';
-import { Action } from '../../../components/ui/Action';
-import { useCopy } from '../../../components/ui/useCopy';
+import { Action } from '../../../modules/core/components/action-button';
+import { useCopy } from '../../../modules/core/hooks/useCopy';
 import { kindLabel } from '../../../entities/composition/kinds';
 import type { CompositionViewModel, OfferingModel } from '../../../entities/composition/viewModel';
 import { formatDate } from '../../../utils/format';

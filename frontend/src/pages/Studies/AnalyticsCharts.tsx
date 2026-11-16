@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import type { StudyCell } from '../../api/platform';
-import { DataTable } from '../../components/ui/DataTable';
+import { DataTable } from '../../modules/core/components/data-table';
 import {
   axisOf,
   engineColor,

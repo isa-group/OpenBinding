@@ -1,5 +1,5 @@
-import { Action } from '../../../components/ui/Action';
-import { Notice } from '../../../components/ui/Notice';
+import { Action } from '../../../modules/core/components/action-button';
+import { Notice } from '../../../modules/core/components/notice';
 import type { CompositionViewModel } from '../../../entities/composition/viewModel';
 import { problemEditorPath, problemPath } from '../../../routes/paths/problems';
 import { runPath } from '../../../routes/paths/runs';

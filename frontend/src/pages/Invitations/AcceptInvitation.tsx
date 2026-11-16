@@ -5,9 +5,9 @@ import { Link, useLocation, useNavigate, useOutletContext } from 'react-router-d
 import { platformApi } from '../../api/platform';
 import type { Organization, OrganizationMember, OrganizationRole } from '../../api/platform';
 import type { PlatformOutletContext } from '../../routes/LegacyOrgOutlet';
-import { Chip } from '../../components/ui/Chip';
-import { Notice } from '../../components/ui/Notice';
-import { Skeleton } from '../../components/ui/Skeleton';
+import { Chip } from '../../modules/core/components/chip';
+import { Notice } from '../../modules/core/components/notice';
+import { Skeleton } from '../../modules/core/components/skeleton';
 import { useAuth } from '../../modules/auth/hooks/useAuth';
 import { classifyAuthError } from '../../modules/core/api/errors';
 import './AcceptInvitation.css';

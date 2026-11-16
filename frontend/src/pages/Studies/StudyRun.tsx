@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { platformApi, type StudyCell } from '../../api/platform';
-import { Action } from '../../components/ui/Action';
-import { Notice } from '../../components/ui/Notice';
-import { Skeleton } from '../../components/ui/Skeleton';
+import { Action } from '../../modules/core/components/action-button';
+import { Notice } from '../../modules/core/components/notice';
+import { Skeleton } from '../../modules/core/components/skeleton';
 import { formatDateTime } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import { classifyAuthError, marker } from '../../modules/core/api/errors';

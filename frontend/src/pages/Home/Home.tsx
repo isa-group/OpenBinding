@@ -16,9 +16,9 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { apiClient, HttpError, SESSION_ENDED_EVENT } from '../../api/client';
-import { Button } from '../../components/ui/Button';
-import { Notice } from '../../components/ui/Notice';
-import { Skeleton } from '../../components/ui/Skeleton';
+import { Button } from '../../modules/core/components/action-button';
+import { Notice } from '../../modules/core/components/notice';
+import { Skeleton } from '../../modules/core/components/skeleton';
 import { PRICING_VERSION, planSummaries } from '../../content/plans';
 import { useAuth } from '../../modules/auth/hooks/useAuth';
 import { useResource, type Resource } from '../../utils/useResource';

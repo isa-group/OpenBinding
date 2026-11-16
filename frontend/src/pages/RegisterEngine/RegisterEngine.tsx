@@ -8,12 +8,12 @@ import {
   type EngineRevision,
 } from '../../api/client';
 import type { ImmutableResourceRef } from '../../modules/core/api/types';
-import { Action } from '../../components/ui/Action';
-import { Notice } from '../../components/ui/Notice';
-import { PageHeader } from '../../components/ui/PageHeader';
+import { Action } from '../../modules/core/components/action-button';
+import { Notice } from '../../modules/core/components/notice';
+import { PageHeader } from '../../modules/core/components/page-header';
 import { OrganizationPicker } from '../../components/ui/OrganizationPicker';
 import { launchPath } from '../../routes/paths/runs';
-import { Skeleton } from '../../components/ui/Skeleton';
+import { Skeleton } from '../../modules/core/components/skeleton';
 import { useAuth } from '../../modules/auth/hooks/useAuth';
 import { useResource } from '../../utils/useResource';
 import {

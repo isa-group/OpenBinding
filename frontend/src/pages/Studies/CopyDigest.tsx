@@ -1,4 +1,4 @@
-import { useCopy } from '../../components/ui/useCopy';
+import { useCopy } from '../../modules/core/hooks/useCopy';
 
 /** A button that copies a full digest without showing it: the page names the thing, the clipboard carries the proof. */
 export function CopyDigest({ value, label }: { value: string; label: string }) {

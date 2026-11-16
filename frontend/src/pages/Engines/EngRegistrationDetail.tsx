@@ -9,14 +9,14 @@ import {
   type EngineRegistrationRevision,
 } from '../../api/client';
 import type { ImmutableResourceRef } from '../../modules/core/api/types';
-import { Action } from '../../components/ui/Action';
-import { DataTable } from '../../components/ui/DataTable';
+import { Action } from '../../modules/core/components/action-button';
+import { DataTable } from '../../modules/core/components/data-table';
 import { ErrorState, StateAction } from '../../components/ui/ErrorState';
-import { Notice, type NoticeTone } from '../../components/ui/Notice';
+import { Notice, type NoticeTone } from '../../modules/core/components/notice';
 import { OrganizationPicker } from '../../components/ui/OrganizationPicker';
 import { launchPath } from '../../routes/paths/runs';
-import { Skeleton } from '../../components/ui/Skeleton';
-import { useCopy } from '../../components/ui/useCopy';
+import { Skeleton } from '../../modules/core/components/skeleton';
+import { useCopy } from '../../modules/core/hooks/useCopy';
 import { useAuth } from '../../modules/auth/hooks/useAuth';
 import { useResource } from '../../utils/useResource';
 import { ConfirmDialog, DeregisterDialog } from './EngineDialogs';

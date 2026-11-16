@@ -2,10 +2,10 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { useState } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
-import { Action } from './Action';
-import { FormField } from './FormField';
-import { Modal } from './Modal';
-import { Switch } from './Switch';
+import { Action } from '../action-button';
+import { FormField } from '../form-field';
+import { Modal } from '.';
+import { Switch } from '../switch';
 
 function Harness({ dismissible = true }: { dismissible?: boolean }) {
   const [open, setOpen] = useState(false);

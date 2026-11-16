@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Check } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Notice } from '../../components/ui/Notice';
+import { Notice } from '../../modules/core/components/notice';
 import { useAuth } from '../../modules/auth/hooks/useAuth';
 import {
   afterSignInTarget,

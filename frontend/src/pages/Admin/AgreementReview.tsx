@@ -11,8 +11,8 @@ import {
   type PricingChangeReviewProps,
 } from 'pricing-renderer/react';
 import 'pricing-renderer/styles.css';
-import { Action } from '../../components/ui/Action';
-import { Notice } from '../../components/ui/Notice';
+import { Action } from '../../modules/core/components/action-button';
+import { Notice } from '../../modules/core/components/notice';
 
 /**
  * The React props of the review (0.2.0) leave out `hideSections`, which the element has. The adapter sets every property the

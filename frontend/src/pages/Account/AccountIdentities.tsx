@@ -9,12 +9,12 @@ import {
   INSTITUTION_NAME,
   useInstitutionalBranding,
 } from '../../components/InstitutionMark/institution';
-import { Action } from '../../components/ui/Action';
-import { Chip } from '../../components/ui/Chip';
-import { FormField } from '../../components/ui/FormField';
-import { Modal } from '../../components/ui/Modal';
-import { Notice, type NoticeTone } from '../../components/ui/Notice';
-import { Skeleton } from '../../components/ui/Skeleton';
+import { Action } from '../../modules/core/components/action-button';
+import { Chip } from '../../modules/core/components/chip';
+import { FormField } from '../../modules/core/components/form-field';
+import { Modal } from '../../modules/core/components/modal';
+import { Notice, type NoticeTone } from '../../modules/core/components/notice';
+import { Skeleton } from '../../modules/core/components/skeleton';
 import { useAuth } from '../../modules/auth/hooks/useAuth';
 import { formatDate } from '../../utils/format';
 import { leaveTo } from '../../utils/navigation';

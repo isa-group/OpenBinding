@@ -1,6 +1,6 @@
 import { useId, useState, type FormEvent, type ReactNode } from 'react';
-import { Action } from '../../components/ui/Action';
-import { Modal } from '../../components/ui/Modal';
+import { Action } from '../../modules/core/components/action-button';
+import { Modal } from '../../modules/core/components/modal';
 import './EngineParts.css';
 
 interface ConfirmProps {

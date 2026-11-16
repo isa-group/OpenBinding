@@ -8,7 +8,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronDown, Code2, GitBranch, PenLine, Plus, UploadCloud } from 'lucide-react';
-import { Action } from '../../components/ui/Action';
+import { Action } from '../../modules/core/components/action-button';
 import './NewVersionMenu.css';
 
 interface Props {

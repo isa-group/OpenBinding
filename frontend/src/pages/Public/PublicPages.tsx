@@ -9,10 +9,10 @@ import {
 } from '../../api/bim';
 import { HttpError } from '../../api/client';
 import { BindingSpaceBadge } from '../../components/BindingSpaceBadge/BindingSpaceBadge';
-import { Button } from '../../components/ui/Button';
-import { Notice } from '../../components/ui/Notice';
+import { Button } from '../../modules/core/components/action-button';
+import { Notice } from '../../modules/core/components/notice';
 import { OrganizationPicker } from '../../components/ui/OrganizationPicker';
-import { useCopy } from '../../components/ui/useCopy';
+import { useCopy } from '../../modules/core/hooks/useCopy';
 import { useAuth } from '../../modules/auth/hooks/useAuth';
 import { candidateMatrix } from '../../entities/binding/candidateMatrix';
 import { workflowGraph, type TaskOverlay } from '../../entities/binding/workflowGraph';

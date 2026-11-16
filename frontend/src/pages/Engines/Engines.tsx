@@ -8,13 +8,13 @@ import {
   type EngineRegistrationRevision,
 } from '../../api/client';
 import { platformApi, type EngineRevision } from '../../api/platform';
-import { Button } from '../../components/ui/Button';
-import { DataTable } from '../../components/ui/DataTable';
-import { EmptyState } from '../../components/ui/EmptyState';
-import { FilterPills } from '../../components/ui/FilterPills';
-import { Notice } from '../../components/ui/Notice';
-import { PageHeader } from '../../components/ui/PageHeader';
-import { Skeleton } from '../../components/ui/Skeleton';
+import { Button } from '../../modules/core/components/action-button';
+import { DataTable } from '../../modules/core/components/data-table';
+import { EmptyState } from '../../modules/core/components/empty-state';
+import { FilterPills } from '../../modules/core/components/filter-pills';
+import { Notice } from '../../modules/core/components/notice';
+import { PageHeader } from '../../modules/core/components/page-header';
+import { Skeleton } from '../../modules/core/components/skeleton';
 import { useAuth } from '../../modules/auth/hooks/useAuth';
 import { engineLabel } from '../../shared/lib/identity';
 import { useResource } from '../../utils/useResource';

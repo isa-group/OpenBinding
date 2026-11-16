@@ -1,5 +1,5 @@
 import { useId, useState, useSyncExternalStore, type ReactNode } from 'react';
-import { DataTable } from '../../components/ui/DataTable';
+import { DataTable } from '../../modules/core/components/data-table';
 import { formatFeature, type FeatureValue } from '../../utils/featureRange';
 import type {
   CandidateMatrix as Matrix,

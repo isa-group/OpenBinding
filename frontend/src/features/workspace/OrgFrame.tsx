@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import type { Organization } from '../../api/platform';
-import { Action } from '../../components/ui/Action';
-import { Skeleton } from '../../components/ui/Skeleton';
+import { Action } from '../../modules/core/components/action-button';
+import { Skeleton } from '../../modules/core/components/skeleton';
 import { Breadcrumb, Gate, type Crumb } from './parts';
 import { marker, type AuthFailure } from '../../modules/core/api/errors';
 import './workspace.css';

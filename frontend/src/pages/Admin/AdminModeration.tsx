@@ -1,7 +1,7 @@
 import { RefreshCw } from 'lucide-react';
 import { apiClient } from '../../api/client';
-import { Action } from '../../components/ui/Action';
-import { Skeleton } from '../../components/ui/Skeleton';
+import { Action } from '../../modules/core/components/action-button';
+import { Skeleton } from '../../modules/core/components/skeleton';
 import { useResource } from '../../utils/useResource';
 import { AdminEngineReview } from './AdminEngineReview';
 import { AdminFrame, AdminOnly, FailureNotice } from './AdminChrome';

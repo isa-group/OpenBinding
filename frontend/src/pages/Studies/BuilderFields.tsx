@@ -1,8 +1,8 @@
 import { Plus, Trash2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { CaseContent } from '../../features/workspace/model';
-import { Action } from '../../components/ui/Action';
-import { Chip } from '../../components/ui/Chip';
+import { Action } from '../../modules/core/components/action-button';
+import { Chip } from '../../modules/core/components/chip';
 import { problemsPath } from '../../routes/paths/problems';
 import { formatDate } from '../../utils/format';
 import { engineLabel } from '../../shared/lib/identity';

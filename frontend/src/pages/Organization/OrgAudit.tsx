@@ -7,10 +7,10 @@ import type {
   OrganizationAuditEvent,
   OrganizationAuditPage,
 } from '../../api/platform';
-import { Action } from '../../components/ui/Action';
-import { Notice } from '../../components/ui/Notice';
-import { Skeleton } from '../../components/ui/Skeleton';
-import { useCopy } from '../../components/ui/useCopy';
+import { Action } from '../../modules/core/components/action-button';
+import { Notice } from '../../modules/core/components/notice';
+import { Skeleton } from '../../modules/core/components/skeleton';
+import { useCopy } from '../../modules/core/hooks/useCopy';
 import { useAuth } from '../../modules/auth/hooks/useAuth';
 import { formatDateTime } from '../../utils/format';
 import { useResource } from '../../utils/useResource';

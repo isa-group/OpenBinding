@@ -1,7 +1,7 @@
 import { useId, useState, type ReactNode } from 'react';
-import { Action } from '../../components/ui/Action';
-import { CopyField } from '../../components/ui/CopyField';
-import { Modal } from '../../components/ui/Modal';
+import { Action } from '../../modules/core/components/action-button';
+import { CopyField } from '../../modules/core/components/copy-field';
+import { Modal } from '../../modules/core/components/modal';
 
 interface SecretDialogProps {
   title: string;

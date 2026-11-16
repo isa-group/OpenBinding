@@ -1,8 +1,8 @@
 import { useId } from 'react';
 import { Link } from 'react-router-dom';
 import { Lock } from 'lucide-react';
-import { Action } from '../../components/ui/Action';
-import { Notice } from '../../components/ui/Notice';
+import { Action } from '../../modules/core/components/action-button';
+import { Notice } from '../../modules/core/components/notice';
 import { formatValue } from '../../entities/composition/values';
 import type { CheckResult } from '../../modules/core/api/types';
 import { ValueBadge } from '../../widgets/value-badge/ValueBadge';

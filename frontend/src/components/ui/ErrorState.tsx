@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { useCountdown } from './useCountdown';
+import { useCountdown } from '../../modules/core/hooks/useCountdown';
 import './ErrorState.css';
 
 /** The failures the platform tells apart, by HTTP status. */

@@ -5,11 +5,11 @@ import {
   INSTITUTION_NAME,
   useInstitutionalBranding,
 } from '../../components/InstitutionMark/institution';
-import { Action } from '../../components/ui/Action';
-import { Chip } from '../../components/ui/Chip';
-import { DataTable } from '../../components/ui/DataTable';
-import { Notice } from '../../components/ui/Notice';
-import { Skeleton } from '../../components/ui/Skeleton';
+import { Action } from '../../modules/core/components/action-button';
+import { Chip } from '../../modules/core/components/chip';
+import { DataTable } from '../../modules/core/components/data-table';
+import { Notice } from '../../modules/core/components/notice';
+import { Skeleton } from '../../modules/core/components/skeleton';
 import { config } from '../../config';
 import { useAuth } from '../../modules/auth/hooks/useAuth';
 import { describeLimit, formatCount, LIMIT, type LimitDefinition } from '../../utils/limits';

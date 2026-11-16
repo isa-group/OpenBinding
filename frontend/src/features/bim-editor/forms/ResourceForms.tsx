@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Action } from '../../../components/ui/Action';
-import { Notice } from '../../../components/ui/Notice';
+import { Action } from '../../../modules/core/components/action-button';
+import { Notice } from '../../../modules/core/components/notice';
 import { FeatureCell } from '../FeatureCell';
 import {
   DEFAULT_AST_ASSERTION,

@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import type { BimValidateResponse } from '../../api/bim';
 import { BindingSpaceBadge } from '../../components/BindingSpaceBadge/BindingSpaceBadge';
-import { Chip } from '../../components/ui/Chip';
+import { Chip } from '../../modules/core/components/chip';
 import { candidateMatrix } from '../../entities/binding/candidateMatrix';
 import { workflowGraph } from '../../entities/binding/workflowGraph';
 import type { ProblemFacts } from '../../modules/core/api/types';

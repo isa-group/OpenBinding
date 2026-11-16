@@ -1,9 +1,9 @@
 import { useId, useState, type FormEvent } from 'react';
 import { Trash2 } from 'lucide-react';
 import { apiClient } from '../../api/client';
-import { Action } from '../../components/ui/Action';
-import { Modal } from '../../components/ui/Modal';
-import { Notice } from '../../components/ui/Notice';
+import { Action } from '../../modules/core/components/action-button';
+import { Modal } from '../../modules/core/components/modal';
+import { Notice } from '../../modules/core/components/notice';
 import { formatDate } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import { FailureNotice, Tag } from './AdminChrome';

@@ -1,8 +1,8 @@
 // Design follows SPHERE frontend/src/modules/pricing/components/pricing-import-modal/index.tsx (revision 73779a8a); no code copied
 import { useId, useState, type ChangeEvent } from 'react';
 import { TriangleAlert } from 'lucide-react';
-import { Action } from '../../components/ui/Action';
-import { Modal } from '../../components/ui/Modal';
+import { Action } from '../../modules/core/components/action-button';
+import { Modal } from '../../modules/core/components/modal';
 import { languageApi } from '../../entities/composition/api';
 import { readApiError } from '../../modules/core/api/errors';
 import type { ValidateResult } from '../../modules/core/api/types';

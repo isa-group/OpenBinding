@@ -3,7 +3,7 @@ import type { FormEvent } from 'react';
 import { Check } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { apiClient } from '../../api/client';
-import { Notice } from '../../components/ui/Notice';
+import { Notice } from '../../modules/core/components/notice';
 import { BRAND_ASSETS } from '../../content/brandAssets';
 import { useAuth } from '../../modules/auth/hooks/useAuth';
 import {

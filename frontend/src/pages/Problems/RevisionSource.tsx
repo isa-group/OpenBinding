@@ -11,10 +11,10 @@ import {
 } from '../../api/problems';
 import { parseBindingSpace } from '../../components/BindingSpaceBadge/bindingSpace';
 import { SourceView } from '../../components/rendering/SourceView';
-import { Action } from '../../components/ui/Action';
-import { Notice } from '../../components/ui/Notice';
-import { Skeleton } from '../../components/ui/Skeleton';
-import { useCopy } from '../../components/ui/useCopy';
+import { Action } from '../../modules/core/components/action-button';
+import { Notice } from '../../modules/core/components/notice';
+import { Skeleton } from '../../modules/core/components/skeleton';
+import { useCopy } from '../../modules/core/hooks/useCopy';
 import { problemsPath } from '../../routes/paths/problems';
 import { formatBytes } from '../../utils/format';
 import { readZipArchive, type ZipArchive } from '../../utils/zipExplorer';

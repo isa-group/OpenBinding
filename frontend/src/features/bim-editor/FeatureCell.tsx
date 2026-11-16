@@ -1,5 +1,5 @@
 import { useId, useState, type ReactNode } from 'react';
-import { Action } from '../../components/ui/Action';
+import { Action } from '../../modules/core/components/action-button';
 import {
   modeLabel,
   parseRangeInput,

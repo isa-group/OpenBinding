@@ -1,8 +1,8 @@
 import { useId, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Action } from '../../components/ui/Action';
-import { FormField } from '../../components/ui/FormField';
-import { Modal } from '../../components/ui/Modal';
+import { Action } from '../../modules/core/components/action-button';
+import { FormField } from '../../modules/core/components/form-field';
+import { Modal } from '../../modules/core/components/modal';
 import { compositionsApi } from '../../entities/composition/api';
 import type { Kind } from '../../entities/composition/document';
 import { KIND_OPTIONS } from '../../entities/composition/kinds';

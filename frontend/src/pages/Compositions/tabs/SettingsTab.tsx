@@ -1,11 +1,11 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CheckCircle2, Globe, Lock, TriangleAlert } from 'lucide-react';
-import { Action } from '../../../components/ui/Action';
-import { FormField } from '../../../components/ui/FormField';
-import { Modal } from '../../../components/ui/Modal';
-import { Notice } from '../../../components/ui/Notice';
-import { Switch } from '../../../components/ui/Switch';
+import { Action } from '../../../modules/core/components/action-button';
+import { FormField } from '../../../modules/core/components/form-field';
+import { Modal } from '../../../modules/core/components/modal';
+import { Notice } from '../../../modules/core/components/notice';
+import { Switch } from '../../../modules/core/components/switch';
 import { compositionsApi } from '../../../entities/composition/api';
 import { compositionsPath } from '../../../routes/paths/compositions';
 import { readApiError, type ApiError } from '../../../modules/core/api/errors';

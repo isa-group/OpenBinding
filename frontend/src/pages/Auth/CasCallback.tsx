@@ -7,7 +7,7 @@ import {
   INSTITUTION_NAME,
   useInstitutionalBranding,
 } from '../../components/InstitutionMark/institution';
-import { Notice } from '../../components/ui/Notice';
+import { Notice } from '../../modules/core/components/notice';
 import { useAuth } from '../../modules/auth/hooks/useAuth';
 import {
   casFlowFor,

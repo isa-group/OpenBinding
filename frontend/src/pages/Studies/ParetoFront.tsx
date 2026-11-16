@@ -2,8 +2,8 @@
 import { useId, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { StudyCell } from '../../api/platform';
-import { Action } from '../../components/ui/Action';
-import { DataTable } from '../../components/ui/DataTable';
+import { Action } from '../../modules/core/components/action-button';
+import { DataTable } from '../../modules/core/components/data-table';
 import type { DerivedPoint } from '../../features/derive/DeriveBatch';
 import { DeriveCompositionDialog } from '../../features/derive/DeriveCompositionDialog';
 import type { FrontPoint } from '../../features/derive/deriveModel';

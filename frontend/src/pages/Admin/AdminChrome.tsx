@@ -1,9 +1,9 @@
 import { useRef, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useCurrentIntoView } from '../../components/PlatformShell/useCurrentIntoView';
-import { Action } from '../../components/ui/Action';
+import { Action } from '../../modules/core/components/action-button';
 import { ErrorState } from '../../components/ui/ErrorState';
-import { Notice } from '../../components/ui/Notice';
+import { Notice } from '../../modules/core/components/notice';
 import { useAuth } from '../../modules/auth/hooks/useAuth';
 import { Crumbs } from '../Engines/EngineParts';
 import { ADMIN_SECTIONS, type AdminSection, type ChipTone, type Failure } from './adminModel';

@@ -3,7 +3,7 @@ import type { FormEvent } from 'react';
 import { KeyRound, Mail } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { apiClient } from '../../api/client';
-import { Notice } from '../../components/ui/Notice';
+import { Notice } from '../../modules/core/components/notice';
 import { fieldErrorsFrom } from './authErrors';
 import { classifyAuthError } from '../../modules/core/api/errors';
 import { AuthField, AuthShell, AuthSpinner } from './AuthShell';

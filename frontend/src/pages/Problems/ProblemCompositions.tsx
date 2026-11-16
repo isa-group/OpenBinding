@@ -1,10 +1,10 @@
 import { Link } from 'react-router-dom';
 import type { Organization } from '../../api/platform';
 import type { Problem } from '../../api/problems';
-import { Action } from '../../components/ui/Action';
-import { DataTable } from '../../components/ui/DataTable';
-import { Notice } from '../../components/ui/Notice';
-import { Skeleton } from '../../components/ui/Skeleton';
+import { Action } from '../../modules/core/components/action-button';
+import { DataTable } from '../../modules/core/components/data-table';
+import { Notice } from '../../modules/core/components/notice';
+import { Skeleton } from '../../modules/core/components/skeleton';
 import { compositionsApi } from '../../entities/composition/api';
 import { formatValue, valueModels, valueStatus } from '../../entities/composition/values';
 import { compositionPath } from '../../routes/paths/compositions';

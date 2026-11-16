@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Check, TriangleAlert } from 'lucide-react';
 import { apiClient } from '../../api/client';
-import { Action } from '../../components/ui/Action';
-import { Chip } from '../../components/ui/Chip';
+import { Action } from '../../modules/core/components/action-button';
+import { Chip } from '../../modules/core/components/chip';
 import {
   INSTITUTION_NAME,
   useInstitutionalBranding,

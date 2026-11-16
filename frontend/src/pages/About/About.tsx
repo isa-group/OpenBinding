@@ -1,6 +1,6 @@
 import { useSearchParams } from 'react-router-dom';
-import { PageHeader } from '../../components/ui/PageHeader';
-import { TabBar, TabPanel } from '../../components/ui/TabBar';
+import { PageHeader } from '../../modules/core/components/page-header';
+import { TabBar, TabPanel } from '../../modules/core/components/tab-bar';
 import {
   ChangelogPanel,
   ContributionsPanel,

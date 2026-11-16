@@ -7,12 +7,12 @@ import {
 } from '../../api/platform';
 import { BindingSpaceBadge } from '../../components/BindingSpaceBadge/BindingSpaceBadge';
 import { parseBindingSpace, toSuperscript } from '../../components/BindingSpaceBadge/bindingSpace';
-import { Action } from '../../components/ui/Action';
+import { Action } from '../../modules/core/components/action-button';
 import { CopyDigest } from './CopyDigest';
-import { DataTable } from '../../components/ui/DataTable';
-import { FilterPills } from '../../components/ui/FilterPills';
-import { Notice } from '../../components/ui/Notice';
-import { Skeleton } from '../../components/ui/Skeleton';
+import { DataTable } from '../../modules/core/components/data-table';
+import { FilterPills } from '../../modules/core/components/filter-pills';
+import { Notice } from '../../modules/core/components/notice';
+import { Skeleton } from '../../modules/core/components/skeleton';
 import { studyRunLabel } from '../../shared/lib/identity';
 import { formatDateTime } from '../../utils/format';
 import { useResource } from '../../utils/useResource';

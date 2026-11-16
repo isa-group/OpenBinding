@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Action } from '../../components/ui/Action';
-import { Modal } from '../../components/ui/Modal';
-import { Notice } from '../../components/ui/Notice';
+import { Action } from '../../modules/core/components/action-button';
+import { Modal } from '../../modules/core/components/modal';
+import { Notice } from '../../modules/core/components/notice';
 import { compositionsApi, languageApi } from '../../entities/composition/api';
 import type { DerivedPoint } from '../../features/derive/DeriveBatch';
 import { readApiError } from '../../modules/core/api/errors';

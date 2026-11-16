@@ -2,9 +2,9 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { Check, Minus, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { SourceView } from '../../components/rendering/SourceView';
-import { DataTable } from '../../components/ui/DataTable';
-import { TabBar, TabPanel } from '../../components/ui/TabBar';
-import { useCopy } from '../../components/ui/useCopy';
+import { DataTable } from '../../modules/core/components/data-table';
+import { TabBar, TabPanel } from '../../modules/core/components/tab-bar';
+import { useCopy } from '../../modules/core/hooks/useCopy';
 import { formatDateTime } from '../../utils/format';
 import {
   dimensionLabel,

@@ -1,6 +1,6 @@
 import { useId, useState, type FormEvent, type ReactNode } from 'react';
-import { Action } from '../../components/ui/Action';
-import { Notice } from '../../components/ui/Notice';
+import { Action } from '../../modules/core/components/action-button';
+import { Notice } from '../../modules/core/components/notice';
 import { candidateMatrix } from '../../entities/binding/candidateMatrix';
 import { workflowGraph, type TaskOverlay } from '../../entities/binding/workflowGraph';
 import { documentValue, readDocument, type Kind } from '../../entities/composition/document';

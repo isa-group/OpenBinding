@@ -11,9 +11,20 @@ const FOCUSABLE =
  */
 export function useFocusTrap(
   panel: RefObject<HTMLElement | null>,
-  { onEscape }: { onEscape?: () => void } = {}
+  {
+    onEscape,
+    initialFocus,
+    fallbackSelector,
+  }: {
+    onEscape?: () => void;
+    /** The element that gets focus first, before `[data-autofocus]`. */
+    initialFocus?: RefObject<HTMLElement | null>;
+    /** Where to look for the first focus after `[data-autofocus]` (the first field of a form, say). */
+    fallbackSelector?: string;
+  } = {}
 ) {
   const escape = useRef(onEscape);
+  const first = useRef({ initialFocus, fallbackSelector });
   useEffect(() => {
     escape.current = onEscape;
   }, [onEscape]);
@@ -23,7 +34,12 @@ export function useFocusTrap(
     const root = document.getElementById('root');
     const wasInert = root?.hasAttribute('inert') ?? false;
     root?.setAttribute('inert', '');
-    const target = panel.current?.querySelector<HTMLElement>('[data-autofocus]') ?? panel.current;
+    const { initialFocus: preferred, fallbackSelector: fallback } = first.current;
+    const target =
+      preferred?.current ??
+      panel.current?.querySelector<HTMLElement>('[data-autofocus]') ??
+      (fallback ? panel.current?.querySelector<HTMLElement>(fallback) : null) ??
+      panel.current;
     target?.focus();
     return () => {
       if (!wasInert) root?.removeAttribute('inert');

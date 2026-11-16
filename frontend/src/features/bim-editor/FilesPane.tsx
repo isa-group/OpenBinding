@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { Chip } from '../../components/ui/Chip';
+import { Chip } from '../../modules/core/components/chip';
 import type { Located } from '../../shared/diagnostics/located';
 import { FileDiff } from '../../widgets/composition-renderer/modes/comparison/FileDiff';
 import type { WorkspaceFiles } from './documents';

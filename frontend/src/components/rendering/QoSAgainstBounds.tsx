@@ -1,5 +1,5 @@
-import { Badge } from '../ui/Badge';
-import { DataTable } from '../ui/DataTable';
+import { Badge } from '../../modules/core/components/badge';
+import { DataTable } from '../../modules/core/components/data-table';
 import type { BoundOp, QoSBound, QoSRule } from './qosBoundsModel';
 import './QoSAgainstBounds.css';
 

@@ -2,11 +2,11 @@ import { useId, useState, type FormEvent } from 'react';
 import { Plus, TriangleAlert } from 'lucide-react';
 import { apiClient, type EngineCatalogEntry } from '../../api/client';
 import type { Organization } from '../../api/platform';
-import { Action } from '../../components/ui/Action';
-import { FormField } from '../../components/ui/FormField';
-import { Modal } from '../../components/ui/Modal';
-import { Notice } from '../../components/ui/Notice';
-import { Skeleton } from '../../components/ui/Skeleton';
+import { Action } from '../../modules/core/components/action-button';
+import { FormField } from '../../modules/core/components/form-field';
+import { Modal } from '../../modules/core/components/modal';
+import { Notice } from '../../modules/core/components/notice';
+import { Skeleton } from '../../modules/core/components/skeleton';
 import { PRESET_PAGE, presetsApi } from '../../entities/preset/api';
 import {
   presetEngineText,
