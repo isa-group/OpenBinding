@@ -4,7 +4,7 @@ export type ScreenLayout = 'public' | 'app';
 
 /** One screen of the design prototype and the route that serves it. */
 export interface RouteDefinition {
-  /** Screen id from the prototype index (for example `case-detail`). */
+  /** Screen id from the prototype index (for example `problem-detail`). */
   id: string;
   /** Route pattern, exactly as listed in the prototype index. */
   path: string;

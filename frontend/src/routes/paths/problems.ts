@@ -38,14 +38,14 @@ export function problemPath(org: string, problem: string, tab?: ProblemTabSegmen
   return withQuery(`${problemsPath(org)}/${encodeURIComponent(problem)}${tab ? `/${tab}` : ''}`, { ...view });
 }
 
-/** What the Workbench opens: a revision of a problem (the newest without `revision`), or a template. */
-export interface WorkbenchTarget {
+/** What the problem editor opens: a revision of a problem (the newest without `revision`), or a template. */
+export interface ProblemEditorTarget {
   problem?: string;
   revision?: number | string;
   template?: string;
 }
 
-/** The Workbench of an organization: `/app/<org>/workbench`, with `?problem=&revision=` or `?template=`. */
-export function workbenchPath(org: string, target: WorkbenchTarget = {}): string {
-  return withQuery(`${organizationPath(org)}/workbench`, { problem: target.problem, revision: target.revision, template: target.template });
+/** The problem editor of an organization: `/app/<org>/problem-editor`, with `?problem=&revision=` or `?template=`. */
+export function problemEditorPath(org: string, target: ProblemEditorTarget = {}): string {
+  return withQuery(`${organizationPath(org)}/problem-editor`, { problem: target.problem, revision: target.revision, template: target.template });
 }

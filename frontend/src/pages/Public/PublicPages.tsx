@@ -9,7 +9,7 @@ import { OrganizationPicker } from '../../components/ui/OrganizationPicker';
 import { TabBar, TabPanel } from '../../components/ui/TabBar';
 import { useCopy } from '../../components/ui/useCopy';
 import { useAuth } from '../../contexts/auth';
-import { workbenchPath } from '../../routes/paths/problems';
+import { problemEditorPath } from '../../routes/paths/problems';
 import { BIM_PACKAGE_LIMITS, BimPackageError } from '../../utils/bimZip';
 import { formatBytes } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
@@ -21,7 +21,7 @@ import './PublicPages.css';
 interface Selected {
   name: string;
   bytes: Uint8Array;
-  /** The official example it came from, which a signed-in account can open in the Workbench of an organization. */
+  /** The official example it came from, which a signed-in account can open in the problem editor of an organization. */
   example: string | null;
 }
 
@@ -228,7 +228,7 @@ export function WorkbenchPage() {
                 <strong>Signed in as {user.username}</strong>
                 <span>Save this package as a problem of one of your organizations, then run it with an exact engine.</span>
                 <div className="workbench-account-actions">
-                  <OrganizationPicker variant="primary" label="Save to an organization" destination={(org) => workbenchPath(org, { template: selected?.example ?? undefined })} />
+                  <OrganizationPicker variant="primary" label="Save to an organization" destination={(org) => problemEditorPath(org, { template: selected?.example ?? undefined })} />
                 </div>
                 {selected && !selected.example && <small>An uploaded file isn’t carried across: add it again in the organization’s Workbench.</small>}
               </>

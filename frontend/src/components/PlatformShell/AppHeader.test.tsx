@@ -148,7 +148,7 @@ describe('AppHeader', () => {
     ['/app/isa-demo/settings/members', 'Home'],
     ['/app/isa-demo/compositions/order-desk', 'Compositions'],
     ['/app/isa-demo/problems', 'Problems'],
-    ['/app/isa-demo/workbench', 'Problems'],
+    ['/app/isa-demo/problem-editor', 'Problems'],
     ['/app/isa-demo/runs/job-1', 'Runs'],
     ['/app/isa-demo/studies/engines-vs-seeds', 'Studies'],
     ['/app/engines/registrations', 'Engines'],

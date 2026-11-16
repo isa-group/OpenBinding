@@ -208,7 +208,7 @@ async def test_only_an_admin_or_owner_deletes(api_client, db_session, registrati
 def test_the_reserved_slugs_are_the_fixed_places_and_the_organization_sections():
     assert RESERVED_ORGANIZATION_SLUGS == {
         "admin", "account", "engines", "organizations", "invitations",
-        "compositions", "presets", "runs", "problems", "studies", "settings", "workbench", "new",
+        "compositions", "presets", "runs", "problems", "studies", "settings", "problem-editor", "new",
     }
 
 

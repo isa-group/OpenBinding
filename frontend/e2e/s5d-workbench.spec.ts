@@ -1,13 +1,13 @@
 import { expect as baseExpect, test, type Page, type Route, type TestInfo } from '@playwright/test';
 import { failureBody } from './helpers/problems';
 import type { Problem, ProblemRevision } from '../src/api/problems';
-import { checkoutFacts, compiledDocument } from '../src/pages/Cases/fixtures';
+import { checkoutFacts, compiledDocument } from '../src/pages/Problems/fixtures';
 import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
 import { digestOf, usageOf } from '../src/test/fixtures/resources';
 import { DEFAULT_FILES } from '../src/pages/Workbench/bimDocuments';
 import { zipStore } from '../src/utils/bimZip';
 
-// S5d · workbench: wb-workbench.
+// S5d · workbench: problem-editor.
 // There is no backend: the API origin is answered by page.route(). Screenshots go to testInfo.outputPath() (test-results/, ignored by git)
 // so they can be looked at after a run. The desktop walks the states of each screen, the phone gets its layout and its main states.
 
@@ -217,7 +217,7 @@ const viewports = [
 ] as const;
 
 const ROOT = '/app/isa-demo';
-const WORKBENCH = `${ROOT}/workbench`;
+const WORKBENCH = `${ROOT}/problem-editor`;
 
 const packageUpload = () => ({ name: 'imported.bim.zip', mimeType: 'application/vnd.bim+zip', buffer: Buffer.from(zipStore(DEFAULT_FILES)) });
 
@@ -225,7 +225,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
   test.describe(`${name} · S5d workbench`, () => {
     test.use({ viewport, isMobile, deviceScaleFactor });
 
-    test('wb-workbench /app/:org/workbench · package, check and result views', async ({ page }, testInfo) => {
+    test('problem-editor /app/:org/problem-editor · package, check and result views', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto(WORKBENCH);
@@ -299,7 +299,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('wb-workbench /app/:org/workbench · what the gateway refuses', async ({ page }, testInfo) => {
+    test('problem-editor /app/:org/problem-editor · what the gateway refuses', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto(WORKBENCH);
@@ -360,7 +360,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('wb-workbench /app/:org/workbench · the editor and its source', async ({ page }, testInfo) => {
+    test('problem-editor /app/:org/problem-editor · the editor and its source', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto(WORKBENCH);
@@ -440,7 +440,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('wb-workbench /app/:org/workbench · save as a new problem, then as a new version, which runs from its page', async ({ page }, testInfo) => {
+    test('problem-editor /app/:org/problem-editor · save as a new problem, then as a new version, which runs from its page', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto(WORKBENCH);
@@ -484,7 +484,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('wb-workbench /app/:org/workbench · a version opens from the address, and a VIEWER checks but does not save', async ({ page }, testInfo) => {
+    test('problem-editor /app/:org/problem-editor · a version opens from the address, and a VIEWER checks but does not save', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       await mockApi(page, { role: 'VIEWER' });
       await page.goto(`${WORKBENCH}?problem=flujo-checkout&revision=2`);
@@ -498,7 +498,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await capture(page, testInfo, `bar-${name}-viewer`);
 
       // An organization the account is not in reads like one that does not exist.
-      await page.goto('/app/ghost-lab/workbench');
+      await page.goto('/app/ghost-lab/problem-editor');
       await expect(main.getByRole('heading', { name: 'Organization not available' })).toBeVisible();
       await capture(page, testInfo, `bar-${name}-404`);
       expect(critical).toEqual([]);

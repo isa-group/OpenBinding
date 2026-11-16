@@ -8,8 +8,8 @@ import { Skeleton } from '../../components/ui/Skeleton';
 import { useAuth } from '../../contexts/auth';
 import { problemsPath } from '../../routes/paths/problems';
 import { useResource } from '../../utils/useResource';
-import { newestFirst } from '../Cases/casesModel';
-import { problemAccess } from '../Cases/useRouteProblem';
+import { newestFirst } from '../Problems/problemsModel';
+import { problemAccess } from '../Problems/useRouteProblem';
 import { useRouteOrganization } from '../Organization/useRouteOrganization';
 import { OrgFrame, OrgGate, OrgSkeleton } from '../../features/workspace/OrgFrame';
 import { ActionBar, NEW_PROBLEM } from './ActionBar';
@@ -114,7 +114,7 @@ function WorkbenchScreen({ organization, canSave }: { organization: Organization
 }
 
 /**
- * The workbench (`wb-workbench`, `/app/:org/workbench`): the BIM problem editor of an organization. Check a package, see which engines can
+ * The workbench (`problem-editor`, `/app/:org/problem-editor`): the BIM problem editor of an organization. Check a package, see which engines can
  * run it, then save it as a new problem or a new version of one. `?problem=&revision=` opens a version, `?template=` a template. A VIEWER
  * can edit and check but not save.
  */

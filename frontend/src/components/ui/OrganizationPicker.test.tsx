@@ -9,7 +9,7 @@ vi.mock('../../api/platform', () => ({ platformApi: platform }));
 
 const renderPicker = () => render(
   <MemoryRouter>
-    <OrganizationPicker label="Save to an organization" destination={(org) => `/app/${org}/workbench`} />
+    <OrganizationPicker label="Save to an organization" destination={(org) => `/app/${org}/problem-editor`} />
   </MemoryRouter>,
 );
 
@@ -24,8 +24,8 @@ describe('OrganizationPicker', () => {
     const button = screen.getByRole('button', { name: 'Save to an organization' });
     fireEvent.click(button);
     expect(button).toHaveAttribute('aria-expanded', 'true');
-    expect(await screen.findByRole('link', { name: 'ISA Demo Group' })).toHaveAttribute('href', '/app/isa-demo/workbench');
-    expect(screen.getByRole('link', { name: 'QoS Lab' })).toHaveAttribute('href', '/app/qos-lab/workbench');
+    expect(await screen.findByRole('link', { name: 'ISA Demo Group' })).toHaveAttribute('href', '/app/isa-demo/problem-editor');
+    expect(screen.getByRole('link', { name: 'QoS Lab' })).toHaveAttribute('href', '/app/qos-lab/problem-editor');
   });
 
   it('says when the account is in no organization, and offers a retry when the list fails', async () => {

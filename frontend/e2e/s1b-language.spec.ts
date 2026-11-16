@@ -580,7 +580,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('link', { name: 'Log in to run' })).toHaveCount(0);
       await main.getByRole('button', { name: 'Save to an organization' }).click();
       await expect(main.getByRole('link', { name: 'ISA Demo Group' }))
-        .toHaveAttribute('href', '/app/isa-demo/workbench?template=demo%2F01_simple_seq');
+        .toHaveAttribute('href', '/app/isa-demo/problem-editor?template=demo%2F01_simple_seq');
       await ready(page);
       await shot(page, testInfo, 'workbench-signed-in');
       await expectNoHorizontalOverflow(page);

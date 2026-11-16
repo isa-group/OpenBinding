@@ -1,7 +1,7 @@
 import { expect as baseExpect, test, type Page, type TestInfo } from '@playwright/test';
 import { API, PUBLIC_ENGINES, installMockApi } from './helpers/mockApi';
 import { failureBody } from './helpers/problems';
-import { checkoutFacts, digestOf } from '../src/pages/Cases/fixtures';
+import { checkoutFacts, digestOf } from '../src/pages/Problems/fixtures';
 import { REGISTRATION, detailOf } from '../src/test/fixtures/jobs';
 
 // F2 · ranges of candidate features, from the problems to the engines.
@@ -75,7 +75,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
     test.describe.configure({ mode: 'serial' });
     test.use({ viewport, isMobile, deviceScaleFactor });
 
-    test('case-detail · bars for ranges on the Overview and what changed between two versions on the Versions tab', async ({ page }, testInfo) => {
+    test('problem-detail · bars for ranges on the Overview and what changed between two versions on the Versions tab', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       await installMockApi(page, 'admin');
       await answerCompilations(page);
@@ -115,7 +115,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('job-launch · the engine that only takes single values is off, with its reason, and a refused run is explained', async ({ page }, testInfo) => {
+    test('run-launch · the engine that only takes single values is off, with its reason, and a refused run is explained', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       await installMockApi(page, 'admin');
       const REASON = 'This package has range features; this engine only accepts single values';
@@ -192,7 +192,7 @@ test.describe('desktop · F2 ranges in the workbench and in a failed run', () =>
     }));
     const main = page.locator('#platform-main');
 
-    await page.goto('/app/isa-demo/workbench');
+    await page.goto('/app/isa-demo/problem-editor');
     await main.getByRole('navigation', { name: 'BIM resources' }).getByRole('button', { name: /candidates\.json/ }).click();
     await expect(main.getByLabel('service-a QoS latency')).toHaveValue('10');
     await main.getByRole('group', { name: 'latency for service-a: value or range' }).getByRole('button', { name: 'Range' }).click();
@@ -213,7 +213,7 @@ test.describe('desktop · F2 ranges in the workbench and in a failed run', () =>
     expect(critical).toEqual([]);
   });
 
-  test('job-detail · a run the engine refused for ranges says so and leads to the engines', async ({ page }, testInfo) => {
+  test('run-detail · a run the engine refused for ranges says so and leads to the engines', async ({ page }, testInfo) => {
     const critical = watchCriticalErrors(page);
     await installMockApi(page, 'admin');
     const pointer = '/spec/candidates/providers/candidates/authenticate-3/features/latency';
@@ -231,7 +231,7 @@ test.describe('desktop · F2 ranges in the workbench and in a failed run', () =>
     await expect(alert).not.toContainText('Nothing was started.');
     await expect(alert.getByRole('link', { name: 'Engines' })).toHaveAttribute('href', '/engines');
     await expect(alert.getByRole('link', { name: /library|Edit the candidate/i })).toHaveCount(0);
-    await capture(page, testInfo, 'job-detail-desktop-range-failure');
+    await capture(page, testInfo, 'run-detail-desktop-range-failure');
     expect(critical).toEqual([]);
   });
 });

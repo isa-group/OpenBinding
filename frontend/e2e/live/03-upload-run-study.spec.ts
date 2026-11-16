@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { API, CASE, ORG, ORG_PATH, RUNS_PATH, capture, signInByApi, watchPageErrors } from './support';
 
 // The F0b walk against the lab (the mocked twin is e2e/f0b-walk.spec.ts): the owner of lab-main uploads the demo package as a new
-// problem, edits it in the Workbench into version 2, starts another problem from a template, runs version 2 on random-search and
+// problem, edits it in the problem editor into version 2, starts another problem from a template, runs version 2 on random-search and
 // follows it to its result, then runs a study of that version × 2 engine modes × 2 seeds. Every run of this spec adds two problems and
 // one study to lab-main, named after the moment it ran; nothing is deleted (runs keep their problem).
 
@@ -49,9 +49,9 @@ test.describe('live · upload, run and study on lab-main', () => {
     await expect(main.getByRole('list', { name: 'Files in the package' })).toContainText('candidates.json');
     await capture(page, testInfo, 'walk-2-source');
 
-    // 3 · Edit in the Workbench, check, save as version 2.
+    // 3 · Edit in the problem editor, check, save as version 2.
     await main.getByRole('tab', { name: 'Overview' }).click();
-    await main.getByRole('link', { name: 'Edit in the Workbench' }).click();
+    await main.getByRole('link', { name: 'Edit in the problem editor' }).click();
     await expect(main.getByText('Loaded version 1')).toBeVisible({ timeout: 60_000 });
     await main.getByRole('navigation', { name: 'BIM resources' }).getByRole('button', { name: /candidates\.json/ }).click();
     await main.getByLabel('c1b QoS latency').fill('12');
@@ -120,13 +120,13 @@ test.describe('live · upload, run and study on lab-main', () => {
     expect(errors).toEqual([]);
   });
 
-  test('a member opens the seeded problem simple-seq and can open it in the Workbench, but not delete it', async ({ page }, testInfo) => {
+  test('a member opens the seeded problem simple-seq and can open it in the problem editor, but not delete it', async ({ page }, testInfo) => {
     const errors = watchPageErrors(page);
     await signInByApi(page, 'member');
     await page.goto(`${PROBLEMS}/${CASE}`);
 
     await expect(page.locator('code.case-slug')).toHaveText(CASE);
-    await expect(page.getByRole('link', { name: 'Edit in the Workbench' })).toHaveAttribute('href', new RegExp(`^${ORG_PATH}/workbench\\?problem=${CASE}&revision=\\d+$`));
+    await expect(page.getByRole('link', { name: 'Edit in the problem editor' })).toHaveAttribute('href', new RegExp(`^${ORG_PATH}/problem-editor\\?problem=${CASE}&revision=\\d+$`));
     await expect(page.getByRole('link', { name: 'Run this version' })).toHaveAttribute('href', new RegExp(`^${RUNS_PATH}/new\\?problem=${CASE}&revision=\\d+$`));
     // Deleting needs ADMIN: a member has no such control, in the Settings tab either.
     await page.getByRole('tab', { name: 'Settings' }).click();

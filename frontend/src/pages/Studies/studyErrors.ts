@@ -7,7 +7,7 @@ import {
 } from '../../utils/limitRefusals';
 import { LIMIT, limitInfo } from '../../utils/limits';
 import { classifyAuthError, marker } from '../../shared/api/errors';
-import type { Refusal } from '../Jobs/jobErrors';
+import type { Refusal } from '../Runs/runErrors';
 
 export type { Refusal };
 

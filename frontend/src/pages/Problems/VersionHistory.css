@@ -1,0 +1,45 @@
+/* The problem page: its slug and description, the version timeline. The shared pieces (drawing, figures, buttons) are in Problems.css. */
+
+.case-slug { padding: 1px 10px; border: 1px solid var(--tp-hairline-soft); border-radius: var(--tp-radius-full); background: var(--tp-surface); color: var(--tp-steel); font-family: var(--font-mono); font-size: 0.75rem; }
+
+.case-description { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--tp-spacing-xs); max-width: 720px; margin: 0; color: var(--tp-slate); }
+.case-description-form { display: flex; max-width: 640px; flex-direction: column; gap: var(--tp-spacing-xs); }
+
+.case-timeline { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
+.case-rev { position: relative; padding: 0 0 16px 44px; }
+.case-rev::before { content: ''; position: absolute; top: 0; bottom: 0; left: 15px; width: 2px; background: var(--tp-hairline-soft); }
+.case-rev:last-child::before { bottom: 16px; }
+
+.case-rev-dot {
+  position: absolute;
+  top: 4px;
+  left: 0;
+  display: inline-flex;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: var(--tp-cream-deeper);
+  color: var(--tp-primary-deep);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.case-rev-dot.is-latest { background: var(--tp-primary); color: var(--tp-on-primary); }
+
+.case-rev-card { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; border: 1px solid var(--tp-hairline); border-radius: 14px; background: var(--tp-canvas); }
+.case-rev-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.case-rev-head a { font-size: 0.9375rem; }
+.case-rev-date { color: var(--tp-steel); font-size: 0.75rem; }
+.case-rev-head code { color: var(--tp-slate); font-family: var(--font-mono); font-size: 0.75rem; }
+.case-rev-change { margin: 0; color: var(--tp-charcoal); font-size: 0.8125rem; overflow-wrap: anywhere; }
+
+.case-uses { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.case-uses li { display: inline-flex; align-items: center; gap: 6px; padding: 1px 10px; border: 1px solid var(--tp-hairline-soft); border-radius: var(--tp-radius-full); background: var(--tp-surface); font-size: 0.75rem; }
+.case-uses li span { color: var(--tp-steel); }
+.case-uses li b { font-weight: 500; }
+.case-uses li.is-changed { border-color: var(--tp-severity-warning-border); background: var(--tp-severity-warning-bg); }
+
+.case-rev-size { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: var(--tp-slate); font-size: 0.75rem; }
+.case-rev-links { display: flex; flex-wrap: wrap; gap: 12px; font-size: 0.8125rem; font-weight: 500; }

@@ -6,7 +6,7 @@ import { Skeleton } from '../../components/ui/Skeleton';
 import { formatDateTime } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import { classifyAuthError, marker } from '../../shared/api/errors';
-import { RefusalNotice } from '../Jobs/parts';
+import { RefusalNotice } from '../Runs/parts';
 import { CellTable, RunHeatmap } from './CellViews';
 import { CopyDigest } from './CopyDigest';
 import { CellBar, StateChip, StudyGate } from './parts';

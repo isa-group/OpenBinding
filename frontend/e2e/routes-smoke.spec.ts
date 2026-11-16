@@ -127,12 +127,12 @@ test.describe('route registry', () => {
   });
 
   test('rejects the six words, whatever their letter case, except the engine registration publication text', () => {
-    expect(forbiddenIn('job-list', ['Jobs', 'my case', 'Cases and JOB'])).toHaveLength(4);
+    expect(forbiddenIn('run-list', ['Jobs', 'my case', 'Cases and JOB'])).toHaveLength(4);
     expect(forbiddenIn('pub-home', ['Publications and public results'])).toEqual(['"Publications" in "Publications and public results"']);
     expect(forbiddenIn('study-detail', ['A publication'])).toHaveLength(1);
     expect(forbiddenIn('eng-registration-detail', ['Publication', 'Request publication'])).toEqual([]);
     expect(forbiddenIn('eng-registration-detail', ['Jobs'])).toHaveLength(1);
-    expect(forbiddenIn('case-list', ['Problems', 'showcase', 'Runs', 'Published'])).toEqual([]);
+    expect(forbiddenIn('problem-list', ['Problems', 'showcase', 'Runs', 'Published'])).toEqual([]);
   });
 
   test('knows which pathnames are screens of the registry', () => {

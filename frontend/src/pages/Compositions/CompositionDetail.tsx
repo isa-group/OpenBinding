@@ -24,7 +24,7 @@ import { classifyAuthError, marker } from '../../shared/api/errors';
 import type { CompositionVersionView, CompositionView, ProblemFacts } from '../../shared/api/types';
 import { useAuth } from '../../contexts/auth';
 import { useResource } from '../../utils/useResource';
-import { ReadOnlyNote } from '../Cases/parts';
+import { ReadOnlyNote } from '../Problems/parts';
 import { CompositionMissing } from './CompositionMissing';
 import { CompositionFrame } from './parts';
 import { factsSource } from './factsSource';

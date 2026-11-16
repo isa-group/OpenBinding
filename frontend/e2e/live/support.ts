@@ -24,7 +24,7 @@ export const OTHER_ORG = 'lab-other';
 export const CASE = 'simple-seq';
 /** The organization's own screens: its overview, and its problems below `${ORG_PATH}/problems`. */
 export const ORG_PATH = `/app/${ORG}`;
-/** The runs of the lab organization (`job-list`); a run is `${RUNS_PATH}/<id>` and the launcher `${RUNS_PATH}/new`. */
+/** The runs of the lab organization (`run-list`); a run is `${RUNS_PATH}/<id>` and the launcher `${RUNS_PATH}/new`. */
 export const RUNS_PATH = `/app/${ORG}/runs`;
 
 /** The addresses of the native consoles the interface links to; the lab build does not override the defaults. */

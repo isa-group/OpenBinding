@@ -97,7 +97,7 @@ interface RenderOptions {
 export function renderWorkbench(options: RenderOptions = {}) {
   const organization = org('isa-demo', { name: 'ISA Demo Group', effective_role: options.role ?? 'MEMBER' });
   return renderOrgScreen(<Workbench />, {
-    path: '/app/:org/workbench', url: options.url ?? `${ROOT}/workbench${options.query ?? ''}`, organizations: [organization], user: options.user,
+    path: '/app/:org/problem-editor', url: options.url ?? `${ROOT}/problem-editor${options.query ?? ''}`, organizations: [organization], user: options.user,
   });
 }
 

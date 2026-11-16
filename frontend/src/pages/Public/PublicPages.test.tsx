@@ -254,6 +254,6 @@ describe('public workbench', () => {
     expect(screen.queryByRole('link', { name: 'Log in to run' })).not.toBeInTheDocument();
     await screen.findByText('Valid package');
     fireEvent.click(screen.getByRole('button', { name: 'Save to an organization' }));
-    expect(await screen.findByRole('link', { name: 'ISA Demo Group' })).toHaveAttribute('href', '/app/isa-demo/workbench?template=demo%2F01_simple_seq');
+    expect(await screen.findByRole('link', { name: 'ISA Demo Group' })).toHaveAttribute('href', '/app/isa-demo/problem-editor?template=demo%2F01_simple_seq');
   });
 });

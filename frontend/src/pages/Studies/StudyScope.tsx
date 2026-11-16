@@ -9,7 +9,7 @@ import { studiesPath, studyPath } from '../../routes/paths/studies';
 import { useResource } from '../../utils/useResource';
 import { classifyAuthError, marker } from '../../shared/api/errors';
 import { OrgGate, OrgSkeleton } from '../../features/workspace/OrgFrame';
-import { problemAccess, type ProblemAccess } from '../Cases/useRouteProblem';
+import { problemAccess, type ProblemAccess } from '../Problems/useRouteProblem';
 import { useRouteOrganization } from '../Organization/useRouteOrganization';
 import { StudyFrame, StudyGate } from './parts';
 

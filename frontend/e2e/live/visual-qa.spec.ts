@@ -327,7 +327,7 @@ const VIEWER_STOPS: Stop[] = [
     },
   },
   {
-    slug: 'viewer-job-launch',
+    slug: 'viewer-run-launch',
     path: `${RUNS_PATH}/new?problem=${CASE}`,
     ready: (page) => page.getByRole('heading', { level: 1, name: 'New run' }),
     extra: async (page, label) => {

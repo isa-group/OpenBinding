@@ -5,7 +5,7 @@ import { HttpError } from '../../api/client';
 import { loadDraft } from '../../shared/editor/drafts';
 import { unzipPackage } from '../../utils/bimZip';
 import type { ProblemUpload } from '../../api/problems';
-import { checkoutFacts, compiledDocument, digestOf } from '../Cases/fixtures';
+import { checkoutFacts, compiledDocument, digestOf } from '../Problems/fixtures';
 import { caseOf, revisionOf } from '../../features/workspace/testKit';
 import {
   ENGINE_REF, REGISTRATION_REF, ROOT, SECOND_REGISTRATION, analysis, openWorkbench, packageArchive, packageFile, renderWorkbench,
@@ -94,7 +94,7 @@ describe('Workbench', () => {
     });
 
     it('says an organization the account is not in is not available', async () => {
-      renderWorkbench({ url: '/app/elsewhere/workbench' });
+      renderWorkbench({ url: '/app/elsewhere/problem-editor' });
       expect(await screen.findByRole('heading', { name: 'Organization not available' })).toBeInTheDocument();
     });
   });

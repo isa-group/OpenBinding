@@ -104,7 +104,7 @@ describe('currentSection', () => {
     ['/app/isa-demo/compositions/order-desk', 'compositions'],
     ['/app/isa-demo/problems', 'problems'],
     ['/app/isa-demo/problems/routing', 'problems'],
-    ['/app/isa-demo/workbench', 'problems'],
+    ['/app/isa-demo/problem-editor', 'problems'],
     ['/app/isa-demo/runs', 'runs'],
     ['/app/isa-demo/runs/new', 'runs'],
     ['/app/isa-demo/runs/job-1', 'runs'],
@@ -146,7 +146,7 @@ describe('organizationSectionOf', () => {
     expect(organizationSectionOf('/app/isa-demo/studies/s1')).toBe('studies');
     expect(organizationSectionOf('/app/isa-demo/problems')).toBe('problems');
     expect(organizationSectionOf('/app/isa-demo/compositions/order-desk')).toBe('compositions');
-    expect(organizationSectionOf('/app/isa-demo/workbench')).toBe('problems');
+    expect(organizationSectionOf('/app/isa-demo/problem-editor')).toBe('problems');
     expect(organizationSectionOf('/app/engines/registrations')).toBeNull();
     expect(organizationSectionOf('/app')).toBeNull();
   });

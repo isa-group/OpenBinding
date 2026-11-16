@@ -17,7 +17,7 @@ export interface LaunchTarget {
   engine?: string;
 }
 
-/** The launcher of a run of an organization (`job-launch`): `/app/<org>/runs/new`, with `?problem=&revision=` and `?engine=`. */
+/** The launcher of a run of an organization (`run-launch`): `/app/<org>/runs/new`, with `?problem=&revision=` and `?engine=`. */
 export function launchPath(org: string, target: LaunchTarget = {}): string {
   const query = new URLSearchParams();
   for (const [key, value] of Object.entries(target)) {
