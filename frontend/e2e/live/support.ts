@@ -51,9 +51,13 @@ const REFRESH_TOKEN_KEY = 'openbinding-refresh-token';
 /** Where the API is: under `/api` of the same origin through the lab proxy; `PLAYWRIGHT_API_URL` names another one. */
 export const API = process.env.PLAYWRIGHT_API_URL ?? '/api';
 
-/** The login of the gateway lets a user try 10 times in 5 minutes; a spec that meets the limit waits for it instead of failing. */
+/**
+ * The login of the gateway lets a user try 10 times in 5 minutes; a spec that meets the limit waits for it instead of failing. The
+ * wait follows `Retry-After` up to the whole window, so one wait always clears it: the walks repeated in one run sign the owner in
+ * more than 10 times in 5 minutes.
+ */
 const LOGIN_TRIES = 3;
-const LONGEST_WAIT_S = 120;
+const LONGEST_WAIT_S = 300;
 
 /**
  * Signs in through the API and hands the session to the page before it loads, so a spec does not spend a login of the (throttled)
