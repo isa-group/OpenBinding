@@ -154,7 +154,7 @@ test('mobile problem editor: the panes, the engines and the problems are tabs, i
   const main = page.locator('#platform-main');
   await expect(main.getByRole('heading', { level: 1, name: 'Problem editor' })).toBeVisible({ timeout: 30_000 });
   const panes = main.getByRole('tablist', { name: 'Editor panes' });
-  await expect(panes.getByRole('tab')).toHaveText(['Workflow', 'Candidates', 'Files', 'Forms', 'BPMN', 'Engines', 'Problems']);
+  await expect(panes.getByRole('tab')).toHaveText(['Workflow', 'Candidates', 'Rules', 'Files', 'Forms', 'BPMN', 'Engines', 'Problems']);
   await expect(main.getByTestId('pe-check-status')).toHaveText('Valid package', { timeout: 15_000 });
   await panes.getByRole('tab', { name: 'Engines' }).click();
   await expect(main.getByRole('heading', { name: 'Engines' })).toBeVisible();

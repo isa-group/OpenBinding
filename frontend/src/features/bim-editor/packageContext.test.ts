@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { DEFAULT_FILES, instanceResources, parseJson, pretty, type BimDocument, type BimSpecDocument } from './documents';
 import {
-  bindingIsDeclared, candidatesMissingValues, chooseProvider, criteriaNeedingScale, declareProvider, declaredProviders, normalizedCriteria,
-  packageContext, providerIsDeclared, removeProvider, scaleFor, standaloneContext, unboundFeatures, withPenaltyFor, type PackageContext,
+  addCandidate, bindingIsDeclared, candidatesMissingValues, chooseProvider, criteriaNeedingScale, declareProvider, declaredProviders, normalizedCriteria,
+  packageContext, providerIsDeclared, removeCandidate, removeProvider, scaleFor, standaloneContext, unboundFeatures, withPenaltyFor, type PackageContext,
 } from './packageContext';
 
 const actions = { open: vi.fn(), update: vi.fn() };
@@ -86,6 +86,17 @@ describe('what the forms read from the package', () => {
       },
     }));
     expect(context.observed).toEqual({ latency: [5, 12] });
+  });
+});
+
+describe('candidates', () => {
+  it('adds a candidate under the next free id, offering nothing a task asks for yet, and removes it', () => {
+    const spec: BimSpecDocument = { candidates: { 'service-a': { provides: 'http', features: { latency: 10 } }, candidate2: { provides: 'http' } } };
+    const added = addCandidate(spec);
+    expect(added.id).toBe('candidate3');
+    expect(added.spec.candidates).toEqual({ ...spec.candidates, candidate3: { provides: 'service/new', features: {} } });
+    expect(spec.candidates).not.toHaveProperty('candidate3');
+    expect(removeCandidate(added.spec, 'candidate2').candidates).toEqual({ 'service-a': spec.candidates!['service-a'], candidate3: { provides: 'service/new', features: {} } });
   });
 });
 

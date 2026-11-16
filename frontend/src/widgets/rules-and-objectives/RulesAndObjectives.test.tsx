@@ -1,10 +1,38 @@
-import { render, screen, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { fireEvent, render, screen, within } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 import type { ProblemFacts } from '../../shared/api/types';
 import completeFacts from '../../test/fixtures/core/json-complete.facts.json';
 import simpleFacts from '../../test/fixtures/core/simple-seq.facts.json';
-import { checkoutFacts } from './fixtures';
 import { RulesAndObjectives } from './RulesAndObjectives';
+
+const path = (...segments: string[]) => ({ kind: 'path', segments });
+const literal = (value: unknown) => ({ kind: 'literal', value });
+
+/** The facts of a small package with one rule that must hold, one that should, two criteria and the cost of breaking the soft rule. */
+function checkoutFacts(): ProblemFacts {
+  return {
+    ...structuredClone(simpleFacts) as ProblemFacts,
+    constraints: [
+      {
+        id: 'rules/sla-latency', enforcement: 'hard', when: literal(true), penalty: null,
+        expression: { kind: 'compare', op: 'lte', left: path('features', 'latency'), right: literal(600) },
+        origin: { resource: 'rules', path: 'rules.json', pointer: '/spec/constraints/sla-latency' },
+      },
+      {
+        id: 'rules/sla-availability', enforcement: 'soft', when: literal(true), penalty: literal(5),
+        expression: { kind: 'compare', op: 'gte', left: path('features', 'availability'), right: literal(99.9) },
+        origin: { resource: 'rules', path: 'rules.json', pointer: '/spec/constraints/sla-availability' },
+      },
+    ],
+    objectives: {
+      criteria: [
+        { id: 'cost', feature: { resource: 'app', id: 'cost' }, direction: 'minimize' },
+        { id: 'latency', feature: { resource: 'app', id: 'latency' }, direction: 'minimize', normalize: { min: 0, max: 1000, clamp: true } },
+      ],
+      penalties: [{ constraint: { resource: 'rules', id: 'sla-availability' }, weight: 5 }],
+    },
+  };
+}
 
 const rules = () => screen.getByRole('list', { name: 'Rules of this version' });
 const ruleOf = (id: string) => within(rules()).getAllByRole('listitem').find((item) => item.textContent?.includes(id)) as HTMLElement;
@@ -69,5 +97,20 @@ describe('RulesAndObjectives', () => {
     const facts = checkoutFacts();
     render(<RulesAndObjectives facts={{ ...facts, objectives: { criteria: [], penalties: [] } }} />);
     expect(screen.getByRole('region', { name: 'Objectives' })).toHaveTextContent('This version declares no criteria to optimize.');
+  });
+
+  it('words the package of an editor, and opens a rule where the package writes it', () => {
+    const open = vi.fn();
+    render(<RulesAndObjectives facts={checkoutFacts()} subject="package" onOpenOrigin={open} />);
+
+    const rules = screen.getByRole('list', { name: 'Rules of this package' });
+    fireEvent.click(within(rules).getByRole('button', { name: 'Open rules/sla-availability in rules.json at /spec/constraints/sla-availability' }));
+    expect(open).toHaveBeenCalledWith({ resource: 'rules', path: 'rules.json', pointer: '/spec/constraints/sla-availability' });
+    expect(screen.getByRole('region', { name: 'Objectives' })).toHaveTextContent('is chosen when a saved version is run');
+  });
+
+  it('says a package declares no rules', () => {
+    render(<RulesAndObjectives facts={simpleFacts as ProblemFacts} subject="package" />);
+    expect(screen.getByRole('region', { name: 'Rules' })).toHaveTextContent('This package declares no rules.');
   });
 });

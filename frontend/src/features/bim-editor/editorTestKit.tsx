@@ -1,6 +1,8 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import type { Organization } from '../../api/platform';
+import type { ProblemFacts } from '../../shared/api/types';
+import type { FeatureValue } from '../../utils/featureRange';
 import { unzipPackage, zipStore } from '../../utils/bimZip';
 import { ProblemEditor } from './ProblemEditor';
 
@@ -28,6 +30,27 @@ export function analysis(over: Record<string, unknown> = {}) {
     compatibleModes: [{ engine: ENGINE_REF, registration: REGISTRATION_REF, mode: 'seeded', compatible: true }],
     analysis: { tasks: 1, candidates: 2, constraints: 0, placement: false, bindingSpace: '128' },
     ...over,
+  };
+}
+
+/** Where the blank package writes the latency of its one candidate. */
+export const BLANK_LATENCY = '/spec/candidates/service-a/features/latency';
+
+/** The facts the gateway answers for the blank package (`DEFAULT_FILES`), with `latency` as the value it read (`null`: none). */
+export function blankFacts(latency: FeatureValue | null = 10): ProblemFacts {
+  const origin = { kind: 'package' as const, resource: 'catalog', path: 'candidates.json', pointer: BLANK_LATENCY };
+  return {
+    binding_space: '1',
+    candidates: [{
+      id: 'service-a', key: 'catalog/service-a', resource: 'catalog', provider: null,
+      values: latency === null ? {} : { latency }, origins: latency === null ? {} : { latency: origin },
+    }],
+    constraints: [],
+    features: [{ id: 'latency', unit: 'ms', direction: 'min', required: true }],
+    ir_digest: digest('c'),
+    objectives: { criteria: [{ id: 'latency', feature: { resource: 'application', id: 'latency' } }], penalties: [] },
+    tasks: [{ id: 'hello', kind: 'service', eligible: [{ candidate: 'catalog/service-a', written: 'service-a' }] }],
+    workflow: { seq: ['hello'] },
   };
 }
 
@@ -122,7 +145,7 @@ export async function openProblemEditor(options: RenderOptions = {}) {
 }
 
 /** Show one of the editor's panes. */
-export function showPane(name: 'Workflow' | 'Candidates' | 'Files' | 'Forms' | 'BPMN') {
+export function showPane(name: 'Workflow' | 'Candidates' | 'Rules' | 'Files' | 'Forms' | 'BPMN') {
   fireEvent.click(within(screen.getByRole('tablist', { name: 'Editor panes' })).getByRole('tab', { name }));
 }
 

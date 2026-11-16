@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { openProblemEditor, showPane } from '../features/bim-editor/editorTestKit';
 import { caseOf, org, renderOrgScreen, revisionOf } from '../features/workspace/testKit';
@@ -76,6 +76,8 @@ describe('the problem page and the problem editor draw the same problem', () => 
     await waitFor(() => expect(bim.validate).toHaveBeenCalled());
     showPane('Candidates');
     await waitFor(() => expect(screen.getByRole('region', { name: 'Candidates of each task' })).toBeInTheDocument());
+    // The editor edits the values in place; read without the inputs, its matrix is the page's.
+    fireEvent.click(screen.getByRole('button', { name: 'Edit values' }));
     const inEditor = tables();
 
     expect(Object.keys(onPage).length).toBeGreaterThan(2);

@@ -14,8 +14,8 @@ import {
   RenameField,
 } from '../formParts';
 import {
-  bindingIsDeclared, candidatesMissingValues, chooseProvider, criteriaNeedingScale, declareProvider, declaredProviders, featureKey, findFeature,
-  normalizedCriteria, providerIsDeclared, removeProvider, scaleFor, unboundFeatures, withPenaltyFor, type PackageContext,
+  addCandidate, bindingIsDeclared, candidatesMissingValues, chooseProvider, criteriaNeedingScale, declareProvider, declaredProviders, featureKey, findFeature,
+  normalizedCriteria, providerIsDeclared, removeCandidate, removeProvider, scaleFor, unboundFeatures, withPenaltyFor, type PackageContext,
 } from '../packageContext';
 import './ResourceForms.css';
 
@@ -29,7 +29,7 @@ interface CommonResourceFormProps {
   context: PackageContext;
 }
 
-type SpecProps = { spec: BimSpecDocument; updateSpec: (next: BimSpecDocument) => void; context: PackageContext };
+export type SpecProps = { spec: BimSpecDocument; updateSpec: (next: BimSpecDocument) => void; context: PackageContext };
 
 export function CommonResourceForm({ document, onChange, availablePaths, context }: CommonResourceFormProps) {
   const setName = (name: string) => onChange({ ...document, metadata: { ...document.metadata, name } });
@@ -70,7 +70,7 @@ function SoftRuleLink({ id, context }: { id: string; context: PackageContext }) 
   </Notice>;
 }
 
-function ConstraintSetForm({ spec, updateSpec, context }: SpecProps) {
+export function ConstraintSetForm({ spec, updateSpec, context }: SpecProps) {
   const constraints = spec.constraints ?? {};
   const updateConstraint = (id: string, next: ConstraintDocument) => updateSpec({ ...spec, constraints: { ...constraints, [id]: next } });
   const removeConstraint = (id: string) => {
@@ -124,7 +124,7 @@ function NoFeaturesNotice({ context, what }: { context: PackageContext; what: st
   </Notice>;
 }
 
-function OptimizationForm({ spec, updateSpec, context }: SpecProps) {
+export function OptimizationForm({ spec, updateSpec, context }: SpecProps) {
   const criteria = spec.criteria ?? [];
   const penalties = spec.penalties ?? [];
   const pointable = context.features.length > 0;
@@ -494,13 +494,18 @@ function capabilityType(value: CapabilityDocument): string {
 const NEW_PROVIDER = '__new__';
 const UNDECLARED_PROVIDER = '__undeclared__';
 
-function CandidateCatalogForm({ spec, updateSpec, context }: SpecProps) {
+/**
+ * A catalog's feature bindings, providers and candidates. With `candidate` it is the side panel of one candidate of the problem
+ * editor's matrix: the providers it can point to, and that candidate's capabilities, provider and values, with the values it misses.
+ */
+export function CandidateCatalogForm({ spec, updateSpec, context, candidate: only }: SpecProps & { candidate?: string }) {
   const candidates = spec.candidates || {};
   const bindings = spec.featureBindings || {};
   const providers = spec.providers || {};
   const declared = declaredProviders(spec);
   const unbound = unboundFeatures(spec, context);
-  const missingValues = candidatesMissingValues(spec, context);
+  const missingValues = candidatesMissingValues(spec, context).filter((item) => only === undefined || item.candidate === only);
+  const shown = Object.entries(candidates).filter(([id]) => only === undefined || id === only);
   const [newFeatureAlias, setNewFeatureAlias] = useState('feature');
   const [featureToBind, setFeatureToBind] = useState('');
   const [newProviderId, setNewProviderId] = useState('');
@@ -536,7 +541,7 @@ function CandidateCatalogForm({ spec, updateSpec, context }: SpecProps) {
   };
 
   return <>
-    <FormSection eyebrow="Feature bridge" title="Feature bindings" description="Aliases connect every candidate QoS column to a feature declared by the Application." count={Object.keys(bindings).length}>
+    {only === undefined && <FormSection eyebrow="Feature bridge" title="Feature bindings" description="Aliases connect every candidate QoS column to a feature declared by the Application." count={Object.keys(bindings).length}>
     {Object.keys(bindings).length === 0 && <EmptyFormState>No feature aliases. Candidates can still be selected, but they provide no QoS values.</EmptyFormState>}
     <div className="form-card-list form-card-list-compact">{Object.entries(bindings).map(([alias, reference], index) => <FormCard
       key={alias}
@@ -601,7 +606,7 @@ function CandidateCatalogForm({ spec, updateSpec, context }: SpecProps) {
           setNewFeatureAlias(nextIdentifier({ ...bindings, [newFeatureAlias]: {} }, 'feature'));
         }}>Add feature binding</Action>
       </div>}
-    </FormSection>
+    </FormSection>}
 
     <FormSection eyebrow="Ownership" title="Providers" description="Who offers the candidates. A candidate points to one of the providers declared here." count={declared.length}>
     {declared.length === 0 && <EmptyFormState>No providers declared. Candidates can still be selected without one.</EmptyFormState>}
@@ -628,12 +633,12 @@ function CandidateCatalogForm({ spec, updateSpec, context }: SpecProps) {
     </div>
     </FormSection>
 
-    <FormSection eyebrow="Supply" title="Candidates" description="Capabilities determine eligibility; QoS values let engines compare the eligible implementations." count={Object.keys(candidates).length}>
-    {Object.keys(candidates).length === 0 && <EmptyFormState>No candidate implementations are available.</EmptyFormState>}
+    <FormSection eyebrow="Supply" title={only === undefined ? 'Candidates' : 'Candidate'} description="Capabilities determine eligibility; QoS values let engines compare the eligible implementations." count={shown.length}>
+    {shown.length === 0 && <EmptyFormState>{only === undefined ? 'No candidate implementations are available.' : `${only} is no longer in this catalog.`}</EmptyFormState>}
     {missingValues.length > 0 && <Notice tone="warning" title="Some candidates give no value to a feature the Optimization uses">
       {missingValues.map((item) => `${item.candidate}: ${item.missing.join(', ')}`).join(' · ')}. The compiler refuses a candidate that can serve a task and lacks a value the Optimization asks for.
     </Notice>}
-    <div className="form-card-list candidate-list">{Object.entries(candidates).map(([id, candidate], candidateIndex) => {
+    <div className="form-card-list candidate-list">{shown.map(([id, candidate], candidateIndex) => {
       const capabilities = capabilityItems(candidate.provides);
       const undeclared = !providerIsDeclared(spec, candidate, context.selfId);
       const aliases = Array.from(new Set([...Object.keys(bindings), ...Object.keys(candidateFeatures(candidate))]));
@@ -646,11 +651,7 @@ function CandidateCatalogForm({ spec, updateSpec, context }: SpecProps) {
         eyebrow={`Candidate ${String(candidateIndex + 1).padStart(2, '0')} · ${capabilities.length} capabilit${capabilities.length === 1 ? 'y' : 'ies'}`}
         title={<code>{id}</code>}
         summary={aliases.length ? `${aliases.length} QoS field${aliases.length === 1 ? '' : 's'} available.` : 'No QoS fields are bound.'}
-        actions={<Action variant="ghost" size="sm" disabled={Object.keys(candidates).length <= 1} onClick={() => {
-          const next = { ...candidates };
-          delete next[id];
-          updateSpec({ ...spec, candidates: next });
-        }}>Remove candidate</Action>}
+        actions={<Action variant="ghost" size="sm" disabled={Object.keys(candidates).length <= 1} onClick={() => updateSpec(removeCandidate(spec, id))}>Remove candidate</Action>}
       >
         <div className="form-subgroup">
           <div className="form-subgroup-heading"><div><span className="micro-label">Eligibility</span><h5>Capabilities</h5></div><Action variant="secondary" size="sm" onClick={() => setCapabilities([...capabilities, 'service/new'])}>Add capability</Action></div>
@@ -728,10 +729,7 @@ function CandidateCatalogForm({ spec, updateSpec, context }: SpecProps) {
         </div>
       </FormCard>;
     })}</div>
-    <div className="form-add-bar"><div><strong>Add implementation</strong><small>Create a candidate, then declare its capabilities and QoS values.</small></div><Action variant="secondary" onClick={() => {
-      const id = nextIdentifier(candidates, 'candidate');
-      updateSpec({ ...spec, candidates: { ...candidates, [id]: { provides: 'service/new', features: {} } } });
-    }}>Add candidate</Action></div>
+    {only === undefined && <div className="form-add-bar"><div><strong>Add implementation</strong><small>Create a candidate, then declare its capabilities and QoS values.</small></div><Action variant="secondary" onClick={() => updateSpec(addCandidate(spec).spec)}>Add candidate</Action></div>}
     </FormSection>
   </>;
 }

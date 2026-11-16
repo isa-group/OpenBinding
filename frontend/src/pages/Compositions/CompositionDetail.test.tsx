@@ -113,13 +113,17 @@ describe('Composition page', () => {
     expect(await screen.findByRole('region', { name: 'Problem candidates' })).toBeInTheDocument();
   });
 
-  it('offers a member to show the version’s choice on the candidates of the problem version it links', async () => {
+  it('offers a member to show the version’s choice on the candidates of the problem version it links, and in the problem editor', async () => {
     renderDetail('/app/isa-demo/compositions/fleet-routing?version=1.0.0');
 
     const show = await screen.findByRole('link', { name: 'Show on the problem' });
     expect(show).toHaveAttribute(
       'href',
       `/app/isa-demo/problems/${fmsVersion.problem.problem.slug}/candidates?version=${fmsVersion.problem.revision.revision}&composition=fleet-routing&compositionVersion=1.0.0`,
+    );
+    expect(screen.getByRole('link', { name: 'Open on its problem in the editor' })).toHaveAttribute(
+      'href',
+      `/app/isa-demo/problem-editor?problem=${fmsVersion.problem.problem.slug}&revision=${fmsVersion.problem.revision.revision}&composition=fleet-routing&compositionVersion=1.0.0`,
     );
   });
 
@@ -134,6 +138,7 @@ describe('Composition page', () => {
     expect(screen.queryByRole('region', { name: 'Problem candidates' })).toBeNull();
     expect(screen.queryByText(/candidates of the linked problem/)).toBeNull();
     expect(screen.queryByRole('link', { name: 'Show on the problem' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Open on its problem in the editor' })).toBeNull();
   });
 
   it('says where a forked version comes from, linking a private source in one of the account’s organizations', async () => {

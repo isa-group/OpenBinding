@@ -11,11 +11,11 @@ import { workflowGraph, type TaskOverlay } from '../../entities/binding/workflow
 import { problemPath } from '../../routes/paths/problems';
 import { formatBytes, formatDateTime } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
+import { RulesAndObjectives } from '../../widgets/rules-and-objectives/RulesAndObjectives';
 import { WorkflowGraph } from '../../widgets/workflow-graph/WorkflowGraph';
 import { marker } from '../../shared/api/errors';
 import { loadModel, modelKey, type ModelState } from './modelLoader';
 import { DigestLine } from './parts';
-import { RulesAndObjectives } from './RulesAndObjectives';
 import type { RouteProblemContent } from './useRouteProblem';
 
 /** The languages the compiler read the package in: the `apiVersion` of each resource the compilation lists, each once. */

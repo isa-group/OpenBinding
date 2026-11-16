@@ -3,7 +3,7 @@ import { API, PUBLIC_ENGINES, installMockApi } from './helpers/mockApi';
 import { failureBody } from './helpers/problems';
 import { checkoutFacts, digestOf } from '../src/pages/Problems/fixtures';
 import { REGISTRATION, detailOf } from '../src/test/fixtures/jobs';
-import { DEFAULT_FILES } from '../src/features/bim-editor/documents';
+import { unzipPackage } from '../src/utils/bimZip';
 
 // Candidate ranges · ranges of candidate features, from the problems to the engines (the milestone once called F2 ranges).
 // A feature of a candidate is a number or a range { min, max } whose ends are numbers or null (no limit). This walks it through the
@@ -171,44 +171,66 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
   });
 }
 
-// The two places the other specs do not reach: the problem editor (a package edited into a range) and a run that failed for ranges.
+// The two places the other specs do not reach: the problem editor (a value edited into a range in its candidate matrix) and a run that
+// failed for ranges.
 test.describe('desktop · candidate ranges in the problem editor and in a failed run', () => {
   test.describe.configure({ mode: 'serial' });
   test.use({ viewport: viewports[0].viewport });
 
-  test('problem editor · a candidate edited into an open range in Files turns the engines that only take single values off', async ({ page }, testInfo) => {
+  test('problem editor · a candidate edited into an open range in the matrix turns the engines that only take single values off', async ({ page }, testInfo) => {
     const critical = watchCriticalErrors(page);
     await installMockApi(page, 'admin');
-    const refusal = [{ code: 'unsupported_capability_value', message: 'featureValues interval is not declared by this mode', pointer: '/spec/candidates/service-a/features/latency' }];
-    const sent: string[] = [];
-    await page.route(`${API}/v1/bim/validate**`, (route) => {
-      sent.push((route.request().postDataBuffer() ?? Buffer.alloc(0)).toString('utf8'));
+    const pointer = '/spec/candidates/service-a/features/latency';
+    const refusal = [{ code: 'unsupported_capability_value', message: 'featureValues interval is not declared by this mode', pointer }];
+    const sent: unknown[] = [];
+    await page.route(`${API}/v1/bim/validate**`, async (route) => {
+      const body = route.request().postDataBuffer() ?? Buffer.alloc(0);
+      const files = await unzipPackage(body.buffer.slice(body.byteOffset, body.byteOffset + body.byteLength) as ArrayBuffer);
+      const latency = JSON.parse(files['candidates.json']).spec.candidates['service-a'].features.latency;
+      sent.push(latency);
+      const ranged = typeof latency === 'object';
       return route.fulfill({
         status: 200,
         json: {
           valid: true, instanceDigest: digestOf('a'), packageDigest: digestOf('b'), irDigest: digestOf('c'), fileDigests: {}, resourceDigests: {}, diagnostics: [],
           analysis: { tasks: 1, candidates: 1, constraints: 0, placement: false, bindingSpace: '1' },
           compatibleModes: [
-            { engine: PUBLIC_ENGINES[0].ref, registration: REGISTRATION, mode: 'sampling', compatible: false, diagnostics: refusal },
+            { engine: PUBLIC_ENGINES[0].ref, registration: REGISTRATION, mode: 'sampling', compatible: !ranged, ...(ranged ? { diagnostics: refusal } : {}) },
             { engine: PUBLIC_ENGINES[2].ref, registration: { ...REGISTRATION, name: 'minizinc-deployment' }, mode: 'cp', compatible: true },
           ],
+          // The facts of the blank package, with the value the check read.
+          facts: {
+            binding_space: '1',
+            candidates: [{
+              id: 'service-a', key: 'catalog/service-a', resource: 'catalog', provider: null, values: { latency },
+              origins: { latency: { kind: 'package', resource: 'catalog', path: 'candidates.json', pointer } },
+            }],
+            constraints: [],
+            features: [{ id: 'latency', unit: 'ms', direction: 'min', required: true }],
+            ir_digest: digestOf('c'),
+            objectives: { criteria: [{ id: 'latency', feature: { resource: 'application', id: 'latency' } }], penalties: [] },
+            tasks: [{ id: 'hello', kind: 'service', eligible: [{ candidate: 'catalog/service-a', written: 'service-a' }] }],
+            workflow: { seq: ['hello'] },
+          },
         },
       });
     });
     const main = page.locator('#platform-main');
 
     await page.goto('/app/isa-demo/problem-editor');
-    await main.getByRole('tab', { name: 'Files' }).click();
-    await main.getByRole('navigation', { name: 'Files of the package' }).getByRole('button', { name: /candidates\.json/ }).click();
-    const ranged = JSON.parse(DEFAULT_FILES['candidates.json']);
-    ranged.spec.candidates['service-a'].features.latency = { min: 10, max: null };
-    await main.getByRole('textbox', { name: 'candidates.json source' }).click();
-    await page.keyboard.press('ControlOrMeta+A');
-    await page.keyboard.insertText(JSON.stringify(ranged, null, 2));
+    await main.getByRole('tab', { name: 'Candidates' }).click();
+    const row = main.getByRole('table', { name: /Task hello/ }).getByRole('row', { name: /service-a/ });
+    await expect(row.getByRole('textbox', { name: 'latency for service-a' })).toHaveValue('10');
+    // The value becomes a range (10–10), then its upper end is opened: the catalog writes { min: 10, max: null }.
+    await row.getByRole('group', { name: 'latency for service-a: value or range' }).getByRole('button', { name: 'Range' }).click();
+    await row.getByRole('checkbox', { name: 'latency for service-a: no upper limit' }).check();
+    await expect(row.getByRole('textbox', { name: 'latency for service-a max' })).toHaveValue('+∞');
 
-    // The live check sends the range, and the engines beside the panes say which modes are off and why; the editor runs nothing
-    // itself (a saved version runs from its problem page).
-    await expect.poll(() => sent.some((body) => body.includes('"latency":{"max":null,"min":10}'))).toBe(true);
+    // The live check sends the range, the matrix reads it back as checked, and the engines beside the panes say which modes are
+    // off and why; the editor runs nothing itself (a saved version runs from its problem page).
+    await expect.poll(() => sent.some((latency) => JSON.stringify(latency) === '{"max":null,"min":10}')).toBe(true);
+    await expect(main.getByTestId('pe-check-status')).toHaveText('Valid package');
+    await expect(row).not.toContainText('Pending check');
     const engines = main.getByRole('list', { name: 'Engine modes' });
     const off = engines.getByRole('listitem').filter({ hasText: 'random-search' });
     await expect(off).toContainText('Cannot run it');

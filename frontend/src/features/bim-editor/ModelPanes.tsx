@@ -5,13 +5,12 @@ import { Chip } from '../../components/ui/Chip';
 import { candidateMatrix } from '../../entities/binding/candidateMatrix';
 import { workflowGraph } from '../../entities/binding/workflowGraph';
 import type { ProblemFacts } from '../../shared/api/types';
-import { CandidateMatrix } from '../../widgets/candidate-matrix/CandidateMatrix';
 import { WorkflowGraph } from '../../widgets/workflow-graph/WorkflowGraph';
 import { overlayOf } from './editorModel';
 import { allModesFromAnalysis, engineRows } from './engines';
 
 /** What the panes that draw the checked package say before any check has passed. */
-function NotChecked({ what }: { what: string }) {
+export function NotChecked({ what }: { what: string }) {
   return <p className="pe-empty" role="note">{what} once the package passes a check.</p>;
 }
 
@@ -24,7 +23,7 @@ export function StaleNote() {
   );
 }
 
-interface ModelProps {
+export interface ModelProps {
   facts: ProblemFacts | null;
   stale: boolean;
   /** Task → `<resource>/<id>` of the highlighted composition version. */
@@ -54,30 +53,6 @@ export function WorkflowPane({ facts, stale, selection, response, onSelectTask }
       {analysis?.bindingSpace && <BindingSpaceBadge cardinality={analysis.bindingSpace} />}
       <p className="pe-muted">Select a task to see its candidates.</p>
       <WorkflowGraph graph={graph} overlay={overlayOf(facts, matrix)} label="Workflow of the package" onSelectTask={onSelectTask} />
-    </div>
-  );
-}
-
-/** The candidates of each task of the last valid package, the matrix the problem page draws; read only here. */
-export function CandidatesPane({ facts, stale, selection, task, onTask }: ModelProps & {
-  /** The task shown alone; null shows every task. */
-  task: string | null;
-  onTask: (task: string | null) => void;
-}) {
-  const matrix = useMemo(() => (facts ? candidateMatrix(facts, { selection }) : null), [facts, selection]);
-  if (!facts || !matrix) return <NotChecked what="The candidates of each task appear" />;
-  const shown = task && matrix.rows.some((row) => row.task === task) ? { ...matrix, rows: matrix.rows.filter((row) => row.task === task) } : matrix;
-  return (
-    <div className="pe-pane-body">
-      {stale && <StaleNote />}
-      <label className="pe-field">
-        <span>Task</span>
-        <select aria-label="Task" value={shown === matrix ? '' : task ?? ''} onChange={(event) => onTask(event.target.value || null)}>
-          <option value="">All tasks</option>
-          {matrix.rows.map((row) => <option key={row.task} value={row.task}>{row.task}</option>)}
-        </select>
-      </label>
-      <CandidateMatrix matrix={shown} mode="view" label="Candidates of each task" />
     </div>
   );
 }

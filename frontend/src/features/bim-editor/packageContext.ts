@@ -1,5 +1,5 @@
 import {
-  isRecord, parseJson, pretty,
+  isRecord, nextIdentifier, parseJson, pretty,
   type BimDocument, type BimSpecDocument, type CandidateDocument, type InternalReference, type NormalizeDocument, type OptimizationCriterionDocument,
   type ResourceEntry, type WorkspaceFiles,
 } from './documents';
@@ -137,6 +137,22 @@ export function packageContext(
 export const featureKey = (reference: { resource?: string; id?: string } | undefined): string => `${reference?.resource ?? ''}/${reference?.id ?? ''}`;
 
 export const findFeature = (context: PackageContext, reference: InternalReference | undefined): FeatureOption | undefined => context.features.find((feature) => featureKey(feature) === featureKey(reference));
+
+// --- candidates: what a catalog offers (whether a task can take one is the compiler's to say, after the next check)
+
+/** The catalog with a new candidate (`candidate<n>`) that provides `service/new` and gives no values yet, and the new candidate's id. */
+export function addCandidate(spec: BimSpecDocument): { spec: BimSpecDocument; id: string } {
+  const candidates = spec.candidates ?? {};
+  const id = nextIdentifier(candidates, 'candidate');
+  return { spec: { ...spec, candidates: { ...candidates, [id]: { provides: 'service/new', features: {} } } }, id };
+}
+
+/** The catalog without the candidate. */
+export function removeCandidate(spec: BimSpecDocument, id: string): BimSpecDocument {
+  const candidates = { ...spec.candidates };
+  delete candidates[id];
+  return { ...spec, candidates };
+}
 
 // --- providers: a candidate points to a declaration of its own catalog
 

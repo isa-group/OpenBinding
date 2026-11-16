@@ -3,7 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { BimDiagnostic } from '../../api/bim';
 import type { Located } from '../../shared/diagnostics/located';
 import fmsFacts from '../../test/fixtures/core/fms.facts.json';
-import { analysis, checkNow, openProblemEditor, showPane, whereOf } from './editorTestKit';
+import { unzipPackage } from '../../utils/bimZip';
+import { analysis, BLANK_LATENCY, blankFacts, checkNow, openProblemEditor, showPane, whereOf } from './editorTestKit';
 import { EDITOR_PRODUCER } from './useProblemEditor';
 
 const bim = vi.hoisted(() => ({ validate: vi.fn(), template: vi.fn(), templates: vi.fn() }));
@@ -48,7 +49,7 @@ describe('ProblemEditor', () => {
   it('shows the panes of the package, and the engines and problems of its last check', async () => {
     await openProblemEditor({ delay: 10 });
     expect(within(screen.getByRole('tablist', { name: 'Editor panes' })).getAllByRole('tab').map((tab) => tab.textContent))
-      .toEqual(['Workflow', 'Candidates', 'Files', 'Forms', 'BPMN']);
+      .toEqual(['Workflow', 'Candidates', 'Rules', 'Files', 'Forms', 'BPMN']);
     expect(screen.getByText('A blank package')).toBeInTheDocument();
 
     await waitFor(() => expect(screen.getByTestId('pe-check-status')).toHaveTextContent('Valid package'));
@@ -106,6 +107,61 @@ describe('ProblemEditor', () => {
     expect(screen.queryByRole('region', { name: 'Candidates for T1' })).not.toBeInTheDocument();
     fireEvent.change(screen.getByRole('combobox', { name: 'Task' }), { target: { value: '' } });
     expect(screen.getByRole('region', { name: 'Candidates for T1' })).toBeInTheDocument();
+  });
+
+  it('edits a value in the matrix: the check’s finding shows on its cell and in Files, the fix passes, and each edit is one undo step', async () => {
+    bim.validate.mockImplementation(async (archive: Uint8Array) => {
+      const files = await unzipPackage(archive.buffer.slice(archive.byteOffset, archive.byteOffset + archive.byteLength) as ArrayBuffer);
+      const latency = JSON.parse(files['candidates.json']).spec.candidates['service-a'].features.latency;
+      return latency === 900 ? refused([finding({ resource: 'candidates.json', pointer: BLANK_LATENCY })]) : analysis({ facts: blankFacts(latency) });
+    });
+    await openProblemEditor();
+    checkNow();
+    await waitFor(() => expect(screen.getByTestId('pe-check-status')).toHaveTextContent('Valid package'));
+    showPane('Candidates');
+    const table = () => screen.getByRole('table', { name: /Task hello/ });
+    const value = () => within(table()).getByRole('textbox', { name: 'latency for service-a' });
+
+    fireEvent.change(value(), { target: { value: '900' } });
+    expect(within(table()).getByText('Pending check')).toBeInTheDocument();
+    checkNow();
+    await waitFor(() => expect(screen.getByTestId('pe-check-status')).toHaveTextContent('Not valid · 1 problem'));
+    expect(screen.getByText('Stale: showing the last valid package.')).toBeInTheDocument();
+    expect(within(table()).getByText('Pending check')).toBeInTheDocument();
+
+    fireEvent.click(within(table()).getByRole('button', { name: 'candidate feature value is above its declared domain' }));
+    expect(pane()).toHaveTextContent('Files');
+    const source = screen.getByLabelText('candidates.json source') as HTMLTextAreaElement;
+    expect(source.value.slice(Number(source.dataset.anchor), Number(source.dataset.head))).toBe('900');
+
+    showPane('Candidates');
+    fireEvent.change(value(), { target: { value: '20' } });
+    checkNow();
+    await waitFor(() => expect(screen.getByTestId('pe-check-status')).toHaveTextContent('Valid package'));
+    expect(within(table()).queryByText('Pending check')).toBeNull();
+    expect(within(table()).queryByRole('button', { name: /above its declared domain/ })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+    expect(value()).toHaveValue('900');
+    expect(within(table()).getByText('Pending check')).toBeInTheDocument();
+  });
+
+  it('opens a rule of the Rules pane in its file, at the range the package writes it', async () => {
+    const facts = blankFacts();
+    facts.constraints = [{
+      id: 'optimization/first', enforcement: 'hard', expression: { kind: 'literal', value: true }, when: null, penalty: null,
+      origin: { resource: 'optimization', path: 'optimization.json', pointer: '/spec/criteria/0/id' },
+    }];
+    bim.validate.mockResolvedValue(analysis({ facts }));
+    await openProblemEditor();
+    checkNow();
+    await waitFor(() => expect(screen.getByTestId('pe-check-status')).toHaveTextContent('Valid package'));
+    showPane('Rules');
+    expect(screen.getByRole('region', { name: 'Optimization optimization' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Open optimization/first in optimization.json at /spec/criteria/0/id' }));
+    expect(pane()).toHaveTextContent('Files');
+    const source = screen.getByLabelText('optimization.json source') as HTMLTextAreaElement;
+    expect(source.value.slice(Number(source.dataset.anchor), Number(source.dataset.head))).toBe('"latency"');
   });
 
   it('shows the changes of a file against the package as opened, and undoes, redoes and resets them', async () => {

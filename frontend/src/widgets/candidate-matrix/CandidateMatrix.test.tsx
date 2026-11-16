@@ -85,6 +85,17 @@ describe('CandidateMatrix', () => {
     expect(screen.getByRole('textbox', { name: 'latency of c1b in t1' })).toHaveValue('20');
   });
 
+  it('hands every candidate name to renderName in edit mode, and keeps the written name elsewhere', () => {
+    const matrix = candidateMatrix(simpleSeq as ProblemFacts);
+    const renderName = (candidate: { written: string }, row: { task: string }) => <button type="button">{`Open ${candidate.written} of ${row.task}`}</button>;
+    const { unmount } = render(<CandidateMatrix matrix={matrix} mode="edit" renderName={renderName} label="Candidates" />);
+    expect(screen.getByRole('button', { name: 'Open c1b of t1' })).toBeInTheDocument();
+    unmount();
+    render(<CandidateMatrix matrix={matrix} mode="view" renderName={renderName} label="Candidates" />);
+    expect(screen.queryByRole('button', { name: 'Open c1b of t1' })).toBeNull();
+    expect(screen.getByRole('rowheader', { name: 'c1b' })).toBeInTheDocument();
+  });
+
   it('turns each candidate into a card on a small screen', () => {
     setMatchMedia(((query: string) => ({ ...matchMedia(query), matches: query === '(max-width: 640px)' })) as typeof window.matchMedia);
     render(<CandidateMatrix matrix={candidateMatrix(simpleSeq as ProblemFacts, { selection: { t1: 'catalog/c1b' } })} mode="view" label="Candidates" />);

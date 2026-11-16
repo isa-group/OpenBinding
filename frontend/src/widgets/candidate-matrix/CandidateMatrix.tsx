@@ -12,6 +12,8 @@ interface CandidateMatrixProps {
   onSelect?: (task: string, candidate: string) => void;
   /** What a cell shows instead of its value (an editor's input, in `edit` mode). */
   renderCell?: (cell: MatrixCell, candidate: MatrixCandidate, row: MatrixRow) => ReactNode;
+  /** What a candidate's name shows instead of its written name (an editor's button that opens the candidate, in `edit` mode). */
+  renderName?: (candidate: MatrixCandidate, row: MatrixRow) => ReactNode;
   /** The accessible name of the matrix. */
   label: string;
   /** Short words beside a candidate's name (the versions that chose it, when two are compared). */
@@ -100,17 +102,19 @@ interface TaskProps {
   mode: CandidateMatrixProps['mode'];
   onSelect?: CandidateMatrixProps['onSelect'];
   renderCell?: CandidateMatrixProps['renderCell'];
+  renderName?: CandidateMatrixProps['renderName'];
   tags?: CandidateMatrixProps['tags'];
   narrow: boolean;
   group: string;
 }
 
-function TaskCandidates({ row, features, mode, onSelect, renderCell, tags, narrow, group }: TaskProps) {
+function TaskCandidates({ row, features, mode, onSelect, renderCell, renderName, tags, narrow, group }: TaskProps) {
   const maxima = features.map(({ index }) => Math.max(0, ...row.candidates.flatMap((candidate) => finiteEnds(candidate.cells[index].value).map(Math.abs))));
   const content = (candidate: MatrixCandidate, column: number, index: number) => {
     const cell = candidate.cells[index];
     return mode === 'edit' && renderCell ? renderCell(cell, candidate, row) : <Value cell={cell} maximum={maxima[column]} />;
   };
+  const name = (candidate: MatrixCandidate) => (mode === 'edit' && renderName ? renderName(candidate, row) : <code>{candidate.written}</code>);
   const radio = (candidate: MatrixCandidate) => (
     <input
       type="radio"
@@ -129,7 +133,7 @@ function TaskCandidates({ row, features, mode, onSelect, renderCell, tags, narro
         <li key={candidate.key} className={`cm-card${candidate.selected ? ' is-selected' : ''}`} aria-current={candidate.selected ? 'true' : undefined}>
           <div className="cm-card-head">
             {mode === 'select' && radio(candidate)}
-            <code>{candidate.written}</code>
+            {name(candidate)}
             {candidate.selected && <span className="cm-selected">Selected</span>}
             {tagsOf(candidate)}
           </div>
@@ -157,7 +161,7 @@ function TaskCandidates({ row, features, mode, onSelect, renderCell, tags, narro
           <tr key={candidate.key} className={candidate.selected ? 'cm-row is-selected' : 'cm-row'} aria-current={candidate.selected ? 'true' : undefined}>
             {mode === 'select' && <td>{radio(candidate)}</td>}
             <th scope="row">
-              <code>{candidate.written}</code>
+              {name(candidate)}
               {candidate.selected && <span className="cm-selected">Selected</span>}
               {tagsOf(candidate)}
             </th>
@@ -175,7 +179,7 @@ function TaskCandidates({ row, features, mode, onSelect, renderCell, tags, narro
 }
 
 /** The candidates of every task: one table per task (a card per candidate on a phone), required features first. */
-export function CandidateMatrix({ matrix, mode, onSelect, renderCell, label, tags }: CandidateMatrixProps) {
+export function CandidateMatrix({ matrix, mode, onSelect, renderCell, renderName, label, tags }: CandidateMatrixProps) {
   const narrow = useNarrow();
   const group = useId();
   const [shown, setShown] = useState<string[]>(readShown);
@@ -212,7 +216,7 @@ export function CandidateMatrix({ matrix, mode, onSelect, renderCell, label, tag
         if (row.candidates.length === 0) {
           return <p key={row.task} className="cm-local"><code>{row.task}</code> has no candidate that can serve it.</p>;
         }
-        return <TaskCandidates key={row.task} row={row} features={features} mode={mode} onSelect={onSelect} renderCell={renderCell} tags={tags} narrow={narrow} group={group} />;
+        return <TaskCandidates key={row.task} row={row} features={features} mode={mode} onSelect={onSelect} renderCell={renderCell} renderName={renderName} tags={tags} narrow={narrow} group={group} />;
       })}
     </section>
   );

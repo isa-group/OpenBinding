@@ -203,8 +203,8 @@ frontend/src/
                           comparison words)
   entities/composition/   api.ts, document.ts, values.ts, viewModel.ts, changes.ts, evolution.ts, versionRef.ts, kinds.ts
   widgets/                workflow-graph, candidate-matrix, value-badge, problems-panel, provider-map, pricing-card,
-                          change-summary, evolution-charts, composition-renderer (CompositionRenderer, presets.ts and the
-                          modes)
+                          change-summary, evolution-charts, rules-and-objectives, composition-renderer (CompositionRenderer,
+                          presets.ts and the modes)
   features/               composition-editor (code and visual Composition2Yaml editor), derive (DeriveCompositionDialog),
                           fork (ForkCompositionDialog), workspace (the organization frame: breadcrumb, gate)
   pages/                  route-level screens: Compositions (list, detail and its tabs), PublicCompositions (public list,

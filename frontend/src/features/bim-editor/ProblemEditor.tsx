@@ -9,20 +9,26 @@ import { TabBar, TabPanel } from '../../components/ui/TabBar';
 import { compositionPath } from '../../routes/paths/compositions';
 import { problemEditorPath, problemPath } from '../../routes/paths/problems';
 import { refusalMarker, refusalText, type Refusal } from '../../shared/api/refusals';
+import { resolvePointer } from '../../shared/diagnostics/jsonPointer';
 import { counts, type Located } from '../../shared/diagnostics/located';
+import type { FeatureSlot } from '../../utils/featureRange';
 import { ProblemsPanel } from '../../widgets/problems-panel/ProblemsPanel';
+import type { RuleOrigin } from '../../widgets/rules-and-objectives/RulesAndObjectives';
+import { CandidatesPane } from './CandidatesPane';
 import { parseJson, type WorkspaceFiles } from './documents';
 import { OpenDialog, SaveDialog, type OpenChoice } from './EditorDialogs';
 import { filePaths } from './editorModel';
 import { FilesPane } from './FilesPane';
 import { FormsPane } from './FormsPane';
-import { CandidatesPane, EnginesPanel, WorkflowPane } from './ModelPanes';
+import { writeAtOrigin, type CellOrigin } from './matrixEdits';
+import { EnginesPanel, WorkflowPane } from './ModelPanes';
+import { RulesPane } from './RulesPane';
 import { useProblemEditor, type Origin, type ProblemEditorState, type SaveOutcome, type SaveTarget } from './useProblemEditor';
 import './ProblemEditor.css';
 
 const BpmnModeler = lazy(() => import('./BpmnModeler').then((module) => ({ default: module.BpmnModeler })));
 
-export type PaneId = 'workflow' | 'candidates' | 'files' | 'forms' | 'bpmn' | 'engines' | 'problems';
+export type PaneId = 'workflow' | 'candidates' | 'rules' | 'files' | 'forms' | 'bpmn' | 'engines' | 'problems';
 
 const NARROW = '(max-width: 640px)';
 
@@ -106,8 +112,8 @@ interface ProblemEditorProps {
 }
 
 /**
- * The BIM problem editor (`problem-editor`): the package as a workflow, its candidates, its files, forms over its documents and
- * its BPMN diagram, checked live by the gateway, with the findings listed under it and the engines that can run it beside it.
+ * The BIM problem editor (`problem-editor`): the package as a workflow, its candidates (edited in the matrix), its rules and
+ * objectives, its files, forms over its documents and its BPMN diagram, checked live by the gateway, with the findings listed under it and the engines that can run it beside it.
  * `?problem=&revision=` opens a version, `?template=` a template, `&composition=&compositionVersion=` highlights what a
  * composition version chose. On a phone the panes are tabs.
  */
@@ -185,6 +191,20 @@ export function ProblemEditor({ organization, canSave, userId, delay }: ProblemE
 
   const update = (updater: (now: WorkspaceFiles) => WorkspaceFiles) => editor.commit(updater);
 
+  /** A value of the matrix, written where the package declares it, as one undo step. */
+  const editValue = (origin: CellOrigin, value: FeatureSlot | null) => {
+    const now = editor.current();
+    const next = writeAtOrigin(now, origin, value);
+    if (next && next !== now) editor.commit(next);
+  };
+
+  /** A rule where the package writes it: its file, at the rule's range when the pointer still lands. */
+  const openOrigin = (origin: RuleOrigin) => {
+    const text = editor.current()[origin.path];
+    const target = text === undefined ? null : resolvePointer(text, origin.pointer);
+    openFile(origin.path, target ? { anchor: target.from, head: target.to } : undefined);
+  };
+
   /** The modeler's diagram, once it is valid XML: one undo step when it differs from the file. */
   const acceptBpmn = (xml: string) => {
     if (!bpmnPath) return;
@@ -219,6 +239,7 @@ export function ProblemEditor({ organization, canSave, userId, delay }: ProblemE
   const panes: Array<{ id: PaneId; label: string }> = [
     { id: 'workflow', label: 'Workflow' },
     { id: 'candidates', label: 'Candidates' },
+    { id: 'rules', label: 'Rules' },
     { id: 'files', label: 'Files' },
     { id: 'forms', label: 'Forms' },
     ...(bpmnPath ? [{ id: 'bpmn' as const, label: 'BPMN' }] : []),
@@ -282,7 +303,24 @@ export function ProblemEditor({ organization, canSave, userId, delay }: ProblemE
           <TabBar items={panes} value={active} onChange={(id) => setPane(id as PaneId)} ariaLabel="Editor panes" prefix="pe-pane" />
           <TabPanel prefix="pe-pane" active={active}>
             {active === 'workflow' && <WorkflowPane facts={editor.facts} stale={editor.stale} selection={selected} response={editor.response} onSelectTask={selectTask} />}
-            {active === 'candidates' && <CandidatesPane facts={editor.facts} stale={editor.stale} selection={selected} task={task} onTask={setTask} />}
+            {active === 'candidates' && (
+              <CandidatesPane
+                facts={editor.facts}
+                stale={editor.stale}
+                selection={selected}
+                task={task}
+                onTask={setTask}
+                files={files}
+                diagnostics={editor.diagnostics}
+                onEdit={editValue}
+                update={update}
+                onOpenFile={(path) => openFile(path)}
+                onOpenFinding={openFinding}
+              />
+            )}
+            {active === 'rules' && (
+              <RulesPane facts={editor.facts} stale={editor.stale} files={files} update={update} onOpenOrigin={openOrigin} onOpenFile={(path) => openFile(path)} />
+            )}
             {active === 'files' && (
               <FilesPane
                 files={files}
