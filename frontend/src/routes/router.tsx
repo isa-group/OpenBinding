@@ -201,7 +201,7 @@ export default function Router({ table = screens }: { table?: Screen[] }) {
       element: (
         <ProtectedRoute>
           <AuthenticatedLayout>
-            <LegacyOrgOutlet />
+            <LegacyOrgOutlet workspace />
           </AuthenticatedLayout>
         </ProtectedRoute>
       ),

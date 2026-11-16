@@ -23,7 +23,7 @@ export interface PlatformOutletContext {
  * shell's other duties: the workspace error, the plan-changed notice, the error boundary and the loading fallback. It goes
  * with the last screen that reads the context (D8).
  */
-export function LegacyOrgOutlet() {
+export function LegacyOrgOutlet({ workspace = false }: { workspace?: boolean }) {
   const location = useLocation();
   const { org } = workspaceSlugs(location.pathname);
   const { organizations, isLoading, error, refresh } = useOrganization();
@@ -49,8 +49,8 @@ export function LegacyOrgOutlet() {
           </p>
         </div>
       )}
-      {/* A plan changed by signing in is told once, wherever the person lands; Identities tells it itself, where they link. */}
-      {location.pathname !== '/app/account/identities' && (
+      {/* A plan changed by signing in is told once, on the workspace screen the person lands on; Identities tells it itself. */}
+      {workspace && location.pathname !== '/app/account/identities' && (
         <div className="mx-auto w-full max-w-7xl px-4 md:px-6">
           <PlanChangedNotice className="platform-plan-notice" />
         </div>
