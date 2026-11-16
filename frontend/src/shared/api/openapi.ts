@@ -552,6 +552,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/avatars": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Default Avatars
+         * @description The predefined avatars' file names, the ones ``PUT /v1/organizations/{org}/avatar-colors`` accepts.
+         */
+        get: operations["listDefaultAvatars"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/avatars/{name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Default Avatar
+         * @description A predefined avatar (SPHERE's ``static/avatars/users/default``), open to anybody.
+         */
+        get: operations["getDefaultAvatar"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/bim/templates": {
         parameters: {
             query?: never;
@@ -603,6 +643,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/composition-follows/{org}/{composition}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Composition Follow
+         * @description Whether the caller follows the composition.
+         */
+        get: operations["getCompositionFollow"];
+        /**
+         * Follow Composition
+         * @description Follow a composition the caller reads: each version sealed later tells them (``CompositionUpdated``).
+         */
+        put: operations["followComposition"];
+        post?: never;
+        /**
+         * Unfollow Composition
+         * @description Stop following. A follower who no longer reads the composition stops too, and is answered 404.
+         */
+        delete: operations["unfollowComposition"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/compositions": {
         parameters: {
             query?: never;
@@ -612,7 +680,8 @@ export interface paths {
         };
         /**
          * List Public Compositions
-         * @description The public compositions of every organization, the most recently changed first; anybody reads them.
+         * @description The public compositions of every organization, the most recently changed first (or by name, tasks or
+         *     cost), with the facets of every match; anybody reads them.
          */
         get: operations["listPublicCompositions"];
         put?: never;
@@ -734,13 +803,13 @@ export interface paths {
          * List visible engine deployments
          * @description Normally returns the caller's registrations and published registrations. Administrators may set review=true to receive only explicit publication requests.
          */
-        get: operations["list_engine_registrations_v1_engine_registrations_get"];
+        get: operations["listEngineRegistrations"];
         put?: never;
         /**
          * Create an immutable private engine deployment
          * @description Stores endpoint details and the complete submitted OpenAPI document privately. Creation does not notify administrators and the deployment starts inactive.
          */
-        post: operations["register_engine_v1_engine_registrations_post"];
+        post: operations["registerEngine"];
         delete?: never;
         options?: never;
         head?: never;
@@ -758,11 +827,11 @@ export interface paths {
          * Read one exact visible engine deployment
          * @description Visible only to its owner, to authenticated users after publication, or to an administrator while this exact revision is pending review.
          */
-        get: operations["get_engine_registration_v1_engine_registrations__name__get"];
+        get: operations["getEngineRegistration"];
         put?: never;
         post?: never;
         /** Delete Engine Registration */
-        delete: operations["delete_engine_registration_v1_engine_registrations__name__delete"];
+        delete: operations["deleteEngineRegistration"];
         options?: never;
         head?: never;
         patch?: never;
@@ -781,7 +850,7 @@ export interface paths {
          * Verify and enable a deployment for its owner
          * @description Owner-only. Revalidates the live pinned OpenAPI and response contract, then enables this deployment for the owner's own account without changing its publication state.
          */
-        post: operations["activate_engine_registration_v1_engine_registrations__name__activate_post"];
+        post: operations["activateEngineRegistration"];
         delete?: never;
         options?: never;
         head?: never;
@@ -801,7 +870,7 @@ export interface paths {
          * Approve a publication request
          * @description Administrator-only. Revalidates a pending request and publishes its immutable Engine and deployment to every authenticated account.
          */
-        post: operations["approve_engine_registration_v1_engine_registrations__name__approve_post"];
+        post: operations["approveEngineRegistration"];
         delete?: never;
         options?: never;
         head?: never;
@@ -820,7 +889,7 @@ export interface paths {
          * Replace a private deployment credential
          * @description Replace a deployment credential without ever placing it in a manifest.
          */
-        put: operations["set_engine_registration_credential_v1_engine_registrations__name__credential_put"];
+        put: operations["setEngineRegistrationCredential"];
         post?: never;
         delete?: never;
         options?: never;
@@ -841,7 +910,7 @@ export interface paths {
          * Disable a deployment for its owner
          * @description Owner-only. Disables this deployment for the owner's account; its publication state and availability to other authenticated users do not change.
          */
-        post: operations["deactivate_engine_registration_v1_engine_registrations__name__deactivate_post"];
+        post: operations["deactivateEngineRegistration"];
         delete?: never;
         options?: never;
         head?: never;
@@ -861,7 +930,7 @@ export interface paths {
          * Submit a verified deployment for publication review
          * @description Owner-only. Revalidates an active deployment and makes this exact revision discoverable to administrators for the first time.
          */
-        post: operations["request_engine_registration_publication_v1_engine_registrations__name__publication_request_post"];
+        post: operations["requestEngineRegistrationPublication"];
         delete?: never;
         options?: never;
         head?: never;
@@ -881,7 +950,7 @@ export interface paths {
          * Reject a publication request
          * @description Administrator-only. Removes a pending request from moderation and returns it to private owner-only visibility.
          */
-        post: operations["reject_engine_registration_v1_engine_registrations__name__reject_post"];
+        post: operations["rejectEngineRegistration"];
         delete?: never;
         options?: never;
         head?: never;
@@ -899,7 +968,7 @@ export interface paths {
          * Inspect a visible engine deployment contract
          * @description Returns the immutable submitted OpenAPI document, its digest, the exact Engine manifest and the latest conformance report. It follows the same private, pending-review and published visibility rules as the registration itself.
          */
-        get: operations["get_engine_registration_report_v1_engine_registrations__name__report_get"];
+        get: operations["getEngineRegistrationReport"];
         put?: never;
         post?: never;
         delete?: never;
@@ -919,7 +988,7 @@ export interface paths {
          * List the Engines visible to the caller
          * @description The public engine catalogue: anybody gets the built-in and published Engines, and a signed-in caller also gets their own private revisions. Private revisions owned by other accounts, including administrators, are never disclosed.
          */
-        get: operations["list_v1_engines_v1_engines_get"];
+        get: operations["listEngines"];
         put?: never;
         /**
          * Create an immutable private Engine revision
@@ -963,7 +1032,7 @@ export interface paths {
             cookie?: never;
         };
         /** List Engine Revisions */
-        get: operations["list_engine_revisions_v1_engines_revisions_get"];
+        get: operations["listEngineRevisions"];
         put?: never;
         post?: never;
         delete?: never;
@@ -980,7 +1049,7 @@ export interface paths {
             cookie?: never;
         };
         /** Get Engine Revision Detail */
-        get: operations["get_engine_revision_detail_v1_engines__namespace___name__revisions__version__get"];
+        get: operations["getEngineRevision"];
         put?: never;
         post?: never;
         delete?: never;
@@ -997,7 +1066,7 @@ export interface paths {
             cookie?: never;
         };
         /** Read one exact visible Engine revision */
-        get: operations["get_v1_engine_v1_engines__name__get"];
+        get: operations["getEngine"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1023,6 +1092,48 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/invitations/{code}/join": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Join Organization
+         * @description Join the organization of an invitation code as MEMBER, using one of its uses, as SPHERE's
+         *     ``joinViaInvitation``. A caller who holds a role there already (directly or above it) gets 409.
+         */
+        post: operations["joinOrganization"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/invitations/{code}/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Preview Invitation
+         * @description What an invitation code joins, for its holder to decide: the organization's identity, avatar and
+         *     description, who invited them and until when. Anybody holding the code reads it.
+         */
+        get: operations["previewInvitation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/notifications": {
         parameters: {
             query?: never;
@@ -1030,7 +1141,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Notifications */
+        /**
+         * List Notifications
+         * @description The inbox of the last seven days, the newest first; older notifications are deleted as it is read.
+         */
         get: operations["listNotifications"];
         put?: never;
         post?: never;
@@ -1047,7 +1161,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get Preferences */
+        /**
+         * Get Preferences
+         * @description The account's notification preferences, every kind's channels included.
+         */
         get: operations["getNotificationPreferences"];
         /** Update Preferences */
         put: operations["updateNotificationPreferences"];
@@ -1070,6 +1187,88 @@ export interface paths {
         /** Mark All Notifications Read */
         post: operations["readAllNotifications"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/notifications/stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Stream Notifications
+         * @description The caller's notifications as they arrive, as SPHERE's notification stream, opened with a single-use
+         *     ticket instead of an access token in the URL.
+         */
+        get: operations["streamNotifications"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/notifications/stream-ticket": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Stream Ticket
+         * @description A single-use ticket for the caller's notification stream, valid one minute. The stream is opened with the
+         *     ticket in its URL because an ``EventSource`` sends no ``Authorization`` header; the access token never is.
+         */
+        post: operations["createNotificationStreamTicket"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/notifications/unread-count": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Count Unread Notifications
+         * @description How many notifications of the inbox the caller has not read (the header bell's badge).
+         */
+        get: operations["countUnreadNotifications"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/notifications/{notification_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Notification
+         * @description Delete one of the caller's notifications; anybody else's is 404.
+         */
+        delete: operations["deleteNotification"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1099,11 +1298,42 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Organizations */
+        /**
+         * List Organizations
+         * @description The organizations the caller holds a role in, directly or through an ancestor, by name; ``tree=true``
+         *     nests them under the organizations the caller reaches first.
+         */
         get: operations["listOrganizations"];
         put?: never;
-        /** Create Organization */
+        /**
+         * Create Organization
+         * @description Create an organization, its caller its OWNER. Without a slug, one is derived from the name and made
+         *     unique with a numeric suffix (SPHERE's ``deduplicateSlug``); a derived slug is never a reserved one.
+         */
         post: operations["createOrganization"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/public": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Public Organizations
+         * @description The root organizations that publish at least one composition, by name; anybody reads them.
+         *
+         *     SPHERE lists every root organization (``GET /orgs/public``); OpenBinding shows an organization to
+         *     non-members only once it has a public composition (Q8), so no other organization appears here.
+         */
+        get: operations["listPublicOrganizations"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1161,6 +1391,82 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/organizations/{org}/avatar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload Organization Avatar
+         * @description Set an uploaded image as the organization's avatar (ADMIN), keeping its colours.
+         *
+         *     The image is the raw body (no multipart). Its type is read from its bytes, never from the request's
+         *     ``Content-Type``, and only PNG, JPEG and WebP are kept, so an upload is only ever served as an image. It
+         *     is stored once per content as a blob of the organization; the previous upload's file is never deleted on
+         *     the request path (D14).
+         */
+        post: operations["uploadOrganizationAvatar"];
+        /**
+         * Remove Organization Avatar
+         * @description Clear the image and its colours, leaving the initials (ADMIN), as SPHERE's ``removeAvatar``.
+         */
+        delete: operations["removeOrganizationAvatar"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{org}/avatar-colors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Select Organization Avatar
+         * @description Choose a predefined avatar, or none (the initials), and the colours it is drawn with (ADMIN).
+         *
+         *     As SPHERE's ``updateAvatarColors``: a colour left out is SPHERE's default. ``avatar`` left out keeps the
+         *     current image, an upload too, so the colours change alone.
+         */
+        put: operations["selectOrganizationAvatar"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{org}/avatar/{digest}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Organization Avatar
+         * @description An organization's uploaded avatar, by the organization's id and the image's digest (64 hex characters).
+         *
+         *     Anybody holding the URL reads it, as SPHERE serves avatars from its static folder: the URL is in the
+         *     organization's views, and names both the organization's id and the content. Any other digest, an image no
+         *     longer current included, answers 404 as a missing organization does.
+         */
+        get: operations["getOrganizationAvatar"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/organizations/{org}/compositions": {
         parameters: {
             query?: never;
@@ -1170,7 +1476,12 @@ export interface paths {
         };
         /**
          * List Compositions
-         * @description The organization's compositions, by name or the most recently updated first.
+         * @description The organization's compositions, by name, the most recently updated first, by tasks or by cost, with the
+         *     facets of every match.
+         *
+         *     A member reads them all. Anybody else, with no credential too, reads its public compositions (public, not
+         *     archived, with a version), redacted as a public reader's; an organization that publishes none answers as a
+         *     missing one, the same 404 as an unreadable composition (Q8).
          */
         get: operations["listCompositions"];
         put?: never;
@@ -1253,6 +1564,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/organizations/{org}/compositions/{composition}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download Composition Versions
+         * @description Every version the caller reads as one zip, as SPHERE's ``GET /public/pricings/{id}/download``: the
+         *     stored canonical bytes, one ``{label}.yaml`` per version in a folder named after the composition. A
+         *     composition with no version is 404.
+         */
+        get: operations["downloadCompositionVersions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/organizations/{org}/compositions/{composition}/evaluate": {
         parameters: {
             query?: never;
@@ -1287,6 +1620,28 @@ export interface paths {
          * @description Create a new composition in `targetOrganization` whose first version is the source version's document with `composition:` set to the new slug, sealed again through the same pipeline. The caller must read the source and be a MEMBER of the target. Without `slug` the fork takes the source's, and when the target holds it already nothing is written: 200 `nameTaken` names the composition that holds it. A version that links a problem is forked only with `dropProblem`, which removes its `problem` and `evidence` and declares its values.
          */
         post: operations["forkComposition"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{org}/compositions/{composition}/graph": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Composition Graph
+         * @description The composition's version graph: its lane, and one per composition a version was forked from, as
+         *     SPHERE's ``GET /pricings/{org}/{slug}/graph``. A source the caller does not read is a lane with only the
+         *     labels its forks name, for members; a reader who is not a member sees no such lane.
+         */
+        get: operations["getCompositionGraph"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1417,7 +1772,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/organizations/{org}/hierarchy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Organization Hierarchy
+         * @description The whole branch the organization sits in (its root, and everything below the root), flat and by name,
+         *     each node saying whether the caller opens it, as SPHERE's ``GET /orgs/{id}/hierarchy``. For its members
+         *     only: anybody else gets 404.
+         */
+        get: operations["getOrganizationHierarchy"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/organizations/{org}/invitations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Invitations
+         * @description The organization's invitation codes, the newest first, used up and expired ones too (ADMIN).
+         */
+        get: operations["listOrganizationInvitations"];
+        put?: never;
+        /**
+         * Invite Member
+         * @description Invite to the organization (ADMIN).
+         *
+         *     With ``expires_in_days`` and ``max_uses`` (or an empty body): a shareable code, as SPHERE's, that joins
+         *     whoever holds it as MEMBER (``POST /v1/invitations/{code}/join``); a non-member gets 404. With ``email``
+         *     and ``role``: the email invitation and its ``obi_`` token, until B8 removes them.
+         */
+        post: operations["inviteOrganizationMember"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{org}/invitations/invite-users": {
         parameters: {
             query?: never;
             header?: never;
@@ -1426,9 +1831,34 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Invite Member */
-        post: operations["inviteOrganizationMember"];
+        /**
+         * Invite Users
+         * @description Invite named users (ADMIN): one code, valid seven days, with a use for each user who is not a member
+         *     yet, and an ``OrganizationInvitation`` notification to each of them, as SPHERE's ``inviteUsers``. A user
+         *     who is a member already is left out; an unknown or inactive one is 404.
+         */
+        post: operations["inviteUsersToOrganization"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{org}/invitations/{invitation_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Revoke Invitation
+         * @description Revoke an invitation code (ADMIN): it stops working at once.
+         */
+        delete: operations["revokeOrganizationInvitation"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1482,8 +1912,39 @@ export interface paths {
         /** Upsert Member */
         put: operations["upsertOrganizationMember"];
         post?: never;
-        /** Remove Member */
+        /**
+         * Remove Member
+         * @description Remove a direct member (ADMIN), or leave: any member but an owner removes themselves, as in SPHERE.
+         *
+         *     An owner hands the organization over first (``PUT .../owner``); a caller who is not a member gets 404.
+         */
         delete: operations["removeOrganizationMember"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{org}/owner": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Transfer Ownership
+         * @description Hand the organization, and everything below it, to another member, as SPHERE's ``transferOwnership``.
+         *
+         *     A swap, not a promotion: the recipient takes the owner's seat and every owner seat of the branch (this
+         *     organization and its descendants) steps down to ADMIN, the caller's too, so whoever held one keeps working
+         *     access. Only the owner hands it over (a direct OWNER membership here; a platform administrator has nothing
+         *     to give), and the recipient must already be a member, here or above. One transaction, under the lock of the
+         *     organization's row and of the branch's memberships, so a half handover never shows.
+         */
+        put: operations["transferOrganizationOwnership"];
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1715,6 +2176,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/organizations/{org}/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Organization Profile
+         * @description An organization's public profile: who it is, its avatar and description, and how many compositions it
+         *     publishes. Anybody reads the profile of an organization with a public composition (Q8); its members read
+         *     it always. Any other caller gets the 404 of a missing organization.
+         */
+        get: operations["getOrganizationProfile"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/organizations/{org}/runs": {
         parameters: {
             query?: never;
@@ -1876,7 +2359,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Studies */
+        /**
+         * List Studies
+         * @description The organization's studies by name, paged with ``limit`` and ``offset``; the total is ``X-Total-Count``.
+         */
         get: operations["listStudies"];
         put?: never;
         /** Create Study */
@@ -2067,6 +2553,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/permalinks/compositions/{composition_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Resolve Composition Permalink
+         * @description Where the application shows a composition, from its permanent id (``/p/{id}?version=``).
+         */
+        get: operations["resolveCompositionPermalink"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/pricing/catalog": {
         parameters: {
             query?: never;
@@ -2096,6 +2602,27 @@ export interface paths {
         };
         /** Current Pricing */
         get: operations["getCurrentPricing"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Find users by username
+         * @description Active users whose username holds ``q`` (at least four characters), by username, at most twenty: their
+         *     id, username and avatar only, never an email. What inviting users to an organization picks from.
+         */
+        get: operations["searchUsers"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2217,6 +2744,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/users/me/compositions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Own Compositions
+         * @description The compositions the caller reads as a member, across every organization they hold a role in (directly or
+         *     through an ancestor), as SPHERE's ``/me/pricings``; ``owners`` narrows them to some of those organizations.
+         */
+        get: operations["listOwnCompositions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/users/me/identities": {
         parameters: {
             query?: never;
@@ -2269,6 +2817,28 @@ export interface paths {
          */
         get: operations["getOwnPricingToken"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/users/me/settings/beta-features": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Whether the account opted into beta features */
+        get: operations["getBetaFeatures"];
+        /**
+         * Opt into or out of beta features
+         * @description Opt into or out of the beta features, as SPHERE's ``PUT /users/me/settings/beta-features``. The revision
+         *     is the account row's, shared with the profile and the notification preferences.
+         */
+        put: operations["updateBetaFeatures"];
         post?: never;
         delete?: never;
         options?: never;
@@ -2574,6 +3144,32 @@ export interface components {
             permissions: components["schemas"]["ApiKeyPermission"][];
             /** Prefix */
             prefix: string;
+        };
+        /**
+         * AvatarSelection
+         * @description A predefined avatar, or none (the initials), and the colours to draw it with.
+         */
+        AvatarSelection: {
+            /**
+             * Avatar
+             * @description A predefined avatar's file name (`GET /v1/avatars`), or null for the initials. Absent keeps the current image.
+             */
+            avatar?: string | null;
+            /** Bg Color */
+            bg_color?: string | null;
+            /** Fg Color */
+            fg_color?: string | null;
+        };
+        /**
+         * BetaFeatures
+         * @description Whether the account sees the features still behind SPHERE's BetaGate.
+         */
+        BetaFeatures: {
+            /**
+             * Enabled
+             * @default false
+             */
+            enabled: boolean;
         };
         BindingProblem: {
             /** @constant */
@@ -3036,6 +3632,50 @@ export interface components {
              */
             values_status: ("verified" | "declared") | null;
         };
+        /**
+         * CodeInvitationCreate
+         * @description A shareable invitation code (SPHERE's ``createInvitation``): whoever holds it joins as MEMBER.
+         */
+        CodeInvitationCreate: {
+            /**
+             * Expires In Days
+             * @description Days the code is valid for; null for a code that never expires.
+             * @default 7
+             */
+            expires_in_days: number | null;
+            /**
+             * Max Uses
+             * @description How many may join with it; null for any.
+             */
+            max_uses?: number | null;
+        };
+        /** CodeInvitationView */
+        CodeInvitationView: {
+            /** Code */
+            code: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            created_by: components["schemas"]["UserRef"] | null;
+            /** Expires At */
+            expires_at: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Max Uses */
+            max_uses: number | null;
+            /**
+             * Organization Id
+             * Format: uuid
+             */
+            organization_id: string;
+            /** Use Count */
+            use_count: number;
+        };
         /** CompilationIr */
         CompilationIr: {
             /**
@@ -3266,6 +3906,17 @@ export interface components {
             version?: string | null;
         };
         /**
+         * CompositionFacets
+         * @description What every match of a list (not one page) holds: its organizations and the extent of its numbers, each
+         *     facet ignoring its own filter. From what each latest version stored: its analytics' `tasks` and `providers`,
+         *     and the `cost` value of its latest evaluation.
+         */
+        CompositionFacets: {
+            /** Owners */
+            owners: components["schemas"]["OwnerFacet"][];
+            ranges: components["schemas"]["RangeFacets"];
+        };
+        /**
          * CompositionFork
          * @description A version of a composition to fork into another organization, as a new composition there.
          */
@@ -3303,12 +3954,26 @@ export interface components {
             version: string;
         };
         /**
+         * CompositionGraph
+         * @description The version graph of a composition, as SPHERE's pricing version graph: newest versions first.
+         */
+        CompositionGraph: {
+            /** Lanes */
+            lanes: components["schemas"]["GraphLane"][];
+            /**
+             * Truncated
+             * @description More source lanes exist than were drawn (at most 20).
+             */
+            truncated: boolean;
+        };
+        /**
          * CompositionList
          * @description One page of an organization's compositions, and how many match in all.
          */
         CompositionList: {
             /** Compositions */
             compositions: components["schemas"]["CompositionView"][];
+            facets?: components["schemas"]["CompositionFacets"] | null;
             /** Limit */
             limit: number;
             /** Offset */
@@ -4514,6 +5179,11 @@ export interface components {
              */
             path: string;
         };
+        /** FollowState */
+        FollowState: {
+            /** Following */
+            following: boolean;
+        };
         /**
          * ForkNameTaken
          * @description Nothing was forked: the source's slug is taken in the target organization; name another `slug`.
@@ -4597,6 +5267,103 @@ export interface components {
             }[];
             /** @enum {string} */
             termination: "OPTIMAL" | "FEASIBLE" | "INFEASIBLE" | "UNKNOWN";
+        };
+        /**
+         * GraphEdge
+         * @description The version a version was forked from.
+         */
+        GraphEdge: {
+            /**
+             * Composition Id
+             * Format: uuid
+             */
+            composition_id: string;
+            /** Label */
+            label?: string | null;
+            /** Version Id */
+            version_id?: string | null;
+        };
+        /**
+         * GraphLane
+         * @description A composition of the graph: this one (`current`) or one a version was forked from (`source`).
+         */
+        GraphLane: {
+            /**
+             * Available
+             * @description False for a source the caller does not read: only what its forks name.
+             */
+            available: boolean;
+            /**
+             * Composition Id
+             * Format: uuid
+             */
+            composition_id: string;
+            /** Name */
+            name?: string | null;
+            organization?: components["schemas"]["GraphOrganization"] | null;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "current" | "source";
+            /** Slug */
+            slug?: string | null;
+            /** Versions */
+            versions: components["schemas"]["GraphVersion"][];
+        };
+        /** GraphOrganization */
+        GraphOrganization: {
+            /** Id */
+            id?: string | null;
+            /** Name */
+            name?: string | null;
+            /** Slug */
+            slug?: string | null;
+        };
+        /** GraphVersion */
+        GraphVersion: {
+            /** Created At */
+            created_at?: string | null;
+            forked_from?: components["schemas"]["GraphEdge"] | null;
+            /**
+             * Id
+             * @description Null on an unavailable lane, which knows only labels.
+             */
+            id: string | null;
+            /** Label */
+            label: string;
+        };
+        /**
+         * HierarchyNode
+         * @description One organization of a branch (``GET /v1/organizations/{org}/hierarchy``), and whether the caller opens it.
+         */
+        HierarchyNode: {
+            avatar: components["schemas"]["OrganizationAvatar"];
+            /** Effective Role */
+            effective_role?: ("OWNER" | "ADMIN" | "MEMBER" | "VIEWER") | null;
+            /** Has Access */
+            has_access: boolean;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Parent Id */
+            parent_id: string | null;
+            /** Slug */
+            slug: string;
+        };
+        /** HistogramBucket */
+        HistogramBucket: {
+            /** Count */
+            count: number;
+            /**
+             * Value
+             * @description `a-b` (from a, up to b) or `p+` (p and above), as SPHERE's slider histograms.
+             */
+            value: string;
         };
         ImmutableResourceRef: {
             digest: string;
@@ -4713,6 +5480,26 @@ export interface components {
              * @description Shown once; send it to the invited person.
              */
             token: string;
+        };
+        /**
+         * InvitationPreview
+         * @description What a code invites to, before joining (``GET /v1/invitations/{code}/preview``).
+         */
+        InvitationPreview: {
+            /** Code */
+            code: string;
+            /** Expires At */
+            expires_at: string | null;
+            invited_by: components["schemas"]["UserRef"] | null;
+            organization: components["schemas"]["PublicOrganizationView"];
+        };
+        /**
+         * InviteUsers
+         * @description Invite named users: one code with a use for each, and a notification to each of them.
+         */
+        InviteUsers: {
+            /** User Ids */
+            user_ids: string[];
         };
         JobAccepted: {
             /** Format: uuid */
@@ -4853,6 +5640,19 @@ export interface components {
             status: string;
             /** Termination */
             termination?: string | null;
+        };
+        /** KindChannels */
+        KindChannels: {
+            /**
+             * Email
+             * @default true
+             */
+            email: boolean;
+            /**
+             * Inbox
+             * @default true
+             */
+            inbox: boolean;
         };
         /** LatestRevision */
         LatestRevision: {
@@ -5057,6 +5857,10 @@ export interface components {
              * @default true
              */
             inbox: boolean;
+            /** Kinds */
+            kinds?: {
+                [key: string]: components["schemas"]["KindChannels"];
+            };
         };
         /** NotificationView */
         NotificationView: {
@@ -5083,17 +5887,71 @@ export interface components {
             /** Subject */
             subject: string;
         };
+        /**
+         * OrganizationAvatar
+         * @description How an organization is drawn: an image URL (a predefined avatar or an upload) and its colours.
+         *
+         *     ``url`` is a path of the gateway (``/v1/avatars/avatar-3.svg``, ``/v1/organizations/{id}/avatar/{digest}``),
+         *     null for the initials. A predefined avatar is drawn in ``fg_color`` over ``bg_color``.
+         */
+        OrganizationAvatar: {
+            /** Bg Color */
+            bg_color?: string | null;
+            /** Fg Color */
+            fg_color?: string | null;
+            /** Kind */
+            kind?: ("predefined" | "upload") | null;
+            /** Url */
+            url?: string | null;
+        };
         /** OrganizationCreate */
         OrganizationCreate: {
+            /**
+             * Description
+             * @default
+             */
+            description: string;
             /** Name */
             name: string;
             /** Parent Id */
             parent_id?: string | null;
             /** Slug */
+            slug?: string | null;
+        };
+        /** OrganizationRef */
+        OrganizationRef: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Slug */
             slug: string;
+        };
+        /**
+         * OrganizationStats
+         * @description What an organization holds: its direct members and sub-organizations, and its own resources.
+         */
+        OrganizationStats: {
+            /** Compositions */
+            compositions: number;
+            /** Members */
+            members: number;
+            /** Problems */
+            problems: number;
+            /** Runs */
+            runs: number;
+            /** Studies */
+            studies: number;
+            /** Sub Organizations */
+            sub_organizations: number;
         };
         /** OrganizationUpdate */
         OrganizationUpdate: {
+            /** Description */
+            description?: string | null;
             /**
              * Move To Root
              * @default false
@@ -5106,11 +5964,19 @@ export interface components {
         };
         /** OrganizationView */
         OrganizationView: {
+            avatar?: components["schemas"]["OrganizationAvatar"];
+            /** Children */
+            children?: components["schemas"]["OrganizationView"][] | null;
             /**
              * Created At
              * Format: date-time
              */
             created_at: string;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
             /** Effective Role */
             effective_role?: ("OWNER" | "ADMIN" | "MEMBER" | "VIEWER") | null;
             /**
@@ -5122,8 +5988,33 @@ export interface components {
             name: string;
             /** Parent Id */
             parent_id: string | null;
+            role_source?: components["schemas"]["OrganizationRef"] | null;
             /** Slug */
             slug: string;
+            stats?: components["schemas"]["OrganizationStats"] | null;
+        };
+        /**
+         * OwnerFacet
+         * @description An organization of a list's matches, and how many of them it holds.
+         */
+        OwnerFacet: {
+            /** Count */
+            count: number;
+            /** Name */
+            name: string;
+            /** Slug */
+            slug: string;
+        };
+        /**
+         * OwnerTransfer
+         * @description Who takes the organization over: a member, here or above.
+         */
+        OwnerTransfer: {
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
         };
         /** PackageFile */
         PackageFile: {
@@ -5217,6 +6108,14 @@ export interface components {
              * Format: email
              */
             email: string;
+        };
+        /** PermanentLink */
+        PermanentLink: {
+            /**
+             * Location
+             * @description The application path of the composition (`/compositions/{org}/{composition}`), with `?version=` when the link names a version the caller reads.
+             */
+            location: string;
         };
         /**
          * PlanChange
@@ -5545,6 +6444,12 @@ export interface components {
              * Format: uuid
              */
             organization_id: string;
+            /**
+             * Revision Count
+             * @description How many revisions the problem has.
+             * @default 0
+             */
+            revision_count: number;
             /** Slug */
             slug: string;
             /**
@@ -5654,6 +6559,7 @@ export interface components {
         PublicCompositionList: {
             /** Compositions */
             compositions: components["schemas"]["PublicCompositionView"][];
+            facets?: components["schemas"]["CompositionFacets"] | null;
             /** Limit */
             limit: number;
             /** Offset */
@@ -5703,6 +6609,33 @@ export interface components {
              * @description How many versions it has.
              */
             version_count: number;
+        };
+        /** PublicOrganizationList */
+        PublicOrganizationList: {
+            /** Items */
+            items: components["schemas"]["PublicOrganizationView"][];
+            /** Total */
+            total: number;
+        };
+        /**
+         * PublicOrganizationView
+         * @description What anybody reads of an organization with a public composition: who it is and what it publishes.
+         */
+        PublicOrganizationView: {
+            avatar: components["schemas"]["OrganizationAvatar"];
+            /** Description */
+            description: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Public Compositions */
+            public_compositions: number;
+            /** Slug */
+            slug: string;
         };
         /**
          * PublicVersionSummary
@@ -5818,6 +6751,24 @@ export interface components {
              * @description URI reference identifying the problem type.
              */
             type?: string | null;
+        };
+        /**
+         * RangeFacet
+         * @description A number of a list's matches: its extent and SPHERE's ten-bucket histogram; nulls when none has it.
+         */
+        RangeFacet: {
+            /** Data */
+            data?: components["schemas"]["HistogramBucket"][];
+            /** Max */
+            max?: number | null;
+            /** Min */
+            min?: number | null;
+        };
+        /** RangeFacets */
+        RangeFacets: {
+            cost: components["schemas"]["RangeFacet"];
+            providers: components["schemas"]["RangeFacet"];
+            tasks: components["schemas"]["RangeFacet"];
         };
         /** RefreshRequest */
         RefreshRequest: {
@@ -6215,6 +7166,19 @@ export interface components {
             /** Label */
             label: string;
         };
+        /** StreamTicket */
+        StreamTicket: {
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /**
+             * Ticket
+             * @description Open `GET /v1/notifications/stream?ticket=` with it, once, before it expires.
+             */
+            ticket: string;
+        };
         /** StudyCellExport */
         StudyCellExport: {
             /**
@@ -6553,6 +7517,11 @@ export interface components {
              */
             token_type: string;
         };
+        /** UnreadCount */
+        UnreadCount: {
+            /** Count */
+            count: number;
+        };
         /** UpdateProfileRequest */
         UpdateProfileRequest: {
             /**
@@ -6635,6 +7604,24 @@ export interface components {
              */
             plan: string;
             role: components["schemas"]["RoleName"];
+            /** Username */
+            username: string;
+        };
+        /**
+         * UserRef
+         * @description A user as another user may see them: never an email.
+         */
+        UserRef: {
+            /**
+             * Avatar
+             * @description The user's avatar URL; none yet (Identity, F5).
+             */
+            avatar?: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
             /** Username */
             username: string;
         };
@@ -8359,6 +9346,66 @@ export interface operations {
             };
         };
     };
+    listDefaultAvatars: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string[];
+                };
+            };
+        };
+    };
+    getDefaultAvatar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The SVG, drawn in `currentColor`. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/svg+xml": string;
+                };
+            };
+            /** @description Not a predefined avatar. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request does not satisfy the contract; `diagnostics` says where. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     listBimTemplates: {
         parameters: {
             query?: never;
@@ -8492,6 +9539,210 @@ export interface operations {
             };
         };
     };
+    getCompositionFollow: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                composition: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FollowState"];
+                };
+            };
+            /** @description Missing or invalid account credential. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The account role, API-key permission, or Engine allow-list does not permit this request. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description No such composition, or the caller does not read it. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request does not satisfy the contract; `diagnostics` says where. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Account authentication is not configured on this deployment. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    followComposition: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                composition: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FollowState"];
+                };
+            };
+            /** @description Missing or invalid account credential. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The account role, API-key permission, or Engine allow-list does not permit this request. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description No such composition, or the caller does not read it. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request does not satisfy the contract; `diagnostics` says where. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Account authentication is not configured on this deployment. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    unfollowComposition: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                composition: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FollowState"];
+                };
+            };
+            /** @description Missing or invalid account credential. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The account role, API-key permission, or Engine allow-list does not permit this request. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description No such composition, or the caller does not read it. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request does not satisfy the contract; `diagnostics` says where. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Account authentication is not configured on this deployment. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     listPublicCompositions: {
         parameters: {
             query?: {
@@ -8502,6 +9753,20 @@ export interface operations {
                 organization?: string | null;
                 limit?: number;
                 offset?: number;
+                /** @description Only these organizations (comma-separated slugs). */
+                owners?: string | null;
+                /** @description Only these kinds (comma-separated: application, workflow, pipeline, system). */
+                kinds?: string | null;
+                /** @description By `name`, the most recently `updated`, the number of `tasks` of the latest version, or its `cost` value. */
+                sort?: "name" | "updated" | "tasks" | "cost";
+                /** @description `asc` or `desc`; by default `updated` is newest first, the others ascending. A composition without the number sorts last either way. */
+                order?: ("asc" | "desc") | null;
+                min_tasks?: number | null;
+                max_tasks?: number | null;
+                min_providers?: number | null;
+                max_providers?: number | null;
+                min_cost?: number | null;
+                max_cost?: number | null;
             };
             header?: never;
             path?: never;
@@ -8863,7 +10128,7 @@ export interface operations {
             };
         };
     };
-    list_engine_registrations_v1_engine_registrations_get: {
+    listEngineRegistrations: {
         parameters: {
             query?: {
                 /** @description Administrators may request only registrations explicitly submitted for review. */
@@ -8922,7 +10187,7 @@ export interface operations {
             };
         };
     };
-    register_engine_v1_engine_registrations_post: {
+    registerEngine: {
         parameters: {
             query?: never;
             header?: never;
@@ -9001,7 +10266,7 @@ export interface operations {
             };
         };
     };
-    get_engine_registration_v1_engine_registrations__name__get: {
+    getEngineRegistration: {
         parameters: {
             query: {
                 namespace: string;
@@ -9072,7 +10337,7 @@ export interface operations {
             };
         };
     };
-    delete_engine_registration_v1_engine_registrations__name__delete: {
+    deleteEngineRegistration: {
         parameters: {
             query: {
                 namespace: string;
@@ -9132,7 +10397,7 @@ export interface operations {
             };
         };
     };
-    activate_engine_registration_v1_engine_registrations__name__activate_post: {
+    activateEngineRegistration: {
         parameters: {
             query: {
                 namespace: string;
@@ -9212,7 +10477,7 @@ export interface operations {
             };
         };
     };
-    approve_engine_registration_v1_engine_registrations__name__approve_post: {
+    approveEngineRegistration: {
         parameters: {
             query: {
                 namespace: string;
@@ -9292,7 +10557,7 @@ export interface operations {
             };
         };
     };
-    set_engine_registration_credential_v1_engine_registrations__name__credential_put: {
+    setEngineRegistrationCredential: {
         parameters: {
             query: {
                 namespace: string;
@@ -9411,7 +10676,7 @@ export interface operations {
             };
         };
     };
-    deactivate_engine_registration_v1_engine_registrations__name__deactivate_post: {
+    deactivateEngineRegistration: {
         parameters: {
             query: {
                 namespace: string;
@@ -9491,7 +10756,7 @@ export interface operations {
             };
         };
     };
-    request_engine_registration_publication_v1_engine_registrations__name__publication_request_post: {
+    requestEngineRegistrationPublication: {
         parameters: {
             query: {
                 namespace: string;
@@ -9571,7 +10836,7 @@ export interface operations {
             };
         };
     };
-    reject_engine_registration_v1_engine_registrations__name__reject_post: {
+    rejectEngineRegistration: {
         parameters: {
             query: {
                 namespace: string;
@@ -9651,7 +10916,7 @@ export interface operations {
             };
         };
     };
-    get_engine_registration_report_v1_engine_registrations__name__report_get: {
+    getEngineRegistrationReport: {
         parameters: {
             query: {
                 namespace: string;
@@ -9722,7 +10987,7 @@ export interface operations {
             };
         };
     };
-    list_v1_engines_v1_engines_get: {
+    listEngines: {
         parameters: {
             query?: never;
             header?: never;
@@ -9841,7 +11106,7 @@ export interface operations {
             };
         };
     };
-    list_engine_revisions_v1_engines_revisions_get: {
+    listEngineRevisions: {
         parameters: {
             query?: never;
             header?: never;
@@ -9890,7 +11155,7 @@ export interface operations {
             };
         };
     };
-    get_engine_revision_detail_v1_engines__namespace___name__revisions__version__get: {
+    getEngineRevision: {
         parameters: {
             query?: never;
             header?: never;
@@ -9952,7 +11217,7 @@ export interface operations {
             };
         };
     };
-    get_v1_engine_v1_engines__name__get: {
+    getEngine: {
         parameters: {
             query: {
                 namespace: string;
@@ -10083,10 +11348,168 @@ export interface operations {
             };
         };
     };
+    joinOrganization: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationView"];
+                };
+            };
+            /** @description Missing or invalid account credential. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The account role, API-key permission, or Engine allow-list does not permit this request. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description No such code, or it expired or was used up. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description `already_member`: the caller holds a role there already. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request does not satisfy the contract; `diagnostics` says where. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Account authentication is not configured on this deployment. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    previewInvitation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitationPreview"];
+                };
+            };
+            /** @description Missing or invalid account credential. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The account role, API-key permission, or Engine allow-list does not permit this request. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description No such code, or it expired or was used up. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request does not satisfy the contract; `diagnostics` says where. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too many `read` requests from this address by a caller with no credential: past the anonymous budget. A signed-in caller is not charged. `Retry-After` says when the window ends. */
+            429: {
+                headers: {
+                    /** @description Seconds until the budget is available again. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Account authentication is not configured on this deployment. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     listNotifications: {
         parameters: {
             query?: {
                 unread_only?: boolean;
+                /** @description Only notifications of this kind. */
+                kind?: ("OrganizationInvitation" | "System" | "CompositionUpdated" | "RunFinished" | "RunFailed") | null;
+                offset?: number;
+                limit?: number;
             };
             header?: never;
             path?: never;
@@ -10322,6 +11745,206 @@ export interface operations {
             };
         };
     };
+    streamNotifications: {
+        parameters: {
+            query: {
+                /** @description A ticket of `POST /stream-ticket`. */
+                ticket: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Server-sent events: `connected`, `unread-count` (`{count}`) and `notification` (a notification view). The stream ends after fifteen minutes; reconnect with a new ticket. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": string;
+                };
+            };
+            /** @description `invalid_ticket`: unknown, used or expired. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request does not satisfy the contract; `diagnostics` says where. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    createNotificationStreamTicket: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StreamTicket"];
+                };
+            };
+            /** @description Missing or invalid account credential. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The account role, API-key permission, or Engine allow-list does not permit this request. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Account authentication is not configured on this deployment. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    countUnreadNotifications: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnreadCount"];
+                };
+            };
+            /** @description Missing or invalid account credential. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The account role, API-key permission, or Engine allow-list does not permit this request. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Account authentication is not configured on this deployment. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    deleteNotification: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                notification_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or invalid account credential. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The account role, API-key permission, or Engine allow-list does not permit this request. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description No such notification of the caller's. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request does not satisfy the contract; `diagnostics` says where. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Account authentication is not configured on this deployment. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     readNotification: {
         parameters: {
             query?: never;
@@ -10382,7 +12005,13 @@ export interface operations {
     };
     listOrganizations: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Nest the organizations: the top-level nodes of the caller's tree, each with its `children` and the `role_source` of its role, as SPHERE's `/users/me/orgs`. */
+                tree?: boolean;
+                /** @description At most this many (top-level) nodes. */
+                limit?: number | null;
+                offset?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -10392,6 +12021,8 @@ export interface operations {
             /** @description Successful Response */
             200: {
                 headers: {
+                    /** @description How many organizations (with `tree=true`, top-level nodes) there are in all. */
+                    "X-Total-Count"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -10414,6 +12045,15 @@ export interface operations {
                 };
                 content: {
                     "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The request does not satisfy the contract; `diagnostics` says where. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
                 };
             };
             /** @description Account authentication is not configured on this deployment. */
@@ -10476,13 +12116,85 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description `slug_reserved` (the slug names a page of the application) and request validation errors. */
+            /** @description `slug_reserved` (the slug names a page of the application), `slug_underivable` (no slug given, and the name yields fewer than three letters or digits) and request validation errors. */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Account authentication is not configured on this deployment. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listPublicOrganizations: {
+        parameters: {
+            query?: {
+                /** @description Text in the slug, the name or the description. */
+                q?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicOrganizationList"];
+                };
+            };
+            /** @description Missing or invalid account credential. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The account role, API-key permission, or Engine allow-list does not permit this request. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The request does not satisfy the contract; `diagnostics` says where. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too many `read` requests from this address by a caller with no credential: past the anonymous budget. A signed-in caller is not charged. `Retry-After` says when the window ends. */
+            429: {
+                headers: {
+                    /** @description Seconds until the budget is available again. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
             /** @description Account authentication is not configured on this deployment. */
@@ -10772,6 +12484,354 @@ export interface operations {
             };
         };
     };
+    uploadOrganizationAvatar: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Revision the client last read, as given by the `ETag` of a GET or of an earlier edit: an entity-tag, a list of them, or `*` for any existing resource. Absent: the edit is applied without a revision check. Weak tags never match. */
+                "If-Match"?: string | null;
+            };
+            path: {
+                org: string;
+            };
+            cookie?: never;
+        };
+        /** @description The image itself as the raw request body: PNG, JPEG or WebP, at most 2 MiB. */
+        requestBody: {
+            content: {
+                "image/jpeg": string;
+                "image/png": string;
+                "image/webp": string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    /** @description Revision of the resource; send it back as `If-Match` to edit it. */
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationView"];
+                };
+            };
+            /** @description `If-Match` is not a list of entity-tags or `*` (code `invalid_if_match`). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Missing or invalid account credential. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The caller is a member without ADMIN (`organization_forbidden`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No such organization, or the caller is not a member of it. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description `If-Match` does not match the current revision (code `precondition_failed`): nothing was applied. The `ETag` header carries the current revision. */
+            412: {
+                headers: {
+                    /** @description Revision of the resource; send it back as `If-Match` to edit it. */
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description `avatar_too_large`: the image is over 2 MiB. */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description `avatar_unsupported`: the body is not a PNG, JPEG or WebP image. */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request does not satisfy the contract; `diagnostics` says where. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Account authentication is not configured on this deployment. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    removeOrganizationAvatar: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Revision the client last read, as given by the `ETag` of a GET or of an earlier edit: an entity-tag, a list of them, or `*` for any existing resource. Absent: the edit is applied without a revision check. Weak tags never match. */
+                "If-Match"?: string | null;
+            };
+            path: {
+                org: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    /** @description Revision of the resource; send it back as `If-Match` to edit it. */
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationView"];
+                };
+            };
+            /** @description `If-Match` is not a list of entity-tags or `*` (code `invalid_if_match`). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Missing or invalid account credential. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The caller is a member without ADMIN (`organization_forbidden`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No such organization, or the caller is not a member of it. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description `If-Match` does not match the current revision (code `precondition_failed`): nothing was applied. The `ETag` header carries the current revision. */
+            412: {
+                headers: {
+                    /** @description Revision of the resource; send it back as `If-Match` to edit it. */
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request does not satisfy the contract; `diagnostics` says where. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Account authentication is not configured on this deployment. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    selectOrganizationAvatar: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Revision the client last read, as given by the `ETag` of a GET or of an earlier edit: an entity-tag, a list of them, or `*` for any existing resource. Absent: the edit is applied without a revision check. Weak tags never match. */
+                "If-Match"?: string | null;
+            };
+            path: {
+                org: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AvatarSelection"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    /** @description Revision of the resource; send it back as `If-Match` to edit it. */
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationView"];
+                };
+            };
+            /** @description `If-Match` is not a list of entity-tags or `*` (code `invalid_if_match`). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Missing or invalid account credential. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The caller is a member without ADMIN (`organization_forbidden`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No such organization, or the caller is not a member of it. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description `If-Match` does not match the current revision (code `precondition_failed`): nothing was applied. The `ETag` header carries the current revision. */
+            412: {
+                headers: {
+                    /** @description Revision of the resource; send it back as `If-Match` to edit it. */
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description `avatar_unknown` (not one of the predefined avatars) and request validation errors. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Account authentication is not configured on this deployment. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getOrganizationAvatar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                digest: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The image. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/jpeg": string;
+                    "image/png": string;
+                    "image/webp": string;
+                };
+            };
+            /** @description No such organization, or the digest is not its current avatar. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request does not satisfy the contract; `diagnostics` says where. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     listCompositions: {
         parameters: {
             query?: {
@@ -10782,10 +12842,22 @@ export interface operations {
                 archived?: boolean | null;
                 /** @description Only compositions with a version linking a revision of this problem (slug or id); none for an unknown one. */
                 problem?: string | null;
-                /** @description By `name` (the default), or the most recently `updated` first. */
-                sort?: "name" | "updated";
                 limit?: number;
                 offset?: number;
+                /** @description Only these organizations (comma-separated slugs). */
+                owners?: string | null;
+                /** @description Only these kinds (comma-separated: application, workflow, pipeline, system). */
+                kinds?: string | null;
+                /** @description By `name`, the most recently `updated`, the number of `tasks` of the latest version, or its `cost` value. */
+                sort?: "name" | "updated" | "tasks" | "cost";
+                /** @description `asc` or `desc`; by default `updated` is newest first, the others ascending. A composition without the number sorts last either way. */
+                order?: ("asc" | "desc") | null;
+                min_tasks?: number | null;
+                max_tasks?: number | null;
+                min_providers?: number | null;
+                max_providers?: number | null;
+                min_cost?: number | null;
+                max_cost?: number | null;
             };
             header?: never;
             path: {
@@ -10838,6 +12910,17 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too many `read` requests from this address by a caller with no credential: past the anonymous budget. A signed-in caller is not charged. `Retry-After` says when the window ends. */
+            429: {
+                headers: {
+                    /** @description Seconds until the budget is available again. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
             /** @description Account authentication is not configured on this deployment. */
@@ -11366,6 +13449,85 @@ export interface operations {
             };
         };
     };
+    downloadCompositionVersions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                composition: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A zip of every version's Composition2Yaml bytes: `{slug}/{label}.yaml`. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/zip": string;
+                };
+            };
+            /** @description Missing or invalid account credential. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The account role, API-key permission, or Engine allow-list does not permit this request. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description No such organization or composition, or the caller cannot read it. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request does not satisfy the contract; `diagnostics` says where. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too many `read` requests from this address by a caller with no credential: past the anonymous budget. A signed-in caller is not charged. `Retry-After` says when the window ends. */
+            429: {
+                headers: {
+                    /** @description Seconds until the budget is available again. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Account authentication is not configured on this deployment. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     evaluateComposition: {
         parameters: {
             query?: never;
@@ -11542,6 +13704,85 @@ export interface operations {
                 };
             };
             /** @description Too many `evaluate` requests from this client: past the budget of its address, or of its account when signed in. `Retry-After` says when the window ends. A request may also find every Composition2Yaml or evaluation slot of this gateway busy: `composition_busy`, `Retry-After: 1`. */
+            429: {
+                headers: {
+                    /** @description Seconds until the budget is available again. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Account authentication is not configured on this deployment. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getCompositionGraph: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                composition: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompositionGraph"];
+                };
+            };
+            /** @description Missing or invalid account credential. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The account role, API-key permission, or Engine allow-list does not permit this request. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description No such organization or composition, or the caller cannot read it. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request does not satisfy the contract; `diagnostics` says where. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too many `read` requests from this address by a caller with no credential: past the anonymous budget. A signed-in caller is not charged. `Retry-After` says when the window ends. */
             429: {
                 headers: {
                     /** @description Seconds until the budget is available again. */
@@ -12243,6 +14484,140 @@ export interface operations {
             };
         };
     };
+    getOrganizationHierarchy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HierarchyNode"][];
+                };
+            };
+            /** @description Missing or invalid account credential. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The account role, API-key permission, or Engine allow-list does not permit this request. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description No such organization, or the caller is not a member of it. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request does not satisfy the contract; `diagnostics` says where. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Account authentication is not configured on this deployment. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listOrganizationInvitations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CodeInvitationView"][];
+                };
+            };
+            /** @description Missing or invalid account credential. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The caller is a member without ADMIN (`organization_forbidden`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No such organization, or the caller is not a member of it. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request does not satisfy the contract; `diagnostics` says where. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Account authentication is not configured on this deployment. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     inviteOrganizationMember: {
         parameters: {
             query?: never;
@@ -12254,7 +14629,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["InvitationCreate"];
+                "application/json": components["schemas"]["InvitationCreate"] | components["schemas"]["CodeInvitationCreate"];
             };
         };
         responses: {
@@ -12264,7 +14639,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["InvitationCreated"];
+                    "application/json": components["schemas"]["InvitationCreated"] | components["schemas"]["CodeInvitationView"];
                 };
             };
             /** @description Missing or invalid account credential. */
@@ -12278,6 +14653,161 @@ export interface operations {
             };
             /** @description The caller lacks ADMIN access to the organization (code `organization_forbidden`), or the change grants OWNER or alters or removes an existing owner and the caller is not an organization owner (code `owner_role_requires_owner`). */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No such organization, or the caller is not a member of it. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request does not satisfy the contract; `diagnostics` says where. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Account authentication is not configured on this deployment. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    inviteUsersToOrganization: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InviteUsers"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CodeInvitationView"];
+                };
+            };
+            /** @description Missing or invalid account credential. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The caller is a member without ADMIN (`organization_forbidden`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No such organization, or the caller is not a member of it. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description `already_member`: every user named is a member already. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request does not satisfy the contract; `diagnostics` says where. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Account authentication is not configured on this deployment. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    revokeOrganizationInvitation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                invitation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or invalid account credential. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The caller is a member without ADMIN (`organization_forbidden`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No such organization or invitation, or the caller is not a member. */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -12525,7 +15055,87 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description No such member, or a caller leaving is not a member. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description The request does not satisfy the contract; `diagnostics` says where. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Account authentication is not configured on this deployment. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    transferOrganizationOwnership: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OwnerTransfer"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemberView"][];
+                };
+            };
+            /** @description Missing or invalid account credential. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description `owner_transfer_requires_owner`: the caller is not this organization's owner. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No such organization, the caller is not a member of it, or the recipient is not (code `not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description `already_owner` (the caller names themselves) and request validation errors. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -13864,6 +16474,84 @@ export interface operations {
             };
         };
     };
+    getOrganizationProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicOrganizationView"];
+                };
+            };
+            /** @description Missing or invalid account credential. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The account role, API-key permission, or Engine allow-list does not permit this request. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description No such organization, or it shows nothing to the caller. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request does not satisfy the contract; `diagnostics` says where. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too many `read` requests from this address by a caller with no credential: past the anonymous budget. A signed-in caller is not charged. `Retry-After` says when the window ends. */
+            429: {
+                headers: {
+                    /** @description Seconds until the budget is available again. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Account authentication is not configured on this deployment. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     listRuns: {
         parameters: {
             query?: {
@@ -14529,6 +17217,9 @@ export interface operations {
         parameters: {
             query?: {
                 include_archived?: boolean;
+                /** @description At most this many; all when absent. */
+                limit?: number | null;
+                offset?: number;
             };
             header?: never;
             path: {
@@ -14541,6 +17232,8 @@ export interface operations {
             /** @description Successful Response */
             200: {
                 headers: {
+                    /** @description How many studies the caller reads in all, whatever the page. */
+                    "X-Total-Count"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -15475,6 +18168,94 @@ export interface operations {
             };
         };
     };
+    resolveCompositionPermalink: {
+        parameters: {
+            query?: {
+                /** @description A version's id or label. */
+                version?: string | null;
+            };
+            header?: never;
+            path: {
+                composition_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PermanentLink"];
+                };
+            };
+            /** @description `If-None-Match` names the current answer. */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or invalid account credential. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The account role, API-key permission, or Engine allow-list does not permit this request. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description No such composition, or the caller does not read it. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request does not satisfy the contract; `diagnostics` says where. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too many `read` requests from this address by a caller with no credential: past the anonymous budget. A signed-in caller is not charged. `Retry-After` says when the window ends. */
+            429: {
+                headers: {
+                    /** @description Seconds until the budget is available again. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Account authentication is not configured on this deployment. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     getPricingCatalog: {
         parameters: {
             query?: never;
@@ -15528,6 +18309,65 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    searchUsers: {
+        parameters: {
+            query: {
+                /** @description Text in the username. */
+                q: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserRef"][];
+                };
+            };
+            /** @description No usable credential was supplied. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The account role, API-key permission, or Engine allow-list does not permit this request. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The request does not satisfy the contract; `diagnostics` says where. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Account authentication is not configured on this deployment. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
             };
         };
     };
@@ -15989,6 +18829,83 @@ export interface operations {
             };
         };
     };
+    listOwnCompositions: {
+        parameters: {
+            query?: {
+                /** @description Text in the name or the slug. */
+                q?: string | null;
+                /** @description Only archived (`true`) or only active (`false`) ones. */
+                archived?: boolean | null;
+                limit?: number;
+                offset?: number;
+                /** @description Only these organizations (comma-separated slugs). */
+                owners?: string | null;
+                /** @description Only these kinds (comma-separated: application, workflow, pipeline, system). */
+                kinds?: string | null;
+                /** @description By `name`, the most recently `updated`, the number of `tasks` of the latest version, or its `cost` value. */
+                sort?: "name" | "updated" | "tasks" | "cost";
+                /** @description `asc` or `desc`; by default `updated` is newest first, the others ascending. A composition without the number sorts last either way. */
+                order?: ("asc" | "desc") | null;
+                min_tasks?: number | null;
+                max_tasks?: number | null;
+                min_providers?: number | null;
+                max_providers?: number | null;
+                min_cost?: number | null;
+                max_cost?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompositionList"];
+                };
+            };
+            /** @description No usable credential was supplied. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The account role, API-key permission, or Engine allow-list does not permit this request. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The request does not satisfy the contract; `diagnostics` says where. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Account authentication is not configured on this deployment. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     listOwnIdentities: {
         parameters: {
             query?: never;
@@ -16140,6 +19057,140 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    getBetaFeatures: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    /** @description Revision of the resource; send it back as `If-Match` to edit it. */
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BetaFeatures"];
+                };
+            };
+            /** @description No usable credential was supplied. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The account role, API-key permission, or Engine allow-list does not permit this request. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Account authentication is not configured on this deployment. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    updateBetaFeatures: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Revision the client last read, as given by the `ETag` of a GET or of an earlier edit: an entity-tag, a list of them, or `*` for any existing resource. Absent: the edit is applied without a revision check. Weak tags never match. */
+                "If-Match"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BetaFeatures"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    /** @description Revision of the resource; send it back as `If-Match` to edit it. */
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BetaFeatures"];
+                };
+            };
+            /** @description `If-Match` is not a list of entity-tags or `*` (code `invalid_if_match`). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No usable credential was supplied. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The account role, API-key permission, or Engine allow-list does not permit this request. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description `If-Match` does not match the current revision (code `precondition_failed`): nothing was applied. The `ETag` header carries the current revision. */
+            412: {
+                headers: {
+                    /** @description Revision of the resource; send it back as `If-Match` to edit it. */
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request does not satisfy the contract; `diagnostics` says where. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Account authentication is not configured on this deployment. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };

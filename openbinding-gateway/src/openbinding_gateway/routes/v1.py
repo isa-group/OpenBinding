@@ -107,7 +107,7 @@ def _registry_problem(exc: engine_registry.RegistryProblem) -> JSONResponse:
     return _problem(exc.status, exc.code, exc.detail, exc.diagnostics, extra=exc.extra, headers=exc.headers)
 
 
-@router.get("/engines")
+@router.get("/engines", operation_id="listEngines")
 async def list_v1_engines(
     session: AsyncSession | None = Depends(optional_session, scope="function"),
     caller: User | None = Depends(get_optional_user),
@@ -116,7 +116,7 @@ async def list_v1_engines(
     return await engine_documents.engines_document(session, caller)
 
 
-@router.get("/engines/revisions")
+@router.get("/engines/revisions", operation_id="listEngineRevisions")
 async def list_engine_revisions(
     session: AsyncSession | None = Depends(optional_session, scope="function"),
     caller: User = Depends(solve_caller),
@@ -138,7 +138,7 @@ async def get_engine_protocol() -> dict[str, Any]:
     return engine_documents.profiles_document()
 
 
-@router.get("/engines/{name}")
+@router.get("/engines/{name}", operation_id="getEngine")
 async def get_v1_engine(
     name: str,
     namespace: str = Query(...),
@@ -170,7 +170,7 @@ async def get_v1_engine(
         return _problem(exc.status_code, "not_found", str(exc.detail))
 
 
-@router.get("/engines/{namespace}/{name}/revisions/{version}")
+@router.get("/engines/{namespace}/{name}/revisions/{version}", operation_id="getEngineRevision")
 async def get_engine_revision_detail(
     namespace: str,
     name: str,
@@ -204,7 +204,7 @@ async def create_engine(
         return _registry_problem(exc)
 
 
-@router.post("/engine-registrations", status_code=status.HTTP_201_CREATED)
+@router.post("/engine-registrations", status_code=status.HTTP_201_CREATED, operation_id="registerEngine")
 async def register_engine(
     request: Request,
     caller: User = Depends(solve_caller),
@@ -221,7 +221,7 @@ async def register_engine(
         return _registry_problem(exc)
 
 
-@router.get("/engine-registrations")
+@router.get("/engine-registrations", operation_id="listEngineRegistrations")
 async def list_engine_registrations(
     review: bool = Query(
         False,
@@ -236,7 +236,7 @@ async def list_engine_registrations(
         return _registry_problem(exc)
 
 
-@router.get("/engine-registrations/{name}")
+@router.get("/engine-registrations/{name}", operation_id="getEngineRegistration")
 async def get_engine_registration(
     name: str,
     namespace: str = Query(...),
@@ -283,7 +283,7 @@ async def _change_registration(
         return _registry_problem(exc)
 
 
-@router.post("/engine-registrations/{name}/approve")
+@router.post("/engine-registrations/{name}/approve", operation_id="approveEngineRegistration")
 async def approve_engine_registration(
     name: str,
     namespace: str = Query(...),
@@ -295,7 +295,7 @@ async def approve_engine_registration(
     return await _change_registration(namespace, name, version, manifest_digest, caller, session, action="approve")
 
 
-@router.post("/engine-registrations/{name}/reject")
+@router.post("/engine-registrations/{name}/reject", operation_id="rejectEngineRegistration")
 async def reject_engine_registration(
     name: str,
     namespace: str = Query(...),
@@ -307,7 +307,7 @@ async def reject_engine_registration(
     return await _change_registration(namespace, name, version, manifest_digest, caller, session, action="reject")
 
 
-@router.post("/engine-registrations/{name}/activate")
+@router.post("/engine-registrations/{name}/activate", operation_id="activateEngineRegistration")
 async def activate_engine_registration(
     name: str,
     namespace: str = Query(...),
@@ -319,7 +319,7 @@ async def activate_engine_registration(
     return await _change_registration(namespace, name, version, manifest_digest, caller, session, action="activate")
 
 
-@router.post("/engine-registrations/{name}/deactivate")
+@router.post("/engine-registrations/{name}/deactivate", operation_id="deactivateEngineRegistration")
 async def deactivate_engine_registration(
     name: str,
     namespace: str = Query(...),
@@ -331,7 +331,7 @@ async def deactivate_engine_registration(
     return await _change_registration(namespace, name, version, manifest_digest, caller, session, action="deactivate")
 
 
-@router.post("/engine-registrations/{name}/publication-request")
+@router.post("/engine-registrations/{name}/publication-request", operation_id="requestEngineRegistrationPublication")
 async def request_engine_registration_publication(
     name: str,
     namespace: str = Query(...),
@@ -344,7 +344,7 @@ async def request_engine_registration_publication(
     return await _change_registration(namespace, name, version, manifest_digest, caller, session, action="request_publication")
 
 
-@router.delete("/engine-registrations/{name}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/engine-registrations/{name}", status_code=status.HTTP_204_NO_CONTENT, operation_id="deleteEngineRegistration")
 async def delete_engine_registration(
     name: str,
     namespace: str = Query(...),
@@ -362,7 +362,7 @@ async def delete_engine_registration(
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@router.get("/engine-registrations/{name}/report")
+@router.get("/engine-registrations/{name}/report", operation_id="getEngineRegistrationReport")
 async def get_engine_registration_report(
     name: str,
     namespace: str = Query(...),
@@ -399,7 +399,7 @@ _CREDENTIAL_RESPONSES: dict[int | str, dict[str, Any]] = {
 }
 
 
-@router.put("/engine-registrations/{name}/credential", responses=_CREDENTIAL_RESPONSES)
+@router.put("/engine-registrations/{name}/credential", responses=_CREDENTIAL_RESPONSES, operation_id="setEngineRegistrationCredential")
 async def set_engine_registration_credential(
     name: str,
     request: Request,
