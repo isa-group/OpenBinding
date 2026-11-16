@@ -304,8 +304,10 @@
 
 .org-card-head { display: flex; align-items: center; justify-content: space-between; gap: var(--tp-spacing-xs); }
 .org-card-head a { font-size: 0.8125rem; font-weight: 500; }
-.org-aside .org-card { display: flex; flex-direction: column; gap: 10px; padding: var(--tp-spacing-md); border-radius: var(--tp-radius-xl); }
-.org-aside .org-card h2 { margin: 0; font-size: 1rem; font-weight: 600; }
+/* The overview's panels (compositions, problems, runs, studies) and its side card share one shape: a small heading, rows, a closing link. */
+:is(.org-aside, .org-panels) .org-card { display: flex; flex-direction: column; gap: 10px; padding: var(--tp-spacing-md); border-radius: var(--tp-radius-xl); }
+:is(.org-aside, .org-panels) .org-card h2 { margin: 0; font-size: 1rem; font-weight: 600; }
+.org-panels .org-card > a:last-child { align-self: flex-start; font-size: 0.8125rem; font-weight: 500; }
 
 .org-sub {
   display: flex;
@@ -319,7 +321,8 @@
 }
 
 .org-sub:hover { border-color: var(--tp-hairline); color: var(--tp-ink); }
-.org-sub > span:nth-child(2) { display: flex; min-width: 0; flex: 1; flex-direction: column; }
+/* The name and the line under it, whether a tile comes first (a sub-organization) or not (a composition, problem, run or study). */
+.org-sub > span:has(> small) { display: flex; min-width: 0; flex: 1; flex-direction: column; }
 .org-sub small { color: var(--tp-steel); font-size: 0.75rem; }
 /* A composition row ends with the value status of its latest version. */
 .org-sub > span.vb { display: inline-flex; flex: none; flex-direction: row; margin-left: auto; }
