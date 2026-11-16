@@ -1,21 +1,27 @@
-import { useEffect, useRef, useState, type DragEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type DragEvent } from 'react';
 import { CircleCheck, CircleAlert, FileArchive, Upload, X } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { bimApi, type BimRefusal, type BimValidateResponse } from '../../api/bim';
+import { bimApi, type BimDiagnostic, type BimRefusal, type BimValidateResponse } from '../../api/bim';
 import { HttpError } from '../../api/client';
+import { BindingSpaceBadge } from '../../components/BindingSpaceBadge/BindingSpaceBadge';
 import { Button } from '../../components/ui/Button';
 import { Notice } from '../../components/ui/Notice';
 import { OrganizationPicker } from '../../components/ui/OrganizationPicker';
-import { TabBar, TabPanel } from '../../components/ui/TabBar';
 import { useCopy } from '../../components/ui/useCopy';
 import { useAuth } from '../../contexts/auth';
+import { candidateMatrix } from '../../entities/binding/candidateMatrix';
+import { workflowGraph, type TaskOverlay } from '../../entities/binding/workflowGraph';
 import { problemEditorPath } from '../../routes/paths/problems';
-import { BIM_PACKAGE_LIMITS, BimPackageError } from '../../utils/bimZip';
+import type { ProblemFacts } from '../../shared/api/types';
+import { fromBimAll, type PackageTexts } from '../../shared/diagnostics/bim';
+import { counts, type Located } from '../../shared/diagnostics/located';
+import { BIM_PACKAGE_LIMITS, BimPackageError, unzipPackage } from '../../utils/bimZip';
 import { formatBytes } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
-import { groupDiagnostics, readDiagnostics } from './diagnostics';
-import { readPackageModel, type PackageModel } from './packageModel';
-import { DiagnosticsPanel, StructurePanel } from './WorkbenchResult';
+import { CandidateMatrix } from '../../widgets/candidate-matrix/CandidateMatrix';
+import { ProblemsPanel } from '../../widgets/problems-panel/ProblemsPanel';
+import { RulesAndObjectives } from '../../widgets/rules-and-objectives/RulesAndObjectives';
+import { WorkflowGraph } from '../../widgets/workflow-graph/WorkflowGraph';
 import './PublicPages.css';
 
 interface Selected {
@@ -28,7 +34,7 @@ interface Selected {
 type Run =
   | { status: 'idle' }
   | { status: 'loading' }
-  | { status: 'done'; outcome: BimValidateResponse | BimRefusal; model: PackageModel | null }
+  | { status: 'done'; outcome: BimValidateResponse | BimRefusal; texts: PackageTexts }
   | { status: 'failed'; kind: 'too-large' | 'rate-limit' | 'unreadable' | 'unsupported' | 'unavailable'; message: string };
 
 const MiB = 1024 * 1024;
@@ -42,6 +48,56 @@ function fileLabel(bytes: number): string {
   return formatBytes(bytes) ?? `${bytes} bytes`;
 }
 
+/**
+ * The gateway's findings placed in the files that were sent: errors of a refusal (or its message, when it itemises none), and the
+ * warnings beside a valid package.
+ */
+function findingsOf(outcome: BimValidateResponse | BimRefusal, texts: PackageTexts): Located[] {
+  // The analysis types its diagnostics as open objects; they are the compiler's findings.
+  if (outcome.valid) return fromBimAll((outcome.diagnostics ?? []) as BimDiagnostic[], texts, 'warning');
+  if (outcome.diagnostics.length) return fromBimAll(outcome.diagnostics, texts, 'error');
+  return [{ code: outcome.code, message: outcome.message, severity: 'error', where: { kind: 'package' } }];
+}
+
+/** A valid package as the gateway compiled it: what it holds, its workflow, the candidates of each task, and its rules. */
+function PackageStructure({ facts, response }: { facts: ProblemFacts; response: BimValidateResponse }) {
+  const graph = useMemo(() => workflowGraph(facts.workflow), [facts]);
+  const matrix = useMemo(() => candidateMatrix(facts), [facts]);
+  const overlay = useMemo(
+    () => Object.fromEntries(facts.tasks.map((task): [string, TaskOverlay] => [task.id, { local: task.kind === 'local' }])),
+    [facts],
+  );
+  const { analysis } = response;
+  return (
+    <div className="workbench-structure">
+      <section className="workbench-section" aria-labelledby="workbench-holds">
+        <h2 id="workbench-holds">What the package holds</h2>
+        <ul className="workbench-counts">
+          <li><b>{analysis.tasks}</b><span>tasks</span></li>
+          <li><b>{analysis.candidates}</b><span>candidates</span></li>
+          <li><b>{analysis.constraints}</b><span>rules</span></li>
+          <li><b>{analysis.placement ? 'Yes' : 'None'}</b><span>placement</span></li>
+        </ul>
+        {analysis.bindingSpace && (
+          <div className="workbench-space">
+            <span>Possible combinations</span>
+            <BindingSpaceBadge cardinality={analysis.bindingSpace} />
+          </div>
+        )}
+      </section>
+      <section className="workbench-section" aria-labelledby="workbench-workflow">
+        <h2 id="workbench-workflow">Workflow</h2>
+        <WorkflowGraph graph={graph} overlay={overlay} label="Workflow of the package" />
+      </section>
+      <section className="workbench-section" aria-labelledby="workbench-candidates">
+        <h2 id="workbench-candidates">Candidates</h2>
+        <CandidateMatrix matrix={matrix} mode="view" label="Candidates of each task" />
+      </section>
+      <RulesAndObjectives facts={facts} subject="package" />
+    </div>
+  );
+}
+
 export function WorkbenchPage() {
   const { user } = useAuth();
   const [params] = useSearchParams();
@@ -53,14 +109,11 @@ export function WorkbenchPage() {
   const [selected, setSelected] = useState<Selected | null>(null);
   const [run, setRun] = useState<Run>(requestedExample ? { status: 'loading' } : { status: 'idle' });
   const [dragging, setDragging] = useState(false);
-  const [tab, setTab] = useState('structure');
-  const [focusTarget, setFocusTarget] = useState<{ id: string; n: number } | null>(null);
   const [exampleError, setExampleError] = useState<string | null>(null);
 
   const validate = async (target: Selected) => {
     const id = ++runId.current;
     setRun({ status: 'loading' });
-    setTab('structure');
     const failed = (kind: Extract<Run, { status: 'failed' }>['kind'], message: string) => {
       if (id === runId.current) setRun({ status: 'failed', kind, message });
     };
@@ -68,18 +121,18 @@ export function WorkbenchPage() {
       failed('too-large', `${fileLabel(target.bytes.byteLength)} is over the ${BIM_PACKAGE_LIMITS.compressedBytes / MiB} MiB limit.`);
       return;
     }
-    let model: PackageModel | null = null;
+    // The files are read only to place the gateway's findings in them; what the package means is the gateway's answer.
+    let texts: PackageTexts;
     try {
-      model = await readPackageModel(target.bytes.buffer.slice(target.bytes.byteOffset, target.bytes.byteOffset + target.bytes.byteLength) as ArrayBuffer);
+      texts = await unzipPackage(target.bytes.buffer.slice(target.bytes.byteOffset, target.bytes.byteOffset + target.bytes.byteLength) as ArrayBuffer);
     } catch (error) {
       failed('unreadable', error instanceof BimPackageError ? error.message : 'The file could not be read as a ZIP archive.');
       return;
     }
     try {
-      const outcome = await bimApi.validate(target.bytes, { acceptRefusal: true });
+      const outcome = await bimApi.validate(target.bytes, { include: ['facts'], acceptRefusal: true });
       if (id !== runId.current) return;
-      setRun({ status: 'done', outcome, model });
-      if (!outcome.valid) setTab('diagnostics');
+      setRun({ status: 'done', outcome, texts });
     } catch (error) {
       if (error instanceof HttpError && error.status === 413) failed('too-large', 'The gateway refused the package as too large.');
       else if (error instanceof HttpError && error.status === 429) failed('rate-limit', error.retryAfter ? `Try again in ${error.retryAfter} s.` : 'Wait a few seconds and try again.');
@@ -109,14 +162,6 @@ export function WorkbenchPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requestedExample]);
 
-  useEffect(() => {
-    if (!focusTarget) return;
-    const element = document.getElementById(focusTarget.id);
-    // Older engines and test environments have no scrollIntoView; focusing the target is what matters.
-    element?.scrollIntoView?.({ block: 'center' });
-    element?.focus({ preventScroll: true });
-  }, [focusTarget]);
-
   const choose = async (file: File | undefined) => {
     if (!file) return;
     const target: Selected = { name: file.name, bytes: new Uint8Array(await file.arrayBuffer()), example: null };
@@ -139,31 +184,17 @@ export function WorkbenchPage() {
   };
 
   const outcome = run.status === 'done' ? run.outcome : null;
-  const model = run.status === 'done' ? run.model : null;
-  const files = model?.files ?? [];
-  const diagnostics = outcome
-    ? readDiagnostics(outcome.diagnostics, files)
-    : [];
-  const groups = groupDiagnostics(diagnostics);
+  const findings = useMemo(() => (run.status === 'done' ? findingsOf(run.outcome, run.texts) : []), [run]);
   const refusal = outcome && !outcome.valid ? outcome : null;
-  const errorCount = refusal ? Math.max(diagnostics.length, 1) : 0;
+  const errorCount = refusal ? Math.max(counts(findings).error, 1) : 0;
   const suggested = (examples.data ?? []).filter((path) => path !== 'demo/05_single_obj_various').slice(0, 3);
-
-  const showFile = (path: string) => {
-    setTab('structure');
-    setFocusTarget((current) => ({ id: `wb-file-${path}`, n: (current?.n ?? 0) + 1 }));
-  };
-  const showProblems = (path: string) => {
-    setTab('diagnostics');
-    setFocusTarget((current) => ({ id: `wb-problems-${path || 'package'}`, n: (current?.n ?? 0) + 1 }));
-  };
 
   return (
     <div className="workbench-page">
       <div className="workbench-head">
         <div>
           <h1>Workbench</h1>
-          <p>Validate a BIM package without an account. You get localized diagnostics, digests and the structure of the composition. Nothing is executed.</p>
+          <p>Validate a BIM package without an account. You get the problems the gateway finds, each placed in its file, and, once it validates, its digests, workflow and candidates. Nothing is executed.</p>
         </div>
         <div className="workbench-limits" aria-label="Package limits">
           {LIMIT_CHIPS.map((chip) => <span key={chip}>{chip}</span>)}
@@ -226,11 +257,13 @@ export function WorkbenchPage() {
             {user ? (
               <>
                 <strong>Signed in as {user.username}</strong>
-                <span>Save this package as a problem of one of your organizations, then run it with an exact engine.</span>
+                <span>Edit a package in the problem editor of one of your organizations, save it as a problem version, then run it.</span>
                 <div className="workbench-account-actions">
-                  <OrganizationPicker variant="primary" label="Save to an organization" destination={(org) => problemEditorPath(org, { template: selected?.example ?? undefined })} />
+                  <OrganizationPicker variant="primary" label="Open in the problem editor" destination={(org) => problemEditorPath(org, { template: selected?.example ?? undefined })} />
                 </div>
-                {selected && !selected.example && <small>An uploaded file isn’t carried across: add it again in the organization’s Workbench.</small>}
+                {selected && !selected.example && (
+                  <small>An uploaded file isn’t carried across: upload it on the organization’s problem list, then open its version in the editor.</small>
+                )}
               </>
             ) : (
               <>
@@ -251,8 +284,8 @@ export function WorkbenchPage() {
               <strong>{selected ? 'Ready to validate' : 'No package yet'}</strong>
               <span>
                 {selected
-                  ? `${selected.name} is selected. Press Validate package to get the verdict, digests and structure.`
-                  : 'Choose a .bim.zip or try an official package. The verdict, digests and structure appear here.'}
+                  ? `${selected.name} is selected. Press Validate package to get the verdict.`
+                  : 'Choose a .bim.zip or try an official package. The verdict appears here.'}
               </span>
             </div>
           )}
@@ -299,8 +332,8 @@ export function WorkbenchPage() {
                   <strong>{outcome.valid ? 'Valid package' : `Not valid · ${errorCount} ${errorCount === 1 ? 'error' : 'errors'}`}</strong>
                   <span>
                     {outcome.valid
-                      ? [selected?.name, model?.profile ? `profile ${model.profile}` : null, model && model.tasks.length ? `${model.tasks.length} tasks` : null].filter(Boolean).join(' · ')
-                      : `${refusal?.status} ${refusal?.code}. ${diagnostics.length > 0 ? 'Each diagnostic points at the resource and location to fix.' : refusal?.message}`}
+                      ? [selected?.name, `${outcome.analysis.tasks} ${outcome.analysis.tasks === 1 ? 'task' : 'tasks'}`].filter(Boolean).join(' · ')
+                      : `${refusal?.status} ${refusal?.code}. ${refusal?.diagnostics.length ? 'Each problem names the file and the place to fix. Nothing is drawn until the package validates.' : refusal?.message}`}
                   </span>
                 </div>
               </div>
@@ -325,41 +358,10 @@ export function WorkbenchPage() {
                 </div>
               )}
 
-              <TabBar
-                prefix="workbench"
-                ariaLabel="Result views"
-                value={tab}
-                onChange={setTab}
-                items={[
-                  { id: 'structure', label: 'Structure' },
-                  { id: 'diagnostics', label: `Diagnostics (${outcome.valid ? diagnostics.length : errorCount})` },
-                ]}
-              />
-              <TabPanel prefix="workbench" active={tab}>
-                {tab === 'structure' && (
-                  model
-                    ? (
-                      <StructurePanel
-                        model={model}
-                        valid={outcome.valid}
-                        fileDigests={{}}
-                        problemsByFile={Object.fromEntries(groups.filter((group) => group.file).map((group) => [group.file, group.items.length]))}
-                        onShowProblems={showProblems}
-                      />
-                    )
-                    : <p className="workbench-muted">The structure could not be read from this package.</p>
-                )}
-                {tab === 'diagnostics' && (
-                  <DiagnosticsPanel
-                    valid={outcome.valid}
-                    groups={groups}
-                    summary={refusal && diagnostics.length === 0 ? refusal.message : null}
-                    onShowFile={showFile}
-                    copy={(value, key) => void copy(value, key)}
-                    copied={(key) => copyStatus(key) === 'copied'}
-                  />
-                )}
-              </TabPanel>
+              {outcome.valid && (outcome.facts
+                ? <PackageStructure facts={outcome.facts} response={outcome} />
+                : <p className="workbench-muted">The gateway sent no structure for this package.</p>)}
+              {(!outcome.valid || findings.length > 0) && <ProblemsPanel diagnostics={findings} groups />}
             </>
           )}
         </section>

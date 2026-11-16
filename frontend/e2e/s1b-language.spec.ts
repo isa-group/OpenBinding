@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { expect as baseExpect, test, type Page, type Route, type TestInfo } from '@playwright/test';
 
 // The dev server compiles each route on first use, so the first assertion of a test can wait for a cold page.
@@ -121,7 +122,7 @@ const profile = {
 
 const EXAMPLES = ['demo/01_simple_seq', 'demo/02_parallel', 'demo/03_xor_choice', 'placement/01_small_placement', 'literature/zhang'];
 
-// A small package the workbench can read and draw.
+// A small package to upload: the page only unzips it to place findings, and the gateway's answer is mocked.
 const packageFiles: Record<string, unknown> = {
   'instance.json': {
     apiVersion: 'bim/v1', kind: 'Instance', metadata: { name: 'checkout-flow', description: 'Flujo de checkout' },
@@ -170,26 +171,12 @@ const packageFiles: Record<string, unknown> = {
 
 const packageZip = () => Buffer.from(zipStore(Object.fromEntries(Object.entries(packageFiles).map(([path, value]) => [path, JSON.stringify(value)]))));
 
-const validResult = {
-  valid: true,
-  instanceDigest: DIGEST('a1b2c3d4'),
-  packageDigest: DIGEST('b2c3d4e5'),
-  fileDigests: { 'candidates.json': DIGEST('1a2b3c4d'), 'application.json': DIGEST('2b3c4d5e') },
-  resourceDigests: {},
-  irDigest: DIGEST('c3d4e5f6'),
-  diagnostics: [],
-};
-
-const invalidProblem = {
-  type: 'https://openbinding.dev/problems/invalid_request',
-  title: 'invalid_request',
-  status: 422,
-  detail: 'The package has 2 errors.',
-  diagnostics: [
-    { code: 'missing_metric', resource: 'candidateCatalog', pointer: '/spec/candidates/t1/features/latency', message: 'Candidate t1 does not declare latency, required by the optimization.', fix: 'Add a finite value in ms, or remove the candidate.' },
-    { code: 'unsupported_construct', path: 'application.json', pointer: '/spec/workflow/sequence/1', message: 'This parallel block is not structured: it has no matching join.', fix: 'Restructure the flow with paired split and join.' },
-  ],
-};
+// The gateway's own answers (dump_frontend_fixtures.py): `validate?include=facts` of a complete package, and the 422 of a refused
+// package with the files it checked.
+const core = (file: string) => JSON.parse(readFileSync(new URL(`../src/test/fixtures/core/${file}`, import.meta.url), 'utf8')) as Record<string, unknown>;
+const validResult = core('json-complete.validate.json');
+const refusedBody = core('refused.validate.json');
+const refusedZip = () => Buffer.from(zipStore(core('refused.package.json') as Record<string, string>));
 
 interface Mocks {
   signedIn?: boolean;
@@ -234,7 +221,8 @@ async function mockApi(page: Page, mocks: Mocks = {}) {
   await page.route(`${API}/v1/bim/templates/**`, (route) => route.fulfill({
     status: 200, contentType: 'application/vnd.bim+zip', body: packageZip(), headers: { 'Content-Disposition': 'attachment; filename="01_simple_seq.bim.zip"' },
   }));
-  await page.route(`${API}/v1/bim/validate`, mocks.validate ?? json(validResult));
+  // The page asks for the facts (`?include=facts`).
+  await page.route(`${API}/v1/bim/validate**`, mocks.validate ?? json(validResult));
 }
 
 function watchCriticalErrors(page: Page) {
@@ -452,10 +440,16 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       }
     });
 
-    test('pub-workbench /workbench validates an uploaded package', async ({ page, context }, testInfo) => {
+    test('pub-workbench /workbench validates an uploaded package and draws what the gateway compiled', async ({ page, context }, testInfo) => {
       const critical = watchCriticalErrors(page);
       await context.grantPermissions(['clipboard-read', 'clipboard-write']);
-      await mockApi(page);
+      let asked = '';
+      await mockApi(page, {
+        validate: (route) => {
+          asked = new URL(route.request().url()).searchParams.get('include') ?? '';
+          return route.fulfill({ status: 200, json: validResult });
+        },
+      });
       await page.goto('/workbench');
       const main = page.locator('main');
 
@@ -471,65 +465,51 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await main.getByRole('button', { name: 'Validate package' }).click();
 
       await expect(main.getByText('Valid package')).toBeVisible();
-      await expect(main.getByText('checkout-flow.bim.zip · profile qos-binding/v1 · 5 tasks')).toBeVisible();
+      expect(asked).toBe('facts');
+      await expect(main.getByText('checkout-flow.bim.zip · 7 tasks')).toBeVisible();
       await expect(main.locator('.workbench-digests')).toContainText('Instance digest');
       await main.getByRole('button', { name: 'Copy package digest' }).click();
-      expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(DIGEST('b2c3d4e5'));
+      expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(validResult.packageDigest);
 
-      const workflow = main.getByRole('region', { name: 'Workflow' });
-      await expect(workflow).toContainText('SEQUENCE');
-      await expect(workflow).toContainText('PARALLEL');
-      await expect(workflow).toContainText('EXCLUSIVE');
-      await expect(workflow).toContainText('autenticar');
-      await expect(workflow).toContainText('p 0.7');
-      const filesCard = main.getByRole('region', { name: 'Package files' });
-      await expect(filesCard).toContainText('Candidate catalog');
-      await expect(filesCard).toContainText('candidates.json');
-      await expect(filesCard).toContainText('application.json');
-      await expect(main.getByRole('button', { name: 'Copy instance digest' })).toBeVisible();
-      await expect(filesCard).toContainText(/\d[\d.,]*\s?(B|bytes|KiB|MiB)\b/);
-      await expect(filesCard).not.toContainText(/sha256-|[0-9a-f]{12}/);
-      await expect(main.getByRole('region', { name: 'Constraints' })).toContainText('HARD');
-      await expect(main.getByRole('region', { name: 'Constraints' })).toContainText('penalty 5');
-      await expect(main.getByRole('region', { name: 'Objective' })).toContainText('weighted');
-      await expect(main.getByRole('region', { name: 'Choices per task' }).getByRole('row', { name: /inventario service\/stock 3/ })).toBeVisible();
+      const holds = main.getByRole('region', { name: 'What the package holds' });
+      await expect(holds).toContainText('7tasks');
+      await expect(holds).toContainText('14candidates');
+      await expect(holds.getByRole('status', { name: /Binding space size: 128 combinations/i })).toBeVisible();
+      const workflow = main.getByRole('group', { name: 'Workflow of the package' });
+      for (const task of ['authenticate', 'enrich', 'publish']) await expect(workflow).toContainText(task);
+      // A table per task on wide screens, cards on phones: either way each candidate is named.
+      for (const candidate of ['auth-cloud', 'auth-edge', 'audit-edge']) await expect(main.getByRole('region', { name: 'Candidates', exact: true })).toContainText(candidate);
+      await expect(main.getByRole('heading', { level: 2, name: 'Rules and objectives' })).toBeVisible();
+      await expect(main.getByRole('region', { name: 'Problems' })).toHaveCount(0);
+      await expect(main).not.toContainText(/sha256-|[0-9a-f]{12}/);
       await ready(page);
       await shot(page, testInfo, 'workbench-valid');
-
-      await main.getByRole('tab', { name: 'Diagnostics (0)' }).click();
-      await expect(main.getByText('No diagnostics. Every resource passed validation.')).toBeVisible();
 
       await expectNoHorizontalOverflow(page);
       expect(critical).toEqual([]);
     });
 
-    test('pub-workbench shows 422 diagnostics grouped by file, and leads back to the file', async ({ page, context }, testInfo) => {
-      await context.grantPermissions(['clipboard-read', 'clipboard-write']);
-      await mockApi(page, { validate: json(invalidProblem, 422) });
+    test('pub-workbench places the findings of a refused package (422) in its files and draws no structure', async ({ page }, testInfo) => {
+      await mockApi(page, { validate: json(refusedBody, 422) });
       await page.goto('/workbench');
       const main = page.locator('main');
 
-      await main.getByLabel('Package file', { exact: true }).setInputFiles({ name: 'checkout-flow.bim.zip', mimeType: 'application/zip', buffer: packageZip() });
+      await main.getByLabel('Package file', { exact: true }).setInputFiles({ name: 'refused.bim.zip', mimeType: 'application/zip', buffer: refusedZip() });
       await main.getByRole('button', { name: 'Validate package' }).click();
 
-      await expect(main.getByText('Not valid · 2 errors')).toBeVisible();
-      await expect(main.getByRole('tab', { name: 'Diagnostics (2)' })).toHaveAttribute('aria-selected', 'true');
-      const catalog = main.getByRole('region', { name: 'Problems in Candidate catalog · candidates.json' });
-      await expect(catalog).toContainText('candidates › t1 › features › latency');
-      await expect(catalog).toContainText('Fix: Add a finite value in ms, or remove the candidate.');
-      const application = main.getByRole('region', { name: 'Problems in Application · application.json' });
-      await expect(application).toContainText('workflow › sequence › item 2');
-      await expect(application).toContainText('not structured');
-      await catalog.getByRole('button', { name: 'Copy location' }).click();
-      expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('candidates.json /spec/candidates/t1/features/latency');
+      await expect(main.getByText(/^Not valid · \d+ errors$/)).toBeVisible();
+      await expect(main.getByText(/^422 invalid_instance\. Each problem names the file and the place to fix\./)).toBeVisible();
+      await expect(main.getByRole('group', { name: 'Workflow of the package' })).toHaveCount(0);
+      await expect(main.getByRole('region', { name: 'Candidates', exact: true })).toHaveCount(0);
+      const problems = main.getByRole('region', { name: 'Problems' });
+      await expect(problems.locator('.pp-group-name', { hasText: 'candidates.json' })).toBeVisible();
+      await expect(problems.locator('.pp-group-name', { hasText: 'workflow.bpmn' })).toBeVisible();
+      const domain = problems.locator('.pp-item', { hasText: 'candidate feature value is above its declared domain' });
+      await expect(domain).toContainText(/Line \d+, column \d+/);
+      await expect(domain).toContainText('/spec/candidates/auth-edge/features/latency');
+      await expect(problems.locator('.pp-item', { hasText: "BPMN task 'orphan' has no Application task" })).toContainText('Diagram element orphan');
       await ready(page);
       await shot(page, testInfo, 'workbench-invalid');
-
-      await application.getByRole('button', { name: 'Show in package' }).click();
-      await expect(main.getByRole('tab', { name: 'Structure' })).toHaveAttribute('aria-selected', 'true');
-      await expect(page.locator('[id="wb-file-application.json"]')).toBeFocused();
-      await expect(main.getByRole('button', { name: '1 problem' })).toHaveCount(2);
-      await shot(page, testInfo, 'workbench-invalid-structure');
       await expectNoHorizontalOverflow(page);
     });
 
@@ -570,7 +550,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(calls).toBe(3);
     });
 
-    test('pub-workbench opens a template from the address, and a signed-in account can save it to an organization', async ({ page }, testInfo) => {
+    test('pub-workbench opens a template from the address, and a signed-in account can open it in the problem editor', async ({ page }, testInfo) => {
       await mockApi(page, { signedIn: true });
       await page.goto('/workbench?template=demo%2F01_simple_seq');
       const main = page.locator('main');
@@ -578,7 +558,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByText('Valid package')).toBeVisible();
       await expect(main.getByText('Signed in as lucia')).toBeVisible();
       await expect(main.getByRole('link', { name: 'Log in to run' })).toHaveCount(0);
-      await main.getByRole('button', { name: 'Save to an organization' }).click();
+      await main.getByRole('button', { name: 'Open in the problem editor' }).click();
       await expect(main.getByRole('link', { name: 'ISA Demo Group' }))
         .toHaveAttribute('href', '/app/isa-demo/problem-editor?template=demo%2F01_simple_seq');
       await ready(page);
