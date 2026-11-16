@@ -11,8 +11,6 @@ export type Axis = 'time' | 'version';
 
 export const STATUSES: readonly ValueStatus[] = ['verified', 'declared', 'unverified'];
 
-export const STATUS_TEXT: Record<ValueStatus, string> = { verified: 'Verified', declared: 'Declared', unverified: 'Unverified' };
-
 export const METRIC_TEXT: Record<StructureMetric, string> = {
   tasks: 'Tasks',
   boundTasks: 'Bound tasks',

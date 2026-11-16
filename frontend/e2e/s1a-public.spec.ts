@@ -124,8 +124,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       await expect(main.getByRole('heading', { level: 1, name: 'Describe. Bind. Reproduce.' })).toBeVisible();
       await ready(page);
-      await expect(main.getByRole('link', { name: /Validate a package/ })).toHaveAttribute('href', '/workbench');
-      await expect(main.getByRole('link', { name: /Browse the engines/ })).toHaveAttribute('href', '/engines');
+      await expect(main.getByRole('link', { name: /Explore compositions/ })).toHaveAttribute('href', '/compositions');
+      await expect(main.getByRole('link', { name: /Learn Composition2Yaml/ })).toHaveAttribute('href', '/language');
       await expect(main.getByRole('link', { name: /Create an account/ })).toHaveAttribute('href', '/register');
       await expect(main.getByRole('status', { name: 'Runtime catalogue status' })).toContainText('3 public engine revisions');
 

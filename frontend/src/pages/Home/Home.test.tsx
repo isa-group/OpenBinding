@@ -31,13 +31,15 @@ describe('Home', () => {
   });
 
   describe('hero and runtime catalogue', () => {
-    it('invites a visitor to create an account and reads the public catalogue only', async () => {
+    it('leads with compositions, invites a visitor to create an account and reads the public catalogue only', async () => {
       renderHome();
 
       expect(screen.getByRole('heading', { level: 1, name: 'Describe. Bind. Reproduce.' })).toBeInTheDocument();
+      expect(screen.getByText(/^Define, version, evaluate, render and compare compositions; problems, written in BIM, say what was possible\./)).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: /Explore compositions/ })).toHaveAttribute('href', '/compositions');
+      expect(screen.getByRole('link', { name: /Learn Composition2Yaml/ })).toHaveAttribute('href', '/language');
       expect(screen.getByRole('link', { name: /Create an account/ })).toHaveAttribute('href', '/register');
-      expect(screen.getByRole('link', { name: /Validate a package/ })).toHaveAttribute('href', '/workbench');
-      expect(screen.getByRole('link', { name: /Browse the engines/ })).toHaveAttribute('href', '/engines');
+      expect(screen.getByRole('link', { name: /Create an account/ })).toHaveTextContent('define compositions');
       const runtime = screen.getByRole('status', { name: 'Runtime catalogue status' });
       expect(await within(runtime).findByText('2 public engine revisions')).toBeInTheDocument();
       expect(within(runtime).getByText('1 executable profile')).toBeInTheDocument();
@@ -50,7 +52,7 @@ describe('Home', () => {
 
       const card = screen.getByRole('link', { name: /Go to your workspace/ });
       expect(card).toHaveAttribute('href', '/app');
-      expect(card).toHaveTextContent('Signed in as alice · RESEARCH plan');
+      expect(card).toHaveTextContent('Signed in as alice · RESEARCH plan. Organizations, compositions, problems and runs live there.');
       expect(screen.queryByRole('link', { name: /Create an account/ })).not.toBeInTheDocument();
       const runtime = screen.getByRole('status', { name: 'Runtime catalogue status' });
       expect(await within(runtime).findByText('2 engine revisions')).toBeInTheDocument();
@@ -85,17 +87,21 @@ describe('Home', () => {
   });
 
   describe('how it works', () => {
-    it('walks the six stages and links each to where it is explained', () => {
+    it('walks the seven stages, from a package to a composition, and links each to where it is explained', () => {
       renderHome();
       const tabs = within(screen.getByRole('tablist', { name: 'Pipeline stages' })).getAllByRole('tab');
 
-      expect(tabs).toHaveLength(6);
+      expect(screen.getByRole('heading', { name: 'From a problem to a composition anyone can verify' })).toBeInTheDocument();
+      expect(tabs).toHaveLength(7);
       expect(screen.getByRole('link', { name: 'Try an example package' })).toHaveAttribute('href', '/workbench');
       fireEvent.click(screen.getByRole('tab', { name: /Engine/ }));
       expect(screen.getByRole('tab', { name: /Engine/ })).toHaveAttribute('aria-selected', 'true');
       expect(screen.getByRole('link', { name: 'Browse engines' })).toHaveAttribute('href', '/engines');
-      fireEvent.keyDown(screen.getByRole('tab', { name: /Engine/ }), { key: 'End' });
+      fireEvent.keyDown(screen.getByRole('tab', { name: /Engine/ }), { key: 'ArrowRight' });
       expect(screen.getByRole('link', { name: 'About OpenBinding' })).toHaveAttribute('href', '/about');
+      fireEvent.keyDown(screen.getByRole('tab', { name: /Re-evaluation/ }), { key: 'End' });
+      expect(screen.getByRole('tab', { name: /Composition/ })).toHaveAttribute('aria-selected', 'true');
+      expect(screen.getByRole('link', { name: 'Explore compositions' })).toHaveAttribute('href', '/compositions');
     });
   });
 
@@ -156,7 +162,9 @@ describe('Home', () => {
       await screen.findByRole('link', { name: /2 public engine revisions/ });
 
       const hrefs = screen.getAllByRole('link').map((link) => link.getAttribute('href') ?? '');
-      expect(hrefs.filter((href) => /^\/(playground|profiles|schemas|language|team|research|funding|contributions|changelog|engines\/new|analytics|artifacts)(\/|\?|$)/.test(href))).toEqual([]);
+      expect(hrefs.filter((href) => /^\/(playground|profiles|schemas|team|research|funding|contributions|changelog|engines\/new|analytics|artifacts)(\/|\?|$)/.test(href))).toEqual([]);
+      expect(hrefs.filter((href) => href.startsWith('/language/'))).toEqual([]);
+      expect(hrefs).toEqual(expect.arrayContaining(['/compositions', '/language']));
     });
   });
 });

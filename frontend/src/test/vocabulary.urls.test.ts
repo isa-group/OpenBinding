@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { OLD_ADDRESS_SEGMENTS, scanAddresses } from './vocabulary';
+import { FORBIDDEN_ADDRESS_SEGMENTS, OLD_ADDRESS_SEGMENTS, scanAddresses } from './vocabulary';
 
 // The addresses the frontend builds hold no `cases`, `jobs` or `publications` segment (`req~frontend-nav-vocabulary-urls~1`, slices 13 and 14). The gateway
-// API paths in `src/api/` keep them. No file declares an old address: there is no redirect table.
+// API paths in `src/api/` keep them. No file declares an old address: there is no redirect table. Nor do they hold the segments the composition
+// vocabulary forbids, `deployments`, `scenarios` and `builds`, while `compositions`, `c` (the showcase) and `language` are addresses of their own.
+
+const EVERY_SEGMENT = [...OLD_ADDRESS_SEGMENTS, ...FORBIDDEN_ADDRESS_SEGMENTS];
 
 describe('the address scan', () => {
   it('reports an old address in a page and leaves the API client and the new addresses alone', () => {
@@ -77,6 +80,28 @@ describe('the address scan', () => {
     ]);
   });
 
+  it('reports a deployments, scenarios or builds address, and leaves the compositions, showcase and language addresses alone', () => {
+    expect(FORBIDDEN_ADDRESS_SEGMENTS).toEqual(['deployments', 'scenarios', 'builds']);
+    const files = {
+      'pages/C.tsx': [
+        'export const list = `${root}/deployments`;',
+        "export const one = '/app/acme/compositions/fleet/scenarios/2';",
+        'export const built = `${root}/builds?latest=1`;',
+        'export const fine = `/app/${org}/compositions/${slug}/versions`;',
+        "export const showcase = '/c/acme/fleet-routing?version=1.0.0';",
+        "export const language = '/language#composition=abc';",
+        "export const word = 'deployments';",
+      ].join('\n'),
+      'src/api/engines.ts': 'export const deployments = (org) => `${orgRoot(org)}/deployments`;',
+    };
+    expect(scanAddresses(files, FORBIDDEN_ADDRESS_SEGMENTS)).toEqual([
+      'pages/C.tsx: ${root}/deployments',
+      'pages/C.tsx: /app/acme/compositions/fleet/scenarios/2',
+      'pages/C.tsx: ${root}/builds?latest=1',
+    ]);
+    expect(scanAddresses({ 'pages/C.tsx': files['pages/C.tsx'].split('\n').slice(3).join('\n') }, EVERY_SEGMENT)).toEqual([]);
+  });
+
   it('reports a publications address in a page but not /published or the API client', () => {
     const files = {
       'pages/P.tsx': [
@@ -105,5 +130,16 @@ describe('the addresses of the application sources', () => {
 
   it('builds no address with a cases, jobs or publications segment, and declares none', () => {
     expect(scanAddresses(sources)).toEqual([]);
+  });
+
+  it('builds no address with a deployments, scenarios or builds segment', () => {
+    expect(scanAddresses(sources, EVERY_SEGMENT)).toEqual([]);
+  });
+
+  it('builds the compositions, showcase and language addresses', () => {
+    const addresses = Object.values(sources).join('\n');
+    expect(addresses).toContain("COMPOSITIONS_SEGMENT = 'compositions'");
+    expect(addresses).toMatch(/`\/c\/\$\{/);
+    expect(addresses).toMatch(/['"`]\/language['"`]/);
   });
 });

@@ -30,7 +30,7 @@ describe('PricingCard', () => {
     const card = screen.getByRole('article', { name: 'Plan STARTER' });
     expect(card).toHaveTextContent('brevo/brevo');
     expect(within(card).getByText('665f1c2e9b1d4a0012ab34cd')).toBeInTheDocument();
-    expect(card).toHaveTextContent('SPHEREThis deployment’s');
+    expect(card).toHaveTextContent('SPHEREThis installation’s');
     expect(card).toHaveTextContent('Add-onsNone');
     expect(card).toHaveTextContent('its prices and limits are kept in SPHERE');
     expect(screen.queryByTestId('pricing-renderer')).toBeNull();

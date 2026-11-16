@@ -10,10 +10,14 @@ import { AppHome } from './AppHome';
 const api = vi.hoisted(() => ({ getOwnUsage: vi.fn(), listNotifications: vi.fn(), markNotificationRead: vi.fn() }));
 const platform = vi.hoisted(() => ({ organizations: vi.fn(), createOrganization: vi.fn(), members: vi.fn() }));
 const runsApi = vi.hoisted(() => ({ list: vi.fn() }));
+const compositionsApi = vi.hoisted(() => ({ list: vi.fn() }));
 
 vi.mock('../../api/client', async () => ({ ...await vi.importActual<typeof import('../../api/client')>('../../api/client'), apiClient: api }));
 vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'), platformApi: platform }));
 vi.mock('../../api/runs', async () => ({ ...await vi.importActual<typeof import('../../api/runs')>('../../api/runs'), runsApi }));
+vi.mock('../../entities/composition/api', async () => ({
+  ...await vi.importActual<typeof import('../../entities/composition/api')>('../../entities/composition/api'), compositionsApi,
+}));
 
 const group = org('isa-demo', { name: 'ISA Demo Group' });
 const lab = org('qos-lab', { name: 'QoS Lab (sub-organización)', parent_id: group.id });
@@ -22,6 +26,13 @@ const consultora = org('consultora-demo', { name: 'Consultora Demo', effective_r
 const job = (over: Record<string, unknown> = {}) => ({
   id: '00000000-0000-0000-0000-0000000000f2', engine_id: 'minizinc', status: 'running', termination: null, cancellation_requested: false,
   retry_of_id: null, organization_id: group.id, created_at: '2026-10-08T08:00:00Z', finished_at: null, ...over,
+});
+
+const composition = (slug: string, name: string, over: Record<string, unknown> = {}) => ({
+  id: `composition-${slug}`, slug, name, description: '', kind: 'workflow', archived: false, visibility: 'private',
+  organization: { id: group.id, slug: 'isa-demo', name: 'ISA Demo Group' }, created_by_id: 'u1', created_at: '2026-10-01T08:00:00Z',
+  updated_at: '2026-10-07T08:00:00Z', version_count: 2,
+  latest_version: { id: 'v2', label: '1.1.0', ordinal: 2, values_status: 'verified', created_at: '2026-10-07T08:00:00Z' }, ...over,
 });
 
 const contractNotice = {
@@ -38,6 +49,10 @@ describe('Home', () => {
     vi.clearAllMocks();
     platform.organizations.mockResolvedValue([group, lab, consultora]);
     localStorage.clear();
+    compositionsApi.list.mockResolvedValue({
+      compositions: [composition('fleet-routing', 'Fleet routing'), composition('order-desk', 'Order desk', { kind: 'application', latest_version: null })],
+      total: 2, limit: 5, offset: 0,
+    });
     runsApi.list.mockResolvedValue({ runs: [job(), job({ id: '00000000-0000-0000-0000-0000000000f6', status: 'completed', termination: 'INFEASIBLE', finished_at: '2026-10-08T08:00:40Z' })], total: 2 });
     api.getOwnUsage.mockResolvedValue(researchUsage());
     api.listNotifications.mockResolvedValue([contractNotice]);
@@ -49,6 +64,7 @@ describe('Home', () => {
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Hello, lucia.vega' })).toBeInTheDocument();
     expect(await screen.findByText('Pick up where you left off.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'New composition' })).toHaveAttribute('href', '/app/isa-demo/compositions?create=composition');
     expect(screen.getByRole('link', { name: 'New problem' })).toHaveAttribute('href', '/app/isa-demo/problems?create=problem');
     expect(screen.queryByRole('link', { name: 'New project' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Verify a digest' })).not.toBeInTheDocument();
@@ -104,6 +120,39 @@ describe('Home', () => {
     expect(await within(notices).findByText('Your OpenBinding agreement changed')).toBeInTheDocument();
     expect(within(notices).getByText('BASIC')).toBeInTheDocument();
     expect(within(notices).getByText('RESEARCH')).toBeInTheDocument();
+  });
+
+  it('leads with the recent compositions of the organization, each opening its page', async () => {
+    renderHome();
+
+    const recent = await screen.findByRole('region', { name: 'Recent compositions' });
+    await waitFor(() => expect(compositionsApi.list).toHaveBeenCalledWith('isa-demo', { archived: false, sort: 'updated', limit: 5 }));
+    const fleet = await within(recent).findByRole('link', { name: /Fleet routing/ });
+    expect(fleet).toHaveAttribute('href', '/app/isa-demo/compositions/fleet-routing');
+    expect(fleet).toHaveTextContent('version 1.1.0 · updated Oct 7, 2026');
+    expect(fleet).toHaveTextContent('Workflow');
+    expect(within(recent).getByRole('link', { name: /Order desk/ })).toHaveTextContent('no version yet');
+    expect(within(recent).getByRole('link', { name: 'All compositions of ISA Demo Group' })).toHaveAttribute('href', '/app/isa-demo/compositions');
+    // The compositions come first, then the runs.
+    expect(recent.compareDocumentPosition(screen.getByRole('region', { name: 'Recent activity' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('shows the way to a first composition, and lets the compositions block fail on its own', async () => {
+    compositionsApi.list.mockResolvedValueOnce({ compositions: [], total: 0, limit: 5, offset: 0 });
+    const view = renderHome();
+
+    const recent = await screen.findByRole('region', { name: 'Recent compositions' });
+    expect(await within(recent).findByText('No compositions in ISA Demo Group yet.')).toBeInTheDocument();
+    expect(within(recent).getByRole('link', { name: 'Write one in Composition2Yaml' })).toHaveAttribute('href', '/app/isa-demo/compositions?create=composition');
+    view.unmount();
+
+    compositionsApi.list.mockRejectedValueOnce(new HttpError(503, 'down'));
+    renderHome();
+    const failed = await screen.findByRole('region', { name: 'Recent compositions' });
+    expect(await within(failed).findByRole('alert')).toHaveTextContent('Recent compositions couldn’t be loaded (503). The other blocks are unaffected.');
+    expect(await screen.findByRole('region', { name: 'Recent activity' })).toBeInTheDocument();
+    fireEvent.click(within(failed).getByRole('button', { name: 'Retry' }));
+    expect(await within(failed).findByRole('link', { name: /Fleet routing/ })).toBeInTheDocument();
   });
 
   it('says there is no remote plan instead of leaving the Plan value blank', async () => {
@@ -174,6 +223,7 @@ describe('Home', () => {
 
     await screen.findByRole('region', { name: 'Recent activity' });
     await waitFor(() => expect(runsApi.list).toHaveBeenCalledWith('qos-lab', { limit: 5 }));
+    await waitFor(() => expect(compositionsApi.list).toHaveBeenCalledWith('qos-lab', { archived: false, sort: 'updated', limit: 5 }));
   });
 
   it('guides an account without organizations to create the first one', async () => {

@@ -33,7 +33,7 @@ export function PricingCard({ reference, yaml }: PricingCardProps) {
       </header>
       <dl className="pc-facts">
         <div><dt>Version</dt><dd><code>{version}</code></dd></div>
-        <div><dt>SPHERE</dt><dd>{registry ? <>Registry <code>{registry}</code></> : 'This deployment’s'}</dd></div>
+        <div><dt>SPHERE</dt><dd>{registry ? <>Registry <code>{registry}</code></> : 'This installation’s'}</dd></div>
         <div><dt>Add-ons</dt><dd>{addons.length ? addons.join(', ') : 'None'}</dd></div>
       </dl>
       {yaml !== undefined ? (

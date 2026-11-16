@@ -44,7 +44,7 @@ export const STARTER: string = examples.starter;
 export const SECTIONS: readonly LanguageExample[] = examples.sections;
 
 const NOT_IN_THE_LANGUAGE: readonly { title: string; text: string }[] = [
-  { title: 'The alternatives', text: 'Candidates to choose from, constraints, objectives, demand and scenarios are the BIM problem’s. A different demand is a different problem revision.' },
+  { title: 'The alternatives', text: 'Candidates to choose from, constraints, objectives, demand and its variants are the BIM problem’s. A different demand is a different problem revision.' },
   { title: 'Optimisation settings', text: 'Weights and scalarisation belong to a run preset, never to a document.' },
   { title: 'The offering’s content', text: 'Plans, prices and limits stay in SPHERE or in the Pricing2Yaml file. The document holds one reference, without a version.' },
   { title: 'Presentation', text: 'Sections, highlights, labels and layout are decided by the screen that renders a composition, never written in the document.' },

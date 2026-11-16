@@ -100,7 +100,7 @@ export const fundingEntities: readonly FundingEntity[] = [
 ];
 
 export const relatedProjects: readonly RelatedProject[] = [
-  { name: 'OpenBinding', kind: 'Core platform', period: 'Active', role: 'BIM language, execution, collaboration and reproducibility', url: 'https://github.com/isa-group/OpenBinding' },
+  { name: 'OpenBinding', kind: 'Core platform', period: 'Active', role: 'Compositions in Composition2Yaml, their problems in BIM, engine runs and the evidence that verifies them', url: 'https://github.com/isa-group/OpenBinding' },
   { name: 'SPHERE', kind: 'Reference platform', period: 'Active', role: 'Product and administration patterns adapted for binding analysis', url: 'https://github.com/SCORELabUS/SPHERE' },
   { name: 'SPACE', kind: 'Runtime dependency', period: 'v1.5', role: 'Contracts, plan configuration and usage enforcement', url: 'https://github.com/isa-group/SPACE' },
 ];

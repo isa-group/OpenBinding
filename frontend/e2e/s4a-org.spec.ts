@@ -226,6 +226,8 @@ async function mockApi(page: Page, overrides: Partial<State> = {}): Promise<Stat
     return json({ problems: rows, total: rows.length, limit: 200, offset: 0 })(route);
   });
   await page.route(orgPath('/studies'), json([]));
+  // No organization has a composition yet: Home and the overview show where the first one comes from.
+  await page.route(orgPath('/compositions'), json({ compositions: [], total: 0, limit: 5, offset: 0 }));
   await page.route(orgPath('/members'), (route) => json(state.members[slugOf(route, '/members')] ?? [])(route));
   await page.route(orgPath('/members/batch'), async (route) => {
     if (state.refuse.batch) return state.refuse.batch(route);
@@ -320,6 +322,10 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(tree.getByText('qos-lab · inherited role')).toBeVisible();
       await expect(tree.getByRole('link', { name: /QoS Lab/ }).getByText('OWNER')).toHaveAttribute('title', 'Inherited from ISA Demo Group');
 
+      const compositions = main.getByRole('region', { name: 'Recent compositions' });
+      await expect(compositions.getByText(/^No compositions in .+ yet\.$/)).toBeVisible();
+      await expect(compositions.getByRole('link', { name: /^All compositions of / })).toHaveAttribute('href', /^\/app\/[^/]+\/compositions$/);
+      await expect(main.getByRole('link', { name: 'New composition' })).toHaveAttribute('href', /^\/app\/[^/]+\/compositions\?create=composition$/);
       const activity = main.getByRole('region', { name: 'Recent activity' });
       await expect(activity.getByText('Running')).toBeVisible();
       await expect(activity.getByText('No feasible binding')).toBeVisible();
@@ -346,7 +352,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('region', { name: 'Your plan' }).getByText('RESEARCH', { exact: true })).toBeVisible();
       await capture(page, testInfo, `home-${name}-activity-503`);
       state.refuse.jobs = undefined;
-      await main.getByRole('button', { name: 'Retry' }).click();
+      await main.getByRole('region', { name: 'Recent activity' }).getByRole('button', { name: 'Retry' }).click();
       await expect(main.getByRole('region', { name: 'Recent activity' }).getByText('Running')).toBeVisible();
 
       // The plan can be unavailable on its own too.
@@ -442,7 +448,11 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(hero.getByRole('link', { name: 'Audit' })).toHaveAttribute('href', '/app/isa-demo/settings/audit');
       await expect(hero.getByRole('link', { name: 'Settings' })).toHaveAttribute('href', '/app/isa-demo/settings');
 
-      // The problems, runs and studies of the organization, each with the way to all of them; no projects.
+      // The compositions, problems, runs and studies of the organization, each with the way to all of them; no projects.
+      const compositions = main.getByRole('heading', { name: /^Compositions/ }).locator('xpath=ancestor::section[1]');
+      await expect(compositions.getByText(/^None yet\. A composition is the binding the organization keeps/)).toBeVisible();
+      await expect(compositions.getByRole('link', { name: 'All compositions' })).toHaveAttribute('href', '/app/isa-demo/compositions');
+      await expect(compositions.getByRole('link', { name: '+ New composition' })).toHaveAttribute('href', '/app/isa-demo/compositions?create=composition');
       const problems = main.getByRole('heading', { name: /^Problems/ }).locator('xpath=ancestor::section[1]');
       await expect(problems.getByRole('link', { name: /Checkout flow/ })).toHaveAttribute('href', '/app/isa-demo/problems/checkout-flow');
       await expect(problems.getByRole('link', { name: 'All problems' })).toHaveAttribute('href', '/app/isa-demo/problems');

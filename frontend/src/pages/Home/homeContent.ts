@@ -17,6 +17,7 @@ export const PIPELINE: readonly PipelineStage[] = [
   { id: 'problem', step: '04', title: 'Binding problem', short: 'IR with its own digest', long: 'The instance is compiled into a BindingProblem IR. Its digest identifies exactly what any engine was asked to solve.', pin: 'bim/v1 BindingProblem digest', href: '/workbench', cta: 'Compile an example package' },
   { id: 'engine', step: '05', title: 'Engine', short: 'Exact revision and mode', long: 'Engines are addressed by namespace, name, version and digest, and run in a declared mode with options that carry units.', pin: 'Engine + Registration + mode', href: '/engines', cta: 'Browse engines' },
   { id: 'reevaluation', step: '06', title: 'Re-evaluation', short: 'The gateway re-checks', long: 'The gateway re-evaluates every binding an engine returns, so objectives, penalties and violations don’t depend on the engine’s own report.', pin: 'decision + evaluator provenance', href: '/about', cta: 'About OpenBinding' },
+  { id: 'composition', step: '07', title: 'Composition', short: 'The binding you keep', long: 'A chosen binding becomes a composition: a Composition2Yaml document, sealed as versions, evaluated against the problem it links, rendered and compared version by version.', pin: 'Composition2Yaml version + its evaluation', href: '/compositions', cta: 'Explore compositions' },
 ];
 
 export const LAYERS = [

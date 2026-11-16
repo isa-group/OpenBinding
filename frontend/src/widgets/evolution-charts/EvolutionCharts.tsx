@@ -13,9 +13,10 @@ import type { CompositionVersionView } from '../../shared/api/types';
 import { formatDate, formatNumber } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import { ValueBadge } from '../value-badge/ValueBadge';
+import { VALUE_STATUS_TEXT } from '../value-badge/statusText';
 import {
   dateBounds, formatDay, formatTick, hasStatus, markerShort, markerVersion, METRIC_TEXT, rangeInverted, readPreferences,
-  STATUS_TEXT, STATUSES, structureRows, valueRows, writePreferences, type Axis, type Preferences, type RowBase, type StructureRow,
+  STATUSES, structureRows, valueRows, writePreferences, type Axis, type Preferences, type RowBase, type StructureRow,
   type ValueRow,
 } from './chartData';
 import './EvolutionCharts.css';
@@ -204,7 +205,7 @@ function ValueChart({ model, series, axis, hidden }: { model: EvolutionModel; se
   return (
     <ChartCard
       title={title}
-      summary={`${title}: ${counted} of ${rows.length} versions give it, ${STATUSES.filter((status) => hasStatus(rows, status)).map((status) => STATUS_TEXT[status].toLowerCase()).join(', ')}. The table view lists each value.`}
+      summary={`${title}: ${counted} of ${rows.length} versions give it, ${STATUSES.filter((status) => hasStatus(rows, status)).map((status) => VALUE_STATUS_TEXT[status].toLowerCase()).join(', ')}. The table view lists each value.`}
       chart={(
         <Plot
           model={model}
@@ -212,7 +213,7 @@ function ValueChart({ model, series, axis, hidden }: { model: EvolutionModel; se
           rows={rows}
           tip={(row: ValueRow) => STATUSES.flatMap((status) => {
             const value = row[status];
-            return value === null ? [] : [<span key={status}>{`${formatValue(value, series.unit)} · ${STATUS_TEXT[status]}`}</span>];
+            return value === null ? [] : [<span key={status}>{`${formatValue(value, series.unit)} · ${VALUE_STATUS_TEXT[status]}`}</span>];
           })}
         >
           {drawn.map((status) => (
@@ -221,7 +222,7 @@ function ValueChart({ model, series, axis, hidden }: { model: EvolutionModel; se
               className={`ec-line is-${status}`}
               type="linear"
               dataKey={status}
-              name={STATUS_TEXT[status]}
+              name={VALUE_STATUS_TEXT[status]}
               stroke={status === 'unverified' ? 'none' : COLOR[status]}
               strokeWidth={status === 'unverified' ? 0 : 2}
               strokeDasharray={status === 'declared' ? '6 4' : undefined}
@@ -388,7 +389,7 @@ export function EvolutionCharts({ org, composition, refresh = '' }: EvolutionCha
               {STATUSES.map((status) => (
                 <button key={status} type="button" className="ec-legend-item" aria-pressed={!preferences.hidden.includes(status)} onClick={() => toggle(status)}>
                   <Swatch status={status} />
-                  {STATUS_TEXT[status]}
+                  {VALUE_STATUS_TEXT[status]}
                 </button>
               ))}
             </div>

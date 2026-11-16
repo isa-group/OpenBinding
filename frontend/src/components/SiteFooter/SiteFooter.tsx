@@ -5,6 +5,8 @@ const columns = [
   {
     title: 'Platform',
     links: [
+      { label: 'Compositions', to: '/compositions' },
+      { label: 'Language', to: '/language' },
       { label: 'Engines', to: '/engines' },
       { label: 'Pricing', to: '/pricing' },
       { label: 'Workbench', to: '/workbench' },
@@ -29,8 +31,8 @@ export function SiteFooter() {
         <div className="site-footer-inner">
           <div className="site-footer-statement">
             <span className="micro-label">OpenBinding</span>
-            <strong>Deterministic QoS binding for service compositions</strong>
-            <p>Validate BIM v1 packages, run exact engine revisions and keep the evidence of every run.</p>
+            <strong>Compositions you can define, evaluate and compare</strong>
+            <p>Define, version, evaluate, render and compare compositions; problems, written in BIM, say what was possible.</p>
           </div>
 
           <nav className="site-footer-nav" aria-label="Footer navigation">

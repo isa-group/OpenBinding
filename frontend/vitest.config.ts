@@ -21,6 +21,7 @@ const CORPUS = [
   'src/test/e2eSpecs.test.ts',
   'src/test/mobileTouchTargets.test.ts',
   'src/test/vocabulary.all.test.ts',
+  'src/test/vocabulary.terms.test.ts',
   'src/test/vocabulary.urls.test.ts',
 ];
 

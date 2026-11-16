@@ -15,7 +15,7 @@
     },
     {
       "name": "Binding and provenance",
-      "description": "Every task of the workflow has exactly one entry: a `candidate` of the problem (its id, or `<resource>/<id>` when two catalogs share the id), or `local: true` for work done in house. `from` says which plan of a SPHERE pricing the candidate came from, at a pinned pricing `version`; `registry` names an on-premise SPHERE the deployment defines.",
+      "description": "Every task of the workflow has exactly one entry: a `candidate` of the problem (its id, or `<resource>/<id>` when two catalogs share the id), or `local: true` for work done in house. `from` says which plan of a SPHERE pricing the candidate came from, at a pinned pricing `version`; `registry` names an on-premise SPHERE this installation defines.",
       "yaml": "syntaxVersion: \"1.0\"\ncomposition: shop\nversion: 1.0.0\nkind: application\nworkflow: {seq: [login, pick, ship]}\nbinding:\n  login: {local: true}\n  pick: {candidate: c_pick, from: {sphere: acme/picking, version: v7, plan: Pro, addons: [SSO]}}\n  ship: {candidate: shipping/c_ship}\nvalues: {}\n",
       "expect": "valid"
     },
@@ -33,7 +33,7 @@
     },
     {
       "name": "An offering in SPHERE",
-      "description": "`offering` is optional: the composition's own pricing, by reference only. Its plans, prices and limits stay in SPHERE. `{sphere: <owner/name>}` is a pricing of the deployment's SPHERE; `{sphere, registry}` is one on an on-premise SPHERE.",
+      "description": "`offering` is optional: the composition's own pricing, by reference only. Its plans, prices and limits stay in SPHERE. `{sphere: <owner/name>}` is a pricing of this installation's SPHERE; `{sphere, registry}` is one on an on-premise SPHERE.",
       "yaml": "syntaxVersion: \"1.0\"\ncomposition: shop\nversion: 1.0.0\nkind: application\nworkflow: pick\nbinding: {pick: {candidate: c_pick}}\nvalues: {}\noffering: {sphere: acme/shop}\n",
       "expect": "valid"
     },
@@ -51,7 +51,7 @@
     },
     {
       "name": "Constraints belong to the problem",
-      "description": "Alternatives, constraints, objectives, demand and scenarios are the BIM problem's; weights belong to a run preset. A document that writes them is refused.",
+      "description": "Alternatives, constraints, objectives, demand and its variants are the BIM problem's; weights belong to a run preset. A document that writes them is refused.",
       "yaml": "syntaxVersion: \"1.0\"\ncomposition: shop\nversion: 1.0.0\nkind: application\nworkflow: pick\nbinding: {pick: {candidate: c_pick}}\nvalues: {}\nconstraints: [{max: {latency: 100}}]\n",
       "expect": "c2y_problem_content"
     },
