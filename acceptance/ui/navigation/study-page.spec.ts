@@ -54,7 +54,8 @@ test('the Progress tab shows the definition the selected run froze', async ({ pa
   await page.goto(`${STUDY}/progress?run=r1`);
   const frozen = page.getByRole('region', { name: 'Frozen definition' });
   await expect(frozen).toBeVisible();
-  await expect(frozen.getByRole('listitem')).toHaveCount(1);
+  await expect(frozen.getByRole('list', { name: 'Problem versions of the run' }).getByRole('listitem')).toHaveCount(1);
+  await expect(frozen.getByRole('list', { name: 'Engines of the run' }).getByRole('listitem')).not.toHaveCount(0);
 });
 
 test('a study has no address below another segment of the organization', async ({ page }) => {
