@@ -31,6 +31,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from . import follows
 from ....composition import diagnostics as codes
 from ....composition import spans, text
 from ....composition.diagnostics import Diagnostic, Path, at
@@ -396,6 +397,7 @@ async def seal_into(
         version_id=str(version.id), ordinal=version.ordinal, label=version.label,
         values_status=version.values_status.value,
     )
+    await follows.notify_followers(session, composition, version, actor)
     return Sealed(version, evaluation, True, edge)
 
 

@@ -17,7 +17,7 @@ from .compositions import (
     composition_by_ref,
     create_composition,
     delete_composition,
-    list_compositions,
+    matching,
     organization_for,
     update_composition,
 )
@@ -60,8 +60,8 @@ __all__ = [
     "installed_compilation",
     "judge",
     "language_slot",
-    "list_compositions",
     "list_versions",
+    "matching",
     "neighbourhood",
     "organization_for",
     "parse",

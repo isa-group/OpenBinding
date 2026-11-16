@@ -685,6 +685,64 @@
         "title": "ApiKeySummary",
         "type": "object"
       },
+      "AvatarSelection": {
+        "additionalProperties": false,
+        "description": "A predefined avatar, or none (the initials), and the colours to draw it with.",
+        "properties": {
+          "avatar": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A predefined avatar's file name (`GET /v1/avatars`), or null for the initials. Absent keeps the current image.",
+            "title": "Avatar"
+          },
+          "bg_color": {
+            "anyOf": [
+              {
+                "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bg Color"
+          },
+          "fg_color": {
+            "anyOf": [
+              {
+                "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fg Color"
+          }
+        },
+        "title": "AvatarSelection",
+        "type": "object"
+      },
+      "BetaFeatures": {
+        "additionalProperties": false,
+        "description": "Whether the account sees the features still behind SPHERE's BetaGate.",
+        "properties": {
+          "enabled": {
+            "default": false,
+            "title": "Enabled",
+            "type": "boolean"
+          }
+        },
+        "title": "BetaFeatures",
+        "type": "object"
+      },
       "BindingProblem": {
         "$defs": {
           "adapterDescriptor": {
@@ -2541,6 +2599,115 @@
         "title": "CheckResult",
         "type": "object"
       },
+      "CodeInvitationCreate": {
+        "additionalProperties": false,
+        "description": "A shareable invitation code (SPHERE's ``createInvitation``): whoever holds it joins as MEMBER.",
+        "properties": {
+          "expires_in_days": {
+            "anyOf": [
+              {
+                "maximum": 365.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": 7,
+            "description": "Days the code is valid for; null for a code that never expires.",
+            "title": "Expires In Days"
+          },
+          "max_uses": {
+            "anyOf": [
+              {
+                "maximum": 10000.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "How many may join with it; null for any.",
+            "title": "Max Uses"
+          }
+        },
+        "title": "CodeInvitationCreate",
+        "type": "object"
+      },
+      "CodeInvitationView": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UserRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "max_uses": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Uses"
+          },
+          "organization_id": {
+            "format": "uuid",
+            "title": "Organization Id",
+            "type": "string"
+          },
+          "use_count": {
+            "title": "Use Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "organization_id",
+          "code",
+          "created_by",
+          "expires_at",
+          "max_uses",
+          "use_count",
+          "created_at"
+        ],
+        "title": "CodeInvitationView",
+        "type": "object"
+      },
       "CompilationIr": {
         "properties": {
           "id": {
@@ -2954,6 +3121,27 @@
         "title": "CompositionEvaluate",
         "type": "object"
       },
+      "CompositionFacets": {
+        "description": "What every match of a list (not one page) holds: its organizations and the extent of its numbers, each\nfacet ignoring its own filter. From what each latest version stored: its analytics' `tasks` and `providers`,\nand the `cost` value of its latest evaluation.",
+        "properties": {
+          "owners": {
+            "items": {
+              "$ref": "#/components/schemas/OwnerFacet"
+            },
+            "title": "Owners",
+            "type": "array"
+          },
+          "ranges": {
+            "$ref": "#/components/schemas/RangeFacets"
+          }
+        },
+        "required": [
+          "owners",
+          "ranges"
+        ],
+        "title": "CompositionFacets",
+        "type": "object"
+      },
       "CompositionFork": {
         "additionalProperties": false,
         "description": "A version of a composition to fork into another organization, as a new composition there.",
@@ -3026,6 +3214,29 @@
         "title": "CompositionFork",
         "type": "object"
       },
+      "CompositionGraph": {
+        "description": "The version graph of a composition, as SPHERE's pricing version graph: newest versions first.",
+        "properties": {
+          "lanes": {
+            "items": {
+              "$ref": "#/components/schemas/GraphLane"
+            },
+            "title": "Lanes",
+            "type": "array"
+          },
+          "truncated": {
+            "description": "More source lanes exist than were drawn (at most 20).",
+            "title": "Truncated",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "lanes",
+          "truncated"
+        ],
+        "title": "CompositionGraph",
+        "type": "object"
+      },
       "CompositionList": {
         "description": "One page of an organization's compositions, and how many match in all.",
         "properties": {
@@ -3035,6 +3246,16 @@
             },
             "title": "Compositions",
             "type": "array"
+          },
+          "facets": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CompositionFacets"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "limit": {
             "title": "Limit",
@@ -5947,6 +6168,19 @@
         "title": "FieldChangeView",
         "type": "object"
       },
+      "FollowState": {
+        "properties": {
+          "following": {
+            "title": "Following",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "following"
+        ],
+        "title": "FollowState",
+        "type": "object"
+      },
       "ForkNameTaken": {
         "description": "Nothing was forked: the source's slug is taken in the target organization; name another `slug`.",
         "properties": {
@@ -6135,6 +6369,286 @@
           "termination",
           "solutions"
         ],
+        "type": "object"
+      },
+      "GraphEdge": {
+        "description": "The version a version was forked from.",
+        "properties": {
+          "composition_id": {
+            "format": "uuid",
+            "title": "Composition Id",
+            "type": "string"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "version_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version Id"
+          }
+        },
+        "required": [
+          "composition_id"
+        ],
+        "title": "GraphEdge",
+        "type": "object"
+      },
+      "GraphLane": {
+        "description": "A composition of the graph: this one (`current`) or one a version was forked from (`source`).",
+        "properties": {
+          "available": {
+            "description": "False for a source the caller does not read: only what its forks name.",
+            "title": "Available",
+            "type": "boolean"
+          },
+          "composition_id": {
+            "format": "uuid",
+            "title": "Composition Id",
+            "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "organization": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GraphOrganization"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "role": {
+            "enum": [
+              "current",
+              "source"
+            ],
+            "title": "Role",
+            "type": "string"
+          },
+          "slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slug"
+          },
+          "versions": {
+            "items": {
+              "$ref": "#/components/schemas/GraphVersion"
+            },
+            "title": "Versions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "role",
+          "available",
+          "composition_id",
+          "versions"
+        ],
+        "title": "GraphLane",
+        "type": "object"
+      },
+      "GraphOrganization": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slug"
+          }
+        },
+        "title": "GraphOrganization",
+        "type": "object"
+      },
+      "GraphVersion": {
+        "properties": {
+          "created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "forked_from": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GraphEdge"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null on an unavailable lane, which knows only labels.",
+            "title": "Id"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label"
+        ],
+        "title": "GraphVersion",
+        "type": "object"
+      },
+      "HierarchyNode": {
+        "description": "One organization of a branch (``GET /v1/organizations/{org}/hierarchy``), and whether the caller opens it.",
+        "properties": {
+          "avatar": {
+            "$ref": "#/components/schemas/OrganizationAvatar"
+          },
+          "effective_role": {
+            "anyOf": [
+              {
+                "enum": [
+                  "OWNER",
+                  "ADMIN",
+                  "MEMBER",
+                  "VIEWER"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective Role"
+          },
+          "has_access": {
+            "title": "Has Access",
+            "type": "boolean"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "avatar",
+          "parent_id",
+          "has_access"
+        ],
+        "title": "HierarchyNode",
+        "type": "object"
+      },
+      "HistogramBucket": {
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "value": {
+            "description": "`a-b` (from a, up to b) or `p+` (p and above), as SPHERE's slider histograms.",
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "value",
+          "count"
+        ],
+        "title": "HistogramBucket",
         "type": "object"
       },
       "ImmutableResourceRef": {
@@ -6467,6 +6981,69 @@
           "token"
         ],
         "title": "InvitationCreated",
+        "type": "object"
+      },
+      "InvitationPreview": {
+        "description": "What a code invites to, before joining (``GET /v1/invitations/{code}/preview``).",
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "invited_by": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UserRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "organization": {
+            "$ref": "#/components/schemas/PublicOrganizationView"
+          }
+        },
+        "required": [
+          "code",
+          "organization",
+          "expires_at",
+          "invited_by"
+        ],
+        "title": "InvitationPreview",
+        "type": "object"
+      },
+      "InviteUsers": {
+        "additionalProperties": false,
+        "description": "Invite named users: one code with a use for each, and a notification to each of them.",
+        "properties": {
+          "user_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "User Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "user_ids"
+        ],
+        "title": "InviteUsers",
         "type": "object"
       },
       "JobAccepted": {
@@ -6838,6 +7415,23 @@
           "finished_at"
         ],
         "title": "JobView",
+        "type": "object"
+      },
+      "KindChannels": {
+        "additionalProperties": false,
+        "properties": {
+          "email": {
+            "default": true,
+            "title": "Email",
+            "type": "boolean"
+          },
+          "inbox": {
+            "default": true,
+            "title": "Inbox",
+            "type": "boolean"
+          }
+        },
+        "title": "KindChannels",
         "type": "object"
       },
       "LatestRevision": {
@@ -7272,6 +7866,13 @@
             "default": true,
             "title": "Inbox",
             "type": "boolean"
+          },
+          "kinds": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/KindChannels"
+            },
+            "title": "Kinds",
+            "type": "object"
           }
         },
         "title": "NotificationPreferences",
@@ -7331,9 +7932,70 @@
         "title": "NotificationView",
         "type": "object"
       },
+      "OrganizationAvatar": {
+        "description": "How an organization is drawn: an image URL (a predefined avatar or an upload) and its colours.\n\n``url`` is a path of the gateway (``/v1/avatars/avatar-3.svg``, ``/v1/organizations/{id}/avatar/{digest}``),\nnull for the initials. A predefined avatar is drawn in ``fg_color`` over ``bg_color``.",
+        "properties": {
+          "bg_color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bg Color"
+          },
+          "fg_color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fg Color"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "enum": [
+                  "predefined",
+                  "upload"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          }
+        },
+        "title": "OrganizationAvatar",
+        "type": "object"
+      },
       "OrganizationCreate": {
         "additionalProperties": false,
         "properties": {
+          "description": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Description",
+            "type": "string"
+          },
           "name": {
             "maxLength": 160,
             "minLength": 1,
@@ -7353,21 +8015,102 @@
             "title": "Parent Id"
           },
           "slug": {
-            "pattern": "^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$",
-            "title": "Slug",
-            "type": "string"
+            "anyOf": [
+              {
+                "pattern": "^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slug"
           }
         },
         "required": [
-          "slug",
           "name"
         ],
         "title": "OrganizationCreate",
         "type": "object"
       },
+      "OrganizationRef": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "name"
+        ],
+        "title": "OrganizationRef",
+        "type": "object"
+      },
+      "OrganizationStats": {
+        "description": "What an organization holds: its direct members and sub-organizations, and its own resources.",
+        "properties": {
+          "compositions": {
+            "title": "Compositions",
+            "type": "integer"
+          },
+          "members": {
+            "title": "Members",
+            "type": "integer"
+          },
+          "problems": {
+            "title": "Problems",
+            "type": "integer"
+          },
+          "runs": {
+            "title": "Runs",
+            "type": "integer"
+          },
+          "studies": {
+            "title": "Studies",
+            "type": "integer"
+          },
+          "sub_organizations": {
+            "title": "Sub Organizations",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "members",
+          "sub_organizations",
+          "compositions",
+          "problems",
+          "runs",
+          "studies"
+        ],
+        "title": "OrganizationStats",
+        "type": "object"
+      },
       "OrganizationUpdate": {
         "additionalProperties": false,
         "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
           "move_to_root": {
             "default": false,
             "title": "Move To Root",
@@ -7404,9 +8147,31 @@
       },
       "OrganizationView": {
         "properties": {
+          "avatar": {
+            "$ref": "#/components/schemas/OrganizationAvatar"
+          },
+          "children": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/OrganizationView"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Children"
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
+            "type": "string"
+          },
+          "description": {
+            "default": "",
+            "title": "Description",
             "type": "string"
           },
           "effective_role": {
@@ -7447,9 +8212,29 @@
             ],
             "title": "Parent Id"
           },
+          "role_source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OrganizationRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "slug": {
             "title": "Slug",
             "type": "string"
+          },
+          "stats": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OrganizationStats"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -7460,6 +8245,46 @@
           "created_at"
         ],
         "title": "OrganizationView",
+        "type": "object"
+      },
+      "OwnerFacet": {
+        "description": "An organization of a list's matches, and how many of them it holds.",
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "name",
+          "count"
+        ],
+        "title": "OwnerFacet",
+        "type": "object"
+      },
+      "OwnerTransfer": {
+        "additionalProperties": false,
+        "description": "Who takes the organization over: a member, here or above.",
+        "properties": {
+          "user_id": {
+            "format": "uuid",
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id"
+        ],
+        "title": "OwnerTransfer",
         "type": "object"
       },
       "PackageFile": {
@@ -7649,6 +8474,20 @@
           "email"
         ],
         "title": "PasswordResetRequest",
+        "type": "object"
+      },
+      "PermanentLink": {
+        "properties": {
+          "location": {
+            "description": "The application path of the composition (`/compositions/{org}/{composition}`), with `?version=` when the link names a version the caller reads.",
+            "title": "Location",
+            "type": "string"
+          }
+        },
+        "required": [
+          "location"
+        ],
+        "title": "PermanentLink",
         "type": "object"
       },
       "PlanChange": {
@@ -8337,6 +9176,13 @@
             "title": "Organization Id",
             "type": "string"
           },
+          "revision_count": {
+            "default": 0,
+            "description": "How many revisions the problem has.",
+            "minimum": 0.0,
+            "title": "Revision Count",
+            "type": "integer"
+          },
           "slug": {
             "title": "Slug",
             "type": "string"
@@ -8698,6 +9544,16 @@
             "title": "Compositions",
             "type": "array"
           },
+          "facets": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CompositionFacets"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "limit": {
             "title": "Limit",
             "type": "integer"
@@ -8794,6 +9650,66 @@
           "updated_at"
         ],
         "title": "PublicCompositionView",
+        "type": "object"
+      },
+      "PublicOrganizationList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PublicOrganizationView"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "PublicOrganizationList",
+        "type": "object"
+      },
+      "PublicOrganizationView": {
+        "description": "What anybody reads of an organization with a public composition: who it is and what it publishes.",
+        "properties": {
+          "avatar": {
+            "$ref": "#/components/schemas/OrganizationAvatar"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "public_compositions": {
+            "title": "Public Compositions",
+            "type": "integer"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "description",
+          "avatar",
+          "public_compositions"
+        ],
+        "title": "PublicOrganizationView",
         "type": "object"
       },
       "PublicVersionSummary": {
@@ -9019,6 +9935,62 @@
           "detail"
         ],
         "title": "QuotaErrorResponse",
+        "type": "object"
+      },
+      "RangeFacet": {
+        "description": "A number of a list's matches: its extent and SPHERE's ten-bucket histogram; nulls when none has it.",
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/HistogramBucket"
+            },
+            "title": "Data",
+            "type": "array"
+          },
+          "max": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max"
+          },
+          "min": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min"
+          }
+        },
+        "title": "RangeFacet",
+        "type": "object"
+      },
+      "RangeFacets": {
+        "properties": {
+          "cost": {
+            "$ref": "#/components/schemas/RangeFacet"
+          },
+          "providers": {
+            "$ref": "#/components/schemas/RangeFacet"
+          },
+          "tasks": {
+            "$ref": "#/components/schemas/RangeFacet"
+          }
+        },
+        "required": [
+          "tasks",
+          "providers",
+          "cost"
+        ],
+        "title": "RangeFacets",
         "type": "object"
       },
       "RefreshRequest": {
@@ -9916,6 +10888,26 @@
         "title": "SectionDiffView",
         "type": "object"
       },
+      "StreamTicket": {
+        "properties": {
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "ticket": {
+            "description": "Open `GET /v1/notifications/stream?ticket=` with it, once, before it expires.",
+            "title": "Ticket",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ticket",
+          "expires_at"
+        ],
+        "title": "StreamTicket",
+        "type": "object"
+      },
       "StudyCellExport": {
         "properties": {
           "binding_case_revision_id": {
@@ -10627,6 +11619,19 @@
         "title": "TokenPair",
         "type": "object"
       },
+      "UnreadCount": {
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "count"
+        ],
+        "title": "UnreadCount",
+        "type": "object"
+      },
       "UpdateProfileRequest": {
         "properties": {
           "current_password": {
@@ -10789,6 +11794,38 @@
           "created_at"
         ],
         "title": "UserProfile",
+        "type": "object"
+      },
+      "UserRef": {
+        "description": "A user as another user may see them: never an email.",
+        "properties": {
+          "avatar": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The user's avatar URL; none yet (Identity, F5).",
+            "title": "Avatar"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "username": {
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "username"
+        ],
+        "title": "UserRef",
         "type": "object"
       },
       "ValidateResult": {
@@ -13513,6 +14550,85 @@
         ]
       }
     },
+    "/v1/avatars": {
+      "get": {
+        "description": "The predefined avatars' file names, the ones ``PUT /v1/organizations/{org}/avatar-colors`` accepts.",
+        "operationId": "listDefaultAvatars",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "title": "Response Listdefaultavatars",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Default Avatars",
+        "tags": [
+          "Organizations"
+        ]
+      }
+    },
+    "/v1/avatars/{name}": {
+      "get": {
+        "description": "A predefined avatar (SPHERE's ``static/avatars/users/default``), open to anybody.",
+        "operationId": "getDefaultAvatar",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "image/svg+xml": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The SVG, drawn in `currentColor`."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not a predefined avatar."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          }
+        },
+        "summary": "Get Default Avatar",
+        "tags": [
+          "Organizations"
+        ]
+      }
+    },
     "/v1/bim/templates": {
       "get": {
         "operationId": "listBimTemplates",
@@ -13722,9 +14838,314 @@
         ]
       }
     },
+    "/v1/composition-follows/{org}/{composition}": {
+      "delete": {
+        "description": "Stop following. A follower who no longer reads the composition stops too, and is answered 404.",
+        "operationId": "unfollowComposition",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "composition",
+            "required": true,
+            "schema": {
+              "title": "Composition",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FollowState"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such composition, or the caller does not read it."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Unfollow Composition",
+        "tags": [
+          "Compositions"
+        ],
+        "x-required-api-key-permissions": [
+          "compositions:read"
+        ]
+      },
+      "get": {
+        "description": "Whether the caller follows the composition.",
+        "operationId": "getCompositionFollow",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "composition",
+            "required": true,
+            "schema": {
+              "title": "Composition",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FollowState"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such composition, or the caller does not read it."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Get Composition Follow",
+        "tags": [
+          "Compositions"
+        ],
+        "x-required-api-key-permissions": [
+          "compositions:read"
+        ]
+      },
+      "put": {
+        "description": "Follow a composition the caller reads: each version sealed later tells them (``CompositionUpdated``).",
+        "operationId": "followComposition",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "composition",
+            "required": true,
+            "schema": {
+              "title": "Composition",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FollowState"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such composition, or the caller does not read it."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Follow Composition",
+        "tags": [
+          "Compositions"
+        ],
+        "x-required-api-key-permissions": [
+          "compositions:read"
+        ]
+      }
+    },
     "/v1/compositions": {
       "get": {
-        "description": "The public compositions of every organization, the most recently changed first; anybody reads them.",
+        "description": "The public compositions of every organization, the most recently changed first (or by name, tasks or\ncost), with the facets of every match; anybody reads them.",
         "operationId": "listPublicCompositions",
         "parameters": [
           {
@@ -13808,6 +15229,184 @@
               "minimum": 0,
               "title": "Offset",
               "type": "integer"
+            }
+          },
+          {
+            "description": "Only these organizations (comma-separated slugs).",
+            "in": "query",
+            "name": "owners",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 2000,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only these organizations (comma-separated slugs).",
+              "title": "Owners"
+            }
+          },
+          {
+            "description": "Only these kinds (comma-separated: application, workflow, pipeline, system).",
+            "in": "query",
+            "name": "kinds",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only these kinds (comma-separated: application, workflow, pipeline, system).",
+              "title": "Kinds"
+            }
+          },
+          {
+            "description": "By `name`, the most recently `updated`, the number of `tasks` of the latest version, or its `cost` value.",
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "updated",
+              "description": "By `name`, the most recently `updated`, the number of `tasks` of the latest version, or its `cost` value.",
+              "enum": [
+                "name",
+                "updated",
+                "tasks",
+                "cost"
+              ],
+              "title": "Sort",
+              "type": "string"
+            }
+          },
+          {
+            "description": "`asc` or `desc`; by default `updated` is newest first, the others ascending. A composition without the number sorts last either way.",
+            "in": "query",
+            "name": "order",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "asc",
+                    "desc"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "`asc` or `desc`; by default `updated` is newest first, the others ascending. A composition without the number sorts last either way.",
+              "title": "Order"
+            }
+          },
+          {
+            "in": "query",
+            "name": "min_tasks",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Min Tasks"
+            }
+          },
+          {
+            "in": "query",
+            "name": "max_tasks",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Max Tasks"
+            }
+          },
+          {
+            "in": "query",
+            "name": "min_providers",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Min Providers"
+            }
+          },
+          {
+            "in": "query",
+            "name": "max_providers",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Max Providers"
+            }
+          },
+          {
+            "in": "query",
+            "name": "min_cost",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Min Cost"
+            }
+          },
+          {
+            "in": "query",
+            "name": "max_cost",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Max Cost"
             }
           }
         ],
@@ -14317,7 +15916,7 @@
     "/v1/engine-registrations": {
       "get": {
         "description": "Normally returns the caller's registrations and published registrations. Administrators may set review=true to receive only explicit publication requests.",
-        "operationId": "list_engine_registrations_v1_engine_registrations_get",
+        "operationId": "listEngineRegistrations",
         "parameters": [
           {
             "description": "Administrators may request only registrations explicitly submitted for review.",
@@ -14408,7 +16007,7 @@
       },
       "post": {
         "description": "Stores endpoint details and the complete submitted OpenAPI document privately. Creation does not notify administrators and the deployment starts inactive.",
-        "operationId": "register_engine_v1_engine_registrations_post",
+        "operationId": "registerEngine",
         "requestBody": {
           "content": {
             "application/json": {
@@ -14512,7 +16111,7 @@
     },
     "/v1/engine-registrations/{name}": {
       "delete": {
-        "operationId": "delete_engine_registration_v1_engine_registrations__name__delete",
+        "operationId": "deleteEngineRegistration",
         "parameters": [
           {
             "in": "path",
@@ -14615,7 +16214,7 @@
       },
       "get": {
         "description": "Visible only to its owner, to authenticated users after publication, or to an administrator while this exact revision is pending review.",
-        "operationId": "get_engine_registration_v1_engine_registrations__name__get",
+        "operationId": "getEngineRegistration",
         "parameters": [
           {
             "in": "path",
@@ -14737,7 +16336,7 @@
     "/v1/engine-registrations/{name}/activate": {
       "post": {
         "description": "Owner-only. Revalidates the live pinned OpenAPI and response contract, then enables this deployment for the owner's own account without changing its publication state.",
-        "operationId": "activate_engine_registration_v1_engine_registrations__name__activate_post",
+        "operationId": "activateEngineRegistration",
         "parameters": [
           {
             "in": "path",
@@ -14869,7 +16468,7 @@
     "/v1/engine-registrations/{name}/approve": {
       "post": {
         "description": "Administrator-only. Revalidates a pending request and publishes its immutable Engine and deployment to every authenticated account.",
-        "operationId": "approve_engine_registration_v1_engine_registrations__name__approve_post",
+        "operationId": "approveEngineRegistration",
         "parameters": [
           {
             "in": "path",
@@ -15002,7 +16601,7 @@
     "/v1/engine-registrations/{name}/credential": {
       "put": {
         "description": "Replace a deployment credential without ever placing it in a manifest.",
-        "operationId": "set_engine_registration_credential_v1_engine_registrations__name__credential_put",
+        "operationId": "setEngineRegistrationCredential",
         "parameters": [
           {
             "in": "path",
@@ -15209,7 +16808,7 @@
     "/v1/engine-registrations/{name}/deactivate": {
       "post": {
         "description": "Owner-only. Disables this deployment for the owner's account; its publication state and availability to other authenticated users do not change.",
-        "operationId": "deactivate_engine_registration_v1_engine_registrations__name__deactivate_post",
+        "operationId": "deactivateEngineRegistration",
         "parameters": [
           {
             "in": "path",
@@ -15341,7 +16940,7 @@
     "/v1/engine-registrations/{name}/publication-request": {
       "post": {
         "description": "Owner-only. Revalidates an active deployment and makes this exact revision discoverable to administrators for the first time.",
-        "operationId": "request_engine_registration_publication_v1_engine_registrations__name__publication_request_post",
+        "operationId": "requestEngineRegistrationPublication",
         "parameters": [
           {
             "in": "path",
@@ -15473,7 +17072,7 @@
     "/v1/engine-registrations/{name}/reject": {
       "post": {
         "description": "Administrator-only. Removes a pending request from moderation and returns it to private owner-only visibility.",
-        "operationId": "reject_engine_registration_v1_engine_registrations__name__reject_post",
+        "operationId": "rejectEngineRegistration",
         "parameters": [
           {
             "in": "path",
@@ -15606,7 +17205,7 @@
     "/v1/engine-registrations/{name}/report": {
       "get": {
         "description": "Returns the immutable submitted OpenAPI document, its digest, the exact Engine manifest and the latest conformance report. It follows the same private, pending-review and published visibility rules as the registration itself.",
-        "operationId": "get_engine_registration_report_v1_engine_registrations__name__report_get",
+        "operationId": "getEngineRegistrationReport",
         "parameters": [
           {
             "in": "path",
@@ -15728,7 +17327,7 @@
     "/v1/engines": {
       "get": {
         "description": "The public engine catalogue: anybody gets the built-in and published Engines, and a signed-in caller also gets their own private revisions. Private revisions owned by other accounts, including administrators, are never disclosed.",
-        "operationId": "list_v1_engines_v1_engines_get",
+        "operationId": "listEngines",
         "responses": {
           "200": {
             "content": {
@@ -15874,14 +17473,14 @@
     },
     "/v1/engines/revisions": {
       "get": {
-        "operationId": "list_engine_revisions_v1_engines_revisions_get",
+        "operationId": "listEngineRevisions",
         "responses": {
           "200": {
             "content": {
               "application/json": {
                 "schema": {
                   "additionalProperties": true,
-                  "title": "Response List Engine Revisions V1 Engines Revisions Get",
+                  "title": "Response Listenginerevisions",
                   "type": "object"
                 }
               }
@@ -15939,7 +17538,7 @@
     },
     "/v1/engines/{namespace}/{name}/revisions/{version}": {
       "get": {
-        "operationId": "get_engine_revision_detail_v1_engines__namespace___name__revisions__version__get",
+        "operationId": "getEngineRevision",
         "parameters": [
           {
             "in": "path",
@@ -15975,7 +17574,7 @@
               "application/json": {
                 "schema": {
                   "additionalProperties": true,
-                  "title": "Response Get Engine Revision Detail V1 Engines  Namespace   Name  Revisions  Version  Get",
+                  "title": "Response Getenginerevision",
                   "type": "object"
                 }
               }
@@ -16043,7 +17642,7 @@
     },
     "/v1/engines/{name}": {
       "get": {
-        "operationId": "get_v1_engine_v1_engines__name__get",
+        "operationId": "getEngine",
         "parameters": [
           {
             "in": "path",
@@ -16244,8 +17843,227 @@
         ]
       }
     },
+    "/v1/invitations/{code}/join": {
+      "post": {
+        "description": "Join the organization of an invitation code as MEMBER, using one of its uses, as SPHERE's\n``joinViaInvitation``. A caller who holds a role there already (directly or above it) gets 409.",
+        "operationId": "joinOrganization",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "title": "Code",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such code, or it expired or was used up."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`already_member`: the caller holds a role there already."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Join Organization",
+        "tags": [
+          "Organizations"
+        ],
+        "x-required-api-key-permissions": [
+          "organizations:write"
+        ]
+      }
+    },
+    "/v1/invitations/{code}/preview": {
+      "get": {
+        "description": "What an invitation code joins, for its holder to decide: the organization's identity, avatar and\ndescription, who invited them and until when. Anybody holding the code reads it.",
+        "operationId": "previewInvitation",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "title": "Code",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationPreview"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such code, or it expired or was used up."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many `read` requests from this address by a caller with no credential: past the anonymous budget. A signed-in caller is not charged. `Retry-After` says when the window ends.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          },
+          {}
+        ],
+        "summary": "Preview Invitation",
+        "tags": [
+          "Organizations"
+        ],
+        "x-required-api-key-permissions": [
+          "organizations:write"
+        ]
+      }
+    },
     "/v1/notifications": {
       "get": {
+        "description": "The inbox of the last seven days, the newest first; older notifications are deleted as it is read.",
         "operationId": "listNotifications",
         "parameters": [
           {
@@ -16256,6 +18074,54 @@
               "default": false,
               "title": "Unread Only",
               "type": "boolean"
+            }
+          },
+          {
+            "description": "Only notifications of this kind.",
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "OrganizationInvitation",
+                    "System",
+                    "CompositionUpdated",
+                    "RunFinished",
+                    "RunFailed"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only notifications of this kind.",
+              "title": "Kind"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 200,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
             }
           }
         ],
@@ -16334,6 +18200,7 @@
     },
     "/v1/notifications/preferences": {
       "get": {
+        "description": "The account's notification preferences, every kind's channels included.",
         "operationId": "getNotificationPreferences",
         "responses": {
           "200": {
@@ -16604,6 +18471,277 @@
         ]
       }
     },
+    "/v1/notifications/stream": {
+      "get": {
+        "description": "The caller's notifications as they arrive, as SPHERE's notification stream, opened with a single-use\nticket instead of an access token in the URL.",
+        "operationId": "streamNotifications",
+        "parameters": [
+          {
+            "description": "A ticket of `POST /stream-ticket`.",
+            "in": "query",
+            "name": "ticket",
+            "required": true,
+            "schema": {
+              "description": "A ticket of `POST /stream-ticket`.",
+              "maxLength": 128,
+              "minLength": 20,
+              "title": "Ticket",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Server-sent events: `connected`, `unread-count` (`{count}`) and `notification` (a notification view). The stream ends after fifteen minutes; reconnect with a new ticket."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`invalid_ticket`: unknown, used or expired."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          }
+        },
+        "summary": "Stream Notifications",
+        "tags": [
+          "Notifications"
+        ]
+      }
+    },
+    "/v1/notifications/stream-ticket": {
+      "post": {
+        "description": "A single-use ticket for the caller's notification stream, valid one minute. The stream is opened with the\nticket in its URL because an ``EventSource`` sends no ``Authorization`` header; the access token never is.",
+        "operationId": "createNotificationStreamTicket",
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StreamTicket"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Create Stream Ticket",
+        "tags": [
+          "Notifications"
+        ],
+        "x-required-api-key-permissions": [
+          "notifications:read"
+        ]
+      }
+    },
+    "/v1/notifications/unread-count": {
+      "get": {
+        "description": "How many notifications of the inbox the caller has not read (the header bell's badge).",
+        "operationId": "countUnreadNotifications",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnreadCount"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Count Unread Notifications",
+        "tags": [
+          "Notifications"
+        ],
+        "x-required-api-key-permissions": [
+          "notifications:read"
+        ]
+      }
+    },
+    "/v1/notifications/{notification_id}": {
+      "delete": {
+        "description": "Delete one of the caller's notifications; anybody else's is 404.",
+        "operationId": "deleteNotification",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "notification_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Notification Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such notification of the caller's."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Delete Notification",
+        "tags": [
+          "Notifications"
+        ],
+        "x-required-api-key-permissions": [
+          "notifications:read"
+        ]
+      }
+    },
     "/v1/notifications/{notification_id}/read": {
       "post": {
         "operationId": "readNotification",
@@ -16690,7 +18828,53 @@
     },
     "/v1/organizations": {
       "get": {
+        "description": "The organizations the caller holds a role in, directly or through an ancestor, by name; ``tree=true``\nnests them under the organizations the caller reaches first.",
         "operationId": "listOrganizations",
+        "parameters": [
+          {
+            "description": "Nest the organizations: the top-level nodes of the caller's tree, each with its `children` and the `role_source` of its role, as SPHERE's `/users/me/orgs`.",
+            "in": "query",
+            "name": "tree",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "Nest the organizations: the top-level nodes of the caller's tree, each with its `children` and the `role_source` of its role, as SPHERE's `/users/me/orgs`.",
+              "title": "Tree",
+              "type": "boolean"
+            }
+          },
+          {
+            "description": "At most this many (top-level) nodes.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 200,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "At most this many (top-level) nodes.",
+              "title": "Limit"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -16704,7 +18888,15 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Successful Response",
+            "headers": {
+              "X-Total-Count": {
+                "description": "How many organizations (with `tree=true`, top-level nodes) there are in all.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
           },
           "401": {
             "content": {
@@ -16725,6 +18917,16 @@
               }
             },
             "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
           },
           "503": {
             "content": {
@@ -16754,6 +18956,7 @@
         ]
       },
       "post": {
+        "description": "Create an organization, its caller its OWNER. Without a slug, one is derived from the name and made\nunique with a numeric suffix (SPHERE's ``deduplicateSlug``); a derived slug is never a reserved one.",
         "operationId": "createOrganization",
         "requestBody": {
           "content": {
@@ -16814,7 +19017,7 @@
                 }
               }
             },
-            "description": "`slug_reserved` (the slug names a page of the application) and request validation errors."
+            "description": "`slug_reserved` (the slug names a page of the application), `slug_underivable` (no slug given, and the name yields fewer than three letters or digits) and request validation errors."
           },
           "503": {
             "content": {
@@ -16841,6 +19044,143 @@
         ],
         "x-required-api-key-permissions": [
           "organizations:write"
+        ]
+      }
+    },
+    "/v1/organizations/public": {
+      "get": {
+        "description": "The root organizations that publish at least one composition, by name; anybody reads them.\n\nSPHERE lists every root organization (``GET /orgs/public``); OpenBinding shows an organization to\nnon-members only once it has a public composition (Q8), so no other organization appears here.",
+        "operationId": "listPublicOrganizations",
+        "parameters": [
+          {
+            "description": "Text in the slug, the name or the description.",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 100,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Text in the slug, the name or the description.",
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 12,
+              "maximum": 50,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicOrganizationList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many `read` requests from this address by a caller with no credential: past the anonymous budget. A signed-in caller is not charged. `Retry-After` says when the window ends.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          },
+          {}
+        ],
+        "summary": "List Public Organizations",
+        "tags": [
+          "Organizations"
+        ],
+        "x-required-api-key-permissions": [
+          "organizations:read"
         ]
       }
     },
@@ -17289,9 +19629,581 @@
         ]
       }
     },
+    "/v1/organizations/{org}/avatar": {
+      "delete": {
+        "description": "Clear the image and its colours, leaving the initials (ADMIN), as SPHERE's ``removeAvatar``.",
+        "operationId": "removeOrganizationAvatar",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Revision the client last read, as given by the `ETag` of a GET or of an earlier edit: an entity-tag, a list of them, or `*` for any existing resource. Absent: the edit is applied without a revision check. Weak tags never match.",
+            "in": "header",
+            "name": "If-Match",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Revision the client last read, as given by the `ETag` of a GET or of an earlier edit: an entity-tag, a list of them, or `*` for any existing resource. Absent: the edit is applied without a revision check. Weak tags never match.",
+              "title": "If-Match"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationView"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "ETag": {
+                "description": "Revision of the resource; send it back as `If-Match` to edit it.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`If-Match` is not a list of entity-tags or `*` (code `invalid_if_match`)."
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is a member without ADMIN (`organization_forbidden`)."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization, or the caller is not a member of it."
+          },
+          "412": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`If-Match` does not match the current revision (code `precondition_failed`): nothing was applied. The `ETag` header carries the current revision.",
+            "headers": {
+              "ETag": {
+                "description": "Revision of the resource; send it back as `If-Match` to edit it.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Remove Organization Avatar",
+        "tags": [
+          "Organizations"
+        ],
+        "x-required-api-key-permissions": [
+          "organizations:write"
+        ]
+      },
+      "post": {
+        "description": "Set an uploaded image as the organization's avatar (ADMIN), keeping its colours.\n\nThe image is the raw body (no multipart). Its type is read from its bytes, never from the request's\n``Content-Type``, and only PNG, JPEG and WebP are kept, so an upload is only ever served as an image. It\nis stored once per content as a blob of the organization; the previous upload's file is never deleted on\nthe request path (D14).",
+        "operationId": "uploadOrganizationAvatar",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Revision the client last read, as given by the `ETag` of a GET or of an earlier edit: an entity-tag, a list of them, or `*` for any existing resource. Absent: the edit is applied without a revision check. Weak tags never match.",
+            "in": "header",
+            "name": "If-Match",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Revision the client last read, as given by the `ETag` of a GET or of an earlier edit: an entity-tag, a list of them, or `*` for any existing resource. Absent: the edit is applied without a revision check. Weak tags never match.",
+              "title": "If-Match"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "image/jpeg": {
+              "schema": {
+                "format": "binary",
+                "type": "string"
+              }
+            },
+            "image/png": {
+              "schema": {
+                "format": "binary",
+                "type": "string"
+              }
+            },
+            "image/webp": {
+              "schema": {
+                "format": "binary",
+                "type": "string"
+              }
+            }
+          },
+          "description": "The image itself as the raw request body: PNG, JPEG or WebP, at most 2 MiB.",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationView"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "ETag": {
+                "description": "Revision of the resource; send it back as `If-Match` to edit it.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`If-Match` is not a list of entity-tags or `*` (code `invalid_if_match`)."
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is a member without ADMIN (`organization_forbidden`)."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization, or the caller is not a member of it."
+          },
+          "412": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`If-Match` does not match the current revision (code `precondition_failed`): nothing was applied. The `ETag` header carries the current revision.",
+            "headers": {
+              "ETag": {
+                "description": "Revision of the resource; send it back as `If-Match` to edit it.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`avatar_too_large`: the image is over 2 MiB."
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`avatar_unsupported`: the body is not a PNG, JPEG or WebP image."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Upload Organization Avatar",
+        "tags": [
+          "Organizations"
+        ],
+        "x-required-api-key-permissions": [
+          "organizations:write"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/avatar-colors": {
+      "put": {
+        "description": "Choose a predefined avatar, or none (the initials), and the colours it is drawn with (ADMIN).\n\nAs SPHERE's ``updateAvatarColors``: a colour left out is SPHERE's default. ``avatar`` left out keeps the\ncurrent image, an upload too, so the colours change alone.",
+        "operationId": "selectOrganizationAvatar",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Revision the client last read, as given by the `ETag` of a GET or of an earlier edit: an entity-tag, a list of them, or `*` for any existing resource. Absent: the edit is applied without a revision check. Weak tags never match.",
+            "in": "header",
+            "name": "If-Match",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Revision the client last read, as given by the `ETag` of a GET or of an earlier edit: an entity-tag, a list of them, or `*` for any existing resource. Absent: the edit is applied without a revision check. Weak tags never match.",
+              "title": "If-Match"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AvatarSelection"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationView"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "ETag": {
+                "description": "Revision of the resource; send it back as `If-Match` to edit it.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`If-Match` is not a list of entity-tags or `*` (code `invalid_if_match`)."
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is a member without ADMIN (`organization_forbidden`)."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization, or the caller is not a member of it."
+          },
+          "412": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`If-Match` does not match the current revision (code `precondition_failed`): nothing was applied. The `ETag` header carries the current revision.",
+            "headers": {
+              "ETag": {
+                "description": "Revision of the resource; send it back as `If-Match` to edit it.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "`avatar_unknown` (not one of the predefined avatars) and request validation errors."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Select Organization Avatar",
+        "tags": [
+          "Organizations"
+        ],
+        "x-required-api-key-permissions": [
+          "organizations:write"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/avatar/{digest}": {
+      "get": {
+        "description": "An organization's uploaded avatar, by the organization's id and the image's digest (64 hex characters).\n\nAnybody holding the URL reads it, as SPHERE serves avatars from its static folder: the URL is in the\norganization's views, and names both the organization's id and the content. Any other digest, an image no\nlonger current included, answers 404 as a missing organization does.",
+        "operationId": "getOrganizationAvatar",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "digest",
+            "required": true,
+            "schema": {
+              "title": "Digest",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "image/jpeg": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              },
+              "image/png": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              },
+              "image/webp": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The image."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization, or the digest is not its current avatar."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          }
+        },
+        "summary": "Get Organization Avatar",
+        "tags": [
+          "Organizations"
+        ]
+      }
+    },
     "/v1/organizations/{org}/compositions": {
       "get": {
-        "description": "The organization's compositions, by name or the most recently updated first.",
+        "description": "The organization's compositions, by name, the most recently updated first, by tasks or by cost, with the\nfacets of every match.\n\nA member reads them all. Anybody else, with no credential too, reads its public compositions (public, not\narchived, with a version), redacted as a public reader's; an organization that publishes none answers as a\nmissing one, the same 404 as an unreadable composition (Q8).",
         "operationId": "listCompositions",
         "parameters": [
           {
@@ -17382,22 +20294,6 @@
             }
           },
           {
-            "description": "By `name` (the default), or the most recently `updated` first.",
-            "in": "query",
-            "name": "sort",
-            "required": false,
-            "schema": {
-              "default": "name",
-              "description": "By `name` (the default), or the most recently `updated` first.",
-              "enum": [
-                "name",
-                "updated"
-              ],
-              "title": "Sort",
-              "type": "string"
-            }
-          },
-          {
             "in": "query",
             "name": "limit",
             "required": false,
@@ -17418,6 +20314,184 @@
               "minimum": 0,
               "title": "Offset",
               "type": "integer"
+            }
+          },
+          {
+            "description": "Only these organizations (comma-separated slugs).",
+            "in": "query",
+            "name": "owners",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 2000,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only these organizations (comma-separated slugs).",
+              "title": "Owners"
+            }
+          },
+          {
+            "description": "Only these kinds (comma-separated: application, workflow, pipeline, system).",
+            "in": "query",
+            "name": "kinds",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only these kinds (comma-separated: application, workflow, pipeline, system).",
+              "title": "Kinds"
+            }
+          },
+          {
+            "description": "By `name`, the most recently `updated`, the number of `tasks` of the latest version, or its `cost` value.",
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "name",
+              "description": "By `name`, the most recently `updated`, the number of `tasks` of the latest version, or its `cost` value.",
+              "enum": [
+                "name",
+                "updated",
+                "tasks",
+                "cost"
+              ],
+              "title": "Sort",
+              "type": "string"
+            }
+          },
+          {
+            "description": "`asc` or `desc`; by default `updated` is newest first, the others ascending. A composition without the number sorts last either way.",
+            "in": "query",
+            "name": "order",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "asc",
+                    "desc"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "`asc` or `desc`; by default `updated` is newest first, the others ascending. A composition without the number sorts last either way.",
+              "title": "Order"
+            }
+          },
+          {
+            "in": "query",
+            "name": "min_tasks",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Min Tasks"
+            }
+          },
+          {
+            "in": "query",
+            "name": "max_tasks",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Max Tasks"
+            }
+          },
+          {
+            "in": "query",
+            "name": "min_providers",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Min Providers"
+            }
+          },
+          {
+            "in": "query",
+            "name": "max_providers",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Max Providers"
+            }
+          },
+          {
+            "in": "query",
+            "name": "min_cost",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Min Cost"
+            }
+          },
+          {
+            "in": "query",
+            "name": "max_cost",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Max Cost"
             }
           }
         ],
@@ -17472,6 +20546,25 @@
             },
             "description": "The request does not satisfy the contract; `diagnostics` says where."
           },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many `read` requests from this address by a caller with no credential: past the anonymous budget. A signed-in caller is not charged. `Retry-After` says when the window ends.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
           "503": {
             "content": {
               "application/problem+json": {
@@ -17489,7 +20582,8 @@
           },
           {
             "ApiKeyAuth": []
-          }
+          },
+          {}
         ],
         "summary": "List Compositions",
         "tags": [
@@ -18343,6 +21437,130 @@
         ]
       }
     },
+    "/v1/organizations/{org}/compositions/{composition}/download": {
+      "get": {
+        "description": "Every version the caller reads as one zip, as SPHERE's ``GET /public/pricings/{id}/download``: the\nstored canonical bytes, one ``{label}.yaml`` per version in a folder named after the composition. A\ncomposition with no version is 404.",
+        "operationId": "downloadCompositionVersions",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "composition",
+            "required": true,
+            "schema": {
+              "title": "Composition",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/zip": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "A zip of every version's Composition2Yaml bytes: `{slug}/{label}.yaml`."
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization or composition, or the caller cannot read it."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many `read` requests from this address by a caller with no credential: past the anonymous budget. A signed-in caller is not charged. `Retry-After` says when the window ends.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          },
+          {}
+        ],
+        "summary": "Download Composition Versions",
+        "tags": [
+          "Compositions"
+        ],
+        "x-required-api-key-permissions": [
+          "compositions:read"
+        ]
+      }
+    },
     "/v1/organizations/{org}/compositions/{composition}/evaluate": {
       "post": {
         "description": "Have the installed toolchain evaluate the binding of a version (the latest by default) with the tasks `binding` names bound to those candidates, the others as the version binds them. Nothing is stored. A binding the toolchain evaluated answers 200, `valid` false when it reports a hard violation; one it could not evaluate is 422 `evaluation_invalid`.",
@@ -18648,6 +21866,129 @@
         ],
         "x-required-api-key-permissions": [
           "compositions:write"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/compositions/{composition}/graph": {
+      "get": {
+        "description": "The composition's version graph: its lane, and one per composition a version was forked from, as\nSPHERE's ``GET /pricings/{org}/{slug}/graph``. A source the caller does not read is a lane with only the\nlabels its forks name, for members; a reader who is not a member sees no such lane.",
+        "operationId": "getCompositionGraph",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "composition",
+            "required": true,
+            "schema": {
+              "title": "Composition",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompositionGraph"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization or composition, or the caller cannot read it."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many `read` requests from this address by a caller with no credential: past the anonymous budget. A signed-in caller is not charged. `Retry-After` says when the window ends.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          },
+          {}
+        ],
+        "summary": "Get Composition Graph",
+        "tags": [
+          "Compositions"
+        ],
+        "x-required-api-key-permissions": [
+          "compositions:read"
         ]
       }
     },
@@ -19863,8 +23204,203 @@
         ]
       }
     },
+    "/v1/organizations/{org}/hierarchy": {
+      "get": {
+        "description": "The whole branch the organization sits in (its root, and everything below the root), flat and by name,\neach node saying whether the caller opens it, as SPHERE's ``GET /orgs/{id}/hierarchy``. For its members\nonly: anybody else gets 404.",
+        "operationId": "getOrganizationHierarchy",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/HierarchyNode"
+                  },
+                  "title": "Response Getorganizationhierarchy",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization, or the caller is not a member of it."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Get Organization Hierarchy",
+        "tags": [
+          "Organizations"
+        ],
+        "x-required-api-key-permissions": [
+          "organizations:read"
+        ]
+      }
+    },
     "/v1/organizations/{org}/invitations": {
+      "get": {
+        "description": "The organization's invitation codes, the newest first, used up and expired ones too (ADMIN).",
+        "operationId": "listOrganizationInvitations",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CodeInvitationView"
+                  },
+                  "title": "Response Listorganizationinvitations",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is a member without ADMIN (`organization_forbidden`)."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization, or the caller is not a member of it."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "List Invitations",
+        "tags": [
+          "Organizations"
+        ],
+        "x-required-api-key-permissions": [
+          "organizations:read"
+        ]
+      },
       "post": {
+        "description": "Invite to the organization (ADMIN).\n\nWith ``expires_in_days`` and ``max_uses`` (or an empty body): a shareable code, as SPHERE's, that joins\nwhoever holds it as MEMBER (``POST /v1/invitations/{code}/join``); a non-member gets 404. With ``email``\nand ``role``: the email invitation and its ``obi_`` token, until B8 removes them.",
         "operationId": "inviteOrganizationMember",
         "parameters": [
           {
@@ -19881,7 +23417,15 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/InvitationCreate"
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/InvitationCreate"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CodeInvitationCreate"
+                  }
+                ],
+                "title": "Payload"
               }
             }
           },
@@ -19892,7 +23436,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/InvitationCreated"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/InvitationCreated"
+                    },
+                    {
+                      "$ref": "#/components/schemas/CodeInvitationView"
+                    }
+                  ],
+                  "title": "Response Inviteorganizationmember"
                 }
               }
             },
@@ -19917,6 +23469,16 @@
               }
             },
             "description": "The caller lacks ADMIN access to the organization (code `organization_forbidden`), or the change grants OWNER or alters or removes an existing owner and the caller is not an organization owner (code `owner_role_requires_owner`)."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization, or the caller is not a member of it."
           },
           "422": {
             "content": {
@@ -19948,6 +23510,217 @@
           }
         ],
         "summary": "Invite Member",
+        "tags": [
+          "Organizations"
+        ],
+        "x-required-api-key-permissions": [
+          "organizations:write"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/invitations/invite-users": {
+      "post": {
+        "description": "Invite named users (ADMIN): one code, valid seven days, with a use for each user who is not a member\nyet, and an ``OrganizationInvitation`` notification to each of them, as SPHERE's ``inviteUsers``. A user\nwho is a member already is left out; an unknown or inactive one is 404.",
+        "operationId": "inviteUsersToOrganization",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InviteUsers"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodeInvitationView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is a member without ADMIN (`organization_forbidden`)."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization, or the caller is not a member of it."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`already_member`: every user named is a member already."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Invite Users",
+        "tags": [
+          "Organizations"
+        ],
+        "x-required-api-key-permissions": [
+          "organizations:write"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/invitations/{invitation_id}": {
+      "delete": {
+        "description": "Revoke an invitation code (ADMIN): it stops working at once.",
+        "operationId": "revokeOrganizationInvitation",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "invitation_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Invitation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is a member without ADMIN (`organization_forbidden`)."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization or invitation, or the caller is not a member."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Revoke Invitation",
         "tags": [
           "Organizations"
         ],
@@ -20143,6 +23916,7 @@
     },
     "/v1/organizations/{org}/members/{member_id}": {
       "delete": {
+        "description": "Remove a direct member (ADMIN), or leave: any member but an owner removes themselves, as in SPHERE.\n\nAn owner hands the organization over first (``PUT .../owner``); a caller who is not a member gets 404.",
         "operationId": "removeOrganizationMember",
         "parameters": [
           {
@@ -20188,6 +23962,16 @@
               }
             },
             "description": "The caller lacks ADMIN access to the organization (code `organization_forbidden`), or the change grants OWNER or alters or removes an existing owner and the caller is not an organization owner (code `owner_role_requires_owner`)."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such member, or a caller leaving is not a member."
           },
           "422": {
             "content": {
@@ -20320,6 +24104,114 @@
           }
         ],
         "summary": "Upsert Member",
+        "tags": [
+          "Organizations"
+        ],
+        "x-required-api-key-permissions": [
+          "organizations:write"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/owner": {
+      "put": {
+        "description": "Hand the organization, and everything below it, to another member, as SPHERE's ``transferOwnership``.\n\nA swap, not a promotion: the recipient takes the owner's seat and every owner seat of the branch (this\norganization and its descendants) steps down to ADMIN, the caller's too, so whoever held one keeps working\naccess. Only the owner hands it over (a direct OWNER membership here; a platform administrator has nothing\nto give), and the recipient must already be a member, here or above. One transaction, under the lock of the\norganization's row and of the branch's memberships, so a half handover never shows.",
+        "operationId": "transferOrganizationOwnership",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OwnerTransfer"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MemberView"
+                  },
+                  "title": "Response Transferorganizationownership",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`owner_transfer_requires_owner`: the caller is not this organization's owner."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization, the caller is not a member of it, or the recipient is not (code `not_found`)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "`already_owner` (the caller names themselves) and request validation errors."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Transfer Ownership",
         "tags": [
           "Organizations"
         ],
@@ -22592,6 +26484,120 @@
         ]
       }
     },
+    "/v1/organizations/{org}/profile": {
+      "get": {
+        "description": "An organization's public profile: who it is, its avatar and description, and how many compositions it\npublishes. Anybody reads the profile of an organization with a public composition (Q8); its members read\nit always. Any other caller gets the 404 of a missing organization.",
+        "operationId": "getOrganizationProfile",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicOrganizationView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization, or it shows nothing to the caller."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many `read` requests from this address by a caller with no credential: past the anonymous budget. A signed-in caller is not charged. `Retry-After` says when the window ends.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          },
+          {}
+        ],
+        "summary": "Get Organization Profile",
+        "tags": [
+          "Organizations"
+        ],
+        "x-required-api-key-permissions": [
+          "organizations:read"
+        ]
+      }
+    },
     "/v1/organizations/{org}/runs": {
       "get": {
         "description": "The organization's runs, newest first: summaries only, results load with ``getRun``.",
@@ -23674,6 +27680,7 @@
     },
     "/v1/organizations/{org}/studies": {
       "get": {
+        "description": "The organization's studies by name, paged with ``limit`` and ``offset``; the total is ``X-Total-Count``.",
         "operationId": "listStudies",
         "parameters": [
           {
@@ -23694,6 +27701,37 @@
               "title": "Include Archived",
               "type": "boolean"
             }
+          },
+          {
+            "description": "At most this many; all when absent.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 200,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "At most this many; all when absent.",
+              "title": "Limit"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -23709,7 +27747,15 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Successful Response",
+            "headers": {
+              "X-Total-Count": {
+                "description": "How many studies the caller reads in all, whatever the page.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
           },
           "401": {
             "content": {
@@ -25293,6 +29339,142 @@
         ]
       }
     },
+    "/v1/permalinks/compositions/{composition_id}": {
+      "get": {
+        "description": "Where the application shows a composition, from its permanent id (``/p/{id}?version=``).",
+        "operationId": "resolveCompositionPermalink",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "composition_id",
+            "required": true,
+            "schema": {
+              "title": "Composition Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "A version's id or label.",
+            "in": "query",
+            "name": "version",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 256,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "A version's id or label.",
+              "title": "Version"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PermanentLink"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "304": {
+            "description": "`If-None-Match` names the current answer."
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such composition, or the caller does not read it."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many `read` requests from this address by a caller with no credential: past the anonymous budget. A signed-in caller is not charged. `Retry-After` says when the window ends.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          },
+          {}
+        ],
+        "summary": "Resolve Composition Permalink",
+        "tags": [
+          "Compositions"
+        ],
+        "x-required-api-key-permissions": [
+          "compositions:read"
+        ]
+      }
+    },
     "/v1/pricing/catalog": {
       "get": {
         "description": "Return the published, digest-verified Pricing2Yaml document unchanged, as JSON.",
@@ -25341,6 +29523,98 @@
         "summary": "Current Pricing",
         "tags": [
           "Pricing"
+        ]
+      }
+    },
+    "/v1/users": {
+      "get": {
+        "description": "Active users whose username holds ``q`` (at least four characters), by username, at most twenty: their\nid, username and avatar only, never an email. What inviting users to an organization picks from.",
+        "operationId": "searchUsers",
+        "parameters": [
+          {
+            "description": "Text in the username.",
+            "in": "query",
+            "name": "q",
+            "required": true,
+            "schema": {
+              "description": "Text in the username.",
+              "maxLength": 64,
+              "minLength": 4,
+              "title": "Q",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/UserRef"
+                  },
+                  "title": "Response Searchusers",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No usable credential was supplied."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Find users by username",
+        "tags": [
+          "Users"
+        ],
+        "x-required-api-key-permissions": [
+          "organizations:read"
         ]
       }
     },
@@ -25981,6 +30255,319 @@
         ]
       }
     },
+    "/v1/users/me/compositions": {
+      "get": {
+        "description": "The compositions the caller reads as a member, across every organization they hold a role in (directly or\nthrough an ancestor), as SPHERE's ``/me/pricings``; ``owners`` narrows them to some of those organizations.",
+        "operationId": "listOwnCompositions",
+        "parameters": [
+          {
+            "description": "Text in the name or the slug.",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 160,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Text in the name or the slug.",
+              "title": "Q"
+            }
+          },
+          {
+            "description": "Only archived (`true`) or only active (`false`) ones.",
+            "in": "query",
+            "name": "archived",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only archived (`true`) or only active (`false`) ones.",
+              "title": "Archived"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Only these organizations (comma-separated slugs).",
+            "in": "query",
+            "name": "owners",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 2000,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only these organizations (comma-separated slugs).",
+              "title": "Owners"
+            }
+          },
+          {
+            "description": "Only these kinds (comma-separated: application, workflow, pipeline, system).",
+            "in": "query",
+            "name": "kinds",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only these kinds (comma-separated: application, workflow, pipeline, system).",
+              "title": "Kinds"
+            }
+          },
+          {
+            "description": "By `name`, the most recently `updated`, the number of `tasks` of the latest version, or its `cost` value.",
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "name",
+              "description": "By `name`, the most recently `updated`, the number of `tasks` of the latest version, or its `cost` value.",
+              "enum": [
+                "name",
+                "updated",
+                "tasks",
+                "cost"
+              ],
+              "title": "Sort",
+              "type": "string"
+            }
+          },
+          {
+            "description": "`asc` or `desc`; by default `updated` is newest first, the others ascending. A composition without the number sorts last either way.",
+            "in": "query",
+            "name": "order",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "asc",
+                    "desc"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "`asc` or `desc`; by default `updated` is newest first, the others ascending. A composition without the number sorts last either way.",
+              "title": "Order"
+            }
+          },
+          {
+            "in": "query",
+            "name": "min_tasks",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Min Tasks"
+            }
+          },
+          {
+            "in": "query",
+            "name": "max_tasks",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Max Tasks"
+            }
+          },
+          {
+            "in": "query",
+            "name": "min_providers",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Min Providers"
+            }
+          },
+          {
+            "in": "query",
+            "name": "max_providers",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Max Providers"
+            }
+          },
+          {
+            "in": "query",
+            "name": "min_cost",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Min Cost"
+            }
+          },
+          {
+            "in": "query",
+            "name": "max_cost",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Max Cost"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompositionList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No usable credential was supplied."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "List Own Compositions",
+        "tags": [
+          "Compositions"
+        ],
+        "x-required-api-key-permissions": [
+          "compositions:read"
+        ]
+      }
+    },
     "/v1/users/me/identities": {
       "get": {
         "operationId": "listOwnIdentities",
@@ -26203,6 +30790,213 @@
         ],
         "x-required-api-key-permissions": [
           "account:read"
+        ]
+      }
+    },
+    "/v1/users/me/settings/beta-features": {
+      "get": {
+        "operationId": "getBetaFeatures",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BetaFeatures"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "ETag": {
+                "description": "Revision of the resource; send it back as `If-Match` to edit it.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No usable credential was supplied."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Whether the account opted into beta features",
+        "tags": [
+          "Users"
+        ],
+        "x-required-api-key-permissions": [
+          "account:read"
+        ]
+      },
+      "put": {
+        "description": "Opt into or out of the beta features, as SPHERE's ``PUT /users/me/settings/beta-features``. The revision\nis the account row's, shared with the profile and the notification preferences.",
+        "operationId": "updateBetaFeatures",
+        "parameters": [
+          {
+            "description": "Revision the client last read, as given by the `ETag` of a GET or of an earlier edit: an entity-tag, a list of them, or `*` for any existing resource. Absent: the edit is applied without a revision check. Weak tags never match.",
+            "in": "header",
+            "name": "If-Match",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Revision the client last read, as given by the `ETag` of a GET or of an earlier edit: an entity-tag, a list of them, or `*` for any existing resource. Absent: the edit is applied without a revision check. Weak tags never match.",
+              "title": "If-Match"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BetaFeatures"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BetaFeatures"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "ETag": {
+                "description": "Revision of the resource; send it back as `If-Match` to edit it.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`If-Match` is not a list of entity-tags or `*` (code `invalid_if_match`)."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No usable credential was supplied."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "412": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`If-Match` does not match the current revision (code `precondition_failed`): nothing was applied. The `ETag` header carries the current revision.",
+            "headers": {
+              "ETag": {
+                "description": "Revision of the resource; send it back as `If-Match` to edit it.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Opt into or out of beta features",
+        "tags": [
+          "Users"
+        ],
+        "x-required-api-key-permissions": [
+          "account:write"
         ]
       }
     },

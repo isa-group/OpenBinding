@@ -468,6 +468,10 @@ COMPOSITION = "/v1/organizations/{org}/compositions/{composition}"
 #: one composition 404 (nothing is there), the list of every organization's 200 (empty).
 ANONYMOUS_REQUESTS = {
     ("GET", "/v1/compositions"): ("/v1/compositions", 200),
+    ("GET", "/v1/organizations/public"): ("/v1/organizations/public", 200),
+    ("GET", "/v1/organizations/{org}/compositions"): ("/v1/organizations/no-such-org/compositions", 404),
+    ("GET", "/v1/organizations/{org}/profile"): ("/v1/organizations/no-such-org/profile", 404),
+    ("GET", "/v1/invitations/{code}/preview"): ("/v1/invitations/0000000000000000/preview", 404),
     ("GET", COMPOSITION): ("/v1/organizations/{org}/compositions/none", 404),
     ("GET", f"{COMPOSITION}/versions"): ("/v1/organizations/{org}/compositions/none/versions", 404),
     ("GET", f"{COMPOSITION}/versions/{{version}}"): ("/v1/organizations/{org}/compositions/none/versions/1", 404),
@@ -475,6 +479,11 @@ ANONYMOUS_REQUESTS = {
         "/v1/organizations/{org}/compositions/none/versions/1/content", 404,
     ),
     ("GET", f"{COMPOSITION}/diff"): ("/v1/organizations/{org}/compositions/none/diff", 404),
+    ("GET", f"{COMPOSITION}/graph"): ("/v1/organizations/{org}/compositions/none/graph", 404),
+    ("GET", f"{COMPOSITION}/download"): ("/v1/organizations/{org}/compositions/none/download", 404),
+    ("GET", "/v1/permalinks/compositions/{composition_id}"): (
+        "/v1/permalinks/compositions/00000000-0000-0000-0000-000000000000", 404,
+    ),
 }
 
 

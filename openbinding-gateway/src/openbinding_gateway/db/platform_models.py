@@ -122,6 +122,13 @@ class Organization(Base):
     )
     slug: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False)
     name: Mapped[str] = mapped_column(String(160), nullable=False)
+    description: Mapped[str] = mapped_column(String(500), nullable=False, default="", server_default="")
+    #: The organization's image: one of the predefined avatars (its file name, ``avatar-3.svg``), or the
+    #: ``sha256-`` digest of an uploaded image kept as a blob of the organization; null for the initials.
+    avatar: Mapped[Optional[str]] = mapped_column(String(80), nullable=True)
+    #: The colours the avatar (or the initials) is drawn with, ``#rgb`` or ``#rrggbb``.
+    avatar_bg_color: Mapped[Optional[str]] = mapped_column(String(7), nullable=True)
+    avatar_fg_color: Mapped[Optional[str]] = mapped_column(String(7), nullable=True)
     created_by_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
     )
@@ -171,6 +178,35 @@ class OrganizationInvitation(Base):
     accepted_by_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
+    )
+
+
+class OrganizationInvitationCode(Base):
+    """A shareable invitation to an organization, as SPHERE's: whoever holds the code joins as MEMBER.
+
+    It may expire and may be used a bounded number of times (``use_count`` against ``max_uses``); an
+    invitation to named users (``invite-users``) is a code with as many uses as users, sent to each of them.
+    """
+
+    __tablename__ = "organization_invitation_codes"
+    __table_args__ = (
+        CheckConstraint("use_count >= 0", name="invitation_code_use_count_nonnegative"),
+        CheckConstraint("max_uses IS NULL OR max_uses > 0", name="invitation_code_max_uses_positive"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    code: Mapped[str] = mapped_column(String(32), unique=True, index=True, nullable=False)
+    created_by_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    max_uses: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    use_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
     )
@@ -362,6 +398,24 @@ class Composition(Base):
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow, server_default=func.now()
+    )
+
+
+class CompositionFollow(Base):
+    """A user following a composition: each version sealed later tells them (``CompositionUpdated``)."""
+
+    __tablename__ = "composition_follows"
+    __table_args__ = (UniqueConstraint("user_id", "composition_id", name="uq_composition_follows_user_composition"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    composition_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("compositions.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
     )
 
 
@@ -707,6 +761,27 @@ class Notification(Base):
     read_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now(), index=True
+    )
+
+
+class NotificationStreamTicket(Base):
+    """A single-use ticket that opens a user's notification stream (``GET /v1/notifications/stream``).
+
+    An ``EventSource`` sends no ``Authorization`` header, and an access token in a URL would be logged by every
+    proxy on the way, so the stream takes a ticket instead: minted by a signed-in request, kept as a hash, valid
+    for a minute, and deleted when the stream opens.
+    """
+
+    __tablename__ = "notification_stream_tickets"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    ticket_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
     )
 
 

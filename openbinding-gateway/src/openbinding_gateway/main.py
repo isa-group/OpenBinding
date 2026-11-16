@@ -55,6 +55,9 @@ from .models.problem import (
     validation_diagnostics,
 )
 from .modules.compositions.adapters.language_routes import router as composition_language_router
+from .modules.compositions.adapters.link_routes import follow_router as composition_follow_router
+from .modules.compositions.adapters.link_routes import permalink_router as composition_permalink_router
+from .modules.compositions.adapters.public_routes import me_router as own_compositions_router
 from .modules.compositions.adapters.public_routes import router as public_compositions_router
 from .modules.compositions.adapters.routes import router as compositions_router
 from .modules.execution.adapters.preset_routes import router as run_presets_router
@@ -65,7 +68,7 @@ from .routes.admin import router as admin_router
 from .routes.auth import router as auth_router
 from .routes.cas import identity_router, router as cas_router
 from .routes.notifications import router as notifications_router
-from .routes.organizations import invitation_router, router as organizations_router
+from .routes.organizations import avatar_router, invitation_router, router as organizations_router
 from .routes.pricing import public_router as pricing_router
 from .routes.studies import router as studies_router
 from .routes.users import router as users_router
@@ -431,12 +434,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(pricing_router)
     app.include_router(organizations_router)
     app.include_router(invitation_router)
+    app.include_router(avatar_router)
     app.include_router(studies_router)
     app.include_router(problems_router)
     app.include_router(compositions_router)
     app.include_router(bim_router)
     app.include_router(composition_language_router)
     app.include_router(public_compositions_router)
+    app.include_router(own_compositions_router)
+    app.include_router(composition_permalink_router)
+    app.include_router(composition_follow_router)
     app.include_router(runs_router)
     app.include_router(run_presets_router)
     app.include_router(notifications_router)

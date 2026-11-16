@@ -58,6 +58,7 @@ class ProblemView(BaseModel):
     created_at: datetime
     updated_at: datetime
     latest_revision: Optional[LatestRevision] = None
+    revision_count: int = Field(default=0, ge=0, description="How many revisions the problem has.")
 
 
 class ProblemList(BaseModel):

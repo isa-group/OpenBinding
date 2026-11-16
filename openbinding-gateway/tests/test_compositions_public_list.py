@@ -136,8 +136,9 @@ async def test_the_list_holds_the_public_compositions_of_every_organization(
     assert rows["menu"]["latest_version"]["verified"] is False
     # No id of any kind: no member, composition, organization or version id.
     assert account["id"] not in listed.text and str(linked.organization.id) not in listed.text
-    # The organizations' own lists stay for their members.
-    assert (await api_client.get(f"/v1/organizations/{first}/compositions", headers=other)).status_code == 404
+    # An organization's own list shows anybody else its public compositions only (F2c G6).
+    theirs = await api_client.get(f"/v1/organizations/{first}/compositions", headers=other)
+    assert theirs.status_code == 200 and [row["slug"] for row in theirs.json()["compositions"]] == ["shop"]
 
 
 async def test_the_list_filters_pages_and_puts_the_latest_change_first(

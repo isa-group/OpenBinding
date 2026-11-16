@@ -42,7 +42,8 @@ must not be used to imply an endorsement.
 
 ## Code ported from SPHERE
 
-Eight files port SPHERE code at revision `73779a8a`, and each names its origin in its header. A ported test is
+The files below port SPHERE code at revision `73779a8a`, and each names its origin in its header (the SVGs, which
+cannot carry one, are named here). A ported test is
 listed with its module:
 
 | File | SPHERE origin |
@@ -55,6 +56,14 @@ listed with its module:
 | `frontend/src/shared/sphere/composition-fragment.ts`, with its test `composition-fragment.test.ts` | `frontend/src/modules/pricing-editor/services/pricing-fragment.ts`, the encoder of `frontend/src/modules/pricing-editor/services/export.service.ts` and `frontend/test/pricing-fragment.test.ts` (adapted: the `#composition=` fragment) |
 | `frontend/src/features/composition-editor/NewVersionMenu.tsx` | `frontend/src/modules/pricing/components/new-version-menu/index.tsx` (adapted: the outside-click, Escape and `role=menu` logic kept; the Composition2Yaml editor's options and OpenBinding's markup) |
 | `frontend/src/widgets/change-summary/useVersionChanges.ts`, with its test `useVersionChanges.test.ts` | `frontend/src/modules/pricing/components/pricing-version-graph/use-version-changes.ts` and `use-version-changes.test.tsx` (adapted: the 150 ms delay, the cache keyed by credential and version pair, the retry and the stale guard kept; the gateway's diff instead of both YAML files; the test on `renderHook`) |
+| `openbinding-gateway/src/openbinding_gateway/services/organizations.py` | `api/src/main/utils/slug-manager.ts` (`generateSlug`, `deduplicateSlug`), `api/src/main/config/defaultAvatars.ts` (the predefined avatars, the colour check) and `api/src/main/services/OrganizationService.ts` (`updateAvatar`, `removeAvatar`, the default colours) (adapted: accents folded, reserved slugs never derived, uploads kept as blobs) |
+| `openbinding-gateway/src/openbinding_gateway/static/avatars/avatar-*.svg` | `api/public/static/avatars/users/default/avatar-*.svg` (copied verbatim) |
+| `openbinding-gateway/src/openbinding_gateway/routes/organizations.py` (the public, profile, hierarchy, invitation-code and ownership routes) | `api/src/main/services/OrganizationService.ts` (`indexPublicRoots`, `getHierarchy`, `createInvitation`, `previewInvitation`, `joinViaInvitation`, `inviteUsersToOrganization`, `transferOwnership`, `removeMember`) and `api/src/main/routes/OrganizationRoutes.ts` (adapted: one transaction, 404 for non-readers, public profiles only with a public composition) |
+| `openbinding-gateway/src/openbinding_gateway/routes/notifications.py` and `openbinding-gateway/src/openbinding_gateway/modules/shared/application/notifications.py` | `api/src/main/controllers/NotificationController.ts`, `api/src/main/routes/NotificationRoutes.ts` and `api/src/main/services/NotificationService.ts` (adapted: the kinds, the per-kind channels, the unread count and the stream's events kept; a single-use ticket instead of the access token in the stream's URL, the stream reading committed rows instead of an in-process client map, deleting only one's own notifications) |
+| `openbinding-gateway/src/openbinding_gateway/modules/compositions/application/listing.py` | `api/src/main/repositories/mongoose/aggregators/pricings/filters-data-generator.ts` (adapted: the ten-bucket histogram up to the 80th percentile kept; facets over every match, each ignoring its own filter, and a value equal to the percentile counted) |
+| `openbinding-gateway/src/openbinding_gateway/modules/compositions/application/graph.py` | `api/src/main/services/PricingService.ts` (`graph`, `_graphLane`, `_unavailableSourceLane`, `GRAPH_MAX_LANES`) (adapted: composition lanes; no unavailable lane, and no edge to it, for a reader who is not a member) |
+| `openbinding-gateway/src/openbinding_gateway/modules/compositions/application/follows.py` | `api/src/main/services/PricingFollowService.ts` (adapted: a reader of the composition follows it; a new version tells every follower who still reads it, skipping the author) |
+| `openbinding-gateway/src/openbinding_gateway/modules/compositions/adapters/link_routes.py` | `api/src/main/routes/PermanentLinkRoutes.ts`, `api/src/main/services/PermanentLinkService.ts` (`resolve`, `archiveName`) and `api/src/main/routes/PricingFollowRoutes.ts` (adapted: the ETag, `Vary` and the one 404 kept; `private, no-store` for every caller; a version named by id or label) |
 
 SPHERE's licence, verbatim:
 

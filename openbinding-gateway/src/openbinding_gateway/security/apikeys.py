@@ -90,6 +90,8 @@ UNCLASSIFIED_ROUTE_PERMISSION = "route:unclassified"
 OPEN_V1_PREFIXES = (
     "/v1/auth",
     "/v1/bim/templates",
+    # The predefined avatars: static SVGs an ``<img>`` loads with no credential.
+    "/v1/avatars",
 )
 OPEN_V1_GET_PATHS = frozenset({
     "/v1/engines/protocol",
@@ -348,6 +350,12 @@ def required_permissions(path: str, method: str) -> frozenset[str]:
         )
     if path == "/v1/auth/cas/link-intent":
         return frozenset({ApiKeyPermission.ACCOUNT_WRITE.value})
+    if path == "/v1/users":
+        # Finding users by username, to invite them to an organization.
+        return frozenset({ApiKeyPermission.ORGANIZATIONS_READ.value})
+    if path.startswith("/v1/users/me/compositions"):
+        # The caller's compositions across their organizations: a read of compositions.
+        return frozenset({ApiKeyPermission.COMPOSITIONS_READ.value})
     if path.startswith("/v1/users/me"):
         return frozenset(
             {ApiKeyPermission.ACCOUNT_READ.value}
@@ -403,6 +411,10 @@ def required_permissions(path: str, method: str) -> frozenset[str]:
         return frozenset({ApiKeyPermission.NOTIFICATIONS_READ.value})
     if path.startswith("/v1/pricing"):
         return frozenset({ApiKeyPermission.PRICING_READ.value})
+    if path.startswith(("/v1/permalinks/compositions", "/v1/composition-follows")):
+        # Resolving a composition's permanent link, and following one: reads of compositions (a follow writes
+        # nothing of the composition, as SPHERE keeps it out of the pricing write path).
+        return frozenset({ApiKeyPermission.COMPOSITIONS_READ.value})
     if path == "/v1/compositions" and method == "GET":
         # The public compositions of every organization: a read of compositions, open to visitors too.
         return frozenset({ApiKeyPermission.COMPOSITIONS_READ.value})

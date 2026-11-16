@@ -21,35 +21,124 @@ SLUG = r"^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$"
 DIGEST = r"^sha256-[0-9a-f]{64}$"
 
 
-#: Organization slugs that would collide with a fixed place of the application (``/app/<slug>``) or a
-#: section under an organization; the frontend mirrors them in ``PlatformShell/workspacePath.ts``.
+#: Organization slugs that would collide with a fixed place of the application (``/app/<slug>``, and the
+#: static children ``/orgs/new`` and ``/orgs/join/:code``) or a section under an organization; the frontend
+#: mirrors them in ``PlatformShell/workspacePath.ts``. A slug derived from a name never takes one either, and
+#: ``public`` would shadow ``GET /v1/organizations/public``.
 RESERVED_ORGANIZATION_SLUGS = frozenset({
     "admin", "account", "engines", "organizations", "invitations",
-    "compositions", "presets", "runs", "problems", "studies", "settings", "problem-editor", "new",
+    "compositions", "presets", "runs", "problems", "studies", "settings", "problem-editor", "new", "join",
+    "public",
 })
+
+#: A colour the avatar pickers produce: ``#rgb`` or ``#rrggbb``.
+HEX_COLOR = r"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$"
+
+Role = Literal["OWNER", "ADMIN", "MEMBER", "VIEWER"]
 
 
 class OrganizationCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    slug: str = Field(..., pattern=SLUG)
+    #: Absent: derived from the name and made unique with a suffix, as SPHERE does.
+    slug: Optional[str] = Field(default=None, pattern=SLUG)
     name: str = Field(..., min_length=1, max_length=160)
+    description: str = Field(default="", max_length=500)
     parent_id: Optional[uuid.UUID] = None
 
 
 class OrganizationUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
     name: Optional[str] = Field(default=None, min_length=1, max_length=160)
+    description: Optional[str] = Field(default=None, max_length=500)
     parent_id: Optional[uuid.UUID] = None
     move_to_root: bool = False
+
+
+class OrganizationStats(BaseModel):
+    """What an organization holds: its direct members and sub-organizations, and its own resources."""
+
+    members: int
+    sub_organizations: int
+    compositions: int
+    problems: int
+    runs: int
+    studies: int
+
+
+class OrganizationAvatar(BaseModel):
+    """How an organization is drawn: an image URL (a predefined avatar or an upload) and its colours.
+
+    ``url`` is a path of the gateway (``/v1/avatars/avatar-3.svg``, ``/v1/organizations/{id}/avatar/{digest}``),
+    null for the initials. A predefined avatar is drawn in ``fg_color`` over ``bg_color``.
+    """
+
+    url: Optional[str] = None
+    kind: Optional[Literal["predefined", "upload"]] = None
+    bg_color: Optional[str] = None
+    fg_color: Optional[str] = None
+
+
+class OrganizationRef(BaseModel):
+    id: uuid.UUID
+    slug: str
+    name: str
 
 
 class OrganizationView(BaseModel):
     id: uuid.UUID
     slug: str
     name: str
+    description: str = ""
+    avatar: OrganizationAvatar = Field(default_factory=OrganizationAvatar)
     parent_id: Optional[uuid.UUID]
-    effective_role: Optional[Literal["OWNER", "ADMIN", "MEMBER", "VIEWER"]] = None
+    effective_role: Optional[Role] = None
+    #: The organization whose membership gives ``effective_role``: this one, or an ancestor (``tree=true``).
+    role_source: Optional[OrganizationRef] = None
+    stats: Optional[OrganizationStats] = None
+    #: The sub-organizations the caller holds a role in, by name (``tree=true`` only).
+    children: Optional[list["OrganizationView"]] = None
     created_at: datetime
+
+
+class PublicOrganizationView(BaseModel):
+    """What anybody reads of an organization with a public composition: who it is and what it publishes."""
+
+    id: uuid.UUID
+    slug: str
+    name: str
+    description: str
+    avatar: OrganizationAvatar
+    public_compositions: int
+
+
+class PublicOrganizationList(BaseModel):
+    items: list[PublicOrganizationView]
+    total: int
+
+
+class HierarchyNode(BaseModel):
+    """One organization of a branch (``GET /v1/organizations/{org}/hierarchy``), and whether the caller opens it."""
+
+    id: uuid.UUID
+    slug: str
+    name: str
+    avatar: OrganizationAvatar
+    parent_id: Optional[uuid.UUID]
+    has_access: bool
+    effective_role: Optional[Role] = None
+
+
+class AvatarSelection(BaseModel):
+    """A predefined avatar, or none (the initials), and the colours to draw it with."""
+
+    model_config = ConfigDict(extra="forbid")
+    avatar: Optional[str] = Field(
+        default=None, max_length=80,
+        description="A predefined avatar's file name (`GET /v1/avatars`), or null for the initials. Absent "
+        "keeps the current image.",
+    )
+    bg_color: Optional[str] = Field(default=None, pattern=HEX_COLOR)
+    fg_color: Optional[str] = Field(default=None, pattern=HEX_COLOR)
 
 
 class MemberUpsert(BaseModel):
@@ -64,6 +153,13 @@ class MemberView(MemberUpsert):
     username: Optional[str] = None
     email: Optional[EmailStr] = None
     created_at: datetime
+
+
+class OwnerTransfer(BaseModel):
+    """Who takes the organization over: a member, here or above."""
+
+    model_config = ConfigDict(extra="forbid")
+    user_id: uuid.UUID
 
 
 class MemberBatchChange(BaseModel):
@@ -103,6 +199,57 @@ class InvitationCreated(BaseModel):
 
 class InvitationAccept(BaseModel):
     token: str = Field(..., min_length=32)
+
+
+class CodeInvitationCreate(BaseModel):
+    """A shareable invitation code (SPHERE's ``createInvitation``): whoever holds it joins as MEMBER."""
+
+    model_config = ConfigDict(extra="forbid")
+    expires_in_days: Optional[int] = Field(
+        default=7, ge=1, le=365, description="Days the code is valid for; null for a code that never expires.",
+    )
+    max_uses: Optional[int] = Field(default=None, ge=1, le=10_000, description="How many may join with it; null for any.")
+
+
+class UserRef(BaseModel):
+    """A user as another user may see them: never an email."""
+
+    id: uuid.UUID
+    username: str
+    avatar: Optional[str] = Field(default=None, description="The user's avatar URL; none yet (Identity, F5).")
+
+
+class CodeInvitationView(BaseModel):
+    id: uuid.UUID
+    organization_id: uuid.UUID
+    code: str
+    created_by: Optional[UserRef]
+    expires_at: Optional[datetime]
+    max_uses: Optional[int]
+    use_count: int
+    created_at: datetime
+
+
+class InviteUsers(BaseModel):
+    """Invite named users: one code with a use for each, and a notification to each of them."""
+
+    model_config = ConfigDict(extra="forbid")
+    user_ids: list[uuid.UUID] = Field(..., min_length=1, max_length=50)
+
+    @model_validator(mode="after")
+    def unique_users(self) -> "InviteUsers":
+        if len(set(self.user_ids)) != len(self.user_ids):
+            raise ValueError("Each user may appear only once.")
+        return self
+
+
+class InvitationPreview(BaseModel):
+    """What a code invites to, before joining (``GET /v1/invitations/{code}/preview``)."""
+
+    code: str
+    organization: "PublicOrganizationView"
+    expires_at: Optional[datetime]
+    invited_by: Optional[UserRef]
 
 
 def study_preset_ref(engine: Mapping[str, Any]) -> str | None:

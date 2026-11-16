@@ -365,7 +365,6 @@ async def test_every_other_route_stays_for_members(api_client, registration, db_
         await api_client.post(f"{base}/derive", headers=outsider, json={"run": str(run.id), "version": "9.0.0"}),
         await api_client.post(f"{base}/versions/1/evaluations", headers=outsider),
         await api_client.patch(base, headers=outsider, json={"name": "Mine"}),
-        await api_client.get(owner.compositions, headers=outsider),
     ]
     for answer in answers:
         assert answer.status_code == 404 and code(answer) == "not_found", answer.text

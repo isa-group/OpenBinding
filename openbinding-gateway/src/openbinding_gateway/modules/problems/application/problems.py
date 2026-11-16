@@ -132,6 +132,18 @@ async def latest_revisions(session: AsyncSession, problem_ids: list[uuid.UUID]) 
     return {row.binding_case_id: row for row in rows}
 
 
+async def revision_counts(session: AsyncSession, problem_ids: list[uuid.UUID]) -> dict[uuid.UUID, int]:
+    """How many revisions each problem has, in one query."""
+    if not problem_ids:
+        return {}
+    rows = await session.execute(
+        select(BindingCaseRevision.binding_case_id, func.count(BindingCaseRevision.id))
+        .where(BindingCaseRevision.binding_case_id.in_(problem_ids))
+        .group_by(BindingCaseRevision.binding_case_id)
+    )
+    return {problem_id: int(count) for problem_id, count in rows.all()}
+
+
 def latest_origin_is(origin: str) -> ColumnElement[bool]:
     """A condition on ``BindingCase``: its latest revision came from ``origin``."""
     newest = (

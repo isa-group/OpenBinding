@@ -5,7 +5,8 @@ from __future__ import annotations
 import secrets
 import uuid
 
-from fastapi import APIRouter, Depends, Request, Response, status
+from fastapi import APIRouter, Depends, Query, Request, Response, status
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy import delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -28,6 +29,8 @@ from ..models.accounts import (
     UsageView,
     UserProfile,
 )
+from ..core.like import LIKE_ESCAPE, like_contains
+from ..models.platform import UserRef
 from ..models.errors import (
     CONFLICT_RESPONSE,
     ErrorResponse,
@@ -104,6 +107,80 @@ async def profile_of(session: AsyncSession, user: User) -> UserProfile:
         created_at=user.created_at,
         cas_verified=cas_verified,
     )
+
+
+class BetaFeatures(BaseModel):
+    """Whether the account sees the features still behind SPHERE's BetaGate."""
+
+    model_config = ConfigDict(extra="forbid")
+    enabled: bool = False
+
+
+@router.get(
+    "/me/settings/beta-features",
+    response_model=BetaFeatures,
+    operation_id="getBetaFeatures",
+    summary="Whether the account opted into beta features",
+    responses={**revision.ETAG_RESPONSE, 401: UNAUTHORIZED_RESPONSE},
+)
+async def get_beta_features(response: Response, user: User = Depends(get_current_user)) -> BetaFeatures:
+    revision.set_etag(response, user)
+    return BetaFeatures(enabled=bool((user.preferences or {}).get("beta_features", False)))
+
+
+@router.put(
+    "/me/settings/beta-features",
+    response_model=BetaFeatures,
+    operation_id="updateBetaFeatures",
+    summary="Opt into or out of beta features",
+    responses={**revision.EDIT_RESPONSES, 401: UNAUTHORIZED_RESPONSE},
+)
+async def update_beta_features(
+    payload: BetaFeatures,
+    response: Response,
+    if_match: str | None = revision.IF_MATCH_HEADER,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> BetaFeatures:
+    """Opt into or out of the beta features, as SPHERE's ``PUT /users/me/settings/beta-features``. The revision
+    is the account row's, shared with the profile and the notification preferences."""
+    await revision.guard(session, user, if_match)
+    user.preferences = {**(user.preferences or {}), "beta_features": payload.enabled}
+    await session.flush()
+    await session.refresh(user, ["updated_at"])
+    revision.set_etag(response, user)
+    return payload
+
+
+#: The shortest text a user search takes, and the most users it answers (SPHERE's user search).
+USER_SEARCH_MIN = 4
+USER_SEARCH_LIMIT = 20
+
+
+@router.get(
+    "",
+    response_model=list[UserRef],
+    operation_id="searchUsers",
+    summary="Find users by username",
+    responses={401: UNAUTHORIZED_RESPONSE},
+)
+async def search_users(
+    q: str = Query(..., min_length=USER_SEARCH_MIN, max_length=64, description="Text in the username."),
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> list[UserRef]:
+    """Active users whose username holds ``q`` (at least four characters), by username, at most twenty: their
+    id, username and avatar only, never an email. What inviting users to an organization picks from."""
+    pattern = like_contains(q.strip())
+    rows = (await session.scalars(
+        select(User).where(
+            User.username.ilike(pattern, escape=LIKE_ESCAPE),
+            User.is_active.is_(True),
+            User.deleted_at.is_(None),
+            User.id != user.id,
+        ).order_by(User.username).limit(USER_SEARCH_LIMIT)
+    )).all()
+    return [UserRef(id=row.id, username=row.username) for row in rows]
 
 
 @router.get(

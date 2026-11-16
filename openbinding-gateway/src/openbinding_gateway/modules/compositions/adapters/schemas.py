@@ -211,6 +211,42 @@ class CompositionView(BaseModel):
     updated_at: datetime
 
 
+class OwnerFacet(BaseModel):
+    """An organization of a list's matches, and how many of them it holds."""
+
+    slug: str
+    name: str
+    count: int
+
+
+class HistogramBucket(BaseModel):
+    value: str = Field(description="`a-b` (from a, up to b) or `p+` (p and above), as SPHERE's slider histograms.")
+    count: int
+
+
+class RangeFacet(BaseModel):
+    """A number of a list's matches: its extent and SPHERE's ten-bucket histogram; nulls when none has it."""
+
+    min: Optional[float] = None
+    max: Optional[float] = None
+    data: list[HistogramBucket] = Field(default_factory=list)
+
+
+class RangeFacets(BaseModel):
+    tasks: RangeFacet
+    providers: RangeFacet
+    cost: RangeFacet
+
+
+class CompositionFacets(BaseModel):
+    """What every match of a list (not one page) holds: its organizations and the extent of its numbers, each
+    facet ignoring its own filter. From what each latest version stored: its analytics' `tasks` and `providers`,
+    and the `cost` value of its latest evaluation."""
+
+    owners: list[OwnerFacet]
+    ranges: RangeFacets
+
+
 class CompositionList(BaseModel):
     """One page of an organization's compositions, and how many match in all."""
 
@@ -218,6 +254,7 @@ class CompositionList(BaseModel):
     total: int
     limit: int
     offset: int
+    facets: Optional[CompositionFacets] = None
 
 
 class PublicCompositionOrganization(BaseModel):
@@ -258,6 +295,7 @@ class PublicCompositionList(BaseModel):
     total: int
     limit: int
     offset: int
+    facets: Optional[CompositionFacets] = None
 
 
 # -- Versions and their evaluations ----------------------------------------------------------------------
@@ -723,3 +761,57 @@ class DeriveDraft(BaseModel):
     document: dict[str, Any] = Field(description="The same document, as JSON.")
     values: dict[str, ValueView] = Field(description="The values the toolchain computed for the binding.")
     diagnostics: list[CompositionDiagnosticView] = Field(description="Every warning and info, located in `content`.")
+
+
+# -- Graph, follows and permanent links ------------------------------------------------------------------
+
+
+class GraphEdge(BaseModel):
+    """The version a version was forked from."""
+
+    composition_id: uuid.UUID
+    version_id: Optional[uuid.UUID] = None
+    label: Optional[str] = None
+
+
+class GraphVersion(BaseModel):
+    id: Optional[uuid.UUID] = Field(description="Null on an unavailable lane, which knows only labels.")
+    label: str
+    created_at: Optional[datetime] = None
+    forked_from: Optional[GraphEdge] = None
+
+
+class GraphOrganization(BaseModel):
+    id: Optional[uuid.UUID] = None
+    slug: Optional[str] = None
+    name: Optional[str] = None
+
+
+class GraphLane(BaseModel):
+    """A composition of the graph: this one (`current`) or one a version was forked from (`source`)."""
+
+    role: Literal["current", "source"]
+    available: bool = Field(description="False for a source the caller does not read: only what its forks name.")
+    composition_id: uuid.UUID
+    organization: Optional[GraphOrganization] = None
+    slug: Optional[str] = None
+    name: Optional[str] = None
+    versions: list[GraphVersion]
+
+
+class CompositionGraph(BaseModel):
+    """The version graph of a composition, as SPHERE's pricing version graph: newest versions first."""
+
+    lanes: list[GraphLane]
+    truncated: bool = Field(description="More source lanes exist than were drawn (at most 20).")
+
+
+class FollowState(BaseModel):
+    following: bool
+
+
+class PermanentLink(BaseModel):
+    location: str = Field(
+        description="The application path of the composition (`/compositions/{org}/{composition}`), with "
+        "`?version=` when the link names a version the caller reads.",
+    )

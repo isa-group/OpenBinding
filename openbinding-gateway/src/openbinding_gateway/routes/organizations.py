@@ -1,4 +1,12 @@
-"""Organization trees, members and invitations. Problems are ``modules.problems``."""
+"""Organization trees, members and invitations. Problems are ``modules.problems``.
+
+The profile, public, hierarchy, invitation-code and ownership routes are adapted from SPHERE (SCORELabUS/SPHERE,
+MIT licence, revision 73779a8a), ``api/src/main/services/OrganizationService.ts`` (``indexPublicRoots``,
+``getHierarchy``, ``createInvitation``, ``previewInvitation``, ``joinViaInvitation``, ``inviteUsersToOrganization``,
+``transferOwnership``, ``removeMember``) and ``api/src/main/routes/OrganizationRoutes.ts``, with OpenBinding's
+rules: one transaction instead of SPHERE's undo list, 404 for whoever cannot read an organization, and a public
+profile only for an organization with a public composition.
+"""
 
 from __future__ import annotations
 
@@ -8,7 +16,8 @@ import secrets
 import uuid
 from datetime import timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
+from fastapi.responses import FileResponse
 from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -28,10 +37,12 @@ from ..db.models import (
     Composition,
     CompositionDerivation,
     CompositionEvaluation,
+    CompositionFollow,
     CompositionVersion,
     Job,
     Organization,
     OrganizationInvitation,
+    OrganizationInvitationCode,
     OrganizationMembership,
     OrganizationRole,
     ProblemCompilation,
@@ -44,6 +55,17 @@ from ..db.models import (
 from ..core import revision
 from ..models.errors import ErrorResponse, api_error
 from ..models.platform import (
+    AvatarSelection,
+    CodeInvitationCreate,
+    CodeInvitationView,
+    InvitationPreview,
+    InviteUsers,
+    OwnerTransfer,
+    UserRef,
+    HierarchyNode,
+    OrganizationRef,
+    PublicOrganizationList,
+    PublicOrganizationView,
     InvitationAccept,
     InvitationCreate,
     InvitationCreated,
@@ -56,10 +78,17 @@ from ..models.platform import (
     RESERVED_ORGANIZATION_SLUGS,
 )
 from ..repositories import organizations as organization_repository
-from ..access.dependencies import get_current_user, session_dependency
+from ..access.dependencies import get_current_user, get_reader, session_dependency
+from ..access.work_limits import charge_anonymous_read
+from ..modules.shared.application import ORGANIZATION_INVITATION, SYSTEM, notify, put_row, read_verified, write_file
+from ..services import organizations as profiles
 
 router = APIRouter(prefix="/v1/organizations", tags=["Organizations"])
 invitation_router = APIRouter(prefix="/v1/invitations", tags=["Organizations"])
+#: The predefined avatars, open to anybody (an ``<img>`` sends no credential).
+avatar_router = APIRouter(prefix="/v1/avatars", tags=["Organizations"])
+#: The routes anybody reads answer by credential, so caches key on it.
+_VARY = "Authorization, X-API-Key"
 
 
 def _audit(session: AsyncSession, user: User, action: str, target, organization_id=None, **detail) -> None:
@@ -117,26 +146,103 @@ async def _required_org(session: AsyncSession, reference: str) -> Organization:
     return organization
 
 
-async def _org_view(session: AsyncSession, organization: Organization, user: User) -> OrganizationView:
-    role = await effective_role(session, organization.id, user)
+def _profile_view(organization: Organization, role: OrganizationRole | None, stats=None) -> OrganizationView:
     return OrganizationView(
         id=organization.id,
         slug=organization.slug,
         name=organization.name,
+        description=organization.description or "",
+        avatar=profiles.avatar_view(organization),
         parent_id=organization.parent_id,
         effective_role=role.value if role else None,
+        stats=stats,
         created_at=organization.created_at,
     )
 
 
-@router.get("", response_model=list[OrganizationView], operation_id="listOrganizations")
+async def _org_view(session: AsyncSession, organization: Organization, user: User) -> OrganizationView:
+    role = await effective_role(session, organization.id, user)
+    counted = await profiles.stats(session, [organization.id])
+    return _profile_view(organization, role, counted[organization.id])
+
+
+def _ref(organization: Organization | None) -> OrganizationRef | None:
+    return OrganizationRef(id=organization.id, slug=organization.slug, name=organization.name) if organization else None
+
+
+@router.get(
+    "",
+    response_model=list[OrganizationView],
+    operation_id="listOrganizations",
+    responses={200: {"headers": {"X-Total-Count": {
+        "description": "How many organizations (with `tree=true`, top-level nodes) there are in all.",
+        "schema": {"type": "integer"},
+    }}}},
+)
 async def list_organizations(
+    response: Response,
+    tree: bool = Query(
+        default=False,
+        description="Nest the organizations: the top-level nodes of the caller's tree, each with its `children` "
+        "and the `role_source` of its role, as SPHERE's `/users/me/orgs`.",
+    ),
+    limit: int | None = Query(default=None, ge=1, le=200, description="At most this many (top-level) nodes."),
+    offset: int = Query(default=0, ge=0),
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> list[OrganizationView]:
-    organizations = await organization_repository.list_all(session)
-    views = [await _org_view(session, organization, user) for organization in organizations]
-    return [view for view in views if view.effective_role is not None]
+    """The organizations the caller holds a role in, directly or through an ancestor, by name; ``tree=true``
+    nests them under the organizations the caller reaches first."""
+    placed = await profiles.caller_tree(session, user.id)
+    counted = await profiles.stats(session, list(placed))
+    by_name = sorted(placed.values(), key=lambda node: (node.organization.name.casefold(), node.organization.slug))
+
+    def view(node: profiles.Placed, nested: bool) -> OrganizationView:
+        built = _profile_view(node.organization, node.role, counted[node.organization.id])
+        built.role_source = _ref(node.source)
+        if nested:
+            built.children = [
+                view(child, True) for child in by_name if child.organization.parent_id == node.organization.id
+            ]
+        return built
+
+    chosen = [node for node in by_name if not tree or node.organization.parent_id not in placed]
+    response.headers["X-Total-Count"] = str(len(chosen))
+    page = chosen[offset:offset + limit if limit is not None else None]
+    return [view(node, tree) for node in page]
+
+
+@router.get(
+    "/public",
+    response_model=PublicOrganizationList,
+    operation_id="listPublicOrganizations",
+    dependencies=[Depends(charge_anonymous_read)],
+)
+async def list_public_organizations(
+    response: Response,
+    q: str | None = Query(default=None, max_length=100, description="Text in the slug, the name or the description."),
+    limit: int = Query(default=12, ge=1, le=50),
+    offset: int = Query(default=0, ge=0),
+    user: User | None = Depends(get_reader),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> PublicOrganizationList:
+    """The root organizations that publish at least one composition, by name; anybody reads them.
+
+    SPHERE lists every root organization (``GET /orgs/public``); OpenBinding shows an organization to
+    non-members only once it has a public composition (Q8), so no other organization appears here.
+    """
+    rows, total = await profiles.public_roots(session, q=(q or "").strip() or None, limit=limit, offset=offset)
+    response.headers["Vary"] = _VARY
+    response.headers["Cache-Control"] = "private, no-cache"
+    return PublicOrganizationList(items=[_public_view(row, count) for row, count in rows], total=total)
+
+
+def _public_view(organization: Organization, count: int) -> PublicOrganizationView:
+    return PublicOrganizationView(
+        id=organization.id, slug=organization.slug, name=organization.name,
+        description=organization.description or "", avatar=profiles.avatar_view(organization),
+        public_compositions=count,
+    )
 
 
 @router.post(
@@ -147,7 +253,8 @@ async def list_organizations(
     responses={
         409: {"model": ErrorResponse, "description": "`slug_conflict`: the slug is in use."},
         422: {
-            "description": "`slug_reserved` (the slug names a page of the application) and request validation errors.",
+            "description": "`slug_reserved` (the slug names a page of the application), `slug_underivable` (no "
+            "slug given, and the name yields fewer than three letters or digits) and request validation errors.",
         },
     },
 )
@@ -156,13 +263,24 @@ async def create_organization(
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> OrganizationView:
-    if payload.slug in RESERVED_ORGANIZATION_SLUGS:
+    """Create an organization, its caller its OWNER. Without a slug, one is derived from the name and made
+    unique with a numeric suffix (SPHERE's ``deduplicateSlug``); a derived slug is never a reserved one."""
+    slug = payload.slug
+    if slug is None:
+        slug = await profiles.derived_slug(session, payload.name)
+        if slug is None:
+            raise api_error(
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+                "slug_underivable",
+                "The name must yield a slug of at least three letters or digits; give a slug instead.",
+            )
+    elif slug in RESERVED_ORGANIZATION_SLUGS:
         raise api_error(
             status.HTTP_422_UNPROCESSABLE_ENTITY,
             "slug_reserved",
-            f"The slug '{payload.slug}' names a page of the application; choose another.",
+            f"The slug '{slug}' names a page of the application; choose another.",
         )
-    if await organization_by_ref(session, payload.slug) is not None:
+    elif await organization_by_ref(session, slug) is not None:
         raise api_error(status.HTTP_409_CONFLICT, "slug_conflict", "That organization slug is in use.")
     parent = await session.get(Organization, payload.parent_id) if payload.parent_id else None
     if payload.parent_id and parent is None:
@@ -171,8 +289,9 @@ async def create_organization(
         await require_role(session, parent, user, OrganizationRole.ADMIN)
     organization = Organization(
         parent_id=parent.id if parent else None,
-        slug=payload.slug,
+        slug=slug,
         name=payload.name,
+        description=payload.description,
         created_by_id=user.id,
     )
     session.add(organization)
@@ -199,6 +318,58 @@ async def get_organization(
     await require_role(session, organization, user, OrganizationRole.VIEWER)
     revision.set_etag(response, organization)
     return await _org_view(session, organization, user)
+
+
+@router.get(
+    "/{org}/profile",
+    response_model=PublicOrganizationView,
+    operation_id="getOrganizationProfile",
+    dependencies=[Depends(charge_anonymous_read)],
+    responses={404: {"model": ErrorResponse, "description": "No such organization, or it shows nothing to the caller."}},
+)
+async def get_organization_profile(
+    org: str,
+    response: Response,
+    user: User | None = Depends(get_reader),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> PublicOrganizationView:
+    """An organization's public profile: who it is, its avatar and description, and how many compositions it
+    publishes. Anybody reads the profile of an organization with a public composition (Q8); its members read
+    it always. Any other caller gets the 404 of a missing organization."""
+    organization = await organization_by_ref(session, org)
+    count = await profiles.public_composition_count(session, organization.id) if organization else 0
+    member = organization is not None and user is not None and await effective_role(session, organization.id, user)
+    if organization is None or (count == 0 and not member):
+        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Organization not found.")
+    response.headers["Vary"] = _VARY
+    response.headers["Cache-Control"] = "private, no-cache"
+    return _public_view(organization, count)
+
+
+@router.get(
+    "/{org}/hierarchy",
+    response_model=list[HierarchyNode],
+    operation_id="getOrganizationHierarchy",
+    responses={404: {"model": ErrorResponse, "description": "No such organization, or the caller is not a member of it."}},
+)
+async def get_organization_hierarchy(
+    org: str,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> list[HierarchyNode]:
+    """The whole branch the organization sits in (its root, and everything below the root), flat and by name,
+    each node saying whether the caller opens it, as SPHERE's ``GET /orgs/{id}/hierarchy``. For its members
+    only: anybody else gets 404."""
+    organization, _ = await _readable_org(session, org, user)
+    nodes = await profiles.branch(session, organization, user.id)
+    return [
+        HierarchyNode(
+            id=node.organization.id, slug=node.organization.slug, name=node.organization.name,
+            avatar=profiles.avatar_view(node.organization), parent_id=node.organization.parent_id,
+            has_access=node.role is not None, effective_role=node.role.value if node.role else None,
+        )
+        for node in sorted(nodes.values(), key=lambda node: (node.organization.name.casefold(), node.organization.slug))
+    ]
 
 
 @router.patch(
@@ -231,6 +402,8 @@ async def update_organization(
     await revision.guard(session, organization, if_match)
     if payload.name is not None:
         organization.name = payload.name
+    if payload.description is not None:
+        organization.description = payload.description
     if payload.move_to_root and payload.parent_id is not None:
         raise api_error(status.HTTP_422_UNPROCESSABLE_ENTITY, "ambiguous_parent", "Choose a parent or root, not both.")
     if payload.move_to_root or payload.parent_id is not None:
@@ -242,6 +415,214 @@ async def update_organization(
     await session.refresh(organization, ["updated_at"])
     revision.set_etag(response, organization)
     return await _org_view(session, organization, user)
+
+
+async def _readable_org(
+    session: AsyncSession, reference: str, user: User, minimum: OrganizationRole = OrganizationRole.VIEWER,
+) -> tuple[Organization, OrganizationRole]:
+    """The organization ``reference`` for a caller who holds ``minimum`` there.
+
+    404 ``not_found`` when it does not exist **or the caller holds no role in it or above it**, so a
+    non-member learns nothing of it; 403 ``organization_forbidden`` for a member whose role is too weak.
+    """
+    organization = await organization_by_ref(session, reference)
+    role = await effective_role(session, organization.id, user) if organization is not None else None
+    if organization is None or role is None:
+        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Organization not found.")
+    return organization, await require_role(session, organization, user, minimum)
+
+
+_MANAGE_RESPONSES = {
+    404: {"model": ErrorResponse, "description": "No such organization, or the caller is not a member of it."},
+    403: {"model": ErrorResponse, "description": "The caller is a member without ADMIN (`organization_forbidden`)."},
+}
+
+
+async def _avatar_changed(
+    session: AsyncSession, organization: Organization, user: User, response: Response, **detail,
+) -> OrganizationView:
+    _audit(session, user, "organization.avatar.updated", organization, organization.id, **detail)
+    await session.flush()
+    await session.refresh(organization, ["updated_at"])
+    revision.set_etag(response, organization)
+    return await _org_view(session, organization, user)
+
+
+_AVATAR_BODY = {
+    "requestBody": {
+        "required": True,
+        "description": "The image itself as the raw request body: PNG, JPEG or WebP, at most 2 MiB.",
+        "content": {media: {"schema": {"type": "string", "format": "binary"}} for media in profiles.AVATAR_MEDIA_TYPES},
+    }
+}
+
+
+@router.post(
+    "/{org}/avatar",
+    response_model=OrganizationView,
+    operation_id="uploadOrganizationAvatar",
+    openapi_extra=_AVATAR_BODY,
+    responses={
+        **revision.EDIT_RESPONSES,
+        **_MANAGE_RESPONSES,
+        413: {"model": ErrorResponse, "description": "`avatar_too_large`: the image is over 2 MiB."},
+        415: {"model": ErrorResponse, "description": "`avatar_unsupported`: the body is not a PNG, JPEG or WebP image."},
+    },
+)
+async def upload_organization_avatar(
+    org: str,
+    request: Request,
+    response: Response,
+    if_match: str | None = revision.IF_MATCH_HEADER,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> OrganizationView:
+    """Set an uploaded image as the organization's avatar (ADMIN), keeping its colours.
+
+    The image is the raw body (no multipart). Its type is read from its bytes, never from the request's
+    ``Content-Type``, and only PNG, JPEG and WebP are kept, so an upload is only ever served as an image. It
+    is stored once per content as a blob of the organization; the previous upload's file is never deleted on
+    the request path (D14).
+    """
+    organization, _ = await _readable_org(session, org, user, OrganizationRole.ADMIN)
+    data = bytearray()
+    async for chunk in request.stream():
+        data.extend(chunk)
+        if len(data) > profiles.MAX_AVATAR_BYTES:
+            raise api_error(413, "avatar_too_large", "The avatar must be at most 2 MiB.")
+    media_type = profiles.sniff_image(bytes(data))
+    if media_type is None:
+        raise api_error(415, "avatar_unsupported", "The avatar must be a PNG, JPEG or WebP image.")
+    await revision.guard(session, organization, if_match)
+    stored = write_file(bytes(data))
+    await put_row(session, organization.id, stored, media_type, user.id)
+    organization.avatar = stored.digest
+    return await _avatar_changed(session, organization, user, response, kind="upload")
+
+
+@router.put(
+    "/{org}/avatar-colors",
+    response_model=OrganizationView,
+    operation_id="selectOrganizationAvatar",
+    responses={
+        **revision.EDIT_RESPONSES,
+        **_MANAGE_RESPONSES,
+        422: {"description": "`avatar_unknown` (not one of the predefined avatars) and request validation errors."},
+    },
+)
+async def select_organization_avatar(
+    org: str,
+    payload: AvatarSelection,
+    response: Response,
+    if_match: str | None = revision.IF_MATCH_HEADER,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> OrganizationView:
+    """Choose a predefined avatar, or none (the initials), and the colours it is drawn with (ADMIN).
+
+    As SPHERE's ``updateAvatarColors``: a colour left out is SPHERE's default. ``avatar`` left out keeps the
+    current image, an upload too, so the colours change alone.
+    """
+    organization, _ = await _readable_org(session, org, user, OrganizationRole.ADMIN)
+    choosing = "avatar" in payload.model_fields_set
+    if choosing and not profiles.is_selectable_avatar(payload.avatar):
+        raise api_error(
+            status.HTTP_422_UNPROCESSABLE_ENTITY, "avatar_unknown", "The avatar must be one of the predefined avatars.",
+        )
+    await revision.guard(session, organization, if_match)
+    if choosing:
+        organization.avatar = payload.avatar
+    organization.avatar_bg_color = payload.bg_color or profiles.DEFAULT_AVATAR_BG_COLOR
+    organization.avatar_fg_color = payload.fg_color or profiles.DEFAULT_AVATAR_FG_COLOR
+    return await _avatar_changed(session, organization, user, response, kind="predefined" if choosing else "colors")
+
+
+@router.delete(
+    "/{org}/avatar",
+    response_model=OrganizationView,
+    operation_id="removeOrganizationAvatar",
+    responses={**revision.EDIT_RESPONSES, **_MANAGE_RESPONSES},
+)
+async def remove_organization_avatar(
+    org: str,
+    response: Response,
+    if_match: str | None = revision.IF_MATCH_HEADER,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> OrganizationView:
+    """Clear the image and its colours, leaving the initials (ADMIN), as SPHERE's ``removeAvatar``."""
+    organization, _ = await _readable_org(session, org, user, OrganizationRole.ADMIN)
+    await revision.guard(session, organization, if_match)
+    organization.avatar = None
+    organization.avatar_bg_color = None
+    organization.avatar_fg_color = None
+    return await _avatar_changed(session, organization, user, response, kind="removed")
+
+
+_IMAGE_RESPONSE = {
+    200: {
+        "description": "The image.",
+        "content": {media: {"schema": {"type": "string", "format": "binary"}} for media in profiles.AVATAR_MEDIA_TYPES},
+    },
+    404: {"model": ErrorResponse, "description": "No such organization, or the digest is not its current avatar."},
+}
+#: An avatar is served to anybody holding its URL (an ``<img>`` sends no credential), and never sniffed or run.
+_IMAGE_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+}
+
+
+@router.get(
+    "/{org}/avatar/{digest}",
+    operation_id="getOrganizationAvatar",
+    response_class=Response,
+    responses=_IMAGE_RESPONSE,
+)
+async def get_organization_avatar(
+    org: uuid.UUID,
+    digest: str,
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> Response:
+    """An organization's uploaded avatar, by the organization's id and the image's digest (64 hex characters).
+
+    Anybody holding the URL reads it, as SPHERE serves avatars from its static folder: the URL is in the
+    organization's views, and names both the organization's id and the content. Any other digest, an image no
+    longer current included, answers 404 as a missing organization does.
+    """
+    organization = await session.get(Organization, org)
+    blob = await profiles.uploaded_avatar(session, organization, digest) if organization is not None else None
+    if blob is None:
+        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Avatar not found.")
+    return Response(
+        read_verified(blob), media_type=blob.media_type,
+        headers={**_IMAGE_HEADERS, "Cache-Control": "private, max-age=31536000, immutable"},
+    )
+
+
+@avatar_router.get("", response_model=list[str], operation_id="listDefaultAvatars")
+async def list_default_avatars() -> list[str]:
+    """The predefined avatars' file names, the ones ``PUT /v1/organizations/{org}/avatar-colors`` accepts."""
+    return list(profiles.DEFAULT_AVATAR_FILES)
+
+
+@avatar_router.get(
+    "/{name}",
+    operation_id="getDefaultAvatar",
+    response_class=FileResponse,
+    responses={
+        200: {"description": "The SVG, drawn in `currentColor`.", "content": {"image/svg+xml": {"schema": {"type": "string"}}}},
+        404: {"model": ErrorResponse, "description": "Not a predefined avatar."},
+    },
+)
+async def get_default_avatar(name: str) -> FileResponse:
+    """A predefined avatar (SPHERE's ``static/avatars/users/default``), open to anybody."""
+    if name not in profiles.DEFAULT_AVATAR_FILES:
+        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Avatar not found.")
+    return FileResponse(
+        profiles.DEFAULT_AVATAR_DIRECTORY / name, media_type="image/svg+xml",
+        headers={**_IMAGE_HEADERS, "Cache-Control": "public, max-age=86400"},
+    )
 
 
 @router.delete(
@@ -310,12 +691,16 @@ async def _delete_subtree(session: AsyncSession, organization: Organization, uni
             delete(OrganizationInvitation).where(OrganizationInvitation.organization_id == oid)
         )
         await session.execute(
+            delete(OrganizationInvitationCode).where(OrganizationInvitationCode.organization_id == oid)
+        )
+        await session.execute(
             delete(AuditEvent).where(AuditEvent.organization_id == oid)
         )
         await session.execute(delete(Study).where(Study.organization_id == oid))
         # Run presets: no run or history refers to one, a run copies the settings it expands.
         await session.execute(delete(RunPreset).where(RunPreset.organization_id == oid))
         held = select(Composition.id).where(Composition.organization_id == oid)
+        await session.execute(delete(CompositionFollow).where(CompositionFollow.composition_id.in_(held)))
         versions = select(CompositionVersion.id).where(CompositionVersion.composition_id.in_(held))
         await session.execute(delete(CompositionDerivation).where(CompositionDerivation.version_id.in_(versions)))
         await session.execute(delete(CompositionEvaluation).where(CompositionEvaluation.version_id.in_(versions)))
@@ -546,7 +931,10 @@ async def _protect_last_owner(session: AsyncSession, membership: OrganizationMem
     "/{org}/members/{member_id}",
     status_code=204,
     operation_id="removeOrganizationMember",
-    responses=OWNER_ROLE_RESPONSES,
+    responses={
+        **OWNER_ROLE_RESPONSES,
+        404: {"model": ErrorResponse, "description": "No such member, or a caller leaving is not a member."},
+    },
 )
 async def remove_member(
     org: str,
@@ -554,6 +942,17 @@ async def remove_member(
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> None:
+    """Remove a direct member (ADMIN), or leave: any member but an owner removes themselves, as in SPHERE.
+
+    An owner hands the organization over first (``PUT .../owner``); a caller who is not a member gets 404.
+    """
+    if member_id == user.id:
+        organization, _ = await _readable_org(session, org, user)
+        own = await organization_repository.get_membership(session, organization.id, user.id)
+        if own is not None and own.role is not OrganizationRole.OWNER:
+            await session.delete(own)
+            _audit(session, user, "organization.member.left", own, organization.id, role=own.role.value)
+            return
     organization = await _required_org(session, org)
     actor_role = await require_role(session, organization, user, OrganizationRole.ADMIN)
     membership = await organization_repository.get_membership(session, organization.id, member_id)
@@ -566,17 +965,161 @@ async def remove_member(
     _audit(session, user, "organization.member.removed", membership, organization.id)
 
 
+def _code_view(invitation: OrganizationInvitationCode, creator: User | None) -> CodeInvitationView:
+    return CodeInvitationView(
+        id=invitation.id, organization_id=invitation.organization_id, code=invitation.code,
+        created_by=_user_ref(creator), expires_at=invitation.expires_at, max_uses=invitation.max_uses,
+        use_count=invitation.use_count, created_at=invitation.created_at,
+    )
+
+
+def _user_ref(user: User | None) -> UserRef | None:
+    return UserRef(id=user.id, username=user.username) if user is not None else None
+
+
+async def _new_code(
+    session: AsyncSession, organization: Organization, user: User, *, expires_in_days: int | None, max_uses: int | None,
+) -> OrganizationInvitationCode:
+    invitation = OrganizationInvitationCode(
+        organization_id=organization.id,
+        code=secrets.token_hex(8),
+        created_by_id=user.id,
+        expires_at=utcnow() + timedelta(days=expires_in_days) if expires_in_days else None,
+        max_uses=max_uses,
+        use_count=0,
+    )
+    session.add(invitation)
+    await session.flush()
+    await session.refresh(invitation, ["created_at"])
+    _audit(session, user, "organization.invitation_code.created", invitation, organization.id, max_uses=max_uses)
+    return invitation
+
+
+@router.get(
+    "/{org}/invitations",
+    response_model=list[CodeInvitationView],
+    operation_id="listOrganizationInvitations",
+    responses=_MANAGE_RESPONSES,
+)
+async def list_invitations(
+    org: str,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> list[CodeInvitationView]:
+    """The organization's invitation codes, the newest first, used up and expired ones too (ADMIN)."""
+    organization, _ = await _readable_org(session, org, user, OrganizationRole.ADMIN)
+    rows = (await session.scalars(
+        select(OrganizationInvitationCode).where(OrganizationInvitationCode.organization_id == organization.id)
+        .order_by(OrganizationInvitationCode.created_at.desc(), OrganizationInvitationCode.id)
+    )).all()
+    creators = {
+        row.id: row for row in (await session.scalars(
+            select(User).where(User.id.in_({invitation.created_by_id for invitation in rows}))
+        )).all()
+    } if rows else {}
+    return [_code_view(row, creators.get(row.created_by_id)) for row in rows]
+
+
+@router.put(
+    "/{org}/owner",
+    response_model=list[MemberView],
+    operation_id="transferOrganizationOwnership",
+    responses={
+        403: {
+            "model": ErrorResponse,
+            "description": "`owner_transfer_requires_owner`: the caller is not this organization's owner.",
+        },
+        404: {"model": ErrorResponse, "description": "No such organization, the caller is not a member of it, or "
+              "the recipient is not (code `not_found`)."},
+        422: {"description": "`already_owner` (the caller names themselves) and request validation errors."},
+    },
+)
+async def transfer_ownership(
+    org: str,
+    payload: OwnerTransfer,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> list[MemberView]:
+    """Hand the organization, and everything below it, to another member, as SPHERE's ``transferOwnership``.
+
+    A swap, not a promotion: the recipient takes the owner's seat and every owner seat of the branch (this
+    organization and its descendants) steps down to ADMIN, the caller's too, so whoever held one keeps working
+    access. Only the owner hands it over (a direct OWNER membership here; a platform administrator has nothing
+    to give), and the recipient must already be a member, here or above. One transaction, under the lock of the
+    organization's row and of the branch's memberships, so a half handover never shows.
+    """
+    organization, _ = await _readable_org(session, org, user)
+    if payload.user_id == user.id:
+        raise api_error(status.HTTP_422_UNPROCESSABLE_ENTITY, "already_owner", "You own this organization already.")
+    await session.execute(select(Organization.id).where(Organization.id == organization.id).with_for_update())
+    own = await organization_repository.get_membership(session, organization.id, user.id)
+    if own is None or own.role is not OrganizationRole.OWNER:
+        raise api_error(
+            status.HTTP_403_FORBIDDEN, "owner_transfer_requires_owner",
+            "Only the owner of the organization can hand it over.",
+        )
+    recipient = await session.get(User, payload.user_id)
+    if (
+        recipient is None or not recipient.is_active
+        or await effective_role(session, organization.id, recipient) is None
+    ):
+        raise api_error(
+            status.HTTP_404_NOT_FOUND, "not_found", "The new owner must already be a member of the organization.",
+        )
+    branch = list(dict.fromkeys(await descendant_ids(session, organization.id)))
+    rows = (await session.scalars(
+        select(OrganizationMembership).where(OrganizationMembership.organization_id.in_(branch))
+        .order_by(OrganizationMembership.id).with_for_update()
+    )).all()
+    stepped_down = []
+    for row in rows:
+        if row.role is OrganizationRole.OWNER and row.user_id != recipient.id:
+            row.role = OrganizationRole.ADMIN
+            stepped_down.append(str(row.user_id))
+    seat = next(
+        (row for row in rows if row.organization_id == organization.id and row.user_id == recipient.id), None,
+    )
+    if seat is None:
+        seat = OrganizationMembership(organization_id=organization.id, user_id=recipient.id)
+        session.add(seat)
+    seat.role = OrganizationRole.OWNER
+    await session.flush()
+    _audit(
+        session, user, "organization.owner.transferred", organization, organization.id,
+        to=str(recipient.id), stepped_down=sorted(set(stepped_down)),
+    )
+    await notify(
+        session, recipient.id, SYSTEM, "You are now an owner",
+        f"@{user.username} handed you ownership of \"{organization.name}\"",
+        organization_id=str(organization.id), organization_slug=organization.slug, previous_owner_id=str(user.id),
+    )
+    await session.flush()
+    return await _member_views(session, organization)
+
+
 @router.post(
-    "/{org}/invitations", response_model=InvitationCreated,
+    "/{org}/invitations", response_model=InvitationCreated | CodeInvitationView,
     status_code=201, operation_id="inviteOrganizationMember",
-    responses=OWNER_ROLE_RESPONSES,
+    responses={**OWNER_ROLE_RESPONSES, 404: _MANAGE_RESPONSES[404]},
 )
 async def invite_member(
     org: str,
-    payload: InvitationCreate,
+    payload: InvitationCreate | CodeInvitationCreate,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(session_dependency, scope="function"),
-) -> InvitationCreated:
+) -> InvitationCreated | CodeInvitationView:
+    """Invite to the organization (ADMIN).
+
+    With ``expires_in_days`` and ``max_uses`` (or an empty body): a shareable code, as SPHERE's, that joins
+    whoever holds it as MEMBER (``POST /v1/invitations/{code}/join``); a non-member gets 404. With ``email``
+    and ``role``: the email invitation and its ``obi_`` token, until B8 removes them.
+    """
+    if isinstance(payload, CodeInvitationCreate):
+        organization, _ = await _readable_org(session, org, user, OrganizationRole.ADMIN)
+        invitation = await _new_code(
+            session, organization, user, expires_in_days=payload.expires_in_days, max_uses=payload.max_uses,
+        )
+        return _code_view(invitation, user)
     organization = await _required_org(session, org)
     actor_role = await require_role(session, organization, user, OrganizationRole.ADMIN)
     if _touches_owner(None, payload.role) and not _may_manage_owners(actor_role, user):
@@ -600,6 +1143,138 @@ async def invite_member(
         id=invitation.id, organization_id=organization.id, email=invitation.email,
         role=invitation.role.value, expires_at=invitation.expires_at, token=token
     )
+
+
+@router.post(
+    "/{org}/invitations/invite-users",
+    response_model=CodeInvitationView,
+    status_code=201,
+    operation_id="inviteUsersToOrganization",
+    responses={
+        **_MANAGE_RESPONSES,
+        409: {"model": ErrorResponse, "description": "`already_member`: every user named is a member already."},
+    },
+)
+async def invite_users(
+    org: str,
+    payload: InviteUsers,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> CodeInvitationView:
+    """Invite named users (ADMIN): one code, valid seven days, with a use for each user who is not a member
+    yet, and an ``OrganizationInvitation`` notification to each of them, as SPHERE's ``inviteUsers``. A user
+    who is a member already is left out; an unknown or inactive one is 404."""
+    organization, _ = await _readable_org(session, org, user, OrganizationRole.ADMIN)
+    found = {
+        row.id: row for row in (await session.scalars(
+            select(User).where(User.id.in_(payload.user_ids), User.is_active.is_(True), User.deleted_at.is_(None))
+        )).all()
+    }
+    missing = sorted(str(user_id) for user_id in payload.user_ids if user_id not in found)
+    if missing:
+        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Every invited user must be an active user.", user_ids=missing)
+    invited = [found[user_id] for user_id in payload.user_ids if await effective_role(session, organization.id, found[user_id]) is None]
+    if not invited:
+        raise api_error(status.HTTP_409_CONFLICT, "already_member", "Every user named is a member already.")
+    invitation = await _new_code(session, organization, user, expires_in_days=7, max_uses=len(invited))
+    for person in invited:
+        await notify(
+            session, person.id, ORGANIZATION_INVITATION,
+            f"You've been invited to join {organization.name}",
+            f"@{user.username} has invited you to join \"{organization.name}\". Open the invitation to accept it.",
+            invitation_code=invitation.code, organization_id=str(organization.id),
+            organization_slug=organization.slug, organization_name=organization.name,
+            invited_by=user.username, invited_by_id=str(user.id),
+        )
+    return _code_view(invitation, user)
+
+
+@router.delete(
+    "/{org}/invitations/{invitation_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    operation_id="revokeOrganizationInvitation",
+    responses={**_MANAGE_RESPONSES, 404: {"model": ErrorResponse, "description": "No such organization or invitation, or the caller is not a member."}},
+)
+async def revoke_invitation(
+    org: str,
+    invitation_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> None:
+    """Revoke an invitation code (ADMIN): it stops working at once."""
+    organization, _ = await _readable_org(session, org, user, OrganizationRole.ADMIN)
+    invitation = await session.get(OrganizationInvitationCode, invitation_id)
+    if invitation is None or invitation.organization_id != organization.id:
+        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Invitation not found.")
+    _audit(session, user, "organization.invitation_code.revoked", invitation, organization.id)
+    await session.delete(invitation)
+
+
+async def _usable_code(session: AsyncSession, code: str, *, lock: bool = False) -> OrganizationInvitationCode:
+    """The invitation ``code`` while it can still be used; else the one 404 (unknown, expired, used up)."""
+    query = select(OrganizationInvitationCode).where(OrganizationInvitationCode.code == code)
+    invitation = await session.scalar(query.with_for_update() if lock else query)
+    if invitation is not None and invitation.expires_at is not None:
+        expires = invitation.expires_at.replace(tzinfo=invitation.expires_at.tzinfo or utcnow().tzinfo)
+        if expires <= utcnow():
+            invitation = None
+    if invitation is not None and invitation.max_uses is not None and invitation.use_count >= invitation.max_uses:
+        invitation = None
+    if invitation is None:
+        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Invitation not found, expired or used up.")
+    return invitation
+
+
+@invitation_router.get(
+    "/{code}/preview",
+    response_model=InvitationPreview,
+    operation_id="previewInvitation",
+    dependencies=[Depends(charge_anonymous_read)],
+    responses={404: {"model": ErrorResponse, "description": "No such code, or it expired or was used up."}},
+)
+async def preview_invitation(
+    code: str,
+    user: User | None = Depends(get_reader),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> InvitationPreview:
+    """What an invitation code joins, for its holder to decide: the organization's identity, avatar and
+    description, who invited them and until when. Anybody holding the code reads it."""
+    invitation = await _usable_code(session, code)
+    organization = await session.get(Organization, invitation.organization_id)
+    creator = await session.get(User, invitation.created_by_id)
+    count = await profiles.public_composition_count(session, organization.id)
+    return InvitationPreview(
+        code=invitation.code, organization=_public_view(organization, count),
+        expires_at=invitation.expires_at, invited_by=_user_ref(creator),
+    )
+
+
+@invitation_router.post(
+    "/{code}/join",
+    response_model=OrganizationView,
+    operation_id="joinOrganization",
+    responses={
+        404: {"model": ErrorResponse, "description": "No such code, or it expired or was used up."},
+        409: {"model": ErrorResponse, "description": "`already_member`: the caller holds a role there already."},
+    },
+)
+async def join_organization(
+    code: str,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> OrganizationView:
+    """Join the organization of an invitation code as MEMBER, using one of its uses, as SPHERE's
+    ``joinViaInvitation``. A caller who holds a role there already (directly or above it) gets 409."""
+    invitation = await _usable_code(session, code, lock=True)
+    organization = await session.get(Organization, invitation.organization_id)
+    if await effective_role(session, organization.id, user) is not None:
+        raise api_error(status.HTTP_409_CONFLICT, "already_member", "You are a member of this organization already.")
+    membership = OrganizationMembership(organization_id=organization.id, user_id=user.id, role=OrganizationRole.MEMBER)
+    session.add(membership)
+    invitation.use_count += 1
+    await session.flush()
+    _audit(session, user, "organization.invitation_code.joined", invitation, organization.id)
+    return await _org_view(session, organization, user)
 
 
 @invitation_router.post("/accept", response_model=MemberView, operation_id="acceptOrganizationInvitation")

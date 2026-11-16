@@ -92,11 +92,22 @@ WORK_ROUTES: dict[tuple[str, str], WorkClass] = {
 #: OpenAPI document declares the 429 from it.
 ANONYMOUS_READ_ROUTES: frozenset[tuple[str, str]] = frozenset({
     ("GET", "/v1/compositions"),
+    # An organization's compositions: its public ones for anybody but a member.
+    ("GET", "/v1/organizations/{org}/compositions"),
+    # The organizations that publish a composition, and the public profile of one.
+    ("GET", "/v1/organizations/public"),
+    ("GET", "/v1/organizations/{org}/profile"),
+    # What an invitation code joins, for whoever holds it.
+    ("GET", "/v1/invitations/{code}/preview"),
     ("GET", "/v1/organizations/{org}/compositions/{composition}"),
     ("GET", "/v1/organizations/{org}/compositions/{composition}/versions"),
     ("GET", "/v1/organizations/{org}/compositions/{composition}/versions/{version}"),
     ("GET", "/v1/organizations/{org}/compositions/{composition}/versions/{version}/content"),
     ("GET", "/v1/organizations/{org}/compositions/{composition}/diff"),
+    # The version graph, the zip of the versions, and the permanent link of a public composition.
+    ("GET", "/v1/organizations/{org}/compositions/{composition}/graph"),
+    ("GET", "/v1/organizations/{org}/compositions/{composition}/download"),
+    ("GET", "/v1/permalinks/compositions/{composition_id}"),
 })
 
 #: The setting that holds each class's budget.

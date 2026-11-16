@@ -30,10 +30,12 @@ from ..db.models import (
     EngineRegistrationRevision,
     Job,
     JobState,
+    Organization,
     ProblemCompilation,
     utcnow,
 )
 from ..integrations import bim
+from ..modules.shared.application import RUN_FAILED, RUN_FINISHED, notify
 from ..jobs import evidence as job_evidence
 from ..jobs import leases, remote_attempts
 from ..v1.remote import RemoteCancelled, RemoteEngineError, RemoteRegistration, cancel_remote, solve_remote
@@ -736,6 +738,35 @@ async def keep_engine_answer(
     return kept
 
 
+async def notify_run_outcome(session: AsyncSession, job_id: uuid.UUID) -> None:
+    """Tell whoever launched a run that it finished or failed (``RunFinished``, ``RunFailed``), in the
+    transaction that records the outcome. A study's cells tell nobody: a study run has thousands. Never raises:
+    a notification is not worth an outcome."""
+    try:
+        job = await session.get(Job, job_id)
+        if (
+            job is None or job.created_by_id is None or job.study_cell_id is not None
+            or job.state not in (JobState.COMPLETED, JobState.FAILED)
+        ):
+            return
+        finished = job.state is JobState.COMPLETED
+        organization = await session.get(Organization, job.organization_id)
+        where = f" in {organization.name}" if organization is not None else ""
+        async with session.begin_nested():
+            await notify(
+                session, job.created_by_id,
+                RUN_FINISHED if finished else RUN_FAILED,
+                "Run finished" if finished else "Run failed",
+                f"The run {str(job.id)[:8]} on {job.engine_id}{where} {'finished' if finished else 'failed'}.",
+                run_id=str(job.id), organization_id=str(job.organization_id),
+                organization_slug=organization.slug if organization is not None else None,
+                engine_id=job.engine_id, state=job.state.value,
+            )
+            await session.flush()
+    except Exception:
+        logger.warning("Could not notify the outcome of run %s", job_id, exc_info=True)
+
+
 async def finish_persisted_job(job_id: str, session: AsyncSession) -> None:
     """Dispatch a persisted BIM v1 job using only its stored canonical IR."""
     try:
@@ -763,6 +794,7 @@ async def finish_persisted_job(job_id: str, session: AsyncSession) -> None:
     heartbeat = leases.start_heartbeat(session, parsed, token)
     try:
         await run_claimed_job(parsed, session)
+        await notify_run_outcome(session, parsed)
         # The outcome is durable before the lease stops being renewed.
         await session.commit()
     finally:
