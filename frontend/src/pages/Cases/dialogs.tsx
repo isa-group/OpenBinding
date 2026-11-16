@@ -6,7 +6,8 @@ import { Action } from '../../components/ui/Action';
 import { FormField } from '../../components/ui/FormField';
 import { Modal } from '../../components/ui/Modal';
 import { deleteRefusal, uploadRefusal, type Refusal } from './caseErrors';
-import { DESCRIPTION_MAX, NAME_MAX, SLUG_PATTERN, slugFromName } from './casesModel';
+import { DESCRIPTION_MAX, NAME_MAX } from './casesModel';
+import { SLUG_PATTERN, slugFromName } from '../../shared/lib/slug';
 import '../../features/workspace/kit.css';
 
 /** A package file a person picked: `.bim.zip` (or `.zip`). */

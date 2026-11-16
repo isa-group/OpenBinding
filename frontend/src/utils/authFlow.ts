@@ -5,6 +5,8 @@
  * mode, an internal path or a flag. Tokens never pass through this module.
  */
 
+import { SLUG_PATTERN } from '../shared/lib/slug';
+
 const SESSION_ENDED_KEY = 'openbinding-session-ended';
 const CAS_FLOW_KEY = 'openbinding-cas-flow';
 /** A CAS round trip that takes longer than this was abandoned, so its memory is not trusted. */
@@ -20,16 +22,23 @@ function storage(): Storage | null {
   }
 }
 
+/** `/c/<organization>/<composition>`: the public page of a composition, both segments slugs. */
+function isShowcasePath(path: string): boolean {
+  const segments = path.split('/');
+  return segments.length === 4 && segments[0] === '' && segments[1] === 'c' && SLUG_PATTERN.test(segments[2]) && SLUG_PATTERN.test(segments[3]);
+}
+
 /**
  * An internal address that a sign-in may send the person back to, or `null`.
  *
- * Only the workspace and the invitation page qualify: the value travels through router state and
- * sessionStorage, so it is never used as an arbitrary redirect target.
+ * Only the workspace, the invitation page, the public compositions and the public page of one (where Fork asks for a session)
+ * qualify: the value travels through router state and sessionStorage, so it is never used as an arbitrary redirect target.
  */
 export function safeReturnPath(value: unknown): string | null {
   if (typeof value !== 'string' || !value.startsWith('/') || value.startsWith('//') || value.includes('\\')) return null;
   const path = value.split(/[?#]/)[0];
   if (path === '/app' || path.startsWith('/app/') || path === '/invitations/accept') return value;
+  if (path === '/compositions' || isShowcasePath(path)) return value;
   return null;
 }
 

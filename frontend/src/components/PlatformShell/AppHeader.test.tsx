@@ -74,14 +74,15 @@ describe('AppHeader', () => {
     api.listNotifications.mockResolvedValue([]);
   });
 
-  it('lists Home, Problems, Runs, Studies, Engines and, for an administrator, Admin, in this order', () => {
+  it('lists Home, Compositions, Problems, Runs, Studies, Engines and, for an administrator, Admin, in this order', () => {
     renderHeader(adminUser, { path: '/app/isa-demo/problems' });
 
     expect(screen.getByRole('link', { name: 'OpenBinding home' })).toHaveAttribute('href', '/app');
     const items = [...mainNav().children].map((item) => item.textContent?.trim());
-    expect(items).toEqual(['Home', 'Problems', 'Runs', 'Studies', 'Engines', 'Admin']);
+    expect(items).toEqual(['Home', 'Compositions', 'Problems', 'Runs', 'Studies', 'Engines', 'Admin']);
     const nav = within(mainNav());
     expect(nav.getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/app');
+    expect(nav.getByRole('link', { name: 'Compositions' })).toHaveAttribute('href', '/app/isa-demo/compositions');
     expect(nav.getByRole('link', { name: 'Problems' })).toHaveAttribute('href', '/app/isa-demo/problems');
     expect(nav.getByRole('link', { name: 'Runs' })).toHaveAttribute('href', '/app/isa-demo/runs');
     expect(nav.getByRole('link', { name: 'Studies' })).toHaveAttribute('href', '/app/isa-demo/studies');
@@ -145,6 +146,7 @@ describe('AppHeader', () => {
   it.each([
     ['/app', 'Home'],
     ['/app/isa-demo/settings/members', 'Home'],
+    ['/app/isa-demo/compositions/order-desk', 'Compositions'],
     ['/app/isa-demo/problems', 'Problems'],
     ['/app/isa-demo/workbench', 'Problems'],
     ['/app/isa-demo/runs/job-1', 'Runs'],
@@ -162,13 +164,14 @@ describe('AppHeader', () => {
     expect(marked).toEqual(expected ? [expected] : []);
   });
 
-  it('lists Problem, Study and Run in the organization from the New menu', () => {
+  it('lists Composition, Problem, Study and Run in the organization from the New menu', () => {
     renderHeader();
     const toggle = newToggle();
     fireEvent.click(toggle);
 
     const menu = document.getElementById('app-new-menu') as HTMLElement;
     expect(entriesOf(menu)).toEqual([
+      ['Composition', '/app/isa-demo/compositions?create=composition'],
       ['Problem', '/app/isa-demo/problems?create=problem'],
       ['Study', '/app/isa-demo/studies/new'],
       ['Run', '/app/isa-demo/runs/new'],
@@ -263,9 +266,10 @@ describe('AppHeader', () => {
 
       expect(entriesOf(mobileNav())).toEqual([
         ['ISA Demo Group', '/app'],
-        ['Home', '/app'], ['Problems', '/app/isa-demo/problems'],
+        ['Home', '/app'], ['Compositions', '/app/isa-demo/compositions'], ['Problems', '/app/isa-demo/problems'],
         ['Runs', '/app/isa-demo/runs'], ['Studies', '/app/isa-demo/studies'],
         ['Engines', '/engines'], ['Admin', '/app/admin'],
+        ['Composition', '/app/isa-demo/compositions?create=composition'],
         ['Problem', '/app/isa-demo/problems?create=problem'],
         ['Study', '/app/isa-demo/studies/new'], ['Run', '/app/isa-demo/runs/new'],
       ]);

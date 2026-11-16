@@ -4,7 +4,7 @@ import { HttpError } from '../../api/client';
 import { DEFAULT_FILES, instanceResources, parseJson, type CompatibleMode } from './bimDocuments';
 import {
   engineRows, goalTerms, loadRefusalText, packageFileList, refusalMarker, refusalOf, refusalText, refusesRanges, saveRefusalText,
-  whyNot, workbenchDraftScope,
+  whyNot,
 } from './workbenchModel';
 
 const failure = (status: number, code?: string, diagnostics?: unknown[]) => Object.assign(new HttpError(status, 'No'), { code, diagnostics });
@@ -145,13 +145,5 @@ describe('the engines of an analysis', () => {
     expect(rows[0].why).toBe('Runs through bim.builtin/random-search-deployment@1.');
     expect(rows[1].why).toBe('No placement. Needs pools.');
     expect(rows[2].why).toBe('Its declared capabilities don’t cover this package.');
-  });
-});
-
-describe('where the unsaved edits of a workspace are kept', () => {
-  it('keeps them per person, per address and per problem version', () => {
-    expect(workbenchDraftScope('user-1', '/app/a/workbench', null, null)).toBe('user-1:/app/a/workbench::');
-    expect(workbenchDraftScope('user-1', '/app/a/workbench', 'checkout', '2')).toBe('user-1:/app/a/workbench:checkout:2');
-    expect(workbenchDraftScope(undefined, '/x', null, null)).toBe('anonymous:/x::');
   });
 });

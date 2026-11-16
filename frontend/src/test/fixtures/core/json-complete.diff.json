@@ -1,0 +1,100 @@
+{
+  "comparison": {
+    "comparable": true,
+    "compilationChanged": false,
+    "problemRefChanged": false,
+    "valueStatus": {
+      "after": "verified",
+      "before": "verified"
+    }
+  },
+  "from": {
+    "id": "00000000-0000-4000-8000-000000000014",
+    "label": "1.0.0"
+  },
+  "general": [],
+  "isEmpty": false,
+  "sections": [
+    {
+      "entries": [
+        {
+          "changes": [
+            {
+              "after": "enrich-edge",
+              "before": "enrich-cloud",
+              "path": "candidate"
+            }
+          ],
+          "kind": "changed",
+          "name": "enrich"
+        }
+      ],
+      "key": "binding",
+      "label": "Binding"
+    },
+    {
+      "entries": [
+        {
+          "changes": [
+            {
+              "after": 19.0,
+              "before": 20.5,
+              "path": "value"
+            }
+          ],
+          "kind": "changed",
+          "name": "carbon"
+        },
+        {
+          "changes": [
+            {
+              "after": 18.0,
+              "before": 17.0,
+              "path": "value"
+            }
+          ],
+          "kind": "changed",
+          "name": "cost"
+        },
+        {
+          "changes": [
+            {
+              "after": 56.650000000000006,
+              "before": 54.65,
+              "path": "value"
+            }
+          ],
+          "kind": "changed",
+          "name": "latency"
+        },
+        {
+          "changes": [
+            {
+              "after": 0.9,
+              "before": 0.95,
+              "path": "value"
+            }
+          ],
+          "kind": "changed",
+          "name": "trust"
+        }
+      ],
+      "key": "values",
+      "label": "Values"
+    },
+    {
+      "entries": [],
+      "key": "offering",
+      "label": "Offering"
+    }
+  ],
+  "to": {
+    "id": "00000000-0000-4000-8000-000000000015",
+    "label": "1.1.0"
+  },
+  "totals": {
+    "added": 0,
+    "changed": 5,
+    "removed": 0
+  }
+}

@@ -403,6 +403,9 @@ def required_permissions(path: str, method: str) -> frozenset[str]:
         return frozenset({ApiKeyPermission.NOTIFICATIONS_READ.value})
     if path.startswith("/v1/pricing"):
         return frozenset({ApiKeyPermission.PRICING_READ.value})
+    if path == "/v1/compositions" and method == "GET":
+        # The public compositions of every organization: a read of compositions, open to visitors too.
+        return frozenset({ApiKeyPermission.COMPOSITIONS_READ.value})
     if path.startswith("/v1/compositions/") and not (method == "GET" and _is_open_v1_read(path)):
         # The stateless Composition2Yaml services store nothing: reading compositions is enough.
         return frozenset({ApiKeyPermission.COMPOSITIONS_READ.value})

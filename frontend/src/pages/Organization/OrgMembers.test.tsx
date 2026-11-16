@@ -2,7 +2,8 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../api/client';
 import type { OrganizationMember } from '../../api/platform';
-import { iker, member, org, renderScreen, researchUsage } from './testKit';
+import { iker, org } from '../../features/workspace/testKit';
+import { member, renderScreen, researchUsage } from './testKit';
 import { OrgMembers } from './OrgMembers';
 
 const api = vi.hoisted(() => ({ getOwnUsage: vi.fn() }));

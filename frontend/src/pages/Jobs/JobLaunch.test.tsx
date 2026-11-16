@@ -9,11 +9,22 @@ import { JobLaunch } from './JobLaunch';
 
 const runsApi = vi.hoisted(() => ({ create: vi.fn() }));
 const client = vi.hoisted(() => ({ getOwnUsage: vi.fn(), getPricingCatalog: vi.fn(), getEngines: vi.fn() }));
-const problems = vi.hoisted(() => ({ list: vi.fn(), revisions: vi.fn(), compilation: vi.fn(), ir: vi.fn() }));
+const problems = vi.hoisted(() => ({ list: vi.fn(), revisions: vi.fn(), compilation: vi.fn() }));
+const facts = vi.hoisted(() => ({ get: vi.fn() }));
 
 vi.mock('../../api/runs', async () => ({ ...await vi.importActual<typeof import('../../api/runs')>('../../api/runs'), runsApi }));
 vi.mock('../../api/problems', () => ({ problemsApi: problems }));
+vi.mock('../../entities/problem/facts', async (actual) => ({ ...await actual<typeof import('../../entities/problem/facts')>(), problemFactsApi: facts }));
 vi.mock('../../api/client', async () => ({ ...await vi.importActual<typeof import('../../api/client')>('../../api/client'), apiClient: client }));
+
+/** The facts of the compilation of a revision: candidates with these values, and an objective with these criteria. */
+const factsWith = (values: Array<Record<string, unknown>>, criteria: string[] = []) => ({
+  binding_space: '2', constraints: [], features: [{ id: 'latency', unit: 'ms', direction: 'min', required: true }], ir_digest: digestOf('c'),
+  candidates: values.map((value, index) => ({ key: `providers/c${index}`, resource: 'providers', id: `c${index}`, provider: null, values: value, origins: {} })),
+  objectives: { criteria: criteria.map((id) => ({ id })), penalties: [] },
+  tasks: [{ id: 't1', kind: 'service', eligible: values.map((_, index) => ({ candidate: `providers/c${index}`, written: `c${index}` })) }],
+  workflow: 't1',
+});
 
 const group = org('isa-demo', { name: 'ISA Demo Group' });
 const viewing = org('read-lab', { name: 'Read Lab', effective_role: 'VIEWER' });
@@ -79,7 +90,7 @@ describe('Start a run', () => {
     client.getPricingCatalog.mockResolvedValue({});
     client.getEngines.mockResolvedValue(engines);
     problems.compilation.mockResolvedValue(analysis());
-    problems.ir.mockResolvedValue({ id: 'compilation-2', ir_digest: digestOf('c'), source_map: {}, ir: { spec: { candidates: { providers: { candidates: { a: { features: { latency: 40 } } } } } } } });
+    facts.get.mockResolvedValue(factsWith([{ latency: 40 }]));
     runsApi.create.mockResolvedValue({ id: 'job-new-7', status: 'queued', irDigest: digestOf('c') });
   });
 
@@ -118,7 +129,7 @@ describe('Start a run', () => {
   });
 
   describe('a package with ranges', () => {
-    const ranged = { spec: { candidates: { providers: { candidates: { a: { features: { latency: { min: null, max: 200 } } }, b: { features: { latency: 40 } } } } } } };
+    const ranged = factsWith([{ latency: { min: null, max: 200 } }, { latency: 40 }]);
     const RANGE_REASON = 'This package has range features; this engine only accepts single values';
     /** The diagnostic the gateway sends for a mode that does not declare interval values (docs/ERRORS.md). */
     const RANGE_DIAGNOSTIC = {
@@ -132,7 +143,7 @@ describe('Start a run', () => {
     });
 
     it('turns off the engines that take single values only, with the reason, and links to Engines', async () => {
-      problems.ir.mockResolvedValue({ id: 'compilation-2', ir_digest: digestOf('c'), source_map: {}, ir: ranged });
+      facts.get.mockResolvedValue(ranged);
       problems.compilation.mockResolvedValue(analysis({
         compatible_modes: [{ engine: ENGINE, registration: REGISTRATION, mode: 'sampling', compatible: true }, refusedRanges({})],
       }));
@@ -150,11 +161,11 @@ describe('Start a run', () => {
       expect(within(notice).queryByRole('link', { name: 'edit the candidates' })).toBeNull();
       expect(within(notice).queryByRole('link', { name: /library/i })).toBeNull();
       expect(screen.queryByRole('link', { name: 'Open the library' })).toBeNull();
-      expect(problems.ir).toHaveBeenCalledWith('isa-demo', 'flujo', 2, 'compilation-2');
+      expect(facts.get).toHaveBeenCalledWith('isa-demo', 'flujo', 2, 'compilation-2');
     });
 
     it('says so when no engine accepts ranges', async () => {
-      problems.ir.mockResolvedValue({ id: 'compilation-2', ir_digest: digestOf('c'), source_map: {}, ir: ranged });
+      facts.get.mockResolvedValue(ranged);
       problems.compilation.mockResolvedValue(analysis({ compatible_modes: [refusedRanges({ engine: ENGINE, registration: REGISTRATION, mode: 'sampling' })] }));
       renderLaunch();
 
@@ -165,7 +176,7 @@ describe('Start a run', () => {
     });
 
     it('offers every engine as before when the package has none, or when its compiled form cannot be read', async () => {
-      problems.ir.mockRejectedValue(new Error('offline'));
+      facts.get.mockRejectedValue(new Error('offline'));
       problems.compilation.mockRejectedValue(refused(503, 'unavailable'));
       renderLaunch();
 
@@ -176,7 +187,7 @@ describe('Start a run', () => {
     });
 
     it('explains a launch the engine refused for ranges, with the pointers and the way forward', async () => {
-      problems.ir.mockResolvedValue({ id: 'compilation-2', ir_digest: digestOf('c'), source_map: {}, ir: ranged });
+      facts.get.mockResolvedValue(ranged);
       problems.compilation.mockResolvedValue(analysis({ compatible_modes: [{ engine: ENGINE, registration: REGISTRATION, mode: 'sampling', compatible: true }] }));
       runsApi.create.mockRejectedValue(refused(422, 'engine_mode_incompatible', { diagnostics: [{ ...RANGE_DIAGNOSTIC }] }));
       renderLaunch();
@@ -191,7 +202,7 @@ describe('Start a run', () => {
     });
 
     it('explains the same refusal when the gateway could not tell which value, pointing at the compiled problem instead', async () => {
-      problems.ir.mockResolvedValue({ id: 'compilation-2', ir_digest: digestOf('c'), source_map: {}, ir: ranged });
+      facts.get.mockResolvedValue(ranged);
       problems.compilation.mockResolvedValue(analysis({ compatible_modes: [{ engine: ENGINE, registration: REGISTRATION, mode: 'sampling', compatible: true }] }));
       const withoutPointer = { ...RANGE_DIAGNOSTIC, resource: undefined, pointer: undefined };
       runsApi.create.mockRejectedValue(refused(422, 'engine_mode_incompatible', { diagnostics: [{ code: 'profile_incompatible', message: 'mode profile differs' }, withoutPointer] }));
@@ -269,7 +280,7 @@ describe('Start a run', () => {
       }],
     }, engines[1]];
     client.getEngines.mockResolvedValue(withWeightedSum);
-    problems.ir.mockResolvedValue({ id: 'compilation-2', ir_digest: digestOf('c'), source_map: {}, ir: { spec: { optimization: { criteria: [{ id: 'latency' }] }, candidates: { providers: { candidates: { a: { features: { latency: 40 } } } } } } } });
+    facts.get.mockResolvedValue(factsWith([{ latency: 40 }], ['latency']));
     renderLaunch();
     await toReview();
 

@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import type { Organization, StudyCell } from '../../api/platform';
-import { Gate, type Crumb } from '../Organization/parts';
+import { Gate, type Crumb } from '../../features/workspace/parts';
+import '../Organization/Organization.css';
 import { OrgFrame } from '../../features/workspace/OrgFrame';
 import { stateWord, countStates, breakdownText } from './studiesModel';
 import '../../features/workspace/kit.css';

@@ -6,7 +6,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 
 /** The registry order of the areas; an area file that is not listed comes after them, by name. */
 const AREA_ORDER = [
-  'public', 'auth', 'engines', 'account', 'organizations', 'problems', 'runs', 'studies',
+  'public', 'auth', 'engines', 'account', 'organizations', 'compositions', 'problems', 'runs', 'studies',
   'admin',
 ];
 
@@ -55,6 +55,7 @@ export interface GalleryScreen {
 
 export const EXAMPLE = {
   org: 'isa-demo',
+  composition: 'fleet-routing',
   case: 'checkout-flow',
   revision: '2',
   artifact: 'providers-eu',
@@ -75,6 +76,8 @@ export const EXAMPLE = {
 const PARAMS_OF: Record<string, Record<string, string>> = {
   'eng-detail': { namespace: 'bim.builtin', name: 'random-search', version: '1.0.0' },
   'eng-registration-detail': { name: 'edge-solver' },
+  // The public page of the shared mock's public composition of another organization (e2e/helpers/mockCompositions.ts).
+  'pub-showcase': { org: 'lab-other', composition: 'fleet-routing' },
 };
 
 /** The query string that makes a screen show something instead of its starting point. */

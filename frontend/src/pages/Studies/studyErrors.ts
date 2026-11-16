@@ -6,7 +6,7 @@ import {
   CELLS_CODE, USAGE_UNKNOWN_CODE, limitProblemOf, noticeOf, slotsText, usageUnknownText,
 } from '../../utils/limitRefusals';
 import { LIMIT, limitInfo } from '../../utils/limits';
-import { classifyAuthError, marker } from '../Account/accountErrors';
+import { classifyAuthError, marker } from '../../shared/api/errors';
 import type { Refusal } from '../Jobs/jobErrors';
 
 export type { Refusal };

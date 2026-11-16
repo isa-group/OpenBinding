@@ -1,6 +1,10 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { platformApi } from '../../api/platform';
 import { problemsApi } from '../../api/problems';
+import { compositionsApi } from '../../entities/composition/api';
+import { kindLabel } from '../../entities/composition/kinds';
+import { valueStatus } from '../../entities/composition/values';
+import { compositionPath, compositionsPath } from '../../routes/paths/compositions';
 import { problemPath, problemsPath } from '../../routes/paths/problems';
 import { runsApi } from '../../api/runs';
 import { launchPath, runPath, runsPath } from '../../routes/paths/runs';
@@ -11,12 +15,50 @@ import { Action } from '../../components/ui/Action';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { formatDate, formatDateTime } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
+import { ValueBadge } from '../../widgets/value-badge/ValueBadge';
 import { createAddress } from './createDialog';
 import { ancestorsOf, atLeast, byName, roleSource } from './orgModel';
-import { classifyAuthError, marker } from './orgErrors';
-import { Breadcrumb, NeutralGate, OrgTile, PageSkeleton, RoleChip } from './parts';
+import { classifyAuthError, marker } from '../../shared/api/errors';
+import { Breadcrumb } from '../../features/workspace/parts';
+import { NeutralGate, OrgTile, PageSkeleton, RoleChip } from './parts';
 import { useRouteOrganization } from './useRouteOrganization';
 import './Organization.css';
+
+/** How many compositions the overview lists; the rest are one click away. */
+const COMPOSITIONS_SHOWN = 5;
+
+/** The organization's active compositions, the ones changed last first, with how many there are and the way to all of them. */
+function CompositionsPanel({ slug, canCreate }: { slug: string; canCreate: boolean }) {
+  const compositions = useResource(
+    `org-compositions:${slug}`,
+    () => compositionsApi.list(slug, { archived: false, sort: 'updated', limit: COMPOSITIONS_SHOWN }),
+  );
+  const failure = compositions.status === 'error' ? classifyAuthError(compositions.error) : null;
+  const rows = compositions.data?.compositions ?? [];
+  return (
+    <section className="org-card" aria-labelledby="org-compositions-title" aria-busy={compositions.status === 'loading'}>
+      <div className="org-card-head">
+        <h2 id="org-compositions-title">Compositions{compositions.data && <span className="org-count">{compositions.data.total}</span>}</h2>
+        {canCreate && <Link to={`${compositionsPath(slug)}?create=composition`} viewTransition>+ New composition</Link>}
+      </div>
+      {compositions.status === 'loading' && <Skeleton variant="tile" />}
+      {failure && <span className="org-muted">Compositions couldn’t be loaded{marker(failure)}.</span>}
+      {compositions.status === 'ready' && rows.length === 0 && (
+        <span className="org-muted">None yet. A composition is the binding the organization keeps: the service chosen for each task, and the values it yields.</span>
+      )}
+      {rows.map((item) => (
+        <Link key={item.id} to={compositionPath(slug, item.slug)} viewTransition className="org-sub">
+          <span>
+            <strong>{item.name}</strong>
+            <small>{kindLabel(item.kind)} · {item.latest_version ? `version ${item.latest_version.label}` : 'no version yet'} · {formatDate(item.updated_at) ?? '—'}</small>
+          </span>
+          {item.latest_version && <ValueBadge status={valueStatus(item.latest_version)} />}
+        </Link>
+      ))}
+      <Link to={compositionsPath(slug)} viewTransition>All compositions</Link>
+    </section>
+  );
+}
 
 /** How many problems the overview lists; the rest are one click away. */
 const PROBLEMS_SHOWN = 5;
@@ -164,11 +206,12 @@ function OrgOverviewBody({ organization }: { organization: Organization }) {
 
       <div className="org-columns">
         <div className="org-main org-panels">
+          <CompositionsPanel slug={slug} canCreate={canCreate} />
           <ProblemsPanel slug={slug} canCreate={canCreate} />
           <RunsPanel slug={slug} canCreate={canCreate} />
           <StudiesPanel slug={slug} canCreate={canCreate} />
           {role === 'VIEWER' && (
-            <small className="org-muted">You’re a VIEWER here: you read everything, and a MEMBER or above uploads problems and launches runs and studies.</small>
+            <small className="org-muted">You’re a VIEWER here: you read everything, and a MEMBER or above writes compositions, uploads problems and launches runs and studies.</small>
           )}
         </div>
 
@@ -196,7 +239,7 @@ function OrgOverviewBody({ organization }: { organization: Organization }) {
   );
 }
 
-/** An organization (`org-overview`, `/app/:org`): its problems, its runs, its studies and its sub-organizations. */
+/** An organization (`org-overview`, `/app/:org`): its compositions, its problems, its runs, its studies and its sub-organizations. */
 export function OrgOverview() {
   const { organization, waiting } = useRouteOrganization();
   if (waiting) return <div className="org-page"><PageSkeleton /></div>;

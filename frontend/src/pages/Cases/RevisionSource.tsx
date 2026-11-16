@@ -5,7 +5,6 @@ import { problemsApi, type CompilationIr, type Problem, type ProblemCompilation,
 import { parseBindingSpace } from '../../components/BindingSpaceBadge/bindingSpace';
 import { SourceView } from '../../components/rendering/SourceView';
 import { Action } from '../../components/ui/Action';
-import { Chip } from '../../components/ui/Chip';
 import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useCopy } from '../../components/ui/useCopy';
@@ -15,13 +14,16 @@ import { readZipArchive, type ZipArchive } from '../../utils/zipExplorer';
 import { useResource } from '../../utils/useResource';
 import { saveBytes } from '../../features/workspace/download';
 import { formatFeature } from '../../utils/featureRange';
-import { rangeCandidates, readBindingProblem, powerText, type BindingModel } from './bindingModel';
-import { classifyAuthError, marker, sourceFailureKind, type AuthFailure } from './caseErrors';
+import { problemFactsApi, rangeCandidates } from '../../entities/problem/facts';
+import type { ProblemFacts } from '../../shared/api/types';
+import { sourceFailureKind } from './caseErrors';
+import { powerText } from './casesModel';
+import { classifyAuthError, marker, type AuthFailure } from '../../shared/api/errors';
 import { CaseMissing } from './parts';
 // The source styles keep the name of the page that used to hold them.
 import './RevisionSource.css';
 
-type Compiled = { state: 'ok'; compilation: ProblemCompilation; ir: CompilationIr } | { state: 'failed'; failure: AuthFailure };
+type Compiled = { state: 'ok'; compilation: ProblemCompilation; ir: CompilationIr; facts: ProblemFacts } | { state: 'failed'; failure: AuthFailure };
 type DownloadKind = 'source' | 'ir';
 type Download = { state: 'busy' | 'done' } | { state: 'failed'; message: string };
 
@@ -109,7 +111,7 @@ function SourceViewer({ org, problem, revision, ir }: { org: string; problem: st
   );
 }
 
-function Summary({ analysis, model }: { analysis: Compiled | undefined; model: BindingModel | null }) {
+function Summary({ analysis }: { analysis: Compiled | undefined }) {
   if (!analysis) return <div role="status" aria-busy="true"><span className="sr-only">Reading what the engines receive…</span><Skeleton variant="tile" /></div>;
   if (analysis.state === 'failed' && analysis.failure.code === 'revision_not_recompilable') {
     return (
@@ -118,53 +120,35 @@ function Summary({ analysis, model }: { analysis: Compiled | undefined; model: B
       </Notice>
     );
   }
-  const combos = analysis.state === 'ok' ? parseBindingSpace(analysis.compilation.analysis.bindingSpace) : null;
-  const figures = analysis.state === 'ok'
-    ? [
-      { value: String(analysis.compilation.analysis.tasks), label: 'tasks' },
-      { value: String(analysis.compilation.analysis.candidates), label: 'candidates' },
-      { value: String(analysis.compilation.analysis.constraints), label: 'rules' },
-      { value: String(model?.criteria.length ?? '—'), label: 'goal terms' },
-      { value: combos ? `10^${Math.round(combos.log10 * 10) / 10}` : '—', label: 'combinations' },
-    ]
-    : model
-      ? [
-        { value: String(model.tasks.length), label: 'tasks' },
-        { value: String(model.candidateCount), label: 'candidates' },
-        { value: String(model.rules.length), label: 'rules' },
-        { value: String(model.criteria.length), label: 'goal terms' },
-        { value: powerText(model.log10), label: 'combinations (up to)' },
-      ]
-      : [];
+  if (analysis.state === 'failed') {
+    return <Notice tone="warning">{`The gateway’s analysis of this version isn’t available right now${marker(analysis.failure)}.`}</Notice>;
+  }
+  const { compilation, facts } = analysis;
+  const combos = parseBindingSpace(compilation.analysis.bindingSpace);
+  const figures = [
+    { value: String(compilation.analysis.tasks), label: 'tasks' },
+    { value: String(compilation.analysis.candidates), label: 'candidates' },
+    { value: String(compilation.analysis.constraints), label: 'rules' },
+    { value: String(facts.objectives.criteria.length), label: 'goal terms' },
+    { value: powerText(compilation.analysis.bindingSpace), label: 'combinations' },
+  ];
   return (
     <>
-      {analysis.state === 'failed' && (
-        <Notice tone="warning">
-          {`The gateway’s own analysis isn’t available right now${marker(analysis.failure)}. The figures below are read from the compiled form.`}
-        </Notice>
-      )}
-      {figures.length === 0 && <p className="org-muted">There is no compiled form to summarize for this version.</p>}
-      {figures.length > 0 && (
-        <ul className="case-glance" aria-label="What the engines receive">
-          {figures.map((figure) => <li key={figure.label}><b>{figure.value}</b><span>{figure.label}</span></li>)}
-        </ul>
-      )}
-      {analysis.state === 'ok' && combos && combos.bigVal > 1n && (
-        <span className="org-muted">Exactly {combos.exact} possible bindings.</span>
-      )}
-      {analysis.state === 'ok' && (
-        <span className="org-muted">{analysis.compilation.compatible_modes.length === 1 ? '1 engine mode can run it.' : `${analysis.compilation.compatible_modes.length} engine modes can run it.`}</span>
-      )}
-      <RangeNotice model={model} analysis={analysis} />
+      <ul className="case-glance" aria-label="What the engines receive">
+        {figures.map((figure) => <li key={figure.label}><b>{figure.value}</b><span>{figure.label}</span></li>)}
+      </ul>
+      {combos.bigVal > 1n && <span className="org-muted">Exactly {combos.exact} possible bindings.</span>}
+      <span className="org-muted">{compilation.compatible_modes.length === 1 ? '1 engine mode can run it.' : `${compilation.compatible_modes.length} engine modes can run it.`}</span>
+      <RangeNotice facts={facts} compilation={compilation} />
     </>
   );
 }
 
 /** The ranges a package carries, and what that means for the engines: only a mode that declares interval values can run it. */
-function RangeNotice({ model, analysis }: { model: BindingModel | null; analysis: Compiled }) {
-  const ranged = model ? rangeCandidates(model) : [];
+function RangeNotice({ facts, compilation }: { facts: ProblemFacts; compilation: ProblemCompilation }) {
+  const ranged = rangeCandidates(facts);
   if (ranged.length === 0) return null;
-  const modes = analysis.state === 'ok' ? analysis.compilation.compatible_modes : null;
+  const modes = compilation.compatible_modes;
   const refused = modes ? modes.filter((mode) => typeof mode === 'object' && mode !== null && (mode as { compatible?: unknown }).compatible === false).length : null;
   return (
     <section className="case-ranges" aria-label="Range features">
@@ -194,7 +178,12 @@ function SourceBody({ organization, item, revision }: { organization: Organizati
   const compiled = useResource<Compiled>(`compiled:${key}`, async () => {
     try {
       const compilation = await problemsApi.compilation(org, item.slug, revision.revision);
-      return { state: 'ok', compilation, ir: await problemsApi.ir(org, item.slug, revision.revision, compilation.id) };
+      // The IR is fetched for the source view and the download only: what this tab reads is the facts.
+      const [ir, facts] = await Promise.all([
+        problemsApi.ir(org, item.slug, revision.revision, compilation.id),
+        problemFactsApi.get(org, item.slug, revision.revision, compilation.id),
+      ]);
+      return { state: 'ok', compilation, ir, facts };
     } catch (caught) {
       return { state: 'failed', failure: classifyAuthError(caught) };
     }
@@ -229,7 +218,6 @@ function SourceBody({ organization, item, revision }: { organization: Organizati
 
   const data = detail.data;
   const ir = compiled.data?.state === 'ok' ? compiled.data.ir : null;
-  const model = ir ? readBindingProblem(ir.ir) : null;
   const digests: Record<'instance' | 'package' | 'compiled', string | null> = { instance: data.instance_digest ?? null, package: data.package_digest, compiled: ir?.ir_digest ?? null };
   const file = `${item.slug}-v${revision.revision}`;
 
@@ -283,29 +271,22 @@ function SourceBody({ organization, item, revision }: { organization: Organizati
 
       <section className="org-section" aria-labelledby="sd-language">
         <h2 id="sd-language">Exact language used</h2>
-        {model ? (
-          <div className="proj-chips">
-            <Chip tone="accent">Profile · {model.profile ?? 'not stated'}</Chip>
-            <Chip>{model.dialects.length === 0 ? 'Dialects · none' : `Dialects · ${model.dialects.map((dialect) => dialect.label).join(', ')}`}</Chip>
-            <Chip>{model.adapters.length === 0 ? 'Adapters · none stated' : `Adapters · ${model.adapters.join(', ')}`}</Chip>
-          </div>
-        ) : <p className="org-muted">The compiled form isn’t available, so the language it used can’t be listed.</p>}
-        {compiled.data?.state === 'ok' && Object.keys(compiled.data.compilation.resources).length > 0 && (
+        {compiled.data?.state === 'ok' && Object.keys(compiled.data.compilation.resources).length > 0 ? (
           <table className="case-table">
             <caption>Resources</caption>
-            <thead><tr><th scope="col">Resource</th><th scope="col">Role</th><th scope="col">Kind</th></tr></thead>
+            <thead><tr><th scope="col">Resource</th><th scope="col">Role</th><th scope="col">Kind</th><th scope="col">Language</th></tr></thead>
             <tbody>
               {Object.entries(compiled.data.compilation.resources).map(([id, contract]) => (
-                <tr key={id}><th scope="row"><code>{id}</code></th><td>{contract.role ?? '—'}</td><td>{contract.kind ?? '—'}</td></tr>
+                <tr key={id}><th scope="row"><code>{id}</code></th><td>{contract.role ?? '—'}</td><td>{contract.kind ?? '—'}</td><td>{contract.apiVersion ?? '—'}</td></tr>
               ))}
             </tbody>
           </table>
-        )}
+        ) : <p className="org-muted">The compilation isn’t available, so the language it used can’t be listed.</p>}
       </section>
 
       <section className="org-section" aria-labelledby="sd-engines">
         <h2 id="sd-engines">What the engines receive</h2>
-        <Summary analysis={compiled.data} model={model} />
+        <Summary analysis={compiled.data} />
       </section>
 
       <section className="org-section" aria-labelledby="sd-downloads">

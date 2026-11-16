@@ -25,6 +25,7 @@ from _composition_helpers import (
     OtherToolchain,
     SemanticChange,
     bim_binding,
+    document_for,
     finished_run,
     first_binding,
 )
@@ -509,3 +510,57 @@ async def test_a_run_of_a_release_that_reads_the_problem_differently_is_refused(
     assert found(refused) == [(codes.COMPILATION_SEMANTICS_CHANGED, "/problem/compilation")]
     assert "run the problem again" in diagnostics(refused)[0]["message"]
 
+
+# --------------------------------------------------------------------------- what a version view says of it
+
+
+async def test_a_version_view_says_where_it_was_derived_from(api_client, registration, db_session, gate):  # noqa: F811
+    headers, linked, base = await composition_of(api_client, registration, db_session, gate)
+    run = await finished_run(db_session, linked, [bim_binding(linked, SIMPLE_BINDING)] * 2)
+    other = {**SIMPLE_BINDING, "t1": "c1b"}
+    revision = linked.upload.revision
+
+    from_run = await api_client.post(f"{base}/derive", headers=headers, json={"run": str(run.id), "point": 1, "version": "1.0.0"})
+    from_binding = await api_client.post(
+        f"{base}/derive", headers=headers, json={"revision": "simple-seq@1", "binding": other, "version": "2.0.0"},
+    )
+    by_hand = await api_client.post(
+        f"{base}/versions", content=document_for(linked, SIMPLE_BINDING).replace("version: 1.0.0", "version: 3.0.0"),
+        headers={**headers, "content-type": "application/yaml"},
+    )
+
+    assert [answer.status_code for answer in (from_run, from_binding, by_hand)] == [201, 201, 201]
+    assert from_run.json()["version"]["derivation"] == {
+        "source": "run", "run": {"id": str(run.id)}, "point": 1,
+        "revision": {"id": str(revision.id), "revision": revision.revision},
+    }
+    listed = (await api_client.get(f"{base}/versions?order=oldest", headers=headers)).json()["versions"]
+    assert [item["derivation"] for item in listed] == [
+        from_run.json()["version"]["derivation"],
+        {"source": "binding", "run": None, "point": None, "revision": {"id": str(revision.id), "revision": revision.revision}},
+        None,
+    ]
+    for label, binding in (("1.0.0", SIMPLE_BINDING), ("2.0.0", other), ("3.0.0", SIMPLE_BINDING)):
+        version = (await api_client.get(f"{base}/versions/{label}", headers=headers)).json()
+        assert version["derivation"] == next(item["derivation"] for item in listed if item["label"] == label)
+        (evaluation,) = version["evaluations"]
+        expected = {task: f"{item['resource']}/{item['id']}" for task, item in bim_binding(linked, binding).items()}
+        assert evaluation["binding"] == expected == {task: f"catalog/{candidate}" for task, candidate in binding.items()}
+
+
+async def test_a_resolved_binding_leaves_local_tasks_out(api_client, registration, db_session, gate):  # noqa: F811
+    headers, linked, base = await composition_of(api_client, registration, db_session, gate, path=DEMO / "13_fms", slug="fms")
+    binding = {task: candidate for task, candidate in first_binding(linked.compilation.ir).items() if candidate != "local"}
+
+    derived = await api_client.post(
+        f"{base}/derive", headers=headers, json={"revision": "fms@1", "binding": binding, "version": "1.0.0"},
+    )
+
+    assert derived.status_code == 201, derived.text
+    (evaluation,) = derived.json()["version"]["evaluations"]
+    assert set(evaluation["binding"]) == set(binding) == linked.facts.service_tasks
+    assert not set(evaluation["binding"]) & linked.facts.local_tasks
+    assert evaluation["binding"] == {
+        task: f"{item['resource']}/{item['id']}" for task, item in bim_binding(linked, binding).items()
+    }
+    assert derived.json()["evaluation"]["binding"] == evaluation["binding"]

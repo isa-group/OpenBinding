@@ -1,9 +1,11 @@
 import { expect as baseExpect, test, type Page, type Route } from '@playwright/test';
+import { compositionStore } from './helpers/mockCompositions';
 
 // The dev server compiles each route on first use, so the first assertion of a test can wait for a cold page.
 const expect = baseExpect.configure({ timeout: 15_000 });
 
-// S1a · public screens: pub-home and pub-about (with the service-status note that took the place of /status).
+// S1a · public screens: pub-home and pub-about (with the service-status note that took the place of /status), and the public
+// compositions with the public page of one (pub-compositions, pub-showcase), as a visitor reads them.
 // There is no backend: the API origin is answered by page.route(). Screenshots go to testInfo.outputPath()
 // (test-results/, ignored by git) so they can be looked at after a run.
 
@@ -64,6 +66,25 @@ async function mockApi(page: Page, mocks: Mocks = {}) {
   }
 }
 
+/**
+ * The public compositions of every organization (`GET /v1/compositions`) and the reads of an organization's compositions, as the
+ * gateway answers a visitor: the shared mock's store (e2e/helpers/mockCompositions.ts), public ones redacted, private ones missing.
+ */
+async function mockPublicCompositions(page: Page) {
+  const store = compositionStore();
+  await page.route(/^http:\/\/localhost:8000\/v1\/(compositions|organizations\/[^/]+\/compositions)(\/|\?|$)/, (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    const parts = url.pathname.split('/').filter(Boolean);
+    const known = { method: request.method(), parts, query: url.searchParams, body: () => ({}), text: () => '' };
+    if (parts[1] === 'compositions' && parts.length > 2) return route.fulfill({ status: 404, json: { detail: 'not mocked' } });
+    const reply = parts[1] === 'compositions' ? store.publicList(known) : store.publicRoute(known, parts[2], false);
+    return reply.text !== undefined
+      ? route.fulfill({ status: reply.status, contentType: reply.type ?? 'text/plain', body: reply.text })
+      : route.fulfill({ status: reply.status, json: reply.json });
+  });
+}
+
 function watchCriticalErrors(page: Page) {
   const critical: string[] = [];
   page.on('pageerror', (error) => critical.push(`pageerror: ${error.message}`));
@@ -103,8 +124,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       await expect(main.getByRole('heading', { level: 1, name: 'Describe. Bind. Reproduce.' })).toBeVisible();
       await ready(page);
-      await expect(main.getByRole('link', { name: /Validate a package/ })).toHaveAttribute('href', '/workbench');
-      await expect(main.getByRole('link', { name: /Browse the engines/ })).toHaveAttribute('href', '/engines');
+      await expect(main.getByRole('link', { name: /Explore compositions/ })).toHaveAttribute('href', '/compositions');
+      await expect(main.getByRole('link', { name: /Learn Composition2Yaml/ })).toHaveAttribute('href', '/language');
       await expect(main.getByRole('link', { name: /Create an account/ })).toHaveAttribute('href', '/register');
       await expect(main.getByRole('status', { name: 'Runtime catalogue status' })).toContainText('3 public engine revisions');
 
@@ -238,6 +259,36 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       await expectNoHorizontalOverflow(page);
       expect(critical).toEqual([]);
+    });
+
+    test('pub-compositions and pub-showcase: the public list opens the public page of a composition', async ({ page }, testInfo) => {
+      const critical = watchCriticalErrors(page);
+      await mockApi(page);
+      await mockPublicCompositions(page);
+      await page.goto('/compositions');
+      const main = page.locator('main');
+
+      await expect(main.getByRole('heading', { level: 1, name: 'Public compositions' })).toBeVisible();
+      if (!isMobile) await expect(page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('link', { name: 'Compositions' })).toHaveAttribute('aria-current', 'page');
+      const list = main.getByRole('region', { name: 'Public compositions' });
+      await expect(list.getByRole('article')).toHaveCount(2);
+      await expect(list.getByText('2 compositions')).toBeVisible();
+      await ready(page);
+      await expectNoHorizontalOverflow(page);
+      await page.screenshot({ path: testInfo.outputPath(`public-compositions-${name}.png`), fullPage: true, animations: 'disabled' });
+
+      await list.getByRole('link', { name: 'Order desk' }).click();
+      await expect(page).toHaveURL('/c/isa-demo/order-desk');
+      await expect(main.getByRole('heading', { level: 1, name: 'Order desk' })).toBeVisible();
+      await expect(main.getByText('Application · ISA Demo Group')).toBeVisible();
+      await expect(main.getByRole('region', { name: 'Value status' })).toContainText('Declared');
+      await expect(main.getByRole('region', { name: 'Workflow' })).toBeVisible();
+      await expect(main.getByRole('button', { name: 'Fork', exact: true })).toBeVisible();
+      await expect(main.getByRole('button', { name: 'Copy permalink' })).toBeVisible();
+      await ready(page);
+      await expectNoHorizontalOverflow(page);
+      expect(critical).toEqual([]);
+      await page.screenshot({ path: testInfo.outputPath(`showcase-${name}.png`), fullPage: true, animations: 'disabled' });
     });
 
     test('pub-about · the footer and header addresses land on the right tab', async ({ page }) => {

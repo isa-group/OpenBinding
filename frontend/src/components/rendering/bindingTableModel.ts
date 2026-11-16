@@ -20,7 +20,7 @@ export interface BindingFeature {
   unit: string | null;
 }
 
-/** The part of a compiled problem the table reads; the `BindingModel` of `readBindingProblem` fits it. */
+/** The part of a compiled problem the table reads; `runProblemOf(facts)` (runProblem.ts) fills it from the facts of the run's compilation. */
 export interface BindingProblemShape {
   tasks: ReadonlyArray<{
     id: string;

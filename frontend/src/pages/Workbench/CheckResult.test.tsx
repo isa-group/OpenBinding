@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
+import { checkoutFacts, compiledDocument } from '../Cases/fixtures';
 import type { Diagnostic } from './bimDocuments';
 import { CheckResult } from './CheckResult';
 import type { Workbench } from './useWorkbench';
@@ -74,5 +75,32 @@ describe('the diagnostics of a failed validation', () => {
 
     expect(open).toHaveBeenCalledTimes(1);
     expect(open).toHaveBeenCalledWith(item);
+  });
+});
+
+describe('the workflow of a valid package', () => {
+  /** A checked package; `compiledIr` is what `compile()` stored from `validate?include=ir,facts`. */
+  function valid(compiledIr: Workbench['compiledIr'], compile = vi.fn()): Workbench {
+    return {
+      status: 'valid', refusal: null, diagnostics: [], resources: [], origin: 'package', files: {}, root: null, digests: null,
+      compatibleModes: [], allModes: [], analysisData: { tasks: 6, candidates: 22, constraints: 2, placement: false, bindingSpace: '1920' },
+      compiledIr, irLoading: false, irError: null, compile, openDiagnostic: vi.fn(), selectResource: vi.fn(),
+    } as unknown as Workbench;
+  }
+
+  it('asks the gateway to compile before drawing', () => {
+    const compile = vi.fn();
+    show(valid(null, compile));
+    fireEvent.click(screen.getByRole('button', { name: 'Draw the workflow' }));
+    expect(compile).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('group', { name: 'Workflow' })).toBeNull();
+  });
+
+  it('draws the workflow from the facts of the compiled package, local tasks included', () => {
+    show(valid({ digest: 'sha256-ir', document: compiledDocument(), facts: checkoutFacts() }));
+    const drawing = screen.getByRole('group', { name: 'Workflow' });
+    expect(drawing).toHaveAccessibleDescription(/^Workflow: authenticate, then \(inventory and shipping in parallel\)/);
+    expect(within(drawing).getByRole('group', { name: 'Choice, 2 branches, probabilities 0.7, 0.3' })).toBeInTheDocument();
+    expect(within(drawing).getByText('local task · not bound')).toBeInTheDocument();
   });
 });

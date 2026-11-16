@@ -24,8 +24,9 @@ ROLES = {"lab-owner": "OWNER", "lab-member": "MEMBER", "lab-viewer": "VIEWER"}
 LIMIT = 3
 ALL_STEPS = [
     "proxy_and_spa", "login", "upload", "owner_job", "study", "idempotency", "authorization",
-    "concurrency_limit", "cors", "body_limit", "plan_usage", "login_throttle",
+    "concurrency_limit", "cors", "body_limit", "public_compositions", "plan_usage", "login_throttle",
 ]
+NOT_FOUND = {"detail": {"code": "not_found", "error": "Composition not found."}, "code": "not_found", "status": 404}
 TEMPLATE = b"PK-example"
 ENGINE = {"name": "random-search", "namespace": "bim.builtin", "version": "1.0.0", "digest": "sha256-e"}
 
@@ -110,6 +111,10 @@ class FakeLab:
             return self.preflight(request)
         if sub == "/v1/bim/templates/demo/01_simple_seq":
             return httpx.Response(200, content=TEMPLATE, headers={"content-type": "application/vnd.bim+zip"})
+        if sub == "/v1/compositions" and method == "GET":
+            return self.public_list()
+        if sub.startswith("/v1/organizations/lab-other/compositions/") and method == "GET" and user is None:
+            return self.public_composition(sub.rsplit("/", 1)[-1])
         if user is None:
             return self.problem(401, "unauthorized")
         if sub in {"/v1/users/me", "/v1/users/me/usage"} and "pricing_blocked" in self.faults:
@@ -168,6 +173,23 @@ class FakeLab:
     def preflight(self, request: httpx.Request) -> httpx.Response:
         headers = self.cors_headers(request)
         return self.reply(200 if headers else 400, None, headers)
+
+    def public_list(self) -> httpx.Response:
+        """lab-other's two public compositions; ``public_extra`` publishes the private one too."""
+        slugs = ["sequential-workflow", "order-desk"] + (["internal-draft"] if "public_extra" in self.faults else [])
+        rows = [{"organization": {"slug": "lab-other", "name": "Lab Other Organization"}, "slug": slug} for slug in slugs]
+        return self.reply(200, {"compositions": rows, "total": len(rows), "limit": 100, "offset": 0})
+
+    def public_composition(self, slug: str) -> httpx.Response:
+        """A visitor's read: the public ones, redacted; the private one as a missing one (``private_readable`` and
+        ``private_403`` break that)."""
+        if slug in {"sequential-workflow", "order-desk"}:
+            return self.reply(200, {"slug": slug, "visibility": "public", "created_by_id": None})
+        if slug == "internal-draft" and "private_readable" in self.faults:
+            return self.reply(200, {"slug": slug, "visibility": "private"})
+        if slug == "internal-draft" and "private_403" in self.faults:
+            return self.reply(403, {"detail": {"code": "organization_forbidden", "error": "Not a member."}})
+        return self.reply(404, NOT_FOUND)
 
     def usage(self) -> httpx.Response:
         capabilities: dict = {"maxConcurrentJobs": 3, "maxTimeBudgetS": None}
@@ -398,7 +420,7 @@ def test_every_step_passes_against_a_healthy_lab():
     report = smoke(FakeLab(), with_space=True)
     assert failing(report) == [], [step for step in report["steps"] if not step["ok"]]
     assert [step["name"] for step in report["steps"]] == ALL_STEPS
-    assert report["ok"] is True and report["passed"] == 12 and report["failed"] == 0 and report["skipped"] == []
+    assert report["ok"] is True and report["passed"] == 13 and report["failed"] == 0 and report["skipped"] == []
     assert report["blocked"] == 0 and report["blockedSteps"] == []
     assert not any(step["blockedByRemote"] for step in report["steps"])
 
@@ -445,7 +467,7 @@ def test_missing_spaces_contracts_block_the_steps_that_need_a_plan_and_are_not_f
         assert "BLOCKED BY REMOTE" in step["detail"]
         assert "seed_lab --space-contracts after remote_provision --apply" in step["detail"]
         assert "pricing_unavailable" in step["detail"]
-    for name in ("proxy_and_spa", "cors", "body_limit", "login_throttle"):
+    for name in ("proxy_and_spa", "cors", "body_limit", "public_compositions", "login_throttle"):
         assert by_name[name]["ok"] is True and by_name[name]["blockedByRemote"] is False
     # no problem is uploaded and no study is started either
     assert fake.problems == {} and fake.studies == set() and fake.study_runs == 0
@@ -541,7 +563,7 @@ def test_a_failing_step_gives_exit_one_and_does_not_stop_the_next_ones(capsys):
     code, report, _ = run_main(FakeLab("spa_404"), capsys)
     assert code == 1 and report["ok"] is False
     assert failing(report) == ["proxy_and_spa"]
-    assert len(report["steps"]) == 12
+    assert len(report["steps"]) == 13
 
 
 def test_a_missing_password_is_a_configuration_error(capsys):
@@ -556,7 +578,7 @@ def test_an_unreachable_lab_fails_every_step_without_a_traceback(capsys):
 
     code = smoke_lab.main([], {"DEMO_SEED_PASSWORD": PASSWORD}, transport=httpx.MockTransport(refuse), sleep=lambda _: None)
     report = json.loads(capsys.readouterr().out)
-    assert code == 1 and report["failed"] == 11
+    assert code == 1 and report["failed"] == 12
     assert all("ConnectError" in step["detail"] for step in report["steps"])
 
 
@@ -572,7 +594,7 @@ def test_a_user_that_cannot_sign_in_fails_the_login_step_and_what_needs_it():
 def test_skip_leaves_out_optional_steps_and_the_space_step_needs_its_flag():
     report = smoke(FakeLab(), skip=frozenset({8, 9, 10, 11}))
     assert [step["name"] for step in report["steps"]] == [
-        "proxy_and_spa", "login", "upload", "owner_job", "study", "idempotency", "authorization",
+        "proxy_and_spa", "login", "upload", "owner_job", "study", "idempotency", "authorization", "public_compositions",
     ]
     assert report["skipped"] == ["concurrency_limit", "cors", "body_limit", "plan_usage", "login_throttle"]
     assert report["ok"] is True
@@ -614,7 +636,7 @@ def test_an_unexpected_exception_in_a_step_is_reported_redacted():
     step = steps_of(report)["proxy_and_spa"]
     assert not step["ok"] and "RuntimeError" in step["detail"]
     assert PASSWORD not in step["detail"] and "***" in step["detail"]
-    assert failing(report) == ["proxy_and_spa"] and len(report["steps"]) == 11
+    assert failing(report) == ["proxy_and_spa"] and len(report["steps"]) == 12
 
 
 # -- step 1 --------------------------------------------------------------------
@@ -813,6 +835,34 @@ def test_twelve_failed_logins_end_in_a_429_with_retry_after():
 def test_a_gateway_without_throttling_fails_the_step():
     step = steps_of(smoke(FakeLab("no_throttle")))["login_throttle"]
     assert not step["ok"] and "429" in step["detail"]
+
+
+# -- step 13 -------------------------------------------------------------------
+
+
+def test_a_visitor_lists_the_two_public_compositions_and_reads_only_those():
+    fake = FakeLab()
+    step = steps_of(smoke(fake))["public_compositions"]
+    assert step["ok"], step["detail"]
+    # Every request of the step is anonymous.
+    reads = [path for _, path in fake.requests if "/compositions" in path]
+    assert reads == [
+        "/api/v1/compositions", "/api/v1/organizations/lab-other/compositions/sequential-workflow",
+        "/api/v1/organizations/lab-other/compositions/internal-draft", reads[3],
+    ] and reads[3].endswith("-missing")
+
+
+@pytest.mark.parametrize(
+    ("fault", "expected"),
+    [
+        ("public_extra", "the public list holds"),
+        ("private_readable", "is not found"),
+        ("private_403", "the body of a missing one"),
+    ],
+)
+def test_the_public_compositions_step_names_what_went_wrong(fault, expected):
+    step = steps_of(smoke(FakeLab(fault)))["public_compositions"]
+    assert not step["ok"] and expected in step["detail"]
 
 
 # -- step 12 -------------------------------------------------------------------

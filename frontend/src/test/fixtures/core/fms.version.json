@@ -1,0 +1,218 @@
+{
+  "analytics": {
+    "boundTasks": 5,
+    "hasOffering": false,
+    "localTasks": 1,
+    "providers": 5,
+    "tasks": 6,
+    "upstreamPricings": 0,
+    "workflow": {
+      "and": 0,
+      "depth": 2,
+      "loop": 0,
+      "xor": 1
+    }
+  },
+  "based_on": null,
+  "content_digest": "sha256-d8e92679c13448f0f3c0cc47baaed851db07977df5aa82bf68684dda95c2ac6c",
+  "created_at": "2026-01-01T00:00:02Z",
+  "created_by_id": "00000000-0000-4000-8000-000000000003",
+  "current_evaluation": {
+    "basis": "bim",
+    "compilation": {
+      "compilation_digest": "sha256-09ab5a1b33aa75f8e48421f8a21ee84d78e5f8a430653bf36e79f0367b476332",
+      "semantic_digest": "sha256-710017a5f090fdbfabf965e77a3ce683dc9ccecb846c0a7036161f36125b55a7",
+      "toolchain": {
+        "apiVersion": "bim/v1",
+        "compilerDigest": "sha256-b91fc3a05d1a58d128f5589f35396aaf8ebd0c3854e1e072ce17c765fe42b4d4",
+        "name": "bim-core",
+        "version": "0.2.0"
+      }
+    },
+    "created_at": "2026-01-01T00:00:03Z",
+    "id": "00000000-0000-4000-8000-000000000010",
+    "outcome": "verified"
+  },
+  "current_evaluation_id": "00000000-0000-4000-8000-000000000010",
+  "derivation": {
+    "point": null,
+    "revision": {
+      "id": "00000000-0000-4000-8000-000000000011",
+      "revision": 1
+    },
+    "run": null,
+    "source": "binding"
+  },
+  "document": {
+    "binding": {
+      "T1": {
+        "candidate": "cand_t1_aws"
+      },
+      "T2": {
+        "candidate": "cand_t2_radius_iot_network"
+      },
+      "T3": {
+        "candidate": "cand_t3_distance_matrix_api"
+      },
+      "T5": {
+        "candidate": "cand_t5_amazon_braket"
+      },
+      "T6": {
+        "candidate": "cand_t6_paypal"
+      },
+      "node_classic_routing": {
+        "local": true
+      }
+    },
+    "composition": "fms",
+    "evidence": {
+      "evaluatedBy": "gateway",
+      "manual": true,
+      "toolchain": "bim-core 0.2.0"
+    },
+    "kind": "application",
+    "problem": {
+      "compilation": "sha256-09ab5a1b33aa75f8e48421f8a21ee84d78e5f8a430653bf36e79f0367b476332",
+      "ref": "fixtures/problems/fms@1"
+    },
+    "syntaxVersion": "1.0",
+    "values": {
+      "availability": 0.9963044476255752,
+      "cost": {
+        "unit": "USD/month",
+        "value": 3060.0
+      },
+      "execution_time": {
+        "unit": "ms",
+        "value": 3180.0
+      },
+      "reliability": 0.97670566058688,
+      "security": {
+        "unit": "score",
+        "value": 4.0
+      }
+    },
+    "version": "1.0.0",
+    "workflow": {
+      "seq": [
+        "T1",
+        "T2",
+        "T3",
+        {
+          "xor": [
+            {
+              "flow": "node_classic_routing",
+              "probability": 0.8
+            },
+            {
+              "flow": "T5",
+              "probability": 0.2
+            }
+          ]
+        },
+        "T6"
+      ]
+    }
+  },
+  "evaluations": [
+    {
+      "basis": "bim",
+      "binding": {
+        "T1": "catalog/cand_t1_aws",
+        "T2": "catalog/cand_t2_radius_iot_network",
+        "T3": "catalog/cand_t3_distance_matrix_api",
+        "T5": "catalog/cand_t5_amazon_braket",
+        "T6": "catalog/cand_t6_paypal"
+      },
+      "compilation": {
+        "compilation_digest": "sha256-09ab5a1b33aa75f8e48421f8a21ee84d78e5f8a430653bf36e79f0367b476332",
+        "compiler_digest": "sha256-b91fc3a05d1a58d128f5589f35396aaf8ebd0c3854e1e072ce17c765fe42b4d4",
+        "id": "00000000-0000-4000-8000-000000000012",
+        "semantic_digest": "sha256-710017a5f090fdbfabf965e77a3ce683dc9ccecb846c0a7036161f36125b55a7",
+        "toolchain": {
+          "apiVersion": "bim/v1",
+          "compilerDigest": "sha256-b91fc3a05d1a58d128f5589f35396aaf8ebd0c3854e1e072ce17c765fe42b4d4",
+          "name": "bim-core",
+          "version": "0.2.0"
+        }
+      },
+      "created_at": "2026-01-01T00:00:03Z",
+      "current": true,
+      "diagnostics": [],
+      "id": "00000000-0000-4000-8000-000000000010",
+      "outcome": "verified",
+      "values": {
+        "availability": {
+          "unit": "1",
+          "value": 0.9963044476255752
+        },
+        "cost": {
+          "unit": "USD/month",
+          "value": 3060.0
+        },
+        "execution_time": {
+          "unit": "ms",
+          "value": 3180.0
+        },
+        "reliability": {
+          "unit": "1",
+          "value": 0.97670566058688
+        },
+        "security": {
+          "unit": "score",
+          "value": 4.0
+        }
+      },
+      "violations": []
+    }
+  ],
+  "evidence_run": null,
+  "forked_from": null,
+  "id": "00000000-0000-4000-8000-000000000008",
+  "kind": "application",
+  "label": "1.0.0",
+  "offering": null,
+  "ordinal": 1,
+  "problem": {
+    "linked_compilation": {
+      "compilation_digest": "sha256-09ab5a1b33aa75f8e48421f8a21ee84d78e5f8a430653bf36e79f0367b476332",
+      "id": "00000000-0000-4000-8000-000000000012",
+      "semantic_digest": "sha256-710017a5f090fdbfabf965e77a3ce683dc9ccecb846c0a7036161f36125b55a7"
+    },
+    "problem": {
+      "id": "00000000-0000-4000-8000-000000000013",
+      "name": "fleet_routing_qaco_001",
+      "slug": "fms"
+    },
+    "revision": {
+      "id": "00000000-0000-4000-8000-000000000011",
+      "revision": 1
+    }
+  },
+  "size_bytes": 893,
+  "syntax_version": "1.0",
+  "values": {
+    "availability": {
+      "unit": "1",
+      "value": 0.9963044476255752
+    },
+    "cost": {
+      "unit": "USD/month",
+      "value": 3060.0
+    },
+    "execution_time": {
+      "unit": "ms",
+      "value": 3180.0
+    },
+    "reliability": {
+      "unit": "1",
+      "value": 0.97670566058688
+    },
+    "security": {
+      "unit": "score",
+      "value": 4.0
+    }
+  },
+  "values_status": "verified",
+  "verified": true
+}

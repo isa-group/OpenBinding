@@ -1,0 +1,65 @@
+{
+  "starter": "# A Composition2Yaml document: the candidate chosen for each task of a workflow, and the values it yields.\n# Without a problem the values are the ones you declare. Link a problem revision (problem: {ref, compilation})\n# and the gateway computes and verifies them when you seal.\nsyntaxVersion: \"1.0\"\ncomposition: my-composition\nversion: 1.0.0\nkind: application\nworkflow:\n  seq:\n    - signIn\n    - notify\nbinding:\n  signIn: {local: true}\n  notify: {candidate: email.provider.basic}\nvalues:\n  cost: {value: 10, unit: EUR/month}\n",
+  "sections": [
+    {
+      "name": "The smallest document",
+      "description": "Seven keys are required: `syntaxVersion` (the language version, quoted), `composition` (the slug), `version` (the document's own label, semver), `kind`, `workflow`, `binding` and `values`. Here one task is bound to one candidate, and nothing is measured yet.",
+      "yaml": "syntaxVersion: \"1.0\"\ncomposition: hello\nversion: 0.1.0\nkind: workflow\nworkflow: greet\nbinding: {greet: {candidate: greeter}}\nvalues: {}\n",
+      "expect": "valid"
+    },
+    {
+      "name": "Workflow forms",
+      "description": "A task id is a step. `seq` runs its steps in order, `and` runs them in parallel, `xor` takes exactly one branch (with probabilities that add up to exactly 1, or `uniform: true`), and `loop` repeats a step `count` times, or `expected` times on average. `null` is the empty step.",
+      "yaml": "syntaxVersion: \"1.0\"\ncomposition: delivery\nversion: 1.0.0\nkind: workflow\nworkflow:\n  seq:\n    - order\n    - and: [pack, invoice]\n    - xor:\n        - {probability: 0.7, flow: courier}\n        - {probability: 0.2, flow: post}\n        - {probability: 0.1, flow: null}\n    - {loop: notify, expected: 1.5}\nbinding:\n  order: {candidate: c_order}\n  pack: {candidate: c_pack}\n  invoice: {local: true}\n  courier: {candidate: c_courier}\n  post: {candidate: c_post}\n  notify: {candidate: c_notify}\nvalues: {}\n",
+      "expect": "valid"
+    },
+    {
+      "name": "Binding and provenance",
+      "description": "Every task of the workflow has exactly one entry: a `candidate` of the problem (its id, or `<resource>/<id>` when two catalogs share the id), or `local: true` for work done in house. `from` says which plan of a SPHERE pricing the candidate came from, at a pinned pricing `version`; `registry` names an on-premise SPHERE this installation defines.",
+      "yaml": "syntaxVersion: \"1.0\"\ncomposition: shop\nversion: 1.0.0\nkind: application\nworkflow: {seq: [login, pick, ship]}\nbinding:\n  login: {local: true}\n  pick: {candidate: c_pick, from: {sphere: acme/picking, version: v7, plan: Pro, addons: [SSO]}}\n  ship: {candidate: shipping/c_ship}\nvalues: {}\n",
+      "expect": "valid"
+    },
+    {
+      "name": "Values and units",
+      "description": "`values` are the global values the binding yields. A bare number is dimensionless (an availability, a count); `{value, unit}` carries its unit exactly as written. Without a problem the values are declared; with one, a seal computes and verifies them.",
+      "yaml": "syntaxVersion: \"1.0\"\ncomposition: numbers\nversion: 1.0.0\nkind: system\nworkflow: run\nbinding: {run: {candidate: runner}}\nvalues:\n  availability: 0.9985\n  cost: {value: 34.5, unit: EUR/month}\n  latency: {value: 420, unit: ms}\n",
+      "expect": "valid"
+    },
+    {
+      "name": "Linked to a problem",
+      "description": "`problem` names the BIM problem revision the composition was chosen in, and the compilation it is evaluated against. A seal then checks the binding against the problem and computes the values.",
+      "yaml": "syntaxVersion: \"1.0\"\ncomposition: checkout\nversion: 1.0.0\nkind: application\nproblem: {ref: acme/problems/checkout@3, compilation: sha256-6b1c0d6f1e9e4a8f0d2c3b4a5968778695a4b3c2d1e0f9e8d7c6b5a493827160}\nworkflow: {seq: [cart, pay]}\nbinding:\n  cart: {local: true}\n  pay: {candidate: payments.stripe.standard}\nvalues: {cost: {value: 25, unit: EUR/month}}\n",
+      "expect": "valid"
+    },
+    {
+      "name": "An offering in SPHERE",
+      "description": "`offering` is optional: the composition's own pricing, by reference only. Its plans, prices and limits stay in SPHERE. `{sphere: <owner/name>}` is a pricing of this installation's SPHERE; `{sphere, registry}` is one on an on-premise SPHERE.",
+      "yaml": "syntaxVersion: \"1.0\"\ncomposition: shop\nversion: 1.0.0\nkind: application\nworkflow: pick\nbinding: {pick: {candidate: c_pick}}\nvalues: {}\noffering: {sphere: acme/shop}\n",
+      "expect": "valid"
+    },
+    {
+      "name": "An offering as a Pricing2Yaml file",
+      "description": "The third source: `{url: https://…}`, a public Pricing2Yaml file over HTTPS, with no credentials. An offering has exactly one source and no version.",
+      "yaml": "syntaxVersion: \"1.0\"\ncomposition: shop\nversion: 1.0.0\nkind: application\nworkflow: pick\nbinding: {pick: {candidate: c_pick}}\nvalues: {}\noffering: {url: \"https://pricings.example.org/shop/pricing.yml\"}\n",
+      "expect": "valid"
+    },
+    {
+      "name": "A syntax version written as a number",
+      "description": "YAML reads an unquoted `1.0` as a number, so `syntaxVersion` must be quoted.",
+      "yaml": "syntaxVersion: 1.0\ncomposition: hello\nversion: 0.1.0\nkind: workflow\nworkflow: greet\nbinding: {greet: {candidate: greeter}}\nvalues: {}\n",
+      "expect": "c2y_syntax_version_type"
+    },
+    {
+      "name": "Constraints belong to the problem",
+      "description": "Alternatives, constraints, objectives, demand and its variants are the BIM problem's; weights belong to a run preset. A document that writes them is refused.",
+      "yaml": "syntaxVersion: \"1.0\"\ncomposition: shop\nversion: 1.0.0\nkind: application\nworkflow: pick\nbinding: {pick: {candidate: c_pick}}\nvalues: {}\nconstraints: [{max: {latency: 100}}]\n",
+      "expect": "c2y_problem_content"
+    },
+    {
+      "name": "Presentation stays in the renderer",
+      "description": "How a composition is drawn (sections, highlights, labels) is decided by the screen that renders it, never by the document: `presentation` is an unknown key.",
+      "yaml": "syntaxVersion: \"1.0\"\ncomposition: shop\nversion: 1.0.0\nkind: application\nworkflow: pick\nbinding: {pick: {candidate: c_pick}}\nvalues: {}\npresentation: {highlight: cost}\n",
+      "expect": "c2y_unknown_key"
+    }
+  ]
+}

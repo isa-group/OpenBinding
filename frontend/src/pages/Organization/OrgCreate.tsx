@@ -7,8 +7,10 @@ import { Action } from '../../components/ui/Action';
 import { FormField } from '../../components/ui/FormField';
 import { Modal } from '../../components/ui/Modal';
 import { Notice } from '../../components/ui/Notice';
-import { atLeast, buildForest, flatten, pathOf, SLUG_PATTERN, slugFromName } from './orgModel';
-import { classifyAuthError, generalFailure, marker } from './orgErrors';
+import { SLUG_PATTERN, slugFromName } from '../../shared/lib/slug';
+import { atLeast, buildForest, flatten, pathOf } from './orgModel';
+import { generalFailure } from '../../features/workspace/errors';
+import { classifyAuthError, marker } from '../../shared/api/errors';
 import { Choice, OrgTile, RoleChip } from './parts';
 import './Organization.css';
 

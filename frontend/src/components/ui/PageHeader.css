@@ -25,4 +25,5 @@
 }
 
 .ui-page-header p { max-width: 42.5rem; color: var(--tp-slate); }
-.ui-page-header-actions { display: flex; flex: none; flex-wrap: wrap; gap: var(--tp-spacing-xs); }
+/* It may shrink, so that on a line of its own (a phone) its actions wrap instead of running past the edge. */
+.ui-page-header-actions { display: flex; min-width: 0; flex: 0 1 auto; flex-wrap: wrap; gap: var(--tp-spacing-xs); }

@@ -30,7 +30,7 @@ describe('mobile touch targets (max-width: 640px)', () => {
   });
 
   it('names the containers where the real run found short links', () => {
-    for (const selector of ['.ui-action', '.ui-action.is-link', '.case-rev-links a', '.usage-consoles a', '.proj-job a', '.job-wizard a', '.job-fact a']) {
+    for (const selector of ['.ui-action', '.ui-action.is-link', '.case-rev-links a', '.usage-consoles a', '.proj-job a', '.job-wizard a', '.job-fact a', '.cr-muted a', '.pcl-card-title a']) {
       expect(block).toContain(selector);
     }
   });

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
-import { ArrowRight, ArrowUpRight, Boxes, Braces, Check, Info, Network, ServerCog, ShieldCheck, User, Waypoints } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, BookOpen, Boxes, Braces, Check, Info, Layers, Network, ServerCog, ShieldCheck, User, Waypoints } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { apiClient, HttpError, SESSION_ENDED_EVENT } from '../../api/client';
 import { Button } from '../../components/ui/Button';
@@ -67,38 +67,39 @@ function Hero({ signedIn, name, plan, runtime }: { signedIn: boolean; name: stri
 
   return (
     <section aria-labelledby="home-hero-title" className="home-hero">
-      <Eyebrow>BIM v1 · deterministic QoS binding</Eyebrow>
+      <Eyebrow>Compositions · Composition2Yaml · BIM problems</Eyebrow>
       <h1 id="home-hero-title">
         <span>Describe.</span>{' '}
         <span>Bind.</span>{' '}
         <span>Reproduce.</span>
       </h1>
       <p className="home-lede">
-        OpenBinding validates BIM v1 service-composition packages, compiles them into a binding problem and re-evaluates every
-        binding an engine returns, so results can be compared and verified by digest.
+        Define, version, evaluate, render and compare compositions; problems, written in BIM, say what was possible. OpenBinding
+        compiles a problem, runs engines over it and re-evaluates every binding they return, so a composition’s values can be
+        verified against the problem it links.
       </p>
       <div className="home-cards">
-        <Link to="/workbench" viewTransition className="home-card">
-          <span className="home-card-top"><span className="home-card-icon"><Check aria-hidden="true" /></span><span className="home-card-go is-filled" aria-hidden="true">↗</span></span>
-          <strong>Validate a package</strong>
-          <span>No account needed. Upload a .bim.zip and get localized diagnostics and digests. Nothing is executed.</span>
+        <Link to="/compositions" viewTransition className="home-card">
+          <span className="home-card-top"><span className="home-card-icon"><Layers aria-hidden="true" /></span><span className="home-card-go is-filled" aria-hidden="true">↗</span></span>
+          <strong>Explore compositions</strong>
+          <span>No account needed. Public compositions, each with its workflow, the service chosen for every task and the values that choice yields.</span>
         </Link>
-        <Link to="/engines" viewTransition className="home-card">
-          <span className="home-card-top"><span className="home-card-icon"><ServerCog aria-hidden="true" /></span><span className="home-card-go" aria-hidden="true">↗</span></span>
-          <strong>Browse the engines</strong>
-          <span>The engines anyone can run, each one an exact revision with its modes and SHA-256 digest.</span>
+        <Link to="/language" viewTransition className="home-card">
+          <span className="home-card-top"><span className="home-card-icon"><BookOpen aria-hidden="true" /></span><span className="home-card-go" aria-hidden="true">↗</span></span>
+          <strong>Learn Composition2Yaml</strong>
+          <span>The language of a composition, by example, with a playground that checks a document as you write it.</span>
         </Link>
         {signedIn ? (
           <Link to="/app" viewTransition className="home-card is-accent">
             <span className="home-card-top"><span className="home-card-icon is-round">{name.slice(0, 2).toUpperCase()}</span><span className="home-card-go is-filled" aria-hidden="true">↗</span></span>
             <strong>Go to your workspace</strong>
-            <span>Signed in as {name} · {plan} plan. Organizations, problems and runs live there.</span>
+            <span>Signed in as {name} · {plan} plan. Organizations, compositions, problems and runs live there.</span>
           </Link>
         ) : (
           <Link to="/register" viewTransition className="home-card is-accent">
             <span className="home-card-top"><span className="home-card-icon"><User aria-hidden="true" /></span><span className="home-card-go is-filled" aria-hidden="true">↗</span></span>
             <strong>Create an account</strong>
-            <span>Start on FREE: compose problems, run engines and compare them in studies. Verified Universidad de Sevilla accounts can get RESEARCH.</span>
+            <span>Start on FREE: define compositions, write their problems in BIM, run engines and compare them in studies. Verified Universidad de Sevilla accounts can get RESEARCH.</span>
           </Link>
         )}
       </div>
@@ -142,7 +143,7 @@ function Pipeline() {
   return (
     <section aria-labelledby="home-pipeline-title" className="home-section">
       <Eyebrow>How it works</Eyebrow>
-      <h2 id="home-pipeline-title">From a package to evidence anyone can verify</h2>
+      <h2 id="home-pipeline-title">From a problem to a composition anyone can verify</h2>
       <div role="tablist" aria-label="Pipeline stages" className="home-stages">
         {PIPELINE.map((item, index) => (
           <button

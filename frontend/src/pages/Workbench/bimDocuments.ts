@@ -1,8 +1,11 @@
 import type { BimResourceRef } from '../../api/client';
+import type { ProblemFacts } from '../../shared/api/types';
 import type { FeatureSlot } from '../../utils/featureRange';
-import type { WorkspaceFiles } from '../../utils/workspaceDraft';
 
 /** The documents of a BIM package as the workbench reads them: tolerant types over JSON, and the small readers the editor and the summaries share. */
+
+/** The files of a package, by path. */
+export type WorkspaceFiles = Record<string, string>;
 
 export const DEFAULT_BPMN = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_1" targetNamespace="https://bim.dev/examples">
@@ -75,10 +78,14 @@ export const DEFAULT_FILES: WorkspaceFiles = {
 
 export type WorkspaceStatus = 'idle' | 'validating' | 'valid' | 'queued' | 'running' | 'completed' | 'failed';
 
-/** The compiled form of the package on screen, as the gateway's validation returned it (nothing is stored). */
+/**
+ * The compiled form of the package on screen, as the gateway's validation returned it (nothing is stored): the IR, shown as
+ * source and never read, and the facts, which the workflow drawing reads.
+ */
 export interface CompiledIr {
   digest: string;
   document: Record<string, unknown>;
+  facts: ProblemFacts;
 }
 
 export type ResourceRole = string;

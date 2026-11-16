@@ -3,11 +3,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../api/client';
 import { caseOf, org, renderOrgScreen, revisionOf } from '../../features/workspace/testKit';
 import { CaseDetail } from './CaseDetail';
-import { digestOf, irDocument } from './fixtures';
+import { checkoutFacts, digestOf } from './fixtures';
 
-const problems = vi.hoisted(() => ({ get: vi.fn(), revisions: vi.fn(), revision: vi.fn(), compilation: vi.fn(), ir: vi.fn() }));
+const problems = vi.hoisted(() => ({ get: vi.fn(), revisions: vi.fn(), revision: vi.fn(), compilation: vi.fn() }));
+const facts = vi.hoisted(() => ({ get: vi.fn() }));
 
 vi.mock('../../api/problems', () => ({ problemsApi: problems }));
+vi.mock('../../entities/problem/facts', async (actual) => ({ ...await actual<typeof import('../../entities/problem/facts')>(), problemFactsApi: facts }));
 
 const group = org('isa-demo', { name: 'ISA Demo Group', effective_role: 'VIEWER' });
 const checkout = caseOf('flujo-checkout', 'Flujo de checkout');
@@ -35,7 +37,7 @@ describe('Versions tab of the problem page: compare', () => {
     problems.get.mockResolvedValue(checkout);
     problems.revisions.mockResolvedValue([r1, r2]);
     problems.compilation.mockImplementation(async (_org: string, _problem: string, revision: string) => compilationOf(String(revision)));
-    problems.ir.mockImplementation(async (_org: string, _problem: string, revision: string) => ({ id: `compilation-${revision}`, ir_digest: digestOf('c'), ir: irDocument(String(revision) === '1' ? 5 : 8), source_map: {} }));
+    facts.get.mockImplementation(async (_org: string, _problem: string, revision: string) => checkoutFacts(String(revision) === '1' ? 5 : 8));
     problems.revision.mockImplementation(async (_org: string, _problem: string, revision: string) => ({
       ...(String(revision) === '1' ? r1 : r2), document: { apiVersion: 'bim/v1', kind: 'Instance', metadata: { name: `checkout-${revision}` } }, files: [], resource_digests: {}, compilations: [],
     }));
@@ -82,12 +84,13 @@ describe('Versions tab of the problem page: compare', () => {
     expect(rows.length).toBeGreaterThanOrEqual(3);
   });
 
-  it('shows how much bigger the second problem is', async () => {
+  it('prints both sizes side by side, as the gateway measured them', async () => {
     renderCompare();
 
     const section = await screen.findByRole('region', { name: 'Possible combinations' });
     expect(within(section).getByText('Version 1')).toBeInTheDocument();
-    expect(await within(section).findByText('≈ 3.2× more combinations (10^0.5)')).toBeInTheDocument();
+    expect(await within(section).findByText('10^2.8 → 10^3.3')).toBeInTheDocument();
+    expect(facts.get).toHaveBeenCalledWith('isa-demo', 'flujo-checkout', '1', 'compilation-1');
   });
 
   it('chooses the pair from the address and swaps it', async () => {
@@ -96,7 +99,7 @@ describe('Versions tab of the problem page: compare', () => {
     await screen.findByRole('table');
     expect(screen.getByLabelText('From')).toHaveValue('2');
     expect(screen.getByLabelText('To')).toHaveValue('1');
-    expect(await screen.findByText('≈ 3.2× fewer combinations (10^0.5)')).toBeInTheDocument();
+    expect(await screen.findByText('10^3.3 → 10^2.8')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Swap versions' }));
     await waitFor(() => expect(screen.getByLabelText('From')).toHaveValue('1'));
     expect(screen.getByLabelText('To')).toHaveValue('2');

@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { readBindingProblem } from './bindingModel';
-import { diffRevisions, diffSummary, exactReference, newestFirst, sizeChange, type RevisionView } from './casesModel';
-import { irDocument } from './fixtures';
+import { diffRevisions, diffSummary, exactReference, newestFirst, powerText, type RevisionView } from './casesModel';
+import { checkoutFacts } from './fixtures';
 
 describe('labels', () => {
   it('writes the exact reference of a version: problem, number and package digest', () => {
@@ -17,7 +16,7 @@ describe('labels', () => {
 
 describe('diffRevisions', () => {
   const view = (revision: number, pay: number): RevisionView => ({
-    revision, digest: `sha256-${String(revision).repeat(64)}`, model: readBindingProblem(irDocument(pay)),
+    revision, digest: `sha256-${String(revision).repeat(64)}`, facts: checkoutFacts(pay),
   });
   const from = view(1, 5);
   const to = view(2, 8);
@@ -35,16 +34,19 @@ describe('diffRevisions', () => {
 
   it('compares tasks, rules and goal', () => {
     expect(rows.find((row) => row.what === 'Workflow')?.changed).toBe(false);
-    expect(rows.find((row) => row.what === 'sla-latency')).toMatchObject({ category: 'Rules', changed: false });
+    expect(rows.find((row) => row.what === 'rules/sla-latency')).toMatchObject({ category: 'Rules', a: 'Must: features.latency ≤ 600', changed: false });
     expect(rows.find((row) => row.what === 'cost')).toMatchObject({ category: 'Goal', a: 'minimize cost', changed: false });
     expect(rows.find((row) => row.what === 'Penalty for breaking sla-availability')?.changed).toBe(false);
   });
 
   describe('qualities that are numbers or ranges', () => {
     const edited = (changes: Array<[string, string, unknown]>): RevisionView => {
-      const document = irDocument(8) as { spec: { candidates: { providers: { candidates: Record<string, { features: Record<string, unknown> }> } } } };
-      for (const [id, name, value] of changes) document.spec.candidates.providers.candidates[id].features[name] = value;
-      return { revision: 2, digest: 'sha256-2', model: readBindingProblem(document) };
+      const facts = checkoutFacts(8);
+      for (const [id, name, value] of changes) {
+        const candidate = facts.candidates.find((entry) => entry.id === id);
+        if (candidate) candidate.values = { ...candidate.values, [name]: value as number };
+      }
+      return { revision: 2, digest: 'sha256-2', facts };
     };
     const base = view(1, 8);
     const feature = (changes: Array<[string, string, unknown]>, what: string) => diffRevisions(base, edited(changes)).find((row) => row.what === what);
@@ -75,23 +77,33 @@ describe('diffRevisions', () => {
   });
 
   it('compares nothing when a compiled form is missing', () => {
-    expect(diffRevisions({ ...from, model: null }, to)).toEqual([]);
+    expect(diffRevisions({ ...from, facts: null }, to)).toEqual([]);
   });
 
   it('summarizes the change in one line', () => {
     const line = diffSummary('checkout-flow', from, to, rows);
     expect(line).toContain('checkout-flow v1 → v2:');
     expect(line).toContain('Candidates for pay-card 5 → 8');
-    expect(line).toContain('combinations 10^');
+    expect(line).toContain('combinations 10^2.8 → 10^3.3');
     expect(diffSummary('c', from, from, diffRevisions(from, from))).toContain('no changes');
   });
 });
 
-describe('sizeChange', () => {
-  it('says how many times bigger or smaller the second problem is', () => {
-    expect(sizeChange(4.2, 5.1)).toEqual({ text: '≈ 7.9× more combinations (10^0.9)', grew: true });
-    expect(sizeChange(5.1, 4.2)).toEqual({ text: '≈ 7.9× fewer combinations (10^0.9)', grew: false });
-    expect(sizeChange(3, 3.01)?.text).toBe('About the same number of combinations');
-    expect(sizeChange(null, 3)).toBeNull();
+describe('the workflow row', () => {
+  it('compares the workflows the gateway wrote and shows them in words', () => {
+    const left = checkoutFacts(8);
+    const right = checkoutFacts(8);
+    right.workflow = { seq: ['authenticate', { and: ['inventory', 'shipping'] }, 'pay-card', 'notify'] };
+    const row = diffRevisions({ revision: 1, digest: 'a', facts: left }, { revision: 2, digest: 'b', facts: right }).find((entry) => entry.what === 'Workflow');
+    expect(row).toMatchObject({ changed: true, b: 'authenticate, then (inventory and shipping in parallel), then pay-card, then notify' });
+    expect(row?.a).toContain('one of pay-card (probability 0.7) or pay-transfer (probability 0.3)');
+  });
+});
+
+describe('powerText', () => {
+  it('writes a binding-space size as a power of ten', () => {
+    expect(powerText('1920')).toBe('10^3.3');
+    expect(powerText('1')).toBe('10^0');
+    expect(powerText(null)).toBe('—');
   });
 });

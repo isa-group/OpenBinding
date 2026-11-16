@@ -35,6 +35,7 @@ from ....services.engines import compatible_modes
 from ....services.entitlements import entitlement_service
 from ...shared.application import audit
 from ..application import problems
+from ..application.facts import compilation_facts
 from ..application.package import PackageRequest, read_package
 from ..domain.compilation import analysis_summary, resource_contracts
 from .schemas import (
@@ -43,6 +44,7 @@ from .schemas import (
     CompilationView,
     LatestRevision,
     PackageFile,
+    ProblemFactsView,
     ProblemList,
     ProblemUpdate,
     ProblemUpload,
@@ -457,3 +459,50 @@ async def get_problem_compilation_ir(
     if row is None:
         raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Compilation not found.")
     return CompilationIr(id=row.id, ir_digest=row.ir_digest, ir=row.ir, source_map=row.source_map or {})
+
+
+@router.get(
+    "/{problem}/revisions/{revision}/compilations/{compilation}/facts",
+    response_model=ProblemFactsView,
+    operation_id="getProblemCompilationFacts",
+    summary="Read the facts of one compilation",
+    responses={
+        200: {"headers": {
+            "ETag": {"description": "The compilation digest and `.facts`, quoted: the facts never change.", "schema": {"type": "string"}},
+            "Cache-Control": {"description": "`private, immutable`.", "schema": {"type": "string"}},
+        }},
+        304: {"description": "The caller's copy (`If-None-Match`) is the facts."},
+        404: NOT_FOUND_RESPONSE,
+        422: {"description": "The compiled problem cannot be read (`problem_facts_unreadable`, with `reason`)."},
+    },
+)
+async def get_problem_compilation_facts(
+    org: str,
+    problem: str,
+    revision: str,
+    compilation: str,
+    request: Request,
+    response: Response,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> Any:
+    """The facts of one compilation, named by its id or its `compilation_digest`: its tasks and the candidates
+    each may take (as a document writes them), every candidate's values with units and origins, the features,
+    the workflow in the Composition2Yaml shape, the constraints, the objectives and the binding-space size.
+
+    The same projection `POST /v1/bim/validate?include=facts` answers for a package that is not stored.
+    """
+    organization = await _organization(session, org, user, OrganizationRole.VIEWER)
+    found = await _revision(session, await _problem(session, organization, problem), revision)
+    row = await problems.compilation_by_ref(session, found.id, compilation)
+    if row is None:
+        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Compilation not found.")
+    tag = f'"{row.compilation_digest}.facts"'
+    headers = {"ETag": tag, "Cache-Control": "private, immutable"}
+    if tag in {item.strip() for item in request.headers.get("if-none-match", "").split(",")}:
+        return RawResponse(status_code=status.HTTP_304_NOT_MODIFIED, headers=headers)
+    facts = compilation_facts(
+        row.ir, row.source_map, analysis_summary(row.ir, row.analysis), ir_digest=row.ir_digest,
+    )
+    response.headers.update(headers)
+    return facts

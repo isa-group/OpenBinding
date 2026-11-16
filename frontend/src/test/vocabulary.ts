@@ -141,6 +141,12 @@ export function scanSource(source: string, words: RegExp, file = 'source.tsx'): 
 /** The path segments that addresses no longer hold. */
 export const OLD_ADDRESS_SEGMENTS: readonly string[] = ['cases', 'jobs', 'publications'];
 
+/**
+ * The path segments the composition vocabulary forbids (`vocabulary.terms.test.ts`): a composition is put into service in an
+ * Environment, the variants of a problem are its revisions, and a version is evaluated, not built.
+ */
+export const FORBIDDEN_ADDRESS_SEGMENTS: readonly string[] = ['deployments', 'scenarios', 'builds'];
+
 /** A path of an HTTP API (`/v1/…`, `/internal/v1/…`), not an address of the application. */
 const API_PATH = /(^|\/)v\d+\//;
 

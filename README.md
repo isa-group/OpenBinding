@@ -201,6 +201,17 @@ bindings (`…/evaluate`, `…/neighborhood`) and forked into another organizati
 (`/v1/organizations/{org}/presets`) name the settings a run starts from (`createRun {revision, preset}`). The whole path
 is an API test (`openbinding-gateway/tests/test_f1_walk.py`); the decisions are ADRs 0041 to 0046.
 
+On the web, an organization's compositions live at `/app/<org>/compositions`: a list, and a page per composition
+with Overview (values and their status, the workflow, the providers and upstream plan references, the problem's
+candidates), Editor (Composition2Yaml with the gateway's live lint and check, and a visual form), Versions (compare
+two versions entry by entry and line by line, and chart how structure and values evolved), Analysis (every one-task
+alternative and a configurator, on the linked problem) and Settings. A run's result offers "Derive composition". An
+ADMIN can make a composition public: anybody then reads it at `/c/<org>/<composition>`, finds it in the public list
+at `/compositions`, and, signed in, forks it into an organization of their own. `/language` is the Composition2Yaml
+reference and a playground. Every number shown comes from the gateway; the decisions are ADRs 0047 to 0050, and the
+walks are `frontend/e2e/f2a-*.spec.ts` (mocked) and `frontend/e2e/live/08-derive-seal-compare.spec.ts` and
+`09-public-fork.spec.ts` (against the lab).
+
 ### Reset the dev database
 
 The schema is one Alembic revision, regenerated from the models
@@ -223,7 +234,7 @@ procedure leaves Redis, the stored packages and other development volumes intact
 
 ### Seeding development data
 
-To populate the database with a complete set of development entities (users, hierarchical organizations, problems with compiled revisions, real solver runs, comparative studies, compositions (`simple-seq` derived from a run, `tomatometer-sketch` declared) and API keys) for testing all platform features:
+To populate the database with a complete set of development entities (users, hierarchical organizations, problems with compiled revisions, real solver runs, comparative studies, compositions (`simple-seq` derived from a run, with a second version and public; `tomatometer-sketch` declared) and API keys) for testing all platform features:
 
 ```bash
 # Seed development data (idempotent: adds or updates without duplicating)

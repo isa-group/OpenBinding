@@ -11,7 +11,7 @@ import { useAuth } from '../../contexts/auth';
 import { runPath, runsPath } from '../../routes/paths/runs';
 import { formatDateTime } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
-import { classifyAuthError, marker } from '../Account/accountErrors';
+import { classifyAuthError, marker } from '../../shared/api/errors';
 import { saveBytes } from '../../features/workspace/download';
 import { OrgGate, OrgSkeleton } from '../../features/workspace/OrgFrame';
 import { problemAccess } from '../Cases/useRouteProblem';
@@ -196,7 +196,7 @@ function JobDetailBody({ organization, jobId, canWork }: { organization: Organiz
 
       <Timeline status={state} created={created} finished={finished} feed={live.feed} />
       <Settings provenance={detail.provenance} />
-      <ResultSection detail={detail} org={org} jobId={jobId} origin={origin} />
+      <ResultSection detail={detail} org={org} jobId={jobId} origin={origin} canDerive={canWork} />
       <Provenance
         provenance={detail.provenance}
         compilation={detail.compilation ?? null}

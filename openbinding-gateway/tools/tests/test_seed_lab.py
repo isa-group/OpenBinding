@@ -21,6 +21,9 @@ from openbinding_gateway.db.models import ApiKey, ProblemCompilation, User, User
 from openbinding_gateway.db.platform_models import (
     BindingCase,
     BindingCaseRevision,
+    Composition,
+    CompositionDerivation,
+    CompositionVersion,
     Organization,
     OrganizationMembership,
     OrganizationRole,
@@ -44,8 +47,8 @@ async def roles_by_membership(session) -> dict[tuple[str, str], OrganizationRole
 async def test_first_run_creates_the_lab_with_the_real_roles(db_session):
     result = await seed_lab.seed(db_session, PASSWORD, EXAMPLES)
     assert result["counts"] == {
-        "users": 6, "apiKeys": 6, "organizations": 2, "memberships": 5, "cases": 1, "caseRevisions": 1,
-        "compilations": 1,
+        "users": 6, "apiKeys": 6, "organizations": 2, "memberships": 5, "cases": 2, "caseRevisions": 2,
+        "compilations": 2, "compositions": 4, "compositionVersions": 5,
     }
 
     users = {user.username: user for user in (await db_session.scalars(select(User))).all()}
@@ -62,13 +65,71 @@ async def test_first_run_creates_the_lab_with_the_real_roles(db_session):
     assert set((await roles_by_membership(db_session)).values()) == set(OrganizationRole)  # all four roles are exercised
     assert all(user.email.endswith("@example.org") and verify_password(PASSWORD, user.password_hash) for user in users.values())
 
-    case = (await db_session.scalars(select(BindingCase))).one()
-    organization = await db_session.get(Organization, case.organization_id)
-    assert organization.slug == seed_lab.MAIN_ORG
-    revision = (await db_session.scalars(select(BindingCaseRevision))).one()
-    assert (case.slug, case.organization_id) == ("simple-seq", organization.id)
-    compilation = (await db_session.scalars(select(ProblemCompilation))).one()
-    assert compilation.revision_id == revision.id
+    # The same example is the problem simple-seq of each organization, one revision and one compilation each.
+    problems = (await db_session.execute(
+        select(Organization.slug, BindingCase.slug).join(Organization, Organization.id == BindingCase.organization_id)
+    )).all()
+    assert sorted(problems) == [("lab-main", "simple-seq"), ("lab-other", "simple-seq")]
+    revisions = (await db_session.scalars(select(BindingCaseRevision))).all()
+    compilations = (await db_session.scalars(select(ProblemCompilation))).all()
+    assert sorted(item.revision_id for item in compilations) == sorted(item.id for item in revisions)
+    assert str(next(item.id for item in revisions if item.created_by_id == users["lab-owner"].id)) == result["ids"]["caseRevision"]
+
+
+async def compositions_of(session) -> dict[str, tuple[str, list[tuple[str, str]]]]:
+    """``<organization>/<slug>`` -> (visibility, [(label, values status)] by ordinal)."""
+    rows = (await session.execute(
+        select(Organization.slug, Composition.slug, Composition.visibility, CompositionVersion.label,
+               CompositionVersion.values_status, CompositionVersion.ordinal)
+        .join(Composition, Composition.organization_id == Organization.id)
+        .join(CompositionVersion, CompositionVersion.composition_id == Composition.id)
+        .order_by(CompositionVersion.ordinal)
+    )).all()
+    found: dict[str, tuple[str, list[tuple[str, str]]]] = {}
+    for org, slug, visibility, label, status, _ in rows:
+        found.setdefault(f"{org}/{slug}", (visibility, []))[1].append((label, getattr(status, "value", status)))
+    return found
+
+
+async def test_the_compositions_of_the_walks_and_the_showcase_are_seeded(db_session):
+    result = await seed_lab.seed(db_session, PASSWORD, EXAMPLES)
+
+    assert await compositions_of(db_session) == {
+        "lab-main/sequential-workflow": ("private", [("1.0.0", "verified"), ("1.1.0", "verified")]),
+        "lab-other/sequential-workflow": ("public", [("1.0.0", "verified")]),
+        "lab-other/order-desk": ("public", [("1.0.0", "declared")]),
+        "lab-other/internal-draft": ("private", [("0.1.0", "declared")]),
+    }
+    assert set(result["ids"]["compositions"]) == {
+        "lab-main/sequential-workflow", "lab-other/sequential-workflow", "lab-other/order-desk", "lab-other/internal-draft",
+    }
+    # lab-main's two versions are derived from bindings of its own problem: the first eligible candidates, then t1
+    # moved to its other candidate (the J1 walk's change, and the pair the visual QA compares).
+    main = await db_session.scalar(select(Composition).where(Composition.id == uuid.UUID(result["ids"]["compositions"]["lab-main/sequential-workflow"])))
+    versions = (await db_session.scalars(
+        select(CompositionVersion).where(CompositionVersion.composition_id == main.id).order_by(CompositionVersion.ordinal)
+    )).all()
+    assert "candidate: c1a" in versions[0].content and "candidate: c1b" in versions[1].content
+    assert all("lab-main/problems/simple-seq@1" in version.content for version in versions)
+    derivations = (await db_session.scalars(select(CompositionDerivation))).all()
+    assert len(derivations) == 3 and {item.job_id for item in derivations} == {None}
+    public = (await db_session.scalars(
+        select(CompositionVersion).join(Composition).where(Composition.visibility == "public", Composition.slug == "sequential-workflow")
+    )).one()
+    assert "lab-other/problems/simple-seq@1" in public.content
+
+
+async def test_the_compositions_are_seeded_once_and_their_visibility_is_the_seeds(db_session):
+    await seed_lab.seed(db_session, PASSWORD, EXAMPLES)
+    before = await compositions_of(db_session)
+    draft = await db_session.scalar(select(Composition).where(Composition.slug == "internal-draft"))
+    draft.visibility = "public"
+    await db_session.commit()
+
+    again = await seed_lab.seed(db_session, PASSWORD, EXAMPLES)
+
+    assert again["created"] == [] and await compositions_of(db_session) == before
+    assert again["counts"]["compositions"] == 4 and again["counts"]["compositionVersions"] == 5
 
 
 async def test_seed_uses_the_open_gate_and_restores_the_installed_one(db_session):
@@ -95,14 +156,14 @@ async def test_ids_are_stable_uuid5_by_username_and_slug(db_session):
 async def test_running_twice_does_not_duplicate_or_fail(db_session):
     first = await seed_lab.seed(db_session, PASSWORD, EXAMPLES)
     hashes = {user.username: user.password_hash for user in (await db_session.scalars(select(User))).all()}
-    revision_id = (await db_session.scalars(select(BindingCaseRevision.id))).one()
+    revision_ids = sorted((await db_session.scalars(select(BindingCaseRevision.id))).all())
     second = await seed_lab.seed(db_session, PASSWORD, EXAMPLES)
     third = await seed_lab.seed(db_session, PASSWORD, EXAMPLES)
 
     assert first["created"] and second["created"] == [] and third["created"] == []
     assert second["counts"] == first["counts"] == third["counts"]
     assert second["ids"] == first["ids"]
-    assert (await db_session.scalars(select(BindingCaseRevision.id))).one() == revision_id
+    assert sorted((await db_session.scalars(select(BindingCaseRevision.id))).all()) == revision_ids
     # An unchanged password is not re-hashed (that would differ on every run).
     assert {user.username: user.password_hash for user in (await db_session.scalars(select(User))).all()} == hashes
 

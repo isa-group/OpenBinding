@@ -7,7 +7,7 @@ import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { studiesPath, studyPath } from '../../routes/paths/studies';
 import { useResource } from '../../utils/useResource';
-import { classifyAuthError, marker } from '../Account/accountErrors';
+import { classifyAuthError, marker } from '../../shared/api/errors';
 import { OrgGate, OrgSkeleton } from '../../features/workspace/OrgFrame';
 import { problemAccess, type ProblemAccess } from '../Cases/useRouteProblem';
 import { useRouteOrganization } from '../Organization/useRouteOrganization';

@@ -25,7 +25,7 @@ DIGEST = r"^sha256-[0-9a-f]{64}$"
 #: section under an organization; the frontend mirrors them in ``PlatformShell/workspacePath.ts``.
 RESERVED_ORGANIZATION_SLUGS = frozenset({
     "admin", "account", "engines", "organizations", "invitations",
-    "runs", "problems", "studies", "settings", "workbench", "new",
+    "compositions", "presets", "runs", "problems", "studies", "settings", "workbench", "new",
 })
 
 

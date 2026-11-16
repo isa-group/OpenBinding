@@ -19,7 +19,7 @@ Environment (the ``seed`` compose service passes the gateway's, so nothing is sp
     DEMO_SEED_PASSWORD   required; the password the seed gave every synthetic user.
     SMOKE_BASE_URL       optional; default http://web:8080 (the proxy inside the lab network).
 
-Steps (a failure never aborts the next one; 8-11 can be dropped with ``--skip``):
+Steps (a failure never aborts the next one; 8-11 can be dropped with ``--skip``; they run in the order of ``RUN_ORDER``):
     1 proxy_and_spa     /healthz, SPA index, SPA fallback on a made-up deep route, /api/health/ready
     2 login             admin, owner, member, viewer and outsider sign in (Bearer tokens)
     3 upload            owner: the template validates, is uploaded as a new problem of lab-main, and its revision is that package
@@ -32,6 +32,8 @@ Steps (a failure never aborts the next one; 8-11 can be dropped with ``--skip``)
    10 body_limit        a JSON body over 16 MiB -> 413 problem+json
    11 login_throttle    12 failed logins of a made-up user -> 429 with Retry-After
    12 plan_usage        (--with-space) the owner's plan and capabilities, without usage counters
+   13 public_compositions  anonymous: the public list holds lab-other's two public compositions, the public linked one
+                        reads 200, and the private one answers 404 with the body of a missing one
 
 Steps 3 to 5 are the F0b walk (upload, run, study) on the organization's paths. Every smoke uploads one problem
 (``smoke-<run id>``) and creates one study of it in lab-main; nothing is deleted, since runs keep their problem.
@@ -86,6 +88,10 @@ STUDIES = f"/v1/organizations/{ORG}/studies"
 EXAMPLE_PATH = "demo/01_simple_seq"
 #: The seeds of the study step: one cell each.
 STUDY_SEEDS = (1, 2)
+#: The compositions tools/seed_lab.py made in lab-other: the two public ones (sorted) and the private one.
+PUBLIC_ORG = "lab-other"
+PUBLIC_COMPOSITIONS = ("order-desk", "sequential-workflow")
+PRIVATE_COMPOSITION = "internal-draft"
 
 TERMINAL = frozenset({"completed", "failed", "cancelled"})
 #: A study run that is over (``partial``: some cells failed or were cancelled).
@@ -114,7 +120,7 @@ BLOCKED_HINT = (
 #: Step number -> optional via --skip.
 SKIPPABLE = (8, 9, 10, 11)
 #: 11 last: it burns the per-address login budget.
-RUN_ORDER = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 11)
+RUN_ORDER = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 13, 12, 11)
 
 #: Key words that make a name look like a credential or an address (as security/redaction.py).
 SENSITIVE_WORDS = frozenset(
@@ -908,6 +914,33 @@ def step_login_throttle(lab: Lab) -> Checks:
     return checks
 
 
+def step_public_compositions(lab: Lab) -> Checks:
+    """What a visitor (no credential) reads of compositions: the public list and lab-other's public and private ones."""
+    checks = lab.begin()
+    listed = lab.call("GET", "/v1/compositions", params={"limit": 100})
+    body = mapping(body_of(listed))
+    rows = [mapping(item) for item in body.get("compositions") or []]
+    names = sorted(f"{mapping(row.get('organization')).get('slug')}/{row.get('slug')}" for row in rows)
+    expected = [f"{PUBLIC_ORG}/{slug}" for slug in PUBLIC_COMPOSITIONS]
+    checks.expect(listed.status_code == 200, f"a visitor lists the public compositions ({describe(listed)})")
+    checks.expect(body.get("total") == 2 and names == expected, f"the public list holds {expected} ({body.get('total')}: {names})")
+
+    base = f"/v1/organizations/{PUBLIC_ORG}/compositions"
+    public = lab.call("GET", f"{base}/{PUBLIC_COMPOSITIONS[1]}")
+    checks.expect(
+        public.status_code == 200 and mapping(body_of(public)).get("visibility") == "public",
+        f"a visitor reads the public composition {PUBLIC_COMPOSITIONS[1]} ({describe(public)})",
+    )
+    hidden = lab.call("GET", f"{base}/{PRIVATE_COMPOSITION}")
+    missing = lab.call("GET", f"{base}/smoke-{lab.run_id}-missing")
+    checks.expect(
+        hidden.status_code == 404 and code_of(hidden) == "not_found",
+        f"the private composition {PRIVATE_COMPOSITION} is not found ({describe(hidden)})",
+    )
+    checks.expect(hidden.content == missing.content, "the private composition answers the body of a missing one")
+    return checks
+
+
 def step_plan_usage(lab: Lab) -> Checks:
     checks = lab.begin()
     response = lab.call("GET", "/v1/users/me/usage", "owner")
@@ -940,6 +973,7 @@ STEPS: dict[int, tuple[str, Callable[[Lab], Checks]]] = {
     10: ("body_limit", step_body_limit),
     11: ("login_throttle", step_login_throttle),
     12: ("plan_usage", step_plan_usage),
+    13: ("public_compositions", step_public_compositions),
 }
 
 

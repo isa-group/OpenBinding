@@ -3,7 +3,7 @@ import { render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 import { HttpError } from '../../api/client';
-import { classifyAuthError } from './errors';
+import { classifyAuthError } from '../../shared/api/errors';
 import { OrgFrame, OrgGate, OrgSkeleton } from './OrgFrame';
 import { org } from './testKit';
 

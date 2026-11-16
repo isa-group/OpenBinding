@@ -136,27 +136,7 @@
 .org-avatar.is-sm { width: 32px; height: 32px; font-size: 0.75rem; }
 .org-avatar.is-dashed { border: 1px dashed var(--tp-hairline-strong); background: none; color: var(--tp-steel); }
 
-/* Breadcrumb, gate, skeleton */
-.org-crumbs ol { display: flex; flex-wrap: wrap; gap: var(--tp-spacing-xs); margin: 0; padding: 0; color: var(--tp-steel); font-size: 0.75rem; list-style: none; }
-.org-crumbs li { display: inline-flex; gap: var(--tp-spacing-xs); }
-.org-crumbs [aria-current='page'] { color: var(--tp-ink); }
-
-.org-gate {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  padding: 48px var(--tp-spacing-xl);
-  border: 1px solid var(--tp-hairline);
-  border-radius: var(--tp-radius-xl);
-  background: var(--tp-canvas);
-  color: var(--tp-muted);
-  text-align: center;
-}
-
-.org-gate h2 { margin: 0; color: var(--tp-ink); font-size: 1rem; font-weight: 500; }
-.org-gate p { max-width: 480px; margin: 0; color: var(--tp-steel); }
-.org-gate-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: var(--tp-spacing-sm); }
+/* Skeleton */
 .org-skeleton { display: flex; flex-direction: column; gap: var(--tp-spacing-sm); }
 
 /* Messages and empty states */
@@ -324,8 +304,10 @@
 
 .org-card-head { display: flex; align-items: center; justify-content: space-between; gap: var(--tp-spacing-xs); }
 .org-card-head a { font-size: 0.8125rem; font-weight: 500; }
-.org-aside .org-card { display: flex; flex-direction: column; gap: 10px; padding: var(--tp-spacing-md); border-radius: var(--tp-radius-xl); }
-.org-aside .org-card h2 { margin: 0; font-size: 1rem; font-weight: 600; }
+/* The overview's panels (compositions, problems, runs, studies) and its side card share one shape: a small heading, rows, a closing link. */
+:is(.org-aside, .org-panels) .org-card { display: flex; flex-direction: column; gap: 10px; padding: var(--tp-spacing-md); border-radius: var(--tp-radius-xl); }
+:is(.org-aside, .org-panels) .org-card h2 { margin: 0; font-size: 1rem; font-weight: 600; }
+.org-panels .org-card > a:last-child { align-self: flex-start; font-size: 0.8125rem; font-weight: 500; }
 
 .org-sub {
   display: flex;
@@ -339,8 +321,11 @@
 }
 
 .org-sub:hover { border-color: var(--tp-hairline); color: var(--tp-ink); }
-.org-sub > span:nth-child(2) { display: flex; min-width: 0; flex: 1; flex-direction: column; }
+/* The name and the line under it, whether a tile comes first (a sub-organization) or not (a composition, problem, run or study). */
+.org-sub > span:has(> small) { display: flex; min-width: 0; flex: 1; flex-direction: column; }
 .org-sub small { color: var(--tp-steel); font-size: 0.75rem; }
+/* A composition row ends with the value status of its latest version. */
+.org-sub > span.vb { display: inline-flex; flex: none; flex-direction: row; margin-left: auto; }
 
 /* Members */
 .org-person { display: flex; align-items: center; gap: 10px; }

@@ -1,8 +1,9 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { saveDraft } from '../../shared/editor/drafts';
 import { unzipPackage } from '../../utils/bimZip';
 import { DEFAULT_FILES } from './bimDocuments';
-import { ROOT, analysis, openWorkbench } from './workbenchTestKit';
+import { analysis, openWorkbench } from './workbenchTestKit';
 
 // The contract between the workbench and the compiler of the gateway. `src/test/fixtures/bim-package` holds the package the workbench
 // writes (the default one, and variants after typical edits of its forms); `openbinding-gateway/tests/test_b6_workbench_package.py`
@@ -24,7 +25,8 @@ vi.mock('../../components/CodeEditor/CodeEditor', () => ({
 }));
 vi.mock('./BpmnModeler', () => ({ BpmnModeler: () => <div data-testid="bpmn-modeler" /> }));
 
-const DRAFT_KEY = `bim-v1-draft:user-lucia:${ROOT}/workbench::`;
+/** Where the workbench of the test organization keeps the draft of a new problem for Lucía. */
+const DRAFT_SCOPE = 'user-lucia:problem:isa-demo:new:none';
 
 const sources = import.meta.glob<string>('../../test/fixtures/bim-package/**/*.{json,bpmn}', { query: '?raw', import: 'default', eager: true });
 
@@ -52,7 +54,6 @@ async function validated() {
 
 describe('Workbench · the package it writes is the package the compiler is tested with', () => {
   beforeEach(() => {
-    localStorage.clear();
     vi.resetAllMocks();
     problems.list.mockResolvedValue({ problems: [], total: 0, limit: 200, offset: 0 });
     problems.revisions.mockResolvedValue([]);
@@ -93,13 +94,13 @@ describe('Workbench · the package it writes is the package the compiler is test
   });
 
   it('writes the with-rules variant after adding a hard and a soft rule and the penalty that activates the soft one', async () => {
-    localStorage.setItem(DRAFT_KEY, JSON.stringify({
+    await saveDraft(DRAFT_SCOPE, {
       ...DEFAULT_FILES,
       'instance.json': reference('with-rules/instance.json'),
       'constraints.json': JSON.stringify({
         apiVersion: 'qos-binding/v1', kind: 'ConstraintSet', metadata: { name: 'hello-constraints' }, spec: { constraints: {} },
       }),
-    }));
+    });
     await openWorkbench();
     fireEvent.click(await screen.findByRole('button', { name: /constraints\.json/i }));
     fireEvent.click(screen.getByRole('button', { name: 'Add CEL constraint' }));
@@ -119,12 +120,12 @@ describe('Workbench · the package it writes is the package the compiler is test
   });
 
   it('writes a complete package with only the forms: provider, candidates, a hard and a soft rule with its penalty, and two normalized criteria', async () => {
-    localStorage.setItem(DRAFT_KEY, JSON.stringify({
+    await saveDraft(DRAFT_SCOPE, {
       ...DEFAULT_FILES,
       'constraints.json': JSON.stringify({
         apiVersion: 'qos-binding/v1', kind: 'ConstraintSet', metadata: { name: 'hello-constraints' }, spec: { constraints: {} },
       }),
-    }));
+    });
     await openWorkbench();
 
     // A second feature, in another unit.

@@ -1,13 +1,4 @@
-import { classifyAuthError, type AuthFailure } from '../Auth/authErrors';
-
-export { classifyAuthError };
-export type { AuthFailure };
-
-/** `(409 · last_owner)`: the status and the machine code the gateway sent, for people who need to quote them. */
-export function marker(failure: AuthFailure): string {
-  const parts = [failure.status, failure.code].filter((part) => part !== undefined && part !== '');
-  return parts.length ? ` (${parts.join(' · ')})` : '';
-}
+import { marker, type AuthFailure } from '../../shared/api/errors';
 
 /**
  * What to say about a failure that has no sentence of its own. `doing` completes “… couldn’t be {doing}”:

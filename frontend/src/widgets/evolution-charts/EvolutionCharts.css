@@ -1,0 +1,53 @@
+/* Evolution charts: the date range and axis switch, the change markers, small multiples (two columns, one on phones), the offering
+   row and the status legend. Lines and marks take --tp-chart-*; the status is also said by the line style, the mark and words. */
+.ec { display: flex; min-width: 0; flex-direction: column; gap: var(--tp-spacing-md); }
+.ec-bar { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--tp-spacing-sm); }
+.ec-range { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--tp-spacing-xs); }
+.ec-date { display: flex; flex-direction: column; gap: 2px; color: var(--tp-slate); font-size: 0.75rem; font-weight: 500; }
+.ec-date input {
+  min-height: 32px; padding: 4px 8px; border: 1px solid var(--tp-input-border); border-radius: var(--tp-radius-sm);
+  background: var(--tp-input-bg); color: var(--tp-ink); font: inherit; font-size: 0.875rem;
+}
+.ec-muted, .ec-count, .ec-note { margin: 0; color: var(--tp-steel); font-size: 0.8125rem; }
+.ec-empty { margin: 0; padding: var(--tp-spacing-xl) var(--tp-spacing-md); border: 1px dashed var(--tp-hairline); border-radius: var(--tp-radius-md); color: var(--tp-slate); text-align: center; }
+
+.ec-section { display: flex; min-width: 0; flex-direction: column; gap: var(--tp-spacing-sm); }
+.ec-heading { margin: 0; color: var(--tp-ink); font-size: 1rem; font-weight: 600; }
+.ec-subheading { margin: 0; color: var(--tp-ink); font-size: 0.875rem; font-weight: 600; }
+
+.ec-markers { display: flex; flex-direction: column; gap: 6px; padding: var(--tp-spacing-sm) var(--tp-spacing-md); border: 1px solid var(--tp-hairline-soft); border-radius: var(--tp-radius-md); background: var(--tp-surface); }
+.ec-markers ul { display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 0; list-style: none; font-size: 0.8125rem; color: var(--tp-ink); }
+.ec-markers li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; overflow-wrap: anywhere; }
+.ec-markers time { color: var(--tp-steel); }
+
+.ec-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--tp-spacing-md); }
+.ec-card { display: flex; min-width: 0; flex-direction: column; gap: 6px; margin: 0; padding: var(--tp-spacing-sm); border: 1px solid var(--tp-hairline-soft); border-radius: var(--tp-radius-md); background: var(--tp-canvas); }
+.ec-card-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 8px; }
+.ec-card-title { color: var(--tp-ink); font-size: 0.8125rem; font-weight: 600; overflow-wrap: anywhere; }
+.ec-toggle { min-height: 24px; padding: 0; border: 0; background: none; color: var(--tp-link); font: inherit; font-size: 0.75rem; cursor: pointer; }
+.ec-plot { min-width: 0; }
+.ec-plot .recharts-reference-line-line { opacity: 0.8; }
+
+.ec-tip { display: flex; flex-direction: column; gap: 2px; padding: 6px 8px; border: 1px solid var(--tp-hairline); border-radius: var(--tp-radius-sm); background: var(--tp-canvas); box-shadow: var(--tp-shadow-elevation-1); color: var(--tp-ink); font-size: 0.75rem; }
+.ec-tip-date { color: var(--tp-steel); }
+
+.ec-offering { display: flex; flex-direction: column; gap: 6px; }
+.ec-offering ol { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 0; padding: 0; list-style: none; font-size: 0.8125rem; color: var(--tp-ink); }
+.ec-offering li { display: inline-flex; align-items: center; gap: 6px; }
+.ec-offering-mark { width: 10px; height: 10px; flex-shrink: 0; border: 2px solid var(--tp-chart-1); border-radius: 2px; }
+.ec-offering li.is-yes .ec-offering-mark { background: var(--tp-chart-1); }
+.ec-offering li.is-unknown .ec-offering-mark { border-style: dotted; border-color: var(--tp-stone); }
+
+.ec-legend { display: flex; flex-wrap: wrap; gap: 6px; }
+.ec-legend-item {
+  display: inline-flex; min-height: 28px; align-items: center; gap: 6px; padding: 2px 10px; border: 1px solid var(--tp-hairline);
+  border-radius: 999px; background: var(--tp-canvas); color: var(--tp-ink); font: inherit; font-size: 0.8125rem; cursor: pointer;
+}
+.ec-legend-item[aria-pressed='false'] { border-style: dashed; color: var(--tp-steel); text-decoration: line-through; }
+.ec-legend-item[aria-pressed='false'] .ec-swatch { opacity: 0.35; }
+.ec-swatch { flex-shrink: 0; }
+
+@media (max-width: 640px) {
+  .ec-grid { grid-template-columns: minmax(0, 1fr); }
+  .ec-bar { align-items: stretch; flex-direction: column; }
+}

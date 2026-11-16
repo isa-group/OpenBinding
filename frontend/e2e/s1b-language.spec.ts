@@ -5,7 +5,7 @@ const expect = baseExpect.configure({ timeout: 15_000 });
 import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
 import { zipStore } from '../src/utils/bimZip';
 
-// S1b · public screens, part 2: eng-catalog, eng-detail, pub-workbench.
+// S1b · public screens, part 2: eng-catalog, eng-detail, pub-language (its smoke; J6 walks it in f2a-language.spec.ts), pub-workbench.
 // There is no backend: the API origin is answered by page.route(). Screenshots go to testInfo.outputPath()
 // (test-results/, ignored by git) so they can be looked at after a run.
 
@@ -425,11 +425,30 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await shot(page, testInfo, 'engine-detail-digest-mismatch');
     });
 
-    test('the language hub is gone: its addresses answer Page not found', async ({ page }) => {
-      await mockApi(page, { signedIn: true });
-      for (const address of ['/language', '/language/schemas/Application', '/language/extensions']) {
+    test('pub-language /language is the Composition2Yaml reference and playground; the old hub addresses answer Page not found', async ({ page }, testInfo) => {
+      const critical = watchCriticalErrors(page);
+      await mockApi(page);
+      await page.route(`${API}/v1/compositions/validate`, json({ valid: true, diagnostics: [] }));
+      await page.goto('/language');
+      const main = page.locator('main');
+
+      await expect(main.getByRole('heading', { level: 1, name: 'Composition2Yaml' })).toBeVisible();
+      await expect(main.getByRole('textbox', { name: 'composition.yaml source' })).toContainText('syntaxVersion: "1.0"');
+      await expect(main.getByRole('toolbar', { name: 'Playground' })).toContainText('Valid Composition2Yaml');
+      await expect(main.getByRole('region', { name: 'Problems' })).toContainText('No issues');
+      const examples = main.getByRole('heading', { level: 2, name: 'The language by example' }).locator('xpath=ancestor::section[1]');
+      await expect(examples.getByRole('article')).toHaveCount(10);
+      await expect(examples.getByRole('article').filter({ hasText: 'Presentation stays in the renderer' })).toContainText('Refused: c2y_unknown_key');
+      await expect(main.getByRole('link', { name: /Download the schema/ })).toHaveAttribute('href', `${API}/v1/compositions/schema`);
+      await expect(main.getByRole('heading', { level: 2, name: 'What is not in the language' })).toBeVisible();
+      await ready(page);
+      await shot(page, testInfo, 'language');
+      await expectNoHorizontalOverflow(page);
+      expect(critical).toEqual([]);
+
+      for (const address of ['/language/schemas/Application', '/language/extensions']) {
         await page.goto(address);
-        await expect(page.locator('main').getByRole('heading', { name: 'Page not found' }), address).toBeVisible();
+        await expect(main.getByRole('heading', { name: 'Page not found' }), address).toBeVisible();
       }
     });
 

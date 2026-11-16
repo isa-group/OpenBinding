@@ -1,10 +1,11 @@
 import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import JSZip from 'jszip';
 import type { Page, Route } from '@playwright/test';
 import type { AdminUserView } from '../../src/api/auth';
 import type { Job, Study, StudyCell, StudyRun } from '../../src/api/platform';
 import type { Problem, ProblemRevision } from '../../src/api/problems';
-import { digestOf as caseDigest, irDocument } from '../../src/pages/Cases/fixtures';
+import { digestOf as caseDigest, compiledDocument } from '../../src/pages/Cases/fixtures';
 import { CURRENT_FIXTURE, catalogFixture } from '../../src/pages/Pricing/pricingFixture';
 import {
   AUDIT, ERROR_EVENTS, ERROR_OVERVIEW, MODERATION, OVERVIEW, USERS, queuesAt, subscriptionOf, usageOf as adminUsageOf, userPage,
@@ -17,9 +18,10 @@ import { NEIGHBORHOOD, REGISTRATION, RESULT, RUN_REFS, SOLUTION, detailOf as job
 import {
   RANDOM_SEARCH, REVISION_2, analyticsFixture, cellsFixture, revisionFixture, runFixture, studyFixture,
 } from '../../src/test/fixtures/studies';
+import { compositionStore, type CompositionSeed, type CompositionStore } from './mockCompositions';
 
 // One mock of the gateway for the whole QA gallery: a platform administrator of a RESEARCH (institutional) account, one organization
-// with problems, runs and studies, and everything the public screens read.
+// with compositions, problems, runs and studies, and everything the public screens read.
 // Every date is fixed, so two runs of the gallery draw the same pictures. A request nobody answers is a 404 and is recorded.
 
 export const API = 'http://localhost:8000';
@@ -28,7 +30,11 @@ export const API = 'http://localhost:8000';
 export const NOW = '2026-10-09T12:00:00Z';
 const hoursAgo = (hours: number) => new Date(Date.parse(NOW) - hours * 3_600_000).toISOString();
 
-export type Session = 'admin' | 'none';
+/**
+ * Who the page is: the administrator from the start, nobody, or a visitor whom `POST /v1/auth/login` signs in as the administrator
+ * (a request is signed in when it carries the access token).
+ */
+export type Session = 'admin' | 'none' | 'visitor';
 
 export interface MockHandle {
   /** Requests the mock did not recognise, as `METHOD /path`. */
@@ -176,8 +182,25 @@ const PROBLEM_REVISIONS = [revisionFixture(2, { package_size: 48_213 }), revisio
 const latestOf = (problem: typeof PROBLEM) => (problem.id === PROBLEM.id
   ? { id: PROBLEM_REVISIONS[0].id, revision: 2, package_digest: PROBLEM_REVISIONS[0].package_digest, created_at: PROBLEM_REVISIONS[0].created_at }
   : null);
-/** How many candidates the payment task has in each version: what their compiled forms differ in. */
-const PAY_OF: Record<string, number> = { 1: 5, 2: 8 };
+/** A gateway-produced fixture of src/test/fixtures/core (dump_frontend_fixtures.py), read as JSON. */
+const coreFixture = (file: string): Record<string, unknown> => JSON.parse(readFileSync(new URL(`../../src/test/fixtures/core/${file}`, import.meta.url), 'utf8'));
+/** The facts of each version's compilation: what the problem page, the run result and the launcher read. Version 1 and 2 differ. */
+const FACTS_OF: Record<string, string> = { 1: 'fms', 2: 'json-complete' };
+const factsOf = (revision: number | string) => coreFixture(`${FACTS_OF[String(revision)] ?? 'json-complete'}.facts.json`);
+/** The compilation the linked compositions of mockCompositions.ts were evaluated on (core/fms.version.json): its facts are FMS's. */
+const FLEET_COMPILATION = (coreFixture('fms.version.json').evaluations as Array<{ compilation: { id: string } }>)[0].compilation.id;
+/** The facts of a compilation of a problem version: the fleet's compilation has its own, any other its version's. */
+const factsOfCompilation = (compilation: string, revision: number | string) => (
+  compilation === FLEET_COMPILATION ? coreFixture('fms.facts.json') : factsOf(revision)
+);
+/** What `validate?include=…` adds to the analysis: the IR bytes (shown, never read) and the facts of the package. */
+const included = (include: string | null): Record<string, unknown> => {
+  const parts = (include ?? '').split(',');
+  return {
+    ...(parts.includes('ir') ? { ir: compiledDocument(), sourceMap: {} } : {}),
+    ...(parts.includes('facts') ? { facts: coreFixture('json-complete.validate.json').facts } : {}),
+  };
+};
 const revisionDetail = (revision: typeof PROBLEM_REVISIONS[number]) => ({
   ...revision, document: { apiVersion: 'bim/v1', kind: 'Instance', metadata: { name: 'checkout' } }, compilations: [],
   files: [
@@ -299,8 +322,14 @@ interface Request {
   parts: string[];
   query: URLSearchParams;
   body: () => Record<string, unknown>;
+  /** The body as text (a Composition2Yaml document). */
+  text: () => string;
   /** A small package, for every download. */
   archive: Buffer;
+  /** The compositions of this page (e2e/helpers/mockCompositions.ts): the seeded ones and what the page creates. */
+  compositions: CompositionStore;
+  /** The request carries a session. */
+  signedIn: boolean;
 }
 
 /** `/v1/organizations/{org}/studies/…`: the studies of `isa-demo`, the one run of the first and its cells; another organization has none. */
@@ -350,8 +379,9 @@ function problemRoutes(request: Request, orgSlug: string): Reply {
   if (tail === 'source') return { status: 200, bytes: request.archive, type: 'application/vnd.bim+zip' };
   if (tail === 'compilation') return ok(compilationOf(String(revision.revision)));
   if (tail === 'compilations' && compilationId && last === 'ir') {
-    return ok({ id: compilationId, ir_digest: caseDigest('c'), ir: irDocument(PAY_OF[revision.revision] ?? 8), source_map: {} });
+    return ok({ id: compilationId, ir_digest: caseDigest('c'), ir: compiledDocument(), source_map: {} });
   }
+  if (tail === 'compilations' && compilationId && last === 'facts') return ok(factsOfCompilation(compilationId, revision.revision));
   return notFound('Not mocked.');
 }
 
@@ -368,6 +398,7 @@ function organizationRoutes(request: Request): Reply {
     case 'problems': return problemRoutes(request, found.slug);
     case 'runs': return runRoutes(request, found.slug);
     case 'studies': return studyRoutes(request, found.slug);
+    case 'compositions': return request.compositions.route(request, found.slug, ORGANIZATIONS);
     default: return notFound('Not mocked.');
   }
 }
@@ -469,6 +500,11 @@ function route(request: Request): Reply | null {
     : ok({ status: 'ok' });
   if (first !== 'v1') return null;
 
+  // The compositions of an organization the caller is not a member of (or of any, for a visitor): what a public reader gets.
+  if (area === 'organizations' && parts[3] === 'compositions' && (!request.signedIn || !ORGANIZATIONS.some((item) => item.slug === second))) {
+    return request.compositions.publicRoute(request, second, request.signedIn, ORGANIZATIONS);
+  }
+
   switch (area) {
     case 'auth': return second === 'refresh' ? ok({ access_token: 'gallery-access-2', refresh_token: 'gallery-refresh-2', token_type: 'bearer', expires_in: 900 }) : null;
     case 'users': return second === 'me' ? userRoutes(request) : null;
@@ -481,6 +517,7 @@ function route(request: Request): Reply | null {
       if (second === 'current') return ok(CURRENT_FIXTURE);
       return null;
     case 'organizations': return organizationRoutes(request);
+    case 'compositions': return second ? request.compositions.language(request) : request.compositions.publicList(request);
     case 'engine-registrations': return engineRegistrationRoutes(request);
     case 'admin': return adminRoutes(request);
     case 'engines':
@@ -494,7 +531,7 @@ function route(request: Request): Reply | null {
         return ok({
           valid: true, instanceDigest: caseDigest('a'), packageDigest: caseDigest('b'), irDigest: caseDigest('c'), fileDigests: {}, resourceDigests: {}, diagnostics: [],
           compatibleModes: COMPATIBLE_MODES(), analysis: ANALYSIS,
-          ...(request.query.get('include') === 'ir' ? { ir: irDocument(8), sourceMap: {} } : {}),
+          ...included(request.query.get('include')),
         });
       }
       return null;
@@ -502,8 +539,11 @@ function route(request: Request): Reply | null {
   }
 }
 
-/** Answers the API origin of the page: a signed-in administrator, or nobody when `session` is `none`. */
-export async function installMockApi(page: Page, session: Session): Promise<MockHandle> {
+/**
+ * Answers the API origin of the page: a signed-in administrator, nobody when `session` is `none`, or a visitor who signs in as the
+ * administrator (`visitor`); `seed` adds compositions.
+ */
+export async function installMockApi(page: Page, session: Session, seed: CompositionSeed = {}): Promise<MockHandle> {
   const handle: MockHandle = { unmocked: [] };
   await page.clock.setFixedTime(new Date(NOW));
   if (session === 'admin') {
@@ -516,13 +556,16 @@ export async function installMockApi(page: Page, session: Session): Promise<Mock
   zip.file('instance.json', '{"apiVersion":"bim/v1","kind":"Instance"}');
   zip.file('application.json', '{"kind":"Application"}');
   const archive = await zip.generateAsync({ type: 'nodebuffer' });
+  const compositions = compositionStore(seed);
 
   await page.route(`${API}/**`, async (call: Route) => {
     const request = call.request();
     const url = new URL(request.url());
     const parts = url.pathname.split('/').filter(Boolean);
+    const signedIn = session === 'admin' || (session === 'visitor' && Boolean(request.headers().authorization));
     const known: Request = {
-      method: request.method(), parts, query: url.searchParams, archive,
+      method: request.method(), parts, query: url.searchParams, archive, compositions, signedIn,
+      text: () => request.postData() ?? '',
       body: () => {
         try {
           return (request.postDataJSON() ?? {}) as Record<string, unknown>;
@@ -531,12 +574,18 @@ export async function installMockApi(page: Page, session: Session): Promise<Mock
         }
       },
     };
+    if (session === 'visitor' && known.method === 'POST' && parts.join('/') === 'v1/auth/login') {
+      await call.fulfill({ status: 200, json: { access_token: 'gallery-access', refresh_token: 'gallery-refresh', token_type: 'bearer', expires_in: 900 } });
+      return;
+    }
     // The engine catalogue is public: a visitor gets the public engines.
-    if (session === 'none' && known.method === 'GET' && parts.join('/') === 'v1/engines') {
+    if (!signedIn && known.method === 'GET' && parts.join('/') === 'v1/engines') {
       await call.fulfill({ status: 200, json: { engines: PUBLIC_ENGINES } });
       return;
     }
-    if (session === 'none' && parts[0] === 'v1' && SESSION_ONLY.has(parts[1])) {
+    // An organization's compositions answer anybody: its public ones are read without a session.
+    const compositionRead = parts[1] === 'organizations' && parts[3] === 'compositions';
+    if (!signedIn && parts[0] === 'v1' && SESSION_ONLY.has(parts[1]) && !compositionRead) {
       await call.fulfill({ status: 401, json: { detail: { code: 'not_authenticated', error: 'Authentication required.' } } });
       return;
     }
@@ -611,6 +660,7 @@ export async function installWalkApi(page: Page, template: Buffer): Promise<Walk
   const runs = new Map<string, WalkRun>();
   const studies: Study[] = [];
   const studyRuns = new Map<string, WalkStudyRun[]>();
+  const compositions = compositionStore();
   let serial = 0;
   const nextId = (prefix: string) => {
     serial += 1;
@@ -702,8 +752,9 @@ export async function installWalkApi(page: Page, template: Buffer): Promise<Walk
     if (tail === 'source') return { status: 200, bytes: found.bytes, type: 'application/vnd.bim+zip' };
     if (tail === 'compilation') return ok(compilationFor(found.row));
     if (tail === 'compilations' && last === 'ir') {
-      return ok({ id: compilationFor(found.row).id, ir_digest: compilationFor(found.row).ir_digest, ir: irDocument(8), source_map: {} });
+      return ok({ id: compilationFor(found.row).id, ir_digest: compilationFor(found.row).ir_digest, ir: compiledDocument(), source_map: {} });
     }
+    if (tail === 'compilations' && last === 'facts') return ok(factsOf(2));
     return notFound('Not mocked.');
   };
 
@@ -845,7 +896,7 @@ export async function installWalkApi(page: Page, template: Buffer): Promise<Walk
       return ok({
         valid: true, instanceDigest: sha256(`instance:${sha256(body ?? '')}`), packageDigest: sha256(body ?? Buffer.alloc(0)), irDigest: sha256(`ir:${sha256(body ?? '')}`),
         fileDigests: {}, resourceDigests: {}, diagnostics: [], compatibleModes: COMPATIBLE_MODES(), analysis: ANALYSIS,
-        ...(request.query.get('include') === 'ir' ? { ir: irDocument(8), sourceMap: {} } : {}),
+        ...included(request.query.get('include')),
       });
     }
     if (area === 'bim' && second === 'templates' && third) return { status: 200, type: 'application/vnd.bim+zip', bytes: template };
@@ -866,7 +917,8 @@ export async function installWalkApi(page: Page, template: Buffer): Promise<Walk
     const parts = url.pathname.split('/').filter(Boolean);
     const body = request.postDataBuffer();
     const known: Request = {
-      method: request.method(), parts, query: url.searchParams, archive: template,
+      method: request.method(), parts, query: url.searchParams, archive: template, compositions, signedIn: Boolean(request.headers().authorization),
+      text: () => request.postData() ?? '',
       body: () => {
         try {
           return (request.postDataJSON() ?? {}) as Record<string, unknown>;
@@ -875,8 +927,7 @@ export async function installWalkApi(page: Page, template: Buffer): Promise<Walk
         }
       },
     };
-    const signedIn = Boolean(request.headers().authorization);
-    const reply = walkRoute(known, body, signedIn) ?? route(known);
+    const reply = walkRoute(known, body, known.signedIn) ?? route(known);
     if (!reply) {
       handle.unmocked.push(`${known.method} ${url.pathname}`);
       await call.fulfill({ status: 404, json: { detail: 'not mocked' } });

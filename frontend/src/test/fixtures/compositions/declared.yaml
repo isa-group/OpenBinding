@@ -1,0 +1,26 @@
+# A declared composition: it links no problem, so its values are the ones its author wrote.
+# An order desk signs customers in itself, sends a notice and archives the order in parallel,
+# then ships by post or by courier. The e-mail candidate carries its SPHERE provenance, and the
+# composition's own pricing is a public Pricing2Yaml file.
+syntaxVersion: "1.0"
+composition: order-desk
+version: 1.0.0
+kind: application
+workflow:
+  seq:
+    - signIn
+    - and: [notify, archive]
+    - xor:
+        - {probability: 0.7, flow: post}
+        - {probability: 0.3, flow: courier}
+binding:
+  signIn: {local: true}
+  notify: {candidate: email.brevo.starter, from: {sphere: brevo/brevo, version: 665f1c2e9b1d4a0012ab34cd, plan: STARTER}}
+  archive: {candidate: storage.dropbox.plus}
+  post: {candidate: shipping.post.standard}
+  courier: {candidate: shipping.courier.express}
+values:
+  availability: 0.995
+  cost: {value: 42.5, unit: EUR/month}
+  latency: {value: 380, unit: ms}
+offering: {url: "https://pricings.example.org/order-desk/pricing.yml"}

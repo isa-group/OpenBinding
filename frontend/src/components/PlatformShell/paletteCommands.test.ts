@@ -68,6 +68,17 @@ describe('buildCommands', () => {
     expect(commands.filter((command) => command.label === 'Problems').map((command) => command.href)).toEqual(['/app/isa-demo/problems']);
   });
 
+  it('offers the compositions of the organization and New composition, and neither without one', () => {
+    const inOrganization = buildCommands({ organizations: [organization], organization, isAdmin: false });
+    const without = buildCommands({ organizations: [organization], isAdmin: false });
+
+    expect(inOrganization.filter((command) => command.label === 'Compositions').map((command) => command.href)).toEqual(['/app/isa-demo/compositions']);
+    expect(inOrganization.filter((command) => command.label === 'New composition').map((command) => [command.group, command.href])).toEqual([
+      ['Create', '/app/isa-demo/compositions?create=composition'],
+    ]);
+    expect(without.filter((command) => /composition/i.test(command.label))).toEqual([]);
+  });
+
   it('offers New problem, New run and New study in the organization, and none without one', () => {
     const inOrganizationToo = buildCommands({ organizations: [organization], organization, isAdmin: false });
     const inOrganization = buildCommands({ organizations: [organization], organization, isAdmin: false });

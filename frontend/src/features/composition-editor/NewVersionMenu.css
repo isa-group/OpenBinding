@@ -1,0 +1,43 @@
+/* The New version menu of the composition header */
+.nvm { position: relative; }
+.nvm-chevron { transition: transform 0.15s; }
+.nvm-chevron.is-open { transform: rotate(180deg); }
+.nvm-menu {
+  position: absolute;
+  right: 0;
+  z-index: 30;
+  width: 272px;
+  margin-top: 8px;
+  padding: 6px;
+  border: 1px solid var(--tp-hairline);
+  border-radius: var(--tp-radius-lg);
+  background: var(--tp-canvas);
+  box-shadow: var(--tp-shadow-elevation-3);
+}
+.nvm-item {
+  display: flex;
+  width: 100%;
+  min-height: 44px;
+  box-sizing: border-box;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: var(--tp-radius-md);
+  background: transparent;
+  color: var(--tp-ink);
+  font: inherit;
+  font-size: 0.8125rem;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+.nvm-item:hover, .nvm-item:focus-visible { background: var(--tp-surface); }
+.nvm-item:focus-visible { outline: 2px solid var(--tp-link); outline-offset: -2px; }
+.nvm-icon { width: 16px; height: 16px; flex-shrink: 0; margin-top: 2px; color: var(--tp-primary-deep); }
+.nvm-title { display: block; font-weight: 600; }
+.nvm-description { display: block; margin-top: 2px; color: var(--tp-steel); font-size: 0.75rem; }
+
+@media (max-width: 640px) {
+  .nvm-menu { right: auto; left: 0; width: min(272px, calc(100vw - 32px)); }
+}

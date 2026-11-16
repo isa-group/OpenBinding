@@ -325,11 +325,17 @@ class Composition(Base):
 
     Mutable, like a problem (the ETag is ``updated_at``). An empty composition, with no version yet, is the
     editor's starting point and a derivation's target. ``kind`` is metadata: the latest version's kind, and
-    the one given at creation until a version exists.
+    the one given at creation until a version exists. ``visibility`` says who reads it: ``private`` (the
+    default) for the organization's members only, ``public`` for anybody, through the same routes.
     """
 
     __tablename__ = "compositions"
-    __table_args__ = (UniqueConstraint("organization_id", "slug", name="uq_compositions_organization_slug"),)
+    __table_args__ = (
+        UniqueConstraint("organization_id", "slug", name="uq_compositions_organization_slug"),
+        CheckConstraint("visibility IN ('private', 'public')", name="visibility"),
+        # The public list across organizations, newest first.
+        Index("ix_compositions_visibility_updated", "visibility", "updated_at"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     organization_id: Mapped[uuid.UUID] = mapped_column(
@@ -340,6 +346,9 @@ class Composition(Base):
     description: Mapped[str] = mapped_column(String(2000), nullable=False, default="")
     kind: Mapped[CompositionKind] = enum_column(CompositionKind, CompositionKind.APPLICATION, length=16)
     archived: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    visibility: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="private", server_default="private"
+    )
     created_by_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="RESTRICT"), nullable=False, index=True
     )

@@ -15,7 +15,7 @@ import { formatDate } from '../../utils/format';
 import { usePricingTokenStatus } from '../../utils/pricingToken';
 import { safeExternalHref } from '../../utils/url';
 import { useResource } from '../../utils/useResource';
-import { classifyAuthError } from '../Auth/authErrors';
+import { classifyAuthError } from '../../shared/api/errors';
 import { currentSelectionOf, readCatalog, type Cell, type PlanColumn, type PricingView, type RowGroup } from './pricingModel';
 import './Pricing.css';
 

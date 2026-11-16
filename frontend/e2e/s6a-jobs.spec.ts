@@ -2,11 +2,11 @@ import { expect as baseExpect, test, type Locator, type Page, type Route, type T
 import { failureBody } from './helpers/problems';
 import type { Job } from '../src/api/platform';
 import type { Problem, ProblemRevision } from '../src/api/problems';
-import { ENGINE, NEIGHBORHOOD, PROBLEM, REGISTRATION, detailOf, jobOf, provenanceOf } from '../src/test/fixtures/jobs';
+import { ENGINE, NEIGHBORHOOD, PROBLEM_FACTS, REGISTRATION, detailOf, jobOf, provenanceOf } from '../src/test/fixtures/jobs';
 import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
 import { digestOf, usageOf } from '../src/test/fixtures/resources';
 
-// S6a · execution: job-launch, job-list and job-detail.
+// S6a · execution: job-launch, job-list and job-detail (with deriving a composition from a finished run).
 // There is no backend: the API origin is answered by page.route(). Screenshots go to testInfo.outputPath() (test-results/, ignored by git)
 // so they can be looked at after a run. Every test walks a screen through its states on a desktop and on a phone.
 
@@ -118,13 +118,32 @@ const analysisBody = () => ({
   analysis: { tasks: 6, candidates: 24, constraints: 2, placement: false, bindingSpace: '125892' },
 });
 
-type Overridable = 'launch' | 'cancel' | 'retry' | 'compilation' | 'runs' | 'detail' | 'neighborhood';
+// --- deriving a composition from a run: the organization has none yet, so the version goes to a new one
+
+const newComposition = (body: Record<string, unknown>) => ({
+  id: `composition-${String(body.slug)}`, slug: body.slug, name: body.name, description: '', kind: body.kind ?? 'application', archived: false,
+  visibility: 'private', organization: { id: 'org-isa-demo', slug: 'isa-demo', name: 'ISA Demo Group' }, created_by_id: 'user-1',
+  created_at: '2026-10-09T09:00:00Z', updated_at: '2026-10-09T09:00:00Z', version_count: 0, latest_version: null,
+});
+
+/** The document a derivation of the first solution would seal (`seal: false`), as the gateway answers it. */
+const derivedDraft = (body: Record<string, unknown>) => {
+  const content = [
+    "syntaxVersion: '1.0'", 'composition: checkout-plan', `version: ${String(body.version)}`, 'kind: application', 'problem:',
+    '  ref: isa-demo/problems/checkout-flow@2', `  compilation: ${digestOf('9')}`, 'workflow:', '  seq: [t1, t2, t3]', 'binding:',
+    '  t1:', '    candidate: c1', '  t2:', '    candidate: c3', '  t3:', '    candidate: c4', 'values:', '  cost:', '    value: 9.5',
+    '    unit: EUR', '  latency:', '    value: 420', '    unit: ms', 'evidence:', `  run: ${String(body.run)}`, `  point: ${String(body.point)}`, '',
+  ].join('\n');
+  return { content, document: {}, values: { cost: { value: 9.5, unit: 'EUR' }, latency: { value: 420, unit: 'ms' } }, diagnostics: [] };
+};
+
+type Overridable = 'launch' | 'cancel' | 'retry' | 'compilation' | 'runs' | 'detail' | 'neighborhood' | 'seal';
 
 interface State {
   /** A handler that replaces the default answer of one call. */
   refuse: Partial<Record<Overridable, Handler>>;
   /** The last body or key each write carried, to check what was sent. */
-  sent: { launch?: unknown; key?: string; cancel?: string; retry?: string };
+  sent: { launch?: unknown; key?: string; cancel?: string; retry?: string; create?: unknown; derive: unknown[] };
   /** The live run has finished: the next time it is asked about it says so. */
   liveDone: boolean;
 }
@@ -138,7 +157,7 @@ const bodyOf = (route: Route) => route.request().postDataJSON() as Record<string
 
 /** Everything these screens read and write, answered; anything else on the API origin is an empty 404. */
 async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
-  const state: State = { refuse: {}, sent: {}, liveDone: false };
+  const state: State = { refuse: {}, sent: { derive: [] }, liveDone: false };
   const organizations = [
     org('org-isa-demo', 'isa-demo', 'ISA Demo Group', options.role ?? 'OWNER'),
     org('org-4', 'read-lab', 'Read Lab', 'VIEWER'),
@@ -201,15 +220,31 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
       return run ? json(run)(route) : detail(404, 'not_found', 'Run not found.')(route);
     }
     if (section === 'problems') {
-      // The problems of the organization: the list, the versions of one, its compilation and the IR of that.
+      // The problems of the organization: the list, the versions of one, its compilation, and the facts and the IR of that.
       const [, , , , problemSlug, , revisionRef, tail] = parts;
       const own = orgSlug === 'isa-demo' ? [checkout] : [];
       if (!problemSlug) return json({ problems: own, total: own.length, limit: 200, offset: 0 })(route);
       if (problemSlug !== checkout.slug || orgSlug !== 'isa-demo') return detail(404, 'not_found', 'Problem not found.')(route);
       if (!revisionRef) return json([problemRevision(1), problemRevision(2)])(route);
       if (tail === 'compilation') return (state.refuse.compilation ?? json(analysisBody()))(route);
-      if (tail === 'compilations') return json({ id: 'compilation-2', ir_digest: digestOf('c'), ir: PROBLEM, source_map: {} })(route);
+      if (tail === 'compilations' && parts.at(-1) === 'facts') return json(PROBLEM_FACTS)(route);
+      if (tail === 'compilations') return json({ id: 'compilation-2', ir_digest: digestOf('c'), ir: { apiVersion: 'bim/v1', kind: 'BindingProblem' }, source_map: {} })(route);
       return json({ ...problemRevision(Number(revisionRef)), document: {}, files: [], resource_digests: {}, compilations: [] })(route);
+    }
+    if (section === 'compositions') {
+      // The organization has no composition: a derivation creates one, previews its document and seals it.
+      const [, , , , slug, action] = parts;
+      if (!slug && route.request().method() === 'POST') {
+        state.sent.create = bodyOf(route);
+        return json(newComposition(bodyOf(route)), 201)(route);
+      }
+      if (!slug) return json({ compositions: [], total: 0, limit: 200, offset: 0 })(route);
+      if (action === 'derive') {
+        const body = bodyOf(route);
+        state.sent.derive.push(body);
+        if (body.seal === false) return json(derivedDraft(body))(route);
+        return (state.refuse.seal ?? detail(404, 'not_found', 'Composition not found.'))(route);
+      }
     }
     if (!section) return json(found ?? { detail: { code: 'not_found', error: 'Organization not found.' } }, found ? 200 : 404)(route);
     return json([])(route);
@@ -365,6 +400,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const best = main.getByRole('region', { name: 'Run result' });
       await expect(best.getByRole('list', { name: 'Quality of this combination' }).getByRole('listitem')).toHaveCount(2);
       await expect(best.getByRole('region', { name: 'Chosen providers' }).getByRole('row')).toHaveCount(4);
+      // The table names each candidate and its values from the facts of the run's compilation.
+      await expect(best.getByRole('region', { name: 'Chosen providers' }).getByRole('row', { name: /^t1/ })).toContainText('120');
       const solutionSource = main.getByRole('region', { name: 'Solution 1 source' });
       await expect(solutionSource).toBeHidden();
       await capture(page, testInfo, `detail-${name}-result`, { area: best });
@@ -393,6 +430,57 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(report).toBeVisible();
       await capture(page, testInfo, `detail-${name}-report`, { area: report });
       expect(critical).toEqual([]);
+    });
+
+    test('job-detail /app/:org/runs/:job · a member derives a composition from a finished run; a viewer is not offered to', async ({ page }, testInfo) => {
+      const critical = watchCriticalErrors(page);
+      const state = await mockApi(page);
+      await page.goto(`${ROOT}/runs/job-feasible-1`);
+      const main = page.locator('#platform-main');
+
+      const keep = main.getByRole('region', { name: 'Keep it as a composition' });
+      await keep.getByRole('button', { name: 'Derive composition' }).click();
+      const dialog = page.getByRole('dialog', { name: 'Derive a composition' });
+      await expect(dialog.getByRole('radio', { name: 'A composition of this organization' })).toBeDisabled();
+      await dialog.getByLabel('Name').fill('Checkout plan');
+      await expect(dialog.getByLabel('Address')).toHaveValue('checkout-plan');
+      await dialog.getByRole('button', { name: 'Next' }).click();
+
+      // The run's two solutions, as its result gives them, and the first label of a new composition.
+      const points = dialog.getByRole('region', { name: 'Solutions of the run' });
+      await expect(points.getByRole('row')).toHaveCount(3);
+      await expect(points.getByRole('row', { name: /Solution 2/ })).toContainText('560');
+      await points.getByRole('radio', { name: 'Solution 2' }).check();
+      await expect(dialog.getByLabel('Version label')).toHaveValue('1.0.0');
+      await capture(page, testInfo, `detail-${name}-derive-what`, { area: dialog });
+      await dialog.getByRole('button', { name: 'Preview' }).click();
+
+      await expect(dialog.getByRole('region', { name: 'Derived composition.yaml' })).toContainText('point: 1');
+      await expect(dialog.getByRole('region', { name: 'Values' })).toContainText('9.5 EUR');
+      expect(state.sent.create).toEqual({ slug: 'checkout-plan', name: 'Checkout plan', kind: 'application', description: '' });
+      expect(state.sent.derive).toEqual([{ run: 'job-feasible-1', point: 1, version: '1.0.0', seal: false }]);
+      await capture(page, testInfo, `detail-${name}-derive-preview`, { area: dialog });
+
+      // Another document holds 1.0.0: the label says so, and nothing leaves the run.
+      state.refuse.seal = detail(409, 'version_label_taken', 'Version 1.0.0 already holds another content.');
+      await dialog.getByRole('button', { name: 'Seal 1.0.0' }).click();
+      await expect(dialog.getByText('1.0.0 already holds another document. Choose another label.')).toBeVisible();
+      expect(state.sent.derive.at(-1)).toEqual({ run: 'job-feasible-1', point: 1, version: '1.0.0', seal: true });
+      await expect(page).toHaveURL(`${ROOT}/runs/job-feasible-1`);
+      await dialog.getByRole('button', { name: 'Back' }).click();
+      await dialog.getByRole('button', { name: 'Cancel' }).click();
+      await expect(dialog).toHaveCount(0);
+
+      expect(critical).toEqual([]);
+
+      // A viewer of the organization reads the run and its result, and is not offered a derivation.
+      const viewer = await page.context().newPage();
+      await mockApi(viewer, { role: 'VIEWER' });
+      await viewer.goto(`${ROOT}/runs/job-feasible-1`);
+      const result = viewer.locator('#platform-main').getByRole('region', { name: 'Run result' });
+      await expect(result.getByRole('heading', { name: 'What if one task used another provider?' })).toBeVisible();
+      await expect(viewer.locator('#platform-main').getByRole('button', { name: 'Derive composition' })).toHaveCount(0);
+      await viewer.close();
     });
 
     test('job-detail /app/:org/runs/:job · a live run follows its state until it finishes', async ({ page }, testInfo) => {

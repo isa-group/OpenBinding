@@ -33,7 +33,7 @@ const TEST_KIT_FILES: readonly string[] = [
 const all = [...Object.entries(files).filter(([path]) => !path.endsWith('.css')), ...stylesheets];
 const shipped = all.filter(([path]) => !TEST_KIT.test(path));
 
-const ALLOWED = /\/src\/(components\/rendering\/(SourceView|LogPanel)|utils\/(digest|uuid|canonicalDigest)|api\/|test\/)|[Ff]ixtures?\.ts$/;
+const ALLOWED = /\/src\/(components\/rendering\/(SourceView|LogPanel)|utils\/uuid|api\/|test\/)|[Ff]ixtures?\.ts$/;
 
 // Every shipped file the ALLOWED pattern exempts; a new exempt-named file needs an edit here.
 const EXEMPT_FILES: readonly string[] = [
@@ -59,6 +59,11 @@ const EXEMPT_FILES: readonly string[] = [
   '/src/pages/Pricing/pricingFixture.ts',
   '/src/test/fixtures/admin.ts',
   '/src/test/fixtures/agreementCatalog.ts',
+  '/src/test/fixtures/analysis.ts',
+  '/src/test/fixtures/boundaries/src/entities/alpha/index.ts',
+  '/src/test/fixtures/boundaries/src/features/alpha/index.ts',
+  '/src/test/fixtures/boundaries/src/shared/alpha/index.ts',
+  '/src/test/fixtures/boundaries/src/widgets/alpha/index.ts',
   '/src/test/fixtures/engines.ts',
   '/src/test/fixtures/jobs.ts',
   '/src/test/fixtures/resources.ts',
@@ -66,9 +71,7 @@ const EXEMPT_FILES: readonly string[] = [
   // test support under src/test/, not shipped behaviour
   '/src/test/rawRenderingAllowList.ts',
   '/src/test/vocabulary.ts',
-  // utils: the digest and uuid helpers themselves
-  '/src/utils/canonicalDigest.ts',
-  '/src/utils/digest.ts',
+  // utils: the uuid helper itself
   '/src/utils/uuid.ts',
 ];
 

@@ -25,20 +25,21 @@ describe('SiteFooter', () => {
 
     const nav = screen.getByRole('navigation', { name: 'Footer navigation' });
     for (const [name, href] of [
-      ['Engines', '/engines'], ['Pricing', '/pricing'], ['Workbench', '/workbench'],
+      ['Compositions', '/compositions'], ['Language', '/language'], ['Engines', '/engines'], ['Pricing', '/pricing'], ['Workbench', '/workbench'],
       ['Team', '/about?tab=team'], ['Research', '/about?tab=research'],
       ['Funding', '/about?tab=funding'], ['Changelog', '/about?tab=changelog'],
     ] as const) {
       expect(within(nav).getByRole('link', { name })).toHaveAttribute('href', href);
     }
-    expect(within(nav).getAllByRole('link')).toHaveLength(7);
+    expect(within(nav).getAllByRole('link')).toHaveLength(9);
   });
 
-  it('lists Engines, Pricing and the Workbench in the Platform column', () => {
+  it('leads the Platform column with Compositions and Language, then Engines, Pricing and the Workbench', () => {
     renderFooter();
 
     const platform = screen.getByText('Platform').closest('section') as HTMLElement;
-    expect(within(platform).getAllByRole('link').map((link) => link.textContent)).toEqual(['Engines', 'Pricing', 'Workbench']);
+    expect(within(platform).getAllByRole('link').map((link) => link.textContent)).toEqual(['Compositions', 'Language', 'Engines', 'Pricing', 'Workbench']);
+    expect(screen.getByText(/^Define, version, evaluate, render and compare compositions; problems, written in BIM/)).toBeInTheDocument();
   });
 
   it('links to no status page', () => {

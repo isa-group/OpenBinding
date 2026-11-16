@@ -1,18 +1,23 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../api/client';
-import { lucia, member, org, renderScreen, researchUsage } from './testKit';
+import { lucia, org } from '../../features/workspace/testKit';
+import { member, renderScreen, researchUsage } from './testKit';
 import { OrgOverview } from './OrgOverview';
 
 const api = vi.hoisted(() => ({ getOwnUsage: vi.fn() }));
 const platform = vi.hoisted(() => ({ members: vi.fn(), studies: vi.fn() }));
 const problems = vi.hoisted(() => ({ list: vi.fn() }));
 const runsApi = vi.hoisted(() => ({ list: vi.fn() }));
+const compositionsApi = vi.hoisted(() => ({ list: vi.fn() }));
 
 vi.mock('../../api/client', async () => ({ ...await vi.importActual<typeof import('../../api/client')>('../../api/client'), apiClient: api }));
 vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'), platformApi: platform }));
 vi.mock('../../api/problems', () => ({ problemsApi: problems }));
 vi.mock('../../api/runs', async () => ({ ...await vi.importActual<typeof import('../../api/runs')>('../../api/runs'), runsApi }));
+vi.mock('../../entities/composition/api', async () => ({
+  ...await vi.importActual<typeof import('../../entities/composition/api')>('../../entities/composition/api'), compositionsApi,
+}));
 
 const group = org('isa-demo', { name: 'ISA Demo Group' });
 const lab = org('qos-lab', { name: 'QoS Lab (sub-organización)', parent_id: group.id });
@@ -27,6 +32,7 @@ describe('Organization overview', () => {
     platform.members.mockResolvedValue([member('lucia.vega', 'OWNER', { user_id: lucia.id })]);
     api.getOwnUsage.mockResolvedValue(researchUsage());
     problems.list.mockResolvedValue({ problems: [], total: 0, limit: 5, offset: 0 });
+    compositionsApi.list.mockResolvedValue({ compositions: [], total: 0, limit: 5, offset: 0 });
     runsApi.list.mockResolvedValue({ runs: [], total: 0 });
     platform.studies.mockResolvedValue([]);
   });
@@ -68,6 +74,8 @@ describe('Organization overview', () => {
     expect(screen.queryByRole('link', { name: 'Upload BIM package' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: '+ Upload' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: '+ New run' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: '+ New composition' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'All compositions' })).toHaveAttribute('href', '/app/isa-demo/compositions');
   });
 
   it('has no projects: no grid, no search and no New project', async () => {
@@ -128,6 +136,44 @@ describe('Organization overview', () => {
 
     expect(screen.getByRole('status')).toHaveTextContent('Loading…');
     await waitFor(() => expect(screen.queryByRole('heading', { name: 'Organization not available' })).not.toBeInTheDocument());
+  });
+
+  it('leads with the organization’s compositions: how many, the latest five, and the way to all of them', async () => {
+    compositionsApi.list.mockResolvedValue({
+      compositions: [{
+        id: 'c1', slug: 'fleet-routing', name: 'Fleet routing', description: '', kind: 'workflow', archived: false, visibility: 'public',
+        organization: { id: group.id, slug: 'isa-demo', name: 'ISA Demo Group' }, created_by_id: lucia.id, created_at: '2026-09-01T00:00:00Z',
+        updated_at: '2026-10-02T00:00:00Z', version_count: 3,
+        latest_version: { id: 'v3', label: '1.2.0', ordinal: 3, values_status: 'declared', verified: false, created_at: '2026-10-02T00:00:00Z' },
+      }],
+      total: 9, limit: 5, offset: 0,
+    });
+    renderOverview();
+
+    const panel = (await screen.findByRole('heading', { name: /^Compositions/ })).closest('section')!;
+    expect(compositionsApi.list).toHaveBeenCalledWith('isa-demo', { archived: false, sort: 'updated', limit: 5 });
+    const row = await within(panel).findByRole('link', { name: /Fleet routing/ });
+    expect(row).toHaveAttribute('href', '/app/isa-demo/compositions/fleet-routing');
+    expect(row).toHaveTextContent('Workflow · version 1.2.0 · Oct 2, 2026');
+    expect(within(row).getByText('Declared')).toBeInTheDocument();
+    expect(within(panel).getByText('9')).toBeInTheDocument();
+    expect(within(panel).getByRole('link', { name: 'All compositions' })).toHaveAttribute('href', '/app/isa-demo/compositions');
+    expect(within(panel).getByRole('link', { name: '+ New composition' })).toHaveAttribute('href', '/app/isa-demo/compositions?create=composition');
+    // The compositions come before the problems.
+    const problemsPanel = screen.getByRole('heading', { name: /^Problems/ }).closest('section')!;
+    expect(panel.compareDocumentPosition(problemsPanel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('says how to start when the organization has no composition, and lets the section fail alone', async () => {
+    const view = renderOverview();
+    const panel = (await screen.findByRole('heading', { name: /^Compositions/ })).closest('section')!;
+    expect(await within(panel).findByText(/^None yet\. A composition is the binding the organization keeps/)).toBeInTheDocument();
+    view.unmount();
+
+    compositionsApi.list.mockRejectedValueOnce(new HttpError(500, 'boom'));
+    renderOverview();
+    expect(await screen.findByText('Compositions couldn’t be loaded (500).')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /^Problems/ })).toBeInTheDocument();
   });
 
   it('lists the organization’s newest problems and leads to all of them', async () => {

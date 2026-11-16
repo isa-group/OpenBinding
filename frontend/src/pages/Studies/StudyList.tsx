@@ -11,7 +11,7 @@ import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { formatDate } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
-import { classifyAuthError, marker } from '../Account/accountErrors';
+import { classifyAuthError, marker } from '../../shared/api/errors';
 import { RefusalNotice } from '../Jobs/parts';
 import { OrgGate, OrgSkeleton } from '../../features/workspace/OrgFrame';
 import type { StudyContent } from '../../features/workspace/model';

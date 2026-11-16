@@ -12,6 +12,8 @@ test.describe('live · the organization lab-main and its problems', () => {
     const main = organizations.locator(`a[href="/app/${ORG}"]`);
     await expect(main).toBeVisible();
     await expect(main).toContainText('OWNER');
+    // Home leads with the recent compositions of an organization, before its recent runs.
+    await expect(page.getByRole('region', { name: 'Recent compositions' })).toBeVisible();
     await capture(page, testInfo, 'navigation-home');
 
     await main.click();
@@ -20,6 +22,9 @@ test.describe('live · the organization lab-main and its problems', () => {
     // The header leads to the problems too: the panel's link is the one in the main area.
     const problems = page.locator('#platform-main').getByRole('link', { name: 'All problems' });
     await expect(problems).toHaveAttribute('href', `${ORG_PATH}/problems`);
+    // The overview leads with the organization's compositions.
+    await expect(page.locator('#platform-main').getByRole('heading', { name: /^Compositions/ })).toBeVisible();
+    await expect(page.locator('#platform-main').getByRole('link', { name: 'All compositions', exact: true })).toHaveAttribute('href', `${ORG_PATH}/compositions`);
     await capture(page, testInfo, 'navigation-organization');
 
     await problems.click();

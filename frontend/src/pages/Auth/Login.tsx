@@ -9,7 +9,8 @@ import { useAuth } from '../../contexts/auth';
 import {
   afterSignInTarget, clearSignInNote, hasRecentSignIn, hasSessionEnded, noteSignInStarted, rememberCasFlow,
 } from '../../utils/authFlow';
-import { classifyAuthError, fieldErrorsFrom } from './authErrors';
+import { fieldErrorsFrom } from './authErrors';
+import { classifyAuthError } from '../../shared/api/errors';
 import { AuthField, AuthShell, AuthSpinner } from './AuthShell';
 
 interface LoginState {

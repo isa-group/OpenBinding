@@ -7,7 +7,9 @@ excluded so a later implementation choice is traceable rather than accidental.
 
 ## Reference state
 
-- SPHERE source: `356ad1129acaee4beb3c4574e389f158cb0a2eaa`.
+- SPHERE source: `356ad1129acaee4beb3c4574e389f158cb0a2eaa` for this 2026-09-05 inventory. The code F1 and F2
+  reuse from SPHERE follows `73779a8af260adb4c7de981bd479327d7b82f97a` (see "Compositions after SPHERE's pricings"
+  below and `THIRD_PARTY_NOTICES.md`).
 - SPHERE docs: `107c5451e464e77a87a1f8b72dd71fa9d9e93231`.
 - SPACE: `5fa4d3fd990be9477e742917f829853a1791f798`.
 - space-python-client: `1ec3bce6c57fb3f7192e3d721048fa738e921ade`.
@@ -95,6 +97,24 @@ SPHERE's static-file route does not authenticate the content URL even when a
 version is private in its catalogue. “Private” therefore means catalogue and
 workflow privacy until the upstream static delivery is cryptographically
 protected; drafts must not contain secrets.
+
+## Compositions after SPHERE's pricings (F1, F2)
+
+Since the redesign around compositions, a **composition** is OpenBinding's analogue of a SPHERE pricing, and its
+versions of a pricing's versions, at SPHERE revision `73779a8a`. What was taken, and how, is decided in
+[ADR 0050](adr/0050-frontend-layers-and-sphere-reuse.md) and listed in `THIRD_PARTY_NOTICES.md`:
+
+| SPHERE | OpenBinding |
+|---|---|
+| PricingDiff and `forkPricing` | the composition diff (`composition/diff.py`) and fork (`modules/compositions/application/fork.py`), ported |
+| `text-diff.ts`, `requested-version.ts` | copied verbatim into `frontend/src/shared/sphere/` |
+| `change-summary.ts`, `pricing-fragment.ts`, `new-version-menu`, `use-version-changes` | adapted copies (binding, values and offering sections; the `#composition=` fragment) |
+| the pricing card, versions, version diff, analytics, fork modal, problems panel and configuration-space screens | guided rewrites on OpenBinding's components ("no code copied") |
+| the private read rule (`privateReadRule.ts`) and public pricings | public compositions, with one not-found answer for anything a caller cannot read ([ADR 0047](adr/0047-public-compositions.md)) |
+| `version-order.ts`, the private-access fallback, the vendored renderer, `VariablesEditor` | not copied |
+
+The row "Public/private resources" above now reads: compositions are private or public; problems, runs and studies
+are their organization's only.
 
 ## Third-party FaaS pricings
 

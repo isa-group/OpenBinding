@@ -5,7 +5,8 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Notice } from '../../components/ui/Notice';
 import { useAuth } from '../../contexts/auth';
 import { afterSignInTarget, clearSignInNote, hasRecentSignIn, noteSignInStarted } from '../../utils/authFlow';
-import { classifyAuthError, fieldErrorsFrom, type FieldErrors } from './authErrors';
+import { fieldErrorsFrom, type FieldErrors } from './authErrors';
+import { classifyAuthError } from '../../shared/api/errors';
 import { AuthField, AuthShell, AuthSpinner } from './AuthShell';
 import { MIN_PASSWORD_LENGTH } from './passwordStrength';
 

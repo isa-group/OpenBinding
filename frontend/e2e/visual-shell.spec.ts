@@ -126,10 +126,10 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
           await create.focus();
           await page.keyboard.press('Enter');
           await expect(create).toHaveAttribute('aria-expanded', 'true');
-          for (const label of ['Problem', 'Study', 'Run']) {
+          for (const label of ['Composition', 'Problem', 'Study', 'Run']) {
             await expect(header.locator('#app-new-menu').getByRole('link', { name: label, exact: true }), label).toBeVisible();
           }
-          await expect(header.locator('#app-new-menu').getByRole('link')).toHaveCount(3);
+          await expect(header.locator('#app-new-menu').getByRole('link')).toHaveCount(4);
           await shot('menu-new');
           await page.keyboard.press('Escape');
           await expect(create).toHaveAttribute('aria-expanded', 'false');

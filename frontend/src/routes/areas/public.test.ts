@@ -8,11 +8,12 @@ const PROTOTYPE: Array<[string, string]> = [
   ['pub-workbench', '/workbench'],
   ['pub-about', '/about'],
   ['pub-pricing', '/pricing'],
+  ['pub-language', '/language'],
 ];
 
 describe('area public', () => {
-  it('has 4 screens, with the ids and routes of the prototype', () => {
-    expect(routesByArea.public).toHaveLength(4);
+  it('has 5 screens, with the ids and routes of the prototype', () => {
+    expect(routesByArea.public).toHaveLength(5);
     expect(routesByArea.public.map((definition) => [definition.id, definition.path])).toEqual(PROTOTYPE);
   });
 
@@ -39,6 +40,9 @@ describe('area public', () => {
     it.each([
       ['/', 'pub-home'],
       ['/about', 'pub-about'],
+      ['/language', 'pub-language'],
+      ['/language/schemas/Application', null],
+      ['/language/extensions', null],
       ['/explore', null],
       ['/explore/examples', null],
     ])('%s -> %s', (path, id) => {

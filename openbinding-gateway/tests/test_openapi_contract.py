@@ -24,6 +24,7 @@ from _paths import GATEWAY_ROOT
 from _repo import REPO_ROOT
 from openbinding_gateway.access.dependencies import (
     get_current_user,
+    get_reader,
     require_admin,
     require_platform_admin,
     require_v1_admin,
@@ -148,11 +149,23 @@ def test_authentication_and_role_requirements_are_explicit(document):
         ("/v1/compositions/diff", "post"),
         ("/v1/compositions/schema", "get"),
     }
+    # The list of public compositions and the reads of one: a credential is optional (`{}`), and one that names
+    # nobody is a 401.
+    composition = "/v1/organizations/{org}/compositions/{composition}"
+    optional = {
+        ("/v1/compositions", "get"),
+        (composition, "get"),
+        (f"{composition}/versions", "get"),
+        (f"{composition}/versions/{{version}}", "get"),
+        (f"{composition}/versions/{{version}}/content", "get"),
+        (f"{composition}/diff", "get"),
+    }
     for path, method, operation in operations(document):
         if (path, method) in public:
             assert not operation.get("security"), f"{method.upper()} {path} must stay public"
             continue
-        assert operation.get("security") == expected, f"{method.upper()} {path} lacks account auth"
+        wanted = [*expected, {}] if (path, method) in optional else expected
+        assert operation.get("security") == wanted, f"{method.upper()} {path} lacks account auth"
         assert {"401", "503"} <= set(operation["responses"])
         assert operation.get("x-required-api-key-permissions"), (
             f"{method.upper()} {path} has no documented API-key permission"
@@ -216,7 +229,7 @@ def test_documented_security_matches_the_runtime_dependency_graph(document):
             if isinstance(route, APIRoute):
                 for method in route.methods - {"HEAD", "OPTIONS"}:
                     routes[(route.path_format, method.lower())] = route
-    auth_guards = {get_current_user, solve_caller, require_admin}
+    auth_guards = {get_current_user, get_reader, solve_caller, require_admin}
     for path, method, operation in operations(document):
         route = routes[(path, method)]
         dependencies = calls(route.dependant)

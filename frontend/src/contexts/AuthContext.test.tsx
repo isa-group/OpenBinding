@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { UserProfile } from '../api/auth';
 import { HttpError, SESSION_ENDED_EVENT } from '../api/client';
 import { clearSessionEnded, hasSessionEnded, markSessionEnded } from '../utils/authFlow';
-import { loadDraft, saveDraft } from '../utils/workspaceDraft';
+import { loadDraft, saveDraft } from '../shared/editor/drafts';
 import { AuthProvider } from './AuthContext';
 import { useAuth } from './auth';
 
@@ -117,8 +117,10 @@ describe('AuthProvider', () => {
     expect(await screen.findByText('signed in as lucia')).toBeInTheDocument();
   });
 
-  it('forgets the workbench drafts of the person when they sign out, even if the server cannot be told', async () => {
-    await saveDraft({ 'instance.json': '{}' }, 'u1:/app/isa/qos/workbench::');
+  it('forgets the drafts of the person when they sign out, even if the server cannot be told, and leaves the others alone', async () => {
+    await saveDraft('u1:problem:isa:qos:none', { 'instance.json': '{}' });
+    await saveDraft('u1:composition:isa:checkout:new', { 'composition.yaml': 'name: checkout' });
+    await saveDraft('u2:problem:isa:qos:none', { 'instance.json': '{}' });
     function Leave() {
       const { signOut } = useAuth();
       return <button type="button" onClick={() => void signOut().catch(() => undefined)}>Leave</button>;
@@ -129,7 +131,9 @@ describe('AuthProvider', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Leave' }));
 
-    await waitFor(async () => expect(await loadDraft('u1:/app/isa/qos/workbench::')).toBeNull());
+    await waitFor(async () => expect(await loadDraft('u1:problem:isa:qos:none')).toBeNull());
+    expect(await loadDraft('u1:composition:isa:checkout:new')).toBeNull();
+    expect(await loadDraft('u2:problem:isa:qos:none')).toEqual({ 'instance.json': '{}' });
   });
 
   it('does not claim a session ended for a visitor who never had one', async () => {

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate, useOutletContext } from 'react-router-dom';
-import { Building2, FilePlus2, Play, type LucideIcon } from 'lucide-react';
+import { Building2, FilePlus2, Layers, Play, type LucideIcon } from 'lucide-react';
 import { apiClient } from '../../api/client';
 import type { Notification } from '../../api/auth';
 import { platformApi } from '../../api/platform';
@@ -13,17 +13,24 @@ import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { config } from '../../config';
 import { useAuth } from '../../contexts/auth';
+import { compositionsApi } from '../../entities/composition/api';
+import { kindLabel } from '../../entities/composition/kinds';
+import { valueStatus } from '../../entities/composition/values';
 import { lastOrganization } from '../../features/workspace/lastOrganization';
+import { compositionPath, compositionsPath } from '../../routes/paths/compositions';
 import { problemsPath } from '../../routes/paths/problems';
 import { launchPath, runPath, runsPath } from '../../routes/paths/runs';
 import { formatDate } from '../../utils/format';
 import { formatCount, formatDuration, LIMIT } from '../../utils/limits';
 import { runLabel } from '../../shared/lib/identity';
 import { useResource } from '../../utils/useResource';
+import { ValueBadge } from '../../widgets/value-badge/ValueBadge';
 import { contractChange } from '../Account/notificationsModel';
 import { usageRows } from '../Account/usageModel';
-import { classifyAuthError, generalFailure, isForbidden, marker } from '../Organization/orgErrors';
-import { buildForest, roleSource, type TreeNode } from '../Organization/orgModel';
+import { isForbidden } from '../Organization/orgErrors';
+import { generalFailure } from '../../features/workspace/errors';
+import { classifyAuthError, marker } from '../../shared/api/errors';
+import { atLeast, buildForest, roleSource, type TreeNode } from '../Organization/orgModel';
 import { createAddress, useCreateDialog } from '../Organization/createDialog';
 import { OrgCreate } from '../Organization/OrgCreate';
 import { OrgTile, RoleChip } from '../Organization/parts';
@@ -80,6 +87,69 @@ function OrgBranch({ node, all }: { node: TreeNode; all: Organization[] }) {
         </ul>
       )}
     </li>
+  );
+}
+
+/** How many compositions the home lists. */
+const COMPOSITIONS_SHOWN = 5;
+
+/**
+ * The compositions of one organization (the one last visited, else the first) changed most recently: five active ones, each
+ * linking to its page, and the way to all of them.
+ */
+function CompositionsBlock({ organization }: { organization: Organization | undefined }) {
+  const org = organization?.slug;
+  const compositions = useResource(
+    `home-compositions:${org ?? ''}`,
+    () => (org ? compositionsApi.list(org, { archived: false, sort: 'updated', limit: COMPOSITIONS_SHOWN }) : Promise.resolve(null)),
+  );
+  const failure = compositions.status === 'error' ? classifyAuthError(compositions.error) : null;
+  const items = compositions.data?.compositions ?? [];
+  const canCreate = organization ? atLeast(organization.effective_role, 'MEMBER') : false;
+  return (
+    <section className="apphome-card" aria-labelledby="home-compositions-title" aria-busy={compositions.status === 'loading'}>
+      <header className="home-card-head">
+        <h2 id="home-compositions-title">Recent compositions</h2>
+        {org && <Link to={compositionsPath(org)} viewTransition aria-label={`All compositions of ${organization?.name ?? org}`}>All compositions</Link>}
+      </header>
+      {compositions.status === 'loading' && <div className="home-skeleton" role="status"><span className="sr-only">Loading recent compositions…</span><Skeleton variant="tile" /><Skeleton variant="tile" /></div>}
+      {failure && isForbidden(failure) && <p className="home-blocked">Not available with this key (needs <code>compositions:read</code>).</p>}
+      {failure && !isForbidden(failure) && (
+        <div className="home-pad">
+          <Notice tone="error" action={<Action variant="secondary" size="sm" onClick={compositions.reload}>Retry</Action>}>
+            Recent compositions couldn’t be loaded{marker(failure)}. The other blocks are unaffected.
+          </Notice>
+        </div>
+      )}
+      {compositions.status === 'ready' && items.length === 0 && (
+        <div className="home-guide">
+          <strong>{org ? `No compositions in ${organization?.name ?? org} yet.` : 'No compositions yet.'}</strong>
+          <span className="home-muted">
+            A composition is the binding you keep: the service chosen for each task of a workflow, and the values that choice yields.
+            {org && canCreate && <> <Link to={`${compositionsPath(org)}?create=composition`}>Write one in Composition2Yaml</Link>, or derive one from a run.</>}
+          </span>
+        </div>
+      )}
+      {items.length > 0 && org && (
+        <ul className="home-activity">
+          {items.map((composition) => (
+            <li key={composition.id}>
+              <Link to={compositionPath(org, composition.slug)} viewTransition className="home-activity-row">
+                <span className="home-activity-body">
+                  <strong>{composition.name}</strong>
+                  <small>
+                    {composition.latest_version ? `version ${composition.latest_version.label}` : 'no version yet'}
+                    {` · updated ${formatDate(composition.updated_at) ?? '—'}`}
+                  </small>
+                </span>
+                {composition.latest_version && <ValueBadge status={valueStatus(composition.latest_version)} />}
+                <span className="home-status">{kindLabel(composition.kind)}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 
@@ -239,7 +309,7 @@ function NotificationsBlock({ announce }: { announce: (text: string) => void }) 
   );
 }
 
-/** Home (`app-home`, `/app`): the organizations you can reach, recent jobs, your plan and unread notices. */
+/** Home (`app-home`, `/app`): the organizations you can reach, recent compositions and runs, your plan and unread notices. */
 export function AppHome() {
   const context = useOutletContext<PlatformOutletContext>();
   const { user, isAdmin } = useAuth();
@@ -254,10 +324,13 @@ export function AppHome() {
   const list: Organization[] = orgs.data ?? [];
   const forest = buildForest(list);
   const empty = orgs.status === 'ready' && list.length === 0;
+  // The organization the recent blocks are about: the one last visited, else the first.
+  const current = list.find((item) => item.slug === lastOrganization()) ?? list[0];
 
   const organization = context.organization ?? list[0];
   const shortcuts: Shortcut[] = [];
   if (organization) {
+    shortcuts.push({ label: 'New composition', to: `${compositionsPath(organization.slug)}?create=composition`, icon: Layers });
     shortcuts.push({ label: 'New problem', to: `${problemsPath(organization.slug)}?create=problem`, icon: FilePlus2 });
   }
   if (organization) shortcuts.push({ label: 'Run', to: launchPath(organization.slug), icon: Play });
@@ -293,7 +366,8 @@ export function AppHome() {
           <div className="home-first-body">
             <h2 id="home-first-title">Create your first organization</h2>
             <span>
-              An organization holds your problems, runs and studies, and the people who work on them. You can nest them: a lab
+              An organization holds your compositions, the problems they are chosen from, runs and studies, and the people who
+              work on them. You can nest them: a lab
               inside a group inherits the group’s roles.
             </span>
             <span className="home-first-actions">
@@ -335,7 +409,8 @@ export function AppHome() {
         </section>
 
         <div className="home-side">
-          <ActivityBlock organization={list.find((item) => item.slug === lastOrganization()) ?? list[0]} />
+          <CompositionsBlock organization={current} />
+          <ActivityBlock organization={current} />
           <div className="home-pair">
             <PlanBlock />
             <NotificationsBlock announce={setAnnouncement} />

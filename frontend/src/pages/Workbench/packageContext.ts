@@ -1,8 +1,7 @@
-import type { WorkspaceFiles } from '../../utils/workspaceDraft';
 import {
   isRecord, parseJson, pretty,
   type BimDocument, type BimSpecDocument, type CandidateDocument, type InternalReference, type NormalizeDocument, type OptimizationCriterionDocument,
-  type ResourceEntry,
+  type ResourceEntry, type WorkspaceFiles,
 } from './bimDocuments';
 
 /**

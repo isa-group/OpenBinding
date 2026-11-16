@@ -2,7 +2,7 @@ import JSZip from 'jszip';
 import { expect as baseExpect, test, type Page, type Route, type TestInfo } from '@playwright/test';
 import { failureBody } from './helpers/problems';
 import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
-import { digestOf, irDocument } from '../src/pages/Cases/fixtures';
+import { checkoutFacts, compiledDocument, digestOf } from '../src/pages/Cases/fixtures';
 
 // S5a · the problems of an organization: case-list (/app/:org/problems) and the problem page case-detail with its tabs Overview,
 // Runs, Versions, Source and Settings. A problem is uploaded as a .bim.zip, a new version is another upload (or a save in the
@@ -68,7 +68,7 @@ const seedProblems = (): Record<string, ProblemRow[]> => ({
   'consultora-demo': [checkout('org-3')],
 });
 
-/** How many candidates the payment task has in each version: what their compiled forms differ in. */
+/** How many candidates the payment task has in each version: what the facts of their compilations differ in. */
 const PAY_OF: Record<number, number> = { 1: 5, 2: 8 };
 
 const compilationOf = (revision: number) => ({
@@ -116,7 +116,7 @@ async function mockApi(page: Page): Promise<State> {
   await page.route(new RegExp(`^${API}/v1/organizations(/.*)?(\\?.*)?$`), async (route) => {
     const url = new URL(route.request().url());
     const parts = url.pathname.split('/').filter(Boolean);
-    // /v1/organizations/{org}/problems/{problem}/revisions/{revision}/{tail}/{compilation}/ir
+    // /v1/organizations/{org}/problems/{problem}/revisions/{revision}/{tail}/{compilation}/{ir or facts}
     const [, , orgSlug, section, problemSlug, sub, revisionRef, tail] = parts;
     const method = route.request().method();
     const found = organizations.find((item) => item.slug === orgSlug);
@@ -188,7 +188,9 @@ async function mockApi(page: Page): Promise<State> {
     }
     if (tail === 'source') return route.fulfill({ status: 200, contentType: 'application/vnd.bim+zip', body: zip });
     if (tail === 'compilation') return state.refuse.compilation ? state.refuse.compilation(route) : json(compilationOf(revision.revision))(route);
-    if (tail === 'compilations') return json({ id: `compilation-${revision.revision}`, ir_digest: digestOf('c'), ir: irDocument(PAY_OF[revision.revision] ?? 8), source_map: {} })(route);
+    // A compilation's facts (what the page draws), and its IR (bytes the source view shows and never reads).
+    if (tail === 'compilations' && parts.at(-1) === 'facts') return json(checkoutFacts(PAY_OF[revision.revision] ?? 8))(route);
+    if (tail === 'compilations') return json({ id: `compilation-${revision.revision}`, ir_digest: digestOf('c'), ir: compiledDocument(), source_map: {} })(route);
     return detail(404, 'not_found', 'Not mocked.')(route);
   });
   return state;
@@ -299,8 +301,14 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('link', { name: 'Edit in the Workbench' })).toHaveAttribute('href', '/app/isa-demo/workbench?problem=flujo-checkout&revision=2');
       await expect(main.getByRole('link', { name: 'Run this version' })).toHaveAttribute('href', '/app/isa-demo/runs/new?problem=flujo-checkout&revision=2');
       const workflow = main.getByRole('region', { name: 'How the service works' });
-      await expect(workflow.getByRole('img', { name: /^Workflow: authenticate, then inventory and shipping in parallel/ })).toBeVisible();
-      await expect(main.getByRole('region', { name: 'Candidates' }).getByRole('table')).toBeVisible();
+      const drawing = workflow.getByRole('group', { name: 'Workflow' });
+      await expect(drawing).toBeVisible();
+      await expect(drawing).toHaveAccessibleDescription(/^Workflow: authenticate, then \(inventory and shipping in parallel\)/);
+      await expect(drawing.getByRole('group', { name: 'Choice, 2 branches, probabilities 0.7, 0.3' })).toBeVisible();
+      // A table per task on a desktop, a card per candidate on a phone.
+      const candidates = main.getByRole('region', { name: 'Candidates of each task' });
+      if (isMobile) await expect(candidates.getByRole('list', { name: 'Candidates for authenticate' }).getByRole('listitem')).toHaveCount(4);
+      else await expect(candidates.getByRole('table', { name: /Task authenticate · 4 candidates/ })).toBeVisible();
       await expect(main.getByRole('region', { name: 'Resources it’s built from' })).toHaveCount(0);
       await capture(page, testInfo, `overview-${name}`);
 

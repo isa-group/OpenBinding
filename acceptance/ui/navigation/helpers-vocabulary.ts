@@ -1,6 +1,6 @@
 import { type Page, type Route } from '@playwright/test';
-import { API, mockApi, type MockOptions, type Recorded } from './helpers';
-import { PROBLEM_SLUG } from './helpers-problems';
+import { API, COMPOSITIONS, mockApi, type MockOptions, type Recorded } from './helpers';
+import { PROBLEM_SLUG, mockProblems } from './helpers-problems';
 
 // Mocks and locators of the vocabulary acceptance specs. There is no backend: the API origin is answered by page.route();
 // routes added here win over the catch-all of mockApi() because they are registered later.
@@ -54,6 +54,69 @@ export async function mockGateway(page: Page, options: MockOptions = {}): Promis
   return { writes, gets };
 }
 
+// ---- the composition and problem screens ----------------------------------------------------------------------
+
+/** A public composition of another organization, with no version yet: its showcase is read without membership. */
+export const SHOWCASE = '/c/lab-other/fleet-routing';
+const LAB_OTHER = { id: 'org-lab-other', slug: 'lab-other', name: 'Other Lab' };
+
+/**
+ * The screens of the composition and problem vocabulary scope (`src/test/vocabulary.terms.test.ts`), each with what shows it has
+ * loaded: the composition list, the composition `lab-flow` (no version yet) on each of its tabs, the public list, a showcase,
+ * Language, and the problem list and page.
+ */
+export const SCOPED_SCREENS: ReadonlyArray<{ path: string; heading: string | RegExp }> = [
+  { path: COMPOSITIONS, heading: 'Compositions' },
+  { path: `${COMPOSITIONS}/lab-flow`, heading: 'Lab flow' },
+  { path: `${COMPOSITIONS}/lab-flow/editor`, heading: 'Lab flow' },
+  { path: `${COMPOSITIONS}/lab-flow/versions`, heading: 'Lab flow' },
+  { path: `${COMPOSITIONS}/lab-flow/analysis`, heading: 'Lab flow' },
+  { path: `${COMPOSITIONS}/lab-flow/settings`, heading: 'Lab flow' },
+  { path: '/compositions', heading: 'Public compositions' },
+  { path: SHOWCASE, heading: 'Fleet routing' },
+  { path: '/language', heading: 'Composition2Yaml' },
+  { path: PROBLEMS_FINAL, heading: 'Problems' },
+  { path: `${PROBLEMS_FINAL}/${PROBLEM_SLUG}`, heading: 'Routing' },
+];
+
+/**
+ * A member of `acme` and a gateway that answers the screens of `SCOPED_SCREENS`: the problem `routing` with its versions
+ * (`mockProblems`), the composition `lab-flow` (`mockApi`), one public composition in the public list, and the public composition
+ * `lab-other/fleet-routing`. Records the GET paths the page sends.
+ */
+export async function mockScopedScreens(page: Page): Promise<Gateway> {
+  const gets: string[] = [];
+  page.on('request', (request) => {
+    if (!request.url().startsWith(API) || request.method() !== 'GET') return;
+    gets.push(new URL(request.url()).pathname);
+  });
+  const writes = await mockProblems(page);
+  const latest = { id: 'version-order-desk-1', label: '1.0.0', ordinal: 1, values_status: 'declared', verified: false, created_at: NOW };
+  await answer(page, '/v1/compositions', {
+    compositions: [{
+      slug: 'order-desk', name: 'Order desk', description: 'Takes an order and confirms it.', kind: 'application', organization: LAB_OTHER,
+      latest_version: latest, version_count: 1, updated_at: NOW,
+    }],
+    total: 1, limit: 24, offset: 0,
+  });
+  await answer(page, '/v1/organizations/lab-other/compositions/fleet-routing', {
+    id: 'composition-fleet-routing', slug: 'fleet-routing', name: 'Fleet routing', description: 'Routes a fleet.', kind: 'workflow',
+    archived: false, visibility: 'public', organization: LAB_OTHER, created_by_id: null, created_at: NOW, updated_at: NOW,
+    version_count: 0, latest_version: null,
+  });
+  await answer(page, '/v1/organizations/lab-other/compositions/fleet-routing/versions', { versions: [], total: 0, limit: 200, offset: 0 });
+  return { writes, gets };
+}
+
+/**
+ * The words the composition and problem screens do not show: `deployment(s)`, `scenario(s)`, `build(s)`, `project(s)`,
+ * `Application2Yaml` and a versioned `Composition2Yaml v1` or `v2`.
+ */
+export const COMPOSITION_WORDS = /\b(deployments?|scenarios?|builds?|projects?|Application2Yaml|Composition2Yaml v[12])\b/i;
+
+/** "Plan" next to a proposal. */
+export const PLAN_WITH_PROPOSAL = /^(?=[\s\S]*\bproposals?\b)[\s\S]*\bplans?\b/i;
+
 // ---- the text scan --------------------------------------------------------------------------------------------
 
 /** The elements whose text the vocabulary rule leaves out: code, and the SourceView and LogPanel regions. */
@@ -69,13 +132,15 @@ export const CASE_JOB_WORDS = /\b(cases?|jobs?)\b/i;
 
 /**
  * The visible text outside the exempt elements that holds a forbidden word, one entry per text node:
- * `<screen>: "<the text>"`. An empty list means the screen obeys the rule.
+ * `<screen>: "<the text>"`. An empty list means the screen obeys the rule. `root` is a selector of the part of the page read
+ * (the whole body by default).
  */
-export async function forbiddenText(page: Page, screen: string, words: RegExp = CASE_JOB_WORDS): Promise<string[]> {
-  const found = await page.evaluate(({ exempt, source, flags }) => {
+export async function forbiddenText(page: Page, screen: string, words: RegExp = CASE_JOB_WORDS, root = 'body'): Promise<string[]> {
+  const found = await page.evaluate(({ exempt, source, flags, scope }) => {
     const pattern = new RegExp(source, flags);
     const hits: string[] = [];
-    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    const within = document.querySelector(scope) ?? document.body;
+    const walker = document.createTreeWalker(within, NodeFilter.SHOW_TEXT);
     for (let node = walker.nextNode(); node; node = walker.nextNode()) {
       const text = (node.textContent ?? '').replace(/\s+/g, ' ').trim();
       const parent = node.parentElement;
@@ -85,7 +150,7 @@ export async function forbiddenText(page: Page, screen: string, words: RegExp = 
       hits.push(text.slice(0, 80));
     }
     // Text that is not a text node: placeholders, button values and the chosen option of a closed select.
-    for (const field of Array.from(document.querySelectorAll('input, textarea, select'))) {
+    for (const field of Array.from(within.querySelectorAll('input, textarea, select'))) {
       if (field.closest(exempt) || field.getClientRects().length === 0) continue;
       const input = field as HTMLInputElement & HTMLSelectElement;
       const shown = [input.placeholder, ['button', 'submit', 'reset'].includes(input.type) ? input.value : '',
@@ -95,6 +160,6 @@ export async function forbiddenText(page: Page, screen: string, words: RegExp = 
       }
     }
     return hits;
-  }, { exempt: EXEMPT, source: words.source, flags: words.flags.replace('g', '') });
+  }, { exempt: EXEMPT, source: words.source, flags: words.flags.replace('g', ''), scope: root });
   return found.map((text) => `${screen}: "${text}"`);
 }

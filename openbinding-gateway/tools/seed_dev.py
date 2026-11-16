@@ -4,7 +4,8 @@
 Seeds users, hierarchical organizations, BIM problems of an
 organization (uploaded from examples/demo), comparative studies with REAL
 solver jobs executed against available engines (or gracefully handled),
-compositions (one derived from a run, one declared), API keys,
+compositions (one derived from a run with a second version and public, one
+declared), API keys,
 notifications, and audit records.
 
 Usage:
@@ -745,6 +746,17 @@ def _first_binding(compilation) -> dict[str, str]:
     }
 
 
+def _second_binding(compilation) -> dict[str, str]:
+    """The first binding with the first task that has two eligible candidates moved to its second one."""
+    spec = compilation.ir["spec"]
+    binding = _first_binding(compilation)
+    for task in binding:
+        eligible = spec["eligibility"][task]
+        if len(eligible) > 1:
+            return {**binding, task: eligible[1]["id"]}
+    raise RuntimeError("no task has two eligible candidates")
+
+
 async def ensure_compositions(
     session: AsyncSession,
     org: Organization,
@@ -755,9 +767,11 @@ async def ensure_compositions(
     """Two compositions of ``org``: ``simple-seq`` derived from a run, and the declared ``tomatometer-sketch``.
 
     ``simple-seq`` 1.0.0 is derived from the first completed run of ``jobs`` that solved the ``simple-seq``
-    problem; without one (no engine answered), from the first eligible binding of its revision. Both go
-    through the platform's own derivation and seal, so re-running the seed seals the same bytes again and
-    stores nothing new.
+    problem; without one (no engine answered), from the first eligible binding of its revision. Its 1.1.0 is
+    derived from a binding that moves the first task with two candidates to its second one, so its Versions
+    compare two versions, and it is public, so the public list and its showcase have a composition to show.
+    Both go through the platform's own derivation and seal, so re-running the seed seals the same bytes again
+    and stores nothing new.
     """
     from fastapi import HTTPException
 
@@ -797,6 +811,19 @@ async def ensure_compositions(
             sealed = await persist(session, composition, derived.assessment, actor=user, derivation=derived.derivation)
             versions.append(sealed.version)
             logger.info("Composition simple-seq 1.0.0 (%s)", "sealed" if sealed.created else "unchanged")
+            installed, refusal = await installed_compilation(session, revision)
+            if installed is None:
+                raise RuntimeError(f"the revision does not compile: {refusal}")
+            derived = await derive_version(
+                session, org, composition, caller=user, label="1.1.0",
+                revision=f"{problem.slug}@{revision.revision}", binding=_second_binding(installed),
+            )
+            sealed = await persist(session, composition, derived.assessment, actor=user, derivation=derived.derivation)
+            versions.append(sealed.version)
+            logger.info("Composition simple-seq 1.1.0 (%s)", "sealed" if sealed.created else "unchanged")
+            if composition.visibility != "public":
+                composition.visibility = "public"
+                await session.commit()
         except HTTPException as exc:
             await session.rollback()
             logger.warning("Composition coverage gap for simple-seq: %s", exc.detail)
@@ -890,7 +917,7 @@ def print_summary_banner(users: dict[str, User]) -> None:
     print("\n  [Problems & Studies]")
     print("    - score-ai problems: simple-seq, parallel-mesh, multi-objective")
     print("    - score-ai studies: exact-vs-heuristic (Real Runs & Jobs), parallel-scaling-study")
-    print("    - score-ai compositions: simple-seq (derived from a run), tomatometer-sketch (declared)")
+    print("    - score-ai compositions: simple-seq (derived from a run, two versions, public), tomatometer-sketch (declared)")
 
 
     print("\n  [Example API Requests]")

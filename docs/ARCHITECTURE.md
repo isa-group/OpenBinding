@@ -180,72 +180,141 @@ openbinding-gateway/src/openbinding_gateway/
 
 ## 5. Frontend
 
-### 5.1 Layout (feature-sliced)
+### 5.1 Layout and layers
+
+The tree F2 built ([ADR 0050](adr/0050-frontend-layers-and-sphere-reuse.md)). The layers exist where new code lives;
+the older folders are rewritten area by area.
 
 ```
 frontend/src/
-  app/        providers (auth, query cache, SpaceProvider), router and route registry, shell (header, navigation)
-  pages/      route-level screens; compose widgets and features; no HTTP
-  widgets/    composite blocks shared by pages (ProblemHeader, RunResult, StudyResults, TradeOffs, PlanSummary)
-  features/   user actions (create-problem-version, launch-run, compare-runs, publish-result, install-extension, change-plan)
-  entities/   read models with their API hooks and small views (problem, version, run, engine, study,
-              published-result, organization, profile, dialect, plan)
-  shared/     ui (design system and rendering catalogue §5.3), api (types generated from docs/openapi.json, http,
-              problem+json), lib (formatters, including the identity labels of §5.4), config
+  routes/                 the route registry: one area file per part of the site (public, auth, account, organizations,
+                          compositions, problems, engines, admin), one live('id', '/path', …) per screen
+  shared/api/             openapi.ts (generated from docs/openapi.json by `pnpm gen:api`; never edited), types.ts (named
+                          schemas), errors.ts (readApiError: both error envelopes, 412 with the current ETag, 429 with
+                          Retry-After)
+  shared/diagnostics/     Located and fromC2y: one shape for every finding on screen (fromBim joins in F2b)
+  shared/editor/          the draft store (drafts.ts, useDraftStore.ts, IndexedDB) and lintScheduler.ts (debounce, abort,
+                          one check of a kind at a time, Retry-After)
+  shared/sphere/          text-diff.ts, requested-version.ts (verbatim); change-summary.ts, composition-fragment.ts
+                          (adapted); each with its test
+  shared/lib/             identity labels (§5.4) and slugs
+  entities/problem/       facts.ts (the facts projection, with an ETag cache), expressions.ts
+  entities/binding/       workflowGraph.ts and candidateMatrix.ts, the shared view-models; comparison.ts (the gateway's
+                          comparison words)
+  entities/composition/   api.ts, document.ts, values.ts, viewModel.ts, changes.ts, evolution.ts, versionRef.ts, kinds.ts
+  widgets/                workflow-graph, candidate-matrix, value-badge, problems-panel, provider-map, pricing-card,
+                          change-summary, evolution-charts, composition-renderer (CompositionRenderer, presets.ts and the
+                          modes)
+  features/               composition-editor (code and visual Composition2Yaml editor), derive (DeriveCompositionDialog),
+                          fork (ForkCompositionDialog), workspace (the organization frame: breadcrumb, gate)
+  pages/                  route-level screens: Compositions (list, detail and its tabs), PublicCompositions (public list,
+                          showcase), Language (reference and playground), and the older Cases (problems), Jobs (runs),
+                          Studies, Workbench, Organization, Account, Admin, Engines, Home, About, Pricing, Auth
+  components/, api/, utils/, contexts/
+                          the older shared code: the design system (components/ui), the run-result catalogue
+                          (components/rendering), the shell, CodeEditor; api/client.ts keeps transport, auth, admin,
+                          engines and pricing until those areas are rewritten
 ```
 
-Imports go downwards only (`pages → widgets → features → entities → shared`); features never import each other;
-only `shared/api` performs HTTP. The 1,659-line `api/client.ts` is split into `entities/*/api.ts` over generated
-types. Enforced with `eslint-plugin-boundaries`.
+Dependency rules, checked by `eslint-plugin-boundaries` at **error** for the new layers (`boundariesLint.test.ts`):
+
+- `shared` imports `shared`;
+- `entities` import other entities and `shared`, with no cycle;
+- `widgets` import other widgets, `entities` and `shared`, with no cycle;
+- `features` import `widgets`, `entities` and `shared`, never another feature; a widget that needs a feature's
+  dialog takes a callback and the page mounts the dialog;
+- `pages` import anything but another page. The older page-to-page edges stay warnings until their areas are
+  rewritten.
+
+The older `components/`, `api/`, `utils/` and `contexts/` count as shared. New code uses the generated types; a
+drift between the gateway and the frontend fails `pnpm gen:api --check` in CI.
+
+**One semantics.** BIM is the only problem language, and every number on screen comes from the gateway: values,
+validity and violations from evaluations and `evaluate`, deltas from `neighborhood`, the size of the binding space
+from the analysis, the Pareto front from study analytics. Eligibility, written candidate names and the workflow of a
+problem come from the facts projection ([ADR 0048](adr/0048-problem-facts-projection.md)). The frontend formats,
+groups by identical unit strings and compares identifiers; it never sums, ranks, digests or decides dominance.
+
+**Deletion rule.** Nothing is in production: what a change replaces is deleted in that change, with no
+compatibility shim, alias, redirect, re-export or deprecation. F2a deleted the Workbench's dead chart, digest and
+diagnostics code, the client IR reader (`pages/Cases/bindingModel.ts`) and the client comparison words; F2b deletes
+the Workbench shell, the BIM types of `api/client.ts` and the client Pareto check and CSV export.
 
 ### 5.2 Information architecture
 
-- **Public:** Home · Explore (Problems · Published results) · Engines · Language · Pricing · Verify ·
-  About · Log in / Sign up.
-- **Signed in:** header with organization switcher; Home · Problems · Runs · Studies · Engines · Admin
-  (administrators); "+ New" (problem, study, run); search; notifications; account menu (Profile · Plan · API keys ·
-  Identities · Notifications). The Workbench is reached from Problems and "+ New → Problem".
-- **Organization:** overview (its problems, runs and studies, and its sub-organizations) · Settings (General ·
-  Members · Audit). There are no projects: an organization's screens are `/app/:org/{problems,runs,studies,workbench,settings}`.
-- **Problem page (the SPHERE "pricing page" analogue):** header with metrics and version selector; tabs Overview ·
-  Runs · Versions · Source · Settings.
+- **Public header:** Home · Compositions · Language · Engines · Pricing · About · Log in. Compositions is the public
+  list of every organization's public compositions (`/compositions`); a composition's public page, the
+  **showcase**, is `/c/:org/:composition` (`?version=<id|label|ordinal>` is its permalink). Language is the
+  Composition2Yaml reference and playground (`/language`), whose examples the gateway checks
+  (`tests/composition/test_the_spec_examples.py` reads `content/composition2yaml-examples.json`). The anonymous
+  Workbench stays at `/workbench`.
+- **Signed in:** the header leads with the organization's Compositions, then Problems, Runs and Studies, Engines and
+  Admin (administrators); "+ New" (composition, problem, study, run); the command palette (⌘K); notifications; the
+  account menu (Profile · Plan · API keys · Identities · Notifications). Home shows the recent compositions of an
+  organization above its recent activity.
+- **Organization:** overview (its compositions first, then problems, runs, studies and sub-organizations) · Settings
+  (General · Members · Audit). An organization's screens are
+  `/app/:org/{compositions,problems,runs,studies,workbench,settings}`.
+- **Composition page:** `/app/:org/compositions/:composition/:tab?` with the tabs Overview · Editor · Versions ·
+  Analysis · Settings, a version selector (`?version=`), the value status, the lineage (forked from, derived from a
+  run) and, for a member, "New version" (code, visual, upload, derive) and Fork. Versions has the views table,
+  compare and file (`?view=compare|file&from=&to=`) and evolution (`?view=evolution`); Analysis shows for a member
+  reading a version linked to a problem it can read; Settings for MEMBER and above (visibility: ADMIN). Operations
+  joins in F4.
+- **Problem page:** header with the version selector; tabs Overview (workflow graph and candidate matrix from the
+  facts) · Runs · Versions · Source · Settings.
 - **Run page:** verdict, engine mode and budget first; then the binding table, QoS against bounds, the objective
-  breakdown and engine-claimed versus evaluated values; the trade-off set when there are several objectives; the
-  log collapsed at the bottom.
-- **Study page:** Setup · Progress · Results (protocol metrics, verdicts, gaps, times, ranking, trade-offs) ·
-  Publish.
-- **Published result page:** what was frozen and when, the rendered results and the citation panel.
-- **Screen budget:** at most 40 routed screens. A test counts the route registry, and each user
-  journey has a Playwright flow that completes in at most five screens.
+  breakdown and engine-claimed versus evaluated values; the trade-off set when there are several objectives; "Keep it
+  as a composition" (derive) for a member; the log collapsed at the bottom.
+- **Study page:** Setup · Progress · Results.
+- **Screen budget:** exactly **36** routed screens (`routes/screenBudget.test.ts`): F2 added the composition list
+  and detail, the public list, the showcase and Language. F5 retires register, password reset and the CAS callback,
+  which brings it to **33**. Each user journey has a Playwright walk of at most five screens, mocked
+  (`e2e/f2a-*.spec.ts`) and, for J1 and J2, live against the lab (`e2e/live/08-derive-seal-compare.spec.ts`,
+  `09-public-fork.spec.ts`).
 
 ### 5.3 Rendering catalogue
 
+The composition core ([ADR 0049](adr/0049-composition-renderer-core.md)): `entities/composition/viewModel.ts` turns
+gateway answers into a `CompositionViewModel`, and `CompositionRenderer` draws one **mode** of it. Each mode's
+sections are a preset in `presets.ts`; a screen narrows them with `hideSections`, `density` and `onlyDifferences`.
+Presentation hints live there and in per-viewer `localStorage` preferences, never in the document or on the
+composition.
+
+| Mode | Shows | Data | Used in |
+|---|---|---|---|
+| `catalog` | identity, value status, values, binding, offering, evidence, problem, the evaluation's findings (members) | the composition, the version with `include=document` | Overview |
+| `architecture` | providers and the upstream SPHERE plan references | the document, the facts of the evaluated compilation, `analytics` | Overview |
+| `workflow` | the workflow with each task's candidate, the problem's candidates (members) | the document, the facts | Overview |
+| `comparison` | the change summary, the later workflow with changes marked, the candidates each version chose; the file diff | `GET …/diff`, both versions' content and documents | Versions (compare, file) |
+| `calculator` | every one-task move with the gateway's comparison word and deltas | `GET …/neighborhood` | Analysis |
+| `configurator` | another binding chosen per task and what the toolchain makes of it | `POST …/evaluate` | Analysis |
+| `showcase` | the public page: header, what it does, value status, values, workflow, providers, plans, the problem's reference, offering, versions | the redacted public reads | `/c/:org/:composition` |
+
+The editor is a feature, not a mode: `features/composition-editor` (CodeMirror YAML with the gateway's lint and
+completion from the problem, the visual form, the Problems panel, the seal bar) on the draft store.
+
 | Component | Shows | Used in |
 |---|---|---|
-| `MetricCards` | a row of key numbers with units and trend | dashboards, problem and study headers |
-| `ProblemSummary` | tasks, candidates, binding-space size (log10), hard/soft constraints, objectives, profile chain, dialects | problem cards and header, Explore |
-| `WorkflowGraph` | the compiled workflow (SEQ, AND, XOR with probabilities, LOOP) | problem Overview, version compare |
-| `CandidateMatrix` | tasks × candidates × features, colour scales per feature, intervals as ranges | problem Overview |
-| `ConstraintList`, `ObjectiveView` | bounds, hard/soft, penalties; objective terms, weights, directions | problem Overview, run result |
-| `MetricSmallMultiples` | evolution of problem metrics across versions | problem Versions |
-| `DistributionChart` | feature-value distributions per task or catalog | problem Overview |
-| `BindingTable` | task → candidate → provider with per-feature contributions | run result |
-| `QoSAgainstBounds` | aggregated QoS against constraint bounds | run result |
-| `ObjectiveBreakdown` | weighted terms of the objective | run result, study cell |
-| `TradeOffChart` | the trade-off set: non-dominated bindings as a table and a two-axis chart whose axes are chosen among the objectives | run result, study results |
-| `EvaluationDiff` | engine-claimed versus gateway-evaluated values and downgrade reasons | run result |
-| `VerdictBadge` | OPTIMAL · FEASIBLE · UNSAT · TIMEOUT · INCOMPATIBLE (with reasons) | everywhere a run appears |
-| `CapabilityMatrix`, `ConformanceReport` | engine modes × capabilities; verification checks | engines, extensions |
-| `StudyMatrix`, `ProtocolMetrics`, `RankingTable` | cells grid; coverage, yield, gap, reconciliation; ranking | studies |
-| `DiagnosticsList` | diagnostics grouped by resource and pointer with code and hint | editor, validation, extensions |
+| `WorkflowGraph` | a Composition2Yaml workflow (seq, and, xor with probabilities, loop) as nested groups, each task with its candidate and status in words | problem Overview, composition Overview, editor, comparison, showcase |
+| `CandidateMatrix` | tasks × candidates × features from the facts, units in headers, the selected candidate marked, cards below 640 px; `select` mode for choosing | problem Overview, composition Overview, editor, configurator |
+| `ValueBadge` | Verified · Declared · Unverified, always in words, and a value's origin | every composition screen |
+| `ProblemsPanel` | located findings as buttons that jump to the place, counts announced | editor, Language, derive preview, catalog (read-only) |
+| `ProviderMap`, `PricingCard` | tasks grouped by provider; a plan's reference face, or pricing-renderer when given Pricing2Yaml (F3) | composition Overview, showcase |
+| `ChangeSummary` | what changed between two versions, or "Not comparable: <reason>" | Versions |
+| `EvolutionCharts` | structure and values per version over time, verified, declared and unverified apart, problem and compilation changes marked, a table for each chart | Versions (evolution) |
+| `MetricCards` | a row of key numbers with units | dashboards, headers |
+| `BindingTable`, `QoSAgainstBounds`, `ObjectiveBreakdown`, `EvaluationDiff`, `TradeOffChart`, `RunResult` | the run result: binding, QoS against bounds, objective terms, claimed against evaluated values, the trade-off set | run page, study cell |
+| `VerdictBadge` | OPTIMAL · FEASIBLE · UNSAT · TIMEOUT · INCOMPATIBLE | everywhere a run appears |
+| `BindingSpaceBadge` | the size of the binding space the analysis gives | Workbench, study analytics |
+| `CodeEditor` | CodeMirror (JSON, YAML) with located diagnostics and completion | editors, Language |
 | `LogPanel` | collapsed, searchable, downloadable log | run result, admin errors |
-| `PricingTable` | the pricing (`pricing-renderer` React adapter) | Pricing, Plan |
-| `FeatureGate` | UI gated by plan (`space-react-client` `<Feature>`) | anywhere a feature depends on the plan |
-| `PlanUsage` | features and limits of the user's subscription from the pricing token | Plan, dashboards |
-| `SourceView` | read-only code viewer with copy and download | only in Source tabs |
+| `SourceView` | read-only code viewer with copy and download | Source tabs, examples, previews |
 
-Charts use Recharts (already a dependency). A hygiene test forbids rendering `JSON.stringify` output or `<pre>`
-outside `SourceView` and `LogPanel`, and digest-shaped text outside the components that §5.4 allows.
+Charts use Recharts. A hygiene test forbids rendering `JSON.stringify` output or `<pre>` outside `SourceView` and
+`LogPanel`, and digest-shaped text outside the components that §5.4 allows. Every new component is usable on a phone
+(390 px) and by keyboard and screen reader; the live visual QA (`e2e/live/visual-qa.spec.ts`) measures overflow,
+clipping, touch targets and errors on every screen at both sizes.
 
 ### 5.4 Identifiers on screen
 
@@ -416,6 +485,13 @@ revision: the link holds while the semantic digests agree (an info when the name
 and is refused when they differ ([ADR 0042](adr/0042-problem-link-semantic-digest.md)). Values and validity are
 `BimPort.evaluate`'s, exactly as returned ([ADR 0043](adr/0043-values-only-from-bimport.md)). A document without a
 problem is stored with its values declared. The language is specified in [COMPOSITION2YAML.md](COMPOSITION2YAML.md).
+
+On the web (F2a) the same path is walked in at most five screens: the problem page (workflow and candidates from
+the facts) → a run → "Derive composition" (a preview with `seal: false`, then the seal of the same request; a new
+composition is created when the preview is asked for, so an abandoned derivation leaves it empty) → the Editor,
+whose visual form rebinds a task and whose live check (`…/versions/check`) states the values before the next seal →
+Versions, comparing the two entry by entry and line by line. A public composition is read at its showcase and
+forked from there into another organization ([ADR 0047](adr/0047-public-compositions.md)).
 
 ### 7.4 Study
 
@@ -708,7 +784,7 @@ Each move is one `refactor/<id>` change that updates CI, Dockerfiles, documentat
 | [0031](adr/0031-engine-protocol-endpoint.md) | `GET /v1/engines/protocol` replaces `/v1/profiles` (D12) |
 | [0032](adr/0032-blobs-are-file-storage.md) | blobs are file storage; requests never unlink files (D14) |
 | [0033](adr/0033-pricing-entitlement-map.md) | pricing 0.2.0 through one entitlement map (D15) |
-| [0034](adr/0034-no-public-read-in-f0b.md) | no public read in F0b (D17) |
+| [0034](adr/0034-no-public-read-in-f0b.md) | no public read in F0b (D17); superseded for compositions by 0047 |
 | [0035](adr/0035-storage-charged-per-revision.md) | storage is charged per revision (D23) |
 | [0036](adr/0036-bim-services-under-v1-bim.md) | the BIM language services live under `/v1/bim` (D25) |
 | [0037](adr/0037-anonymous-workbench-stays.md) | anonymous validation at `/workbench` stays (D26) |
@@ -721,6 +797,10 @@ Each move is one `refactor/<id>` change that updates CI, Dockerfiles, documentat
 | [0044](adr/0044-one-evaluation-per-version-and-toolchain.md) | one evaluation per version and toolchain; the offering is a reference with one source (F1 D8) |
 | [0045](adr/0045-composition-versions-canonical-bytes.md) | composition versions are canonical bytes in the row, sealed in two phases, read back in stored mode (F1 D11, D14, D20, D21) |
 | [0046](adr/0046-compositions-module.md) | the compositions module, its access rule and key permissions, and run presets in execution (F1 D12, D16-D18) |
+| [0047](adr/0047-public-compositions.md) | public compositions: visibility, the read rule with `get_reader` and one 404 body, redaction by the bytes, lineage, the catalog, caching and the visitors-only budget (F2 C1-C3, D3, D19-D22) |
+| [0048](adr/0048-problem-facts-projection.md) | one facts projection of a compiled problem, with the workflow in Composition2Yaml's shape and the naming rule in the gateway (F2 D4, D9, D25) |
+| [0049](adr/0049-composition-renderer-core.md) | the composition renderer: a headless core, modes over gateway data, stored documents, no client semantics, hints outside the document (F2 D5, D6, D14) |
+| [0050](adr/0050-frontend-layers-and-sphere-reuse.md) | frontend layers, generated API types and the SPHERE copies (F2 D7, D12, D13, D24) |
 
 The earlier records, 0001 to 0021 (BIM behind a port, engines as services, durable jobs, the frontend stack,
 problem+json, the layered gateway, the OpenAPI snapshot, plans through SPACE and SPHERE, extensible profiles, the

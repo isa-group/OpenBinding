@@ -18,7 +18,7 @@ const member: UserProfile = {
 };
 
 const PUBLIC_LINKS = [
-  ['Home', '/'], ['Engines', '/engines'], ['Pricing', '/pricing'],
+  ['Home', '/'], ['Compositions', '/compositions'], ['Language', '/language'], ['Engines', '/engines'], ['Pricing', '/pricing'],
   ['About', '/about'], ['Log in', '/login'], ['Sign up', '/register'],
 ] as const;
 
@@ -62,14 +62,37 @@ describe('Public header', () => {
     expect(screen.getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current');
   });
 
-  it('marks Home only at the root and links to no language hub', () => {
+  it('marks Compositions on the public list and on the public page of a composition', () => {
+    for (const path of ['/compositions', '/compositions?kind=workflow', '/c/lab-other/fleet-routing']) {
+      const { unmount } = renderHeader(path);
+      expect(screen.getByRole('link', { name: 'Compositions' }), path).toHaveAttribute('aria-current', 'page');
+      expect(screen.getByRole('link', { name: 'Home' }), path).not.toHaveAttribute('aria-current');
+      unmount();
+    }
+    renderHeader('/engines');
+    expect(screen.getByRole('link', { name: 'Compositions' })).not.toHaveAttribute('aria-current');
+  });
+
+  it('marks Home only at the root', () => {
     const { unmount } = renderHeader('/');
     expect(screen.getByRole('link', { name: 'Home' })).toHaveAttribute('aria-current', 'page');
     unmount();
 
     renderHeader('/engines');
-    expect(screen.queryByRole('link', { name: 'Language' })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current');
+  });
+
+  it('links to the Composition2Yaml reference after Compositions, and marks it on /language', () => {
+    const { unmount } = renderHeader('/language');
+    const primary = screen.getByRole('navigation', { name: 'Primary navigation' });
+    expect(within(primary).getAllByRole('link').map((link) => link.textContent)).toEqual(['Home', 'Compositions', 'Language', 'Engines', 'Pricing', 'About']);
+    expect(within(primary).getByRole('link', { name: 'Language' })).toHaveAttribute('href', '/language');
+    expect(within(primary).getByRole('link', { name: 'Language' })).toHaveAttribute('aria-current', 'page');
+    expect(within(primary).getByRole('link', { name: 'Compositions' })).not.toHaveAttribute('aria-current');
+    unmount();
+
+    renderHeader('/compositions');
+    expect(screen.getByRole('link', { name: 'Language' })).not.toHaveAttribute('aria-current');
   });
 
   it('closes open menus when pressing outside the header', () => {

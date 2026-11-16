@@ -1,7 +1,7 @@
 # Architecture decision records
 
-The decisions F0b (re-anchoring: the organization as the only container, simple storage) and F1 (the Composition
-API and Composition2Yaml) recorded. Each record names the decision of the phase's implementation plan it comes from. The earlier records, 0001 to 0021, were removed with the
+The decisions F0b (re-anchoring: the organization as the only container, simple storage), F1 (the Composition
+API and Composition2Yaml) and F2a (compositions on the web) recorded. Each record names the decision of the phase's implementation plan it comes from. The earlier records, 0001 to 0021, were removed with the
 factory process artifacts (commit `e47da50d5`) and remain in git history; these continue their numbering.
 
 In the records, gateway sources (`routes/`, `modules/`, `db/`, …) are relative to `openbinding-gateway/src/openbinding_gateway/`,
@@ -21,7 +21,7 @@ and `tests/` and `tools/` without a prefix to `openbinding-gateway/`.
 | [0031](0031-engine-protocol-endpoint.md) | F0b D12 | `GET /v1/engines/protocol` replaces `/v1/profiles` |
 | [0032](0032-blobs-are-file-storage.md) | F0b D14 | Blobs are file storage; requests never unlink files |
 | [0033](0033-pricing-entitlement-map.md) | F0b D15 | Pricing 0.2.0 is read through one entitlement map |
-| [0034](0034-no-public-read-in-f0b.md) | F0b D17 | No public read in F0b |
+| [0034](0034-no-public-read-in-f0b.md) | F0b D17 | No public read in F0b (superseded for compositions by 0047) |
 | [0035](0035-storage-charged-per-revision.md) | F0b D23 | Storage is charged per revision |
 | [0036](0036-bim-services-under-v1-bim.md) | F0b D25 | The BIM language services live under `/v1/bim` |
 | [0037](0037-anonymous-workbench-stays.md) | F0b D26 | Anonymous validation at `/workbench` stays |
@@ -34,3 +34,7 @@ and `tests/` and `tools/` without a prefix to `openbinding-gateway/`.
 | [0044](0044-one-evaluation-per-version-and-toolchain.md) | F1 D8 | One evaluation per version and toolchain; the offering is a reference with one source |
 | [0045](0045-composition-versions-canonical-bytes.md) | F1 D11, D14, D20, D21 | Composition versions are canonical bytes in the row, sealed in two phases and read back in stored mode |
 | [0046](0046-compositions-module.md) | F1 D12, D16-D18 | The compositions module, its access rule and key permissions, and run presets in execution |
+| [0047](0047-public-compositions.md) | F2 C1-C3, D3, D19-D22 | Public compositions: visibility, the read rule, redaction by the bytes and the catalog (supersedes 0034 for compositions) |
+| [0048](0048-problem-facts-projection.md) | F2 D4, D9, D25 | One facts projection of a compiled problem, with the workflow in Composition2Yaml's shape |
+| [0049](0049-composition-renderer-core.md) | F2 D5, D6, D14 | The composition renderer: a headless core, modes over gateway data, and no client semantics |
+| [0050](0050-frontend-layers-and-sphere-reuse.md) | F2 D7, D12, D13, D24 | Frontend layers, generated API types, and what is reused from SPHERE |

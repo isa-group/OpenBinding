@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { jobStatus, planLimit, SLUG_PATTERN, slugFromName } from './model';
+import { jobStatus, planLimit } from './model';
 
 describe('the run status in words', () => {
   it('says how a run ended, not only that it finished', () => {
@@ -28,13 +28,5 @@ describe('the plan limits', () => {
     expect(planLimit(catalog, 'FREE', 'maxProblems')).toBeNull();
     expect(planLimit(null, 'FREE', 'maxRunMinutes')).toBeNull();
     expect(planLimit(catalog, undefined, 'maxRunMinutes')).toBeNull();
-  });
-});
-
-describe('the address of a new item', () => {
-  it('derives a slug from a name and accepts only what the gateway accepts', () => {
-    expect(slugFromName('QoS Benchmarks 2026')).toMatch(SLUG_PATTERN);
-    expect(SLUG_PATTERN.test('qos-benchmarks')).toBe(true);
-    expect(SLUG_PATTERN.test('-qos')).toBe(false);
   });
 });

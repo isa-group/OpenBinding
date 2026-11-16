@@ -215,7 +215,7 @@ describe('PlatformShell (application layout)', () => {
     await ready();
 
     expect(screen.queryByRole('navigation', { name: /Workspace navigation/i })).toBeNull();
-    for (const retired of ['/schemas', '/profiles', '/language', '/playground', '/app/workbench', '/team', '/changelog']) {
+    for (const retired of ['/schemas', '/profiles', '/playground', '/app/workbench', '/team', '/changelog']) {
       expect(document.querySelector(`a[href="${retired}"]`), retired).toBeNull();
     }
   });

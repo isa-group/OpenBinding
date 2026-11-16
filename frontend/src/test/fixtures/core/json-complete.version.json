@@ -1,0 +1,226 @@
+{
+  "analytics": {
+    "boundTasks": 7,
+    "hasOffering": false,
+    "localTasks": 0,
+    "providers": 7,
+    "tasks": 7,
+    "upstreamPricings": 0,
+    "workflow": {
+      "and": 1,
+      "depth": 4,
+      "loop": 1,
+      "xor": 1
+    }
+  },
+  "based_on": null,
+  "content_digest": "sha256-54df0a1ee80692f3b0df83fb679293c047bc4444157d9a99640c0e8056314a6e",
+  "created_at": "2026-01-01T00:00:04Z",
+  "created_by_id": "00000000-0000-4000-8000-000000000003",
+  "current_evaluation": {
+    "basis": "bim",
+    "compilation": {
+      "compilation_digest": "sha256-c7ee7997b063f36309618f711b5d1713421d58672a788927b0e20c68411512ca",
+      "semantic_digest": "sha256-69c1ff9d98d239697dda4619870981c0d2c280b41c4d2069f3d3b2bc99345a6a",
+      "toolchain": {
+        "apiVersion": "bim/v1",
+        "compilerDigest": "sha256-b91fc3a05d1a58d128f5589f35396aaf8ebd0c3854e1e072ce17c765fe42b4d4",
+        "name": "bim-core",
+        "version": "0.2.0"
+      }
+    },
+    "created_at": "2026-01-01T00:00:05Z",
+    "id": "00000000-0000-4000-8000-000000000016",
+    "outcome": "verified"
+  },
+  "current_evaluation_id": "00000000-0000-4000-8000-000000000016",
+  "derivation": {
+    "point": null,
+    "revision": {
+      "id": "00000000-0000-4000-8000-000000000017",
+      "revision": 1
+    },
+    "run": null,
+    "source": "binding"
+  },
+  "document": {
+    "binding": {
+      "audit": {
+        "candidate": "audit-cloud"
+      },
+      "authenticate": {
+        "candidate": "auth-edge"
+      },
+      "cache": {
+        "candidate": "cache-cloud"
+      },
+      "enrich": {
+        "candidate": "enrich-cloud"
+      },
+      "fetch": {
+        "candidate": "fetch-cloud"
+      },
+      "publish": {
+        "candidate": "publish-cloud"
+      },
+      "score": {
+        "candidate": "score-cloud"
+      }
+    },
+    "composition": "json-complete",
+    "evidence": {
+      "evaluatedBy": "gateway",
+      "manual": true,
+      "toolchain": "bim-core 0.2.0"
+    },
+    "kind": "application",
+    "problem": {
+      "compilation": "sha256-c7ee7997b063f36309618f711b5d1713421d58672a788927b0e20c68411512ca",
+      "ref": "fixtures/problems/json-complete@1"
+    },
+    "syntaxVersion": "1.0",
+    "values": {
+      "carbon": {
+        "unit": "gCO2e/run",
+        "value": 20.5
+      },
+      "cost": {
+        "unit": "EUR/run",
+        "value": 17.0
+      },
+      "latency": {
+        "unit": "ms",
+        "value": 54.65
+      },
+      "trust": 0.95
+    },
+    "version": "1.0.0",
+    "workflow": {
+      "seq": [
+        "authenticate",
+        {
+          "and": [
+            {
+              "seq": [
+                "enrich",
+                {
+                  "xor": [
+                    {
+                      "flow": "cache",
+                      "probability": 0.65
+                    },
+                    {
+                      "flow": "fetch",
+                      "probability": 0.35
+                    }
+                  ]
+                },
+                {
+                  "count": 2,
+                  "loop": "score"
+                }
+              ]
+            },
+            "audit"
+          ]
+        },
+        "publish"
+      ]
+    }
+  },
+  "evaluations": [
+    {
+      "basis": "bim",
+      "binding": {
+        "audit": "catalog/audit-cloud",
+        "authenticate": "catalog/auth-edge",
+        "cache": "catalog/cache-cloud",
+        "enrich": "catalog/enrich-cloud",
+        "fetch": "catalog/fetch-cloud",
+        "publish": "catalog/publish-cloud",
+        "score": "catalog/score-cloud"
+      },
+      "compilation": {
+        "compilation_digest": "sha256-c7ee7997b063f36309618f711b5d1713421d58672a788927b0e20c68411512ca",
+        "compiler_digest": "sha256-b91fc3a05d1a58d128f5589f35396aaf8ebd0c3854e1e072ce17c765fe42b4d4",
+        "id": "00000000-0000-4000-8000-000000000018",
+        "semantic_digest": "sha256-69c1ff9d98d239697dda4619870981c0d2c280b41c4d2069f3d3b2bc99345a6a",
+        "toolchain": {
+          "apiVersion": "bim/v1",
+          "compilerDigest": "sha256-b91fc3a05d1a58d128f5589f35396aaf8ebd0c3854e1e072ce17c765fe42b4d4",
+          "name": "bim-core",
+          "version": "0.2.0"
+        }
+      },
+      "created_at": "2026-01-01T00:00:05Z",
+      "current": true,
+      "diagnostics": [],
+      "id": "00000000-0000-4000-8000-000000000016",
+      "outcome": "verified",
+      "values": {
+        "carbon": {
+          "unit": "gCO2e/run",
+          "value": 20.5
+        },
+        "cost": {
+          "unit": "EUR/run",
+          "value": 17.0
+        },
+        "latency": {
+          "unit": "ms",
+          "value": 54.65
+        },
+        "trust": {
+          "unit": "1",
+          "value": 0.95
+        }
+      },
+      "violations": []
+    }
+  ],
+  "evidence_run": null,
+  "forked_from": null,
+  "id": "00000000-0000-4000-8000-000000000014",
+  "kind": "application",
+  "label": "1.0.0",
+  "offering": null,
+  "ordinal": 1,
+  "problem": {
+    "linked_compilation": {
+      "compilation_digest": "sha256-c7ee7997b063f36309618f711b5d1713421d58672a788927b0e20c68411512ca",
+      "id": "00000000-0000-4000-8000-000000000018",
+      "semantic_digest": "sha256-69c1ff9d98d239697dda4619870981c0d2c280b41c4d2069f3d3b2bc99345a6a"
+    },
+    "problem": {
+      "id": "00000000-0000-4000-8000-000000000019",
+      "name": "demo_16_json_complete",
+      "slug": "json-complete"
+    },
+    "revision": {
+      "id": "00000000-0000-4000-8000-000000000017",
+      "revision": 1
+    }
+  },
+  "size_bytes": 960,
+  "syntax_version": "1.0",
+  "values": {
+    "carbon": {
+      "unit": "gCO2e/run",
+      "value": 20.5
+    },
+    "cost": {
+      "unit": "EUR/run",
+      "value": 17.0
+    },
+    "latency": {
+      "unit": "ms",
+      "value": 54.65
+    },
+    "trust": {
+      "unit": "1",
+      "value": 0.95
+    }
+  },
+  "values_status": "verified",
+  "verified": true
+}

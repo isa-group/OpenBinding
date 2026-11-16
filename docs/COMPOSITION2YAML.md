@@ -183,8 +183,8 @@ A document is one YAML mapping (JSON's data model in YAML's syntax, §12) of at 
 | `offering` | no | the composition's own pricing, by reference only (§7) |
 | `evidence` | no | how the values were obtained (§9) |
 
-Any other root key is `c2y_unknown_key`, located at the key itself; `presentation:` (renderer hints, decided in F2
-outside the document) is one of them. A key that holds a problem's content (`tasks`, `properties`, `candidates`,
+Any other root key is `c2y_unknown_key`, located at the key itself; `presentation:` (renderer hints, which live in the
+renderer: §16) is one of them. A key that holds a problem's content (`tasks`, `properties`, `candidates`,
 `alternatives`, `constraints`, `rules`, `objectives`, `goals`, `services`, `scenarios`, `providers`, `placement`,
 `demand`, `weights`, `scalarization`) is `c2y_problem_content`: it belongs in the BIM problem (or, for weights and
 scalarization, in a run preset). A required key that is absent is `c2y_missing_key` at the key's own path, underlined
@@ -1117,16 +1117,21 @@ answers `404`, exactly as a missing one; who may do what is in [ACCESS_POLICY.md
 
 | Route | Does |
 |---|---|
-| `GET`, `POST …/compositions`; `GET`, `PATCH`, `DELETE …/{composition}` | the composition: slug, name, description, `kind`, `archived` |
+| `GET`, `POST …/compositions`; `GET`, `PATCH`, `DELETE …/{composition}` | the composition: slug, name, description, `kind`, `archived`, `visibility` (`private` or `public`; ADMIN changes it) |
 | `POST …/{composition}/versions` | **seal** a document: read in full, assessed (§13), stored as canonical bytes with one evaluation. 201 for a new version; 200 with the version that already holds the same bytes; 409 `version_label_taken` when another content holds the label |
 | `POST …/{composition}/versions/check` | the same assessment, storing nothing: 200 `{valid, values_status, values, content, diagnostics}`, `content` being the exact text a seal would store |
-| `GET …/{composition}/versions`, `GET …/versions/{version}`, `GET …/versions/{version}/content` | versions by id, label or ordinal, with their evaluations, their `analytics` (`?include=analytics` on the list) and their stored bytes |
+| `GET …/{composition}/versions`, `GET …/versions/{version}`, `GET …/versions/{version}/content` | versions by id, label or ordinal and their stored bytes. A list row is light (`current_evaluation`) unless `?include=evaluations`; `?include=analytics` adds the stored counts, and `created_after`, `created_before` and `order=oldest` page them by date. `?include=document` on one version adds its document, read from the stored bytes in stored mode |
 | `POST …/versions/{version}/evaluations` | re-evaluate a version with the installed toolchain (one evaluation per toolchain; 200 when it has one) |
 | `GET …/{composition}/diff?from=&to=` | compare two versions |
 | `POST …/{composition}/evaluate` | evaluate another binding of a version (`{version?, binding: {task: candidate}}`), storing nothing |
 | `GET …/{composition}/neighborhood` | the toolchain's one-task alternatives of a version's binding (`?version`, `task`, `limit` ≤ 128) |
 | `POST …/{composition}/derive` | derive a version from a binding of a problem (below) |
 | `POST …/{composition}/fork` | copy a version into **another** organization as a new composition (below) |
+
+A public composition is read by anybody through the five reads above (the composition, its versions, a version, its
+content and the diff), redacted to what the documents carry, and `GET /v1/compositions` lists every organization's
+public compositions ([ACCESS_POLICY.md](ACCESS_POLICY.md#public-compositions),
+[ADR 0047](adr/0047-public-compositions.md)).
 
 **Derive.** `{run, point?}` derives the solution `point` (0 by default) of a run of the organization; `{revision,
 binding}` derives `{task: candidate}` of `<problem>@<revision>` (local tasks are bound `local: true` on their own).
@@ -1161,12 +1166,25 @@ declared; it is never done silently.
   and never enter a document.
 - **The offering's content.** Plans, prices and limits stay in SPHERE or in the Pricing2Yaml file; the document
   holds one reference (§7), without a version.
-- **Presentation.** Renderer hints (layers, badges, highlights) are decided in F2, outside the document.
+- **Presentation.** Renderer hints (sections, order, highlights, density, labels) are not language: see Rendering
+  below.
 - **Identity and visibility.** Who owns a composition, who may read it and whether it is public are the platform's,
   not the document's.
+
+**Rendering.** How a composition is shown is the renderer's, not the document's. The web renderer
+(`frontend/src/widgets/composition-renderer`, [ADR 0049](adr/0049-composition-renderer-core.md)) draws a version in
+modes (catalog, architecture, workflow, comparison, calculator, configurator, showcase) whose sections are presets in
+its code; each screen chooses which to hide and how dense to be, and a viewer's preferences (a chart's axis, the
+series hidden, the columns of a matrix) stay in that viewer's browser. None of it is written in a document, so two
+people who render the same bytes differently still hold the same version, and none of it is stored on the
+composition either. `presentation:` is therefore `c2y_unknown_key`, like any key the language does not have. The
+renderer reads a sealed version from its stored bytes (`?include=document`), shows only values the gateway
+evaluated or the author declared, and draws upstream plans from their `from` reference until OpenBinding reads
+SPHERE's pricings (F3).
 
 The library is `openbinding-gateway/src/openbinding_gateway/composition/` (`syntax`, `spans`, `diagnostics`, `ids`,
 `workflow`, `document`, `text`, `checks`, `problem`, `derive`, `diff`), pure by contract (`composition-library-pure`):
 it imports neither the web layer, the database nor the toolchain, and facts about a problem reach it as plain data
 read from the stored IR. The decisions behind it are ADRs [0041](adr/0041-composition2yaml-final-composition.md) to
-[0046](adr/0046-compositions-module.md).
+[0046](adr/0046-compositions-module.md); how compositions are published, projected and rendered on the web, ADRs
+[0047](adr/0047-public-compositions.md) to [0050](adr/0050-frontend-layers-and-sphere-reuse.md).

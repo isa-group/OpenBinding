@@ -56,15 +56,37 @@ describe('the Playwright specs', () => {
     expect(diagnostics).toEqual([]);
   }, 180_000);
 
+  it('walks each F2a journey closed so far in a mocked spec of its own: J1 derive, seal and compare; J2 showcase and fork; J5 evolution; J6 language', () => {
+    const journeys = ts.sys.readDirectory(e2e, ['.ts'], undefined, undefined, 1)
+      .map((name) => name.replace(`${e2e}/`, ''))
+      .filter((name) => name.startsWith('f2a-'));
+    expect(journeys.sort()).toEqual(['f2a-derive-seal-compare.spec.ts', 'f2a-evolution.spec.ts', 'f2a-language.spec.ts', 'f2a-showcase-fork.spec.ts']);
+    for (const name of journeys) expect(read(`${e2e}/${name}`), name).toMatch(/\btest\.describe\('J\d+ · /);
+  });
+
   describe('the live project', () => {
     const specs = liveFiles.filter((name) => name.endsWith('.spec.ts'));
 
-    it('covers login, navigation, the upload-run-study walk, a job, the viewer, the outsider, the plan page and the visual QA', () => {
+    it('covers login, navigation, the upload-run-study walk, a job, the viewer, the outsider, the plan page, J1, J2 and the visual QA', () => {
       expect(specs.map((name) => name.replace(`${live}/`, ''))).toEqual([
         '01-login.spec.ts', '02-navigation.spec.ts', '03-upload-run-study.spec.ts', '04-job-random-search.spec.ts',
-        '05-viewer-read-only.spec.ts', '06-outsider-no-access.spec.ts', '07-plan-and-consoles.spec.ts', 'visual-qa.spec.ts',
+        '05-viewer-read-only.spec.ts', '06-outsider-no-access.spec.ts', '07-plan-and-consoles.spec.ts',
+        '08-derive-seal-compare.spec.ts', '09-public-fork.spec.ts', 'visual-qa.spec.ts',
       ]);
       for (const name of specs) expect(read(name), name).toMatch(/\btest\(|\btest\.describe\(/);
+    });
+
+    it('walks J1 and J2 against the lab: derive, seal and compare on lab-main; the public list, a showcase and a fork from lab-other', () => {
+      const j1 = read(`${live}/08-derive-seal-compare.spec.ts`);
+      expect(j1).toMatch(/test\.describe\('live · J1 /);
+      for (const step of ["'Derive composition'", "'Visual editor'", "'Seal version'", "'Compare with previous'", "'The text of 1.0.0 and 1.1.0'"]) {
+        expect(j1, step).toContain(step);
+      }
+      const j2 = read(`${live}/09-public-fork.spec.ts`);
+      expect(j2).toMatch(/test\.describe\('live · J2 /);
+      for (const step of ["'/compositions'", "'Fork this composition'", '/Fork without the problem/', "'Fork as a new composition'", "'No composition here, or you cannot see it'"]) {
+        expect(j2, step).toContain(step);
+      }
     });
 
     it('takes the synthetic users from the lab and the password from the environment only', () => {
@@ -146,6 +168,15 @@ describe('the Playwright specs', () => {
       // The screens the QA walks.
       for (const screen of ["slug: 'login'", "slug: 'panel'", "slug: 'organization'", "slug: 'cases'", "slug: 'case'", "slug: 'jobs'",
         "slug: 'job-result'", "slug: 'plan-permissions'", "slug: 'team-organization'"]) {
+        expect(qa, screen).toContain(screen);
+      }
+      // The composition screens (F2a): the list, every tab of the detail and the three views of Versions, the public list, the
+      // showcase and Language for a visitor, the viewer's list and detail, and on mobile the Editor's Visual and Problems tabs.
+      for (const screen of ["slug: 'compositions'", "slug: 'composition-overview'", "slug: 'composition-editor'",
+        "pane('composition-editor-visual'", "pane('composition-editor-problems'", "slug: 'composition-versions'",
+        "slug: 'composition-versions-compare'", "slug: 'composition-versions-file'", "slug: 'composition-versions-evolution'",
+        "slug: 'composition-analysis'", "slug: 'composition-settings'", "slug: 'public-compositions'", "slug: 'showcase'",
+        "slug: 'language'", "slug: 'viewer-compositions'", "slug: 'viewer-composition'"]) {
         expect(qa, screen).toContain(screen);
       }
       // A viewer is not offered a way to start a run.

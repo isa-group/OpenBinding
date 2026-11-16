@@ -1052,7 +1052,7 @@ def document(doc: Document) -> dict[str, Any]:
     }
     if doc.problem is not None:
         written["problem"] = {"ref": str(doc.problem.ref), "compilation": doc.problem.compilation}
-    written["workflow"] = _node_text(doc.workflow)
+    written["workflow"] = workflow_json(doc.workflow)
     written["binding"] = {
         task: _entry_text(entry) for task, entry in canonical_binding(doc.workflow, doc.binding)
     }
@@ -1074,6 +1074,11 @@ def document(doc: Document) -> dict[str, Any]:
             "toolchain": evidence.toolchain,
         })
     return written
+
+
+def workflow_json(node: Node) -> Any:
+    """A workflow as a document writes it under ``workflow:``, JSON-native (``seq``, ``and``, ``xor``, ``loop``)."""
+    return _node_text(node)
 
 
 def _node_text(node: Node) -> Any:

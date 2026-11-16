@@ -1,0 +1,80 @@
+/* The composition screens: list and composition page. The organization frame (proj-*) and the organization screens' classes
+   (org-*) are reused for the band, the body, toasts and forms. */
+
+.cmp-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--tp-spacing-sm); }
+.cmp-search { min-width: 200px; max-width: 360px; flex: 1; }
+.cmp-skeletons { display: flex; flex-direction: column; gap: 10px; }
+
+/* The name sits in the row's header cell, which the table sets small and grey like a column name: it is set back to the body size. */
+.cmp-name { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; color: var(--tp-ink); font-size: 0.875rem; font-weight: 600; overflow-wrap: anywhere; }
+.cmp-slug { display: block; width: fit-content; max-width: 100%; box-sizing: border-box; color: var(--tp-steel); font-family: var(--font-mono); font-size: 0.75rem; font-weight: 400; overflow-wrap: anywhere; }
+.cmp-number { font-variant-numeric: tabular-nums; }
+
+.cmp-select {
+  height: 38px;
+  box-sizing: border-box;
+  padding: 0 10px;
+  border: 1px solid var(--tp-input-border);
+  border-radius: var(--tp-radius-md);
+  background: var(--tp-input-bg);
+  color: var(--tp-ink);
+  font: inherit;
+  font-size: 0.875rem;
+}
+
+/* Composition page */
+.cmp-badges { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.cmp-description { max-width: 720px; margin: 0; color: var(--tp-slate); overflow-wrap: anywhere; }
+.cmp-version { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--tp-spacing-xs); color: var(--tp-steel); font-size: 0.8125rem; }
+.cmp-version .cmp-select { max-width: 100%; }
+.cmp-lineage { display: flex; flex-direction: column; gap: 2px; margin: 0; padding: 0; list-style: none; color: var(--tp-slate); font-size: 0.8125rem; }
+.cmp-lineage li { overflow-wrap: anywhere; }
+.cmp-panel-loading { display: flex; flex-direction: column; gap: 10px; }
+.cmp-overview { display: flex; min-width: 0; flex-direction: column; gap: var(--tp-spacing-lg); }
+.cmp-analysis, .cmp-analysis-configurator { display: flex; min-width: 0; flex-direction: column; gap: var(--tp-spacing-lg); }
+.cmp-analysis-configurator { scroll-margin-top: var(--tp-spacing-lg); }
+.cmp-muted { margin: 0; color: var(--tp-steel); font-size: 0.8125rem; }
+
+/* Versions tab: the view switch, the version table (cards below 640 px) and its row actions. */
+.cmv { display: flex; min-width: 0; flex-direction: column; gap: var(--tp-spacing-md); }
+.cmv-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--tp-spacing-sm); }
+.cmv-message { margin: 0; color: var(--tp-slate); font-size: 0.875rem; }
+.cmv-table th, .cmv-table td { vertical-align: top; }
+.cmv-row.is-shown { background: var(--tp-surface-cream); }
+.cmv-label { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.cmv-label code { font-family: var(--font-mono); font-size: 0.875rem; font-weight: 600; }
+.cmv-ordinal { display: block; color: var(--tp-steel); font-size: 0.75rem; font-weight: 400; }
+.cmv-values, .cmv-lines { display: flex; flex-direction: column; gap: 2px; margin: 0; padding: 0; list-style: none; font-size: 0.8125rem; overflow-wrap: anywhere; }
+.cmv-values span { color: var(--tp-steel); }
+.cmv-note { display: block; margin-top: 4px; color: var(--tp-slate); font-size: 0.75rem; }
+.cmv-changes { min-width: 180px; }
+.cmv-toggle { min-height: 28px; margin-bottom: 4px; padding: 0; border: 0; background: none; color: var(--tp-link); font: inherit; font-size: 0.8125rem; text-align: left; cursor: pointer; }
+.cmv-actions { display: flex; flex-wrap: wrap; gap: 4px; }
+.cmv-failure { margin: 4px 0 0; color: var(--tp-ink); font-size: 0.75rem; }
+
+/* Below 640 px each version is a card: the column names move into the cells (`data-label`), so the header row is not drawn, and the
+   scroller's frame gives way to the cards' own borders. */
+@media (max-width: 640px) {
+  .cmv .ui-table-wrap { border: 0; border-radius: 0; background: none; }
+  .cmv .ui-table thead { display: none; }
+  .cmv .ui-table-caption { display: block; padding: 0 0 var(--tp-spacing-xs); }
+  .cmv .ui-table, .cmv-table, .cmv-table tr, .cmv-table th, .cmv-table td { display: block; width: 100%; box-sizing: border-box; }
+  .cmv .cmv-table tr { overflow: hidden; margin-bottom: var(--tp-spacing-sm); border: 1px solid var(--tp-hairline); border-radius: var(--tp-radius-lg); background: var(--tp-canvas); }
+  .cmv-table tr:last-child { margin-bottom: 0; }
+  .cmv .cmv-table tr > :is(th, td) { padding: 6px var(--tp-spacing-md); }
+  .cmv .cmv-table tr > :first-child { padding-top: var(--tp-spacing-sm); }
+  .cmv .cmv-table tr > :last-child { padding-bottom: var(--tp-spacing-sm); }
+  .cmv-table td[data-label]::before { display: block; color: var(--tp-steel); content: attr(data-label); font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; }
+  .cmv-table td[data-label='Actions']::before { content: none; }
+  .cmv-changes { min-width: 0; }
+}
+
+/* Settings tab: name and description, archived, visibility and the danger zone. */
+.cms { display: flex; min-width: 0; max-width: 760px; flex-direction: column; gap: var(--tp-spacing-lg); }
+.cms-form { display: flex; flex-direction: column; gap: var(--tp-spacing-sm); }
+.cms-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--tp-spacing-sm); }
+.cms-row-text { display: flex; min-width: 0; max-width: 560px; flex: 1; flex-direction: column; gap: 2px; }
+.cms-visibility { display: inline-flex; align-items: center; gap: 6px; }
+.cms-visibility svg { width: 1rem; height: 1rem; color: var(--tp-slate); }
+.cmp-actions { display: inline-flex; flex-wrap: wrap; align-items: flex-start; gap: var(--tp-spacing-xs); }
+.cmp-icon { width: 1rem; height: 1rem; flex: none; }

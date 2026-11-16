@@ -303,6 +303,9 @@
             },
             "type": "array"
           },
+          "facts": {
+            "$ref": "#/components/schemas/ProblemFactsView"
+          },
           "fileDigests": {
             "additionalProperties": {
               "pattern": "^sha256-[0-9a-f]{64}$",
@@ -3243,6 +3246,11 @@
             "title": "Id",
             "type": "string"
           },
+          "name": {
+            "description": "The organization's display name.",
+            "title": "Name",
+            "type": "string"
+          },
           "slug": {
             "title": "Slug",
             "type": "string"
@@ -3250,7 +3258,8 @@
         },
         "required": [
           "id",
-          "slug"
+          "slug",
+          "name"
         ],
         "title": "CompositionOrganization",
         "type": "object"
@@ -3327,6 +3336,22 @@
               }
             ],
             "title": "Name"
+          },
+          "visibility": {
+            "anyOf": [
+              {
+                "enum": [
+                  "private",
+                  "public"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`public`: anybody reads the composition, every version's document included; `private`: only the organization's members. Changing it needs ADMIN.",
+            "title": "Visibility"
           }
         },
         "title": "CompositionUpdate",
@@ -3414,7 +3439,7 @@
         "type": "object"
       },
       "CompositionVersionSummary": {
-        "description": "A version, named.",
+        "description": "A version, named, and the status of its values.",
         "properties": {
           "created_at": {
             "format": "date-time",
@@ -3444,6 +3469,11 @@
             ],
             "title": "Values Status",
             "type": "string"
+          },
+          "verified": {
+            "description": "Whether the current evaluation verified the binding and computed the values.",
+            "title": "Verified",
+            "type": "boolean"
           }
         },
         "required": [
@@ -3451,6 +3481,7 @@
           "ordinal",
           "label",
           "values_status",
+          "verified",
           "created_at"
         ],
         "title": "CompositionVersionSummary",
@@ -3482,7 +3513,7 @@
                 "type": "null"
               }
             ],
-            "description": "The version it was forked from, as data: `{composition_id, version_id, label}`.",
+            "description": "The version it was forked from, as data: `{composition_id, version_id, label}`. For a reader who is not a member, null unless that source is public now.",
             "title": "Based On"
           },
           "content_digest": {
@@ -3496,9 +3527,28 @@
             "type": "string"
           },
           "created_by_id": {
-            "format": "uuid",
-            "title": "Created By Id",
-            "type": "string"
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null for a reader who is not a member of the organization (a public composition's reader).",
+            "title": "Created By Id"
+          },
+          "current_evaluation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EvaluationSummary"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The current evaluation, named; null while the version has none."
           },
           "current_evaluation_id": {
             "anyOf": [
@@ -3512,7 +3562,32 @@
             ],
             "title": "Current Evaluation Id"
           },
+          "derivation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VersionDerivation"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Where it was derived from; null for a version sealed from a document or forked."
+          },
+          "document": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The version's content as the canonical JSON model (as `parseComposition` answers it), read as it was sealed; only with `include=document`.",
+            "title": "Document"
+          },
           "evaluations": {
+            "description": "Its evaluations, oldest first; only the current one for a reader who is not a member. In a list, only with `include=evaluations` (else empty).",
             "items": {
               "$ref": "#/components/schemas/EvaluationView"
             },
@@ -3532,15 +3607,13 @@
           "forked_from": {
             "anyOf": [
               {
-                "additionalProperties": true,
-                "type": "object"
+                "$ref": "#/components/schemas/ForkedFrom"
               },
               {
                 "type": "null"
               }
             ],
-            "description": "What it was forked from, as it was named when it was forked: `{compositionId, versionId, label, organization{id, name, displayName}, slug, name, droppedProblem}`. `droppedProblem` says the fork removed the source's problem link and evidence, so its values are the source's, declared.",
-            "title": "Forked From"
+            "description": "What it was forked from; null when it was not forked."
           },
           "id": {
             "format": "uuid",
@@ -3641,8 +3714,10 @@
           "offering",
           "evidence_run",
           "based_on",
+          "derivation",
           "evaluations",
           "current_evaluation_id",
+          "current_evaluation",
           "created_by_id",
           "created_at"
         ],
@@ -3662,9 +3737,17 @@
             "type": "string"
           },
           "created_by_id": {
-            "format": "uuid",
-            "title": "Created By Id",
-            "type": "string"
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null for a reader who is not a member of the organization (a public composition's reader).",
+            "title": "Created By Id"
           },
           "description": {
             "title": "Description",
@@ -3718,6 +3801,15 @@
             "minimum": 0.0,
             "title": "Version Count",
             "type": "integer"
+          },
+          "visibility": {
+            "description": "`private` (the default): the organization's members read it; `public`: anybody does.",
+            "enum": [
+              "private",
+              "public"
+            ],
+            "title": "Visibility",
+            "type": "string"
           }
         },
         "required": [
@@ -3727,6 +3819,7 @@
           "description",
           "kind",
           "archived",
+          "visibility",
           "organization",
           "created_by_id",
           "created_at",
@@ -5575,9 +5668,17 @@
             "type": "string"
           },
           "id": {
-            "format": "uuid",
-            "title": "Id",
-            "type": "string"
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null for a reader who is not a member of the organization (a public composition's reader).",
+            "title": "Id"
           },
           "semantic_digest": {
             "title": "Semantic Digest",
@@ -5599,6 +5700,84 @@
         "title": "EvaluationCompilation",
         "type": "object"
       },
+      "EvaluationSummary": {
+        "description": "A version's current evaluation, named: what a list row shows without the evaluations themselves.",
+        "properties": {
+          "basis": {
+            "enum": [
+              "bim",
+              "declared"
+            ],
+            "title": "Basis",
+            "type": "string"
+          },
+          "compilation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EvaluationSummaryCompilation"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null for a declared evaluation."
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "outcome": {
+            "enum": [
+              "verified",
+              "binding_invalid",
+              "semantics_changed",
+              "declared"
+            ],
+            "title": "Outcome",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "basis",
+          "outcome",
+          "compilation",
+          "created_at"
+        ],
+        "title": "EvaluationSummary",
+        "type": "object"
+      },
+      "EvaluationSummaryCompilation": {
+        "description": "The compilation an evaluation evaluated, as a row of a version list names it.",
+        "properties": {
+          "compilation_digest": {
+            "title": "Compilation Digest",
+            "type": "string"
+          },
+          "semantic_digest": {
+            "title": "Semantic Digest",
+            "type": "string"
+          },
+          "toolchain": {
+            "additionalProperties": true,
+            "title": "Toolchain",
+            "type": "object"
+          }
+        },
+        "required": [
+          "compilation_digest",
+          "semantic_digest",
+          "toolchain"
+        ],
+        "title": "EvaluationSummaryCompilation",
+        "type": "object"
+      },
       "EvaluationView": {
         "description": "One evaluation of a version: by one toolchain release (`bim`), or the author's values (`declared`).",
         "properties": {
@@ -5609,6 +5788,21 @@
             ],
             "title": "Basis",
             "type": "string"
+          },
+          "binding": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The candidate the toolchain was given for each service task, `{task: \"<resource>/<id>\"}` (the key a problem's facts give each candidate); local tasks are absent. Null for a declared evaluation, and for a public composition's reader.",
+            "title": "Binding"
           },
           "compilation": {
             "anyOf": [
@@ -5631,7 +5825,7 @@
             "type": "boolean"
           },
           "diagnostics": {
-            "description": "What the evaluation found, located in the version's content (null span where it has no place there).",
+            "description": "What the evaluation found, located in the version's content (null span where it has no place there); empty for a public composition's reader.",
             "items": {
               "$ref": "#/components/schemas/CompositionDiagnosticView"
             },
@@ -5661,7 +5855,7 @@
             "type": "object"
           },
           "violations": {
-            "description": "The constraint violations the toolchain reported.",
+            "description": "The constraint violations the toolchain reported; empty for a public composition's reader.",
             "items": {
               "additionalProperties": true,
               "type": "object"
@@ -5678,6 +5872,7 @@
           "violations",
           "diagnostics",
           "compilation",
+          "binding",
           "current",
           "created_at"
         ],
@@ -5685,7 +5880,7 @@
         "type": "object"
       },
       "EvidenceRun": {
-        "description": "The run a version's evidence names.",
+        "description": "The run a version's evidence names (`evidence.run` in its document); the run itself stays private.",
         "properties": {
           "id": {
             "format": "uuid",
@@ -5787,6 +5982,115 @@
           "droppedProblem"
         ],
         "title": "ForkResult",
+        "type": "object"
+      },
+      "ForkedFrom": {
+        "description": "What a version was forked from, as it was named when it was forked.\n\nFor a reader who is not a member, the source is named only while it is public (or is this same\ncomposition); otherwise every field but `droppedProblem` is null.",
+        "properties": {
+          "compositionId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Compositionid"
+          },
+          "droppedProblem": {
+            "description": "The fork removed the source's problem link and evidence, so its values are the source's, declared.",
+            "title": "Droppedproblem",
+            "type": "boolean"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "organization": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ForkedFromOrganization"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slug"
+          },
+          "versionId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Versionid"
+          }
+        },
+        "required": [
+          "droppedProblem"
+        ],
+        "title": "ForkedFrom",
+        "type": "object"
+      },
+      "ForkedFromOrganization": {
+        "description": "The organization a version was forked from, as it was named then.",
+        "properties": {
+          "displayName": {
+            "description": "Its display name.",
+            "title": "Displayname",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "description": "Its slug (SPHERE's organization `name`).",
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "displayName"
+        ],
+        "title": "ForkedFromOrganization",
         "type": "object"
       },
       "GatewayBindingResult": {
@@ -7373,6 +7677,369 @@
         "title": "ProblemAnalysis",
         "type": "object"
       },
+      "ProblemFactsCandidate": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "key": {
+            "description": "`<resource>/<id>`, opaque.",
+            "title": "Key",
+            "type": "string"
+          },
+          "origins": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ProblemValueOrigin"
+            },
+            "description": "By application feature.",
+            "title": "Origins",
+            "type": "object"
+          },
+          "provider": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The provider's id in the candidate's catalog.",
+            "title": "Provider"
+          },
+          "resource": {
+            "title": "Resource",
+            "type": "string"
+          },
+          "values": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "$ref": "#/components/schemas/ProblemFactsRange"
+                }
+              ]
+            },
+            "description": "By application feature.",
+            "title": "Values",
+            "type": "object"
+          }
+        },
+        "required": [
+          "key",
+          "resource",
+          "id",
+          "provider",
+          "values",
+          "origins"
+        ],
+        "title": "ProblemFactsCandidate",
+        "type": "object"
+      },
+      "ProblemFactsConstraint": {
+        "properties": {
+          "enforcement": {
+            "enum": [
+              "hard",
+              "soft"
+            ],
+            "title": "Enforcement",
+            "type": "string"
+          },
+          "expression": {
+            "additionalProperties": true,
+            "description": "The IR expression the constraint asserts.",
+            "title": "Expression",
+            "type": "object"
+          },
+          "id": {
+            "description": "`<resource>/<id>`.",
+            "title": "Id",
+            "type": "string"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProblemSourceOrigin"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "penalty": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The IR expression of a soft constraint's penalty.",
+            "title": "Penalty"
+          },
+          "when": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The IR expression that guards it, as the IR has it.",
+            "title": "When"
+          }
+        },
+        "required": [
+          "id",
+          "enforcement",
+          "expression",
+          "when",
+          "penalty",
+          "origin"
+        ],
+        "title": "ProblemFactsConstraint",
+        "type": "object"
+      },
+      "ProblemFactsEligible": {
+        "description": "A candidate a task may take: its key, and how a Composition2Yaml document writes it for that task.",
+        "properties": {
+          "candidate": {
+            "description": "`<resource>/<id>`: the candidate's key, the same as `ProblemFactsCandidate.key`.",
+            "title": "Candidate",
+            "type": "string"
+          },
+          "written": {
+            "description": "The candidate's id, or `<resource>/<id>` when two catalogs give the task that id.",
+            "title": "Written",
+            "type": "string"
+          }
+        },
+        "required": [
+          "candidate",
+          "written"
+        ],
+        "title": "ProblemFactsEligible",
+        "type": "object"
+      },
+      "ProblemFactsFeature": {
+        "properties": {
+          "direction": {
+            "anyOf": [
+              {
+                "enum": [
+                  "min",
+                  "max"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Direction"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "required": {
+            "description": "Whether the evaluator reports it for every binding (`requiredFeatures`).",
+            "title": "Required",
+            "type": "boolean"
+          },
+          "unit": {
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "unit",
+          "direction",
+          "required"
+        ],
+        "title": "ProblemFactsFeature",
+        "type": "object"
+      },
+      "ProblemFactsObjectives": {
+        "properties": {
+          "criteria": {
+            "description": "`spec.optimization.criteria`, as the IR has them.",
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Criteria",
+            "type": "array"
+          },
+          "penalties": {
+            "description": "`spec.optimization.penalties`, as the IR has them.",
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Penalties",
+            "type": "array"
+          }
+        },
+        "required": [
+          "criteria",
+          "penalties"
+        ],
+        "title": "ProblemFactsObjectives",
+        "type": "object"
+      },
+      "ProblemFactsRange": {
+        "description": "A range value: an end that is `null` has no limit.",
+        "properties": {
+          "max": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max"
+          },
+          "min": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min"
+          }
+        },
+        "required": [
+          "min",
+          "max"
+        ],
+        "title": "ProblemFactsRange",
+        "type": "object"
+      },
+      "ProblemFactsTask": {
+        "properties": {
+          "eligible": {
+            "description": "In the IR's order; empty for a local task.",
+            "items": {
+              "$ref": "#/components/schemas/ProblemFactsEligible"
+            },
+            "title": "Eligible",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "service",
+              "local"
+            ],
+            "title": "Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "eligible"
+        ],
+        "title": "ProblemFactsTask",
+        "type": "object"
+      },
+      "ProblemFactsView": {
+        "description": "The facts of one compiled problem: what the workflow graph, the candidate matrix and the editors read.\n\nComputed by the gateway from the stored (or drafted) compilation; nothing in it is evaluated.",
+        "properties": {
+          "binding_space": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The number of bindings, as a decimal string.",
+            "title": "Binding Space"
+          },
+          "candidates": {
+            "description": "Every candidate of every catalog, by key.",
+            "items": {
+              "$ref": "#/components/schemas/ProblemFactsCandidate"
+            },
+            "title": "Candidates",
+            "type": "array"
+          },
+          "constraints": {
+            "items": {
+              "$ref": "#/components/schemas/ProblemFactsConstraint"
+            },
+            "title": "Constraints",
+            "type": "array"
+          },
+          "features": {
+            "items": {
+              "$ref": "#/components/schemas/ProblemFactsFeature"
+            },
+            "title": "Features",
+            "type": "array"
+          },
+          "ir_digest": {
+            "title": "Ir Digest",
+            "type": "string"
+          },
+          "objectives": {
+            "$ref": "#/components/schemas/ProblemFactsObjectives"
+          },
+          "tasks": {
+            "description": "In the order a depth-first walk of the workflow first meets each.",
+            "items": {
+              "$ref": "#/components/schemas/ProblemFactsTask"
+            },
+            "title": "Tasks",
+            "type": "array"
+          },
+          "workflow": {
+            "description": "The workflow in the Composition2Yaml shape (`seq`, `and`, `xor`, `loop`): the `workflow:` a document derived from this compilation writes.",
+            "title": "Workflow"
+          }
+        },
+        "required": [
+          "ir_digest",
+          "tasks",
+          "candidates",
+          "features",
+          "workflow",
+          "constraints",
+          "objectives",
+          "binding_space"
+        ],
+        "title": "ProblemFactsView",
+        "type": "object"
+      },
       "ProblemList": {
         "properties": {
           "limit": {
@@ -7402,6 +8069,29 @@
           "offset"
         ],
         "title": "ProblemList",
+        "type": "object"
+      },
+      "ProblemSourceOrigin": {
+        "properties": {
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "pointer": {
+            "title": "Pointer",
+            "type": "string"
+          },
+          "resource": {
+            "title": "Resource",
+            "type": "string"
+          }
+        },
+        "required": [
+          "resource",
+          "path",
+          "pointer"
+        ],
+        "title": "ProblemSourceOrigin",
         "type": "object"
       },
       "ProblemUpdate": {
@@ -7461,6 +8151,36 @@
           "created"
         ],
         "title": "ProblemUpload",
+        "type": "object"
+      },
+      "ProblemValueOrigin": {
+        "description": "Where the package writes a value: the resource, its file and the JSON Pointer within it.",
+        "properties": {
+          "kind": {
+            "const": "package",
+            "title": "Kind",
+            "type": "string"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "pointer": {
+            "title": "Pointer",
+            "type": "string"
+          },
+          "resource": {
+            "title": "Resource",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "resource",
+          "path",
+          "pointer"
+        ],
+        "title": "ProblemValueOrigin",
         "type": "object"
       },
       "ProblemView": {
@@ -7849,6 +8569,156 @@
           "metadata",
           "spec"
         ],
+        "type": "object"
+      },
+      "PublicCompositionList": {
+        "description": "One page of the public compositions of every organization, and how many match in all.",
+        "properties": {
+          "compositions": {
+            "items": {
+              "$ref": "#/components/schemas/PublicCompositionView"
+            },
+            "title": "Compositions",
+            "type": "array"
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "compositions",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "PublicCompositionList",
+        "type": "object"
+      },
+      "PublicCompositionOrganization": {
+        "description": "The organization a public composition belongs to, as its URLs and its header name it.",
+        "properties": {
+          "name": {
+            "description": "The organization's display name.",
+            "title": "Name",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "name"
+        ],
+        "title": "PublicCompositionOrganization",
+        "type": "object"
+      },
+      "PublicCompositionView": {
+        "description": "A public composition in the list of every organization's: what anybody reads, and no member id or\nlineage.",
+        "properties": {
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "application",
+              "workflow",
+              "pipeline",
+              "system"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "latest_version": {
+            "$ref": "#/components/schemas/PublicVersionSummary"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "organization": {
+            "$ref": "#/components/schemas/PublicCompositionOrganization"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "version_count": {
+            "description": "How many versions it has.",
+            "minimum": 1.0,
+            "title": "Version Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "organization",
+          "slug",
+          "name",
+          "description",
+          "kind",
+          "latest_version",
+          "version_count",
+          "updated_at"
+        ],
+        "title": "PublicCompositionView",
+        "type": "object"
+      },
+      "PublicVersionSummary": {
+        "description": "The latest version of a public composition, as a list shows it.",
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "label": {
+            "description": "The document's `version:` (Semantic Versioning).",
+            "title": "Label",
+            "type": "string"
+          },
+          "ordinal": {
+            "minimum": 1.0,
+            "title": "Ordinal",
+            "type": "integer"
+          },
+          "values_status": {
+            "enum": [
+              "verified",
+              "declared"
+            ],
+            "title": "Values Status",
+            "type": "string"
+          },
+          "verified": {
+            "description": "Whether the current evaluation verified the binding and computed the values.",
+            "title": "Verified",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "label",
+          "ordinal",
+          "values_status",
+          "verified",
+          "created_at"
+        ],
+        "title": "PublicVersionSummary",
         "type": "object"
       },
       "QuotaBody": {
@@ -9715,9 +10585,17 @@
             "type": "string"
           },
           "id": {
-            "format": "uuid",
-            "title": "Id",
-            "type": "string"
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null for a reader who is not a member of the organization (a public composition's reader).",
+            "title": "Id"
           },
           "semantic_digest": {
             "title": "Semantic Digest",
@@ -9730,6 +10608,96 @@
           "semantic_digest"
         ],
         "title": "VersionCompilation",
+        "type": "object"
+      },
+      "VersionDerivation": {
+        "description": "Where a derived version came from: a run's solution (`run`, `point`) or a binding given with a revision.",
+        "properties": {
+          "point": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The solution of the run, for a version derived from one.",
+            "title": "Point"
+          },
+          "revision": {
+            "$ref": "#/components/schemas/VersionDerivationRevision"
+          },
+          "run": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VersionDerivationRun"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The run, for a version derived from one."
+          },
+          "source": {
+            "enum": [
+              "run",
+              "binding"
+            ],
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "run",
+          "point",
+          "revision"
+        ],
+        "title": "VersionDerivation",
+        "type": "object"
+      },
+      "VersionDerivationRevision": {
+        "description": "The problem revision a version was derived from.",
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null for a reader who is not a member of the organization (a public composition's reader).",
+            "title": "Id"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "revision"
+        ],
+        "title": "VersionDerivationRevision",
+        "type": "object"
+      },
+      "VersionDerivationRun": {
+        "description": "The run a version was derived from (`evidence.run` in its document); the run itself stays private.",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "title": "VersionDerivationRun",
         "type": "object"
       },
       "VersionLink": {
@@ -9774,16 +10742,32 @@
         "type": "object"
       },
       "VersionProblem": {
-        "description": "The problem a version links.",
+        "description": "The problem a version links. Its slug is in the document's `problem.ref`; the problem stays private.",
         "properties": {
           "id": {
-            "format": "uuid",
-            "title": "Id",
-            "type": "string"
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null for a reader who is not a member of the organization (a public composition's reader).",
+            "title": "Id"
           },
           "name": {
-            "title": "Name",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null for a reader who is not a member of the organization (a public composition's reader).",
+            "title": "Name"
           },
           "slug": {
             "title": "Slug",
@@ -9802,9 +10786,17 @@
         "description": "The revision of the problem a version links.",
         "properties": {
           "id": {
-            "format": "uuid",
-            "title": "Id",
-            "type": "string"
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null for a reader who is not a member of the organization (a public composition's reader).",
+            "title": "Id"
           },
           "revision": {
             "title": "Revision",
@@ -12273,21 +13265,21 @@
         "operationId": "validateBimPackage",
         "parameters": [
           {
-            "description": "`ir` also returns the IR and its source map.",
+            "description": "A comma list over `ir` (also return the IR and its source map) and `facts` (also return the facts of the compiled problem, as `getProblemCompilationFacts` answers them).",
             "in": "query",
             "name": "include",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "const": "ir",
+                  "pattern": "^(ir|facts)(,(ir|facts))*$",
                   "type": "string"
                 },
                 {
                   "type": "null"
                 }
               ],
-              "description": "`ir` also returns the IR and its source map.",
+              "description": "A comma list over `ir` (also return the IR and its source map) and `facts` (also return the facts of the compiled problem, as `getProblemCompilationFacts` answers them).",
               "title": "Include"
             }
           }
@@ -12386,6 +13378,184 @@
         "summary": "Validate a BIM package and find the engine modes that fit it",
         "tags": [
           "BIM"
+        ]
+      }
+    },
+    "/v1/compositions": {
+      "get": {
+        "description": "The public compositions of every organization, the most recently changed first; anybody reads them.",
+        "operationId": "listPublicCompositions",
+        "parameters": [
+          {
+            "description": "Text in the name or the slug.",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 160,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Text in the name or the slug.",
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "application",
+                    "workflow",
+                    "pipeline",
+                    "system"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          },
+          {
+            "description": "Only the public compositions of this organization (its slug).",
+            "in": "query",
+            "name": "organization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only the public compositions of this organization (its slug).",
+              "title": "Organization"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 24,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicCompositionList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many `read` requests from this address by a caller with no credential: past the anonymous budget. A signed-in caller is not charged. `Retry-After` says when the window ends.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          },
+          {}
+        ],
+        "summary": "List Public Compositions",
+        "tags": [
+          "Compositions"
+        ],
+        "x-required-api-key-permissions": [
+          "compositions:read"
         ]
       }
     },
@@ -15778,7 +16948,7 @@
     },
     "/v1/organizations/{org}/compositions": {
       "get": {
-        "description": "The organization's compositions, by name.",
+        "description": "The organization's compositions, by name or the most recently updated first.",
         "operationId": "listCompositions",
         "parameters": [
           {
@@ -15847,6 +17017,22 @@
               ],
               "description": "Only archived (`true`) or only active (`false`) ones.",
               "title": "Archived"
+            }
+          },
+          {
+            "description": "By `name` (the default), or the most recently `updated` first.",
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "name",
+              "description": "By `name` (the default), or the most recently `updated` first.",
+              "enum": [
+                "name",
+                "updated"
+              ],
+              "title": "Sort",
+              "type": "string"
             }
           },
           {
@@ -16168,7 +17354,7 @@
         ]
       },
       "get": {
-        "description": "One composition, by slug or id.",
+        "description": "One composition, by slug or id; a public one for anybody.",
         "operationId": "getComposition",
         "parameters": [
           {
@@ -16249,6 +17435,25 @@
             },
             "description": "The request does not satisfy the contract; `diagnostics` says where."
           },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many `read` requests from this address by a caller with no credential: past the anonymous budget. A signed-in caller is not charged. `Retry-After` says when the window ends.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
           "503": {
             "content": {
               "application/problem+json": {
@@ -16266,7 +17471,8 @@
           },
           {
             "ApiKeyAuth": []
-          }
+          },
+          {}
         ],
         "summary": "Get Composition",
         "tags": [
@@ -16277,7 +17483,7 @@
         ]
       },
       "patch": {
-        "description": "Rename, describe, archive or restore a composition.",
+        "description": "Rename, describe, archive or restore a composition, or change who reads it (ADMIN).",
         "operationId": "updateComposition",
         "parameters": [
           {
@@ -16368,13 +17574,13 @@
           },
           "403": {
             "content": {
-              "application/problem+json": {
+              "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Problem"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+            "description": "The caller's role is too weak: MEMBER edits, ADMIN changes `visibility` (`organization_forbidden`)."
           },
           "404": {
             "content": {
@@ -16735,7 +17941,16 @@
                 }
               }
             },
-            "description": "Every Composition2Yaml slot of this process is taken (`composition_busy`)."
+            "description": "Too many `read` requests from this address by a caller with no credential: past the anonymous budget. A signed-in caller is not charged. `Retry-After` says when the window ends. Or: Every Composition2Yaml slot of this process is taken (`composition_busy`).",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
           },
           "503": {
             "content": {
@@ -16754,7 +17969,8 @@
           },
           {
             "ApiKeyAuth": []
-          }
+          },
+          {}
         ],
         "summary": "Compare two versions of a composition",
         "tags": [
@@ -17259,7 +18475,7 @@
     },
     "/v1/organizations/{org}/compositions/{composition}/versions": {
       "get": {
-        "description": "The composition's versions, each with its values, value status and evaluations.",
+        "description": "The composition's versions, each with its values, value status and current evaluation.",
         "operationId": "listCompositionVersions",
         "parameters": [
           {
@@ -17281,21 +18497,21 @@
             }
           },
           {
-            "description": "`analytics`: each version with the summary of its document.",
+            "description": "A comma list: `analytics`, each version with the summary of its document; `evaluations`, each with its evaluations (without it a row names its current evaluation only).",
             "in": "query",
             "name": "include",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "const": "analytics",
+                  "pattern": "^(analytics|evaluations)(,(analytics|evaluations))*$",
                   "type": "string"
                 },
                 {
                   "type": "null"
                 }
               ],
-              "description": "`analytics`: each version with the summary of its document.",
+              "description": "A comma list: `analytics`, each version with the summary of its document; `evaluations`, each with its evaluations (without it a row names its current evaluation only).",
               "title": "Include"
             }
           },
@@ -17313,6 +18529,44 @@
               ],
               "title": "Order",
               "type": "string"
+            }
+          },
+          {
+            "description": "Only versions sealed at or after this instant (ISO 8601; UTC without an offset).",
+            "in": "query",
+            "name": "created_after",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only versions sealed at or after this instant (ISO 8601; UTC without an offset).",
+              "title": "Created After"
+            }
+          },
+          {
+            "description": "Only versions sealed before this instant (ISO 8601; UTC without an offset).",
+            "in": "query",
+            "name": "created_before",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only versions sealed before this instant (ISO 8601; UTC without an offset).",
+              "title": "Created Before"
             }
           },
           {
@@ -17388,7 +18642,26 @@
                 }
               }
             },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
+            "description": "`created_after` is later than `created_before` (`invalid_request`)."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many `read` requests from this address by a caller with no credential: past the anonymous budget. A signed-in caller is not charged. `Retry-After` says when the window ends.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
           },
           "503": {
             "content": {
@@ -17407,7 +18680,8 @@
           },
           {
             "ApiKeyAuth": []
-          }
+          },
+          {}
         ],
         "summary": "List Composition Versions",
         "tags": [
@@ -17815,6 +19089,25 @@
               "title": "Version",
               "type": "string"
             }
+          },
+          {
+            "description": "A comma list: `document`, the version's content as the canonical JSON model, read as it was sealed.",
+            "in": "query",
+            "name": "include",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^document(,document)*$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "A comma list: `document`, the version's content as the canonical JSON model, read as it was sealed.",
+              "title": "Include"
+            }
           }
         ],
         "responses": {
@@ -17876,6 +19169,25 @@
             },
             "description": "The request does not satisfy the contract; `diagnostics` says where."
           },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many `read` requests from this address by a caller with no credential: past the anonymous budget. A signed-in caller is not charged. `Retry-After` says when the window ends. Or: Every Composition2Yaml slot of this process is taken (`composition_busy`).",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
           "503": {
             "content": {
               "application/problem+json": {
@@ -17893,7 +19205,8 @@
           },
           {
             "ApiKeyAuth": []
-          }
+          },
+          {}
         ],
         "summary": "Get Composition Version",
         "tags": [
@@ -17999,6 +19312,25 @@
             },
             "description": "The request does not satisfy the contract; `diagnostics` says where."
           },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many `read` requests from this address by a caller with no credential: past the anonymous budget. A signed-in caller is not charged. `Retry-After` says when the window ends.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
           "503": {
             "content": {
               "application/problem+json": {
@@ -18016,7 +19348,8 @@
           },
           {
             "ApiKeyAuth": []
-          }
+          },
+          {}
         ],
         "summary": "Download a version's Composition2Yaml text",
         "tags": [
@@ -20494,6 +21827,144 @@
           }
         ],
         "summary": "Get Problem Compilation",
+        "tags": [
+          "Problems"
+        ],
+        "x-required-api-key-permissions": [
+          "problems:read"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/problems/{problem}/revisions/{revision}/compilations/{compilation}/facts": {
+      "get": {
+        "description": "The facts of one compilation, named by its id or its `compilation_digest`: its tasks and the candidates\neach may take (as a document writes them), every candidate's values with units and origins, the features,\nthe workflow in the Composition2Yaml shape, the constraints, the objectives and the binding-space size.\n\nThe same projection `POST /v1/bim/validate?include=facts` answers for a package that is not stored.",
+        "operationId": "getProblemCompilationFacts",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "problem",
+            "required": true,
+            "schema": {
+              "title": "Problem",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "revision",
+            "required": true,
+            "schema": {
+              "title": "Revision",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "compilation",
+            "required": true,
+            "schema": {
+              "title": "Compilation",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemFactsView"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "Cache-Control": {
+                "description": "`private, immutable`.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "ETag": {
+                "description": "The compilation digest and `.facts`, quoted: the facts never change.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "The caller's copy (`If-None-Match`) is the facts."
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such resource, or none this caller may see."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The compiled problem cannot be read (`problem_facts_unreadable`, with `reason`)."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Read the facts of one compilation",
         "tags": [
           "Problems"
         ],

@@ -6,11 +6,11 @@ import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useCopy } from '../../components/ui/useCopy';
 import { problemPath, workbenchPath } from '../../routes/paths/problems';
+import { parseBindingSpace } from '../../components/BindingSpaceBadge/bindingSpace';
 import {
-  DIFF_CATEGORIES, diffRevisions, diffSummary, sizeChange, type DiffCategory, type DiffRow, type RevisionView,
+  DIFF_CATEGORIES, diffRevisions, diffSummary, powerText, type DiffCategory, type DiffRow, type RevisionView,
 } from './casesModel';
 import { loadModel } from './modelLoader';
-import { Power } from './parts';
 import { useLoadedMap } from './useLoadedMap';
 import type { RouteProblemContent } from './useRouteProblem';
 
@@ -40,7 +40,7 @@ export function VersionCompare({ org, content, canCreate }: { org: string; conte
     const answer = models[String(revision.revision)];
     if (!answer || answer.status === 'loading') return null;
     const state = answer.status === 'ready' ? answer.value : undefined;
-    return { revision: revision.revision, digest: revision.package_digest, model: state?.state === 'ready' ? state.model : null };
+    return { revision: revision.revision, digest: revision.package_digest, facts: state?.state === 'ready' ? state.facts : null };
   };
   const left = modelOf(from);
   const right = modelOf(to);
@@ -61,8 +61,7 @@ export function VersionCompare({ org, content, canCreate }: { org: string; conte
   const hasRowsIn = (name: DiffCategory) => rows.some((row) => row.category === name);
   const visible = rows.filter((row) => !category || row.category === category);
   const waitingModels = !missingSide && !same && from !== undefined && to !== undefined && (!left || !right);
-  const modelsMissing = left && right && (!left.model || !right.model);
-  const growth = left?.model && right?.model ? sizeChange(left.model.log10, right.model.log10) : null;
+  const modelsMissing = left && right && (!left.facts || !right.facts);
   const options = revisions.map((revision) => revision.revision).sort((a, b) => a - b);
 
   return (
@@ -110,7 +109,7 @@ export function VersionCompare({ org, content, canCreate }: { org: string; conte
         <>
           {modelsMissing && (
             <Notice tone="info">
-              Providers, tasks, rules and goal are compared from the compilation of each version, and {!left.model ? `version ${left.revision}` : `version ${right.revision}`} has none that can be read.
+              Providers, tasks, rules and goal are compared from the compilation of each version, and {!left.facts ? `version ${left.revision}` : `version ${right.revision}`} has none that can be read.
               {left.digest === right.digest ? ' Both versions are the same package.' : ' The two packages differ.'}
             </Notice>
           )}
@@ -128,19 +127,19 @@ export function VersionCompare({ org, content, canCreate }: { org: string; conte
             })}
           </section>
 
-          {left.model && right.model && (
+          {left.facts && right.facts && (
             <section className="proj-panel case-sizes" aria-labelledby="cc-size">
               <h2 id="cc-size">Possible combinations</h2>
               <div className="case-size-bars">
                 {[left, right].map((side, index) => (
                   <div key={side.revision} className="case-size-row">
                     <span>Version {side.revision}</span>
-                    <span className="case-bar" aria-hidden="true"><i className={index === 0 ? 'is-from' : undefined} style={{ width: `${Math.min(100, Math.round(((side.model?.log10 ?? 0) / 20) * 100))}%` }} /></span>
-                    <span>≈ <Power log10={side.model?.log10 ?? null} /></span>
+                    <span className="case-bar" aria-hidden="true"><i className={index === 0 ? 'is-from' : undefined} style={{ width: `${Math.min(100, Math.round((parseBindingSpace(side.facts?.binding_space ?? '1').log10 / 20) * 100))}%` }} /></span>
+                    <span>≈ {powerText(side.facts?.binding_space)}</span>
                   </div>
                 ))}
               </div>
-              {growth && <span className={`case-delta${growth.grew ? ' is-grew' : ''}`}>{growth.text}</span>}
+              <span className="case-delta">{powerText(left.facts.binding_space)} → {powerText(right.facts.binding_space)}</span>
             </section>
           )}
 

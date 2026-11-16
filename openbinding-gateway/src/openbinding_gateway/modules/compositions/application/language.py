@@ -156,6 +156,16 @@ async def diff_stored(before: str, after: str) -> dict[str, Any]:
     return await _run(_diff_stored, before, after)
 
 
+def _document_stored(content: str) -> dict[str, Any]:
+    return text.document(text.read_stored(content))
+
+
+async def document_stored(content: str) -> dict[str, Any]:
+    """A sealed version's content as the canonical JSON model, read in the stored mode: the version reads
+    as it was sealed, whatever registries the deployment defines today, and no fresh check runs."""
+    return await _run(_document_stored, content)
+
+
 __all__ = [
     "LanguageRefusal",
     "SIDES",
@@ -164,6 +174,7 @@ __all__ = [
     "diagnostic_view",
     "diff",
     "diff_stored",
+    "document_stored",
     "parse",
     "serialise",
     "validate",

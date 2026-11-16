@@ -242,71 +242,6 @@ export function bimResourceKey(ref: BimResourceRef): string {
   return `${ref.namespace}/${ref.name}@${ref.version}#${ref.digest}`;
 }
 
-export interface ValidationViolation {
-  code: string;
-  message: string;
-  path?: string;
-  constraint_id?: string;
-  details?: unknown;
-  stage?: number;
-}
-
-export interface Warning {
-  code: string;
-  message: string;
-  details?: unknown;
-}
-
-export interface ValidationError {
-  error?: string;
-  violations?: ValidationViolation[];
-  warnings?: Warning[];
-}
-
-/** Where an engine's own account of its answer differs from the canonical one. */
-export interface EngineDivergence {
-  solutions_compared: number;
-  termination_mismatches: number;
-  max_objective_delta?: number | null;
-  notes: string[];
-  agrees: boolean;
-}
-
-/** What the engine said, kept beside what the reference evaluator computed. */
-export interface EngineReport {
-  solutions: Array<Record<string, unknown>>;
-  provenance?: Record<string, unknown> | null;
-  raw?: Record<string, unknown> | null;
-  raw_truncated: boolean;
-  divergence: EngineDivergence;
-}
-
-export interface JobStatus {
-  id: string;
-  status: 'queued' | 'running' | 'completed' | 'failed';
-  provenance?: Record<string, unknown>;
-  result?: {
-    termination: Termination;
-    solutions: Array<{
-      decision: {
-        kind: 'binding';
-        binding: Record<string, { resource: string; id: string }>;
-      };
-      metrics: Record<string, number>;
-      objectives: {
-        mode: 'satisfy' | 'weighted' | 'lexicographic' | 'pareto';
-        components: Array<Record<string, unknown>>;
-        penalty: number;
-        score: number | number[];
-      };
-      penalties: number[];
-      violations: Array<Record<string, unknown>>;
-    }>;
-    provenance?: Record<string, unknown>;
-    error?: string;
-  };
-}
-
 export interface BimAnalysisData {
   tasks: number;
   candidates: number;
@@ -347,6 +282,8 @@ export class HttpError extends Error {
   /** What a 429 names: the limit, how many jobs are in flight, and whose limit it is (`plan` or `technical`). */
   concurrency?: { limit_id: string; limit: number; used: number; source?: string; unit?: string };
   retryAfter?: number;
+  /** The current `ETag` a 412 names (docs/ERRORS.md, "Conditional writes"): the revision to re-read before retrying. */
+  etag?: string;
   /** The limit a refusal names (a 403 or 422 about a size limit carries one, with its state and source). */
   notice?: LimitNotice;
   /** The measured size, when the refusal is about the binding space. */
@@ -551,6 +488,10 @@ export class ApiClient {
     const error = new HttpError(response.status, message);
     error.code = code;
     error.problem = problem;
+    const retryAfter = parseInt(response.headers.get('Retry-After') ?? '', 10);
+    if (!isNaN(retryAfter)) error.retryAfter = retryAfter;
+    const etag = response.status === 412 ? response.headers.get('ETag') : null;
+    if (etag) error.etag = etag;
     error.notice = notice;
     error.bindingSpace = bindingSpace;
     error.diagnostics = Array.isArray(problemObject?.diagnostics)

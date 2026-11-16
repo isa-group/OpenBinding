@@ -1,6 +1,7 @@
-import { record } from '../../analysis/model';
 import { formatNumber } from '../../utils/format';
 import './BindingAnalysis.css';
+
+const record = (x: unknown): Record<string, unknown> => x && typeof x === 'object' && !Array.isArray(x) ? x as Record<string, unknown> : {};
 
 /** Every entry point opens the same authoritative archive workspace. */
 export function BindingAnalysis({ result, jobId }: { result: unknown; jobId?: string }) {

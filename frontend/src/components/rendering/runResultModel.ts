@@ -2,7 +2,7 @@ import type { BindingProblemShape } from './bindingTableModel';
 import type { ObjectiveProblem } from './objectiveModel';
 
 export interface RunResultData { termination?: unknown; solutions?: unknown; logs?: unknown }
-/** What readBindingProblem(document) returns fits as it is. */
+/** What `runProblemOf(facts)` (runProblem.ts) returns from the facts of the run's compilation. */
 export type RunProblem = BindingProblemShape & ObjectiveProblem;
 export interface RunReport { remote?: unknown }
 
