@@ -9,7 +9,8 @@ import {
   CHECKOUT, EVOLUTIONARY, RANDOM_SEARCH, REVISION_1, REVISION_2, RUN_ID, analyticsFixture, cellFixture, cellsFixture, runFixture, studyFixture,
 } from '../src/test/fixtures/studies';
 
-// S7a · studies: study-list, study-builder and study-detail with its tabs Setup, Progress (the run) and Results (analytics, cells and the CSV export).
+// S7a · studies: study-list, study-builder and study-detail with its tabs Setup, Progress (the run) and Results (analytics, the Pareto front,
+// cells and the gateway's CSV and JSON export).
 // There is no backend: the API origin is answered by page.route(). Screenshots go to testInfo.outputPath() (test-results/, ignored by git)
 // so they can be looked at after a run. Every test walks a screen through its states on a desktop and on a phone.
 
@@ -86,13 +87,13 @@ const engineEntry = (ref: typeof RANDOM_SEARCH) => {
 };
 
 
-type Overridable = 'studies' | 'create' | 'run' | 'cancel' | 'retry' | 'attach' | 'update' | 'delete' | 'runs' | 'cells' | 'cell' | 'analytics' | 'report';
+type Overridable = 'studies' | 'create' | 'run' | 'cancel' | 'retry' | 'attach' | 'update' | 'delete' | 'runs' | 'cells' | 'cell' | 'analytics' | 'report' | 'export';
 
 interface State {
   /** A handler that replaces the default answer of one call. */
   refuse: Partial<Record<Overridable, Handler>>;
   /** What each write carried, to check what was sent. */
-  sent: { create?: unknown; run?: string; cancel?: string; retry: string[]; attach?: { cell: string; job: unknown }; update: unknown[]; ifMatch: Array<string | undefined>; deleted: string[]; report?: unknown };
+  sent: { create?: unknown; run?: string; cancel?: string; retry: string[]; attach?: { cell: string; job: unknown }; update: unknown[]; ifMatch: Array<string | undefined>; deleted: string[]; report?: unknown; exported: string[] };
   studies: Study[];
   runs: Record<string, StudyRun[]>;
   cells: Record<string, StudyCell[]>;
@@ -113,7 +114,7 @@ const analyticsBody = () => analyticsFixture();
 async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
   const state: State = {
     refuse: {},
-    sent: { retry: [], update: [], ifMatch: [], deleted: [] },
+    sent: { retry: [], update: [], ifMatch: [], deleted: [], exported: [] },
     studies: [studyFixture(), liveStudy, placement, oldStudy],
     runs: { 'engines-vs-seeds': [runFixture()], 'live-sweep': [liveRun(false)] },
     cells: { [RUN_ID]: cellsFixture(), [LIVE_RUN_ID]: liveCells(false) },
@@ -245,6 +246,19 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
     if (tail === 'analytics') {
       if (state.refuse.analytics) return state.refuse.analytics(route);
       return json(analyticsBody())(route);
+    }
+    if (tail === 'export') {
+      // The gateway's export of the whole run, as an attachment named by Content-Disposition.
+      const format = new URL(route.request().url()).searchParams.get('format') ?? '';
+      state.sent.exported.push(format);
+      if (state.refuse.export) return state.refuse.export(route);
+      const body = format === 'csv'
+        ? 'cell_id,problem,revision,engine_namespace,engine_name,engine_version,mode,parameters,seed,status,feasible,runtime_seconds,objective.cost,objective.latency\n'
+        : JSON.stringify({ study: { id: study.id, slug: study.slug, name: study.name }, run: { id: actionId }, definition: {}, cells: [] });
+      return route.fulfill({
+        status: 200, body, contentType: format === 'csv' ? 'text/csv; charset=utf-8' : 'application/json',
+        headers: { 'Content-Disposition': `attachment; filename="${study.slug}-run-${run?.run_number ?? 1}.${format}"`, 'Access-Control-Expose-Headers': 'Content-Disposition' },
+      });
     }
     if (tail === 'cancel') {
       state.sent.cancel = actionId;
@@ -921,7 +935,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
     test('study-detail /app/:org/studies/:study/results · charts, rankings and seeds', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
-      await mockApi(page);
+      const state = await mockApi(page);
       await page.goto(RESULTS);
       const main = page.locator('#platform-main');
 
@@ -958,10 +972,23 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await main.getByRole('combobox', { name: 'Problem' }).selectOption(REVISION_2.id);
       await expect(main.getByText(/Best trade-offs:/)).toContainText('cell 4 (0.104, 420); cell 6 (0.109, 398).');
 
-      // Every cell goes into a CSV file, never onto the page.
+      // The gateway's front of each problem version, one table each.
+      const front = main.getByRole('region', { name: 'Pareto front' });
+      await expect(front.getByRole('region', { name: 'Front of checkout-flow · version 1' }).getByRole('row')).toHaveCount(3);
+      await expect(front.getByRole('region', { name: 'Front of checkout-flow · version 2' })).toContainText('P4');
+      await capture(page, testInfo, `analytics-${name}-front`, { area: front });
+
+      // Every cell goes into the gateway's CSV or JSON file, never onto the page, under the name the gateway gives it.
       const downloaded = page.waitForEvent('download');
       await main.getByRole('button', { name: 'Export CSV' }).click();
-      expect((await downloaded).suggestedFilename()).toBe('engines-vs-seeds-run-1-cells.csv');
+      expect((await downloaded).suggestedFilename()).toBe('engines-vs-seeds-run-1.csv');
+      const json = page.waitForEvent('download');
+      await main.getByRole('button', { name: 'Export JSON' }).click();
+      expect((await json).suggestedFilename()).toBe('engines-vs-seeds-run-1.json');
+      expect(state.sent.exported).toEqual(['csv', 'json']);
+      state.refuse.export = detail(403, 'api_key_permission_denied', 'The API key lacks studies:read.');
+      await main.getByRole('button', { name: 'Export CSV' }).click();
+      await expect(main.getByText('The CSV export couldn’t be made (403 · api_key_permission_denied).')).toBeVisible();
 
       // Provenance of each cell.
       const provenance = main.getByRole('region', { name: 'Provenance of every cell' });

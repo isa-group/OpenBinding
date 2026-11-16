@@ -114,26 +114,25 @@ export interface Point {
   cell: StudyCell;
   x: number;
   y: number;
-  /** Nobody beats it on both measures. */
+  /** The cell is a point of the gateway's Pareto front of its problem version. */
   front: boolean;
 }
 
 /**
- * The completed cells of one case revision plotted by two measures, with the ones nobody beats on both marked (both lower-is-better).
- * Different case revisions are never pooled into one front: they are different problems.
+ * The completed cells of one case revision plotted by two measures, each marked when the gateway's front of that revision holds it
+ * (`frontCells`, cell ids). Different case revisions are never pooled into one plot: they are different problems. Nothing is
+ * compared here: which cells are on the front is the gateway's answer (`analytics.pareto`).
  */
-export function scatterOf(cells: readonly StudyCell[], caseRevisionId: string, xMeasure: string, yMeasure: string): Point[] {
-  const points = cells
+export function scatterOf(
+  cells: readonly StudyCell[], caseRevisionId: string, xMeasure: string, yMeasure: string, frontCells: ReadonlySet<string>,
+): Point[] {
+  return cells
     .filter((cell) => cell.binding_case_revision_id === caseRevisionId)
     .flatMap((cell) => {
       const x = measureValue(cell, xMeasure);
       const y = measureValue(cell, yMeasure);
-      return x === null || y === null ? [] : [{ cell, x, y }];
+      return x === null || y === null ? [] : [{ cell, x, y, front: frontCells.has(cell.id) }];
     });
-  return points.map((point) => ({
-    ...point,
-    front: !points.some((other) => other !== point && other.x <= point.x && other.y <= point.y && (other.x < point.x || other.y < point.y)),
-  }));
 }
 
 export interface SeedGroup {
@@ -165,25 +164,6 @@ export function seedGroups(cells: readonly StudyCell[], measure: string, index: 
     const values = group.seeds.flatMap((item) => (item.value === null ? [] : [item.value]));
     return { ...group, seeds: group.seeds.sort((a, b) => a.seed - b.seed), spread: values.length >= 2 ? Math.max(...values) - Math.min(...values) : null };
   });
-}
-
-const quote = (value: unknown): string => {
-  const text = value === null || value === undefined ? '' : String(value);
-  return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
-};
-
-/** The cells of a run as a CSV file: one row per cell, one column per measure, for a spreadsheet or a notebook. */
-export function cellsCsv(cells: readonly StudyCell[], measures: readonly string[], index: ReadonlyMap<string, RevisionInfo>): string {
-  const objectives = measures.filter((name) => name !== RUNTIME);
-  const header = ['cell', 'case_revision', 'engine', 'engine_version', 'mode', 'setting', 'seed', 'state', 'feasible', ...objectives, 'runtime_seconds', 'job_id', 'fingerprint'];
-  const rows = [...cells].sort((a, b) => a.ordinal - b.ordinal).map((cell) => {
-    const metrics = metricsOf(cell);
-    return [
-      cell.ordinal, revisionLabel(index, cell.binding_case_revision_id), cell.engine_ref.name, cell.engine_ref.version, cell.engine_ref.mode ?? '', describeParameters(cell.parameters),
-      cell.seed, cell.state, metrics.feasible ?? '', ...objectives.map((name) => metrics.objectives[name] ?? ''), metrics.runtimeSeconds ?? '', cell.job_id ?? '', cell.fingerprint,
-    ].map(quote).join(',');
-  });
-  return [header.join(','), ...rows].join('\n');
 }
 
 export const measureTitle = (measure: string): string => (measure === RUNTIME ? 'Time taken' : `${measureLabel(measure)} found`);

@@ -64,6 +64,14 @@ describe('the Playwright specs', () => {
     for (const name of journeys) expect(read(`${e2e}/${name}`), name).toMatch(/\btest\.describe\('J\d+ · /);
   });
 
+  it('walks each F2b journey closed so far in a mocked spec of its own: J4 study front to compositions', () => {
+    const journeys = ts.sys.readDirectory(e2e, ['.ts'], undefined, undefined, 1)
+      .map((name) => name.replace(`${e2e}/`, ''))
+      .filter((name) => name.startsWith('f2b-'));
+    expect(journeys.sort()).toEqual(['f2b-study-front.spec.ts']);
+    for (const name of journeys) expect(read(`${e2e}/${name}`), name).toMatch(/\btest\.describe\('J\d+ · /);
+  });
+
   describe('the live project', () => {
     const specs = liveFiles.filter((name) => name.endsWith('.spec.ts'));
 

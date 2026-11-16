@@ -38,7 +38,37 @@ export interface BindingSource {
   composition?: CompositionView;
 }
 
-export type DeriveSource = RunSource | BindingSource;
+/**
+ * One point of a study's Pareto front, derived into a composition of its own (C5: a point is an alternative, not a version of
+ * another one).
+ */
+export interface FrontPoint {
+  /** The page's key of the point; results are reported under it. */
+  key: string;
+  /** How the point is named in the dialog: `P1`. */
+  label: string;
+  /** What else tells it apart (its problem version, cell, engine and objectives). */
+  detail: string;
+  /** The run the point's cell ran as (`ParetoPoint.job_id`). */
+  run: string;
+  /** The solution of that run (`ParetoPoint.solution_index`). */
+  point: number;
+  /** The address the composition is created at unless the person writes another. */
+  slug: string;
+  name: string;
+}
+
+/** What a batch derivation starts from: points of a study front, each derived as version 1.0.0 of a new composition. */
+export interface PointsSource {
+  points: readonly FrontPoint[];
+}
+
+/** A run or a binding: what one derivation, previewed before it is sealed, starts from. */
+export type SingleSource = RunSource | BindingSource;
+
+export type DeriveSource = SingleSource | PointsSource;
+
+export const isPointsSource = (source: DeriveSource): source is PointsSource => 'points' in source;
 
 export const isRunSource = (source: DeriveSource): source is RunSource => 'run' in source;
 
@@ -102,4 +132,23 @@ export function bindingDerivation(source: Pick<BindingSource, 'revision' | 'bind
 /** The values of a preview, in the order the gateway listed them. */
 export function previewValues(draft: Pick<DeriveDraft, 'values'>): Array<{ name: string; value: number; unit: string }> {
   return Object.entries(draft.values).map(([name, value]) => ({ name, value: value.value, unit: value.unit }));
+}
+
+/** The longest address a composition may have (`CompositionCreate.slug`). */
+const SLUG_MAX = 64;
+
+/** The default address of the composition of point `n` of a problem: `<problem>-p<n>`, cut to the length a slug may have. */
+export function pointSlug(problem: string, n: number): string {
+  const suffix = `-p${n}`;
+  return `${problem.slice(0, SLUG_MAX - suffix.length).replace(/-+$/, '')}${suffix}`;
+}
+
+/** What is wrong with each address of a batch: not an address, or one another point of the batch has too. */
+export function batchSlugErrors(rows: ReadonlyArray<{ key: string; slug: string }>, pattern: RegExp): Record<string, string> {
+  const errors: Record<string, string> = {};
+  for (const row of rows) {
+    if (!pattern.test(row.slug)) errors[row.key] = 'Lowercase letters, numbers and hyphens, at most 64.';
+    else if (rows.some((other) => other.key !== row.key && other.slug === row.slug)) errors[row.key] = `Another point has ${row.slug} too.`;
+  }
+  return errors;
 }

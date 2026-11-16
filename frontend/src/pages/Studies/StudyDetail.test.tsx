@@ -10,7 +10,7 @@ import { StudyDetail } from './StudyDetail';
 
 const platform = vi.hoisted(() => ({
   study: vi.fn(), studyRuns: vi.fn(), studyRun: vi.fn(), studyCells: vi.fn(), runStudy: vi.fn(), updateStudy: vi.fn(), deleteStudy: vi.fn(),
-  analytics: vi.fn(),
+  analytics: vi.fn(), exportStudyRun: vi.fn(),
 }));
 const download = vi.hoisted(() => ({ saveBytes: vi.fn() }));
 
@@ -18,11 +18,6 @@ const problems = vi.hoisted(() => ({ list: vi.fn(), revisions: vi.fn(), compilat
 vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'), platformApi: platform }));
 vi.mock('../../api/problems', () => ({ problemsApi: problems }));
 vi.mock('../../features/workspace/download', () => download);
-// The decision workspace is not what is under test here.
-vi.mock('../../components/BindingAnalysis/BindingAnalysis', async () => {
-  const { createElement } = await import('react');
-  return { BindingAnalysis: ({ jobId }: { jobId?: string }) => createElement('div', null, `Binding analysis of ${jobId}`) };
-});
 
 const group = org('isa-demo', { name: 'ISA Demo Group' });
 const viewing = org('read-lab', { name: 'Read Lab', effective_role: 'VIEWER' });
@@ -114,17 +109,17 @@ describe('One study', () => {
     expect(await screen.findByRole('heading', { name: 'Run not found' })).toBeInTheDocument();
   });
 
-  it('holds the CSV export of the study run in Results', async () => {
+  it('holds the gateway’s CSV export of the study run in Results, saved under the name the gateway gives it', async () => {
     withRuns([runFixture(), runTwo()]);
+    const bytes = new TextEncoder().encode('cell_id,problem\n').buffer;
+    platform.exportStudyRun.mockResolvedValue({ bytes, fileName: 'engines-vs-seeds-run-1.csv', mediaType: 'text/csv; charset=utf-8' });
     renderDetail('isa-demo', 'engines-vs-seeds', `/results?run=${RUN_ID}`);
 
     fireEvent.click(await screen.findByRole('button', { name: 'Export CSV' }));
 
-    expect(download.saveBytes).toHaveBeenCalledTimes(1);
-    const [bytes, name, type] = download.saveBytes.mock.calls[0] as [ArrayBuffer, string, string];
-    expect(name).toBe('engines-vs-seeds-run-1-cells.csv');
-    expect(type).toBe('text/csv');
-    expect(new TextDecoder().decode(bytes).split('\n')[0]).toBe('cell,case_revision,engine,engine_version,mode,setting,seed,state,feasible,cost,latency,runtime_seconds,job_id,fingerprint');
+    await waitFor(() => expect(download.saveBytes).toHaveBeenCalledTimes(1));
+    expect(platform.exportStudyRun).toHaveBeenCalledWith('isa-demo', 'engines-vs-seeds', RUN_ID, 'csv');
+    expect(download.saveBytes).toHaveBeenCalledWith(bytes, 'engines-vs-seeds-run-1.csv', 'text/csv; charset=utf-8');
     expect(screen.queryByRole('tab', { name: 'Publish' })).not.toBeInTheDocument();
   });
 

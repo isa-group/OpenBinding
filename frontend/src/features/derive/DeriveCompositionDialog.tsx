@@ -13,7 +13,7 @@ import { KIND_OPTIONS } from '../../entities/composition/kinds';
 import { formatValue } from '../../entities/composition/values';
 import { COMPOSITION_FILE } from '../../entities/composition/viewModel';
 import { compositionPath } from '../../routes/paths/compositions';
-import { readApiError, type ApiError } from '../../shared/api/errors';
+import { readApiError } from '../../shared/api/errors';
 import type { CompositionDerive, CompositionView, DeriveDraft, DeriveResult } from '../../shared/api/types';
 import { fromC2y } from '../../shared/diagnostics/located';
 import { SLUG_PATTERN, slugFromName } from '../../shared/lib/slug';
@@ -21,10 +21,12 @@ import { compositionFragment } from '../../shared/sphere/composition-fragment';
 import { formatNumber } from '../../utils/format';
 import { ProblemsPanel } from '../../widgets/problems-panel/ProblemsPanel';
 import { ValueBadge } from '../../widgets/value-badge/ValueBadge';
+import { DeriveBatch, type DerivedPoint } from './DeriveBatch';
 import {
-  FIRST_LABEL, LABEL_PATTERN, bindingDerivation, criteriaOf, isRunSource, nextMinor, pointsOf, previewValues, runDerivation,
-  type BindingSource, type DeriveSource, type Point,
+  FIRST_LABEL, LABEL_PATTERN, bindingDerivation, criteriaOf, isPointsSource, isRunSource, nextMinor, pointsOf, previewValues, runDerivation,
+  type BindingSource, type DeriveSource, type Point, type SingleSource,
 } from './deriveModel';
+import { refusalOf, type Refusal } from './refusal';
 import './DeriveCompositionDialog.css';
 
 type Step = 'where' | 'what' | 'preview';
@@ -37,38 +39,9 @@ const STEPS: ReadonlyArray<{ id: Step; label: string }> = [
 
 const NAME_MAX = 160;
 
-/** A refusal of the gateway, in words, with the findings a 422 carries. */
-interface Refusal {
-  message: string;
-  findings: ApiError['diagnostics'];
-}
-
 type Compositions = { status: 'loading' } | { status: 'ready'; list: CompositionView[] } | { status: 'failed'; message: string };
 
 const isSealed = (result: DeriveResult | DeriveDraft): result is DeriveResult => 'version' in result;
-
-/** What a refusal of a derivation says, for the cases the dialog does not answer at a field. */
-function refusalOf(caught: unknown, what: 'create' | 'derive', from: 'run' | 'binding'): Refusal {
-  const error = readApiError(caught);
-  const code = error.status ? ` (${error.status}${error.code !== 'unknown' ? ` · ${error.code}` : ''})` : '';
-  if (error.status === 403) {
-    return { message: `Deriving a composition needs MEMBER in this organization${code}.`, findings: [] };
-  }
-  if (error.status === 404) {
-    const source = from === 'run' ? 'The run' : 'The problem version';
-    return { message: `${source} or the composition is not there any more, or you can’t read it${code}.`, findings: [] };
-  }
-  if (error.status === 422 && error.code === 'derivation_invalid') {
-    const subject = from === 'run' ? 'This solution' : 'This binding';
-    return { message: `${subject} can’t be written as a composition${code}. The gateway found:`, findings: error.diagnostics };
-  }
-  if (error.status === 429) {
-    const wait = error.retryAfter ? ` Try again in ${error.retryAfter} s.` : ' Try again in a moment.';
-    return { message: `The toolchain is busy${code}.${wait}`, findings: [] };
-  }
-  const subject = what === 'create' ? 'The composition couldn’t be created' : 'The composition couldn’t be derived';
-  return { message: `${subject}${code}${error.message ? `: ${error.message}` : '.'}`, findings: error.diagnostics };
-}
 
 function scoreText(score: Point['score']): string {
   if (score === null) return '—';
@@ -155,14 +128,25 @@ function BindingTable({ source }: { source: BindingSource }) {
 }
 
 export interface DeriveCompositionDialogProps {
-  /** The organization of the run or of the problem version; the composition is one of its own. */
+  /** The organization of the run or of the problem version; the compositions are its own. */
   org: string;
   /**
    * What is derived: a run and its solutions, or a binding of a problem version (with the composition it goes to by default,
-   * which then opens on the label step).
+   * which then opens on the label step), or the points of a study front, one new composition each (batch mode).
    */
   source: DeriveSource;
   onClose: () => void;
+  /** Batch mode: called each time a point's composition holds the point as its version 1.0.0. */
+  onDerived?: (key: string, derived: DerivedPoint) => void;
+}
+
+/**
+ * Derive compositions: one from a run or a binding of a problem version, previewed before it is sealed; or, for the points of a
+ * study front, one new composition per point, each sealed as 1.0.0 in turn (batch mode).
+ */
+export function DeriveCompositionDialog({ org, source, onClose, onDerived }: DeriveCompositionDialogProps) {
+  if (isPointsSource(source)) return <DeriveBatch org={org} points={source.points} onClose={onClose} onDerived={onDerived} />;
+  return <DeriveOne org={org} source={source} onClose={onClose} />;
 }
 
 /**
@@ -172,7 +156,7 @@ export interface DeriveCompositionDialogProps {
  * bytes are the previewed ones (F1 D15). The preview can also open in the Editor as a draft. A binding derived into a given
  * composition starts at the label step, with the next minor of that composition's latest label.
  */
-export function DeriveCompositionDialog({ org, source, onClose }: DeriveCompositionDialogProps) {
+function DeriveOne({ org, source, onClose }: { org: string; source: SingleSource; onClose: () => void }) {
   const navigate = useNavigate();
   const ids = useId();
   const run = isRunSource(source) ? source : null;

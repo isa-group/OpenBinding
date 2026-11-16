@@ -880,6 +880,8 @@ export async function installWalkApi(page: Page, template: Buffer): Promise<Walk
         cells: entry.cells.length, completed: completed.length, failed: 0, feasible: completed.length, infeasible: 0,
         objective_distributions: { cost: objective('cost'), latency: objective('latency') },
         runtimes_s: completed.map((cell) => Number(cell.metrics.runtimeSeconds ?? 0)),
+        // The fixture's fronts name the study fixture's cells, not the walk's: the walk's run has no front of its own.
+        pareto: [],
         stability: Object.fromEntries([...new Set(completed.map((cell) => String(cell.metrics.engine)))].map((engine) => [engine, { samples: 2, distinct: 2, repeatability: 0.5 }])),
       }));
     }

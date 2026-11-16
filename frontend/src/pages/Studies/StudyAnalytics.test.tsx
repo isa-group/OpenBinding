@@ -2,24 +2,18 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../api/client';
 import { org, renderOrgScreen } from '../../features/workspace/testKit';
-import { CHECKOUT, REVISION_1, REVISION_2, RUN_ID, analyticsFixture, cellsFixture, runFixture, studyFixture } from '../../test/fixtures/studies';
+import { CHECKOUT, REVISION_1, REVISION_2, RUN_ID, analyticsFixture, cellsFixture, frontsFixture, runFixture, studyFixture } from '../../test/fixtures/studies';
 import { StudyDetail } from './StudyDetail';
 
 const platform = vi.hoisted(() => ({
-  study: vi.fn(), studyRuns: vi.fn(), studyRun: vi.fn(), studyCells: vi.fn(), analytics: vi.fn(),
- 
+  study: vi.fn(), studyRuns: vi.fn(), studyRun: vi.fn(), studyCells: vi.fn(), analytics: vi.fn(), exportStudyRun: vi.fn(),
 }));
-const runsApi = vi.hoisted(() => ({ get: vi.fn() }));
+const download = vi.hoisted(() => ({ saveBytes: vi.fn() }));
 
 const problems = vi.hoisted(() => ({ list: vi.fn(), revisions: vi.fn(), compilation: vi.fn(), ir: vi.fn() }));
 vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'), platformApi: platform }));
 vi.mock('../../api/problems', () => ({ problemsApi: problems }));
-vi.mock('../../api/runs', async () => ({ ...await vi.importActual<typeof import('../../api/runs')>('../../api/runs'), runsApi }));
-// The decision workspace is not what is under test here.
-vi.mock('../../components/BindingAnalysis/BindingAnalysis', async () => {
-  const { createElement } = await import('react');
-  return { BindingAnalysis: ({ jobId }: { jobId?: string }) => createElement('div', null, `Binding analysis of ${jobId}`) };
-});
+vi.mock('../../features/workspace/download', () => download);
 
 /** The one-run read answers from what the study's run list answers. */
 function oneRunFromList() {
@@ -59,7 +53,6 @@ describe('Analytics of a run, in the Results tab', () => {
     platform.analytics.mockResolvedValue(analyticsFixture());
     problems.list.mockResolvedValue({ problems: [CHECKOUT], total: 1, limit: 200, offset: 0 });
     problems.revisions.mockResolvedValue([REVISION_1, REVISION_2]);
-    runsApi.get.mockResolvedValue({ id: 'job', status: 'completed', result: { solutions: [] } });
   });
 
   it('counts the cells and compares the engines on the cost they found', async () => {
@@ -83,7 +76,7 @@ describe('Analytics of a run, in the Results tab', () => {
     expect(screen.getByRole('link', { name: 'Studies' })).toHaveAttribute('href', '/app/isa-demo/studies');
   });
 
-  it('plots two objectives and marks the best trade-offs of one case at a time', async () => {
+  it('plots two objectives and marks the cells on the gateway’s front of one case at a time', async () => {
     renderAnalytics();
 
     expect(await screen.findByRole('img', { name: /3 results plotted by Cost and Latency; 2 are best trade-offs: 0\.112 and 440; 0\.118 and 412/ })).toBeInTheDocument();
@@ -91,6 +84,30 @@ describe('Analytics of a run, in the Results tab', () => {
     expect(screen.getByRole('link', { name: 'cell 3' })).toHaveAttribute('href', `${RESULTS}&cell=${cells[3].id}`);
     fireEvent.change(screen.getByRole('combobox', { name: 'Problem' }), { target: { value: REVISION_2.id } });
     expect(screen.getByText(/Best trade-offs:/)).toHaveTextContent('cell 4 (0.104, 420); cell 6 (0.109, 398).');
+  });
+
+  it('marks only what the gateway put on the front, in its order, and compares nothing itself', async () => {
+    const [first] = frontsFixture();
+    // A front the client would never compute: cell 2 is beaten by cell 3 on both objectives.
+    platform.analytics.mockResolvedValue(analyticsFixture({ pareto: [{ ...first, points: [{ ...first.points[1], cell_id: cells[2].id }, first.points[0]] }] }));
+    renderAnalytics();
+
+    expect(await screen.findByText(/Best trade-offs:/)).toHaveTextContent('cell 2 (0.121, 430); cell 0 (0.112, 440).');
+    fireEvent.change(screen.getByRole('combobox', { name: 'Problem' }), { target: { value: REVISION_2.id } });
+    expect(screen.queryByText(/Best trade-offs:/)).not.toBeInTheDocument();
+    expect(screen.getByRole('img', { name: /3 results plotted by Cost and Latency; 0 are best trade-offs/ })).toBeInTheDocument();
+  });
+
+  it('lists the gateway’s front of each problem version with its points', async () => {
+    renderAnalytics();
+
+    const section = await screen.findByRole('region', { name: 'Pareto front' });
+    expect(within(section).getByText('4 points · computed by the gateway · lower is better')).toBeInTheDocument();
+    const first = within(section).getByRole('region', { name: 'Front of checkout-flow · version 1' });
+    expect(within(first).getAllByRole('row')).toHaveLength(3);
+    expect(within(first).getByRole('row', { name: /P1/ })).toHaveTextContent(/P1\s*#0\s*evolutionary\s*seed 1\s*0\.112\s*440/);
+    expect(within(section).getByRole('region', { name: 'Front of checkout-flow · version 2' })).toHaveTextContent('P4');
+    expect(within(section).getByRole('button', { name: 'Derive compositions' })).toBeDisabled();
   });
 
   it('ranks the engines by their mean and shows what each ran', async () => {
@@ -152,33 +169,26 @@ describe('Analytics of a run, in the Results tab', () => {
     expect(screen.getByRole('region', { name: 'Engines ranked by time taken' })).toBeInTheDocument();
   });
 
-  it('offers the CSV export of the run', async () => {
+  it('exports the run as CSV or JSON from the gateway, under the name the gateway gives', async () => {
+    const bytes = new TextEncoder().encode('{}').buffer;
+    platform.exportStudyRun.mockResolvedValue({ bytes, fileName: 'engines-vs-seeds-run-1.json', mediaType: 'application/json' });
     renderAnalytics();
 
-    await screen.findByRole('heading', { level: 2, name: 'Compare results · run #1' });
-    expect(screen.getByRole('button', { name: 'Export CSV' })).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole('button', { name: 'Export JSON' }));
+
+    await waitFor(() => expect(download.saveBytes).toHaveBeenCalledWith(bytes, 'engines-vs-seeds-run-1.json', 'application/json'));
+    expect(platform.exportStudyRun).toHaveBeenCalledWith('isa-demo', 'engines-vs-seeds', RUN_ID, 'json');
+    expect(screen.getByRole('button', { name: 'Export CSV' })).toBeEnabled();
   });
 
-  it('loads the solutions of one cell only when asked', async () => {
+  it('says when the gateway refuses an export', async () => {
+    platform.exportStudyRun.mockRejectedValue(refusal(403, 'api_key_permission_denied'));
     renderAnalytics();
 
-    const select = await screen.findByRole('combobox', { name: 'Analysis study cell' });
-    expect(runsApi.get).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button', { name: 'Load the solutions' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Export CSV' }));
 
-    expect(await screen.findByText('Binding analysis of 00000000-0000-4000-8000-000000000300')).toBeInTheDocument();
-    expect(runsApi.get).toHaveBeenCalledWith('isa-demo', '00000000-0000-4000-8000-000000000300');
-    fireEvent.change(select, { target: { value: '00000000-0000-4000-8000-000000000302' } });
-    expect(screen.queryByText('Binding analysis of 00000000-0000-4000-8000-000000000300')).not.toBeInTheDocument();
-  });
-
-  it('says a run that cannot be found cannot be opened', async () => {
-    runsApi.get.mockRejectedValue(refusal(404, 'not_found'));
-    renderAnalytics();
-
-    fireEvent.click(await screen.findByRole('button', { name: 'Load the solutions' }));
-
-    expect(await screen.findByText(/That run isn’t in this organization any more \(404 · not_found\)\./)).toBeInTheDocument();
+    expect(await screen.findByText('The CSV export couldn’t be made (403 · api_key_permission_denied).')).toBeInTheDocument();
+    expect(download.saveBytes).not.toHaveBeenCalled();
   });
 
   it('explains there is nothing to chart before any cell completes', async () => {
@@ -202,6 +212,9 @@ describe('Analytics of a run, in the Results tab', () => {
 
     expect(await screen.findByRole('heading', { level: 2, name: 'Compare results · run #1' })).toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Provenance of every cell' })).toBeInTheDocument();
+    const front = screen.getByRole('region', { name: 'Pareto front' });
+    expect(within(front).queryByRole('button', { name: 'Derive compositions' })).not.toBeInTheDocument();
+    expect(within(front).getByText('Read-only: deriving compositions needs MEMBER in Read Lab.')).toBeInTheDocument();
   });
 
   it('answers a run that is not there with a neutral 404', async () => {

@@ -130,3 +130,12 @@ export type RunPresetUpdate = Schemas['RunPresetUpdate'];
 
 /** An exact engine or deployment reference: namespace, name, version and digest. */
 export type ImmutableResourceRef = Schemas['ImmutableResourceRef'];
+
+/** The analytics of a study run (`GET …/studies/{study}/runs/{run}/analytics`), with the Pareto front of each problem revision. */
+export type AnalyticsView = Schemas['AnalyticsView'];
+
+/** The non-dominated points of one problem revision and one set of objective names, as the gateway computed them. */
+export type ParetoFront = Schemas['ParetoFront'];
+
+/** One point of a Pareto front: its cell, the run it ran as and the solution of that run (`point` of a derivation). */
+export type ParetoPoint = Schemas['ParetoPoint'];

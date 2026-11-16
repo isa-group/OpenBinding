@@ -1,3 +1,4 @@
+import type { AnalyticsView } from '../shared/api/types';
 import { apiClient, type Revised } from './client';
 
 export type RunState = 'queued' | 'running' | 'completed' | 'failed' | 'cancelled' | 'partial';
@@ -197,17 +198,46 @@ export interface BindingSpaceAnalytics {
   cases?: CaseComplexity[];
 }
 
-export interface Analytics {
-  cells: number;
-  completed: number;
-  failed: number;
-  feasible: number;
-  infeasible: number;
-  objective_distributions: Record<string, number[]>;
-  runtimes_s: number[];
-  pareto: Array<Record<string, number>>;
-  stability: Record<string, { samples: number; distinct: number; repeatability: number }>;
+/** How repeatable one engine was across the seeds of a study run. */
+export interface EngineStability {
+  samples: number;
+  distinct: number;
+  repeatability: number;
+}
+
+/**
+ * The analytics of a study run: the generated `AnalyticsView` (its `pareto` fronts included), with the two members the schema
+ * leaves open (`stability`, `binding_space`) read as the gateway writes them.
+ */
+export type Analytics = Omit<AnalyticsView, 'stability' | 'binding_space'> & {
+  stability: Record<string, EngineStability>;
   binding_space?: BindingSpaceAnalytics | null;
+};
+
+/** The formats a study run is exported in (`exportStudyRun`). */
+export type StudyRunExportFormat = 'csv' | 'json';
+
+/** A study run exported by the gateway: the bytes, the file name its `Content-Disposition` gives and their media type. */
+export interface StudyRunFile {
+  bytes: ArrayBuffer;
+  fileName: string;
+  mediaType: string;
+}
+
+/** The file name a `Content-Disposition` header names (`filename*=UTF-8''…` or `filename="…"`), or `fallback`. */
+export function attachmentName(header: string | null, fallback: string): string {
+  if (!header) return fallback;
+  const encoded = /filename\*\s*=\s*(?:UTF-8|utf-8)''([^;]+)/.exec(header);
+  if (encoded) {
+    try {
+      return decodeURIComponent(encoded[1].trim());
+    } catch {
+      // A malformed escape falls through to the plain name.
+    }
+  }
+  const plain = /filename\s*=\s*(?:"([^"]*)"|([^;\s]+))/.exec(header);
+  const name = plain ? (plain[1] ?? plain[2] ?? '').trim() : '';
+  return name || fallback;
 }
 
 export interface JobOrganizationRef { id: string; slug: string }
@@ -392,6 +422,20 @@ export const platformApi = {
   analytics: (org: string, study: string, run: string) =>
     apiClient.request<Analytics>(
       `${root(org)}/studies/${encodeURIComponent(study)}/runs/${encodeURIComponent(run)}/analytics`,
+    ),
+  /**
+   * The whole study run as one file (VIEWER): CSV with one row per cell, or JSON with the frozen definition and every cell. It is
+   * fetched with the session's credentials and handed back as bytes, named as the gateway's `Content-Disposition` names it.
+   */
+  exportStudyRun: (org: string, study: string, run: string, format: StudyRunExportFormat) =>
+    apiClient.request<StudyRunFile>(
+      `${root(org)}/studies/${encodeURIComponent(study)}/runs/${encodeURIComponent(run)}/export?format=${format}`,
+      {}, undefined, true, true,
+      async (response) => ({
+        bytes: await response.arrayBuffer(),
+        fileName: attachmentName(response.headers.get('Content-Disposition'), `${study}-run.${format}`),
+        mediaType: response.headers.get('Content-Type') ?? (format === 'csv' ? 'text/csv' : 'application/json'),
+      }),
     ),
   /**
    * Needs MEMBER. Freezes the study's current definition into a new run: 202 with it. 402 `quota_exceeded`,

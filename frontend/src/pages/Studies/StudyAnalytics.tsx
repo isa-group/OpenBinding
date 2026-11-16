@@ -1,8 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { runsApi } from '../../api/runs';
-import { platformApi, type BindingSpaceAnalytics, type StudyCell } from '../../api/platform';
-import { BindingAnalysis } from '../../components/BindingAnalysis/BindingAnalysis';
+import { platformApi, type BindingSpaceAnalytics, type StudyRunExportFormat } from '../../api/platform';
 import { BindingSpaceBadge } from '../../components/BindingSpaceBadge/BindingSpaceBadge';
 import { parseBindingSpace, toSuperscript } from '../../components/BindingSpaceBadge/bindingSpace';
 import { Action } from '../../components/ui/Action';
@@ -17,7 +15,8 @@ import { useResource } from '../../utils/useResource';
 import { classifyAuthError, marker } from '../../shared/api/errors';
 import { saveBytes } from '../../features/workspace/download';
 import { DistributionPlot, RankingTable, SeedTable, TimeBars, TradeoffPlot } from './AnalyticsCharts';
-import { cellsCsv, engineRows, measureTitle, scatterOf, seedGroups, spreadOf } from './analyticsModel';
+import { engineRows, measureTitle, scatterOf, seedGroups, spreadOf } from './analyticsModel';
+import { ParetoFront } from './ParetoFront';
 import { StateChip, StudyGate } from './parts';
 import { loadRun } from './runData';
 import type { StudyScopeValue } from './StudyScope';
@@ -60,42 +59,9 @@ function SpacePanel({ space }: { space: BindingSpaceAnalytics }) {
   );
 }
 
-/** The solutions of one cell's job, on request: the decision workspace the earlier analytics screen opened by default. */
-function CellSolutions({ org, cells, index }: { org: string; cells: readonly StudyCell[]; index: ReturnType<typeof useRevisionIndex>['index'] }) {
-  const withJob = cells.filter((cell) => cell.job_id && cell.state === 'completed');
-  const [picked, setPicked] = useState('');
-  const [asked, setAsked] = useState('');
-  const chosen = withJob.some((cell) => cell.job_id === picked) ? picked : withJob[0]?.job_id ?? '';
-  const result = useResource(`explore:${org}/${asked}`, () => (asked ? runsApi.get(org, asked).then((job) => job.result ?? null) : Promise.resolve(null)));
-  if (withJob.length === 0) return null;
-  const failure = result.status === 'error' ? classifyAuthError(result.error) : null;
-  return (
-    <section className="st-card" aria-labelledby="st-explore-title">
-      <h2 id="st-explore-title">Explore the solutions of one cell</h2>
-      <p className="org-muted">Choose one execution to keep its instance, objective and normalization together. Different problems are never pooled into one front.</p>
-      <div className="st-explore-pick">
-        <label className="job-select">
-          <span>Cell</span>
-          <select aria-label="Analysis study cell" value={chosen} onChange={(event) => { setPicked(event.target.value); setAsked(''); }}>
-            {withJob.map((cell) => (
-              <option key={cell.id} value={cell.job_id ?? ''}>
-                Cell {cell.ordinal} · {revisionLabel(index, cell.binding_case_revision_id, true)} · {cell.engine_ref.name} · seed {cell.seed}
-              </option>
-            ))}
-          </select>
-        </label>
-        <Action variant="secondary" size="sm" disabled={!chosen || asked === chosen} busy={Boolean(asked) && result.status === 'loading'} onClick={() => setAsked(chosen)}>Load the solutions</Action>
-      </div>
-      {failure && <Notice tone="error">{failure.status === 404 ? 'That run isn’t in this organization any more' : 'The solutions couldn’t be loaded'}{marker(failure)}.</Notice>}
-      {asked && result.status === 'ready' && result.data && <BindingAnalysis result={result.data} jobId={asked} />}
-      {asked && result.status === 'ready' && !result.data && <p className="org-muted">That run has no stored result.</p>}
-    </section>
-  );
-}
-
-/** The Results tab of the study page: the analytics of the study run `runId`, its cells and their CSV export. */
+/** The Results tab of the study page: the analytics of the study run `runId`, its Pareto front, its cells and the gateway's export of them. */
 export function RunResults({ scope, runId }: { scope: StudyScopeValue; runId: string }) {
-  const { study, organization, studyPath } = scope;
+  const { study, organization, studyPath, access } = scope;
   const org = organization.slug;
   const cellHref = (cellId: string) => studyPageHref(studyPath, 'results', { run: runId, cell: cellId });
   const { index } = useRevisionIndex(org);
@@ -106,6 +72,23 @@ export function RunResults({ scope, runId }: { scope: StudyScopeValue; runId: st
   const [caseChoice, setCaseChoice] = useState('');
   const [xChoice, setXChoice] = useState<string | null>(null);
   const [yChoice, setYChoice] = useState<string | null>(null);
+  const [exporting, setExporting] = useState<StudyRunExportFormat | null>(null);
+  const [exportFailure, setExportFailure] = useState<string | null>(null);
+
+  /** The gateway's export of the whole run, fetched with the session and saved under the name the gateway gives it. */
+  const exportRun = async (format: StudyRunExportFormat) => {
+    if (exporting) return;
+    setExporting(format);
+    setExportFailure(null);
+    try {
+      const file = await platformApi.exportStudyRun(org, study.slug, runId, format);
+      saveBytes(file.bytes, file.fileName, file.mediaType);
+    } catch (caught) {
+      setExportFailure(`The ${format.toUpperCase()} export couldn’t be made${marker(classifyAuthError(caught))}.`);
+    } finally {
+      setExporting(null);
+    }
+  };
 
   const summary = analytics.data ?? analytics.stale;
   const data = loaded.data ?? loaded.stale;
@@ -137,14 +120,14 @@ export function RunResults({ scope, runId }: { scope: StudyScopeValue; runId: st
   const median = spreadOf(summary.runtimes_s)?.median;
 
   const caseIds = [...new Set(completed.map((cell) => cell.binding_case_revision_id))];
-  const exportCsv = () => {
-    const text = cellsCsv(allCells, measures, index);
-    saveBytes(new TextEncoder().encode(text).slice().buffer, `${study.slug}-run-${data.run.run_number}-cells.csv`, 'text/csv');
-  };
   const scatterCase = caseIds.includes(caseChoice) ? caseChoice : caseIds[0] ?? '';
   const xName = xChoice && objectives.includes(xChoice) ? xChoice : objectives[0] ?? '';
   const yName = yChoice && objectives.includes(yChoice) && yChoice !== xName ? yChoice : objectives.find((name) => name !== xName) ?? '';
-  const points = objectives.length >= 2 ? scatterOf(cells, scatterCase, xName, yName) : [];
+  const fronts = summary.pareto ?? [];
+  // The cells on the gateway's fronts of the plotted version, in the gateway's order; the chart only marks them.
+  const frontOrder = [...new Set(fronts.filter((front) => front.revision_id === scatterCase).flatMap((front) => front.points.map((point) => point.cell_id)))];
+  const points = objectives.length >= 2 ? scatterOf(cells, scatterCase, xName, yName, new Set(frontOrder)) : [];
+  const onFront = frontOrder.flatMap((cellId) => points.filter((point) => point.cell.id === cellId));
   const groups = seedGroups(cells, measure, index).filter((group) => group.seeds.length > 1);
 
   return (
@@ -155,9 +138,11 @@ export function RunResults({ scope, runId }: { scope: StudyScopeValue; runId: st
           <p>Only what the run recorded. Nothing here is estimated: lower is better for every objective.</p>
         </div>
         <div className="proj-actions">
-          <Action variant="secondary" onClick={exportCsv}>Export CSV</Action>
+          <Action variant="secondary" busy={exporting === 'csv'} disabled={exporting !== null && exporting !== 'csv'} onClick={() => void exportRun('csv')}>Export CSV</Action>
+          <Action variant="secondary" busy={exporting === 'json'} disabled={exporting !== null && exporting !== 'json'} onClick={() => void exportRun('json')}>Export JSON</Action>
         </div>
       </header>
+      {exportFailure && <Notice tone="error">{exportFailure}</Notice>}
 
       <div className="st-counters" aria-label="Counts of the run">
         <Counter value={String(allCells.length)} label="cells" />
@@ -245,9 +230,9 @@ export function RunResults({ scope, runId }: { scope: StudyScopeValue; runId: st
                   {points.length === 0
                     ? <p className="org-muted">No completed cell of this problem has both objectives.</p>
                     : <TradeoffPlot points={points} xName={xName} yName={yName} />}
-                  {points.some((point) => point.front) && (
+                  {onFront.length > 0 && (
                     <p className="st-caption">
-                      Best trade-offs: {points.filter((point) => point.front).sort((a, b) => a.x - b.x).map((point, position) => (
+                      Best trade-offs: {onFront.map((point, position) => (
                         <span key={point.cell.id}>{position > 0 && '; '}<Link to={cellHref(point.cell.id)} viewTransition>cell {point.cell.ordinal}</Link> ({formatMeasure(point.x)}, {formatMeasure(point.y)})</span>
                       ))}.
                     </p>
@@ -280,8 +265,8 @@ export function RunResults({ scope, runId }: { scope: StudyScopeValue; runId: st
             </section>
           </div>
 
+          <ParetoFront org={org} orgName={organization.name} fronts={fronts} cells={allCells} cellHref={cellHref} canDerive={access.canCreate} />
           {summary.binding_space && <SpacePanel space={summary.binding_space} />}
-          <CellSolutions org={org} cells={allCells} index={index} />
 
           <section className="st-card" aria-labelledby="st-ledger-title">
             <div className="st-card-head">

@@ -8,7 +8,7 @@ import { RESULT, S1 } from '../../test/fixtures/jobs';
 import { DeriveCompositionDialog } from './DeriveCompositionDialog';
 import type { DeriveSource } from './deriveModel';
 
-const api = vi.hoisted(() => ({ list: vi.fn(), create: vi.fn(), derive: vi.fn() }));
+const api = vi.hoisted(() => ({ list: vi.fn(), create: vi.fn(), derive: vi.fn(), get: vi.fn(), version: vi.fn() }));
 vi.mock('../../entities/composition/api', () => ({ compositionsApi: api }));
 
 const RUN = '00000000-0000-4000-8000-0000000000a1';
@@ -293,5 +293,62 @@ describe('Deriving a composition from a binding of a problem version', () => {
     expect(within(dialog).getByRole('list', { name: 'Steps' }).querySelector('[aria-current="step"]')).toHaveTextContent('Where');
     await intoNew(dialog);
     expect(within(dialog).getByRole('region', { name: 'Binding to derive' })).toBeInTheDocument();
+  });
+});
+
+describe('Deriving the points of a study front, one composition each', () => {
+  const POINTS = [
+    { key: 'k1', label: 'P1', detail: 'checkout-flow version 1 · cell 0', run: 'run-1', point: 0, slug: 'checkout-flow-p1', name: 'checkout-flow P1' },
+    { key: 'k2', label: 'P2', detail: 'checkout-flow version 1 · cell 3', run: 'run-2', point: 2, slug: 'checkout-flow-p2', name: 'checkout-flow P2' },
+  ];
+
+  function renderBatch() {
+    const onClose = vi.fn();
+    const onDerived = vi.fn();
+    render(
+      <MemoryRouter>
+        <DeriveCompositionDialog org="isa-demo" source={{ points: POINTS }} onClose={onClose} onDerived={onDerived} />
+      </MemoryRouter>,
+    );
+    return { onClose, onDerived, dialog: screen.getByRole('dialog', { name: 'Derive compositions' }) };
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    api.create.mockImplementation(async (_org: string, body: { slug: string; name: string }) => composition(body.slug, body.name, null));
+    api.derive.mockImplementation(async (_org: string, slug: string, body: { version: string }) => ({
+      created: true, result: { ...sealedAs(body.version), version: { id: `${slug}-v1`, label: body.version } },
+    }));
+  });
+
+  it('creates each composition with the chosen kind, seals each point as 1.0.0 and reports each to the page', async () => {
+    const { dialog, onDerived } = renderBatch();
+    expect(api.list).not.toHaveBeenCalled();
+    fireEvent.change(within(dialog).getByLabelText('Kind'), { target: { value: 'workflow' } });
+    click(dialog, 'Derive 2 compositions');
+
+    await within(dialog).findByText('2 of 2 points hold a composition.');
+    expect(api.create.mock.calls).toEqual([
+      ['isa-demo', { slug: 'checkout-flow-p1', name: 'checkout-flow P1', kind: 'workflow', description: '' }],
+      ['isa-demo', { slug: 'checkout-flow-p2', name: 'checkout-flow P2', kind: 'workflow', description: '' }],
+    ]);
+    expect(api.derive.mock.calls[1]).toEqual(['isa-demo', 'checkout-flow-p2', { run: 'run-2', point: 2, version: '1.0.0', seal: true }]);
+    expect(onDerived).toHaveBeenCalledWith('k1', { slug: 'checkout-flow-p1', name: 'checkout-flow P1', version: { id: 'checkout-flow-p1-v1', label: '1.0.0' }, created: true });
+    expect(onDerived).toHaveBeenCalledTimes(2);
+    expect(within(dialog).queryByRole('button', { name: /^Retry/ })).not.toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: 'Done' })).toBeEnabled();
+  });
+
+  it('words each refusal on its own point and keeps going', async () => {
+    api.create.mockRejectedValueOnce(refused(403, 'organization_forbidden'));
+    api.derive.mockRejectedValueOnce(refused(409, 'version_label_taken'));
+    const { dialog, onDerived } = renderBatch();
+    click(dialog, 'Derive 2 compositions');
+
+    await within(dialog).findByText(/^0 of 2 points hold a composition\. 2 failed:/);
+    expect(within(dialog).getByLabelText('Result of P1')).toHaveTextContent('Deriving a composition needs MEMBER in this organization (403 · organization_forbidden).');
+    expect(within(dialog).getByLabelText('Result of P2')).toHaveTextContent('1.0.0 of checkout-flow-p2 already holds another document. Choose another address.');
+    expect(onDerived).not.toHaveBeenCalled();
+    expect(within(dialog).getByRole('button', { name: 'Retry 2 points' })).toBeEnabled();
   });
 });
