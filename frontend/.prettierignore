@@ -1,0 +1,10 @@
+# Generated from docs/openapi.json by scripts/gen-api.mjs and checked byte for byte by `pnpm gen:api --check`.
+src/shared/api/openapi.ts
+dist
+test-results
+playwright-report
+node_modules
+pnpm-lock.yaml
+# Data read byte for byte elsewhere (the gateway's tests, golden fixtures), never formatted.
+src/test/fixtures
+src/content/*.json

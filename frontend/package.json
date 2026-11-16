@@ -12,6 +12,8 @@
     "build": "tsc -b && vite build",
     "gen:api": "node scripts/gen-api.mjs",
     "lint": "eslint .",
+    "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"e2e/**/*.ts\" \"scripts/**/*.mjs\" \"*.{ts,js}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\" \"e2e/**/*.ts\" \"scripts/**/*.mjs\" \"*.{ts,js}\"",
     "preview": "vite preview",
     "test": "vitest run --project app --project corpus",
     "test:watch": "vitest --project app --project corpus",
