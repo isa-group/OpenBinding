@@ -496,7 +496,7 @@ def _invalid(diagnostics) -> Exception:
     dependencies=[Depends(charge_anonymous_read)],
     responses={
         **_UNREADABLE,
-        422: {**_ERROR, "description": "`created_after` is later than `created_before` (`invalid_request`)."},
+        422: {"description": "`created_after` is later than `created_before` (`invalid_request`)."},
     },
 )
 async def list_composition_versions(

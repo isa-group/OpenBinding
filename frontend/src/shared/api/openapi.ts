@@ -11488,7 +11488,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
+                    "application/json": components["schemas"]["Problem"];
                 };
             };
             /** @description Too many `read` requests from this address by a caller with no credential: past the anonymous budget. A signed-in caller is not charged. `Retry-After` says when the window ends. */
