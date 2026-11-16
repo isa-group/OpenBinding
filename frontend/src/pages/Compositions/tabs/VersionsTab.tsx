@@ -8,11 +8,15 @@ import { Badge } from '../../../modules/core/components/badge';
 import { DataTable } from '../../../modules/core/components/data-table';
 import { FilterPills } from '../../../modules/core/components/filter-pills';
 import { useCopy } from '../../../modules/core/hooks/useCopy';
-import { compositionsApi } from '../../../entities/composition/api';
-import { formatValue, valueModels, valueStatus } from '../../../entities/composition/values';
-import { pickVersion } from '../../../entities/composition/versionRef';
-import { compositionViewModel } from '../../../entities/composition/viewModel';
-import { problemFactsApi } from '../../../entities/problem/facts';
+import { compositionsApi } from '../../../modules/core/utils/composition/api';
+import {
+  formatValue,
+  valueModels,
+  valueStatus,
+} from '../../../modules/core/utils/composition/values';
+import { pickVersion } from '../../../modules/core/utils/composition/versionRef';
+import { compositionViewModel } from '../../../modules/core/utils/composition/viewModel';
+import { problemFactsApi } from '../../../modules/core/utils/problem/facts';
 import { problemPath } from '../../../routes/paths/problems';
 import { runPath } from '../../../routes/paths/runs';
 import {
@@ -30,14 +34,14 @@ import type {
 } from '../../../modules/core/api/types';
 import { formatDate } from '../../../utils/format';
 import { useResource, type Resource } from '../../../utils/useResource';
-import { ChangeSummary } from '../../../widgets/change-summary/ChangeSummary';
-import { useVersionChanges } from '../../../widgets/change-summary/useVersionChanges';
-import { CompositionRenderer } from '../../../widgets/composition-renderer/CompositionRenderer';
-import type { Loaded } from '../../../widgets/composition-renderer/modes/comparison/comparisonModel';
-import type { Texts } from '../../../widgets/composition-renderer/modes/comparison/Comparison';
-import { EvolutionCharts } from '../../../widgets/evolution-charts/EvolutionCharts';
-import { ValueBadge } from '../../../widgets/value-badge/ValueBadge';
-import { factsSource } from '../../../entities/composition/factsSource';
+import { ChangeSummary } from '../../../modules/composition/components/change-summary/ChangeSummary';
+import { useVersionChanges } from '../../../modules/composition/components/change-summary/useVersionChanges';
+import { CompositionRenderer } from '../../../modules/core/components/composition-renderer/CompositionRenderer';
+import type { Loaded } from '../../../modules/core/components/composition-renderer/modes/comparison/comparisonModel';
+import type { Texts } from '../../../modules/core/components/composition-renderer/modes/comparison/Comparison';
+import { EvolutionCharts } from '../../../modules/composition/components/evolution-charts/EvolutionCharts';
+import { ValueBadge } from '../../../modules/core/components/value-badge/ValueBadge';
+import { factsSource } from '../../../modules/core/utils/composition/factsSource';
 
 type View = VersionsView;
 

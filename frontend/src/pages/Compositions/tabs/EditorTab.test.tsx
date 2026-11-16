@@ -5,8 +5,8 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import { HttpError } from '../../../api/client';
 import { iker, org, renderOrgScreen } from '../../../features/workspace/testKit';
 import type { CompositionVersionView, CompositionView } from '../../../modules/core/api/types';
-import { draftScope, loadDraft } from '../../../shared/editor/drafts';
-import { compositionFragment } from '../../../shared/sphere/composition-fragment';
+import { draftScope, loadDraft } from '../../../modules/core/editor/drafts';
+import { compositionFragment } from '../../../modules/core/utils/sphere/composition-fragment';
 import fmsVersion from '../../../test/fixtures/core/fms.version.json';
 import { CompositionDetail } from '../CompositionDetail';
 
@@ -24,12 +24,12 @@ const language = vi.hoisted(() => ({
   serialise: vi.fn(),
   schema: vi.fn(),
 }));
-vi.mock('../../../entities/composition/api', () => ({
+vi.mock('../../../modules/core/utils/composition/api', () => ({
   compositionsApi: api,
   languageApi: language,
 }));
 const factsApi = vi.hoisted(() => ({ get: vi.fn() }));
-vi.mock('../../../entities/problem/facts', () => ({ problemFactsApi: factsApi }));
+vi.mock('../../../modules/core/utils/problem/facts', () => ({ problemFactsApi: factsApi }));
 
 const member = org('isa-demo', { name: 'ISA Demo Group', effective_role: 'MEMBER' });
 const viewer = org('isa-demo', { name: 'ISA Demo Group', effective_role: 'VIEWER' });

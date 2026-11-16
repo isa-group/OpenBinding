@@ -7,7 +7,7 @@ import { Action } from '../../modules/core/components/action-button';
 import { FormField } from '../../modules/core/components/form-field';
 import { Modal } from '../../modules/core/components/modal';
 import { Notice } from '../../modules/core/components/notice';
-import { SLUG_PATTERN, slugFromName } from '../../shared/lib/slug';
+import { SLUG_PATTERN, slugFromName } from '../../modules/core/utils/slug';
 import { atLeast, buildForest, flatten, pathOf } from './orgModel';
 import { generalFailure } from '../../features/workspace/errors';
 import { classifyAuthError, marker } from '../../modules/core/api/errors';

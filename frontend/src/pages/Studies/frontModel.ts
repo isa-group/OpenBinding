@@ -1,6 +1,6 @@
 import type { StudyCell } from '../../api/platform';
-import type { FrontPoint } from '../../features/derive/deriveModel';
-import { pointSlug } from '../../features/derive/deriveModel';
+import type { FrontPoint } from '../../modules/run/components/derive/deriveModel';
+import { pointSlug } from '../../modules/run/components/derive/deriveModel';
 import type { ParetoFront, ParetoPoint } from '../../modules/core/api/types';
 import { formatMeasure, measureLabel } from './studiesModel';
 

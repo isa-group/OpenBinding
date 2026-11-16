@@ -439,7 +439,7 @@ describe('the allow-list', () => {
 
   it('renders the changes of a file in the problem editor through FileDiff, with no <pre> of its own', () => {
     const pane = Object.entries(sources).find(([path]) =>
-      path.endsWith('/features/bim-editor/FilesPane.tsx')
+      path.endsWith('/modules/problem-editor/components/bim-editor/FilesPane.tsx')
     )?.[1];
     expect(pane).toBeDefined();
     expect(pane).toContain('<FileDiff');
@@ -461,7 +461,7 @@ describe('the allow-list', () => {
   it('has no entry for the library content view, which slice 3 retires, nor for the feature cell the problem editor took over', () => {
     expect(
       [...RAW_RENDERING_ALLOW_LIST, ...UNLISTED_FINDINGS].filter(entry =>
-        entry.file.startsWith('features/bim-editor/FeatureCell')
+        entry.file.startsWith('modules/problem-editor/components/bim-editor/FeatureCell')
       )
     ).toEqual([]);
     expect(Object.keys(sources).filter(path => path.includes('/pages/Library/'))).toEqual([]);

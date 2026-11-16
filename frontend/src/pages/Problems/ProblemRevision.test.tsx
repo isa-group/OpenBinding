@@ -14,8 +14,8 @@ const problems = vi.hoisted(() => ({
 const facts = vi.hoisted(() => ({ get: vi.fn() }));
 
 vi.mock('../../api/problems', () => ({ problemsApi: problems }));
-vi.mock('../../entities/problem/facts', async actual => ({
-  ...(await actual<typeof import('../../entities/problem/facts')>()),
+vi.mock('../../modules/core/utils/problem/facts', async actual => ({
+  ...(await actual<typeof import('../../modules/core/utils/problem/facts')>()),
   problemFactsApi: facts,
 }));
 

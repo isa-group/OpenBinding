@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { UserProfile } from '../../../api/auth';
 import { HttpError, SESSION_ENDED_EVENT } from '../../../api/client';
 import { clearSessionEnded, hasSessionEnded, markSessionEnded } from '../../../utils/authFlow';
-import { loadDraft, saveDraft } from '../../../shared/editor/drafts';
+import { loadDraft, saveDraft } from '../../core/editor/drafts';
 import { AuthProvider } from './authProvider';
 import { useAuth } from '../hooks/useAuth';
 

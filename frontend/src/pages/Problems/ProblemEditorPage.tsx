@@ -1,5 +1,5 @@
 import { useAuth } from '../../modules/auth/hooks/useAuth';
-import { ProblemEditor } from '../../features/bim-editor/ProblemEditor';
+import { ProblemEditor } from '../../modules/problem-editor/components/bim-editor/ProblemEditor';
 import { OrgFrame, OrgGate, OrgSkeleton } from '../../features/workspace/OrgFrame';
 import { problemsPath } from '../../routes/paths/problems';
 import { useRouteOrganization } from '../Organization/useRouteOrganization';

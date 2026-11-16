@@ -5,7 +5,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import { HttpError } from '../../api/client';
 import examples from '../../content/composition2yaml-examples.json';
 import type { CompositionDiagnosticView } from '../../modules/core/api/types';
-import { compositionFragment } from '../../shared/sphere/composition-fragment';
+import { compositionFragment } from '../../modules/core/utils/sphere/composition-fragment';
 import {
   LANGUAGE_LINT_DELAY_MS,
   LanguagePage,
@@ -21,7 +21,7 @@ const language = vi.hoisted(() => ({
   serialise: vi.fn(),
   schema: vi.fn(),
 }));
-vi.mock('../../entities/composition/api', () => ({ languageApi: language }));
+vi.mock('../../modules/core/utils/composition/api', () => ({ languageApi: language }));
 
 const SHARED =
   'syntaxVersion: "1.0"\ncomposition: hello\nversion: 0.1.0\nkind: workflow\nworkflow: greet\nbinding: {greet: {candidate: greeter}}\nvalues: {}\n';

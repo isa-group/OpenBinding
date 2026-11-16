@@ -6,7 +6,7 @@ import { FormField } from '../../../modules/core/components/form-field';
 import { Modal } from '../../../modules/core/components/modal';
 import { Notice } from '../../../modules/core/components/notice';
 import { Switch } from '../../../modules/core/components/switch';
-import { compositionsApi } from '../../../entities/composition/api';
+import { compositionsApi } from '../../../modules/core/utils/composition/api';
 import { compositionsPath } from '../../../routes/paths/compositions';
 import { readApiError, type ApiError } from '../../../modules/core/api/errors';
 import type { CompositionUpdate, CompositionView } from '../../../modules/core/api/types';

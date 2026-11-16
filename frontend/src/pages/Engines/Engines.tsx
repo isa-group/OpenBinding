@@ -16,7 +16,7 @@ import { Notice } from '../../modules/core/components/notice';
 import { PageHeader } from '../../modules/core/components/page-header';
 import { Skeleton } from '../../modules/core/components/skeleton';
 import { useAuth } from '../../modules/auth/hooks/useAuth';
-import { engineLabel } from '../../shared/lib/identity';
+import { engineLabel } from '../../modules/core/utils/identity';
 import { useResource } from '../../utils/useResource';
 import {
   BUILTIN_NAMESPACE,

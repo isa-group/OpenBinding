@@ -21,7 +21,7 @@ import { ResultSection } from './RunOutcome';
 import { rangeFailureOf, refusalOf, type Refusal } from './runErrors';
 import { originOf } from './runsData';
 import { canRetryState, isActive, normalizeStatus, readPins } from './runsModel';
-import { runLabel } from '../../shared/lib/identity';
+import { runLabel } from '../../modules/core/utils/identity';
 import { JobFrame, JobMissing, OutcomeChip, RefusalNotice, StatusChip } from './parts';
 import { useRunLive } from './useRunLive';
 

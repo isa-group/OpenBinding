@@ -1,7 +1,7 @@
 import type { UsageView } from '../../api/auth';
 import type { EngineCatalogEntry, EngineMode } from '../../api/client';
 import type { ExecutionOptimization, LaunchRequest } from '../../api/runs';
-import type { PresetSettings } from '../../entities/preset/api';
+import type { PresetSettings } from '../../modules/run/api/presetsApi';
 import type { ImmutableResourceRef, RunPresetView } from '../../modules/core/api/types';
 import type { ProblemRevision } from '../../api/problems';
 import type { CaseContent } from '../../features/workspace/model';

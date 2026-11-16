@@ -8,15 +8,15 @@ import { FilterPills } from '../../modules/core/components/filter-pills';
 import { Notice } from '../../modules/core/components/notice';
 import { PageHeader } from '../../modules/core/components/page-header';
 import { Skeleton } from '../../modules/core/components/skeleton';
-import { compositionsApi } from '../../entities/composition/api';
-import { KIND_OPTIONS, isKind, kindLabel } from '../../entities/composition/kinds';
-import { valueStatus } from '../../entities/composition/values';
+import { compositionsApi } from '../../modules/core/utils/composition/api';
+import { KIND_OPTIONS, isKind, kindLabel } from '../../modules/core/utils/composition/kinds';
+import { valueStatus } from '../../modules/core/utils/composition/values';
 import { publicCompositionsPath, showcasePath } from '../../routes/paths/compositions';
 import { classifyAuthError, marker } from '../../modules/core/api/errors';
 import type { PublicCompositionList as PublicList } from '../../modules/core/api/types';
 import { formatDate } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
-import { ValueBadge } from '../../widgets/value-badge/ValueBadge';
+import { ValueBadge } from '../../modules/core/components/value-badge/ValueBadge';
 import './PublicCompositions.css';
 
 /** How many compositions one page lists. */

@@ -7,7 +7,7 @@ import { FormField } from '../../modules/core/components/form-field';
 import { Modal } from '../../modules/core/components/modal';
 import { deleteRefusal, uploadRefusal, type Refusal } from './problemErrors';
 import { DESCRIPTION_MAX, NAME_MAX } from './problemsModel';
-import { SLUG_PATTERN, slugFromName } from '../../shared/lib/slug';
+import { SLUG_PATTERN, slugFromName } from '../../modules/core/utils/slug';
 import '../../features/workspace/kit.css';
 
 /** The producer an upload names: the gateway records the version's origin as `upload` from it. */

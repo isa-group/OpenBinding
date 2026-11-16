@@ -1,7 +1,7 @@
 import type { Problem, ProblemRevision } from '../../api/problems';
 import { parseBindingSpace } from '../../components/BindingSpaceBadge/bindingSpace';
-import { workflowGraph } from '../../entities/binding/workflowGraph';
-import { describeExpression } from '../../entities/problem/expressions';
+import { workflowGraph } from '../../modules/core/utils/binding/workflowGraph';
+import { describeExpression } from '../../modules/core/utils/problem/expressions';
 import type { ProblemFacts } from '../../modules/core/api/types';
 import { formatFeature, type FeatureValue } from '../../utils/featureRange';
 

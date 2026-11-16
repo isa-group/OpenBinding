@@ -15,7 +15,7 @@ const api = vi.hoisted(() => ({
   version: vi.fn(),
   fork: vi.fn(),
 }));
-vi.mock('../../entities/composition/api', () => ({ compositionsApi: api }));
+vi.mock('../../modules/core/utils/composition/api', () => ({ compositionsApi: api }));
 
 const platform = vi.hoisted(() => ({ organizations: vi.fn() }));
 vi.mock('../../api/platform', () => ({ platformApi: platform }));

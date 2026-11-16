@@ -3,8 +3,8 @@ import { describe, expect, it } from 'vitest';
 
 /**
  * Lints text with the real eslint.config.js. The linted file needs no existence, but what it imports must resolve: pages import
- * real pages, and the new layers import the slices under src/test/fixtures/boundaries/src/<layer>/alpha, whose paths end in
- * src/<layer>/<slice> like the real ones, so the layer rules classify them the same way.
+ * real pages, and the module rule is tried on the pieces under src/test/fixtures/boundaries/src/modules/, whose paths end in
+ * src/modules/<module>/<folder> like the real ones, so the rule classifies them the same way.
  */
 const eslint = new ESLint({ cwd: process.cwd() });
 const lint = async (filePath: string, code: string) => {
@@ -14,9 +14,9 @@ const lint = async (filePath: string, code: string) => {
 const boundaries = (messages: { ruleId: string | null }[]) =>
   messages.filter(m => m.ruleId?.startsWith('boundaries/'));
 
-/** An import of `layer`'s fixture slice from a file at `from` (two folders below src, like every slice file). */
-const importing = (layer: string) =>
-  `import { slice } from '../../test/fixtures/boundaries/src/${layer}/alpha';\nexport const used = slice;\n`;
+/** An import of a fixture piece (`alpha/api`, `core/utils/alpha`…) from a file three folders below src/modules. */
+const importing = (piece: string) =>
+  `import { slice } from '../../../test/fixtures/boundaries/src/modules/${piece}';\nexport const used = slice;\n`;
 
 const errorsOf = async (from: string, code: string) => {
   const result = await lint(from, code);
@@ -45,54 +45,45 @@ describe('boundaries rule on page imports', () => {
   });
 });
 
-describe('boundaries rule on the new layers', () => {
+describe('the module rule', () => {
   it.each([
-    ['a widget', 'src/widgets/probe/Probe.tsx', 'features'],
-    ['an entity', 'src/entities/probe/probe.ts', 'widgets'],
-    ['an entity', 'src/entities/probe/probe.ts', 'features'],
-    ['a feature', 'src/features/probe/probe.ts', 'features'],
-    ['a shared module', 'src/shared/probe/probe.ts', 'entities'],
-  ])('fails when %s (%s) imports from %s', async (_who, from, layer) => {
-    const { errors } = await errorsOf(from, importing(layer));
+    ['core', 'src/modules/core/utils/probe.ts', 'alpha/api'],
+    ['core', 'src/modules/core/utils/probe.ts', 'alpha/utils'],
+    ['another module', 'src/modules/beta/utils/probe.ts', 'alpha/utils'],
+    ["another module's public folder", 'src/modules/beta/api/probe.ts', 'alpha/utils'],
+  ])('fails when %s (%s) imports %s', async (_who, from, piece) => {
+    const { errors } = await errorsOf(from, importing(piece));
     expect(errors).toBeGreaterThan(0);
   });
 
-  it('fails when a renderer mode imports the derive dialog: the page mounts it and the mode takes a callback', async () => {
+  it('fails when a core renderer mode imports a domain dialog: the page mounts it and the mode takes a callback', async () => {
     const { errors } = await errorsOf(
-      'src/widgets/composition-renderer/modes/probe.tsx',
-      "import { DeriveCompositionDialog } from '../../../features/derive/DeriveCompositionDialog';\nexport const used = DeriveCompositionDialog;\n"
-    );
-    expect(errors).toBeGreaterThan(0);
-  });
-
-  it('fails when a feature imports a page', async () => {
-    const { errors } = await errorsOf(
-      'src/features/probe/probe.ts',
-      "import { About } from '../../pages/About/About';\nexport const used = About;\n"
+      'src/modules/core/components/composition-renderer/modes/probe.tsx',
+      "import { DeriveCompositionDialog } from '../../../../run/components/derive/DeriveCompositionDialog';\nexport const used = DeriveCompositionDialog;\n"
     );
     expect(errors).toBeGreaterThan(0);
   });
 
   it.each([
-    ['a widget', 'src/widgets/probe/Probe.tsx', 'widgets'],
-    ['an entity', 'src/entities/probe/probe.ts', 'entities'],
-    ['a feature', 'src/features/probe/probe.ts', 'widgets'],
-    ['a feature', 'src/features/probe/probe.ts', 'entities'],
-    ['a widget', 'src/widgets/probe/Probe.tsx', 'shared'],
-  ])('allows %s (%s) to import from %s', async (_who, from, layer) => {
-    const { found } = await errorsOf(from, importing(layer));
+    ['a module', 'src/modules/beta/utils/probe.ts', 'alpha/api'],
+    ['a module', 'src/modules/beta/utils/probe.ts', 'alpha/components'],
+    ['a module', 'src/modules/beta/utils/probe.ts', 'core/utils/alpha'],
+    ['core', 'src/modules/core/hooks/probe.ts', 'core/utils/alpha'],
+    ["a module's own public folder", 'src/modules/alpha/api/probe.ts', 'alpha/utils'],
+  ])('allows %s (%s) to import %s', async (_who, from, piece) => {
+    const { found } = await errorsOf(from, importing(piece));
     expect(found).toEqual([]);
   });
 
-  it('allows the legacy shared folders and imports inside one slice', async () => {
+  it('allows the legacy folders, which are not modules, and imports inside one module', async () => {
     const legacy = await errorsOf(
-      'src/widgets/probe/Probe.tsx',
-      "import { Action } from '../../components/ui/Action';\nexport const used = Action;\n"
+      'src/modules/beta/utils/probe.ts',
+      "import { config } from '../../../config';\nexport const used = config;\n"
     );
     expect(legacy.found).toEqual([]);
     const inside = await errorsOf(
-      'src/features/workspace/probe.ts',
-      "import { jobStatus } from './model';\nexport const used = jobStatus;\n"
+      'src/modules/run/components/derive/probe.ts',
+      "import { nextMinor } from './deriveModel';\nexport const used = nextMinor;\n"
     );
     expect(inside.found).toEqual([]);
   });

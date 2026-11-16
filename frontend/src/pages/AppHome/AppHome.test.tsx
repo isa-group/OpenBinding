@@ -32,9 +32,9 @@ vi.mock('../../api/runs', async () => ({
   ...(await vi.importActual<typeof import('../../api/runs')>('../../api/runs')),
   runsApi,
 }));
-vi.mock('../../entities/composition/api', async () => ({
-  ...(await vi.importActual<typeof import('../../entities/composition/api')>(
-    '../../entities/composition/api'
+vi.mock('../../modules/core/utils/composition/api', async () => ({
+  ...(await vi.importActual<typeof import('../../modules/core/utils/composition/api')>(
+    '../../modules/core/utils/composition/api'
   )),
   compositionsApi,
 }));

@@ -8,7 +8,7 @@ import { CompositionList } from './CompositionList';
 
 const api = vi.hoisted(() => ({ list: vi.fn(), create: vi.fn() }));
 
-vi.mock('../../entities/composition/api', () => ({ compositionsApi: api }));
+vi.mock('../../modules/core/utils/composition/api', () => ({ compositionsApi: api }));
 
 const member = org('isa-demo', { name: 'ISA Demo Group', effective_role: 'MEMBER' });
 const viewer = org('read-lab', { name: 'Read Lab', effective_role: 'VIEWER' });

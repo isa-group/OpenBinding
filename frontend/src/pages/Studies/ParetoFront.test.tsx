@@ -16,7 +16,10 @@ const api = vi.hoisted(() => ({
   list: vi.fn(),
 }));
 const language = vi.hoisted(() => ({ diffDocuments: vi.fn() }));
-vi.mock('../../entities/composition/api', () => ({ compositionsApi: api, languageApi: language }));
+vi.mock('../../modules/core/utils/composition/api', () => ({
+  compositionsApi: api,
+  languageApi: language,
+}));
 
 const cells = cellsFixture();
 const fronts = frontsFixture();

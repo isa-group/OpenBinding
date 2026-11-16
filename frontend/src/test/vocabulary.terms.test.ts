@@ -2,8 +2,8 @@ import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 import examples from '../content/composition2yaml-examples.json';
-import { KINDS } from '../entities/composition/document';
-import { KIND_LABELS } from '../entities/composition/kinds';
+import { KINDS } from '../modules/core/utils/composition/document';
+import { KIND_LABELS } from '../modules/core/utils/composition/kinds';
 import { formatFinding, isTestSupport, scanFiles, wordPattern, type Finding } from './vocabulary';
 
 // The vocabulary of compositions and problems (plan §9: Composition, Problem, Environment, Upstream event, Proposal and Offering;
@@ -46,18 +46,20 @@ const application = Object.fromEntries(
  * showcase, Language), the problem screens (`pages/Problems`), and the layers they are built from.
  */
 const SCOPE =
-  /^\/src\/(pages\/(Compositions|PublicCompositions|Language|Problems)\/|widgets\/|entities\/(composition|binding)\/|features\/(composition-editor|derive|fork)\/)/;
+  /^\/src\/(pages\/(Compositions|PublicCompositions|Language|Problems)\/|modules\/core\/components\/(candidate-matrix|composition-renderer|pricing-card|problems-panel|provider-map|rules-and-objectives|value-badge|workflow-graph)\/|modules\/composition\/components\/(change-summary|evolution-charts|fork)\/|modules\/core\/utils\/(composition|binding)\/|modules\/composition-editor\/components\/composition-editor\/|modules\/run\/components\/derive\/)/;
 const SCOPE_AREAS = [
   '/src/pages/Compositions/',
   '/src/pages/PublicCompositions/',
   '/src/pages/Language/',
   '/src/pages/Problems/',
-  '/src/widgets/',
-  '/src/entities/composition/',
-  '/src/entities/binding/',
-  '/src/features/composition-editor/',
-  '/src/features/derive/',
-  '/src/features/fork/',
+  '/src/modules/core/components/composition-renderer/',
+  '/src/modules/core/components/value-badge/',
+  '/src/modules/composition/components/change-summary/',
+  '/src/modules/core/utils/composition/',
+  '/src/modules/core/utils/binding/',
+  '/src/modules/composition-editor/components/composition-editor/',
+  '/src/modules/run/components/derive/',
+  '/src/modules/composition/components/fork/',
 ];
 
 const pick = (predicate: (path: string) => boolean): Record<string, string> =>
@@ -110,19 +112,19 @@ const OUTSIDE: Readonly<Record<string, string>> = {
     'the research topics: scenario aggregation, building comparative studies',
 };
 
-/** The words of a value status. In the scope they are printed only by `ValueBadge` (`widgets/value-badge`). */
+/** The words of a value status. In the scope they are printed only by `ValueBadge` (`modules/core/components/value-badge`). */
 const BADGE_WORDS: ReadonlySet<string> = new Set(['Verified', 'Declared', 'Unverified']);
-const VALUE_BADGE = /^\/src\/widgets\/value-badge\//;
+const VALUE_BADGE = /^\/src\/modules\/core\/components\/value-badge\//;
 
 /** Where the kind labels are written: the only place. */
-const KINDS_FILE = '/src/entities/composition/kinds.ts';
+const KINDS_FILE = '/src/modules/core/utils/composition/kinds.ts';
 const LABELS: ReadonlySet<string> = new Set(['Application', 'Workflow', 'Pipeline', 'System']);
 
 /** "Workflow" alone also titles the workflow of a composition or a problem, which is not its kind. */
 const WORKFLOW_TITLES: Readonly<Record<string, string>> = {
-  '/src/widgets/composition-renderer/modes/workflow.tsx':
+  '/src/modules/core/components/composition-renderer/modes/workflow.tsx':
     'the section of the renderer that draws the workflow',
-  '/src/features/composition-editor/VisualPane.tsx':
+  '/src/modules/composition-editor/components/composition-editor/VisualPane.tsx':
     'the part of the visual editor that shows the workflow',
   '/src/pages/Problems/ProblemRevision.tsx': 'the workflow of a problem version',
   '/src/pages/Problems/problemsModel.ts':
@@ -285,9 +287,9 @@ describe('the kinds of a composition', () => {
     ]);
   });
 
-  it('are labelled only in entities/composition/kinds.ts', () => {
+  it('are labelled only in modules/core/utils/composition/kinds.ts', () => {
     expect(kindMaps(application)).toEqual([
-      expect.stringMatching(/^\/src\/entities\/composition\/kinds\.ts:\d+$/),
+      expect.stringMatching(/^\/src\/modules\/core\/utils\/composition\/kinds\.ts:\d+$/),
     ]);
     const written = wholeTexts(
       pick(path => SCOPE.test(path) && path !== KINDS_FILE),

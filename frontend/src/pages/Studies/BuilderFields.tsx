@@ -5,12 +5,12 @@ import { Action } from '../../modules/core/components/action-button';
 import { Chip } from '../../modules/core/components/chip';
 import { problemsPath } from '../../routes/paths/problems';
 import { formatDate } from '../../utils/format';
-import { engineLabel } from '../../shared/lib/identity';
+import { engineLabel } from '../../modules/core/utils/identity';
 import {
   presetEngineText,
   presetOptionsText,
   studyPresetRefusal,
-} from '../../entities/preset/preset';
+} from '../../modules/run/utils/preset';
 import type { RunPresetView } from '../../modules/core/api/types';
 import {
   MAX_SETTINGS,

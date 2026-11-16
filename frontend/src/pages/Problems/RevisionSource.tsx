@@ -21,7 +21,7 @@ import { readZipArchive, type ZipArchive } from '../../utils/zipExplorer';
 import { useResource } from '../../utils/useResource';
 import { saveBytes } from '../../features/workspace/download';
 import { formatFeature } from '../../utils/featureRange';
-import { problemFactsApi, rangeCandidates } from '../../entities/problem/facts';
+import { problemFactsApi, rangeCandidates } from '../../modules/core/utils/problem/facts';
 import type { ProblemFacts } from '../../modules/core/api/types';
 import { sourceFailureKind } from './problemErrors';
 import { powerText } from './problemsModel';

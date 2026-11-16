@@ -7,14 +7,14 @@ import { FormField } from '../../modules/core/components/form-field';
 import { Modal } from '../../modules/core/components/modal';
 import { Notice } from '../../modules/core/components/notice';
 import { Skeleton } from '../../modules/core/components/skeleton';
-import { PRESET_PAGE, presetsApi } from '../../entities/preset/api';
+import { PRESET_PAGE, presetsApi } from '../../modules/run/api/presetsApi';
 import {
   presetEngineText,
   presetOptimizationText,
   presetOptionsText,
   presetRegistrationText,
   studyPresetRefusal,
-} from '../../entities/preset/preset';
+} from '../../modules/run/utils/preset';
 import { generalFailure } from '../../features/workspace/errors';
 import { launchPath } from '../../routes/paths/runs';
 import { classifyAuthError, marker } from '../../modules/core/api/errors';

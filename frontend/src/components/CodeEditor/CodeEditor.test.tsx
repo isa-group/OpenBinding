@@ -9,7 +9,7 @@ import {
 import { forEachDiagnostic } from '@codemirror/lint';
 import { EditorView, runScopeHandlers } from '@codemirror/view';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
-import type { Located } from '../../shared/diagnostics/located';
+import type { Located } from '../../modules/core/diagnostics/located';
 import { CodeEditor } from './CodeEditor';
 
 const TEXT = 'version: 1.0.0\nkind: service\nbindings:\n  pay: {}\n';

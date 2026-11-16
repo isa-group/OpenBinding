@@ -2,21 +2,21 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Action } from '../../../modules/core/components/action-button';
 import { Notice } from '../../../modules/core/components/notice';
-import { compositionsApi } from '../../../entities/composition/api';
-import type { CompositionViewModel } from '../../../entities/composition/viewModel';
-import { DeriveCompositionDialog } from '../../../features/derive/DeriveCompositionDialog';
-import { bindingDerivation, nextMinor } from '../../../features/derive/deriveModel';
+import { compositionsApi } from '../../../modules/core/utils/composition/api';
+import type { CompositionViewModel } from '../../../modules/core/utils/composition/viewModel';
+import { DeriveCompositionDialog } from '../../../modules/run/components/derive/DeriveCompositionDialog';
+import { bindingDerivation, nextMinor } from '../../../modules/run/components/derive/deriveModel';
 import { compositionPath } from '../../../routes/paths/compositions';
 import { readApiError } from '../../../modules/core/api/errors';
 import type { CompositionView } from '../../../modules/core/api/types';
-import { compositionFragment } from '../../../shared/sphere/composition-fragment';
-import { CompositionRenderer } from '../../../widgets/composition-renderer/CompositionRenderer';
+import { compositionFragment } from '../../../modules/core/utils/sphere/composition-fragment';
+import { CompositionRenderer } from '../../../modules/core/components/composition-renderer/CompositionRenderer';
 import {
   NOT_LINKED,
   type AnalysisActions,
   type BindingDerivation,
   type WrittenBinding,
-} from '../../../widgets/composition-renderer/modes/analysis';
+} from '../../../modules/core/components/composition-renderer/modes/analysis';
 import type { CandidatesState } from './OverviewTab';
 
 interface AnalysisTabProps {

@@ -10,7 +10,7 @@ import {
 import type { UserProfile } from '../../../api/auth';
 import { ErrorState } from '../../../components/ui/ErrorState';
 import { clearSessionEnded, markSessionEnded } from '../../../utils/authFlow';
-import { clearUserDrafts } from '../../../shared/editor/drafts';
+import { clearUserDrafts } from '../../core/editor/drafts';
 import { AuthContext } from './authContext';
 
 /**

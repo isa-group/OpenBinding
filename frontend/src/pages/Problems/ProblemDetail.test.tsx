@@ -31,11 +31,11 @@ const facts = vi.hoisted(() => ({ get: vi.fn() }));
 const compositions = vi.hoisted(() => ({ list: vi.fn(), get: vi.fn(), version: vi.fn() }));
 
 vi.mock('../../api/problems', () => ({ problemsApi: problems }));
-vi.mock('../../entities/problem/facts', async actual => ({
-  ...(await actual<typeof import('../../entities/problem/facts')>()),
+vi.mock('../../modules/core/utils/problem/facts', async actual => ({
+  ...(await actual<typeof import('../../modules/core/utils/problem/facts')>()),
   problemFactsApi: facts,
 }));
-vi.mock('../../entities/composition/api', () => ({ compositionsApi: compositions }));
+vi.mock('../../modules/core/utils/composition/api', () => ({ compositionsApi: compositions }));
 vi.mock('../../api/runs', async () => ({
   ...(await vi.importActual<typeof import('../../api/runs')>('../../api/runs')),
   runsApi: runs,

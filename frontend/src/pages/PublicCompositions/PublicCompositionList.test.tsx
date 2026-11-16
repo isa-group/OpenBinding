@@ -7,7 +7,7 @@ import { PublicCompositionList } from './PublicCompositionList';
 
 const api = vi.hoisted(() => ({ publicList: vi.fn() }));
 
-vi.mock('../../entities/composition/api', () => ({ compositionsApi: api }));
+vi.mock('../../modules/core/utils/composition/api', () => ({ compositionsApi: api }));
 
 type Row = PublicList['compositions'][number];
 

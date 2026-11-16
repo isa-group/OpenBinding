@@ -13,13 +13,13 @@ import { useResource } from '../../utils/useResource';
 import { randomUUID } from '../../utils/uuid';
 import { classifyAuthError } from '../../modules/core/api/errors';
 import { problemsApi } from '../../api/problems';
-import { hasRanges, problemFactsApi } from '../../entities/problem/facts';
-import { PRESET_PAGE, presetsApi } from '../../entities/preset/api';
+import { hasRanges, problemFactsApi } from '../../modules/core/utils/problem/facts';
+import { PRESET_PAGE, presetsApi } from '../../modules/run/api/presetsApi';
 import {
   presetEngineText,
   presetOptionsText,
   presetRegistrationText,
-} from '../../entities/preset/preset';
+} from '../../modules/run/utils/preset';
 import type { RunPresetList, RunPresetView } from '../../modules/core/api/types';
 import { loadProblems } from '../Problems/problemsData';
 import { problemsPath } from '../../routes/paths/problems';

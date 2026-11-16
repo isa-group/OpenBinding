@@ -10,7 +10,7 @@ import { Action } from '../../modules/core/components/action-button';
 import { EmptyState } from '../../modules/core/components/empty-state';
 import { Notice } from '../../modules/core/components/notice';
 import { Skeleton } from '../../modules/core/components/skeleton';
-import { engineLabel } from '../../shared/lib/identity';
+import { engineLabel } from '../../modules/core/utils/identity';
 import { useResource } from '../../utils/useResource';
 import { ConfirmDialog } from '../Engines/EngineDialogs';
 import { ConformanceChecklist, ViewSource } from '../Engines/EngineParts';

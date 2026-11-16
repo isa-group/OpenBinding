@@ -8,7 +8,7 @@ import { Chip } from '../../modules/core/components/chip';
 import { FilterPills } from '../../modules/core/components/filter-pills';
 import { Notice } from '../../modules/core/components/notice';
 import { Skeleton } from '../../modules/core/components/skeleton';
-import { compositionsApi } from '../../entities/composition/api';
+import { compositionsApi } from '../../modules/core/utils/composition/api';
 import {
   problemPath,
   problemsPath,

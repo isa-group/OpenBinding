@@ -17,11 +17,11 @@ const api = vi.hoisted(() => ({
   fork: vi.fn(),
 }));
 
-vi.mock('../../entities/composition/api', () => ({ compositionsApi: api }));
+vi.mock('../../modules/core/utils/composition/api', () => ({ compositionsApi: api }));
 
 const factsApi = vi.hoisted(() => ({ get: vi.fn() }));
 
-vi.mock('../../entities/problem/facts', () => ({ problemFactsApi: factsApi }));
+vi.mock('../../modules/core/utils/problem/facts', () => ({ problemFactsApi: factsApi }));
 
 const platform = vi.hoisted(() => ({ organizations: vi.fn() }));
 

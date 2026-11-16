@@ -5,14 +5,14 @@ import { Action } from '../../modules/core/components/action-button';
 import { DataTable } from '../../modules/core/components/data-table';
 import { Notice } from '../../modules/core/components/notice';
 import { Skeleton } from '../../modules/core/components/skeleton';
-import { compositionsApi } from '../../entities/composition/api';
-import { formatValue, valueModels, valueStatus } from '../../entities/composition/values';
+import { compositionsApi } from '../../modules/core/utils/composition/api';
+import { formatValue, valueModels, valueStatus } from '../../modules/core/utils/composition/values';
 import { compositionPath } from '../../routes/paths/compositions';
 import { problemPath } from '../../routes/paths/problems';
 import { classifyAuthError, marker } from '../../modules/core/api/errors';
 import type { CompositionVersionView, CompositionView } from '../../modules/core/api/types';
 import { useResource } from '../../utils/useResource';
-import { ValueBadge } from '../../widgets/value-badge/ValueBadge';
+import { ValueBadge } from '../../modules/core/components/value-badge/ValueBadge';
 
 /** The most compositions the tab lists. */
 const PAGE = 200;

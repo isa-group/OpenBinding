@@ -1,6 +1,9 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { openProblemEditor, showPane } from '../features/bim-editor/editorTestKit';
+import {
+  openProblemEditor,
+  showPane,
+} from '../modules/problem-editor/components/bim-editor/editorTestKit';
 import { caseOf, org, renderOrgScreen, revisionOf } from '../features/workspace/testKit';
 import { ProblemDetail } from '../pages/Problems/ProblemDetail';
 import fmsFacts from './fixtures/core/fms.facts.json';
@@ -27,11 +30,11 @@ const runs = vi.hoisted(() => ({ list: vi.fn() }));
 const bim = vi.hoisted(() => ({ validate: vi.fn(), template: vi.fn(), templates: vi.fn() }));
 
 vi.mock('../api/problems', () => ({ problemsApi: problems }));
-vi.mock('../entities/problem/facts', async actual => ({
-  ...(await actual<typeof import('../entities/problem/facts')>()),
+vi.mock('../modules/core/utils/problem/facts', async actual => ({
+  ...(await actual<typeof import('../modules/core/utils/problem/facts')>()),
   problemFactsApi: facts,
 }));
-vi.mock('../entities/composition/api', () => ({ compositionsApi: compositions }));
+vi.mock('../modules/core/utils/composition/api', () => ({ compositionsApi: compositions }));
 vi.mock('../api/runs', async () => ({
   ...(await vi.importActual<typeof import('../api/runs')>('../api/runs')),
   runsApi: runs,

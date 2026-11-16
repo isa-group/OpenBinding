@@ -1,5 +1,5 @@
 import { problemsApi, type ProblemCompilation } from '../../api/problems';
-import { problemFactsApi } from '../../entities/problem/facts';
+import { problemFactsApi } from '../../modules/core/utils/problem/facts';
 import type { ProblemFacts } from '../../modules/core/api/types';
 import { classifyAuthError, type AuthFailure } from '../../modules/core/api/errors';
 

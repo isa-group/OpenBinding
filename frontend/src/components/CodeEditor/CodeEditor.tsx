@@ -7,7 +7,7 @@ import { yaml } from '@codemirror/lang-yaml';
 import { linter, lintGutter, setDiagnostics, type Diagnostic } from '@codemirror/lint';
 import type { Extension } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
-import type { Located } from '../../shared/diagnostics/located';
+import type { Located } from '../../modules/core/diagnostics/located';
 import './CodeEditor.css';
 
 export type CodeLanguage = 'json' | 'yaml' | 'xml' | 'text';

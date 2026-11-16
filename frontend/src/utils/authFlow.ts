@@ -5,7 +5,7 @@
  * mode, an internal path or a flag. Tokens never pass through this module.
  */
 
-import { SLUG_PATTERN } from '../shared/lib/slug';
+import { SLUG_PATTERN } from '../modules/core/utils/slug';
 
 const SESSION_ENDED_KEY = 'openbinding-session-ended';
 const CAS_FLOW_KEY = 'openbinding-cas-flow';

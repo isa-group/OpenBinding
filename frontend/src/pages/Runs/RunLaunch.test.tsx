@@ -23,16 +23,16 @@ vi.mock('../../api/runs', async () => ({
   runsApi,
 }));
 vi.mock('../../api/problems', () => ({ problemsApi: problems }));
-vi.mock('../../entities/problem/facts', async actual => ({
-  ...(await actual<typeof import('../../entities/problem/facts')>()),
+vi.mock('../../modules/core/utils/problem/facts', async actual => ({
+  ...(await actual<typeof import('../../modules/core/utils/problem/facts')>()),
   problemFactsApi: facts,
 }));
 vi.mock('../../api/client', async () => ({
   ...(await vi.importActual<typeof import('../../api/client')>('../../api/client')),
   apiClient: client,
 }));
-vi.mock('../../entities/preset/api', async actual => ({
-  ...(await actual<typeof import('../../entities/preset/api')>()),
+vi.mock('../../modules/run/api/presetsApi', async actual => ({
+  ...(await actual<typeof import('../../modules/run/api/presetsApi')>()),
   presetsApi: presets,
 }));
 

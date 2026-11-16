@@ -2,13 +2,13 @@ import { useCallback, useEffect, useState } from 'react';
 import { Action } from '../../modules/core/components/action-button';
 import { Modal } from '../../modules/core/components/modal';
 import { Notice } from '../../modules/core/components/notice';
-import { compositionsApi, languageApi } from '../../entities/composition/api';
-import type { DerivedPoint } from '../../features/derive/DeriveBatch';
+import { compositionsApi, languageApi } from '../../modules/core/utils/composition/api';
+import type { DerivedPoint } from '../../modules/run/components/derive/DeriveBatch';
 import { readApiError } from '../../modules/core/api/errors';
 import type { CompositionVersionDiff } from '../../modules/core/api/types';
-import { Changes } from '../../widgets/composition-renderer/modes/comparison/Comparison';
-import { FileDiff } from '../../widgets/composition-renderer/modes/comparison/FileDiff';
-import '../../widgets/composition-renderer/CompositionRenderer.css';
+import { Changes } from '../../modules/core/components/composition-renderer/modes/comparison/Comparison';
+import { FileDiff } from '../../modules/core/components/composition-renderer/modes/comparison/FileDiff';
+import '../../modules/core/components/composition-renderer/CompositionRenderer.css';
 
 /** One side of the comparison: a point of the front and the composition derived from it. */
 export interface ComparedPoint {

@@ -25,8 +25,8 @@ vi.mock('../../api/platform', async () => ({
 vi.mock('../../api/problems', () => ({
   problemsApi: { list: vi.fn().mockResolvedValue({ problems: [], total: 0, limit: 1, offset: 0 }) },
 }));
-vi.mock('../../entities/preset/api', async actual => ({
-  ...(await actual<typeof import('../../entities/preset/api')>()),
+vi.mock('../../modules/run/api/presetsApi', async actual => ({
+  ...(await actual<typeof import('../../modules/run/api/presetsApi')>()),
   presetsApi: { list: vi.fn().mockResolvedValue({ presets: [], total: 0, limit: 200, offset: 0 }) },
 }));
 

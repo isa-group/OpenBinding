@@ -71,12 +71,12 @@ listed with its module:
 |---|---|
 | `openbinding-gateway/src/openbinding_gateway/composition/diff.py` | `frontend/src/modules/pricing/utils/pricing-diff.ts` (the PricingDiff shape and rules) |
 | `openbinding-gateway/src/openbinding_gateway/modules/compositions/application/fork.py` | `PricingService.forkPricing` and its `ForkedFrom` snapshot (the fork rules) |
-| `frontend/src/shared/sphere/text-diff.ts` | `frontend/src/modules/pricing/utils/text-diff.ts` (copied verbatim) |
-| `frontend/src/shared/sphere/requested-version.ts` | `frontend/src/modules/pricing/pages/card/requested-version.ts` (copied verbatim) |
-| `frontend/src/shared/sphere/change-summary.ts`, with its test `change-summary.test.ts` | `frontend/src/modules/pricing/utils/change-summary.ts` and `frontend/test/change-summary.test.ts` (adapted: composition sections, candidate and value changes, the gateway's diff) |
-| `frontend/src/shared/sphere/composition-fragment.ts`, with its test `composition-fragment.test.ts` | `frontend/src/modules/pricing-editor/services/pricing-fragment.ts`, the encoder of `frontend/src/modules/pricing-editor/services/export.service.ts` and `frontend/test/pricing-fragment.test.ts` (adapted: the `#composition=` fragment) |
-| `frontend/src/features/composition-editor/NewVersionMenu.tsx` | `frontend/src/modules/pricing/components/new-version-menu/index.tsx` (adapted: the outside-click, Escape and `role=menu` logic kept; the Composition2Yaml editor's options and OpenBinding's markup) |
-| `frontend/src/widgets/change-summary/useVersionChanges.ts`, with its test `useVersionChanges.test.ts` | `frontend/src/modules/pricing/components/pricing-version-graph/use-version-changes.ts` and `use-version-changes.test.tsx` (adapted: the 150 ms delay, the cache keyed by credential and version pair, the retry and the stale guard kept; the gateway's diff instead of both YAML files; the test on `renderHook`) |
+| `frontend/src/modules/core/utils/sphere/text-diff.ts` | `frontend/src/modules/pricing/utils/text-diff.ts` (copied verbatim) |
+| `frontend/src/modules/core/utils/sphere/requested-version.ts` | `frontend/src/modules/pricing/pages/card/requested-version.ts` (copied verbatim) |
+| `frontend/src/modules/core/utils/sphere/change-summary.ts`, with its test `change-summary.test.ts` | `frontend/src/modules/pricing/utils/change-summary.ts` and `frontend/test/change-summary.test.ts` (adapted: composition sections, candidate and value changes, the gateway's diff) |
+| `frontend/src/modules/core/utils/sphere/composition-fragment.ts`, with its test `composition-fragment.test.ts` | `frontend/src/modules/pricing-editor/services/pricing-fragment.ts`, the encoder of `frontend/src/modules/pricing-editor/services/export.service.ts` and `frontend/test/pricing-fragment.test.ts` (adapted: the `#composition=` fragment) |
+| `frontend/src/modules/composition-editor/components/composition-editor/NewVersionMenu.tsx` | `frontend/src/modules/pricing/components/new-version-menu/index.tsx` (adapted: the outside-click, Escape and `role=menu` logic kept; the Composition2Yaml editor's options and OpenBinding's markup) |
+| `frontend/src/modules/composition/components/change-summary/useVersionChanges.ts`, with its test `useVersionChanges.test.ts` | `frontend/src/modules/pricing/components/pricing-version-graph/use-version-changes.ts` and `use-version-changes.test.tsx` (adapted: the 150 ms delay, the cache keyed by credential and version pair, the retry and the stale guard kept; the gateway's diff instead of both YAML files; the test on `renderHook`) |
 | `openbinding-gateway/src/openbinding_gateway/services/organizations.py` | `api/src/main/utils/slug-manager.ts` (`generateSlug`, `deduplicateSlug`), `api/src/main/config/defaultAvatars.ts` (the predefined avatars, the colour check) and `api/src/main/services/OrganizationService.ts` (`updateAvatar`, `removeAvatar`, the default colours) (adapted: accents folded, reserved slugs never derived, uploads kept as blobs) |
 | `openbinding-gateway/src/openbinding_gateway/static/avatars/avatar-*.svg` | `api/public/static/avatars/users/default/avatar-*.svg` (copied verbatim) |
 | `openbinding-gateway/src/openbinding_gateway/routes/organizations.py` (the public, profile, hierarchy, invitation-code and ownership routes) | `api/src/main/services/OrganizationService.ts` (`indexPublicRoots`, `getHierarchy`, `createInvitation`, `previewInvitation`, `joinViaInvitation`, `inviteUsersToOrganization`, `transferOwnership`, `removeMember`) and `api/src/main/routes/OrganizationRoutes.ts` (adapted: one transaction, 404 for non-readers, public profiles only with a public composition) |
@@ -95,12 +95,14 @@ Generated from the origin header of each file.
 
 | File | SPHERE origin | Class |
 |---|---|---|
-| `frontend/src/features/composition-editor/UploadDialog.tsx` | `frontend/src/modules/pricing/components/pricing-import-modal/index.tsx` | pattern-only |
-| `frontend/src/features/fork/ForkCompositionDialog.tsx` | `frontend/src/modules/pricing/components/fork-pricing-modal/index.tsx` | pattern-only |
 | `frontend/src/modules/beta/components/beta-badge/index.tsx` | `frontend/src/modules/beta/components/beta-badge/index.tsx` | verbatim |
 | `frontend/src/modules/beta/components/beta-gate/index.tsx` | `frontend/src/modules/beta/components/beta-gate/index.tsx` | verbatim |
 | `frontend/src/modules/beta/config/betaFeatures.ts` | `frontend/src/modules/beta/config/betaFeatures.ts` | adapted |
 | `frontend/src/modules/beta/hooks/useBetaFeatures.ts` | `frontend/src/modules/beta/hooks/useBetaFeatures.ts` | adapted |
+| `frontend/src/modules/composition-editor/components/composition-editor/UploadDialog.tsx` | `frontend/src/modules/pricing/components/pricing-import-modal/index.tsx` | pattern-only |
+| `frontend/src/modules/composition/components/change-summary/ChangeSummary.tsx` | `frontend/src/modules/pricing/components/pricing-version-graph/change-summary-card.tsx` | pattern-only |
+| `frontend/src/modules/composition/components/evolution-charts/EvolutionCharts.tsx` | `frontend/src/modules/pricing/components/pricing-analytics-tab/index.tsx` | pattern-only |
+| `frontend/src/modules/composition/components/fork/ForkCompositionDialog.tsx` | `frontend/src/modules/pricing/components/fork-pricing-modal/index.tsx` | pattern-only |
 | `frontend/src/modules/core/components/404-logo/index.tsx` | `frontend/src/modules/core/components/404-logo/index.tsx` | adapted |
 | `frontend/src/modules/core/components/action-button/index.tsx` | `frontend/src/modules/core/components/action-button/index.tsx` | adapted |
 | `frontend/src/modules/core/components/alert-modal/index.tsx` | `frontend/src/modules/core/components/alert-modal/index.tsx` | adapted |
@@ -109,6 +111,10 @@ Generated from the origin header of each file.
 | `frontend/src/modules/core/components/block-alert/index.tsx` | `frontend/src/modules/core/components/block-alert/index.tsx` | verbatim |
 | `frontend/src/modules/core/components/chip/index.tsx` | `frontend/src/modules/beta/components/beta-badge/index.tsx` | pattern-only |
 | `frontend/src/modules/core/components/command-palette/index.tsx` | `frontend/src/modules/core/components/command-palette/index.tsx` | adapted |
+| `frontend/src/modules/core/components/composition-renderer/modes/calculator.tsx` | `frontend/src/modules/pricing/components/configuration-space-view/index.tsx` | pattern-only |
+| `frontend/src/modules/core/components/composition-renderer/modes/comparison/Comparison.tsx` | `frontend/src/modules/pricing/components/pricing-version-diff/index.tsx` | pattern-only |
+| `frontend/src/modules/core/components/composition-renderer/modes/comparison/FileDiff.tsx` | `frontend/src/modules/pricing/components/pricing-version-diff/file-diff-view.tsx` | pattern-only |
+| `frontend/src/modules/core/components/composition-renderer/modes/showcase.tsx` | `frontend/src/modules/pricing/pages/card/index.tsx` | pattern-only |
 | `frontend/src/modules/core/components/confirm-modal/index.tsx` | `frontend/src/modules/core/components/confirm-modal/index.tsx` | adapted |
 | `frontend/src/modules/core/components/copy-field/index.tsx` | `frontend/src/modules/core/components/copy-icon/index.tsx` | pattern-only |
 | `frontend/src/modules/core/components/copy-icon/index.tsx` | `frontend/src/modules/core/components/copy-icon/index.tsx` | adapted |
@@ -130,6 +136,7 @@ Generated from the origin header of each file.
 | `frontend/src/modules/core/components/page-header/index.tsx` | `frontend/src/modules/organization/pages/public-organizations-list/index.tsx` | pattern-only |
 | `frontend/src/modules/core/components/pagination/index.tsx` | `frontend/src/modules/pricing/components/pagination/index.tsx` | adapted |
 | `frontend/src/modules/core/components/permanent-link/index.tsx` | `frontend/src/modules/core/components/permanent-link/index.tsx` | verbatim |
+| `frontend/src/modules/core/components/problems-panel/ProblemsPanel.tsx` | `frontend/src/modules/pricing-editor/components/problems-panel/index.tsx` | pattern-only |
 | `frontend/src/modules/core/components/router-link/index.tsx` | `frontend/src/modules/core/components/router-link/index.tsx` | adapted |
 | `frontend/src/modules/core/components/search-input/index.tsx` | `frontend/src/modules/pricing/components/search-input/index.tsx` | verbatim |
 | `frontend/src/modules/core/components/skeleton-theme-provider/index.tsx` | `frontend/src/modules/core/components/skeleton-theme-provider/index.tsx` | adapted |
@@ -182,13 +189,6 @@ Generated from the origin header of each file.
 | `frontend/src/routes/app-layout.tsx` | `frontend/src/routes/app-layout.tsx` | adapted |
 | `frontend/src/routes/router.tsx` | `frontend/src/routes/router.tsx` | pattern-only |
 | `frontend/src/styles/tailwind.css` | `frontend/src/styles/tailwind.css` | adapted |
-| `frontend/src/widgets/change-summary/ChangeSummary.tsx` | `frontend/src/modules/pricing/components/pricing-version-graph/change-summary-card.tsx` | pattern-only |
-| `frontend/src/widgets/composition-renderer/modes/calculator.tsx` | `frontend/src/modules/pricing/components/configuration-space-view/index.tsx` | pattern-only |
-| `frontend/src/widgets/composition-renderer/modes/comparison/Comparison.tsx` | `frontend/src/modules/pricing/components/pricing-version-diff/index.tsx` | pattern-only |
-| `frontend/src/widgets/composition-renderer/modes/comparison/FileDiff.tsx` | `frontend/src/modules/pricing/components/pricing-version-diff/file-diff-view.tsx` | pattern-only |
-| `frontend/src/widgets/composition-renderer/modes/showcase.tsx` | `frontend/src/modules/pricing/pages/card/index.tsx` | pattern-only |
-| `frontend/src/widgets/evolution-charts/EvolutionCharts.tsx` | `frontend/src/modules/pricing/components/pricing-analytics-tab/index.tsx` | pattern-only |
-| `frontend/src/widgets/problems-panel/ProblemsPanel.tsx` | `frontend/src/modules/pricing-editor/components/problems-panel/index.tsx` | pattern-only |
 | `frontend/vite.config.ts` | `frontend/vite.config.ts` | pattern-only |
 <!-- sphere-convergence:end -->
 

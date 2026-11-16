@@ -2,14 +2,17 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../../api/client';
-import { compositionViewModel, type Reader } from '../../../entities/composition/viewModel';
+import {
+  compositionViewModel,
+  type Reader,
+} from '../../../modules/core/utils/composition/viewModel';
 import { org, renderOrgScreen } from '../../../features/workspace/testKit';
 import type {
   CompositionVersionView,
   CompositionView,
   ProblemFacts,
 } from '../../../modules/core/api/types';
-import { readCompositionFragment } from '../../../shared/sphere/composition-fragment';
+import { readCompositionFragment } from '../../../modules/core/utils/sphere/composition-fragment';
 import { EVALUATED, NEIGHBOURHOOD, fmsVersionView } from '../../../test/fixtures/analysis';
 import fmsFacts from '../../../test/fixtures/core/fms.facts.json';
 import { CompositionDetail } from '../CompositionDetail';
@@ -25,10 +28,10 @@ const api = vi.hoisted(() => ({
   derive: vi.fn(),
   list: vi.fn(),
 }));
-vi.mock('../../../entities/composition/api', () => ({ compositionsApi: api }));
+vi.mock('../../../modules/core/utils/composition/api', () => ({ compositionsApi: api }));
 
 const factsApi = vi.hoisted(() => ({ get: vi.fn() }));
-vi.mock('../../../entities/problem/facts', () => ({ problemFactsApi: factsApi }));
+vi.mock('../../../modules/core/utils/problem/facts', () => ({ problemFactsApi: factsApi }));
 
 const facts = fmsFacts as ProblemFacts;
 const WAIT = { timeout: 3000 };

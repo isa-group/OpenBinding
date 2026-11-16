@@ -20,8 +20,8 @@ const presets = vi.hoisted(() => ({
 }));
 const client = vi.hoisted(() => ({ getEngines: vi.fn() }));
 
-vi.mock('../../entities/preset/api', async actual => ({
-  ...(await actual<typeof import('../../entities/preset/api')>()),
+vi.mock('../../modules/run/api/presetsApi', async actual => ({
+  ...(await actual<typeof import('../../modules/run/api/presetsApi')>()),
   presetsApi: presets,
 }));
 vi.mock('../../api/client', async () => ({

@@ -7,7 +7,7 @@ import type { CompositionAccess } from '../useRouteComposition';
 import { PUBLISH_CONFIRMATION, SettingsTab } from './SettingsTab';
 
 const api = vi.hoisted(() => ({ update: vi.fn(), remove: vi.fn() }));
-vi.mock('../../../entities/composition/api', () => ({ compositionsApi: api }));
+vi.mock('../../../modules/core/utils/composition/api', () => ({ compositionsApi: api }));
 
 const composition: CompositionView = {
   id: 'composition-fleet',

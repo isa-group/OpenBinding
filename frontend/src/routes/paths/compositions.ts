@@ -1,7 +1,7 @@
 // Address builders of the compositions area (F2). Code that links to the composition list, a composition, its tabs or its public
 // page builds the address here, so the segments are named once.
 
-import type { Kind } from '../../entities/composition/document';
+import type { Kind } from '../../modules/core/utils/composition/document';
 import { organizationPath } from './problems';
 
 /** The segment of the composition list and the composition page. */

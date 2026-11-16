@@ -10,23 +10,23 @@ import { TabBar, TabPanel } from '../../modules/core/components/tab-bar';
 import { useCopy } from '../../modules/core/hooks/useCopy';
 import { config } from '../../config';
 import examples from '../../content/composition2yaml-examples.json';
-import { languageApi } from '../../entities/composition/api';
+import { languageApi } from '../../modules/core/utils/composition/api';
 import { readApiError } from '../../modules/core/api/errors';
 import type { ValidateResult } from '../../modules/core/api/types';
-import { fromC2y, type Located } from '../../shared/diagnostics/located';
+import { fromC2y, type Located } from '../../modules/core/diagnostics/located';
 import {
   createScheduler,
   pausedMessage,
   type Scheduler,
   type SchedulerStatus,
-} from '../../shared/editor/lintScheduler';
+} from '../../modules/core/editor/lintScheduler';
 import {
   compositionFragment,
   readCompositionFragment,
   takeCompositionFragment,
   type CompositionFragment,
-} from '../../shared/sphere/composition-fragment';
-import { ProblemsPanel } from '../../widgets/problems-panel/ProblemsPanel';
+} from '../../modules/core/utils/sphere/composition-fragment';
+import { ProblemsPanel } from '../../modules/core/components/problems-panel/ProblemsPanel';
 import './LanguagePage.css';
 
 /** Milliseconds of stillness before the playground lints its text: the anonymous read budget is 60 a minute (A-7). */

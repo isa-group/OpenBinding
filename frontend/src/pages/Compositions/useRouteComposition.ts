@@ -1,6 +1,6 @@
 import { useParams } from 'react-router-dom';
 import type { Organization } from '../../api/platform';
-import { compositionsApi } from '../../entities/composition/api';
+import { compositionsApi } from '../../modules/core/utils/composition/api';
 import { classifyAuthError, type AuthFailure } from '../../modules/core/api/errors';
 import type { CompositionVersionView, CompositionView } from '../../modules/core/api/types';
 import { useResource, type Resource } from '../../utils/useResource';

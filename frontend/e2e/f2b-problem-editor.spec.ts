@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { expect as baseExpect, test, type Page, type Route } from '@playwright/test';
-import { DEFAULT_FILES } from '../src/features/bim-editor/documents';
+import { DEFAULT_FILES } from '../src/modules/problem-editor/components/bim-editor/documents';
 import { unzipPackage, zipStore } from '../src/utils/bimZip';
 import { API, installMockApi } from './helpers/mockApi';
 

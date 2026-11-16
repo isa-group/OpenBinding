@@ -7,10 +7,10 @@ import { Action } from '../../modules/core/components/action-button';
 import { Notice } from '../../modules/core/components/notice';
 import { Skeleton } from '../../modules/core/components/skeleton';
 import { useAuth } from '../../modules/auth/hooks/useAuth';
-import { compositionsApi } from '../../entities/composition/api';
-import { pickVersion } from '../../entities/composition/versionRef';
-import { compositionViewModel } from '../../entities/composition/viewModel';
-import { ForkCompositionDialog } from '../../features/fork/ForkCompositionDialog';
+import { compositionsApi } from '../../modules/core/utils/composition/api';
+import { pickVersion } from '../../modules/core/utils/composition/versionRef';
+import { compositionViewModel } from '../../modules/core/utils/composition/viewModel';
+import { ForkCompositionDialog } from '../../modules/composition/components/fork/ForkCompositionDialog';
 import { Gate } from '../../features/workspace/parts';
 import {
   compositionPath,
@@ -20,7 +20,7 @@ import {
 import { classifyAuthError, marker } from '../../modules/core/api/errors';
 import type { CompositionVersionView, CompositionView } from '../../modules/core/api/types';
 import { useResource } from '../../utils/useResource';
-import { CompositionRenderer } from '../../widgets/composition-renderer/CompositionRenderer';
+import { CompositionRenderer } from '../../modules/core/components/composition-renderer/CompositionRenderer';
 import './PublicCompositions.css';
 
 interface Loaded {

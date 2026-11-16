@@ -1,6 +1,6 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../modules/auth/hooks/useAuth';
-import { CompositionEditor } from '../../../features/composition-editor/CompositionEditor';
+import { CompositionEditor } from '../../../modules/composition-editor/components/composition-editor/CompositionEditor';
 import { compositionPath } from '../../../routes/paths/compositions';
 import type {
   CompositionVersionView,

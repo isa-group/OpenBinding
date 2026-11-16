@@ -13,7 +13,7 @@ import { DataTable } from '../../modules/core/components/data-table';
 import { FilterPills } from '../../modules/core/components/filter-pills';
 import { Notice } from '../../modules/core/components/notice';
 import { Skeleton } from '../../modules/core/components/skeleton';
-import { studyRunLabel } from '../../shared/lib/identity';
+import { studyRunLabel } from '../../modules/core/utils/identity';
 import { formatDateTime } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import { classifyAuthError, marker } from '../../modules/core/api/errors';

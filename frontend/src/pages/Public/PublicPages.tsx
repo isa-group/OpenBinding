@@ -14,19 +14,19 @@ import { Notice } from '../../modules/core/components/notice';
 import { OrganizationPicker } from '../../components/ui/OrganizationPicker';
 import { useCopy } from '../../modules/core/hooks/useCopy';
 import { useAuth } from '../../modules/auth/hooks/useAuth';
-import { candidateMatrix } from '../../entities/binding/candidateMatrix';
-import { workflowGraph, type TaskOverlay } from '../../entities/binding/workflowGraph';
+import { candidateMatrix } from '../../modules/core/utils/binding/candidateMatrix';
+import { workflowGraph, type TaskOverlay } from '../../modules/core/utils/binding/workflowGraph';
 import { problemEditorPath } from '../../routes/paths/problems';
 import type { ProblemFacts } from '../../modules/core/api/types';
-import { fromBimAll, type PackageTexts } from '../../shared/diagnostics/bim';
-import { counts, type Located } from '../../shared/diagnostics/located';
+import { fromBimAll, type PackageTexts } from '../../modules/core/diagnostics/bim';
+import { counts, type Located } from '../../modules/core/diagnostics/located';
 import { BIM_PACKAGE_LIMITS, BimPackageError, unzipPackage } from '../../utils/bimZip';
 import { formatBytes } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
-import { CandidateMatrix } from '../../widgets/candidate-matrix/CandidateMatrix';
-import { ProblemsPanel } from '../../widgets/problems-panel/ProblemsPanel';
-import { RulesAndObjectives } from '../../widgets/rules-and-objectives/RulesAndObjectives';
-import { WorkflowGraph } from '../../widgets/workflow-graph/WorkflowGraph';
+import { CandidateMatrix } from '../../modules/core/components/candidate-matrix/CandidateMatrix';
+import { ProblemsPanel } from '../../modules/core/components/problems-panel/ProblemsPanel';
+import { RulesAndObjectives } from '../../modules/core/components/rules-and-objectives/RulesAndObjectives';
+import { WorkflowGraph } from '../../modules/core/components/workflow-graph/WorkflowGraph';
 import './PublicPages.css';
 
 interface Selected {

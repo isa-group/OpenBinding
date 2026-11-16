@@ -16,7 +16,7 @@ const problems = vi.hoisted(() => ({
 const compositions = vi.hoisted(() => ({ list: vi.fn() }));
 
 vi.mock('../../api/problems', () => ({ problemsApi: problems }));
-vi.mock('../../entities/composition/api', () => ({ compositionsApi: compositions }));
+vi.mock('../../modules/core/utils/composition/api', () => ({ compositionsApi: compositions }));
 
 const group = org('isa-demo', { name: 'ISA Demo Group', effective_role: 'MEMBER' });
 const admin = org('qos-lab', { name: 'QoS Lab', effective_role: 'ADMIN' });

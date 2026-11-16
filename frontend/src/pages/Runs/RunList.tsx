@@ -13,7 +13,7 @@ import { Skeleton } from '../../modules/core/components/skeleton';
 import { useAuth } from '../../modules/auth/hooks/useAuth';
 import { problemPath } from '../../routes/paths/problems';
 import { launchPath, runPath } from '../../routes/paths/runs';
-import { runLabel } from '../../shared/lib/identity';
+import { runLabel } from '../../modules/core/utils/identity';
 import { formatDateTime } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import { classifyAuthError, marker } from '../../modules/core/api/errors';

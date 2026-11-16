@@ -5,15 +5,15 @@ import { Action } from '../../modules/core/components/action-button';
 import { Chip } from '../../modules/core/components/chip';
 import { FormField } from '../../modules/core/components/form-field';
 import { Modal } from '../../modules/core/components/modal';
-import { presetsApi, type PresetSettings } from '../../entities/preset/api';
+import { presetsApi, type PresetSettings } from '../../modules/run/api/presetsApi';
 import {
   presetEngineText,
   presetOptimizationText,
   presetOptionsText,
   presetRegistrationText,
-} from '../../entities/preset/preset';
+} from '../../modules/run/utils/preset';
 import { classifyAuthError, marker } from '../../modules/core/api/errors';
-import { SLUG_PATTERN, slugFromName } from '../../shared/lib/slug';
+import { SLUG_PATTERN, slugFromName } from '../../modules/core/utils/slug';
 import type { RunPresetView } from '../../modules/core/api/types';
 import type { ModeChoice } from './launchModel';
 
