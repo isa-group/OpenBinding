@@ -1180,6 +1180,14 @@ function route(request: Request): Reply | null {
       return second === 'me' ? userRoutes(request) : null;
     case 'notifications':
       if (!second) return ok(NOTIFICATIONS);
+      if (second === 'unread-count')
+        return ok({ count: NOTIFICATIONS.filter(item => !item.read_at).length });
+      // The live stream: a ticket, then a stream that says it is connected and ends (the bell reconnects later).
+      if (second === 'stream-ticket') return ok({ ticket: 'gallery-ticket', expires_in: 60 });
+      if (second === 'stream')
+        return { status: 200, type: 'text/event-stream', text: 'event: connected\ndata: {}\n\n' };
+      if (second === 'read-all') return ok({ updated: 0 });
+      if (third === 'read') return ok(NOTIFICATIONS.find(item => item.id === second) ?? {});
       if (second === 'preferences')
         return ok({
           inbox: true,
@@ -1201,6 +1209,16 @@ function route(request: Request): Reply | null {
       return null;
     case 'organizations':
       return organizationRoutes(request);
+    case 'invitations':
+      // Any code the gallery opens invites to Lab Other, from Priya.
+      if (third === 'preview')
+        return ok({
+          code: second,
+          expires_at: null,
+          invited_by: { id: '00000000-0000-4000-8000-0000000000aa', username: 'priya' },
+          organization: PUBLIC_ORGANIZATIONS[1],
+        });
+      return null;
     case 'compositions':
       return second
         ? request.compositions.language(request)
