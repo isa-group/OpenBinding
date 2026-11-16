@@ -4,7 +4,7 @@ import { platformApi } from '../../api/platform';
 import type { Organization } from '../../api/platform';
 import { PlanChangedNotice } from '../PlanChangedNotice/PlanChangedNotice';
 import { SiteFooter } from '../SiteFooter/SiteFooter';
-import { ErrorBoundary } from '../ui/ErrorBoundary';
+import ErrorBoundary from '../../modules/core/components/error-boundary';
 import { AppHeader } from './AppHeader';
 import { RouteFallback } from './RouteFallback';
 import { workspaceSlugs } from './workspacePath';

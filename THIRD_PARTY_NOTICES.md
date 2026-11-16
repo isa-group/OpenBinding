@@ -86,6 +86,83 @@ listed with its module:
 | `openbinding-gateway/src/openbinding_gateway/modules/compositions/application/follows.py` | `api/src/main/services/PricingFollowService.ts` (adapted: a reader of the composition follows it; a new version tells every follower who still reads it, skipping the author) |
 | `openbinding-gateway/src/openbinding_gateway/modules/compositions/adapters/link_routes.py` | `api/src/main/routes/PermanentLinkRoutes.ts`, `api/src/main/services/PermanentLinkService.ts` (`resolve`, `archiveName`) and `api/src/main/routes/PricingFollowRoutes.ts` (adapted: the ETag, `Vary` and the one 404 kept; `private, no-store` for every caller; a version named by id or label) |
 
+<!-- sphere-convergence:start -->
+
+The frontend files of the move to SPHERE's frontend (`docs/adr/0053-frontend-on-sphere-stack.md`), at revision
+`73779a8a`, each with its reuse class: **verbatim** (copied; only imports, wording and types changed), **adapted**
+(copied, with logic changed; the header says what) or **pattern-only** (the layout followed, the code written here).
+Generated from the origin header of each file.
+
+| File | SPHERE origin | Class |
+|---|---|---|
+| `frontend/src/features/composition-editor/UploadDialog.tsx` | `frontend/src/modules/pricing/components/pricing-import-modal/index.tsx` | pattern-only |
+| `frontend/src/features/fork/ForkCompositionDialog.tsx` | `frontend/src/modules/pricing/components/fork-pricing-modal/index.tsx` | pattern-only |
+| `frontend/src/modules/core/components/404-logo/index.tsx` | `frontend/src/modules/core/components/404-logo/index.tsx` | adapted |
+| `frontend/src/modules/core/components/action-button/index.tsx` | `frontend/src/modules/core/components/action-button/index.tsx` | adapted |
+| `frontend/src/modules/core/components/alert-modal/index.tsx` | `frontend/src/modules/core/components/alert-modal/index.tsx` | adapted |
+| `frontend/src/modules/core/components/alerts/index.tsx` | `frontend/src/modules/core/components/alerts/index.tsx` | adapted |
+| `frontend/src/modules/core/components/block-alert/index.tsx` | `frontend/src/modules/core/components/block-alert/index.tsx` | verbatim |
+| `frontend/src/modules/core/components/command-palette/index.tsx` | `frontend/src/modules/core/components/command-palette/index.tsx` | adapted |
+| `frontend/src/modules/core/components/confirm-modal/index.tsx` | `frontend/src/modules/core/components/confirm-modal/index.tsx` | adapted |
+| `frontend/src/modules/core/components/copy-icon/index.tsx` | `frontend/src/modules/core/components/copy-icon/index.tsx` | adapted |
+| `frontend/src/modules/core/components/date-picker/index.tsx` | `frontend/src/modules/core/components/date-picker/index.tsx` | adapted |
+| `frontend/src/modules/core/components/dual-range-slider/index.tsx` | `frontend/src/modules/pricing/components/dual-range-slider/index.tsx` | verbatim |
+| `frontend/src/modules/core/components/error-boundary/index.tsx` | `frontend/src/modules/core/components/error-boundary/index.tsx` | adapted |
+| `frontend/src/modules/core/components/file-upload-input/index.tsx` | `frontend/src/modules/core/components/file-upload-input/index.tsx` | adapted |
+| `frontend/src/modules/core/components/filter-bar/index.tsx` | `frontend/src/modules/pricing/components/filter-bar/index.tsx` | adapted |
+| `frontend/src/modules/core/components/iconify/index.tsx` | `frontend/src/modules/core/components/iconify/index.tsx` | adapted |
+| `frontend/src/modules/core/components/loaders/banter-loader/index.tsx` | `frontend/src/modules/core/components/loaders/banter-loader/index.tsx` | verbatim |
+| `frontend/src/modules/core/components/loading-modal/index.tsx` | `frontend/src/modules/core/components/loading-modal/index.tsx` | adapted |
+| `frontend/src/modules/core/components/org-avatar/index.tsx` | `frontend/src/modules/core/components/org-avatar/index.tsx` | adapted |
+| `frontend/src/modules/core/components/pagination/index.tsx` | `frontend/src/modules/pricing/components/pagination/index.tsx` | adapted |
+| `frontend/src/modules/core/components/permanent-link/index.tsx` | `frontend/src/modules/core/components/permanent-link/index.tsx` | verbatim |
+| `frontend/src/modules/core/components/router-link/index.tsx` | `frontend/src/modules/core/components/router-link/index.tsx` | adapted |
+| `frontend/src/modules/core/components/search-input/index.tsx` | `frontend/src/modules/pricing/components/search-input/index.tsx` | verbatim |
+| `frontend/src/modules/core/components/skeleton-theme-provider/index.tsx` | `frontend/src/modules/core/components/skeleton-theme-provider/index.tsx` | adapted |
+| `frontend/src/modules/core/components/skeletons/collection-card-skeleton.tsx` | `frontend/src/modules/core/components/skeletons/collection-card-skeleton.tsx` | verbatim |
+| `frontend/src/modules/core/components/skeletons/collections-list-skeleton.tsx` | `frontend/src/modules/core/components/skeletons/collections-list-skeleton.tsx` | verbatim |
+| `frontend/src/modules/core/components/skeletons/dashboard-skeleton.tsx` | `frontend/src/modules/core/components/skeletons/dashboard-skeleton.tsx` | verbatim |
+| `frontend/src/modules/core/components/skeletons/editor-skeleton.tsx` | `frontend/src/modules/core/components/skeletons/editor-skeleton.tsx` | verbatim |
+| `frontend/src/modules/core/components/skeletons/org-detail-skeleton.tsx` | `frontend/src/modules/core/components/skeletons/org-detail-skeleton.tsx` | verbatim |
+| `frontend/src/modules/core/components/skeletons/org-join-skeleton.tsx` | `frontend/src/modules/core/components/skeletons/org-join-skeleton.tsx` | verbatim |
+| `frontend/src/modules/core/components/skeletons/org-list-skeleton.tsx` | `frontend/src/modules/core/components/skeletons/org-list-skeleton.tsx` | verbatim |
+| `frontend/src/modules/core/components/skeletons/pricing-card-skeleton.tsx` | `frontend/src/modules/core/components/skeletons/pricing-card-skeleton.tsx` | verbatim |
+| `frontend/src/modules/core/components/skeletons/pricing-list-skeleton.tsx` | `frontend/src/modules/core/components/skeletons/pricing-list-skeleton.tsx` | verbatim |
+| `frontend/src/modules/core/components/slider-filter/index.tsx` | `frontend/src/modules/pricing/components/slider-filter/index.tsx` | adapted |
+| `frontend/src/modules/core/components/slug-preview/index.tsx` | `frontend/src/modules/core/components/slug-preview/index.tsx` | verbatim |
+| `frontend/src/modules/core/components/sunset-stripe/index.tsx` | `frontend/src/modules/core/components/sunset-stripe.tsx` | adapted |
+| `frontend/src/modules/core/components/toast/index.tsx` | `frontend/src/modules/core/components/toast/index.tsx` | adapted |
+| `frontend/src/modules/core/components/user-avatar/index.tsx` | `frontend/src/modules/core/components/user-avatar/index.tsx` | adapted |
+| `frontend/src/modules/core/contexts/toastContext.tsx` | `frontend/src/modules/core/contexts/toastContext.tsx` | adapted |
+| `frontend/src/modules/core/contexts/useToast.ts` | `frontend/src/modules/core/contexts/useToast.ts` | verbatim |
+| `frontend/src/modules/core/hooks/useQueryParams.ts` | `frontend/src/modules/core/hooks/useQueryParams.ts` | verbatim |
+| `frontend/src/modules/core/hooks/useRecentItems.ts` | `frontend/src/modules/core/hooks/useRecentItems.ts` | adapted |
+| `frontend/src/modules/core/hooks/useRouter.ts` | `frontend/src/modules/core/hooks/useRouter.ts` | adapted |
+| `frontend/src/modules/core/hooks/useScrollToTop.ts` | `frontend/src/modules/core/hooks/useScrollToTop.ts` | verbatim |
+| `frontend/src/modules/core/pages/loading/index.tsx` | `frontend/src/modules/core/pages/loading/index.tsx` | adapted |
+| `frontend/src/modules/core/pages/page-not-found/index.tsx` | `frontend/src/modules/core/pages/page-not-found/index.tsx` | adapted |
+| `frontend/src/modules/core/utils/custom-alert.tsx` | `frontend/src/modules/core/utils/custom-alert.tsx` | adapted |
+| `frontend/src/modules/core/utils/custom-confirm.tsx` | `frontend/src/modules/core/utils/custom-confirm.tsx` | adapted |
+| `frontend/src/modules/core/utils/generate-slug.ts` | `frontend/src/modules/core/utils/generate-slug.ts` | verbatim |
+| `frontend/src/modules/core/utils/motion-variants.ts` | `frontend/src/modules/core/utils/motion-variants.ts` | verbatim |
+| `frontend/src/modules/core/utils/offer-reload.ts` | `frontend/src/modules/pricing/pages/card/index.tsx` | adapted (extracted) |
+| `frontend/src/modules/core/utils/recentItems.ts` | `frontend/src/modules/core/utils/recentItems.ts` | adapted |
+| `frontend/src/pages/Compositions/CompositionDetail.tsx` | `frontend/src/modules/pricing/pages/card/index.tsx` | pattern-only |
+| `frontend/src/pages/Compositions/tabs/VersionsTab.tsx` | `frontend/src/modules/pricing/components/pricing-versions-tab/index.tsx` | pattern-only |
+| `frontend/src/pages/PublicCompositions/PublicCompositionList.tsx` | `frontend/src/modules/pricing/pages/list/index.tsx` | pattern-only |
+| `frontend/src/pages/PublicCompositions/Showcase.tsx` | `frontend/src/modules/pricing/pages/card/index.tsx` | pattern-only |
+| `frontend/src/pages/Studies/ParetoFront.tsx` | `frontend/src/modules/pricing/components/configuration-space-view/index.tsx` | pattern-only |
+| `frontend/src/styles/tailwind.css` | `frontend/src/styles/tailwind.css` | adapted |
+| `frontend/src/widgets/change-summary/ChangeSummary.tsx` | `frontend/src/modules/pricing/components/pricing-version-graph/change-summary-card.tsx` | pattern-only |
+| `frontend/src/widgets/composition-renderer/modes/calculator.tsx` | `frontend/src/modules/pricing/components/configuration-space-view/index.tsx` | pattern-only |
+| `frontend/src/widgets/composition-renderer/modes/comparison/Comparison.tsx` | `frontend/src/modules/pricing/components/pricing-version-diff/index.tsx` | pattern-only |
+| `frontend/src/widgets/composition-renderer/modes/comparison/FileDiff.tsx` | `frontend/src/modules/pricing/components/pricing-version-diff/file-diff-view.tsx` | pattern-only |
+| `frontend/src/widgets/composition-renderer/modes/showcase.tsx` | `frontend/src/modules/pricing/pages/card/index.tsx` | pattern-only |
+| `frontend/src/widgets/evolution-charts/EvolutionCharts.tsx` | `frontend/src/modules/pricing/components/pricing-analytics-tab/index.tsx` | pattern-only |
+| `frontend/src/widgets/problems-panel/ProblemsPanel.tsx` | `frontend/src/modules/pricing-editor/components/problems-panel/index.tsx` | pattern-only |
+| `frontend/vite.config.ts` | `frontend/vite.config.ts` | pattern-only |
+<!-- sphere-convergence:end -->
+
 SPHERE's licence, verbatim:
 
 ```text

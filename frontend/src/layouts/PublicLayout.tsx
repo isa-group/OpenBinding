@@ -3,7 +3,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { Navigation } from '../components/Navigation/Navigation';
 import { RouteFallback } from '../components/PlatformShell/RouteFallback';
 import { SiteFooter } from '../components/SiteFooter/SiteFooter';
-import { ErrorBoundary } from '../components/ui/ErrorBoundary';
+import ErrorBoundary from '../modules/core/components/error-boundary';
 
 /** Layout of public and authentication screens: the capsule header, the screen and the site footer. */
 export function PublicLayout() {

@@ -181,6 +181,13 @@
   --color-tp-chart-5: #e87ba4;
   --color-tp-chart-6: #008300;
 
+  /* SPHERE's 404 illustration (modules/core/components/404-logo). */
+  --color-tp-illustration-amber: #ffc107;
+  --color-tp-illustration-navy: #061b64;
+  --color-tp-illustration-blue: #2065d1;
+  --color-tp-illustration-gold-light: #ffe16a;
+  --color-tp-illustration-gold-dark: #b78103;
+
   /* ═══════════════════════════════════════════════════════════════
      ELEVATION / SHADOWS
      ═══════════════════════════════════════════════════════════════ */

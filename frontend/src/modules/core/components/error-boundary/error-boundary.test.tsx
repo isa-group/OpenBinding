@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { CHUNK_RELOAD_KEY, isChunkLoadError } from './chunkReload';
-import { ErrorBoundary } from './ErrorBoundary';
+import { CHUNK_RELOAD_KEY, isChunkLoadError } from '../../utils/chunk-reload';
+import ErrorBoundary from '.';
 
 function Broken({ message = 'render failed' }: { message?: string }): never {
   throw new Error(message);
@@ -15,6 +15,20 @@ describe('ErrorBoundary', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  it('shows the fallback it is given, with the error and a reload', () => {
+    const reload = vi.fn();
+    render(
+      <ErrorBoundary
+        reload={reload}
+        fallback={(error, again) => <button onClick={again}>{error.message}</button>}
+      >
+        <Broken message="panel failed" />
+      </ErrorBoundary>
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'panel failed' }));
+    expect(reload).toHaveBeenCalledTimes(1);
   });
 
   it('shows its children while nothing fails', () => {
