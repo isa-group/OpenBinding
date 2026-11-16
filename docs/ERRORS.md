@@ -158,6 +158,7 @@ is not needed.
 | `problem_has_compositions` | 409 | `DELETE …/problems/{problem}`: a sealed composition version, or one of its evaluations, names one of its revisions. Delete the compositions that link the problem first |
 | `revision_not_recompilable` | 422 | the installed toolchain refuses a stored revision (or reads it as another package); `reason` carries the refusal |
 | `problem_facts_unreadable` | 422 | `getProblemCompilationFacts` or `validateBimPackage?include=facts`: the compiled problem lacks a member the facts read, or holds one this version cannot read; `reason` says which |
+| `validation_error` | 422 | `validateBimPackage` with an `include` item other than `ir` and `facts` |
 | `content_unavailable` | 409 | the stored package of a revision cannot be read |
 | `revision_required` | 422 | `createRun` (`POST /v1/organizations/{org}/runs`) without `revision` |
 | `revision_not_in_organization` | 409 | `createRun` names a revision of another organization the caller can see: launch it from that organization |
@@ -290,6 +291,7 @@ credential that names nobody is `401 unauthorized` there too. A member whose rol
 | `feature_not_entitled` | 403 | `createComposition`, `forkComposition`: the caller's plan lacks the `repository` feature |
 | `slug_conflict` | 409 | the composition slug is in use in the organization (`forkComposition`: the `slug` given is in use in the target; without one, a taken slug answers 200 `{nameTaken: true, existingComposition}` and nothing is forked) |
 | `invalid_request` | 422 | `listCompositionVersions`: `created_after` is later than `created_before` |
+| `validation_error` | 422 | an `include` item the route does not have: `getCompositionVersion` takes `document`, `listCompositionVersions` `analytics` and `evaluations` |
 | `diff_version_missing` | 422 | `diffCompositionVersions` needs a default the composition cannot give: it has no version yet, or none before `to`. Name `from` |
 | `composition_fork_same_organization` | 409 | `forkComposition` into the source's own organization: a fork goes to another organization; seal a new version instead |
 | `composition_fork_problem_unreadable` | 409 | `forkComposition` of a version that links a problem, which the target organization cannot read. Set `dropProblem` to fork it without `problem` and `evidence`, its values declared |
@@ -312,7 +314,7 @@ credential that names nobody is `401 unauthorized` there too. A member whose rol
 
 | `code` | Status | Meaning |
 |---|---|---|
-| `slug_reserved` | 422 | `createOrganization` with a slug that names a page of the application (`admin`, `account`, `engines`, `organizations`, `invitations`, `runs`, `problems`, `studies`, `settings`, `workbench`, `new`) |
+| `slug_reserved` | 422 | `createOrganization` with a slug that names a page of the application (`admin`, `account`, `engines`, `organizations`, `invitations`, `compositions`, `presets`, `runs`, `problems`, `studies`, `settings`, `workbench`, `new`) |
 | `slug_conflict` | 409 | the organization slug is in use |
 | `historical_references` | 409 | `deleteOrganization`: the organization, or one below it, has runs or study runs, which are kept as history |
 
@@ -371,6 +373,15 @@ Both codes keep the shape of their route family (below): platform routes answer
 `{"detail": {"code", "error"}, "type", "title", "status", "code"}`, and
 `/v1/engine-registrations/…` answers `Problem` as `application/problem+json`. The tag appears only in the `ETag`
 header, never in the body.
+
+## Reading them in the browser
+
+The frontend reads every refusal through one function, `readApiError` (`frontend/src/shared/api/errors.ts`): the
+problem document of a 422 and of the language and BIM routes, and the platform shape `{"detail": {"code", "error"}}`
+elsewhere, with the `code`, the message, the located `diagnostics` (`fromC2y` places a `c2y_*` finding's span in the
+text), the current `ETag` of a `412` and the `Retry-After` of a `429`. The derive and fork dialogs word a refusal
+from its `code` and add `(status · code)`; a composition that is not found, private or missing, is one state ("No
+composition here, or you cannot see it"), never "private".
 
 ## The other statuses
 

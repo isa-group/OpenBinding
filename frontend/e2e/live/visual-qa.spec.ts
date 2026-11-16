@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { expect, test, type Locator, type Page, type TestInfo } from '@playwright/test';
 import { measurePage, prepareCapture, waitUntilSettled } from '../helpers/pageChecks';
-import { API, CASE, ORG, ORG_PATH, RESULTS_DIR, RUNS_PATH, signInByApi } from './support';
+import { API, CASE, ORG, ORG_PATH, OTHER_ORG, RESULTS_DIR, RUNS_PATH, signInByApi } from './support';
 
 /**
  * Visual QA of the main screens at the two sizes of the project (`desktop` 1280x800 and `mobile` 390x844 with touch: see
@@ -20,6 +20,10 @@ import { API, CASE, ORG, ORG_PATH, RESULTS_DIR, RUNS_PATH, signInByApi } from '.
  * - no clipped content: nothing visible sticks out past a container that cuts it (`overflow-x: hidden|clip`, or the page edge) without
  *   being scrollable (`overflow-x: auto|scroll`) or an ellipsis; a table wider than the screen belongs in a scroll region;
  * - a full-page screenshot in `<results>/screenshots/<size>-<screen>.png`.
+ *
+ * The composition screens read what tools/seed_lab.py made: lab-main's private `sequential-workflow` (versions 1.0.0 and 1.1.0,
+ * derived from its problem) for the owner and the viewer, and lab-other's public `sequential-workflow` for a visitor. On mobile the
+ * Editor is also looked at in its Visual and Problems tabs (on desktop the panes sit side by side).
  *
  * One summary line per screen and size goes to the log (`VQA ...`, and `VQA_PROBLEM ...` for each finding): that log is all the
  * controller of the lab sees, because the screenshots stay in a volume it cannot open. A finding fails the test, but the walk goes on,
@@ -252,6 +256,57 @@ const OWNER_STOPS: Stop[] = [
   { slug: 'team-organization', path: `/app/${ORG}/settings/members`, ready: (page) => page.locator('#platform-main').getByRole('heading', { level: 1 }) },
 ];
 
+/** lab-main's composition from the seed, its name, and the two versions the comparison stops compare. */
+const COMPOSITION = `${ORG_PATH}/compositions/sequential-workflow`;
+const COMPOSITION_NAME = 'Sequential workflow';
+const PAIR = 'from=1.0.0&to=1.1.0';
+const composed = (page: Page) => page.locator('#platform-main').getByRole('heading', { level: 1, name: COMPOSITION_NAME });
+
+/** The compositions of lab-main as its owner reads and edits them: the list and every tab of the detail. */
+function compositionStops(mobile: boolean): Stop[] {
+  const editor: Stop = { slug: 'composition-editor', path: `${COMPOSITION}/editor`, ready: (page) => page.getByRole('textbox', { name: 'composition.yaml source' }) };
+  // Below 640 px the Editor's panes are tabs: the Visual and Problems tabs are stops of their own.
+  const pane = (slug: string, tab: RegExp, ready: (page: Page) => Locator): Stop => ({
+    slug,
+    path: `${COMPOSITION}/editor`,
+    ready: (page) => page.getByRole('tablist', { name: 'Editor panes' }),
+    extra: async (page, label) => {
+      await page.getByRole('tablist', { name: 'Editor panes' }).getByRole('tab', { name: tab }).click();
+      await expect.soft(ready(page), `${label}: the pane did not open`).toBeVisible({ timeout: 30_000 });
+    },
+  });
+  return [
+    { slug: 'compositions', path: `${ORG_PATH}/compositions`, ready: (page) => page.locator('#platform-main').getByRole('heading', { level: 1, name: 'Compositions' }) },
+    { slug: 'composition-overview', path: COMPOSITION, ready: (page) => composed(page) },
+    editor,
+    ...(mobile ? [
+      pane('composition-editor-visual', /^Visual$/, (page) => page.getByRole('radio', { name: /for t1$/ }).first()),
+      pane('composition-editor-problems', /^Problems/, (page) => page.getByRole('tab', { name: /^Problems/, selected: true })),
+    ] : []),
+    { slug: 'composition-versions', path: `${COMPOSITION}/versions`, ready: (page) => page.getByRole('region', { name: `Versions of ${COMPOSITION_NAME}` }) },
+    { slug: 'composition-versions-compare', path: `${COMPOSITION}/versions?view=compare&${PAIR}`, ready: (page) => page.getByRole('region', { name: /^Binding/ }) },
+    { slug: 'composition-versions-file', path: `${COMPOSITION}/versions?view=file&${PAIR}`, ready: (page) => page.getByRole('region', { name: 'The text of 1.0.0 and 1.1.0' }) },
+    { slug: 'composition-versions-evolution', path: `${COMPOSITION}/versions?view=evolution`, ready: (page) => page.getByRole('region', { name: 'Evolution' }) },
+    { slug: 'composition-analysis', path: `${COMPOSITION}/analysis`, ready: (page) => page.getByRole('region', { name: 'One change at a time' }) },
+    { slug: 'composition-settings', path: `${COMPOSITION}/settings`, ready: (page) => page.locator('#platform-main').getByRole('heading', { level: 2, name: 'Visibility' }) },
+  ];
+}
+
+/** What anybody reads with no account: the public compositions, lab-other's public page and the language. */
+const VISITOR_STOPS: Stop[] = [
+  { slug: 'public-compositions', path: '/compositions', ready: (page) => page.getByRole('heading', { level: 1, name: 'Public compositions' }) },
+  {
+    slug: 'showcase',
+    path: `/c/${OTHER_ORG}/sequential-workflow`,
+    ready: (page) => page.getByRole('main').getByRole('heading', { level: 1, name: COMPOSITION_NAME }),
+    extra: async (page, label) => {
+      await expect.soft(page.getByRole('main').getByRole('tab'), `${label}: a visitor sees tabs`).toHaveCount(0);
+      await expect.soft(page.getByRole('region', { name: 'Problem candidates' }), `${label}: a visitor sees the problem's candidates`).toHaveCount(0);
+    },
+  },
+  { slug: 'language', path: '/language', ready: (page) => page.getByRole('heading', { level: 1, name: 'Composition2Yaml' }) },
+];
+
 /** The viewer reads; the backend now asks for MEMBER to start a run, and nothing on these screens may let it try. */
 const VIEWER_STOPS: Stop[] = [
   {
@@ -280,6 +335,23 @@ const VIEWER_STOPS: Stop[] = [
       await expect.soft(page.locator('button:not([disabled])', { hasText: 'Send run' }), `${label}: a viewer has an enabled "Send run"`).toHaveCount(0);
     },
   },
+  {
+    slug: 'viewer-compositions',
+    path: `${ORG_PATH}/compositions`,
+    ready: (page) => page.locator('#platform-main').getByRole('heading', { level: 1, name: 'Compositions' }),
+    extra: async (page, label) => {
+      await expect.soft(page.getByRole('button', { name: 'New composition' }), `${label}: a viewer sees "New composition"`).toHaveCount(0);
+    },
+  },
+  {
+    slug: 'viewer-composition',
+    path: COMPOSITION,
+    ready: (page) => composed(page),
+    extra: async (page, label) => {
+      await expect.soft(page.getByText('Sealing versions needs MEMBER.').first(), `${label}: the page does not say sealing needs MEMBER`).toBeVisible();
+      await expect.soft(page.getByRole('tab', { name: 'Settings' }), `${label}: a viewer sees the Settings tab`).toHaveCount(0);
+    },
+  },
 ];
 
 test.describe('live · visual QA', () => {
@@ -296,7 +368,7 @@ test.describe('live · visual QA', () => {
     const listed = await page.request.get(`${API}/v1/organizations/${ORG}/runs?limit=100`, { headers: { Authorization: `Bearer ${token}` } });
     const jobs = listed.ok() ? (await listed.json() as { runs: Array<{ id: string; status: string }> }).runs : [];
     const finished = jobs.find((job) => String(job.status).toLowerCase() === 'completed');
-    const stops = [...OWNER_STOPS];
+    const stops = [...OWNER_STOPS, ...compositionStops(testInfo.project.name === 'mobile')];
     const skipped: Array<{ slug: string; why: string }> = [];
     if (finished) {
       stops.splice(6, 0, {
@@ -309,6 +381,11 @@ test.describe('live · visual QA', () => {
       testInfo.annotations.push({ type: 'skipped-screen', description: 'job-result: no completed job' });
     }
     await report(testInfo, 'owner', await walk(page, testInfo, stops, skipped));
+  });
+
+  test('a visitor reads the public compositions, a public composition and the language', async ({ page }, testInfo) => {
+    test.setTimeout(300_000);
+    await report(testInfo, 'visitor', await walk(page, testInfo, VISITOR_STOPS));
   });
 
   test('the viewer is offered no way to start a run', async ({ page }, testInfo) => {

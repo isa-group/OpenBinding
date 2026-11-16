@@ -1,15 +1,29 @@
 #!/usr/bin/env python3
 """Idempotent local seed for the demo: synthetic users with the real roles, two
-organizations, and a small BIM package from ``examples/`` as a problem of the main
-organization.
+organizations, a small BIM package from ``examples/`` as a problem of each, and the
+compositions the walks and the showcase read.
 
 Safe to run on an empty or an already seeded database: every row is looked up by
-a stable key (UUIDv5 ids by username/slug, the problem by its slug and package digest)
-and created only when missing; there is no ``--reset`` and no user, organization,
-problem or revision is ever deleted. It also compiles, with the installed
-bim-toolchain, every problem revision that has no compilation of it yet (a new row;
-the older compilations stay). It launches no jobs, no studies and no solvers.
+a stable key (UUIDv5 ids by username/slug, the problem by its slug and package digest,
+a composition by its organization and slug, a version by its bytes) and created only
+when missing; there is no ``--reset`` and no user, organization, problem, revision or
+composition is ever deleted. It also compiles, with the installed bim-toolchain, every
+problem revision that has no compilation of it yet (a new row; the older compilations
+stay). It launches no jobs, no studies and no solvers, so the compositions are derived
+from bindings of the problems, through the platform's own derivation and seal.
 Importing this module has no side effects.
+
+The compositions (F2a):
+
+- ``lab-main/sequential-workflow``: derived from ``lab-main/simple-seq@1`` twice, 1.0.0
+  with the first eligible candidate of every task, then 1.1.0 with the first task that has
+  two candidates moved to its second one. Private.
+- ``lab-other``: its own ``simple-seq`` problem, the same package uploaded by
+  ``lab-outsider``; ``sequential-workflow`` derived from it and **public** (the slug of
+  lab-main's, so forking it into lab-main meets the name taken); ``order-desk``, declared and
+  **public**; ``internal-draft``, declared and private.
+
+The public list therefore holds two compositions, both of lab-other.
 
 Environment:
     DEMO_SEED_PASSWORD   required; password of every synthetic user (at least 10 chars).
@@ -66,11 +80,20 @@ from openbinding_gateway.db.models import (
 from openbinding_gateway.db.platform_models import (
     BindingCase,
     BindingCaseRevision,
+    Composition,
+    CompositionKind,
+    CompositionVersion,
     Organization,
     OrganizationMembership,
     OrganizationRole,
 )
 from openbinding_gateway.integrations import packages
+from openbinding_gateway.modules.compositions.application import (
+    derive_version,
+    installed_compilation,
+    judge,
+    persist,
+)
 from openbinding_gateway.modules.problems.application import (
     NOT_RECOMPILABLE,
     add_revision,
@@ -88,7 +111,20 @@ SEED_NAMESPACE = uuid.UUID("6f1d3a52-8c0e-4b7a-9d21-0f5e7c3a9b10")
 EMAIL_DOMAIN = "example.org"
 DEMO_PACKAGE = "01_simple_seq"
 MAIN_ORG = "lab-main"
+OTHER_ORG = "lab-other"
 CASE_SLUG = "simple-seq"
+#: The composition derived from each organization's problem (lab-main's private, lab-other's public):
+#: slug, name and description.
+LINKED_COMPOSITION = (
+    "sequential-workflow", "Sequential workflow",
+    "Three services in sequence, bound from the simple-seq problem; its latency is computed on that problem.",
+)
+#: lab-other's declared compositions: public, and private.
+PUBLIC_DECLARED = (
+    "order-desk", "Order desk",
+    "Signs customers in, sends a notice and archives the order in parallel, then ships by post or by courier.",
+)
+PRIVATE_DECLARED = ("internal-draft", "Internal draft", "Not shared outside the organization.")
 KNOWN_PRODUCTION_SERVICES = ("openbinding",)
 
 #: (username, platform role, {organization slug: organization role})
@@ -105,6 +141,48 @@ ORGANIZATIONS = (
     ("lab-main", "Lab Main Organization", "lab-owner"),
     ("lab-other", "Lab Other Organization", "lab-outsider"),
 )
+
+
+#: lab-other's public declared composition: it links no problem, so its values are the ones written here.
+ORDER_DESK = """\
+syntaxVersion: "1.0"
+composition: order-desk
+version: 1.0.0
+kind: application
+workflow:
+  seq:
+    - signIn
+    - and: [notify, archive]
+    - xor:
+        - {probability: 0.7, flow: post}
+        - {probability: 0.3, flow: courier}
+binding:
+  signIn: {local: true}
+  notify: {candidate: email.brevo.starter, from: {sphere: brevo/brevo, version: 665f1c2e9b1d4a0012ab34cd, plan: STARTER}}
+  archive: {candidate: storage.dropbox.plus}
+  post: {candidate: shipping.post.standard}
+  courier: {candidate: shipping.courier.express}
+values:
+  availability: 0.995
+  cost: {value: 42.5, unit: EUR/month}
+  latency: {value: 380, unit: ms}
+offering: {url: "https://pricings.example.org/order-desk/pricing.yml"}
+"""
+
+#: lab-other's private declared composition: what a visitor must not find.
+INTERNAL_DRAFT = """\
+syntaxVersion: "1.0"
+composition: internal-draft
+version: 0.1.0
+kind: workflow
+workflow:
+  seq: [intake, review]
+binding:
+  intake: {local: true}
+  review: {candidate: review.desk.basic}
+values:
+  latency: {value: 900, unit: ms}
+"""
 
 
 def stable_id(kind: str, key: str) -> uuid.UUID:
@@ -215,11 +293,11 @@ async def ensure_case(
             description="Sequential pipeline with strict latency bounds (synthetic demo).",
             provenance={"producer": "seed_lab"},
         )
-        created.append(f"case:{CASE_SLUG}")
+        created.append(f"case:{organization.slug}/{CASE_SLUG}")
     else:
         upload = await add_revision(session, problem, archive, user, provenance={"producer": "seed_lab"})
     if upload.created:
-        created.append(f"case-revision:{CASE_SLUG}:{upload.revision.revision}")
+        created.append(f"case-revision:{organization.slug}/{CASE_SLUG}:{upload.revision.revision}")
     return upload.revision
 
 
@@ -261,6 +339,128 @@ async def ensure_current_toolchain(session: AsyncSession, created: list[str]) ->
     return failures
 
 
+def lab_bindings(compilation: ProblemCompilation) -> tuple[dict[str, str], dict[str, str]]:
+    """Two bindings of a compiled problem: the first eligible candidate of every service task, and the same with
+    the first task that has two candidates moved to its second one (in ``01_simple_seq``, ``t1`` from ``c1a`` to
+    ``c1b``)."""
+    spec = compilation.ir["spec"]
+    eligible = {
+        task: [candidate["id"] for candidate in spec["eligibility"][task]]
+        for task, body in spec["application"]["tasks"].items()
+        if body["kind"] == "service"
+    }
+    first = {task: candidates[0] for task, candidates in eligible.items()}
+    moved = next((task for task, candidates in eligible.items() if len(candidates) > 1), None)
+    if moved is None:
+        raise RuntimeError(f"{DEMO_PACKAGE} has no task with two eligible candidates; the lab's compositions need one")
+    return first, {**first, moved: eligible[moved][1]}
+
+
+async def ensure_composition(
+    session: AsyncSession, organization: Organization, user: User, identity: tuple[str, str, str],
+    kind: CompositionKind, visibility: str, created: list[str],
+) -> Composition:
+    """The composition ``identity`` (slug, name, description) of ``organization``, created when missing; its
+    visibility is the seed's."""
+    slug, name, description = identity
+    composition = await session.scalar(
+        select(Composition).where(Composition.organization_id == organization.id, Composition.slug == slug)
+    )
+    if composition is None:
+        composition = Composition(
+            id=stable_id("composition", f"{organization.slug}/{slug}"), organization_id=organization.id, slug=slug,
+            name=name, description=description, kind=kind, visibility=visibility, created_by_id=user.id,
+        )
+        session.add(composition)
+        await session.commit()
+        created.append(f"composition:{organization.slug}/{slug}")
+    elif composition.visibility != visibility:
+        composition.visibility = visibility
+        await session.commit()
+    return composition
+
+
+async def labelled(session: AsyncSession, composition: Composition, label: str) -> CompositionVersion | None:
+    """The version of ``composition`` labelled ``label``, if it has one."""
+    return await session.scalar(
+        select(CompositionVersion).where(CompositionVersion.composition_id == composition.id, CompositionVersion.label == label)
+    )
+
+
+async def seal_derived(
+    session: AsyncSession, organization: Organization, composition: Composition, user: User,
+    revision: BindingCaseRevision, label: str, binding: Mapping[str, str], created: list[str],
+) -> CompositionVersion:
+    """``binding`` of ``CASE_SLUG@revision`` derived and sealed as ``label``, unless the composition has a version
+    by that label already (after a toolchain release the same binding links another compilation, so its bytes
+    differ: the seeded version stays as it was sealed)."""
+    existing = await labelled(session, composition, label)
+    if existing is not None:
+        return existing
+    derived = await derive_version(
+        session, organization, composition, caller=user, label=label,
+        revision=f"{CASE_SLUG}@{revision.revision}", binding=dict(binding),
+    )
+    sealed = await persist(session, composition, derived.assessment, actor=user, derivation=derived.derivation)
+    if sealed.created:
+        created.append(f"composition-version:{organization.slug}/{composition.slug}@{label}")
+    return sealed.version
+
+
+async def seal_declared(
+    session: AsyncSession, organization: Organization, composition: Composition, user: User, label: str,
+    document: str, created: list[str],
+) -> CompositionVersion:
+    """``document`` (its ``version:`` is ``label``) judged and sealed as written, its values declared, unless the
+    composition has a version by that label already."""
+    existing = await labelled(session, composition, label)
+    if existing is not None:
+        return existing
+    checked = await judge(session, organization, composition.slug, document.encode("utf-8"), user)
+    if checked.assessment is None or not checked.valid:
+        raise RuntimeError(
+            f"the seed's composition {organization.slug}/{composition.slug} is refused: "
+            + "; ".join(map(str, checked.diagnostics))
+        )
+    sealed = await persist(session, composition, checked.assessment, actor=user)
+    if sealed.created:
+        created.append(f"composition-version:{organization.slug}/{composition.slug}@{label}")
+    return sealed.version
+
+
+async def ensure_compositions(
+    session: AsyncSession, organizations: Mapping[str, Organization], users: Mapping[str, User],
+    revisions: Mapping[str, BindingCaseRevision], created: list[str],
+) -> dict[str, str]:
+    """The compositions of the module docstring; their ids by ``<organization>/<slug>``."""
+    ids: dict[str, str] = {}
+    for org_slug, author, visibility, labels in (
+        (MAIN_ORG, "lab-owner", "private", ("1.0.0", "1.1.0")),
+        (OTHER_ORG, "lab-outsider", "public", ("1.0.0",)),
+    ):
+        organization, user, revision = organizations[org_slug], users[author], revisions[org_slug]
+        installed, refusal = await installed_compilation(session, revision)
+        if installed is None:
+            raise RuntimeError(f"{org_slug}/{CASE_SLUG}@{revision.revision} does not compile: {refusal}")
+        bindings = lab_bindings(installed)
+        composition = await ensure_composition(
+            session, organization, user, LINKED_COMPOSITION, CompositionKind.WORKFLOW, visibility, created,
+        )
+        for label, binding in zip(labels, bindings[: len(labels)], strict=True):
+            await seal_derived(session, organization, composition, user, revision, label, binding, created)
+        ids[f"{org_slug}/{composition.slug}"] = str(composition.id)
+
+    other, outsider = organizations[OTHER_ORG], users["lab-outsider"]
+    for identity, kind, visibility, label, document in (
+        (PUBLIC_DECLARED, CompositionKind.APPLICATION, "public", "1.0.0", ORDER_DESK),
+        (PRIVATE_DECLARED, CompositionKind.WORKFLOW, "private", "0.1.0", INTERNAL_DRAFT),
+    ):
+        composition = await ensure_composition(session, other, outsider, identity, kind, visibility, created)
+        await seal_declared(session, other, composition, outsider, label, document, created)
+        ids[f"{OTHER_ORG}/{composition.slug}"] = str(composition.id)
+    return ids
+
+
 async def count_rows(session: AsyncSession, users: dict[str, User], organizations: dict[str, Organization]) -> dict[str, int]:
     user_ids = [user.id for user in users.values()]
     org_ids = [organization.id for organization in organizations.values()]
@@ -281,6 +481,11 @@ async def count_rows(session: AsyncSession, users: dict[str, User], organization
                 select(BindingCaseRevision.id).where(BindingCaseRevision.created_by_id.in_(user_ids))
             ),
         ),
+        "compositions": await count(Composition, Composition.organization_id.in_(org_ids)),
+        "compositionVersions": await count(
+            CompositionVersion,
+            CompositionVersion.composition_id.in_(select(Composition.id).where(Composition.organization_id.in_(org_ids))),
+        ),
     }
 
 
@@ -298,9 +503,13 @@ async def seed(session: AsyncSession, password: str, examples_dir: Path, *, plan
     try:
         users = await ensure_users(session, password, plan, created)
         organizations = await ensure_organizations(session, users, created)
-        revision = await ensure_case(session, organizations[MAIN_ORG], users["lab-owner"], examples_dir, created)
+        revisions = {
+            org_slug: await ensure_case(session, organizations[org_slug], users[author], examples_dir, created)
+            for org_slug, author in ((MAIN_ORG, "lab-owner"), (OTHER_ORG, "lab-outsider"))
+        }
         recompile = await ensure_current_toolchain(session, created)
         await session.commit()
+        compositions = await ensure_compositions(session, organizations, users, revisions, created)
     finally:
         space_client.set_gate(previous)
     return {
@@ -313,7 +522,8 @@ async def seed(session: AsyncSession, password: str, examples_dir: Path, *, plan
         "ids": {
             "users": {name: str(user.id) for name, user in users.items()},
             "organizations": {slug: str(item.id) for slug, item in organizations.items()},
-            "caseRevision": str(revision.id),
+            "caseRevision": str(revisions[MAIN_ORG].id),
+            "compositions": compositions,
         },
         "roles": {
             username: {"platform": role.value, "organizations": {slug: item.value for slug, item in memberships.items()}}

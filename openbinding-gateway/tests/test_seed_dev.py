@@ -166,8 +166,8 @@ async def _count(db_session, model) -> int:
 
 @pytest.mark.asyncio
 async def test_seed_dev_compositions_are_derived_and_declared_once(db_session):
-    """``simple-seq`` derives from the seeded run of its problem, ``tomatometer-sketch`` is declared, and
-    seeding again stores nothing new."""
+    """``simple-seq`` derives from the seeded run of its problem, gets a second version from a binding and is
+    public; ``tomatometer-sketch`` is declared and private; seeding again stores nothing new."""
     users = await ensure_users(db_session)
     orgs = await ensure_organizations(db_session, users)
     organization, alice = orgs["score-ai"], users["alice"]
@@ -187,19 +187,22 @@ async def test_seed_dev_compositions_are_derived_and_declared_once(db_session):
 
     sealed = await ensure_compositions(db_session, organization, alice, case_map, [run])
 
-    assert [version.label for version in sealed] == ["1.0.0", "0.1.0"]
-    slugs = (await db_session.scalars(select(Composition.slug).order_by(Composition.slug))).all()
-    assert slugs == ["simple-seq", "tomatometer-sketch"]
+    assert [version.label for version in sealed] == ["1.0.0", "1.1.0", "0.1.0"]
+    visibility = dict((await db_session.execute(select(Composition.slug, Composition.visibility))).all())
+    assert visibility == {"simple-seq": "public", "tomatometer-sketch": "private"}
     counts = [await _count(db_session, model) for model in (CompositionVersion, CompositionEvaluation, CompositionDerivation)]
-    assert counts == [2, 2, 1]
-    derivation = await db_session.scalar(select(CompositionDerivation))
-    assert derivation.job_id == run.id and derivation.point == 0
-    derived, declared = sealed
+    assert counts == [3, 3, 2]
+    from_run = await db_session.scalar(select(CompositionDerivation).where(CompositionDerivation.job_id.is_not(None)))
+    assert from_run.job_id == run.id and from_run.point == 0
+    derived, second, declared = sealed
     assert derived.values_status.value == "verified" and derived.evidence_job_id == run.id
+    # 1.1.0 binds t1 to its other candidate, from a binding of the same revision.
+    assert second.values_status.value == "verified" and second.evidence_job_id is None
+    assert "candidate: c1a" in derived.content and "candidate: c1b" in second.content
     assert declared.values_status.value == "declared" and declared.offering == {"sphere": "isa/tomatometer"}
     assert "  login:\n    local: true\n" in declared.content
 
     again = await ensure_compositions(db_session, organization, alice, case_map, [run])
 
     assert [version.id for version in again] == [version.id for version in sealed]
-    assert [await _count(db_session, model) for model in (Composition, CompositionVersion, CompositionEvaluation, CompositionDerivation)] == [2, 2, 2, 1]
+    assert [await _count(db_session, model) for model in (Composition, CompositionVersion, CompositionEvaluation, CompositionDerivation)] == [2, 3, 3, 2]

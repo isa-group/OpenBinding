@@ -1,6 +1,28 @@
 {
   "platform": [
     {
+      "version": "F2a",
+      "date": "Unreleased",
+      "title": "Compositions on the web: list, detail, editor, versions, analysis, showcase and fork",
+      "changes": [
+        "Record the F2a decisions as ADRs 0047-0050 and walk derive, seal and compare and the public fork end to end in the lab",
+        "Lead the home page and the header with compositions, and test the vocabulary of the composition and problem screens",
+        "Add the Composition2Yaml reference and playground at /language, with examples the gateway checks",
+        "Show public compositions: the public list and a showcase page per composition",
+        "Fork, publish, archive and delete a composition",
+        "Explore every one-task alternative and configure bindings on the linked problem",
+        "Derive a composition from a run's solution",
+        "Chart the evolution of a composition's structure and values",
+        "Compare composition versions entry by entry and line by line",
+        "Edit and seal Composition2Yaml in the browser, with live lint, check and a visual form",
+        "Add the compositions area: the list, the overview, the architecture and the workflow",
+        "Share one binding core between problems and compositions: workflow graph, candidate matrix and value badge",
+        "Serve the facts of a compiled problem, version documents, resolved bindings, derivations and versions by date",
+        "Publish compositions and read public ones without membership, listed across organizations",
+        "Generate the API types and enforce the frontend layers; copy SPHERE's diff, version and fragment code"
+      ]
+    },
+    {
       "version": "F1",
       "date": "Unreleased",
       "title": "Compositions: the final composition as a versioned, evaluated document",

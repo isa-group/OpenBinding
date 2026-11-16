@@ -13,7 +13,7 @@ import { formatFinding, isTestSupport, scanFiles, wordPattern, type Finding } fr
 /** The terms the screens use for the ideas of the platform: English, and fixed. Each is defined in `docs/GLOSSARY.md`. */
 const GLOSSARY = [
   'Composition', 'Problem', 'Environment', 'Upstream event', 'Proposal', 'Offering', 'Version', 'Evaluation', 'Verified', 'Declared',
-  'Derivation', 'Run preset',
+  'Derivation', 'Run preset', 'Visibility', 'Showcase', 'Catalog',
 ] as const;
 
 const sources = import.meta.glob('/src/**/*.{ts,tsx}', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;

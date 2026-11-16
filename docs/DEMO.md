@@ -385,10 +385,23 @@ least 10 characters). It is not documented here and has no default. Emails are
 | `lab-outsider` | `USER` | `OWNER` of `lab-other` (no access to `lab-main`) |
 
 Data: organizations `lab-main` (created by `lab-owner`) and `lab-other`; the
-problem `lab-main/simple-seq`, uploaded from `examples/demo/01_simple_seq`, with one
-revision and its compilation. The seed launches no jobs. Counted by
-`seed_lab.py --verbose`: 6 users, 2 organizations, 5 memberships, 1 problem with 1
-revision and 1 compilation, and 6 API keys. With `SPACE_ENABLED=true`
+problem `simple-seq` of each, uploaded from `examples/demo/01_simple_seq` (by
+`lab-owner` and `lab-outsider`), with one revision and its compilation. The seed
+launches no jobs, so its compositions are derived from bindings of those problems
+through the platform's own derivation and seal:
+
+| Composition | Visibility | Versions |
+| --- | --- | --- |
+| `lab-main/sequential-workflow` | private | 1.0.0 (`t1` on `c1a`) and 1.1.0 (`t1` on `c1b`), both verified |
+| `lab-other/sequential-workflow` | **public** | 1.0.0, verified (the slug of lab-main's, so forking it into lab-main asks for another name) |
+| `lab-other/order-desk` | **public** | 1.0.0, declared |
+| `lab-other/internal-draft` | private | 0.1.0, declared |
+
+The public list (`/compositions`) therefore holds two compositions. Counted by
+`seed_lab.py --verbose`: 6 users, 2 organizations, 5 memberships, 2 problems with 1
+revision and 1 compilation each, 4 compositions with 5 versions, and 6 API keys. The
+live walks `08-derive-seal-compare` (J1) and `09-public-fork` (J2) and the composition
+stops of the visual QA read this data. With `SPACE_ENABLED=true`
 the users also need a contract on the development service
 (`DEMO_SEED_ARGS='--space-contracts'`).
 
@@ -436,6 +449,7 @@ check `remote_probe.py` before reading it as a seeding gap.
 | `concurrency_limit` | 5 simultaneous launches against `MAX_CONCURRENT_JOBS_PER_USER=3`: a 429 with `Retry-After`, slot freed afterwards |
 | `cors` | preflight allowed from `http://localhost:18100`, refused from `http://evil.example` |
 | `body_limit` | JSON over 16 MiB gets a 413 problem+json |
+| `public_compositions` | anonymous: the public list holds lab-other's two public compositions, `lab-other/sequential-workflow` reads 200, and `lab-other/internal-draft` answers 404 with the bytes of a missing composition |
 | `plan_usage` | (`--with-space`) plan and capabilities of the owner, no usage counters |
 | `login_throttle` | 12 failed logins of a made-up user end in a 429 with `Retry-After`; the counter is per address and identifier |
 

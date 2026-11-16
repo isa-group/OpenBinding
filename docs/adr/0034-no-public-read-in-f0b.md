@@ -1,7 +1,11 @@
 # 0034. No public read in F0b
 
-- Status: accepted
+- Status: accepted; superseded for compositions by [ADR 0047](0047-public-compositions.md)
 - Date: 2026-11-14 (F0b, decision D17 of the F0b implementation plan)
+
+> **Superseded for compositions.** Since F2a an organization's ADMIN can make a composition public, and anybody reads
+> it, redacted, through the organization's routes and the catalog `GET /v1/compositions`
+> ([ADR 0047](0047-public-compositions.md)). Problems, runs and studies keep the rule below.
 
 ## Context
 

@@ -47,7 +47,8 @@ since publishing exposes every version's document; the change is audited as `com
 with `{from, to}`. A public composition is read by anybody through the organization's URLs: the composition,
 its versions, a version, its content and the diff (`getComposition`, `listCompositionVersions`,
 `getCompositionVersion`, `getCompositionVersionContent`, `diffCompositionVersions`). This replaces, for
-compositions, the members-only rule of [ADR 0034](adr/0034-no-public-read-in-f0b.md).
+compositions, the members-only rule of [ADR 0034](adr/0034-no-public-read-in-f0b.md); the decision is
+[ADR 0047](adr/0047-public-compositions.md). Problems, runs and studies keep the members-only rule.
 
 | Caller | Public composition | Private composition | Missing organization or composition |
 |---|---|---|---|
@@ -92,6 +93,10 @@ compositions, the members-only rule of [ADR 0034](adr/0034-no-public-read-in-f0b
   `Cache-Control: private, no-cache`, so a composition made private again is not served from a cache; a
   member's content keeps `private, immutable`. The read rule runs before `If-None-Match`, so a composition
   made private again is `404`, never `304`.
+- **What the web shows.** The public list (`/compositions`) and the showcase (`/c/<organization>/<composition>`)
+  read only these routes. A visitor's Fork sends them to sign in and back to the showcase with the fork dialog
+  open. A signed-in reader who is not a member sees no tab, no problem candidates, no evaluation findings and no
+  "Open in the app"; the problem appears only as the reference its document writes, never as a link.
 - **Budget.** Only a visitor (no credential) is charged for these reads, one request of the `read` class
   each, against its anonymous budget (`ANONYMOUS_READ_ROUTES` in `access/work_limits.py`). A signed-in caller
   is never charged, so a member paging versions is not limited.
@@ -190,6 +195,26 @@ cannot keep the compiler busy for everybody else, every client also has a budget
   members of the organization reach these routes, so they are charged to the account. Their
   concurrency is bounded apart, per process, by `COMPOSITION_EVALUATION_SLOTS` (default 2), with
   the same `429 composition_busy`.
+
+## Live checks from the browser
+
+The editors check what is typed as it is typed, inside the budgets above: nothing on the gateway changed for them.
+One scheduler (`frontend/src/shared/editor/lintScheduler.ts`) runs every live call. It waits for a pause in the
+typing, aborts the request in flight when the text changes, never runs two checks of one kind at once, and never
+retries in a tight loop. On a `429` (`rate_limit_exceeded`, or `composition_busy` with `Retry-After: 1`) it pauses
+for `Retry-After` (at least 1 s, 5 s when the header is absent), says "Checks paused, resuming in N s", and then
+checks the latest text once. Any other refusal is shown, not retried.
+
+| Check | Class (anonymous / signed in, per 60 s by default) | When |
+|---|---|---|
+| `POST /v1/compositions/validate` | `read` (60 / 300) | 600 ms after the last keystroke in the composition editor; 800 ms on the anonymous Language page |
+| `POST …/compositions/{composition}/versions/check` | `evaluate` (30 / 150) | 1500 ms after the last keystroke, only when the text has a top-level `problem:`, its last lint was valid, and the reader is a member |
+| `POST …/compositions/{composition}/evaluate` | `evaluate` | the configurator (Analysis), 800 ms after the last change of a task's candidate |
+| `POST /v1/bim/validate?include=facts` | `compile` (10 / 50) | the BIM problem editor (F2b), 2000 ms after the last edit, only when every JSON file of the package parses |
+
+Parsing for the visual form and the canonical form (`/parse`, `/serialise`) runs through the same scheduler, at
+600 ms in the editor (only while the visual form is shown) and 800 ms on Language (only while the canonical form is
+shown). Uploading a file lints it once and does not check it against the problem.
 
 ## API key permissions of compositions
 
