@@ -722,4 +722,105 @@
       transition-duration: 1ms;
     }
   }
+
+  /*
+   * The classes of the primitives that the screens not yet redrawn still write by hand (a labelled field, the action row of a
+   * dialog, a badge, a link inside a notice). The primitives themselves are drawn with Tailwind in modules/core/components;
+   * these rules go with the last screen that writes the markup (D8).
+   */
+  .ui-field {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+  }
+  .ui-field label {
+    margin-bottom: 6px;
+    color: var(--tp-steel);
+    font-size: 0.75rem;
+    font-weight: 500;
+  }
+  .ui-field input,
+  .ui-field select {
+    width: 100%;
+    max-width: 100%;
+    height: 44px;
+    box-sizing: border-box;
+    padding: 0 12px;
+    border: 1px solid var(--tp-input-border);
+    border-radius: var(--tp-radius-md);
+    background: var(--tp-input-bg);
+    color: var(--tp-ink);
+    font: inherit;
+    font-size: 0.875rem;
+  }
+  .ui-field input:disabled,
+  .ui-field select:disabled {
+    background: var(--tp-surface);
+    cursor: not-allowed;
+  }
+  .ui-field input[aria-invalid='true'] {
+    border-color: var(--tp-severity-error);
+  }
+  .ui-field-note {
+    margin-top: var(--tp-spacing-xxs);
+    color: var(--tp-steel);
+    font-size: 0.75rem;
+  }
+  .ui-field-note.is-error {
+    color: var(--color-error);
+  }
+  .ui-field-note.is-ok {
+    color: var(--color-success);
+  }
+  .ui-modal-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: var(--tp-spacing-xs);
+  }
+  .ui-notice-link {
+    color: inherit;
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--color-border);
+    border-radius: var(--tp-radius-full);
+    background-color: var(--color-bg-tertiary);
+    color: var(--color-text-primary);
+    padding: 0.1rem 0.5rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+  }
+  .badge-success {
+    border-color: var(--tp-severity-success-border);
+    background-color: var(--color-success-bg);
+    color: var(--color-success-text);
+  }
+  .badge-warning {
+    border-color: var(--tp-severity-warning-border);
+    background-color: var(--color-warning-bg);
+    color: var(--color-warning-text);
+  }
+  .badge-error {
+    border-color: var(--tp-severity-error-border);
+    background-color: var(--color-error-bg);
+    color: var(--color-error-text);
+  }
+  .badge-info {
+    border-color: var(--tp-severity-info-border);
+    background-color: var(--color-info-bg);
+    color: var(--color-info-text);
+  }
+  .badge-accent {
+    border-color: color-mix(in srgb, var(--tp-primary) 30%, transparent);
+    background-color: var(--color-accent-subtle);
+    color: var(--color-accent-ink);
+  }
 }
