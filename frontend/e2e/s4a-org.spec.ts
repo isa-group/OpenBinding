@@ -25,8 +25,6 @@ const detail = (
   extra: Record<string, unknown> = {}
 ): Handler => json(failureBody(status, code, error, extra), status);
 const noContent: Handler = route => route.fulfill({ status: 204 });
-/** A service that does not answer: a 503 with no machine code, as a proxy in front of the gateway would send it. */
-const unavailable: Handler = json({ detail: 'Accounts are not reachable.' }, 503);
 
 /** A pricing token shaped like the gateway's: three dot-separated parts, the middle one a JSON payload. */
 const token = (expiresInSeconds: number) =>
@@ -603,132 +601,45 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
   test.describe(`${name} · S4a organizations`, () => {
     test.use({ viewport, isMobile, deviceScaleFactor });
 
-    test('app-home /app', async ({ page }, testInfo) => {
+    test('dashboard /: the signed-in account’s workspace', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
-      await page.goto('/app');
+      await page.goto('/');
       const main = page.locator('main');
 
       await expect(page.locator('header.app-header')).toBeVisible();
       await expect(
-        main.getByRole('heading', { level: 1, name: 'Hello, lucia.vega' })
+        main.getByRole('heading', { level: 1, name: 'Welcome back, lucia.vega' })
       ).toBeVisible();
-      await expect(main.getByText('Pick up where you left off.')).toBeVisible();
-      await expect(main.getByRole('link', { name: 'New problem' })).toHaveAttribute(
+      const stats = main.getByRole('list', { name: 'Your workspace in numbers' });
+      await expect(stats.getByText('Organizations')).toBeVisible();
+      const recent = main.getByRole('region', { name: 'Recent organizations' });
+      await expect(recent.getByRole('link', { name: /ISA Demo Group/ })).toHaveAttribute(
         'href',
-        '/app/isa-demo/problems?create=problem'
+        '/orgs/isa-demo'
       );
-      await expect(main.getByRole('link', { name: 'New project' })).toHaveCount(0);
-      await expect(main.getByRole('link', { name: 'New organization' })).toHaveAttribute(
+      await expect(recent.getByRole('link', { name: 'View all' })).toHaveAttribute(
         'href',
-        '/orgs/new'
+        '/me/orgs'
       );
-
-      const tree = main.getByRole('list', { name: 'Organizations' });
-      await expect(tree.getByRole('link')).toHaveCount(5);
       await expect(
-        tree.getByRole('link', { name: /Consultora Demo/ }).getByText('VIEWER')
+        main
+          .getByRole('complementary', { name: 'Quick actions' })
+          .getByRole('link', { name: /Start a run/ })
       ).toBeVisible();
-      await expect(tree.getByText('isa-demo · own role')).toBeVisible();
-      await expect(tree.getByText('qos-lab · inherited role')).toBeVisible();
-      await expect(tree.getByRole('link', { name: /QoS Lab/ }).getByText('OWNER')).toHaveAttribute(
-        'title',
-        'Inherited from ISA Demo Group'
-      );
+      await capture(page, testInfo, `dashboard-${name}`);
 
-      const compositions = main.getByRole('region', { name: 'Recent compositions' });
-      await expect(compositions.getByText(/^No compositions in .+ yet\.$/)).toBeVisible();
-      await expect(
-        compositions.getByRole('link', { name: /^All compositions of / })
-      ).toHaveAttribute('href', /^\/app\/[^/]+\/compositions$/);
-      await expect(main.getByRole('link', { name: 'New composition' })).toHaveAttribute(
-        'href',
-        /^\/app\/[^/]+\/compositions\?create=composition$/
-      );
-      const activity = main.getByRole('region', { name: 'Recent activity' });
-      await expect(activity.getByText('Running')).toBeVisible();
-      await expect(activity.getByText('No feasible binding')).toBeVisible();
-      // The runs of the first organization, each opening in it, and the way to all of them; no account-wide run history.
-      await expect(activity.getByRole('link', { name: /^All runs of / })).toHaveAttribute(
-        'href',
-        /^\/app\/[^/]+\/runs$/
-      );
-      const plan = main.getByRole('region', { name: 'Your plan' });
-      await expect(plan.getByText('RESEARCH', { exact: true })).toBeVisible();
-      await expect(plan.getByText('Up to 4')).toBeVisible();
-      await expect(plan.getByRole('link', { name: 'SPACE' })).toHaveAttribute(
-        'href',
-        'https://space.score.us.es'
-      );
-      await expect(plan.getByRole('link', { name: 'SPHERE' })).toHaveAttribute(
-        'href',
-        'https://sphere.score.us.es'
-      );
-      await expect(main.getByRole('meter')).toHaveCount(0);
-      await expect(main.getByText('Your OpenBinding agreement changed')).toBeVisible();
-      await capture(page, testInfo, `home-${name}-success`);
-      if (isMobile) {
-        expect(critical).toEqual([]);
-        return;
-      }
-
-      // A block that fails does not take the others with it, and can be asked again.
-      state.refuse.jobs = unavailable;
-      await page.reload();
-      await expect(
-        main.getByRole('region', { name: 'Recent activity' }).getByRole('alert')
-      ).toContainText('Recent runs couldn’t be loaded (503). The other blocks are unaffected.');
-      await expect(main.getByRole('list', { name: 'Organizations' }).getByRole('link')).toHaveCount(
-        5
-      );
-      await expect(
-        main.getByRole('region', { name: 'Your plan' }).getByText('RESEARCH', { exact: true })
-      ).toBeVisible();
-      await capture(page, testInfo, `home-${name}-activity-503`);
-      state.refuse.jobs = undefined;
-      await main
-        .getByRole('region', { name: 'Recent activity' })
-        .getByRole('button', { name: 'Retry' })
-        .click();
-      await expect(
-        main.getByRole('region', { name: 'Recent activity' }).getByText('Running')
-      ).toBeVisible();
-
-      // The plan can be unavailable on its own too.
-      state.refuse.usage = detail(503, 'pricing_unavailable', 'The plan cannot be read right now.');
-      await page.reload();
-      await expect(
-        main.getByRole('region', { name: 'Your plan' }).getByRole('alert')
-      ).toContainText('Your plan can’t be loaded right now (503 · pricing_unavailable).');
-      state.refuse.usage = undefined;
-      await main
-        .getByRole('region', { name: 'Your plan' })
-        .getByRole('button', { name: 'Retry' })
-        .click();
-      await expect(
-        main.getByRole('region', { name: 'Your plan' }).getByText('RESEARCH', { exact: true })
-      ).toBeVisible();
-
-      const read = request(page, 'POST', '/v1/notifications/n1/read');
-      await main.getByRole('button', { name: 'Mark as read' }).click();
-      await read;
-      await expect(main.getByText('You’re all caught up.')).toBeVisible();
-
-      // No organizations: the first-organization guide, with the way to the wizard and to an invitation.
+      // No organizations: the first steps, with the way to create one and the invitation hint.
       state.organizations = [];
       state.jobs = { runs: [], total: 0 };
       await page.reload();
-      await expect(
-        main.getByRole('heading', { name: 'Create your first organization' })
-      ).toBeVisible();
+      await expect(main.getByRole('heading', { name: 'No organizations yet' })).toBeVisible();
       await expect(main.getByRole('link', { name: 'Create organization' })).toHaveAttribute(
         'href',
         '/orgs/new'
       );
-      await expect(main.getByText(/Open the link someone shared with you/)).toBeVisible();
-      await expect(main.getByText('You’re not in any organization yet.')).toBeVisible();
-      await expect(main.getByText(/No runs yet/)).toBeVisible();
-      await capture(page, testInfo, `home-${name}-first-organization`);
+      await expect(main.getByText(/I have an invitation link/)).toBeVisible();
+      await capture(page, testInfo, `dashboard-${name}-first-organization`);
       expect(critical).toEqual([]);
     });
 

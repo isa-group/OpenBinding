@@ -7,13 +7,12 @@ test.describe('live · the organization lab-main and its problems', () => {
   }, testInfo) => {
     const errors = watchPageErrors(page);
     await signInByApi(page, 'owner');
-    await page.goto('/app');
+    await page.goto('/me/orgs');
 
-    const organizations = page.getByRole('list', { name: 'Organizations' });
-    await expect(organizations).toBeVisible();
-    const main = organizations.locator(`a[href="/app/${ORG}"]`);
+    const organizations = page.locator('main');
+    const main = organizations.locator(`a[href="/orgs/${ORG}"]`);
     await expect(main).toBeVisible();
-    await expect(main).toContainText('OWNER');
+    await expect(organizations.getByText('Owner', { exact: true }).first()).toBeVisible();
     // Home leads with the recent compositions of an organization, before its recent runs.
     await expect(page.getByRole('region', { name: 'Recent compositions' })).toBeVisible();
     await capture(page, testInfo, 'navigation-home');
@@ -45,11 +44,11 @@ test.describe('live · the organization lab-main and its problems', () => {
   }, testInfo) => {
     const errors = watchPageErrors(page);
     await signInByApi(page, 'member');
-    await page.goto('/app');
+    await page.goto('/me/orgs');
 
-    const main = page.getByRole('list', { name: 'Organizations' }).locator(`a[href="/app/${ORG}"]`);
+    const main = page.locator(`main a[href="/orgs/${ORG}"]`);
     await expect(main).toBeVisible();
-    await expect(main).toContainText('MEMBER');
+    await expect(page.locator('main').getByText('Member', { exact: true }).first()).toBeVisible();
 
     await page.goto(`${ORG_PATH}/problems`);
     await expect(page.getByRole('heading', { level: 1, name: 'Problems' })).toBeVisible();

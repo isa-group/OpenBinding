@@ -15,7 +15,6 @@ import { Login } from '../pages/Auth/Login';
 import { PasswordResetPage } from '../pages/Auth/PasswordReset';
 import { Register } from '../pages/Auth/Register';
 import { Engines } from '../pages/Engines/Engines';
-import { Home } from '../pages/Home/Home';
 import AppLayout from './app-layout';
 import { LegacyOrgOutlet } from './LegacyOrgOutlet';
 
@@ -40,6 +39,7 @@ export interface Screen {
 const named = <K extends string>(load: () => Promise<Record<K, ComponentType>>, name: K) =>
   lazy(() => load().then(module => ({ default: module[name] })));
 
+const RootPage = lazy(() => import('../modules/presentation/pages/root'));
 const PublicOrganizationsPage = lazy(
   () => import('../modules/organization/pages/public-organizations-list')
 );
@@ -72,7 +72,6 @@ const EngRegistrationDetail = named(
   'EngRegistrationDetail'
 );
 const AccountPage = named(() => import('../pages/Account/AccountPage'), 'AccountPage');
-const AppHome = named(() => import('../pages/AppHome/AppHome'), 'AppHome');
 const PublicCompositionList = named(
   () => import('../pages/PublicCompositions/PublicCompositionList'),
   'PublicCompositionList'
@@ -110,9 +109,8 @@ const AdminModeration = named(() => import('../pages/Admin/AdminModeration'), 'A
 // prettier-ignore
 export const screens: Screen[] = [
   // ═══════════════════════════════════════════════════════════
-  // PUBLIC ROUTES (the public layout; `/` becomes the landing or the dashboard in B5)
+  // PUBLIC ROUTES (the public layout)
   // ═══════════════════════════════════════════════════════════
-  { id: 'pub-home', path: '/', layout: 'public', element: <Home /> },
   { id: 'pub-workbench', path: '/workbench', layout: 'public', element: <WorkbenchPage /> },
   { id: 'pub-about', path: '/about', layout: 'public', element: <About /> },
   { id: 'pub-pricing', path: '/pricing', layout: 'public', element: <Pricing /> },
@@ -127,6 +125,7 @@ export const screens: Screen[] = [
   // ═══════════════════════════════════════════════════════════
   // PUBLIC ROUTES (AppLayout: public or authenticated chrome, by session)
   // ═══════════════════════════════════════════════════════════
+  { id: 'pub-home', path: '/', layout: 'session', element: <RootPage /> },
   { id: 'org-explore', path: '/organizations', layout: 'session', element: <PublicOrganizationsPage /> },
   { id: 'org-detail', path: '/orgs/:org/:tab?', layout: 'session', element: <OrganizationDetailPage /> },
   { id: 'pub-compositions', path: '/compositions', layout: 'session', element: <PublicCompositionList /> },
@@ -147,7 +146,6 @@ export const screens: Screen[] = [
   { id: 'eng-registrations', path: '/app/engines/registrations', layout: 'app', element: <EngRegistrations /> },
   { id: 'eng-registration-detail', path: '/app/engines/registrations/:name', layout: 'app', element: <EngRegistrationDetail /> },
   { id: 'acct-profile', path: '/app/account/:section?', layout: 'app', element: <AccountPage /> },
-  { id: 'app-home', path: '/app', layout: 'app', element: <AppHome /> },
   { id: 'composition-list', path: '/app/:org/compositions', layout: 'app', element: <CompositionList /> },
   { id: 'composition-detail', path: '/app/:org/compositions/:composition/:tab?', layout: 'app', element: <CompositionDetail /> },
   { id: 'problem-list', path: '/app/:org/problems', layout: 'app', element: <ProblemList /> },

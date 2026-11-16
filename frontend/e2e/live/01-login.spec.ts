@@ -51,7 +51,7 @@ test.describe('live · login', () => {
   test('a visitor who is not signed in is sent to the login page from the workspace', async ({
     page,
   }) => {
-    await page.goto('/app');
+    await page.goto('/me/orgs');
     await expect(page).toHaveURL(/\/login/);
     await expect(page.getByRole('button', { name: 'Log in' })).toBeVisible();
   });

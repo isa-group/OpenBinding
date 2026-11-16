@@ -683,6 +683,22 @@
     }
   }
 
+  /* The gradient that runs across "Reproduce." on the landing (SPHERE's home-global-styles, moved here). */
+  @keyframes hero-gradient-shift {
+    0% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+  .animate-hero-gradient {
+    animation: hero-gradient-shift 6.8s cubic-bezier(0.32, 0.72, 0, 1) infinite;
+  }
+
   .animate-bell-ring {
     animation: bell-ring 0.6s ease-in-out;
   }

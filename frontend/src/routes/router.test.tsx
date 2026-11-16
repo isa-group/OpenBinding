@@ -141,10 +141,10 @@ describe('Router', () => {
   );
 
   it('waits for the stored session before deciding', () => {
-    renderAt('/app', null, true);
+    renderAt('/me/orgs', null, true);
 
     expect(screen.getByText('Checking your session…')).toBeInTheDocument();
-    expect(screen.getByTestId('location')).toHaveTextContent('/app');
+    expect(screen.getByTestId('location')).toHaveTextContent('/me/orgs');
   });
 
   it('shows other accounts the in-place 404 on administrators-only screens, without moving them', async () => {

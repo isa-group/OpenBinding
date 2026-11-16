@@ -16,11 +16,11 @@ test.describe('live · lab-outsider has no access to lab-main', () => {
   test('Home lists only the organization of the outsider', async ({ page }, testInfo) => {
     const errors = watchPageErrors(page);
     await signInByApi(page, 'outsider');
-    await page.goto('/app');
+    await page.goto('/me/orgs');
 
-    const organizations = page.getByRole('list', { name: 'Organizations' });
-    await expect(organizations.locator(`a[href="/app/${OTHER_ORG}"]`)).toBeVisible();
-    await expect(organizations.locator(`a[href="/app/${ORG}"]`)).toHaveCount(0);
+    const organizations = page.locator('main');
+    await expect(organizations.locator(`a[href="/orgs/${OTHER_ORG}"]`)).toBeVisible();
+    await expect(organizations.locator(`a[href="/orgs/${ORG}"]`)).toHaveCount(0);
     await capture(page, testInfo, 'outsider-home');
     expect(errors).toEqual([]);
   });

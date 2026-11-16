@@ -204,14 +204,14 @@ test('the organization page marks its tab, and nothing in the application header
   await expect(header.locator('[aria-current="page"]')).toHaveCount(0);
 });
 
-test('reduced motion removes entry animations', async ({ page }) => {
-  // The cards of the home page rise in; asking for reduced motion takes the animation away, and only that preference does.
-  await page.goto('/');
-  const card = page.locator('.home-card').first();
-  await expect(card).toBeVisible();
-  await expect(card).toHaveCSS('animation-name', 'home-in');
+test('reduced motion shows the landing at once, without the reveal', async ({ page }) => {
+  // SPHERE's landing reveals its sections as they scroll in; asking for reduced motion shows them as they are.
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await expect(card).toHaveCSS('animation-name', 'none');
+  await page.goto('/');
+  const reveal = page
+    .getByRole('heading', { level: 2, name: 'A stable core, plural problem families.' })
+    .locator('xpath=ancestor::div[contains(@class,"transform-gpu")][1]');
+  await expect(reveal).toHaveCSS('opacity', '1');
 });
 
 test('mobile problem editor: the panes, the engines and the problems are tabs, inside the viewport', async ({

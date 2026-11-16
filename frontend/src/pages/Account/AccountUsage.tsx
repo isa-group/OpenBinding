@@ -167,7 +167,7 @@ function UsageBody({
           </p>
         </div>
         <p className="usage-consoles">
-          <Link to="/app" viewTransition>
+          <Link to="/" viewTransition>
             Your organizations and roles
           </Link>
           <Link to="/app/account/keys" viewTransition>

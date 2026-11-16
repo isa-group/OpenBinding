@@ -10,7 +10,6 @@ const expect = baseExpect.configure({ timeout: 15_000 });
 // (test-results/, ignored by git) so they can be looked at after a run.
 
 const API = 'http://localhost:8000';
-const HIDE_FLOATING = '.site-header, .skip-link { visibility: hidden !important; }';
 
 const ENGINE_DIGEST = `sha256-${'b2c3d4e5'.repeat(8)}`;
 
@@ -190,7 +189,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
   test.describe(`${name} · S1a public screens`, () => {
     test.use({ viewport, isMobile, deviceScaleFactor });
 
-    test('pub-home /', async ({ page }, testInfo) => {
+    test('pub-home /: SPHERE’s landing for a visitor', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       await mockApi(page);
       await page.goto('/');
@@ -200,10 +199,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         main.getByRole('heading', { level: 1, name: 'Describe. Bind. Reproduce.' })
       ).toBeVisible();
       await ready(page);
-      await expect(main.getByRole('link', { name: /Explore compositions/ })).toHaveAttribute(
-        'href',
-        '/compositions'
-      );
+      await expect(
+        main.getByRole('link', { name: /Explore compositions/ }).first()
+      ).toHaveAttribute('href', '/compositions');
       await expect(main.getByRole('link', { name: /Learn Composition2Yaml/ })).toHaveAttribute(
         'href',
         '/language'
@@ -223,66 +221,37 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         '/engines'
       );
       await main.getByRole('tab', { name: /Validation/ }).click();
-      await expect(main.getByRole('link', { name: 'Validate a package' }).last()).toHaveAttribute(
+      await expect(main.getByRole('link', { name: 'Validate a package' })).toHaveAttribute(
         'href',
         '/workbench'
       );
 
       // The public engines, from GET /v1/engines.
-      const recent = main.getByRole('region', { name: 'Engines anyone can run' });
-      await expect(recent.getByRole('link', { name: /3 public engine revisions/ })).toContainText(
+      const engines = main.getByRole('region', { name: 'Engines anyone can run' });
+      await expect(engines.getByRole('link', { name: /3 public engine revisions/ })).toContainText(
         'random-search · evolutionary · minizinc'
       );
-      await expect(recent.getByRole('link', { name: 'All engines' })).toHaveAttribute(
+      await expect(engines.getByRole('link', { name: 'All engines' })).toHaveAttribute(
         'href',
         '/engines'
       );
-      await expect(main.locator('a[href^="/explore"]')).toHaveCount(0);
 
-      // Plans.
+      // Plans and the layers of BIM.
       const plans = main.getByRole('region', {
         name: 'Free to start, institutional when you scale',
       });
       for (const plan of ['Free', 'Research', 'Lab'])
-        await expect(plans.locator('.home-kicker').getByText(plan, { exact: true })).toBeVisible();
+        await expect(plans.getByText(plan, { exact: true }).first()).toBeVisible();
       await expect(plans.getByRole('link', { name: 'Compare plans' })).toHaveAttribute(
         'href',
         '/pricing'
       );
+      await expect(
+        main.getByRole('region', { name: 'A stable core, plural problem families.' })
+      ).toBeVisible();
 
       await expectNoHorizontalOverflow(page);
       expect(critical).toEqual([]);
-
-      await main.locator('.home-hero').screenshot({
-        path: testInfo.outputPath(`home-${name}-hero.png`),
-        animations: 'disabled',
-        style: HIDE_FLOATING,
-      });
-      await main
-        .locator('section')
-        .nth(1)
-        .screenshot({
-          path: testInfo.outputPath(`home-${name}-pipeline.png`),
-          animations: 'disabled',
-          style: HIDE_FLOATING,
-        });
-      await recent.screenshot({
-        path: testInfo.outputPath(`home-${name}-recent.png`),
-        animations: 'disabled',
-        style: HIDE_FLOATING,
-      });
-      await plans.screenshot({
-        path: testInfo.outputPath(`home-${name}-plans.png`),
-        animations: 'disabled',
-        style: HIDE_FLOATING,
-      });
-      await main
-        .getByRole('region', { name: 'A stable core, plural problem families.' })
-        .screenshot({
-          path: testInfo.outputPath(`home-${name}-extensibility.png`),
-          animations: 'disabled',
-          style: HIDE_FLOATING,
-        });
       if (!isMobile)
         await page.screenshot({
           path: testInfo.outputPath(`home-${name}-full.png`),
@@ -291,23 +260,16 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         });
     });
 
-    test('pub-home / for a signed-in account', async ({ page }, testInfo) => {
+    test('pub-home /: the dashboard for a signed-in account', async ({ page }, testInfo) => {
       await mockApi(page, { signedIn: true });
       await page.goto('/');
       const main = page.locator('main');
-
-      const card = main.getByRole('link', { name: /Go to your workspace/ });
-      await expect(card).toHaveAttribute('href', '/app');
-      await expect(card).toContainText('Signed in as lucia · RESEARCH plan');
+      await expect(main.getByRole('heading', { level: 1, name: /^Welcome back, / })).toBeVisible();
       await expect(main.getByRole('link', { name: /Create an account/ })).toHaveCount(0);
-      await expect(main.getByRole('status', { name: 'Runtime catalogue status' })).toContainText(
-        '4 engine revisions'
-      );
-      await ready(page);
-      await main.locator('.home-hero').screenshot({
+      await expect(main.getByRole('list', { name: 'Your workspace in numbers' })).toBeVisible();
+      await page.screenshot({
         path: testInfo.outputPath(`home-${name}-signed-in.png`),
         animations: 'disabled',
-        style: HIDE_FLOATING,
       });
     });
 

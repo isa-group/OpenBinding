@@ -55,7 +55,7 @@ export function NeutralGate() {
     <Gate
       title="Organization not available"
       action={
-        <Action to="/app" variant="primary">
+        <Action to="/" variant="primary">
           Back to Home
         </Action>
       }

@@ -145,7 +145,7 @@ export function Register() {
           <h1 className="auth-title">Your account is ready</h1>
           <p className="auth-lede">
             You’re signed in{user ? ` on the ${user.plan} plan` : ''}. Taking you to{' '}
-            {target === '/app' ? 'your workspace' : 'the page you asked for'}.
+            {target === '/' ? 'your dashboard' : 'the page you asked for'}.
           </p>
           <Link className="auth-btn auth-btn-primary" to={target} viewTransition>
             Continue

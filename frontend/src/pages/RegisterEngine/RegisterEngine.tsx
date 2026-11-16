@@ -456,7 +456,7 @@ function Wizard({
     <div className="rg-page">
       <Crumbs
         items={[
-          { label: 'Home', to: '/app' },
+          { label: 'Home', to: '/' },
           { label: 'My engines', to: '/app/engines/registrations' },
           { label: 'Register an engine' },
         ]}
@@ -856,7 +856,7 @@ export function RegisterEngine() {
       <div className="rg-page">
         <Crumbs
           items={[
-            { label: 'Home', to: '/app' },
+            { label: 'Home', to: '/' },
             { label: 'My engines', to: '/app/engines/registrations' },
             { label: 'Register an engine' },
           ]}

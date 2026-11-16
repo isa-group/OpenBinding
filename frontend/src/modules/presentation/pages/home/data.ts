@@ -1,3 +1,6 @@
+// The landing's content (SPHERE keeps it in frontend/src/modules/presentation/pages/home/data.ts): OpenBinding's pipeline and
+// the layers of BIM, moved from the old home page (pages/Home/homeContent.ts).
+
 export interface PipelineStage {
   id: string;
   step: string;
@@ -112,61 +115,4 @@ export const LAYERS = [
     copy: 'Exact Profile/IR support, feature selectors, options, ceilings and guarantees.',
     note: 'No wildcard promise over an open extension vocabulary.',
   },
-] as const;
-
-export const EXTENSION_ROUTES = [
-  {
-    index: 'A',
-    title: 'Add a compatible Dialect',
-    tag: 'Reuse the Profile + IR',
-    copy: 'Introduce a whole typed resource or a schema-pinned inline vocabulary in a role the Profile already opens. The installed adapter must lower it deterministically and declare the IR features it emits.',
-  },
-  {
-    index: 'B',
-    title: 'Define an explicit specialization',
-    tag: 'Reuse contracts, narrow the frame',
-    copy: 'A new Profile may reuse compatible resource identities and shared Dialects while declaring stricter roles, cardinalities or feature vocabularies. Its manifest is complete: BIM has no implicit extends shortcut.',
-  },
-  {
-    index: 'C',
-    title: 'Open a new problem family',
-    tag: 'Change semantics + IR',
-    copy: 'When the decision meaning, determinism, roles or output contract changes, define a separate Profile and matching Engine modes without changing the stable Instance container.',
-  },
-] as const;
-
-export const WORKFLOW_OPTIONS = {
-  native: {
-    label: 'Native JSON',
-    status: 'Installed',
-    source: 'qos-binding/v1 · Application',
-    adapter: 'qos-binding adapter',
-    detail: 'Compact structured workflow blocks live in the Application resource.',
-  },
-  bpmn: {
-    label: 'BPMN 2.0.2',
-    status: 'Installed',
-    source: 'omg/bpmn/2.0.2 · BPMN',
-    adapter: 'bpmn-workflow/v1 adapter',
-    detail:
-      'Normative BPMN XML keeps its QName and enters the application role as a typed resource.',
-  },
-  vendor: {
-    label: 'Vendor language',
-    status: 'Extension contract',
-    source: 'vendor.example/v1 · Workflow',
-    adapter: 'reviewed vendor adapter',
-    detail:
-      'A vendor can supply another source vocabulary only after its exact schema and lowering adapter are installed. Packages cannot install code.',
-  },
-} as const;
-
-export type WorkflowOption = keyof typeof WORKFLOW_OPTIONS;
-
-export const COMPATIBILITY_GATE = [
-  { name: 'Profile', rule: 'exact versioned id', value: 'qos-binding/v1' },
-  { name: 'IR', rule: 'exact apiVersion + kind', value: 'bim/v1 · BindingProblem' },
-  { name: 'Features', rule: 'actual lowered values ⊆ selectors', value: 'none · only · all*' },
-  { name: 'Limits', rule: 'problem size within ceilings', value: 'Profile vocabulary' },
-  { name: 'Deployment', rule: 'immutable registration + protocol', value: 'bim-engine/v1' },
 ] as const;

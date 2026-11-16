@@ -61,8 +61,8 @@ describe('safeReturnPath', () => {
   });
 
   it('falls back to the workspace', () => {
-    expect(afterSignInTarget('/pricing')).toBe('/app');
-    expect(afterSignInTarget(undefined)).toBe('/app');
+    expect(afterSignInTarget('/pricing')).toBe('/');
+    expect(afterSignInTarget(undefined)).toBe('/');
     expect(afterSignInTarget('/app/account')).toBe('/app/account');
   });
 
@@ -71,7 +71,7 @@ describe('safeReturnPath', () => {
       '/c/lab-other/fleet-routing?version=1.2.0&fork=1'
     );
     expect(afterSignInTarget('/compositions?kind=workflow')).toBe('/compositions?kind=workflow');
-    expect(afterSignInTarget('/c/lab-other')).toBe('/app');
+    expect(afterSignInTarget('/c/lab-other')).toBe('/');
   });
 });
 

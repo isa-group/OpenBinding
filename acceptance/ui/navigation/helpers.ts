@@ -65,6 +65,8 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Re
   page.on('request', (request) => {
     if (!request.url().startsWith(API) || request.method() === 'GET') return;
     const url = new URL(request.url());
+    // The notification stream asks for its tickets on its own; they are not what a screen sent.
+    if (url.pathname.startsWith('/v1/notifications/')) return;
     requests.push({ method: request.method(), path: url.pathname, search: url.search, body: request.postData() ?? '' });
   });
 

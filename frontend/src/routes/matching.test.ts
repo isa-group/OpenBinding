@@ -12,7 +12,7 @@ const resolve = (path: string) => matchRoutes(config, path)?.at(-1)?.route.id ??
 const RESOLUTION: Array<[string, string | null]> = [
   ['/', 'pub-home'],
   ['/about', 'pub-about'],
-  ['/app', 'app-home'],
+  ['/app', null],
   ['/app/account', 'acct-profile'],
   ['/app/account/billing', 'acct-profile'],
   ['/app/account/identities', 'acct-profile'],

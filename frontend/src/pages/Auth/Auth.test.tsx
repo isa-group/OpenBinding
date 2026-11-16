@@ -79,7 +79,7 @@ describe('Auth screens', () => {
           <Routes>
             <Route path="/login" element={ui} />
             <Route path="/register" element={ui} />
-            <Route path="/app" element={<h1>Platform Dashboard</h1>} />
+            <Route path="/" element={<h1>Platform Dashboard</h1>} />
             <Route path="/app/org/project" element={<h1>Project Workspace</h1>} />
             <Route path="/orgs/join/:code" element={<h1>Invitation page</h1>} />
             <Route path="/c/:org/:composition" element={<h1>Public composition</h1>} />
@@ -205,7 +205,7 @@ describe('Auth screens', () => {
       expect(screen.getByText('Signed in as alice (alice@example.test).')).toBeInTheDocument();
       expect(screen.getByRole('link', { name: 'Continue to your workspace' })).toHaveAttribute(
         'href',
-        '/app'
+        '/'
       );
       expect(screen.queryByLabelText('Password')).not.toBeInTheDocument();
 
@@ -253,7 +253,7 @@ describe('Auth screens', () => {
           >
             <Routes>
               <Route path="/login" element={<Login />} />
-              <Route path="/app" element={<h1>Platform Dashboard</h1>} />
+              <Route path="/" element={<h1>Platform Dashboard</h1>} />
             </Routes>
           </AuthContext.Provider>
         </MemoryRouter>

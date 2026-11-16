@@ -306,7 +306,7 @@ export function EngRegistrationDetail() {
       <div className="reg-page">
         <Crumbs
           items={[
-            { label: 'Home', to: '/app' },
+            { label: 'Home', to: '/' },
             { label: 'My engines', to: '/app/engines/registrations' },
             { label: resolved.name, mono: true },
           ]}
@@ -337,7 +337,7 @@ export function EngRegistrationDetail() {
 
   if (!resolved) {
     const crumbs = [
-      { label: 'Home', to: '/app' },
+      { label: 'Home', to: '/' },
       { label: 'My engines', to: '/app/engines/registrations' },
       { label: name, mono: true },
     ];
@@ -504,7 +504,7 @@ export function EngRegistrationDetail() {
     );
 
   const crumbs = [
-    { label: 'Home', to: '/app' },
+    { label: 'Home', to: '/' },
     { label: 'My engines', to: '/app/engines/registrations' },
     { label: `${ref.name} ${ref.version}`, mono: true },
   ];

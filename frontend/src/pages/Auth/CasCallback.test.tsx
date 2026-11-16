@@ -181,7 +181,7 @@ describe('CasCallback', () => {
     expect(screen.getByText('Universidad de Sevilla · CAS · log in')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Continue to your workspace' })).toHaveAttribute(
       'href',
-      '/app'
+      '/'
     );
     expect(screen.getByRole('link', { name: 'Account › Identities' })).toHaveAttribute(
       'href',

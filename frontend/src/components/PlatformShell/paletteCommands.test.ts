@@ -104,7 +104,7 @@ describe('buildCommands', () => {
 
     expect(commands.filter(command => command.group === 'Tools')).toEqual([]);
     expect(goTo.map(command => [command.label, command.href])).toEqual([
-      ['Home', '/app'],
+      ['Home', '/'],
       ['Engines', '/engines'],
       ['Pricing', '/pricing'],
     ]);

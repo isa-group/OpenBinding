@@ -107,7 +107,7 @@ test('the problem dialog opens from the address over the Problems screen', async
 });
 
 test('account menu lists the person\'s places then Sign out, with Administration for administrators only', async ({ page }) => {
-  await signedIn(page, '/app');
+  await signedIn(page, '/');
   await banner(page).getByRole('button', { name: 'Account menu' }).click();
   const items: Array<[string, string]> = [
     ['Organizations', '/me/orgs'],
@@ -123,7 +123,7 @@ test('account menu lists the person\'s places then Sign out, with Administration
 });
 
 test('an administrator\'s account menu leads to the administration', async ({ page }) => {
-  await signedIn(page, '/app', 'admin');
+  await signedIn(page, '/', 'admin');
   await banner(page).getByRole('button', { name: 'Account menu' }).click();
   await expect(entry(menuScope(page), 'Administration')).toHaveAttribute('href', '/app/admin');
 });

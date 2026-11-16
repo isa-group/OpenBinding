@@ -67,13 +67,13 @@ test('the F0b walk: upload, edit in the problem editor, a template, a run and a 
     .getByLabel('Password', { exact: true })
     .fill(['walk', 'secret', 'not', 'real'].join('-'));
   await page.getByRole('button', { name: 'Log in' }).click();
-  await expect(page).toHaveURL(/\/app/);
+  await expect.poll(() => new URL(page.url()).pathname).toBe('/');
 
-  // 2 · The organization's overview, its problems, and an upload of the demo package.
-  await page.goto('/app');
-  await page.getByRole('list', { name: 'Organizations' }).locator(`a[href="${ORG_PATH}"]`).click();
-  await expect(page).toHaveURL(new RegExp(`${ORG_PATH}/?$`));
-  await main.getByRole('link', { name: 'All problems' }).click();
+  // 2 · The organization's page, its problems, and an upload of the demo package.
+  await page.goto('/me/orgs');
+  await page.locator(`main a[href="/orgs/${WALK_ORG}"]`).first().click();
+  await expect(page).toHaveURL(new RegExp(`/orgs/${WALK_ORG}/?$`));
+  await page.goto(`${ORG_PATH}/problems`);
   await expect(main.getByRole('heading', { level: 1, name: 'Problems' })).toBeVisible();
   await main.getByRole('button', { name: 'Upload BIM package' }).first().click();
   const dialog = page.getByRole('dialog', { name: 'Upload a BIM package' });

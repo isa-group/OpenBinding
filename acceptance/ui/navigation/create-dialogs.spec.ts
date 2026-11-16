@@ -8,7 +8,7 @@ const opener = (page: import('@playwright/test').Page, name: string) => page.get
 
 test('New organization opens the creation page, and creating lab-two opens the new organization', async ({ page }) => {
   await mockApi(page);
-  await page.goto('/app');
+  await page.goto('/me/orgs');
   await opener(page, 'New organization').click();
   await expect.poll(() => pathAndSearch(page)).toBe('/orgs/new');
   await page.getByLabel(/^Name/).fill('lab-two');
@@ -18,20 +18,20 @@ test('New organization opens the creation page, and creating lab-two opens the n
 
 test('cancelling the creation page goes back and creates nothing', async ({ page }) => {
   const requests = await mockApi(page);
-  await page.goto('/app');
+  await page.goto('/me/orgs');
   await opener(page, 'New organization').click();
   await expect.poll(() => pathAndSearch(page)).toBe('/orgs/new');
   await page.getByRole('button', { name: 'Cancel' }).click();
-  await expect.poll(() => pathAndSearch(page)).toBe('/app');
+  await expect.poll(() => pathAndSearch(page)).toBe('/me/orgs');
   expect(requests.filter((request) => request.method === 'POST')).toEqual([]);
 });
 
-test('the organization overview offers no New project, and its upload opens the problem dialog', async ({ page }) => {
+test('the organization page offers no New project, and its New problem opens the problem dialog', async ({ page }) => {
   await mockApi(page);
-  await page.goto('/app/acme');
+  await page.goto('/orgs/acme/problems');
   await expect(page.getByRole('heading', { level: 1, name: 'Acme' })).toBeVisible();
   await expect(opener(page, 'New project')).toHaveCount(0);
-  await page.locator('main').getByRole('link', { name: 'Upload BIM package' }).click();
+  await page.locator('main').getByRole('link', { name: 'New problem' }).click();
   await expect.poll(() => pathAndSearch(page)).toBe('/app/acme/problems?create=problem');
   await expect(page.getByRole('dialog', { name: 'Upload a BIM package' })).toBeVisible();
 });

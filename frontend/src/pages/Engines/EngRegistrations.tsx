@@ -235,7 +235,7 @@ export function EngRegistrations() {
 
   return (
     <div className="reg-page">
-      <Crumbs items={[{ label: 'Home', to: '/app' }, { label: 'My engines' }]} />
+      <Crumbs items={[{ label: 'Home', to: '/' }, { label: 'My engines' }]} />
       <PageHeader
         eyebrow="Engines"
         title="My engines"

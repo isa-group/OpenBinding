@@ -77,24 +77,6 @@ test.describe('live · plan, permissions and the native consoles', () => {
     });
   }
 
-  test('Home carries a plan block that links to the consoles as well', async ({
-    page,
-  }, testInfo) => {
-    const errors = watchPageErrors(page);
-    await signInByApi(page, 'owner');
-    await page.goto('/app');
-
-    const plan = page.locator('main').getByRole('region', { name: 'Your plan' });
-    await expect(plan).toBeVisible();
-    await expect(plan.getByRole('link', { name: 'Plan', exact: true })).toHaveAttribute(
-      'href',
-      '/app/account/usage'
-    );
-    await expectConsoleLinks(plan, { space: 'SPACE', sphere: 'SPHERE' });
-    await capture(page, testInfo, 'plan-home-block');
-    expect(errors).toEqual([]);
-  });
-
   test('the public pricing page is read-only: it shows the published pricing or says it cannot be read, and sells nothing', async ({
     page,
   }, testInfo) => {

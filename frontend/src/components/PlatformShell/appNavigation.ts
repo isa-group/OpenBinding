@@ -28,7 +28,7 @@ export type OrganizationSectionId = 'compositions' | 'problems' | 'runs' | 'stud
 
 /** The entries of the header that do not depend on the organization. */
 export const mainLinks = {
-  home: { to: '/app', label: 'Home' },
+  home: { to: '/', label: 'Home' },
   engines: { to: '/engines', label: 'Engines' },
   admin: { to: '/app/admin', label: 'Admin' },
 } as const satisfies Record<string, NavLinkItem>;
@@ -108,6 +108,7 @@ function isWorkspaceHome(pathname: string): boolean {
 
 /** Which entry of the header the current address belongs to. */
 export function currentSection(pathname: string): MainSection {
+  if (pathname === mainLinks.home.to) return 'home';
   if (under(pathname, mainLinks.admin.to)) return 'admin';
   if (under(pathname, '/app/engines') || under(pathname, mainLinks.engines.to)) return 'engines';
   const [root, place] = pathname.split('/').filter(Boolean);

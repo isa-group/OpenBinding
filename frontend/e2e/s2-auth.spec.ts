@@ -237,7 +237,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByText('Signed in as sofia (sofia@example.org).')).toBeVisible();
       await expect(main.getByRole('link', { name: 'Continue to your workspace' })).toHaveAttribute(
         'href',
-        '/app'
+        '/'
       );
       await expect(main.getByRole('button', { name: 'Log in as someone else' })).toBeVisible();
       await capture(page, testInfo, `login-${name}-already-signed-in`);
@@ -321,10 +321,10 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       );
       await capture(page, testInfo, `register-${name}-503`);
 
-      // The account is created, signed in and taken to the workspace.
+      // The account is created, signed in and taken to the dashboard.
       await page.route(`${API}/v1/auth/register`, json(person(), 201));
       await main.getByRole('button', { name: 'Create account' }).click();
-      await expect(page).toHaveURL(/\/app$/);
+      await expect.poll(() => new URL(page.url()).pathname).toBe('/');
       await expect(page.locator('header.app-header')).toBeVisible();
 
       // And a signed-in visitor is told they already have one.
@@ -592,7 +592,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await page.evaluate(() =>
         sessionStorage.setItem(
           'openbinding-cas-flow',
-          JSON.stringify({ mode: 'login', returnTo: '/app', at: Date.now() })
+          JSON.stringify({ mode: 'login', returnTo: '/', at: Date.now() })
         )
       );
       await page.goto(`/auth/cas/callback?code=${CAS_CODE}&plan_changed=RESEARCH`);

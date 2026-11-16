@@ -58,7 +58,7 @@ export function safeReturnPath(value: unknown): string | null {
 
 /** Where to go once signed in: the page that asked for the session, else the workspace. */
 export function afterSignInTarget(from: unknown): string {
-  return safeReturnPath(from) ?? '/app';
+  return safeReturnPath(from) ?? '/';
 }
 
 const SIGN_IN_KEY = 'openbinding-sign-in-started';

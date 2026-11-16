@@ -159,7 +159,7 @@ describe('Plan & permissions', () => {
     expect(section.getByText('user')).toBeInTheDocument();
     expect(section.getByRole('link', { name: 'Your organizations and roles' })).toHaveAttribute(
       'href',
-      '/app'
+      '/'
     );
     expect(section.getByRole('link', { name: 'Your API keys' })).toHaveAttribute(
       'href',

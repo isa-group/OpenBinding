@@ -25,7 +25,7 @@ describe('mainLinks', () => {
   it('lists Home, Engines and Admin, each leading to a routed address and none to a retired path', () => {
     expect(Object.keys(mainLinks)).toEqual(['home', 'engines', 'admin']);
     expect(Object.values(mainLinks).map(link => [link.label, link.to])).toEqual([
-      ['Home', '/app'],
+      ['Home', '/'],
       ['Engines', '/engines'],
       ['Admin', '/app/admin'],
     ]);

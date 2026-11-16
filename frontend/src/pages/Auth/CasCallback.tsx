@@ -120,7 +120,7 @@ export function CasCallback() {
   }, [code, announced, refresh]);
 
   const linking = mode === 'link';
-  const workspace = (!linking && flow?.returnTo) || '/app';
+  const workspace = (!linking && flow?.returnTo) || '/';
   const modeLabel = linking ? 'link identity' : 'log in';
   const name = user?.username;
 
@@ -325,7 +325,7 @@ export function CasCallback() {
                   >
                     Back to my account
                   </Link>
-                  <Link className="auth-btn auth-btn-secondary" to="/app" viewTransition>
+                  <Link className="auth-btn auth-btn-secondary" to="/" viewTransition>
                     Workspace
                   </Link>
                 </>

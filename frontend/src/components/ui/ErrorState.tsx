@@ -217,7 +217,7 @@ function defaultActionsFor(
     case '403':
     case '404':
       return (
-        <StateAction tone="primary" to="/app">
+        <StateAction tone="primary" to="/">
           Back to the workspace
         </StateAction>
       );
