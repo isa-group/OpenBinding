@@ -1,4 +1,12 @@
-"""Organization trees, members and invitations. Problems are ``modules.problems``."""
+"""Organization trees, members and invitations. Problems are ``modules.problems``.
+
+The profile, public, hierarchy, invitation-code and ownership routes are adapted from SPHERE (SCORELabUS/SPHERE,
+MIT licence, revision 73779a8a), ``api/src/main/services/OrganizationService.ts`` (``indexPublicRoots``,
+``getHierarchy``, ``createInvitation``, ``previewInvitation``, ``joinViaInvitation``, ``inviteUsersToOrganization``,
+``transferOwnership``, ``removeMember``) and ``api/src/main/routes/OrganizationRoutes.ts``, with OpenBinding's
+rules: one transaction instead of SPHERE's undo list, 404 for whoever cannot read an organization, and a public
+profile only for an organization with a public composition.
+"""
 
 from __future__ import annotations
 
@@ -51,6 +59,7 @@ from ..models.platform import (
     CodeInvitationView,
     InvitationPreview,
     InviteUsers,
+    OwnerTransfer,
     UserRef,
     HierarchyNode,
     OrganizationRef,
@@ -920,7 +929,10 @@ async def _protect_last_owner(session: AsyncSession, membership: OrganizationMem
     "/{org}/members/{member_id}",
     status_code=204,
     operation_id="removeOrganizationMember",
-    responses=OWNER_ROLE_RESPONSES,
+    responses={
+        **OWNER_ROLE_RESPONSES,
+        404: {"model": ErrorResponse, "description": "No such member, or a caller leaving is not a member."},
+    },
 )
 async def remove_member(
     org: str,
@@ -928,6 +940,17 @@ async def remove_member(
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> None:
+    """Remove a direct member (ADMIN), or leave: any member but an owner removes themselves, as in SPHERE.
+
+    An owner hands the organization over first (``PUT .../owner``); a caller who is not a member gets 404.
+    """
+    if member_id == user.id:
+        organization, _ = await _readable_org(session, org, user)
+        own = await organization_repository.get_membership(session, organization.id, user.id)
+        if own is not None and own.role is not OrganizationRole.OWNER:
+            await session.delete(own)
+            _audit(session, user, "organization.member.left", own, organization.id, role=own.role.value)
+            return
     organization = await _required_org(session, org)
     actor_role = await require_role(session, organization, user, OrganizationRole.ADMIN)
     membership = await organization_repository.get_membership(session, organization.id, member_id)
@@ -993,6 +1016,83 @@ async def list_invitations(
         )).all()
     } if rows else {}
     return [_code_view(row, creators.get(row.created_by_id)) for row in rows]
+
+
+@router.put(
+    "/{org}/owner",
+    response_model=list[MemberView],
+    operation_id="transferOrganizationOwnership",
+    responses={
+        403: {
+            "model": ErrorResponse,
+            "description": "`owner_transfer_requires_owner`: the caller is not this organization's owner.",
+        },
+        404: {"model": ErrorResponse, "description": "No such organization, the caller is not a member of it, or "
+              "the recipient is not (code `not_found`)."},
+        422: {"description": "`already_owner` (the caller names themselves) and request validation errors."},
+    },
+)
+async def transfer_ownership(
+    org: str,
+    payload: OwnerTransfer,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> list[MemberView]:
+    """Hand the organization, and everything below it, to another member, as SPHERE's ``transferOwnership``.
+
+    A swap, not a promotion: the recipient takes the owner's seat and every owner seat of the branch (this
+    organization and its descendants) steps down to ADMIN, the caller's too, so whoever held one keeps working
+    access. Only the owner hands it over (a direct OWNER membership here; a platform administrator has nothing
+    to give), and the recipient must already be a member, here or above. One transaction, under the lock of the
+    organization's row and of the branch's memberships, so a half handover never shows.
+    """
+    organization, _ = await _readable_org(session, org, user)
+    if payload.user_id == user.id:
+        raise api_error(status.HTTP_422_UNPROCESSABLE_ENTITY, "already_owner", "You own this organization already.")
+    await session.execute(select(Organization.id).where(Organization.id == organization.id).with_for_update())
+    own = await organization_repository.get_membership(session, organization.id, user.id)
+    if own is None or own.role is not OrganizationRole.OWNER:
+        raise api_error(
+            status.HTTP_403_FORBIDDEN, "owner_transfer_requires_owner",
+            "Only the owner of the organization can hand it over.",
+        )
+    recipient = await session.get(User, payload.user_id)
+    if (
+        recipient is None or not recipient.is_active
+        or await effective_role(session, organization.id, recipient) is None
+    ):
+        raise api_error(
+            status.HTTP_404_NOT_FOUND, "not_found", "The new owner must already be a member of the organization.",
+        )
+    branch = list(dict.fromkeys(await descendant_ids(session, organization.id)))
+    rows = (await session.scalars(
+        select(OrganizationMembership).where(OrganizationMembership.organization_id.in_(branch))
+        .order_by(OrganizationMembership.id).with_for_update()
+    )).all()
+    stepped_down = []
+    for row in rows:
+        if row.role is OrganizationRole.OWNER and row.user_id != recipient.id:
+            row.role = OrganizationRole.ADMIN
+            stepped_down.append(str(row.user_id))
+    seat = next(
+        (row for row in rows if row.organization_id == organization.id and row.user_id == recipient.id), None,
+    )
+    if seat is None:
+        seat = OrganizationMembership(organization_id=organization.id, user_id=recipient.id)
+        session.add(seat)
+    seat.role = OrganizationRole.OWNER
+    await session.flush()
+    _audit(
+        session, user, "organization.owner.transferred", organization, organization.id,
+        to=str(recipient.id), stepped_down=sorted(set(stepped_down)),
+    )
+    notify(
+        session, recipient.id, notifications.SYSTEM, "You are now an owner",
+        f"@{user.username} handed you ownership of \"{organization.name}\"",
+        organization_id=str(organization.id), organization_slug=organization.slug, previous_owner_id=str(user.id),
+    )
+    await session.flush()
+    return await _member_views(session, organization)
 
 
 @router.post(

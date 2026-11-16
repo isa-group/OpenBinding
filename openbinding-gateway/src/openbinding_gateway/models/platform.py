@@ -155,6 +155,13 @@ class MemberView(MemberUpsert):
     created_at: datetime
 
 
+class OwnerTransfer(BaseModel):
+    """Who takes the organization over: a member, here or above."""
+
+    model_config = ConfigDict(extra="forbid")
+    user_id: uuid.UUID
+
+
 class MemberBatchChange(BaseModel):
     """One staged membership mutation; a null role removes the direct membership."""
 
