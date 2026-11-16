@@ -6,6 +6,7 @@ import csv
 import io
 import itertools
 import json
+import math
 from collections import defaultdict
 from collections.abc import Iterable, Iterator, Mapping
 from typing import Any
@@ -138,6 +139,30 @@ def aggregate_metrics(metrics: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def _finite(value: Any) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+
+
+def objective_point(objectives: Any) -> dict[str, float]:
+    """The values a solution is compared on, all minimised, from the ``objectives`` an engine reports.
+
+    An engine reports ``{type, scalarization, components, penalty, score}`` (``EngineContract``): for SINGLE,
+    ``score`` is one number; for MULTI and MANY it is the vector of the criteria's losses then the penalty, and
+    ``components[i]`` names criterion ``i`` with its ``loss``. The point is every finite number at the top level
+    (``penalty``, a SINGLE ``score``) plus, when ``score`` is a vector, each criterion's loss under its name. The
+    descriptors (``type``, ``scalarization``) are not values. A flat ``{name: number}`` reads as itself.
+    """
+    if not isinstance(objectives, dict):
+        return {}
+    point = {str(key): float(value) for key, value in objectives.items() if _finite(value)}
+    components = objectives.get("components")
+    if isinstance(objectives.get("score"), list) and isinstance(components, list):
+        for component in components:
+            if isinstance(component, dict) and isinstance(component.get("criteria"), str) and _finite(component.get("loss")):
+                point[component["criteria"]] = float(component["loss"])
+    return point
+
+
 def pareto_fronts(cells: Iterable[Mapping[str, Any]], problems: Mapping[str, Mapping[str, Any]]) -> list[dict[str, Any]]:
     """The Pareto front of each problem revision and objective set of a study run (minimisation).
 
@@ -152,15 +177,8 @@ def pareto_fronts(cells: Iterable[Mapping[str, Any]], problems: Mapping[str, Map
         metrics = cell.get("metrics") or {}
         if metrics.get("status") != "completed" or metrics.get("feasible") is not True or not cell.get("jobId"):
             continue
-        values = metrics.get("objectives")
-        if not isinstance(values, dict):
-            continue
-        point = {
-            str(key): float(value)
-            for key, value in values.items()
-            if isinstance(value, (int, float)) and not isinstance(value, bool)
-        }
-        if not point or len(point) != len(values):
+        point = objective_point(metrics.get("objectives"))
+        if not point:
             continue
         index = metrics.get("solutionIndex")
         groups[(str(cell["revisionId"]), tuple(sorted(point)))].append((point, {

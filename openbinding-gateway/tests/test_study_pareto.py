@@ -64,7 +64,7 @@ def test_infeasible_failed_and_unrun_cells_are_left_out():
             cell(1, R1, {"cost": 0, "latency": 0}, feasible=False),
             cell(2, R1, {"cost": 0, "latency": 0}, status="failed"),
             cell(3, R1, {"cost": 0, "latency": 0}, job=False),
-            cell(4, R1, {"cost": 0, "latency": "fast"}),
+            cell(4, R1, {"type": "SINGLE", "scalarization": "feasibility", "score": float("nan")}),
             cell(5, R1, {}),
             cell(6, R1, {"cost": 5, "latency": 5}),
         ],
@@ -145,3 +145,45 @@ async def test_a_cell_keeps_the_index_of_the_solution_it_reports(api_client, db_
     )
 
     assert all(cell.metrics["solutionIndex"] == 0 for cell in world.cells)
+
+
+def engine_objectives(score, penalty=0.0, components=(), kind="SINGLE"):
+    """The ``objectives`` object an engine reports (``EngineContract``), descriptors and components included."""
+    return {
+        "type": kind, "scalarization": "weighted-sum", "penalty": penalty, "score": score,
+        "components": [
+            {"criteria": name, "feature": {"id": name}, "value": loss * 10, "loss": loss, "weight": 1.0}
+            for name, loss in components
+        ],
+    }
+
+
+def test_a_single_objective_engine_report_is_compared_on_its_score_and_penalty():
+    fronts = pareto_fronts(
+        [
+            cell(1, R1, engine_objectives(0.04, components=[("cost", 0.04)])),
+            cell(2, R1, engine_objectives(0.03, components=[("cost", 0.03)])),
+            cell(3, R1, engine_objectives(0.05, penalty=1.0, components=[("cost", 0.05)])),
+        ],
+        PROBLEMS,
+    )
+
+    assert [front["objectives"] for front in fronts] == [["penalty", "score"]]
+    assert points(fronts[0]) == [("02", {"penalty": 0.0, "score": 0.03})]
+
+
+def test_a_multi_objective_engine_report_is_compared_on_each_criterion_and_the_penalty():
+    fronts = pareto_fronts(
+        [
+            cell(1, R1, engine_objectives([0.2, 0.8, 0.0], components=[("cost", 0.2), ("latency", 0.8)], kind="MULTI")),
+            cell(2, R1, engine_objectives([0.6, 0.3, 0.0], components=[("cost", 0.6), ("latency", 0.3)], kind="MULTI")),
+            cell(3, R1, engine_objectives([0.7, 0.9, 0.0], components=[("cost", 0.7), ("latency", 0.9)], kind="MULTI")),
+        ],
+        PROBLEMS,
+    )
+
+    assert [front["objectives"] for front in fronts] == [["cost", "latency", "penalty"]]
+    assert points(fronts[0]) == [
+        ("01", {"penalty": 0.0, "cost": 0.2, "latency": 0.8}),
+        ("02", {"penalty": 0.0, "cost": 0.6, "latency": 0.3}),
+    ]
