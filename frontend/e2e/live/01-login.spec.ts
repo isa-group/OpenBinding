@@ -19,14 +19,15 @@ test.describe('live · login', () => {
       const errors = watchPageErrors(page);
       await signInThroughForm(page, LAB_USERS[role], labPassword());
 
-      await expect(page).toHaveURL(/\/app\/?$/);
+      // Signed in, the root address is SPHERE's dashboard.
+      await expect(page).toHaveURL(/^https?:\/\/[^/]+\/?$/);
       await expect(
-        page.getByRole('heading', { level: 1, name: `Hello, ${LAB_USERS[role]}` })
+        page.getByRole('heading', { level: 1, name: `Welcome back, ${LAB_USERS[role]}` })
       ).toBeVisible();
       // The session is in the browser: a reload keeps it.
       await page.reload();
       await expect(
-        page.getByRole('heading', { level: 1, name: `Hello, ${LAB_USERS[role]}` })
+        page.getByRole('heading', { level: 1, name: `Welcome back, ${LAB_USERS[role]}` })
       ).toBeVisible();
       if (role === 'owner') await capture(page, testInfo, 'login-owner-home');
       expect(errors).toEqual([]);

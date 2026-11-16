@@ -1,8 +1,8 @@
 import { expect, test } from '@playwright/test';
-import { CASE, ORG, ORG_PATH, capture, signInByApi, watchPageErrors } from './support';
+import { CASE, ORG, ORG_PAGE, ORG_PATH, capture, signInByApi, watchPageErrors } from './support';
 
 test.describe('live · the organization lab-main and its problems', () => {
-  test('the owner goes from Home to the organization lab-main and to its problems', async ({
+  test('the owner goes from its organizations to lab-main and to its problems', async ({
     page,
   }, testInfo) => {
     const errors = watchPageErrors(page);
@@ -13,24 +13,21 @@ test.describe('live · the organization lab-main and its problems', () => {
     const main = organizations.locator(`a[href="/orgs/${ORG}"]`);
     await expect(main).toBeVisible();
     await expect(organizations.getByText('Owner', { exact: true }).first()).toBeVisible();
-    // Home leads with the recent compositions of an organization, before its recent runs.
-    await expect(page.getByRole('region', { name: 'Recent compositions' })).toBeVisible();
     await capture(page, testInfo, 'navigation-home');
 
     await main.click();
-    await expect(page).toHaveURL(new RegExp(`/app/${ORG}/?$`));
+    await expect(page).toHaveURL(new RegExp(`${ORG_PAGE}/?$`));
     await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
-    // The header leads to the problems too: the panel's link is the one in the main area.
-    const problems = page.locator('main').getByRole('link', { name: 'All problems' });
-    await expect(problems).toHaveAttribute('href', `${ORG_PATH}/problems`);
-    // The overview leads with the organization's compositions.
-    await expect(
-      page.locator('main').getByRole('heading', { name: /^Compositions/ })
-    ).toBeVisible();
-    await expect(
-      page.locator('main').getByRole('link', { name: 'All compositions', exact: true })
-    ).toHaveAttribute('href', `${ORG_PATH}/compositions`);
     await capture(page, testInfo, 'navigation-organization');
+
+    // The Compositions and Problems tabs lead to the workspace screens.
+    await page.goto(`${ORG_PAGE}/compositions`);
+    await expect(
+      page.locator('main').getByRole('link', { name: 'Open all compositions' }).first()
+    ).toHaveAttribute('href', `${ORG_PATH}/compositions`);
+    await page.goto(`${ORG_PAGE}/problems`);
+    const problems = page.locator('main').getByRole('link', { name: 'Open the problems' }).first();
+    await expect(problems).toHaveAttribute('href', `${ORG_PATH}/problems`);
 
     await problems.click();
     await expect(page).toHaveURL(new RegExp(`${ORG_PATH}/problems/?$`));

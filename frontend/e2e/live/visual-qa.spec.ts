@@ -373,13 +373,13 @@ const LOGIN: Stop = {
 const OWNER_STOPS: Stop[] = [
   {
     slug: 'panel',
-    path: '/app',
-    ready: page => page.getByRole('heading', { level: 1, name: /^Hello, / }),
+    path: '/',
+    ready: page => page.getByRole('heading', { level: 1, name: /^Welcome back, / }),
   },
   {
     slug: 'organization',
-    path: `/app/${ORG}`,
-    ready: page => page.locator('main').getByRole('link', { name: 'All problems' }),
+    path: `/orgs/${ORG}/problems`,
+    ready: page => page.locator('main').getByRole('link', { name: 'Open the problems' }).first(),
   },
   {
     slug: 'cases',
