@@ -31,11 +31,16 @@ from ..db import base as db_base
 from ..db.models import Notification, NotificationStreamTicket, User, utcnow
 from ..models.errors import ErrorResponse, api_error
 from ..models.platform import NotificationView
-from ..modules.shared.application import notifications as inbox
+from ..modules.shared.application import (
+    NOTIFICATION_KINDS,
+    NOTIFICATION_RETENTION_DAYS,
+    retention_cutoff,
+    unread_count,
+)
 
 router = APIRouter(prefix="/v1/notifications", tags=["Notifications"])
 
-NOTIFICATION_RETENTION_DAYS = inbox.RETENTION_DAYS
+NOTIFICATION_RETENTION_DAYS = NOTIFICATION_RETENTION_DAYS
 NotificationKind = Literal["OrganizationInvitation", "System", "CompositionUpdated", "RunFinished", "RunFailed"]
 
 #: How long a stream ticket may wait to be used.
@@ -67,7 +72,7 @@ class NotificationPreferences(BaseModel):
     @field_validator("kinds")
     @classmethod
     def known_kinds(cls, value: dict[str, KindChannels]) -> dict[str, KindChannels]:
-        unknown = sorted(set(value) - set(inbox.KINDS))
+        unknown = sorted(set(value) - set(NOTIFICATION_KINDS))
         if unknown:
             raise ValueError(f"unknown notification kinds: {', '.join(unknown)}")
         return value
@@ -90,7 +95,7 @@ async def _prune(session: AsyncSession, user: User) -> None:
     await session.execute(
         delete(Notification).where(
             Notification.user_id == user.id,
-            Notification.created_at < inbox.retention_cutoff(),
+            Notification.created_at < retention_cutoff(),
         ).execution_options(synchronize_session=False)
     )
 
@@ -108,7 +113,7 @@ async def list_notifications(
     await _prune(session, user)
     query = select(Notification).where(
         Notification.user_id == user.id,
-        Notification.created_at >= inbox.retention_cutoff(),
+        Notification.created_at >= retention_cutoff(),
     )
     if unread_only:
         query = query.where(Notification.read_at.is_(None))
@@ -126,7 +131,7 @@ async def count_unread_notifications(
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> UnreadCount:
     """How many notifications of the inbox the caller has not read (the header bell's badge)."""
-    return UnreadCount(count=await inbox.unread_count(session, user.id))
+    return UnreadCount(count=await unread_count(session, user.id))
 
 
 @router.post("/read-all", response_model=list[NotificationView], operation_id="readAllNotifications")
@@ -138,7 +143,7 @@ async def mark_all_notifications_read(
     query = select(Notification).where(
         Notification.user_id == user.id,
         Notification.read_at.is_(None),
-        Notification.created_at >= inbox.retention_cutoff(),
+        Notification.created_at >= retention_cutoff(),
     )
     rows = (await session.execute(query)).scalars().all()
     now = utcnow()
@@ -214,7 +219,7 @@ async def _events(user_id: uuid.UUID) -> AsyncIterator[str]:
     since = utcnow() - timedelta(seconds=1)
     seen: set[uuid.UUID] = set()
     async with _open_session() as session:
-        count = await inbox.unread_count(session, user_id)
+        count = await unread_count(session, user_id)
     yield _event("unread-count", {"count": count})
     deadline = time.monotonic() + STREAM_SECONDS
     quiet_since = time.monotonic()
@@ -226,7 +231,7 @@ async def _events(user_id: uuid.UUID) -> AsyncIterator[str]:
                 .order_by(Notification.created_at, Notification.id)
             )).all()
             fresh = [row for row in rows if row.id not in seen]
-            current = await inbox.unread_count(session, user_id)
+            current = await unread_count(session, user_id)
         for row in fresh:
             seen.add(row.id)
             yield _event("notification", _view(row).model_dump(mode="json"))
@@ -276,7 +281,7 @@ async def mark_notification_read(
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> NotificationView:
-    cutoff = inbox.retention_cutoff()
+    cutoff = retention_cutoff()
     row = await session.get(Notification, notification_id)
     if row is None or row.user_id != user.id or row.created_at < cutoff:
         if row and row.created_at < cutoff:
@@ -305,7 +310,7 @@ async def delete_notification(
 
 
 def _with_every_kind(preferences: NotificationPreferences) -> NotificationPreferences:
-    kinds = {kind: preferences.kinds.get(kind, KindChannels()) for kind in inbox.KINDS}
+    kinds = {kind: preferences.kinds.get(kind, KindChannels()) for kind in NOTIFICATION_KINDS}
     return preferences.model_copy(update={"kinds": kinds})
 
 

@@ -169,6 +169,9 @@ def test_authentication_and_role_requirements_are_explicit(document):
         (f"{composition}/versions/{{version}}", "get"),
         (f"{composition}/versions/{{version}}/content", "get"),
         (f"{composition}/diff", "get"),
+        (f"{composition}/graph", "get"),
+        (f"{composition}/download", "get"),
+        ("/v1/permalinks/compositions/{composition_id}", "get"),
     }
     for path, method, operation in operations(document):
         if (path, method) in public:

@@ -1,8 +1,35 @@
 """What other modules and the legacy layers read of ``shared``: blob storage, the audit log and the inbox."""
 
 from ..blobs import BlobFile, path_for, put_row, read_verified, write_file
-from . import notifications
 from .audit_log import audit
-from .notifications import notify
+from .notifications import (
+    COMPOSITION_UPDATED,
+    KINDS as NOTIFICATION_KINDS,
+    ORGANIZATION_INVITATION,
+    RETENTION_DAYS as NOTIFICATION_RETENTION_DAYS,
+    RUN_FAILED,
+    RUN_FINISHED,
+    SYSTEM,
+    notify,
+    retention_cutoff,
+    unread_count,
+)
 
-__all__ = ["BlobFile", "audit", "notifications", "notify", "path_for", "put_row", "read_verified", "write_file"]
+__all__ = [
+    "COMPOSITION_UPDATED",
+    "NOTIFICATION_KINDS",
+    "NOTIFICATION_RETENTION_DAYS",
+    "ORGANIZATION_INVITATION",
+    "RUN_FAILED",
+    "RUN_FINISHED",
+    "SYSTEM",
+    "BlobFile",
+    "audit",
+    "notify",
+    "path_for",
+    "put_row",
+    "read_verified",
+    "retention_cutoff",
+    "unread_count",
+    "write_file",
+]

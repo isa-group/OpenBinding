@@ -12,7 +12,7 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision: str = '9cb0f7f68c18'
+revision: str = 'e5a6b40a375a'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -462,6 +462,18 @@ def upgrade() -> None:
     op.create_index(op.f('ix_binding_case_revisions_created_by_id'), 'binding_case_revisions', ['created_by_id'], unique=False)
     op.create_index(op.f('ix_binding_case_revisions_package_blob_id'), 'binding_case_revisions', ['package_blob_id'], unique=False)
     op.create_index(op.f('ix_binding_case_revisions_package_digest'), 'binding_case_revisions', ['package_digest'], unique=False)
+    op.create_table('composition_follows',
+    sa.Column('id', sa.Uuid(), nullable=False),
+    sa.Column('user_id', sa.Uuid(), nullable=False),
+    sa.Column('composition_id', sa.Uuid(), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.ForeignKeyConstraint(['composition_id'], ['compositions.id'], name=op.f('fk_composition_follows_composition_id_compositions'), ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], name=op.f('fk_composition_follows_user_id_users'), ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_composition_follows')),
+    sa.UniqueConstraint('user_id', 'composition_id', name='uq_composition_follows_user_composition')
+    )
+    op.create_index(op.f('ix_composition_follows_composition_id'), 'composition_follows', ['composition_id'], unique=False)
+    op.create_index(op.f('ix_composition_follows_user_id'), 'composition_follows', ['user_id'], unique=False)
     op.create_table('study_runs',
     sa.Column('id', sa.Uuid(), nullable=False),
     sa.Column('study_id', sa.Uuid(), nullable=False),
@@ -756,6 +768,9 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_study_runs_study_id'), table_name='study_runs')
     op.drop_index(op.f('ix_study_runs_matrix_digest'), table_name='study_runs')
     op.drop_table('study_runs')
+    op.drop_index(op.f('ix_composition_follows_user_id'), table_name='composition_follows')
+    op.drop_index(op.f('ix_composition_follows_composition_id'), table_name='composition_follows')
+    op.drop_table('composition_follows')
     op.drop_index(op.f('ix_binding_case_revisions_package_digest'), table_name='binding_case_revisions')
     op.drop_index(op.f('ix_binding_case_revisions_package_blob_id'), table_name='binding_case_revisions')
     op.drop_index(op.f('ix_binding_case_revisions_created_by_id'), table_name='binding_case_revisions')

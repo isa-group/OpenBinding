@@ -761,3 +761,57 @@ class DeriveDraft(BaseModel):
     document: dict[str, Any] = Field(description="The same document, as JSON.")
     values: dict[str, ValueView] = Field(description="The values the toolchain computed for the binding.")
     diagnostics: list[CompositionDiagnosticView] = Field(description="Every warning and info, located in `content`.")
+
+
+# -- Graph, follows and permanent links ------------------------------------------------------------------
+
+
+class GraphEdge(BaseModel):
+    """The version a version was forked from."""
+
+    composition_id: uuid.UUID
+    version_id: Optional[uuid.UUID] = None
+    label: Optional[str] = None
+
+
+class GraphVersion(BaseModel):
+    id: Optional[uuid.UUID] = Field(description="Null on an unavailable lane, which knows only labels.")
+    label: str
+    created_at: Optional[datetime] = None
+    forked_from: Optional[GraphEdge] = None
+
+
+class GraphOrganization(BaseModel):
+    id: Optional[uuid.UUID] = None
+    slug: Optional[str] = None
+    name: Optional[str] = None
+
+
+class GraphLane(BaseModel):
+    """A composition of the graph: this one (`current`) or one a version was forked from (`source`)."""
+
+    role: Literal["current", "source"]
+    available: bool = Field(description="False for a source the caller does not read: only what its forks name.")
+    composition_id: uuid.UUID
+    organization: Optional[GraphOrganization] = None
+    slug: Optional[str] = None
+    name: Optional[str] = None
+    versions: list[GraphVersion]
+
+
+class CompositionGraph(BaseModel):
+    """The version graph of a composition, as SPHERE's pricing version graph: newest versions first."""
+
+    lanes: list[GraphLane]
+    truncated: bool = Field(description="More source lanes exist than were drawn (at most 20).")
+
+
+class FollowState(BaseModel):
+    following: bool
+
+
+class PermanentLink(BaseModel):
+    location: str = Field(
+        description="The application path of the composition (`/compositions/{org}/{composition}`), with "
+        "`?version=` when the link names a version the caller reads.",
+    )

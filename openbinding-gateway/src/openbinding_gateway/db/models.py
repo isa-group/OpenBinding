@@ -457,6 +457,7 @@ from .platform_models import (  # noqa: E402,F401
     Composition,
     CompositionDerivation,
     CompositionEvaluation,
+    CompositionFollow,
     CompositionKind,
     CompositionVersion,
     DerivationSource,

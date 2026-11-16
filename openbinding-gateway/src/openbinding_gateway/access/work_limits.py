@@ -104,6 +104,10 @@ ANONYMOUS_READ_ROUTES: frozenset[tuple[str, str]] = frozenset({
     ("GET", "/v1/organizations/{org}/compositions/{composition}/versions/{version}"),
     ("GET", "/v1/organizations/{org}/compositions/{composition}/versions/{version}/content"),
     ("GET", "/v1/organizations/{org}/compositions/{composition}/diff"),
+    # The version graph, the zip of the versions, and the permanent link of a public composition.
+    ("GET", "/v1/organizations/{org}/compositions/{composition}/graph"),
+    ("GET", "/v1/organizations/{org}/compositions/{composition}/download"),
+    ("GET", "/v1/permalinks/compositions/{composition_id}"),
 })
 
 #: The setting that holds each class's budget.

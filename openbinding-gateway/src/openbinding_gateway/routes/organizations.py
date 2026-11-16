@@ -37,6 +37,7 @@ from ..db.models import (
     Composition,
     CompositionDerivation,
     CompositionEvaluation,
+    CompositionFollow,
     CompositionVersion,
     Job,
     Organization,
@@ -79,7 +80,7 @@ from ..models.platform import (
 from ..repositories import organizations as organization_repository
 from ..access.dependencies import get_current_user, get_reader, session_dependency
 from ..access.work_limits import charge_anonymous_read
-from ..modules.shared.application import notifications, notify, put_row, read_verified, write_file
+from ..modules.shared.application import ORGANIZATION_INVITATION, SYSTEM, notify, put_row, read_verified, write_file
 from ..services import organizations as profiles
 
 router = APIRouter(prefix="/v1/organizations", tags=["Organizations"])
@@ -699,6 +700,7 @@ async def _delete_subtree(session: AsyncSession, organization: Organization, uni
         # Run presets: no run or history refers to one, a run copies the settings it expands.
         await session.execute(delete(RunPreset).where(RunPreset.organization_id == oid))
         held = select(Composition.id).where(Composition.organization_id == oid)
+        await session.execute(delete(CompositionFollow).where(CompositionFollow.composition_id.in_(held)))
         versions = select(CompositionVersion.id).where(CompositionVersion.composition_id.in_(held))
         await session.execute(delete(CompositionDerivation).where(CompositionDerivation.version_id.in_(versions)))
         await session.execute(delete(CompositionEvaluation).where(CompositionEvaluation.version_id.in_(versions)))
@@ -1087,7 +1089,7 @@ async def transfer_ownership(
         to=str(recipient.id), stepped_down=sorted(set(stepped_down)),
     )
     await notify(
-        session, recipient.id, notifications.SYSTEM, "You are now an owner",
+        session, recipient.id, SYSTEM, "You are now an owner",
         f"@{user.username} handed you ownership of \"{organization.name}\"",
         organization_id=str(organization.id), organization_slug=organization.slug, previous_owner_id=str(user.id),
     )
@@ -1177,7 +1179,7 @@ async def invite_users(
     invitation = await _new_code(session, organization, user, expires_in_days=7, max_uses=len(invited))
     for person in invited:
         await notify(
-            session, person.id, notifications.ORGANIZATION_INVITATION,
+            session, person.id, ORGANIZATION_INVITATION,
             f"You've been invited to join {organization.name}",
             f"@{user.username} has invited you to join \"{organization.name}\". Open the invitation to accept it.",
             invitation_code=invitation.code, organization_id=str(organization.id),

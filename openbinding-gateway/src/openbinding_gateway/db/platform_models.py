@@ -401,6 +401,24 @@ class Composition(Base):
     )
 
 
+class CompositionFollow(Base):
+    """A user following a composition: each version sealed later tells them (``CompositionUpdated``)."""
+
+    __tablename__ = "composition_follows"
+    __table_args__ = (UniqueConstraint("user_id", "composition_id", name="uq_composition_follows_user_composition"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    composition_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("compositions.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
+    )
+
+
 class ValuesStatus(str, enum.Enum):
     """Where a version's values come from: the toolchain (linked to a problem) or the author."""
 

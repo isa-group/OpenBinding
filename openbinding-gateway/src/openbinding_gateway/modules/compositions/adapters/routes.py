@@ -29,12 +29,16 @@ budget too).
 
 from __future__ import annotations
 
+import io
+import re
 import uuid
+import zipfile
 from datetime import datetime
 from typing import Any, Literal, Union
 
 from fastapi import APIRouter, Depends, Query, Request, Response, status
 from fastapi.responses import JSONResponse
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ....access.dependencies import get_current_user, get_reader, session_dependency
@@ -61,7 +65,7 @@ from ....models.errors import (
     api_error,
 )
 from ....security.apikeys import authenticated_api_key, boundary_of
-from ..application import compositions, derive, evaluate, language, listing, seal, versions
+from ..application import compositions, derive, evaluate, graph, language, listing, seal, versions
 from ..application.fork import NameTaken, fork_composition
 from ..application.language import diagnostic_view
 from ..domain.records import values_json
@@ -69,6 +73,8 @@ from .list_query import ListQuery, facets_view, list_query
 from .language_routes import MAX_DOCUMENT_BYTES, YAML_BODY, YAML_MEDIA_TYPES, document_body
 from .schemas import (
     CheckResult,
+    CompositionGraph,
+    GraphLane,
     CompositionCreate,
     CompositionDerive,
     CompositionEvaluate,
@@ -1106,3 +1112,78 @@ async def derive_composition(
         derivation=_derivation_view(sealed.derivation),
         diagnostics=diagnostics,
     )
+
+
+@router.get(
+    "/{composition}/graph",
+    response_model=CompositionGraph,
+    operation_id="getCompositionGraph",
+    responses=_UNREADABLE,
+    dependencies=[Depends(charge_anonymous_read)],
+)
+async def get_composition_graph(
+    org: str,
+    composition: str,
+    response: Response,
+    user: User | None = Depends(get_reader),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> CompositionGraph:
+    """The composition's version graph: its lane, and one per composition a version was forked from, as
+    SPHERE's ``GET /pricings/{org}/{slug}/graph``. A source the caller does not read is a lane with only the
+    labels its forks name, for members; a reader who is not a member sees no such lane."""
+    _, found, reader = await compositions.readable_composition(session, org, composition, user)
+    lanes, truncated = await graph.graph(session, found, user, member=not reader.public)
+    _read_headers(response.headers, reader)
+    return CompositionGraph(
+        lanes=[GraphLane.model_validate({
+            **lane.__dict__,
+            "versions": [version.__dict__ for version in lane.versions],
+        }) for lane in lanes],
+        truncated=truncated,
+    )
+
+
+def _archive_name(value: str, fallback: str) -> str:
+    """A file or folder name from ``value``, as SPHERE's ``archiveName``."""
+    safe = re.sub(r"[^a-zA-Z0-9._-]+", "-", value).strip("-.")
+    return safe or fallback
+
+
+@router.get(
+    "/{composition}/download",
+    operation_id="downloadCompositionVersions",
+    response_class=Response,
+    responses={
+        **_UNREADABLE,
+        200: {"description": "A zip of every version's Composition2Yaml bytes: `{slug}/{label}.yaml`.",
+              "content": {"application/zip": {"schema": {"type": "string", "format": "binary"}}}},
+    },
+    dependencies=[Depends(charge_anonymous_read)],
+)
+async def download_composition_versions(
+    org: str,
+    composition: str,
+    user: User | None = Depends(get_reader),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> Response:
+    """Every version the caller reads as one zip, as SPHERE's ``GET /public/pricings/{id}/download``: the
+    stored canonical bytes, one ``{label}.yaml`` per version in a folder named after the composition. A
+    composition with no version is 404."""
+    organization, found, reader = await compositions.readable_composition(session, org, composition, user)
+    rows = (await session.scalars(
+        select(CompositionVersion).where(CompositionVersion.composition_id == found.id)
+        .order_by(CompositionVersion.ordinal)
+    )).all()
+    if not rows:
+        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "The composition has no version.")
+    folder = _archive_name(found.slug, "composition")
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        for row in rows:
+            archive.writestr(f"{folder}/{_archive_name(row.label, f'version-{row.ordinal}')}.yaml", row.content)
+    headers = {
+        "Content-Disposition": f'attachment; filename="{_archive_name(organization.slug, "org")}-{folder}-versions.zip"',
+    }
+    _read_headers(headers, reader)
+    headers.setdefault("Cache-Control", "private, no-store")
+    return Response(buffer.getvalue(), media_type="application/zip", headers=headers)

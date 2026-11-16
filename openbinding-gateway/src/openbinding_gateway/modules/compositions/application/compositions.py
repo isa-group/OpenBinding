@@ -33,6 +33,7 @@ from ....db.models import (
     Composition,
     CompositionDerivation,
     CompositionEvaluation,
+    CompositionFollow,
     CompositionKind,
     CompositionVersion,
     Organization,
@@ -378,6 +379,7 @@ async def delete_composition(session: AsyncSession, composition: Composition, ac
     """
     await session.execute(select(Composition.id).where(Composition.id == composition.id).with_for_update())
     versions = select(CompositionVersion.id).where(CompositionVersion.composition_id == composition.id)
+    await session.execute(delete(CompositionFollow).where(CompositionFollow.composition_id == composition.id))
     await session.execute(delete(CompositionDerivation).where(CompositionDerivation.version_id.in_(versions)))
     await session.execute(delete(CompositionEvaluation).where(CompositionEvaluation.version_id.in_(versions)))
     await session.execute(delete(CompositionVersion).where(CompositionVersion.composition_id == composition.id))

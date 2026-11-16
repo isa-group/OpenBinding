@@ -35,7 +35,7 @@ from ..db.models import (
     utcnow,
 )
 from ..integrations import bim
-from ..modules.shared.application import notifications, notify
+from ..modules.shared.application import RUN_FAILED, RUN_FINISHED, notify
 from ..jobs import evidence as job_evidence
 from ..jobs import leases, remote_attempts
 from ..v1.remote import RemoteCancelled, RemoteEngineError, RemoteRegistration, cancel_remote, solve_remote
@@ -755,7 +755,7 @@ async def notify_run_outcome(session: AsyncSession, job_id: uuid.UUID) -> None:
         async with session.begin_nested():
             await notify(
                 session, job.created_by_id,
-                notifications.RUN_FINISHED if finished else notifications.RUN_FAILED,
+                RUN_FINISHED if finished else RUN_FAILED,
                 "Run finished" if finished else "Run failed",
                 f"The run {str(job.id)[:8]} on {job.engine_id}{where} {'finished' if finished else 'failed'}.",
                 run_id=str(job.id), organization_id=str(job.organization_id),

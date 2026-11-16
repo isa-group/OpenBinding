@@ -55,6 +55,8 @@ from .models.problem import (
     validation_diagnostics,
 )
 from .modules.compositions.adapters.language_routes import router as composition_language_router
+from .modules.compositions.adapters.link_routes import follow_router as composition_follow_router
+from .modules.compositions.adapters.link_routes import permalink_router as composition_permalink_router
 from .modules.compositions.adapters.public_routes import me_router as own_compositions_router
 from .modules.compositions.adapters.public_routes import router as public_compositions_router
 from .modules.compositions.adapters.routes import router as compositions_router
@@ -440,6 +442,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(composition_language_router)
     app.include_router(public_compositions_router)
     app.include_router(own_compositions_router)
+    app.include_router(composition_permalink_router)
+    app.include_router(composition_follow_router)
     app.include_router(runs_router)
     app.include_router(run_presets_router)
     app.include_router(notifications_router)

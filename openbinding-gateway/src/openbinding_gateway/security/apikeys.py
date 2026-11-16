@@ -411,6 +411,10 @@ def required_permissions(path: str, method: str) -> frozenset[str]:
         return frozenset({ApiKeyPermission.NOTIFICATIONS_READ.value})
     if path.startswith("/v1/pricing"):
         return frozenset({ApiKeyPermission.PRICING_READ.value})
+    if path.startswith(("/v1/permalinks/compositions", "/v1/composition-follows")):
+        # Resolving a composition's permanent link, and following one: reads of compositions (a follow writes
+        # nothing of the composition, as SPHERE keeps it out of the pricing write path).
+        return frozenset({ApiKeyPermission.COMPOSITIONS_READ.value})
     if path == "/v1/compositions" and method == "GET":
         # The public compositions of every organization: a read of compositions, open to visitors too.
         return frozenset({ApiKeyPermission.COMPOSITIONS_READ.value})
