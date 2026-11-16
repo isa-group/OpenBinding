@@ -1,3 +1,4 @@
+@layer legacy {
 /* Shared by every account screen: the frame, cards, sections, forms and the small things dialogs are made of. */
 
 .acct-page {
@@ -172,4 +173,5 @@
   .acct-side .section-nav { flex-direction: row; gap: 4px; overflow-x: auto; padding-bottom: 4px; }
   .acct-side .section-nav-title { display: none; }
   .acct-side .section-nav-link { flex: none; white-space: nowrap; }
+}
 }

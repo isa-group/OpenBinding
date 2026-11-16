@@ -2,13 +2,16 @@
 @import "@fontsource/jetbrains-mono/400.css";
 @import "@fontsource/jetbrains-mono/500.css";
 
+
 /*
- * Visual foundation: light theme only, taken from the tokens.json of the design hand-off
- * prototype (kept outside the repository; the tokens below are the authoritative copy).
+ * The stylesheet of the screens not yet drawn with Tailwind (docs/adr/0053-frontend-on-sphere-stack.md).
  *
- * --tp-*        exact design tokens (tokens.json name without the "color-" prefix:
- *               color-tp-primary -> --tp-primary; spacing-md -> --tp-spacing-md;
- *               radius-lg -> --tp-radius-lg; shadow-elevation-2 -> --tp-shadow-elevation-2).
+ * Every rule sits in the `legacy` cascade layer that styles/tailwind.css declares: above Tailwind's preflight, so the old
+ * screens keep their look, and below SPHERE's components and the utilities, so those win where both apply.
+ *
+ * --tp-*        the old token names, now a bridge onto the theme (--tp-x: var(--color-tp-x)), so the old screens follow
+ *               the brand palette chosen with data-brand. --tp-primary and --tp-primary-deep take the accent, the primary
+ *               colour small text may use, because the old screens set text and small labels in them.
  * --color-*     legacy names kept so existing page styles recolour without edits:
  *   bg-primary -> tp-surface        bg-secondary -> tp-cream      bg-tertiary -> tp-hairline-soft
  *   bg-elevated / surface-strong -> tp-canvas
@@ -22,75 +25,76 @@
  *   colours are 2.2-3.8:1 on white and are exposed as --tp-severity-* for icons and fills).
  *   --shadow-sm/md/lg/xl -> elevation 1/2/3/4; --radius-* -> radius scale (sm 6, md 8, lg 12, xl 16).
  */
+@layer legacy {
 :root {
   color-scheme: light;
 
   /* Design tokens */
-  --tp-primary: #0077b6;
-  --tp-primary-deep: #023e8a;
-  --tp-on-primary: #ffffff;
-  --tp-sunshine-300: #ade8f4;
-  --tp-sunshine-500: #48cae4;
-  --tp-sunshine-700: #00b4d8;
-  --tp-sunshine-800: #0096c7;
-  --tp-sunshine-900: #0090c8;
-  --tp-yellow-saturated: #90e0ef;
-  --tp-cream: #f1f8fc;
-  --tp-cream-light: #f5fbfd;
-  --tp-cream-deeper: #caf0f8;
-  --tp-beige-deep: #a9d6ea;
-  --tp-block-5: #ade8f4;
-  --tp-block-6: #90e0ef;
-  --tp-block-7: #0096c7;
-  --tp-ink: #1f1f1f;
-  --tp-ink-tint: #3d3d3d;
-  --tp-charcoal: #2c2c2c;
-  --tp-slate: #4a4a4a;
-  --tp-steel: #6a6a6a;
-  --tp-stone: #8a8a8a;
-  --tp-muted: #a8a8a8;
-  --tp-hairline: #b8b8b8;
-  --tp-hairline-soft: #ededed;
-  --tp-hairline-strong: #a8a8a8;
-  --tp-canvas: #ffffff;
-  --tp-surface: #fafafa;
-  --tp-surface-cream: #f1f8fc;
-  --tp-surface-cream-soft: #f5fbfd;
-  --tp-surface-code: #1c1c1e;
-  --tp-on-dark: #ffffff;
-  --tp-on-dark-muted: #a8a8a8;
-  --tp-on-cream: #1f1f1f;
-  --tp-footer-cream: #f1f8fc;
-  --tp-input-bg: #ffffff;
-  --tp-input-border: #c7c7c7;
-  --tp-link: #0077b6;
-  --tp-severity-error: #ef4444;
-  --tp-severity-error-bg: #fef2f2;
-  --tp-severity-error-border: #fca5a5;
-  --tp-severity-warning: #f59e0b;
-  --tp-severity-warning-bg: #fffbeb;
-  --tp-severity-warning-border: #fcd34d;
-  --tp-severity-info: #3b82f6;
-  --tp-severity-info-bg: #eff6ff;
-  --tp-severity-info-border: #93c5fd;
-  --tp-severity-success: #22c55e;
-  --tp-severity-success-bg: #f0fdf4;
-  --tp-severity-success-border: #86efac;
+  --tp-primary: var(--color-tp-accent);
+  --tp-primary-deep: var(--color-tp-accent-hover);
+  --tp-on-primary: var(--color-tp-on-primary);
+  --tp-sunshine-300: var(--color-tp-sunshine-300);
+  --tp-sunshine-500: var(--color-tp-sunshine-500);
+  --tp-sunshine-700: var(--color-tp-sunshine-700);
+  --tp-sunshine-800: var(--color-tp-sunshine-800);
+  --tp-sunshine-900: var(--color-tp-sunshine-900);
+  --tp-yellow-saturated: var(--color-tp-yellow-saturated);
+  --tp-cream: var(--color-tp-cream);
+  --tp-cream-light: var(--color-tp-cream-light);
+  --tp-cream-deeper: var(--color-tp-cream-deeper);
+  --tp-beige-deep: var(--color-tp-beige-deep);
+  --tp-block-5: var(--color-tp-block-5);
+  --tp-block-6: var(--color-tp-block-6);
+  --tp-block-7: var(--color-tp-block-7);
+  --tp-ink: var(--color-tp-ink);
+  --tp-ink-tint: var(--color-tp-ink-tint);
+  --tp-charcoal: var(--color-tp-charcoal);
+  --tp-slate: var(--color-tp-slate);
+  --tp-steel: var(--color-tp-steel);
+  --tp-stone: var(--color-tp-stone);
+  --tp-muted: var(--color-tp-muted);
+  --tp-hairline: var(--color-tp-hairline);
+  --tp-hairline-soft: var(--color-tp-hairline-soft);
+  --tp-hairline-strong: var(--color-tp-hairline-strong);
+  --tp-canvas: var(--color-tp-canvas);
+  --tp-surface: var(--color-tp-surface);
+  --tp-surface-cream: var(--color-tp-surface-cream);
+  --tp-surface-cream-soft: var(--color-tp-surface-cream-soft);
+  --tp-surface-code: var(--color-tp-surface-code);
+  --tp-on-dark: var(--color-tp-on-dark);
+  --tp-on-dark-muted: var(--color-tp-on-dark-muted);
+  --tp-on-cream: var(--color-tp-on-cream);
+  --tp-footer-cream: var(--color-tp-footer-cream);
+  --tp-input-bg: var(--color-tp-input-bg);
+  --tp-input-border: var(--color-tp-input-border);
+  --tp-link: var(--color-tp-link);
+  --tp-severity-error: var(--color-tp-severity-error);
+  --tp-severity-error-bg: var(--color-tp-severity-error-bg);
+  --tp-severity-error-border: var(--color-tp-severity-error-border);
+  --tp-severity-warning: var(--color-tp-severity-warning);
+  --tp-severity-warning-bg: var(--color-tp-severity-warning-bg);
+  --tp-severity-warning-border: var(--color-tp-severity-warning-border);
+  --tp-severity-info: var(--color-tp-severity-info);
+  --tp-severity-info-bg: var(--color-tp-severity-info-bg);
+  --tp-severity-info-border: var(--color-tp-severity-info-border);
+  --tp-severity-success: var(--color-tp-severity-success);
+  --tp-severity-success-bg: var(--color-tp-severity-success-bg);
+  --tp-severity-success-border: var(--color-tp-severity-success-border);
   /* The status of a composition value and the kinds of change: aliases of the severity colours, always shown beside words. */
-  --tp-status-verified: var(--tp-severity-success);
-  --tp-status-declared: var(--tp-severity-info);
-  --tp-status-unverified: var(--tp-severity-warning);
-  --tp-diff-added: var(--tp-severity-success);
-  --tp-diff-removed: var(--tp-severity-error);
-  --tp-diff-changed: var(--tp-severity-warning);
+  --tp-status-verified: var(--color-tp-status-verified);
+  --tp-status-declared: var(--color-tp-status-declared);
+  --tp-status-unverified: var(--color-tp-status-unverified);
+  --tp-diff-added: var(--color-tp-diff-added);
+  --tp-diff-removed: var(--color-tp-diff-removed);
+  --tp-diff-changed: var(--color-tp-diff-changed);
   /* Chart series, in this fixed order (blue, orange, aqua, yellow, magenta, green): adjacent pairs stay apart under the common
      colour-vision deficiencies. 3 to 6 are under 3:1 on white, so every chart also has a table and says its series in words. */
-  --tp-chart-1: #2a78d6;
-  --tp-chart-2: #eb6834;
-  --tp-chart-3: #1baf7a;
-  --tp-chart-4: #eda100;
-  --tp-chart-5: #e87ba4;
-  --tp-chart-6: #008300;
+  --tp-chart-1: var(--color-tp-chart-1);
+  --tp-chart-2: var(--color-tp-chart-2);
+  --tp-chart-3: var(--color-tp-chart-3);
+  --tp-chart-4: var(--color-tp-chart-4);
+  --tp-chart-5: var(--color-tp-chart-5);
+  --tp-chart-6: var(--color-tp-chart-6);
 
   --tp-spacing-xxs: 4px;
   --tp-spacing-xs: 8px;
@@ -141,18 +145,18 @@
   --color-dialect-subtle: var(--tp-cream-deeper);
   --color-core: var(--tp-slate);
   --color-core-subtle: var(--tp-hairline-soft);
-  --color-success: #15803d;
+  --color-success: var(--color-tp-success-strong);
   --color-success-bg: var(--tp-severity-success-bg);
-  --color-success-text: #14532d;
-  --color-warning: #b45309;
+  --color-success-text: var(--color-tp-success-text);
+  --color-warning: var(--color-tp-warning-strong);
   --color-warning-bg: var(--tp-severity-warning-bg);
-  --color-warning-text: #78350f;
-  --color-error: #b91c1c;
+  --color-warning-text: var(--color-tp-warning-text);
+  --color-error: var(--color-tp-error-strong);
   --color-error-bg: var(--tp-severity-error-bg);
-  --color-error-text: #7f1d1d;
-  --color-info: #1d4ed8;
+  --color-error-text: var(--color-tp-error-text);
+  --color-info: var(--color-tp-info-strong);
   --color-info-bg: var(--tp-severity-info-bg);
-  --color-info-text: #1e3a8a;
+  --color-info-text: var(--color-tp-info-text);
   --shadow-sm: var(--tp-shadow-elevation-1);
   --shadow-md: var(--tp-shadow-elevation-2);
   --shadow-lg: var(--tp-shadow-elevation-3);
@@ -175,12 +179,7 @@
   --space-20: 5rem;
   --space-24: 6rem;
 
-  /* Type: PP Editorial Old is declared only (no licensed files yet); until then the browser falls back to Georgia. */
-  --font-display: 'PP Editorial Old', Georgia, serif;
-  --font-body: 'Inter Variable', 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
-  --font-sans: var(--font-body);
   --font-family: var(--font-body);
-  --font-mono: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
   --tp-font-display: var(--font-display);
   --tp-font-body: var(--font-body);
   --tp-font-mono: var(--font-mono);
@@ -203,11 +202,6 @@
   --page-slide-ease: var(--ease-smooth-out);
   --tabs-dur: 220ms;
   --tabs-ease: var(--ease-smooth-out);
-}
-
-@layer reset {
-  *, *::before, *::after { box-sizing: border-box; }
-  * { margin: 0; padding: 0; }
 }
 
 html { scroll-behavior: smooth; background: var(--color-bg-primary); }
@@ -491,44 +485,6 @@ html:active-view-transition :where(
   .page-intro { grid-template-columns: 1fr; align-items: start; }
 }
 
-/*
- * Touch targets on a phone: every control is at least 24 px high (WCAG 2.5.8; e2e/live/visual-qa.spec.ts measures it). The links of the
- * navigation, the header, the footer, the breadcrumbs and the head of a card are laid out as a box that centres its text; a link that sits
- * in a line of text keeps its line, which the criterion exempts. The link rule has no specificity (`:where()`), so a component that sets
- * its own `display` (a card laid out as a grid, say) keeps it; the minimum height is only ever added.
- */
-@media (max-width: 640px) {
-  button, summary, select, [role='button'], [role='tab'],
-  input:not([type='hidden'], [type='checkbox'], [type='radio']) { min-height: 24px; }
-
-  /* Every link that is not inside running text (p, headings, dd, small, label, prose) is a box that centres its content. */
-  :where(a[href]:not(:is(p, h1, h2, h3, h4, h5, h6, dd, small, label, .prose, [class*='prose']) a)) {
-    display: inline-flex;
-    min-height: 24px;
-    align-items: center;
-  }
-
-  /* The links that the real run measured under 24 px, named so they stay covered even where they sit in a paragraph-like container. */
-  :where(.ui-action, .ui-action.is-link, .case-rev-links a, .usage-consoles a, .proj-job a, .job-wizard a, .job-fact a, .cr-muted a, .pcl-card-title a) {
-    display: inline-flex;
-    min-height: 24px;
-    align-items: center;
-  }
-
-  /* `.ui-action.is-link` (components/ui/Action.css) sets `min-height: 0`; the `:where()` rules above cannot win against it, so this one is specific enough. */
-  :is(a, button).ui-action.is-link {
-    min-height: 24px;
-    align-items: center;
-    vertical-align: middle;
-  }
-
-  :where(:is(nav, header, footer, aside, [class*='crumb'], [class*='-head'], [class*='-nav'], [class*='-actions'], [class*='-brand']) a[href]:not(:is(p, h1, h2, h3, h4, h5, h6, dd, small) a)) {
-    display: inline-flex;
-    min-height: 24px;
-    align-items: center;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   *, *::before, *::after {
@@ -551,4 +507,5 @@ html:active-view-transition :where(
     .pricing-behaviour
   ) { animation: none !important; }
   .skip-link, .link-arrow svg { transition-duration: 1ms; }
+}
 }

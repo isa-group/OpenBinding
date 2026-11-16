@@ -1,3 +1,4 @@
+@layer legacy {
 /* The run screens: new run, the runs of an organization and one run. The organization frame (proj-*), the organization classes (org-*) and the ui-* components are reused. */
 
 .job-icon { width: 14px; height: 14px; flex: none; }
@@ -187,7 +188,7 @@
 }
 
 .job-steps button:disabled { cursor: not-allowed; opacity: 0.6; }
-.job-steps button.is-current { border-color: var(--tp-primary); background: rgb(0 119 182 / 0.05); }
+.job-steps button.is-current { border-color: var(--tp-primary); background: color-mix(in srgb, var(--tp-primary) 5%, transparent); }
 .job-steps button > span:last-child { display: flex; min-width: 0; flex-direction: column; }
 .job-steps b { font-size: 0.8125rem; font-weight: 600; }
 .job-steps small { overflow: hidden; color: var(--tp-slate); font-size: 0.6875rem; text-overflow: ellipsis; white-space: nowrap; }
@@ -312,4 +313,5 @@
   .job-wizard { padding: var(--tp-spacing-md); }
   .job-footer-side { width: 100%; }
   .job-footer-side .ui-action { flex: 1; }
+}
 }

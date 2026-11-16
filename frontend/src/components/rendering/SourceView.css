@@ -1,3 +1,4 @@
+@layer legacy {
 .rendering-source {
   max-width: 100%;
   overflow: hidden;
@@ -41,3 +42,4 @@
 }
 
 .rendering-source__empty { color: var(--color-text-secondary); font-family: var(--font-body); font-style: italic; }
+}

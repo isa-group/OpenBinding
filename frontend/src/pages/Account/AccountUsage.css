@@ -1,3 +1,4 @@
+@layer legacy {
 .usage-skeleton { display: flex; flex-direction: column; gap: var(--tp-spacing-md); }
 
 .usage-plan {
@@ -18,7 +19,7 @@
   align-items: center;
   justify-content: center;
   border-radius: var(--tp-radius-lg);
-  background: rgb(0 119 182 / 0.1);
+  background: color-mix(in srgb, var(--tp-primary) 10%, transparent);
   color: var(--tp-primary);
   font-weight: 700;
 }
@@ -93,3 +94,4 @@
 .usage-all dl div { display: flex; justify-content: space-between; gap: var(--tp-spacing-xs); padding: 4px 0; border-bottom: 1px solid var(--tp-hairline-soft); }
 .usage-all dt, .usage-all dd { margin: 0; }
 .usage-all dd { font-variant-numeric: tabular-nums; }
+}

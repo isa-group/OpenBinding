@@ -1,3 +1,4 @@
+@layer legacy {
 .trade-off { display: flex; flex-direction: column; gap: 0.75rem; }
 
 .trade-off__note { margin: 0; color: var(--color-text-secondary); font-size: 0.8125rem; }
@@ -33,3 +34,4 @@
 }
 .trade-off__mark.is-cross::before { transform: rotate(45deg); }
 .trade-off__mark.is-cross::after { transform: rotate(-45deg); }
+}

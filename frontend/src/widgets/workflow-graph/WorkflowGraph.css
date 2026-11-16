@@ -1,3 +1,4 @@
+@layer legacy {
 /* The drawing of a workflow: nested lists laid out as boxes and arrows. Left to right from 640 px, stacked below. */
 .wg { display: flex; min-width: 0; flex-direction: column; gap: 12px; margin: 0; }
 .wg-scroll { overflow-x: auto; padding-bottom: 4px; }
@@ -76,4 +77,5 @@ button.wg-task:focus-visible { outline: 2px solid var(--tp-primary-deep); outlin
   .wg-arrow { text-align: center; }
   .wg-arrow::before { content: '↓'; }
   .wg-task, .wg-block { min-width: 0; }
+}
 }

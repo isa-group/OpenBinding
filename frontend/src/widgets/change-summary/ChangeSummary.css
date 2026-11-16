@@ -1,3 +1,4 @@
+@layer legacy {
 /* What a version changed, inline: sections with counts and names, candidate and value lines. Colour repeats the sign and words. */
 .cs { display: flex; min-width: 0; flex-direction: column; gap: 6px; font-size: 0.8125rem; color: var(--tp-slate); }
 .cs-heading { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin: 0; color: var(--tp-ink); font-weight: 500; }
@@ -21,3 +22,4 @@
 .cs-other { display: inline-flex; align-items: center; gap: 6px; margin: 0; }
 .cs-other svg { width: 14px; height: 14px; color: var(--tp-steel); }
 .cs-not-comparable { margin: 0; color: var(--tp-ink); }
+}

@@ -1,3 +1,4 @@
+@layer legacy {
 .rendering-metrics {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
@@ -26,3 +27,4 @@
 .rendering-metrics__trend.is-down { color: var(--color-error-text); }
 
 .rendering-metrics__hint { display: block; margin-top: 0.25rem; color: var(--color-text-tertiary); font-size: 0.6875rem; }
+}

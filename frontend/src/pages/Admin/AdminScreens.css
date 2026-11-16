@@ -1,3 +1,4 @@
+@layer legacy {
 /* The administration screens: overview, accounts, account, audit, errors and queues. */
 
 .adm-page {
@@ -239,7 +240,7 @@
 
 .adm-choice:hover:not(:disabled) { border-color: var(--tp-stone); }
 .adm-choice:disabled { cursor: not-allowed; opacity: 0.55; }
-.adm-choice.is-on { border: 2px solid var(--tp-primary); padding: 9px 11px; background: rgb(0 119 182 / 0.05); }
+.adm-choice.is-on { border: 2px solid var(--tp-primary); padding: 9px 11px; background: color-mix(in srgb, var(--tp-primary) 5%, transparent); }
 .adm-choice strong { font-size: 0.875rem; font-weight: 600; }
 .adm-choice span { color: var(--tp-steel); font-size: 0.75rem; }
 .adm-choice small { color: var(--color-warning-text); font-size: 0.6875rem; }
@@ -640,4 +641,5 @@ tr.adm-expanded > td { background: var(--tp-surface); }
   .adm-page .ui-table:has(.adm-rows) td { padding: 4px 0; border: 0; }
   .adm-page .ui-table:has(.adm-rows) td[data-label]::before { content: attr(data-label); display: block; margin-bottom: 2px; color: var(--tp-steel); font-size: 0.6875rem; }
   .adm-page .ui-table:has(.adm-rows) .adm-actions { justify-content: flex-start; padding-top: 4px; }
+}
 }

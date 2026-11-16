@@ -1,3 +1,4 @@
+@layer legacy {
 /* Panels, notes, status chips and form pieces shared by the problem, run and study screens of an organization. */
 
 .proj-note {
@@ -98,3 +99,4 @@
 .proj-chips { display: flex; flex-wrap: wrap; gap: var(--tp-spacing-xs); }
 
 .proj-buttons { display: flex; flex-wrap: wrap; align-items: center; gap: var(--tp-spacing-xs); }
+}

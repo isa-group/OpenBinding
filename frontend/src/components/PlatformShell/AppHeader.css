@@ -1,3 +1,4 @@
+@layer legacy {
 .app-header {
   position: sticky;
   top: 0;
@@ -285,4 +286,5 @@
 @media (prefers-reduced-motion: reduce) {
   .app-menu-panel { animation: none; }
   .app-nav-link svg { transition: none; }
+}
 }

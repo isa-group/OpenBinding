@@ -1,3 +1,4 @@
+@layer legacy {
 /* One quality of one candidate: a value, or a range with optional open ends. Stacks (min above max) so it never widens the page. */
 .fc { display: flex; min-width: 0; flex-direction: column; align-items: flex-start; gap: 4px; }
 
@@ -77,3 +78,4 @@
 .lib-input.is-number { width: 100px; min-width: 70px; }
 .lib-input:disabled { background: var(--tp-surface); cursor: not-allowed; }
 .lib-input[aria-invalid='true'] { border-color: var(--tp-severity-error); }
+}

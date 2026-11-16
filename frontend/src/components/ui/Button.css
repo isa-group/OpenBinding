@@ -1,3 +1,4 @@
+@layer legacy {
 .btn {
   display: inline-flex;
   align-items: center;
@@ -100,4 +101,5 @@
 @media (prefers-reduced-motion: reduce) {
   .btn { transition-property: color, border-color, background-color, opacity; }
   .btn:active:not(:disabled) { transform: none; }
+}
 }

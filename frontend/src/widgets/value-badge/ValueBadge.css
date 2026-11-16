@@ -1,3 +1,4 @@
+@layer legacy {
 .vb { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
 
 .vb-status {
@@ -25,3 +26,4 @@
 .vb-origin { color: var(--tp-steel); font-size: 0.75rem; overflow-wrap: anywhere; }
 .vb-origin.is-compact { display: inline-flex; color: var(--tp-stone); }
 .vb-origin.is-compact svg { width: 12px; height: 12px; }
+}

@@ -1,3 +1,4 @@
+@layer legacy {
 /* eng-register: the registration wizard */
 
 .rg-page {
@@ -273,7 +274,7 @@
   cursor: pointer;
 }
 
-.rg-auths button[aria-checked='true'] { border: 2px solid var(--tp-primary); padding: 11px; background: rgb(0 119 182 / 0.05); }
+.rg-auths button[aria-checked='true'] { border: 2px solid var(--tp-primary); padding: 11px; background: color-mix(in srgb, var(--tp-primary) 5%, transparent); }
 .rg-auths button:disabled { cursor: not-allowed; opacity: 0.7; }
 .rg-auths strong { display: block; font-size: 0.875rem; font-weight: 600; }
 .rg-auths small { display: block; color: var(--tp-steel); font-size: 0.75rem; }
@@ -292,7 +293,7 @@
   text-align: center;
 }
 
-.rg-drop.is-over { background: rgb(0 119 182 / 0.12); }
+.rg-drop.is-over { background: color-mix(in srgb, var(--tp-primary) 12%, transparent); }
 .rg-drop strong { font-weight: 500; }
 .rg-drop > span { max-width: 38rem; color: var(--tp-steel); font-size: 0.75rem; }
 .rg-drop .rg-file { align-self: center; }
@@ -362,4 +363,5 @@
 
 @media (prefers-reduced-motion: reduce) {
   .rg-spinner { animation-duration: 3s; }
+}
 }

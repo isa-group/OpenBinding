@@ -1,3 +1,4 @@
+@layer legacy {
 /* The comparison mode: the pair, the kind tiles, the entries and their field rows, and the file view. Every mark of a change is
    also written (a sign, a word or a label); colour only repeats it. Light tokens only. */
 .cx { display: flex; min-width: 0; flex-direction: column; gap: var(--tp-spacing-lg); }
@@ -109,4 +110,5 @@ button.cx-entry-head:hover { background: var(--tp-surface); }
   .cx-change { grid-template-columns: 1fr; }
   .cx-sides { flex-direction: column; align-items: flex-start; }
   .fd-toggle { margin-left: 0; }
+}
 }

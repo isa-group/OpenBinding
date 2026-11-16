@@ -1,3 +1,4 @@
+@layer legacy {
 /* The problem page: its slug and description, the version timeline. The shared pieces (drawing, figures, buttons) are in Problems.css. */
 
 .case-slug { padding: 1px 10px; border: 1px solid var(--tp-hairline-soft); border-radius: var(--tp-radius-full); background: var(--tp-surface); color: var(--tp-steel); font-family: var(--font-mono); font-size: 0.75rem; }
@@ -43,3 +44,4 @@
 
 .case-rev-size { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: var(--tp-slate); font-size: 0.75rem; }
 .case-rev-links { display: flex; flex-wrap: wrap; gap: 12px; font-size: 0.8125rem; font-weight: 500; }
+}

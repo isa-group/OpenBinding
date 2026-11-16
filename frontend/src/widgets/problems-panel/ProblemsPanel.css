@@ -1,3 +1,4 @@
+@layer legacy {
 /* The Problems panel: a header with the counts that folds the list, then one entry per finding. Words always say the
    severity; icon and colour only repeat them. */
 .pp { display: flex; min-width: 0; flex-direction: column; border: 1px solid var(--tp-hairline-soft); border-radius: var(--tp-radius-md); background: var(--tp-canvas); }
@@ -75,3 +76,4 @@ button.pp-item:focus-visible { outline: 2px solid var(--tp-link); outline-offset
 .pp-message { font-size: 0.8125rem; line-height: 1.4; overflow-wrap: anywhere; }
 .pp-meta { display: flex; flex-wrap: wrap; gap: 2px 10px; color: var(--tp-steel); font-size: 0.75rem; }
 .pp-meta code { font-family: var(--tp-font-mono); overflow-wrap: anywhere; }
+}

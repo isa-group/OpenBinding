@@ -1,3 +1,4 @@
+@layer legacy {
 .home-page { position: relative; overflow-x: clip; background: var(--tp-canvas); }
 
 .home-glow { position: absolute; border-radius: var(--tp-radius-full); pointer-events: none; }
@@ -83,7 +84,7 @@
   width: 32px;
   height: 32px;
   border-radius: var(--tp-radius-md);
-  background: rgb(0 119 182 / 0.1);
+  background: color-mix(in srgb, var(--tp-primary) 10%, transparent);
   color: var(--tp-primary);
   font-size: 0.75rem;
   font-weight: 600;
@@ -366,4 +367,5 @@
 @media (prefers-reduced-motion: reduce) {
   .home-card, .home-recent-card { animation: none; transition: none; }
   .home-cta { transition: none; }
+}
 }

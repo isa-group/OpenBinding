@@ -1,3 +1,4 @@
+@layer legacy {
 .ui-action {
   display: inline-flex;
   align-items: center;
@@ -38,6 +39,16 @@
 .ui-action.is-link { min-height: 0; padding: 0; background: none; color: var(--tp-link); }
 .ui-action.is-link:hover:not(:disabled) { color: var(--tp-primary-deep); text-decoration: underline; }
 
+/* On a phone the link action is still a 24 px touch target. The phone rule of styles/tailwind.css sits in `base`, under
+   this layer, so it cannot beat the `min-height: 0` above; this one is specific enough and comes after it. */
+@media (max-width: 640px) {
+  :is(a, button).ui-action.is-link {
+    min-height: 24px;
+    align-items: center;
+    vertical-align: middle;
+  }
+}
+
 .ui-action-spinner {
   width: 0.875rem;
   height: 0.875rem;
@@ -56,4 +67,5 @@
 
 @media (prefers-reduced-motion: reduce) {
   .ui-action-spinner { animation-duration: 3s; }
+}
 }

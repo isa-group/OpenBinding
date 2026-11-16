@@ -1,3 +1,4 @@
+@layer legacy {
 .rendering-qos {
   display: flex;
   flex-direction: column;
@@ -28,3 +29,4 @@
 
 .rendering-qos__when,
 .rendering-qos__kind { color: var(--color-text-secondary); font-size: 0.75rem; }
+}

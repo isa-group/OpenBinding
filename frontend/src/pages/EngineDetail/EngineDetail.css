@@ -1,3 +1,4 @@
+@layer legacy {
 .engine-detail-page {
   display: flex;
   flex-direction: column;
@@ -111,4 +112,5 @@
 
 @media (max-width: 760px) {
   .engine-detail-side { max-width: none; flex-basis: 100%; }
+}
 }

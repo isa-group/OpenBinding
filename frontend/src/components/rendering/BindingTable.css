@@ -1,3 +1,4 @@
+@layer legacy {
 .rendering-binding td.rendering-binding__value {
   text-align: end;
   font-variant-numeric: tabular-nums;
@@ -10,3 +11,4 @@
 }
 
 .rendering-binding code:first-child { margin-inline-start: 0; }
+}

@@ -1,3 +1,4 @@
+@layer legacy {
 .evaluation-diff {
   display: flex;
   flex-direction: column;
@@ -23,3 +24,4 @@
 }
 
 .evaluation-diff__list code { color: var(--color-text-secondary); font-size: 0.75rem; }
+}

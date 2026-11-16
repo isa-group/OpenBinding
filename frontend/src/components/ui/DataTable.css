@@ -1,3 +1,4 @@
+@layer legacy {
 /* Positioned so that visually hidden text inside a cell (an "Actions" header) stays inside the scroller instead of widening the page.
    The shadows at the sides are the hint that there is more to scroll to: they follow the scroll (`local`) and disappear once the edge is reached. */
 .ui-table-wrap {
@@ -22,3 +23,4 @@
 .ui-table .is-mono, .ui-table code { font-family: var(--font-mono); }
 .ui-table a { font-weight: 500; }
 .ui-table-caption { padding: 10px var(--tp-spacing-md) 4px; color: var(--tp-ink-tint); font-size: 0.8125rem; font-weight: 600; text-align: left; caption-side: top; }
+}

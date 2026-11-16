@@ -1,3 +1,4 @@
+@layer legacy {
 .rendering-run {
   display: flex;
   flex-direction: column;
@@ -12,4 +13,5 @@
   display: flex;
   align-items: center;
   gap: var(--space-4);
+}
 }

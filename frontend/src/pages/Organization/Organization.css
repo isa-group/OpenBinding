@@ -1,3 +1,4 @@
+@layer legacy {
 /* Shared by the organization screens: overview, new organization, settings, members and audit log. */
 
 .org-page {
@@ -200,7 +201,7 @@
 }
 
 .org-choice:hover:not(.is-disabled) { border-color: var(--tp-stone); }
-.org-choice.is-checked { border-color: var(--tp-primary); box-shadow: inset 0 0 0 1px var(--tp-primary); background: rgb(0 119 182 / 0.05); }
+.org-choice.is-checked { border-color: var(--tp-primary); box-shadow: inset 0 0 0 1px var(--tp-primary); background: color-mix(in srgb, var(--tp-primary) 5%, transparent); }
 .org-choice.is-disabled { cursor: not-allowed; opacity: 0.6; }
 .org-choice input { width: 1.125rem; height: 1.125rem; flex: none; margin: 0; accent-color: var(--tp-primary); }
 .org-choice-body { display: flex; min-width: 0; flex: 1; flex-direction: column; }
@@ -336,7 +337,7 @@
 .org-effective small { color: var(--tp-steel); font-size: 0.6875rem; }
 .org-muted-cell { color: var(--tp-steel); }
 .org-actions-cell { text-align: right; }
-.ui-table tr.is-staged { background: rgb(0 119 182 / 0.04); }
+.ui-table tr.is-staged { background: color-mix(in srgb, var(--tp-primary) 4%, transparent); }
 .ui-table tr.is-pending { background: var(--tp-surface); }
 
 .org-role-select {
@@ -557,3 +558,4 @@
   resize: vertical;
 }
 .org-preset-options[aria-invalid='true'] { border-color: var(--tp-severity-error); }
+}

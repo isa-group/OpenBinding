@@ -1,3 +1,4 @@
+@layer legacy {
 /* The frame of every screen of an organization's workspace (features/workspace/OrgFrame.tsx): the band with the breadcrumb, the body column
    and the page title. The class names keep the `proj-` prefix the screens already use. */
 
@@ -44,4 +45,5 @@
 @media (max-width: 760px) {
   .proj-title h1 { font-size: 1.625rem; }
   .proj-actions { width: 100%; }
+}
 }

@@ -1,3 +1,4 @@
+@layer legacy {
 .ui-org-picker { position: relative; display: inline-flex; flex-direction: column; align-items: flex-start; gap: var(--tp-spacing-xs); }
 
 .ui-org-picker-button {
@@ -61,3 +62,4 @@
 .ui-org-select strong { font-weight: 500; overflow-wrap: anywhere; }
 .ui-org-select small { padding-left: calc(1.125rem + 8px); color: var(--tp-steel); font-size: 0.75rem; }
 .ui-org-select button { padding: 0; border: 0; background: transparent; color: var(--tp-link); font-weight: 500; cursor: pointer; }
+}

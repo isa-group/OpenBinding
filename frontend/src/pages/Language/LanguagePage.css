@@ -1,3 +1,4 @@
+@layer legacy {
 /* Language: the Composition2Yaml reference and its playground. On a phone the code and the results stack. */
 
 .lang-page {
@@ -60,4 +61,5 @@
 
 @media (max-width: 640px) {
   .lang-status { width: 100%; margin-left: 0; }
+}
 }

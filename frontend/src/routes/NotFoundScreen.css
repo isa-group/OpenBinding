@@ -1,3 +1,4 @@
+@layer legacy {
 .not-found-screen {
   display: grid;
   width: 100%;
@@ -9,3 +10,4 @@
 
 .not-found-screen h1 { font-size: clamp(1.75rem, 4vw, 2.5rem); }
 .not-found-screen p { max-width: 36rem; color: var(--tp-slate); }
+}

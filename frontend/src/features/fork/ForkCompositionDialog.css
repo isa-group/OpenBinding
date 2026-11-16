@@ -1,3 +1,4 @@
+@layer legacy {
 /* The fork dialog: its steps, the form of each and the gateway's refusals. */
 .fk { display: flex; min-width: 0; flex-direction: column; gap: var(--tp-spacing-md); }
 
@@ -35,3 +36,4 @@
 .fk-refusal svg { width: 1rem; height: 1rem; flex: none; margin-top: 2px; color: var(--color-error); }
 .fk-refusal p { margin: 0; }
 .fk-refusal ul { margin: 4px 0 0; padding-left: 1.1rem; overflow-wrap: anywhere; }
+}

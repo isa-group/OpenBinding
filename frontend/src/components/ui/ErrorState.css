@@ -1,3 +1,4 @@
+@layer legacy {
 .ui-state {
   display: flex;
   flex-direction: column;
@@ -56,7 +57,7 @@
 .ui-state-action:hover:not(:disabled) { border-color: var(--tp-stone); background: var(--tp-surface); color: var(--tp-ink); }
 .ui-state-action.is-primary { border-color: var(--tp-primary); background: var(--tp-primary); color: var(--tp-on-primary); }
 .ui-state-action.is-primary:hover:not(:disabled) { border-color: var(--tp-primary-deep); background: var(--tp-primary-deep); color: var(--tp-on-primary); }
-.ui-state-action.is-primary:disabled { border-color: transparent; background: rgb(0 119 182 / 0.5); }
+.ui-state-action.is-primary:disabled { border-color: transparent; background: color-mix(in srgb, var(--tp-primary) 50%, transparent); }
 .ui-state-action:disabled { cursor: not-allowed; }
 .ui-state-action.is-link { height: auto; padding: 0; border: 0; background: none; color: var(--tp-link); }
 .ui-state-action.is-link:hover { background: none; color: var(--tp-primary-deep); }
@@ -87,4 +88,5 @@
 
 @media (prefers-reduced-motion: reduce) {
   .ui-state-checking i { animation-duration: 3s; }
+}
 }

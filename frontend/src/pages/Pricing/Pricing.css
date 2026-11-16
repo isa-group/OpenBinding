@@ -1,3 +1,4 @@
+@layer legacy {
 .pricing-page {
   display: flex;
   width: 100%;
@@ -104,7 +105,7 @@
 .pricing-table tr { border-top: 1px solid var(--tp-hairline-soft); }
 .pricing-table th[scope='row'] { width: var(--pricing-first); padding: 12px 20px; text-align: left; font-weight: 400; vertical-align: middle; }
 .pricing-table td { padding: 6px 4px; text-align: center; vertical-align: middle; }
-.pricing-table td.is-picked { background: rgb(0 119 182 / 0.08); }
+.pricing-table td.is-picked { background: color-mix(in srgb, var(--tp-primary) 8%, transparent); }
 
 .pricing-row-name { display: block; color: var(--tp-charcoal); font-weight: 600; }
 .pricing-row-desc { display: block; color: var(--tp-steel); font-size: 0.75rem; }
@@ -373,4 +374,5 @@
   .pricing-table th[scope='row'] { grid-column: 1 / -1; width: auto; padding: 0; }
   .pricing-table td { display: flex; min-width: 0; flex-direction: column; align-items: flex-start; gap: 2px; padding: 6px 8px; border-radius: var(--tp-radius-md); text-align: left; }
   .pricing-table td::before { content: attr(data-plan); color: var(--tp-steel); font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.08em; }
+}
 }

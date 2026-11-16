@@ -1,3 +1,4 @@
+@layer legacy {
 /* Evolution charts: the date range and axis switch, the change markers, small multiples (two columns, one on phones), the offering
    row and the status legend. Lines and marks take --tp-chart-*; the status is also said by the line style, the mark and words. */
 .ec { display: flex; min-width: 0; flex-direction: column; gap: var(--tp-spacing-md); }
@@ -50,4 +51,5 @@
 @media (max-width: 640px) {
   .ec-grid { grid-template-columns: minmax(0, 1fr); }
   .ec-bar { align-items: stretch; flex-direction: column; }
+}
 }

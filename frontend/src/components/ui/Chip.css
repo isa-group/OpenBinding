@@ -1,3 +1,4 @@
+@layer legacy {
 .ui-chip {
   display: inline-flex;
   align-items: center;
@@ -16,3 +17,4 @@
 .ui-chip-accent { background: var(--tp-cream-deeper); color: var(--tp-ink); }
 .ui-chip-success { border-color: var(--tp-severity-success-border); background: var(--tp-severity-success-bg); color: var(--color-success-text); }
 .ui-chip-warning { border-color: var(--tp-severity-warning-border); background: var(--tp-severity-warning-bg); color: var(--color-warning-text); }
+}

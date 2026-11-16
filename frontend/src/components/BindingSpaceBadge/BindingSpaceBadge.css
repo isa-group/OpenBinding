@@ -1,3 +1,4 @@
+@layer legacy {
 /* BindingSpaceBadge.css - how big a binding space is, as a badge or a card (light theme: tokens only). */
 
 .binding-space-badge {
@@ -229,4 +230,5 @@
   margin-top: 0.35rem;
   padding-top: 0.25rem;
   border-top: 1px solid var(--color-border);
+}
 }

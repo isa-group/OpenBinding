@@ -1,3 +1,4 @@
+@layer legacy {
 /* The composition renderer: a column of sections, each with a small heading. Light tokens only. */
 .cr { display: flex; min-width: 0; flex-direction: column; gap: var(--tp-spacing-lg); }
 .cr.is-compact { gap: var(--tp-spacing-md); }
@@ -81,3 +82,4 @@
 .cr-versions li { display: inline-flex; align-items: baseline; gap: 6px; }
 .cr-versions a { display: inline-flex; min-height: 24px; align-items: center; }
 .cr-versions a[aria-current='page'] { color: var(--tp-ink); font-weight: 600; text-decoration: none; }
+}

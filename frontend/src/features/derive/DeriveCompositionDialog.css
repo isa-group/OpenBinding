@@ -1,3 +1,4 @@
+@layer legacy {
 /* The derive dialog: its three steps, the form of each, the solutions of the run, and the preview of the document. */
 .dc { display: flex; min-width: 0; flex-direction: column; gap: var(--tp-spacing-md); }
 
@@ -67,3 +68,4 @@
 .dc-batch-row.is-failed { border-color: var(--tp-severity-error-border); background: var(--tp-severity-error-bg); }
 .dc-batch-head { margin: 0; overflow-wrap: anywhere; font-size: 0.875rem; }
 .dc-batch-state { margin: 0; color: var(--tp-ink); font-size: 0.8125rem; overflow-wrap: anywhere; }
+}

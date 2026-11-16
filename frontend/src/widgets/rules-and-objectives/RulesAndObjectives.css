@@ -1,3 +1,4 @@
+@layer legacy {
 /* The rules and objectives of a problem: two panels side by side (stacked on a phone), a Must/Should mark per rule. */
 .ro { display: flex; flex-direction: column; gap: var(--tp-spacing-sm); }
 .ro h2 { margin: 0; font-size: 1.125rem; font-weight: 500; }
@@ -26,3 +27,4 @@
 .ro-rules .ro-written { display: block; margin: 0; color: var(--tp-steel); font-size: 0.6875rem; overflow-wrap: anywhere; }
 .ro-rules .ro-open { padding: 0; border: 0; background: none; color: var(--tp-link); cursor: pointer; font: inherit; font-size: 0.6875rem; text-align: left; text-decoration: underline; }
 .ro-open:focus-visible { outline: 2px solid var(--tp-primary); outline-offset: 1px; }
+}

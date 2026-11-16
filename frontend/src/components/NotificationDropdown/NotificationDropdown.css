@@ -1,3 +1,4 @@
+@layer legacy {
 .notification-dropdown-container {
   position: relative;
   display: inline-flex;
@@ -380,4 +381,5 @@
 .notification-account-link svg {
   width: 0.65rem;
   height: 0.65rem;
+}
 }

@@ -1,3 +1,4 @@
+@layer legacy {
 .ui-pills { display: flex; flex-wrap: wrap; gap: 6px; }
 
 .ui-pills button {
@@ -13,4 +14,5 @@
 }
 
 .ui-pills button:hover { border-color: var(--tp-stone); }
-.ui-pills button[aria-pressed='true'] { border-color: rgb(0 119 182 / 0.3); background: rgb(0 119 182 / 0.05); color: var(--tp-primary); }
+.ui-pills button[aria-pressed='true'] { border-color: color-mix(in srgb, var(--tp-primary) 30%, transparent); background: color-mix(in srgb, var(--tp-primary) 5%, transparent); color: var(--tp-primary); }
+}

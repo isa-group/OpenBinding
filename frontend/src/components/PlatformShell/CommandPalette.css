@@ -1,3 +1,4 @@
+@layer legacy {
 .app-palette-layer {
   position: fixed;
   inset: 0;
@@ -130,4 +131,5 @@
 
 @media (prefers-reduced-motion: reduce) {
   .app-palette { animation: none; }
+}
 }

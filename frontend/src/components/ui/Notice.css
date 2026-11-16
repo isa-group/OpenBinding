@@ -1,3 +1,4 @@
+@layer legacy {
 .ui-notice {
   display: flex;
   flex-wrap: wrap;
@@ -22,3 +23,4 @@
 /* A link inside the sentence of a notice: underlined, so it doesn't rely on colour alone. */
 .ui-notice-link { color: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
 .ui-notice-action { display: inline-flex; align-items: center; gap: var(--tp-spacing-xs); }
+}

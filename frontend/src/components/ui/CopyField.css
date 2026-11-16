@@ -1,3 +1,4 @@
+@layer legacy {
 .ui-copy-field {
   position: relative;
   display: flex;
@@ -38,3 +39,4 @@
 .ui-copy-field button.is-copied { background: var(--color-success); }
 .ui-copy-field button.is-failed { background: var(--color-error); }
 .ui-copy-field button:focus-visible { outline-offset: -3px; outline-color: var(--tp-on-primary); }
+}

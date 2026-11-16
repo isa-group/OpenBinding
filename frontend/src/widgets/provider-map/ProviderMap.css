@@ -1,3 +1,4 @@
+@layer legacy {
 /* The providers of a composition: one card per provider, its tasks listed inside. Light tokens only. */
 .pm { display: flex; min-width: 0; flex-direction: column; gap: var(--tp-spacing-sm); }
 .pm-summary, .pm-muted { margin: 0; color: var(--tp-steel); font-size: 0.8125rem; }
@@ -47,3 +48,4 @@
 .pm-task code, .pm-from { font-family: var(--font-mono); font-size: 0.8125rem; overflow-wrap: anywhere; }
 .pm-arrow { color: var(--tp-steel); }
 .pm-from { color: var(--tp-steel); font-size: 0.75rem; }
+}

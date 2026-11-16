@@ -1,3 +1,4 @@
+@layer legacy {
 .ui-switch {
   position: relative;
   width: 44px;
@@ -30,4 +31,5 @@
 
 @media (prefers-reduced-motion: reduce) {
   .ui-switch, .ui-switch span { transition: none; }
+}
 }

@@ -1,3 +1,4 @@
+@layer legacy {
 .key-skeleton { display: flex; flex-direction: column; gap: var(--tp-spacing-md); }
 .key-plus { width: 1rem; height: 1rem; }
 
@@ -79,4 +80,5 @@
 @media (max-width: 520px) {
   .key-card-grid { grid-template-columns: 1fr; gap: 2px; }
   .key-card-grid dd { margin-bottom: 6px; }
+}
 }

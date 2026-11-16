@@ -1,3 +1,4 @@
+@layer legacy {
 /* A version's source: fingerprints, what the engines receive, downloads and the source viewer. */
 
 .snap-digests { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--tp-spacing-sm); }
@@ -58,4 +59,5 @@
 
 @media (max-width: 760px) {
   .snap-files { grid-template-columns: minmax(0, 1fr); }
+}
 }

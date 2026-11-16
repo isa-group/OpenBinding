@@ -1,3 +1,4 @@
+@layer legacy {
 /* The wizard needs more room than the largest standard dialog. */
 .ui-modal.is-lg:has(.keynew-steps) { max-width: 760px; }
 
@@ -22,7 +23,7 @@
 
 .keynew-steps button:not(:disabled) { cursor: pointer; }
 .keynew-steps button:disabled { opacity: 1; }
-.keynew-steps button.is-current { border-color: var(--tp-primary); background: rgb(0 119 182 / 0.05); font-weight: 600; }
+.keynew-steps button.is-current { border-color: var(--tp-primary); background: color-mix(in srgb, var(--tp-primary) 5%, transparent); font-weight: 600; }
 
 .keynew-steps button > span:first-child {
   display: inline-flex;
@@ -130,7 +131,7 @@
 /* The names of the API (permission ids, resource kinds, slugs) sit in code elements; inside a pill or a row they take the text style around them. */
 .keynew-pills button code, .keynew-perm-id code, .keynew-review code { padding: 0; border: 0; background: none; color: inherit; font: inherit; }
 
-.keynew-pills button[aria-pressed='true'] { border-color: rgb(0 119 182 / 0.3); background: rgb(0 119 182 / 0.08); color: var(--tp-primary); font-weight: 500; }
+.keynew-pills button[aria-pressed='true'] { border-color: color-mix(in srgb, var(--tp-primary) 30%, transparent); background: color-mix(in srgb, var(--tp-primary) 8%, transparent); color: var(--tp-primary); font-weight: 500; }
 
 .keynew-add { display: flex; flex-wrap: wrap; gap: var(--tp-spacing-xs); }
 
@@ -166,4 +167,5 @@
 
 @media (prefers-reduced-motion: reduce) {
   .keynew-panel { animation: none; }
+}
 }

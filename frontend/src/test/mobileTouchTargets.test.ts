@@ -1,12 +1,12 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
-/** jsdom cannot measure pixels; this checks that the phone rule of globals.css names the selectors the visual QA reported. */
+/** jsdom cannot measure pixels; this checks that the phone rule of styles/tailwind.css names the selectors the visual QA reported. */
 const read = (path: string) => readFileSync(`${process.cwd()}/src/${path}`, 'utf8');
-const css = read('styles/globals.css');
+const css = read('styles/tailwind.css');
 
 function mobileBlock(): string {
-  const start = css.indexOf('@media (max-width: 640px) {\n  button, summary');
+  const start = css.indexOf('@media (max-width: 640px) {\n    button, summary');
   expect(start).toBeGreaterThan(-1);
   let depth = 0;
   for (let i = css.indexOf('{', start); i < css.length; i += 1) {
@@ -35,11 +35,19 @@ describe('mobile touch targets (max-width: 640px)', () => {
     }
   });
 
-  it('beats the min-height: 0 of the link action with a specific selector, on phones only', () => {
-    const rule = /:is\(a, button\)\.ui-action\.is-link \{\s*min-height: 24px;\s*align-items: center;\s*vertical-align: middle;\s*\}/;
-    expect(block).toMatch(rule);
-    expect(read('components/ui/Action.css')).toMatch(/\.ui-action\.is-link \{ min-height: 0;/);
-    expect(css.slice(0, css.indexOf(block))).not.toMatch(rule);
+  it('sits in the base layer, under every component and legacy rule', () => {
+    const layer = css.lastIndexOf('@layer base {', css.indexOf(block));
+    expect(layer).toBeGreaterThan(-1);
+    expect(css.slice(layer, css.indexOf(block))).not.toMatch(/\n\}\n/);
+  });
+
+  it('beats the min-height: 0 of the link action with a phone rule of its own stylesheet, after it', () => {
+    const action = read('components/ui/Action.css');
+    const zero = action.indexOf('.ui-action.is-link { min-height: 0;');
+    const phone = /@media \(max-width: 640px\) \{\s*:is\(a, button\)\.ui-action\.is-link \{\s*min-height: 24px;\s*align-items: center;\s*vertical-align: middle;\s*\}/;
+    expect(zero).toBeGreaterThan(-1);
+    expect(action.slice(zero)).toMatch(phone);
+    expect(action.slice(0, zero)).not.toMatch(phone);
   });
 
   it('keeps the job-result links in a container that exists in the markup', () => {

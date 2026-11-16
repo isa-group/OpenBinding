@@ -1,3 +1,4 @@
+@layer legacy {
 /* Split layout of the authentication screens: brand panel on the left, form on the right. */
 .auth-split {
   display: flex;
@@ -21,7 +22,7 @@
 }
 
 .auth-brand-orb-a { top: -96px; left: -96px; width: 320px; height: 320px; background: rgb(72 202 228 / 0.15); }
-.auth-brand-orb-b { bottom: -80px; left: -40px; width: 256px; height: 256px; background: rgb(0 119 182 / 0.1); }
+.auth-brand-orb-b { bottom: -80px; left: -40px; width: 256px; height: 256px; background: color-mix(in srgb, var(--tp-primary) 10%, transparent); }
 .auth-brand-orb-c { top: 25%; right: 32px; width: 176px; height: 176px; background: rgb(144 224 239 / 0.15); }
 
 .auth-brand-body {
@@ -221,7 +222,7 @@
 
 .auth-btn-primary { background: var(--tp-primary); color: var(--tp-on-primary); }
 .auth-btn-primary:hover:not(:disabled) { background: var(--tp-primary-deep); color: var(--tp-on-primary); }
-.auth-btn-primary:disabled { background: rgb(0 119 182 / 0.5); cursor: not-allowed; }
+.auth-btn-primary:disabled { background: color-mix(in srgb, var(--tp-primary) 50%, transparent); cursor: not-allowed; }
 .auth-btn-secondary { border-color: var(--tp-hairline-strong); background: var(--tp-canvas); color: var(--tp-ink); }
 .auth-btn-secondary:hover:not(:disabled) { border-color: var(--tp-stone); background: var(--tp-surface); color: var(--tp-ink); }
 
@@ -415,4 +416,5 @@
   .auth-card { animation: none; }
   .auth-spinner,
   .auth-loader { animation-duration: 3s; }
+}
 }

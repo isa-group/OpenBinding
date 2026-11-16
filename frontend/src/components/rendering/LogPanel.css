@@ -1,3 +1,4 @@
+@layer legacy {
 .rendering-log {
   max-width: 100%;
   min-width: 0;
@@ -55,4 +56,5 @@
   color: var(--color-text-tertiary);
   text-align: right;
   user-select: none;
+}
 }

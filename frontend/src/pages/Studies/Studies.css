@@ -1,3 +1,4 @@
+@layer legacy {
 /* The study screens: list, builder, study, run, cell and analytics. The organization frame (proj-*), the organization classes (org-*), the job classes (job-*) and the ui-* components are reused. */
 
 /* Links inside the study screens read as links; the cards that are links as a whole keep their own look. */
@@ -361,3 +362,4 @@
 .st-number { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .st-compare { display: flex; min-width: 0; flex-direction: column; gap: var(--tp-spacing-sm); }
 .st-compare > p { margin: 0; overflow-wrap: anywhere; }
+}

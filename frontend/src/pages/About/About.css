@@ -1,3 +1,4 @@
+@layer legacy {
 .about-page {
   display: flex;
   flex-direction: column;
@@ -138,7 +139,7 @@
   cursor: pointer;
 }
 
-.about-streams button[aria-pressed='true'] { border-color: rgb(0 119 182 / 0.3); background: rgb(0 119 182 / 0.05); color: var(--tp-primary); }
+.about-streams button[aria-pressed='true'] { border-color: color-mix(in srgb, var(--tp-primary) 30%, transparent); background: color-mix(in srgb, var(--tp-primary) 5%, transparent); color: var(--tp-primary); }
 
 /* Funding */
 .about-funders { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--tp-spacing-sm); padding: 0; list-style: none; }
@@ -246,4 +247,5 @@
 @media (prefers-reduced-motion: reduce) {
   .about-team article { animation: none; }
   .about-funders a, .about-tracks button { transition: none; }
+}
 }

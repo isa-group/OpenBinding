@@ -1,3 +1,4 @@
+@layer legacy {
 .rendering-objective { display: grid; gap: 0.75rem; min-width: 0; }
 
 .rendering-objective__summary {
@@ -14,3 +15,4 @@
 .rendering-objective .is-number { text-align: right; }
 .rendering-objective tfoot th { text-align: right; }
 .rendering-objective tfoot { border-top: 1px solid var(--color-border); }
+}

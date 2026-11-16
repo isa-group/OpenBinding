@@ -1,3 +1,4 @@
+@layer legacy {
 .workbench-page {
   display: flex;
   flex-direction: column;
@@ -32,7 +33,7 @@
 }
 
 .workbench-drop.has-file { border-color: var(--tp-hairline-strong); background: var(--tp-surface); }
-.workbench-drop.is-dragging { border-style: solid; background: rgb(0 119 182 / 0.08); }
+.workbench-drop.is-dragging { border-style: solid; background: color-mix(in srgb, var(--tp-primary) 8%, transparent); }
 .workbench-drop > svg { width: 40px; height: 40px; color: var(--tp-primary); stroke-width: 1.4; }
 .workbench-drop strong { font-size: 1rem; font-weight: 500; }
 .workbench-drop > span { color: var(--tp-steel); font-size: 0.8125rem; }
@@ -103,4 +104,5 @@
 
 @media (prefers-reduced-motion: reduce) {
   .workbench-progress > div { animation: none; }
+}
 }

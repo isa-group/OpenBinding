@@ -1,3 +1,4 @@
+@layer legacy {
 .notif-icon { width: 1rem; height: 1rem; }
 
 .notif-filters { display: flex; flex-wrap: wrap; align-items: center; gap: var(--tp-spacing-xs) var(--tp-spacing-md); }
@@ -44,7 +45,7 @@
   color: var(--tp-steel);
 }
 
-.is-unread .notif-icon-tile { background: rgb(0 119 182 / 0.1); color: var(--tp-primary); }
+.is-unread .notif-icon-tile { background: color-mix(in srgb, var(--tp-primary) 10%, transparent); color: var(--tp-primary); }
 .notif-icon-tile svg { width: 1.125rem; height: 1.125rem; }
 .notif-main { display: block; min-width: 0; flex: 1; }
 .notif-subject { display: flex; flex-wrap: wrap; align-items: center; gap: var(--tp-spacing-xs); }
@@ -84,4 +85,5 @@
   .notif-main { flex-basis: calc(100% - 54px); }
   .notif-when { margin-left: 54px; }
   .notif-detail { padding-left: var(--tp-spacing-md); }
+}
 }

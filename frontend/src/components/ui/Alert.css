@@ -1,3 +1,4 @@
+@layer legacy {
 .alert {
   display: flex;
   gap: var(--space-3);
@@ -75,4 +76,5 @@
   background-color: var(--color-info-bg);
   color: var(--color-info-text);
   border-color: var(--color-info);
+}
 }

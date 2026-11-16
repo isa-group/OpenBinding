@@ -1,3 +1,4 @@
+@layer legacy {
 /* Shared by the problem screens: list, version, compare and source. The organization frame (proj-*) and the organization
    screens' classes (org-*) are reused for the band, the body, cards, toasts and forms. */
 
@@ -219,4 +220,5 @@ a.case-resource:hover { border-color: var(--tp-stone); color: var(--tp-ink); }
 @media (max-width: 760px) {
   .case-guide { padding: var(--tp-spacing-md); }
   .case-row-actions { width: 100%; }
+}
 }

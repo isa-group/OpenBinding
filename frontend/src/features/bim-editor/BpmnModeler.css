@@ -1,3 +1,4 @@
+@layer legacy {
 /* The workflow editor: bpmn-js ships its own light chrome; here its palette, context pad, popups and canvas take the page's tokens,
    and the toolbar above and the panel beside the canvas are drawn with them from the start. */
 
@@ -130,4 +131,5 @@
   .pe-bpmn-stage .bpmn-modeler { height: 420px; flex-basis: 100%; }
   .pe-bpmn-panel { border-top: 1px solid var(--tp-hairline-soft); border-left: 0; }
   .pe-bpmn-hint { display: none; }
+}
 }

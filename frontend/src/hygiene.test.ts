@@ -56,16 +56,16 @@ describe('the interface is light and carries no prototype persona', () => {
     expect(grep(/\b(flujo|checkout-comparativa|semillas|borrador|autenticar|pago-tarjeta)\b/i, /./, fixtures)).toEqual([]);
   });
 
-  it('colours the interface with the design tokens, not with hex values of its own', () => {
+  it('colours the interface with the design tokens: hex values only in styles/tailwind.css', () => {
     const hex = /#[0-9a-fA-F]{6}\b|#[0-9a-fA-F]{3}\b/;
     const sources = shipped.filter(([path]) => !/\.css$/.test(path));
-    const owned = [...sources, ...stylesheets()].filter(([path]) => !isFixture(path) && !/\/src\/styles\/globals\.css$/.test(path));
+    const owned = [...sources, ...stylesheets()].filter(([path]) => !isFixture(path) && !/\/src\/styles\/tailwind\.css$/.test(path));
     expect(owned.length).toBeGreaterThan(100);
     expect(grep(hex, /\.(css|tsx?)$/, owned)).toEqual([]);
   });
 
   it('falls back from PP Editorial Old to Georgia, never to Times New Roman first', () => {
-    const css = stylesheets().find(([path]) => path.endsWith('/src/styles/globals.css'))?.[1] ?? '';
+    const css = stylesheets().find(([path]) => path.endsWith('/src/styles/tailwind.css'))?.[1] ?? '';
     const stack = /--font-display:\s*([^;]+);/.exec(css)?.[1] ?? '';
     const families = stack.split(',').map((family) => family.trim().replace(/^["']|["']$/g, ''));
     expect(families[0]).toBe('PP Editorial Old');

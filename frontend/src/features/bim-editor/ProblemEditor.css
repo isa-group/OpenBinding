@@ -1,3 +1,4 @@
+@layer legacy {
 /* The BIM problem editor: the top bar, the panes with the engines beside them (tabs on a phone) and the Problems panel under them. */
 .pe { display: flex; min-width: 0; flex-direction: column; gap: var(--tp-spacing-md); }
 .pe code { font-family: var(--tp-font-mono); }
@@ -154,4 +155,5 @@
 @media (max-width: 640px) {
   .pe-status { width: 100%; margin-left: 0; }
   .pe-bar > .ui-action { flex: 1 1 auto; }
+}
 }

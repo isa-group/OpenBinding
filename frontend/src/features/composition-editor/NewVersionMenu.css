@@ -1,3 +1,4 @@
+@layer legacy {
 /* The New version menu of the composition header */
 .nvm { position: relative; }
 .nvm-chevron { transition: transform 0.15s; }
@@ -40,4 +41,5 @@
 
 @media (max-width: 640px) {
   .nvm-menu { right: auto; left: 0; width: min(272px, calc(100vw - 32px)); }
+}
 }

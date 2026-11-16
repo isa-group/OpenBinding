@@ -1,3 +1,4 @@
+@layer legacy {
 /* eng-registrations and eng-registration-detail */
 
 .reg-page {
@@ -201,4 +202,5 @@
   .reg-header-actions { width: 100%; }
   .reg-review { margin-left: 0; }
   .reg-track-label { width: 100%; }
+}
 }

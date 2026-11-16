@@ -1,3 +1,4 @@
+@layer legacy {
 .ui-field { display: flex; min-width: 0; flex-direction: column; }
 .ui-field label { margin-bottom: 6px; color: var(--tp-steel); font-size: 0.75rem; font-weight: 500; }
 
@@ -36,3 +37,4 @@
 .ui-field-note { margin-top: var(--tp-spacing-xxs); color: var(--tp-steel); font-size: 0.75rem; }
 .ui-field-note.is-error { color: var(--color-error); }
 .ui-field-note.is-ok { color: var(--color-success); }
+}

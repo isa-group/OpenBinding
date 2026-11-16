@@ -1,3 +1,4 @@
+@layer legacy {
 .ui-empty {
   display: flex;
   flex-direction: column;
@@ -14,3 +15,4 @@
 .ui-empty strong { font-size: 0.875rem; font-weight: 500; }
 .ui-empty-text { max-width: 29rem; color: var(--tp-steel); font-size: 0.8125rem; }
 .ui-empty a { color: var(--tp-link); font-size: 0.875rem; font-weight: 500; }
+}

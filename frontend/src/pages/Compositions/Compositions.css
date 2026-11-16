@@ -1,3 +1,4 @@
+@layer legacy {
 /* The composition screens: list and composition page. The organization frame (proj-*) and the organization screens' classes
    (org-*) are reused for the band, the body, toasts and forms. */
 
@@ -79,3 +80,4 @@
 .cms-visibility svg { width: 1rem; height: 1rem; color: var(--tp-slate); }
 .cmp-actions { display: inline-flex; flex-wrap: wrap; align-items: flex-start; gap: var(--tp-spacing-xs); }
 .cmp-icon { width: 1rem; height: 1rem; flex: none; }
+}

@@ -1,3 +1,4 @@
+@layer legacy {
 .badge {
   display: inline-flex;
   align-items: center;
@@ -56,4 +57,5 @@
   background-color: var(--color-accent-subtle);
   color: var(--color-accent);
   border-color: var(--color-accent);
+}
 }

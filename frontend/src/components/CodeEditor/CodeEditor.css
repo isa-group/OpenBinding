@@ -1,3 +1,4 @@
+@layer legacy {
 .code-editor-wrapper {
   width: 100%;
 }
@@ -25,4 +26,5 @@
 
 .code-editor-wrapper .cm-scroller {
   overflow: auto !important;
+}
 }

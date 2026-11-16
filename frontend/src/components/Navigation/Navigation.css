@@ -1,3 +1,4 @@
+@layer legacy {
 .site-header {
   position: sticky;
   top: 0;
@@ -240,4 +241,5 @@
 
 @media (prefers-reduced-motion: reduce) {
   .public-menu-panel { animation: none; }
+}
 }

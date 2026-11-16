@@ -1,3 +1,4 @@
+@layer legacy {
 .ui-tabbar {
   display: flex;
   flex-wrap: wrap;
@@ -38,3 +39,4 @@
 }
 
 .ui-tabpanel:focus { outline: none; }
+}

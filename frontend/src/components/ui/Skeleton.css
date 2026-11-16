@@ -1,3 +1,4 @@
+@layer legacy {
 .ui-skeleton {
   border-radius: var(--tp-radius-xl);
   background: var(--tp-hairline-soft);
@@ -15,4 +16,5 @@
 
 @media (prefers-reduced-motion: reduce) {
   .ui-skeleton { animation: none; }
+}
 }

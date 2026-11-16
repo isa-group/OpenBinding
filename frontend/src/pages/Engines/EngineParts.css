@@ -1,3 +1,4 @@
+@layer legacy {
 /* Pieces shared by the engine registration screens: chips, the conformance checklist, the plan meter and a manifest laid out. */
 
 .eng-copy { padding: 0; border: 0; background: transparent; color: var(--tp-primary); font: inherit; font-size: 0.8125rem; font-weight: 500; cursor: pointer; }
@@ -228,4 +229,5 @@
 @media (prefers-reduced-motion: reduce) {
   .eng-meter.is-loading { animation: none; }
   .eng-meter-bar > span { transition: none; }
+}
 }

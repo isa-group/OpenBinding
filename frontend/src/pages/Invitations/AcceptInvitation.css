@@ -1,3 +1,4 @@
+@layer legacy {
 .invite-page {
   width: 100%;
   max-width: 480px;
@@ -88,7 +89,7 @@
 .invite-actions .invite-btn { min-height: 40px; border-radius: var(--tp-radius-md); }
 .invite-btn-primary { background: var(--tp-primary); color: var(--tp-on-primary); }
 .invite-btn-primary:hover:not(:disabled) { background: var(--tp-primary-deep); color: var(--tp-on-primary); }
-.invite-btn-primary:disabled { background: rgb(0 119 182 / 0.5); cursor: not-allowed; }
+.invite-btn-primary:disabled { background: color-mix(in srgb, var(--tp-primary) 50%, transparent); cursor: not-allowed; }
 .invite-btn-secondary { border-color: var(--tp-hairline-strong); background: var(--tp-canvas); color: var(--tp-ink); }
 .invite-btn-secondary:hover { border-color: var(--tp-stone); background: var(--tp-surface); color: var(--tp-ink); }
 
@@ -155,4 +156,5 @@
 @media (prefers-reduced-motion: reduce) {
   .invite-card { animation: none; }
   .invite-spinner { animation-duration: 3s; }
+}
 }

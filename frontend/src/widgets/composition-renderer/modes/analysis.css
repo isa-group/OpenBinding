@@ -1,3 +1,4 @@
+@layer legacy {
 /* The analysis modes: the calculator's moves and the configurator's result. Light tokens only. */
 .cr-calc { display: flex; min-width: 0; flex-direction: column; gap: var(--tp-spacing-sm); }
 .cr-calc-conclusion { margin: 0; color: var(--tp-slate); font-size: 0.875rem; }
@@ -57,4 +58,5 @@
   .cr-calc-table [data-label]::before { display: block; color: var(--tp-steel); content: attr(data-label); font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; }
   .cr-calc-table td[data-label='Actions']::before { content: none; }
   .cr-calc-actions { white-space: normal; }
+}
 }

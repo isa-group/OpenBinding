@@ -1,3 +1,4 @@
+@layer legacy {
 .cm { display: flex; min-width: 0; flex-direction: column; gap: var(--tp-spacing-sm); }
 .cm-task { min-width: 0; }
 .cm-local { margin: 0; color: var(--tp-slate); font-size: 0.8125rem; }
@@ -41,3 +42,4 @@
 .cm-card dl > div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; }
 .cm-card dt { color: var(--tp-steel); font-size: 0.75rem; }
 .cm-card dd { margin: 0; font-size: 0.8125rem; }
+}

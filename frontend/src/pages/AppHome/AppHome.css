@@ -1,3 +1,4 @@
+@layer legacy {
 /* Home (app-home): the organization tree, recent jobs, your plan and unread notifications. */
 
 .apphome-page {
@@ -174,4 +175,5 @@
   .home-head h1 { font-size: 1.625rem; }
   .home-first { padding: var(--tp-spacing-md); }
   .home-first-art { width: 100%; }
+}
 }

@@ -1,3 +1,4 @@
+@layer legacy {
 .engines-page {
   display: flex;
   flex-direction: column;
@@ -68,7 +69,7 @@
 .engines-page .is-mono { font-family: var(--font-mono); }
 
 .engines-check-col { width: 40px; }
-.engines-section tr.is-selected { background: rgb(0 119 182 / 0.05); }
+.engines-section tr.is-selected { background: color-mix(in srgb, var(--tp-primary) 5%, transparent); }
 .engines-section input[type='checkbox'] { width: 16px; height: 16px; accent-color: var(--tp-primary); }
 
 .engines-compare { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--tp-spacing-sm); }
@@ -106,4 +107,5 @@
 
 @media (prefers-reduced-motion: reduce) {
   .engines-card { animation: none; transition: none; }
+}
 }

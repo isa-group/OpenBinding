@@ -1,3 +1,4 @@
+@layer legacy {
 .ident-card {
   overflow: hidden;
   border: 1px solid var(--tp-hairline);
@@ -16,7 +17,7 @@
   align-items: center;
   justify-content: center;
   border-radius: 9px;
-  background: rgb(0 119 182 / 0.1);
+  background: color-mix(in srgb, var(--tp-primary) 10%, transparent);
   color: var(--tp-primary);
 }
 
@@ -65,3 +66,4 @@
 .ident-change strong { color: var(--tp-ink); font-weight: 600; }
 .ident-change small { font-size: 0.75rem; }
 .ident-change > svg { width: 1rem; height: 1rem; color: var(--tp-steel); }
+}

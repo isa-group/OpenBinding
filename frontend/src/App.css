@@ -1,3 +1,4 @@
+@layer legacy {
 .app-container {
   min-height: 100vh;
   display: flex;
@@ -79,4 +80,5 @@
 
 @media (prefers-reduced-motion: reduce) {
   .route-loading { animation: none; }
+}
 }

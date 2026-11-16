@@ -1,3 +1,4 @@
+@layer legacy {
 .institution-mark {
   display: inline-flex;
   align-items: center;
@@ -15,3 +16,4 @@
 
 .institution-mark--compact img { height: 1.75rem; }
 .institution-mark--wide img { height: 2.75rem; max-width: 12rem; }
+}

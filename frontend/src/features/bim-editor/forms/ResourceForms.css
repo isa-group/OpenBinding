@@ -1,3 +1,4 @@
+@layer legacy {
 /* The forms over the documents of a BIM package (the problem editor's Forms pane). Moved with the forms from the Workbench. */
 .resource-form { display: flex; flex-direction: column; gap: var(--tp-spacing-lg); }
 .form-section { display: flex; flex-direction: column; border: 1px solid var(--tp-hairline-soft); border-radius: var(--tp-radius-lg); background: var(--tp-canvas); }
@@ -81,7 +82,7 @@
 .qos-subgroup { padding: var(--tp-spacing-sm); border: 1px solid var(--tp-beige-deep); border-radius: var(--tp-radius-md); background: var(--tp-surface-cream); }
 
 .choice-card { display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; border: 1px solid var(--tp-hairline); border-radius: var(--tp-radius-lg); background: var(--tp-canvas); cursor: pointer; }
-.choice-card.is-selected { border-color: var(--tp-primary); box-shadow: inset 3px 0 0 var(--tp-primary); background: rgb(0 119 182 / 0.05); }
+.choice-card.is-selected { border-color: var(--tp-primary); box-shadow: inset 3px 0 0 var(--tp-primary); background: color-mix(in srgb, var(--tp-primary) 5%, transparent); }
 .choice-card input { margin-top: 3px; }
 .choice-card span { display: flex; flex-direction: column; gap: 2px; }
 .choice-card strong { font-size: 0.875rem; }
@@ -123,4 +124,5 @@
 
 @media (max-width: 640px) {
   .number-map-row { grid-template-columns: minmax(0, 1fr); }
+}
 }

@@ -1,3 +1,4 @@
+@layer legacy {
 /* The public composition screens: the list of every organization's public compositions, and the public page of one. */
 
 .pcl-page, .pcs-page {
@@ -70,3 +71,4 @@
 .pcs-back:hover { color: var(--tp-ink); }
 .pcs-back svg { width: 1rem; height: 1rem; }
 .pcs-loading { display: flex; flex-direction: column; gap: 10px; }
+}
