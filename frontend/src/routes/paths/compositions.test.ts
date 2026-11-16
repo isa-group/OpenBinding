@@ -33,6 +33,10 @@ describe('the address builders of the compositions area', () => {
   it('builds the public page of a composition and the public list', () => {
     expect(showcasePath('lab-other', 'order-desk')).toBe('/c/lab-other/order-desk');
     expect(showcasePath('lab-other', 'order-desk', { version: 2 })).toBe('/c/lab-other/order-desk?version=2');
+    expect(showcasePath('lab-other', 'order-desk', { version: '1.2.0', fork: true })).toBe('/c/lab-other/order-desk?version=1.2.0&fork=1');
+    expect(showcasePath('lab-other', 'order-desk', { fork: false })).toBe('/c/lab-other/order-desk');
     expect(publicCompositionsPath()).toBe('/compositions');
+    expect(publicCompositionsPath({ kind: 'workflow', q: ' fleet ', page: 2 })).toBe('/compositions?kind=workflow&q=fleet&page=2');
+    expect(publicCompositionsPath({ q: '  ', page: 1 })).toBe('/compositions');
   });
 });

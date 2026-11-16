@@ -66,3 +66,18 @@
 
 .cr-plans > li { display: flex; min-width: 0; flex-direction: column; gap: 4px; }
 .cr-plans code { font-family: var(--font-mono); font-size: 0.75rem; overflow-wrap: anywhere; }
+
+/* Showcase: the public page's header (name, kind and organization, version, actions), what it does and the versions. */
+.cr-icon { width: 1rem; height: 1rem; flex: none; }
+.cr-showcase-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: var(--tp-spacing-sm) var(--tp-spacing-lg); }
+.cr-showcase-title { display: flex; min-width: 0; flex: 1 1 320px; flex-direction: column; gap: 4px; }
+.cr-showcase-title h1 { margin: 0; font-size: clamp(1.5rem, 1.2rem + 1.2vw, 2rem); overflow-wrap: anywhere; }
+.cr-showcase-title code, .cr-versions code { font-family: var(--font-mono); font-size: 0.8125rem; }
+.cr-showcase-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--tp-spacing-xs); }
+.cr-copied { flex-basis: 100%; min-height: 1em; color: var(--tp-slate); font-size: 0.75rem; text-align: right; }
+.cr-copied:empty { display: none; }
+.cr-about { max-width: 720px; margin: 0; color: var(--tp-slate); overflow-wrap: anywhere; }
+.cr-versions { display: flex; flex-wrap: wrap; gap: var(--tp-spacing-xs) var(--tp-spacing-md); margin: 0; padding: 0; list-style: none; }
+.cr-versions li { display: inline-flex; align-items: baseline; gap: 6px; }
+.cr-versions a { display: inline-flex; min-height: 24px; align-items: center; }
+.cr-versions a[aria-current='page'] { color: var(--tp-ink); font-weight: 600; text-decoration: none; }

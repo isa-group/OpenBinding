@@ -6,7 +6,7 @@ import type { Mode } from '../../entities/composition/viewModel';
  */
 
 /** The modes this renderer draws so far; the others join with the blocks that build them. */
-export type RendererMode = Extract<Mode, 'catalog' | 'architecture' | 'workflow' | 'comparison' | 'calculator' | 'configurator'>;
+export type RendererMode = Extract<Mode, 'catalog' | 'architecture' | 'workflow' | 'comparison' | 'calculator' | 'configurator' | 'showcase'>;
 
 /**
  * The sections of the modes.
@@ -17,7 +17,10 @@ export type RendererMode = Extract<Mode, 'catalog' | 'architecture' | 'workflow'
  * - comparison: what changed between two versions (the gateway's diff), the later workflow with what changed marked, and the
  *   candidates each version chose;
  * - calculator: the toolchain's one-task moves of the version's binding;
- * - configurator: what the toolchain makes of the binding chosen, and the linked problem's candidates to choose from.
+ * - configurator: what the toolchain makes of the binding chosen, and the linked problem's candidates to choose from;
+ * - showcase: the public page of a composition, as the documents say it: who it is, what it does, its values and how far they can
+ *   be trusted, the workflow, the providers and the upstream plans, the problem it links (named, never opened), its own pricing, and
+ *   the versions there are.
  */
 export type Section =
   | 'identity' | 'status' | 'values' | 'binding' | 'offering' | 'evidence' | 'problem' | 'diagnostics'
@@ -25,7 +28,8 @@ export type Section =
   | 'graph' | 'candidates'
   | 'changes'
   | 'moves'
-  | 'result' | 'choice';
+  | 'result' | 'choice'
+  | 'about' | 'versions';
 
 export const MODE_SECTIONS: Readonly<Record<RendererMode, readonly Section[]>> = {
   catalog: ['identity', 'status', 'values', 'binding', 'offering', 'evidence', 'problem', 'diagnostics'],
@@ -34,6 +38,7 @@ export const MODE_SECTIONS: Readonly<Record<RendererMode, readonly Section[]>> =
   comparison: ['changes', 'graph', 'candidates'],
   calculator: ['moves'],
   configurator: ['result', 'choice'],
+  showcase: ['identity', 'about', 'status', 'values', 'graph', 'providers', 'plans', 'problem', 'offering', 'versions'],
 };
 
 /** How tightly a mode is laid out: a page of its own, or a panel beside something else. */

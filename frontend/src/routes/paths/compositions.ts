@@ -54,10 +54,26 @@ export function compositionPath(org: string, composition: string, tab?: Composit
   return withQuery(tab ? `${base}/${tab}` : base, { ...query });
 }
 
-/** The public page of a public composition: `/c/<org>/<composition>`, at a version (an id, a label or an ordinal). */
-export function showcasePath(org: string, composition: string, query: { version?: number | string } = {}): string {
-  return withQuery(`/c/${encodeURIComponent(org)}/${encodeURIComponent(composition)}`, { version: query.version });
+/** The query of a public page: the version shown, and whether the fork dialog opens once the caller is signed in. */
+export interface ShowcaseQuery {
+  version?: number | string;
+  /** `?fork=1`: the page opens the fork dialog for a signed-in caller, then drops the parameter. */
+  fork?: boolean;
 }
 
-/** The public compositions of every organization: `/compositions`. */
-export const publicCompositionsPath = (): string => `/${COMPOSITIONS_SEGMENT}`;
+/** The public page of a public composition: `/c/<org>/<composition>`, at a version (an id, a label or an ordinal). */
+export function showcasePath(org: string, composition: string, query: ShowcaseQuery = {}): string {
+  return withQuery(`/c/${encodeURIComponent(org)}/${encodeURIComponent(composition)}`, { version: query.version, fork: query.fork ? 1 : undefined });
+}
+
+/** What the public list shows: one kind, a search text and a page (1 is the first, and is left out of the address). */
+export interface PublicCompositionsFilter {
+  kind?: Kind;
+  q?: string;
+  page?: number;
+}
+
+/** The public compositions of every organization: `/compositions`, with its filters. */
+export function publicCompositionsPath(filter: PublicCompositionsFilter = {}): string {
+  return withQuery(`/${COMPOSITIONS_SEGMENT}`, { kind: filter.kind, q: filter.q?.trim(), page: filter.page && filter.page > 1 ? filter.page : undefined });
+}

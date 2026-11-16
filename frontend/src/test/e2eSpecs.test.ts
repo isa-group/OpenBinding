@@ -56,11 +56,11 @@ describe('the Playwright specs', () => {
     expect(diagnostics).toEqual([]);
   }, 180_000);
 
-  it('walks each F2a journey closed so far in a mocked spec of its own: J1 derive, seal and compare; J5 evolution', () => {
+  it('walks each F2a journey closed so far in a mocked spec of its own: J1 derive, seal and compare; J2 showcase and fork; J5 evolution', () => {
     const journeys = ts.sys.readDirectory(e2e, ['.ts'], undefined, undefined, 1)
       .map((name) => name.replace(`${e2e}/`, ''))
       .filter((name) => name.startsWith('f2a-'));
-    expect(journeys.sort()).toEqual(['f2a-derive-seal-compare.spec.ts', 'f2a-evolution.spec.ts']);
+    expect(journeys.sort()).toEqual(['f2a-derive-seal-compare.spec.ts', 'f2a-evolution.spec.ts', 'f2a-showcase-fork.spec.ts']);
     for (const name of journeys) expect(read(`${e2e}/${name}`), name).toMatch(/\btest\.describe\('J\d+ · /);
   });
 

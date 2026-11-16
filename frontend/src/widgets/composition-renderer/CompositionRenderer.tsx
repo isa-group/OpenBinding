@@ -5,6 +5,7 @@ import { CalculatorMode } from './modes/calculator';
 import { CatalogMode } from './modes/catalog';
 import { Comparison, type ComparisonData } from './modes/comparison/Comparison';
 import { ConfiguratorMode } from './modes/configurator';
+import { ShowcaseMode, type ShowcaseActions } from './modes/showcase';
 import { WorkflowMode } from './modes/workflow';
 import { sectionsOf, type Density, type RendererMode, type Section } from './presets';
 import './CompositionRenderer.css';
@@ -31,6 +32,8 @@ interface CompositionRendererProps extends RendererLinks {
   comparison?: ComparisonData;
   /** The page's answers to the calculator and the configurator (try, derive, open as a draft), and where the configurator starts. */
   analysis?: AnalysisActions;
+  /** The public page's versions, permalink and links, and its answer to Fork (the page mounts the dialog). */
+  showcase?: ShowcaseActions;
 }
 
 /**
@@ -38,7 +41,7 @@ interface CompositionRendererProps extends RendererLinks {
  * the screen chooses the rest by props: nothing about the presentation is read from or written to the document.
  */
 export function CompositionRenderer({
-  model, mode, hideSections = [], density = 'comfortable', onlyDifferences = true, comparison, analysis, problemHref = null, runHref = null,
+  model, mode, hideSections = [], density = 'comfortable', onlyDifferences = true, comparison, analysis, showcase, problemHref = null, runHref = null,
 }: CompositionRendererProps) {
   const sections = sectionsOf(mode, hideSections);
   return (
@@ -49,6 +52,7 @@ export function CompositionRenderer({
       {mode === 'comparison' && comparison && <Comparison {...comparison} model={model} sections={sections} onlyDifferences={onlyDifferences} />}
       {mode === 'calculator' && <CalculatorMode model={model} sections={sections} actions={analysis} />}
       {mode === 'configurator' && <ConfiguratorMode model={model} sections={sections} actions={analysis} />}
+      {mode === 'showcase' && <ShowcaseMode model={model} sections={sections} actions={showcase} />}
     </div>
   );
 }

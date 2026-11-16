@@ -76,6 +76,8 @@ export const EXAMPLE = {
 const PARAMS_OF: Record<string, Record<string, string>> = {
   'eng-detail': { namespace: 'bim.builtin', name: 'random-search', version: '1.0.0' },
   'eng-registration-detail': { name: 'edge-solver' },
+  // The public page of the shared mock's public composition of another organization (e2e/helpers/mockCompositions.ts).
+  'pub-showcase': { org: 'lab-other', composition: 'fleet-routing' },
 };
 
 /** The query string that makes a screen show something instead of its starting point. */

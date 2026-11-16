@@ -70,6 +70,7 @@ describe('Auth screens', () => {
             <Route path="/app" element={<h1>Platform Dashboard</h1>} />
             <Route path="/app/org/project" element={<h1>Project Workspace</h1>} />
             <Route path="/invitations/accept" element={<h1>Invitation page</h1>} />
+            <Route path="/c/:org/:composition" element={<h1>Public composition</h1>} />
             <Route path="/account" element={<h1>Legacy Account</h1>} />
             <Route path="/app/account" element={<h1>Account Settings</h1>} />
             <Route path="/pricing" element={<h1>Public Pricing</h1>} />
@@ -140,7 +141,17 @@ describe('Auth screens', () => {
       expect(screen.getByTestId('where')).toHaveTextContent('/invitations/accept?token=obi_secret');
     });
 
-    it.each(['/pricing', '/account', '//evil.example/app', '/appx'])('ignores %s as an origin and goes to /app', async (from) => {
+    it('returns to the public page of a composition with the fork asked for there', async () => {
+      signInMock.mockResolvedValue(undefined);
+      renderWithAuth(<Login />, { pathname: '/login', state: { from: '/c/lab-other/fleet-routing?version=1.1.0&fork=1' } });
+
+      fillLogin();
+
+      expect(await screen.findByRole('heading', { name: 'Public composition' })).toBeInTheDocument();
+      expect(screen.getByTestId('where')).toHaveTextContent('/c/lab-other/fleet-routing?version=1.1.0&fork=1');
+    });
+
+    it.each(['/pricing', '/account', '//evil.example/app', '/appx', '/c/lab-other/fleet-routing/settings'])('ignores %s as an origin and goes to /app', async (from) => {
       signInMock.mockResolvedValue(undefined);
       renderWithAuth(<Login />, { pathname: '/login', state: { from } });
 

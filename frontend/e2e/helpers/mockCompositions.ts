@@ -19,11 +19,20 @@ import type { CompositionVersionView, CompositionView } from '../../src/shared/a
 // goes to another organization of the account where it is MEMBER or more (mockApi.ts passes them), as a new private composition
 // whose first version is the source version's, without its problem when it links one (`dropProblem`); the target's compositions
 // are kept for the page, so the fork opens there.
+// Another organization the account is not in, `lab-other` (J2), has a public composition linked to a problem of its own, whose
+// candidates name the SPHERE plans they come from. A reader who is not a member of an organization (a visitor, or anybody signed in
+// for another organization) reads its public compositions as the gateway serves them to a public reader (redacted: no member ids,
+// no problem, revision or compilation ids, only the current evaluation without its findings, lineage only to a public source),
+// finds its private ones missing, and may only fork; `GET /v1/compositions` lists the public compositions of every organization.
 
 /** The organization that has compositions; every other one has none. */
 export const COMPOSITIONS_ORG = 'isa-demo';
 
 const ORGANIZATION = { id: 'org-isa-demo', slug: COMPOSITIONS_ORG, name: 'ISA Demo Group' };
+
+/** An organization the account is not in, with a public composition (J2): anybody reads it, and anybody signed in forks it. */
+export const PUBLIC_ORG = 'lab-other';
+const OTHER_ORGANIZATION = { id: 'org-lab-other', slug: PUBLIC_ORG, name: 'Other Lab' };
 const AUTHOR = '00000000-0000-4000-8000-000000000005';
 const uuid = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 const digest = (char: string) => `sha256-${char.repeat(64)}`;
@@ -198,6 +207,43 @@ function evolutionEntry(): Entry {
   };
 }
 
+// -- lab-other's public composition: fleet routing on a problem of its own, its candidates priced from SPHERE plans
+
+/** The SPHERE plans two of its candidates come from: the showcase draws a reference card for each. */
+const OTHER_FROM: Record<string, Record<string, string>> = {
+  T1: { sphere: 'aws/ec2', version: '6650a1b2c3d4e5f600112233', plan: 'ON_DEMAND' },
+  T6: { sphere: 'paypal/checkout', version: '6650a1b2c3d4e5f600445566', plan: 'STANDARD' },
+};
+
+function otherVersion(n: number, label: string, cost: number, createdAt: string): CompositionVersionView {
+  const version = linkedVersion(n, label, cost, createdAt);
+  const evaluation = uuid(0x9100 + n);
+  const document = asFields(version.document);
+  const binding = Object.fromEntries(Object.entries(asFields(document.binding)).map(([task, entry]) => (
+    [task, OTHER_FROM[task] ? { ...asFields(entry), from: OTHER_FROM[task] } : entry]
+  )));
+  return {
+    ...version,
+    id: uuid(0x9000 + n), content_digest: digest(String.fromCharCode(108 + n)),
+    document: { ...document, problem: { ...asFields(document.problem), ref: `${PUBLIC_ORG}/problems/route-planning@3` }, binding },
+    problem: version.problem && { ...version.problem, problem: { id: 'case-route-planning', slug: 'route-planning', name: 'Route planning' }, revision: { id: 'rev-route-3', revision: 3 } },
+    current_evaluation_id: evaluation,
+    current_evaluation: version.current_evaluation && { ...version.current_evaluation, id: evaluation },
+    evaluations: version.evaluations.map((item) => ({ ...item, id: evaluation })),
+    derivation: null,
+  };
+}
+
+/** The compositions of `lab-other`: one public, linked one. */
+function otherEntries(): Entry[] {
+  const versions = [otherVersion(1, '1.0.0', 3240, '2026-08-20T09:00:00Z'), otherVersion(2, '1.1.0', 3105, '2026-09-30T14:00:00Z')];
+  const view = composition(5, 'fleet-routing', 'Fleet routing', {
+    organization: OTHER_ORGANIZATION, kind: 'workflow', visibility: 'public',
+    description: 'Plans the delivery routes of a fleet: cloud compute, a routing API and payments, each priced from a SPHERE plan.',
+  }, versions);
+  return [{ view, versions }];
+}
+
 function seed(): Entry[] {
   const order = [
     declaredVersion(1, '1.0.0', 48, '2026-09-02T09:00:00Z'),
@@ -250,6 +296,14 @@ export interface MockOrganization {
 export interface CompositionStore {
   /** Answers `/v1/organizations/{org}/compositions…` for the organization `org`; a fork may go to one of `organizations`. */
   route: (request: CompositionRequest, org: string, organizations?: readonly MockOrganization[]) => CompositionReply;
+  /**
+   * Answers `/v1/organizations/{org}/compositions…` for a reader who is not a member of `org`, signed in or not: the reads of a
+   * public composition, redacted as the gateway redacts them, and its fork for a signed-in reader. Anything else is missing (404) to
+   * somebody signed in, and asks a visitor for a session (401).
+   */
+  publicRoute: (request: CompositionRequest, org: string, signedIn: boolean, organizations?: readonly MockOrganization[]) => CompositionReply;
+  /** `GET /v1/compositions`: the public compositions of every organization, with the gateway's filters and paging. */
+  publicList: (request: CompositionRequest) => CompositionReply;
   /** Answers the language services `/v1/compositions/{validate,parse,serialise,schema}`; null for anything else. */
   language: (request: CompositionRequest) => CompositionReply | null;
 }
@@ -394,6 +448,34 @@ function versionDiff(before: CompositionVersionView, after: CompositionVersionVi
   };
 }
 
+/** A version as a public reader gets it: what the document does not say is removed; lineage only to a public source. */
+function publicVersion(version: CompositionVersionView, sourceIsPublic: (id: string | null | undefined) => boolean): CompositionVersionView {
+  const current = version.evaluations.find((item) => item.current) ?? version.evaluations[0];
+  const forked = version.forked_from;
+  return {
+    ...version,
+    created_by_id: null,
+    based_on: null,
+    forked_from: forked && (sourceIsPublic(forked.compositionId) ? forked : {
+      droppedProblem: forked.droppedProblem, compositionId: null, versionId: null, label: null, organization: null, slug: null, name: null,
+    }),
+    problem: version.problem && {
+      ...version.problem,
+      problem: { ...version.problem.problem, id: null, name: null },
+      revision: { ...version.problem.revision, id: null },
+      linked_compilation: { ...version.problem.linked_compilation, id: null },
+    },
+    current_evaluation: version.current_evaluation && {
+      ...version.current_evaluation,
+      compilation: version.current_evaluation.compilation && { ...version.current_evaluation.compilation, id: null },
+    },
+    evaluations: current ? [{
+      ...current, diagnostics: [], violations: [], binding: null, compilation: current.compilation && { ...current.compilation, id: null },
+    }] : [],
+    derivation: version.derivation && { ...version.derivation, revision: { ...version.derivation.revision, id: null } },
+  } as CompositionVersionView;
+}
+
 /** What a page's store seeds beyond the three compositions every page has. */
 export interface CompositionSeed {
   /** Also seed Notification hub, whose history the evolution charts draw (J5). */
@@ -404,11 +486,14 @@ export interface CompositionSeed {
 export function compositionStore(options: CompositionSeed = {}): CompositionStore {
   const entries = seed();
   if (options.evolution) entries.push(evolutionEntry());
+  /** The compositions of the other organizations: lab-other's, and those forks made, by organization slug. */
+  const others = new Map<string, Entry[]>([[PUBLIC_ORG, otherEntries()]]);
+  const allEntries = () => [...entries, ...[...others.values()].flat()];
   let created = 0;
   let sealed = 0;
   /** The stored text of each version, by id. */
   const texts = new Map<string, string>();
-  for (const entry of entries) {
+  for (const entry of allEntries()) {
     for (const version of entry.versions) {
       const cost = (version.values.cost as { value: number } | undefined)?.value ?? 0;
       texts.set(version.id, version.values_status === 'declared' ? declaredText(version.label, cost) : `${JSON.stringify(version.document, null, 2)}\n`);
@@ -611,9 +696,16 @@ export function compositionStore(options: CompositionSeed = {}): CompositionStor
     });
   };
 
-  /** The compositions forks made in the other organizations, by organization slug. */
-  const forks = new Map<string, Entry[]>();
-  const poolOf = (org: string): Entry[] => (org === COMPOSITIONS_ORG ? entries : forks.get(org) ?? []);
+  const poolOf = (org: string): Entry[] => (org === COMPOSITIONS_ORG ? entries : others.get(org) ?? []);
+  /** The compositions of an organization, kept from now on (a fork goes there). */
+  const keptPoolOf = (org: string): Entry[] => {
+    if (org === COMPOSITIONS_ORG) return entries;
+    const pool = others.get(org) ?? [];
+    others.set(org, pool);
+    return pool;
+  };
+  /** Whether the composition with this id is public now: a public reader's lineage names only such a source. */
+  const isPublic = (id: string | null | undefined) => allEntries().some((entry) => entry.view.id === id && entry.view.visibility === 'public');
 
   const list = (request: CompositionRequest, pool: Entry[]): CompositionReply => {
     const { query } = request;
@@ -656,7 +748,7 @@ export function compositionStore(options: CompositionSeed = {}): CompositionStor
    * `POST …/fork`: the version named into another organization of the account, as a new private composition. A version that links a
    * problem needs `dropProblem`, and its copy is declared; without `slug`, a target that has the source's slug answers `nameTaken`.
    */
-  const fork = (entry: Entry, request: CompositionRequest, organizations: readonly MockOrganization[]): CompositionReply => {
+  const fork = (entry: Entry, request: CompositionRequest, organizations: readonly MockOrganization[], source: string): CompositionReply => {
     const sent = request.body() as { version?: string; targetOrganization?: string; dropProblem?: boolean; slug?: string; name?: string; description?: string };
     const version = named(entry, sent.version);
     if (!version) return { status: 404, json: { detail: { code: 'not_found', error: 'Composition version not found.' } } };
@@ -664,15 +756,14 @@ export function compositionStore(options: CompositionSeed = {}): CompositionStor
     if (!target || target.effective_role === null || target.effective_role === 'VIEWER') {
       return { status: 403, json: { detail: { code: 'organization_forbidden', error: 'This action requires MEMBER access to the organization.' } } };
     }
-    if (target.slug === COMPOSITIONS_ORG) {
+    if (target.slug === source) {
       return { status: 409, json: { detail: { code: 'composition_fork_same_organization', error: 'A fork goes to another organization; to change this composition, seal a new version of it instead.' } } };
     }
     const linked = version.problem !== null;
     if (linked && !sent.dropProblem) {
       return { status: 409, json: { detail: { code: 'composition_fork_problem_unreadable', error: 'This version links a problem of its own organization, which the target organization cannot read.' } } };
     }
-    const pool = forks.get(target.slug) ?? [];
-    forks.set(target.slug, pool);
+    const pool = keptPoolOf(target.slug);
     const wanted = sent.slug ?? entry.view.slug;
     const holder = pool.find((item) => item.view.slug === wanted);
     if (holder && !sent.slug) return ok({ nameTaken: true, existingComposition: { id: holder.view.id, slug: holder.view.slug, name: holder.view.name } });
@@ -691,7 +782,7 @@ export function compositionStore(options: CompositionSeed = {}): CompositionStor
       based_on: { composition_id: entry.view.id, version_id: version.id, label: version.label },
       forked_from: {
         droppedProblem: linked, compositionId: entry.view.id, versionId: version.id, label: version.label, name: entry.view.name, slug: entry.view.slug,
-        organization: { id: ORGANIZATION.id, name: ORGANIZATION.slug, displayName: ORGANIZATION.name },
+        organization: { id: entry.view.organization.id, name: entry.view.organization.slug, displayName: entry.view.organization.name },
       },
       ...(linked ? {
         problem: null, values_status: 'declared', verified: false, evidence_run: null, derivation: null,
@@ -708,48 +799,98 @@ export function compositionStore(options: CompositionSeed = {}): CompositionStor
     return ok({ composition: view, version: copy, droppedProblem: linked }, 201);
   };
 
+  /** The answer to a member of `org`. */
+  const answer = (request: CompositionRequest, org: string, organizations: readonly MockOrganization[] = []): CompositionReply => {
+    const [, , , , slug, section, ref, tail] = request.parts;
+    const pool = poolOf(org);
+    if (!slug) return request.method === 'POST' && org === COMPOSITIONS_ORG ? create(request) : list(request, pool);
+    const entry = pool.find((item) => item.view.slug === slug);
+    if (!entry) return missing();
+    if (!section && request.method === 'PATCH') return update(entry, request);
+    if (!section && request.method === 'DELETE') {
+      pool.splice(pool.indexOf(entry), 1);
+      return { status: 204 };
+    }
+    if (!section) return ok(entry.view);
+    if (section === 'fork' && request.method === 'POST') return fork(entry, request, organizations, org);
+    if (section === 'derive' && request.method === 'POST') return derive(entry, request);
+    if (section === 'evaluate' && request.method === 'POST') return evaluate(entry, request);
+    if (section === 'neighborhood' && request.method === 'GET') return neighbourhood(entry, request);
+    const find = (value: string | null) => entry.versions.find((item) => item.id === value || item.label === value || String(item.ordinal) === value);
+    if (section === 'diff') {
+      const to = request.query.get('to') ? find(request.query.get('to')) : entry.versions.at(-1);
+      const from = request.query.get('from') ? find(request.query.get('from')) : to && entry.versions[entry.versions.indexOf(to) - 1];
+      if (!to || !from) return { status: 409, json: { detail: { code: 'diff_version_missing', error: 'There is no version to compare with.' } } };
+      // The pair the gateway's F1 diff golden compares answers that golden, under these versions' ids and labels.
+      const golden = entry.evaluated && t1Of(asFields(from.document)) === T1_BEFORE && t1Of(asFields(to.document)) === T1_AFTER;
+      if (golden) return ok({ ...structuredClone(FMS_DIFF), from: { id: from.id, label: from.label }, to: { id: to.id, label: to.label } });
+      return ok(versionDiff(from, to));
+    }
+    if (section !== 'versions') return { status: 404, json: { detail: 'not mocked' } };
+    const newest = [...entry.versions].reverse();
+    if (!ref && request.method === 'POST') return seal(entry, request.text());
+    if (ref === 'check' && request.method === 'POST') return check(entry, request.text());
+    if (!ref) {
+      const ordered = (request.query.get('order') === 'oldest' ? entry.versions : newest).filter((version) => sealedWithin(version, request.query));
+      const include = (request.query.get('include') ?? '').split(',');
+      return ok({ versions: ordered.map((version) => lightRow(version, include)), total: ordered.length, limit: 200, offset: 0 });
+    }
+    const version = find(ref);
+    if (!version) return { status: 404, json: { detail: { code: 'not_found', error: 'Composition version not found.' } } };
+    if (tail === 'content') return { status: 200, text: texts.get(version.id) ?? '', type: 'application/yaml' };
+    // The installed toolchain has evaluated every version already: its evaluation, 200.
+    if (tail === 'evaluations' && request.method === 'POST') return ok(version.evaluations[0]);
+    return ok(request.query.get('include') === 'document' ? version : { ...version, document: null });
+  };
+
+  /** A member's answer to a read, as a public reader gets it. */
+  const redacted = (reply: CompositionReply, section: string | undefined, ref: string | undefined, tail: string | undefined): CompositionReply => {
+    if (reply.status !== 200 || reply.json === undefined) return reply;
+    if (!section) return ok({ ...(reply.json as CompositionView), created_by_id: null });
+    if (section !== 'versions' || tail) return reply;
+    if (ref) return ok(publicVersion(reply.json as CompositionVersionView, isPublic));
+    const page = reply.json as { versions: CompositionVersionView[] };
+    return ok({ ...page, versions: page.versions.map((version) => publicVersion(version, isPublic)) });
+  };
+
   return {
-    route(request, org, organizations = []) {
+    route: answer,
+
+    publicRoute(request, org, signedIn, organizations = []) {
       const [, , , , slug, section, ref, tail] = request.parts;
-      const pool = poolOf(org);
-      if (!slug) return request.method === 'POST' && org === COMPOSITIONS_ORG ? create(request) : list(request, pool);
-      const entry = pool.find((item) => item.view.slug === slug);
-      if (!entry) return missing();
-      if (!section && request.method === 'PATCH') return update(entry, request);
-      if (!section && request.method === 'DELETE') {
-        pool.splice(pool.indexOf(entry), 1);
-        return { status: 204 };
-      }
-      if (!section) return ok(entry.view);
-      if (section === 'fork' && request.method === 'POST') return fork(entry, request, organizations);
-      if (section === 'derive' && request.method === 'POST') return derive(entry, request);
-      if (section === 'evaluate' && request.method === 'POST') return evaluate(entry, request);
-      if (section === 'neighborhood' && request.method === 'GET') return neighbourhood(entry, request);
-      const find = (value: string | null) => entry.versions.find((item) => item.id === value || item.label === value || String(item.ordinal) === value);
-      if (section === 'diff') {
-        const to = request.query.get('to') ? find(request.query.get('to')) : entry.versions.at(-1);
-        const from = request.query.get('from') ? find(request.query.get('from')) : to && entry.versions[entry.versions.indexOf(to) - 1];
-        if (!to || !from) return { status: 409, json: { detail: { code: 'diff_version_missing', error: 'There is no version to compare with.' } } };
-        // The pair the gateway's F1 diff golden compares answers that golden, under these versions' ids and labels.
-        const golden = entry.evaluated && t1Of(asFields(from.document)) === T1_BEFORE && t1Of(asFields(to.document)) === T1_AFTER;
-        if (golden) return ok({ ...structuredClone(FMS_DIFF), from: { id: from.id, label: from.label }, to: { id: to.id, label: to.label } });
-        return ok(versionDiff(from, to));
-      }
-      if (section !== 'versions') return { status: 404, json: { detail: 'not mocked' } };
-      const newest = [...entry.versions].reverse();
-      if (!ref && request.method === 'POST') return seal(entry, request.text());
-      if (ref === 'check' && request.method === 'POST') return check(entry, request.text());
-      if (!ref) {
-        const ordered = (request.query.get('order') === 'oldest' ? entry.versions : newest).filter((version) => sealedWithin(version, request.query));
-        const include = (request.query.get('include') ?? '').split(',');
-        return ok({ versions: ordered.map((version) => lightRow(version, include)), total: ordered.length, limit: 200, offset: 0 });
-      }
-      const version = find(ref);
-      if (!version) return { status: 404, json: { detail: { code: 'not_found', error: 'Composition version not found.' } } };
-      if (tail === 'content') return { status: 200, text: texts.get(version.id) ?? '', type: 'application/yaml' };
-      // The installed toolchain has evaluated every version already: its evaluation, 200.
-      if (tail === 'evaluations' && request.method === 'POST') return ok(version.evaluations[0]);
-      return ok(request.query.get('include') === 'document' ? version : { ...version, document: null });
+      const refused = (): CompositionReply => (signedIn
+        ? missing()
+        : { status: 401, json: { detail: { code: 'not_authenticated', error: 'Authentication required.' } } });
+      if (!slug) return signedIn ? { status: 404, json: { detail: { code: 'not_found', error: 'Organization not found.' } } } : refused();
+      const entry = poolOf(org).find((item) => item.view.slug === slug);
+      if (!entry || entry.view.visibility !== 'public') return request.method === 'GET' ? missing() : refused();
+      if (section === 'fork' && request.method === 'POST') return signedIn ? fork(entry, request, organizations, org) : refused();
+      const reads = request.method === 'GET' && (!section || section === 'versions' || section === 'diff');
+      if (!reads) return refused();
+      return redacted(answer(request, org, organizations), section, ref, tail);
+    },
+
+    publicList(request) {
+      const { query } = request;
+      const kind = query.get('kind');
+      const organization = query.get('organization');
+      const needle = (query.get('q') ?? '').toLowerCase();
+      const rows = allEntries()
+        .filter(({ view, versions }) => view.visibility === 'public' && !view.archived && versions.length > 0)
+        .filter(({ view }) => (!kind || view.kind === kind) && (!organization || view.organization.slug === organization))
+        .filter(({ view }) => !needle || `${view.name} ${view.slug}`.toLowerCase().includes(needle))
+        .sort((a, b) => b.view.updated_at.localeCompare(a.view.updated_at) || a.view.slug.localeCompare(b.view.slug))
+        .map(({ view, versions }) => {
+          const latest = versions[versions.length - 1];
+          return {
+            organization: { slug: view.organization.slug, name: view.organization.name }, slug: view.slug, name: view.name,
+            description: view.description, kind: view.kind, version_count: versions.length, updated_at: view.updated_at,
+            latest_version: { label: latest.label, ordinal: latest.ordinal, values_status: latest.values_status, verified: latest.verified, created_at: latest.created_at },
+          };
+        });
+      const limit = Number(query.get('limit') ?? 24);
+      const offset = Number(query.get('offset') ?? 0);
+      return ok({ compositions: rows.slice(offset, offset + limit), total: rows.length, limit, offset });
     },
 
     language(request) {

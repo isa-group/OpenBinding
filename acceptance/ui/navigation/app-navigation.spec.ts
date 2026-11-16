@@ -4,7 +4,7 @@ import { COMPOSITIONS, PROBLEMS, RUNS, RUN_NEW, current, entry, expectInOrder, m
 test.use({ viewport: { width: 1280, height: 800 } });
 
 const PUBLIC_LINKS: Array<[string, string]> = [
-  ['Home', '/'], ['Engines', '/engines'], ['Pricing', '/pricing'],
+  ['Home', '/'], ['Compositions', '/compositions'], ['Engines', '/engines'], ['Pricing', '/pricing'],
   ['About', '/about'], ['Log in', '/login'], ['Sign up', '/register'],
 ];
 
@@ -16,17 +16,17 @@ async function signedIn(page: Page, path: string, role: Role = 'user') {
   await expect(banner(page)).toBeVisible();
 }
 
-test('public header lists the six links in order with their addresses and marks the current one', async ({ page }) => {
+test('public header lists the seven links in order with their addresses and marks the current one', async ({ page }) => {
   await mockApi(page, { role: null });
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/pricing');
   const links = PUBLIC_LINKS.map(([name]) => entry(banner(page), name));
   await expectInOrder(links);
   for (const [index, [, href]] of PUBLIC_LINKS.entries()) await expect(links[index]).toHaveAttribute('href', href);
-  await expect(links[2]).toHaveAttribute('aria-current', 'page');
+  await expect(links[3]).toHaveAttribute('aria-current', 'page');
 });
 
-test('phone menu lists the same six links in the same order', async ({ page }) => {
+test('phone menu lists the same seven links in the same order', async ({ page }) => {
   await mockApi(page, { role: null });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');

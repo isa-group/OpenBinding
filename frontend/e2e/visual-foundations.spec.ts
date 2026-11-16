@@ -54,7 +54,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         await expect(header.getByRole('navigation', { name: 'Primary navigation' })).toBeHidden();
         await header.getByRole('button', { name: 'Open menu' }).click();
         const menu = header.getByRole('navigation', { name: 'Mobile navigation' });
-        for (const label of ['Home', 'Engines', 'Pricing', 'About', 'Log in', 'Sign up']) {
+        for (const label of ['Home', 'Compositions', 'Engines', 'Pricing', 'About', 'Log in', 'Sign up']) {
           await expect(menu.getByRole('link', { name: label, exact: true })).toBeVisible();
         }
         await expect(menu.getByRole('link', { name: 'Language', exact: true })).toHaveCount(0);

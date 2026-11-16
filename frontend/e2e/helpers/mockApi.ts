@@ -30,7 +30,11 @@ export const API = 'http://localhost:8000';
 export const NOW = '2026-10-09T12:00:00Z';
 const hoursAgo = (hours: number) => new Date(Date.parse(NOW) - hours * 3_600_000).toISOString();
 
-export type Session = 'admin' | 'none';
+/**
+ * Who the page is: the administrator from the start, nobody, or a visitor whom `POST /v1/auth/login` signs in as the administrator
+ * (a request is signed in when it carries the access token).
+ */
+export type Session = 'admin' | 'none' | 'visitor';
 
 export interface MockHandle {
   /** Requests the mock did not recognise, as `METHOD /path`. */
@@ -324,6 +328,8 @@ interface Request {
   archive: Buffer;
   /** The compositions of this page (e2e/helpers/mockCompositions.ts): the seeded ones and what the page creates. */
   compositions: CompositionStore;
+  /** The request carries a session. */
+  signedIn: boolean;
 }
 
 /** `/v1/organizations/{org}/studies/…`: the studies of `isa-demo`, the one run of the first and its cells; another organization has none. */
@@ -494,6 +500,11 @@ function route(request: Request): Reply | null {
     : ok({ status: 'ok' });
   if (first !== 'v1') return null;
 
+  // The compositions of an organization the caller is not a member of (or of any, for a visitor): what a public reader gets.
+  if (area === 'organizations' && parts[3] === 'compositions' && (!request.signedIn || !ORGANIZATIONS.some((item) => item.slug === second))) {
+    return request.compositions.publicRoute(request, second, request.signedIn, ORGANIZATIONS);
+  }
+
   switch (area) {
     case 'auth': return second === 'refresh' ? ok({ access_token: 'gallery-access-2', refresh_token: 'gallery-refresh-2', token_type: 'bearer', expires_in: 900 }) : null;
     case 'users': return second === 'me' ? userRoutes(request) : null;
@@ -506,7 +517,7 @@ function route(request: Request): Reply | null {
       if (second === 'current') return ok(CURRENT_FIXTURE);
       return null;
     case 'organizations': return organizationRoutes(request);
-    case 'compositions': return second ? request.compositions.language(request) : null;
+    case 'compositions': return second ? request.compositions.language(request) : request.compositions.publicList(request);
     case 'engine-registrations': return engineRegistrationRoutes(request);
     case 'admin': return adminRoutes(request);
     case 'engines':
@@ -528,7 +539,10 @@ function route(request: Request): Reply | null {
   }
 }
 
-/** Answers the API origin of the page: a signed-in administrator, or nobody when `session` is `none`; `seed` adds compositions. */
+/**
+ * Answers the API origin of the page: a signed-in administrator, nobody when `session` is `none`, or a visitor who signs in as the
+ * administrator (`visitor`); `seed` adds compositions.
+ */
 export async function installMockApi(page: Page, session: Session, seed: CompositionSeed = {}): Promise<MockHandle> {
   const handle: MockHandle = { unmocked: [] };
   await page.clock.setFixedTime(new Date(NOW));
@@ -548,8 +562,9 @@ export async function installMockApi(page: Page, session: Session, seed: Composi
     const request = call.request();
     const url = new URL(request.url());
     const parts = url.pathname.split('/').filter(Boolean);
+    const signedIn = session === 'admin' || (session === 'visitor' && Boolean(request.headers().authorization));
     const known: Request = {
-      method: request.method(), parts, query: url.searchParams, archive, compositions,
+      method: request.method(), parts, query: url.searchParams, archive, compositions, signedIn,
       text: () => request.postData() ?? '',
       body: () => {
         try {
@@ -559,12 +574,18 @@ export async function installMockApi(page: Page, session: Session, seed: Composi
         }
       },
     };
+    if (session === 'visitor' && known.method === 'POST' && parts.join('/') === 'v1/auth/login') {
+      await call.fulfill({ status: 200, json: { access_token: 'gallery-access', refresh_token: 'gallery-refresh', token_type: 'bearer', expires_in: 900 } });
+      return;
+    }
     // The engine catalogue is public: a visitor gets the public engines.
-    if (session === 'none' && known.method === 'GET' && parts.join('/') === 'v1/engines') {
+    if (!signedIn && known.method === 'GET' && parts.join('/') === 'v1/engines') {
       await call.fulfill({ status: 200, json: { engines: PUBLIC_ENGINES } });
       return;
     }
-    if (session === 'none' && parts[0] === 'v1' && SESSION_ONLY.has(parts[1])) {
+    // An organization's compositions answer anybody: its public ones are read without a session.
+    const compositionRead = parts[1] === 'organizations' && parts[3] === 'compositions';
+    if (!signedIn && parts[0] === 'v1' && SESSION_ONLY.has(parts[1]) && !compositionRead) {
       await call.fulfill({ status: 401, json: { detail: { code: 'not_authenticated', error: 'Authentication required.' } } });
       return;
     }
@@ -896,7 +917,7 @@ export async function installWalkApi(page: Page, template: Buffer): Promise<Walk
     const parts = url.pathname.split('/').filter(Boolean);
     const body = request.postDataBuffer();
     const known: Request = {
-      method: request.method(), parts, query: url.searchParams, archive: template, compositions,
+      method: request.method(), parts, query: url.searchParams, archive: template, compositions, signedIn: Boolean(request.headers().authorization),
       text: () => request.postData() ?? '',
       body: () => {
         try {
@@ -906,8 +927,7 @@ export async function installWalkApi(page: Page, template: Buffer): Promise<Walk
         }
       },
     };
-    const signedIn = Boolean(request.headers().authorization);
-    const reply = walkRoute(known, body, signedIn) ?? route(known);
+    const reply = walkRoute(known, body, known.signedIn) ?? route(known);
     if (!reply) {
       handle.unmocked.push(`${known.method} ${url.pathname}`);
       await call.fulfill({ status: 404, json: { detail: 'not mocked' } });

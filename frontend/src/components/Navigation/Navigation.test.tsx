@@ -18,7 +18,7 @@ const member: UserProfile = {
 };
 
 const PUBLIC_LINKS = [
-  ['Home', '/'], ['Engines', '/engines'], ['Pricing', '/pricing'],
+  ['Home', '/'], ['Compositions', '/compositions'], ['Engines', '/engines'], ['Pricing', '/pricing'],
   ['About', '/about'], ['Log in', '/login'], ['Sign up', '/register'],
 ] as const;
 
@@ -60,6 +60,17 @@ describe('Public header', () => {
     expect(screen.getByRole('link', { name: 'Pricing' })).toHaveAttribute('aria-current', 'page');
     expect(screen.queryByRole('link', { name: 'Explore' })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current');
+  });
+
+  it('marks Compositions on the public list and on the public page of a composition', () => {
+    for (const path of ['/compositions', '/compositions?kind=workflow', '/c/lab-other/fleet-routing']) {
+      const { unmount } = renderHeader(path);
+      expect(screen.getByRole('link', { name: 'Compositions' }), path).toHaveAttribute('aria-current', 'page');
+      expect(screen.getByRole('link', { name: 'Home' }), path).not.toHaveAttribute('aria-current');
+      unmount();
+    }
+    renderHeader('/engines');
+    expect(screen.getByRole('link', { name: 'Compositions' })).not.toHaveAttribute('aria-current');
   });
 
   it('marks Home only at the root and links to no language hub', () => {
