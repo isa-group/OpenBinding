@@ -1,5 +1,5 @@
-import { createContext, useContext } from 'react';
-import type { UserProfile } from '../api/auth';
+import { createContext } from 'react';
+import type { UserProfile } from '../../../api/auth';
 
 export interface AuthContextValue {
   user: UserProfile | null;
@@ -11,14 +11,12 @@ export interface AuthContextValue {
   /** Re-read the profile, after a plan change or a password change. */
   refresh: () => Promise<void>;
   isAdmin: boolean;
+  /**
+   * SPHERE's transport for module APIs (`use<Domain>Api()`): `fetch` against the gateway with the session's bearer token,
+   * one silent refresh on a 401 (shared by every caller, because the gateway rotates refresh tokens), and the session
+   * ended when that fails. It answers the raw `Response`; read a refusal with `readApiError`.
+   */
+  fetchWithInterceptor: (path: string, init?: RequestInit) => Promise<Response>;
 }
 
 export const AuthContext = createContext<AuthContextValue | undefined>(undefined);
-
-export function useAuth(): AuthContextValue {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-}

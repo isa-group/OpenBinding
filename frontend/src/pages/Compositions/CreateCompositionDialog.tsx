@@ -8,8 +8,8 @@ import { compositionsApi } from '../../entities/composition/api';
 import type { Kind } from '../../entities/composition/document';
 import { KIND_OPTIONS } from '../../entities/composition/kinds';
 import { SLUG_PATTERN, slugFromName } from '../../shared/lib/slug';
-import { readApiError } from '../../shared/api/errors';
-import type { CompositionView } from '../../shared/api/types';
+import { readApiError } from '../../modules/core/api/errors';
+import type { CompositionView } from '../../modules/core/api/types';
 import '../../features/workspace/kit.css';
 
 const NAME_MAX = 160;

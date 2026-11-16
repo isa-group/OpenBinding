@@ -5,7 +5,7 @@ import { useEffect, type ReactNode } from 'react';
 import { SpaceProvider, useTokenService } from 'space-react-client';
 import { PricingUnavailableError, type UserProfile } from '../../api/auth';
 import { HttpError } from '../../api/client';
-import { AuthContext } from '../../contexts/auth';
+import { AuthContext } from '../../modules/auth/hooks/useAuth';
 import { CURRENT_FIXTURE, catalogFixture } from './pricingFixture';
 import { Pricing } from './Pricing';
 
@@ -110,6 +110,7 @@ function renderPricing(user: UserProfile | null = null, token?: string) {
           signOut: vi.fn(),
           refresh: vi.fn(),
           isAdmin: false,
+          fetchWithInterceptor: vi.fn(),
         }}
       >
         <SpaceProvider config={{ url: '', apiKey: '', allowConnectionWithSpace: false }}>

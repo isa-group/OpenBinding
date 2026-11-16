@@ -4,7 +4,7 @@ import { expect as baseExpect, test, type Page, type Route, type TestInfo } from
 import { failureBody } from './helpers/problems';
 import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
 import { checkoutFacts, compiledDocument, digestOf } from '../src/pages/Problems/fixtures';
-import type { CompositionVersionView } from '../src/shared/api/types';
+import type { CompositionVersionView } from '../src/modules/core/api/types';
 
 // S5a · the problems of an organization: problem-list (/app/:org/problems, filtered by origin and by linking composition) and the
 // problem page problem-detail with its tabs Overview, Candidates, Versions, Runs, Compositions, Source and Settings. A problem is

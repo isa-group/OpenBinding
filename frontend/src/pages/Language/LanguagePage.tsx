@@ -11,8 +11,8 @@ import { useCopy } from '../../components/ui/useCopy';
 import { config } from '../../config';
 import examples from '../../content/composition2yaml-examples.json';
 import { languageApi } from '../../entities/composition/api';
-import { readApiError } from '../../shared/api/errors';
-import type { ValidateResult } from '../../shared/api/types';
+import { readApiError } from '../../modules/core/api/errors';
+import type { ValidateResult } from '../../modules/core/api/types';
 import { fromC2y, type Located } from '../../shared/diagnostics/located';
 import {
   createScheduler,

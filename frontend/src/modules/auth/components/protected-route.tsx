@@ -1,9 +1,10 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import type { ReactNode } from 'react';
-import { useAuth } from '../contexts/auth';
+import NotFoundPage from '../../core/pages/page-not-found';
+import { useAuth } from '../hooks/useAuth';
 
 /**
- * A route that needs an account, and optionally an administrator's.
+ * A route that needs an account, and optionally an administrator's (the auth module's guard, in SPHERE's place).
  *
  * The guard is a convenience rather than a control: every one of these pages
  * calls endpoints the gateway guards itself, so getting past this component
@@ -33,9 +34,12 @@ export function ProtectedRoute({
     );
   }
 
+  // Administration is unreadable to everybody else, and anything unreadable is the same in-place 404 as a missing page.
   if (requireAdmin && !isAdmin) {
-    return <Navigate to="/app/account" replace />;
+    return <NotFoundPage />;
   }
 
   return <>{children}</>;
 }
+
+export default ProtectedRoute;

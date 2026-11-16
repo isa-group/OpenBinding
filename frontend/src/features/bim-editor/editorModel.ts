@@ -1,7 +1,7 @@
 import type { CodeLanguage } from '../../components/CodeEditor/CodeEditor';
 import type { CandidateMatrix } from '../../entities/binding/candidateMatrix';
 import type { TaskOverlay } from '../../entities/binding/workflowGraph';
-import type { ProblemFacts } from '../../shared/api/types';
+import type { ProblemFacts } from '../../modules/core/api/types';
 import type { WorkspaceFiles } from './documents';
 
 /** What the panes of the problem editor share, as plain functions. */

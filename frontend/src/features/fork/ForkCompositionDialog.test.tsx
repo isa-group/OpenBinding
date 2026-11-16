@@ -3,7 +3,7 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../api/client';
 import type { Organization } from '../../api/platform';
-import type { CompositionVersionView, CompositionView } from '../../shared/api/types';
+import type { CompositionVersionView, CompositionView } from '../../modules/core/api/types';
 import fmsVersion from '../../test/fixtures/core/fms.version.json';
 import { ForkCompositionDialog } from './ForkCompositionDialog';
 

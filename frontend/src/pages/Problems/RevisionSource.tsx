@@ -22,10 +22,10 @@ import { useResource } from '../../utils/useResource';
 import { saveBytes } from '../../features/workspace/download';
 import { formatFeature } from '../../utils/featureRange';
 import { problemFactsApi, rangeCandidates } from '../../entities/problem/facts';
-import type { ProblemFacts } from '../../shared/api/types';
+import type { ProblemFacts } from '../../modules/core/api/types';
 import { sourceFailureKind } from './problemErrors';
 import { powerText } from './problemsModel';
-import { classifyAuthError, marker, type AuthFailure } from '../../shared/api/errors';
+import { classifyAuthError, marker, type AuthFailure } from '../../modules/core/api/errors';
 import { CaseMissing } from './parts';
 // The source styles keep the name of the page that used to hold them.
 import './RevisionSource.css';

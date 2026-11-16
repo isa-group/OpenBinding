@@ -26,9 +26,13 @@ import {
   type CompositionTabSegment,
 } from '../../routes/paths/compositions';
 import { runPath, runsPath } from '../../routes/paths/runs';
-import { classifyAuthError, marker } from '../../shared/api/errors';
-import type { CompositionVersionView, CompositionView, ProblemFacts } from '../../shared/api/types';
-import { useAuth } from '../../contexts/auth';
+import { classifyAuthError, marker } from '../../modules/core/api/errors';
+import type {
+  CompositionVersionView,
+  CompositionView,
+  ProblemFacts,
+} from '../../modules/core/api/types';
+import { useAuth } from '../../modules/auth/hooks/useAuth';
 import { useResource } from '../../utils/useResource';
 import { ReadOnlyNote } from '../Problems/parts';
 import { CompositionMissing } from './CompositionMissing';

@@ -5,7 +5,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { apiClient } from '../../api/client';
 import { Notice } from '../../components/ui/Notice';
 import { BRAND_ASSETS } from '../../content/brandAssets';
-import { useAuth } from '../../contexts/auth';
+import { useAuth } from '../../modules/auth/hooks/useAuth';
 import {
   afterSignInTarget,
   clearSignInNote,
@@ -15,7 +15,7 @@ import {
   rememberCasFlow,
 } from '../../utils/authFlow';
 import { fieldErrorsFrom } from './authErrors';
-import { classifyAuthError } from '../../shared/api/errors';
+import { classifyAuthError } from '../../modules/core/api/errors';
 import { AuthField, AuthShell, AuthSpinner } from './AuthShell';
 
 interface LoginState {

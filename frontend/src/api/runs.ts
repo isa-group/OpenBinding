@@ -1,4 +1,4 @@
-import type { ImmutableResourceRef, NeighborhoodResponse } from '../shared/api/types';
+import type { ImmutableResourceRef, NeighborhoodResponse } from '../modules/core/api/types';
 import { apiClient } from './client';
 import type {
   Job,

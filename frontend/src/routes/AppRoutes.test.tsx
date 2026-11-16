@@ -2,7 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { matchRoutes, MemoryRouter, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { UserProfile } from '../api/auth';
-import { AuthContext } from '../contexts/auth';
+import { AuthContext } from '../modules/auth/hooks/useAuth';
 import { AppRoutes } from './index';
 import { routeDefinitions } from './registry';
 
@@ -96,6 +96,7 @@ function renderAt(path: string, user: UserProfile | null = person, loading = fal
           signOut: vi.fn(),
           refresh: vi.fn(),
           isAdmin: user?.role === 'admin',
+          fetchWithInterceptor: vi.fn(),
         }}
       >
         <AppRoutes />
@@ -150,11 +151,13 @@ describe('AppRoutes', () => {
     expect(screen.getByTestId('location')).toHaveTextContent('/app');
   });
 
-  it('keeps administrators-only screens away from other accounts', async () => {
+  it('shows other accounts the in-place 404 on administrators-only screens, without moving them', async () => {
     renderAt(exampleOf(adminOnly.path));
 
-    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/app/account'));
-    await showing(screenAt('/app/account'));
+    expect(
+      await screen.findByRole('heading', { name: 'Sorry, page not found!' })
+    ).toBeInTheDocument();
+    expect(screen.getByTestId('location')).toHaveTextContent(exampleOf(adminOnly.path));
   });
 
   it('serves the invitation link inside the public layout when there is no session', async () => {

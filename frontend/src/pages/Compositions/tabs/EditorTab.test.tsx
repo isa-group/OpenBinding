@@ -4,7 +4,7 @@ import { EditorView } from '@codemirror/view';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../../api/client';
 import { iker, org, renderOrgScreen } from '../../../features/workspace/testKit';
-import type { CompositionVersionView, CompositionView } from '../../../shared/api/types';
+import type { CompositionVersionView, CompositionView } from '../../../modules/core/api/types';
 import { draftScope, loadDraft } from '../../../shared/editor/drafts';
 import { compositionFragment } from '../../../shared/sphere/composition-fragment';
 import fmsVersion from '../../../test/fixtures/core/fms.version.json';

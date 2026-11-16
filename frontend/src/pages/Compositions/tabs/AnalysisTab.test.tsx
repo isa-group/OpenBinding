@@ -8,7 +8,7 @@ import type {
   CompositionVersionView,
   CompositionView,
   ProblemFacts,
-} from '../../../shared/api/types';
+} from '../../../modules/core/api/types';
 import { readCompositionFragment } from '../../../shared/sphere/composition-fragment';
 import { EVALUATED, NEIGHBOURHOOD, fmsVersionView } from '../../../test/fixtures/analysis';
 import fmsFacts from '../../../test/fixtures/core/fms.facts.json';

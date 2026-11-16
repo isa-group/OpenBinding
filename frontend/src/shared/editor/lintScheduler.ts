@@ -1,4 +1,4 @@
-import { readApiError } from '../api/errors';
+import { readApiError } from '../../modules/core/api/errors';
 
 // Every live check of the editors (validate, versions/check, evaluate, the BIM validate) runs through one of these. A
 // scheduler is one kind of check: it waits until the text has been still for `delay`, drops the answer of a check the text

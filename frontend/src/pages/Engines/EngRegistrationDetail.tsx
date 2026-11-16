@@ -8,7 +8,7 @@ import {
   type EngineRegistrationReport,
   type EngineRegistrationRevision,
 } from '../../api/client';
-import type { ImmutableResourceRef } from '../../shared/api/types';
+import type { ImmutableResourceRef } from '../../modules/core/api/types';
 import { Action } from '../../components/ui/Action';
 import { DataTable } from '../../components/ui/DataTable';
 import { ErrorState, StateAction } from '../../components/ui/ErrorState';
@@ -17,7 +17,7 @@ import { OrganizationPicker } from '../../components/ui/OrganizationPicker';
 import { launchPath } from '../../routes/paths/runs';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useCopy } from '../../components/ui/useCopy';
-import { useAuth } from '../../contexts/auth';
+import { useAuth } from '../../modules/auth/hooks/useAuth';
 import { useResource } from '../../utils/useResource';
 import { ConfirmDialog, DeregisterDialog } from './EngineDialogs';
 import { ConformanceChecklist, CopyButton, Crumbs, ManifestPanel, StatusChip } from './EngineParts';

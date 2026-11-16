@@ -1,4 +1,4 @@
-import { marker, type AuthFailure } from '../../shared/api/errors';
+import { marker, type AuthFailure } from '../../modules/core/api/errors';
 
 // How the screens of the workspace word a refusal of the gateway that none of their own cases explains.
 

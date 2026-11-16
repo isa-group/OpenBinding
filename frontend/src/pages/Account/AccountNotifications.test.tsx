@@ -3,7 +3,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Notification, NotificationPreferences, UserProfile } from '../../api/auth';
 import { HttpError } from '../../api/client';
-import { AuthContext } from '../../contexts/auth';
+import { AuthContext } from '../../modules/auth/hooks/useAuth';
 import { AccountNotifications } from './AccountNotifications';
 
 const api = vi.hoisted(() => ({
@@ -81,6 +81,7 @@ function renderNotifications() {
           signOut: vi.fn(),
           refresh: vi.fn(),
           isAdmin: false,
+          fetchWithInterceptor: vi.fn(),
         }}
       >
         <AccountNotifications />

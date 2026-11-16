@@ -2,7 +2,7 @@ import type { Problem, ProblemRevision } from '../../api/problems';
 import { parseBindingSpace } from '../../components/BindingSpaceBadge/bindingSpace';
 import { workflowGraph } from '../../entities/binding/workflowGraph';
 import { describeExpression } from '../../entities/problem/expressions';
-import type { ProblemFacts } from '../../shared/api/types';
+import type { ProblemFacts } from '../../modules/core/api/types';
 import { formatFeature, type FeatureValue } from '../../utils/featureRange';
 
 /** The longest a case's name and description may be (`BindingCaseCreate` in the contract). */

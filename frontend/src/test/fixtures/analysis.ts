@@ -1,4 +1,4 @@
-import type { CompositionMove, CompositionNeighborhoodResponse, CompositionVersionView, CompositionView, EvaluateResult } from '../../shared/api/types';
+import type { CompositionMove, CompositionNeighborhoodResponse, CompositionVersionView, CompositionView, EvaluateResult } from '../../modules/core/api/types';
 import fmsVersion from './core/fms.version.json';
 
 // The analysis of the FMS fixture version (core/fms.version.json, linked to the problem fms@1): the toolchain's one-task moves of

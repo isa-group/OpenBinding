@@ -465,7 +465,7 @@ jobs:
         working-directory: frontend
         run: pnpm install --frozen-lockfile
 
-      # src/shared/api/openapi.ts is generated from docs/openapi.json and never edited by hand.
+      # src/modules/core/api/openapi.ts is generated from docs/openapi.json and never edited by hand.
       - name: Check the generated API types
         working-directory: frontend
         run: pnpm gen:api --check

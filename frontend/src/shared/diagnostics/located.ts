@@ -1,4 +1,4 @@
-import type { CompositionDiagnosticView } from '../api/types';
+import type { CompositionDiagnosticView } from '../../modules/core/api/types';
 
 /**
  * One shape for every finding shown on screen, whichever language it is about: where it is (a range of a text file, an

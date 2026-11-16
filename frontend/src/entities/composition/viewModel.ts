@@ -5,7 +5,7 @@ import type {
   ForkedFrom,
   ProblemFacts,
   VersionDerivation,
-} from '../../shared/api/types';
+} from '../../modules/core/api/types';
 import { fromC2y, type Located } from '../../shared/diagnostics/located';
 import { candidateMatrix, type CandidateMatrix } from '../binding/candidateMatrix';
 import { workflowGraph, type WorkflowGraph } from '../binding/workflowGraph';

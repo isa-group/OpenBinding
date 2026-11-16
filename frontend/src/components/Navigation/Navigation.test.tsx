@@ -10,7 +10,7 @@ const auth = vi.hoisted(() => ({
   signOut: vi.fn(),
 }));
 
-vi.mock('../../contexts/auth', () => ({ useAuth: () => auth }));
+vi.mock('../../modules/auth/hooks/useAuth', () => ({ useAuth: () => auth }));
 
 const member: UserProfile = {
   id: 'user-1',

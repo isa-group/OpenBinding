@@ -3,7 +3,7 @@ import type { FormEvent } from 'react';
 import { Check } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Notice } from '../../components/ui/Notice';
-import { useAuth } from '../../contexts/auth';
+import { useAuth } from '../../modules/auth/hooks/useAuth';
 import {
   afterSignInTarget,
   clearSignInNote,
@@ -11,7 +11,7 @@ import {
   noteSignInStarted,
 } from '../../utils/authFlow';
 import { fieldErrorsFrom, type FieldErrors } from './authErrors';
-import { classifyAuthError } from '../../shared/api/errors';
+import { classifyAuthError } from '../../modules/core/api/errors';
 import { AuthField, AuthShell, AuthSpinner } from './AuthShell';
 import { MIN_PASSWORD_LENGTH } from './passwordStrength';
 

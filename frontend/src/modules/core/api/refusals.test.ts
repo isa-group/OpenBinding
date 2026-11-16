@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { QuotaError } from '../../api/auth';
-import { HttpError } from '../../api/client';
+import { QuotaError } from '../../../api/auth';
+import { HttpError } from '../../../api/client';
 import { refusalMarker, refusalOf, refusalText, saveRefusalText } from './refusals';
 
 const failure = (status: number, code?: string, diagnostics?: unknown[]) =>

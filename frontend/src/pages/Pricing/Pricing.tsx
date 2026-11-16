@@ -10,12 +10,12 @@ import { FilterPills } from '../../components/ui/FilterPills';
 import { Modal } from '../../components/ui/Modal';
 import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
-import { useAuth } from '../../contexts/auth';
+import { useAuth } from '../../modules/auth/hooks/useAuth';
 import { formatDate } from '../../utils/format';
 import { usePricingTokenStatus } from '../../utils/pricingToken';
 import { safeExternalHref } from '../../utils/url';
 import { useResource } from '../../utils/useResource';
-import { classifyAuthError } from '../../shared/api/errors';
+import { classifyAuthError } from '../../modules/core/api/errors';
 import {
   currentSelectionOf,
   readCatalog,

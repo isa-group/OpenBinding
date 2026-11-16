@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter, Route, Routes, useOutletContext } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { UserProfile } from '../../api/auth';
-import { AuthContext } from '../../contexts/auth';
+import { AuthContext } from '../../modules/auth/hooks/useAuth';
 import { PlatformShell, type PlatformOutletContext } from './PlatformShell';
 import { buildCommands } from './paletteCommands';
 import { platformApi, type Organization } from '../../api/platform';
@@ -82,6 +82,7 @@ function renderShell(currentUser: UserProfile, initialPath = '/app') {
           signOut: vi.fn(),
           refresh: vi.fn(),
           isAdmin: currentUser.role === 'admin',
+          fetchWithInterceptor: vi.fn(),
         }}
       >
         <Routes>

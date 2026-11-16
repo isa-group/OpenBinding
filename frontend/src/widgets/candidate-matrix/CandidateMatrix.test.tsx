@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { candidateMatrix } from '../../entities/binding/candidateMatrix';
-import type { ProblemFacts } from '../../shared/api/types';
+import type { ProblemFacts } from '../../modules/core/api/types';
 import ambiguous from '../../test/fixtures/core/ambiguous.facts.json';
 import fms from '../../test/fixtures/core/fms.facts.json';
 import simpleSeq from '../../test/fixtures/core/simple-seq.facts.json';

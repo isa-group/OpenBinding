@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import type { ProblemFacts } from '../../shared/api/types';
+import type { ProblemFacts } from '../../modules/core/api/types';
 import fmsFacts from '../../test/fixtures/core/fms.facts.json';
 import { completionAt, schemaKeys, schemaValues, type JsonSchema } from './completion';
 import { cursorPlace, scalarAt, withTopLevelScalar } from './yamlText';

@@ -1,4 +1,4 @@
-import { readApiError, type ApiError } from '../../../shared/api/errors';
+import { readApiError, type ApiError } from '../../../modules/core/api/errors';
 
 // What the two analysis modes (`calculator`, `configurator`) share: the binding they hand the page, the callbacks the page answers
 // (a widget never opens a feature's dialog itself), and how they word a refusal of the gateway.

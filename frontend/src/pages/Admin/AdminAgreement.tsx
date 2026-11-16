@@ -13,7 +13,7 @@ import { DataTable } from '../../components/ui/DataTable';
 import { inInterfaceWords } from '../../components/ui/interfaceWords';
 import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
-import { useAuth } from '../../contexts/auth';
+import { useAuth } from '../../modules/auth/hooks/useAuth';
 import { describeLimit, limitInfo } from '../../utils/limits';
 import { formatDateTime } from '../../utils/format';
 import { useResource } from '../../utils/useResource';

@@ -9,11 +9,11 @@ import { FilterPills } from '../../components/ui/FilterPills';
 import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { Switch } from '../../components/ui/Switch';
-import { useAuth } from '../../contexts/auth';
+import { useAuth } from '../../modules/auth/hooks/useAuth';
 import { formatDate, formatDateTime } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import { fallbackMessage } from './accountErrors';
-import { classifyAuthError } from '../../shared/api/errors';
+import { classifyAuthError } from '../../modules/core/api/errors';
 import { AccountLayout, LoadFailure, PermissionNotice } from './AccountLayout';
 import {
   contractChange,

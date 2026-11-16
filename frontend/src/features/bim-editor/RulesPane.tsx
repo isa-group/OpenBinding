@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Chip } from '../../components/ui/Chip';
 import { Notice } from '../../components/ui/Notice';
-import type { ProblemFacts } from '../../shared/api/types';
+import type { ProblemFacts } from '../../modules/core/api/types';
 import {
   RulesAndObjectives,
   type RuleOrigin,

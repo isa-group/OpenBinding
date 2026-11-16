@@ -6,7 +6,7 @@ import type {
   CompositionVersionView,
   CompositionView,
   ProblemFacts,
-} from '../../../shared/api/types';
+} from '../../../modules/core/api/types';
 import fmsFacts from '../../../test/fixtures/core/fms.facts.json';
 import fmsVersion from '../../../test/fixtures/core/fms.version.json';
 import { CompositionRenderer } from '../CompositionRenderer';

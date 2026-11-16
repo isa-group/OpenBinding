@@ -8,8 +8,8 @@ import { Notice } from '../../../components/ui/Notice';
 import { Switch } from '../../../components/ui/Switch';
 import { compositionsApi } from '../../../entities/composition/api';
 import { compositionsPath } from '../../../routes/paths/compositions';
-import { readApiError, type ApiError } from '../../../shared/api/errors';
-import type { CompositionUpdate, CompositionView } from '../../../shared/api/types';
+import { readApiError, type ApiError } from '../../../modules/core/api/errors';
+import type { CompositionUpdate, CompositionView } from '../../../modules/core/api/types';
 import type { CompositionAccess } from '../useRouteComposition';
 
 const NAME_MAX = 160;

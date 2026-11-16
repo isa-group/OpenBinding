@@ -1,6 +1,6 @@
 import { useEffect, type ReactNode } from 'react';
 import { SpaceProvider, useTokenService } from 'space-react-client';
-import { useAuth } from './auth';
+import { useAuth } from '../modules/auth/hooks/useAuth';
 import { apiClient, getStoredPricingToken, PRICING_TOKEN_UPDATED_EVENT } from '../api/client';
 
 const TOKEN_ONLY_SPACE_CONFIG = {

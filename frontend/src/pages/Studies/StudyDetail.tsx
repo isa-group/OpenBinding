@@ -12,7 +12,7 @@ import { Skeleton } from '../../components/ui/Skeleton';
 import { TabBar, TabPanel } from '../../components/ui/TabBar';
 import { formatDateTime } from '../../utils/format';
 import { useResource, type Resource } from '../../utils/useResource';
-import { classifyAuthError, marker } from '../../shared/api/errors';
+import { classifyAuthError, marker } from '../../modules/core/api/errors';
 import { RefusalNotice } from '../Runs/parts';
 import { NotFoundScreen } from '../../routes/NotFoundScreen';
 import { studiesPath } from '../../routes/paths/studies';

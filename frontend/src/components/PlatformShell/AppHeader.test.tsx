@@ -3,7 +3,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { UserProfile } from '../../api/auth';
 import type { Organization } from '../../api/platform';
-import { AuthContext } from '../../contexts/auth';
+import { AuthContext } from '../../modules/auth/hooks/useAuth';
 import { AppHeader } from './AppHeader';
 
 const api = vi.hoisted(() => ({
@@ -55,6 +55,7 @@ function renderHeader(
           signOut,
           refresh: vi.fn(),
           isAdmin: currentUser.role === 'admin',
+          fetchWithInterceptor: vi.fn(),
         }}
       >
         <AppHeader

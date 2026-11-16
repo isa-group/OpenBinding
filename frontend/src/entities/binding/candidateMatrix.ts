@@ -1,5 +1,5 @@
 import type { FeatureRange } from '../../utils/featureRange';
-import type { ProblemFacts, ProblemValueOrigin } from '../../shared/api/types';
+import type { ProblemFacts, ProblemValueOrigin } from '../../modules/core/api/types';
 
 /**
  * The candidate matrix view-model: for every task of a problem, the candidates it can take with their values, one column

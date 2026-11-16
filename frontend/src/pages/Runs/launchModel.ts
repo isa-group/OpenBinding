@@ -2,7 +2,7 @@ import type { UsageView } from '../../api/auth';
 import type { EngineCatalogEntry, EngineMode } from '../../api/client';
 import type { ExecutionOptimization, LaunchRequest } from '../../api/runs';
 import type { PresetSettings } from '../../entities/preset/api';
-import type { ImmutableResourceRef, RunPresetView } from '../../shared/api/types';
+import type { ImmutableResourceRef, RunPresetView } from '../../modules/core/api/types';
 import type { ProblemRevision } from '../../api/problems';
 import type { CaseContent } from '../../features/workspace/model';
 import { planLimit } from '../../features/workspace/model';

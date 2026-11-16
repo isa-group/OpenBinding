@@ -1,12 +1,12 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../../contexts/auth';
+import { useAuth } from '../../../modules/auth/hooks/useAuth';
 import { CompositionEditor } from '../../../features/composition-editor/CompositionEditor';
 import { compositionPath } from '../../../routes/paths/compositions';
 import type {
   CompositionVersionView,
   CompositionView,
   SealResult,
-} from '../../../shared/api/types';
+} from '../../../modules/core/api/types';
 
 /** What the New version menu asks the Editor to open on. */
 export interface EditorEntry {

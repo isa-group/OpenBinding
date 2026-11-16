@@ -1,4 +1,4 @@
-import type { ImmutableResourceRef, RunPresetView } from '../../shared/api/types';
+import type { ImmutableResourceRef, RunPresetView } from '../../modules/core/api/types';
 
 /**
  * How a run preset reads on screen: its engine, its options and its optimization as written, and why a study cannot take it. Nothing

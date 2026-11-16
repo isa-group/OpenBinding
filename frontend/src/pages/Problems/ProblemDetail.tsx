@@ -18,7 +18,7 @@ import {
 import { useResource } from '../../utils/useResource';
 import { OrgGate, OrgSkeleton } from '../../features/workspace/OrgFrame';
 import { isMissing } from './problemErrors';
-import { classifyAuthError, marker } from '../../shared/api/errors';
+import { classifyAuthError, marker } from '../../modules/core/api/errors';
 import { VersionOverview } from './ProblemRevision';
 import { plural } from './problemsModel';
 import { VersionCompare } from './ProblemCompare';

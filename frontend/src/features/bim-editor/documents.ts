@@ -1,4 +1,4 @@
-import type { ProblemFacts } from '../../shared/api/types';
+import type { ProblemFacts } from '../../modules/core/api/types';
 import type { FeatureSlot } from '../../utils/featureRange';
 
 /** The documents of a BIM package as the problem editor reads them: tolerant types over JSON, and the small readers the editor and the summaries share. */

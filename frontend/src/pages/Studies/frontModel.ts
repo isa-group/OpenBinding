@@ -1,7 +1,7 @@
 import type { StudyCell } from '../../api/platform';
 import type { FrontPoint } from '../../features/derive/deriveModel';
 import { pointSlug } from '../../features/derive/deriveModel';
-import type { ParetoFront, ParetoPoint } from '../../shared/api/types';
+import type { ParetoFront, ParetoPoint } from '../../modules/core/api/types';
 import { formatMeasure, measureLabel } from './studiesModel';
 
 // The study front as tables: the gateway's fronts (`analytics.pareto`), each point named `P<n>` and matched to its cell for the seed.

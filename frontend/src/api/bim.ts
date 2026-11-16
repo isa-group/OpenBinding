@@ -1,5 +1,5 @@
 import { apiClient, HttpError } from './client';
-import type { components } from '../shared/api/openapi';
+import type { components } from '../modules/core/api/openapi';
 
 type Schemas = components['schemas'];
 

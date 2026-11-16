@@ -1,7 +1,7 @@
 import type { EngineCatalogEntry } from '../../api/client';
 import type { PresetOptimization, PresetSettings } from '../../entities/preset/api';
 import { presetEngineLabel } from '../../entities/preset/preset';
-import type { RunPresetView } from '../../shared/api/types';
+import type { RunPresetView } from '../../modules/core/api/types';
 import { SLUG_PATTERN, slugFromName } from '../../shared/lib/slug';
 
 /**

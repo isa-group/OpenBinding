@@ -4,8 +4,8 @@ import { TriangleAlert } from 'lucide-react';
 import { Action } from '../../components/ui/Action';
 import { Modal } from '../../components/ui/Modal';
 import { languageApi } from '../../entities/composition/api';
-import { readApiError } from '../../shared/api/errors';
-import type { ValidateResult } from '../../shared/api/types';
+import { readApiError } from '../../modules/core/api/errors';
+import type { ValidateResult } from '../../modules/core/api/types';
 import { UPLOAD_LIMIT_BYTES } from './useCompositionEditor';
 
 /** The file as text (`Blob.text`, or a FileReader where a browser has no `text`). */

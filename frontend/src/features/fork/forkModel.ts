@@ -2,8 +2,8 @@
 // one suggests and what each refusal of the gateway says.
 
 import type { Organization } from '../../api/platform';
-import type { ApiError } from '../../shared/api/errors';
-import type { CompositionFork, CompositionVersionView } from '../../shared/api/types';
+import type { ApiError } from '../../modules/core/api/errors';
+import type { CompositionFork, CompositionVersionView } from '../../modules/core/api/types';
 import { SLUG_PATTERN } from '../../shared/lib/slug';
 
 export type ForkStep = 'target' | 'problem' | 'name';

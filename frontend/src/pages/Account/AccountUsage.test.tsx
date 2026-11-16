@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PricingUnavailableError, type UsageView, type UserProfile } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import { config } from '../../config';
-import { AuthContext } from '../../contexts/auth';
+import { AuthContext } from '../../modules/auth/hooks/useAuth';
 import { CURRENT_FIXTURE, catalogFixture } from '../Pricing/pricingFixture';
 import { AccountUsage } from './AccountUsage';
 
@@ -74,6 +74,7 @@ function renderPlan(user: UserProfile = lucia) {
           signOut: vi.fn(),
           refresh: vi.fn(),
           isAdmin: false,
+          fetchWithInterceptor: vi.fn(),
         }}
       >
         <AccountUsage />

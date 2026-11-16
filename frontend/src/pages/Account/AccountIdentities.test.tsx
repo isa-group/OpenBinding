@@ -3,7 +3,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ExternalIdentity, UserProfile } from '../../api/auth';
 import { HttpError } from '../../api/client';
-import { AuthContext } from '../../contexts/auth';
+import { AuthContext } from '../../modules/auth/hooks/useAuth';
 import { forgetPlanChanged, notePlanChanged } from '../../utils/authFlow';
 import { catalogFixture } from '../Pricing/pricingFixture';
 import { AccountIdentities } from './AccountIdentities';
@@ -54,6 +54,7 @@ function renderIdentities(plan = 'FREE') {
     signOut: vi.fn(),
     refresh: vi.fn().mockResolvedValue(undefined),
     isAdmin: false,
+    fetchWithInterceptor: vi.fn(),
   };
   render(
     <MemoryRouter>
@@ -112,6 +113,7 @@ describe('Identities', () => {
               signOut: vi.fn(),
               refresh: vi.fn(),
               isAdmin: false,
+              fetchWithInterceptor: vi.fn(),
             }}
           >
             <AccountIdentities />

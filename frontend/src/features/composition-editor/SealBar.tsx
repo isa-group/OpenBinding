@@ -4,7 +4,7 @@ import { Lock } from 'lucide-react';
 import { Action } from '../../components/ui/Action';
 import { Notice } from '../../components/ui/Notice';
 import { formatValue } from '../../entities/composition/values';
-import type { CheckResult } from '../../shared/api/types';
+import type { CheckResult } from '../../modules/core/api/types';
 import { ValueBadge } from '../../widgets/value-badge/ValueBadge';
 import type { SealOutcome } from './useCompositionEditor';
 

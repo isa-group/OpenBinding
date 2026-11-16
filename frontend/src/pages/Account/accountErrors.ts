@@ -1,4 +1,4 @@
-import { marker, type AuthFailure } from '../../shared/api/errors';
+import { marker, type AuthFailure } from '../../modules/core/api/errors';
 
 /**
  * What to say about a failure that has no sentence of its own. `doing` completes “… couldn’t be {doing}”:

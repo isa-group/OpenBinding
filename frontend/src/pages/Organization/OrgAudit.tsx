@@ -11,7 +11,7 @@ import { Action } from '../../components/ui/Action';
 import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useCopy } from '../../components/ui/useCopy';
-import { useAuth } from '../../contexts/auth';
+import { useAuth } from '../../modules/auth/hooks/useAuth';
 import { formatDateTime } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import {
@@ -28,7 +28,7 @@ import {
 import { atLeast, personName } from './orgModel';
 import { isForbidden } from './orgErrors';
 import { generalFailure } from '../../features/workspace/errors';
-import { classifyAuthError, marker } from '../../shared/api/errors';
+import { classifyAuthError, marker } from '../../modules/core/api/errors';
 import { NeutralGate, PageSkeleton, SelectField } from './parts';
 import { OrgSettingsLayout } from './OrgSettingsLayout';
 import { useRouteOrganization } from './useRouteOrganization';

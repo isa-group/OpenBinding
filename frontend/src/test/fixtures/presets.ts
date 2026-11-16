@@ -1,4 +1,4 @@
-import type { RunPresetView } from '../../shared/api/types';
+import type { RunPresetView } from '../../modules/core/api/types';
 
 // Shared by the tests of the run presets (the settings section, the launcher, the study builder) and the S6a and S7a browser specs:
 // three presets of ISA Demo Group. "Fast sampling" can join a study; "Edge deployment" runs on a federated deployment and "No goal"

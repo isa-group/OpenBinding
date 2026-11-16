@@ -3,7 +3,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { UserProfile } from '../../api/auth';
 import { HttpError, type EngineCatalogEntry, type EngineMode } from '../../api/client';
-import { AuthContext } from '../../contexts/auth';
+import { AuthContext } from '../../modules/auth/hooks/useAuth';
 import { catalogFixture } from '../Pricing/pricingFixture';
 import { EngineDetail } from './EngineDetail';
 
@@ -96,6 +96,7 @@ function renderAt(path: string, user: UserProfile | null = null) {
           signOut: vi.fn(),
           refresh: vi.fn(),
           isAdmin: false,
+          fetchWithInterceptor: vi.fn(),
         }}
       >
         <Routes>

@@ -11,7 +11,7 @@ import { ChevronDown, Menu, Plus, Search, X } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import type { Organization } from '../../api/platform';
 import { config } from '../../config';
-import { useAuth } from '../../contexts/auth';
+import { useAuth } from '../../modules/auth/hooks/useAuth';
 import { personInitials } from '../../utils/initials';
 import { InstitutionMark } from '../InstitutionMark';
 import { INSTITUTION_NAME, useInstitutionalBranding } from '../InstitutionMark/institution';

@@ -1,7 +1,7 @@
 // Address builders of the problems area (M2.6; organization-level since F0b). Code that links to a problem, a problem version or the problem list builds the address here,
 // so the segment is named once.
 
-import type { ProblemOrigin } from '../../shared/api/types';
+import type { ProblemOrigin } from '../../modules/core/api/types';
 
 /** The segment of the problem list and the problem page. */
 export const PROBLEMS_SEGMENT = 'problems';

@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../../api/client';
-import type { CompositionView } from '../../../shared/api/types';
+import type { CompositionView } from '../../../modules/core/api/types';
 import type { CompositionAccess } from '../useRouteComposition';
 import { PUBLISH_CONFIRMATION, SettingsTab } from './SettingsTab';
 

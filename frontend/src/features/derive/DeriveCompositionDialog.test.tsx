@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../api/client';
-import type { CompositionView, DeriveDraft, DeriveResult } from '../../shared/api/types';
+import type { CompositionView, DeriveDraft, DeriveResult } from '../../modules/core/api/types';
 import { readCompositionFragment } from '../../shared/sphere/composition-fragment';
 import { RESULT, S1 } from '../../test/fixtures/jobs';
 import { DeriveCompositionDialog } from './DeriveCompositionDialog';

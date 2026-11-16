@@ -8,7 +8,7 @@ import { Skeleton } from '../../components/ui/Skeleton';
 import { TabBar, TabPanel } from '../../components/ui/TabBar';
 import { compositionPath } from '../../routes/paths/compositions';
 import { problemEditorPath, problemPath } from '../../routes/paths/problems';
-import { refusalMarker, refusalText, type Refusal } from '../../shared/api/refusals';
+import { refusalMarker, refusalText, type Refusal } from '../../modules/core/api/refusals';
 import { resolvePointer } from '../../shared/diagnostics/jsonPointer';
 import { counts, type Located } from '../../shared/diagnostics/located';
 import type { FeatureSlot } from '../../utils/featureRange';

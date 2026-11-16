@@ -1,4 +1,4 @@
-import { readApiError, type ApiError } from '../../shared/api/errors';
+import { readApiError, type ApiError } from '../../modules/core/api/errors';
 
 /** A refusal of the gateway, in words, with the findings a 422 carries. */
 export interface Refusal {

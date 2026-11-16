@@ -1,5 +1,5 @@
 # Generated from docs/openapi.json by scripts/gen-api.mjs and checked byte for byte by `pnpm gen:api --check`.
-src/shared/api/openapi.ts
+src/modules/core/api/openapi.ts
 dist
 test-results
 playwright-report

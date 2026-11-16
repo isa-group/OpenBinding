@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { ProblemFacts } from '../../shared/api/types';
+import type { ProblemFacts } from '../../modules/core/api/types';
 import { runProblemOf } from './runProblem';
 import { bindingFeaturesOf, bindingRowsOf, type BindingProblemShape } from './bindingTableModel';
 

@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PricingUnavailableError } from '../../api/auth';
 import type { UserProfile } from '../../api/auth';
 import { HttpError } from '../../api/client';
-import { AuthContext } from '../../contexts/auth';
+import { AuthContext } from '../../modules/auth/hooks/useAuth';
 import {
   clearSessionEnded,
   clearSignInNote,
@@ -73,6 +73,7 @@ describe('Auth screens', () => {
             signOut: signOutMock,
             refresh: vi.fn(),
             isAdmin: false,
+            fetchWithInterceptor: vi.fn(),
           }}
         >
           <Routes>
@@ -247,6 +248,7 @@ describe('Auth screens', () => {
               signOut: signOutMock,
               refresh: vi.fn(),
               isAdmin: false,
+              fetchWithInterceptor: vi.fn(),
             }}
           >
             <Routes>

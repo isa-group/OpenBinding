@@ -9,8 +9,8 @@ import { compositionsApi } from '../../entities/composition/api';
 import { formatValue, valueModels, valueStatus } from '../../entities/composition/values';
 import { compositionPath } from '../../routes/paths/compositions';
 import { problemPath } from '../../routes/paths/problems';
-import { classifyAuthError, marker } from '../../shared/api/errors';
-import type { CompositionVersionView, CompositionView } from '../../shared/api/types';
+import { classifyAuthError, marker } from '../../modules/core/api/errors';
+import type { CompositionVersionView, CompositionView } from '../../modules/core/api/types';
 import { useResource } from '../../utils/useResource';
 import { ValueBadge } from '../../widgets/value-badge/ValueBadge';
 

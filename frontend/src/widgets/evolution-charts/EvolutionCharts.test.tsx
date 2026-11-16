@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { cloneElement, type ReactElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { CompositionVersionView } from '../../shared/api/types';
+import type { CompositionVersionView } from '../../modules/core/api/types';
 import { dateBounds, PREFERENCES_KEY } from './chartData';
 import { EvolutionCharts } from './EvolutionCharts';
 

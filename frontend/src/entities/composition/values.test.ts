@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { CompositionVersionView } from '../../shared/api/types';
+import type { CompositionVersionView } from '../../modules/core/api/types';
 import fms from '../../test/fixtures/core/fms.version.json';
 import { formatNumber, formatValue, valueModels, valueStatus } from './values';
 

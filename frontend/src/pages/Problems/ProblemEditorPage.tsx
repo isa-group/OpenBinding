@@ -1,4 +1,4 @@
-import { useAuth } from '../../contexts/auth';
+import { useAuth } from '../../modules/auth/hooks/useAuth';
 import { ProblemEditor } from '../../features/bim-editor/ProblemEditor';
 import { OrgFrame, OrgGate, OrgSkeleton } from '../../features/workspace/OrgFrame';
 import { problemsPath } from '../../routes/paths/problems';

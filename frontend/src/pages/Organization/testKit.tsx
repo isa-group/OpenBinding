@@ -5,7 +5,7 @@ import { vi } from 'vitest';
 import type { UsageView, UserProfile } from '../../api/auth';
 import type { Organization, OrganizationMember } from '../../api/platform';
 import type { PlatformOutletContext } from '../../components/PlatformShell/PlatformShell';
-import { AuthContext } from '../../contexts/auth';
+import { AuthContext } from '../../modules/auth/hooks/useAuth';
 import { lucia } from '../../features/workspace/testKit';
 import { Where } from './Where';
 
@@ -82,6 +82,7 @@ export function renderScreen(ui: ReactElement, options: RenderOptions) {
           signOut: vi.fn(),
           refresh: vi.fn(),
           isAdmin: user.role === 'admin',
+          fetchWithInterceptor: vi.fn(),
         }}
       >
         <Routes>

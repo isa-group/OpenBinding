@@ -10,7 +10,7 @@ import { FilterPills } from '../../components/ui/FilterPills';
 import { Notice, type NoticeTone } from '../../components/ui/Notice';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Skeleton } from '../../components/ui/Skeleton';
-import { useAuth } from '../../contexts/auth';
+import { useAuth } from '../../modules/auth/hooks/useAuth';
 import { formatDate } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import { ConfirmDialog, DeregisterDialog } from './EngineDialogs';

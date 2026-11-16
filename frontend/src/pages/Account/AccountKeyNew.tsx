@@ -8,10 +8,10 @@ import { Action } from '../../components/ui/Action';
 import { FormField } from '../../components/ui/FormField';
 import { Modal } from '../../components/ui/Modal';
 import { Notice } from '../../components/ui/Notice';
-import { useAuth } from '../../contexts/auth';
+import { useAuth } from '../../modules/auth/hooks/useAuth';
 import { useResource } from '../../utils/useResource';
 import { fallbackMessage } from './accountErrors';
-import { classifyAuthError } from '../../shared/api/errors';
+import { classifyAuthError } from '../../modules/core/api/errors';
 import {
   ADMIN_ONLY,
   EXPIRY_PRESETS,

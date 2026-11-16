@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Organization } from '../../api/platform';
-import type { ApiError } from '../../shared/api/errors';
+import type { ApiError } from '../../modules/core/api/errors';
 import {
   NEEDS_MEMBER,
   SAME_ORGANIZATION,

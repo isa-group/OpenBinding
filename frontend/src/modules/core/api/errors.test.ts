@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ApiClient } from '../../api/client';
+import { ApiClient } from '../../../api/client';
 import { classifyAuthError, marker, readApiError } from './errors';
 
 function answer(body: unknown, status: number, headers: Record<string, string> = {}): Response {

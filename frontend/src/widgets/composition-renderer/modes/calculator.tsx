@@ -7,7 +7,7 @@ import { Notice } from '../../../components/ui/Notice';
 import { COMPARISON_WORDS, comparisonText } from '../../../entities/binding/comparison';
 import { compositionsApi } from '../../../entities/composition/api';
 import type { CompositionViewModel } from '../../../entities/composition/viewModel';
-import type { CompositionNeighborhoodResponse } from '../../../shared/api/types';
+import type { CompositionNeighborhoodResponse } from '../../../modules/core/api/types';
 import type { Section } from '../presets';
 import { RendererSection } from '../RendererSection';
 import { analysisRefusal, type AnalysisActions, type AnalysisRefusal } from './analysis';

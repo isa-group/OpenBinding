@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../api/client';
 import { org, renderOrgScreen } from '../../features/workspace/testKit';
-import type { CompositionView } from '../../shared/api/types';
+import type { CompositionView } from '../../modules/core/api/types';
 import { CompositionList } from './CompositionList';
 
 const api = vi.hoisted(() => ({ list: vi.fn(), create: vi.fn() }));

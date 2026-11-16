@@ -6,7 +6,7 @@ import { isInstitutionalAccount, useInstitutionalBranding } from './institution'
 
 const auth = vi.hoisted(() => ({ user: null as UserProfile | null }));
 
-vi.mock('../../contexts/auth', () => ({ useAuth: () => auth }));
+vi.mock('../../modules/auth/hooks/useAuth', () => ({ useAuth: () => auth }));
 
 const base: UserProfile = {
   id: 'user-id',

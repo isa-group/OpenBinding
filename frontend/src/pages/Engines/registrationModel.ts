@@ -1,6 +1,6 @@
 import { bimResourceKey, HttpError } from '../../api/client';
 import type { EngineRegistrationRevision, EngineRegistrationState } from '../../api/client';
-import type { ImmutableResourceRef } from '../../shared/api/types';
+import type { ImmutableResourceRef } from '../../modules/core/api/types';
 import { QuotaError } from '../../api/auth';
 import type { UsageView } from '../../api/auth';
 import { LIMIT } from '../../utils/limits';

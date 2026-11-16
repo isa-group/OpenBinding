@@ -396,7 +396,7 @@ header, never in the body.
 
 ## Reading them in the browser
 
-The frontend reads every refusal through one function, `readApiError` (`frontend/src/shared/api/errors.ts`): the
+The frontend reads every refusal through one function, `readApiError` (`frontend/src/modules/core/api/errors.ts`): the
 problem document of a 422 and of the language and BIM routes, and the platform shape `{"detail": {"code", "error"}}`
 elsewhere, with the `code`, the message, the located `diagnostics` (`fromC2y` places a `c2y_*` finding's span in the
 text), the current `ETag` of a `412` and the `Retry-After` of a `429`. The derive and fork dialogs word a refusal

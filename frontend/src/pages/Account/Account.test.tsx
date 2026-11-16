@@ -3,7 +3,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { UserProfile } from '../../api/auth';
 import { HttpError } from '../../api/client';
-import { AuthContext } from '../../contexts/auth';
+import { AuthContext } from '../../modules/auth/hooks/useAuth';
 import { Account } from './Account';
 
 const api = vi.hoisted(() => ({
@@ -45,6 +45,7 @@ function renderAccount(user: UserProfile = alice, entry = '/app/account') {
     signOut: vi.fn().mockResolvedValue(undefined),
     refresh: vi.fn().mockResolvedValue(undefined),
     isAdmin: user.role === 'admin',
+    fetchWithInterceptor: vi.fn(),
   };
   render(
     <MemoryRouter initialEntries={[entry]}>

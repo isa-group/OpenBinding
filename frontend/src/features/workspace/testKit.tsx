@@ -6,7 +6,7 @@ import type { UsageView, UserProfile } from '../../api/auth';
 import type { Organization, Study, StudyRun } from '../../api/platform';
 import type { Problem, ProblemRevision } from '../../api/problems';
 import type { PlatformOutletContext } from '../../components/PlatformShell/PlatformShell';
-import { AuthContext } from '../../contexts/auth';
+import { AuthContext } from '../../modules/auth/hooks/useAuth';
 
 /** Accounts and organizations, shared by the tests of the workspace and of the organization screens. */
 export const lucia: UserProfile = {
@@ -71,6 +71,7 @@ export function renderOrgScreen(ui: ReactElement, options: RenderOptions) {
           signOut: vi.fn(),
           refresh: vi.fn(),
           isAdmin: user.role === 'admin',
+          fetchWithInterceptor: vi.fn(),
         }}
       >
         <Routes>

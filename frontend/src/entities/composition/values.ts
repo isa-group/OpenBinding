@@ -1,4 +1,7 @@
-import type { CompositionVersionSummary, CompositionVersionView } from '../../shared/api/types';
+import type {
+  CompositionVersionSummary,
+  CompositionVersionView,
+} from '../../modules/core/api/types';
 
 /**
  * The global values of a version and how far to trust them. Every number is the gateway's: the values of the current

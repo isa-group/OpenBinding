@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import type { Organization } from '../../api/platform';
-import type { ProblemFacts } from '../../shared/api/types';
+import type { ProblemFacts } from '../../modules/core/api/types';
 import type { FeatureValue } from '../../utils/featureRange';
 import { unzipPackage, zipStore } from '../../utils/bimZip';
 import { ProblemEditor } from './ProblemEditor';

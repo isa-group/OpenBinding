@@ -25,7 +25,7 @@ import { newStudyPath } from '../../routes/paths/studies';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { TabBar, TabPanel } from '../../components/ui/TabBar';
 import { useCopy } from '../../components/ui/useCopy';
-import { useAuth } from '../../contexts/auth';
+import { useAuth } from '../../modules/auth/hooks/useAuth';
 import { useResource } from '../../utils/useResource';
 import { engineHref, engineKey, optionFacts, selectorText } from '../Engines/enginesModel';
 import { planCeilings, previewOption, type PlanCeilings, type PlanLimits } from './planCeilings';

@@ -3,7 +3,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { UserProfile } from '../../api/auth';
 import { HttpError, apiClient } from '../../api/client';
-import { AuthContext } from '../../contexts/auth';
+import { AuthContext } from '../../modules/auth/hooks/useAuth';
 import {
   clearSessionEnded,
   forgetCasExchanges,
@@ -47,6 +47,7 @@ function renderAt(search: string, user: UserProfile | null = person()) {
           signOut: vi.fn(),
           refresh,
           isAdmin: false,
+          fetchWithInterceptor: vi.fn(),
         }}
       >
         <Routes>

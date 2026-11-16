@@ -8,10 +8,10 @@ import type { Organization } from '../../api/platform';
 import { Action } from '../../components/ui/Action';
 import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
-import { useAuth } from '../../contexts/auth';
+import { useAuth } from '../../modules/auth/hooks/useAuth';
 import { useResource } from '../../utils/useResource';
 import { randomUUID } from '../../utils/uuid';
-import { classifyAuthError } from '../../shared/api/errors';
+import { classifyAuthError } from '../../modules/core/api/errors';
 import { problemsApi } from '../../api/problems';
 import { hasRanges, problemFactsApi } from '../../entities/problem/facts';
 import { PRESET_PAGE, presetsApi } from '../../entities/preset/api';
@@ -20,7 +20,7 @@ import {
   presetOptionsText,
   presetRegistrationText,
 } from '../../entities/preset/preset';
-import type { RunPresetList, RunPresetView } from '../../shared/api/types';
+import type { RunPresetList, RunPresetView } from '../../modules/core/api/types';
 import { loadProblems } from '../Problems/problemsData';
 import { problemsPath } from '../../routes/paths/problems';
 import { runPath, runsPath } from '../../routes/paths/runs';

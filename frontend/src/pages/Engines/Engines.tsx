@@ -15,7 +15,7 @@ import { FilterPills } from '../../components/ui/FilterPills';
 import { Notice } from '../../components/ui/Notice';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Skeleton } from '../../components/ui/Skeleton';
-import { useAuth } from '../../contexts/auth';
+import { useAuth } from '../../modules/auth/hooks/useAuth';
 import { engineLabel } from '../../shared/lib/identity';
 import { useResource } from '../../utils/useResource';
 import {

@@ -7,7 +7,7 @@ import {
   updateRefusal,
   uploadRefusal,
 } from './problemErrors';
-import { classifyAuthError } from '../../shared/api/errors';
+import { classifyAuthError } from '../../modules/core/api/errors';
 
 const http = (status: number, code?: string) =>
   Object.assign(new HttpError(status, 'refused'), code ? { code } : {});

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FocusEvent, type KeyboardEvent } from 'react';
 import { Menu, X } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
-import { useAuth } from '../../contexts/auth';
+import { useAuth } from '../../modules/auth/hooks/useAuth';
 import { config } from '../../config';
 import { personInitials } from '../../utils/initials';
 import { InstitutionMark } from '../InstitutionMark';

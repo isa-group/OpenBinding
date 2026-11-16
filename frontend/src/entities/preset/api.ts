@@ -4,7 +4,7 @@ import type {
   RunPresetList,
   RunPresetUpdate,
   RunPresetView,
-} from '../../shared/api/types';
+} from '../../modules/core/api/types';
 
 /**
  * The run presets of an organization (`/v1/organizations/{org}/presets/…`) over the shared client and the generated types. Every

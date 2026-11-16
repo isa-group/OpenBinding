@@ -8,7 +8,7 @@ import type {
 } from '../../api/platform';
 import type { ProblemRevision } from '../../api/problems';
 import type { EngineCatalogEntry, EngineMode } from '../../api/client';
-import type { ImmutableResourceRef } from '../../shared/api/types';
+import type { ImmutableResourceRef } from '../../modules/core/api/types';
 import { bimResourceKey } from '../../api/client';
 import type { ExecutionOptimization } from '../../api/runs';
 import type { CaseContent } from '../../features/workspace/model';

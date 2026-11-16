@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { QuotaError } from './auth';
 import { ApiClient, HttpError } from './client';
 import { problemField } from './problem';
-import type { ImmutableResourceRef } from '../shared/api/types';
+import type { ImmutableResourceRef } from '../modules/core/api/types';
 import type { EngineManifest, EngineRegistrationManifest } from './client';
 
 const DIGEST = `sha256-${'a'.repeat(64)}`;

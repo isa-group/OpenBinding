@@ -3,7 +3,7 @@ import { Notice } from '../../../components/ui/Notice';
 import type { CompositionViewModel } from '../../../entities/composition/viewModel';
 import { problemEditorPath, problemPath } from '../../../routes/paths/problems';
 import { runPath } from '../../../routes/paths/runs';
-import type { CompositionVersionView } from '../../../shared/api/types';
+import type { CompositionVersionView } from '../../../modules/core/api/types';
 import { CompositionRenderer } from '../../../widgets/composition-renderer/CompositionRenderer';
 
 /** Where the candidates of the linked problem stand, when the version links one the member may read. */

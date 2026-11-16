@@ -4,7 +4,7 @@ import { BindingSpaceBadge } from '../../components/BindingSpaceBadge/BindingSpa
 import { Chip } from '../../components/ui/Chip';
 import { candidateMatrix } from '../../entities/binding/candidateMatrix';
 import { workflowGraph } from '../../entities/binding/workflowGraph';
-import type { ProblemFacts } from '../../shared/api/types';
+import type { ProblemFacts } from '../../modules/core/api/types';
 import { WorkflowGraph } from '../../widgets/workflow-graph/WorkflowGraph';
 import { overlayOf } from './editorModel';
 import { allModesFromAnalysis, engineRows } from './engines';

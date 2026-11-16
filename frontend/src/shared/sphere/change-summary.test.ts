@@ -5,7 +5,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import type { CompositionVersionDiff } from '../api/types';
+import type { CompositionVersionDiff } from '../../modules/core/api/types';
 import ambiguous from '../../test/fixtures/core/ambiguous.diff.json';
 import fms from '../../test/fixtures/core/fms.diff.json';
 import { summarizeChanges } from './change-summary';

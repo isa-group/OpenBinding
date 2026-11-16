@@ -23,8 +23,8 @@ import {
   type ValueSeries,
 } from '../../entities/composition/evolution';
 import { formatValue, type ValueStatus } from '../../entities/composition/values';
-import { classifyAuthError, marker as authMarker } from '../../shared/api/errors';
-import type { CompositionVersionView } from '../../shared/api/types';
+import { classifyAuthError, marker as authMarker } from '../../modules/core/api/errors';
+import type { CompositionVersionView } from '../../modules/core/api/types';
 import { formatDate, formatNumber } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import { ValueBadge } from '../value-badge/ValueBadge';

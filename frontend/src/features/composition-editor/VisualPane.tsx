@@ -5,7 +5,7 @@ import { candidateMatrix } from '../../entities/binding/candidateMatrix';
 import { workflowGraph, type TaskOverlay } from '../../entities/binding/workflowGraph';
 import { documentValue, readDocument, type Kind } from '../../entities/composition/document';
 import { KIND_OPTIONS } from '../../entities/composition/kinds';
-import type { ProblemFacts } from '../../shared/api/types';
+import type { ProblemFacts } from '../../modules/core/api/types';
 import { CandidateMatrix } from '../../widgets/candidate-matrix/CandidateMatrix';
 import { WorkflowGraph } from '../../widgets/workflow-graph/WorkflowGraph';
 import {

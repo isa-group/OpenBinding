@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { CompositionVersionDiff } from '../../shared/api/types';
+import type { CompositionVersionDiff } from '../../modules/core/api/types';
 import fms from '../../test/fixtures/core/fms.diff.json';
 import { fieldPath, formatDiffValue, notComparableShort, versionChanges } from './changes';
 

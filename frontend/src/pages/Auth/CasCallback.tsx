@@ -8,7 +8,7 @@ import {
   useInstitutionalBranding,
 } from '../../components/InstitutionMark/institution';
 import { Notice } from '../../components/ui/Notice';
-import { useAuth } from '../../contexts/auth';
+import { useAuth } from '../../modules/auth/hooks/useAuth';
 import {
   casFlowFor,
   exchangeCasOnce,
@@ -17,7 +17,7 @@ import {
   rememberCasFlow,
   type CasMode,
 } from '../../utils/authFlow';
-import { classifyAuthError } from '../../shared/api/errors';
+import { classifyAuthError } from '../../modules/core/api/errors';
 
 /**
  * What stopped the CAS round trip. The gateway answers every failure of its own callback step with `?error=<code>` (a closed list,

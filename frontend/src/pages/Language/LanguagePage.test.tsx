@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../api/client';
 import examples from '../../content/composition2yaml-examples.json';
-import type { CompositionDiagnosticView } from '../../shared/api/types';
+import type { CompositionDiagnosticView } from '../../modules/core/api/types';
 import { compositionFragment } from '../../shared/sphere/composition-fragment';
 import {
   LANGUAGE_LINT_DELAY_MS,

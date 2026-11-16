@@ -1,6 +1,6 @@
-import { PricingUnavailableError, QuotaError } from '../../api/auth';
-import { HttpError } from '../../api/client';
-import { diagnosticsOf, type Diagnostic } from '../../api/problem';
+import { PricingUnavailableError, QuotaError } from '../../../api/auth';
+import { HttpError } from '../../../api/client';
+import { diagnosticsOf, type Diagnostic } from '../../../api/problem';
 
 // How the frontend reads a refusal of the gateway. The gateway answers in two envelopes (docs/ERRORS.md): the flat problem
 // document `{type, title, status, code, detail, diagnostics}` on every 422 and under the language prefixes, and

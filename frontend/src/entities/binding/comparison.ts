@@ -1,4 +1,4 @@
-import type { CompositionMove } from '../../shared/api/types';
+import type { CompositionMove } from '../../modules/core/api/types';
 
 /**
  * The words the toolchain uses when it compares a one-task move with the binding it starts from (`comparison` of a run's or a

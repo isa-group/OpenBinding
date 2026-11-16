@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../api/client';
-import type { PublicCompositionList as PublicList } from '../../shared/api/types';
+import type { PublicCompositionList as PublicList } from '../../modules/core/api/types';
 import { PublicCompositionList } from './PublicCompositionList';
 
 const api = vi.hoisted(() => ({ publicList: vi.fn() }));

@@ -1,5 +1,5 @@
 import { describeExpression, isAlways } from '../../entities/problem/expressions';
-import type { ProblemFacts } from '../../shared/api/types';
+import type { ProblemFacts } from '../../modules/core/api/types';
 import './RulesAndObjectives.css';
 
 /**

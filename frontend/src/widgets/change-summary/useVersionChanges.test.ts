@@ -7,12 +7,12 @@
 
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { CompositionVersionDiff } from '../../shared/api/types';
+import type { CompositionVersionDiff } from '../../modules/core/api/types';
 import fms from '../../test/fixtures/core/fms.diff.json';
 import { useVersionChanges, type ChangesState, type ChangesTarget } from './useVersionChanges';
 
 const auth = vi.hoisted(() => ({ user: { id: 'first-user' } }));
-vi.mock('../../contexts/auth', () => ({ useAuth: () => ({ user: auth.user }) }));
+vi.mock('../../modules/auth/hooks/useAuth', () => ({ useAuth: () => ({ user: auth.user }) }));
 const api = vi.hoisted(() => ({ diff: vi.fn() }));
 vi.mock('../../entities/composition/api', () => ({ compositionsApi: api }));
 

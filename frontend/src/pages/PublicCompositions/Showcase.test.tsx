@@ -4,8 +4,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { UserProfile } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import type { Organization } from '../../api/platform';
-import { AuthContext } from '../../contexts/auth';
-import type { CompositionVersionView, CompositionView } from '../../shared/api/types';
+import { AuthContext } from '../../modules/auth/hooks/useAuth';
+import type { CompositionVersionView, CompositionView } from '../../modules/core/api/types';
 import fmsVersion from '../../test/fixtures/core/fms.version.json';
 import { Showcase } from './Showcase';
 
@@ -145,6 +145,7 @@ function renderShowcase(url = '/c/lab-other/fleet-routing', user: UserProfile | 
           signOut: vi.fn(),
           refresh: vi.fn(),
           isAdmin: false,
+          fetchWithInterceptor: vi.fn(),
         }}
       >
         <Routes>

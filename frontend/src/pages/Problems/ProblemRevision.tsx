@@ -13,7 +13,7 @@ import { formatBytes, formatDateTime } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import { RulesAndObjectives } from '../../widgets/rules-and-objectives/RulesAndObjectives';
 import { WorkflowGraph } from '../../widgets/workflow-graph/WorkflowGraph';
-import { marker } from '../../shared/api/errors';
+import { marker } from '../../modules/core/api/errors';
 import { loadModel, modelKey, type ModelState } from './modelLoader';
 import { DigestLine } from './parts';
 import type { RouteProblemContent } from './useRouteProblem';

@@ -3,7 +3,7 @@ import examples from '../../content/composition2yaml-examples.json';
 import { compositionsApi, languageApi } from '../../entities/composition/api';
 import { COMPOSITION_FILE } from '../../entities/composition/viewModel';
 import { problemFactsApi } from '../../entities/problem/facts';
-import { readApiError } from '../../shared/api/errors';
+import { readApiError } from '../../modules/core/api/errors';
 import type {
   CheckResult,
   CompositionDiagnosticView,
@@ -12,7 +12,7 @@ import type {
   ProblemFacts,
   SealResult,
   ValidateResult,
-} from '../../shared/api/types';
+} from '../../modules/core/api/types';
 import { draftScope, type DraftFiles } from '../../shared/editor/drafts';
 import {
   createScheduler,

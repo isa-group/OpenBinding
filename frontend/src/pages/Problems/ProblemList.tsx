@@ -15,14 +15,14 @@ import {
   problemEditorPath,
   type ProblemsFilter,
 } from '../../routes/paths/problems';
-import type { ProblemOrigin } from '../../shared/api/types';
+import type { ProblemOrigin } from '../../modules/core/api/types';
 import { formatDate } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import { RoleChip } from '../Organization/parts';
 import { useRouteOrganization } from '../Organization/useRouteOrganization';
 import { OrgGate, OrgSkeleton } from '../../features/workspace/OrgFrame';
 import type { CaseContent } from '../../features/workspace/model';
-import { classifyAuthError, marker } from '../../shared/api/errors';
+import { classifyAuthError, marker } from '../../modules/core/api/errors';
 import { problemSortKey, newestFirst, plural } from './problemsModel';
 import { useCreateDialog } from './createDialog';
 import { DeleteCaseDialog, UploadProblemDialog } from './dialogs';

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ProblemFacts } from '../../shared/api/types';
+import type { ProblemFacts } from '../../modules/core/api/types';
 import fms from '../../test/fixtures/core/fms.facts.json';
 import simpleSeq from '../../test/fixtures/core/simple-seq.facts.json';
 import validated from '../../test/fixtures/core/simple-seq.validate.json';

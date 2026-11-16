@@ -1,4 +1,4 @@
-import type { ProblemOrigin } from '../shared/api/types';
+import type { ProblemOrigin } from '../modules/core/api/types';
 import type { BimEngineCompatibility } from './bim';
 import { apiClient } from './client';
 

@@ -2,7 +2,11 @@ import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { compositionViewModel } from '../../entities/composition/viewModel';
 import type { TaskModel } from '../../entities/composition/viewModel';
-import type { CompositionVersionView, CompositionView, ProblemFacts } from '../../shared/api/types';
+import type {
+  CompositionVersionView,
+  CompositionView,
+  ProblemFacts,
+} from '../../modules/core/api/types';
 import fmsFacts from '../../test/fixtures/core/fms.facts.json';
 import fmsVersion from '../../test/fixtures/core/fms.version.json';
 import { ProviderMap } from './ProviderMap';

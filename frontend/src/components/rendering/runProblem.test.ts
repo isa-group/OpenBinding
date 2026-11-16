@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { ProblemFacts } from '../../shared/api/types';
+import type { ProblemFacts } from '../../modules/core/api/types';
 import ambiguous from '../../test/fixtures/core/ambiguous.facts.json';
 import fms from '../../test/fixtures/core/fms.facts.json';
 import jsonComplete from '../../test/fixtures/core/json-complete.facts.json';

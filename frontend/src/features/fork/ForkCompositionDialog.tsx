@@ -9,12 +9,12 @@ import { Modal } from '../../components/ui/Modal';
 import { OrganizationPicker } from '../../components/ui/OrganizationPicker';
 import { compositionsApi } from '../../entities/composition/api';
 import { compositionPath } from '../../routes/paths/compositions';
-import { readApiError } from '../../shared/api/errors';
+import { readApiError } from '../../modules/core/api/errors';
 import type {
   CompositionVersionView,
   CompositionView,
   ForkNameTaken,
-} from '../../shared/api/types';
+} from '../../modules/core/api/types';
 import {
   NAME_MAX,
   forkRefusal,

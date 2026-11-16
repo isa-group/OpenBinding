@@ -1,4 +1,4 @@
-import type { CompositionVersionDiff } from '../../shared/api/types';
+import type { CompositionVersionDiff } from '../../modules/core/api/types';
 import { summarizeChanges, type ChangeSummary } from '../../shared/sphere/change-summary';
 import { formatNumber } from './values';
 

@@ -13,7 +13,7 @@ const api = vi.hoisted(() => ({
   getPricingToken: vi.fn(),
 }));
 
-vi.mock('./auth', () => ({
+vi.mock('../modules/auth/hooks/useAuth', () => ({
   useAuth: () => auth,
 }));
 

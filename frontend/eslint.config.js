@@ -7,7 +7,7 @@ import boundaries from 'eslint-plugin-boundaries';
 import { defineConfig, globalIgnores } from 'eslint/config';
 
 export default defineConfig([
-  globalIgnores(['dist', 'src/shared/api/openapi.ts']),
+  globalIgnores(['dist', 'src/modules/core/api/openapi.ts']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [

@@ -1,4 +1,4 @@
-import type { CompositionDerive, CompositionView, DeriveDraft } from '../../shared/api/types';
+import type { CompositionDerive, CompositionView, DeriveDraft } from '../../modules/core/api/types';
 
 // The rules of deriving a composition from a run or from a binding of a problem version, without screens: the label a new version
 // gets, the solutions a person picks from, and the requests. Every number shown is the run's own; nothing is ranked, summed or

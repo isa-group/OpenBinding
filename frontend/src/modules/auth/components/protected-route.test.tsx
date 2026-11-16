@@ -1,9 +1,10 @@
 import { render, screen } from '@testing-library/react';
+import { HelmetProvider } from 'react-helmet-async';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
-import type { UserProfile } from '../api/auth';
-import { AuthContext } from '../contexts/auth';
-import { ProtectedRoute } from './ProtectedRoute';
+import type { UserProfile } from '../../../api/auth';
+import { AuthContext } from '../hooks/useAuth';
+import { ProtectedRoute } from './protected-route';
 
 const account: UserProfile = {
   id: 'alice-id',
@@ -27,32 +28,35 @@ function renderGuard(
   entry = '/protected'
 ) {
   return render(
-    <MemoryRouter initialEntries={[entry]}>
-      <AuthContext.Provider
-        value={{
-          user,
-          loading,
-          signIn: vi.fn(),
-          register: vi.fn(),
-          signOut: vi.fn(),
-          refresh: vi.fn(),
-          isAdmin: user?.role === 'admin',
-        }}
-      >
-        <Routes>
-          <Route path="/login" element={<SignIn />} />
-          <Route path="/app/account" element={<h1>Account</h1>} />
-          <Route
-            path="/protected"
-            element={
-              <ProtectedRoute requireAdmin={requireAdmin}>
-                <h1>Protected content</h1>
-              </ProtectedRoute>
-            }
-          />
-        </Routes>
-      </AuthContext.Provider>
-    </MemoryRouter>
+    <HelmetProvider>
+      <MemoryRouter initialEntries={[entry]}>
+        <AuthContext.Provider
+          value={{
+            user,
+            loading,
+            signIn: vi.fn(),
+            register: vi.fn(),
+            signOut: vi.fn(),
+            refresh: vi.fn(),
+            isAdmin: user?.role === 'admin',
+            fetchWithInterceptor: vi.fn(),
+          }}
+        >
+          <Routes>
+            <Route path="/login" element={<SignIn />} />
+            <Route path="/app/account" element={<h1>Account</h1>} />
+            <Route
+              path="/protected"
+              element={
+                <ProtectedRoute requireAdmin={requireAdmin}>
+                  <h1>Protected content</h1>
+                </ProtectedRoute>
+              }
+            />
+          </Routes>
+        </AuthContext.Provider>
+      </MemoryRouter>
+    </HelmetProvider>
   );
 }
 
@@ -91,9 +95,10 @@ describe('ProtectedRoute', () => {
     expect(screen.getByRole('heading', { name: 'Protected content' })).toBeInTheDocument();
   });
 
-  it('keeps non-administrators out of admin pages', () => {
+  it('shows non-administrators the in-place 404 on admin pages, never a redirect', () => {
     renderGuard(account, true);
-    expect(screen.getByRole('heading', { name: 'Account' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Sorry, page not found!' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Account' })).not.toBeInTheDocument();
     expect(screen.queryByText('Protected content')).not.toBeInTheDocument();
   });
 });

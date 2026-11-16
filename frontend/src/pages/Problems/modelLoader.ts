@@ -1,7 +1,7 @@
 import { problemsApi, type ProblemCompilation } from '../../api/problems';
 import { problemFactsApi } from '../../entities/problem/facts';
-import type { ProblemFacts } from '../../shared/api/types';
-import { classifyAuthError, type AuthFailure } from '../../shared/api/errors';
+import type { ProblemFacts } from '../../modules/core/api/types';
+import { classifyAuthError, type AuthFailure } from '../../modules/core/api/errors';
 
 /** What reading the compilation of a revision gave: the compilation and its facts, or a failure that belongs to that part only. */
 export type ModelState =

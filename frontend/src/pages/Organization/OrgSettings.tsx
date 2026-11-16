@@ -11,7 +11,7 @@ import { Notice } from '../../components/ui/Notice';
 import { useResource } from '../../utils/useResource';
 import { ancestorsOf, atLeast, descendantsOf, pathOf } from './orgModel';
 import { generalFailure } from '../../features/workspace/errors';
-import { classifyAuthError, marker, type AuthFailure } from '../../shared/api/errors';
+import { classifyAuthError, marker, type AuthFailure } from '../../modules/core/api/errors';
 import { Choice, NeutralGate, PageSkeleton, RoleChip } from './parts';
 import { NotFoundScreen } from '../../routes/NotFoundScreen';
 import { OrgAudit } from './OrgAudit';

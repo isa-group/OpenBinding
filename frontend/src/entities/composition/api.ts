@@ -23,7 +23,7 @@ import type {
   PublicCompositionList,
   SealResult,
   ValidateResult,
-} from '../../shared/api/types';
+} from '../../modules/core/api/types';
 import type { Kind } from './document';
 
 /**

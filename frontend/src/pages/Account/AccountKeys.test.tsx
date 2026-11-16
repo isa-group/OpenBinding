@@ -3,7 +3,7 @@ import { MemoryRouter, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ApiKeySummary, CreatedApiKey, UserProfile } from '../../api/auth';
 import { HttpError } from '../../api/client';
-import { AuthContext } from '../../contexts/auth';
+import { AuthContext } from '../../modules/auth/hooks/useAuth';
 import { AccountKeys } from './AccountKeys';
 
 const api = vi.hoisted(() => ({
@@ -97,6 +97,7 @@ function renderKeys(address = '/app/account/keys') {
           signOut: vi.fn(),
           refresh: vi.fn(),
           isAdmin: false,
+          fetchWithInterceptor: vi.fn(),
         }}
       >
         <AccountKeys />

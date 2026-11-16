@@ -7,10 +7,10 @@
 // cached answer is read during render instead of being set from the effect.
 
 import { useEffect, useMemo, useState } from 'react';
-import { useAuth } from '../../contexts/auth';
+import { useAuth } from '../../modules/auth/hooks/useAuth';
 import { compositionsApi } from '../../entities/composition/api';
 import { versionChanges, type VersionChanges } from '../../entities/composition/changes';
-import type { CompositionVersionDiff } from '../../shared/api/types';
+import type { CompositionVersionDiff } from '../../modules/core/api/types';
 
 /** Two versions of a composition to compare, by id; `key` names the row or point that asks. */
 export interface ChangesTarget {

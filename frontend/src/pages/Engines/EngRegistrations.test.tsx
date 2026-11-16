@@ -3,7 +3,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { UserProfile } from '../../api/auth';
 import { HttpError, type EngineRegistrationRevision } from '../../api/client';
-import { AuthContext } from '../../contexts/auth';
+import { AuthContext } from '../../modules/auth/hooks/useAuth';
 import { EngRegistrations } from './EngRegistrations';
 import {
   EDGE_SOLVER,
@@ -67,6 +67,7 @@ function renderPage(options: { user?: UserProfile; entry?: string } = {}) {
           signOut: vi.fn(),
           refresh: vi.fn(),
           isAdmin: user.role === 'admin',
+          fetchWithInterceptor: vi.fn(),
         }}
       >
         <EngRegistrations />

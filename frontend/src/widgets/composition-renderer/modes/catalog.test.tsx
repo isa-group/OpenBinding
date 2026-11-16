@@ -2,7 +2,7 @@ import { render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 import { compositionViewModel, type Reader } from '../../../entities/composition/viewModel';
-import type { CompositionVersionView, CompositionView } from '../../../shared/api/types';
+import type { CompositionVersionView, CompositionView } from '../../../modules/core/api/types';
 import fmsVersion from '../../../test/fixtures/core/fms.version.json';
 import { CompositionRenderer } from '../CompositionRenderer';
 import type { Section } from '../presets';

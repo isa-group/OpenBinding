@@ -1,7 +1,7 @@
 import { Route, Routes } from 'react-router-dom';
 import { AppLayout } from '../layouts/AppLayout';
 import { PublicLayout } from '../layouts/PublicLayout';
-import { ProtectedRoute } from '../components/ProtectedRoute';
+import { ProtectedRoute } from '../modules/auth/components/protected-route';
 import { NotFoundScreen } from './NotFoundScreen';
 import { routeDefinitions } from './registry';
 import { SessionLayout } from './SessionLayout';

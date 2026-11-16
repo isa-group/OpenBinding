@@ -1,5 +1,5 @@
 import type { EngineRegistrationManifest } from '../../api/client';
-import type { ImmutableResourceRef } from '../../shared/api/types';
+import type { ImmutableResourceRef } from '../../modules/core/api/types';
 import { isRecord } from '../Engines/registrationModel';
 import { NAME_PATTERN, SEMVER_PATTERN, type Issue } from './engineDraft';
 

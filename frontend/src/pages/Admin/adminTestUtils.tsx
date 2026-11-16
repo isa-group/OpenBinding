@@ -4,7 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { vi } from 'vitest';
 import type { UserProfile } from '../../api/auth';
 import { HttpError } from '../../api/client';
-import { AuthContext } from '../../contexts/auth';
+import { AuthContext } from '../../modules/auth/hooks/useAuth';
 import { ALEX } from '../../test/fixtures/admin';
 
 /** Render a screen as a signed-in account would see it. Administrators by default; give `path` to read route parameters. */
@@ -31,6 +31,7 @@ export function renderAdmin(
           signOut: vi.fn(),
           refresh: vi.fn(),
           isAdmin: user.role === 'admin',
+          fetchWithInterceptor: vi.fn(),
         }}
       >
         {page}

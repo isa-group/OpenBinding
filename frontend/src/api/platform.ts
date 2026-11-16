@@ -1,4 +1,4 @@
-import type { AnalyticsView } from '../shared/api/types';
+import type { AnalyticsView } from '../modules/core/api/types';
 import { apiClient, type Revised } from './client';
 
 export type RunState = 'queued' | 'running' | 'completed' | 'failed' | 'cancelled' | 'partial';

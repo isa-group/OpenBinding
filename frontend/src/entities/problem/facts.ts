@@ -1,7 +1,7 @@
 import { bimApi } from '../../api/bim';
 import { apiClient, HttpError } from '../../api/client';
 import type { FeatureRange, FeatureValue } from '../../utils/featureRange';
-import type { ProblemFacts } from '../../shared/api/types';
+import type { ProblemFacts } from '../../modules/core/api/types';
 
 /**
  * The facts of a compiled problem (`GET …/compilations/{compilation}/facts`, A5): tasks with the candidates each can take and

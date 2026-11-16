@@ -11,7 +11,7 @@ import {
   usageUnknownText,
 } from '../../utils/limitRefusals';
 import { LIMIT, limitInfo } from '../../utils/limits';
-import { classifyAuthError, marker } from '../../shared/api/errors';
+import { classifyAuthError, marker } from '../../modules/core/api/errors';
 
 export type RunAction = 'launch' | 'retry' | 'cancel';
 

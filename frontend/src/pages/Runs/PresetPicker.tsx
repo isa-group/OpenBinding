@@ -12,9 +12,9 @@ import {
   presetOptionsText,
   presetRegistrationText,
 } from '../../entities/preset/preset';
-import { classifyAuthError, marker } from '../../shared/api/errors';
+import { classifyAuthError, marker } from '../../modules/core/api/errors';
 import { SLUG_PATTERN, slugFromName } from '../../shared/lib/slug';
-import type { RunPresetView } from '../../shared/api/types';
+import type { RunPresetView } from '../../modules/core/api/types';
 import type { ModeChoice } from './launchModel';
 import '../../components/ui/FormField.css';
 

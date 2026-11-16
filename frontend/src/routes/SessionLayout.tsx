@@ -1,4 +1,4 @@
-import { useAuth } from '../contexts/auth';
+import { useAuth } from '../modules/auth/hooks/useAuth';
 import { AppLayout } from '../layouts/AppLayout';
 import { PublicLayout } from '../layouts/PublicLayout';
 

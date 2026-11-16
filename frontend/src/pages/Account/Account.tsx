@@ -8,12 +8,12 @@ import {
   INSTITUTION_NAME,
   useInstitutionalBranding,
 } from '../../components/InstitutionMark/institution';
-import { useAuth } from '../../contexts/auth';
+import { useAuth } from '../../modules/auth/hooks/useAuth';
 import { formatDate } from '../../utils/format';
 import { personInitials } from '../../utils/initials';
 import { leaveTo } from '../../utils/navigation';
 import { useResource } from '../../utils/useResource';
-import { classifyAuthError } from '../../shared/api/errors';
+import { classifyAuthError } from '../../modules/core/api/errors';
 import { AccountLayout, PermissionNotice } from './AccountLayout';
 import { DeleteAccountDialog, EmailForm, PasswordForm } from './ProfileForms';
 

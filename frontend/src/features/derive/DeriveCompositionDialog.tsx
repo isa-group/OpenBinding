@@ -13,13 +13,13 @@ import { KIND_OPTIONS } from '../../entities/composition/kinds';
 import { formatValue } from '../../entities/composition/values';
 import { COMPOSITION_FILE } from '../../entities/composition/viewModel';
 import { compositionPath } from '../../routes/paths/compositions';
-import { readApiError } from '../../shared/api/errors';
+import { readApiError } from '../../modules/core/api/errors';
 import type {
   CompositionDerive,
   CompositionView,
   DeriveDraft,
   DeriveResult,
-} from '../../shared/api/types';
+} from '../../modules/core/api/types';
 import { fromC2y } from '../../shared/diagnostics/located';
 import { SLUG_PATTERN, slugFromName } from '../../shared/lib/slug';
 import { compositionFragment } from '../../shared/sphere/composition-fragment';

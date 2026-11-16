@@ -6,7 +6,7 @@ import { SiteFooter } from './SiteFooter';
 
 const auth = vi.hoisted(() => ({ user: null as UserProfile | null }));
 
-vi.mock('../../contexts/auth', () => ({ useAuth: () => auth }));
+vi.mock('../../modules/auth/hooks/useAuth', () => ({ useAuth: () => auth }));
 
 const member: UserProfile = {
   id: 'user-id',

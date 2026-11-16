@@ -16,7 +16,7 @@ vi.mock('../../api/client', async () => ({
   ...(await vi.importActual<typeof import('../../api/client')>('../../api/client')),
   apiClient: api,
 }));
-vi.mock('../../contexts/auth', () => ({ useAuth: () => auth }));
+vi.mock('../../modules/auth/hooks/useAuth', () => ({ useAuth: () => auth }));
 
 const engine = (name: string) => ({
   id: name,

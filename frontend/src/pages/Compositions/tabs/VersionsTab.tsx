@@ -21,13 +21,13 @@ import {
   type CompositionQuery,
   type VersionsView,
 } from '../../../routes/paths/compositions';
-import { classifyAuthError, marker, readApiError } from '../../../shared/api/errors';
+import { classifyAuthError, marker, readApiError } from '../../../modules/core/api/errors';
 import type {
   CompositionVersionDiff,
   CompositionVersionView,
   CompositionView,
   ProblemFacts,
-} from '../../../shared/api/types';
+} from '../../../modules/core/api/types';
 import { formatDate } from '../../../utils/format';
 import { useResource, type Resource } from '../../../utils/useResource';
 import { ChangeSummary } from '../../../widgets/change-summary/ChangeSummary';

@@ -4,7 +4,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../api/client';
 import type { ProblemUpload } from '../../api/problems';
 import { caseOf, org, renderOrgScreen, revisionOf } from '../../features/workspace/testKit';
-import type { CompositionVersionView, CompositionView, ProblemFacts } from '../../shared/api/types';
+import type {
+  CompositionVersionView,
+  CompositionView,
+  ProblemFacts,
+} from '../../modules/core/api/types';
 import fmsFacts from '../../test/fixtures/core/fms.facts.json';
 import fmsVersion from '../../test/fixtures/core/fms.version.json';
 import { ProblemDetail } from './ProblemDetail';

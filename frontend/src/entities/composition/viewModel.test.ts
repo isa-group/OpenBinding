@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import type { CompositionVersionView, CompositionView, ProblemFacts } from '../../shared/api/types';
+import type {
+  CompositionVersionView,
+  CompositionView,
+  ProblemFacts,
+} from '../../modules/core/api/types';
 import ambiguousVersion from '../../test/fixtures/core/ambiguous.version.json';
 import fmsFacts from '../../test/fixtures/core/fms.facts.json';
 import fmsVersion from '../../test/fixtures/core/fms.version.json';

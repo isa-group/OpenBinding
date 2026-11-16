@@ -7,7 +7,7 @@ import { FormField } from '../../components/ui/FormField';
 import { Modal } from '../../components/ui/Modal';
 import { MIN_PASSWORD_LENGTH } from '../Auth/passwordStrength';
 import { fallbackMessage } from './accountErrors';
-import { classifyAuthError, marker } from '../../shared/api/errors';
+import { classifyAuthError, marker } from '../../modules/core/api/errors';
 
 const EMAIL_PATTERN = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const WRONG_PASSWORD = 'That isn’t your current password (401 · invalid_credentials).';

@@ -1,6 +1,6 @@
 import type { CandidateMatrix } from '../../../entities/binding/candidateMatrix';
 import type { CompositionViewModel } from '../../../entities/composition/viewModel';
-import type { EvaluateResult } from '../../../shared/api/types';
+import type { EvaluateResult } from '../../../modules/core/api/types';
 import type { WrittenBinding } from './analysis';
 import { writtenBinding } from './calculatorModel';
 

@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../api/client';
-import type { CompositionDiagnosticView } from '../../shared/api/types';
+import type { CompositionDiagnosticView } from '../../modules/core/api/types';
 import { draftScope, loadDraft, saveDraft } from '../../shared/editor/drafts';
 import {
   CHECK_DELAY_MS,

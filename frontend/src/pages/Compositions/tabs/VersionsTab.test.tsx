@@ -6,7 +6,7 @@ import type {
   CompositionVersionDiff,
   CompositionVersionView,
   CompositionView,
-} from '../../../shared/api/types';
+} from '../../../modules/core/api/types';
 import fmsDiff from '../../../test/fixtures/core/fms.diff.json';
 import fmsFacts from '../../../test/fixtures/core/fms.facts.json';
 import fmsVersion from '../../../test/fixtures/core/fms.version.json';

@@ -10,7 +10,7 @@ import { Notice } from '../../components/ui/Notice';
 import { SLUG_PATTERN, slugFromName } from '../../shared/lib/slug';
 import { atLeast, buildForest, flatten, pathOf } from './orgModel';
 import { generalFailure } from '../../features/workspace/errors';
-import { classifyAuthError, marker } from '../../shared/api/errors';
+import { classifyAuthError, marker } from '../../modules/core/api/errors';
 import { Choice, OrgTile, RoleChip } from './parts';
 import './Organization.css';
 

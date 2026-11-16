@@ -6,7 +6,11 @@ import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { TabBar, TabPanel } from '../../components/ui/TabBar';
 import { useCopy } from '../../components/ui/useCopy';
-import type { CompositionVersionView, CompositionView, SealResult } from '../../shared/api/types';
+import type {
+  CompositionVersionView,
+  CompositionView,
+  SealResult,
+} from '../../modules/core/api/types';
 import { counts, type Located } from '../../shared/diagnostics/located';
 import { ProblemsPanel } from '../../widgets/problems-panel/ProblemsPanel';
 import { CodePane } from './CodePane';

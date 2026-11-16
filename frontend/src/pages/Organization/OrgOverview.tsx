@@ -18,7 +18,7 @@ import { useResource } from '../../utils/useResource';
 import { ValueBadge } from '../../widgets/value-badge/ValueBadge';
 import { createAddress } from './createDialog';
 import { ancestorsOf, atLeast, byName, roleSource } from './orgModel';
-import { classifyAuthError, marker } from '../../shared/api/errors';
+import { classifyAuthError, marker } from '../../modules/core/api/errors';
 import { Breadcrumb } from '../../features/workspace/parts';
 import { NeutralGate, OrgTile, PageSkeleton, RoleChip } from './parts';
 import { useRouteOrganization } from './useRouteOrganization';

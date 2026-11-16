@@ -9,7 +9,7 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { FilterPills } from '../../components/ui/FilterPills';
 import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
-import { useAuth } from '../../contexts/auth';
+import { useAuth } from '../../modules/auth/hooks/useAuth';
 import { formatDate } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import { ConfirmDialog } from '../Engines/EngineDialogs';

@@ -6,12 +6,12 @@ import {
   apiClient,
   PRICING_TOKEN_UPDATED_EVENT,
   SESSION_ENDED_EVENT,
-} from '../api/client';
-import type { UserProfile } from '../api/auth';
-import { ErrorState } from '../components/ui/ErrorState';
-import { clearSessionEnded, markSessionEnded } from '../utils/authFlow';
-import { clearUserDrafts } from '../shared/editor/drafts';
-import { AuthContext } from './auth';
+} from '../../../api/client';
+import type { UserProfile } from '../../../api/auth';
+import { ErrorState } from '../../../components/ui/ErrorState';
+import { clearSessionEnded, markSessionEnded } from '../../../utils/authFlow';
+import { clearUserDrafts } from '../../../shared/editor/drafts';
+import { AuthContext } from './authContext';
 
 /**
  * Who is signed in, for the whole interface.
@@ -155,6 +155,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signOut,
         refresh: loadProfile,
         isAdmin: user?.role === 'admin',
+        fetchWithInterceptor: apiClient.fetchWithInterceptor,
       }}
     >
       {unavailable && !user && !loading ? (

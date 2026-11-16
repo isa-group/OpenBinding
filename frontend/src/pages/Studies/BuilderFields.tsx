@@ -11,7 +11,7 @@ import {
   presetOptionsText,
   studyPresetRefusal,
 } from '../../entities/preset/preset';
-import type { RunPresetView } from '../../shared/api/types';
+import type { RunPresetView } from '../../modules/core/api/types';
 import {
   MAX_SETTINGS,
   latestExecutable,

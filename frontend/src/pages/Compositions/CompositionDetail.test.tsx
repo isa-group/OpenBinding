@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../api/client';
 import { org, renderOrgScreen } from '../../features/workspace/testKit';
-import type { CompositionVersionView, CompositionView } from '../../shared/api/types';
+import type { CompositionVersionView, CompositionView } from '../../modules/core/api/types';
 import fmsFacts from '../../test/fixtures/core/fms.facts.json';
 import fmsVersion from '../../test/fixtures/core/fms.version.json';
 import { CompositionDetail } from './CompositionDetail';

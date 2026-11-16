@@ -16,7 +16,7 @@ import { Skeleton } from '../../components/ui/Skeleton';
 import { studyRunLabel } from '../../shared/lib/identity';
 import { formatDateTime } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
-import { classifyAuthError, marker } from '../../shared/api/errors';
+import { classifyAuthError, marker } from '../../modules/core/api/errors';
 import { saveBytes } from '../../features/workspace/download';
 import {
   DistributionPlot,

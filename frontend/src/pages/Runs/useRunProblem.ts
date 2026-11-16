@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { runProblemOf } from '../../components/rendering/runProblem';
 import type { RunProblem } from '../../components/rendering/runResultModel';
 import { problemFactsApi } from '../../entities/problem/facts';
-import type { ProblemFacts } from '../../shared/api/types';
+import type { ProblemFacts } from '../../modules/core/api/types';
 import type { Origin } from './RunOutcome';
 
 interface RunProblemState {

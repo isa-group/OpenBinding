@@ -5,7 +5,7 @@ import type {
   CompletionSource,
 } from '@codemirror/autocomplete';
 import { languageApi } from '../../entities/composition/api';
-import type { ProblemFacts } from '../../shared/api/types';
+import type { ProblemFacts } from '../../modules/core/api/types';
 import { cursorPlace, ITEM, type CursorPlace } from './yamlText';
 
 /**

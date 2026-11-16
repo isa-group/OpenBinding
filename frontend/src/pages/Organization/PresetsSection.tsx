@@ -17,8 +17,8 @@ import {
 } from '../../entities/preset/preset';
 import { generalFailure } from '../../features/workspace/errors';
 import { launchPath } from '../../routes/paths/runs';
-import { classifyAuthError, marker } from '../../shared/api/errors';
-import type { RunPresetList, RunPresetView } from '../../shared/api/types';
+import { classifyAuthError, marker } from '../../modules/core/api/errors';
+import type { RunPresetList, RunPresetView } from '../../modules/core/api/types';
 import { formatDate } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import { atLeast } from './orgModel';

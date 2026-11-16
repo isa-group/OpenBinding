@@ -7,14 +7,14 @@ import {
   type EngineRegistrationRevision,
   type EngineRevision,
 } from '../../api/client';
-import type { ImmutableResourceRef } from '../../shared/api/types';
+import type { ImmutableResourceRef } from '../../modules/core/api/types';
 import { Action } from '../../components/ui/Action';
 import { Notice } from '../../components/ui/Notice';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { OrganizationPicker } from '../../components/ui/OrganizationPicker';
 import { launchPath } from '../../routes/paths/runs';
 import { Skeleton } from '../../components/ui/Skeleton';
-import { useAuth } from '../../contexts/auth';
+import { useAuth } from '../../modules/auth/hooks/useAuth';
 import { useResource } from '../../utils/useResource';
 import {
   ConformanceChecklist,

@@ -1,6 +1,6 @@
 import { isComparisonWord, type ComparisonWord } from '../../../entities/binding/comparison';
 import type { CompositionViewModel } from '../../../entities/composition/viewModel';
-import type { CompositionMove } from '../../../shared/api/types';
+import type { CompositionMove } from '../../../modules/core/api/types';
 import type { WrittenBinding } from './analysis';
 
 // The calculator's rows: the toolchain's one-task moves of a version's binding, as the gateway answered them. The model only places

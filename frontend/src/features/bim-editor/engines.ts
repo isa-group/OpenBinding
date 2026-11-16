@@ -1,4 +1,4 @@
-import type { ImmutableResourceRef } from '../../shared/api/types';
+import type { ImmutableResourceRef } from '../../modules/core/api/types';
 import { RANGE_CODE, RANGE_REFUSAL } from '../../utils/featureRange';
 import { isRecord, type Diagnostic } from './documents';
 

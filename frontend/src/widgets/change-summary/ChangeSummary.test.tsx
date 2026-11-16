@@ -1,7 +1,7 @@
 import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { versionChanges } from '../../entities/composition/changes';
-import type { CompositionVersionDiff } from '../../shared/api/types';
+import type { CompositionVersionDiff } from '../../modules/core/api/types';
 import fms from '../../test/fixtures/core/fms.diff.json';
 import { ChangeSummary } from './ChangeSummary';
 

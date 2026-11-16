@@ -4,7 +4,7 @@ import { useCurrentIntoView } from '../../components/PlatformShell/useCurrentInt
 import { Action } from '../../components/ui/Action';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { Notice } from '../../components/ui/Notice';
-import { useAuth } from '../../contexts/auth';
+import { useAuth } from '../../modules/auth/hooks/useAuth';
 import { Crumbs } from '../Engines/EngineParts';
 import { ADMIN_SECTIONS, type AdminSection, type ChipTone, type Failure } from './adminModel';
 import './AdminScreens.css';

@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../../api/client';
 import { candidateMatrix } from '../../../entities/binding/candidateMatrix';
 import { compositionViewModel } from '../../../entities/composition/viewModel';
-import type { CompositionVersionView, ProblemFacts } from '../../../shared/api/types';
+import type { CompositionVersionView, ProblemFacts } from '../../../modules/core/api/types';
 import { EVALUATED, FMS_COMPOSITION, fmsVersionView } from '../../../test/fixtures/analysis';
 import fmsFacts from '../../../test/fixtures/core/fms.facts.json';
 import { CompositionRenderer } from '../CompositionRenderer';

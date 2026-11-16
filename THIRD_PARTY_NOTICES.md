@@ -97,6 +97,10 @@ Generated from the origin header of each file.
 |---|---|---|
 | `frontend/src/features/composition-editor/UploadDialog.tsx` | `frontend/src/modules/pricing/components/pricing-import-modal/index.tsx` | pattern-only |
 | `frontend/src/features/fork/ForkCompositionDialog.tsx` | `frontend/src/modules/pricing/components/fork-pricing-modal/index.tsx` | pattern-only |
+| `frontend/src/modules/beta/components/beta-badge/index.tsx` | `frontend/src/modules/beta/components/beta-badge/index.tsx` | verbatim |
+| `frontend/src/modules/beta/components/beta-gate/index.tsx` | `frontend/src/modules/beta/components/beta-gate/index.tsx` | verbatim |
+| `frontend/src/modules/beta/config/betaFeatures.ts` | `frontend/src/modules/beta/config/betaFeatures.ts` | adapted |
+| `frontend/src/modules/beta/hooks/useBetaFeatures.ts` | `frontend/src/modules/beta/hooks/useBetaFeatures.ts` | adapted |
 | `frontend/src/modules/core/components/404-logo/index.tsx` | `frontend/src/modules/core/components/404-logo/index.tsx` | adapted |
 | `frontend/src/modules/core/components/action-button/index.tsx` | `frontend/src/modules/core/components/action-button/index.tsx` | adapted |
 | `frontend/src/modules/core/components/alert-modal/index.tsx` | `frontend/src/modules/core/components/alert-modal/index.tsx` | adapted |

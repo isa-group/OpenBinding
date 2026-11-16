@@ -9,8 +9,13 @@ import { HttpError } from '../../api/client';
 import { problemsApi, type ProblemUpload } from '../../api/problems';
 import { compositionsApi } from '../../entities/composition/api';
 import { bindingSelection } from '../../entities/composition/viewModel';
-import { refusalOf, refusalText, saveRefusalText, type Refusal } from '../../shared/api/refusals';
-import type { ProblemFacts } from '../../shared/api/types';
+import {
+  refusalOf,
+  refusalText,
+  saveRefusalText,
+  type Refusal,
+} from '../../modules/core/api/refusals';
+import type { ProblemFacts } from '../../modules/core/api/types';
 import { fromBimAll } from '../../shared/diagnostics/bim';
 import type { Located } from '../../shared/diagnostics/located';
 import { draftScope as scopeOf, loadDraft } from '../../shared/editor/drafts';

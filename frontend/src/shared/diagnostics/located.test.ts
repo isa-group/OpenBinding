@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { CompositionDiagnosticView } from '../api/types';
+import type { CompositionDiagnosticView } from '../../modules/core/api/types';
 import { byLocation, counts, fromC2y, locatedKey, type Located } from './located';
 
 const TEXT = 'syntaxVersion: "1.0"\ncomposition: shop\nworkflow: {seq: [pick, ship]}\n';

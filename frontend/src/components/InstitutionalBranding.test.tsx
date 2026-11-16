@@ -14,7 +14,7 @@ const auth = vi.hoisted(() => ({
 }));
 const platform = vi.hoisted(() => ({ organizations: vi.fn(), projects: vi.fn() }));
 
-vi.mock('../contexts/auth', () => ({ useAuth: () => auth }));
+vi.mock('../modules/auth/hooks/useAuth', () => ({ useAuth: () => auth }));
 vi.mock('../api/platform', () => ({ platformApi: platform }));
 
 const researchUser: UserProfile = {

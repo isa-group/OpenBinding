@@ -1,4 +1,4 @@
-import type { CompositionVersionView } from '../../shared/api/types';
+import type { CompositionVersionView } from '../../modules/core/api/types';
 
 export interface FactsSource {
   problem: string;

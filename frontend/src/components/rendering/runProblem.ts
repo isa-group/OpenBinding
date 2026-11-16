@@ -1,4 +1,4 @@
-import type { ProblemFacts } from '../../shared/api/types';
+import type { ProblemFacts } from '../../modules/core/api/types';
 import type { RunProblem } from './runResultModel';
 
 /**

@@ -5,7 +5,7 @@ import type { CandidateMatrix as Matrix } from '../../../entities/binding/candid
 import { compositionsApi } from '../../../entities/composition/api';
 import { formatValue } from '../../../entities/composition/values';
 import type { CompositionViewModel } from '../../../entities/composition/viewModel';
-import type { EvaluateResult } from '../../../shared/api/types';
+import type { EvaluateResult } from '../../../modules/core/api/types';
 import {
   createScheduler,
   pausedMessage,

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { readApiError } from '../../shared/api/errors';
+import { readApiError } from '../../modules/core/api/errors';
 import version from '../../test/fixtures/core/fms.version.json';
 import { clearCompositionContentCache, compositionsApi, languageApi } from './api';
 

@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { UserProfile } from '../../api/auth';
 import type { BimDiagnostic, BimRefusal, BimValidateResponse } from '../../api/bim';
 import { HttpError } from '../../api/client';
-import { AuthContext } from '../../contexts/auth';
+import { AuthContext } from '../../modules/auth/hooks/useAuth';
 import refusedPackage from '../../test/fixtures/core/refused.package.json';
 import refusedBody from '../../test/fixtures/core/refused.validate.json';
 import simpleSeq from '../../test/fixtures/core/simple-seq.validate.json';
@@ -82,6 +82,7 @@ function renderPage(path = '/workbench', user: UserProfile | null = null) {
           signOut: vi.fn(),
           refresh: vi.fn(),
           isAdmin: false,
+          fetchWithInterceptor: vi.fn(),
         }}
       >
         <WorkbenchPage />

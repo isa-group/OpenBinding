@@ -7,8 +7,8 @@ import type { CompositionViewModel } from '../../../entities/composition/viewMod
 import { DeriveCompositionDialog } from '../../../features/derive/DeriveCompositionDialog';
 import { bindingDerivation, nextMinor } from '../../../features/derive/deriveModel';
 import { compositionPath } from '../../../routes/paths/compositions';
-import { readApiError } from '../../../shared/api/errors';
-import type { CompositionView } from '../../../shared/api/types';
+import { readApiError } from '../../../modules/core/api/errors';
+import type { CompositionView } from '../../../modules/core/api/types';
 import { compositionFragment } from '../../../shared/sphere/composition-fragment';
 import { CompositionRenderer } from '../../../widgets/composition-renderer/CompositionRenderer';
 import {

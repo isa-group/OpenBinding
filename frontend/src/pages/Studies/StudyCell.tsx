@@ -13,7 +13,7 @@ import { problemPath } from '../../routes/paths/problems';
 import { runPath } from '../../routes/paths/runs';
 import { formatDateTime } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
-import { classifyAuthError, marker } from '../../shared/api/errors';
+import { classifyAuthError, marker } from '../../modules/core/api/errors';
 import { normalizeStatus } from '../Runs/runsModel';
 import { RefusalNotice } from '../Runs/parts';
 import { Choice } from '../Organization/parts';

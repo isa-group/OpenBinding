@@ -4,7 +4,7 @@
 // Changes: the input is the gateway's version diff (CompositionVersionDiff), whose sections are binding, values and
 // offering; `priceChanges` becomes `candidateChanges` and `valueChanges`, and the diff's `comparison` is carried.
 
-import type { CompositionVersionDiff } from '../api/types';
+import type { CompositionVersionDiff } from '../../modules/core/api/types';
 
 type SectionKey = CompositionVersionDiff['sections'][number]['key'];
 

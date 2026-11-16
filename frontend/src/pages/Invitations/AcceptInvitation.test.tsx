@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { UserProfile } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import type { Organization, OrganizationMember } from '../../api/platform';
-import { AuthContext } from '../../contexts/auth';
+import { AuthContext } from '../../modules/auth/hooks/useAuth';
 import { AcceptInvitation } from './AcceptInvitation';
 
 const api = vi.hoisted(() => ({ organizations: vi.fn(), acceptInvitation: vi.fn() }));
@@ -76,6 +76,7 @@ function renderPage(
           signOut: vi.fn(),
           refresh: vi.fn(),
           isAdmin: false,
+          fetchWithInterceptor: vi.fn(),
         }}
       >
         <Routes>

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../api/client';
-import { readApiError } from '../../shared/api/errors';
+import { readApiError } from '../../modules/core/api/errors';
 import { presetsApi } from './api';
 import { presetFixture } from '../../test/fixtures/presets';
 

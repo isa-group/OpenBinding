@@ -3,7 +3,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { QuotaError, type CreatedApiKey, type UserProfile } from '../../api/auth';
 import { HttpError, type EngineCatalogEntry } from '../../api/client';
-import { AuthContext } from '../../contexts/auth';
+import { AuthContext } from '../../modules/auth/hooks/useAuth';
 import { AccountKeyNew } from './AccountKeyNew';
 
 const api = vi.hoisted(() => ({ getEngines: vi.fn(), createApiKey: vi.fn() }));
@@ -56,6 +56,7 @@ function renderWizard(user: UserProfile = person()) {
           signOut: vi.fn(),
           refresh: vi.fn(),
           isAdmin: user.role === 'admin',
+          fetchWithInterceptor: vi.fn(),
         }}
       >
         <AccountKeyNew onClose={onClose} onCreated={onCreated} />

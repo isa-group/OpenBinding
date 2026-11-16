@@ -14,8 +14,8 @@ import { KIND_OPTIONS, isKind, kindLabel } from '../../entities/composition/kind
 import { valueStatus } from '../../entities/composition/values';
 import { OrgGate, OrgSkeleton } from '../../features/workspace/OrgFrame';
 import { compositionPath, compositionsPath } from '../../routes/paths/compositions';
-import { classifyAuthError, marker } from '../../shared/api/errors';
-import type { CompositionView } from '../../shared/api/types';
+import { classifyAuthError, marker } from '../../modules/core/api/errors';
+import type { CompositionView } from '../../modules/core/api/types';
 import { formatDate } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import { ValueBadge } from '../../widgets/value-badge/ValueBadge';

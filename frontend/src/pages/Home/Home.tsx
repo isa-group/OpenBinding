@@ -20,7 +20,7 @@ import { Button } from '../../components/ui/Button';
 import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { PRICING_VERSION, planSummaries } from '../../content/plans';
-import { useAuth } from '../../contexts/auth';
+import { useAuth } from '../../modules/auth/hooks/useAuth';
 import { useResource, type Resource } from '../../utils/useResource';
 import {
   COMPATIBILITY_GATE,

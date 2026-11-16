@@ -1,7 +1,7 @@
 import type { TaskOverlay } from '../../../../entities/binding/workflowGraph';
 import { formatDiffValue, type DiffSide } from '../../../../entities/composition/changes';
 import type { TaskModel } from '../../../../entities/composition/viewModel';
-import type { CompositionVersionDiff } from '../../../../shared/api/types';
+import type { CompositionVersionDiff } from '../../../../modules/core/api/types';
 
 /**
  * How the comparison mode reads the gateway's diff of two versions: which entries a kind filter keeps, how a field change is

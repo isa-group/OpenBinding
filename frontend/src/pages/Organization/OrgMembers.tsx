@@ -16,7 +16,7 @@ import { FormField } from '../../components/ui/FormField';
 import { Modal } from '../../components/ui/Modal';
 import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
-import { useAuth } from '../../contexts/auth';
+import { useAuth } from '../../modules/auth/hooks/useAuth';
 import { problemField } from '../../api/problem';
 import { formatDate, formatDateTime } from '../../utils/format';
 import { personInitials } from '../../utils/initials';
@@ -34,7 +34,7 @@ import {
 } from './orgModel';
 import { isForbidden } from './orgErrors';
 import { generalFailure } from '../../features/workspace/errors';
-import { classifyAuthError, marker, type AuthFailure } from '../../shared/api/errors';
+import { classifyAuthError, marker, type AuthFailure } from '../../modules/core/api/errors';
 import { NeutralGate, PageSkeleton, RoleChip, SelectField } from './parts';
 import { OrgSettingsLayout } from './OrgSettingsLayout';
 import { useRouteOrganization } from './useRouteOrganization';

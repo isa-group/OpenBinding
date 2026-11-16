@@ -8,7 +8,7 @@ import type { DerivedPoint } from '../../features/derive/DeriveBatch';
 import { DeriveCompositionDialog } from '../../features/derive/DeriveCompositionDialog';
 import type { FrontPoint } from '../../features/derive/deriveModel';
 import { compositionPath } from '../../routes/paths/compositions';
-import type { ParetoFront as Front } from '../../shared/api/types';
+import type { ParetoFront as Front } from '../../modules/core/api/types';
 import { FrontComparison, type ComparedPoint } from './FrontComparison';
 import {
   frontPointOf,

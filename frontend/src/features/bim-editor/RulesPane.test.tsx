@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import type { ProblemFacts } from '../../shared/api/types';
+import type { ProblemFacts } from '../../modules/core/api/types';
 import completeFacts from '../../test/fixtures/core/json-complete.facts.json';
 import refusedPackage from '../../test/fixtures/core/refused.package.json';
 import { DEFAULT_FILES, type WorkspaceFiles } from './documents';

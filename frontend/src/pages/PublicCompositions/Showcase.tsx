@@ -6,7 +6,7 @@ import { platformApi, type Organization } from '../../api/platform';
 import { Action } from '../../components/ui/Action';
 import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
-import { useAuth } from '../../contexts/auth';
+import { useAuth } from '../../modules/auth/hooks/useAuth';
 import { compositionsApi } from '../../entities/composition/api';
 import { pickVersion } from '../../entities/composition/versionRef';
 import { compositionViewModel } from '../../entities/composition/viewModel';
@@ -17,8 +17,8 @@ import {
   publicCompositionsPath,
   showcasePath,
 } from '../../routes/paths/compositions';
-import { classifyAuthError, marker } from '../../shared/api/errors';
-import type { CompositionVersionView, CompositionView } from '../../shared/api/types';
+import { classifyAuthError, marker } from '../../modules/core/api/errors';
+import type { CompositionVersionView, CompositionView } from '../../modules/core/api/types';
 import { useResource } from '../../utils/useResource';
 import { CompositionRenderer } from '../../widgets/composition-renderer/CompositionRenderer';
 import './PublicCompositions.css';

@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { BimDiagnostic, BimRefusal } from '../../api/bim';
 import { HttpError } from '../../api/client';
-import type { CompositionVersionView, ProblemFacts } from '../../shared/api/types';
+import type { CompositionVersionView, ProblemFacts } from '../../modules/core/api/types';
 import { draftScope, loadDraft, saveDraft } from '../../shared/editor/drafts';
 import fmsFacts from '../../test/fixtures/core/fms.facts.json';
 import fmsVersion from '../../test/fixtures/core/fms.version.json';

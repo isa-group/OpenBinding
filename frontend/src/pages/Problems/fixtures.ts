@@ -1,4 +1,4 @@
-import type { ProblemFacts } from '../../shared/api/types';
+import type { ProblemFacts } from '../../modules/core/api/types';
 
 /** Shared by the tests of the case screens and the browser specs: digests, the facts of a compiled checkout and the contents of its package. */
 export const digestOf = (char: string) => `sha256-${char.repeat(64)}`;

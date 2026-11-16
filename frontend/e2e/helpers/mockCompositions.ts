@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import type { CompositionVersionView, CompositionView } from '../../src/shared/api/types';
+import type { CompositionVersionView, CompositionView } from '../../src/modules/core/api/types';
 
 // The compositions of the shared mock (e2e/helpers/mockApi.ts registers them): in `isa-demo`, a declared composition and one linked
 // to the problem `checkout-flow`, three versions each, with evaluations and analytics, and an archived one with no version. The

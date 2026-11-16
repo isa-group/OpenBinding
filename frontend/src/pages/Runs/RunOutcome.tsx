@@ -9,10 +9,10 @@ import { Notice } from '../../components/ui/Notice';
 import { comparisonText } from '../../entities/binding/comparison';
 import { DeriveCompositionDialog } from '../../features/derive/DeriveCompositionDialog';
 import { problemPath, problemEditorPath } from '../../routes/paths/problems';
-import { classifyAuthError, marker } from '../../shared/api/errors';
+import { classifyAuthError, marker } from '../../modules/core/api/errors';
 import { normalizeStatus, numberText, violationsOf } from './runsModel';
 import { useRunProblem } from './useRunProblem';
-import type { NeighborhoodResponse } from '../../shared/api/types';
+import type { NeighborhoodResponse } from '../../modules/core/api/types';
 
 /** What a run is of: the organization and problem it names, the version and the compilation it ran. */
 export interface Origin {
