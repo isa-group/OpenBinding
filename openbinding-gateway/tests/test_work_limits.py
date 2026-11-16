@@ -468,6 +468,8 @@ COMPOSITION = "/v1/organizations/{org}/compositions/{composition}"
 #: one composition 404 (nothing is there), the list of every organization's 200 (empty).
 ANONYMOUS_REQUESTS = {
     ("GET", "/v1/compositions"): ("/v1/compositions", 200),
+    ("GET", "/v1/organizations/public"): ("/v1/organizations/public", 200),
+    ("GET", "/v1/organizations/{org}/profile"): ("/v1/organizations/no-such-org/profile", 404),
     ("GET", COMPOSITION): ("/v1/organizations/{org}/compositions/none", 404),
     ("GET", f"{COMPOSITION}/versions"): ("/v1/organizations/{org}/compositions/none/versions", 404),
     ("GET", f"{COMPOSITION}/versions/{{version}}"): ("/v1/organizations/{org}/compositions/none/versions/1", 404),

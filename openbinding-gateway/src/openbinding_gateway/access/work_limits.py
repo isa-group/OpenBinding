@@ -92,6 +92,9 @@ WORK_ROUTES: dict[tuple[str, str], WorkClass] = {
 #: OpenAPI document declares the 429 from it.
 ANONYMOUS_READ_ROUTES: frozenset[tuple[str, str]] = frozenset({
     ("GET", "/v1/compositions"),
+    # The organizations that publish a composition, and the public profile of one.
+    ("GET", "/v1/organizations/public"),
+    ("GET", "/v1/organizations/{org}/profile"),
     ("GET", "/v1/organizations/{org}/compositions/{composition}"),
     ("GET", "/v1/organizations/{org}/compositions/{composition}/versions"),
     ("GET", "/v1/organizations/{org}/compositions/{composition}/versions/{version}"),

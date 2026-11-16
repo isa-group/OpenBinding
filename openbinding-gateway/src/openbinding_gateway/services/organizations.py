@@ -13,19 +13,24 @@ import re
 import secrets
 import unicodedata
 import uuid
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Awaitable, Callable, Iterable
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..collaboration import ROLE_STRENGTH, ancestor_ids
+from ..core.like import LIKE_ESCAPE, like_contains
 from ..db.models import (
     BindingCase,
     Blob,
     Composition,
+    CompositionVersion,
     Job,
     Organization,
     OrganizationMembership,
+    OrganizationRole,
     Study,
 )
 from ..models.platform import (
@@ -171,3 +176,113 @@ async def stats(session: AsyncSession, organization_ids: Iterable[uuid.UUID]) ->
         )
         for oid in ids
     }
+
+
+# -- Public profiles, branches and the caller's tree ------------------------------------------------------
+
+
+def _public_compositions(organization_id_column):
+    """The public compositions an organization shows anybody: public, not archived, with a version, as the
+    public composition list (``GET /v1/compositions``) has them."""
+    return select(func.count(Composition.id)).where(
+        Composition.organization_id == organization_id_column,
+        Composition.visibility == "public",
+        Composition.archived.is_(False),
+        select(CompositionVersion.id).where(CompositionVersion.composition_id == Composition.id).exists(),
+    ).scalar_subquery()
+
+
+async def public_composition_count(session: AsyncSession, organization_id: uuid.UUID) -> int:
+    """How many public compositions ``organization_id`` shows; one or more gives it a public profile (Q8)."""
+    return int(await session.scalar(select(_public_compositions(organization_id))) or 0)
+
+
+async def public_roots(
+    session: AsyncSession, *, q: str | None, limit: int, offset: int,
+) -> tuple[list[tuple[Organization, int]], int]:
+    """The root organizations with at least one public composition, by name, each with that count, as SPHERE's
+    ``findPublicRoots``: a text matches the slug, the name or the description."""
+    count = _public_compositions(Organization.id).label("public_compositions")
+    query = select(Organization, count).where(Organization.parent_id.is_(None), count > 0)
+    if q:
+        pattern = like_contains(q)
+        query = query.where(or_(
+            Organization.slug.ilike(pattern, escape=LIKE_ESCAPE),
+            Organization.name.ilike(pattern, escape=LIKE_ESCAPE),
+            Organization.description.ilike(pattern, escape=LIKE_ESCAPE),
+        ))
+    total = int(await session.scalar(select(func.count()).select_from(query.subquery())) or 0)
+    rows = await session.execute(
+        query.order_by(Organization.name, Organization.created_at.desc(), Organization.id).offset(offset).limit(limit)
+    )
+    return [(organization, int(found)) for organization, found in rows.all()], total
+
+
+@dataclass(frozen=True)
+class Placed:
+    """An organization of a tree with the caller's effective role there and the organization that grants it."""
+
+    organization: Organization
+    role: OrganizationRole | None
+    source: Organization | None
+
+
+def place(
+    organizations: dict[uuid.UUID, Organization], direct: dict[uuid.UUID, OrganizationRole],
+) -> dict[uuid.UUID, Placed]:
+    """Each organization's effective role: the strongest direct role on it or on an ancestor within
+    ``organizations`` (the nearest one on a tie), and where that role comes from."""
+    placed: dict[uuid.UUID, Placed] = {}
+    for oid, organization in organizations.items():
+        best: tuple[OrganizationRole, Organization] | None = None
+        current: Organization | None = organization
+        seen: set[uuid.UUID] = set()
+        while current is not None and current.id not in seen:
+            seen.add(current.id)
+            role = direct.get(current.id)
+            if role is not None and (best is None or ROLE_STRENGTH[role] > ROLE_STRENGTH[best[0]]):
+                best = (role, current)
+            current = organizations.get(current.parent_id) if current.parent_id else None
+        placed[oid] = Placed(organization, best[0] if best else None, best[1] if best else None)
+    return placed
+
+
+async def _direct_roles(
+    session: AsyncSession, user_id: uuid.UUID, organization_ids: Iterable[uuid.UUID] | None = None,
+) -> dict[uuid.UUID, OrganizationRole]:
+    query = select(OrganizationMembership.organization_id, OrganizationMembership.role).where(
+        OrganizationMembership.user_id == user_id
+    )
+    if organization_ids is not None:
+        query = query.where(OrganizationMembership.organization_id.in_(list(organization_ids)))
+    return {oid: role for oid, role in (await session.execute(query)).all()}
+
+
+async def _subtree(session: AsyncSession, root_ids: list[uuid.UUID]) -> dict[uuid.UUID, Organization]:
+    """The organizations ``root_ids`` and every organization below them, in one recursive query."""
+    if not root_ids:
+        return {}
+    below = (
+        select(Organization.id.label("id")).where(Organization.id.in_(root_ids))
+        .cte(name="organization_subtree", recursive=True)
+    )
+    below = below.union_all(select(Organization.id).join(below, Organization.parent_id == below.c.id))
+    rows = await session.scalars(select(Organization).where(Organization.id.in_(select(below.c.id))))
+    return {organization.id: organization for organization in rows.all()}
+
+
+async def caller_tree(session: AsyncSession, user_id: uuid.UUID) -> dict[uuid.UUID, Placed]:
+    """Every organization the caller holds a role in, directly or below one, with that role and its source."""
+    direct = await _direct_roles(session, user_id)
+    return place(await _subtree(session, list(direct)), direct)
+
+
+async def branch(session: AsyncSession, organization: Organization, user_id: uuid.UUID) -> dict[uuid.UUID, Placed]:
+    """The whole branch ``organization`` sits in (its root and everything below it), each node with the caller's
+    effective role there, as SPHERE's ``getHierarchy``: two queries for the tree and one for the roles."""
+    chain = await ancestor_ids(session, organization.id)
+    root_id = await session.scalar(
+        select(Organization.id).where(Organization.id.in_(chain), Organization.parent_id.is_(None))
+    )
+    nodes = await _subtree(session, [root_id])
+    return place(nodes, await _direct_roles(session, user_id, nodes))

@@ -32,7 +32,7 @@ describe('workspaceSlugs', () => {
 
   it('reserves the slugs the gateway refuses (slug_reserved), and only those', () => {
     expect([...RESERVED_SLUGS].sort()).toEqual([
-      'account', 'admin', 'compositions', 'engines', 'invitations', 'join', 'new', 'organizations', 'presets', 'problem-editor', 'problems', 'runs',
+      'account', 'admin', 'compositions', 'engines', 'invitations', 'join', 'new', 'organizations', 'presets', 'problem-editor', 'problems', 'public', 'runs',
       'settings', 'studies',
     ]);
     expect([...RESERVED_SLUGS].sort()).toEqual(gatewayReservedSlugs());

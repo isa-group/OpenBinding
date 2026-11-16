@@ -46,6 +46,10 @@ from ..core import revision
 from ..models.errors import ErrorResponse, api_error
 from ..models.platform import (
     AvatarSelection,
+    HierarchyNode,
+    OrganizationRef,
+    PublicOrganizationList,
+    PublicOrganizationView,
     InvitationAccept,
     InvitationCreate,
     InvitationCreated,
@@ -58,7 +62,8 @@ from ..models.platform import (
     RESERVED_ORGANIZATION_SLUGS,
 )
 from ..repositories import organizations as organization_repository
-from ..access.dependencies import get_current_user, session_dependency
+from ..access.dependencies import get_current_user, get_reader, session_dependency
+from ..access.work_limits import charge_anonymous_read
 from ..modules.shared.application import put_row, read_verified, write_file
 from ..services import organizations as profiles
 
@@ -66,6 +71,8 @@ router = APIRouter(prefix="/v1/organizations", tags=["Organizations"])
 invitation_router = APIRouter(prefix="/v1/invitations", tags=["Organizations"])
 #: The predefined avatars, open to anybody (an ``<img>`` sends no credential).
 avatar_router = APIRouter(prefix="/v1/avatars", tags=["Organizations"])
+#: The routes anybody reads answer by credential, so caches key on it.
+_VARY = "Authorization, X-API-Key"
 
 
 def _audit(session: AsyncSession, user: User, action: str, target, organization_id=None, **detail) -> None:
@@ -143,19 +150,83 @@ async def _org_view(session: AsyncSession, organization: Organization, user: Use
     return _profile_view(organization, role, counted[organization.id])
 
 
-@router.get("", response_model=list[OrganizationView], operation_id="listOrganizations")
+def _ref(organization: Organization | None) -> OrganizationRef | None:
+    return OrganizationRef(id=organization.id, slug=organization.slug, name=organization.name) if organization else None
+
+
+@router.get(
+    "",
+    response_model=list[OrganizationView],
+    operation_id="listOrganizations",
+    responses={200: {"headers": {"X-Total-Count": {
+        "description": "How many organizations (with `tree=true`, top-level nodes) there are in all.",
+        "schema": {"type": "integer"},
+    }}}},
+)
 async def list_organizations(
+    response: Response,
+    tree: bool = Query(
+        default=False,
+        description="Nest the organizations: the top-level nodes of the caller's tree, each with its `children` "
+        "and the `role_source` of its role, as SPHERE's `/users/me/orgs`.",
+    ),
+    limit: int | None = Query(default=None, ge=1, le=200, description="At most this many (top-level) nodes."),
+    offset: int = Query(default=0, ge=0),
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> list[OrganizationView]:
-    organizations = await organization_repository.list_all(session)
-    readable = []
-    for organization in organizations:
-        role = await effective_role(session, organization.id, user)
-        if role is not None:
-            readable.append((organization, role))
-    counted = await profiles.stats(session, [organization.id for organization, _ in readable])
-    return [_profile_view(organization, role, counted[organization.id]) for organization, role in readable]
+    """The organizations the caller holds a role in, directly or through an ancestor, by name; ``tree=true``
+    nests them under the organizations the caller reaches first."""
+    placed = await profiles.caller_tree(session, user.id)
+    counted = await profiles.stats(session, list(placed))
+    by_name = sorted(placed.values(), key=lambda node: (node.organization.name.casefold(), node.organization.slug))
+
+    def view(node: profiles.Placed, nested: bool) -> OrganizationView:
+        built = _profile_view(node.organization, node.role, counted[node.organization.id])
+        built.role_source = _ref(node.source)
+        if nested:
+            built.children = [
+                view(child, True) for child in by_name if child.organization.parent_id == node.organization.id
+            ]
+        return built
+
+    chosen = [node for node in by_name if not tree or node.organization.parent_id not in placed]
+    response.headers["X-Total-Count"] = str(len(chosen))
+    page = chosen[offset:offset + limit if limit is not None else None]
+    return [view(node, tree) for node in page]
+
+
+@router.get(
+    "/public",
+    response_model=PublicOrganizationList,
+    operation_id="listPublicOrganizations",
+    dependencies=[Depends(charge_anonymous_read)],
+)
+async def list_public_organizations(
+    response: Response,
+    q: str | None = Query(default=None, max_length=100, description="Text in the slug, the name or the description."),
+    limit: int = Query(default=12, ge=1, le=50),
+    offset: int = Query(default=0, ge=0),
+    user: User | None = Depends(get_reader),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> PublicOrganizationList:
+    """The root organizations that publish at least one composition, by name; anybody reads them.
+
+    SPHERE lists every root organization (``GET /orgs/public``); OpenBinding shows an organization to
+    non-members only once it has a public composition (Q8), so no other organization appears here.
+    """
+    rows, total = await profiles.public_roots(session, q=(q or "").strip() or None, limit=limit, offset=offset)
+    response.headers["Vary"] = _VARY
+    response.headers["Cache-Control"] = "private, no-cache"
+    return PublicOrganizationList(items=[_public_view(row, count) for row, count in rows], total=total)
+
+
+def _public_view(organization: Organization, count: int) -> PublicOrganizationView:
+    return PublicOrganizationView(
+        id=organization.id, slug=organization.slug, name=organization.name,
+        description=organization.description or "", avatar=profiles.avatar_view(organization),
+        public_compositions=count,
+    )
 
 
 @router.post(
@@ -231,6 +302,58 @@ async def get_organization(
     await require_role(session, organization, user, OrganizationRole.VIEWER)
     revision.set_etag(response, organization)
     return await _org_view(session, organization, user)
+
+
+@router.get(
+    "/{org}/profile",
+    response_model=PublicOrganizationView,
+    operation_id="getOrganizationProfile",
+    dependencies=[Depends(charge_anonymous_read)],
+    responses={404: {"model": ErrorResponse, "description": "No such organization, or it shows nothing to the caller."}},
+)
+async def get_organization_profile(
+    org: str,
+    response: Response,
+    user: User | None = Depends(get_reader),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> PublicOrganizationView:
+    """An organization's public profile: who it is, its avatar and description, and how many compositions it
+    publishes. Anybody reads the profile of an organization with a public composition (Q8); its members read
+    it always. Any other caller gets the 404 of a missing organization."""
+    organization = await organization_by_ref(session, org)
+    count = await profiles.public_composition_count(session, organization.id) if organization else 0
+    member = organization is not None and user is not None and await effective_role(session, organization.id, user)
+    if organization is None or (count == 0 and not member):
+        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Organization not found.")
+    response.headers["Vary"] = _VARY
+    response.headers["Cache-Control"] = "private, no-cache"
+    return _public_view(organization, count)
+
+
+@router.get(
+    "/{org}/hierarchy",
+    response_model=list[HierarchyNode],
+    operation_id="getOrganizationHierarchy",
+    responses={404: {"model": ErrorResponse, "description": "No such organization, or the caller is not a member of it."}},
+)
+async def get_organization_hierarchy(
+    org: str,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> list[HierarchyNode]:
+    """The whole branch the organization sits in (its root, and everything below the root), flat and by name,
+    each node saying whether the caller opens it, as SPHERE's ``GET /orgs/{id}/hierarchy``. For its members
+    only: anybody else gets 404."""
+    organization, _ = await _readable_org(session, org, user)
+    nodes = await profiles.branch(session, organization, user.id)
+    return [
+        HierarchyNode(
+            id=node.organization.id, slug=node.organization.slug, name=node.organization.name,
+            avatar=profiles.avatar_view(node.organization), parent_id=node.organization.parent_id,
+            has_access=node.role is not None, effective_role=node.role.value if node.role else None,
+        )
+        for node in sorted(nodes.values(), key=lambda node: (node.organization.name.casefold(), node.organization.slug))
+    ]
 
 
 @router.patch(

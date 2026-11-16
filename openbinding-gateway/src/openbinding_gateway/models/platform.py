@@ -23,10 +23,12 @@ DIGEST = r"^sha256-[0-9a-f]{64}$"
 
 #: Organization slugs that would collide with a fixed place of the application (``/app/<slug>``, and the
 #: static children ``/orgs/new`` and ``/orgs/join/:code``) or a section under an organization; the frontend
-#: mirrors them in ``PlatformShell/workspacePath.ts``. A slug derived from a name never takes one either.
+#: mirrors them in ``PlatformShell/workspacePath.ts``. A slug derived from a name never takes one either, and
+#: ``public`` would shadow ``GET /v1/organizations/public``.
 RESERVED_ORGANIZATION_SLUGS = frozenset({
     "admin", "account", "engines", "organizations", "invitations",
     "compositions", "presets", "runs", "problems", "studies", "settings", "problem-editor", "new", "join",
+    "public",
 })
 
 #: A colour the avatar pickers produce: ``#rgb`` or ``#rrggbb``.
@@ -76,6 +78,12 @@ class OrganizationAvatar(BaseModel):
     fg_color: Optional[str] = None
 
 
+class OrganizationRef(BaseModel):
+    id: uuid.UUID
+    slug: str
+    name: str
+
+
 class OrganizationView(BaseModel):
     id: uuid.UUID
     slug: str
@@ -84,8 +92,40 @@ class OrganizationView(BaseModel):
     avatar: OrganizationAvatar = Field(default_factory=OrganizationAvatar)
     parent_id: Optional[uuid.UUID]
     effective_role: Optional[Role] = None
+    #: The organization whose membership gives ``effective_role``: this one, or an ancestor (``tree=true``).
+    role_source: Optional[OrganizationRef] = None
     stats: Optional[OrganizationStats] = None
+    #: The sub-organizations the caller holds a role in, by name (``tree=true`` only).
+    children: Optional[list["OrganizationView"]] = None
     created_at: datetime
+
+
+class PublicOrganizationView(BaseModel):
+    """What anybody reads of an organization with a public composition: who it is and what it publishes."""
+
+    id: uuid.UUID
+    slug: str
+    name: str
+    description: str
+    avatar: OrganizationAvatar
+    public_compositions: int
+
+
+class PublicOrganizationList(BaseModel):
+    items: list[PublicOrganizationView]
+    total: int
+
+
+class HierarchyNode(BaseModel):
+    """One organization of a branch (``GET /v1/organizations/{org}/hierarchy``), and whether the caller opens it."""
+
+    id: uuid.UUID
+    slug: str
+    name: str
+    avatar: OrganizationAvatar
+    parent_id: Optional[uuid.UUID]
+    has_access: bool
+    effective_role: Optional[Role] = None
 
 
 class AvatarSelection(BaseModel):
