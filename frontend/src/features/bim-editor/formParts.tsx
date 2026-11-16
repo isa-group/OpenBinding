@@ -3,7 +3,7 @@ import { Action } from '../../components/ui/Action';
 import {
   DEFAULT_AST_ASSERTION, DEFAULT_CEL_ASSERTION, IDENTIFIER_PATTERN, isRecord, isSourceExpression, nextIdentifier, optionalNumber,
   type InternalReference, type NumberMap,
-} from './bimDocuments';
+} from './documents';
 
 /** The pieces the resource forms are made of: sections, cards, renaming fields and the small editors for maps, references and expressions. */
 

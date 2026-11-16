@@ -7,12 +7,13 @@ import { migrateFiles } from '../../utils/bimVocabulary';
 import { draftScope as scopeOfDraft, loadDraft } from '../../shared/editor/drafts';
 import { useDraftStore } from '../../shared/editor/useDraftStore';
 import { sourceDiff, toYaml } from '../../utils/workspaceViews';
+import { refusalOf, refusalText, saveRefusalText, type Refusal } from '../../shared/api/refusals';
 import {
-  DEFAULT_BPMN, DEFAULT_FILES, allModesFromAnalysis, diagnosticSelection, errorDiagnostics, instanceResources,
-  modesFromAnalysis, parseJson, pretty, resourcePathForDiagnostic,
-  type BimDocument, type CompatibleMode, type CompiledIr, type Diagnostic, type WorkspaceFiles, type WorkspaceStatus,
-} from './bimDocuments';
-import { refusalOf, refusalText, saveRefusalText, type Refusal } from './workbenchModel';
+  DEFAULT_BPMN, DEFAULT_FILES, errorDiagnostics, instanceResources, parseJson, pretty,
+  type BimDocument, type CompiledIr, type Diagnostic, type WorkspaceFiles, type WorkspaceStatus,
+} from '../../features/bim-editor/documents';
+import { allModesFromAnalysis, modesFromAnalysis, type CompatibleMode } from '../../features/bim-editor/engines';
+import { diagnosticSelection, resourcePathForDiagnostic } from './bimDocuments';
 
 export type EditorTab = 'resources' | 'form' | 'bpmn';
 export type SourceView = 'json' | 'yaml' | 'workflow' | 'bpmnXml' | 'ir' | 'diff';

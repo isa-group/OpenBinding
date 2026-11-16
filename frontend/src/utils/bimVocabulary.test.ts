@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_FILES } from '../pages/Workbench/bimDocuments';
+import { DEFAULT_FILES } from '../features/bim-editor/documents';
 import { LEGACY_ANNOTATION, migrateDocument, migrateFiles } from './bimVocabulary';
 
 // Documents kept before the editors wrote the vocabulary of the schemas: read in both, written in the real one, nothing dropped.

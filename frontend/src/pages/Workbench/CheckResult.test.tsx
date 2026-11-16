@@ -2,7 +2,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import { checkoutFacts, compiledDocument } from '../Problems/fixtures';
-import type { Diagnostic } from './bimDocuments';
+import type { Diagnostic } from '../../features/bim-editor/documents';
 import { CheckResult } from './CheckResult';
 import type { Workbench } from './useWorkbench';
 

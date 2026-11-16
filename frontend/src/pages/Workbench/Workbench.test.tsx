@@ -21,7 +21,7 @@ vi.mock('../../components/CodeEditor/CodeEditor', () => ({
     <textarea aria-label={ariaLabel} value={value} readOnly={readOnly} onChange={(event) => onChange(event.target.value)} />
   ),
 }));
-vi.mock('./BpmnModeler', () => ({ BpmnModeler: () => <div data-testid="bpmn-modeler" /> }));
+vi.mock('../../features/bim-editor/BpmnModeler', () => ({ BpmnModeler: () => <div data-testid="bpmn-modeler" /> }));
 
 const checkout = caseOf('flujo-checkout', 'Flujo de checkout');
 const r1 = revisionOf(checkout, 1);

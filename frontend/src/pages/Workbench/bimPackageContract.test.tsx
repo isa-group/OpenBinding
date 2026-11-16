@@ -2,7 +2,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { saveDraft } from '../../shared/editor/drafts';
 import { unzipPackage } from '../../utils/bimZip';
-import { DEFAULT_FILES } from './bimDocuments';
+import { DEFAULT_FILES } from '../../features/bim-editor/documents';
 import { analysis, openWorkbench } from './workbenchTestKit';
 
 // The contract between the workbench and the compiler of the gateway. `src/test/fixtures/bim-package` holds the package the workbench
@@ -23,7 +23,7 @@ vi.mock('../../components/CodeEditor/CodeEditor', () => ({
     <textarea aria-label={ariaLabel} value={value} readOnly={readOnly} onChange={(event) => onChange(event.target.value)} />
   ),
 }));
-vi.mock('./BpmnModeler', () => ({ BpmnModeler: () => <div data-testid="bpmn-modeler" /> }));
+vi.mock('../../features/bim-editor/BpmnModeler', () => ({ BpmnModeler: () => <div data-testid="bpmn-modeler" /> }));
 
 /** Where the workbench of the test organization keeps the draft of a new problem for Lucía. */
 const DRAFT_SCOPE = 'user-lucia:problem:isa-demo:new:none';

@@ -131,18 +131,19 @@ describe('the vocabulary scanner', () => {
   });
 });
 
-// The sources of the problem area: the problem list and page, and the workbench except its source panel.
+// The sources of the problem area: the problem list and page, the workbench except its source panel, and the BIM editor's forms.
 const sources = import.meta.glob(
-  ['/src/pages/Problems/**/*.{ts,tsx}', '/src/pages/Workbench/**/*.{ts,tsx}'],
+  ['/src/pages/Problems/**/*.{ts,tsx}', '/src/pages/Workbench/**/*.{ts,tsx}', '/src/features/bim-editor/**/*.{ts,tsx}'],
   { query: '?raw', import: 'default', eager: true },
 ) as Record<string, string>;
 const area = Object.fromEntries(Object.entries(sources).filter(([path]) => !/\/pages\/Workbench\/SourcePanel[^/]*$/.test(path)));
 
 describe('the problem area', () => {
-  it('reads the sources of pages/Problems and pages/Workbench (not SourcePanel)', () => {
+  it('reads the sources of pages/Problems, pages/Workbench (not SourcePanel) and features/bim-editor', () => {
     const paths = Object.keys(area);
     expect(paths.filter((path) => path.includes('/pages/Problems/') && !isTestSupport(path)).length).toBeGreaterThan(10);
     expect(paths.filter((path) => path.includes('/pages/Workbench/') && !isTestSupport(path)).length).toBeGreaterThan(10);
+    expect(paths.filter((path) => path.includes('/features/bim-editor/') && !isTestSupport(path)).length).toBeGreaterThan(5);
     expect(paths.some((path) => /SourcePanel/.test(path))).toBe(false);
   });
 

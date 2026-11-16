@@ -4,13 +4,13 @@ import { Action } from '../../components/ui/Action';
 import { Chip } from '../../components/ui/Chip';
 import { Notice } from '../../components/ui/Notice';
 import { TabBar, TabPanel } from '../../components/ui/TabBar';
-import { RESOURCE_ROLE_LABELS, registeredResourceLabel } from './bimDocuments';
-import { packageContext } from './packageContext';
-import { CommonResourceForm } from './resourceForms';
+import { RESOURCE_ROLE_LABELS, registeredResourceLabel } from '../../features/bim-editor/documents';
+import { CommonResourceForm } from '../../features/bim-editor/forms/ResourceForms';
+import { packageContext } from '../../features/bim-editor/packageContext';
 import { SourcePanel } from './SourcePanel';
 import type { EditorTab, Workbench } from './useWorkbench';
 
-const BpmnModeler = lazy(() => import('./BpmnModeler').then((module) => ({ default: module.BpmnModeler })));
+const BpmnModeler = lazy(() => import('../../features/bim-editor/BpmnModeler').then((module) => ({ default: module.BpmnModeler })));
 
 /** Edit the package without leaving the page: the resources as forms, the workflow as a diagram, the raw files behind “View source”. */
 export function PackageEditor({ wb }: { wb: Workbench }) {

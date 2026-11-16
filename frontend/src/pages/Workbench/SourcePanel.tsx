@@ -5,7 +5,7 @@ import { Notice } from '../../components/ui/Notice';
 import { TabBar, TabPanel } from '../../components/ui/TabBar';
 import { useCopy } from '../../components/ui/useCopy';
 import { BindingSpaceBadge } from '../../components/BindingSpaceBadge/BindingSpaceBadge';
-import { pretty } from './bimDocuments';
+import { pretty } from '../../features/bim-editor/documents';
 import { SourceView } from '../../components/rendering/SourceView';
 import type { SourceView as SourceViewId, Workbench } from './useWorkbench';
 

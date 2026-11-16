@@ -4,7 +4,7 @@ import type { Problem, ProblemRevision } from '../src/api/problems';
 import { checkoutFacts, compiledDocument } from '../src/pages/Problems/fixtures';
 import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
 import { digestOf, usageOf } from '../src/test/fixtures/resources';
-import { DEFAULT_FILES } from '../src/pages/Workbench/bimDocuments';
+import { DEFAULT_FILES } from '../src/features/bim-editor/documents';
 import { zipStore } from '../src/utils/bimZip';
 
 // S5d · workbench: problem-editor.

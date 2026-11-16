@@ -2,7 +2,7 @@ import {
   isRecord, parseJson, pretty,
   type BimDocument, type BimSpecDocument, type CandidateDocument, type InternalReference, type NormalizeDocument, type OptimizationCriterionDocument,
   type ResourceEntry, type WorkspaceFiles,
-} from './bimDocuments';
+} from './documents';
 
 /**
  * What a form needs to know about the other documents of the package so that what it writes compiles with them. The compiler checks several

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { DEFAULT_FILES, instanceResources, parseJson, pretty, type BimDocument, type BimSpecDocument } from './bimDocuments';
+import { DEFAULT_FILES, instanceResources, parseJson, pretty, type BimDocument, type BimSpecDocument } from './documents';
 import {
   bindingIsDeclared, candidatesMissingValues, chooseProvider, criteriaNeedingScale, declareProvider, declaredProviders, normalizedCriteria,
   packageContext, providerIsDeclared, removeProvider, scaleFor, standaloneContext, unboundFeatures, withPenaltyFor, type PackageContext,

@@ -189,22 +189,22 @@ export function BpmnModeler({ candidateXml, fallbackXml = '', focusElement, onVa
 
   return (
     <div className="wb-bpmn">
-      <div className="wb-bpmn-bar" role="toolbar" aria-label="Diagram tools">
-        <div className="wb-bpmn-group">
+      <div className="pe-bpmn-bar" role="toolbar" aria-label="Diagram tools">
+        <div className="pe-bpmn-group">
           <button type="button" onClick={() => step('undo')} disabled={!history.undo} aria-label="Undo diagram edit"><Undo2 aria-hidden="true" />Undo</button>
           <button type="button" onClick={() => step('redo')} disabled={!history.redo} aria-label="Redo diagram edit"><Redo2 aria-hidden="true" />Redo</button>
         </div>
-        <div className="wb-bpmn-group">
+        <div className="pe-bpmn-group">
           <button type="button" onClick={() => zoomBy(-0.2)} aria-label="Zoom out"><ZoomOut aria-hidden="true" /></button>
           <button type="button" onClick={() => zoomBy(0.2)} aria-label="Zoom in"><ZoomIn aria-hidden="true" /></button>
           <button type="button" onClick={fit} aria-label="Fit the diagram to the view"><Maximize2 aria-hidden="true" />Fit</button>
         </div>
-        <span className="wb-bpmn-hint">Drag shapes from the palette on the left; select one to rename it.</span>
+        <span className="pe-bpmn-hint">Drag shapes from the palette on the left; select one to rename it.</span>
       </div>
-      <div className="wb-bpmn-stage">
+      <div className="pe-bpmn-stage">
         <div className="bpmn-modeler" ref={container} aria-label="Editable BPMN diagram" />
-        <aside className="wb-bpmn-panel" aria-label="Selected element">
-          <span className="wb-bpmn-eyebrow">Selected</span>
+        <aside className="pe-bpmn-panel" aria-label="Selected element">
+          <span className="pe-bpmn-eyebrow">Selected</span>
           {selected ? (
             <>
               <strong>{typeLabel(selected.type)}</strong>

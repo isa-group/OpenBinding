@@ -9,8 +9,11 @@ import { TabBar, TabPanel } from '../../components/ui/TabBar';
 import { useCopy } from '../../components/ui/useCopy';
 import { workflowGraph, type TaskOverlay } from '../../entities/binding/workflowGraph';
 import { WorkflowGraph } from '../../widgets/workflow-graph/WorkflowGraph';
-import { resourcePathForDiagnostic, type Diagnostic, type ResourceEntry } from './bimDocuments';
-import { LIMIT_KINDS, engineRows, goalTerms, packageFileList, refusalMarker, refusalText, type Refusal } from './workbenchModel';
+import type { Diagnostic, ResourceEntry } from '../../features/bim-editor/documents';
+import { engineRows } from '../../features/bim-editor/engines';
+import { LIMIT_KINDS, refusalMarker, refusalText, type Refusal } from '../../shared/api/refusals';
+import { resourcePathForDiagnostic } from './bimDocuments';
+import { goalTerms, packageFileList } from './workbenchModel';
 import type { Workbench } from './useWorkbench';
 
 type ResultView = 'analysis' | 'engines' | 'files';

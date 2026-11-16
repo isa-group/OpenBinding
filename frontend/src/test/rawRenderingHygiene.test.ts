@@ -369,7 +369,7 @@ describe('the allow-list', () => {
   });
 
   it('has no entry for the library content view, which slice 3 retires, nor for the feature cell the Workbench took over', () => {
-    expect([...RAW_RENDERING_ALLOW_LIST, ...UNLISTED_FINDINGS].filter((entry) => entry.file.startsWith('pages/Workbench/FeatureCell'))).toEqual([]);
+    expect([...RAW_RENDERING_ALLOW_LIST, ...UNLISTED_FINDINGS].filter((entry) => entry.file.startsWith('features/bim-editor/FeatureCell'))).toEqual([]);
     expect(Object.keys(sources).filter((path) => path.includes('/pages/Library/'))).toEqual([]);
   });
 

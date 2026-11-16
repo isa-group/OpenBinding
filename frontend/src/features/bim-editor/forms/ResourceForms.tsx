@@ -1,22 +1,22 @@
 import { useState } from 'react';
-import { Action } from '../../components/ui/Action';
-import { Notice } from '../../components/ui/Notice';
-import { FeatureCell } from './FeatureCell';
+import { Action } from '../../../components/ui/Action';
+import { Notice } from '../../../components/ui/Notice';
+import { FeatureCell } from '../FeatureCell';
 import {
   DEFAULT_AST_ASSERTION, DEFAULT_CEL_ASSERTION, IDENTIFIER_PATTERN, candidateFeatures, isRecord, isRegisteredResourceRef, nextIdentifier, optionalNumber,
   withCandidateFeatures,
   type BimDocument, type BimSpecDocument, type CandidateDocument, type CapabilityDocument, type ConstraintDocument, type FeatureDocument,
   type InternalReference, type OptimizationCriterionDocument, type OptimizationPenaltyDocument, type PlacementCapacityRuleDocument,
   type PlacementGlobalLatencyDocument, type PlacementTransitionDocument, type RoutingEntryDocument, type ScalarMap, type TaskDocument,
-} from './bimDocuments';
+} from '../documents';
 import {
   ConstraintExpressionEditor, EmptyFormState, FormCard, FormSection, JsonObjectEditor, NumberMapEditor, ReferenceEditor, ReferenceListEditor,
   RenameField,
-} from './formParts';
+} from '../formParts';
 import {
   bindingIsDeclared, candidatesMissingValues, chooseProvider, criteriaNeedingScale, declareProvider, declaredProviders, featureKey, findFeature,
   normalizedCriteria, providerIsDeclared, removeProvider, scaleFor, unboundFeatures, withPenaltyFor, type PackageContext,
-} from './packageContext';
+} from '../packageContext';
 
 /** One form per kind of document a package holds. They edit the document in place and never see raw JSON unless the person asks for the source. */
 
