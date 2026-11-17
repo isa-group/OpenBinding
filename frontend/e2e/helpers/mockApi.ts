@@ -1261,6 +1261,25 @@ function route(request: Request): Reply | null {
       if (!second) return ok({ engines: OWN_ENGINES });
       if (second === 'revisions') return ok({ revisions: [] });
       if (second === 'protocol') return ok({ profiles: [PROFILE] });
+      // One revision of the catalog (`/v1/engines/{namespace}/{name}/revisions/{version}`): its state and no registration.
+      if (parts[4] === 'revisions' && parts[5]) {
+        const engine = OWN_ENGINES.find(
+          item => item.namespace === second && item.name === third && item.version === parts[5]
+        );
+        return engine
+          ? ok({
+              id: `${engine.namespace}/${engine.name}@${engine.version}`,
+              namespace: engine.namespace,
+              name: engine.name,
+              version: engine.version,
+              digest: engine.digest,
+              state: engine.namespace === 'bim.builtin' ? 'published' : 'private',
+              createdAt: null,
+              document: {},
+              registration: null,
+            })
+          : notFound('Engine revision not found.');
+      }
       return null;
     case 'bim':
       if (second === 'templates')

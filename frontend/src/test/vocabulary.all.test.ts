@@ -22,10 +22,10 @@ const scanned = Object.fromEntries(
 const ALL_WORDS = wordPattern(['case', 'cases', 'job', 'jobs', 'publication', 'publications']);
 const WORDS_WITHOUT_PUBLICATION = wordPattern(['case', 'cases', 'job', 'jobs']);
 
-// The three engine-registration screens (`eng-register`, `eng-registrations`, `eng-registration-detail`) keep the engine publication text:
-// they are scanned for the other four words only.
+// The three engine-registration screens (`eng-register`, `eng-registrations`, `eng-registration-detail`), with the cards and forms
+// they are drawn with and the lifecycle wording, keep the engine publication text: they are scanned for the other four words only.
 const ENGINE_REGISTRATION =
-  /^\/src\/pages\/(RegisterEngine\/|Engines\/(EngRegistrations|EngRegistrationDetail|registrationModel)\.)/;
+  /^\/src\/modules\/engine\/(pages\/(register|my-engines|registration)\/|components\/(my-deployments|engine-form|deployment-form)\/|api\/registrationModel\.)/;
 
 // Files that still show a forbidden word and that a later task owns; none is left. An entry is a path with the reason.
 // The test below fails when an entry no longer matches, so the list cannot go stale.

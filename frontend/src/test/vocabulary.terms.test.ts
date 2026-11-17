@@ -98,9 +98,9 @@ const PLAN_WITH_PROPOSAL = /^(?=[\s\S]*\bproposals?\b)[\s\S]*\bplans?\b/i;
  * the scanner does not read). The composition-first Home copy is reviewed in the visual QA instead.
  */
 const OUTSIDE: Readonly<Record<string, string>> = {
-  '/src/pages/RegisterEngine/DeploymentForm.tsx':
+  '/src/modules/engine/components/deployment-form/index.tsx':
     'an engine deployment, registered with the platform',
-  '/src/pages/Engines/EngineParts.tsx':
+  '/src/modules/engine/components/engine-parts/index.tsx':
     'an engine deployment, and "Verified" for the outcome of its conformance probe',
   '/src/modules/run/pages/create/index.tsx': 'the engine deployment a federated run is sent to',
   '/src/modules/auth/components/login-form/index.tsx': 'this OpenBinding installation',

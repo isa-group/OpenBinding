@@ -491,40 +491,34 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await page.goto('/engines');
       const main = page.locator('main');
 
-      await expect(main.getByRole('heading', { level: 1, name: 'Engine catalog' })).toBeVisible();
-      await expect(
-        main.getByText('Showing public engines. Log in to also see private engines you own.')
-      ).toBeVisible();
+      await expect(main.getByRole('heading', { level: 1, name: 'Engines' })).toBeVisible();
+      await expect(main.getByText(/Showing public engines\./)).toBeVisible();
       await expect(main.getByRole('link', { name: 'Log in' })).toHaveAttribute(
         'href',
         '/authentication'
       );
-      const list = main.getByRole('region', { name: 'Engines' });
-      await expect(list.getByRole('link')).toHaveCount(3);
-      await expect(list.getByRole('link').first()).toHaveAttribute(
+      await expect(main.getByText('3 engine revisions found')).toBeVisible();
+      const cards = main.getByRole('article');
+      await expect(cards).toHaveCount(3);
+      const first = main.getByRole('article', { name: 'bim.builtin/random-search 1.0.0' });
+      await expect(first.getByRole('link', { name: 'bim.builtin/random-search' })).toHaveAttribute(
         'href',
         '/engines/bim.builtin/random-search/1.0.0'
       );
-      await expect(list.getByRole('link').first()).toContainText('mode · sampling');
-      await expect(main.getByText('3 engine revisions')).toBeVisible();
+      await expect(first).toContainText('mode · sampling');
+      await expect(first).toContainText('Published');
       await expect(main.getByRole('link', { name: 'Register engine' })).toHaveCount(0);
-      await expect(main.getByRole('heading', { name: 'My deployments' })).toHaveCount(0);
       await ready(page);
-
-      // Two modes side by side.
-      await main.getByRole('checkbox', { name: 'Compare random-search · sampling' }).check();
-      await main.getByRole('checkbox', { name: 'Compare minizinc · cp' }).check();
-      const comparison = main.getByLabel('Comparison');
-      await expect(comparison).toContainText('qos-binding-placement/v1');
-      await expect(comparison).toContainText('time_budget_ms (ms, 60,000)');
-      const revisions = main.getByRole('region', { name: 'Engine revisions' });
-      await expect(revisions.getByRole('row', { name: /evolutionary/ })).toContainText('Published');
       await shot(page, testInfo, 'engines-visitor');
 
-      await main.getByRole('button', { name: 'Minizinc' }).click();
-      await expect(main.getByText('1 engine revision', { exact: true })).toBeVisible();
-      await main.getByRole('searchbox', { name: 'Search engines' }).fill('zzz');
-      await expect(main.getByText('No revision matches “zzz”.')).toBeVisible();
+      await main.getByRole('button', { name: 'Filters' }).click();
+      const filters = main.getByRole('group', { name: 'Filters' });
+      await filters.getByRole('checkbox', { name: 'Minizinc' }).check();
+      await filters.getByRole('button', { name: 'Apply filters' }).click();
+      await expect(main.getByText('1 engine revision found')).toBeVisible();
+      await expect(page).toHaveURL(/[?&]family=minizinc/);
+      await page.goto('/engines?q=zzz');
+      await expect(main.getByText('No engine revisions found')).toBeVisible();
 
       await expectNoHorizontalOverflow(page);
       expect(critical).toEqual([]);
@@ -536,9 +530,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const main = page.locator('main');
 
       await expect(main.getByText(/Showing engines visible to your account/)).toBeVisible();
-      const edge = main
-        .getByRole('region', { name: 'Engines' })
-        .getByRole('link', { name: /edge-solver/ });
+      const edge = main.getByRole('article', { name: /edge-solver/ });
       for (const chip of [
         'Private · yours',
         'Registration active',
@@ -546,17 +538,14 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         'Listing not requested',
       ])
         await expect(edge.getByText(chip)).toBeVisible();
-      await expect(main.getByRole('link', { name: 'My registrations' })).toHaveAttribute(
+      await expect(main.getByRole('link', { name: 'My engines' })).toHaveAttribute(
         'href',
-        '/app/engines/registrations'
+        '/me/engines'
       );
       await expect(main.getByRole('link', { name: 'Register engine' })).toHaveAttribute(
         'href',
-        '/app/engines/new'
+        '/me/engines/new'
       );
-      await expect(main.getByRole('heading', { name: 'My deployments' })).toBeVisible();
-      await expect(main.getByRole('heading', { name: 'edge-solver' })).toBeVisible();
-      await expect(main.getByRole('button', { name: 'Deactivate edge-solver' })).toBeVisible();
       await ready(page);
       await shot(page, testInfo, 'engines-signed-in');
       await expectNoHorizontalOverflow(page);
@@ -569,13 +558,13 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await page.goto('/engines');
       const main = page.locator('main');
       await expect(main.getByRole('alert')).toContainText(
-        'The catalog couldn’t be loaded (HTTP 503).'
+        'The engine revisions could not be loaded.'
       );
       await ready(page);
       await shot(page, testInfo, 'engines-error');
       await page.route(`${API}/v1/engines`, json({ engines: [randomSearch] }));
       await main.getByRole('button', { name: 'Retry' }).click();
-      await expect(main.getByRole('region', { name: 'Engines' })).toBeVisible();
+      await expect(main.getByText('1 engine revision found')).toBeVisible();
       await expect(main.getByRole('alert')).toHaveCount(0);
     });
 
@@ -588,14 +577,22 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const main = page.locator('main');
 
       await expect(
-        main.getByRole('heading', { level: 1, name: 'bim.builtin/random-search@1.0.0' })
+        main.getByRole('heading', { level: 1, name: 'bim.builtin/random-search' })
       ).toBeVisible();
-      await expect(main.getByRole('button', { name: 'Copy exact reference' })).toBeVisible();
+      await expect(main.getByRole('button', { name: 'Get engine' })).toBeVisible();
       await expect(main).not.toContainText(/sha256-|[0-9a-f]{12}/);
-      await expect(main.getByRole('link', { name: 'Log in to run' })).toHaveAttribute(
-        'href',
-        '/authentication'
-      );
+      if (isMobile) {
+        await main.getByRole('button', { name: 'More actions' }).click();
+        await expect(main.getByRole('menuitem', { name: 'Log in to run' })).toHaveAttribute(
+          'href',
+          '/authentication'
+        );
+        await page.keyboard.press('Escape');
+      } else
+        await expect(main.getByRole('link', { name: 'Log in to run' })).toHaveAttribute(
+          'href',
+          '/authentication'
+        );
       const options = main.getByRole('region', { name: 'Options of mode sampling' });
       await expect(main.getByLabel('Plan to preview')).toHaveValue('FREE');
       await expect(options.getByRole('row', { name: /iterations/ })).toContainText(
@@ -626,8 +623,11 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         'Not reduced by plan'
       );
 
-      await main.getByRole('tab', { name: /Capabilities/ }).click();
-      await expect(page).toHaveURL(/\/engines\/bim\.builtin\/random-search\/1\.0\.0\?tab=caps$/);
+      const tabs = main.getByRole('navigation', { name: 'Engine sections' });
+      await tabs.getByRole('link', { name: /Capabilities/ }).click();
+      await expect(page).toHaveURL(
+        /\/engines\/bim\.builtin\/random-search\/1\.0\.0\?tab=capabilities$/
+      );
       const capabilities = main.getByRole('region', { name: 'Capabilities by dimension' });
       await expect(capabilities.getByRole('row', { name: /IR extensions/ })).toContainText(
         'qos-binding-placement/v1'
@@ -637,7 +637,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       );
       await shot(page, testInfo, 'engine-detail-capabilities');
 
-      await main.getByRole('tab', { name: /Registrations/ }).click();
+      await tabs.getByRole('link', { name: /Registrations/ }).click();
       await expect(
         main.getByText(/No deployment registrations are listed for this revision/)
       ).toBeVisible();
@@ -652,14 +652,23 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
     }, testInfo) => {
       const critical = watchCriticalErrors(page);
       await mockApi(page, { signedIn: true });
-      await page.goto('/engines/lucia/edge-solver/0.3.1?tab=regs');
+      await page.goto('/engines/lucia/edge-solver/0.3.1?tab=registrations');
       const main = page.locator('main');
 
       await expect(
-        main.getByRole('heading', { level: 1, name: 'lucia/edge-solver@0.3.1' })
+        main.getByRole('heading', { level: 1, name: 'lucia/edge-solver' })
       ).toBeVisible();
-      await expect(main.getByRole('button', { name: 'Run with this engine' })).toBeVisible();
-      await expect(main.getByRole('button', { name: 'Add to a study' })).toBeVisible();
+      // From `sm` up the actions sit beside the title; on a phone they are in the ⋯ menu.
+      const act = async (label: string) => {
+        if (isMobile) {
+          await main.getByRole('button', { name: 'More actions' }).click();
+          await main.getByRole('menuitem', { name: label }).click();
+        } else await main.getByRole('button', { name: label }).click();
+      };
+      if (!isMobile) {
+        await expect(main.getByRole('button', { name: 'Run with this engine' })).toBeVisible();
+        await expect(main.getByRole('button', { name: 'Add to a study' })).toBeVisible();
+      }
       const item = main.getByRole('region', { name: 'Registration edge-solver' });
       await expect(item.getByText('active for you')).toBeVisible();
       await item.getByRole('button', { name: 'Show conformance report' }).click();
@@ -673,35 +682,31 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await ready(page);
       await shot(page, testInfo, 'engine-detail-registrations-owner');
 
-      // The run action asks which organization.
-      await main.getByRole('button', { name: 'Run with this engine' }).click();
-      await expect(main.getByRole('link', { name: 'ISA Demo Group' })).toHaveAttribute(
-        'href',
+      // The run action asks which organization, with SPHERE's selector.
+      await act('Run with this engine');
+      const dialog = page.getByRole('dialog', { name: 'Run with this engine' });
+      await dialog.getByRole('button', { name: 'Organization' }).click();
+      await dialog.getByRole('option', { name: /ISA Demo Group/ }).click();
+      await dialog.getByRole('button', { name: 'Run with this engine' }).click();
+      await expect(page).toHaveURL(
         `/runs/new?org=isa-demo&engine=${encodeURIComponent(`lucia/edge-solver@0.3.1#${EDGE_DIGEST}`)}`
       );
-
-      await main.getByRole('tab', { name: /Modes/ }).click();
-      await expect(main.getByLabel('Plan to preview')).toHaveValue('RESEARCH');
-      await expect(main.getByRole('columnheader', { name: 'Your plan’s ceiling' })).toBeVisible();
-      await expectNoHorizontalOverflow(page);
       expect(critical).toEqual([]);
     });
 
-    test('eng-detail answers a neutral 404 and a digest mismatch', async ({ page }, testInfo) => {
+    test('eng-detail answers the in-place 404 and a digest mismatch', async ({
+      page,
+    }, testInfo) => {
       await mockApi(page);
       await page.goto('/engines/bim.builtin/ghost/9.9.9');
       const main = page.locator('main');
-      await expect(main.getByRole('heading', { name: 'Engine revision not found' })).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Back to the catalog' })).toHaveAttribute(
-        'href',
-        '/engines'
-      );
+      await expect(main.getByRole('heading', { name: 'Page not found' })).toBeVisible();
       await ready(page);
       await shot(page, testInfo, 'engine-detail-not-found');
 
       await page.goto(`/engines/bim.builtin/random-search/1.0.0?digest=sha256-${'0'.repeat(64)}`);
       await expect(
-        main.getByText('This reference points to a different digest (409).')
+        main.getByText(/This reference points to a different digest \(409\)\./)
       ).toBeVisible();
       await expect(main.getByText('Digest mismatch')).toBeVisible();
       await shot(page, testInfo, 'engine-detail-digest-mismatch');

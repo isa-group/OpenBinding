@@ -368,7 +368,7 @@ const viewports = [
 ] as const;
 
 const SECRET = 'live-secret-123';
-const EDGE_ADDRESS = `/app/engines/registrations/edge-solver?namespace=${EDGE_SOLVER.namespace}&version=${EDGE_SOLVER.version}&digest=${EDGE_SOLVER.digest}`;
+const EDGE_ADDRESS = `/me/engines/edge-solver?namespace=${EDGE_SOLVER.namespace}&version=${EDGE_SOLVER.version}&digest=${EDGE_SOLVER.digest}`;
 const openApiFile = (document: unknown = OPENAPI_DOCUMENT) => ({
   name: 'openapi.json',
   mimeType: 'application/json',
@@ -384,12 +384,24 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
     test.describe.configure({ mode: 'default' });
     test.use({ viewport, isMobile, deviceScaleFactor });
 
-    test('eng-register /app/engines/new · the four steps from the engine to an active deployment', async ({
+    /** A header action of the card shell: a button from `sm` up, an item of the ⋯ menu on a phone. */
+    let act: (name: string) => Promise<void> = async () => undefined;
+    test.beforeEach(async ({ page }) => {
+      act = async (label: string) => {
+        const main = page.locator('main');
+        if (isMobile) {
+          await main.getByRole('button', { name: 'More actions' }).click();
+          await main.getByRole('menuitem', { name: label }).click();
+        } else await main.getByRole('button', { name: label }).click();
+      };
+    });
+
+    test('eng-register /me/engines/new · the four steps from the engine to an active deployment', async ({
       page,
     }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page, { registrations: [EDGE_SOLVER] });
-      await page.goto('/app/engines/new');
+      await page.goto('/me/engines/new');
       const main = page.locator('main');
 
       await expect(
@@ -477,24 +489,24 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(state.sent.activated).toEqual(['edge-router-deployment@1.0.0']);
       await expect(main.getByRole('link', { name: 'Open registration' })).toHaveAttribute(
         'href',
-        /\/app\/engines\/registrations\/edge-router-deployment\?namespace=alex\.rivera&version=1\.0\.0/
+        /\/me\/engines\/edge-router-deployment\?namespace=alex\.rivera&version=1\.0\.0/
       );
       await capture(page, testInfo, `register-${name}-5-done`, { height: tall(1800) });
 
       await main.getByRole('button', { name: 'Request publication' }).click();
-      await expect(main.getByText('Waiting for review')).toBeVisible();
+      await expect(main.getByText('In review', { exact: true })).toBeVisible();
       expect(state.sent.publication).toEqual(['edge-router-deployment@1.0.0']);
       expect(critical).toEqual([]);
     });
 
-    test('eng-register /app/engines/new · what the gateway refuses (422, 402, a contract that fails, a failed check) and the plan limit', async ({
+    test('eng-register /me/engines/new · what the gateway refuses (422, 402, a contract that fails, a failed check) and the plan limit', async ({
       page,
     }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page, {
         registrations: [EDGE_SOLVER, PAUSED_SOLVER, SOLVER_IN_REVIEW],
       });
-      await page.goto('/app/engines/new');
+      await page.goto('/me/engines/new');
       const main = page.locator('main');
       await expect(main.getByText('3 of 3 used')).toBeVisible();
       await expect(main.getByText(/Limit reached/)).toBeVisible();
@@ -617,12 +629,12 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('eng-register /app/engines/new · an engine kept alone, a manifest loaded from a file and a registration copied as a new version', async ({
+    test('eng-register /me/engines/new · an engine kept alone, a manifest loaded from a file and a registration copied as a new version', async ({
       page,
     }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page, { registrations: [EDGE_SOLVER] });
-      await page.goto('/app/engines/new');
+      await page.goto('/me/engines/new');
       const main = page.locator('main');
 
       await main.locator('summary', { hasText: 'Start from a manifest file' }).click();
@@ -672,7 +684,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       // “Edit as a new version” from a registration opens the form already filled in, one patch ahead.
       await page.goto(
-        `/app/engines/new?from=edge-solver&namespace=${EDGE_SOLVER.namespace}&version=${EDGE_SOLVER.version}&digest=${EDGE_SOLVER.digest}`
+        `/me/engines/new?from=edge-solver&namespace=${EDGE_SOLVER.namespace}&version=${EDGE_SOLVER.version}&digest=${EDGE_SOLVER.digest}`
       );
       await expect(main.getByLabel('Name', { exact: true })).toHaveValue('edge-solver');
       await expect(main.getByLabel('Version', { exact: true })).toHaveValue('0.3.2');
@@ -680,12 +692,12 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('eng-registrations /app/engines/registrations · state, last check and actions of each registration', async ({
+    test('eng-registrations /me/engines · state, last check and actions of each registration', async ({
       page,
     }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page, { limit: 5 });
-      await page.goto('/app/engines/registrations');
+      await page.goto('/me/engines');
       const main = page.locator('main');
 
       await expect(main.getByRole('heading', { level: 1, name: 'My engines' })).toBeVisible();
@@ -694,33 +706,32 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         'href',
         '/me/settings?section=plan'
       );
-      const edge = main.getByRole('row', { name: 'edge-solver 0.3.1' });
+      const edge = main.getByRole('article', { name: 'edge-solver 0.3.1' });
       await expect(edge.getByText('Passed')).toBeVisible();
       await expect(edge.getByText('Active')).toBeVisible();
       await expect(
-        main.getByRole('row', { name: 'paused-solver 1.2.0' }).getByText('Failed')
+        main.getByRole('article', { name: 'paused-solver 1.2.0' }).getByText('Failed')
       ).toBeVisible();
       await expect(
-        main.getByRole('row', { name: 'region-solver 1.0.0' }).getByText('Waiting for review')
+        main.getByRole('article', { name: 'region-solver 1.0.0' }).getByText('In review')
       ).toBeVisible();
       await expect(
         main
-          .getByRole('row', { name: 'shared-solver 2.0.0' })
+          .getByRole('article', { name: 'shared-solver 2.0.0' })
           .getByText(/published by another account/)
       ).toBeVisible();
       await expect(main.getByRole('link', { name: 'Register an engine' })).toHaveAttribute(
         'href',
-        '/app/engines/new'
+        '/me/engines/new'
       );
       await capture(page, testInfo, `registrations-${name}-list`, { height: tall(1900) });
 
       await main
         .getByRole('group', { name: 'Filter' })
-        .getByRole('button', { name: 'Inactive' })
+        .getByRole('button', { name: 'In review' })
         .click();
-      // On a phone the header row is hidden and each registration is a card, so only the registrations are counted.
-      await expect(main.getByRole('row', { name: /-solver \d/ })).toHaveCount(1);
-      await expect(main.getByRole('row', { name: 'paused-solver 1.2.0' })).toBeVisible();
+      await expect(main.getByRole('article', { name: /-solver \d/ })).toHaveCount(1);
+      await expect(main.getByRole('article', { name: 'region-solver 1.0.0' })).toBeVisible();
       await main
         .getByRole('group', { name: 'Filter' })
         .getByRole('button', { name: 'All', exact: true })
@@ -739,7 +750,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       ).toBeVisible();
       await expect(main.getByRole('link', { name: 'See the checks' })).toHaveAttribute(
         'href',
-        /\/app\/engines\/registrations\/paused-solver\?/
+        /\/me\/engines\/paused-solver\?/
       );
       await capture(page, testInfo, `registrations-${name}-activation-refused`, {
         height: tall(1400),
@@ -750,7 +761,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         main.getByText('paused-solver passed its check and is active for you.')
       ).toBeVisible();
       await expect(
-        main.getByRole('row', { name: 'paused-solver 1.2.0' }).getByText('Passed')
+        main.getByRole('article', { name: 'paused-solver 1.2.0' }).getByText('Passed')
       ).toBeVisible();
 
       await main.getByRole('button', { name: 'Deactivate edge-solver 0.3.1' }).click();
@@ -781,20 +792,20 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await capture(page, testInfo, `registrations-${name}-delete-dialog`);
       await dialog.getByRole('button', { name: 'Delete registration' }).click();
       await expect(main.getByText('Deleted edge-solver 0.3.1.')).toBeVisible();
-      await expect(main.getByRole('row', { name: 'edge-solver 0.3.1' })).toHaveCount(0);
+      await expect(main.getByRole('article', { name: 'edge-solver 0.3.1' })).toHaveCount(0);
       expect(state.sent.deleted).toEqual(['edge-solver']);
       await capture(page, testInfo, `registrations-${name}-after`, { height: tall(1700) });
       expect(critical).toEqual([]);
     });
 
-    test('eng-registrations /app/engines/registrations · empty, accounts unavailable (503) and a review link without the right (403)', async ({
+    test('eng-registrations /me/engines · empty, accounts unavailable (503) and a review link without the right (403)', async ({
       page,
     }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page, { registrations: [] });
       const main = page.locator('main');
 
-      await page.goto('/app/engines/registrations');
+      await page.goto('/me/engines');
       await expect(main.getByText('You haven’t registered an engine')).toBeVisible();
       await expect(
         main.getByText(
@@ -804,7 +815,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await capture(page, testInfo, `registrations-${name}-empty`, { height: tall(1300) });
 
       state.refuse.list = unavailable;
-      await page.goto('/app/engines/registrations');
+      await page.goto('/me/engines');
       await expect(
         main.getByText('Accounts are unavailable right now (503 · accounts_unavailable)')
       ).toBeVisible();
@@ -813,47 +824,47 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       state.refuse.list = undefined;
       state.registrations.push(EDGE_SOLVER);
       await main.getByRole('button', { name: 'Try again' }).click();
-      await expect(main.getByRole('row', { name: 'edge-solver 0.3.1' })).toBeVisible();
+      await expect(main.getByRole('article', { name: 'edge-solver 0.3.1' })).toBeVisible();
 
       state.refuse.review = problem(
         403,
         'forbidden',
         'Only an administrator may read publication requests'
       );
-      await page.goto('/app/engines/registrations?review=true');
+      await page.goto('/me/engines?review=true');
       await expect(
-        main.getByText('Only administrators can filter by “waiting for review” (403)')
+        main.getByText('Only administrators can filter by “in review” (403)')
       ).toBeVisible();
-      await expect(main.getByLabel(/Only waiting for review/)).toHaveCount(0);
+      await expect(main.getByLabel(/Only in review/)).toHaveCount(0);
       await capture(page, testInfo, `registrations-${name}-403`, { height: tall(1100) });
       await main.getByRole('button', { name: 'Show my engines' }).click();
-      await expect(main.getByRole('row', { name: 'edge-solver 0.3.1' })).toBeVisible();
+      await expect(main.getByRole('article', { name: 'edge-solver 0.3.1' })).toBeVisible();
       expect(critical).toEqual([]);
     });
 
-    test('eng-registrations /app/engines/registrations · an administrator lists only what waits for review', async ({
+    test('eng-registrations /me/engines · an administrator lists only what waits for review', async ({
       page,
     }, testInfo) => {
       const critical = watchCriticalErrors(page);
       await mockApi(page, { admin: true });
-      await page.goto('/app/engines/registrations');
+      await page.goto('/me/engines');
       const main = page.locator('main');
 
-      await expect(main.getByRole('row', { name: 'edge-solver 0.3.1' })).toBeVisible();
-      await main.getByLabel(/Only waiting for review/).click();
-      await expect(main.getByLabel(/Only waiting for review/)).toBeChecked();
-      const waiting = main.getByRole('row', { name: 'region-solver 1.0.0' });
+      await expect(main.getByRole('article', { name: 'edge-solver 0.3.1' })).toBeVisible();
+      await main.getByLabel(/Only in review/).click();
+      await expect(main.getByLabel(/Only in review/)).toBeChecked();
+      const waiting = main.getByRole('article', { name: 'region-solver 1.0.0' });
       await expect(waiting).toBeVisible();
       await expect(
         waiting.getByRole('link', { name: 'Review region-solver 1.0.0' })
       ).toHaveAttribute('href', '/app/admin/moderation');
-      await expect(main.getByRole('row', { name: 'edge-solver 0.3.1' })).toHaveCount(0);
+      await expect(main.getByRole('article', { name: 'edge-solver 0.3.1' })).toHaveCount(0);
       await expect(page).toHaveURL(/review=true/);
       await capture(page, testInfo, `registrations-${name}-review`, { height: tall(1100) });
       expect(critical).toEqual([]);
     });
 
-    test('eng-registration-detail /app/engines/registrations/:name · identity, life cycle, verification, deployment, manifest with ranges and history', async ({
+    test('eng-registration-detail /me/engines/:name · identity, life cycle, verification, deployment, manifest with ranges and history', async ({
       page,
     }, testInfo) => {
       const critical = watchCriticalErrors(page);
@@ -872,7 +883,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(identity).not.toContainText(/sha256-|[0-9a-f]{12}/);
       const verification = main
         .locator('section')
-        .filter({ has: page.getByRole('heading', { name: 'Last verification' }) });
+        .filter({ has: page.getByRole('heading', { name: 'Verification', exact: true }) });
       await expect(verification.getByText('Sample problem solved')).toBeVisible();
       await expect(verification.getByText('Verified', { exact: true })).toBeVisible();
       await expect(
@@ -901,7 +912,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('eng-registration-detail /app/engines/registrations/:name · check again, replace the credential, ask for publication and delete', async ({
+    test('eng-registration-detail /me/engines/:name · check again, replace the credential, ask for publication and delete', async ({
       page,
     }, testInfo) => {
       const critical = watchCriticalErrors(page);
@@ -917,7 +928,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         'Engine registration failed its OpenAPI and response-contract checks',
         REPORT_FAILED.checks
       );
-      await main.getByRole('button', { name: 'Check again' }).click();
+      await act('Check again');
       await expect(
         main.getByText('Your deployment didn’t pass (409 · conformance_failed)')
       ).toBeVisible();
@@ -926,7 +937,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       ).toBeVisible();
       await capture(page, testInfo, `detail-${name}-check-failed`, { height: tall(2000) });
       state.refuse.activate = undefined;
-      await main.getByRole('button', { name: 'Check again' }).click();
+      await act('Check again');
       await expect(main.getByText('Checked again. The deployment still passes.')).toBeVisible();
 
       // The credential: never shown, replaced on request, and the secret is gone from the page after it is sent.
@@ -979,7 +990,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('eng-registration-detail /app/engines/registrations/:name · read-only when it is published by someone else, and a neutral 404', async ({
+    test('eng-registration-detail /me/engines/:name · read-only when it is published by someone else, and a neutral 404', async ({
       page,
     }, testInfo) => {
       const critical = watchCriticalErrors(page);
@@ -987,7 +998,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const main = page.locator('main');
 
       await page.goto(
-        `/app/engines/registrations/shared-solver?namespace=${SHARED_SOLVER.namespace}&version=${SHARED_SOLVER.version}&digest=${SHARED_SOLVER.digest}`
+        `/me/engines/shared-solver?namespace=${SHARED_SOLVER.namespace}&version=${SHARED_SOLVER.version}&digest=${SHARED_SOLVER.digest}`
       );
       await expect(main.getByRole('heading', { level: 1, name: 'shared-solver' })).toBeVisible();
       await expect(
@@ -996,36 +1007,29 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('button', { name: 'Deactivate' })).toHaveCount(0);
       await expect(main.getByRole('heading', { name: 'Credential' })).toHaveCount(0);
       await expect(main.getByRole('heading', { name: 'Delete this registration' })).toHaveCount(0);
-      await expect(main.getByRole('button', { name: 'Launch a run with it' })).toBeVisible();
       await capture(page, testInfo, `detail-${name}-readonly`, { height: tall(1800) });
 
-      // The organization picker is the way into a run with this engine.
-      await main.getByRole('button', { name: 'Launch a run with it' }).click();
-      await expect(main.getByRole('link', { name: 'ISA Demo Group' })).toHaveAttribute(
-        'href',
-        /\/runs\/new\?org=isa-demo&engine=/
-      );
+      // SPHERE's organization selector is the way into a run with this engine.
+      await act('Launch a run with it');
+      const launch = page.getByRole('dialog', { name: 'Launch a run with it' });
+      await launch.getByRole('button', { name: 'Organization' }).click();
+      await launch.getByRole('option', { name: /ISA Demo Group/ }).click();
+      await launch.getByRole('button', { name: 'Launch a run' }).click();
+      await expect(page).toHaveURL(/\/runs\/new\?org=isa-demo&engine=/);
 
       // Someone else’s private registration, or one that does not exist, answer the same.
       state.refuse.detail = problem(404, 'not_found', 'Engine registration not found');
       state.refuse.report = problem(404, 'not_found', 'Engine registration not found');
       await page.goto(
-        `/app/engines/registrations/private-elsewhere?namespace=priya.nair&version=1.0.0&digest=${digestOf('77')}`
+        `/me/engines/private-elsewhere?namespace=priya.nair&version=1.0.0&digest=${digestOf('77')}`
       );
-      await expect(main.getByText('Not found', { exact: true })).toBeVisible();
-      await expect(
-        main.getByText(/everyone else, administrators included, gets this same answer/)
-      ).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Back to My engines' })).toHaveAttribute(
-        'href',
-        '/app/engines/registrations'
-      );
+      await expect(main.getByRole('heading', { name: 'Page not found' })).toBeVisible();
       await capture(page, testInfo, `detail-${name}-404`, { height: tall(1000) });
 
       // A bare name works when only one revision is visible, and asks which one when several are.
       state.refuse.detail = undefined;
       state.refuse.report = undefined;
-      await page.goto('/app/engines/registrations/edge-solver');
+      await page.goto('/me/engines/edge-solver');
       await expect(
         main.getByRole('heading', { name: 'Which revision of edge-solver?' })
       ).toBeVisible();

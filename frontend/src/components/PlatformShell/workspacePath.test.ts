@@ -71,7 +71,7 @@ describe('workspaceSlugs', () => {
   });
 
   it('finds the fixed segments of the registry', () => {
-    expect(FIXED_SEGMENTS).toEqual(expect.arrayContaining(['admin', 'engines']));
+    expect(FIXED_SEGMENTS).toEqual(expect.arrayContaining(['admin']));
   });
 
   it.each(FIXED_SEGMENTS)('never reads the fixed address /app/%s as an organization', segment => {

@@ -9,7 +9,7 @@ import { Skeleton } from '../../modules/core/components/skeleton';
 import { useCopy } from '../../modules/core/hooks/useCopy';
 import { formatDateTime } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
-import { ViewSource } from '../Engines/EngineParts';
+import { ViewSource } from '../../modules/engine/components/engine-parts';
 import { AdminFrame, FailureNotice, Pager, Tag } from './AdminChrome';
 import {
   AUDIT_FAMILIES,

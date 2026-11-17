@@ -85,10 +85,12 @@ const RESOLUTION: Array<[string, string | null]> = [
   ['/app/admin/users', 'admin-users'],
   ['/app/admin/users/new', 'admin-user-detail'],
   ['/app/admin/users/settings', 'admin-user-detail'],
-  ['/app/engines/new', 'eng-register'],
-  ['/app/engines/registrations', 'eng-registrations'],
-  ['/app/engines/registrations/edge', 'eng-registration-detail'],
-  ['/app/engines/registrations/settings', 'eng-registration-detail'],
+  ['/app/engines/new', null],
+  ['/app/engines/registrations', null],
+  ['/me/engines', 'eng-registrations'],
+  ['/me/engines/new', 'eng-register'],
+  ['/me/engines/edge', 'eng-registration-detail'],
+  ['/me/engines/edge/settings', null],
   ['/app/settings/settings', null],
   ['/c/acme', null],
   ['/c/acme/order-desk', null],
@@ -123,7 +125,7 @@ describe('address resolution across the route table', () => {
     expect(resolve(path)).toBe(id);
   });
 
-  // A fixed segment under /app (`/app/admin`, `/app/engines`, …): an unknown address one level below it resolves to no screen, or to a
+  // A fixed segment under /app (`/app/admin`, …): an unknown address one level below it resolves to no screen, or to a
   // screen that owns that segment.
   const fixedSegments = [
     ...new Set(
@@ -135,7 +137,7 @@ describe('address resolution across the route table', () => {
   ];
 
   it('finds fixed segments under /app', () => {
-    expect(fixedSegments).toEqual(expect.arrayContaining(['admin', 'engines']));
+    expect(fixedSegments).toEqual(expect.arrayContaining(['admin']));
   });
 
   it.each(fixedSegments)(

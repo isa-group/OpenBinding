@@ -94,7 +94,7 @@ test('New creates in the organization the address names', async ({ page }) => {
     ['Run', RUN_NEW],
     ['Study', '/studies/new?org=acme'],
     ['Organization', '/orgs/new'],
-    ['Engine', '/app/engines/new'],
+    ['Engine', '/me/engines/new'],
   ];
   await expectInOrder(items.map(([name]) => entry(menuScope(page), name)));
   for (const [name, href] of items) await expect(entry(menuScope(page), name)).toHaveAttribute('href', href);
@@ -115,7 +115,7 @@ test('account menu lists the person\'s places then Sign out, with Administration
   const items: Array<[string, string]> = [
     ['Organizations', '/me/orgs'],
     ['Inbox', '/notifications'],
-    ['Engines', '/app/engines/registrations'],
+    ['Engines', '/me/engines'],
     ['API keys', '/me/api-keys'],
     ['Settings', '/me/settings'],
   ];

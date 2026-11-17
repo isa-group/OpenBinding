@@ -170,7 +170,7 @@ export function buildCommands({
       'Create',
       'Register an engine',
       'Publish an engine you operate',
-      '/app/engines/new',
+      '/me/engines/new',
       '+'
     ),
     ...accountLinks.map(link =>

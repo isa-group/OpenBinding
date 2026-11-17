@@ -127,7 +127,7 @@ function isWorkspaceHome(pathname: string): boolean {
 export function currentSection(pathname: string): MainSection {
   if (pathname === mainLinks.home.to) return 'home';
   if (under(pathname, mainLinks.admin.to)) return 'admin';
-  if (under(pathname, '/app/engines') || under(pathname, mainLinks.engines.to)) return 'engines';
+  if (under(pathname, '/me/engines') || under(pathname, mainLinks.engines.to)) return 'engines';
   const [root, , tab] = pathname.split('/').filter(Boolean);
   if (root === RUNS_SEGMENT || (root === 'orgs' && tab === RUNS_SEGMENT)) return 'runs';
   if (root !== 'app') return null;

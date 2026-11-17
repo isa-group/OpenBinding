@@ -9,7 +9,7 @@ import { planLimit } from '../../../features/workspace/model';
 import { RANGE_CODE, RANGE_REFUSAL } from '../../../utils/featureRange';
 import { formatDate } from '../../../utils/format';
 import { parseBindingSpace } from '../../../components/BindingSpaceBadge/bindingSpace';
-import { optionFacts } from '../../../pages/Engines/enginesModel';
+import { optionFacts } from '../../engine/api/enginesModel';
 import type { ForecastBar } from './runsModel';
 import { LIMIT } from '../../../utils/limits';
 

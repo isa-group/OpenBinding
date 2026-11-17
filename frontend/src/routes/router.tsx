@@ -12,7 +12,6 @@ import ErrorBoundary from '../modules/core/components/error-boundary';
 import NotFoundPage from '../modules/core/pages/page-not-found';
 import AuthenticatedLayout from '../modules/presentation/layouts/authenticated-layout';
 import PublicLayout from '../modules/presentation/layouts/public-layout';
-import { Engines } from '../pages/Engines/Engines';
 import AppLayout from './app-layout';
 import { LegacyOrgOutlet } from './LegacyOrgOutlet';
 
@@ -62,19 +61,11 @@ const CreateOrganizationPage = lazy(
 const About = named(() => import('../pages/About/About'), 'About');
 const Pricing = named(() => import('../pages/Pricing/Pricing'), 'Pricing');
 const LanguagePage = named(() => import('../pages/Language/LanguagePage'), 'LanguagePage');
-const EngineDetail = named(() => import('../pages/EngineDetail/EngineDetail'), 'EngineDetail');
-const RegisterEngine = named(
-  () => import('../pages/RegisterEngine/RegisterEngine'),
-  'RegisterEngine'
-);
-const EngRegistrations = named(
-  () => import('../pages/Engines/EngRegistrations'),
-  'EngRegistrations'
-);
-const EngRegistrationDetail = named(
-  () => import('../pages/Engines/EngRegistrationDetail'),
-  'EngRegistrationDetail'
-);
+const EngineListPage = lazy(() => import('../modules/engine/pages/list'));
+const EngineCardPage = lazy(() => import('../modules/engine/pages/card'));
+const MyEnginesPage = lazy(() => import('../modules/engine/pages/my-engines'));
+const RegisterEnginePage = lazy(() => import('../modules/engine/pages/register'));
+const RegistrationPage = lazy(() => import('../modules/engine/pages/registration'));
 const CompositionListPage = lazy(() => import('../modules/composition/pages/list'));
 const UserCompositionListPage = lazy(() => import('../modules/composition/pages/user-list'));
 const CompositionCardPage = lazy(() => import('../modules/composition/pages/card'));
@@ -112,8 +103,6 @@ export const screens: Screen[] = [
   { id: 'auth-forgot-password', path: '/forgot-password', layout: 'public', element: <ForgotPasswordPage /> },
   { id: 'auth-reset-password', path: '/reset-password', layout: 'public', element: <ResetPasswordPage /> },
   { id: 'auth-sso-callback', path: '/sso/callback', layout: 'public', element: <SsoCallbackPage /> },
-  { id: 'eng-catalog', path: '/engines', layout: 'public', element: <Engines /> },
-  { id: 'eng-detail', path: '/engines/:namespace/:name/:version', layout: 'public', element: <EngineDetail /> },
 
   // ═══════════════════════════════════════════════════════════
   // PUBLIC ROUTES (AppLayout: public or authenticated chrome, by session)
@@ -124,6 +113,8 @@ export const screens: Screen[] = [
   { id: 'pub-compositions', path: '/compositions', layout: 'session', element: <CompositionListPage /> },
   { id: 'composition-card', path: '/compositions/:org/:composition/:tab?', layout: 'session', element: <CompositionCardPage /> },
   { id: 'composition-permalink', path: '/p/:id', layout: 'session', element: <PermanentLinkPage /> },
+  { id: 'eng-catalog', path: '/engines', layout: 'session', element: <EngineListPage /> },
+  { id: 'eng-detail', path: '/engines/:namespace/:name/:version', layout: 'session', element: <EngineCardPage /> },
 
   // ═══════════════════════════════════════════════════════════
   // PROTECTED ROUTES (require auth + AuthenticatedLayout)
@@ -141,13 +132,13 @@ export const screens: Screen[] = [
   { id: 'run-detail', path: '/runs/:org/:run', layout: 'protected', element: <RunCardPage /> },
   { id: 'study-builder', path: '/studies/new', layout: 'protected', element: <CreateStudyPage /> },
   { id: 'study-detail', path: '/studies/:org/:study/:tab?', layout: 'protected', element: <StudyCardPage /> },
+  { id: 'eng-registrations', path: '/me/engines', layout: 'protected', element: <MyEnginesPage /> },
+  { id: 'eng-register', path: '/me/engines/new', layout: 'protected', element: <RegisterEnginePage /> },
+  { id: 'eng-registration-detail', path: '/me/engines/:name', layout: 'protected', element: <RegistrationPage /> },
 
   // ═══════════════════════════════════════════════════════════
   // PROTECTED ROUTES (the old workspace under /app, until its screens are poured into SPHERE's pages)
   // ═══════════════════════════════════════════════════════════
-  { id: 'eng-register', path: '/app/engines/new', layout: 'app', element: <RegisterEngine /> },
-  { id: 'eng-registrations', path: '/app/engines/registrations', layout: 'app', element: <EngRegistrations /> },
-  { id: 'eng-registration-detail', path: '/app/engines/registrations/:name', layout: 'app', element: <EngRegistrationDetail /> },
   { id: 'admin-overview', path: '/app/admin', layout: 'app', element: <AdminOverview />, requireAdmin: true },
   { id: 'admin-users', path: '/app/admin/users', layout: 'app', element: <AdminUsers />, requireAdmin: true },
   { id: 'admin-user-detail', path: '/app/admin/users/:user', layout: 'app', element: <AdminUserDetail />, requireAdmin: true },

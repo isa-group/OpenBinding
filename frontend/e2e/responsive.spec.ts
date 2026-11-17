@@ -103,7 +103,7 @@ test('the public entries stay in the header row before the mobile breakpoint', a
   await expect(engines).toBeVisible();
   await engines.click();
   await expect(page).toHaveURL(/\/engines$/);
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Engine catalog');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Engines');
   await page.goto('/');
   await primaryNavigation.getByRole('link', { name: 'Pricing' }).click();
   await expect(page).toHaveURL(/\/pricing$/);

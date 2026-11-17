@@ -57,7 +57,7 @@ export function newEntries(organization: string | undefined): MenuEntry[] {
   return [
     ...inOrganization,
     { label: 'Organization', to: '/orgs/new' },
-    { label: 'Engine', to: '/app/engines/new' },
+    { label: 'Engine', to: '/me/engines/new' },
   ];
 }
 
@@ -67,7 +67,7 @@ export function userEntries(isAdmin: boolean): MenuEntry[] {
     { label: 'Organizations', to: '/me/orgs' },
     { label: 'Compositions', to: '/me/compositions' },
     { label: 'Inbox', to: '/notifications' },
-    { label: 'Engines', to: '/app/engines/registrations' },
+    { label: 'Engines', to: '/me/engines' },
     { label: 'API keys', to: '/me/api-keys' },
     { label: 'Settings', to: '/me/settings' },
     ...(isAdmin ? [{ label: 'Administration', to: '/app/admin' }] : []),

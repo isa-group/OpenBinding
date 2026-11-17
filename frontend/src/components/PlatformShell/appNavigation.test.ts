@@ -143,7 +143,7 @@ describe('currentSection', () => {
     ['/app/isa-demo/studies/engines-vs-seeds', 'studies'],
     ['/app/isa-demo/qos/studies', null],
     ['/engines', 'engines'],
-    ['/app/engines/registrations', 'engines'],
+    ['/me/engines', 'engines'],
     ['/language', null],
     ['/app/admin', 'admin'],
     ['/app/admin/users', 'admin'],
@@ -181,7 +181,7 @@ describe('organizationSectionOf', () => {
     expect(organizationSectionOf('/app/isa-demo/problems')).toBe('problems');
     expect(organizationSectionOf('/app/isa-demo/compositions/order-desk')).toBe('compositions');
     expect(organizationSectionOf('/app/isa-demo/problem-editor')).toBeNull();
-    expect(organizationSectionOf('/app/engines/registrations')).toBeNull();
+    expect(organizationSectionOf('/me/engines')).toBeNull();
     expect(organizationSectionOf('/app')).toBeNull();
   });
 });

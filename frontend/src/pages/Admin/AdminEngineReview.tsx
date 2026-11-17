@@ -12,9 +12,9 @@ import { Notice } from '../../modules/core/components/notice';
 import { Skeleton } from '../../modules/core/components/skeleton';
 import { engineLabel } from '../../modules/core/utils/identity';
 import { useResource } from '../../utils/useResource';
-import { ConfirmDialog } from '../Engines/EngineDialogs';
-import { ConformanceChecklist, ViewSource } from '../Engines/EngineParts';
-import { readProbe } from '../Engines/registrationModel';
+import { ConfirmDialog } from '../../modules/engine/components/engine-dialogs';
+import { ConformanceChecklist, ViewSource } from '../../modules/engine/components/engine-parts';
+import { readProbe } from '../../modules/engine/api/registrationModel';
 import { FailureNotice, Tag } from './AdminChrome';
 import { describeModerationFailure } from './adminModel';
 

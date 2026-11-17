@@ -31,8 +31,8 @@ const MEASUREMENTS = fileURLToPath(new URL('../node_modules/.cache/qa-gallery/',
 /** The first heading each screen must show once it has loaded. A screen whose title depends on the data names the mock's data. */
 const HEADING: Record<string, RegExp> = {
   'pub-home': /Welcome back, alex\.rivera/,
-  'eng-catalog': /Engine catalog/,
-  'eng-detail': /bim\.builtin\/random-search@1\.0\.0/,
+  'eng-catalog': /^Engines$/,
+  'eng-detail': /^bim\.builtin\/random-search$/,
   'pub-about': /People, research and changes behind OpenBinding/,
   auth: /Welcome back/,
   'auth-forgot-password': /Forgot your password\?/,

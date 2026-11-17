@@ -5,7 +5,7 @@ import { Action } from '../../modules/core/components/action-button';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { Notice } from '../../modules/core/components/notice';
 import { useAuth } from '../../modules/auth/hooks/useAuth';
-import { Crumbs } from '../Engines/EngineParts';
+import { Crumbs } from '../../modules/engine/components/engine-parts';
 import { ADMIN_SECTIONS, type AdminSection, type ChipTone, type Failure } from './adminModel';
 import './AdminScreens.css';
 

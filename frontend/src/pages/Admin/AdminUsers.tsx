@@ -12,7 +12,7 @@ import { Skeleton } from '../../modules/core/components/skeleton';
 import { useAuth } from '../../modules/auth/hooks/useAuth';
 import { formatDate } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
-import { ConfirmDialog } from '../Engines/EngineDialogs';
+import { ConfirmDialog } from '../../modules/engine/components/engine-dialogs';
 import { AdminFrame, AdminOnly, FailureNotice, Pager, Tag } from './AdminChrome';
 import { describeAdminFailure, planTone, type Failure } from './adminModel';
 

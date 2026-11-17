@@ -30,7 +30,7 @@ const ALLOWANCE_NOTES: Record<string, { note: string; link?: { to: string; label
   [LIMIT.maxConcurrentRuns]: { note: 'Runs that may run at once' },
   [LIMIT.maxFederatedEngines]: {
     note: 'Federated engines you may have active',
-    link: { to: '/app/engines/registrations', label: 'My engines' },
+    link: { to: '/me/engines', label: 'My engines' },
   },
   [LIMIT.maxApiKeys]: { note: 'Active keys', link: { to: '/me/api-keys', label: 'Manage keys' } },
   [LIMIT.maxProblems]: { note: 'Problems you own' },
