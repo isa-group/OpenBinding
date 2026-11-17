@@ -130,7 +130,7 @@ export default function UsersSection() {
 
   const accounts = useMemo(() => page?.users ?? [], [page]);
   const plans = useMemo(
-    () => [...new Set(accounts.map(account => account.plan))].sort(),
+    () => [...new Set(accounts.flatMap(account => (account.plan ? [account.plan] : [])))].sort(),
     [accounts]
   );
   const visible = accounts.filter(
@@ -272,7 +272,7 @@ export default function UsersSection() {
 
       {page && visible.length > 0 && (
         <>
-          <DataTable label="Accounts" minWidth={980}>
+          <DataTable label="Accounts" minWidth={860}>
             <thead>
               <tr>
                 <th scope="col">Account</th>
@@ -319,7 +319,11 @@ export default function UsersSection() {
                     </td>
                     <td>
                       <span className="flex flex-wrap gap-1">
-                        <Tag tone={planTone(account.plan)}>{account.plan}</Tag>
+                        {account.plan ? (
+                          <Tag tone={planTone(account.plan)}>{account.plan}</Tag>
+                        ) : (
+                          <span className="text-tp-steel">—</span>
+                        )}
                         {account.cas_verified && (
                           <Tag tone="success">Institutional identity verified</Tag>
                         )}
