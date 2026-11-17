@@ -6,7 +6,7 @@ import type { AdminUserView } from '../../src/api/auth';
 import type { Job, Study, StudyCell, StudyRun } from '../../src/api/platform';
 import type { Problem, ProblemRevision } from '../../src/api/problems';
 import { digestOf as caseDigest, compiledDocument } from '../../src/modules/problem/utils/fixtures';
-import { CURRENT_FIXTURE, catalogFixture } from '../../src/pages/Pricing/pricingFixture';
+import { CURRENT_FIXTURE, catalogFixture } from '../../src/test/fixtures/pricingCatalog';
 import {
   AUDIT,
   ERROR_EVENTS,

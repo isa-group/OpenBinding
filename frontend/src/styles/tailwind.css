@@ -181,6 +181,10 @@
   --color-tp-chart-5: #e87ba4;
   --color-tp-chart-6: #008300;
 
+  /* The about pages (modules/presentation/pages/team): the Universidad de Sevilla red of SPHERE's affiliation pill, the
+     same in both palettes; white on it is 8.6:1. */
+  --color-tp-institution: #892935;
+
   /* SPHERE's 404 illustration (modules/core/components/404-logo). */
   --color-tp-illustration-amber: #ffc107;
   --color-tp-illustration-navy: #061b64;

@@ -46,6 +46,10 @@ export function buildCommands({
     command('Go to', 'Engines', 'Engines by exact identity', mainLinks.engines.to),
     command('Go to', 'Pricing', 'Plans, limits and add-ons', '/pricing'),
     command('Go to', 'Problem editor', 'Write and check a BIM package', problemEditorPath(null)),
+    command('Go to', 'Team', 'The people behind OpenBinding', '/team'),
+    command('Go to', 'Research', 'The corpus’s sources and funding', '/research'),
+    command('Go to', 'Contributions', 'Thesis and research tracks', '/contributions'),
+    command('Go to', 'Changelog', 'What changed in each release', '/changelog'),
   ];
 
   for (const item of organizations) {

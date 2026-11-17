@@ -5,7 +5,7 @@ import type { PricingCatalog } from '../../api/auth';
  * (administration), which needs what the published pricing 0.2.0 does not have: four plans and add-ons, so that the
  * arithmetic of add-ons, a plan change that drops one and an unlimited allowance can be exercised. The ids the
  * gateway reads are those of 0.2.0 (`maxConcurrentRuns`, `maxFederatedEngines`, `maxApiKeys`, `maxRunMinutes`); the other
- * limits are opaque to the editor. The published pricing's transcription is `pages/Pricing/pricingFixture.ts`.
+ * limits are opaque to the editor. The published pricing's transcription is `test/fixtures/pricingCatalog.ts`.
  */
 
 const feature = (tag: string, description: string, defaultValue: boolean, expression?: string) => ({

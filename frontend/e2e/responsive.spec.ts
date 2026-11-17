@@ -1,13 +1,17 @@
 import { expect, test, type Page } from '@playwright/test';
 import { installMockApi } from './helpers/mockApi';
 
-// Public routes of the redesigned site. About holds the service-status note; there is no /status page.
+// Public routes of the redesigned site. The footer holds the service-status chip; there is no /status page.
 const PUBLIC_ROUTES = [
   '/',
   '/problem-editor',
   '/engines',
   '/pricing',
-  '/about',
+  '/language',
+  '/team',
+  '/research',
+  '/contributions',
+  '/changelog',
   '/authentication',
   '/authentication?view=register',
 ];
@@ -50,7 +54,7 @@ test('mobile navigation exposes the complete journey and closes after navigation
     'aria-expanded',
     'true'
   );
-  for (const label of ['Pricing', 'About', 'Log in', 'Sign up'])
+  for (const label of ['Pricing', 'Team', 'Research', 'Changelog', 'Log in', 'Sign up'])
     await expect(menu.getByRole('link', { name: label, exact: true }), label).toBeVisible();
   for (const label of ['Tools', 'Explore'])
     await expect(menu.getByRole('button', { name: label }), label).toBeVisible();
@@ -58,8 +62,8 @@ test('mobile navigation exposes the complete journey and closes after navigation
   for (const label of ['Compositions', 'Engines'])
     await expect(menu.getByRole('link', { name: label, exact: true }), label).toBeVisible();
 
-  await menu.getByRole('link', { name: 'About', exact: true }).click();
-  await expect(page).toHaveURL(/\/about$/);
+  await menu.getByRole('link', { name: 'Changelog', exact: true }).click();
+  await expect(page).toHaveURL(/\/changelog$/);
   await expect(header.getByRole('button', { name: 'Open menu' })).toHaveAttribute(
     'aria-expanded',
     'false'
@@ -90,7 +94,7 @@ test('the public entries stay in the header row before the mobile breakpoint', a
     await expect(primaryNavigation.getByRole('button', { name: label }), label).toBeInViewport({
       ratio: 1,
     });
-  for (const label of ['Pricing', 'About', 'Log in', 'Sign up'])
+  for (const label of ['Pricing', 'Team', 'Research', 'Changelog', 'Log in', 'Sign up'])
     await expect(header.getByRole('link', { name: label, exact: true }), label).toBeInViewport({
       ratio: 1,
     });
@@ -109,7 +113,7 @@ test('the public entries stay in the header row before the mobile breakpoint', a
   await expect(page).toHaveURL(/\/pricing$/);
 });
 
-for (const route of ['/profiles', '/schemas', '/playground', '/team', '/changelog']) {
+for (const route of ['/profiles', '/schemas', '/playground', '/about', '/funding']) {
   test(`the retired route ${route} no longer serves its old page`, async ({ page }) => {
     test.setTimeout(60_000);
     await page.goto(route, { waitUntil: 'domcontentloaded' });
@@ -206,7 +210,7 @@ test('the organization page marks its tab, and nothing in the application header
     'page',
     { timeout: 30_000 }
   );
-  // The header lists the site (Tools, Explore, Pricing, About); a workspace screen is none of them.
+  // The header lists the site (Tools, Explore, Pricing, Team, Research, Changelog); a workspace screen is none of them.
   const header = page.locator('header.app-header').getByRole('navigation', { name: 'Main' });
   await expect(header.getByRole('button', { name: 'Explore' })).toBeVisible();
   await expect(header.locator('[aria-current="page"]')).toHaveCount(0);

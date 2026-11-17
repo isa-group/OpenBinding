@@ -8,9 +8,6 @@ import { screens } from './router';
 
 // prettier-ignore
 const SCREENS: Array<[string, string, string]> = [
-  ['pub-about', '/about', 'public'],
-  ['pub-pricing', '/pricing', 'public'],
-  ['pub-language', '/language', 'public'],
   ['auth', '/authentication', 'public'],
   ['auth-forgot-password', '/forgot-password', 'public'],
   ['auth-reset-password', '/reset-password', 'public'],
@@ -23,6 +20,12 @@ const SCREENS: Array<[string, string, string]> = [
   ['composition-permalink', '/p/:id', 'session'],
   ['eng-catalog', '/engines', 'session'],
   ['eng-detail', '/engines/:namespace/:name/:version', 'session'],
+  ['pub-language', '/language', 'session'],
+  ['pub-pricing', '/pricing', 'session'],
+  ['pub-team', '/team', 'session'],
+  ['pub-research', '/research', 'session'],
+  ['pub-contributions', '/contributions', 'session'],
+  ['pub-changelog', '/changelog', 'session'],
   ['org-list', '/me/orgs', 'protected'],
   ['org-new', '/orgs/new', 'protected'],
   ['org-join', '/orgs/join/:code', 'protected'],
@@ -45,7 +48,7 @@ const SCREENS: Array<[string, string, string]> = [
   ['problem-editor', '/problem-editor', 'standalone'],
 ];
 
-const CEILING = 35;
+const CEILING = 38;
 
 describe('screen budget', () => {
   it('serves exactly the listed screens, with their addresses and layouts, in table order', () => {

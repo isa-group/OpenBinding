@@ -4,7 +4,7 @@
 // domain is poured into SPHERE's pages, and lists them in `screens`, the table its screen budget and route tests read.
 
 /* eslint-disable react-refresh/only-export-components -- the table exports `screens` for the budget and route tests */
-import { lazy, Suspense, type ComponentType, type ReactNode } from 'react';
+import { lazy, Suspense, type ReactNode } from 'react';
 import { Outlet, useRoutes, type RouteObject } from 'react-router-dom';
 import { RouteFallback } from '../components/PlatformShell/RouteFallback';
 import ProtectedRoute from '../modules/auth/components/protected-route';
@@ -34,9 +34,6 @@ export interface Screen {
   requireAdmin?: boolean;
 }
 
-const named = <K extends string>(load: () => Promise<Record<K, ComponentType>>, name: K) =>
-  lazy(() => load().then(module => ({ default: module[name] })));
-
 const RootPage = lazy(() => import('../modules/presentation/pages/root'));
 const PublicOrganizationsPage = lazy(
   () => import('../modules/organization/pages/public-organizations-list')
@@ -58,9 +55,12 @@ const SsoCallbackPage = lazy(() => import('../modules/auth/pages/sso-callback'))
 const CreateOrganizationPage = lazy(
   () => import('../modules/organization/pages/create-organization')
 );
-const About = named(() => import('../pages/About/About'), 'About');
-const Pricing = named(() => import('../pages/Pricing/Pricing'), 'Pricing');
-const LanguagePage = named(() => import('../pages/Language/LanguagePage'), 'LanguagePage');
+const PricingPage = lazy(() => import('../modules/presentation/pages/pricing'));
+const TeamPage = lazy(() => import('../modules/presentation/pages/team'));
+const ResearchPage = lazy(() => import('../modules/presentation/pages/research'));
+const ContributionsPage = lazy(() => import('../modules/presentation/pages/contributions'));
+const ChangelogPage = lazy(() => import('../modules/presentation/pages/changelog'));
+const LanguagePage = lazy(() => import('../modules/language/pages/language'));
 const EngineListPage = lazy(() => import('../modules/engine/pages/list'));
 const EngineCardPage = lazy(() => import('../modules/engine/pages/card'));
 const MyEnginesPage = lazy(() => import('../modules/engine/pages/my-engines'));
@@ -94,9 +94,6 @@ export const screens: Screen[] = [
   // ═══════════════════════════════════════════════════════════
   // PUBLIC ROUTES (the public layout)
   // ═══════════════════════════════════════════════════════════
-  { id: 'pub-about', path: '/about', layout: 'public', element: <About /> },
-  { id: 'pub-pricing', path: '/pricing', layout: 'public', element: <Pricing /> },
-  { id: 'pub-language', path: '/language', layout: 'public', element: <LanguagePage /> },
   { id: 'auth', path: '/authentication', layout: 'public', element: <AuthenticationPage /> },
   { id: 'auth-forgot-password', path: '/forgot-password', layout: 'public', element: <ForgotPasswordPage /> },
   { id: 'auth-reset-password', path: '/reset-password', layout: 'public', element: <ResetPasswordPage /> },
@@ -113,6 +110,12 @@ export const screens: Screen[] = [
   { id: 'composition-permalink', path: '/p/:id', layout: 'session', element: <PermanentLinkPage /> },
   { id: 'eng-catalog', path: '/engines', layout: 'session', element: <EngineListPage /> },
   { id: 'eng-detail', path: '/engines/:namespace/:name/:version', layout: 'session', element: <EngineCardPage /> },
+  { id: 'pub-language', path: '/language', layout: 'session', element: <LanguagePage /> },
+  { id: 'pub-pricing', path: '/pricing', layout: 'session', element: <PricingPage /> },
+  { id: 'pub-team', path: '/team', layout: 'session', element: <TeamPage /> },
+  { id: 'pub-research', path: '/research', layout: 'session', element: <ResearchPage /> },
+  { id: 'pub-contributions', path: '/contributions', layout: 'session', element: <ContributionsPage /> },
+  { id: 'pub-changelog', path: '/changelog', layout: 'session', element: <ChangelogPage /> },
 
   // ═══════════════════════════════════════════════════════════
   // PROTECTED ROUTES (require auth + AuthenticatedLayout)

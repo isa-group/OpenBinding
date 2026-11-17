@@ -16,7 +16,7 @@ import { useAuth } from '../../../auth/hooks/useAuth';
 import { describeLimit, limitInfo } from '../../../../utils/limits';
 import { formatDateTime } from '../../../../utils/format';
 import { useResource } from '../../../../utils/useResource';
-import { featureName, withInfiniteLimits } from '../../../../pages/Pricing/pricingModel';
+import { featureName, withInfiniteLimits } from '../../../core/utils/pricing/pricingModel';
 import { useAdminApi } from '../../api/adminApi';
 import {
   agreementIssues,

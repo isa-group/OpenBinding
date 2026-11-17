@@ -26,6 +26,7 @@ import {
 } from '../../../../utils/authFlow';
 import { classifyAuthError } from '../../../core/api/errors';
 import { Notice } from '../../../core/components/notice';
+import ServiceStatus from '../../../presentation/components/service-status';
 import { AuthSpinner } from '../../components/auth-field';
 import AuthLayout from '../../components/auth-layout';
 import { fadeUp } from '../../components/auth-layout/variants';
@@ -298,11 +299,7 @@ export default function SsoCallbackPage() {
                   Go to {SIGN_IN_SECURITY_NAME}
                 </Link>
               ) : (
-                SERVICE.has(phase.failure) && (
-                  <Link className={SECONDARY_ACTION} to="/about" viewTransition>
-                    Service status
-                  </Link>
-                )
+                SERVICE.has(phase.failure) && <ServiceStatus className="text-tp-slate" />
               )}
             </div>
           </>

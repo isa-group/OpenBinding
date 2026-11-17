@@ -3,7 +3,7 @@ import { expect as baseExpect, test, type Page, type Route, type TestInfo } from
 
 // The dev server compiles each route on first use, so the first assertion of a test can wait for a cold page.
 const expect = baseExpect.configure({ timeout: 15_000 });
-import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
+import { CURRENT_FIXTURE, catalogFixture } from '../src/test/fixtures/pricingCatalog';
 import { zipStore } from '../src/utils/bimZip';
 
 // S1b · public screens, part 2: eng-catalog, eng-detail, pub-language (its smoke; J6 walks it in f2a-language.spec.ts), and the
@@ -712,7 +712,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await shot(page, testInfo, 'engine-detail-digest-mismatch');
     });
 
-    test('pub-language /language is the Composition2Yaml reference, whose examples open in the editor; the old hub addresses answer Page not found', async ({
+    test('pub-language /language is the Composition2Yaml reference, indexed by section, whose examples open in the editor; the old hub addresses answer Page not found', async ({
       page,
     }, testInfo) => {
       const critical = watchCriticalErrors(page);
@@ -739,9 +739,27 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         'href',
         `${API}/v1/compositions/schema`
       );
+      await expect(main.getByRole('link', { name: /Read the specification/ })).toHaveAttribute(
+        'href',
+        /COMPOSITION2YAML\.md$/
+      );
       await expect(
         main.getByRole('heading', { level: 2, name: 'What is not in the language' })
       ).toBeVisible();
+
+      // The section index: links beside the content on a wide screen, a select above it on a narrow one.
+      const target = main.getByRole('heading', { level: 3, name: 'Values and units', exact: true });
+      if (isMobile) {
+        const select = main.getByRole('combobox', { name: 'Jump to a section' });
+        await expect(select).toBeVisible();
+        await select.selectOption({ label: '· Values and units' });
+      } else {
+        const index = main.getByRole('navigation', { name: 'Sections' });
+        await expect(index).toBeVisible();
+        await index.getByRole('link', { name: 'Values and units' }).click();
+        await expect(page).toHaveURL(/\/language#lang-values-and-units$/);
+      }
+      await expect(target).toBeInViewport();
       await ready(page);
       await shot(page, testInfo, 'language');
       await expectNoHorizontalOverflow(page);

@@ -157,7 +157,7 @@ describe('the vocabulary scanner', () => {
       '/src/a/testUtils.ts',
       '/src/test/fixtures/jobs.ts',
       '/src/a/fixtures.ts',
-      '/src/pages/Pricing/pricingFixture.ts',
+      '/src/test/fixtures/pricingCatalog.ts',
       '/src/components/rendering/runResultFixtures.ts',
       '/src/test/setup.ts',
       '/src/a/x.d.ts',

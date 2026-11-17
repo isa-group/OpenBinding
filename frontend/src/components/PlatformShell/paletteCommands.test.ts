@@ -106,6 +106,10 @@ describe('buildCommands', () => {
       ['Engines', '/engines'],
       ['Pricing', '/pricing'],
       ['Problem editor', '/problem-editor'],
+      ['Team', '/team'],
+      ['Research', '/research'],
+      ['Contributions', '/contributions'],
+      ['Changelog', '/changelog'],
     ]);
     expect(
       commands.filter(command =>

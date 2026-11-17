@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import JSZip from 'jszip';
 import { expect as baseExpect, test, type Page, type Route, type TestInfo } from '@playwright/test';
 import { failureBody } from './helpers/problems';
-import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
+import { CURRENT_FIXTURE, catalogFixture } from '../src/test/fixtures/pricingCatalog';
 import { checkoutFacts, compiledDocument, digestOf } from '../src/modules/problem/utils/fixtures';
 import type { CompositionVersionView } from '../src/modules/core/api/types';
 

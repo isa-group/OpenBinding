@@ -312,7 +312,9 @@ describe('SsoCallbackPage', () => {
       'Institutional sign-in is paused (503 · institutional_pricing_invalid).'
     );
     expect(screen.getByText(/You can still log in with a password\./)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Service status' })).toHaveAttribute('href', '/about');
+    // The gateway's own health beside the refusal, as the footer shows it.
+    expect(screen.getByText(/^Service status: /)).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Service status' })).not.toBeInTheDocument();
   });
 
   it('reports a CAS outage without blaming the code', async () => {

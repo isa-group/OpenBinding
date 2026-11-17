@@ -363,10 +363,8 @@ describe('AuthenticationPage', () => {
       expect(await screen.findByRole('alert')).toHaveTextContent(
         'Sign-in is unavailable right now (503)'
       );
-      expect(screen.getByRole('link', { name: 'Service status' })).toHaveAttribute(
-        'href',
-        '/about'
-      );
+      // The gateway's own health beside the refusal, as the footer shows it.
+      expect(screen.getByRole('alert')).toHaveTextContent(/Service status: /);
     });
 
     it('treats an unreachable pricing service as unavailable, not as a wrong password', async () => {

@@ -5,13 +5,18 @@ import {
   INSTITUTION_URL,
   useInstitutionalBranding,
 } from './institution';
-import './InstitutionMark.css';
 
 export type InstitutionMarkVariant = 'compact' | 'wide';
 
 const sources: Record<InstitutionMarkVariant, string> = {
   compact: BRAND_ASSETS.institutionMark,
   wide: BRAND_ASSETS.institutionWordmark,
+};
+
+/** The image's height per variant; `institution-mark` is only a hook the page checks find it by. */
+const IMAGE: Record<InstitutionMarkVariant, string> = {
+  compact: 'h-7',
+  wide: 'h-11 max-w-48',
 };
 
 interface InstitutionMarkProps {
@@ -29,15 +34,24 @@ export function InstitutionMark({ variant = 'compact', className }: InstitutionM
   const institutional = useInstitutionalBranding();
   if (!institutional) return null;
 
-  const classes = ['institution-mark', `institution-mark--${variant}`, className]
+  const classes = [
+    'institution-mark inline-flex flex-none items-center justify-center no-underline',
+    className,
+  ]
     .filter(Boolean)
     .join(' ');
-  const image = <img src={sources[variant]} alt={INSTITUTION_NAME} />;
+  const image = (
+    <img
+      src={sources[variant]}
+      alt={INSTITUTION_NAME}
+      className={`block w-auto max-w-full object-contain ${IMAGE[variant]}`}
+    />
+  );
 
   if (variant === 'wide') {
     return (
       <a
-        className={classes}
+        className={`${classes} cursor-pointer`}
         href={INSTITUTION_URL}
         target="_blank"
         rel="noreferrer"

@@ -46,9 +46,9 @@ const application = Object.fromEntries(
  * editor, Language), the problem screens (`modules/problem`), and the layers they are built from.
  */
 const SCOPE =
-  /^\/src\/(pages\/Language\/|modules\/problem\/|modules\/core\/components\/(candidate-matrix|composition-renderer|pricing-card|problems-panel|provider-map|rules-and-objectives|value-badge|workflow-graph)\/|modules\/composition\/(api|components|hooks|pages|utils)\/|modules\/core\/utils\/(composition|binding)\/|modules\/composition-editor\/|modules\/run\/components\/derive\/)/;
+  /^\/src\/(modules\/language\/|modules\/problem\/|modules\/core\/components\/(candidate-matrix|composition-renderer|pricing-card|problems-panel|provider-map|rules-and-objectives|value-badge|workflow-graph)\/|modules\/composition\/(api|components|hooks|pages|utils)\/|modules\/core\/utils\/(composition|binding)\/|modules\/composition-editor\/|modules\/run\/components\/derive\/)/;
 const SCOPE_AREAS = [
-  '/src/pages/Language/',
+  '/src/modules/language/',
   '/src/modules/problem/',
   '/src/modules/core/components/composition-renderer/',
   '/src/modules/core/components/value-badge/',
@@ -93,7 +93,7 @@ const PLAN_WITH_PROPOSAL = /^(?=[\s\S]*\bproposals?\b)[\s\S]*\bplans?\b/i;
 /**
  * Outside the scope these words name other things, and stay: rewording them would mislead (D23). Each entry is a file that shows
  * one, with what it names; the test below fails when an entry no longer does, so the list cannot go stale. The engines area,
- * engine registration, runs, studies, account, admin, authentication, pricing, About, Home and the site content are outside the
+ * engine registration, runs, studies, account, admin, authentication, pricing, the about pages, Home and the site content are outside the
  * scope for the same reasons, as is the engine protocol row of the Home compatibility gate (`Deployment`, a single word in a `name`
  * the scanner does not read). The composition-first Home copy is reviewed in the visual QA instead.
  */
@@ -104,7 +104,7 @@ const OUTSIDE: Readonly<Record<string, string>> = {
     'an engine deployment, and "Verified" for the outcome of its conformance probe',
   '/src/modules/run/pages/create/index.tsx': 'the engine deployment a federated run is sent to',
   '/src/modules/auth/components/login-form/index.tsx': 'this OpenBinding installation',
-  '/src/pages/About/AboutPanels.tsx': 'the related projects of About',
+  '/src/modules/presentation/pages/research/index.tsx': 'the related projects of the Research page',
   '/src/modules/study/components/studies-tab/index.tsx': '"Build a study"',
   '/src/content/platform.ts':
     'the research topics: scenario aggregation, building comparative studies',

@@ -18,7 +18,7 @@ import {
   jobOf,
   provenanceOf,
 } from '../src/test/fixtures/jobs';
-import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
+import { CURRENT_FIXTURE, catalogFixture } from '../src/test/fixtures/pricingCatalog';
 import { digestOf, usageOf } from '../src/test/fixtures/resources';
 import { FEDERATED_PRESET, presetFixture, presetPage } from '../src/test/fixtures/presets';
 

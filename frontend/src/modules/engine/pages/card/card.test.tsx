@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { UserProfile } from '../../../../api/auth';
-import { catalogFixture } from '../../../../pages/Pricing/pricingFixture';
+import { catalogFixture } from '../../../../test/fixtures/pricingCatalog';
 import { orgNode, renderModule } from '../../../../test/moduleKit';
 import { HttpError } from '../../../core/api/http';
 import type { EngineCatalogEntry, EngineMode } from '../../api/enginesApi';
@@ -23,7 +23,7 @@ vi.mock('../../api/enginesApi', async () => ({
 }));
 
 const DIGEST = `sha256-${'b2c3d4e5'.repeat(8)}`;
-// What GET /v1/pricing/catalog serves: the active document as JSON (pricing 0.2.0, see pricingFixture).
+// What GET /v1/pricing/catalog serves: the active document as JSON (pricing 0.2.0, see test/fixtures/pricingCatalog).
 const catalog = JSON.parse(JSON.stringify(catalogFixture)) as Record<string, unknown>;
 
 const lucia: UserProfile = {

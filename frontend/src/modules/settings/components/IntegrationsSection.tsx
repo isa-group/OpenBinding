@@ -24,7 +24,7 @@ import {
   useInstitutionalBranding,
 } from '../../../components/InstitutionMark/institution';
 import { PlanChangedNotice } from '../../../components/PlanChangedNotice/PlanChangedNotice';
-import { readCatalog } from '../../../pages/Pricing/pricingModel';
+import { readCatalog } from '../../core/utils/pricing/pricingModel';
 import { formatDate } from '../../../utils/format';
 import { LIMIT } from '../../../utils/limits';
 import { leaveTo } from '../../../utils/navigation';

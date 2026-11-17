@@ -36,7 +36,9 @@ export const headerRoutes: HeaderRoute[] = [
     ],
   },
   { name: 'Pricing', disabled: false, to: '/pricing' },
-  { name: 'About', disabled: false, to: '/about' },
+  { name: 'Team', disabled: false, to: '/team' },
+  { name: 'Research', disabled: false, to: '/research', match: ['/contributions'] },
+  { name: 'Changelog', disabled: false, to: '/changelog' },
 ];
 
 export interface MenuEntry {

@@ -70,7 +70,7 @@ test.describe('J6 · language', () => {
     await page.keyboard.press('Escape');
 
     // Opening it elsewhere gives the same text back, and the address no longer carries it.
-    await page.goto('/about');
+    await page.goto('/team');
     await page.goto(link);
     await expect(code(page)).toContainText('composition: my-composition-shared');
     await expect(page).toHaveURL('/editor');

@@ -23,7 +23,7 @@ import {
   reportOf,
   usageOf,
 } from '../src/test/fixtures/engines';
-import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
+import { CURRENT_FIXTURE, catalogFixture } from '../src/test/fixtures/pricingCatalog';
 
 // S8a · engines of the account: eng-register, eng-registrations and eng-registration-detail.
 // There is no backend: the API origin is answered by page.route(). Screenshots go to testInfo.outputPath() (test-results/, ignored by git)

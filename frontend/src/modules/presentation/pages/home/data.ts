@@ -71,8 +71,8 @@ export const PIPELINE: readonly PipelineStage[] = [
     short: 'The gateway re-checks',
     long: 'The gateway re-evaluates every binding an engine returns, so objectives, penalties and violations don’t depend on the engine’s own report.',
     pin: 'decision + evaluator provenance',
-    href: '/about',
-    cta: 'About OpenBinding',
+    href: '/research',
+    cta: 'The research behind it',
   },
   {
     id: 'composition',

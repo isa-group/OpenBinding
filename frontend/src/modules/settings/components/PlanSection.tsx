@@ -14,7 +14,7 @@ import {
   useInstitutionalBranding,
 } from '../../../components/InstitutionMark/institution';
 import { config } from '../../../config';
-import { featureName, readCatalog, type PricingView } from '../../../pages/Pricing/pricingModel';
+import { featureName, readCatalog, type PricingView } from '../../core/utils/pricing/pricingModel';
 import { describeLimit, formatCount, LIMIT, type LimitDefinition } from '../../../utils/limits';
 import { usePricingTokenStatus, type PricingTokenStatus } from '../../../utils/pricingToken';
 import { useAuth } from '../../auth/hooks/useAuth';

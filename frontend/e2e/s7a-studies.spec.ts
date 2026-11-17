@@ -8,7 +8,7 @@ import {
 } from '@playwright/test';
 import { failureBody } from './helpers/problems';
 import type { Job, Study, StudyCell, StudyRun } from '../src/api/platform';
-import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
+import { CURRENT_FIXTURE, catalogFixture } from '../src/test/fixtures/pricingCatalog';
 import { jobOf } from '../src/test/fixtures/jobs';
 import { presetPage } from '../src/test/fixtures/presets';
 import { usageOf } from '../src/test/fixtures/resources';

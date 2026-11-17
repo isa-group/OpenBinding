@@ -217,16 +217,14 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByLabel('Password')).toHaveAttribute('aria-invalid', 'true');
       await capture(page, testInfo, `login-${name}-401`);
 
-      // The accounts service is down: said as such, with the way to the service status on the About page.
+      // The accounts service is down: said as such, with the gateway's service status beside it.
       await page.route(
         `${API}/v1/auth/login`,
         detail(503, 'auth_unavailable', 'Accounts are not reachable.')
       );
       await main.getByRole('button', { name: 'Log in' }).click();
       await expect(main.getByRole('alert')).toContainText('Sign-in is unavailable right now (503)');
-      await expect(
-        main.getByRole('alert').getByRole('link', { name: 'Service status' })
-      ).toHaveAttribute('href', '/about');
+      await expect(main.getByRole('alert')).toContainText(/Service status: /);
       await capture(page, testInfo, `login-${name}-503`);
 
       // A session that ended without being asked to is explained.
@@ -556,10 +554,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       );
       await page.goto(`/sso/callback?code=${CAS_CODE}`);
       await expect(main.getByRole('alert')).toContainText('503 · institutional_pricing_invalid');
-      await expect(main.getByRole('link', { name: 'Service status' })).toHaveAttribute(
-        'href',
-        '/about'
-      );
+      await expect(main.getByText(/^Service status: /)).toBeVisible();
       await capture(page, testInfo, `cas-${name}-503`);
 
       await page.route(

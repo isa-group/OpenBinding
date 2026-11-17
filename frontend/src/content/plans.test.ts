@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { catalogFixture } from '../pages/Pricing/pricingFixture';
+import { catalogFixture } from '../test/fixtures/pricingCatalog';
 import { LIMIT } from '../utils/limits';
 import { PRICING_VERSION, planSummaries } from './plans';
 

@@ -21,6 +21,8 @@ export interface ResearchPaper {
   venue: string;
   doi: string;
   corpus: string;
+  /** Where it was published: the research timeline marks journals and proceedings apart. */
+  kind: 'journal' | 'proceedings';
 }
 
 export interface FundingEntity {
@@ -82,6 +84,7 @@ export const researchCorpus: readonly ResearchPaper[] = [
     authors: 'A. Netedu et al.',
     venue: 'Service-Oriented Computing',
     doi: '10.1007/978-3-030-34986-8_25',
+    kind: 'proceedings',
     corpus: 'Transport agency',
   },
   {
@@ -90,6 +93,7 @@ export const researchCorpus: readonly ResearchPaper[] = [
     authors: 'M. Cremaschi et al.',
     venue: 'Service-Oriented Computing',
     doi: '10.1007/978-3-319-99819-0_10',
+    kind: 'proceedings',
     corpus: 'Textbook access',
   },
   {
@@ -98,6 +102,7 @@ export const researchCorpus: readonly ResearchPaper[] = [
     authors: 'Y. Zhang et al.',
     venue: 'IEEE Mobile Services',
     doi: '10.1109/MobServ.2014.27',
+    kind: 'proceedings',
     corpus: 'Entertainment planner',
   },
   {
@@ -106,6 +111,7 @@ export const researchCorpus: readonly ResearchPaper[] = [
     authors: 'C. Pautasso',
     venue: 'Data & Knowledge Engineering',
     doi: '10.1016/j.datak.2009.02.016',
+    kind: 'journal',
     corpus: 'RESTful e-commerce',
   },
   {
@@ -115,6 +121,7 @@ export const researchCorpus: readonly ResearchPaper[] = [
     authors: 'T. Bultan et al.',
     venue: 'WWW',
     doi: '10.1145/775152.775210',
+    kind: 'proceedings',
     corpus: 'Warehouse conversation',
   },
   {
@@ -123,11 +130,12 @@ export const researchCorpus: readonly ResearchPaper[] = [
     authors: 'B. Benatallah et al.',
     venue: 'IEEE ICDE',
     doi: '10.1109/ICDE.2002.994738',
+    kind: 'proceedings',
     corpus: 'SELF-SERV travel',
   },
 ];
 
-/** The figures of the executable corpus, as stated on the Research tab. */
+/** The figures of the executable corpus, as stated on the Research page. */
 export const researchFacts: ReadonlyArray<{ value: string; label: string }> = [
   { value: String(researchCorpus.length), label: 'source papers' },
   { value: '68+', label: 'problem variants' },

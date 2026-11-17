@@ -11,7 +11,12 @@ const resolve = (path: string) => matchRoutes(config, path)?.at(-1)?.route.id ??
 // prettier-ignore
 const RESOLUTION: Array<[string, string | null]> = [
   ['/', 'pub-home'],
-  ['/about', 'pub-about'],
+  ['/about', null],
+  ['/team', 'pub-team'],
+  ['/research', 'pub-research'],
+  ['/contributions', 'pub-contributions'],
+  ['/changelog', 'pub-changelog'],
+  ['/pricing', 'pub-pricing'],
   ['/app', null],
   ['/app/account', null],
   ['/app/account/billing', null],

@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { COMPOSITIONS, PROBLEMS, RUN_NEW, entry, expectInOrder, menuScope, mockApi, type Role } from './helpers';
 
-// SPHERE's header (F2c PR-A): Tools and Explore open menus, Pricing and About are links; signed in, New, the palette, the bell and
+// SPHERE's header (F2c PR-A): Tools and Explore open menus, Pricing, Team, Research and Changelog are links; signed in, New, the palette, the bell and
 // the account menu follow. The entries point at today's screens until each domain moves into SPHERE's pages.
 
 test.use({ viewport: { width: 1280, height: 800 } });
@@ -16,7 +16,7 @@ async function signedIn(page: Page, path: string, role: Role = 'user') {
   await expect(banner(page)).toBeVisible();
 }
 
-test('public header lists Tools, Explore, Pricing and About in order, then Log in and Sign up', async ({ page }) => {
+test('public header lists Tools, Explore, Pricing, Team, Research and Changelog in order, then Log in and Sign up', async ({ page }) => {
   await mockApi(page, { role: null });
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/pricing');
@@ -24,7 +24,9 @@ test('public header lists Tools, Explore, Pricing and About in order, then Log i
     primary(page).getByRole('button', { name: 'Tools' }),
     primary(page).getByRole('button', { name: 'Explore' }),
     entry(primary(page), 'Pricing'),
-    entry(primary(page), 'About'),
+    entry(primary(page), 'Team'),
+    entry(primary(page), 'Research'),
+    entry(primary(page), 'Changelog'),
     entry(banner(page), 'Log in'),
     entry(banner(page), 'Sign up'),
   ]);
@@ -55,7 +57,9 @@ test('phone menu lists the same entries in the same order', async ({ page }) => 
     menu.getByRole('button', { name: 'Tools' }),
     menu.getByRole('button', { name: 'Explore' }),
     entry(menu, 'Pricing'),
-    entry(menu, 'About'),
+    entry(menu, 'Team'),
+    entry(menu, 'Research'),
+    entry(menu, 'Changelog'),
     entry(menu, 'Log in'),
     entry(menu, 'Sign up'),
   ]);
@@ -76,7 +80,9 @@ test('application header keeps SPHERE\'s order and marks no site entry on a work
     main(page).getByRole('button', { name: 'Tools' }),
     main(page).getByRole('button', { name: 'Explore' }),
     entry(main(page), 'Pricing'),
-    entry(main(page), 'About'),
+    entry(main(page), 'Team'),
+    entry(main(page), 'Research'),
+    entry(main(page), 'Changelog'),
     banner(page).getByRole('button', { name: 'New', exact: true }),
     banner(page).getByRole('button', { name: 'Account menu' }),
   ]);

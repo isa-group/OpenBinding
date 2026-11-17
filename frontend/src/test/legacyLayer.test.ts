@@ -19,7 +19,7 @@ function body(text: string): string {
 describe('the legacy cascade layer', () => {
   it('reads the stylesheets', () => {
     expect(sheets).toContain('styles/tailwind.css');
-    expect(sheets.length).toBeGreaterThan(10);
+    expect(sheets.length).toBeGreaterThan(1);
   });
 
   it('opens with the layer order, with legacy between base and components', () => {

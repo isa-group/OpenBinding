@@ -27,7 +27,7 @@ describe('ErrorState', () => {
     ],
     ['403', 'You can’t do this', 'Back to the workspace', '/', 'forbidden'],
     ['404', 'Not found', 'Back to the workspace', '/', 'not_found'],
-    ['503', 'This isn’t available right now', 'Service status', '/about', 'unavailable'],
+    ['503', 'This isn’t available right now', 'Service status', '/#service-status', 'unavailable'],
   ])(
     'says what the %s variant means by default and where to go next',
     (variant, title, action, href, code) => {

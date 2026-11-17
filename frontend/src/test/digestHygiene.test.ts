@@ -9,7 +9,7 @@ import { describe, expect, it } from 'vitest';
 //
 // Every shipped file outside the allowed set is scanned.
 // Known limits: short digests, digests built from a template and runtime data are not detected; the generated
-// frontend/src/content/changelog.json is rendered on About but is not scanned (JSON is not in the glob).
+// frontend/src/content/changelog.json is rendered on /changelog but is not scanned (JSON is not in the glob).
 
 const files = import.meta.glob(['/src/**/*.{ts,tsx,css}', '!/src/**/*.test.*'], {
   query: '?raw',
@@ -62,7 +62,6 @@ const EXEMPT_FILES: readonly string[] = [
   '/src/components/rendering/runResultFixtures.ts',
   '/src/modules/problem/utils/fixtures.ts',
   '/src/modules/organization/pages/organization-detail/auditFixture.ts',
-  '/src/pages/Pricing/pricingFixture.ts',
   '/src/test/fixtures/admin.ts',
   '/src/test/fixtures/agreementCatalog.ts',
   '/src/test/fixtures/analysis.ts',
@@ -73,6 +72,7 @@ const EXEMPT_FILES: readonly string[] = [
   '/src/test/fixtures/engines.ts',
   '/src/test/fixtures/jobs.ts',
   '/src/test/fixtures/presets.ts',
+  '/src/test/fixtures/pricingCatalog.ts',
   '/src/test/fixtures/resources.ts',
   '/src/test/fixtures/studies.ts',
   // test support under src/test/, not shipped behaviour

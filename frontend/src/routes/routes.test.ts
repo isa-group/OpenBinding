@@ -103,6 +103,7 @@ describe('route table', () => {
       '/playground',
       '/engines/new',
       '/funding',
+      '/about',
       '/profiles',
       '/schemas',
       '/app/acme/atlas/verifier',

@@ -147,7 +147,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
           const menu = page.getByRole('navigation', { name: 'Mobile navigation' });
           for (const label of [
             'Pricing',
-            'About',
+            'Team',
+            'Research',
+            'Changelog',
             'Organizations',
             'Inbox',
             'API keys',
@@ -176,7 +178,15 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
             'href',
             '/pricing'
           );
-          await expect(nav.getByRole('link', { name: 'About' })).toHaveAttribute('href', '/about');
+          for (const [label, address] of [
+            ['Team', '/team'],
+            ['Research', '/research'],
+            ['Changelog', '/changelog'],
+          ])
+            await expect(nav.getByRole('link', { name: label, exact: true })).toHaveAttribute(
+              'href',
+              address
+            );
           await expect(nav.locator('[aria-current="page"]')).toHaveCount(0);
           await nav.getByRole('button', { name: 'Explore' }).click();
           await expect(nav.getByRole('link', { name: 'Organizations' })).toHaveAttribute(

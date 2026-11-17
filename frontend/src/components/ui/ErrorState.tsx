@@ -236,7 +236,7 @@ function defaultActionsFor(
               Try again
             </StateAction>
           )}
-          <StateAction tone="link" to="/about">
+          <StateAction tone="link" to="/#service-status">
             Service status
           </StateAction>
         </>
