@@ -1,4 +1,4 @@
-import { apiClient, HttpError, type Revised } from '../../../../api/client';
+import { apiClient, HttpError, type Revised } from '../../api/http';
 import type {
   CheckResult,
   CompositionCreate,

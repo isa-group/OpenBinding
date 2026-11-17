@@ -8,8 +8,8 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useRunsApi, type JobDetail, type JobSolution } from '../../api/runsApi';
-import { RunResult } from '../../../../components/rendering/RunResult';
-import { SourceView } from '../../../../components/rendering/SourceView';
+import { RunResult } from '../rendering/RunResult';
+import { SourceView } from '../rendering/SourceView';
 import { Action } from '../../../core/components/action-button';
 import { Chip } from '../../../core/components/chip';
 import { Notice } from '../../../core/components/notice';

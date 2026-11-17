@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import type { FeatureSlot } from '../../../../utils/featureRange';
+import type { FeatureSlot } from '../../../core/utils/featureRange';
 import { FeatureCell } from '.';
 
 /** The cell with the document it edits kept beside it: what the cell writes is what is printed. */

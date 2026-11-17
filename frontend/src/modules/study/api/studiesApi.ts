@@ -7,7 +7,7 @@
 // composition module keeps its own (`core/utils/composition/api.ts`). Refusals throw the typed error `readApiError` reads.
 
 import { useCallback, useMemo } from 'react';
-import { apiClient, type Revised } from '../../../api/client';
+import { apiClient, type Revised } from '../../core/api/http';
 import { readResponse } from '../../core/api/http';
 import type { AnalyticsView } from '../../core/api/types';
 import { useAuth } from '../../auth/hooks/useAuth';

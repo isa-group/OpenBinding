@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { expect as baseExpect, test, type Page, type Route } from '@playwright/test';
 import { DEFAULT_FILES } from '../src/modules/problem-editor/utils/documents';
-import { unzipPackage, zipStore } from '../src/utils/bimZip';
+import { unzipPackage, zipStore } from '../src/modules/core/utils/bimZip';
 import { API, installMockApi } from './helpers/mockApi';
 
 // J3 · the standalone BIM problem editor (`/problem-editor`): a template opens, already checked → Candidates: a candidate's value is

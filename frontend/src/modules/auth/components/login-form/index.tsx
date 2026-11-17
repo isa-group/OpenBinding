@@ -19,7 +19,7 @@ import {
   hasRecentSignIn,
   hasSessionEnded,
   noteSignInStarted,
-} from '../../../../utils/authFlow';
+} from '../../utils/authFlow';
 import { useAuth } from '../../hooks/useAuth';
 import { fieldErrorsFrom } from '../../utils/authErrors';
 import {

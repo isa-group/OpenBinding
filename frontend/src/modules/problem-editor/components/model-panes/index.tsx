@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
-import type { BimValidateResponse } from '../../../../api/bim';
-import { parseBindingSpace } from '../../../../components/BindingSpaceBadge/bindingSpace';
+import type { BimValidateResponse } from '../../../core/api/bim';
+import { parseBindingSpace } from '../../../core/components/binding-space-badge/bindingSpace';
 import { Chip } from '../../../core/components/chip';
 import { candidateMatrix } from '../../../core/utils/binding/candidateMatrix';
 import { workflowGraph } from '../../../core/utils/binding/workflowGraph';

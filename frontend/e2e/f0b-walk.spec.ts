@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import JSZip from 'jszip';
 import { expect as baseExpect, test, type Page } from '@playwright/test';
-import { zipStore } from '../src/utils/bimZip';
+import { zipStore } from '../src/modules/core/utils/bimZip';
 import { WALK_ORG, installWalkApi } from './helpers/mockApi';
 
 // The F0b walk, through the interface: sign in, upload a BIM package as a problem of the organization, read its version and its

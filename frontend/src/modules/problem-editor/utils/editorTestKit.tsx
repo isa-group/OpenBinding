@@ -1,6 +1,6 @@
 import type { ProblemFacts } from '../../core/api/types';
-import type { FeatureValue } from '../../../utils/featureRange';
-import { unzipPackage, zipStore } from '../../../utils/bimZip';
+import type { FeatureValue } from '../../core/utils/featureRange';
+import { unzipPackage, zipStore } from '../../core/utils/bimZip';
 
 /** Shared by the tests of the problem editor: the answers of the gateway, a package, and the editor rendered at its address. */
 

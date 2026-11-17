@@ -1,6 +1,6 @@
-import { bimApi } from '../../../../api/bim';
-import { apiClient, HttpError } from '../../../../api/client';
-import type { FeatureRange, FeatureValue } from '../../../../utils/featureRange';
+import { bimApi } from '../../api/bim';
+import { apiClient, HttpError } from '../../api/http';
+import type { FeatureRange, FeatureValue } from '../featureRange';
 import type { ProblemFacts } from '../../api/types';
 
 /**

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { HttpError } from '../../../api/client';
+import { HttpError } from '../api/http';
 import {
   createScheduler,
   DEFAULT_PAUSE_SECONDS,

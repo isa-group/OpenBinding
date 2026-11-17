@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Default, ErrorFallback, Feature, Loading, On } from 'space-react-client';
-import { usePricingTokenStatus } from '../../../../../utils/pricingToken';
+import { usePricingTokenStatus } from '../../../../core/utils/pricingToken';
 import type { PricingView } from '../../../../core/utils/pricing/pricingModel';
 
 const STATE = 'rounded-full border px-2 py-0.5 text-[11px] font-medium';

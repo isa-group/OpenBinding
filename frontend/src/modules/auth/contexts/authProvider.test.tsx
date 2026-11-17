@@ -1,8 +1,8 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { UserProfile } from '../../../api/auth';
-import { HttpError, SESSION_ENDED_EVENT } from '../../../api/client';
-import { clearSessionEnded, hasSessionEnded, markSessionEnded } from '../../../utils/authFlow';
+import type { UserProfile } from '../../core/api/account';
+import { HttpError, SESSION_ENDED_EVENT } from '../../core/api/http';
+import { clearSessionEnded, hasSessionEnded, markSessionEnded } from '../utils/authFlow';
 import { loadDraft, saveDraft } from '../../core/editor/drafts';
 import { AuthProvider } from './authProvider';
 import { useAuth } from '../hooks/useAuth';
@@ -15,9 +15,19 @@ const client = vi.hoisted(() => ({
   logout: vi.fn(),
 }));
 
-vi.mock('../../../api/client', async () => ({
-  ...(await vi.importActual<typeof import('../../../api/client')>('../../../api/client')),
+vi.mock('../../core/api/http', async () => ({
+  ...(await vi.importActual<typeof import('../../core/api/http')>('../../core/api/http')),
   apiClient: client,
+}));
+vi.mock('../api/accountClient', async () => ({
+  ...(await vi.importActual<typeof import('../api/accountClient')>('../api/accountClient')),
+  accountClient: client,
+}));
+vi.mock('../../settings/api/planClient', async () => ({
+  ...(await vi.importActual<typeof import('../../settings/api/planClient')>(
+    '../../settings/api/planClient'
+  )),
+  planClient: client,
 }));
 
 const account: UserProfile = {

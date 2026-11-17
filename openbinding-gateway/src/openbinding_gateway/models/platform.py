@@ -21,15 +21,11 @@ SLUG = r"^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$"
 DIGEST = r"^sha256-[0-9a-f]{64}$"
 
 
-#: Organization slugs that would collide with a fixed place of the application (``/app/<slug>``, and the
-#: static children ``/orgs/new`` and ``/orgs/join/:code``) or a section under an organization; the frontend
-#: mirrors them in ``PlatformShell/workspacePath.ts``. A slug derived from a name never takes one either, and
-#: ``public`` would shadow ``GET /v1/organizations/public``.
-RESERVED_ORGANIZATION_SLUGS = frozenset({
-    "admin", "account", "engines", "organizations", "invitations",
-    "compositions", "presets", "runs", "problems", "studies", "settings", "problem-editor", "new", "join",
-    "public",
-})
+#: Organization slugs that would collide with an address: the static children of the organization page
+#: (``/orgs/new``, ``/orgs/join/:code``; the frontend's route table is read by its test
+#: ``src/routes/reservedSlugs.test.ts`` to keep the two equal) and ``public``, which would shadow
+#: ``GET /v1/organizations/public``. A slug derived from a name never takes one either.
+RESERVED_ORGANIZATION_SLUGS = frozenset({"new", "join", "public"})
 
 #: A colour the avatar pickers produce: ``#rgb`` or ``#rrggbb``.
 HEX_COLOR = r"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$"

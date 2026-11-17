@@ -1,16 +1,16 @@
-import { QuotaError } from '../../../api/auth';
-import { HttpError } from '../../../api/client';
-import { diagnosticLines } from '../../../api/problem';
-import { inInterfaceWords } from '../../../components/ui/interfaceWords';
-import { RANGE_CODE } from '../../../utils/featureRange';
+import { QuotaError } from '../../core/api/account';
+import { HttpError } from '../../core/api/http';
+import { diagnosticLines } from '../../core/api/problem';
+import { inInterfaceWords } from '../../core/utils/interfaceWords';
+import { RANGE_CODE } from '../../core/utils/featureRange';
 import {
   USAGE_UNKNOWN_CODE,
   limitProblemOf,
   noticeOf,
   slotsText,
   usageUnknownText,
-} from '../../../utils/limitRefusals';
-import { LIMIT, limitInfo } from '../../../utils/limits';
+} from '../../core/utils/limitRefusals';
+import { LIMIT, limitInfo } from '../../core/utils/limits';
 import { classifyAuthError, marker } from '../../core/api/errors';
 
 export type RunAction = 'launch' | 'retry' | 'cancel';

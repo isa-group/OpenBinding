@@ -8,7 +8,7 @@
 
 import { Link } from 'react-router-dom';
 import { MdAdd, MdDeleteOutline } from 'react-icons/md';
-import { formatDate } from '../../../../utils/format';
+import { formatDate } from '../../../core/utils/format';
 import { problemsPath } from '../../../../routes/paths/problems';
 import type { RunPresetView } from '../../../core/api/types';
 import { Chip } from '../../../core/components/chip';

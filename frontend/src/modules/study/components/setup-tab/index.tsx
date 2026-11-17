@@ -5,9 +5,9 @@
 
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { SourceView } from '../../../../components/rendering/SourceView';
-import { formatDateTime } from '../../../../utils/format';
-import { useResource, type Resource } from '../../../../utils/useResource';
+import { SourceView } from '../../../run/components/rendering/SourceView';
+import { formatDateTime } from '../../../core/utils/format';
+import { useResource, type Resource } from '../../../core/hooks/useResource';
 import { classifyAuthError, marker } from '../../../core/api/errors';
 import { Action } from '../../../core/components/action-button';
 import { Notice } from '../../../core/components/notice';

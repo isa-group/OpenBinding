@@ -115,13 +115,12 @@ organization's blob.
 
 ## Reserved organization slugs
 
-An organization slug is the first segment of its screens (`/app/<slug>`), so the
-slugs of the fixed places and of the sections under an organization are refused at
-creation with `422 slug_reserved`: `admin`, `account`, `engines`, `organizations`,
-`invitations`, `compositions`, `presets`, `runs`, `problems`, `studies`, `settings`,
-`problem-editor` and `new` (`RESERVED_ORGANIZATION_SLUGS` in `models/platform.py`, mirrored by
-`frontend/src/components/PlatformShell/workspacePath.ts`, whose test reads the Python
-list and keeps the two equal). A slug cannot be changed after creation.
+An organization's page is `/orgs/<slug>`, so the static children of that address
+(`new`, `join`) and `public`, which would shadow `GET /v1/organizations/public`, are
+refused at creation with `422 slug_reserved` (`RESERVED_ORGANIZATION_SLUGS` in
+`models/platform.py`; `frontend/src/routes/reservedSlugs.test.ts` reads the frontend's
+route table and the Python list and keeps them equal). A slug cannot be changed after
+creation.
 
 ## The runs of an organization (`/v1/organizations/{org}/runs`)
 

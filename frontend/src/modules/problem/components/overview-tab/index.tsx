@@ -16,8 +16,8 @@ import { WorkflowGraph } from '../../../core/components/workflow-graph/WorkflowG
 import { marker } from '../../../core/api/errors';
 import { workflowGraph, type TaskOverlay } from '../../../core/utils/binding/workflowGraph';
 import { problemPath } from '../../../../routes/paths/problems';
-import { formatBytes, formatDateTime } from '../../../../utils/format';
-import type { Resource } from '../../../../utils/useResource';
+import { formatBytes, formatDateTime } from '../../../core/utils/format';
+import type { Resource } from '../../../core/hooks/useResource';
 import type { ProblemContent } from '../../types';
 import type { ModelState } from '../../utils/modelLoader';
 import { powerText } from '../../utils/problemsModel';

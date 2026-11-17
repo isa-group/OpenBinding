@@ -1,7 +1,7 @@
 import { useId, useState, type FormEvent } from 'react';
-import { Plus, TriangleAlert } from 'lucide-react';
-import { apiClient, type EngineCatalogEntry } from '../../../../../api/client';
-import type { Organization } from '../../../../../api/platform';
+import { MdAdd, MdWarningAmber } from 'react-icons/md';
+import { type EngineCatalogEntry } from '../../../../engine/api/engineClient';
+import type { Organization } from '../../../api/organizationClient';
 import { Action } from '../../../../core/components/action-button';
 import { FormField } from '../../../../core/components/form-field';
 import { Modal } from '../../../../core/components/modal';
@@ -15,14 +15,14 @@ import {
   presetRegistrationText,
   studyPresetRefusal,
 } from '../../../../run/api/presetText';
-import { generalFailure } from '../../../../../features/workspace/errors';
+import { generalFailure } from '../../../../core/utils/general-failure';
 import { launchPath } from '../../../../../routes/paths/runs';
 import { classifyAuthError, marker } from '../../../../core/api/errors';
 import type { RunPresetList, RunPresetView } from '../../../../core/api/types';
-import { formatDate } from '../../../../../utils/format';
-import { useResource } from '../../../../../utils/useResource';
+import { formatDate } from '../../../../core/utils/format';
+import { useResource } from '../../../../core/hooks/useResource';
 import { atLeast } from '../../../utils/org-tree';
-import { SelectField } from '../../../../../pages/Organization/parts';
+import { SelectField, TextAreaField } from '../../../../core/components/select-field';
 import {
   OPTIMIZATION_TYPES,
   draftOf,
@@ -33,7 +33,7 @@ import {
   type PresetDraft,
 } from '../presetForm';
 import TabCard from './TabCard';
-import '../../../../../pages/Organization/Organization.css';
+import { engineClient } from '../../../../engine/api/engineClient';
 
 /** The words for a refused save or delete of a preset. */
 function presetRefusal(caught: unknown, nothing: string): string {
@@ -98,7 +98,7 @@ function PresetDialog({ org, preset, engines, onClose, onSaved }: PresetDialogPr
 
   return (
     <Modal title={preset ? `Edit ${preset.name}` : 'New run preset'} onClose={onClose} size="lg">
-      <form className="org-dialog-form" onSubmit={event => void save(event)} noValidate>
+      <form className="flex flex-col gap-4" onSubmit={event => void save(event)} noValidate>
         <FormField
           label="Name"
           value={draft.name}
@@ -158,30 +158,22 @@ function PresetDialog({ org, preset, engines, onClose, onSaved }: PresetDialogPr
             <option value={draft.mode}>{draft.mode}</option>
           )}
         </SelectField>
-        <div className="ui-field">
-          <label htmlFor={`${listId}-options`}>Options (JSON object, optional)</label>
-          <textarea
-            id={`${listId}-options`}
-            className="org-preset-options"
-            rows={4}
-            spellCheck={false}
-            value={draft.options}
-            placeholder='{"time_budget_ms": 30000}'
-            aria-invalid={shown.options ? true : undefined}
-            aria-describedby={`${listId}-options-note`}
-            onChange={event => edit({ options: event.target.value })}
-          />
-          <span
-            id={`${listId}-options-note`}
-            className={`ui-field-note${shown.options ? ' is-error' : ''}`}
-          >
-            {shown.options ??
-              (mode && mode.options.length > 0
-                ? `This mode declares ${mode.options.join(', ')}. A time budget is in milliseconds.`
-                : 'Empty: the engine’s own defaults.')}
-          </span>
-        </div>
-        <div className="org-form-grid">
+        <TextAreaField
+          label="Options (JSON object, optional)"
+          mono
+          rows={4}
+          spellCheck={false}
+          value={draft.options}
+          placeholder='{"time_budget_ms": 30000}'
+          error={shown.options}
+          hint={
+            mode && mode.options.length > 0
+              ? `This mode declares ${mode.options.join(', ')}. A time budget is in milliseconds.`
+              : 'Empty: the engine’s own defaults.'
+          }
+          onChange={event => edit({ options: event.target.value })}
+        />
+        <div className="grid gap-4 sm:grid-cols-2">
           <SelectField
             label="Optimization"
             value={draft.optimizationType}
@@ -213,23 +205,26 @@ function PresetDialog({ org, preset, engines, onClose, onSaved }: PresetDialogPr
               ))}
           </datalist>
         </div>
-        <span className="org-muted">
+        <span className="text-xs text-tp-steel">
           A study takes a preset only when it names an optimization.
         </span>
         {registration && (
-          <span className="org-muted">
+          <span className="text-xs text-tp-steel">
             Runs on the deployment {registration}, as it was saved from a run; this form keeps it.
           </span>
         )}
         <div aria-live="assertive">
           {error && (
-            <div className="org-dialog-error" role="alert">
-              <TriangleAlert aria-hidden="true" />
+            <div
+              className="flex items-start gap-2 rounded-md border border-tp-severity-error-border bg-tp-severity-error-bg px-3 py-2 text-sm text-tp-error-text"
+              role="alert"
+            >
+              <MdWarningAmber aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" />
               {error}
             </div>
           )}
         </div>
-        <div className="ui-modal-actions">
+        <div className="flex flex-wrap justify-end gap-2">
           <Action variant="secondary" onClick={onClose} disabled={busy}>
             Cancel
           </Action>
@@ -268,20 +263,23 @@ function DeleteDialog({
   };
   return (
     <Modal title={`Delete ${preset.name}?`} onClose={onClose} tone="danger" size="md">
-      <div className="org-dialog-form">
+      <div className="flex flex-col gap-4">
         <p>
           Runs started from it keep the settings they copied. A study that names it can’t run again
           until it names another engine or preset.
         </p>
         <div aria-live="assertive">
           {error && (
-            <div className="org-dialog-error" role="alert">
-              <TriangleAlert aria-hidden="true" />
+            <div
+              className="flex items-start gap-2 rounded-md border border-tp-severity-error-border bg-tp-severity-error-bg px-3 py-2 text-sm text-tp-error-text"
+              role="alert"
+            >
+              <MdWarningAmber aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" />
               {error}
             </div>
           )}
         </div>
-        <div className="ui-modal-actions">
+        <div className="flex flex-wrap justify-end gap-2">
           <Action variant="secondary" onClick={onClose} disabled={busy}>
             Cancel
           </Action>
@@ -311,13 +309,13 @@ function PresetCard({
   const optimization = presetOptimizationText(preset.optimization);
   const forStudies = studyPresetRefusal(preset);
   return (
-    <li className="org-card org-preset" aria-label={preset.name}>
-      <div className="org-preset-head">
-        <h2>{preset.name}</h2>
-        <code className="org-preset-slug">{preset.slug}</code>
+    <li className="rounded-xl border border-tp-hairline bg-tp-canvas p-4" aria-label={preset.name}>
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="text-base font-semibold text-tp-ink">{preset.name}</h2>
+        <code className="font-mono text-xs text-tp-steel">{preset.slug}</code>
       </div>
-      {preset.description && <p className="org-muted">{preset.description}</p>}
-      <dl className="org-preset-facts">
+      {preset.description && <p className="mt-1 text-sm text-tp-slate">{preset.description}</p>}
+      <dl className="mt-3 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2 [&_dd]:text-tp-ink [&_dt]:text-[11px] [&_dt]:text-tp-steel">
         <div>
           <dt>Engine</dt>
           <dd>{presetEngineText(preset)}</dd>
@@ -346,7 +344,7 @@ function PresetCard({
         </div>
       </dl>
       {canWrite && (
-        <div className="org-preset-actions">
+        <div className="mt-3 flex flex-wrap gap-2">
           <Action to={launchPath(org, { preset: preset.slug })} variant="secondary" size="sm">
             Start a run
           </Action>
@@ -370,7 +368,7 @@ export default function PresetsBody({ organization }: { organization: Organizati
     presetsApi.list(slug, { limit: PRESET_PAGE })
   );
   const engines = useResource<EngineCatalogEntry[]>('preset-engines', () =>
-    apiClient.getEngines().catch(() => [])
+    engineClient.getEngines().catch(() => [])
   );
   const [editing, setEditing] = useState<RunPresetView | 'new' | null>(null);
   const [deleting, setDeleting] = useState<RunPresetView | null>(null);
@@ -395,7 +393,7 @@ export default function PresetsBody({ organization }: { organization: Organizati
               setToast('');
             }}
           >
-            <Plus aria-hidden="true" className="org-inline-icon" />
+            <MdAdd aria-hidden="true" className="h-4 w-4" />
             New preset
           </Action>
         ) : undefined
@@ -430,7 +428,7 @@ export default function PresetsBody({ organization }: { organization: Organizati
         </Notice>
       )}
       {data.status === 'ready' && list.length === 0 && (
-        <div className="org-empty is-center">
+        <div className="flex flex-col items-center gap-1 rounded-xl border border-dashed border-tp-hairline px-4 py-10 text-center text-sm text-tp-steel [&_strong]:text-tp-ink">
           <strong>No run presets yet</strong>
           <span>
             {canWrite
@@ -440,7 +438,10 @@ export default function PresetsBody({ organization }: { organization: Organizati
         </div>
       )}
       {list.length > 0 && (
-        <ul className="org-presets" aria-label={`Run presets of ${organization.name}`}>
+        <ul
+          className="grid gap-3 lg:grid-cols-2"
+          aria-label={`Run presets of ${organization.name}`}
+        >
           {list.map(preset => (
             <PresetCard
               key={preset.id}
@@ -460,7 +461,7 @@ export default function PresetsBody({ organization }: { organization: Organizati
         </ul>
       )}
       {page && page.total > list.length && (
-        <span className="org-muted">
+        <span className="text-xs text-tp-steel">
           Showing the first {list.length} of {page.total} presets, by name.
         </span>
       )}

@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import JSZip from 'jszip';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { HttpError } from '../../../../api/client';
+import { HttpError } from '../../../core/api/http';
 import type { Organization } from '../../../organization/api/organizationsApi';
 import { addressNow } from '../../../../test/moduleKit';
 import {
@@ -21,7 +21,7 @@ const problems = vi.hoisted(() => ({
 }));
 const facts = vi.hoisted(() => ({ get: vi.fn() }));
 
-vi.mock('../../../../api/problems', () => ({ problemsApi: problems }));
+vi.mock('../../api/problemsClient', () => ({ problemsApi: problems }));
 vi.mock('../../../core/utils/problem/facts', async actual => ({
   ...(await actual<typeof import('../../../core/utils/problem/facts')>()),
   problemFactsApi: facts,

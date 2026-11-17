@@ -1,7 +1,7 @@
 import type { ReactElement, ReactNode } from 'react';
 import type { Mock } from 'vitest';
-import type { UserProfile } from '../api/auth';
-import type { Problem, ProblemRevision } from '../api/problems';
+import type { UserProfile } from '../modules/core/api/account';
+import type { Problem, ProblemRevision } from '../modules/problem/api/problemsClient';
 import type { Organization } from '../modules/organization/api/organizationsApi';
 import { fakeGateway, orgNode, type Answer } from './moduleKit';
 import { renderModule } from './moduleKit';

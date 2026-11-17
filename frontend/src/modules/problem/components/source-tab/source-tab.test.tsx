@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import JSZip from 'jszip';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { HttpError } from '../../../../api/client';
+import { HttpError } from '../../../core/api/http';
 import {
   memberOf,
   problemGateway,
@@ -22,7 +22,7 @@ const download = vi.hoisted(() => ({ saveBytes: vi.fn(), saveBlob: vi.fn() }));
 
 const facts = vi.hoisted(() => ({ get: vi.fn() }));
 
-vi.mock('../../../../api/problems', () => ({ problemsApi: problems }));
+vi.mock('../../api/problemsClient', () => ({ problemsApi: problems }));
 vi.mock('../../../core/utils/problem/facts', async actual => ({
   ...(await actual<typeof import('../../../core/utils/problem/facts')>()),
   problemFactsApi: facts,
@@ -30,7 +30,7 @@ vi.mock('../../../core/utils/problem/facts', async actual => ({
 vi.mock('../../utils/download', () => download);
 const rendering = vi.hoisted(() => ({ saveText: vi.fn() }));
 const { saveText } = rendering;
-vi.mock('../../../../components/rendering/download', () => rendering);
+vi.mock('../../../run/components/rendering/download', () => rendering);
 
 const group = memberOf('isa-demo', 'MEMBER', 'ISA Demo Group');
 const checkout = problemOf('flujo-checkout', 'Flujo de checkout');

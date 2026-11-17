@@ -4,9 +4,9 @@ import {
   type BimDiagnostic,
   type BimRefusal,
   type BimValidateResponse,
-} from '../../../api/bim';
-import { HttpError } from '../../../api/client';
-import { problemsApi, type ProblemUpload } from '../../../api/problems';
+} from '../../core/api/bim';
+import { HttpError } from '../../core/api/http';
+import { problemsApi, type ProblemUpload } from '../../problem/api/problemsClient';
 import { compositionsApi } from '../../core/utils/composition/api';
 import { bindingSelection } from '../../core/utils/composition/viewModel';
 import { refusalOf, refusalText, saveRefusalText, type Refusal } from '../../core/api/refusals';
@@ -21,7 +21,7 @@ import {
   type SchedulerStatus,
 } from '../../core/editor/lintScheduler';
 import { useDraftStore } from '../../core/editor/useDraftStore';
-import { packageFiles, unzipPackage, zipStore } from '../../../utils/bimZip';
+import { packageFiles, unzipPackage, zipStore } from '../../core/utils/bimZip';
 import { DEFAULT_FILES, parseJson, type WorkspaceFiles } from '../utils/documents';
 
 /** Milliseconds of stillness before the package is checked (`POST /v1/bim/validate?include=facts`, the compile budget; A-7). */

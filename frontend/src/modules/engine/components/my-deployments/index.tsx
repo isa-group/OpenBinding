@@ -8,7 +8,7 @@
 
 import { MdCloudSync } from 'react-icons/md';
 import { Link } from 'react-router-dom';
-import { formatDate } from '../../../../utils/format';
+import { formatDate } from '../../../core/utils/format';
 import { Action } from '../../../core/components/action-button';
 import type { EngineRegistrationRevision } from '../../api/enginesApi';
 import {

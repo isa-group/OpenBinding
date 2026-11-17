@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useResource } from '../../../utils/useResource';
+import { useResource } from '../../core/hooks/useResource';
 import { loadProblems } from '../../problem/api/loadProblems';
 import { revisionIndex, type CaseContent, type RevisionInfo } from '../utils/studiesModel';
 

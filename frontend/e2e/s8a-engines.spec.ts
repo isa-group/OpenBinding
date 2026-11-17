@@ -6,7 +6,7 @@ import {
   type Route,
   type TestInfo,
 } from '@playwright/test';
-import type { EngineRegistrationRevision } from '../src/api/client';
+import type { EngineRegistrationRevision } from '../src/modules/engine/api/engineClient';
 import {
   EDGE_SOLVER,
   EDGE_SOLVER_OLD,

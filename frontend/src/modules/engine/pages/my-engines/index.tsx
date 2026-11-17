@@ -11,7 +11,7 @@ import { useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { MdAdd } from 'react-icons/md';
 import { Link, useSearchParams } from 'react-router-dom';
-import { useResource } from '../../../../utils/useResource';
+import { useResource } from '../../../core/hooks/useResource';
 import BlockAlert from '../../../core/components/block-alert';
 import { useAuth } from '../../../auth/hooks/useAuth';
 import { ENGINES_PATH, registerEnginePath } from '../../../../routes/paths/engines';

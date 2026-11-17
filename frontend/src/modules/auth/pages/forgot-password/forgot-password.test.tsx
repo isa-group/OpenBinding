@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { HelmetProvider } from 'react-helmet-async';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { HttpError, apiClient } from '../../../../api/client';
+import { HttpError, apiClient } from '../../../core/api/http';
 import ForgotPasswordPage from '.';
 
 const strictRequest = vi.spyOn(apiClient, 'request');

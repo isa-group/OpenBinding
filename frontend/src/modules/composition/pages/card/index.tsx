@@ -16,7 +16,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { config } from '../../../../config';
-import { useResource } from '../../../../utils/useResource';
+import { useResource } from '../../../core/hooks/useResource';
 import { classifyAuthError, marker, readApiError } from '../../../core/api/errors';
 import type { CompositionVersionView, ProblemFacts } from '../../../core/api/types';
 import ResourceCardShell, {
@@ -919,7 +919,7 @@ export default function CompositionCardPage() {
       <div className="mx-auto max-w-7xl px-4 py-16 text-center md:px-8">
         <div
           role="alert"
-          className="mx-auto max-w-md rounded-xl border border-red-200 bg-red-50 p-6"
+          className="mx-auto max-w-[28rem] rounded-xl border border-red-200 bg-red-50 p-6"
         >
           <p className="text-sm font-medium text-red-800">The composition couldn’t be loaded.</p>
           <p className="mt-1 text-xs text-red-700">

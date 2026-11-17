@@ -7,7 +7,7 @@
 
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import type { ProblemCompilation } from '../../../../api/problems';
+import type { ProblemCompilation } from '../../../problem/api/problemsClient';
 import { Action } from '../../../core/components/action-button';
 import { Chip } from '../../../core/components/chip';
 import { Notice } from '../../../core/components/notice';

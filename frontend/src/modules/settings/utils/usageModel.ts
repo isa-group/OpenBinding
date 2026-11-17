@@ -1,4 +1,4 @@
-import type { UsageView } from '../../../api/auth';
+import type { UsageView } from '../../core/api/account';
 import {
   LIMIT_ORDER,
   describeLimit,
@@ -6,7 +6,7 @@ import {
   limitInfo,
   type LimitDefinition,
   type LimitInfo,
-} from '../../../utils/limits';
+} from '../../core/utils/limits';
 
 /**
  * What `GET /v1/users/me/usage` says, arranged for the plan screen.

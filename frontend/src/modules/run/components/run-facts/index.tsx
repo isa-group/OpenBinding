@@ -6,14 +6,14 @@
 
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import type { JobCompilationRef } from '../../../../api/platform';
+import type { JobCompilationRef } from '../../api/runsClient';
 import { Chip } from '../../../core/components/chip';
 import { DataTable } from '../../../core/components/data-table';
 import { useCopy } from '../../../core/hooks/useCopy';
 import { orgPath } from '../../../organization/types/paths';
 import { problemPath } from '../../../../routes/paths/problems';
 import { runPath } from '../../../../routes/paths/runs';
-import { formatDateTime } from '../../../../utils/format';
+import { formatDateTime } from '../../../core/utils/format';
 import type { Origin } from '../../utils/runOrigin';
 import {
   optionRows,

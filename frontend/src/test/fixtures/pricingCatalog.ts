@@ -1,4 +1,4 @@
-import type { PricingCatalog } from '../../api/auth';
+import type { PricingCatalog } from '../../modules/core/api/account';
 
 /**
  * Pricing 0.2.0 as `GET /v1/pricing/catalog` answers it: a transcription of `docs/pricing/openbinding-0.2.0.yml` (the

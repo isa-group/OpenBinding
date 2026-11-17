@@ -1,6 +1,6 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { HttpError } from '../../../../api/client';
+import { HttpError } from '../../../core/api/http';
 import type { CompositionVersionView, CompositionView } from '../../../core/api/types';
 import fmsVersion from '../../../../test/fixtures/core/fms.version.json';
 import { addressNow, fakeGateway, orgNode } from '../../../../test/moduleKit';

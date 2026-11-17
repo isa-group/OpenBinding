@@ -11,7 +11,6 @@ import type { FormEvent } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { FiMail } from 'react-icons/fi';
 import { Link } from 'react-router-dom';
-import { apiClient } from '../../../../api/client';
 import { classifyAuthError } from '../../../core/api/errors';
 import { Notice } from '../../../core/components/notice';
 import { AuthField, AuthSpinner } from '../../components/auth-field';
@@ -25,6 +24,7 @@ import {
   TEXT_LINK,
   TITLE,
 } from '../../utils/classes';
+import { accountClient } from '../../api/accountClient';
 
 const EMAIL_PATTERN = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
@@ -53,7 +53,7 @@ export default function ForgotPasswordPage() {
     setTouched(false);
     setBusy(true);
     try {
-      const result = await apiClient.requestPasswordReset(email.trim());
+      const result = await accountClient.requestPasswordReset(email.trim());
       setDelivery(result.delivery);
     } catch (caught) {
       const result = classifyAuthError(caught);

@@ -12,8 +12,8 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom';
-import { bimResourceKey } from '../../../../api/client';
-import { useResource } from '../../../../utils/useResource';
+import { bimResourceKey } from '../../api/engineClient';
+import { useResource } from '../../../core/hooks/useResource';
 import { HttpError } from '../../../core/api/http';
 import type { ImmutableResourceRef } from '../../../core/api/types';
 import { Action } from '../../../core/components/action-button';
@@ -425,7 +425,7 @@ export default function RegistrationPage() {
       <div className="mx-auto max-w-7xl px-4 py-16 text-center md:px-8">
         <div
           role="alert"
-          className="mx-auto max-w-md rounded-xl border border-red-200 bg-red-50 p-6"
+          className="mx-auto max-w-[28rem] rounded-xl border border-red-200 bg-red-50 p-6"
         >
           <p className="text-sm font-medium text-red-800">
             {unauthorized ? 'Your session ended (401)' : 'The registration couldn’t be loaded.'}

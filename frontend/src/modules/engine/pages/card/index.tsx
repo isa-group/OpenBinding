@@ -18,8 +18,8 @@ import {
   type CapabilitySelector,
   type EngineManifest,
   type EngineMode,
-} from '../../../../api/client';
-import { useResource } from '../../../../utils/useResource';
+} from '../../api/engineClient';
+import { useResource } from '../../../core/hooks/useResource';
 import { HttpError } from '../../../core/api/http';
 import { Action } from '../../../core/components/action-button';
 import BlockAlert from '../../../core/components/block-alert';
@@ -231,7 +231,7 @@ export default function EngineCardPage() {
       <div className="mx-auto max-w-7xl px-4 py-16 text-center md:px-8">
         <div
           role="alert"
-          className="mx-auto max-w-md rounded-xl border border-red-200 bg-red-50 p-6"
+          className="mx-auto max-w-[28rem] rounded-xl border border-red-200 bg-red-50 p-6"
         >
           <p className="text-sm font-medium text-red-800">
             The engine contract couldn’t be loaded.

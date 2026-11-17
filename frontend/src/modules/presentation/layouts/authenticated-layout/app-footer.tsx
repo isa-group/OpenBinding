@@ -6,7 +6,7 @@
 // the gateway's service status as a chip in the bottom bar.
 
 import { Link } from 'react-router-dom';
-import { InstitutionMark } from '../../../../components/InstitutionMark';
+import { InstitutionMark } from '../../../auth/components/institution-mark';
 import ServiceStatus from '../../components/service-status';
 
 const FOOTER_COLUMNS = [

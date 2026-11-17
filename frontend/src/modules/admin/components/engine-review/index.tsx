@@ -4,13 +4,13 @@ import {
   bimResourceKey,
   type EngineRegistrationReport,
   type EngineRegistrationRevision,
-} from '../../../../api/client';
+} from '../../../engine/api/engineClient';
 import { Action } from '../../../core/components/action-button';
 import { EmptyState } from '../../../core/components/empty-state';
 import { Notice } from '../../../core/components/notice';
 import { Skeleton } from '../../../core/components/skeleton';
 import { engineLabel } from '../../../core/utils/identity';
-import { useResource } from '../../../../utils/useResource';
+import { useResource } from '../../../core/hooks/useResource';
 import { ConformanceChecklist, ViewSource } from '../../../engine/components/engine-parts';
 import { readProbe } from '../../../engine/api/registrationModel';
 import { useAdminApi } from '../../api/adminApi';

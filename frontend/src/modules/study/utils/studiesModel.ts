@@ -6,11 +6,11 @@ import type {
   StudyEngine,
   StudyRun,
 } from '../api/studiesApi';
-import type { Problem, ProblemRevision } from '../../../api/problems';
-import type { EngineCatalogEntry, EngineMode } from '../../../api/client';
+import type { Problem, ProblemRevision } from '../../problem/api/problemsClient';
+import type { EngineCatalogEntry, EngineMode } from '../../engine/api/engineClient';
 import type { ImmutableResourceRef } from '../../core/api/types';
-import { bimResourceKey } from '../../../api/client';
-import type { ExecutionOptimization } from '../../../api/runs';
+import { bimResourceKey } from '../../engine/api/engineClient';
+import type { ExecutionOptimization } from '../../run/api/runsClient';
 import { criteriaCountOf, optimizationFor, optimizationTypeOf } from '../../run/api/runModel';
 
 /** A problem of the organization with its sealed versions, as the create form and the matrix labels read them. */

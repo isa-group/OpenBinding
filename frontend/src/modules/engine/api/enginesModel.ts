@@ -3,8 +3,8 @@ import type {
   EngineCatalogEntry,
   EngineMode,
   EngineRegistrationRevision,
-} from '../../../api/client';
-import type { EngineRevision } from '../../../api/platform';
+} from './engineClient';
+import type { EngineRevisionDetail as EngineRevision } from './engineRevision';
 import { engineHref } from '../../../routes/paths/engines';
 
 export const BUILTIN_NAMESPACE = 'bim.builtin';

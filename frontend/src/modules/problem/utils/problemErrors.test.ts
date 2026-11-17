@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { HttpError } from '../../../api/client';
+import { HttpError } from '../../core/api/http';
 import {
   deleteRefusal,
   isMissing,

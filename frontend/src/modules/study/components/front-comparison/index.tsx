@@ -9,7 +9,7 @@ import { Action } from '../../../core/components/action-button';
 import { Notice } from '../../../core/components/notice';
 import { readApiError } from '../../../core/api/errors';
 import type { CompositionVersionDiff } from '../../../core/api/types';
-import type { ChangeKind } from '../../../core/components/composition-renderer/modes/comparison/diffModel';
+import type { ChangeKind } from '../../../core/components/composition-renderer/modes/graph-diff/diffModel';
 import { compositionsApi, languageApi } from '../../../composition/api/compositionsApi';
 import { DiffResult } from '../../../composition/components/version-diff';
 import FileDiffView from '../../../composition/components/version-diff/file-diff-view';

@@ -33,22 +33,12 @@ describe('mobile touch targets (max-width: 640px)', () => {
   });
 
   it('names the containers where the real run found short links', () => {
-    for (const selector of [
-      '.ui-action',
-      '.ui-action.is-link',
-      '.case-rev-links a',
-      '.usage-consoles a',
-      '.proj-job a',
-      '.job-wizard a',
-      '.job-fact a',
-      '.cr-muted a',
-      '.pcl-card-title a',
-    ]) {
+    for (const selector of ['.ui-action', '.ui-action.is-link', '.cr-muted a']) {
       expect(block).toContain(selector);
     }
   });
 
-  it('sits in the base layer, under every component and legacy rule', () => {
+  it('sits in the base layer, under every component rule and utility', () => {
     const layer = css.lastIndexOf('@layer base {', css.indexOf(block));
     expect(layer).toBeGreaterThan(-1);
     expect(css.slice(layer, css.indexOf(block))).not.toMatch(/\n\}\n/);

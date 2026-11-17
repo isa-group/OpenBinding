@@ -1,8 +1,9 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { PricingUnavailableError, QuotaError } from '../../../../api/auth';
-import { HttpError, type EngineCatalogEntry, type EngineMode } from '../../../../api/client';
-import { caseOf, revisionOf } from '../../../../features/workspace/testKit';
+import { PricingUnavailableError, QuotaError } from '../../../core/api/account';
+import { HttpError } from '../../../core/api/http';
+import { type EngineCatalogEntry, type EngineMode } from '../../../engine/api/engineClient';
+import { caseOf, revisionOf } from '../../../../test/fixtures/accounts';
 import { orgNode, renderModule } from '../../../../test/moduleKit';
 import { problemsPath } from '../../../../routes/paths/problems';
 import { runPath, runsPath } from '../../../../routes/paths/runs';
@@ -25,14 +26,22 @@ vi.mock('../../api/runsApi', async actual => ({
   ...(await actual<typeof import('../../api/runsApi')>()),
   useRunsApi: () => runsApi,
 }));
-vi.mock('../../../../api/problems', () => ({ problemsApi: problems }));
+vi.mock('../../../problem/api/problemsClient', () => ({ problemsApi: problems }));
 vi.mock('../../../core/utils/problem/facts', async actual => ({
   ...(await actual<typeof import('../../../core/utils/problem/facts')>()),
   problemFactsApi: facts,
 }));
-vi.mock('../../../../api/client', async () => ({
-  ...(await vi.importActual<typeof import('../../../../api/client')>('../../../../api/client')),
-  apiClient: client,
+vi.mock('../../../engine/api/engineClient', async () => ({
+  ...(await vi.importActual<typeof import('../../../engine/api/engineClient')>(
+    '../../../engine/api/engineClient'
+  )),
+  engineClient: client,
+}));
+vi.mock('../../../settings/api/planClient', async () => ({
+  ...(await vi.importActual<typeof import('../../../settings/api/planClient')>(
+    '../../../settings/api/planClient'
+  )),
+  planClient: client,
 }));
 vi.mock('../../api/presetsApi', async actual => ({
   ...(await actual<typeof import('../../api/presetsApi')>()),

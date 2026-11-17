@@ -10,7 +10,7 @@
 import { motion } from 'framer-motion';
 import { useId, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useResource } from '../../../../utils/useResource';
+import { useResource } from '../../../core/hooks/useResource';
 import { classifyAuthError, marker } from '../../../core/api/errors';
 import type { ParetoFront as Front } from '../../../core/api/types';
 import { Action } from '../../../core/components/action-button';

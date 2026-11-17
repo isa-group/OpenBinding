@@ -2,8 +2,8 @@
  * Adapted from SPHERE frontend/src/styles/tailwind.css (revision 73779a8a), https://github.com/SCORELabUS/SPHERE.
  * Copyright (c) 2024 Alejandro García Fernández. MIT licence: the full text is in THIRD_PARTY_NOTICES.md.
  * Changes:
- * - the cascade layer statement comes first, with a `legacy` layer for the stylesheets of the screens that are not yet
- *   drawn with Tailwind, and the layers of pricing-renderer;
+ * - the cascade layer statement comes first, with the layers of pricing-renderer; this is the application's one
+ *   stylesheet (every screen is drawn with utilities), and it loads the body and mono faces;
  * - two brand palettes over the same `--color-tp-*` names: SPHERE's orange (the `@theme` defaults, verbatim) and
  *   OpenBinding's blue, chosen at runtime with `data-brand` on <html> (src/modules/core/theme/brand.ts);
  * - `--color-tp-accent` and `--color-tp-accent-hover`: the primary colour that small text may be set in and that small
@@ -13,9 +13,12 @@
  * - the base styles, the phone touch-target rule and the dual range slider live in layers; the slider uses the tokens;
  * - the `.dark` block stays commented out: OpenBinding is light only, and copied `dark:` classes stay inert.
  */
-@layer theme, base, legacy, components, pricing-renderer, pricing-renderer.theme, utilities;
+@layer theme, base, components, pricing-renderer, pricing-renderer.theme, utilities;
 
 @import 'tailwindcss';
+@import '@fontsource-variable/inter';
+@import '@fontsource/jetbrains-mono/400.css';
+@import '@fontsource/jetbrains-mono/500.css';
 
 @custom-variant dark (&:where(.dark, .dark *));
 
@@ -357,6 +360,10 @@
     min-height: 100%;
   }
 
+  html {
+    scroll-behavior: smooth;
+  }
+
   body {
     margin: 0;
     font-family: var(--font-body);
@@ -366,12 +373,73 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
+  ::selection {
+    color: var(--color-tp-ink);
+    background: var(--color-tp-cream-deeper);
+  }
+
+  *:focus-visible {
+    outline: 2px solid var(--color-tp-accent);
+    outline-offset: 3px;
+  }
+
+  :where(h1, h2, h3, h4, h5, h6)[id] {
+    scroll-margin-top: 6rem;
+  }
+
+  /* A link that navigates with a view transition fades the page out and slides the next one in. */
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    transform-origin: 50% 18%;
+  }
+  ::view-transition-old(root) {
+    animation: 160ms cubic-bezier(0.23, 1, 0.32, 1) both route-out;
+  }
+  ::view-transition-new(root) {
+    animation: 360ms cubic-bezier(0.16, 1, 0.3, 1) both route-in;
+  }
+  ::view-transition {
+    pointer-events: none;
+  }
+  @keyframes route-out {
+    to {
+      opacity: 0;
+      transform: translateY(-8px) scale(0.995);
+    }
+  }
+  @keyframes route-in {
+    from {
+      opacity: 0;
+      transform: translateY(14px) scale(0.992);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+    *,
+    *::before,
+    *::after {
+      scroll-behavior: auto !important;
+      animation-duration: 1ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 1ms !important;
+    }
+    ::view-transition-group(*),
+    ::view-transition-old(*),
+    ::view-transition-new(*) {
+      animation-duration: 1ms !important;
+      animation-name: none !important;
+    }
+  }
+
   /*
    * Touch targets on a phone: every control is at least 24 px high (WCAG 2.5.8; e2e/live/visual-qa.spec.ts measures it).
    * The links of the navigation, the header, the footer, the breadcrumbs and the head of a card are laid out as a box that
    * centres its text; a link that sits in a line of text keeps its line, which the criterion exempts. The link rules have
    * no specificity (`:where()`), so a component that sets its own `display` (a card laid out as a grid, say) keeps it; the
-   * minimum height is only ever added. The rule sits in `base`, under every component and legacy rule.
+   * minimum height is only ever added. The rule sits in `base`, under every component rule and utility.
    */
   @media (max-width: 640px) {
     button,
@@ -393,17 +461,7 @@
     }
 
     /* The links that the real run measured under 24 px, named so they stay covered even where they sit in a paragraph-like container. */
-    :where(
-      .ui-action,
-      .ui-action.is-link,
-      .case-rev-links a,
-      .usage-consoles a,
-      .proj-job a,
-      .job-wizard a,
-      .job-fact a,
-      .cr-muted a,
-      .pcl-card-title a
-    ) {
+    :where(.ui-action, .ui-action.is-link, .cr-muted a) {
       display: inline-flex;
       min-height: 24px;
       align-items: center;

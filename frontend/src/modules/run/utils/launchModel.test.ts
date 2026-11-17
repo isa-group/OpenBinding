@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import type { UsageView } from '../../../api/auth';
-import type { EngineCatalogEntry, EngineMode } from '../../../api/client';
-import type { ProblemRevision } from '../../../api/problems';
-import { RANGE_REFUSAL } from '../../../utils/featureRange';
+import type { UsageView } from '../../core/api/account';
+import type { EngineCatalogEntry, EngineMode } from '../../engine/api/engineClient';
+import type { ProblemRevision } from '../../problem/api/problemsClient';
+import { RANGE_REFUSAL } from '../../core/utils/featureRange';
 import {
   acceptsIntervals,
   buildRequest,

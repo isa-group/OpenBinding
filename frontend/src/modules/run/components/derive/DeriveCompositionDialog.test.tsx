@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { HttpError } from '../../../../api/client';
+import { HttpError } from '../../../core/api/http';
 import type { CompositionView, DeriveDraft, DeriveResult } from '../../../core/api/types';
 import { readCompositionFragment } from '../../../core/utils/sphere/composition-fragment';
 import { RESULT, S1 } from '../../../../test/fixtures/jobs';

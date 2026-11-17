@@ -12,7 +12,7 @@ import { readResponse, type Revised } from '../../core/api/http';
 import type { components } from '../../core/api/openapi';
 import { useAuth } from '../../auth/hooks/useAuth';
 
-export { problemsApi } from '../../../api/problems';
+export { problemsApi } from './problemsClient';
 export type {
   CompilationIr,
   Problem,
@@ -20,7 +20,7 @@ export type {
   ProblemRevision,
   ProblemRevisionDetail,
   ProblemUpload,
-} from '../../../api/problems';
+} from './problemsClient';
 
 type Schemas = components['schemas'];
 

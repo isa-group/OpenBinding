@@ -11,12 +11,12 @@
 import { useCallback, useRef, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Link, useSearchParams } from 'react-router-dom';
-import type { PricingCatalog, UsageView } from '../../../../api/auth';
-import { apiClient, type EngineCatalogEntry } from '../../../../api/client';
-import { problemsApi } from '../../../../api/problems';
-import type { CaseContent } from '../../../../features/workspace/model';
-import { randomUUID } from '../../../../utils/uuid';
-import { useResource } from '../../../../utils/useResource';
+import type { PricingCatalog, UsageView } from '../../../core/api/account';
+import { type EngineCatalogEntry } from '../../../engine/api/engineClient';
+import { problemsApi } from '../../../problem/api/problemsClient';
+import type { CaseContent } from '../../../problem/api/loadProblems';
+import { randomUUID } from '../../../core/utils/uuid';
+import { useResource } from '../../../core/hooks/useResource';
 import { Action } from '../../../core/components/action-button';
 import { Notice } from '../../../core/components/notice';
 import { classifyAuthError } from '../../../core/api/errors';
@@ -62,6 +62,8 @@ import {
   requestOptions,
   sourceChoices,
 } from '../../utils/launchModel';
+import { engineClient } from '../../../engine/api/engineClient';
+import { planClient } from '../../../settings/api/planClient';
 
 const ROLES = ['VIEWER', 'MEMBER', 'ADMIN', 'OWNER'];
 const atLeastMember = (role: string | null | undefined) =>
@@ -104,13 +106,13 @@ function LaunchBody({ organization }: { organization: Organization }) {
     loadProblemVersions(org)
   );
   const usage = useResource<UsageView | null>('launch-usage', () =>
-    apiClient.getOwnUsage().catch(() => null)
+    planClient.getOwnUsage().catch(() => null)
   );
   const pricing = useResource<PricingCatalog | null>('launch-pricing', () =>
-    apiClient.getPricingCatalog().catch(() => null)
+    planClient.getPricingCatalog().catch(() => null)
   );
   const catalog = useResource<EngineCatalogEntry[]>('launch-engines', () =>
-    apiClient.getEngines().catch(() => [])
+    engineClient.getEngines().catch(() => [])
   );
   const presets = useResource<RunPresetList | null>(`launch-presets:${org}`, () =>
     presetsApi.list(org, { limit: PRESET_PAGE }).catch(() => null)

@@ -1,13 +1,13 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { MdRefresh } from 'react-icons/md';
-import type { AdminModerationOverview } from '../../../../api/auth';
+import type { AdminModerationOverview } from '../../../core/api/account';
 import { Action } from '../../../core/components/action-button';
 import { Notice } from '../../../core/components/notice';
 import { Skeleton } from '../../../core/components/skeleton';
 import { config } from '../../../../config';
-import { formatDateTime } from '../../../../utils/format';
-import { useResource, type Resource } from '../../../../utils/useResource';
+import { formatDateTime } from '../../../core/utils/format';
+import { useResource, type Resource } from '../../../core/hooks/useResource';
 import { adminPath } from '../../../../routes/paths/admin';
 import { useAdminApi } from '../../api/adminApi';
 import { FILL, Meter, MUTED, SectionHeader, Tag, type MeterTone } from '../admin-parts';

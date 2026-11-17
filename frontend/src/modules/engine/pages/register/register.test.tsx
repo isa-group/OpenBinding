@@ -1,6 +1,6 @@
 import { configure, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { QuotaError, type UserProfile } from '../../../../api/auth';
+import { QuotaError, type UserProfile } from '../../../core/api/account';
 import { renderModule } from '../../../../test/moduleKit';
 import { HttpError } from '../../../core/api/http';
 import {

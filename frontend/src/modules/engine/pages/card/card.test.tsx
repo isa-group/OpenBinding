@@ -1,6 +1,6 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { UserProfile } from '../../../../api/auth';
+import type { UserProfile } from '../../../core/api/account';
 import { catalogFixture } from '../../../../test/fixtures/pricingCatalog';
 import { orgNode, renderModule } from '../../../../test/moduleKit';
 import { HttpError } from '../../../core/api/http';

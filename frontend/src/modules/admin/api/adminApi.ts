@@ -19,11 +19,12 @@ import type {
   MaintenancePreview,
   RoleName,
   UsageView,
-} from '../../../api/auth';
-import { apiClient } from '../../../api/client';
+} from '../../core/api/account';
 import { readResponse, type Revised } from '../../core/api/http';
 import { useAuth } from '../../auth/hooks/useAuth';
 import type { AdminErrorListResponse, AdminErrorOverview } from './types';
+import { engineClient } from '../../engine/api/engineClient';
+import { planClient } from '../../settings/api/planClient';
 
 type Fetch = (path: string, init?: RequestInit) => Promise<Response>;
 
@@ -177,20 +178,20 @@ export function adminApiOf(fetchWithInterceptor: Fetch) {
 
     // -- What administration reads from other domains (the existing operations) -----------------
 
-    adminListEngineRegistrations: () => apiClient.adminListEngineRegistrations(),
+    adminListEngineRegistrations: () => engineClient.adminListEngineRegistrations(),
     adminApproveEngineRegistration: (
-      ...args: Parameters<typeof apiClient.adminApproveEngineRegistration>
-    ) => apiClient.adminApproveEngineRegistration(...args),
+      ...args: Parameters<typeof engineClient.adminApproveEngineRegistration>
+    ) => engineClient.adminApproveEngineRegistration(...args),
     adminRejectEngineRegistration: (
-      ...args: Parameters<typeof apiClient.adminRejectEngineRegistration>
-    ) => apiClient.adminRejectEngineRegistration(...args),
+      ...args: Parameters<typeof engineClient.adminRejectEngineRegistration>
+    ) => engineClient.adminRejectEngineRegistration(...args),
     getEngineRegistrationReport: (
-      ...args: Parameters<typeof apiClient.getEngineRegistrationReport>
-    ) => apiClient.getEngineRegistrationReport(...args),
-    getPricingCatalog: () => apiClient.getPricingCatalog(),
-    getCurrentPricing: () => apiClient.getCurrentPricing(),
+      ...args: Parameters<typeof engineClient.getEngineRegistrationReport>
+    ) => engineClient.getEngineRegistrationReport(...args),
+    getPricingCatalog: () => planClient.getPricingCatalog(),
+    getCurrentPricing: () => planClient.getCurrentPricing(),
     /** A new pricing token for the signed-in account, after an administrator changed their own contract. */
-    getPricingToken: () => apiClient.getPricingToken(),
+    getPricingToken: () => planClient.getPricingToken(),
   };
 }
 

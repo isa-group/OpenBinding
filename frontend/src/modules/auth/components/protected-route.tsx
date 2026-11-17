@@ -24,7 +24,11 @@ export function ProtectedRoute({
   if (loading) {
     // Rendering the redirect before the stored session has been checked would
     // bounce a signed-in user to the login page on every refresh.
-    return <div className="loading-state">Checking your session…</div>;
+    return (
+      <div className="border-t border-tp-hairline p-16 text-center text-tp-slate" role="status">
+        Checking your session…
+      </div>
+    );
   }
 
   if (!user) {

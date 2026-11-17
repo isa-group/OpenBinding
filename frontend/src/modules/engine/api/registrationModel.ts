@@ -1,9 +1,10 @@
-import { bimResourceKey, HttpError } from '../../../api/client';
-import type { EngineRegistrationRevision, EngineRegistrationState } from '../../../api/client';
+import { bimResourceKey } from './engineClient';
+import { HttpError } from '../../core/api/http';
+import type { EngineRegistrationRevision, EngineRegistrationState } from './engineClient';
 import type { ImmutableResourceRef } from '../../core/api/types';
-import { QuotaError } from '../../../api/auth';
-import type { UsageView } from '../../../api/auth';
-import { LIMIT } from '../../../utils/limits';
+import { QuotaError } from '../../core/api/account';
+import type { UsageView } from '../../core/api/account';
+import { LIMIT } from '../../core/utils/limits';
 import { registerEnginePath, registrationPath } from '../../../routes/paths/engines';
 
 export type ChipTone = 'plain' | 'info' | 'success' | 'warning' | 'error';

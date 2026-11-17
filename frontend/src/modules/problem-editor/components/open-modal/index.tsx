@@ -7,8 +7,12 @@
 
 import { useEffect, useState } from 'react';
 import { FiFileText, FiFolder, FiLayers } from 'react-icons/fi';
-import { bimApi } from '../../../../api/bim';
-import { problemsApi, type Problem, type ProblemRevision } from '../../../../api/problems';
+import { bimApi } from '../../../core/api/bim';
+import {
+  problemsApi,
+  type Problem,
+  type ProblemRevision,
+} from '../../../problem/api/problemsClient';
 import { EditorDialog } from '../../../core/components/editor-chrome';
 import OrganizationSelector from '../../../organization/components/organization-selector';
 import type { Organization } from '../../../organization/api/organizationsApi';

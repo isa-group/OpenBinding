@@ -8,7 +8,7 @@
 import { useEffect, useId, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MdWarningAmber } from 'react-icons/md';
-import { SourceView } from '../../../../components/rendering/SourceView';
+import { SourceView } from '../rendering/SourceView';
 import { Action } from '../../../core/components/action-button';
 import { DataTable } from '../../../core/components/data-table';
 import { FormField } from '../../../core/components/form-field';
@@ -30,7 +30,7 @@ import type {
 import { fromC2y } from '../../../core/diagnostics/located';
 import { SLUG_PATTERN, slugFromName } from '../../../core/utils/slug';
 import { compositionFragment } from '../../../core/utils/sphere/composition-fragment';
-import { formatNumber } from '../../../../utils/format';
+import { formatNumber } from '../../../core/utils/format';
 import ProblemsPanel from '../../../core/components/problems-panel';
 import { ValueBadge } from '../../../core/components/value-badge/ValueBadge';
 import { DeriveBatch, type DerivedPoint } from './DeriveBatch';

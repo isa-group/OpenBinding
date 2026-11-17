@@ -11,7 +11,6 @@ import type { FormEvent } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { FiKey } from 'react-icons/fi';
 import { Link, useSearchParams } from 'react-router-dom';
-import { apiClient } from '../../../../api/client';
 import { classifyAuthError } from '../../../core/api/errors';
 import { Notice } from '../../../core/components/notice';
 import { AuthField, AuthSpinner } from '../../components/auth-field';
@@ -21,6 +20,7 @@ import PasswordStrengthMeter from '../../components/password-strength';
 import { fieldErrorsFrom } from '../../utils/authErrors';
 import { ICON_TILE, LEDE, PRIMARY_ACTION, TEXT_LINK, TITLE } from '../../utils/classes';
 import { MIN_PASSWORD_LENGTH } from '../../utils/passwordStrength';
+import { accountClient } from '../../api/accountClient';
 
 type TokenState = 'missing' | 'ready' | 'refused' | 'used';
 
@@ -157,7 +157,7 @@ function NewPasswordForm({ token }: { token: string }) {
     setTouched(false);
     setBusy(true);
     try {
-      await apiClient.completePasswordReset(token, password);
+      await accountClient.completePasswordReset(token, password);
       setDone(true);
       setPassword('');
       setConfirmation('');

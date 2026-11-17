@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { unzipPackage } from '../../../utils/bimZip';
+import { unzipPackage } from '../../core/utils/bimZip';
 import { DEFAULT_FILES } from '../utils/documents';
 import { packageArchive, packageFileName } from './export';
 

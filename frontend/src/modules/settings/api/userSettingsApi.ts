@@ -13,7 +13,7 @@ import type {
   PricingCurrentView,
   UsageView,
   UserProfile,
-} from '../../../api/auth';
+} from '../../core/api/account';
 import { readResponse } from '../../core/api/http';
 import type { components } from '../../core/api/openapi';
 import { useAuth } from '../../auth/hooks/useAuth';

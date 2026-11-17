@@ -1,9 +1,9 @@
-import { QuotaError } from '../../../api/auth';
-import { HttpError } from '../../../api/client';
-import type { Diagnostic } from '../../../api/problem';
-import { inInterfaceWords } from '../../../components/ui/interfaceWords';
-import { limitProblemOf } from '../../../utils/limitRefusals';
-import { limitInfo } from '../../../utils/limits';
+import { QuotaError } from './account';
+import { HttpError } from './http';
+import type { Diagnostic } from './problem';
+import { inInterfaceWords } from '../utils/interfaceWords';
+import { limitProblemOf } from '../utils/limitRefusals';
+import { limitInfo } from '../utils/limits';
 
 /** What the gateway can refuse about a package (checking or saving it), sorted into the cases the screens have words for. */
 

@@ -5,7 +5,7 @@ import {
   API,
   CASE,
   ORG,
-  ORG_PATH,
+  PROBLEMS_TAB,
   OTHER_ORG,
   RESULTS_DIR,
   LAUNCH_PATH,
@@ -666,8 +666,8 @@ const VISITOR_STOPS: Stop[] = [
 const VIEWER_STOPS: Stop[] = [
   {
     slug: 'viewer-cases',
-    path: `${ORG_PATH}/problems`,
-    ready: page => page.getByRole('list', { name: 'Problems' }),
+    path: PROBLEMS_TAB,
+    ready: page => page.getByRole('region', { name: 'Problems' }),
     extra: async (page, label) => {
       await expect
         .soft(

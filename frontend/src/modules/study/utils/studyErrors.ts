@@ -1,7 +1,7 @@
-import { QuotaError } from '../../../api/auth';
-import { HttpError } from '../../../api/client';
-import { diagnosticLines, problemField } from '../../../api/problem';
-import { inInterfaceWords } from '../../../components/ui/interfaceWords';
+import { QuotaError } from '../../core/api/account';
+import { HttpError } from '../../core/api/http';
+import { diagnosticLines, problemField } from '../../core/api/problem';
+import { inInterfaceWords } from '../../core/utils/interfaceWords';
 import {
   CELLS_CODE,
   USAGE_UNKNOWN_CODE,
@@ -9,8 +9,8 @@ import {
   noticeOf,
   slotsText,
   usageUnknownText,
-} from '../../../utils/limitRefusals';
-import { LIMIT, limitInfo } from '../../../utils/limits';
+} from '../../core/utils/limitRefusals';
+import { LIMIT, limitInfo } from '../../core/utils/limits';
 import { classifyAuthError, marker } from '../../core/api/errors';
 import type { Refusal } from '../../run/api/runModel';
 

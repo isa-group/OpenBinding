@@ -5,11 +5,11 @@ import {
   type GatewayStatus,
   type ProbeName,
   type ProbeResult,
-} from '../../../../api/health';
+} from '../../../core/api/health';
 import ServiceStatus from '.';
 
-vi.mock('../../../../api/health', async importOriginal => ({
-  ...(await importOriginal<typeof import('../../../../api/health')>()),
+vi.mock('../../../core/api/health', async importOriginal => ({
+  ...(await importOriginal<typeof import('../../../core/api/health')>()),
   checkGateway: vi.fn(),
 }));
 

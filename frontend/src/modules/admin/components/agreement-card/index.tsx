@@ -6,16 +6,16 @@ import type {
   ContractChangeReason,
   PricingCatalog,
   PricingCurrentView,
-} from '../../../../api/auth';
+} from '../../../core/api/account';
 import { Action } from '../../../core/components/action-button';
 import { DataTable } from '../../../core/components/data-table';
-import { inInterfaceWords } from '../../../../components/ui/interfaceWords';
+import { inInterfaceWords } from '../../../core/utils/interfaceWords';
 import { Notice } from '../../../core/components/notice';
 import { Skeleton } from '../../../core/components/skeleton';
 import { useAuth } from '../../../auth/hooks/useAuth';
-import { describeLimit, limitInfo } from '../../../../utils/limits';
-import { formatDateTime } from '../../../../utils/format';
-import { useResource } from '../../../../utils/useResource';
+import { describeLimit, limitInfo } from '../../../core/utils/limits';
+import { formatDateTime } from '../../../core/utils/format';
+import { useResource } from '../../../core/hooks/useResource';
 import { featureName, withInfiniteLimits } from '../../../core/utils/pricing/pricingModel';
 import { useAdminApi } from '../../api/adminApi';
 import {

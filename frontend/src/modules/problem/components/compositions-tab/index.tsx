@@ -16,7 +16,7 @@ import { formatValue, valueModels } from '../../../core/utils/composition/values
 import CompositionCard from '../../../composition/components/composition-card';
 import { compositionPath } from '../../../../routes/paths/compositions';
 import { problemPath } from '../../../../routes/paths/problems';
-import { useResource } from '../../../../utils/useResource';
+import { useResource } from '../../../core/hooks/useResource';
 import type { Problem } from '../../api/problemsApi';
 
 /** The most compositions the tab lists. */

@@ -3,7 +3,7 @@ import { API, PUBLIC_ENGINES, installMockApi } from './helpers/mockApi';
 import { failureBody } from './helpers/problems';
 import { checkoutFacts, digestOf } from '../src/modules/problem/utils/fixtures';
 import { REGISTRATION, detailOf } from '../src/test/fixtures/jobs';
-import { unzipPackage } from '../src/utils/bimZip';
+import { unzipPackage } from '../src/modules/core/utils/bimZip';
 
 // Candidate ranges · ranges of candidate features, from the problems to the engines (the milestone once called F2 ranges).
 // A feature of a candidate is a number or a range { min, max } whose ends are numbers or null (no limit). This walks it through the

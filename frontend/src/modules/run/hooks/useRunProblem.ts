@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { runProblemOf } from '../../../components/rendering/runProblem';
-import type { RunProblem } from '../../../components/rendering/runResultModel';
+import { runProblemOf } from '../components/rendering/runProblem';
+import type { RunProblem } from '../components/rendering/runResultModel';
 import { problemFactsApi } from '../../core/utils/problem/facts';
 import type { ProblemFacts } from '../../core/api/types';
 import type { Origin } from '../utils/runOrigin';

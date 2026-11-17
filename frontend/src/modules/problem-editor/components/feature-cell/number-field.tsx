@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { parseFiniteNumber as parseNumber } from '../../../../utils/featureRange';
+import { parseFiniteNumber as parseNumber } from '../../../core/utils/featureRange';
 
 interface NumberFieldProps {
   value: number | null;

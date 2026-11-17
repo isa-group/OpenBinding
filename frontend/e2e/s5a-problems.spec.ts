@@ -551,7 +551,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await card.getByRole('button', { name: 'Actions for Flujo de checkout' }).click();
       await expect(
         card.getByRole('menuitem', { name: 'Run the latest version of Flujo de checkout' })
-      ).toHaveAttribute('href', '/app/isa-demo/runs/new?problem=flujo-checkout&revision=2');
+      ).toHaveAttribute('href', '/runs/new?org=isa-demo&problem=flujo-checkout&revision=2');
       await page.keyboard.press('Escape');
       await tab.getByRole('button', { name: /^New/ }).click();
       const create = tab.getByRole('menu', { name: 'New problem' });

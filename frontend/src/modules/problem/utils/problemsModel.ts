@@ -1,9 +1,9 @@
-import type { Problem, ProblemRevision } from '../../../api/problems';
-import { parseBindingSpace } from '../../../components/BindingSpaceBadge/bindingSpace';
+import type { Problem, ProblemRevision } from '../api/problemsClient';
+import { parseBindingSpace } from '../../core/components/binding-space-badge/bindingSpace';
 import { workflowGraph } from '../../core/utils/binding/workflowGraph';
 import { describeExpression } from '../../core/utils/problem/expressions';
 import type { ProblemFacts } from '../../core/api/types';
-import { formatFeature, type FeatureValue } from '../../../utils/featureRange';
+import { formatFeature, type FeatureValue } from '../../core/utils/featureRange';
 
 /** The longest a case's name and description may be (`BindingCaseCreate` in the contract). */
 export const NAME_MAX = 160;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { PricingUnavailableError, QuotaError } from '../../../api/auth';
-import { HttpError } from '../../../api/client';
+import { PricingUnavailableError, QuotaError } from '../../core/api/account';
+import { HttpError } from '../../core/api/http';
 import { agreementCatalogFixture } from '../../../test/fixtures/agreementCatalog';
 import {
   ageLabel,

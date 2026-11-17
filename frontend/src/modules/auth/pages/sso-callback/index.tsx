@@ -10,12 +10,11 @@ import { useEffect, useRef, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { FiCheck } from 'react-icons/fi';
 import { Link, useLocation } from 'react-router-dom';
-import { apiClient } from '../../../../api/client';
-import { InstitutionMark } from '../../../../components/InstitutionMark';
+import { InstitutionMark } from '../../components/institution-mark';
 import {
   INSTITUTION_NAME,
   useInstitutionalBranding,
-} from '../../../../components/InstitutionMark/institution';
+} from '../../components/institution-mark/institution';
 import {
   casFlowFor,
   exchangeCasOnce,
@@ -23,7 +22,7 @@ import {
   notePlanChanged,
   rememberCasFlow,
   type CasMode,
-} from '../../../../utils/authFlow';
+} from '../../utils/authFlow';
 import { classifyAuthError } from '../../../core/api/errors';
 import { Notice } from '../../../core/components/notice';
 import ServiceStatus from '../../../presentation/components/service-status';
@@ -32,6 +31,7 @@ import AuthLayout from '../../components/auth-layout';
 import { fadeUp } from '../../components/auth-layout/variants';
 import { useAuth } from '../../hooks/useAuth';
 import { ICON_TILE, LEDE, PRIMARY_ACTION, SECONDARY_ACTION, TITLE } from '../../utils/classes';
+import { accountClient } from '../../api/accountClient';
 
 /** Where the CAS identity of an account is linked and unlinked. */
 const SIGN_IN_SECURITY = '/me/settings?section=integrations';
@@ -123,7 +123,7 @@ export default function SsoCallbackPage() {
     if (!code) return;
     // Linking CAS raises FREE to RESEARCH at no cost. The exchange says so; the redirect's `plan_changed` is the same news a step earlier.
     void exchangeCasOnce(code, () =>
-      apiClient.exchangeCasCode(code).then(change => {
+      accountClient.exchangeCasCode(code).then(change => {
         if (change)
           notePlanChanged({ from: change.from, to: change.to, extraCost: change.extra_cost });
         else if (announced) notePlanChanged({ to: announced, extraCost: false });
@@ -288,7 +288,7 @@ export default function SsoCallbackPage() {
                 ) : (
                   <a
                     className={SECONDARY_ACTION}
-                    href={apiClient.casStartUrl('login')}
+                    href={accountClient.casStartUrl('login')}
                     onClick={() => rememberCasFlow('login', flow?.returnTo)}
                   >
                     Try again

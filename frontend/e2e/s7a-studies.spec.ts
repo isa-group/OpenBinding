@@ -7,7 +7,8 @@ import {
   type TestInfo,
 } from '@playwright/test';
 import { failureBody } from './helpers/problems';
-import type { Job, Study, StudyCell, StudyRun } from '../src/api/platform';
+import type { Job } from '../src/modules/run/api/runsClient';
+import type { Study, StudyCell, StudyRun } from '../src/modules/study/api/studiesApi';
 import { CURRENT_FIXTURE, catalogFixture } from '../src/test/fixtures/pricingCatalog';
 import { jobOf } from '../src/test/fixtures/jobs';
 import { presetPage } from '../src/test/fixtures/presets';

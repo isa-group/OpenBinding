@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { EngineCatalogEntry, EngineMode } from '../../../api/client';
+import type { EngineCatalogEntry, EngineMode } from './engineClient';
 import { catalogFilterOptions, engineRows, filterRows } from './enginesModel';
 
 function mode(id: string, extra: Partial<EngineMode> = {}): EngineMode {

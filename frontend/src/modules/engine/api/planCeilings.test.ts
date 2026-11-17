@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { optionFacts } from './enginesModel';
 import { catalogFixture } from '../../../test/fixtures/pricingCatalog';
 import { optionKind, planCeilings, previewOption } from './planCeilings';
-import type { EngineMode } from '../../../api/client';
+import type { EngineMode } from './engineClient';
 
 const ceilings = planCeilings(catalogFixture);
 const plan = (name: string) => ceilings.plans.find(item => item.plan === name) ?? null;

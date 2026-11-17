@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { HelmetProvider } from 'react-helmet-async';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
-import type { UserProfile } from '../../../api/auth';
+import type { UserProfile } from '../../core/api/account';
 import { AuthContext } from '../hooks/useAuth';
 import { ProtectedRoute } from './protected-route';
 

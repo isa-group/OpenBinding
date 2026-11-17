@@ -33,7 +33,6 @@
     "date-fns": "^4",
     "framer-motion": "^12",
     "jszip": "^3.10.1",
-    "lucide-react": "^0.468.0",
     "lz-string": "1.5.0",
     "monaco-editor": "^0.52",
     "pricing-renderer": "0.2.0",

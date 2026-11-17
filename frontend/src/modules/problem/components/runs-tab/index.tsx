@@ -6,8 +6,8 @@
 
 import { FiPlay } from 'react-icons/fi';
 import { Link } from 'react-router-dom';
-import { runsApi } from '../../../../api/runs';
-import type { Job } from '../../../../api/platform';
+import { runsApi } from '../../../run/api/runsClient';
+import type { Job } from '../../../run/api/runsClient';
 import { Action } from '../../../core/components/action-button';
 import { DataTable } from '../../../core/components/data-table';
 import { EmptyState } from '../../../core/components/empty-state';
@@ -16,8 +16,8 @@ import { Skeleton } from '../../../core/components/skeleton';
 import { classifyAuthError, marker } from '../../../core/api/errors';
 import { problemPath } from '../../../../routes/paths/problems';
 import { runPath } from '../../../../routes/paths/runs';
-import { formatDateTime } from '../../../../utils/format';
-import { useResource } from '../../../../utils/useResource';
+import { formatDateTime } from '../../../core/utils/format';
+import { useResource } from '../../../core/hooks/useResource';
 import { StatusChip } from '../../../run/components/run-status';
 import type { ProblemContent } from '../../types';
 

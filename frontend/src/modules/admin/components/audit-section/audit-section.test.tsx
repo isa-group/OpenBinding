@@ -1,6 +1,6 @@
 import { configure, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { AdminAuditPage } from '../../../../api/auth';
+import type { AdminAuditPage } from '../../../core/api/account';
 import { ALEX, AUDIT, MARIA, ORG, PRIYA, SAM } from '../../../../test/fixtures/admin';
 import { adminPath } from '../../../../routes/paths/admin';
 import { refusal, renderSection } from '../../utils/adminTestUtils';

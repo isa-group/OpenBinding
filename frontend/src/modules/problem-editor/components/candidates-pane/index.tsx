@@ -8,7 +8,7 @@ import {
 } from '../../../core/utils/binding/candidateMatrix';
 import { resourcePaths } from '../../../core/diagnostics/bim';
 import type { Located } from '../../../core/diagnostics/located';
-import { formatFeature, type FeatureSlot } from '../../../../utils/featureRange';
+import { formatFeature, type FeatureSlot } from '../../../core/utils/featureRange';
 import { CandidateMatrix } from '../../../core/components/candidate-matrix/CandidateMatrix';
 import { ValueBadge } from '../../../core/components/value-badge/ValueBadge';
 import { instanceResources, parseJson, pretty, type WorkspaceFiles } from '../../utils/documents';

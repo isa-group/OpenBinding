@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { QuotaError } from '../../../../api/auth';
-import { HttpError } from '../../../../api/client';
+import { QuotaError } from '../../../core/api/account';
+import { HttpError } from '../../../core/api/http';
 import { addressNow } from '../../../../test/moduleKit';
 import { renderStudyScreen } from '../../../../test/studyPage';
 import {
@@ -34,10 +34,18 @@ vi.mock('../../api/studiesApi', async () => ({
   ...(await vi.importActual<typeof import('../../api/studiesApi')>('../../api/studiesApi')),
   studiesApi: platform,
 }));
-vi.mock('../../../../api/problems', () => ({ problemsApi: problems }));
-vi.mock('../../../../api/client', async () => ({
-  ...(await vi.importActual<typeof import('../../../../api/client')>('../../../../api/client')),
-  apiClient: client,
+vi.mock('../../../problem/api/problemsClient', () => ({ problemsApi: problems }));
+vi.mock('../../../engine/api/engineClient', async () => ({
+  ...(await vi.importActual<typeof import('../../../engine/api/engineClient')>(
+    '../../../engine/api/engineClient'
+  )),
+  engineClient: client,
+}));
+vi.mock('../../../settings/api/planClient', async () => ({
+  ...(await vi.importActual<typeof import('../../../settings/api/planClient')>(
+    '../../../settings/api/planClient'
+  )),
+  planClient: client,
 }));
 const presets = vi.hoisted(() => ({ list: vi.fn() }));
 vi.mock('../../../run/api/presetsApi', async actual => ({

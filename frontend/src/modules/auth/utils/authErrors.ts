@@ -1,5 +1,5 @@
-import { HttpError } from '../../../api/client';
-import { diagnosticsByField, diagnosticsOf } from '../../../api/problem';
+import { HttpError } from '../../core/api/http';
+import { diagnosticsByField, diagnosticsOf } from '../../core/api/problem';
 
 export type FieldErrors = Partial<Record<string, string>>;
 

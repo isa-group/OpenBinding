@@ -4,7 +4,7 @@ import type {
   EngineMode,
   ScalarizationDeclaration,
   Termination,
-} from '../../../../api/client';
+} from '../../api/engineClient';
 import { isRecord } from '../../api/registrationModel';
 
 // -- The vocabulary a mode is written in -------------------------------------------------------

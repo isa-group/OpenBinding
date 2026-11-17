@@ -15,7 +15,7 @@ import { Helmet } from 'react-helmet-async';
 import { Link } from 'react-router-dom';
 import { compositionPath } from '../../../../routes/paths/compositions';
 import { problemPath } from '../../../../routes/paths/problems';
-import type { FeatureSlot } from '../../../../utils/featureRange';
+import type { FeatureSlot } from '../../../core/utils/featureRange';
 import { refusalMarker, refusalText, type Refusal } from '../../../core/api/refusals';
 import { Notice } from '../../../core/components/notice';
 import ProblemsPanel from '../../../core/components/problems-panel';
@@ -179,7 +179,7 @@ export default function ProblemEditorPage() {
   if (editor.loadIssue) {
     const missing = editor.loadIssue.status === 404;
     return (
-      <div className="m-auto max-w-md px-4 text-center" role="alert">
+      <div className="m-auto max-w-[28rem] px-4 text-center" role="alert">
         {title}
         <p className="font-display text-lg font-semibold text-white">
           The problem version couldn’t be loaded

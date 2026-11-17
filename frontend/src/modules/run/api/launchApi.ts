@@ -1,5 +1,5 @@
-import { problemsApi } from '../../../api/problems';
-import type { CaseContent } from '../../../features/workspace/model';
+import { problemsApi } from '../../problem/api/problemsClient';
+import type { CaseContent } from '../../problem/api/loadProblems';
 
 /** How many problems the launcher reads; the gateway's ceiling. */
 const PAGE = 200;

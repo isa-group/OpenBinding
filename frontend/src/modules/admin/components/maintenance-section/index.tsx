@@ -3,8 +3,8 @@ import { MdDelete } from 'react-icons/md';
 import { Action } from '../../../core/components/action-button';
 import { Modal } from '../../../core/components/modal';
 import { Notice } from '../../../core/components/notice';
-import { formatDate } from '../../../../utils/format';
-import { useResource } from '../../../../utils/useResource';
+import { formatDate } from '../../../core/utils/format';
+import { useResource } from '../../../core/hooks/useResource';
 import { useAdminApi } from '../../api/adminApi';
 import { count, describeAdminFailure, humanize, type Failure } from '../../utils/adminModel';
 import {

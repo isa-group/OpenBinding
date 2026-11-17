@@ -11,7 +11,7 @@
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { motion } from 'framer-motion';
 import { FiArrowUpRight, FiCheck, FiFilePlus, FiSave, FiSearch, FiX } from 'react-icons/fi';
-import { problemsApi, type Problem } from '../../../../api/problems';
+import { problemsApi, type Problem } from '../../../problem/api/problemsClient';
 import { slugFromName, SLUG_PATTERN } from '../../../core/utils/slug';
 import OrganizationSelector from '../../../organization/components/organization-selector';
 import type { Organization } from '../../../organization/api/organizationsApi';

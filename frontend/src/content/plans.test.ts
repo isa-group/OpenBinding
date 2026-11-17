@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { catalogFixture } from '../test/fixtures/pricingCatalog';
-import { LIMIT } from '../utils/limits';
+import { LIMIT } from '../modules/core/utils/limits';
 import { PRICING_VERSION, planSummaries } from './plans';
 
 // The home page's plan strip is typed by hand. This keeps it honest: it is read against the pricing 0.2.0 fixture it was copied from.

@@ -2,8 +2,9 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { HelmetProvider } from 'react-helmet-async';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { UserProfile } from '../../../../api/auth';
-import { HttpError, apiClient } from '../../../../api/client';
+import type { UserProfile } from '../../../core/api/account';
+import { HttpError } from '../../../core/api/http';
+import { accountClient } from '../../api/accountClient';
 import { AuthContext } from '../../hooks/useAuth';
 import {
   clearSessionEnded,
@@ -13,10 +14,10 @@ import {
   peekPlanChanged,
   readCasFlow,
   rememberCasFlow,
-} from '../../../../utils/authFlow';
+} from '../../utils/authFlow';
 import SsoCallbackPage from '.';
 
-const exchange = vi.spyOn(apiClient, 'exchangeCasCode');
+const exchange = vi.spyOn(accountClient, 'exchangeCasCode');
 
 const person = (overrides: Partial<UserProfile> = {}): UserProfile => ({
   id: 'u1',
@@ -163,13 +164,13 @@ describe('SsoCallbackPage', () => {
   });
 
   it('remembers where the person was heading when they try the CAS sign-in again', () => {
-    rememberCasFlow('login', '/app/org/project');
+    rememberCasFlow('login', '/problems/org/project');
     renderAt('?error=cas_state_invalid', null);
 
     // The browser would leave for the university; the test only watches what is remembered on the way out.
     document.addEventListener('click', event => event.preventDefault(), { once: true });
     fireEvent.click(screen.getByRole('link', { name: 'Try again' }));
-    expect(readCasFlow()).toEqual({ mode: 'login', returnTo: '/app/org/project' });
+    expect(readCasFlow()).toEqual({ mode: 'login', returnTo: '/problems/org/project' });
   });
 
   it('exchanges the one-time code once and refreshes the session', async () => {
@@ -243,19 +244,19 @@ describe('SsoCallbackPage', () => {
   });
 
   it('goes where the person was heading when the login started', async () => {
-    rememberCasFlow('login', '/app/org/project');
+    rememberCasFlow('login', '/problems/org/project');
     exchange.mockResolvedValue(null);
     renderAt('?code=one-time-code');
 
     expect(await screen.findByRole('link', { name: 'Continue to your workspace' })).toHaveAttribute(
       'href',
-      '/app/org/project'
+      '/problems/org/project'
     );
   });
 
   it('does not spend the code twice when the screen is mounted again after it signed the person in', async () => {
     // Signing in changes the account, and the interface below the account provider is mounted again.
-    rememberCasFlow('login', '/app/org/project');
+    rememberCasFlow('login', '/problems/org/project');
     exchange.mockResolvedValue(null);
     const { view } = renderAt('?code=one-time-code');
     await screen.findByRole('heading', { name: 'You’re signed in' });
@@ -265,7 +266,7 @@ describe('SsoCallbackPage', () => {
 
     expect(await screen.findByRole('link', { name: 'Continue to your workspace' })).toHaveAttribute(
       'href',
-      '/app/org/project'
+      '/problems/org/project'
     );
     expect(exchange).toHaveBeenCalledTimes(1);
   });

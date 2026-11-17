@@ -498,7 +498,7 @@ export default function ProblemsTab({ org, myRole }: Props) {
               ) : (
                 <>
                   <p className="text-sm font-medium">No problems yet</p>
-                  <p className="max-w-md text-xs text-tp-steel">
+                  <p className="max-w-[28rem] text-xs text-tp-steel">
                     A problem describes one experiment. Upload a BIM package you already have, write
                     one in the problem editor, or start from a template.
                   </p>

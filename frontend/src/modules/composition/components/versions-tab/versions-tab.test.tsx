@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { useLocation } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { org } from '../../../../features/workspace/testKit';
+import { org } from '../../../../test/fixtures/accounts';
 import type {
   CompositionVersionDiff,
   CompositionVersionView,
@@ -26,7 +26,7 @@ vi.mock('../../../core/utils/composition/api', () => ({ compositionsApi: api, la
 const factsApi = vi.hoisted(() => ({ get: vi.fn() }));
 vi.mock('../../../core/utils/problem/facts', () => ({ problemFactsApi: factsApi }));
 const problems = vi.hoisted(() => ({ revision: vi.fn() }));
-vi.mock('../../../../api/problems', () => ({ problemsApi: problems }));
+vi.mock('../../../problem/api/problemsClient', () => ({ problemsApi: problems }));
 const download = vi.hoisted(() => ({ saveText: vi.fn() }));
 vi.mock('../../utils/download', () => download);
 

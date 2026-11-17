@@ -17,8 +17,8 @@ const problems = vi.hoisted(() => ({
 }));
 const bim = vi.hoisted(() => ({ validate: vi.fn(), templates: vi.fn(), template: vi.fn() }));
 
-vi.mock('../../../../api/problems', () => ({ problemsApi: problems }));
-vi.mock('../../../../api/bim', () => ({ bimApi: bim }));
+vi.mock('../../../problem/api/problemsClient', () => ({ problemsApi: problems }));
+vi.mock('../../../core/api/bim', () => ({ bimApi: bim }));
 vi.mock('../../../core/components/code-editor', async () => ({
   default: (await import('../../utils/codeEditorTestKit')).default,
 }));

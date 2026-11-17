@@ -1,6 +1,6 @@
 import type { OptionFact } from './enginesModel';
 import { formatDefault } from './enginesModel';
-import { LIMIT } from '../../../utils/limits';
+import { LIMIT } from '../../core/utils/limits';
 
 /**
  * What a plan allows one job, read from the pricing document the gateway serves.

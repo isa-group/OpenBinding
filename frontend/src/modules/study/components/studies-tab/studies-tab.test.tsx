@@ -1,6 +1,6 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { HttpError } from '../../../../api/client';
+import { HttpError } from '../../../core/api/http';
 import { cellsFixture, runFixture, studyFixture } from '../../../../test/fixtures/studies';
 import { addressNow, fakeGateway, renderModule, type Answer } from '../../../../test/moduleKit';
 import StudiesTab, { PER_PAGE } from '.';

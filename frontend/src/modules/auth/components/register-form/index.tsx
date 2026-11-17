@@ -17,7 +17,7 @@ import {
   clearSignInNote,
   hasRecentSignIn,
   noteSignInStarted,
-} from '../../../../utils/authFlow';
+} from '../../utils/authFlow';
 import { useAuth } from '../../hooks/useAuth';
 import { fieldErrorsFrom, type FieldErrors } from '../../utils/authErrors';
 import {

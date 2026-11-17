@@ -1,27 +1,26 @@
 // The route table follows SPHERE frontend/src/routes/router.tsx (revision 73779a8a), https://github.com/SCORELabUS/SPHERE.
 // Copyright (c) 2024 Alejandro García Fernández. MIT licence: the full text is in THIRD_PARTY_NOTICES.md.
-// Pattern only: one `useRoutes` object table under SPHERE's banners. OpenBinding keeps its own screens and addresses until each
-// domain is poured into SPHERE's pages, and lists them in `screens`, the table its screen budget and route tests read.
+// Pattern only: one `useRoutes` object table under SPHERE's banners, with OpenBinding's own addresses (slugs, the tab as a
+// path segment) listed in `screens`, the table its screen budget and route tests read.
 
 /* eslint-disable react-refresh/only-export-components -- the table exports `screens` for the budget and route tests */
 import { lazy, Suspense, type ReactNode } from 'react';
 import { Outlet, useRoutes, type RouteObject } from 'react-router-dom';
-import { RouteFallback } from '../components/PlatformShell/RouteFallback';
+import { RouteFallback } from '../modules/core/components/route-fallback';
 import ProtectedRoute from '../modules/auth/components/protected-route';
 import ErrorBoundary from '../modules/core/components/error-boundary';
 import NotFoundPage from '../modules/core/pages/page-not-found';
 import AuthenticatedLayout from '../modules/presentation/layouts/authenticated-layout';
 import PublicLayout from '../modules/presentation/layouts/public-layout';
 import AppLayout from './app-layout';
-import { LegacyOrgOutlet } from './LegacyOrgOutlet';
+import { RouteOutlet } from './route-outlet';
 
 /**
- * Where a screen renders: `public` in the public layout, `session` in the layout of the session (the workspace chrome when
- * signed in, the public one otherwise), `protected` in SPHERE's authenticated layout (an account is needed), `app` in the old
- * workspace under /app, which needs an account too and goes as its screens are poured into SPHERE's pages, `standalone` with no
- * application chrome at all: the editors, which draw their own layout and are open to visitors.
+ * Where a screen renders: `public` in the public layout, `session` in the layout of the session (SPHERE's authenticated chrome
+ * when signed in, the public one otherwise), `protected` in SPHERE's authenticated layout (an account is needed), `standalone`
+ * with no application chrome at all: the editors, which draw their own layout and are open to visitors.
  */
-export type ScreenLayout = 'public' | 'session' | 'protected' | 'app' | 'standalone';
+export type ScreenLayout = 'public' | 'session' | 'protected' | 'standalone';
 
 /** One screen of the application and the address that serves it. */
 export interface Screen {
@@ -140,10 +139,6 @@ export const screens: Screen[] = [
   { id: 'admin-user-detail', path: '/admin/users/:user', layout: 'protected', element: <AdminUserPage />, requireAdmin: true },
 
   // ═══════════════════════════════════════════════════════════
-  // PROTECTED ROUTES (the old workspace under /app, until its screens are poured into SPHERE's pages)
-  // ═══════════════════════════════════════════════════════════
-
-  // ═══════════════════════════════════════════════════════════
   // EDITORS (standalone layout): `/editor` and `/problem-editor`
   // ═══════════════════════════════════════════════════════════
   { id: 'composition-editor', path: '/editor', layout: 'standalone', element: <EditorLayout><CompositionEditorPage /></EditorLayout> },
@@ -173,7 +168,7 @@ export default function Router({ table = screens }: { table?: Screen[] }) {
     {
       element: (
         <PublicLayout>
-          <LegacyOrgOutlet />
+          <RouteOutlet />
         </PublicLayout>
       ),
       children: routesOf(table, 'public'),
@@ -185,7 +180,7 @@ export default function Router({ table = screens }: { table?: Screen[] }) {
     {
       element: (
         <AppLayout>
-          <LegacyOrgOutlet />
+          <RouteOutlet />
         </AppLayout>
       ),
       children: routesOf(table, 'session'),
@@ -198,21 +193,11 @@ export default function Router({ table = screens }: { table?: Screen[] }) {
       element: (
         <ProtectedRoute>
           <AuthenticatedLayout>
-            <LegacyOrgOutlet />
+            <RouteOutlet />
           </AuthenticatedLayout>
         </ProtectedRoute>
       ),
       children: routesOf(table, 'protected'),
-    },
-    {
-      element: (
-        <ProtectedRoute>
-          <AuthenticatedLayout>
-            <LegacyOrgOutlet workspace />
-          </AuthenticatedLayout>
-        </ProtectedRoute>
-      ),
-      children: routesOf(table, 'app'),
     },
 
     // ═══════════════════════════════════════════════════════════
@@ -235,7 +220,7 @@ export default function Router({ table = screens }: { table?: Screen[] }) {
     {
       element: (
         <AppLayout>
-          <LegacyOrgOutlet />
+          <RouteOutlet />
         </AppLayout>
       ),
       children: [{ path: '*', element: <NotFoundPage /> }],

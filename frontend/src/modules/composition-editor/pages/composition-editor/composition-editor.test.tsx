@@ -1,6 +1,6 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { HttpError } from '../../../../api/client';
+import { HttpError } from '../../../core/api/http';
 import { addressNow, fakeGateway, orgNode, renderModule } from '../../../../test/moduleKit';
 import EditorLayout from '../../layouts/editor-layout';
 import CompositionEditorPage from '.';

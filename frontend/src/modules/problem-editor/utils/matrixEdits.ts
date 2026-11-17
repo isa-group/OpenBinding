@@ -1,6 +1,6 @@
 import { parsePointer, resolvePointer } from '../../core/diagnostics/jsonPointer';
 import type { Located } from '../../core/diagnostics/located';
-import { isFeatureSlot, type FeatureSlot, type FeatureValue } from '../../../utils/featureRange';
+import { isFeatureSlot, type FeatureSlot, type FeatureValue } from '../../core/utils/featureRange';
 import { isRecord, pretty, type WorkspaceFiles } from './documents';
 
 /**

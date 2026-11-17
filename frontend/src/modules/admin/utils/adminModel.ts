@@ -1,10 +1,10 @@
 import type { PricingSelection } from 'pricing-renderer';
-import { PricingUnavailableError, QuotaError } from '../../../api/auth';
-import type { AdminAuditPage, PricingCatalog } from '../../../api/auth';
-import { HttpError } from '../../../api/client';
-import { diagnosticsOf } from '../../../api/problem';
-import { inInterfaceWords } from '../../../components/ui/interfaceWords';
-import { describeLimit, LIMIT_ORDER, limitInfo, type LimitText } from '../../../utils/limits';
+import { PricingUnavailableError, QuotaError } from '../../core/api/account';
+import type { AdminAuditPage, PricingCatalog } from '../../core/api/account';
+import { HttpError } from '../../core/api/http';
+import { diagnosticsOf } from '../../core/api/problem';
+import { inInterfaceWords } from '../../core/utils/interfaceWords';
+import { describeLimit, LIMIT_ORDER, limitInfo, type LimitText } from '../../core/utils/limits';
 import type { ApiErrorEventItem } from '../api/types';
 
 /** What the administration screens share: wording of failures, the pricing catalog read for contracts, and audit and error events in words. */

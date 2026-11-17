@@ -1,4 +1,4 @@
-import { problemsApi, type ProblemCompilation } from '../../../api/problems';
+import { problemsApi, type ProblemCompilation } from '../api/problemsClient';
 import { problemFactsApi } from '../../core/utils/problem/facts';
 import type { ProblemFacts } from '../../core/api/types';
 import { classifyAuthError, type AuthFailure } from '../../core/api/errors';

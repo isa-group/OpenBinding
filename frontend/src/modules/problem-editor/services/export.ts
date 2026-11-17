@@ -5,7 +5,7 @@
 // form the check sends, or the files as they are when they are not a package yet), named after the Instance's
 // `metadata.name`; nothing is sent anywhere.
 
-import { packageFiles, zipStore } from '../../../utils/bimZip';
+import { packageFiles, zipStore } from '../../core/utils/bimZip';
 import { parseJson, type WorkspaceFiles } from '../utils/documents';
 
 /** The file name of a package: `{metadata.name}.bim.zip`, or `package.bim.zip`. */

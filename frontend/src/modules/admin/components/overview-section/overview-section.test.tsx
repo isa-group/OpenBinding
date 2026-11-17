@@ -1,6 +1,6 @@
 import { configure, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { AdminOverview as OverviewAnswer } from '../../../../api/auth';
+import type { AdminOverview as OverviewAnswer } from '../../../core/api/account';
 import { config } from '../../../../config';
 import { ALEX, ERROR_OVERVIEW, MARIA, MODERATION, queuesAt } from '../../../../test/fixtures/admin';
 import { refusal, renderSection } from '../../utils/adminTestUtils';

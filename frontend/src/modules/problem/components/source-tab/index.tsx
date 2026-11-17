@@ -16,8 +16,8 @@ import {
   type ProblemRevision,
   type ProblemRevisionDetail,
 } from '../../api/problemsApi';
-import { parseBindingSpace } from '../../../../components/BindingSpaceBadge/bindingSpace';
-import { SourceView } from '../../../../components/rendering/SourceView';
+import { parseBindingSpace } from '../../../core/components/binding-space-badge/bindingSpace';
+import { SourceView } from '../../../run/components/rendering/SourceView';
 import { Action } from '../../../core/components/action-button';
 import { DataTable } from '../../../core/components/data-table';
 import { Notice } from '../../../core/components/notice';
@@ -26,9 +26,9 @@ import { useCopy } from '../../../core/hooks/useCopy';
 import { classifyAuthError, marker, type AuthFailure } from '../../../core/api/errors';
 import type { ProblemFacts } from '../../../core/api/types';
 import { problemFactsApi, rangeCandidates } from '../../../core/utils/problem/facts';
-import { formatBytes } from '../../../../utils/format';
-import { formatFeature } from '../../../../utils/featureRange';
-import { useResource } from '../../../../utils/useResource';
+import { formatBytes } from '../../../core/utils/format';
+import { formatFeature } from '../../../core/utils/featureRange';
+import { useResource } from '../../../core/hooks/useResource';
 import { sourceFailureKind } from '../../utils/problemErrors';
 import { powerText } from '../../utils/problemsModel';
 import { readZipArchive, type ZipArchive } from '../../utils/zipExplorer';

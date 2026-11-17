@@ -8,13 +8,13 @@
 
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { BindingSpaceBadge } from '../../../../components/BindingSpaceBadge/BindingSpaceBadge';
+import { BindingSpaceBadge } from '../../../core/components/binding-space-badge';
 import {
   parseBindingSpace,
   toSuperscript,
-} from '../../../../components/BindingSpaceBadge/bindingSpace';
-import { formatDateTime } from '../../../../utils/format';
-import { useResource } from '../../../../utils/useResource';
+} from '../../../core/components/binding-space-badge/bindingSpace';
+import { formatDateTime } from '../../../core/utils/format';
+import { useResource } from '../../../core/hooks/useResource';
 import { classifyAuthError, marker } from '../../../core/api/errors';
 import { Action } from '../../../core/components/action-button';
 import { DataTable } from '../../../core/components/data-table';

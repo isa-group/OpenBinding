@@ -1,6 +1,12 @@
-import { problemsApi } from '../../../api/problems';
-import type { CaseContent } from '../../../features/workspace/model';
+import { problemsApi } from './problemsClient';
+import type { Problem, ProblemRevision } from './problemsClient';
 import type { ProblemsFilter } from '../../../routes/paths/problems';
+
+/** A problem with its versions, as the lists of problems read it. */
+export interface CaseContent {
+  item: Problem;
+  revisions: ProblemRevision[];
+}
 
 /** How many problems one listing reads; the gateway's ceiling. */
 const PAGE = 200;

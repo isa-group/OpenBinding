@@ -217,7 +217,7 @@ export default function EditorLayout({ children }: { children?: ReactNode }) {
         <p className="font-display text-lg font-semibold text-white">
           There is no composition to edit
         </p>
-        <p className="max-w-md text-sm text-white/70">
+        <p className="max-w-[28rem] text-sm text-white/70">
           This composition or version is unavailable. Sign in if you have access to a private
           composition.{resolved.message ? ` (${resolved.message})` : ''}
         </p>

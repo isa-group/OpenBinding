@@ -4,7 +4,7 @@ import { render } from '@testing-library/react';
 import { HelmetProvider } from 'react-helmet-async';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { vi, type Mock } from 'vitest';
-import type { UserProfile } from '../api/auth';
+import type { UserProfile } from '../modules/core/api/account';
 import { AuthContext } from '../modules/auth/hooks/useAuth';
 import DialogHost from '../modules/core/components/dialog-host';
 import { ToastProvider } from '../modules/core/contexts/toastContext';

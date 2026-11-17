@@ -1,4 +1,4 @@
-import type { EngineCatalogEntry } from '../../../../api/client';
+import type { EngineCatalogEntry } from '../../../engine/api/engineClient';
 import type { PresetOptimization, PresetSettings } from '../../../run/api/presetsApi';
 import { presetEngineLabel } from '../../../run/api/presetText';
 import type { RunPresetView } from '../../../core/api/types';

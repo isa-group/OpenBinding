@@ -2,7 +2,7 @@
 export default function ScreenFailed({ reload }: { reload: () => void }) {
   return (
     <div
-      className="mx-auto flex max-w-xl flex-col items-center px-4 py-24 text-center"
+      className="mx-auto flex max-w-[36rem] flex-col items-center px-4 py-24 text-center"
       role="alert"
     >
       <p className="text-xs font-semibold tracking-wide text-tp-steel uppercase">Error</p>

@@ -1,10 +1,10 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { BimDiagnostic } from '../../../../api/bim';
+import type { BimDiagnostic } from '../../../core/api/bim';
 import fmsFacts from '../../../../test/fixtures/core/fms.facts.json';
 import { addressNow } from '../../../../test/moduleKit';
 import { problemPath } from '../../../../routes/paths/problems';
-import { unzipPackage } from '../../../../utils/bimZip';
+import { unzipPackage } from '../../../core/utils/bimZip';
 import { loadDraft, saveDraft } from '../../../core/editor/drafts';
 import { CARRY_SCOPE, EDITOR_PRODUCER } from '../../hooks/useProblemEditor';
 import { analysis, BLANK_LATENCY, blankFacts, packageFilesNamed } from '../../utils/editorTestKit';
@@ -25,8 +25,8 @@ const problems = vi.hoisted(() => ({
   create: vi.fn(),
   createRevision: vi.fn(),
 }));
-vi.mock('../../../../api/bim', () => ({ bimApi: bim }));
-vi.mock('../../../../api/problems', () => ({ problemsApi: problems }));
+vi.mock('../../../core/api/bim', () => ({ bimApi: bim }));
+vi.mock('../../../problem/api/problemsClient', () => ({ problemsApi: problems }));
 // Monaco needs a real browser: the code editor is a text area that shows where its caret was put and how many markers it has.
 vi.mock('../../../core/components/code-editor', async () => ({
   default: (await import('../../utils/codeEditorTestKit')).default,

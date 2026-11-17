@@ -12,8 +12,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { saveBytes } from '../../../../features/workspace/download';
-import { useResource } from '../../../../utils/useResource';
+import { saveBytes } from '../../../core/utils/save-bytes';
+import { useResource } from '../../../core/hooks/useResource';
 import { classifyAuthError, marker, readApiError } from '../../../core/api/errors';
 import { Action } from '../../../core/components/action-button';
 import { Modal } from '../../../core/components/modal';

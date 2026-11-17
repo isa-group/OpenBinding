@@ -1,15 +1,8 @@
 import type { PricingSelection } from 'pricing-renderer';
 import { selectionFromContract, type SpaceContractLike } from 'pricing-renderer/space';
-import type { PricingCatalog } from '../../../../api/auth';
-import { inInterfaceWords } from '../../../../components/ui/interfaceWords';
-import {
-  describeLimit,
-  FEATURE,
-  LIMIT,
-  limitInfo,
-  LIMIT_GROUPS,
-  type LimitGroup,
-} from '../../../../utils/limits';
+import type { PricingCatalog } from '../../api/account';
+import { inInterfaceWords } from '../interfaceWords';
+import { describeLimit, FEATURE, LIMIT, limitInfo, LIMIT_GROUPS, type LimitGroup } from '../limits';
 
 /**
  * The pricing document, read for display.

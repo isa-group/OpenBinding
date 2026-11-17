@@ -5,11 +5,11 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { MdCheck, MdClose, MdRemove } from 'react-icons/md';
 import { Link } from 'react-router-dom';
-import { SourceView } from '../../../../components/rendering/SourceView';
+import { SourceView } from '../../../run/components/rendering/SourceView';
 import { DataTable } from '../../../core/components/data-table';
 import { TabBar, TabPanel } from '../../../core/components/tab-bar';
 import { useCopy } from '../../../core/hooks/useCopy';
-import { formatDateTime } from '../../../../utils/format';
+import { formatDateTime } from '../../../core/utils/format';
 import {
   dimensionLabel,
   readManifest,

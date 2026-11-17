@@ -1,6 +1,6 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { HttpError } from '../../../../api/client';
+import { HttpError } from '../../../core/api/http';
 import { renderStudyScreen } from '../../../../test/studyPage';
 import {
   CHECKOUT,
@@ -35,8 +35,8 @@ vi.mock('../../api/studiesApi', async () => ({
   ...(await vi.importActual<typeof import('../../api/studiesApi')>('../../api/studiesApi')),
   studiesApi: platform,
 }));
-vi.mock('../../../../api/problems', () => ({ problemsApi: problems }));
-vi.mock('../../../../features/workspace/download', () => download);
+vi.mock('../../../problem/api/problemsClient', () => ({ problemsApi: problems }));
+vi.mock('../../../core/utils/save-bytes', () => download);
 
 /** The one-run read answers from what the study's run list answers. */
 function oneRunFromList() {

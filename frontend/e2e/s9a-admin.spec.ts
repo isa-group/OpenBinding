@@ -7,7 +7,7 @@ import {
   type TestInfo,
 } from '@playwright/test';
 import { failureBody } from './helpers/problems';
-import type { AdminAuditPage, AdminUserView } from '../src/api/auth';
+import type { AdminAuditPage, AdminUserView } from '../src/modules/core/api/account';
 import {
   AGREEMENT_CURRENT_FIXTURE as CURRENT_FIXTURE,
   agreementCatalogFixture as catalogFixture,

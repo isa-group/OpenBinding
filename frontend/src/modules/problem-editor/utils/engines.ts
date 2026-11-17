@@ -1,5 +1,5 @@
 import type { ImmutableResourceRef } from '../../core/api/types';
-import { RANGE_CODE, RANGE_REFUSAL } from '../../../utils/featureRange';
+import { RANGE_CODE, RANGE_REFUSAL } from '../../core/utils/featureRange';
 import { isRecord, type Diagnostic } from './documents';
 
 /** The engine modes the analysis of a package lists, and what the editor says about each. */

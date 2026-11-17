@@ -3,13 +3,13 @@
 // rotation, the typed refusals and the session-ended event. api/client.ts extends it until the client is emptied (D8).
 
 import { config } from '../../../config';
-import { PricingUnavailableError, QuotaError } from '../../../api/auth';
+import { PricingUnavailableError, QuotaError } from './account';
 import {
   bindingSpaceFrom,
   limitNoticeFrom,
   type BindingSpaceReport,
   type LimitNotice,
-} from '../../../api/limitNotice';
+} from './limitNotice';
 
 export interface Revised<T> {
   value: T;
@@ -187,7 +187,7 @@ export async function readResponse<T>(response: Response): Promise<T> {
 }
 
 export class HttpTransport {
-  protected baseUrl: string;
+  readonly baseUrl: string;
   /** In flight refresh, so that ten simultaneous 401s cause one refresh. */
   protected refreshing: Promise<boolean> | null = null;
 
@@ -455,3 +455,9 @@ export class HttpTransport {
     return response;
   };
 }
+
+/**
+ * The one transport of the application. Every module's client sends through it, so the session, its single refresh and the
+ * session-ended event are shared; `useAuth().fetchWithInterceptor` is its `fetchWithInterceptor`.
+ */
+export const apiClient = new HttpTransport();

@@ -31,7 +31,7 @@ import {
   type Selector,
   type Vocabulary,
 } from './engineDraft';
-import type { Termination } from '../../../../api/client';
+import type { Termination } from '../../api/engineClient';
 
 const PILL =
   'min-h-8 cursor-pointer rounded-full border border-tp-hairline-strong bg-tp-canvas px-3 text-xs font-medium text-tp-slate transition-colors hover:border-tp-stone disabled:cursor-not-allowed disabled:opacity-60 aria-checked:border-tp-primary aria-checked:bg-tp-primary aria-checked:text-tp-on-primary aria-pressed:border-tp-primary aria-pressed:bg-tp-primary aria-pressed:text-tp-on-primary';

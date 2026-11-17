@@ -11,9 +11,9 @@ import { motion } from 'framer-motion';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Link } from 'react-router-dom';
-import type { Job } from '../../../../api/platform';
-import { runsApi } from '../../../../api/runs';
-import { PlanChangedNotice } from '../../../../components/PlanChangedNotice/PlanChangedNotice';
+import type { Job } from '../../../run/api/runsClient';
+import { runsApi } from '../../../run/api/runsClient';
+import { PlanChangedNotice } from '../../../auth/components/plan-changed-notice';
 import {
   compositionPath,
   myCompositionsPath,
@@ -273,7 +273,7 @@ export default function DashboardPage() {
           </div>
           <div>
             <h2 className="text-base font-medium text-tp-ink">No organizations yet</h2>
-            <p className="mt-1 max-w-md text-sm text-tp-steel">
+            <p className="mt-1 max-w-[28rem] text-sm text-tp-steel">
               An organization holds your compositions, the problems they are chosen from, runs and
               studies, and the people who work on them.
             </p>

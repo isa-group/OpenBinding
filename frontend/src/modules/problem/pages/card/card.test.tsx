@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { HttpError } from '../../../../api/client';
-import type { ProblemUpload } from '../../../../api/problems';
+import { HttpError } from '../../../core/api/http';
+import type { ProblemUpload } from '../../api/problemsClient';
 import type {
   CompositionVersionView,
   CompositionView,
@@ -33,14 +33,16 @@ const runs = vi.hoisted(() => ({ list: vi.fn() }));
 const facts = vi.hoisted(() => ({ get: vi.fn() }));
 const compositions = vi.hoisted(() => ({ list: vi.fn(), get: vi.fn(), version: vi.fn() }));
 
-vi.mock('../../../../api/problems', () => ({ problemsApi: problems }));
+vi.mock('../../api/problemsClient', () => ({ problemsApi: problems }));
 vi.mock('../../../core/utils/problem/facts', async actual => ({
   ...(await actual<typeof import('../../../core/utils/problem/facts')>()),
   problemFactsApi: facts,
 }));
 vi.mock('../../../core/utils/composition/api', () => ({ compositionsApi: compositions }));
-vi.mock('../../../../api/runs', async () => ({
-  ...(await vi.importActual<typeof import('../../../../api/runs')>('../../../../api/runs')),
+vi.mock('../../../run/api/runsClient', async () => ({
+  ...(await vi.importActual<typeof import('../../../run/api/runsClient')>(
+    '../../../run/api/runsClient'
+  )),
   runsApi: runs,
 }));
 

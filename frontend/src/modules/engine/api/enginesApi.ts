@@ -8,7 +8,7 @@
 // identity the gateway answers must carry its four pins.
 
 import { useCallback, useMemo } from 'react';
-import type { PricingCatalog, UsageView } from '../../../api/auth';
+import type { PricingCatalog, UsageView } from '../../core/api/account';
 import type {
   BimProfile,
   CapabilitySelector,
@@ -20,8 +20,8 @@ import type {
   EngineRegistrationReport,
   EngineRegistrationRevision,
   EngineRevision as CreatedEngineRevision,
-} from '../../../api/client';
-import type { EngineRevision } from '../../../api/platform';
+} from './engineClient';
+import type { EngineRevisionDetail as EngineRevision } from './engineRevision';
 import { HttpError, readResponse } from '../../core/api/http';
 import type { ImmutableResourceRef } from '../../core/api/types';
 import { useAuth } from '../../auth/hooks/useAuth';

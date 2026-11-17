@@ -4,8 +4,8 @@ import { fakeGateway, orgNode, renderModule } from '../../../../test/moduleKit';
 import DashboardPage from '.';
 
 const runs = vi.hoisted(() => ({ list: vi.fn() }));
-vi.mock('../../../../api/runs', async actual => ({
-  ...(await actual<typeof import('../../../../api/runs')>()),
+vi.mock('../../../run/api/runsClient', async actual => ({
+  ...(await actual<typeof import('../../../run/api/runsClient')>()),
   runsApi: runs,
 }));
 

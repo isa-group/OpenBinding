@@ -1,6 +1,6 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { HttpError } from '../../../../api/client';
+import { HttpError } from '../../../core/api/http';
 import {
   memberOf,
   problemGateway,
@@ -12,7 +12,7 @@ import ProblemCardPage from '../../pages/card';
 
 const problems = vi.hoisted(() => ({ compilation: vi.fn(), ir: vi.fn(), remove: vi.fn() }));
 
-vi.mock('../../../../api/problems', () => ({ problemsApi: problems }));
+vi.mock('../../api/problemsClient', () => ({ problemsApi: problems }));
 
 const member = memberOf('member-lab', 'MEMBER', 'Member Lab');
 const viewer = memberOf('read-lab', 'VIEWER', 'Read Lab');

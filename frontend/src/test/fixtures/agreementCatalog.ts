@@ -1,4 +1,4 @@
-import type { PricingCatalog } from '../../api/auth';
+import type { PricingCatalog } from '../../modules/core/api/account';
 
 /**
  * TEST FIXTURE, NOT A REAL PRICING. A synthetic `GET /v1/pricing/catalog` answer for the tests of the agreement editor

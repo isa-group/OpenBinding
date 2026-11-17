@@ -1,9 +1,9 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { HttpError } from '../../../../api/client';
+import { HttpError } from '../../../core/api/http';
 import { compositionViewModel, type Reader } from '../../../core/utils/composition/viewModel';
-import { org } from '../../../../features/workspace/testKit';
+import { org } from '../../../../test/fixtures/accounts';
 import type {
   CompositionVersionView,
   CompositionView,

@@ -4,7 +4,7 @@ import { expect as baseExpect, test, type Page, type Route, type TestInfo } from
 // The dev server compiles each route on first use, so the first assertion of a test can wait for a cold page.
 const expect = baseExpect.configure({ timeout: 15_000 });
 import { CURRENT_FIXTURE, catalogFixture } from '../src/test/fixtures/pricingCatalog';
-import { zipStore } from '../src/utils/bimZip';
+import { zipStore } from '../src/modules/core/utils/bimZip';
 
 // S1b · public screens, part 2: eng-catalog, eng-detail, pub-language (its smoke; J6 walks it in f2a-language.spec.ts), and the
 // problem editor for a visitor (its anonymous check; J3 walks it signed in in f2b-problem-editor.spec.ts).

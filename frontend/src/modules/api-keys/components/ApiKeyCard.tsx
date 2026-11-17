@@ -8,7 +8,7 @@
 import { useState } from 'react';
 import { FiKey } from 'react-icons/fi';
 import { useCopy } from '../../core/hooks/useCopy';
-import { formatDate } from '../../../utils/format';
+import { formatDate } from '../../core/utils/format';
 import type { ApiKeySummary } from '../api/apiKeysApi';
 import { boundaryLabels, describeEngineAccess } from '../utils/keysModel';
 

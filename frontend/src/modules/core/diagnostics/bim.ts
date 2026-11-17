@@ -1,4 +1,4 @@
-import type { BimDiagnostic } from '../../../api/bim';
+import type { BimDiagnostic } from '../api/bim';
 import { expressionRange, lineColumn, resolvePointer } from './jsonPointer';
 import type { Located, Severity, Where } from './located';
 

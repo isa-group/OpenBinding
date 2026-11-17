@@ -7,8 +7,8 @@ import {
   type TestInfo,
 } from '@playwright/test';
 import { failureBody } from './helpers/problems';
-import type { Job } from '../src/api/platform';
-import type { Problem, ProblemRevision } from '../src/api/problems';
+import type { Job } from '../src/modules/run/api/runsClient';
+import type { Problem, ProblemRevision } from '../src/modules/problem/api/problemsClient';
 import {
   ENGINE,
   NEIGHBORHOOD,

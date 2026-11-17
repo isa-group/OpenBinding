@@ -1,5 +1,5 @@
-import type { JobDetail } from '../../api/runs';
-import type { Job } from '../../api/platform';
+import type { JobDetail } from '../../modules/run/api/runsClient';
+import type { Job } from '../../modules/run/api/runsClient';
 import type { ProblemFacts } from '../../modules/core/api/types';
 
 /** Shared by the tests of the job screens and by the browser spec that mocks the same API. */

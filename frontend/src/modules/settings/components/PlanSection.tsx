@@ -8,15 +8,15 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { FiCreditCard, FiExternalLink, FiLoader } from 'react-icons/fi';
-import type { PricingCatalog } from '../../../api/auth';
+import type { PricingCatalog } from '../../core/api/account';
 import {
   INSTITUTION_NAME,
   useInstitutionalBranding,
-} from '../../../components/InstitutionMark/institution';
+} from '../../auth/components/institution-mark/institution';
 import { config } from '../../../config';
 import { featureName, readCatalog, type PricingView } from '../../core/utils/pricing/pricingModel';
-import { describeLimit, formatCount, LIMIT, type LimitDefinition } from '../../../utils/limits';
-import { usePricingTokenStatus, type PricingTokenStatus } from '../../../utils/pricingToken';
+import { describeLimit, formatCount, LIMIT, type LimitDefinition } from '../../core/utils/limits';
+import { usePricingTokenStatus, type PricingTokenStatus } from '../../core/utils/pricingToken';
 import { useAuth } from '../../auth/hooks/useAuth';
 import { classifyAuthError, type AuthFailure } from '../../core/api/errors';
 import BlockAlert from '../../core/components/block-alert';

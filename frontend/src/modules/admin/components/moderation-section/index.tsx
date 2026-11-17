@@ -1,7 +1,7 @@
 import { MdRefresh } from 'react-icons/md';
 import { Action } from '../../../core/components/action-button';
 import { Skeleton } from '../../../core/components/skeleton';
-import { useResource } from '../../../../utils/useResource';
+import { useResource } from '../../../core/hooks/useResource';
 import { useAdminApi } from '../../api/adminApi';
 import { describeAdminFailure } from '../../utils/adminModel';
 import EngineReview from '../engine-review';

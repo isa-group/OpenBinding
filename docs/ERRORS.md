@@ -334,7 +334,7 @@ credential that names nobody is `401 unauthorized` there too. A member whose rol
 
 | `code` | Status | Meaning |
 |---|---|---|
-| `slug_reserved` | 422 | `createOrganization` with a slug that names a page of the application (`admin`, `account`, `engines`, `organizations`, `invitations`, `compositions`, `presets`, `runs`, `problems`, `studies`, `settings`, `workbench`, `new`) |
+| `slug_reserved` | 422 | `createOrganization` with a slug that names an address of the application (`new` and `join`, the static children of `/orgs/`, and `public`) |
 | `slug_conflict` | 409 | the organization slug is in use |
 | `historical_references` | 409 | `deleteOrganization`: the organization, or one below it, has runs or study runs, which are kept as history |
 

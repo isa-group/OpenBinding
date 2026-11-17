@@ -12,12 +12,12 @@ import type {
   JobOrganizationRef,
   JobProblemRef,
   JobRevisionRef,
-} from '../../../api/platform';
+} from './runsClient';
 import { useAuth } from '../../auth/hooks/useAuth';
 import { readResponse } from '../../core/api/http';
 import type { ImmutableResourceRef, NeighborhoodResponse } from '../../core/api/types';
 
-export type { Job } from '../../../api/platform';
+export type { Job } from './runsClient';
 
 const enc = encodeURIComponent;
 

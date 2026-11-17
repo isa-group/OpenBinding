@@ -1,7 +1,7 @@
 import { fireEvent, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { HttpError } from '../../../../api/client';
-import type { Job } from '../../../../api/platform';
+import { HttpError } from '../../../core/api/http';
+import type { Job } from '../../../run/api/runsClient';
 import {
   memberOf,
   problemGateway,
@@ -14,9 +14,11 @@ import ProblemCardPage from '../../pages/card';
 const problems = vi.hoisted(() => ({ compilation: vi.fn() }));
 const runsApi = vi.hoisted(() => ({ list: vi.fn() }));
 
-vi.mock('../../../../api/problems', () => ({ problemsApi: problems }));
-vi.mock('../../../../api/runs', async () => ({
-  ...(await vi.importActual<typeof import('../../../../api/runs')>('../../../../api/runs')),
+vi.mock('../../api/problemsClient', () => ({ problemsApi: problems }));
+vi.mock('../../../run/api/runsClient', async () => ({
+  ...(await vi.importActual<typeof import('../../../run/api/runsClient')>(
+    '../../../run/api/runsClient'
+  )),
   runsApi,
 }));
 

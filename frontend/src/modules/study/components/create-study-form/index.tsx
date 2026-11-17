@@ -11,12 +11,12 @@
 
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import type { UsageView } from '../../../../api/auth';
-import { apiClient, type EngineCatalogEntry } from '../../../../api/client';
-import { problemsApi } from '../../../../api/problems';
+import type { UsageView } from '../../../core/api/account';
+import { type EngineCatalogEntry } from '../../../engine/api/engineClient';
+import { problemsApi } from '../../../problem/api/problemsClient';
 import { loadProblems } from '../../../problem/api/loadProblems';
 import { planCeilingsOf } from '../../../run/api/runModel';
-import { useResource } from '../../../../utils/useResource';
+import { useResource } from '../../../core/hooks/useResource';
 import type { RunPresetList } from '../../../core/api/types';
 import { Action } from '../../../core/components/action-button';
 import { Notice } from '../../../core/components/notice';
@@ -54,6 +54,8 @@ import { studyRefusal, type Refusal } from '../../utils/studyErrors';
 import { INPUT } from '../../utils/ui';
 import { CasesField, EnginesField, SettingsField } from '../builder-fields';
 import { StudyRefusal } from '../study-refusal';
+import { engineClient } from '../../../engine/api/engineClient';
+import { planClient } from '../../../settings/api/planClient';
 
 /** The fields of the form below the organization: they belong to it, so another organization starts them afresh. */
 function BuilderBody({ organization }: { organization: Organization }) {
@@ -64,13 +66,13 @@ function BuilderBody({ organization }: { organization: Organization }) {
 
   const cases = useResource<CaseContent[]>(`builder-problems:${org}`, () => loadProblems(org));
   const engines = useResource<EngineCatalogEntry[]>('builder-engines', () =>
-    apiClient.getEngines()
+    engineClient.getEngines()
   );
   const usage = useResource<UsageView | null>('builder-usage', () =>
-    apiClient.getOwnUsage().catch(() => null)
+    planClient.getOwnUsage().catch(() => null)
   );
   const pricing = useResource<Record<string, unknown> | null>('builder-pricing', () =>
-    apiClient.getPricingCatalog().catch(() => null)
+    planClient.getPricingCatalog().catch(() => null)
   );
   const presets = useResource<RunPresetList | null>(`builder-presets:${org}`, () =>
     presetsApi.list(org, { limit: PRESET_PAGE }).catch(() => null)

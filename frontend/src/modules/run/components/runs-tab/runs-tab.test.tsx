@@ -1,6 +1,6 @@
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { Job } from '../../../../api/platform';
+import type { Job } from '../../api/runsClient';
 import { jobOf } from '../../../../test/fixtures/jobs';
 import { addressNow, fakeGateway, renderModule, type Answer } from '../../../../test/moduleKit';
 import { problemPath } from '../../../../routes/paths/problems';

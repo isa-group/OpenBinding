@@ -1,5 +1,5 @@
-import { checkGateway, type GatewayStatus } from '../../../../api/health';
-import { useResource } from '../../../../utils/useResource';
+import { checkGateway, type GatewayStatus } from '../../../core/api/health';
+import { useResource } from '../../../core/hooks/useResource';
 
 type Health = 'checking' | 'ok' | 'degraded' | 'down';
 

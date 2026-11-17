@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ViewSource } from '.';
 
 const { saveText } = vi.hoisted(() => ({ saveText: vi.fn() }));
-vi.mock('../../../../components/rendering/download', () => ({ saveText }));
+vi.mock('../../../run/components/rendering/download', () => ({ saveText }));
 
 const writeText = vi.fn();
 let originalClipboard: PropertyDescriptor | undefined;

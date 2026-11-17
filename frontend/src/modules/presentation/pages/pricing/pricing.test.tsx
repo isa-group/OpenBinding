@@ -3,8 +3,8 @@ import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useEffect, type ReactNode } from 'react';
 import { SpaceProvider, useTokenService } from 'space-react-client';
-import { PricingUnavailableError, type UserProfile } from '../../../../api/auth';
-import { HttpError } from '../../../../api/client';
+import { PricingUnavailableError, type UserProfile } from '../../../core/api/account';
+import { HttpError } from '../../../core/api/http';
 import { CURRENT_FIXTURE, catalogFixture } from '../../../../test/fixtures/pricingCatalog';
 import { AuthContext } from '../../../auth/hooks/useAuth';
 import PricingPage from '.';
@@ -18,8 +18,8 @@ const stored = vi.hoisted(() => ({ token: null as string | null }));
 
 vi.mock('../../../settings/api/userSettingsApi', () => ({ useUserSettingsApi: () => api }));
 
-vi.mock('../../../../api/client', async () => ({
-  ...(await vi.importActual<typeof import('../../../../api/client')>('../../../../api/client')),
+vi.mock('../../../core/api/http', async () => ({
+  ...(await vi.importActual<typeof import('../../../core/api/http')>('../../../core/api/http')),
   getStoredPricingToken: () => stored.token,
 }));
 

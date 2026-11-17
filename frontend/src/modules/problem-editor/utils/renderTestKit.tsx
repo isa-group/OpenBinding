@@ -1,5 +1,5 @@
 import { fireEvent, screen, within } from '@testing-library/react';
-import type { UserProfile } from '../../../api/auth';
+import type { UserProfile } from '../../core/api/account';
 import { addressNow, ME, orgNode, renderModule } from '../../../test/moduleKit';
 import type { OrgRole } from '../../organization/api/organizationsApi';
 import ProblemEditorLayout from '../layouts/editor-layout';

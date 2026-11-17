@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { UsageView } from '../../../api/auth';
+import type { UsageView } from '../../core/api/account';
 import { exactValueText, usageRows } from './usageModel';
 
 describe('plan rows', () => {

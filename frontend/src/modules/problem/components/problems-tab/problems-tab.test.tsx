@@ -1,15 +1,15 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { QuotaError } from '../../../../api/auth';
-import { HttpError } from '../../../../api/client';
-import type { ProblemUpload } from '../../../../api/problems';
+import { QuotaError } from '../../../core/api/account';
+import { HttpError } from '../../../core/api/http';
+import type { ProblemUpload } from '../../api/problemsClient';
 import type { OrgRole } from '../../../organization/api/organizationsApi';
 import { addressNow, fakeGateway, renderModule, type Answer } from '../../../../test/moduleKit';
 import { problemOf, versionOf } from '../../../../test/problemPage';
 import ProblemsTab, { PER_PAGE } from '.';
 
 const problems = vi.hoisted(() => ({ create: vi.fn(), remove: vi.fn() }));
-vi.mock('../../../../api/problems', () => ({ problemsApi: problems }));
+vi.mock('../../api/problemsClient', () => ({ problemsApi: problems }));
 
 const ORG = { slug: 'isa-demo', name: 'ISA Demo Group' };
 const LIST = '/v1/organizations/isa-demo/problems';

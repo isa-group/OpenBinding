@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { QuotaError } from '../../../../api/auth';
-import { HttpError } from '../../../../api/client';
+import { QuotaError } from '../../../core/api/account';
+import { HttpError } from '../../../core/api/http';
 import type { StudyRun } from '../../api/studiesApi';
 import { addressNow } from '../../../../test/moduleKit';
 import { renderStudyScreen } from '../../../../test/studyPage';
@@ -40,8 +40,8 @@ vi.mock('../../api/studiesApi', async () => ({
   ...(await vi.importActual<typeof import('../../api/studiesApi')>('../../api/studiesApi')),
   studiesApi: platform,
 }));
-vi.mock('../../../../api/problems', () => ({ problemsApi: problems }));
-vi.mock('../../../../features/workspace/download', () => download);
+vi.mock('../../../problem/api/problemsClient', () => ({ problemsApi: problems }));
+vi.mock('../../../core/utils/save-bytes', () => download);
 
 const ROOT = '/orgs/isa-demo';
 const STUDY = '/studies/isa-demo/engines-vs-seeds';

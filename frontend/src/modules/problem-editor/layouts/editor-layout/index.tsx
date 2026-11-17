@@ -12,8 +12,8 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { problemsApi } from '../../../../api/problems';
-import { BIM_PACKAGE_LIMITS, BimPackageError, unzipPackage } from '../../../../utils/bimZip';
+import { problemsApi } from '../../../problem/api/problemsClient';
+import { BIM_PACKAGE_LIMITS, BimPackageError, unzipPackage } from '../../../core/utils/bimZip';
 import { problemEditorPath } from '../../../../routes/paths/problems';
 import { useAuth } from '../../../auth/hooks/useAuth';
 import { EditorDialog } from '../../../core/components/editor-chrome';

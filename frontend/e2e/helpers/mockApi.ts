@@ -2,9 +2,10 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import JSZip from 'jszip';
 import type { Page, Route } from '@playwright/test';
-import type { AdminUserView } from '../../src/api/auth';
-import type { Job, Study, StudyCell, StudyRun } from '../../src/api/platform';
-import type { Problem, ProblemRevision } from '../../src/api/problems';
+import type { AdminUserView } from '../../src/modules/core/api/account';
+import type { Job } from '../../src/modules/run/api/runsClient';
+import type { Study, StudyCell, StudyRun } from '../../src/modules/study/api/studiesApi';
+import type { Problem, ProblemRevision } from '../../src/modules/problem/api/problemsClient';
 import { digestOf as caseDigest, compiledDocument } from '../../src/modules/problem/utils/fixtures';
 import { CURRENT_FIXTURE, catalogFixture } from '../../src/test/fixtures/pricingCatalog';
 import {

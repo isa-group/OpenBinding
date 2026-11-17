@@ -4,7 +4,14 @@ import { describe, expect, it } from 'vitest';
 import examples from '../content/composition2yaml-examples.json';
 import { KINDS } from '../modules/core/utils/composition/document';
 import { KIND_LABELS } from '../modules/core/utils/composition/kinds';
-import { formatFinding, isTestSupport, scanFiles, wordPattern, type Finding } from './vocabulary';
+import {
+  formatFinding,
+  isHttpClient,
+  isTestSupport,
+  scanFiles,
+  wordPattern,
+  type Finding,
+} from './vocabulary';
 
 // The vocabulary of compositions and problems (plan §9: Composition, Problem, Environment, Upstream event, Proposal and Offering;
 // the F1 Deferred "vocabulary tests"; D23). The text a source file puts on screen is read by the scanner of `vocabulary.ts`;
@@ -36,8 +43,7 @@ const sources = import.meta.glob('/src/**/*.{ts,tsx}', {
 }) as Record<string, string>;
 const application = Object.fromEntries(
   Object.entries(sources).filter(
-    ([path]) =>
-      !path.startsWith('/src/api/') && !path.startsWith('/src/test/') && !isTestSupport(path)
+    ([path]) => !isHttpClient(path) && !path.startsWith('/src/test/') && !isTestSupport(path)
   )
 );
 

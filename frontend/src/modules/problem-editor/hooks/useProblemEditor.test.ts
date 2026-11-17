@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { BimDiagnostic, BimRefusal } from '../../../api/bim';
-import { HttpError } from '../../../api/client';
+import type { BimDiagnostic, BimRefusal } from '../../core/api/bim';
+import { HttpError } from '../../core/api/http';
 import type { CompositionVersionView, ProblemFacts } from '../../core/api/types';
 import { draftScope, loadDraft, saveDraft } from '../../core/editor/drafts';
 import fmsFacts from '../../../test/fixtures/core/fms.facts.json';
@@ -27,8 +27,8 @@ const problems = vi.hoisted(() => ({
   createRevision: vi.fn(),
 }));
 const compositions = vi.hoisted(() => ({ get: vi.fn(), version: vi.fn() }));
-vi.mock('../../../api/bim', () => ({ bimApi: bim }));
-vi.mock('../../../api/problems', () => ({ problemsApi: problems }));
+vi.mock('../../core/api/bim', () => ({ bimApi: bim }));
+vi.mock('../../problem/api/problemsClient', () => ({ problemsApi: problems }));
 vi.mock('../../core/utils/composition/api', () => ({ compositionsApi: compositions }));
 
 const DELAY = 30;

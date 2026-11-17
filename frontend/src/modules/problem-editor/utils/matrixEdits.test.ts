@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { BimDiagnostic } from '../../../api/bim';
+import type { BimDiagnostic } from '../../core/api/bim';
 import { fromBimAll } from '../../core/diagnostics/bim';
 import refusedPackage from '../../../test/fixtures/core/refused.package.json';
 import refusedValidate from '../../../test/fixtures/core/refused.validate.json';

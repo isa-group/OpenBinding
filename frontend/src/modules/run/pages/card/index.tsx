@@ -11,8 +11,8 @@ import { formatDistanceToNow, parseISO } from 'date-fns';
 import { useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { problemsApi } from '../../../../api/problems';
-import { saveText } from '../../../../components/rendering/download';
+import { problemsApi } from '../../../problem/api/problemsClient';
+import { saveText } from '../../components/rendering/download';
 import { Action } from '../../../core/components/action-button';
 import { Notice } from '../../../core/components/notice';
 import ResourceCardShell, {

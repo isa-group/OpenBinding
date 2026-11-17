@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ApiClient } from '../../../api/client';
+import { HttpTransport } from '../../core/api/http';
 import { adminApiOf } from './adminApi';
 
 // Moved with the administration operations out of api/client.ts: the If-Match of a subscription change.
@@ -12,7 +12,7 @@ function jsonResponse(body: unknown, status = 200, headers: Record<string, strin
 }
 
 describe('an account’s subscription is a conditional write (If-Match)', () => {
-  const client = adminApiOf(new ApiClient('https://gateway.example').fetchWithInterceptor);
+  const client = adminApiOf(new HttpTransport('https://gateway.example').fetchWithInterceptor);
   const fetchMock = vi.fn<typeof fetch>();
   const view = {
     user: { id: 'u-1', plan: 'BASIC' },
@@ -157,7 +157,7 @@ describe('an account’s subscription is a conditional write (If-Match)', () => 
 
 describe('the administration operations throw what the gateway refuses', () => {
   const fetchMock = vi.fn<typeof fetch>();
-  const api = adminApiOf(new ApiClient('https://gateway.example').fetchWithInterceptor);
+  const api = adminApiOf(new HttpTransport('https://gateway.example').fetchWithInterceptor);
 
   beforeEach(() => {
     localStorage.clear();

@@ -1,8 +1,8 @@
 import { act, configure, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import type { SelectionComparison } from 'pricing-renderer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { AdminSubscriptionView } from '../../../../api/auth';
-import type { Revised } from '../../../../api/client';
+import type { AdminSubscriptionView } from '../../../core/api/account';
+import type { Revised } from '../../../core/api/http';
 import {
   AGREEMENT_CURRENT_FIXTURE as CURRENT_FIXTURE,
   agreementCatalogFixture as catalogFixture,

@@ -9,7 +9,7 @@
 import { motion } from 'framer-motion';
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { formatDate } from '../../../../utils/format';
+import { formatDate } from '../../../core/utils/format';
 import type { Study, StudyCell, StudyRun } from '../../api/studiesApi';
 import { definitionSize, formulaOf, plural } from '../../utils/studiesModel';
 import { CellBar, StateChip } from '../study-state';

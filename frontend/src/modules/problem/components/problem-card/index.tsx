@@ -12,7 +12,7 @@ import { Link } from 'react-router-dom';
 import type { ProblemView } from '../../api/problemsApi';
 import { ORIGIN_LABELS } from '../../types';
 import { plural } from '../../utils/problemsModel';
-import { formatDate } from '../../../../utils/format';
+import { formatDate } from '../../../core/utils/format';
 
 /** An entry of the card's kebab: a link, or an action. */
 export interface ProblemMenuItem {

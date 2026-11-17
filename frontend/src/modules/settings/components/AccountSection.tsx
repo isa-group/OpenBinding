@@ -7,11 +7,11 @@
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { FiKey, FiMail, FiUser } from 'react-icons/fi';
-import { formatDate } from '../../../utils/format';
+import { formatDate } from '../../core/utils/format';
 import {
   INSTITUTION_NAME,
   useInstitutionalBranding,
-} from '../../../components/InstitutionMark/institution';
+} from '../../auth/components/institution-mark/institution';
 import { useAuth } from '../../auth/hooks/useAuth';
 import { classifyAuthError } from '../../core/api/errors';
 import BlockAlert from '../../core/components/block-alert';

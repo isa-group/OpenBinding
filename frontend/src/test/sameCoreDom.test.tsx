@@ -32,17 +32,19 @@ const compositions = vi.hoisted(() => ({ list: vi.fn(), get: vi.fn(), version: v
 const runs = vi.hoisted(() => ({ list: vi.fn() }));
 const bim = vi.hoisted(() => ({ validate: vi.fn(), template: vi.fn(), templates: vi.fn() }));
 
-vi.mock('../api/problems', () => ({ problemsApi: problems }));
+vi.mock('../modules/problem/api/problemsClient', () => ({ problemsApi: problems }));
 vi.mock('../modules/core/utils/problem/facts', async actual => ({
   ...(await actual<typeof import('../modules/core/utils/problem/facts')>()),
   problemFactsApi: facts,
 }));
 vi.mock('../modules/core/utils/composition/api', () => ({ compositionsApi: compositions }));
-vi.mock('../api/runs', async () => ({
-  ...(await vi.importActual<typeof import('../api/runs')>('../api/runs')),
+vi.mock('../modules/run/api/runsClient', async () => ({
+  ...(await vi.importActual<typeof import('../modules/run/api/runsClient')>(
+    '../modules/run/api/runsClient'
+  )),
   runsApi: runs,
 }));
-vi.mock('../api/bim', () => ({ bimApi: bim }));
+vi.mock('../modules/core/api/bim', () => ({ bimApi: bim }));
 vi.mock('../modules/core/components/code-editor', async () => ({
   default: (await import('../modules/problem-editor/utils/codeEditorTestKit')).default,
 }));

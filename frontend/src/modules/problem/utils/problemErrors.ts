@@ -1,5 +1,5 @@
-import { diagnosticsOf, type Diagnostic } from '../../../api/problem';
-import { generalFailure } from '../../../features/workspace/errors';
+import { diagnosticsOf, type Diagnostic } from '../../core/api/problem';
+import { generalFailure } from '../../core/utils/general-failure';
 import { classifyAuthError, marker, type AuthFailure } from '../../core/api/errors';
 
 export interface Refusal {

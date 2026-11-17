@@ -10,7 +10,7 @@ import { useState, type FormEvent } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { MdKey } from 'react-icons/md';
-import { HttpError } from '../../../../api/client';
+import { HttpError } from '../../../core/api/http';
 import { Action } from '../../../core/components/action-button';
 import { CopyField } from '../../../core/components/copy-field';
 import { Notice } from '../../../core/components/notice';
@@ -21,8 +21,8 @@ import ResourceCardShell, {
 import { Skeleton } from '../../../core/components/skeleton';
 import { useAuth } from '../../../auth/hooks/useAuth';
 import NotFoundPage from '../../../core/pages/page-not-found';
-import { formatDate } from '../../../../utils/format';
-import { useResource } from '../../../../utils/useResource';
+import { formatDate } from '../../../core/utils/format';
+import { useResource } from '../../../core/hooks/useResource';
 import {
   adminPath,
   adminUserPath,

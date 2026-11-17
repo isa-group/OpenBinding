@@ -11,7 +11,7 @@ import type { IconType } from 'react-icons';
 import { FiCode, FiList, FiRepeat } from 'react-icons/fi';
 import { Link, useSearchParams } from 'react-router-dom';
 import { problemsApi } from '../../api/problemsApi';
-import { parseBindingSpace } from '../../../../components/BindingSpaceBadge/bindingSpace';
+import { parseBindingSpace } from '../../../core/components/binding-space-badge/bindingSpace';
 import FileDiffView from '../../../composition/components/version-diff/file-diff-view';
 import { readApiError } from '../../../core/api/errors';
 import { Action } from '../../../core/components/action-button';
@@ -20,7 +20,7 @@ import { Notice } from '../../../core/components/notice';
 import { Skeleton } from '../../../core/components/skeleton';
 import { useCopy } from '../../../core/hooks/useCopy';
 import { problemPath } from '../../../../routes/paths/problems';
-import { useResource } from '../../../../utils/useResource';
+import { useResource } from '../../../core/hooks/useResource';
 import { useLoadedMap } from '../../hooks/useLoadedMap';
 import type { ProblemContent } from '../../types';
 import { loadModel } from '../../utils/modelLoader';
@@ -428,7 +428,7 @@ export default function VersionCompare({ org, content }: { org: string; content:
               </p>
             )}
             {files.length > 0 && (
-              <label className="block max-w-sm">
+              <label className="block max-w-[24rem]">
                 <span className={labelClass}>File</span>
                 <select
                   aria-label="File"

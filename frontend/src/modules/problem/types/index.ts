@@ -1,7 +1,7 @@
 // What the problem module's screens pass each other: the organization a problem belongs to and the problem with its
 // revisions.
 
-import type { Problem, ProblemRevision } from '../../../api/problems';
+import type { Problem, ProblemRevision } from '../api/problemsClient';
 import type { ProblemOrigin } from '../../core/api/types';
 
 /** The organization that owns a problem, as the screens name it. */

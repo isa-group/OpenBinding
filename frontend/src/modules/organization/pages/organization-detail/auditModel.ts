@@ -1,15 +1,15 @@
-import type { OrganizationAuditEvent } from '../../../../api/platform';
-import { inInterfaceWords } from '../../../../components/ui/interfaceWords';
+import type { OrganizationAuditEvent } from '../../api/organizationClient';
+import { inInterfaceWords } from '../../../core/utils/interfaceWords';
 
 /** The kinds the timeline groups events into, with the dot colour of each. */
 export type AuditKind = 'organization' | 'members' | 'problems' | 'content' | 'other';
 
 export const AUDIT_KINDS: Record<AuditKind, { label: string; colour: string }> = {
-  organization: { label: 'Organization', colour: 'var(--tp-primary-deep)' },
-  members: { label: 'Members', colour: 'var(--tp-primary)' },
-  problems: { label: 'Problems', colour: 'var(--tp-severity-success)' },
-  content: { label: 'Content', colour: 'var(--tp-severity-warning)' },
-  other: { label: 'Other', colour: 'var(--tp-stone)' },
+  organization: { label: 'Organization', colour: 'var(--color-tp-accent-hover)' },
+  members: { label: 'Members', colour: 'var(--color-tp-accent)' },
+  problems: { label: 'Problems', colour: 'var(--color-tp-severity-success)' },
+  content: { label: 'Content', colour: 'var(--color-tp-severity-warning)' },
+  other: { label: 'Other', colour: 'var(--color-tp-stone)' },
 };
 
 /**

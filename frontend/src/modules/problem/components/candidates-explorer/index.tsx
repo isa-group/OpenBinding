@@ -27,7 +27,7 @@ import { bindingSelection } from '../../../core/utils/composition/viewModel';
 import { problemFactsApi } from '../../../core/utils/problem/facts';
 import { compositionPath } from '../../../../routes/paths/compositions';
 import { problemPath } from '../../../../routes/paths/problems';
-import { useResource, type Resource } from '../../../../utils/useResource';
+import { useResource, type Resource } from '../../../core/hooks/useResource';
 import type { ProblemContent } from '../../types';
 import type { ModelState } from '../../utils/modelLoader';
 import { powerText } from '../../utils/problemsModel';

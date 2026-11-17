@@ -62,6 +62,15 @@ export const wordPattern = (words: readonly string[]): RegExp =>
   new RegExp(`\\b(?:${words.map(escapeRegExp).join('|')})\\b`, 'i');
 
 /** True for a file that is not application code: tests, test kits and utilities, fixtures (`fixtures.ts`, `pricingFixture.ts`), declarations and everything under `test/`. */
+/**
+ * The HTTP client layer: the request and response types and the clients that name the gateway's fields and paths
+ * (`modules/core/api/{account,bim,health,limitNotice,problem}.ts` and each module's `api/<name>Client.ts`).
+ */
+export const isHttpClient = (path: string): boolean =>
+  /(^|\/)src\/modules\/(core\/api\/(account|bim|health|limitNotice|problem)\.ts|[a-z-]+\/api\/[a-z]+Client\.ts)$/.test(
+    path
+  );
+
 export const isTestSupport = (path: string): boolean =>
   /(\.test\.[cm]?[jt]sx?$|[Tt]est[Kk]it\.[jt]sx?$|[Tt]est[Uu]tils\.[jt]sx?$|\.d\.ts$|[Ff]ixtures?\.[jt]sx?$|(^|\/)(test|__tests__|fixtures)\/)/.test(
     path
@@ -204,7 +213,7 @@ const API_PATH = /(^|\/)v\d+\//;
  * The addresses in the sources that hold one of the old path `segments`: a string or template literal with `/<segment>` followed by the end
  * of the text, `/`, `?`, `#` or a `${` substitution (``${root}/cases/${slug}``, `'/app/:org/:project/cases'`). Each is reported as `file: text`, the text as
  * written between the quotes. Comments, imports, a single word such as `'cases'` (a section key), a versioned HTTP path (`/v1/jobs/{id}`, an
- * engine's endpoint) and the HTTP client layer (`src/api/`, which names the gateway's paths) are not reported, nor are test files, test kits
+ * engine's endpoint) and the HTTP client layer (`isHttpClient`, which names the gateway's paths) are not reported, nor are test files, test kits
  * and fixtures.
  */
 export function scanAddresses(
@@ -214,7 +223,7 @@ export function scanAddresses(
   const old = new RegExp(`/(?:${segments.map(escapeRegExp).join('|')})(?=$|[/?#$])`);
   return Object.keys(files)
     .sort()
-    .filter(path => /\.tsx?$/.test(path) && !isTestSupport(path) && !/(^|\/)src\/api\//.test(path))
+    .filter(path => /\.tsx?$/.test(path) && !isTestSupport(path) && !isHttpClient(path))
     .flatMap(path => {
       const tree = ts.createSourceFile(
         path,

@@ -8,7 +8,7 @@
 import { Link } from 'react-router-dom';
 import UserAvatar from '../../../core/components/user-avatar';
 import { runLabel } from '../../../core/utils/identity';
-import { formatDateTime } from '../../../../utils/format';
+import { formatDateTime } from '../../../core/utils/format';
 import { problemPath } from '../../../../routes/paths/problems';
 import { runPath } from '../../../../routes/paths/runs';
 import type { Job } from '../../api/runsApi';

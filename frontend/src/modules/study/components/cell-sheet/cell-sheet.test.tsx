@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { QuotaError } from '../../../../api/auth';
-import { HttpError } from '../../../../api/client';
+import { QuotaError } from '../../../core/api/account';
+import { HttpError } from '../../../core/api/http';
 import type { StudyCell as StudyCellView } from '../../api/studiesApi';
 import { jobOf } from '../../../../test/fixtures/jobs';
 import { addressNow } from '../../../../test/moduleKit';
@@ -42,9 +42,11 @@ vi.mock('../../api/studiesApi', async () => ({
   ...(await vi.importActual<typeof import('../../api/studiesApi')>('../../api/studiesApi')),
   studiesApi: platform,
 }));
-vi.mock('../../../../api/problems', () => ({ problemsApi: problems }));
-vi.mock('../../../../api/runs', async () => ({
-  ...(await vi.importActual<typeof import('../../../../api/runs')>('../../../../api/runs')),
+vi.mock('../../../problem/api/problemsClient', () => ({ problemsApi: problems }));
+vi.mock('../../../run/api/runsClient', async () => ({
+  ...(await vi.importActual<typeof import('../../../run/api/runsClient')>(
+    '../../../run/api/runsClient'
+  )),
   runsApi,
 }));
 

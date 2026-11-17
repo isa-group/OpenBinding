@@ -9,7 +9,7 @@ import {
   type FeatureSlot,
   type RangeInput,
   type ScalarConversion,
-} from '../../../../utils/featureRange';
+} from '../../../core/utils/featureRange';
 import { NumberField } from './number-field';
 
 interface FeatureCellProps {

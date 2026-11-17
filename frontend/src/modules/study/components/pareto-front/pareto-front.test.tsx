@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { HttpError } from '../../../../api/client';
+import { HttpError } from '../../../core/api/http';
 import fmsDiff from '../../../../test/fixtures/core/fms.diff.json';
 import { cellsFixture, frontsFixture } from '../../../../test/fixtures/studies';
 import { ParetoFront } from '.';

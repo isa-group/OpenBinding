@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { LIMIT_ORDER } from '../../../../utils/limits';
+import { LIMIT_ORDER } from '../limits';
 import { catalogFixture } from '../../../../test/fixtures/pricingCatalog';
 import { currentSelectionOf, readCatalog, withInfiniteLimits } from './pricingModel';
 
