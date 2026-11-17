@@ -50,6 +50,7 @@ CORS_EXPOSED_HEADERS = (
     "Content-Disposition",
     "Digest",
     "Idempotency-Key",
+    "X-Total-Count",
 )
 
 

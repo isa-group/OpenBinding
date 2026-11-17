@@ -32,3 +32,27 @@ async def test_the_studies_list_pages_with_a_total(api_client, registration, stu
 
     assert [row["slug"] for row in page.json()] == ["beta", "gamma"]
     assert page.headers["x-total-count"] == "3" and len(whole.json()) == 3
+
+
+async def test_the_problems_list_orders_by_name_or_by_the_newest_latest_revision(api_client, registration, study_gate):  # noqa: F811
+    headers = await _signed_in(api_client, registration, study_gate)
+    org = await make_org(api_client, headers)
+    for slug in ("gamma", "alpha", "beta"):
+        await upload_problem(api_client, headers, org=org, slug=slug)
+    url = f"/v1/organizations/{org}/problems"
+
+    by_name = (await api_client.get(url, headers=headers)).json()["problems"]
+    recent = (await api_client.get(url, headers=headers, params={"sort": "recent"})).json()["problems"]
+    refused = await api_client.get(url, headers=headers, params={"sort": "size"})
+
+    assert [row["slug"] for row in by_name] == ["alpha", "beta", "gamma"]
+    stamps = [row["latest_revision"]["created_at"] for row in recent]
+    assert stamps == sorted(stamps, reverse=True)
+    assert sorted(row["slug"] for row in recent) == ["alpha", "beta", "gamma"]
+    assert refused.status_code == 422
+
+
+async def test_the_list_totals_are_readable_across_origins(api_client):
+    from openbinding_gateway.core.settings import CORS_EXPOSED_HEADERS
+
+    assert "X-Total-Count" in CORS_EXPOSED_HEADERS
