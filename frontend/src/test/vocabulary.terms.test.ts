@@ -53,7 +53,7 @@ const SCOPE_AREAS = [
   '/src/pages/Problems/',
   '/src/modules/core/components/composition-renderer/',
   '/src/modules/core/components/value-badge/',
-  '/src/modules/composition/components/change-summary/',
+  '/src/modules/composition/components/version-graph/',
   '/src/modules/core/utils/composition/',
   '/src/modules/core/utils/binding/',
   '/src/modules/composition-editor/components/composition-editor/',

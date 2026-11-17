@@ -1,17 +1,18 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { useLocation } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { org } from '../../../features/workspace/testKit';
+import { org } from '../../../../features/workspace/testKit';
 import type {
   CompositionVersionDiff,
   CompositionVersionView,
   CompositionView,
-} from '../../../modules/core/api/types';
-import fmsDiff from '../../../test/fixtures/core/fms.diff.json';
-import fmsFacts from '../../../test/fixtures/core/fms.facts.json';
-import fmsVersion from '../../../test/fixtures/core/fms.version.json';
-import CompositionCardPage from '../../../modules/composition/pages/card';
-import { renderCompositionPage } from '../../../test/compositionPage';
+} from '../../../core/api/types';
+import fmsDiff from '../../../../test/fixtures/core/fms.diff.json';
+import fmsFacts from '../../../../test/fixtures/core/fms.facts.json';
+import fmsVersion from '../../../../test/fixtures/core/fms.version.json';
+import CompositionCardPage from '../../pages/card';
+import { renderCompositionPage } from '../../../../test/compositionPage';
+import { fakeGateway } from '../../../../test/moduleKit';
 
 const api = vi.hoisted(() => ({
   get: vi.fn(),
@@ -21,13 +22,13 @@ const api = vi.hoisted(() => ({
   diff: vi.fn(),
   reevaluate: vi.fn(),
 }));
-vi.mock('../../../modules/core/utils/composition/api', () => ({ compositionsApi: api }));
+vi.mock('../../../core/utils/composition/api', () => ({ compositionsApi: api, languageApi: {} }));
 const factsApi = vi.hoisted(() => ({ get: vi.fn() }));
-vi.mock('../../../modules/core/utils/problem/facts', () => ({ problemFactsApi: factsApi }));
+vi.mock('../../../core/utils/problem/facts', () => ({ problemFactsApi: factsApi }));
 const problems = vi.hoisted(() => ({ revision: vi.fn() }));
-vi.mock('../../../api/problems', () => ({ problemsApi: problems }));
+vi.mock('../../../../api/problems', () => ({ problemsApi: problems }));
 const download = vi.hoisted(() => ({ saveText: vi.fn() }));
-vi.mock('../../../components/rendering/download', () => download);
+vi.mock('../../utils/download', () => download);
 
 const member = org('isa-demo', { name: 'ISA Demo Group', effective_role: 'MEMBER' });
 const viewer = org('isa-demo', { name: 'ISA Demo Group', effective_role: 'VIEWER' });
@@ -132,10 +133,7 @@ function renderVersions(
   );
 }
 
-const rowOf = (label: string) =>
-  screen
-    .getAllByRole('row')
-    .find(row => row.querySelector('th code')?.textContent === label) as HTMLElement;
+const rowOf = (label: string) => screen.getByRole('listitem', { name: `Version ${label}` });
 
 const clipboard = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
 const writeText = vi.fn();
@@ -176,16 +174,14 @@ describe('the Versions tab', () => {
       'aria-current',
       'page'
     );
-    const table = await screen.findByRole('table');
+    const list = await screen.findByRole('list', { name: 'Versions of Fleet routing' });
     expect(
-      within(table)
-        .getAllByRole('rowheader')
-        .map(cell => cell.querySelector('code')?.textContent)
-    ).toEqual(['1.2.0', '1.1.0', '1.0.0']);
+      within(list)
+        .getAllByRole('listitem')
+        .map(item => item.getAttribute('aria-label'))
+    ).toEqual(['Version 1.2.0', 'Version 1.1.0', 'Version 1.0.0']);
     const latest = rowOf('1.2.0');
     expect(latest).toHaveTextContent('Latest');
-    expect(latest).toHaveTextContent('Version #3');
-    expect(latest).toHaveTextContent('Oct 1, 2026');
     expect(latest).toHaveTextContent('cost 3,060 USD/month');
     expect(latest).toHaveTextContent('Verified');
     expect(
@@ -195,28 +191,15 @@ describe('the Versions tab', () => {
     ).toBeInTheDocument();
     expect(latest).toHaveTextContent('Derived from run a1b2c3d4, point 3');
     expect(latest).toHaveAttribute('aria-current', 'true');
-    expect(rowOf('1.1.0')).toHaveTextContent('Forked from Fleet base (2.0.0) in Partner Lab');
-    expect(rowOf('1.0.0')).toHaveTextContent('First version');
+    expect(within(latest).getByText('Current')).toBeInTheDocument();
+    expect(rowOf('1.1.0')).toHaveTextContent(
+      'Forked from Fleet base (version 2.0.0) · Partner Lab'
+    );
     expect(
       within(rowOf('1.0.0')).queryByRole('button', { name: 'Compare with previous' })
     ).toBeNull();
     // Versions are immutable: no visibility and no delete per version.
-    expect(within(table).queryByRole('button', { name: /delete|private|public/i })).toBeNull();
-  });
-
-  it('opens what a version changed since the one before it, from the gateway’s diff', async () => {
-    renderVersions();
-
-    const row = await waitFor(() => rowOf('1.2.0'));
-    fireEvent.click(within(row).getByRole('button', { name: 'Changes since 1.1.0' }));
-    expect(within(row).getByRole('button', { name: 'Hide changes' })).toHaveAttribute(
-      'aria-expanded',
-      'true'
-    );
-    expect(await within(row).findByRole('list', { name: 'Candidate changes' })).toHaveTextContent(
-      'T1: cand_t1_aws → cand_t1_google_cloud'
-    );
-    expect(api.diff).toHaveBeenCalledWith('isa-demo', 'fleet-routing', 'v2', 'v3');
+    expect(within(list).queryByRole('button', { name: /delete|private|public/i })).toBeNull();
   });
 
   it('compares a version with the previous one, opens it in the editor, downloads it and copies its link', async () => {
@@ -232,24 +215,21 @@ describe('the Versions tab', () => {
     await waitFor(() =>
       expect(download.saveText).toHaveBeenCalledWith(
         'version: 1.1.0\nkind: application\n',
-        'fleet-routing-1.1.0.yaml',
-        'application/yaml'
+        'fleet-routing-1.1.0.yaml'
       )
     );
 
     fireEvent.click(within(row).getByRole('button', { name: 'Copy link' }));
     await waitFor(() =>
       expect(writeText).toHaveBeenCalledWith(
-        `${window.location.origin}/compositions/isa-demo/fleet-routing?version=1.1.0`
+        `${window.location.origin}/p/composition-fleet?version=1.1.0`
       )
     );
     expect(await within(row).findByRole('button', { name: 'Link copied' })).toBeInTheDocument();
 
     fireEvent.click(within(row).getByRole('button', { name: 'Compare with previous' }));
     await waitFor(() =>
-      expect(where()).toBe(
-        '/compositions/isa-demo/fleet-routing/versions?view=compare&from=1.0.0&to=1.1.0'
-      )
+      expect(where()).toBe('/compositions/isa-demo/fleet-routing/versions?from=1.0.0&to=1.1.0')
     );
   });
 
@@ -304,25 +284,21 @@ describe('the Versions tab', () => {
   });
 
   it('compares the pair the address names, swaps it in the address and shows the texts line by line', async () => {
-    renderVersions(
-      '/compositions/isa-demo/fleet-routing/versions?view=compare&from=1.0.0&to=1.1.0'
-    );
+    renderVersions('/compositions/isa-demo/fleet-routing/versions?from=1.0.0&to=1.1.0');
 
-    expect(
-      await screen.findByRole('group', { name: 'Show one kind of change' })
-    ).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /^\d+ Changed$/ })).toBeInTheDocument();
     expect(api.diff).toHaveBeenCalledWith('isa-demo', 'fleet-routing', 'v1', 'v2');
-    expect(screen.getByRole('group', { name: 'Versions view' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Compare' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Structured' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
     expect(await screen.findByRole('region', { name: 'Workflow changes' })).toBeInTheDocument();
     expect(api.version).toHaveBeenCalledWith('isa-demo', 'fleet-routing', 'v1', { document: true });
     expect(api.version).toHaveBeenCalledWith('isa-demo', 'fleet-routing', 'v2', { document: true });
 
     fireEvent.click(screen.getByRole('button', { name: 'Swap versions' }));
     await waitFor(() =>
-      expect(where()).toBe(
-        '/compositions/isa-demo/fleet-routing/versions?view=compare&from=1.1.0&to=1.0.0'
-      )
+      expect(where()).toBe('/compositions/isa-demo/fleet-routing/versions?from=1.1.0&to=1.0.0')
     );
     await waitFor(() =>
       expect(api.diff).toHaveBeenCalledWith('isa-demo', 'fleet-routing', 'v2', 'v1')
@@ -331,16 +307,16 @@ describe('the Versions tab', () => {
     fireEvent.click(screen.getByRole('button', { name: 'File' }));
     await waitFor(() =>
       expect(where()).toBe(
-        '/compositions/isa-demo/fleet-routing/versions?view=file&from=1.1.0&to=1.0.0'
+        '/compositions/isa-demo/fleet-routing/versions?from=1.1.0&to=1.0.0&diff=file'
       )
     );
-    const text = await screen.findByRole('region', { name: 'The text of 1.1.0 and 1.0.0' });
-    expect(within(text).getByRole('table')).toHaveTextContent('removed: version: 1.1.0');
+    expect(await screen.findByText('1.1.0', { selector: 'span' })).toBeInTheDocument();
+    expect(api.content).toHaveBeenCalledWith('isa-demo', 'fleet-routing', 'v2');
   });
 
-  it('defaults the pair to the latest version and the one before it', async () => {
-    renderVersions('/compositions/isa-demo/fleet-routing/versions?view=compare');
-
+  it('opens the comparison on the latest version and the one before it', async () => {
+    renderVersions();
+    fireEvent.click(await screen.findByRole('button', { name: 'Compare versions' }));
     await waitFor(() =>
       expect(api.diff).toHaveBeenCalledWith('isa-demo', 'fleet-routing', 'v2', 'v3')
     );
@@ -348,43 +324,54 @@ describe('the Versions tab', () => {
     expect(screen.getByRole('combobox', { name: 'Compared with' })).toHaveValue('v3');
   });
 
-  it('charts the evolution of the versions, from the table and in the address', async () => {
-    renderVersions(
-      '/compositions/isa-demo/fleet-routing/versions?view=compare&from=1.0.0&to=1.1.0'
-    );
-    expect(
-      await screen.findByRole('group', { name: 'Show one kind of change' })
-    ).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Evolution' }));
-    await waitFor(() =>
-      expect(where()).toBe('/compositions/isa-demo/fleet-routing/versions?view=evolution')
-    );
-    expect(screen.getByRole('button', { name: 'Evolution' })).toHaveAttribute(
-      'aria-pressed',
-      'true'
-    );
-    const charts = await screen.findByRole('region', { name: 'Evolution' });
-    expect(api.allVersions).toHaveBeenCalledWith('isa-demo', 'fleet-routing', {
-      include: ['analytics'],
-      order: 'oldest',
+  it('draws the version graph above the list, with the lane it was forked from', async () => {
+    const lane = (id: string, role: 'current' | 'source', labels: string[]) => ({
+      composition_id: id,
+      role,
+      available: true,
+      name: role === 'current' ? 'Fleet routing' : 'Fleet base',
+      slug: role === 'current' ? 'fleet-routing' : 'fleet-base',
+      organization: { id: 'o', slug: role === 'current' ? 'isa-demo' : 'partner-lab', name: 'Org' },
+      versions: labels.map((label, index) => ({
+        id: `${id}-${index}`,
+        label,
+        created_at: `2026-09-1${index}T00:00:00Z`,
+        forked_from:
+          role === 'current' && index === 0
+            ? { composition_id: 'c-src', version_id: 'c-src-0', label: '2.0.0' }
+            : null,
+      })),
     });
-    expect(await within(charts).findByText('3 versions, oldest first.')).toBeInTheDocument();
-    expect(within(charts).getByRole('figure', { name: 'cost · USD/month' })).toBeInTheDocument();
-    expect(screen.queryByRole('region', { name: /^Versions of/ })).toBeNull();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Table' }));
-    await waitFor(() => expect(where()).toBe('/compositions/isa-demo/fleet-routing/versions'));
+    renderCompositionPage(<CompositionCardPage />, {
+      url: '/compositions/isa-demo/fleet-routing/versions',
+      organizations: [member],
+      gateway: fakeGateway({
+        'GET /v1/organizations/isa-demo/compositions/fleet-routing/graph': {
+          body: {
+            lanes: [
+              lane('c-src', 'source', ['2.0.0']),
+              lane('composition-fleet', 'current', ['1.0.0', '1.1.0', '1.2.0']),
+            ],
+            truncated: false,
+          },
+        },
+      }),
+    });
+    const graph = await screen.findByRole('region', { name: 'Version graph' });
+    expect(
+      await within(graph).findByRole('img', { name: '4 versions in 2 compositions' })
+    ).toBeInTheDocument();
+    expect(within(graph).getByRole('link', { name: /Fleet base/ })).toHaveAttribute(
+      'href',
+      '/compositions/partner-lab/fleet-base'
+    );
   });
 
   it('has nothing to compare with one version', async () => {
     api.allVersions.mockResolvedValue([v1]);
-    renderVersions('/compositions/isa-demo/fleet-routing/versions?view=compare');
-    expect(
-      await screen.findByText(
-        'This composition has fewer than two versions: there is nothing to compare yet.'
-      )
-    ).toBeInTheDocument();
+    renderVersions('/compositions/isa-demo/fleet-routing/versions?from=1.0.0');
+    expect(await screen.findByRole('listitem', { name: 'Version 1.0.0' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Compare versions' })).toBeNull();
     expect(api.diff).not.toHaveBeenCalled();
   });
 });

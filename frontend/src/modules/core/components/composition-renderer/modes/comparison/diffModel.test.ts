@@ -12,7 +12,7 @@ import {
   showsGeneral,
   taskOverlay,
   workflowChanged,
-} from './comparisonModel';
+} from './diffModel';
 
 const diff = () => structuredClone(fms) as CompositionVersionDiff;
 const task = (id: string, over: Partial<TaskModel> = {}): TaskModel => ({

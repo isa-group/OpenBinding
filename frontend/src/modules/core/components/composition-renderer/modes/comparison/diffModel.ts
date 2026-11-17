@@ -4,7 +4,7 @@ import type { TaskModel } from '../../../../utils/composition/viewModel';
 import type { CompositionVersionDiff } from '../../../../api/types';
 
 /**
- * How the comparison mode reads the gateway's diff of two versions: which entries a kind filter keeps, how a field change is
+ * How the version comparison (the Versions tab's diff and its workflow section) reads the gateway's diff of two versions: which entries a kind filter keeps, how a field change is
  * written, and what the workflow drawing marks. The diff is the gateway's; nothing here compares two values itself.
  */
 

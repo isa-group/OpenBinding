@@ -9,7 +9,13 @@ import { orgPath } from '../../modules/organization/types/paths';
 export const COMPOSITIONS_SEGMENT = 'compositions';
 
 /** The segments of the composition page after the composition: no segment is the Overview tab. */
-export const COMPOSITION_TAB_SEGMENTS = ['editor', 'versions', 'analysis', 'settings'] as const;
+export const COMPOSITION_TAB_SEGMENTS = [
+  'analytics',
+  'analysis',
+  'versions',
+  'editor',
+  'settings',
+] as const;
 
 export type CompositionTabSegment = (typeof COMPOSITION_TAB_SEGMENTS)[number];
 
@@ -23,15 +29,11 @@ export interface CompositionsFilter {
   q?: string;
 }
 
-/** How the Versions tab shows a pair of versions. */
-export type VersionsView = 'table' | 'compare' | 'file' | 'evolution';
-
-/** The query of a composition page: the version shown (`version`), the pair the Versions tab compares (`from`, `to`) and its view. */
+/** The query of a composition page: the version shown (`version`), and the pair the Versions tab compares (`from`, `to`). */
 export interface CompositionQuery {
   version?: number | string;
   from?: number | string;
   to?: number | string;
-  view?: VersionsView;
 }
 
 function withQuery(

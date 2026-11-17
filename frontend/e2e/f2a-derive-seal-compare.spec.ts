@@ -162,10 +162,8 @@ test.describe('J1 · derive, seal and compare', () => {
       { run: RUN, point: 0, version: '1.0.0', seal: false },
       { run: RUN, point: 0, version: '1.0.0', seal: true },
     ]);
-    const table = main(page)
-      .getByRole('region', { name: 'Versions of Fleet plan' })
-      .getByRole('table');
-    await expect(table.getByRole('row', { name: /^1\.0\.0/ })).toContainText(
+    const table = main(page).getByRole('list', { name: 'Versions of Fleet plan' });
+    await expect(table.getByRole('listitem', { name: 'Version 1.0.0' })).toContainText(
       'Derived from run 7c1e5a90'
     );
 
@@ -197,26 +195,25 @@ test.describe('J1 · derive, seal and compare', () => {
 
     // Versions: 1.0.0 against 1.1.0, entry by entry (the binding and the values) and line by line.
     await table
-      .getByRole('row', { name: /^1\.1\.0/ })
+      .getByRole('listitem', { name: 'Version 1.1.0' })
       .getByRole('button', { name: 'Compare with previous' })
       .click();
-    await expect(page).toHaveURL(
-      `${COMPOSITION}/versions?version=1.1.0&view=compare&from=1.0.0&to=1.1.0`
-    );
+    await expect(page).toHaveURL(`${COMPOSITION}/versions?version=1.1.0&from=1.0.0&to=1.1.0`);
     const binding = main(page).getByRole('region', { name: /^Binding/ });
     await expect(binding).toContainText('T1');
     await expect(binding).toContainText('cand_t1_aws');
     await expect(binding).toContainText('cand_t1_google_cloud');
     const values = main(page).getByRole('region', { name: /^Values/ });
-    await expect(values).toContainText('3,060 to 3,080');
-    await expect(values).toContainText('3,180 to 3,190');
+    await expect(values).toContainText('3,060');
+    await expect(values).toContainText('3,080');
+    await expect(values).toContainText('3,190');
 
     await main(page)
-      .getByRole('group', { name: 'Versions view' })
+      .getByRole('group', { name: 'Comparison view' })
       .getByRole('button', { name: 'File' })
       .click();
     await expect(page).toHaveURL(
-      `${COMPOSITION}/versions?version=1.1.0&view=file&from=1.0.0&to=1.1.0`
+      `${COMPOSITION}/versions?version=1.1.0&from=1.0.0&to=1.1.0&diff=file`
     );
     const text = main(page).getByRole('region', { name: 'The text of 1.0.0 and 1.1.0' });
     await expect(text).toContainText('candidate: cand_t1_aws');

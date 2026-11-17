@@ -31,7 +31,7 @@ import {
   type FieldChange,
   type Loaded,
   type SideText,
-} from './comparisonModel';
+} from './diffModel';
 import { FileDiff } from './FileDiff';
 import { GraphDiff } from './GraphDiff';
 import './Comparison.css';

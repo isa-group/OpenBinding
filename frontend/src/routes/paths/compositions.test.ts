@@ -17,8 +17,14 @@ describe('the address builders of the compositions area', () => {
   });
 
   it('has the Editor, Versions and Analysis tabs so far: Overview is the composition page itself', () => {
-    expect(COMPOSITION_TAB_SEGMENTS).toEqual(['editor', 'versions', 'analysis', 'settings']);
-    for (const segment of ['editor', 'versions', 'analysis', 'settings'])
+    expect(COMPOSITION_TAB_SEGMENTS).toEqual([
+      'analytics',
+      'analysis',
+      'versions',
+      'editor',
+      'settings',
+    ]);
+    for (const segment of ['analytics', 'analysis', 'versions', 'editor', 'settings'])
       expect(isCompositionTabSegment(segment), segment).toBe(true);
     for (const segment of ['overview', 'operations', ''])
       expect(isCompositionTabSegment(segment), segment).toBe(false);
@@ -40,9 +46,9 @@ describe('the address builders of the compositions area', () => {
     expect(compositionPath('acme', 'order-desk', undefined, { version: '1.2.0' })).toBe(
       '/compositions/acme/order-desk?version=1.2.0'
     );
-    expect(
-      compositionPath('acme', 'order-desk', undefined, { from: 1, to: 3, view: 'compare' })
-    ).toBe('/compositions/acme/order-desk?from=1&to=3&view=compare');
+    expect(compositionPath('acme', 'order-desk', 'versions', { from: 1, to: 3 })).toBe(
+      '/compositions/acme/order-desk/versions?from=1&to=3'
+    );
     expect(compositionPath('acme', 'a b/c', undefined, { version: '' })).toBe(
       '/compositions/acme/a%20b%2Fc'
     );

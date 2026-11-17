@@ -1624,6 +1624,41 @@ export function compositionStore(options: CompositionSeed = {}): CompositionStor
     return ok({ composition: view, version: copy, droppedProblem: linked }, 201);
   };
 
+  /** `GET …/graph`: the composition's lane and, when its first version was forked, the lane of its source. */
+  const graphOf = (entry: Entry): CompositionReply => {
+    const lane = (item: Entry, role: 'current' | 'source') => ({
+      composition_id: item.view.id,
+      role,
+      available: true,
+      name: item.view.name,
+      slug: item.view.slug,
+      organization: {
+        id: item.view.organization.id,
+        slug: item.view.organization.slug,
+        name: item.view.organization.name,
+      },
+      versions: item.versions.map(version => ({
+        id: version.id,
+        label: version.label,
+        created_at: version.created_at,
+        forked_from: version.forked_from
+          ? {
+              composition_id: version.forked_from.compositionId,
+              version_id: version.forked_from.versionId,
+              label: version.forked_from.label,
+            }
+          : null,
+      })),
+    });
+    const sourceId = entry.versions.find(version => version.forked_from)?.forked_from
+      ?.compositionId;
+    const source = sourceId ? allEntries().find(item => item.view.id === sourceId) : undefined;
+    return ok({
+      lanes: [...(source ? [lane(source, 'source')] : []), lane(entry, 'current')],
+      truncated: false,
+    });
+  };
+
   /** The answer to a member of `org`. */
   const answer = (
     request: CompositionRequest,
@@ -1647,6 +1682,9 @@ export function compositionStore(options: CompositionSeed = {}): CompositionStor
     if (section === 'fork' && request.method === 'POST')
       return fork(entry, request, organizations, org);
     if (section === 'derive' && request.method === 'POST') return derive(entry, request);
+    if (section === 'graph' && request.method === 'GET') return graphOf(entry);
+    if (section === 'download' && request.method === 'GET')
+      return { status: 200, text: 'PK', type: 'application/zip' };
     if (section === 'evaluate' && request.method === 'POST') return evaluate(entry, request);
     if (section === 'neighborhood' && request.method === 'GET')
       return neighbourhood(entry, request);
@@ -1763,7 +1801,8 @@ export function compositionStore(options: CompositionSeed = {}): CompositionStor
       if (section === 'fork' && request.method === 'POST')
         return signedIn ? fork(entry, request, organizations, org) : refused();
       const reads =
-        request.method === 'GET' && (!section || section === 'versions' || section === 'diff');
+        request.method === 'GET' &&
+        (!section || ['versions', 'diff', 'graph', 'download'].includes(section));
       if (!reads) return refused();
       return redacted(answer(request, org, organizations), section, ref, tail);
     },

@@ -188,7 +188,7 @@ test.describe('S10a · compositions', () => {
     await expect(
       main(page).getByRole('combobox', { name: 'Version' }).locator('option:checked')
     ).toHaveText('1.3.0 · latest');
-    const sealed = main(page).getByRole('row', { name: /^1\.3\.0/ });
+    const sealed = main(page).getByRole('listitem', { name: 'Version 1.3.0' });
     await expect(sealed).toContainText('Latest');
     await expect(sealed).toHaveAttribute('aria-current', 'true');
     expect(mock.unmocked).toEqual([]);
@@ -203,40 +203,38 @@ test.describe('S10a · compositions', () => {
 
     await sections(page).getByRole('link', { name: 'Versions' }).click();
     await expect(page).toHaveURL(`${LIST}/fleet-routing/versions`);
-    const table = main(page)
-      .getByRole('region', { name: 'Versions of Fleet routing' })
-      .getByRole('table');
-    await expect(table.locator('tbody th code')).toHaveText(['1.2.0', '1.1.0', '1.0.0']);
-    const latest = table.getByRole('row', { name: /^1\.2\.0/ });
+    const list = main(page).getByRole('list', { name: 'Versions of Fleet routing' });
+    await expect(list.getByRole('listitem')).toHaveCount(3);
+    const latest = list.getByRole('listitem', { name: 'Version 1.2.0' });
     await expect(latest).toContainText('Derived from run 00000000, point 3');
     await expect(latest).toContainText('2,980 USD/month');
-    await expect(table.getByRole('row', { name: /^1\.1\.0/ })).toContainText(
+    await expect(list.getByRole('listitem', { name: 'Version 1.1.0' })).toContainText(
       'its problem changed meaning'
     );
-    await expect(table.getByRole('row', { name: /^1\.0\.0/ })).toContainText('First version');
-
-    await latest.getByRole('button', { name: 'Changes since 1.1.0' }).click();
-    await expect(latest.getByRole('list', { name: 'Value changes' })).toContainText(
-      'cost: 3,120 → 2,980'
-    );
+    await expect(
+      list.getByRole('listitem', { name: 'Version 1.0.0' }).getByRole('button', {
+        name: 'Compare with previous',
+      })
+    ).toHaveCount(0);
+    await expect(main(page).getByRole('region', { name: 'Version graph' })).toBeVisible();
 
     await latest.getByRole('button', { name: 'Compare with previous' }).click();
-    await expect(page).toHaveURL(`${LIST}/fleet-routing/versions?view=compare&from=1.1.0&to=1.2.0`);
+    await expect(page).toHaveURL(`${LIST}/fleet-routing/versions?from=1.1.0&to=1.2.0`);
     await expect(
       main(page).getByRole('combobox', { name: 'Base version' }).locator('option:checked')
     ).toHaveText('1.1.0');
     await expect(
       main(page).getByRole('combobox', { name: 'Compared with' }).locator('option:checked')
     ).toHaveText('1.2.0');
-    const tiles = main(page).getByRole('group', { name: 'Show one kind of change' });
-    await expect(tiles.getByRole('button', { name: /Changed/ })).toContainText('1');
-    await expect(tiles.getByRole('button', { name: /Added/ })).toBeDisabled();
+    await expect(main(page).getByRole('button', { name: /^\d+ Changed$/ })).toContainText('1');
+    await expect(main(page).getByRole('button', { name: /^\d+ Added$/ })).toBeDisabled();
     const values = main(page).getByRole('region', { name: /^Values/ });
     await expect(values.getByRole('button', { name: /cost/ })).toHaveAttribute(
       'aria-expanded',
       'true'
     );
-    await expect(values).toContainText('3,120 to 2,980');
+    await expect(values).toContainText('3,120');
+    await expect(values).toContainText('2,980');
     await expect(
       region(page, 'Workflow changes').getByRole('group', {
         name: 'The workflow of Fleet routing at 1.2.0',
@@ -247,14 +245,13 @@ test.describe('S10a · compositions', () => {
     ).toContainText('In 1.1.0In 1.2.0');
 
     await main(page).getByRole('button', { name: 'Swap versions' }).click();
-    await expect(page).toHaveURL(`${LIST}/fleet-routing/versions?view=compare&from=1.2.0&to=1.1.0`);
-    await expect(values).toContainText('2,980 to 3,120');
+    await expect(page).toHaveURL(`${LIST}/fleet-routing/versions?from=1.2.0&to=1.1.0`);
 
     await main(page)
-      .getByRole('group', { name: 'Versions view' })
+      .getByRole('group', { name: 'Comparison view' })
       .getByRole('button', { name: 'File' })
       .click();
-    await expect(page).toHaveURL(`${LIST}/fleet-routing/versions?view=file&from=1.2.0&to=1.1.0`);
+    await expect(page).toHaveURL(`${LIST}/fleet-routing/versions?from=1.2.0&to=1.1.0&diff=file`);
     const text = main(page).getByRole('region', { name: 'The text of 1.2.0 and 1.1.0' });
     await expect(text).toContainText('1.2.0');
     await expect(main(page).getByText(/lines? removed/)).toBeVisible();

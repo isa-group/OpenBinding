@@ -9,7 +9,7 @@ import { API, installMockApi } from './helpers/mockApi';
 
 const expect = baseExpect.configure({ timeout: 15_000 });
 
-const VERSIONS = '/compositions/isa-demo/notification-hub/versions';
+const ANALYTICS = '/compositions/isa-demo/notification-hub/analytics';
 const main = (page: Page) => page.locator('main');
 
 /** The queries of every versions list the charts asked for (`include=analytics`). */
@@ -29,19 +29,13 @@ function chartReads(page: Page): URLSearchParams[] {
 }
 
 test.describe('J5 · evolution', () => {
-  test('the Versions tab charts how the structure and the values evolved, by date range, as charts and as tables', async ({
+  test('the Analytics tab charts how the structure and the values evolved, by date range, as charts and as tables', async ({
     page,
   }) => {
     const mock = await installMockApi(page, 'admin', { evolution: true });
     await page.setViewportSize({ width: 1440, height: 900 });
     const reads = chartReads(page);
-    await page.goto(VERSIONS);
-
-    await main(page)
-      .getByRole('group', { name: 'Versions view' })
-      .getByRole('button', { name: 'Evolution' })
-      .click();
-    await expect(page).toHaveURL(`${VERSIONS}?view=evolution`);
+    await page.goto(ANALYTICS);
     const charts = main(page).getByRole('region', { name: 'Evolution', exact: true });
     await expect(charts.getByText('5 versions, oldest first.')).toBeVisible();
     expect(reads.at(-1)?.get('order')).toBe('oldest');
@@ -124,7 +118,7 @@ test.describe('J5 · evolution', () => {
   test('on a phone the charts stack in one column', async ({ page }) => {
     const mock = await installMockApi(page, 'admin', { evolution: true });
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto(`${VERSIONS}?view=evolution`);
+    await page.goto(ANALYTICS);
 
     const charts = main(page).getByRole('region', { name: 'Evolution', exact: true });
     const first = charts.getByRole('figure', { name: 'Tasks', exact: true });

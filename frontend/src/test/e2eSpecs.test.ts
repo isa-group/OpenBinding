@@ -255,7 +255,7 @@ describe('the Playwright specs', () => {
       ]) {
         expect(qa, screen).toContain(screen);
       }
-      // The composition screens (F2a): the list, every tab of the detail and the three views of Versions, the public list, the
+      // The composition screens: the list, every tab of the card page and the two views of the version comparison, the public list, the
       // showcase and Language for a visitor, the viewer's list and detail, and on mobile the Editor's Visual and Problems tabs.
       for (const screen of [
         "slug: 'compositions'",
@@ -266,7 +266,7 @@ describe('the Playwright specs', () => {
         "slug: 'composition-versions'",
         "slug: 'composition-versions-compare'",
         "slug: 'composition-versions-file'",
-        "slug: 'composition-versions-evolution'",
+        "slug: 'composition-analytics'",
         "slug: 'composition-analysis'",
         "slug: 'composition-settings'",
         "slug: 'public-compositions'",

@@ -585,21 +585,21 @@ function compositionStops(mobile: boolean): Stop[] {
     {
       slug: 'composition-versions',
       path: `${COMPOSITION}/versions`,
-      ready: page => page.getByRole('region', { name: `Versions of ${COMPOSITION_NAME}` }),
+      ready: page => page.getByRole('list', { name: `Versions of ${COMPOSITION_NAME}` }),
     },
     {
       slug: 'composition-versions-compare',
-      path: `${COMPOSITION}/versions?view=compare&${PAIR}`,
+      path: `${COMPOSITION}/versions?${PAIR}`,
       ready: page => page.getByRole('region', { name: /^Binding/ }),
     },
     {
       slug: 'composition-versions-file',
-      path: `${COMPOSITION}/versions?view=file&${PAIR}`,
+      path: `${COMPOSITION}/versions?${PAIR}&diff=file`,
       ready: page => page.getByRole('region', { name: 'The text of 1.0.0 and 1.1.0' }),
     },
     {
-      slug: 'composition-versions-evolution',
-      path: `${COMPOSITION}/versions?view=evolution`,
+      slug: 'composition-analytics',
+      path: `${COMPOSITION}/analytics`,
       ready: page => page.getByRole('region', { name: 'Evolution' }),
     },
     {

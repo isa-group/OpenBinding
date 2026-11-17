@@ -125,10 +125,10 @@ test.describe('live · J1 derive, seal and compare on lab-main', () => {
 
     await expect(page).toHaveURL(`${composition}/versions?version=1.0.0`, { timeout: 60_000 });
     await expect(page.getByText('Version 1.0.0 sealed.')).toBeVisible();
-    const table = main
-      .getByRole('region', { name: `Versions of ${compositionName}` })
-      .getByRole('table');
-    await expect(table.getByRole('row', { name: /^1\.0\.0/ })).toContainText('Derived from run');
+    const table = main.getByRole('list', { name: `Versions of ${compositionName}` });
+    await expect(table.getByRole('listitem', { name: 'Version 1.0.0' })).toContainText(
+      'Derived from run'
+    );
 
     // 4 · The Editor: the visual form binds t1 to the candidate the run did not choose and stops citing the run; the check states
     // that binding's values; the canonical form is taken and 1.1.0 is sealed.
@@ -171,27 +171,26 @@ test.describe('live · J1 derive, seal and compare on lab-main', () => {
 
     // 5 · Versions: 1.0.0 against 1.1.0, the binding row of t1 and the value row of latency, then line by line.
     await table
-      .getByRole('row', { name: /^1\.1\.0/ })
+      .getByRole('listitem', { name: 'Version 1.1.0' })
       .getByRole('button', { name: 'Compare with previous' })
       .click();
-    await expect(page).toHaveURL(
-      `${composition}/versions?version=1.1.0&view=compare&from=1.0.0&to=1.1.0`
-    );
+    await expect(page).toHaveURL(`${composition}/versions?version=1.1.0&from=1.0.0&to=1.1.0`);
     const binding = main.getByRole('region', { name: /^Binding/ });
     await expect(binding).toContainText('t1');
     await expect(binding).toContainText(before);
     await expect(binding).toContainText(after);
     const values = main.getByRole('region', { name: /^Values/ });
     await expect(values).toContainText('latency');
-    await expect(values).toContainText(`${LATENCY_MS[before]} to ${LATENCY_MS[after]}`);
+    await expect(values).toContainText(String(LATENCY_MS[before]));
+    await expect(values).toContainText(String(LATENCY_MS[after]));
     await capture(page, testInfo, 'j1-5-compare');
 
     await main
-      .getByRole('group', { name: 'Versions view' })
+      .getByRole('group', { name: 'Comparison view' })
       .getByRole('button', { name: 'File' })
       .click();
     await expect(page).toHaveURL(
-      `${composition}/versions?version=1.1.0&view=file&from=1.0.0&to=1.1.0`
+      `${composition}/versions?version=1.1.0&from=1.0.0&to=1.1.0&diff=file`
     );
     const text = main.getByRole('region', { name: 'The text of 1.0.0 and 1.1.0' });
     await expect(text).toContainText(`candidate: ${before}`);

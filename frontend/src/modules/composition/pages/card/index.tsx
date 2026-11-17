@@ -41,7 +41,6 @@ import { useAuth } from '../../../auth/hooks/useAuth';
 import { orgPath } from '../../../organization/types/paths';
 import { AnalysisTab } from '../../../../pages/Compositions/tabs/AnalysisTab';
 import { EditorTab } from '../../../../pages/Compositions/tabs/EditorTab';
-import { VersionsTab } from '../../../../pages/Compositions/tabs/VersionsTab';
 import {
   compositionPath,
   compositionsPath,
@@ -62,6 +61,9 @@ import NewVersionMenu from '../../components/new-version-menu';
 import PricingLinkModal from '../../components/pricing-link-modal';
 import { compositionStats } from '../../components/stats';
 import YamlSourcePanel from '../../components/yaml-source-panel';
+import CompositionVersionGraph from '../../components/version-graph';
+import CompositionVersionsTab from '../../components/versions-tab';
+import { EvolutionCharts } from '../../components/evolution-charts/EvolutionCharts';
 import { roleAtLeast, useCompositionRole } from '../../hooks/useCompositionRole';
 import { saveBlob, saveText } from '../../utils/download';
 import { useCardComposition, type LoadedComposition } from './hooks';
@@ -586,6 +588,7 @@ function CardBody({
     const list: Array<{ id: TabId; label: string; shown: boolean }> = [
       { id: 'overview', label: 'Overview', shown: true },
       { id: 'editor', label: 'Editor', shown: canWrite || tab === 'editor' },
+      { id: 'analytics', label: 'Analytics', shown: true },
       { id: 'analysis', label: 'Analysis', shown: analysable || tab === 'analysis' },
       { id: 'versions', label: 'Versions', shown: true },
       { id: 'settings', label: 'Settings', shown: canWrite || tab === 'settings' },
@@ -791,18 +794,43 @@ function CardBody({
             onNotLinked={() => setUnlinked(version?.id ?? null)}
           />
         )}
-        {tab === 'versions' && (
-          <VersionsTab
+        {tab === 'analytics' && (
+          <EvolutionCharts
             org={org}
-            composition={composition}
-            versions={versions}
-            shown={picked?.id ?? null}
-            canCreate={canWrite}
-            onChanged={() => {
-              shown.reload();
-              reload();
-            }}
+            composition={slug}
+            refresh={versions.map(item => item.id).join(',')}
           />
+        )}
+        {tab === 'versions' && (
+          <div className="space-y-4">
+            <CompositionVersionGraph
+              org={org}
+              slug={slug}
+              compositionId={composition.id}
+              refreshKey={versions.map(item => item.id).join(',')}
+              currentVersionId={picked?.id ?? null}
+              onSelectVersion={id =>
+                setQuery(current => {
+                  const next = new URLSearchParams(current);
+                  next.set('version', versions.find(item => item.id === id)?.label ?? id);
+                  return next;
+                })
+              }
+            />
+            <CompositionVersionsTab
+              org={org}
+              composition={composition}
+              versions={versions}
+              shown={picked?.id ?? null}
+              canCreate={canWrite}
+              member={member}
+              onChanged={message => {
+                addToast({ kind: SYSTEM_TOAST, title: message });
+                shown.reload();
+                reload();
+              }}
+            />
+          </div>
         )}
         {tab === 'settings' && (
           <CompositionSettingsTab
