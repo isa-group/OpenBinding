@@ -491,12 +491,10 @@ describe('One run', () => {
     expect(await screen.findByRole('heading', { name: NOT_FOUND })).toBeInTheDocument();
   });
 
-  it('explains a key without jobs:read and a gateway that does not answer', async () => {
+  it('reads a run it may not read as missing, and explains a gateway that does not answer', async () => {
     runsApi.get.mockRejectedValueOnce(refusal(403, 'api_key_forbidden'));
     const view = renderJob();
-    expect(
-      await screen.findByText(/This API key can’t read runs or doesn’t include this engine \(403/)
-    ).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: NOT_FOUND })).toBeInTheDocument();
     view.unmount();
 
     runsApi.get.mockRejectedValueOnce(refusal(503, 'unavailable'));

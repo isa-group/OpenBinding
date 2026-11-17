@@ -105,16 +105,18 @@ function RunCard({
 
   const failure = live.phase === 'error' ? classifyAuthError(live.error) : null;
   if (!detail || failure) {
-    if (!failure || failure.kind === 'not-found' || failure.status === 404) return <NotFoundPage />;
+    // Missing and unreadable read the same (a 403 is a run the account may not read), so neither reveals that a run exists.
+    if (
+      !failure ||
+      failure.kind === 'not-found' ||
+      failure.status === 404 ||
+      failure.status === 403
+    )
+      return <NotFoundPage />;
     return (
       <div className="mx-auto max-w-7xl px-4 py-16 md:px-8">
         <div className="mx-auto flex max-w-[480px] flex-col gap-3">
-          {failure.status === 403 ? (
-            <Notice tone="warning">
-              This API key can’t read runs or doesn’t include this engine{marker(failure)}. Engines
-              outside a key’s list answer as if they didn’t exist.
-            </Notice>
-          ) : failure.status === 401 ? (
+          {failure.status === 401 ? (
             <Notice tone="warning">
               Your session ended{marker(failure)}. Log in again to see this run.
             </Notice>
