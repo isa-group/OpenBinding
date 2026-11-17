@@ -2,7 +2,7 @@
 // https://github.com/SCORELabUS/SPHERE. Copyright (c) 2024 Alejandro García Fernández.
 // MIT licence: the full text is in THIRD_PARTY_NOTICES.md.
 // Changes: a composition instead of a pricing: the chips are its kind, its tasks, its cost with the verified or declared
-// mark, and its version. The name is a real link stretched over the card (SPHERE navigated on click, which loses
+// mark (on its own when there is no cost), and its version. The name is a real link stretched over the card (SPHERE navigated on click, which loses
 // middle-click and the keyboard); the kebab opens with the keyboard, closes on Escape and shows on focus as on hover.
 
 import { motion } from 'framer-motion';
@@ -10,6 +10,7 @@ import { useEffect, useRef, useState, type MouseEvent } from 'react';
 import { Link } from 'react-router-dom';
 import OrgAvatar from '../../../core/components/org-avatar';
 import { ValueBadge } from '../../../core/components/value-badge/ValueBadge';
+import { valueStatus } from '../../../core/utils/composition/values';
 import type { Kind } from '../../../core/utils/composition/document';
 import { kindLabel } from '../../../core/utils/composition/kinds';
 import type { VersionFigures } from '../../api/compositionsApi';
@@ -24,6 +25,8 @@ export interface CompositionCardData {
   latest_version?: {
     label: string;
     values_status: 'verified' | 'declared';
+    /** Whether the current evaluation verified the binding (the gateway's row summary). */
+    verified?: boolean;
     figures?: VersionFigures | null;
   } | null;
   version_count: number;
@@ -73,6 +76,11 @@ export default function CompositionCard({
   }, [menuOpen]);
 
   const latest = data.latest_version;
+  // How far the latest values can be trusted: verified, declared, or linked but not verified by the current evaluation.
+  const status = valueStatus({
+    values_status: latest?.values_status ?? 'declared',
+    verified: latest?.verified ?? false,
+  });
   const figures = latest?.figures;
   const tasks = figures?.tasks;
   const cost = figures?.cost;
@@ -101,10 +109,10 @@ export default function CompositionCard({
               </span>
             )}
           </div>
-          <h3 className="truncate text-sm font-medium text-tp-ink group-hover:text-tp-accent">
+          <h3 className="min-w-0 text-sm font-medium text-tp-ink group-hover:text-tp-accent">
             <Link
               to={to}
-              className="cursor-pointer outline-none after:absolute after:inset-0 after:rounded-xl after:content-[''] focus-visible:after:ring-2 focus-visible:after:ring-tp-primary"
+              className="block cursor-pointer truncate py-1 outline-none after:absolute after:inset-0 after:rounded-xl after:content-[''] focus-visible:after:ring-2 focus-visible:after:ring-tp-primary"
             >
               {data.name}
             </Link>
@@ -210,11 +218,13 @@ export default function CompositionCard({
                 {tasks.toLocaleString('en')} {tasks === 1 ? 'task' : 'tasks'}
               </span>
             )}
-            {cost !== null && cost !== undefined && (
+            {cost !== null && cost !== undefined ? (
               <span className="inline-flex items-center gap-1.5 rounded bg-tp-surface px-1.5 py-0.5">
                 {formatCost(cost, figures?.cost_unit)}
-                <ValueBadge status={latest.values_status} />
+                <ValueBadge status={status} />
               </span>
+            ) : (
+              <ValueBadge status={status} />
             )}
             <span className="text-tp-steel">v{latest.label}</span>
           </>

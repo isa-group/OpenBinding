@@ -254,9 +254,9 @@ export default function CompositionSettingsTab({
   return (
     <div className="rounded-xl border border-tp-hairline bg-tp-canvas p-5">
       <section aria-labelledby="settings-general">
-        <h3 id="settings-general" className="mb-4 text-sm font-medium text-tp-ink">
+        <h2 id="settings-general" className="mb-4 text-sm font-medium text-tp-ink">
           General
-        </h3>
+        </h2>
         <form onSubmit={saveDetails} noValidate className="mb-6 flex flex-col gap-3">
           <div>
             <label
@@ -310,7 +310,7 @@ export default function CompositionSettingsTab({
           </div>
         </form>
 
-        <h3 className="mb-1 text-sm font-medium text-tp-ink">Archived</h3>
+        <h2 className="mb-1 text-sm font-medium text-tp-ink">Archived</h2>
         <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs text-tp-steel">
             {composition.archived ? 'Archived. ' : 'Active. '}
@@ -343,7 +343,7 @@ export default function CompositionSettingsTab({
         </div>
         {errorLine('archived')}
 
-        <h3 className="mb-1 text-sm font-medium text-tp-ink">Visibility</h3>
+        <h2 className="mb-1 text-sm font-medium text-tp-ink">Visibility</h2>
         <p className="mb-2 text-xs text-tp-steel">
           {composition.visibility === 'public'
             ? 'Anybody reads it and every version’s document, signed in or not, and can fork it into their own organization.'
@@ -364,9 +364,9 @@ export default function CompositionSettingsTab({
         <>
           <hr className="my-6 border-tp-hairline" />
           <section aria-labelledby="settings-danger">
-            <h3 id="settings-danger" className="mb-2 text-sm font-medium text-red-700">
+            <h2 id="settings-danger" className="mb-2 text-sm font-medium text-red-700">
               Danger Zone
-            </h3>
+            </h2>
             <div className="rounded-lg border border-red-500 p-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
