@@ -10,7 +10,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..db.models import (
     AuditEvent,
     Organization,
-    OrganizationInvitation,
     OrganizationMembership,
     OrganizationRole,
 )
@@ -64,14 +63,6 @@ async def count_owners(session: AsyncSession, organization_id: uuid.UUID) -> int
         )
     )
     return int(owners or 0)
-
-
-async def find_invitation_by_prefix(session: AsyncSession, token_prefix: str) -> OrganizationInvitation | None:
-    return (
-        await session.execute(
-            select(OrganizationInvitation).where(OrganizationInvitation.token_prefix == token_prefix)
-        )
-    ).scalars().first()
 
 
 def _audit_conditions(organization_id: uuid.UUID, action: str | None) -> list:

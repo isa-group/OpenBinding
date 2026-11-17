@@ -3,6 +3,7 @@ import { matchRoutes, MemoryRouter, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { UserProfile } from '../api/auth';
 import { AuthContext } from '../modules/auth/hooks/useAuth';
+import { NotificationsProvider } from '../modules/notification/contexts/notificationsProvider';
 import { createElement } from 'react';
 import Router, { screens as routeDefinitions } from './router';
 
@@ -89,11 +90,13 @@ function renderAt(path: string, user: UserProfile | null = person, loading = fal
           signOut: vi.fn(),
           refresh: vi.fn(),
           isAdmin: user?.role === 'admin',
-          fetchWithInterceptor: vi.fn(),
+          fetchWithInterceptor: vi.fn(async () => new Response('[]', { status: 200 })),
         }}
       >
-        <Router table={table} />
-        <Location />
+        <NotificationsProvider>
+          <Router table={table} />
+          <Location />
+        </NotificationsProvider>
       </AuthContext.Provider>
     </MemoryRouter>
   );
@@ -132,16 +135,18 @@ describe('Router', () => {
     async (_name, address) => {
       renderAt(address(), null);
 
-      await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/login'));
-      await showing(screenAt('/login'));
+      await waitFor(() =>
+        expect(screen.getByTestId('location')).toHaveTextContent('/authentication')
+      );
+      await showing(screenAt('/authentication'));
     }
   );
 
   it('waits for the stored session before deciding', () => {
-    renderAt('/app', null, true);
+    renderAt('/me/orgs', null, true);
 
     expect(screen.getByText('Checking your session…')).toBeInTheDocument();
-    expect(screen.getByTestId('location')).toHaveTextContent('/app');
+    expect(screen.getByTestId('location')).toHaveTextContent('/me/orgs');
   });
 
   it('shows other accounts the in-place 404 on administrators-only screens, without moving them', async () => {
@@ -151,7 +156,7 @@ describe('Router', () => {
     expect(screen.getByTestId('location')).toHaveTextContent(exampleOf(adminOnly.path));
   });
 
-  it('serves the invitation link inside the public layout when there is no session', async () => {
+  it('serves a public page of the session inside the public layout when there is no session', async () => {
     renderAt(exampleOf(invitation.path), null);
 
     await showing(invitation.id);
@@ -160,7 +165,7 @@ describe('Router', () => {
     expect(screen.getByTestId('location')).toHaveTextContent(exampleOf(invitation.path));
   });
 
-  it('serves the invitation link inside the application layout when signed in', async () => {
+  it('serves a public page of the session inside the application layout when signed in', async () => {
     renderAt(exampleOf(invitation.path));
 
     await showing(invitation.id);

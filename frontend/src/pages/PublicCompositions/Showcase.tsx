@@ -100,7 +100,7 @@ function ShowcaseBody({
       setForking(true);
       return;
     }
-    void navigate('/login', {
+    void navigate('/authentication', {
       state: { from: showcasePath(org, slug, { version: picked?.label, fork: true }) },
     });
   };

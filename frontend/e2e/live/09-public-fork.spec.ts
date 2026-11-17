@@ -103,7 +103,7 @@ test.describe('live · J2 public compositions and a fork from another organizati
     await page.goto(SHOWCASE);
     await expect(main.getByRole('heading', { level: 1, name: PUBLIC_NAME })).toBeVisible();
     await main.getByRole('button', { name: 'Fork', exact: true }).click();
-    await expect(page).toHaveURL(/\/login$/);
+    await expect(page).toHaveURL(/\/authentication$/);
     await signInThroughForm(page, LAB_USERS.owner, labPassword());
     await expect(page).toHaveURL(new RegExp(`${SHOWCASE}\\?version=1\\.0\\.0$`));
     const dialog = page.getByRole('dialog', { name: 'Fork this composition' });

@@ -81,15 +81,20 @@ test.describe('live · lab-viewer reads and edits nothing', () => {
     await expect(page.getByRole('heading', { level: 1, name: 'Studies' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'New study' })).toHaveCount(0);
 
-    await page.goto(`${ORG_PATH}/settings`);
-    await expect(page.getByLabel('Name', { exact: true })).toBeDisabled();
-    await expect(page.getByRole('button', { name: 'Delete organization' })).toHaveCount(0);
-    await capture(page, testInfo, 'viewer-organization-settings');
-
-    await page.goto(ORG_PATH);
+    // The organization page: a viewer reads it, edits nothing and administers nothing.
+    await page.goto(`/orgs/${ORG}`);
     await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Upload BIM package' })).toHaveCount(0);
+    await expect(page.getByText('Viewer', { exact: true }).first()).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Edit' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Delete organization' })).toHaveCount(0);
     await capture(page, testInfo, 'viewer-organization');
+
+    await page.goto(`/orgs/${ORG}/members`);
+    await expect(page.getByRole('combobox', { name: /^Role for / })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Add member' })).toHaveCount(0);
+    await page.goto(`/orgs/${ORG}/audit`);
+    await expect(page.getByRole('heading', { name: 'Page not found' })).toBeVisible();
+    await capture(page, testInfo, 'viewer-organization-settings');
     expect(errors).toEqual([]);
   });
 });

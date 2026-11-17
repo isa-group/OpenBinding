@@ -601,7 +601,7 @@ describe('Start a run', () => {
       expect(screen.queryByRole('radiogroup', { name: 'Engine' })).not.toBeInTheDocument();
       expect(screen.getByRole('link', { name: 'Manage run presets' })).toHaveAttribute(
         'href',
-        '/app/isa-demo/settings/presets'
+        '/orgs/isa-demo/presets'
       );
       expect(presets.list).toHaveBeenCalledWith('isa-demo', { limit: 200 });
 
@@ -823,7 +823,7 @@ describe('Start a run', () => {
       expect(alert).toHaveTextContent('You’ve used 50 of 50 storage. Nothing was started.');
       expect(within(alert).getByRole('link', { name: 'See your plan' })).toHaveAttribute(
         'href',
-        '/app/account/usage'
+        '/me/settings?section=plan'
       );
       expect(within(alert).getByRole('link', { name: 'Compare plans' })).toHaveAttribute(
         'href',

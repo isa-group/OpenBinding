@@ -2,29 +2,39 @@
 // https://github.com/SCORELabUS/SPHERE. Copyright (c) 2024 Alejandro García Fernández.
 // MIT licence: the full text is in THIRD_PARTY_NOTICES.md.
 // Changes: OpenBinding's places (layouts/router/header-routes.ts) as links, Administration for platform administrators; the
-// person is named by OpenBinding's profile; the unread badge arrives with SPHERE's inbox (B4); the menu is labelled and
+// person is named by OpenBinding's profile; the Inbox shows SPHERE's unread badge (9+); the menu is labelled and
 // returns focus on Escape.
 
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { FaBuilding, FaBell, FaCogs, FaKey, FaUserCircle, FaUserShield } from 'react-icons/fa';
+import {
+  FaBuilding,
+  FaBell,
+  FaCog,
+  FaCogs,
+  FaKey,
+  FaUserCircle,
+  FaUserShield,
+} from 'react-icons/fa';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../auth/hooks/useAuth';
 import UserAvatar from '../../../core/components/user-avatar';
 import { dropdownVariants, transitionFast } from '../../../core/utils/motion-variants';
+import { useNotificationsContext } from '../../../notification/hooks/useNotificationsContext';
 import { userEntries } from '../router/header-routes';
 
 const ICONS: Record<string, typeof FaKey> = {
   Organizations: FaBuilding,
-  Notifications: FaBell,
+  Inbox: FaBell,
   Engines: FaCogs,
   'API keys': FaKey,
-  Account: FaUserCircle,
+  Settings: FaCog,
   Administration: FaUserShield,
 };
 
 export default function UserMenu() {
   const { user, isAdmin, signOut } = useAuth();
+  const { unreadCount } = useNotificationsContext();
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -101,6 +111,12 @@ export default function UserMenu() {
                 >
                   <Icon className="h-4 w-4" aria-hidden="true" />
                   {item.label}
+                  {item.to === '/notifications' && unreadCount > 0 && (
+                    <span className="ml-auto rounded-full bg-tp-accent px-1.5 py-0.5 text-[10px] font-semibold text-tp-on-primary">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                      <span className="sr-only"> unread</span>
+                    </span>
+                  )}
                 </Link>
               );
             })}

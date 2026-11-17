@@ -124,7 +124,7 @@ describe('One run', () => {
     );
     expect(within(crumbs).getByRole('link', { name: 'ISA Demo Group' })).toHaveAttribute(
       'href',
-      ROOT
+      '/orgs/isa-demo'
     );
     expect(screen.queryByRole('navigation', { name: 'Project sections' })).not.toBeInTheDocument();
     expect(runsApi.get).toHaveBeenCalledWith('isa-demo', JOB_ID);
@@ -301,7 +301,7 @@ describe('One run', () => {
     ).closest('section') as HTMLElement;
     expect(within(where).getByRole('link', { name: 'fast-sampling' })).toHaveAttribute(
       'href',
-      '/app/isa-demo/settings/presets'
+      '/orgs/isa-demo/presets'
     );
     expect(
       within(where).getByText('its settings were copied when the run started')

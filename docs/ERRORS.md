@@ -344,7 +344,8 @@ credential that names nobody is `401 unauthorized` there too. A member whose rol
 |---|---|---|
 | `quota_exceeded` | 402 | a per-account limit of the plan would be passed: `maxApiKeys`, `maxFederatedEngines`, `maxProblems`, `maxRepositoryStorage`. `quota` names `limit_id`, `limit` and `used` |
 | `username_unavailable` | 409 | registration or a first CAS sign-in asked for a reserved username: one that names engines or engine registrations already (engine namespaces are usernames baked into immutable manifests, and they outlive a deleted account), or one starting with `deleted-`, the pseudonyms of deleted accounts |
-| `last_owner` | 409 | `DELETE /v1/users/me`: the account is the last OWNER of an organization |
+| `last_owner` | 409 | `DELETE /v1/users/me`: the account owns an organization; it hands it over first |
+| `owner_transfer_required` | 409 | a member route named the owner of the organization: the owner's seat moves only by `PUT /v1/organizations/{org}/owner` |
 
 Quotas are per account: there are no billing sponsors. Deleting an account pseudonymises it
 ([ACCOUNTS_AND_PLANS.md](ACCOUNTS_AND_PLANS.md)).

@@ -3,7 +3,7 @@ import type { Organization } from '../../api/platform';
 import { problemsApi, type Problem, type ProblemRevision } from '../../api/problems';
 import { classifyAuthError, type AuthFailure } from '../../modules/core/api/errors';
 import { useResource, type Resource } from '../../utils/useResource';
-import { atLeast } from '../Organization/orgModel';
+import { atLeast } from '../../modules/organization/utils/org-tree';
 import { useRouteOrganization, type RouteOrganization } from '../Organization/useRouteOrganization';
 import { newestFirst } from './problemsModel';
 

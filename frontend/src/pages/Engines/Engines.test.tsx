@@ -153,7 +153,7 @@ describe('engine catalog for a visitor', () => {
     expect(
       screen.getByText('Showing public engines. Log in to also see private engines you own.')
     ).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Log in' })).toHaveAttribute('href', '/login');
+    expect(screen.getByRole('link', { name: 'Log in' })).toHaveAttribute('href', '/authentication');
     expect(api.getCatalogEngines).not.toHaveBeenCalled();
     expect(api.listEngineRegistrations).not.toHaveBeenCalled();
     expect(screen.queryByRole('heading', { name: 'My deployments' })).not.toBeInTheDocument();
@@ -340,7 +340,7 @@ describe('engine catalog for a signed-in account', () => {
     expect(screen.getByText('engines:read')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Manage API keys' })).toHaveAttribute(
       'href',
-      '/app/account/keys'
+      '/me/api-keys'
     );
     expect(screen.queryByRole('region', { name: 'Engines' })).not.toBeInTheDocument();
   });

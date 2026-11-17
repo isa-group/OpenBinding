@@ -7,12 +7,12 @@ import uuid
 
 from fastapi import APIRouter, Depends, Query, Request, Response, status
 from pydantic import BaseModel, ConfigDict
-from sqlalchemy import delete, func, or_, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..access.dependencies import get_current_user, get_user_by_identifier, session_dependency
 from ..db.models import (
-    ApiKey, AuditEvent, AuthIdentity, Notification, OrganizationInvitation, OrganizationMembership,
+    ApiKey, AuditEvent, AuthIdentity, Notification, OrganizationInvitationCode, OrganizationMembership,
     OrganizationRole, PasswordResetToken, RefreshToken, User, UserRole, utcnow,
 )
 from ..models.accounts import (
@@ -643,7 +643,6 @@ PSEUDONYM_PREFIX = "deleted-"
 
 async def pseudonymise(session: AsyncSession, user: User) -> None:
     """Replace what identifies ``user`` and delete what belongs to them alone, in the caller's transaction."""
-    email = user.email
     user.username = f"{PSEUDONYM_PREFIX}{user.id.hex[:12]}"
     user.email = f"deleted+{user.id.hex}@users.invalid"
     user.password_hash = hash_password(secrets.token_urlsafe(48))
@@ -665,11 +664,8 @@ async def pseudonymise(session: AsyncSession, user: User) -> None:
         (OrganizationMembership, OrganizationMembership.user_id),
     ):
         await session.execute(delete(model).where(column == user.id))
-    await session.execute(delete(OrganizationInvitation).where(or_(
-        OrganizationInvitation.invited_by_id == user.id,
-        OrganizationInvitation.accepted_by_id == user.id,
-        func.lower(OrganizationInvitation.email) == email.lower(),
-    )))
+    # The invitation codes the account made would let people in on its behalf.
+    await session.execute(delete(OrganizationInvitationCode).where(OrganizationInvitationCode.created_by_id == user.id))
     # After the username is replaced, so the administrators' notice names nobody.
     deactivated = await engine_registry.deactivate_owned_registrations(session, user)
     session.add(AuditEvent(

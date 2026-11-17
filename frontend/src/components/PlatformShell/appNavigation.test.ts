@@ -25,7 +25,7 @@ describe('mainLinks', () => {
   it('lists Home, Engines and Admin, each leading to a routed address and none to a retired path', () => {
     expect(Object.keys(mainLinks)).toEqual(['home', 'engines', 'admin']);
     expect(Object.values(mainLinks).map(link => [link.label, link.to])).toEqual([
-      ['Home', '/app'],
+      ['Home', '/'],
       ['Engines', '/engines'],
       ['Admin', '/app/admin'],
     ]);
@@ -112,15 +112,17 @@ describe('createItems', () => {
 });
 
 describe('accountLinks', () => {
-  it('lists Profile, Plan, API keys, Identities and Notifications with their addresses, all routed', () => {
+  it('lists Settings and its sections, and API keys, with their addresses, all routed', () => {
     expect(accountLinks.map(link => [link.label, link.to])).toEqual([
-      ['Profile', '/app/account'],
-      ['Plan', '/app/account/usage'],
-      ['API keys', '/app/account/keys'],
-      ['Identities', '/app/account/identities'],
-      ['Notifications', '/app/account/notifications'],
+      ['Settings', '/me/settings'],
+      ['Plan', '/me/settings?section=plan'],
+      ['API keys', '/me/api-keys'],
+      ['Sign-in & Security', '/me/settings?section=integrations'],
+      ['Notifications', '/me/settings?section=notifications'],
+      ['Appearance', '/me/settings?section=appearance'],
     ]);
-    for (const link of accountLinks) expect(matchRoutes(routed, link.to), link.to).not.toBeNull();
+    for (const link of accountLinks)
+      expect(matchRoutes(routed, pathOf(link.to)), link.to).not.toBeNull();
   });
 });
 
@@ -148,7 +150,7 @@ describe('currentSection', () => {
     ['/app/admin/users', 'admin'],
     ['/app/isa-demo/qos/published', null],
     ['/app/isa-demo/qos/settings', null],
-    ['/app/account/usage', null],
+    ['/me/settings', null],
     ['/explore', null],
   ] as const)('marks %s as %s', (pathname, expected) => {
     expect(currentSection(pathname)).toBe(expected);

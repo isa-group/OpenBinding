@@ -19,14 +19,15 @@ test.describe('live · login', () => {
       const errors = watchPageErrors(page);
       await signInThroughForm(page, LAB_USERS[role], labPassword());
 
-      await expect(page).toHaveURL(/\/app\/?$/);
+      // Signed in, the root address is SPHERE's dashboard.
+      await expect(page).toHaveURL(/^https?:\/\/[^/]+\/?$/);
       await expect(
-        page.getByRole('heading', { level: 1, name: `Hello, ${LAB_USERS[role]}` })
+        page.getByRole('heading', { level: 1, name: `Welcome back, ${LAB_USERS[role]}` })
       ).toBeVisible();
       // The session is in the browser: a reload keeps it.
       await page.reload();
       await expect(
-        page.getByRole('heading', { level: 1, name: `Hello, ${LAB_USERS[role]}` })
+        page.getByRole('heading', { level: 1, name: `Welcome back, ${LAB_USERS[role]}` })
       ).toBeVisible();
       if (role === 'owner') await capture(page, testInfo, 'login-owner-home');
       expect(errors).toEqual([]);
@@ -43,7 +44,7 @@ test.describe('live · login', () => {
     await expect(
       page.getByText('That username or email and password don’t match an active account.')
     ).toBeVisible();
-    await expect(page).toHaveURL(/\/login/);
+    await expect(page).toHaveURL(/\/authentication/);
     await capture(page, testInfo, 'login-refused');
     expect(errors).toEqual([]);
   });
@@ -51,8 +52,8 @@ test.describe('live · login', () => {
   test('a visitor who is not signed in is sent to the login page from the workspace', async ({
     page,
   }) => {
-    await page.goto('/app');
-    await expect(page).toHaveURL(/\/login/);
+    await page.goto('/me/orgs');
+    await expect(page).toHaveURL(/\/authentication/);
     await expect(page.getByRole('button', { name: 'Log in' })).toBeVisible();
   });
 });

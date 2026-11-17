@@ -1,14 +1,28 @@
 import { expect, test, type Page, type Route, type TestInfo } from '@playwright/test';
 import { failureBody } from './helpers/problems';
 
-// S2 · authentication and invitations:
-// auth-login, auth-register, auth-reset-request (with and without a token), auth-cas-callback, org-invite-accept.
+// S2 · authentication and invitations, on SPHERE's split authentication layout:
+// auth (/authentication, its login and register views), auth-forgot-password, auth-reset-password, auth-sso-callback, org-join.
 // There is no backend: the API origin is answered by page.route(). Screenshots go to testInfo.outputPath()
 // (test-results/, ignored by git) so they can be looked at after a run.
 // One test per screen and viewport: each walks the states of its screen in order, on one page.
 
 const API = 'http://localhost:8000';
-const TOKEN = `obi_${'a1b2c3d4'.repeat(2)}_${'e5f6a7b8'.repeat(3)}`;
+const CODE = 'c0de0000c0de0000';
+/** What `GET /v1/invitations/{code}/preview` answers. */
+const preview = {
+  code: CODE,
+  organization: {
+    id: 'org-1',
+    slug: 'isa-demo',
+    name: 'ISA Demo Group',
+    description: '',
+    avatar: {},
+    public_compositions: 0,
+  },
+  expires_at: '2026-12-01T00:00:00Z',
+  invited_by: { id: 'user-nora', username: 'nora', avatar: null },
+};
 const RESET_TOKEN = 'obr_k3j9d8f7_h2g1s0a9q8w7e6r5t4y3u2i1o0p9';
 const CAS_CODE = 'c'.repeat(43);
 
@@ -46,16 +60,6 @@ const isaDemo = {
   created_at: '2026-09-01T00:00:00Z',
 };
 
-const membership = {
-  id: 'member-1',
-  organization_id: 'org-1',
-  user_id: 'user-1',
-  username: 'sofia',
-  email: 'sofia@example.org',
-  role: 'MEMBER',
-  created_at: '2026-10-09T10:00:00Z',
-};
-
 const json =
   (body: unknown, status = 200) =>
   (route: Route) =>
@@ -63,12 +67,9 @@ const json =
 const detail = (status: number, code: string, error: string, extra: Record<string, unknown> = {}) =>
   json(failureBody(status, code, error, extra), status);
 
-type Handler = (route: Route) => Promise<void> | void;
-
 interface Mocks {
   /** Signed in as this account from the first request. */
   account?: ReturnType<typeof person>;
-  accept?: Handler;
   /** What GET /v1/organizations answers; a function lets the answer change once something happened. */
   organizations?: unknown[] | (() => unknown[]);
 }
@@ -86,10 +87,12 @@ async function mockApi(page: Page, mocks: Mocks = {}) {
   await page.route(`${API}/v1/users/me/pricing-token`, json({ pricing_token: 's2-pricing' }));
   await page.route(`${API}/v1/notifications**`, json([]));
   const organizations = mocks.organizations ?? [isaDemo];
-  await page.route(`${API}/v1/organizations`, route =>
-    route.fulfill({
-      json: typeof organizations === 'function' ? organizations() : organizations,
-    })
+  await page.route(
+    url => url.origin + url.pathname === `${API}/v1/organizations`,
+    route =>
+      route.fulfill({
+        json: typeof organizations === 'function' ? organizations() : organizations,
+      })
   );
   await page.route(`${API}/v1/auth/login`, json(tokens));
   await page.route(`${API}/v1/auth/register`, json(person(), 201));
@@ -104,7 +107,6 @@ async function mockApi(page: Page, mocks: Mocks = {}) {
     current = researcher;
     return route.fulfill({ json: tokens });
   });
-  await page.route(`${API}/v1/invitations/accept`, mocks.accept ?? json(membership));
   await page.route(`${API}/health**`, json({ status: 'ok' }));
 }
 
@@ -166,25 +168,32 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
   test.describe(`${name} · S2`, () => {
     test.use({ viewport, isMobile, deviceScaleFactor });
 
-    test('auth-login /login', async ({ page }, testInfo) => {
+    test('auth /authentication (log in)', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       await mockApi(page);
-      await page.goto('/login');
+      await page.goto('/authentication');
       const main = page.locator('main');
 
       await expect(page.locator('header.site-header')).toBeVisible();
       await expect(main.getByRole('heading', { level: 1, name: 'Welcome back' })).toBeVisible();
-      const cas = main.getByRole('link', { name: 'Continue with Universidad de Sevilla (CAS)' });
+      // The university first, then the divider, then the password form.
+      const cas = main.getByRole('link', { name: 'Continue with Universidad de Sevilla' });
       await expect(cas).toHaveAttribute('href', `${API}/v1/auth/cas/start?mode=login`);
       await expect(cas.locator('img')).toHaveAttribute('src', '/brands/us-fama.png');
+      await expect(main.getByText('or', { exact: true })).toBeVisible();
       await expect(main.getByRole('link', { name: 'Forgot password?' })).toHaveAttribute(
         'href',
-        '/password-reset'
+        '/forgot-password'
       );
       await expect(main.getByRole('link', { name: 'Create one' })).toHaveAttribute(
         'href',
-        '/register'
+        '/authentication?view=register'
       );
+      await expect(main.getByRole('link', { name: 'Back', exact: true })).toHaveAttribute(
+        'href',
+        '/'
+      );
+      await expect(page).toHaveTitle('OpenBinding - Log in');
       await capture(page, testInfo, `login-${name}-empty`);
 
       // Both fields are asked for before the gateway is.
@@ -222,20 +231,20 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       // A session that ended without being asked to is explained.
       await page.evaluate(() => sessionStorage.setItem('openbinding-session-ended', '1'));
-      await page.goto('/login');
+      await page.goto('/authentication');
       await expect(main.getByText('Your session ended and couldn’t be renewed.')).toBeVisible();
       await capture(page, testInfo, `login-${name}-session-expired`);
 
       // Someone who is signed in already is told so, with the way on.
       await page.evaluate(() => localStorage.setItem('openbinding-access-token', 's2-access'));
-      await page.goto('/login');
+      await page.goto('/authentication');
       await expect(
         main.getByRole('heading', { level: 1, name: 'You’re already signed in' })
       ).toBeVisible();
       await expect(main.getByText('Signed in as sofia (sofia@example.org).')).toBeVisible();
       await expect(main.getByRole('link', { name: 'Continue to your workspace' })).toHaveAttribute(
         'href',
-        '/app'
+        '/'
       );
       await expect(main.getByRole('button', { name: 'Log in as someone else' })).toBeVisible();
       await capture(page, testInfo, `login-${name}-already-signed-in`);
@@ -243,32 +252,36 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       // A visitor sent here by a protected page signs in and goes back to it.
       await forgetEverything(page);
       await page.route(`${API}/v1/auth/login`, json(tokens));
-      await page.goto('/app/account');
-      await expect(page).toHaveURL(/\/login$/);
+      await page.goto('/me/orgs');
+      await expect(page).toHaveURL(/\/authentication$/);
       await main.getByLabel('Username or email').fill('sofia');
       await main.getByLabel('Password').fill('a-long-enough-password');
       await main.getByRole('button', { name: 'Log in' }).click();
-      await expect(page).toHaveURL(/\/app\/account$/);
+      await expect(page).toHaveURL(/\/me\/orgs$/);
       await expect(page.locator('header.app-header')).toBeVisible();
-      await expect(page.getByRole('heading', { level: 1, name: 'Account' })).toBeVisible();
+      await expect(
+        page.getByRole('heading', { level: 1, name: 'Your organizations' })
+      ).toBeVisible();
       expect(critical).toEqual([]);
     });
 
-    test('auth-register /register', async ({ page }, testInfo) => {
+    test('auth /authentication?view=register (create an account)', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       await mockApi(page);
       await page.route(
         `${API}/v1/auth/register`,
         detail(409, 'already_registered', 'That username or email is already in use.')
       );
-      await page.goto('/register');
+      await page.goto('/authentication?view=register');
       const main = page.locator('main');
 
       await expect(page.locator('header.site-header')).toBeVisible();
       await expect(
         main.getByRole('heading', { level: 1, name: 'Create your account' })
       ).toBeVisible();
+      await expect(page).toHaveTitle('OpenBinding - Create an account');
       await expect(main.getByText('New accounts start on the free plan')).toBeVisible();
+      await expect(main.getByText('Strength: Not set')).toBeVisible();
       await expect(main.getByRole('link', { name: 'Compare plans' })).toHaveAttribute(
         'href',
         '/pricing'
@@ -289,13 +302,14 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await main.getByLabel('Email').fill('sofia@example.org');
       await main.getByLabel('Password').fill('a-long-enough-password');
       await expect(main.getByText('✓ At least 10 characters')).toBeVisible();
+      await expect(main.getByText('Strength: Good')).toBeVisible();
       await main.getByRole('button', { name: 'Create account' }).click();
       await expect(main.getByRole('alert')).toContainText(
         'That username or email is already registered (409).'
       );
       await expect(
         main.getByRole('alert').getByRole('link', { name: 'reset your password' })
-      ).toHaveAttribute('href', '/password-reset');
+      ).toHaveAttribute('href', '/forgot-password');
       await capture(page, testInfo, `register-${name}-409`);
 
       await page.route(
@@ -319,14 +333,14 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       );
       await capture(page, testInfo, `register-${name}-503`);
 
-      // The account is created, signed in and taken to the workspace.
+      // The account is created, signed in and taken to the dashboard.
       await page.route(`${API}/v1/auth/register`, json(person(), 201));
       await main.getByRole('button', { name: 'Create account' }).click();
-      await expect(page).toHaveURL(/\/app$/);
+      await expect.poll(() => new URL(page.url()).pathname).toBe('/');
       await expect(page.locator('header.app-header')).toBeVisible();
 
       // And a signed-in visitor is told they already have one.
-      await page.goto('/register');
+      await page.goto('/authentication?view=register');
       await expect(
         main.getByRole('heading', { level: 1, name: 'You already have an account' })
       ).toBeVisible();
@@ -335,10 +349,10 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('auth-reset-request /password-reset', async ({ page }, testInfo) => {
+    test('auth-forgot-password /forgot-password', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       await mockApi(page);
-      await page.goto('/password-reset');
+      await page.goto('/forgot-password');
       const main = page.locator('main');
 
       await expect(
@@ -346,8 +360,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       ).toBeVisible();
       await expect(main.getByRole('link', { name: 'Back to log in' })).toHaveAttribute(
         'href',
-        '/login'
+        '/authentication'
       );
+      await expect(page).toHaveTitle('OpenBinding - Forgot password');
       await capture(page, testInfo, `reset-request-${name}-empty`);
 
       await main.getByLabel('Email address').fill('nope');
@@ -376,20 +391,25 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('auth-reset-request /password-reset?token=…', async ({ page }, testInfo) => {
+    test('auth-reset-password /reset-password?token=…', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       await mockApi(page);
       const main = page.locator('main');
 
-      // An empty token is no token: the request form.
-      await page.goto('/password-reset?token=');
+      // An empty token is no token: the link can't be used, and a new one is a click away.
+      await page.goto('/reset-password?token=');
       await expect(
-        main.getByRole('heading', { level: 1, name: 'Forgot your password?' })
+        main.getByRole('heading', { level: 1, name: 'This reset link can’t be used' })
       ).toBeVisible();
+      await expect(main.getByText('Reset link · missing')).toBeVisible();
+      await expect(main.getByRole('link', { name: 'Request a new link' })).toHaveAttribute(
+        'href',
+        '/forgot-password'
+      );
       await capture(page, testInfo, `reset-complete-${name}-empty-token`);
 
-      // A reset link lands on the one screen, with its token in the address.
-      await page.goto(`/password-reset?token=${RESET_TOKEN}`);
+      // A reset link lands on the reset screen, with its token in the address.
+      await page.goto(`/reset-password?token=${RESET_TOKEN}`);
       await expect(
         main.getByRole('heading', { level: 1, name: 'Set a new password' })
       ).toBeVisible();
@@ -430,7 +450,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByLabel('New password')).toHaveCount(0);
       await expect(main.getByRole('link', { name: 'Request a new link' })).toHaveAttribute(
         'href',
-        '/password-reset'
+        '/forgot-password'
       );
       await capture(page, testInfo, `reset-complete-${name}-refused`);
 
@@ -440,7 +460,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         spent = route.request().postDataJSON() as { token: string; new_password: string };
         return route.fulfill({ status: 204 });
       });
-      await page.goto(`/password-reset?token=${RESET_TOKEN}`);
+      await page.goto(`/reset-password?token=${RESET_TOKEN}`);
       await main.getByLabel('New password').fill('a-long-enough-password');
       await main.getByLabel('Confirm password').fill('a-long-enough-password');
       await expect(main.getByText('Strength: Good')).toBeVisible();
@@ -449,27 +469,32 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByText('Reset link · used')).toBeVisible();
       await expect(main.getByRole('link', { name: 'Continue to log in' })).toHaveAttribute(
         'href',
-        '/login'
+        '/authentication'
       );
       expect(spent).toEqual({ token: RESET_TOKEN, new_password: 'a-long-enough-password' });
       await capture(page, testInfo, `reset-complete-${name}-changed`);
+
+      // The way on to log in says why.
+      await main.getByRole('link', { name: 'Continue to log in' }).click();
+      await expect(page).toHaveURL(/\/authentication$/);
+      await expect(main.getByText('Password changed. Log in with the new password.')).toBeVisible();
       expect(critical).toEqual([]);
     });
 
-    test('auth-cas-callback /auth/cas/callback', async ({ page }, testInfo) => {
+    test('auth-sso-callback /sso/callback', async ({ page }, testInfo) => {
       // It loads many pages through a development server that compiles on demand; a loaded machine needs longer than the default.
       test.setTimeout(180_000);
       const critical = watchCriticalErrors(page);
       await mockApi(page);
       const main = page.locator('main');
 
-      await page.goto('/auth/cas/callback');
+      await page.goto('/sso/callback');
       await expect(
         main.getByRole('heading', { name: 'There’s no code to finish sign-in' })
       ).toBeVisible();
       await expect(main.getByRole('link', { name: 'Back to log in' })).toHaveAttribute(
         'href',
-        '/login'
+        '/authentication'
       );
       await capture(page, testInfo, `cas-${name}-no-code`);
 
@@ -477,49 +502,47 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await page.evaluate(() =>
         sessionStorage.setItem(
           'openbinding-cas-flow',
-          JSON.stringify({ mode: 'login', returnTo: '/app/account', at: Date.now() })
+          JSON.stringify({ mode: 'login', returnTo: '/me/orgs', at: Date.now() })
         )
       );
-      await page.goto(`/auth/cas/callback?code=${CAS_CODE}`);
+      await page.goto(`/sso/callback?code=${CAS_CODE}`);
       await expect(main.getByText('Universidad de Sevilla · CAS · log in')).toBeVisible();
       await expect(main.getByRole('heading', { name: 'You’re signed in' })).toBeVisible();
       await expect(
         main.getByText(/qualifies for RESEARCH under the current pricing/)
       ).toBeVisible();
       await expect(
-        main.locator('.auth-institution img[alt="Universidad de Sevilla"]')
+        main.getByTestId('institution-verified').locator('img[alt="Universidad de Sevilla"]')
       ).toHaveAttribute('src', '/brands/us-fama.png');
       await expect(main.getByRole('link', { name: 'Continue to your workspace' })).toHaveAttribute(
         'href',
-        '/app/account'
+        '/me/orgs'
       );
-      await expect(main.getByRole('link', { name: 'Account › Identities' })).toHaveAttribute(
-        'href',
-        '/app/account/identities'
-      );
+      await expect(
+        main.getByRole('link', { name: 'Settings › Sign-in & Security', exact: true })
+      ).toHaveAttribute('href', '/me/settings?section=integrations');
       await capture(page, testInfo, `cas-${name}-login-success`);
 
-      // Link an identity to the signed-in account: a different flow, back to the identities screen.
+      // Link an identity to the signed-in account: a different flow, back to Settings › Sign-in & Security.
       await page.evaluate(() =>
         sessionStorage.setItem(
           'openbinding-cas-flow',
           JSON.stringify({ mode: 'link', returnTo: null, at: Date.now() })
         )
       );
-      await page.goto(`/auth/cas/callback?code=${CAS_CODE}`);
+      await page.goto(`/sso/callback?code=${CAS_CODE}`);
       await expect(main.getByText('Universidad de Sevilla · CAS · link identity')).toBeVisible();
       await expect(main.getByRole('heading', { name: 'Identity linked' })).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Back to my account' })).toHaveAttribute(
-        'href',
-        '/app/account/identities'
-      );
+      await expect(
+        main.getByRole('link', { name: 'Back to Settings › Sign-in & Security' })
+      ).toHaveAttribute('href', '/me/settings?section=integrations');
       await capture(page, testInfo, `cas-${name}-link-success`);
 
       await page.route(
         `${API}/v1/auth/cas/exchange`,
         detail(401, 'cas_code_invalid', 'CAS code was used, expired or is invalid.')
       );
-      await page.goto(`/auth/cas/callback?code=${CAS_CODE}`);
+      await page.goto(`/sso/callback?code=${CAS_CODE}`);
       await expect(main.getByRole('alert')).toContainText('This code can’t be used.');
       await capture(page, testInfo, `cas-${name}-code-invalid`);
 
@@ -531,7 +554,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
           'The active iPricing must declare the CAS-only RESEARCH plan.'
         )
       );
-      await page.goto(`/auth/cas/callback?code=${CAS_CODE}`);
+      await page.goto(`/sso/callback?code=${CAS_CODE}`);
       await expect(main.getByRole('alert')).toContainText('503 · institutional_pricing_invalid');
       await expect(main.getByRole('link', { name: 'Service status' })).toHaveAttribute(
         'href',
@@ -543,17 +566,16 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         `${API}/v1/auth/cas/exchange`,
         detail(409, 'identity_in_use', 'That UVUS identity belongs to another account.')
       );
-      await page.goto(`/auth/cas/callback?code=${CAS_CODE}`);
+      await page.goto(`/sso/callback?code=${CAS_CODE}`);
       await expect(
         main.getByRole('heading', { name: 'This identity can’t be used here' })
       ).toBeVisible();
       await expect(
         main.getByText('This identity is already linked to another account.')
       ).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Go to Account › Identities' })).toHaveAttribute(
-        'href',
-        '/app/account/identities'
-      );
+      await expect(
+        main.getByRole('link', { name: 'Go to Settings › Sign-in & Security' })
+      ).toHaveAttribute('href', '/me/settings?section=integrations');
       await capture(page, testInfo, `cas-${name}-linked-elsewhere`);
 
       // The gateway reports its own failures in the address, each with a message of its own and a way forward.
@@ -566,20 +588,20 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         ['cas_error', 'The sign-in couldn’t be finished (cas_error).'],
       ];
       for (const [code, title] of reported) {
-        await page.goto(`/auth/cas/callback?error=${code}`);
+        await page.goto(`/sso/callback?error=${code}`);
         await expect(main.getByText(title)).toBeVisible();
         await expect(main.getByRole('link', { name: 'Back to log in' })).toHaveAttribute(
           'href',
-          '/login'
+          '/authentication'
         );
       }
-      await page.goto('/auth/cas/callback?error=cas_ticket_invalid');
+      await page.goto('/sso/callback?error=cas_ticket_invalid');
       await expect(main.getByRole('link', { name: 'Try again' })).toHaveAttribute(
         'href',
         `${API}/v1/auth/cas/start?mode=login`
       );
       await capture(page, testInfo, `cas-${name}-ticket-invalid`);
-      await page.goto('/auth/cas/callback?error=account_inactive');
+      await page.goto('/sso/callback?error=account_inactive');
       await expect(main.getByRole('link', { name: 'Try again' })).toHaveCount(0);
 
       // Linking CAS raised the plan to RESEARCH at no cost: the exchange says so, and the screen the person lands on tells them once.
@@ -590,10 +612,10 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await page.evaluate(() =>
         sessionStorage.setItem(
           'openbinding-cas-flow',
-          JSON.stringify({ mode: 'login', returnTo: '/app', at: Date.now() })
+          JSON.stringify({ mode: 'login', returnTo: '/', at: Date.now() })
         )
       );
-      await page.goto(`/auth/cas/callback?code=${CAS_CODE}&plan_changed=RESEARCH`);
+      await page.goto(`/sso/callback?code=${CAS_CODE}&plan_changed=RESEARCH`);
       await expect(main.getByRole('heading', { name: 'You’re signed in' })).toBeVisible();
       await main.getByRole('link', { name: 'Continue to your workspace' }).click();
       const planNote = page.getByText(
@@ -609,94 +631,48 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('org-invite-accept /invitations/accept', async ({ page }, testInfo) => {
+    test('org-join /orgs/join/:code', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       let joined = false;
-      await mockApi(page, {
-        organizations: () => (joined ? [isaDemo] : []),
-        accept: route => {
-          joined = true;
-          return route.fulfill({ json: membership });
-        },
+      await mockApi(page, { organizations: () => (joined ? [isaDemo] : []) });
+      await page.route(`${API}/v1/invitations/${CODE}/preview`, json(preview));
+      await page.route(`${API}/v1/invitations/${CODE}/join`, route => {
+        joined = true;
+        return route.fulfill({ json: { ...isaDemo, effective_role: 'MEMBER' } });
       });
-      await page.goto(`/invitations/accept?token=${TOKEN}`);
+      await page.route(
+        `${API}/v1/invitations/unknown-code/preview`,
+        detail(404, 'not_found', 'Invitation not found.')
+      );
+      await page.goto(`/orgs/join/${CODE}`);
       const main = page.locator('main');
 
-      // No session: the public header, and a prompt that keeps the invitation.
-      await expect(page.locator('header.site-header')).toBeVisible();
-      await expect(page.locator('header.app-header')).toHaveCount(0);
-      await expect(main.getByRole('heading', { level: 1, name: 'Log in to accept' })).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Create an account' })).toBeVisible();
-      // The secret is no longer in the address bar.
-      await expect.poll(() => page.url()).not.toContain(TOKEN);
-      await capture(page, testInfo, `invite-${name}-log-in`);
-
-      // Logging in brings the page back, with the application header and the token in the field.
-      await main.getByRole('link', { name: 'Log in' }).click();
+      // No session: sign in first, then back to the invitation.
+      await expect(page).toHaveURL(/\/authentication$/);
       await main.getByLabel('Username or email').fill('sofia');
       await main.getByLabel('Password').fill('a-long-enough-password');
       await main.getByRole('button', { name: 'Log in' }).click();
-      await expect(page).toHaveURL(/\/invitations\/accept$/);
-      await expect(page.locator('header.app-header')).toBeVisible();
-      await expect(main.getByLabel('Invitation token')).toHaveValue(TOKEN);
-      await expect(
-        main.getByRole('heading', { level: 1, name: 'Join with this invitation' })
-      ).toBeVisible();
-      await expect(main.getByText('Signed in as sofia.')).toBeVisible();
-      await capture(page, testInfo, `invite-${name}-form`);
+      await expect(page).toHaveURL(new RegExp(`/orgs/join/${CODE}$`));
 
-      await main.getByRole('button', { name: 'Accept invitation' }).click();
-      await expect(
-        main.getByRole('heading', { level: 1, name: 'You joined ISA Demo Group' })
-      ).toBeVisible();
+      // SPHERE's join card: the organization, who invited, the role it joins with.
+      await expect(main.getByRole('heading', { level: 1, name: 'ISA Demo Group' })).toBeVisible();
       await expect(main.getByText('@isa-demo')).toBeVisible();
-      await expect(main.getByText('MEMBER', { exact: true })).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Open the organization' })).toHaveAttribute(
+      await expect(main.getByText('@nora invited you to join this organization.')).toBeVisible();
+      await capture(page, testInfo, `join-${name}-card`);
+      await main.getByRole('button', { name: 'Join ISA Demo Group' }).click();
+      await expect(main.getByRole('heading', { level: 1, name: 'You joined!' })).toBeVisible();
+      await expect(main.getByRole('link', { name: 'Open ISA Demo Group' })).toHaveAttribute(
         'href',
-        '/app/isa-demo'
+        '/orgs/isa-demo'
       );
-      await capture(page, testInfo, `invite-${name}-joined`);
+      await capture(page, testInfo, `join-${name}-joined`);
 
-      // Without a link: paste the token. A short one is refused locally; the gateway refuses the rest.
-      // (Opening the same address again would be a reload, which keeps the token in the entry's state on purpose.)
-      await page.goto('/about');
-      await page.goto('/invitations/accept');
-      // A full page load again, on a development server that is compiling for other workers: the session is read before the page shows.
+      // One neutral answer for any code that does not let anybody in.
+      await page.goto('/orgs/join/unknown-code');
       await expect(
-        main.getByRole('heading', { level: 1, name: 'Paste your invitation' })
-      ).toBeVisible({ timeout: 20_000 });
-      await expect(
-        main.getByText('the API has no endpoint to preview an invitation')
+        main.getByRole('heading', { level: 1, name: 'Invalid invitation' })
       ).toBeVisible();
-      await capture(page, testInfo, `invite-${name}-paste`);
-      await main.getByRole('button', { name: 'Accept invitation' }).click();
-      await expect(main.getByText('Paste the invitation token.')).toBeVisible();
-      await main.getByLabel('Invitation token').fill('obi_too_short');
-      await expect(main.getByText(/at least 32 characters/)).toBeVisible();
-      await capture(page, testInfo, `invite-${name}-short`);
-
-      await page.route(
-        `${API}/v1/invitations/accept`,
-        detail(404, 'not_found', 'Invitation is invalid or expired.')
-      );
-      await main.getByLabel('Invitation token').fill(TOKEN);
-      await main.getByRole('button', { name: 'Accept invitation' }).click();
-      await expect(main.getByRole('alert')).toContainText('This invitation can’t be used.');
-      await expect(main.getByRole('alert')).toContainText(
-        'different email address than sofia@example.org'
-      );
-      await capture(page, testInfo, `invite-${name}-invalid`);
-
-      // The account already belongs to the organization by now.
-      await page.route(`${API}/v1/invitations/accept`, json(membership));
-      await main.getByRole('button', { name: 'Accept invitation' }).click();
-      await expect(
-        main.getByRole('heading', { level: 1, name: 'You’re already a member of ISA Demo Group' })
-      ).toBeVisible();
-      await expect(
-        main.getByText('Nothing changed: your current role stays as it is.')
-      ).toBeVisible();
-      await capture(page, testInfo, `invite-${name}-already-member`);
+      await capture(page, testInfo, `join-${name}-invalid`);
       expect(critical).toEqual([]);
     });
   });

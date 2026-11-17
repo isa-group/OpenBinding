@@ -104,8 +104,7 @@ const OUTSIDE: Readonly<Record<string, string>> = {
   '/src/pages/Engines/EngineParts.tsx':
     'an engine deployment, and "Verified" for the outcome of its conformance probe',
   '/src/pages/Runs/RunLaunch.tsx': 'the engine deployment a federated run is sent to',
-  '/src/pages/Auth/Login.tsx': 'this OpenBinding installation',
-  '/src/pages/Account/AccountIdentities.tsx': '"Verified" for a linked identity',
+  '/src/modules/auth/components/login-form/index.tsx': 'this OpenBinding installation',
   '/src/pages/About/AboutPanels.tsx': 'the related projects of About',
   '/src/pages/Studies/StudyList.tsx': '"Build a study"',
   '/src/content/platform.ts':

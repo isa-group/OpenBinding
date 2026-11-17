@@ -143,7 +143,7 @@ describe('eng-registrations · my engines', () => {
     expect(await screen.findByText('3 of 5 used')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'See all your limits' })).toHaveAttribute(
       'href',
-      '/app/account/usage'
+      '/me/settings?section=plan'
     );
     expect(screen.getByRole('link', { name: 'Register an engine' })).toHaveAttribute(
       'href',
@@ -209,7 +209,10 @@ describe('eng-registrations · my engines', () => {
     api.listEngineRegistrations.mockRejectedValue(refusal(401, 'unauthorized'));
     renderPage();
     expect(await screen.findByText('Your session ended')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Log in again' })).toHaveAttribute('href', '/login');
+    expect(screen.getByRole('link', { name: 'Log in again' })).toHaveAttribute(
+      'href',
+      '/authentication'
+    );
     expect(screen.queryByRole('region', { name: 'Engine registrations' })).not.toBeInTheDocument();
   });
 

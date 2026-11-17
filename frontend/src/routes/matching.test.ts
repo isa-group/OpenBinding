@@ -12,16 +12,16 @@ const resolve = (path: string) => matchRoutes(config, path)?.at(-1)?.route.id ??
 const RESOLUTION: Array<[string, string | null]> = [
   ['/', 'pub-home'],
   ['/about', 'pub-about'],
-  ['/app', 'app-home'],
-  ['/app/account', 'acct-profile'],
-  ['/app/account/billing', 'acct-profile'],
-  ['/app/account/identities', 'acct-profile'],
-  ['/app/account/keys', 'acct-profile'],
+  ['/app', null],
+  ['/app/account', null],
+  ['/app/account/billing', null],
+  ['/app/account/identities', null],
+  ['/app/account/keys', null],
   ['/app/account/keys/new', null],
   ['/app/account/keys/other', null],
-  ['/app/account/notifications', 'acct-profile'],
-  ['/app/account/usage', 'acct-profile'],
-  ['/app/acme', 'org-overview'],
+  ['/app/account/notifications', null],
+  ['/app/account/usage', null],
+  ['/app/acme', null],
   ['/app/acme/atlas/cases', null],
   ['/app/acme/atlas/cases/c1', null],
   ['/app/acme/atlas/cases/c1/runs', null],
@@ -48,10 +48,17 @@ const RESOLUTION: Array<[string, string | null]> = [
   ['/app/acme/runs', 'run-list'],
   ['/app/acme/runs/j1', 'run-detail'],
   ['/app/acme/runs/new', 'run-launch'],
-  ['/app/acme/settings', 'org-settings'],
-  ['/app/acme/settings/audit', 'org-settings'],
-  ['/app/acme/settings/members', 'org-settings'],
-  ['/app/acme/settings/presets', 'org-settings'],
+  ['/app/acme/settings', null],
+  ['/orgs/acme', 'org-detail'],
+  ['/orgs/acme/members', 'org-detail'],
+  ['/orgs/acme/presets', 'org-detail'],
+  ['/orgs/new', 'org-new'],
+  ['/organizations', 'org-explore'],
+  ['/me/orgs', 'org-list'],
+  ['/me/settings', 'acct-settings'],
+  ['/me/settings/account', null],
+  ['/me/api-keys', 'acct-api-keys'],
+  ['/me/api-keys/new', null],
   ['/app/acme/studies', 'study-list'],
   ['/app/acme/studies/new', 'study-builder'],
   ['/app/acme/studies/s1', 'study-detail'],
@@ -68,7 +75,7 @@ const RESOLUTION: Array<[string, string | null]> = [
   ['/app/engines/registrations', 'eng-registrations'],
   ['/app/engines/registrations/edge', 'eng-registration-detail'],
   ['/app/engines/registrations/settings', 'eng-registration-detail'],
-  ['/app/settings/settings', 'org-settings'],
+  ['/app/settings/settings', null],
   ['/c/acme', null],
   ['/c/acme/order-desk', 'pub-showcase'],
   ['/c/acme/order-desk/versions', null],
@@ -80,8 +87,13 @@ const RESOLUTION: Array<[string, string | null]> = [
   ['/language', 'pub-language'],
   ['/language/extensions', null],
   ['/language/schemas/Application', null],
-  ['/password-reset', 'auth-reset-request'],
-  ['/app/runs', 'org-overview'],
+  ['/authentication', 'auth'],
+  ['/authentication/register', null],
+  ['/forgot-password', 'auth-forgot-password'],
+  ['/reset-password', 'auth-reset-password'],
+  ['/sso/callback', 'auth-sso-callback'],
+  ['/password-reset', null],
+  ['/app/runs', null],
   ['/app/acme/zz-no-such-section', null],
   ['/app/acme/zz-no-such-section/zz', null],
   ['/app/acme/new-project', null],
@@ -97,7 +109,7 @@ describe('address resolution across the route table', () => {
     expect(resolve(path)).toBe(id);
   });
 
-  // A fixed segment under /app (`/app/account`, `/app/admin`, …): an unknown address one level below it resolves to no screen, or to a
+  // A fixed segment under /app (`/app/admin`, `/app/engines`, …): an unknown address one level below it resolves to no screen, or to a
   // screen that owns that segment.
   const fixedSegments = [
     ...new Set(
@@ -109,7 +121,7 @@ describe('address resolution across the route table', () => {
   ];
 
   it('finds fixed segments under /app', () => {
-    expect(fixedSegments).toEqual(expect.arrayContaining(['account', 'admin', 'engines']));
+    expect(fixedSegments).toEqual(expect.arrayContaining(['admin', 'engines']));
   });
 
   it.each(fixedSegments)(

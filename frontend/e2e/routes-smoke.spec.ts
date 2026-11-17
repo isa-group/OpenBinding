@@ -46,7 +46,10 @@ async function mockApi(page: Page, role: 'user' | 'admin' | null) {
   await page.route(`${API}/v1/users/me/pricing-token`, route =>
     route.fulfill({ json: { pricing_token: 'smoke-token' } })
   );
-  await page.route(`${API}/v1/organizations`, route => route.fulfill({ json: [organization] }));
+  await page.route(
+    url => url.origin + url.pathname === `${API}/v1/organizations`,
+    route => route.fulfill({ json: [organization] })
+  );
   await page.route(`${API}/v1/notifications**`, route => route.fulfill({ json: [] }));
 }
 
@@ -158,7 +161,8 @@ test.describe('route registry', () => {
   test('knows which pathnames are screens of the registry', () => {
     expect(isScreenAddress('/app/isa-demo/problems/checkout')).toBe(true);
     expect(isScreenAddress('/app/isa-demo/qos/problems/checkout')).toBe(false);
-    expect(isScreenAddress('/app/account/keys')).toBe(true);
+    expect(isScreenAddress('/me/api-keys')).toBe(true);
+    expect(isScreenAddress('/app/account/keys')).toBe(false);
     expect(isScreenAddress('/explore')).toBe(false);
     expect(isScreenAddress('/')).toBe(true);
     expect(isScreenAddress('/app/isa-demo/qos/cases/checkout/compare')).toBe(false);
@@ -173,7 +177,7 @@ test.describe.configure({ mode: 'serial' });
 for (const screen of screens) {
   test(`${screen.layout} ${screen.id} ${screen.path} loads`, async ({ page }) => {
     test.setTimeout(90_000);
-    const underApp = screen.path === '/app' || screen.path.startsWith('/app/');
+    const underApp = screen.layout === 'app' || screen.layout === 'protected';
     const critical = watchCriticalErrors(page);
     await mockApi(page, underApp ? (screen.requireAdmin ? 'admin' : 'user') : null);
 
@@ -201,7 +205,7 @@ for (const screen of screens) {
     ).toHaveCount(0);
 
     // A signed-in session is never bounced to the sign-in page, and nothing blew up.
-    if (underApp) expect(new URL(page.url()).pathname).not.toBe('/login');
+    if (underApp) expect(new URL(page.url()).pathname).not.toBe('/authentication');
     expect(critical, `${screen.path} should not raise critical console errors`).toEqual([]);
 
     // The vocabulary of the interface: Problem and Run, never case or job (nor publication outside the engine registration).

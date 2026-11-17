@@ -21,8 +21,8 @@ describe('safeReturnPath', () => {
     '/app',
     '/app/account',
     '/app/isa-demo/atlas/runs?tab=queue',
-    '/invitations/accept',
-    '/invitations/accept?token=obi_abc_def',
+    '/orgs/join/c0de0000c0de0000',
+    '/me/orgs',
     '/compositions',
     '/compositions?kind=workflow&q=fleet&page=2',
     '/c/lab-other/fleet-routing',
@@ -34,7 +34,7 @@ describe('safeReturnPath', () => {
   it.each([
     '/pricing',
     '/account',
-    '/login',
+    '/authentication',
     '/appx',
     '//evil.example/app',
     '/\\evil.example',
@@ -61,8 +61,8 @@ describe('safeReturnPath', () => {
   });
 
   it('falls back to the workspace', () => {
-    expect(afterSignInTarget('/pricing')).toBe('/app');
-    expect(afterSignInTarget(undefined)).toBe('/app');
+    expect(afterSignInTarget('/pricing')).toBe('/');
+    expect(afterSignInTarget(undefined)).toBe('/');
     expect(afterSignInTarget('/app/account')).toBe('/app/account');
   });
 
@@ -71,7 +71,7 @@ describe('safeReturnPath', () => {
       '/c/lab-other/fleet-routing?version=1.2.0&fork=1'
     );
     expect(afterSignInTarget('/compositions?kind=workflow')).toBe('/compositions?kind=workflow');
-    expect(afterSignInTarget('/c/lab-other')).toBe('/app');
+    expect(afterSignInTarget('/c/lab-other')).toBe('/');
   });
 });
 

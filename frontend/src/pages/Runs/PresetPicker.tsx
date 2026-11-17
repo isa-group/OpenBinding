@@ -11,7 +11,7 @@ import {
   presetOptimizationText,
   presetOptionsText,
   presetRegistrationText,
-} from '../../modules/run/utils/preset';
+} from '../../modules/run/api/presetText';
 import { classifyAuthError, marker } from '../../modules/core/api/errors';
 import { SLUG_PATTERN, slugFromName } from '../../modules/core/utils/slug';
 import type { RunPresetView } from '../../modules/core/api/types';

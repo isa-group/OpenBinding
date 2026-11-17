@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
-// The pattern of pages/Organization/createDialog.ts for the creation dialogs of the workspace lists: `New problem` over the problem
+// The creation dialogs of the workspace lists, open while the address holds `create=<kind>`: `New problem` over the problem
 // list and `New composition` over the composition list. This one also takes whether the person may create (a viewer who types the
 // address gets no dialog).
 

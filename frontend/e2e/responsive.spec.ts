@@ -2,7 +2,15 @@ import { expect, test, type Page } from '@playwright/test';
 import { installMockApi } from './helpers/mockApi';
 
 // Public routes of the redesigned site. About holds the service-status note; there is no /status page.
-const PUBLIC_ROUTES = ['/', '/workbench', '/engines', '/pricing', '/about', '/login', '/register'];
+const PUBLIC_ROUTES = [
+  '/',
+  '/workbench',
+  '/engines',
+  '/pricing',
+  '/about',
+  '/authentication',
+  '/authentication?view=register',
+];
 
 for (const viewport of [
   { name: 'mobile', width: 390, height: 844 },
@@ -111,7 +119,7 @@ for (const route of ['/profiles', '/schemas', '/playground', '/team', '/changelo
   });
 }
 
-/** A signed-in account with one organization, at the members section of its settings; anything else on the API origin answers 404. */
+/** A signed-in account with one organization, at the Members tab of its page; anything else on the API origin answers 404. */
 async function openOrganizationSettings(page: Page) {
   const API = 'http://localhost:8000';
   const organization = {
@@ -141,36 +149,57 @@ async function openOrganizationSettings(page: Page) {
   await page.route(`${API}/v1/users/me/pricing-token`, route =>
     route.fulfill({ json: { pricing_token: 'responsive-token' } })
   );
-  await page.route(`${API}/v1/organizations`, route => route.fulfill({ json: [organization] }));
+  await page.route(
+    url => url.origin + url.pathname === `${API}/v1/organizations`,
+    route => route.fulfill({ json: [organization] })
+  );
+  await page.route(`${API}/v1/organizations/isa-demo`, route =>
+    route.fulfill({
+      json: {
+        ...organization,
+        description: '',
+        stats: {
+          members: 1,
+          sub_organizations: 0,
+          compositions: 0,
+          problems: 0,
+          runs: 0,
+          studies: 0,
+        },
+      },
+    })
+  );
   await page.route(`${API}/v1/organizations/isa-demo/members`, route =>
     route.fulfill({ json: [] })
   );
   await page.route(`${API}/v1/notifications**`, route => route.fulfill({ json: [] }));
-  await page.goto('/app/isa-demo/settings/members');
-  return page.getByRole('navigation', { name: 'Organization settings' });
+  await page.goto('/orgs/isa-demo/members');
+  return page.locator('main');
 }
 
-test('on a phone the organization settings keep the open section in view without scrolling the page sideways', async ({
+test('on a phone the organization page picks its tab from a select, without scrolling the page sideways', async ({
   page,
 }) => {
   test.setTimeout(60_000);
   await page.setViewportSize({ width: 390, height: 844 });
-  const sections = await openOrganizationSettings(page);
+  const main = await openOrganizationSettings(page);
 
-  const members = sections.getByRole('link', { name: 'Members', exact: true });
-  await expect(members).toHaveAttribute('aria-current', 'page', { timeout: 30_000 });
-  await expect(members).toBeInViewport();
+  const select = main.getByRole('combobox', { name: 'Section' });
+  await expect(select).toHaveValue('members', { timeout: 30_000 });
+  await expect(select).toBeInViewport();
+  await expect(main.getByRole('navigation', { name: 'Organization sections' })).toBeHidden();
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
   ).toBeLessThanOrEqual(1);
 });
 
-test('the settings of an organization mark their section, and nothing in the application header', async ({
+test('the organization page marks its tab, and nothing in the application header', async ({
   page,
 }) => {
   test.setTimeout(60_000);
   await page.setViewportSize({ width: 1440, height: 900 });
-  const sections = await openOrganizationSettings(page);
+  const main = await openOrganizationSettings(page);
+  const sections = main.getByRole('navigation', { name: 'Organization sections' });
 
   await expect(sections.getByRole('link', { name: 'Members', exact: true })).toHaveAttribute(
     'aria-current',
@@ -178,19 +207,19 @@ test('the settings of an organization mark their section, and nothing in the app
     { timeout: 30_000 }
   );
   // The header lists the site (Tools, Explore, Pricing, About); a workspace screen is none of them.
-  const main = page.locator('header.app-header').getByRole('navigation', { name: 'Main' });
-  await expect(main.getByRole('button', { name: 'Explore' })).toBeVisible();
-  await expect(main.locator('[aria-current="page"]')).toHaveCount(0);
+  const header = page.locator('header.app-header').getByRole('navigation', { name: 'Main' });
+  await expect(header.getByRole('button', { name: 'Explore' })).toBeVisible();
+  await expect(header.locator('[aria-current="page"]')).toHaveCount(0);
 });
 
-test('reduced motion removes entry animations', async ({ page }) => {
-  // The cards of the home page rise in; asking for reduced motion takes the animation away, and only that preference does.
-  await page.goto('/');
-  const card = page.locator('.home-card').first();
-  await expect(card).toBeVisible();
-  await expect(card).toHaveCSS('animation-name', 'home-in');
+test('reduced motion shows the landing at once, without the reveal', async ({ page }) => {
+  // SPHERE's landing reveals its sections as they scroll in; asking for reduced motion shows them as they are.
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await expect(card).toHaveCSS('animation-name', 'none');
+  await page.goto('/');
+  const reveal = page
+    .getByRole('heading', { level: 2, name: 'A stable core, plural problem families.' })
+    .locator('xpath=ancestor::div[contains(@class,"transform-gpu")][1]');
+  await expect(reveal).toHaveCSS('opacity', '1');
 });
 
 test('mobile problem editor: the panes, the engines and the problems are tabs, inside the viewport', async ({

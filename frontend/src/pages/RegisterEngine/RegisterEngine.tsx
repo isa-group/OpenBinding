@@ -456,7 +456,7 @@ function Wizard({
     <div className="rg-page">
       <Crumbs
         items={[
-          { label: 'Home', to: '/app' },
+          { label: 'Home', to: '/' },
           { label: 'My engines', to: '/app/engines/registrations' },
           { label: 'Register an engine' },
         ]}
@@ -514,7 +514,7 @@ function Wizard({
           {error.failure.status === 402 && (
             <>
               {' '}
-              <Link to="/app/account/usage">See your plan</Link>
+              <Link to="/me/settings?section=plan">See your plan</Link>
             </>
           )}
         </Notice>
@@ -856,7 +856,7 @@ export function RegisterEngine() {
       <div className="rg-page">
         <Crumbs
           items={[
-            { label: 'Home', to: '/app' },
+            { label: 'Home', to: '/' },
             { label: 'My engines', to: '/app/engines/registrations' },
             { label: 'Register an engine' },
           ]}

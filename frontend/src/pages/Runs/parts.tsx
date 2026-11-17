@@ -131,7 +131,7 @@ export function RefusalNotice({
           (refusal.kind === 'busy' && refusal.source !== 'technical') ||
           refusal.kind === 'plan') && (
           <span className="job-refusal-links">
-            <Action to="/app/account/usage" variant="link" size="sm">
+            <Action to="/me/settings?section=plan" variant="link" size="sm">
               See your plan
             </Action>
             <Action to="/pricing" variant="link" size="sm">

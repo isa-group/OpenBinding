@@ -14,7 +14,7 @@ import { RefusalNotice } from '../Runs/parts';
 import { OrgGate, OrgSkeleton } from '../../features/workspace/OrgFrame';
 import { problemsApi } from '../../api/problems';
 import { PRESET_PAGE, presetsApi } from '../../modules/run/api/presetsApi';
-import { studyPresetRefusal } from '../../modules/run/utils/preset';
+import { studyPresetRefusal } from '../../modules/run/api/presetText';
 import type { RunPresetList } from '../../modules/core/api/types';
 import { loadProblems } from '../Problems/problemsData';
 import type { CaseContent } from '../../features/workspace/model';
@@ -287,7 +287,7 @@ function BuilderBody({
                 presets={{
                   presets: presetList,
                   selected: chosenPresets,
-                  manageHref: `/app/${org}/settings/presets`,
+                  manageHref: `/orgs/${org}/presets`,
                   onChange: slugs => {
                     setPickedPresets(slugs);
                     setRefusal(null);

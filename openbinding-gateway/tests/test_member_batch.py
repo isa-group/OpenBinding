@@ -19,7 +19,7 @@ async def _account(client, registration) -> tuple[dict, dict[str, str]]:
     return created.json(), {"Authorization": f"Bearer {login.json()['access_token']}"}
 
 
-async def test_membership_batch_is_atomic_and_protects_the_last_owner(
+async def test_membership_batch_is_atomic_and_leaves_the_owner_seat_alone(
     api_client, registration
 ) -> None:
     previous = space_client.get_gate()
@@ -53,7 +53,7 @@ async def test_membership_batch_is_atomic_and_protects_the_last_owner(
         )
 
         assert refused.status_code == 409
-        assert refused.json()["detail"]["code"] == "last_owner"
+        assert refused.json()["detail"]["code"] == "owner_transfer_required"
         assert [(row["user_id"], row["role"]) for row in after_refusal.json()] == [
             (owner["id"], "OWNER")
         ]
@@ -61,28 +61,13 @@ async def test_membership_batch_is_atomic_and_protects_the_last_owner(
         saved = await api_client.post(
             endpoint,
             headers=headers,
-            json={
-                "changes": [
-                    {"user_id": collaborator["id"], "role": "OWNER"},
-                    {"user_id": owner["id"], "role": "ADMIN"},
-                ]
-            },
+            json={"changes": [{"user_id": collaborator["id"], "role": "ADMIN"}]},
         )
 
         assert saved.status_code == 200, saved.text
         assert {row["user_id"]: row["role"] for row in saved.json()} == {
-            owner["id"]: "ADMIN",
-            collaborator["id"]: "OWNER",
+            owner["id"]: "OWNER",
+            collaborator["id"]: "ADMIN",
         }
-
-        removed_self = await api_client.post(
-            endpoint,
-            headers=headers,
-            json={"changes": [{"user_id": owner["id"], "role": None}]},
-        )
-        assert removed_self.status_code == 200, removed_self.text
-        assert [(row["user_id"], row["role"]) for row in removed_self.json()] == [
-            (collaborator["id"], "OWNER")
-        ]
     finally:
         space_client.set_gate(previous)

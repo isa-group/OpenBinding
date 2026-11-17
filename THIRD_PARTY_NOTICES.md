@@ -96,6 +96,26 @@ Generated from the origin header of each file.
 
 | File | SPHERE origin | Class |
 |---|---|---|
+| `frontend/src/modules/api-keys/api/apiKeysApi.ts` | `frontend/src/modules/api-keys/api/apiKeysApi.ts` | adapted |
+| `frontend/src/modules/api-keys/components/ApiKeyCard.tsx` | `frontend/src/modules/api-keys/components/ApiKeyCard.tsx` | adapted |
+| `frontend/src/modules/api-keys/components/ApiKeyList.tsx` | `frontend/src/modules/api-keys/components/ApiKeyList.tsx` | adapted |
+| `frontend/src/modules/api-keys/components/CreateApiKeyDialog.tsx` | `frontend/src/modules/api-keys/components/CreateApiKeyDialog.tsx` | adapted |
+| `frontend/src/modules/api-keys/components/organization-search-input.tsx` | `frontend/src/modules/core/components/organization-search-input.tsx` | adapted |
+| `frontend/src/modules/api-keys/components/scope-selector.tsx` | `frontend/src/modules/core/components/scope-selector.tsx` | adapted |
+| `frontend/src/modules/api-keys/pages/api-keys-page/index.tsx` | `frontend/src/modules/api-keys/pages/ApiKeysPage.tsx` | adapted |
+| `frontend/src/modules/api-keys/utils/accessLevel.ts` | `frontend/src/modules/core/components/scope-selector.tsx` | adapted (extracted) |
+| `frontend/src/modules/auth/components/animated-logo/index.tsx` | `frontend/src/modules/auth/components/animated-logo/index.tsx` | adapted |
+| `frontend/src/modules/auth/components/auth-field/index.tsx` | `frontend/src/modules/auth/components/login-form/index.tsx` | pattern-only |
+| `frontend/src/modules/auth/components/auth-layout/index.tsx` | `frontend/src/modules/auth/components/auth-layout/index.tsx` | adapted |
+| `frontend/src/modules/auth/components/auth-layout/variants.ts` | `frontend/src/modules/auth/components/auth-layout/index.tsx` | verbatim |
+| `frontend/src/modules/auth/components/login-form/index.tsx` | `frontend/src/modules/auth/components/login-form/index.tsx` | adapted |
+| `frontend/src/modules/auth/components/register-form/index.tsx` | `frontend/src/modules/auth/components/register-form/index.tsx` | adapted |
+| `frontend/src/modules/auth/components/uvus-login-button/index.tsx` | `frontend/src/modules/auth/components/uvus-login-button/index.tsx` | adapted |
+| `frontend/src/modules/auth/pages/authentication-page/index.tsx` | `frontend/src/modules/auth/pages/authentication-page/index.tsx` | adapted |
+| `frontend/src/modules/auth/pages/forgot-password/index.tsx` | `frontend/src/modules/auth/pages/forgot-password/index.tsx` | adapted |
+| `frontend/src/modules/auth/pages/reset-password/index.tsx` | `frontend/src/modules/auth/pages/reset-password/index.tsx` | adapted |
+| `frontend/src/modules/auth/pages/sso-callback/index.tsx` | `frontend/src/modules/auth/pages/sso-callback/index.tsx` | adapted |
+| `frontend/src/modules/auth/utils/classes.ts` | `frontend/src/modules/auth/components/login-form/index.tsx`, `frontend/src/modules/auth/components/register-form/index.tsx` | pattern-only |
 | `frontend/src/modules/beta/components/beta-badge/index.tsx` | `frontend/src/modules/beta/components/beta-badge/index.tsx` | verbatim |
 | `frontend/src/modules/beta/components/beta-gate/index.tsx` | `frontend/src/modules/beta/components/beta-gate/index.tsx` | verbatim |
 | `frontend/src/modules/beta/config/betaFeatures.ts` | `frontend/src/modules/beta/config/betaFeatures.ts` | adapted |
@@ -109,7 +129,7 @@ Generated from the origin header of each file.
 | `frontend/src/modules/core/components/alert-modal/index.tsx` | `frontend/src/modules/core/components/alert-modal/index.tsx` | adapted |
 | `frontend/src/modules/core/components/alerts/index.tsx` | `frontend/src/modules/core/components/alerts/index.tsx` | adapted |
 | `frontend/src/modules/core/components/badge/index.tsx` | `frontend/src/modules/beta/components/beta-badge/index.tsx` | pattern-only |
-| `frontend/src/modules/core/components/block-alert/index.tsx` | `frontend/src/modules/core/components/block-alert/index.tsx` | verbatim |
+| `frontend/src/modules/core/components/block-alert/index.tsx` | `frontend/src/modules/core/components/block-alert/index.tsx` | adapted |
 | `frontend/src/modules/core/components/chip/index.tsx` | `frontend/src/modules/beta/components/beta-badge/index.tsx` | pattern-only |
 | `frontend/src/modules/core/components/command-palette/index.tsx` | `frontend/src/modules/core/components/command-palette/index.tsx` | adapted |
 | `frontend/src/modules/core/components/composition-renderer/modes/calculator.tsx` | `frontend/src/modules/pricing/components/configuration-space-view/index.tsx` | pattern-only |
@@ -172,8 +192,54 @@ Generated from the origin header of each file.
 | `frontend/src/modules/core/utils/motion-variants.ts` | `frontend/src/modules/core/utils/motion-variants.ts` | verbatim |
 | `frontend/src/modules/core/utils/offer-reload.ts` | `frontend/src/modules/pricing/pages/card/index.tsx` | adapted (extracted) |
 | `frontend/src/modules/core/utils/recentItems.ts` | `frontend/src/modules/core/utils/recentItems.ts` | adapted |
+| `frontend/src/modules/notification/api/notificationsApi.ts` | `frontend/src/modules/notification/api/notificationsApi.ts` | adapted |
+| `frontend/src/modules/notification/components/notification-bell/index.tsx` | `frontend/src/modules/notification/components/notification-bell/index.tsx` | adapted |
+| `frontend/src/modules/notification/components/notification-dropdown/index.tsx` | `frontend/src/modules/notification/components/notification-dropdown/index.tsx` | adapted |
+| `frontend/src/modules/notification/components/notification-item/index.tsx` | `frontend/src/modules/notification/components/notification-item/index.tsx` | adapted |
+| `frontend/src/modules/notification/components/notifications-sse-bridge/index.tsx` | `frontend/src/App.tsx` | pattern-only |
+| `frontend/src/modules/notification/contexts/notificationsContext.ts` | `frontend/src/modules/notification/contexts/notificationsContext.tsx` | adapted |
+| `frontend/src/modules/notification/contexts/notificationsProvider.tsx` | `frontend/src/modules/notification/contexts/notificationsContext.tsx` | adapted |
+| `frontend/src/modules/notification/hooks/useNotificationsContext.ts` | `frontend/src/modules/notification/hooks/useNotificationsContext.ts` | verbatim |
+| `frontend/src/modules/notification/hooks/useNotificationsSSE.ts` | `frontend/src/modules/notification/hooks/useNotificationsSSE.ts` | adapted |
+| `frontend/src/modules/notification/pages/inbox/index.tsx` | `frontend/src/modules/notification/pages/inbox/index.tsx` | adapted |
+| `frontend/src/modules/notification/utils/notification-link.ts` | `frontend/src/modules/notification/components/notification-item/index.tsx` | adapted |
+| `frontend/src/modules/organization/api/organizationsApi.ts` | `frontend/src/modules/organization/api/organizationsApi.ts` | adapted |
+| `frontend/src/modules/organization/components/move-organization-modal/index.tsx` | `frontend/src/modules/organization/pages/organizations-list/index.tsx` | pattern-only |
+| `frontend/src/modules/organization/components/org-dnd/index.tsx` | `frontend/src/modules/organization/components/org-dnd/index.tsx` | adapted |
+| `frontend/src/modules/organization/components/org-dnd/row.ts` | `frontend/src/modules/organization/components/org-dnd/row.ts` | verbatim |
+| `frontend/src/modules/organization/components/org-dnd/tree.ts` | `frontend/src/modules/organization/components/org-dnd/tree.ts` | verbatim |
+| `frontend/src/modules/organization/components/organization-card/index.tsx` | `frontend/src/modules/organization/components/organization-card/index.tsx` | adapted |
+| `frontend/src/modules/organization/components/organization-selector/index.tsx` | `frontend/src/modules/pricing/components/organization-selector/index.tsx` | adapted |
+| `frontend/src/modules/organization/components/role-badge/index.tsx` | `frontend/src/modules/organization/pages/organization-detail/constants.ts`, `frontend/src/modules/organization/pages/organizations-list/index.tsx` | adapted |
+| `frontend/src/modules/organization/components/role-badge/roles.ts` | `frontend/src/modules/organization/pages/organization-detail/constants.ts` | adapted |
+| `frontend/src/modules/organization/components/user-search-input/index.tsx` | `frontend/src/modules/organization/components/user-search-input/index.tsx` | adapted |
 | `frontend/src/modules/organization/contexts/organizationContext.ts` | `frontend/src/modules/organization/contexts/organizationContext.ts` | adapted |
+| `frontend/src/modules/organization/hooks/useOrgReparenting.ts` | `frontend/src/modules/organization/hooks/useOrgReparenting.ts` | adapted |
 | `frontend/src/modules/organization/hooks/useOrganization.ts` | `frontend/src/modules/organization/hooks/useOrganization.ts` | adapted |
+| `frontend/src/modules/organization/pages/create-organization/index.tsx` | `frontend/src/modules/organization/pages/create-organization/index.tsx` | adapted |
+| `frontend/src/modules/organization/pages/organization-detail/components/AddMemberModal.tsx` | `frontend/src/modules/organization/pages/organization-detail/components/AddMemberModal.tsx` | adapted |
+| `frontend/src/modules/organization/pages/organization-detail/components/ChildRolesManager.tsx` | `frontend/src/modules/organization/pages/organization-detail/components/ChildRolesManager.tsx` | adapted |
+| `frontend/src/modules/organization/pages/organization-detail/components/CreateSubOrgModal.tsx` | `frontend/src/modules/organization/pages/organization-detail/components/CreateSubOrgModal.tsx` | adapted |
+| `frontend/src/modules/organization/pages/organization-detail/components/EditOrgModal.tsx` | `frontend/src/modules/organization/pages/organization-detail/components/EditOrgModal.tsx` | adapted |
+| `frontend/src/modules/organization/pages/organization-detail/components/HierarchyTab.tsx` | `frontend/src/modules/organization/pages/organization-detail/components/HierarchyTab.tsx` | adapted |
+| `frontend/src/modules/organization/pages/organization-detail/components/InvitationsTab.tsx` | `frontend/src/modules/organization/pages/organization-detail/components/InvitationsTab.tsx` | adapted |
+| `frontend/src/modules/organization/pages/organization-detail/components/InviteModal.tsx` | `frontend/src/modules/organization/pages/organization-detail/components/InviteModal.tsx` | adapted |
+| `frontend/src/modules/organization/pages/organization-detail/components/MembersTab.tsx` | `frontend/src/modules/organization/pages/organization-detail/components/MembersTab.tsx` | adapted |
+| `frontend/src/modules/organization/pages/organization-detail/components/OrgAvatarModal.tsx` | `frontend/src/modules/organization/pages/organization-detail/components/OrgAvatarModal.tsx` | adapted |
+| `frontend/src/modules/organization/pages/organization-detail/components/OrgTreeNode.tsx` | `frontend/src/modules/organization/pages/organization-detail/components/OrgTreeNode.tsx` | adapted |
+| `frontend/src/modules/organization/pages/organization-detail/components/OrganizationExitButton.tsx` | `frontend/src/modules/organization/pages/organization-detail/components/OrganizationExitButton.tsx` | adapted |
+| `frontend/src/modules/organization/pages/organization-detail/components/OverviewTab.tsx` | `frontend/src/modules/organization/pages/organization-detail/components/OverviewTab.tsx` | adapted |
+| `frontend/src/modules/organization/pages/organization-detail/components/ResourceTab.tsx` | `frontend/src/modules/organization/pages/organization-detail/components/PricingsTab.tsx` | pattern-only |
+| `frontend/src/modules/organization/pages/organization-detail/components/ShareOrgMenu.tsx` | `frontend/src/modules/organization/pages/organization-detail/components/ShareOrgMenu.tsx` | adapted |
+| `frontend/src/modules/organization/pages/organization-detail/components/TabCard.tsx` | `frontend/src/modules/organization/pages/organization-detail/components/MembersTab.tsx`, `frontend/src/modules/organization/pages/organization-detail/components/InvitationsTab.tsx` | pattern-only |
+| `frontend/src/modules/organization/pages/organization-detail/constants.ts` | `frontend/src/modules/organization/pages/organization-detail/constants.ts` | adapted |
+| `frontend/src/modules/organization/pages/organization-detail/hooks.ts` | `frontend/src/modules/organization/pages/organization-detail/hooks.ts` | verbatim |
+| `frontend/src/modules/organization/pages/organization-detail/index.tsx` | `frontend/src/modules/organization/pages/organization-detail/index.tsx` | adapted |
+| `frontend/src/modules/organization/pages/organization-detail/types.ts` | `frontend/src/modules/organization/pages/organization-detail/types.ts` | adapted |
+| `frontend/src/modules/organization/pages/organization-join/index.tsx` | `frontend/src/modules/organization/pages/organization-join/index.tsx` | adapted |
+| `frontend/src/modules/organization/pages/organizations-list/index.tsx` | `frontend/src/modules/organization/pages/organizations-list/index.tsx` | adapted |
+| `frontend/src/modules/organization/pages/public-organizations-list/index.tsx` | `frontend/src/modules/organization/pages/public-organizations-list/index.tsx` | adapted |
+| `frontend/src/modules/organization/utils/filter-tree.ts` | `frontend/src/modules/organization/pages/organizations-list/index.tsx` | adapted |
 | `frontend/src/modules/presentation/layouts/authenticated-layout/app-footer.tsx` | `frontend/src/modules/presentation/layouts/authenticated-layout/app-footer.tsx` | adapted |
 | `frontend/src/modules/presentation/layouts/authenticated-layout/app-header.tsx` | `frontend/src/modules/presentation/layouts/authenticated-layout/app-header.tsx` | adapted |
 | `frontend/src/modules/presentation/layouts/authenticated-layout/index.tsx` | `frontend/src/modules/presentation/layouts/authenticated-layout/index.tsx` | adapted |
@@ -181,7 +247,27 @@ Generated from the origin header of each file.
 | `frontend/src/modules/presentation/layouts/authenticated-layout/user-menu.tsx` | `frontend/src/modules/presentation/layouts/authenticated-layout/user-menu.tsx` | adapted |
 | `frontend/src/modules/presentation/layouts/public-layout/index.tsx` | `frontend/src/modules/presentation/layouts/public-layout/index.tsx` | adapted |
 | `frontend/src/modules/presentation/layouts/router/header-routes.ts` | `frontend/src/modules/presentation/layouts/router/header-routes.ts` | adapted |
+| `frontend/src/modules/presentation/pages/dashboard/index.tsx` | `frontend/src/modules/presentation/pages/dashboard/index.tsx` | adapted |
+| `frontend/src/modules/presentation/pages/home/components/background-orbs.tsx` | `frontend/src/modules/presentation/pages/home/components/background-orbs.tsx` | adapted |
+| `frontend/src/modules/presentation/pages/home/components/call-to-action.tsx` | `frontend/src/modules/presentation/pages/home/components/call-to-action.tsx` | adapted |
 | `frontend/src/modules/presentation/pages/home/components/floating-morph-header.tsx` | `frontend/src/modules/presentation/pages/home/components/floating-morph-header.tsx` | adapted |
+| `frontend/src/modules/presentation/pages/home/components/island-button.tsx` | `frontend/src/modules/presentation/pages/home/components/island-button.tsx` | adapted |
+| `frontend/src/modules/presentation/pages/home/components/reveal-block.tsx` | `frontend/src/modules/presentation/pages/home/components/reveal-block.tsx` | adapted |
+| `frontend/src/modules/presentation/pages/home/index.tsx` | `frontend/src/modules/presentation/pages/home/index.tsx`, `frontend/src/modules/presentation/pages/home/components/hero-section.tsx` | adapted |
+| `frontend/src/modules/presentation/pages/root/index.tsx` | `frontend/src/routes/router.tsx` | pattern-only |
+| `frontend/src/modules/settings/api/userSettingsApi.ts` | `frontend/src/modules/settings/api/userSettingsApi.ts` | adapted |
+| `frontend/src/modules/settings/components/AccountSection.tsx` | `frontend/src/modules/settings/components/AccountSection.tsx`, `frontend/src/modules/settings/components/IntegrationsSection.tsx` | adapted |
+| `frontend/src/modules/settings/components/AppearanceSection.tsx` | `frontend/src/modules/settings/components/NotificationsSection.tsx` | pattern-only |
+| `frontend/src/modules/settings/components/BetaFeaturesSection.tsx` | `frontend/src/modules/settings/components/BetaFeaturesSection.tsx` | adapted |
+| `frontend/src/modules/settings/components/DangerZoneSection.tsx` | `frontend/src/modules/settings/components/DangerZoneSection.tsx` | adapted |
+| `frontend/src/modules/settings/components/IntegrationsSection.tsx` | `frontend/src/modules/settings/components/IntegrationsSection.tsx` | adapted |
+| `frontend/src/modules/settings/components/NotificationsSection.tsx` | `frontend/src/modules/settings/components/NotificationsSection.tsx` | adapted |
+| `frontend/src/modules/settings/components/PlanSection.tsx` | `frontend/src/modules/settings/components/PaymentsSection.tsx` | adapted |
+| `frontend/src/modules/settings/components/SaveButton.tsx` | `frontend/src/modules/settings/components/AccountSection.tsx` | adapted (extracted) |
+| `frontend/src/modules/settings/components/UnsavedChangesDialog.tsx` | `frontend/src/modules/settings/components/UnsavedChangesDialog.tsx` | adapted |
+| `frontend/src/modules/settings/pages/settings-page/index.tsx` | `frontend/src/modules/settings/pages/SettingsPage.tsx` | adapted |
+| `frontend/src/modules/settings/pages/settings-page/sections.ts` | `frontend/src/modules/settings/pages/SettingsPage.tsx` | adapted (extracted) |
+| `frontend/src/modules/settings/utils/useSavedFlash.ts` | `frontend/src/modules/settings/components/AccountSection.tsx` | pattern-only |
 | `frontend/src/pages/Compositions/CompositionDetail.tsx` | `frontend/src/modules/pricing/pages/card/index.tsx` | pattern-only |
 | `frontend/src/pages/Compositions/tabs/VersionsTab.tsx` | `frontend/src/modules/pricing/components/pricing-versions-tab/index.tsx` | pattern-only |
 | `frontend/src/pages/PublicCompositions/PublicCompositionList.tsx` | `frontend/src/modules/pricing/pages/list/index.tsx` | pattern-only |

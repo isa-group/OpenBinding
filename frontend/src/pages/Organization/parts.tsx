@@ -3,7 +3,7 @@ import type { Organization, OrganizationRole } from '../../api/platform';
 import { Action } from '../../modules/core/components/action-button';
 import { Skeleton } from '../../modules/core/components/skeleton';
 import { Gate } from '../../features/workspace/parts';
-import { initialsOf, tileColour } from './orgModel';
+import { initialsOf, tileColour } from '../../modules/organization/utils/org-tree';
 import './Organization.css';
 
 /** A role as a small coloured label. `PLATFORM ADMIN` is not an organization role; it is shown to administrators. */
@@ -55,7 +55,7 @@ export function NeutralGate() {
     <Gate
       title="Organization not available"
       action={
-        <Action to="/app" variant="primary">
+        <Action to="/" variant="primary">
           Back to Home
         </Action>
       }

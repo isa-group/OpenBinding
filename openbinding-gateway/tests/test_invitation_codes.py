@@ -60,9 +60,11 @@ async def test_a_code_joins_whoever_holds_it_as_member(api_client, registration,
     assert again.status_code == 409 and code(again) == "already_member"
     listed = await api_client.get(base, headers=owner)
     assert [row["use_count"] for row in listed.json()] == [1]
-    # The email invitation is still there until B8.
+    # The email invitation and its token are gone (B8): a body naming an email is refused, and so is the accept route.
     email = await api_client.post(base, headers=owner, json={"email": "someone@example.org", "role": "VIEWER"})
-    assert email.status_code == 201 and email.json()["token"].startswith("obi_")
+    assert email.status_code == 422
+    accept = await api_client.post("/v1/invitations/accept", headers=guest, json={"token": "obi_" + "a" * 40})
+    assert accept.status_code in {404, 405}
 
 
 async def test_an_expired_used_up_or_revoked_code_is_the_same_404(api_client, registration, db_session, gate):  # noqa: F811

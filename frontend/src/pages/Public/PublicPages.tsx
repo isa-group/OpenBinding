@@ -395,10 +395,10 @@ export function WorkbenchPage() {
                   account.
                 </span>
                 <div className="workbench-account-actions">
-                  <Link className="workbench-login" to="/login">
+                  <Link className="workbench-login" to="/authentication">
                     Log in to run
                   </Link>
-                  <Link className="workbench-secondary" to="/register">
+                  <Link className="workbench-secondary" to="/authentication?view=register">
                     Create account
                   </Link>
                 </div>

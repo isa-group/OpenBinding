@@ -29,8 +29,8 @@ test('public header lists Tools, Explore, Pricing and About in order, then Log i
     entry(banner(page), 'Sign up'),
   ]);
   await expect(entry(primary(page), 'Pricing')).toHaveAttribute('aria-current', 'page');
-  await expect(entry(banner(page), 'Log in')).toHaveAttribute('href', '/login');
-  await expect(entry(banner(page), 'Sign up')).toHaveAttribute('href', '/register');
+  await expect(entry(banner(page), 'Log in')).toHaveAttribute('href', '/authentication');
+  await expect(entry(banner(page), 'Sign up')).toHaveAttribute('href', '/authentication?view=register');
 });
 
 test('public menus lead to the language, the workbench, the compositions and the engines', async ({ page }) => {
@@ -40,6 +40,7 @@ test('public menus lead to the language, the workbench, the compositions and the
   await expect(entry(primary(page), 'Composition2Yaml')).toHaveAttribute('href', '/language');
   await expect(entry(primary(page), 'Problem workbench')).toHaveAttribute('href', '/workbench');
   await primary(page).getByRole('button', { name: 'Explore' }).click();
+  await expect(entry(primary(page), 'Organizations')).toHaveAttribute('href', '/organizations');
   await expect(entry(primary(page), 'Compositions')).toHaveAttribute('href', '/compositions');
   await expect(entry(primary(page), 'Engines')).toHaveAttribute('href', '/engines');
 });
@@ -85,14 +86,14 @@ test('application header keeps SPHERE\'s order and marks no site entry on a work
 });
 
 test('New creates in the organization the address names', async ({ page }) => {
-  await signedIn(page, '/app/acme');
+  await signedIn(page, COMPOSITIONS);
   await banner(page).getByRole('button', { name: 'New', exact: true }).click();
   const items: Array<[string, string]> = [
     ['Composition', `${COMPOSITIONS}?create=composition`],
     ['Problem', '/app/acme/problem-editor'],
     ['Run', RUN_NEW],
     ['Study', '/app/acme/studies/new'],
-    ['Organization', '/app?create=organization'],
+    ['Organization', '/orgs/new'],
     ['Engine', '/app/engines/new'],
   ];
   await expectInOrder(items.map(([name]) => entry(menuScope(page), name)));
@@ -106,14 +107,14 @@ test('the problem dialog opens from the address over the Problems screen', async
 });
 
 test('account menu lists the person\'s places then Sign out, with Administration for administrators only', async ({ page }) => {
-  await signedIn(page, '/app');
+  await signedIn(page, '/');
   await banner(page).getByRole('button', { name: 'Account menu' }).click();
   const items: Array<[string, string]> = [
-    ['Organizations', '/app'],
-    ['Notifications', '/app/account/notifications'],
+    ['Organizations', '/me/orgs'],
+    ['Inbox', '/notifications'],
     ['Engines', '/app/engines/registrations'],
-    ['API keys', '/app/account/keys'],
-    ['Account', '/app/account'],
+    ['API keys', '/me/api-keys'],
+    ['Settings', '/me/settings'],
   ];
   const scope = menuScope(page);
   await expectInOrder([...items.map(([name]) => entry(scope, name)), scope.getByRole('button', { name: 'Sign out' })]);
@@ -122,7 +123,7 @@ test('account menu lists the person\'s places then Sign out, with Administration
 });
 
 test('an administrator\'s account menu leads to the administration', async ({ page }) => {
-  await signedIn(page, '/app', 'admin');
+  await signedIn(page, '/', 'admin');
   await banner(page).getByRole('button', { name: 'Account menu' }).click();
   await expect(entry(menuScope(page), 'Administration')).toHaveAttribute('href', '/app/admin');
 });

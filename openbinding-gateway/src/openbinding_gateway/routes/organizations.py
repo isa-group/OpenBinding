@@ -10,8 +10,6 @@ profile only for an organization with a public composition.
 
 from __future__ import annotations
 
-import hashlib
-import hmac
 import secrets
 import uuid
 from datetime import timedelta
@@ -41,7 +39,6 @@ from ..db.models import (
     CompositionVersion,
     Job,
     Organization,
-    OrganizationInvitation,
     OrganizationInvitationCode,
     OrganizationMembership,
     OrganizationRole,
@@ -66,9 +63,6 @@ from ..models.platform import (
     OrganizationRef,
     PublicOrganizationList,
     PublicOrganizationView,
-    InvitationAccept,
-    InvitationCreate,
-    InvitationCreated,
     MemberBatchUpdate,
     MemberUpsert,
     MemberView,
@@ -104,37 +98,22 @@ def _audit(session: AsyncSession, user: User, action: str, target, organization_
     )
 
 
-OWNER_ROLE_RESPONSES = {
-    403: {
+OWNER_SEAT_RESPONSES = {
+    409: {
         "model": ErrorResponse,
         "description": (
-            "The caller lacks ADMIN access to the organization (code `organization_forbidden`), "
-            "or the change grants OWNER or alters or removes an existing owner and the caller "
-            "is not an organization owner (code `owner_role_requires_owner`)."
+            "The change names the owner (code `owner_transfer_required`): an organization has one owner, and the seat "
+            "moves only by `PUT .../owner`."
         ),
     }
 }
 
 
-def _touches_owner(current: OrganizationMembership | None, new_role: str | None) -> bool:
-    """Whether a membership change grants OWNER or alters an existing owner."""
-
-    return new_role == OrganizationRole.OWNER.value or (
-        current is not None and current.role is OrganizationRole.OWNER
-    )
-
-
-def _may_manage_owners(actor_role: OrganizationRole, actor: User) -> bool:
-    """Owners, and platform administrators who already hold ADMIN access."""
-
-    return actor_role is OrganizationRole.OWNER or actor.is_admin
-
-
-def _owner_role_refusal(**detail):
+def _owner_seat_refusal(**detail):
     return api_error(
-        status.HTTP_403_FORBIDDEN,
-        "owner_role_requires_owner",
-        "Only an organization owner may grant the OWNER role or change or remove an owner.",
+        status.HTTP_409_CONFLICT,
+        "owner_transfer_required",
+        "The owner's seat moves only by a transfer (PUT .../owner).",
         **detail,
     )
 
@@ -688,9 +667,6 @@ async def _delete_subtree(session: AsyncSession, organization: Organization, uni
             delete(OrganizationMembership).where(OrganizationMembership.organization_id == oid)
         )
         await session.execute(
-            delete(OrganizationInvitation).where(OrganizationInvitation.organization_id == oid)
-        )
-        await session.execute(
             delete(OrganizationInvitationCode).where(OrganizationInvitationCode.organization_id == oid)
         )
         await session.execute(
@@ -793,7 +769,7 @@ async def list_members(
     "/{org}/members/batch",
     response_model=list[MemberView],
     operation_id="updateOrganizationMembersBatch",
-    responses=OWNER_ROLE_RESPONSES,
+    responses=OWNER_SEAT_RESPONSES,
 )
 async def update_members_batch(
     org: str,
@@ -804,7 +780,7 @@ async def update_members_batch(
     """Apply a staged set of direct-member changes in one transaction."""
 
     organization = await _required_org(session, org)
-    actor_role = await require_role(session, organization, user, OrganizationRole.ADMIN)
+    await require_role(session, organization, user, OrganizationRole.ADMIN)
 
     # Serialize the member batches of this organization and lock the direct
     # membership rows that this batch will replace.
@@ -817,8 +793,8 @@ async def update_members_batch(
     # passed, so one change touching an owner refuses the whole batch.
     for index, change in enumerate(payload.changes):
         current = existing.get(change.user_id)
-        if _touches_owner(current, change.role) and not _may_manage_owners(actor_role, user):
-            raise _owner_role_refusal(index=index, user_id=str(change.user_id))
+        if current is not None and current.role is OrganizationRole.OWNER:
+            raise _owner_seat_refusal(index=index, user_id=str(change.user_id))
 
     upsert_ids = {change.user_id for change in payload.changes if change.role is not None}
     users = {
@@ -847,12 +823,6 @@ async def update_members_batch(
             final_roles.pop(change.user_id, None)
         else:
             final_roles[change.user_id] = OrganizationRole(change.role)
-    if OrganizationRole.OWNER not in final_roles.values():
-        raise api_error(
-            status.HTTP_409_CONFLICT,
-            "last_owner",
-            "The last owner cannot be removed.",
-        )
 
     removed_ids: set[uuid.UUID] = set()
     for change in payload.changes:
@@ -886,7 +856,7 @@ async def update_members_batch(
     "/{org}/members/{member_id}",
     response_model=MemberView,
     operation_id="upsertOrganizationMember",
-    responses=OWNER_ROLE_RESPONSES,
+    responses=OWNER_SEAT_RESPONSES,
 )
 async def upsert_member(
     org: str,
@@ -896,20 +866,18 @@ async def upsert_member(
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> MemberView:
     organization = await _required_org(session, org)
-    actor_role = await require_role(session, organization, user, OrganizationRole.ADMIN)
+    await require_role(session, organization, user, OrganizationRole.ADMIN)
     if payload.user_id != member_id:
         raise api_error(status.HTTP_422_UNPROCESSABLE_ENTITY, "member_mismatch", "Path and payload user differ.")
     member_user = await session.get(User, member_id)
     if member_user is None or not member_user.is_active:
         raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "User not found.")
     existing = await organization_repository.get_membership(session, organization.id, member_id)
-    if _touches_owner(existing, payload.role) and not _may_manage_owners(actor_role, user):
-        raise _owner_role_refusal(user_id=str(member_id))
+    if existing is not None and existing.role is OrganizationRole.OWNER:
+        raise _owner_seat_refusal(user_id=str(member_id))
     if existing is None:
         existing = OrganizationMembership(organization_id=organization.id, user_id=member_id)
         session.add(existing)
-    elif existing.role is OrganizationRole.OWNER and payload.role != OrganizationRole.OWNER.value:
-        await _protect_last_owner(session, existing)
     existing.role = OrganizationRole(payload.role)
     await session.flush()
     _audit(session, user, "organization.member.upserted", existing, organization.id, role=payload.role)
@@ -920,19 +888,12 @@ async def upsert_member(
     )
 
 
-async def _protect_last_owner(session: AsyncSession, membership: OrganizationMembership) -> None:
-    if membership.role is not OrganizationRole.OWNER:
-        return
-    if await organization_repository.count_owners(session, membership.organization_id) <= 1:
-        raise api_error(status.HTTP_409_CONFLICT, "last_owner", "The last owner cannot be removed.")
-
-
 @router.delete(
     "/{org}/members/{member_id}",
     status_code=204,
     operation_id="removeOrganizationMember",
     responses={
-        **OWNER_ROLE_RESPONSES,
+        **OWNER_SEAT_RESPONSES,
         404: {"model": ErrorResponse, "description": "No such member, or a caller leaving is not a member."},
     },
 )
@@ -954,13 +915,12 @@ async def remove_member(
             _audit(session, user, "organization.member.left", own, organization.id, role=own.role.value)
             return
     organization = await _required_org(session, org)
-    actor_role = await require_role(session, organization, user, OrganizationRole.ADMIN)
+    await require_role(session, organization, user, OrganizationRole.ADMIN)
     membership = await organization_repository.get_membership(session, organization.id, member_id)
     if membership is None:
         raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Member not found.")
-    if _touches_owner(membership, None) and not _may_manage_owners(actor_role, user):
-        raise _owner_role_refusal(user_id=str(member_id))
-    await _protect_last_owner(session, membership)
+    if membership.role is OrganizationRole.OWNER:
+        raise _owner_seat_refusal(user_id=str(member_id))
     await session.delete(membership)
     _audit(session, user, "organization.member.removed", membership, organization.id)
 
@@ -1098,51 +1058,23 @@ async def transfer_ownership(
 
 
 @router.post(
-    "/{org}/invitations", response_model=InvitationCreated | CodeInvitationView,
-    status_code=201, operation_id="inviteOrganizationMember",
-    responses={**OWNER_ROLE_RESPONSES, 404: _MANAGE_RESPONSES[404]},
+    "/{org}/invitations", response_model=CodeInvitationView,
+    status_code=201, operation_id="createOrganizationInvitation",
+    responses={404: _MANAGE_RESPONSES[404]},
 )
-async def invite_member(
+async def create_invitation(
     org: str,
-    payload: InvitationCreate | CodeInvitationCreate,
+    payload: CodeInvitationCreate,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(session_dependency, scope="function"),
-) -> InvitationCreated | CodeInvitationView:
-    """Invite to the organization (ADMIN).
-
-    With ``expires_in_days`` and ``max_uses`` (or an empty body): a shareable code, as SPHERE's, that joins
-    whoever holds it as MEMBER (``POST /v1/invitations/{code}/join``); a non-member gets 404. With ``email``
-    and ``role``: the email invitation and its ``obi_`` token, until B8 removes them.
-    """
-    if isinstance(payload, CodeInvitationCreate):
-        organization, _ = await _readable_org(session, org, user, OrganizationRole.ADMIN)
-        invitation = await _new_code(
-            session, organization, user, expires_in_days=payload.expires_in_days, max_uses=payload.max_uses,
-        )
-        return _code_view(invitation, user)
-    organization = await _required_org(session, org)
-    actor_role = await require_role(session, organization, user, OrganizationRole.ADMIN)
-    if _touches_owner(None, payload.role) and not _may_manage_owners(actor_role, user):
-        raise _owner_role_refusal()
-    secret = secrets.token_urlsafe(32)
-    prefix = secrets.token_hex(6)
-    token = f"obi_{prefix}_{secret}"
-    invitation = OrganizationInvitation(
-        organization_id=organization.id,
-        email=str(payload.email).lower(),
-        role=OrganizationRole(payload.role),
-        token_prefix=f"obi_{prefix}",
-        token_hash=hashlib.sha256(token.encode()).hexdigest(),
-        invited_by_id=user.id,
-        expires_at=utcnow() + timedelta(days=7),
+) -> CodeInvitationView:
+    """A shareable invitation code (ADMIN), as SPHERE's: whoever holds it joins as MEMBER
+    (``POST /v1/invitations/{code}/join``); an empty body takes the defaults. A non-member gets 404."""
+    organization, _ = await _readable_org(session, org, user, OrganizationRole.ADMIN)
+    invitation = await _new_code(
+        session, organization, user, expires_in_days=payload.expires_in_days, max_uses=payload.max_uses,
     )
-    session.add(invitation)
-    await session.flush()
-    _audit(session, user, "organization.invitation.created", invitation, organization.id)
-    return InvitationCreated(
-        id=invitation.id, organization_id=organization.id, email=invitation.email,
-        role=invitation.role.value, expires_at=invitation.expires_at, token=token
-    )
+    return _code_view(invitation, user)
 
 
 @router.post(
@@ -1275,41 +1207,3 @@ async def join_organization(
     await session.flush()
     _audit(session, user, "organization.invitation_code.joined", invitation, organization.id)
     return await _org_view(session, organization, user)
-
-
-@invitation_router.post("/accept", response_model=MemberView, operation_id="acceptOrganizationInvitation")
-async def accept_invitation(
-    payload: InvitationAccept,
-    user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(session_dependency, scope="function"),
-) -> MemberView:
-    parts = payload.token.split("_", 2)
-    if len(parts) != 3 or parts[0] != "obi":
-        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Invitation is invalid.")
-    prefix = f"obi_{parts[1]}"
-    invitation = await organization_repository.find_invitation_by_prefix(session, prefix)
-    actual = hashlib.sha256(payload.token.encode()).hexdigest()
-    if (
-        invitation is None
-        or not hmac.compare_digest(actual, invitation.token_hash)
-        or invitation.accepted_at is not None
-        or invitation.expires_at.replace(tzinfo=invitation.expires_at.tzinfo or utcnow().tzinfo) <= utcnow()
-        or invitation.email.casefold() != user.email.casefold()
-    ):
-        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Invitation is invalid or expired.")
-    organization = await session.get(Organization, invitation.organization_id)
-    membership = await organization_repository.get_membership(session, organization.id, user.id)
-    if membership is None:
-        membership = OrganizationMembership(
-            organization_id=organization.id, user_id=user.id, role=invitation.role
-        )
-        session.add(membership)
-    invitation.accepted_at = utcnow()
-    invitation.accepted_by_id = user.id
-    await session.flush()
-    _audit(session, user, "organization.invitation.accepted", invitation, organization.id)
-    return MemberView(
-        id=membership.id, organization_id=membership.organization_id, user_id=membership.user_id,
-        username=user.username, email=user.email,
-        role=membership.role.value, created_at=membership.created_at,
-    )

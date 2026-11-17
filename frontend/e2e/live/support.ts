@@ -22,7 +22,9 @@ export type LabRole = keyof typeof LAB_USERS;
 export const ORG = 'lab-main';
 export const OTHER_ORG = 'lab-other';
 export const CASE = 'simple-seq';
-/** The organization's own screens: its overview, and its problems below `${ORG_PATH}/problems`. */
+/** The organization's page (SPHERE's, with its tabs in the address). */
+export const ORG_PAGE = `/orgs/${ORG}`;
+/** The organization's workspace screens: its problems below `${ORG_PATH}/problems`, its compositions, runs and studies. */
 export const ORG_PATH = `/app/${ORG}`;
 /** The runs of the lab organization (`run-list`); a run is `${RUNS_PATH}/<id>` and the launcher `${RUNS_PATH}/new`. */
 export const RUNS_PATH = `/app/${ORG}/runs`;
@@ -104,7 +106,7 @@ export async function signInThroughForm(
   username: string,
   password: string
 ): Promise<void> {
-  await page.goto('/login');
+  await page.goto('/authentication');
   await page.getByLabel('Username or email').fill(username);
   await page.getByLabel('Password', { exact: true }).fill(password);
   await page.getByRole('button', { name: 'Log in' }).click();

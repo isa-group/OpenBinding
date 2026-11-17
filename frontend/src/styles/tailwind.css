@@ -188,6 +188,24 @@
   --color-tp-illustration-gold-light: #ffe16a;
   --color-tp-illustration-gold-dark: #b78103;
 
+  /* The swatches of SPHERE's organization avatar dialog (OrgAvatarModal's COLOR_PRESETS): an avatar's colours are stored
+     as hex, so the dialog reads the value of the swatch chosen from these. */
+  --color-tp-avatar-1: #023e8a;
+  --color-tp-avatar-2: #fa520f;
+  --color-tp-avatar-3: #cc3a05;
+  --color-tp-avatar-4: #1f1f1f;
+  --color-tp-avatar-5: #ffffff;
+  --color-tp-avatar-6: #2c2c2c;
+  --color-tp-avatar-7: #4a4a4a;
+  --color-tp-avatar-8: #6a6a6a;
+  --color-tp-avatar-9: #a8a8a8;
+  --color-tp-avatar-10: #e5e5e5;
+  --color-tp-avatar-11: #fff8e0;
+  --color-tp-avatar-12: #ffd06a;
+  --color-tp-avatar-13: #ffb83e;
+  --color-tp-avatar-14: #ffa110;
+  --color-tp-avatar-15: #ffd900;
+
   /* ═══════════════════════════════════════════════════════════════
      ELEVATION / SHADOWS
      ═══════════════════════════════════════════════════════════════ */
@@ -663,6 +681,22 @@
     100% {
       transform: rotate(0deg);
     }
+  }
+
+  /* The gradient that runs across "Reproduce." on the landing (SPHERE's home-global-styles, moved here). */
+  @keyframes hero-gradient-shift {
+    0% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+  .animate-hero-gradient {
+    animation: hero-gradient-shift 6.8s cubic-bezier(0.32, 0.72, 0, 1) infinite;
   }
 
   .animate-bell-ring {

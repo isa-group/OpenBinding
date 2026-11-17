@@ -51,10 +51,7 @@ describe('OrganizationPicker', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     expect(await screen.findByText(/You’re in no organization yet\./)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Open your workspace' })).toHaveAttribute(
-      'href',
-      '/app'
-    );
+    expect(screen.getByRole('link', { name: 'Create one' })).toHaveAttribute('href', '/orgs/new');
   });
 
   describe('as a choice (mode="select")', () => {

@@ -3,6 +3,7 @@ import {
   API,
   CASE,
   ORG,
+  ORG_PAGE,
   ORG_PATH,
   RUNS_PATH,
   capture,
@@ -45,8 +46,8 @@ test.describe('live · upload, run and study on lab-main', () => {
     const archive = await template.body();
 
     // 1 · The organization, its problems, and the upload.
-    await page.goto(ORG_PATH);
-    await main.getByRole('link', { name: 'All problems' }).click();
+    await page.goto(`${ORG_PAGE}/problems`);
+    await main.getByRole('link', { name: 'Open the problems' }).first().click();
     await expect(main.getByRole('heading', { level: 1, name: 'Problems' })).toBeVisible();
     await main.getByRole('button', { name: 'Upload BIM package' }).first().click();
     const dialog = page.getByRole('dialog', { name: 'Upload a BIM package' });

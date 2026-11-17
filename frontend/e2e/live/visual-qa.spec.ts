@@ -366,20 +366,20 @@ async function report(testInfo: TestInfo, name: string, rows: Row[]): Promise<vo
 
 const LOGIN: Stop = {
   slug: 'login',
-  path: '/login',
+  path: '/authentication',
   ready: page => page.getByRole('heading', { level: 1, name: 'Welcome back' }),
 };
 
 const OWNER_STOPS: Stop[] = [
   {
     slug: 'panel',
-    path: '/app',
-    ready: page => page.getByRole('heading', { level: 1, name: /^Hello, / }),
+    path: '/',
+    ready: page => page.getByRole('heading', { level: 1, name: /^Welcome back, / }),
   },
   {
     slug: 'organization',
-    path: `/app/${ORG}`,
-    ready: page => page.locator('main').getByRole('link', { name: 'All problems' }),
+    path: `/orgs/${ORG}/problems`,
+    ready: page => page.locator('main').getByRole('link', { name: 'Open the problems' }).first(),
   },
   {
     slug: 'cases',
@@ -398,13 +398,13 @@ const OWNER_STOPS: Stop[] = [
   },
   {
     slug: 'plan-permissions',
-    path: '/app/account/usage',
+    path: '/me/settings?section=plan',
     ready: page =>
-      page.locator('main').getByRole('heading', { level: 1, name: 'Plan & permissions' }),
+      page.locator('main').getByRole('heading', { level: 2, name: 'Plan & permissions' }),
   },
   {
     slug: 'team-organization',
-    path: `/app/${ORG}/settings/members`,
+    path: `/orgs/${ORG}/members`,
     ready: page => page.locator('main').getByRole('heading', { level: 1 }),
   },
 ];
@@ -489,8 +489,8 @@ function problemStops(mobile: boolean): Stop[] {
       : []),
     {
       slug: 'presets',
-      path: `/app/${ORG}/settings/presets`,
-      ready: page => main(page).getByRole('heading', { level: 1, name: 'Run presets' }),
+      path: `/orgs/${ORG}/presets`,
+      ready: page => main(page).getByRole('heading', { level: 2, name: 'Run presets' }),
     },
   ];
 }

@@ -8,27 +8,30 @@ import { screens } from './router';
 
 // prettier-ignore
 const SCREENS: Array<[string, string, string]> = [
-  ['pub-home', '/', 'public'],
   ['pub-workbench', '/workbench', 'public'],
   ['pub-about', '/about', 'public'],
   ['pub-pricing', '/pricing', 'public'],
   ['pub-language', '/language', 'public'],
-  ['auth-login', '/login', 'public'],
-  ['auth-register', '/register', 'public'],
-  ['auth-reset-request', '/password-reset', 'public'],
-  ['auth-cas-callback', '/auth/cas/callback', 'public'],
+  ['auth', '/authentication', 'public'],
+  ['auth-forgot-password', '/forgot-password', 'public'],
+  ['auth-reset-password', '/reset-password', 'public'],
+  ['auth-sso-callback', '/sso/callback', 'public'],
   ['eng-catalog', '/engines', 'public'],
   ['eng-detail', '/engines/:namespace/:name/:version', 'public'],
-  ['org-invite-accept', '/invitations/accept', 'session'],
+  ['pub-home', '/', 'session'],
+  ['org-explore', '/organizations', 'session'],
+  ['org-detail', '/orgs/:org/:tab?', 'session'],
   ['pub-compositions', '/compositions', 'session'],
   ['pub-showcase', '/c/:org/:composition', 'session'],
+  ['org-list', '/me/orgs', 'protected'],
+  ['org-new', '/orgs/new', 'protected'],
+  ['org-join', '/orgs/join/:code', 'protected'],
+  ['notifications', '/notifications', 'protected'],
+  ['acct-settings', '/me/settings', 'protected'],
+  ['acct-api-keys', '/me/api-keys', 'protected'],
   ['eng-register', '/app/engines/new', 'app'],
   ['eng-registrations', '/app/engines/registrations', 'app'],
   ['eng-registration-detail', '/app/engines/registrations/:name', 'app'],
-  ['acct-profile', '/app/account/:section?', 'app'],
-  ['app-home', '/app', 'app'],
-  ['org-overview', '/app/:org', 'app'],
-  ['org-settings', '/app/:org/settings/:section?', 'app'],
   ['composition-list', '/app/:org/compositions', 'app'],
   ['composition-detail', '/app/:org/compositions/:composition/:tab?', 'app'],
   ['problem-list', '/app/:org/problems', 'app'],
@@ -46,7 +49,7 @@ const SCREENS: Array<[string, string, string]> = [
   ['admin-moderation', '/app/admin/moderation', 'app'],
 ];
 
-const CEILING = 36;
+const CEILING = 39;
 
 describe('screen budget', () => {
   it('serves exactly the listed screens, with their addresses and layouts, in table order', () => {
@@ -65,7 +68,7 @@ describe('screen budget', () => {
     const source = readFileSync(`${process.cwd()}/src/routes/router.tsx`, 'utf8');
     const lines =
       source.match(
-        /^\s*\{ id: '[a-z0-9-]+', path: '\/[^']*', layout: '(public|session|app)'.*\},$/gm
+        /^\s*\{ id: '[a-z0-9-]+', path: '\/[^']*', layout: '(public|session|protected|app)'.*\},$/gm
       ) ?? [];
     expect(lines).toHaveLength(screens.length);
   });

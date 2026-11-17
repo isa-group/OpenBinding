@@ -50,7 +50,7 @@ async def test_ownership_is_swapped_over_the_whole_branch(api_client, registrati
     root = await org(api_client, owner, "Handed")
     child = await org(api_client, owner, "Handed child", parent=root["id"])
     await add(api_client, owner, root["slug"], heir_account, "MEMBER")
-    await add(api_client, owner, child["slug"], other_account, "OWNER")
+    await add(api_client, owner, child["slug"], other_account, "ADMIN")
 
     handed = await api_client.put(
         f"/v1/organizations/{root['slug']}/owner", headers=owner, json={"user_id": heir_account["id"]},
@@ -115,8 +115,8 @@ async def test_a_member_leaves_but_an_owner_hands_over_first(api_client, registr
     assert left.status_code == 204, left.text
     assert viewer_account["id"] not in await roles(api_client, owner, root["slug"])
     assert not_member.status_code == 404
-    # The only owner is kept until it hands the organization over (B8 makes that the only way out).
-    assert stays.status_code == 409 and code(stays) == "last_owner"
+    # The owner's seat moves only by a transfer: the owner hands the organization over before leaving.
+    assert stays.status_code == 409 and code(stays) == "owner_transfer_required"
     # Removing somebody else is the ADMIN route it was (403 for a non-member until the routes move to 404).
     other = await api_client.delete(f"{members}/{owner_account['id']}", headers=stranger)
     assert other.status_code == 403

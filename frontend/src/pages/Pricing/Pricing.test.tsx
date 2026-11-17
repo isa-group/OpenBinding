@@ -199,12 +199,12 @@ describe('Pricing', () => {
 
     expect(await screen.findByRole('link', { name: 'Sign up' })).toHaveAttribute(
       'href',
-      '/register'
+      '/authentication?view=register'
     );
     expect(
       screen
         .getAllByRole('link', { name: 'Log in with CAS' })
-        .every(link => link.getAttribute('href') === '/login')
+        .every(link => link.getAttribute('href') === '/authentication')
     ).toBe(true);
     expect(screen.queryByText('Available to your account')).not.toBeInTheDocument();
     expect(screen.queryByText('Your current plan')).not.toBeInTheDocument();
@@ -384,11 +384,11 @@ describe('Pricing', () => {
     expect(screen.queryByRole('link', { name: 'Sign up' })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Link CAS identity' })).toHaveAttribute(
       'href',
-      '/app/account/identities'
+      '/me/settings?section=integrations'
     );
     expect(screen.getByRole('link', { name: 'Manage identities' })).toHaveAttribute(
       'href',
-      '/app/account/identities'
+      '/me/settings?section=integrations'
     );
   });
 
@@ -433,7 +433,7 @@ describe('Pricing', () => {
     ).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'See your plan' })).toHaveAttribute(
       'href',
-      '/app/account/usage'
+      '/me/settings?section=plan'
     );
   });
 
@@ -469,7 +469,7 @@ describe('Pricing', () => {
     });
     expect(within(actions.FREE).getByRole('link', { name: 'Sign up' })).toHaveAttribute(
       'href',
-      '/register'
+      '/authentication?view=register'
     );
     expect(screen.getByTestId('summary-actions')).toBeEmptyDOMElement();
     expect(renderer.props).toMatchObject({
@@ -507,7 +507,7 @@ describe('Pricing', () => {
     expect(actions.LAB).toBeEmptyDOMElement();
     expect(
       within(actions.RESEARCH).getByRole('link', { name: 'Link CAS identity' })
-    ).toHaveAttribute('href', '/app/account/identities');
+    ).toHaveAttribute('href', '/me/settings?section=integrations');
     expect(actions.FREE).toBeEmptyDOMElement();
   });
 

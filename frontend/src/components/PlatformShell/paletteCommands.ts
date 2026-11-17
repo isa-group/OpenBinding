@@ -45,7 +45,7 @@ export function buildCommands({
   ];
 
   for (const item of organizations) {
-    commands.push(command('Organization', item.name, 'Organization', `/app/${item.slug}`));
+    commands.push(command('Organization', item.name, 'Organization', `/orgs/${item.slug}`));
   }
   if (organization) {
     const entries = Object.fromEntries(
@@ -140,25 +140,26 @@ export function buildCommands({
   }
 
   const accountDesc: Record<string, string> = {
-    Profile: 'Your details and security',
+    Settings: 'Your email, password and account',
     Plan: 'Your plan and the SPACE and SPHERE consoles',
     'API keys': 'Keys for scripts and CI',
-    Identities: 'Accounts you sign in with',
-    Notifications: 'Everything sent to your account',
+    'Sign-in & Security': 'The identities you sign in with',
+    Notifications: 'Which notifications you get, and how',
+    Appearance: 'The colour palette: SPHERE orange or OpenBinding blue',
   };
   commands.push(
     command(
       'Create',
       'New organization',
       'Problems, runs and studies with their members',
-      '/app?create=organization',
+      '/orgs/new',
       '+'
     ),
     command(
       'Create',
       'New API key',
       'Scoped key for scripts and CI',
-      '/app/account/keys?create=key',
+      '/me/api-keys?create=key',
       '+'
     ),
     command(

@@ -106,8 +106,11 @@ const org = (
   id,
   slug,
   name,
-  parent_id: null,
+  parent_id: null as string | null,
   effective_role: role,
+  description: '',
+  avatar: { url: null, kind: null, bg_color: null, fg_color: null },
+  stats: { members: 3, sub_organizations: 0, compositions: 2, problems: 1, runs: 4, studies: 1 },
   created_at: '2026-03-03T00:00:00Z',
   ...over,
 });
@@ -872,10 +875,70 @@ function problemRoutes(request: Request, orgSlug: string): Reply {
   return notFound('Not mocked.');
 }
 
+type MockOrganization = (typeof ORGANIZATIONS)[number];
+
+/** `GET /v1/organizations?tree=true`: the top-level organizations, each with its `children` and the source of its role. */
+function organizationTree(): unknown[] {
+  const ids = new Set(ORGANIZATIONS.map(item => item.id));
+  const node = (item: MockOrganization, inherited: MockOrganization | null): unknown => ({
+    ...item,
+    role_source: inherited
+      ? { id: inherited.id, slug: inherited.slug, name: inherited.name }
+      : null,
+    children: ORGANIZATIONS.filter(child => child.parent_id === item.id).map(child =>
+      node(child, child.effective_role === item.effective_role ? (inherited ?? item) : null)
+    ),
+  });
+  return ORGANIZATIONS.filter(item => !item.parent_id || !ids.has(item.parent_id)).map(item =>
+    node(item, null)
+  );
+}
+
+/** The organizations that publish: what `GET /v1/organizations/public` lists to anybody. */
+const PUBLIC_ORGANIZATIONS = [
+  {
+    id: 'org-isa-demo',
+    slug: 'isa-demo',
+    name: 'ISA Demo Group',
+    description: 'Compositions and studies of the ISA research group.',
+    avatar: { url: null, kind: null, bg_color: null, fg_color: null },
+    public_compositions: 2,
+  },
+  {
+    id: 'org-lab-other',
+    slug: 'lab-other',
+    name: 'Lab Other',
+    description: '',
+    avatar: { url: null, kind: null, bg_color: null, fg_color: null },
+    public_compositions: 1,
+  },
+];
+
 function organizationRoutes(request: Request): Reply {
-  const { parts } = request;
+  const { parts, query } = request;
   const [, , orgSlug, section] = parts;
-  if (!orgSlug) return ok(ORGANIZATIONS);
+  if (!orgSlug) {
+    if (request.method === 'POST') {
+      const body = request.body();
+      const name = String(body.name ?? 'New organization');
+      const slug = name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '');
+      return ok(
+        org(`org-${slug}`, slug, name, 'OWNER', { parent_id: body.parent_id ?? null }),
+        201
+      );
+    }
+    return ok(query.get('tree') === 'true' ? organizationTree() : ORGANIZATIONS);
+  }
+  if (orgSlug === 'public') {
+    const q = (query.get('q') ?? '').toLowerCase();
+    const items = PUBLIC_ORGANIZATIONS.filter(item =>
+      `${item.slug} ${item.name}`.toLowerCase().includes(q)
+    );
+    return ok({ items, total: items.length });
+  }
   const found = ORGANIZATIONS.find(item => item.slug === orgSlug || item.id === orgSlug);
   if (!found)
     return {
@@ -942,6 +1005,8 @@ function userRoutes(request: Request): Reply {
       return ok(USAGE);
     case 'api-keys':
       return subId ? { status: 204 } : ok({ api_keys: API_KEYS });
+    case 'settings':
+      return subId === 'beta-features' ? ok({ enabled: false }) : notFound();
     case 'identities':
       return ok([
         { id: 'i1', provider: 'us-cas', subject: 'arivera1', verifiedAt: '2026-09-01T00:00:00Z' },
@@ -1115,12 +1180,27 @@ function route(request: Request): Reply | null {
       return second === 'me' ? userRoutes(request) : null;
     case 'notifications':
       if (!second) return ok(NOTIFICATIONS);
+      if (second === 'unread-count')
+        return ok({ count: NOTIFICATIONS.filter(item => !item.read_at).length });
+      // The live stream: a ticket, then a stream that says it is connected and ends (the bell reconnects later).
+      if (second === 'stream-ticket') return ok({ ticket: 'gallery-ticket', expires_in: 60 });
+      if (second === 'stream')
+        return { status: 200, type: 'text/event-stream', text: 'event: connected\ndata: {}\n\n' };
+      if (second === 'read-all') return ok({ updated: 0 });
+      if (third === 'read') return ok(NOTIFICATIONS.find(item => item.id === second) ?? {});
       if (second === 'preferences')
         return ok({
           inbox: true,
           email_contract_changes: true,
           email_invitations: true,
           email_job_failures: false,
+          kinds: {
+            OrganizationInvitation: { inbox: true, email: true },
+            System: { inbox: true, email: true },
+            CompositionUpdated: { inbox: true, email: false },
+            RunFinished: { inbox: true, email: false },
+            RunFailed: { inbox: true, email: true },
+          },
         });
       return null;
     case 'pricing':
@@ -1129,6 +1209,16 @@ function route(request: Request): Reply | null {
       return null;
     case 'organizations':
       return organizationRoutes(request);
+    case 'invitations':
+      // Any code the gallery opens invites to Lab Other, from Priya.
+      if (third === 'preview')
+        return ok({
+          code: second,
+          expires_at: null,
+          invited_by: { id: '00000000-0000-4000-8000-0000000000aa', username: 'priya' },
+          organization: PUBLIC_ORGANIZATIONS[1],
+        });
+      return null;
     case 'compositions':
       return second
         ? request.compositions.language(request)
@@ -1231,7 +1321,17 @@ export async function installMockApi(
     }
     // An organization's compositions answer anybody: its public ones are read without a session.
     const compositionRead = parts[1] === 'organizations' && parts[3] === 'compositions';
-    if (!signedIn && parts[0] === 'v1' && SESSION_ONLY.has(parts[1]) && !compositionRead) {
+    // The public organizations, an organization's profile and an invitation's preview answer anybody too.
+    const openRead =
+      (parts[1] === 'organizations' && (parts[2] === 'public' || parts[3] === 'profile')) ||
+      (parts[1] === 'invitations' && parts[3] === 'preview');
+    if (
+      !signedIn &&
+      parts[0] === 'v1' &&
+      SESSION_ONLY.has(parts[1]) &&
+      !compositionRead &&
+      !openRead
+    ) {
       await call.fulfill({
         status: 401,
         json: { detail: { code: 'not_authenticated', error: 'Authentication required.' } },

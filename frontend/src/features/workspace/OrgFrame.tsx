@@ -31,9 +31,9 @@ export function OrgFrame({
   children,
 }: OrgFrameProps) {
   const items: Crumb[] = [
-    { label: 'Home', to: '/app' },
+    { label: 'Home', to: '/' },
     trail.length > 0
-      ? { label: organization.name, to: `/app/${organization.slug}` }
+      ? { label: organization.name, to: `/orgs/${organization.slug}` }
       : { label: organization.name },
     ...trail,
   ];
@@ -83,7 +83,7 @@ export function OrgGate({ failure, organizationName, onRetry }: OrgGateProps) {
         <Gate
           title={`Your role doesn’t reach this${marker(failure)}`}
           action={
-            <Action to="/app" variant="primary">
+            <Action to="/" variant="primary">
               Back to Home
             </Action>
           }
@@ -106,7 +106,7 @@ export function OrgGate({ failure, organizationName, onRetry }: OrgGateProps) {
                   Try again
                 </Action>
               )}
-              <Action to="/app" variant="secondary">
+              <Action to="/" variant="secondary">
                 Back to Home
               </Action>
             </>
@@ -124,7 +124,7 @@ export function OrgGate({ failure, organizationName, onRetry }: OrgGateProps) {
       <Gate
         title="Organization not available"
         action={
-          <Action to="/app" variant="primary">
+          <Action to="/" variant="primary">
             Back to Home
           </Action>
         }

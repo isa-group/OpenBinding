@@ -12,7 +12,7 @@ import { FaBuilding, FaCogs, FaFileAlt, FaFlask, FaPlay, FaProjectDiagram } from
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { buildCommands } from '../../../../components/PlatformShell/paletteCommands';
 import { workspaceSlugs } from '../../../../components/PlatformShell/workspacePath';
-import { NotificationDropdown } from '../../../../components/NotificationDropdown/NotificationDropdown';
+import NotificationBell from '../../../notification/components/notification-bell';
 import { InstitutionMark } from '../../../../components/InstitutionMark';
 import { config } from '../../../../config';
 import { useAuth } from '../../../auth/hooks/useAuth';
@@ -243,7 +243,7 @@ export default function AppHeader() {
             </div>
 
             <div className="hidden md:block">
-              <NotificationDropdown />
+              <NotificationBell />
             </div>
 
             <div className="hidden md:block">

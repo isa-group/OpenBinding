@@ -29,9 +29,8 @@ from openbinding_gateway.db.models import (
     Job,
     JobState,
     Organization,
-    OrganizationInvitation,
+    OrganizationInvitationCode,
     OrganizationMembership,
-    OrganizationRole,
     ProblemCompilation,
     RunPreset,
     Study,
@@ -75,9 +74,8 @@ async def test_an_organization_is_deleted_with_its_subtree_in_an_order_the_forei
             organization_id=organization.id, slug="s", name="S", created_by_id=user.id,
             definition={"revision_ids": [str(upload.revision.id)]}, definition_digest="sha256-" + "d" * 64,
         ),
-        OrganizationInvitation(
-            organization_id=organization.id, email="someone@example.org", role=OrganizationRole.MEMBER,
-            token_prefix=f"obi_{uuid.uuid4().hex[:12]}", token_hash="x" * 64, invited_by_id=user.id,
+        OrganizationInvitationCode(
+            organization_id=organization.id, code=uuid.uuid4().hex[:16], created_by_id=user.id,
             expires_at=utcnow() + timedelta(days=1),
         ),
         AuditEvent(organization_id=child.id, actor_id=user.id, action="problem.created", target_type="BindingCase", detail={}),
@@ -96,7 +94,7 @@ async def test_an_organization_is_deleted_with_its_subtree_in_an_order_the_forei
     assert await _count(reader, Study, Study.organization_id.in_(ids)) == 0
     assert await _count(reader, Blob, Blob.organization_id.in_(ids)) == 0
     assert await _count(reader, OrganizationMembership, OrganizationMembership.organization_id.in_(ids)) == 0
-    assert await _count(reader, OrganizationInvitation, OrganizationInvitation.organization_id.in_(ids)) == 0
+    assert await _count(reader, OrganizationInvitationCode, OrganizationInvitationCode.organization_id.in_(ids)) == 0
     assert await _count(reader, AuditEvent, AuditEvent.organization_id.in_(ids)) == 0
     assert await reader.get(User, user.id) is not None
 

@@ -22,7 +22,7 @@ test.describe('S10a · compositions', () => {
   }) => {
     const mock = await installMockApi(page, 'admin');
     await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto('/app/isa-demo');
+    await page.goto('/app/isa-demo/runs');
 
     const header = page.getByRole('banner');
     await header.getByRole('button', { name: 'New', exact: true }).click();

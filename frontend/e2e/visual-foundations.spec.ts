@@ -105,11 +105,11 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         await expect(nav.getByRole('link', { name: 'About' })).toHaveAttribute('href', '/about');
         await expect(header.getByRole('link', { name: 'Log in' })).toHaveAttribute(
           'href',
-          '/login'
+          '/authentication'
         );
         await expect(header.getByRole('link', { name: /Sign up/ })).toHaveAttribute(
           'href',
-          '/register'
+          '/authentication?view=register'
         );
         await expect(header.getByRole('link', { name: /Schemas/ })).toHaveCount(0);
         await page.keyboard.press('Escape');
@@ -148,9 +148,10 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
     test('research account shows the institutional co-brand', async ({ page }, testInfo) => {
       await signInAsResearchAccount(page);
+      // Signed in, the root address is the dashboard under the application header.
       await openHome(page);
 
-      const header = page.locator('header.site-header');
+      const header = page.locator('header.app-header');
       const footer = page.locator('footer.site-footer');
       const headerMark = header.getByRole('img', { name: 'Universidad de Sevilla' });
       await expect(headerMark).toBeVisible();
@@ -165,7 +166,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       if (!isMobile) {
         await header.getByRole('button', { name: 'Account menu' }).click();
-        await expect(header.getByRole('link', { name: 'Account', exact: true })).toBeVisible();
+        await expect(header.getByRole('link', { name: 'Settings', exact: true })).toBeVisible();
         await page.screenshot({
           path: testInfo.outputPath(`header-${name}-research-account-menu.png`),
           animations: 'disabled',

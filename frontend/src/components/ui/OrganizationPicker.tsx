@@ -57,7 +57,7 @@ function Failed({ onRetry }: { onRetry: () => void }) {
 
 const NONE = (
   <span>
-    You’re in no organization yet. <Link to="/app">Open your workspace</Link> to create one.
+    You’re in no organization yet. <Link to="/orgs/new">Create one</Link> first.
   </span>
 );
 

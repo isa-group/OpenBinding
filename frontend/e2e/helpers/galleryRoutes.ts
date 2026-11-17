@@ -8,12 +8,12 @@ import { readFileSync } from 'node:fs';
 export interface ScreenLine {
   id: string;
   path: string;
-  layout: 'public' | 'session' | 'app';
+  layout: 'public' | 'session' | 'protected' | 'app';
   requireAdmin: boolean;
 }
 
 const SCREEN_LINE =
-  /^\s*\{ id: '([a-z0-9-]+)', path: '(\/[^']*)', layout: '(public|session|app)'(.*)$/gm;
+  /^\s*\{ id: '([a-z0-9-]+)', path: '(\/[^']*)', layout: '(public|session|protected|app)'(.*)$/gm;
 
 function routerSource(): string {
   return readFileSync(new URL('../../src/routes/router.tsx', import.meta.url), 'utf8');
@@ -36,7 +36,7 @@ export function countScreenLines(): number {
 
 /**
  * The route pattern without its optional segments (`:section?`), each dropped with its slash, so an example address visits the base
- * address of a screen that takes sections (`/app/account/:section?` is visited at `/app/account`). Fill the other parameters afterwards.
+ * address of a screen that takes sections (`/orgs/:org/:tab?` is visited at `/orgs/:org`). Fill the other parameters afterwards.
  * A `?` that starts a query (`/app/:org?create=organization`) is not an optional marker: the marker ends the segment.
  */
 export function dropOptionalSegments(path: string): string {
@@ -49,7 +49,7 @@ export interface GalleryScreen {
   path: string;
   layout: ScreenLine['layout'];
   requireAdmin: boolean;
-  /** The screen sits under /app (the authenticated workspace). */
+  /** The screen needs an account: the old workspace under /app, or a protected screen of SPHERE's authenticated layout. */
   underApp: boolean;
   /** A public address that signed-in people use too (it renders in the application layout with a session). */
   sessionHeader: boolean;
@@ -104,7 +104,7 @@ export function readGalleryScreens(): GalleryScreen[] {
       path,
       layout,
       requireAdmin,
-      underApp: path === '/app' || path.startsWith('/app/'),
+      underApp: layout === 'app' || layout === 'protected',
       sessionHeader: layout === 'session',
       url: `${address}${QUERY_OF[id] ?? ''}`,
     };

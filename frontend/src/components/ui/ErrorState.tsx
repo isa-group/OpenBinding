@@ -201,14 +201,14 @@ function defaultActionsFor(
   switch (variant) {
     case '401':
       return (
-        <StateAction tone="primary" to="/login">
+        <StateAction tone="primary" to="/authentication">
           Log in again
         </StateAction>
       );
     case '402':
       return (
         <>
-          <StateAction tone="primary" to="/app/account/usage">
+          <StateAction tone="primary" to="/me/settings?section=plan">
             See your plan
           </StateAction>
           <StateAction to="/pricing">Request an agreement</StateAction>
@@ -217,7 +217,7 @@ function defaultActionsFor(
     case '403':
     case '404':
       return (
-        <StateAction tone="primary" to="/app">
+        <StateAction tone="primary" to="/">
           Back to the workspace
         </StateAction>
       );

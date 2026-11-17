@@ -571,7 +571,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByText('Engine limit reached (402)')).toBeVisible();
       await expect(main.getByRole('link', { name: 'See your plan' })).toHaveAttribute(
         'href',
-        '/app/account/usage'
+        '/me/settings?section=plan'
       );
       await capture(page, testInfo, `register-${name}-402`, { height: tall(2400) });
       state.refuse.createRegistration = problem(
@@ -692,7 +692,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByText('4 of 5 used')).toBeVisible();
       await expect(main.getByRole('link', { name: 'See all your limits' })).toHaveAttribute(
         'href',
-        '/app/account/usage'
+        '/me/settings?section=plan'
       );
       const edge = main.getByRole('row', { name: 'edge-solver 0.3.1' });
       await expect(edge.getByText('Passed')).toBeVisible();

@@ -31,7 +31,7 @@ from openbinding_gateway.db.models import (
     Job,
     JobState,
     Notification,
-    OrganizationInvitation,
+    OrganizationInvitationCode,
     OrganizationMembership,
     PasswordResetToken,
     RefreshToken,
@@ -92,10 +92,10 @@ async def test_deletion_pseudonymises_the_row_and_removes_what_was_the_accounts_
         json={"user_id": profile["id"], "role": "ADMIN"},
     )
     assert joined.status_code == 200, joined.text
-    invited = await api_client.post(f"/v1/organizations/{slug}/invitations", headers=headers, json={"email": "guest@example.org"})
+    invited = await api_client.post(f"/v1/organizations/{slug}/invitations", headers=headers, json={})
     assert invited.status_code == 201, invited.text
-    to_them = await api_client.post(f"/v1/organizations/{slug}/invitations", headers=colleague_headers, json={"email": details["email"]})
-    assert to_them.status_code == 201, to_them.text
+    theirs = await api_client.post(f"/v1/organizations/{slug}/invitations", headers=colleague_headers, json={})
+    assert theirs.status_code == 201, theirs.text
     key = await api_client.post(
         "/v1/users/me/api-keys", headers=headers,
         json={"name": "k", "permissions": ["account:read"], "engine_access": {"all": False, "engines": []}},
@@ -135,7 +135,8 @@ async def test_deletion_pseudonymises_the_row_and_removes_what_was_the_accounts_
         (OrganizationMembership, OrganizationMembership.user_id),
     ):
         assert await count(db_session, model, column == user_id) == 0, model.__name__
-    assert await count(db_session, OrganizationInvitation) == 0  # the one they sent and the one sent to them
+    # The code they made goes; the colleague's stays.
+    assert await count(db_session, OrganizationInvitationCode) == 1
     # Shared history stays and still names the account; the engines no longer serve new runs.
     assert (await db_session.get(Job, job_id)).created_by_id == user_id
     assert (await db_session.get(EngineRevision, engine_id)) is not None

@@ -26,7 +26,7 @@ from openbinding_gateway.routes.cas import CAS_ERROR_CODES
 from _pricing import fake_pricing_gate, largest_plan, pricing_catalog
 
 FRONTEND = "https://app.openbinding.example"
-CALLBACK_PREFIX = f"{FRONTEND}/auth/cas/callback?"
+CALLBACK_PREFIX = f"{FRONTEND}/sso/callback?"
 DEFAULT_PLAN = pricing_catalog().default_plan
 
 

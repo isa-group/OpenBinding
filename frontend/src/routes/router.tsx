@@ -10,20 +10,16 @@ import ProtectedRoute from '../modules/auth/components/protected-route';
 import NotFoundPage from '../modules/core/pages/page-not-found';
 import AuthenticatedLayout from '../modules/presentation/layouts/authenticated-layout';
 import PublicLayout from '../modules/presentation/layouts/public-layout';
-import { CasCallback } from '../pages/Auth/CasCallback';
-import { Login } from '../pages/Auth/Login';
-import { PasswordResetPage } from '../pages/Auth/PasswordReset';
-import { Register } from '../pages/Auth/Register';
 import { Engines } from '../pages/Engines/Engines';
-import { Home } from '../pages/Home/Home';
 import AppLayout from './app-layout';
 import { LegacyOrgOutlet } from './LegacyOrgOutlet';
 
 /**
  * Where a screen renders: `public` in the public layout, `session` in the layout of the session (the workspace chrome when
- * signed in, the public one otherwise), `app` in the workspace under /app, which needs an account.
+ * signed in, the public one otherwise), `protected` in SPHERE's authenticated layout (an account is needed), `app` in the old
+ * workspace under /app, which needs an account too and goes as its screens are poured into SPHERE's pages.
  */
-export type ScreenLayout = 'public' | 'session' | 'app';
+export type ScreenLayout = 'public' | 'session' | 'protected' | 'app';
 
 /** One screen of the application and the address that serves it. */
 export interface Screen {
@@ -39,14 +35,31 @@ export interface Screen {
 const named = <K extends string>(load: () => Promise<Record<K, ComponentType>>, name: K) =>
   lazy(() => load().then(module => ({ default: module[name] })));
 
+const RootPage = lazy(() => import('../modules/presentation/pages/root'));
+const PublicOrganizationsPage = lazy(
+  () => import('../modules/organization/pages/public-organizations-list')
+);
+const OrganizationsListPage = lazy(
+  () => import('../modules/organization/pages/organizations-list')
+);
+const OrganizationDetailPage = lazy(
+  () => import('../modules/organization/pages/organization-detail')
+);
+const OrganizationJoinPage = lazy(() => import('../modules/organization/pages/organization-join'));
+const InboxPage = lazy(() => import('../modules/notification/pages/inbox'));
+const SettingsPage = lazy(() => import('../modules/settings/pages/settings-page'));
+const ApiKeysPage = lazy(() => import('../modules/api-keys/pages/api-keys-page'));
+const AuthenticationPage = lazy(() => import('../modules/auth/pages/authentication-page'));
+const ForgotPasswordPage = lazy(() => import('../modules/auth/pages/forgot-password'));
+const ResetPasswordPage = lazy(() => import('../modules/auth/pages/reset-password'));
+const SsoCallbackPage = lazy(() => import('../modules/auth/pages/sso-callback'));
+const CreateOrganizationPage = lazy(
+  () => import('../modules/organization/pages/create-organization')
+);
 const About = named(() => import('../pages/About/About'), 'About');
 const WorkbenchPage = named(() => import('../pages/Public/PublicPages'), 'WorkbenchPage');
 const Pricing = named(() => import('../pages/Pricing/Pricing'), 'Pricing');
 const LanguagePage = named(() => import('../pages/Language/LanguagePage'), 'LanguagePage');
-const AcceptInvitation = named(
-  () => import('../pages/Invitations/AcceptInvitation'),
-  'AcceptInvitation'
-);
 const EngineDetail = named(() => import('../pages/EngineDetail/EngineDetail'), 'EngineDetail');
 const RegisterEngine = named(
   () => import('../pages/RegisterEngine/RegisterEngine'),
@@ -60,10 +73,6 @@ const EngRegistrationDetail = named(
   () => import('../pages/Engines/EngRegistrationDetail'),
   'EngRegistrationDetail'
 );
-const AccountPage = named(() => import('../pages/Account/AccountPage'), 'AccountPage');
-const AppHome = named(() => import('../pages/AppHome/AppHome'), 'AppHome');
-const OrgOverview = named(() => import('../pages/Organization/OrgOverview'), 'OrgOverview');
-const OrgSettings = named(() => import('../pages/Organization/OrgSettings'), 'OrgSettings');
 const PublicCompositionList = named(
   () => import('../pages/PublicCompositions/PublicCompositionList'),
   'PublicCompositionList'
@@ -101,37 +110,44 @@ const AdminModeration = named(() => import('../pages/Admin/AdminModeration'), 'A
 // prettier-ignore
 export const screens: Screen[] = [
   // ═══════════════════════════════════════════════════════════
-  // PUBLIC ROUTES (the public layout; `/` becomes the landing or the dashboard in B5)
+  // PUBLIC ROUTES (the public layout)
   // ═══════════════════════════════════════════════════════════
-  { id: 'pub-home', path: '/', layout: 'public', element: <Home /> },
   { id: 'pub-workbench', path: '/workbench', layout: 'public', element: <WorkbenchPage /> },
   { id: 'pub-about', path: '/about', layout: 'public', element: <About /> },
   { id: 'pub-pricing', path: '/pricing', layout: 'public', element: <Pricing /> },
   { id: 'pub-language', path: '/language', layout: 'public', element: <LanguagePage /> },
-  { id: 'auth-login', path: '/login', layout: 'public', element: <Login /> },
-  { id: 'auth-register', path: '/register', layout: 'public', element: <Register /> },
-  { id: 'auth-reset-request', path: '/password-reset', layout: 'public', element: <PasswordResetPage /> },
-  { id: 'auth-cas-callback', path: '/auth/cas/callback', layout: 'public', element: <CasCallback /> },
+  { id: 'auth', path: '/authentication', layout: 'public', element: <AuthenticationPage /> },
+  { id: 'auth-forgot-password', path: '/forgot-password', layout: 'public', element: <ForgotPasswordPage /> },
+  { id: 'auth-reset-password', path: '/reset-password', layout: 'public', element: <ResetPasswordPage /> },
+  { id: 'auth-sso-callback', path: '/sso/callback', layout: 'public', element: <SsoCallbackPage /> },
   { id: 'eng-catalog', path: '/engines', layout: 'public', element: <Engines /> },
   { id: 'eng-detail', path: '/engines/:namespace/:name/:version', layout: 'public', element: <EngineDetail /> },
 
   // ═══════════════════════════════════════════════════════════
   // PUBLIC ROUTES (AppLayout: public or authenticated chrome, by session)
   // ═══════════════════════════════════════════════════════════
-  { id: 'org-invite-accept', path: '/invitations/accept', layout: 'session', element: <AcceptInvitation /> },
+  { id: 'pub-home', path: '/', layout: 'session', element: <RootPage /> },
+  { id: 'org-explore', path: '/organizations', layout: 'session', element: <PublicOrganizationsPage /> },
+  { id: 'org-detail', path: '/orgs/:org/:tab?', layout: 'session', element: <OrganizationDetailPage /> },
   { id: 'pub-compositions', path: '/compositions', layout: 'session', element: <PublicCompositionList /> },
   { id: 'pub-showcase', path: '/c/:org/:composition', layout: 'session', element: <Showcase /> },
 
   // ═══════════════════════════════════════════════════════════
-  // PROTECTED ROUTES (require auth + AuthenticatedLayout, under /app)
+  // PROTECTED ROUTES (require auth + AuthenticatedLayout)
+  // ═══════════════════════════════════════════════════════════
+  { id: 'org-list', path: '/me/orgs', layout: 'protected', element: <OrganizationsListPage /> },
+  { id: 'org-new', path: '/orgs/new', layout: 'protected', element: <CreateOrganizationPage /> },
+  { id: 'org-join', path: '/orgs/join/:code', layout: 'protected', element: <OrganizationJoinPage /> },
+  { id: 'notifications', path: '/notifications', layout: 'protected', element: <InboxPage /> },
+  { id: 'acct-settings', path: '/me/settings', layout: 'protected', element: <SettingsPage /> },
+  { id: 'acct-api-keys', path: '/me/api-keys', layout: 'protected', element: <ApiKeysPage /> },
+
+  // ═══════════════════════════════════════════════════════════
+  // PROTECTED ROUTES (the old workspace under /app, until its screens are poured into SPHERE's pages)
   // ═══════════════════════════════════════════════════════════
   { id: 'eng-register', path: '/app/engines/new', layout: 'app', element: <RegisterEngine /> },
   { id: 'eng-registrations', path: '/app/engines/registrations', layout: 'app', element: <EngRegistrations /> },
   { id: 'eng-registration-detail', path: '/app/engines/registrations/:name', layout: 'app', element: <EngRegistrationDetail /> },
-  { id: 'acct-profile', path: '/app/account/:section?', layout: 'app', element: <AccountPage /> },
-  { id: 'app-home', path: '/app', layout: 'app', element: <AppHome /> },
-  { id: 'org-overview', path: '/app/:org', layout: 'app', element: <OrgOverview /> },
-  { id: 'org-settings', path: '/app/:org/settings/:section?', layout: 'app', element: <OrgSettings /> },
   { id: 'composition-list', path: '/app/:org/compositions', layout: 'app', element: <CompositionList /> },
   { id: 'composition-detail', path: '/app/:org/compositions/:composition/:tab?', layout: 'app', element: <CompositionDetail /> },
   { id: 'problem-list', path: '/app/:org/problems', layout: 'app', element: <ProblemList /> },
@@ -197,6 +213,16 @@ export default function Router({ table = screens }: { table?: Screen[] }) {
     // ═══════════════════════════════════════════════════════════
     // PROTECTED ROUTES (require auth + AuthenticatedLayout)
     // ═══════════════════════════════════════════════════════════
+    {
+      element: (
+        <ProtectedRoute>
+          <AuthenticatedLayout>
+            <LegacyOrgOutlet />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      ),
+      children: routesOf(table, 'protected'),
+    },
     {
       element: (
         <ProtectedRoute>

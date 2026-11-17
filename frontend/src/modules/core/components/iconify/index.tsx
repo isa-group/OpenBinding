@@ -70,6 +70,11 @@ import {
   MdFolderShared,
   MdFindReplace,
   MdNotifications,
+  MdSearchOff,
+  MdPlayCircleOutline,
+  MdInsertChartOutlined,
+  MdTune,
+  MdSave,
 } from 'react-icons/md';
 import { TbBinaryTree2, TbCurrencyDollar } from 'react-icons/tb';
 import { FaCrown, FaMicrosoft, FaShareAlt, FaWhatsapp } from 'react-icons/fa';
@@ -156,6 +161,12 @@ const iconMap: Record<string, IconType> = {
   'mdi:folder-shared': MdFolderShared,
   'mdi:file-replace': MdFindReplace,
   'mdi:bell': MdNotifications,
+  // Names OpenBinding's ported screens use.
+  'mdi:magnify-close': MdSearchOff,
+  'mdi:play-circle-outline': MdPlayCircleOutline,
+  'mdi:chart-box-outline': MdInsertChartOutlined,
+  'mdi:tune-variant': MdTune,
+  'mdi:content-save-outline': MdSave,
 };
 
 type IconifyProps = {

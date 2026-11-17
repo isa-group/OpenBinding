@@ -11,16 +11,22 @@ describe('ErrorState', () => {
   });
 
   it.each<[ErrorVariant, string, string, string, string]>([
-    ['401', 'Your session ended', 'Log in again', '/login', 'unauthorized · invalid_token'],
+    [
+      '401',
+      'Your session ended',
+      'Log in again',
+      '/authentication',
+      'unauthorized · invalid_token',
+    ],
     [
       '402',
       'You’ve used all of an allowance',
       'See your plan',
-      '/app/account/usage',
+      '/me/settings?section=plan',
       'quota_exceeded',
     ],
-    ['403', 'You can’t do this', 'Back to the workspace', '/app', 'forbidden'],
-    ['404', 'Not found', 'Back to the workspace', '/app', 'not_found'],
+    ['403', 'You can’t do this', 'Back to the workspace', '/', 'forbidden'],
+    ['404', 'Not found', 'Back to the workspace', '/', 'not_found'],
     ['503', 'This isn’t available right now', 'Service status', '/about', 'unavailable'],
   ])(
     'says what the %s variant means by default and where to go next',

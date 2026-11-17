@@ -133,7 +133,7 @@ export function Engines() {
         }
       />
 
-      <Notice tone="info" action={!user ? <Link to="/login">Log in</Link> : undefined}>
+      <Notice tone="info" action={!user ? <Link to="/authentication">Log in</Link> : undefined}>
         {sessionView
           ? 'Showing engines visible to your account: public revisions plus private ones you own. API keys see only the engines in their exact list.'
           : 'Showing public engines. Log in to also see private engines you own.'}
@@ -180,7 +180,7 @@ export function Engines() {
             Missing permission: <code>engines:read</code>. A key is always limited to what you
             choose when you create it; create a key that includes this permission. Engines outside a
             key’s exact list answer 404, so they never appear.{' '}
-            <Link to="/app/account/keys">Manage API keys</Link>
+            <Link to="/me/api-keys">Manage API keys</Link>
           </Notice>
         )}
 
@@ -200,7 +200,7 @@ export function Engines() {
         )}
 
         {fellBack && (
-          <Notice tone="info" action={<Link to="/login">Log in</Link>}>
+          <Notice tone="info" action={<Link to="/authentication">Log in</Link>}>
             Your session expired (401), so the catalog fell back to the public view. Your private
             engines are hidden until you log in again.
           </Notice>

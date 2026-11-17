@@ -67,8 +67,14 @@ async function signIn(page: Page, persona: keyof typeof personas) {
   await page.route(`${API}/v1/users/me/pricing-token`, route =>
     route.fulfill({ json: { pricing_token: 'visual-token' } })
   );
-  await page.route(`${API}/v1/organizations`, route => route.fulfill({ json: [organization] }));
+  await page.route(
+    url => url.origin + url.pathname === `${API}/v1/organizations`,
+    route => route.fulfill({ json: [organization] })
+  );
   await page.route(`${API}/v1/notifications**`, route => route.fulfill({ json: notifications }));
+  await page.route(`${API}/v1/notifications/unread-count`, route =>
+    route.fulfill({ json: { count: 1 } })
+  );
 }
 
 async function openWorkspace(page: Page) {
@@ -139,7 +145,14 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
           const toggle = header.getByRole('button', { name: 'Open menu' });
           await toggle.click();
           const menu = page.getByRole('navigation', { name: 'Mobile navigation' });
-          for (const label of ['Pricing', 'About', 'Organizations', 'Notifications', 'Account'])
+          for (const label of [
+            'Pricing',
+            'About',
+            'Organizations',
+            'Inbox',
+            'API keys',
+            'Settings',
+          ])
             await expect(menu.getByRole('link', { name: label, exact: true }), label).toBeVisible();
           for (const label of ['Tools', 'Explore', 'Search'])
             await expect(menu.getByRole('button', { name: label }), label).toBeVisible();
@@ -166,6 +179,10 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
           await expect(nav.getByRole('link', { name: 'About' })).toHaveAttribute('href', '/about');
           await expect(nav.locator('[aria-current="page"]')).toHaveCount(0);
           await nav.getByRole('button', { name: 'Explore' }).click();
+          await expect(nav.getByRole('link', { name: 'Organizations' })).toHaveAttribute(
+            'href',
+            '/organizations'
+          );
           await expect(nav.getByRole('link', { name: 'Compositions' })).toHaveAttribute(
             'href',
             '/compositions'
@@ -204,10 +221,10 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
           await account.click();
           await expect(
             header.getByRole('link', { name: 'Organizations', exact: true })
-          ).toHaveAttribute('href', '/app');
-          await expect(header.getByRole('link', { name: 'Account', exact: true })).toHaveAttribute(
+          ).toHaveAttribute('href', '/me/orgs');
+          await expect(header.getByRole('link', { name: 'Settings', exact: true })).toHaveAttribute(
             'href',
-            '/app/account'
+            '/me/settings'
           );
           await expect(header.getByRole('button', { name: 'Sign out' })).toBeVisible();
           await expect(header.getByRole('link', { name: 'Administration' })).toHaveCount(0);
@@ -241,14 +258,14 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
         if (!isMobile) {
           // Notifications.
-          const bell = header.getByRole('button', { name: '1 unread notifications' });
+          const bell = header.getByRole('button', { name: 'Notifications, 1 unread' });
           await bell.click();
-          const panel = page.getByRole('dialog', { name: 'Notifications panel' });
+          const panel = page.getByRole('dialog', { name: 'Notifications' });
           await expect(panel).toBeVisible();
           await expect(panel.getByText('Your OpenBinding agreement changed')).toBeVisible();
           await expect(panel.getByRole('link', { name: 'View all notifications' })).toHaveAttribute(
             'href',
-            '/app/account/notifications'
+            '/notifications'
           );
           const panelBox = await panel.boundingBox();
           expect(panelBox?.x).toBeGreaterThanOrEqual(0);

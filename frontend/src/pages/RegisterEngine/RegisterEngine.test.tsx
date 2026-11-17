@@ -386,7 +386,7 @@ describe('eng-register · the registration wizard', () => {
     expect(screen.getByText(/You’ve used 3 of 3/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'See your plan' })).toHaveAttribute(
       'href',
-      '/app/account/usage'
+      '/me/settings?section=plan'
     );
     expect(screen.getByRole('button', { name: 'Create registration' })).toBeEnabled();
   });

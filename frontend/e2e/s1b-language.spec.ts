@@ -405,7 +405,7 @@ async function mockApi(page: Page, mocks: Mocks = {}) {
     await page.route(`${API}/v1/engine-registrations`, json({ registrations: [registration] }));
     await page.route(`${API}/v1/engine-registrations/edge-solver/report**`, json(edgeReport));
     await page.route(
-      `${API}/v1/organizations`,
+      url => url.origin + url.pathname === `${API}/v1/organizations`,
       json([
         {
           id: 'org-1',
@@ -494,7 +494,10 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(
         main.getByText('Showing public engines. Log in to also see private engines you own.')
       ).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Log in' })).toHaveAttribute('href', '/login');
+      await expect(main.getByRole('link', { name: 'Log in' })).toHaveAttribute(
+        'href',
+        '/authentication'
+      );
       const list = main.getByRole('region', { name: 'Engines' });
       await expect(list.getByRole('link')).toHaveCount(3);
       await expect(list.getByRole('link').first()).toHaveAttribute(
@@ -590,7 +593,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main).not.toContainText(/sha256-|[0-9a-f]{12}/);
       await expect(main.getByRole('link', { name: 'Log in to run' })).toHaveAttribute(
         'href',
-        '/login'
+        '/authentication'
       );
       const options = main.getByRole('region', { name: 'Options of mode sampling' });
       await expect(main.getByLabel('Plan to preview')).toHaveValue('FREE');
@@ -766,7 +769,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByText('No package yet')).toBeVisible();
       await expect(main.getByRole('link', { name: 'Log in to run' })).toHaveAttribute(
         'href',
-        '/login'
+        '/authentication'
       );
       await ready(page);
       await shot(page, testInfo, 'workbench-idle');

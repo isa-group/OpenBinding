@@ -25,9 +25,9 @@ export interface WorkspaceSlugs {
   org?: string;
 }
 
-/** The organization slug named by the URL, when it names one. */
+/** The organization slug named by the URL, when it names one: the workspace under /app, or the organization page. */
 export function workspaceSlugs(pathname: string): WorkspaceSlugs {
   const [root, org] = pathname.split('/').filter(Boolean);
-  if (root !== 'app' || !org || RESERVED_SLUGS.has(org)) return {};
+  if ((root !== 'app' && root !== 'orgs') || !org || RESERVED_SLUGS.has(org)) return {};
   return { org };
 }

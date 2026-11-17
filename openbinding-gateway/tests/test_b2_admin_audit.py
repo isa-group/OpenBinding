@@ -422,7 +422,7 @@ async def test_an_owner_editing_the_organization_appears_in_the_platform_audit(
     added = await api_client.put(
         f"/v1/organizations/{organization['slug']}/members/{bob['id']}",
         headers=alice_headers,
-        json={"user_id": bob["id"], "role": "OWNER"},
+        json={"user_id": bob["id"], "role": "ADMIN"},
     )
     assert added.status_code == 200, added.text
 

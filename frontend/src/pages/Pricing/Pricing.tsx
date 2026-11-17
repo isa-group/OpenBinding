@@ -109,18 +109,18 @@ function planCta(
     );
   if (plan.id === 'RESEARCH') {
     return signedIn ? (
-      <Action variant="primary" to="/app/account/identities">
+      <Action variant="primary" to="/me/settings?section=integrations">
         Link CAS identity
       </Action>
     ) : (
-      <Action variant="primary" to="/login">
+      <Action variant="primary" to="/authentication">
         Log in with CAS
       </Action>
     );
   }
   if (!signedIn && plan.priceLabel === 'Free')
     return (
-      <Action variant="primary" to="/register">
+      <Action variant="primary" to="/authentication?view=register">
         Sign up
       </Action>
     );
@@ -315,7 +315,7 @@ function Entitlements({ view, plan }: { view: PricingView; plan: string }) {
         ))}
       </div>
       <p className="pricing-mine-foot">
-        <Link to="/app/account/usage" viewTransition>
+        <Link to="/me/settings?section=plan" viewTransition>
           See your plan
         </Link>
         <span>These states only guide the interface. The server checks every action.</span>
@@ -560,7 +560,10 @@ export function Pricing() {
                     identity can move you back to FREE.
                   </p>
                 </div>
-                <Action variant="primary" to={user ? '/app/account/identities' : '/login'}>
+                <Action
+                  variant="primary"
+                  to={user ? '/me/settings?section=integrations' : '/authentication'}
+                >
                   {user ? 'Manage identities' : 'Log in with CAS'}
                 </Action>
               </section>

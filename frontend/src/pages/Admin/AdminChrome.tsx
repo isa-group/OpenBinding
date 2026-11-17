@@ -48,7 +48,7 @@ export function AdminFrame({ section, trail, title, lede, badges, actions, child
   useCurrentIntoView(nav, section);
   return (
     <div className="adm-page">
-      <Crumbs items={[{ label: 'Home', to: '/app' }, ...trail]} />
+      <Crumbs items={[{ label: 'Home', to: '/' }, ...trail]} />
       <div className="adm-bar">
         <span className="adm-admin-chip">Platform admin</span>
         <nav ref={nav} aria-label="Administration" className="adm-nav">
@@ -128,7 +128,7 @@ export function FailureNotice({
       className={className}
       action={
         failure.status === 401 ? (
-          <Action size="sm" variant="secondary" to="/login">
+          <Action size="sm" variant="secondary" to="/authentication">
             Log in again
           </Action>
         ) : onRetry && failure.status !== 403 ? (

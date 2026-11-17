@@ -321,7 +321,7 @@ export function EngineDetail() {
               />
             </>
           ) : (
-            <Link className="engine-detail-login" to="/login">
+            <Link className="engine-detail-login" to="/authentication">
               Log in to run
             </Link>
           )}
@@ -768,7 +768,7 @@ function RegistrationsPanel({
       <div className="engine-detail-card engine-detail-pad">
         No deployment registrations are listed for this revision. Registrations and their
         conformance reports appear here for federated engines you can access.{' '}
-        <Link to="/login">Log in</Link> to see yours.
+        <Link to="/authentication">Log in</Link> to see yours.
       </div>
     );
   }

@@ -27,7 +27,7 @@ from openbinding_gateway.db.models import (
     Job,
     JobState,
     Organization,
-    OrganizationInvitation,
+    OrganizationInvitationCode,
     OrganizationMembership,
     ProblemCompilation,
     RunPreset,
@@ -140,7 +140,7 @@ async def test_deleting_an_organization_takes_its_subtree_and_leaves_the_files(
     organization = await db_session.scalar(select(Organization).where(Organization.slug == org))
     await _study(api_client, headers, org, [uploaded["revision_id"]])
     invited = await api_client.post(
-        f"/v1/organizations/{org}/invitations", headers=headers, json={"email": "someone@example.org"}
+        f"/v1/organizations/{org}/invitations", headers=headers, json={}
     )
     assert invited.status_code == 201, invited.text
     child = await _child(api_client, headers, str(organization.id))
@@ -177,7 +177,7 @@ async def test_deleting_an_organization_takes_its_subtree_and_leaves_the_files(
     assert await _count(db_session, RunPreset, RunPreset.organization_id.in_(ids)) == 0
     assert await _count(db_session, Blob, Blob.organization_id.in_(ids)) == 0
     assert await _count(db_session, OrganizationMembership, OrganizationMembership.organization_id.in_(ids)) == 0
-    assert await _count(db_session, OrganizationInvitation, OrganizationInvitation.organization_id.in_(ids)) == 0
+    assert await _count(db_session, OrganizationInvitationCode, OrganizationInvitationCode.organization_id.in_(ids)) == 0
     assert await _count(db_session, AuditEvent, AuditEvent.organization_id.in_(ids)) == 0
     # The account that owned it stays, and the package file is still on disk.
     assert await db_session.get(User, await _user_id(api_client, headers)) is not None

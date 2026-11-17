@@ -19,7 +19,7 @@ import {
   presetEngineText,
   presetOptionsText,
   presetRegistrationText,
-} from '../../modules/run/utils/preset';
+} from '../../modules/run/api/presetText';
 import type { RunPresetList, RunPresetView } from '../../modules/core/api/types';
 import { loadProblems } from '../Problems/problemsData';
 import { problemsPath } from '../../routes/paths/problems';
@@ -311,7 +311,7 @@ function LaunchBody({
     attached ? 'From the preset' : reduced.length ? 'Some reduced' : 'Within plan',
     'Review',
   ];
-  const manageHref = `/app/${org}/settings/presets`;
+  const manageHref = `/orgs/${org}/presets`;
   const canSave = canLaunch && !attached && request !== null && mode !== null && !invalid;
 
   if (receipt) {

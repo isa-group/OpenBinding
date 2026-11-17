@@ -24,15 +24,6 @@ export interface OrganizationMember {
   created_at: string;
 }
 
-export interface OrganizationInvitation {
-  id: string;
-  organization_id: string;
-  email: string;
-  role: OrganizationRole;
-  expires_at: string;
-  token: string;
-}
-
 /** One staged change of `POST /v1/organizations/{org}/members/batch`: a `null` role removes the direct membership. */
 export interface MemberChange {
   user_id: string;
@@ -419,32 +410,6 @@ export const platformApi = {
     apiClient.request<void>(
       `${root(org)}/members/${encodeURIComponent(userId)}`,
       { method: 'DELETE' },
-      undefined,
-      true,
-      true
-    ),
-  inviteMember: (org: string, value: { email: string; role: OrganizationRole }) =>
-    apiClient.request<OrganizationInvitation>(
-      `${root(org)}/invitations`,
-      {
-        method: 'POST',
-        body: JSON.stringify(value),
-      },
-      undefined,
-      true,
-      true
-    ),
-  /**
-   * POST /v1/invitations/accept. The token is a secret: it goes in the body only, never in a URL, a log or an error.
-   * Answers with the new (or existing) membership; the organization's name is not part of it.
-   */
-  acceptInvitation: (token: string) =>
-    apiClient.request<OrganizationMember>(
-      '/v1/invitations/accept',
-      {
-        method: 'POST',
-        body: JSON.stringify({ token }),
-      },
       undefined,
       true,
       true
