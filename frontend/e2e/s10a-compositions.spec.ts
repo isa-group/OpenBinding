@@ -14,9 +14,11 @@ import { installMockApi } from './helpers/mockApi';
 const expect = baseExpect.configure({ timeout: 15_000 });
 
 const TAB = '/orgs/isa-demo/compositions';
-const LIST = '/app/isa-demo/compositions';
+const LIST = '/compositions/isa-demo';
 const main = (page: Page) => page.locator('main');
 const region = (page: Page, name: string) => main(page).getByRole('region', { name, exact: true });
+const sections = (page: Page) =>
+  main(page).getByRole('navigation', { name: 'Composition sections' });
 
 test.describe('S10a · compositions', () => {
   test('the New menu of the header creates a composition in the organization the address names', async ({
@@ -25,13 +27,18 @@ test.describe('S10a · compositions', () => {
     const mock = await installMockApi(page, 'admin');
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto('/app/isa-demo/runs');
+    await expect(main(page).getByRole('heading', { level: 1, name: 'Runs' })).toBeVisible();
 
     const header = page.getByRole('banner');
     await header.getByRole('button', { name: 'New', exact: true }).click();
     await header.getByRole('link', { name: 'Composition', exact: true }).click();
-    await expect(page).toHaveURL(`${TAB}?create=composition`);
-    await expect(main(page).getByRole('heading', { level: 2, name: 'Compositions' })).toBeVisible();
-    await expect(page.getByRole('dialog', { name: 'New composition' })).toBeVisible();
+    await expect(page).toHaveURL('/compositions/new?org=isa-demo');
+    await expect(
+      main(page).getByRole('heading', { level: 1, name: 'Add a composition to OpenBinding' })
+    ).toBeVisible();
+    await expect(
+      main(page).getByRole('button', { name: 'Organization', exact: true })
+    ).toContainText('ISA Demo Group');
     expect(mock.unmocked).toEqual([]);
   });
 
@@ -85,42 +92,40 @@ test.describe('S10a · compositions', () => {
     const mock = await installMockApi(page, 'admin');
     await page.goto(TAB);
 
-    await main(page).getByRole('button', { name: 'New composition' }).click();
-    const dialog = page.getByRole('dialog', { name: 'New composition' });
-    await dialog.getByLabel('Name').fill('Order desk');
-    await dialog.getByRole('button', { name: 'Create composition' }).click();
-    await expect(
-      dialog.getByText('order-desk is in use in ISA Demo Group. Choose another address.')
-    ).toBeVisible();
+    await main(page).getByRole('link', { name: 'New composition' }).click();
+    await expect(page).toHaveURL('/compositions/new?org=isa-demo');
+    await main(page).getByLabel('Composition name').fill('Order desk');
+    await main(page).getByRole('button', { name: 'Write it in the editor' }).click();
+    await expect(main(page).getByRole('alert')).toContainText(
+      'order-desk is in use in ISA Demo Group. Choose another name.'
+    );
 
-    await dialog.getByLabel('Name').fill('Order intake');
-    await expect(dialog.getByLabel('Address')).toHaveValue('order-intake');
-    await dialog.getByLabel('Kind').selectOption('pipeline');
-    await dialog.getByRole('button', { name: 'Create composition' }).click();
+    await main(page).getByLabel('Composition name').fill('Order intake');
+    await expect(main(page).getByText('order-intake', { exact: true })).toBeVisible();
+    await main(page).getByRole('button', { name: 'Write it in the editor' }).click();
 
     await expect(page).toHaveURL(`${LIST}/order-intake/editor`);
     await expect(main(page).getByRole('heading', { level: 1, name: 'Order intake' })).toBeVisible();
     await expect(
-      main(page).getByText(
+      page.getByText(
         'Composition “Order intake” created. It has no version yet: write its first one here.'
       )
     ).toBeVisible();
-    await expect(main(page).getByText('Pipeline', { exact: true })).toBeVisible();
-    await expect(main(page).getByRole('tab', { name: 'Editor' })).toHaveAttribute(
-      'aria-selected',
-      'true'
+    await expect(sections(page).getByRole('link', { name: 'Editor' })).toHaveAttribute(
+      'aria-current',
+      'page'
     );
     await expect(
       main(page).getByText('No version yet. Start from this document and seal its first version.')
     ).toBeVisible();
     const source = main(page).getByRole('textbox', { name: 'composition.yaml source' });
     await expect(source).toContainText('composition: order-intake');
-    await expect(source).toContainText('kind: pipeline');
+    await expect(source).toContainText('kind: application');
     await expect(main(page).getByLabel('Label')).toHaveValue('1.0.0');
 
     await main(page)
       .getByRole('navigation', { name: 'Breadcrumb' })
-      .getByRole('link', { name: 'Compositions' })
+      .getByRole('link', { name: 'ISA Demo Group' })
       .click();
     await expect(page).toHaveURL(TAB);
     await expect(main(page).getByRole('article').getByRole('heading', { level: 3 })).toHaveText([
@@ -175,10 +180,10 @@ test.describe('S10a · compositions', () => {
 
     await main(page).getByRole('button', { name: 'Seal version' }).click();
     await expect(page).toHaveURL(`${LIST}/order-desk/versions?version=1.3.0`);
-    await expect(main(page).getByText('Version 1.3.0 sealed.')).toBeVisible();
-    await expect(main(page).getByRole('tab', { name: 'Versions' })).toHaveAttribute(
-      'aria-selected',
-      'true'
+    await expect(page.getByText('Version 1.3.0 sealed.')).toBeVisible();
+    await expect(sections(page).getByRole('link', { name: 'Versions' })).toHaveAttribute(
+      'aria-current',
+      'page'
     );
     await expect(
       main(page).getByRole('combobox', { name: 'Version' }).locator('option:checked')
@@ -196,7 +201,7 @@ test.describe('S10a · compositions', () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(`${LIST}/fleet-routing`);
 
-    await main(page).getByRole('tab', { name: 'Versions' }).click();
+    await sections(page).getByRole('link', { name: 'Versions' }).click();
     await expect(page).toHaveURL(`${LIST}/fleet-routing/versions`);
     const table = main(page)
       .getByRole('region', { name: 'Versions of Fleet routing' })
@@ -269,7 +274,7 @@ test.describe('S10a · compositions', () => {
     const version = main(page).getByRole('combobox', { name: 'Version' });
     await expect(version.locator('option:checked')).toHaveText('1.2.0 · latest');
     await expect(main(page).getByRole('list', { name: 'Lineage' })).toContainText(
-      'Derived from run 00000000, point 3.'
+      'Derived from run 00000000, point 3'
     );
 
     await expect(region(page, 'Value status')).toContainText('Verified');
@@ -369,7 +374,7 @@ test.describe('S10a · compositions', () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(`${LIST}/fleet-routing`);
 
-    await main(page).getByRole('tab', { name: 'Analysis' }).click();
+    await sections(page).getByRole('link', { name: 'Analysis' }).click();
     await expect(page).toHaveURL(`${LIST}/fleet-routing/analysis`);
     const moves = region(page, 'One change at a time');
     const t1 = moves.getByRole('row', { name: /^T1 / });
@@ -405,9 +410,9 @@ test.describe('S10a · compositions', () => {
     );
     await dialog.getByRole('button', { name: 'Seal 1.3.0' }).click();
     await expect(page).toHaveURL(`${LIST}/fleet-routing/versions?version=1.3.0`);
-    await expect(main(page).getByText('Version 1.3.0 sealed.')).toBeVisible();
+    await expect(page.getByText('Version 1.3.0 sealed.')).toBeVisible();
     await expect(main(page).getByRole('list', { name: 'Lineage' })).toContainText(
-      'Derived from a binding of problem version 2.'
+      'Derived from a binding of problem version 2'
     );
     expect(mock.unmocked).toEqual([]);
   });
@@ -415,8 +420,8 @@ test.describe('S10a · compositions', () => {
   test('a declared composition has no Analysis tab, and its address says why', async ({ page }) => {
     const mock = await installMockApi(page, 'admin');
     await page.goto(`${LIST}/order-desk`);
-    await expect(main(page).getByRole('tab', { name: 'Versions' })).toBeVisible();
-    await expect(main(page).getByRole('tab', { name: 'Analysis' })).toHaveCount(0);
+    await expect(sections(page).getByRole('link', { name: 'Versions' })).toBeVisible();
+    await expect(sections(page).getByRole('link', { name: 'Analysis' })).toHaveCount(0);
 
     await page.goto(`${LIST}/order-desk/analysis`);
     await expect(
@@ -434,14 +439,13 @@ test.describe('S10a · compositions', () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(`${LIST}/fleet-routing/settings`);
 
-    await expect(main(page).getByRole('tab', { name: 'Settings' })).toHaveAttribute(
-      'aria-selected',
-      'true'
+    await expect(sections(page).getByRole('link', { name: 'Settings' })).toHaveAttribute(
+      'aria-current',
+      'page'
     );
-    const visibility = region(page, 'Visibility');
-    await expect(visibility).toContainText('Only the members of ISA Demo Group read it.');
-    await visibility.getByRole('button', { name: 'Make public' }).click();
-    const publish = page.getByRole('dialog', { name: 'Make Fleet routing public?' });
+    await expect(main(page)).toContainText('Only the members of ISA Demo Group read it.');
+    await main(page).getByRole('radio', { name: 'Public' }).click();
+    const publish = page.getByRole('dialog', { name: /Public compositions show every version/ });
     await expect(publish).toContainText(
       'the problem reference, the run and point recorded as evidence'
     );
@@ -449,38 +453,35 @@ test.describe('S10a · compositions', () => {
       'A fork’s source is named only while that source is public.'
     );
     await publish.getByRole('button', { name: 'Make public' }).click();
-    await expect(
-      main(page).getByText('The composition is public: anybody reads it.')
-    ).toBeVisible();
-    await expect(visibility.getByRole('button', { name: 'Make private' })).toBeVisible();
-    await expect(main(page).locator('.cmp-badges')).toContainText('Public');
+    await expect(page.getByText('The composition is public: anybody reads it.')).toBeVisible();
+    await expect(main(page).getByRole('radio', { name: 'Public' })).toBeChecked();
 
     // Fork the version shown (1.2.0, linked to checkout-flow) into QoS Lab: the problem link goes, on purpose.
     await main(page).getByRole('button', { name: 'Fork', exact: true }).click();
     const fork = page.getByRole('dialog', { name: 'Fork this composition' });
-    await expect(fork.getByRole('radio', { name: 'ISA Demo Group' })).toBeDisabled();
-    await expect(fork.getByRole('radio', { name: 'Read Lab' })).toBeDisabled();
-    await fork.getByRole('radio', { name: 'QoS Lab' }).check();
+    await fork.getByRole('button', { name: 'Fork into', exact: true }).click();
+    await expect(fork.getByRole('option', { name: /Read Lab/ })).toHaveCount(0);
+    await fork.getByRole('option', { name: /ISA Demo Group/ }).click();
+    // The source's own organization is offered by the selector but refused: a fork goes elsewhere.
+    await expect(fork).toContainText('Forks go to another organization');
+    await expect(fork.getByRole('button', { name: 'Next' })).toBeDisabled();
+    await fork.getByRole('button', { name: 'Fork into', exact: true }).click();
+    await fork.getByRole('option', { name: /QoS Lab/ }).click();
     await fork.getByRole('button', { name: 'Next' }).click();
-    await expect(fork).toContainText(
-      'This version links a problem of ISA Demo Group, which QoS Lab cannot read.'
-    );
-    await expect(fork.getByRole('button', { name: 'Fork', exact: true })).toBeDisabled();
-    await fork.getByRole('checkbox', { name: /Fork without the problem/ }).check();
-    await fork.getByRole('button', { name: 'Fork', exact: true }).click();
+    const problem = page.getByRole('dialog', { name: 'Fork it without its problem?' });
+    await expect(problem).toContainText('QoS Lab cannot read');
+    await problem.getByRole('button', { name: 'Fork without the problem' }).click();
 
-    await expect(page).toHaveURL('/app/qos-lab/compositions/fleet-routing');
-    await expect(
-      main(page).getByText('Forked. The copy is private. Values are declared.')
-    ).toBeVisible();
-    await expect(main(page).locator('.cmp-badges')).toContainText('Private');
+    await expect(page).toHaveURL('/compositions/qos-lab/fleet-routing');
+    await expect(page.getByText('Composition forked')).toBeVisible();
     const lineage = main(page).getByRole('list', { name: 'Lineage' });
     await expect(lineage).toContainText(
-      'Forked from ISA Demo Group / Fleet routing 1.2.0, without its problem.'
+      'Forked from Fleet routing (version 1.2.0) · ISA Demo Group, without its problem'
     );
-    await expect(
-      lineage.getByRole('link', { name: 'ISA Demo Group / Fleet routing' })
-    ).toHaveAttribute('href', '/c/isa-demo/fleet-routing?version=1.2.0');
+    await expect(lineage.getByRole('link')).toHaveAttribute(
+      'href',
+      '/compositions/isa-demo/fleet-routing?version=1.2.0'
+    );
     await expect(region(page, 'Value status')).toContainText('Declared');
     expect(mock.unmocked).toEqual([]);
   });
@@ -489,24 +490,27 @@ test.describe('S10a · compositions', () => {
     const mock = await installMockApi(page, 'admin');
     await page.goto(`${LIST}/legacy-intake/settings`);
 
-    const details = region(page, 'Name and description');
-    await details.getByLabel('Name').fill('Legacy intake (old)');
-    await details.getByRole('button', { name: 'Save' }).click();
-    await expect(main(page).getByText('Name and description saved.')).toBeVisible();
+    await main(page).getByLabel('Name', { exact: true }).fill('Legacy intake (old)');
+    await main(page).getByRole('button', { name: 'Save' }).click();
+    await expect(page.getByText('Name and description saved.')).toBeVisible();
     await expect(
       main(page).getByRole('heading', { level: 1, name: 'Legacy intake (old)' })
     ).toBeVisible();
 
-    await region(page, 'Archived').getByRole('switch', { name: 'Archived' }).click();
-    await expect(main(page).getByText('Composition restored.')).toBeVisible();
-    await expect(main(page).locator('.cmp-badges')).not.toContainText('Archived');
+    await main(page).getByRole('switch', { name: 'Archived' }).click();
+    await expect(page.getByText('Composition restored.')).toBeVisible();
+    await expect(main(page).getByRole('switch', { name: 'Archived' })).toHaveAttribute(
+      'aria-checked',
+      'false'
+    );
 
-    await region(page, 'Danger zone').getByRole('button', { name: 'Delete composition' }).click();
+    await main(page).getByRole('button', { name: 'Delete composition' }).click();
     const dialog = page.getByRole('dialog', { name: 'Delete Legacy intake (old)?' });
     await expect(dialog.getByRole('button', { name: 'Delete permanently' })).toBeDisabled();
     await dialog.getByLabel('Type legacy-intake to confirm').fill('legacy-intake');
     await dialog.getByRole('button', { name: 'Delete permanently' }).click();
     await expect(page).toHaveURL(TAB);
+    await expect(page.getByText('Composition “Legacy intake (old)” deleted.')).toBeVisible();
     await expect(main(page).getByRole('article').getByRole('heading', { level: 3 })).toHaveText([
       'Fleet routing',
       'Order desk',
@@ -514,18 +518,14 @@ test.describe('S10a · compositions', () => {
     expect(mock.unmocked).toEqual([]);
   });
 
-  test('a composition that is not there reads the same as one that is not shared', async ({
+  test('a composition that is not there reads the same as one that is not shared: the in-place 404', async ({
     page,
   }) => {
     await installMockApi(page, 'admin');
     await page.goto(`${LIST}/no-such-composition`);
 
-    await expect(
-      main(page).getByRole('heading', { name: 'No composition here, or you cannot see it' })
-    ).toBeVisible();
+    await expect(main(page).getByRole('heading', { name: 'Page not found' })).toBeVisible();
     await expect(main(page)).not.toContainText(/private/i);
-    await main(page).getByRole('link', { name: 'All compositions' }).click();
-    await expect(page).toHaveURL(TAB);
   });
 
   test('a tab the composition page does not have is a page that does not exist', async ({

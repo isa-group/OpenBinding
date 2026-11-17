@@ -46,10 +46,9 @@ const application = Object.fromEntries(
  * showcase, Language), the problem screens (`pages/Problems`), and the layers they are built from.
  */
 const SCOPE =
-  /^\/src\/(pages\/(Compositions|PublicCompositions|Language|Problems)\/|modules\/core\/components\/(candidate-matrix|composition-renderer|pricing-card|problems-panel|provider-map|rules-and-objectives|value-badge|workflow-graph)\/|modules\/composition\/components\/(change-summary|evolution-charts|fork)\/|modules\/core\/utils\/(composition|binding)\/|modules\/composition-editor\/components\/composition-editor\/|modules\/run\/components\/derive\/)/;
+  /^\/src\/(pages\/(Compositions|Language|Problems)\/|modules\/core\/components\/(candidate-matrix|composition-renderer|pricing-card|problems-panel|provider-map|rules-and-objectives|value-badge|workflow-graph)\/|modules\/composition\/(api|components|hooks|pages|utils)\/|modules\/core\/utils\/(composition|binding)\/|modules\/composition-editor\/components\/composition-editor\/|modules\/run\/components\/derive\/)/;
 const SCOPE_AREAS = [
   '/src/pages/Compositions/',
-  '/src/pages/PublicCompositions/',
   '/src/pages/Language/',
   '/src/pages/Problems/',
   '/src/modules/core/components/composition-renderer/',
@@ -59,7 +58,8 @@ const SCOPE_AREAS = [
   '/src/modules/core/utils/binding/',
   '/src/modules/composition-editor/components/composition-editor/',
   '/src/modules/run/components/derive/',
-  '/src/modules/composition/components/fork/',
+  '/src/modules/composition/pages/',
+  '/src/modules/composition/components/fork-composition-modal/',
 ];
 
 const pick = (predicate: (path: string) => boolean): Record<string, string> =>

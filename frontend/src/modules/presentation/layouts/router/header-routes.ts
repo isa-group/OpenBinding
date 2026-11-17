@@ -28,7 +28,7 @@ export const headerRoutes: HeaderRoute[] = [
     disabled: false,
     children: [
       { name: 'Organizations', disabled: false, to: '/organizations' },
-      { name: 'Compositions', disabled: false, to: '/compositions', match: ['/c/'] },
+      { name: 'Compositions', disabled: false, to: '/compositions', match: ['/p/'] },
       { name: 'Engines', disabled: false, to: '/engines' },
     ],
   },
@@ -45,7 +45,7 @@ export interface MenuEntry {
 export function newEntries(organization: string | undefined): MenuEntry[] {
   const inOrganization: MenuEntry[] = organization
     ? [
-        { label: 'Composition', to: `/orgs/${organization}/compositions?create=composition` },
+        { label: 'Composition', to: `/compositions/new?org=${encodeURIComponent(organization)}` },
         { label: 'Problem', to: `/app/${organization}/problem-editor` },
         { label: 'Run', to: `/app/${organization}/runs/new` },
         { label: 'Study', to: `/app/${organization}/studies/new` },

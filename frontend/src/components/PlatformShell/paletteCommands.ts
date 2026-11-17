@@ -1,3 +1,4 @@
+import { newCompositionPath } from '../../routes/paths/compositions';
 import type { Organization } from '../../api/platform';
 import { accountLinks, createItems, mainLinks, organizationEntries } from './appNavigation';
 
@@ -65,7 +66,7 @@ export function buildCommands({
           'Create',
           'New composition',
           `Start a composition in ${organization.name}`,
-          `${entries.compositions}?create=composition`,
+          newCompositionPath(organization.slug),
           '+'
         )
       );

@@ -200,7 +200,7 @@ describe('the Pareto front of a study run', () => {
     expect(resultOf('P1')).toHaveTextContent('Created; 1.0.0 sealed. Open checkout-flow-p1 1.0.0');
     expect(
       within(resultOf('P1')).getByRole('link', { name: 'Open checkout-flow-p1 1.0.0' })
-    ).toHaveAttribute('href', '/app/isa-demo/compositions/checkout-flow-p1/versions?version=1.0.0');
+    ).toHaveAttribute('href', '/compositions/isa-demo/checkout-flow-p1/versions?version=1.0.0');
     expect(within(dialog()).getByLabelText('Address of P1')).toBeDisabled();
 
     // The retry derives only P2, into the composition the batch already made for it.

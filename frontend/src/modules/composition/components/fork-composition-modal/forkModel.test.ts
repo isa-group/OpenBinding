@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Organization } from '../../../../api/platform';
+import type { Organization } from '../../../organization/api/organizationsApi';
 import type { ApiError } from '../../../core/api/errors';
 import {
   NEEDS_MEMBER,
@@ -20,6 +20,7 @@ const organization = (slug: string, role: Organization['effective_role']): Organ
   name: slug,
   parent_id: null,
   effective_role: role,
+  description: '',
   created_at: '2026-03-03T00:00:00Z',
 });
 

@@ -3,6 +3,7 @@
 
 import { useCallback } from 'react';
 import { readApiError } from '../../core/api/errors';
+import { SYSTEM_TOAST } from '../../core/contexts/toastKinds';
 import { useToast } from '../../core/contexts/useToast';
 import customAlert from '../../core/utils/custom-alert';
 import { offerReloadIfChanged } from '../../core/utils/offer-reload';
@@ -16,7 +17,7 @@ export function useArchiveComposition(onChanged: () => void) {
         const { etag } = await compositionsApi.get(org, slug);
         await compositionsApi.update(org, slug, { archived }, etag);
         addToast({
-          kind: 'System',
+          kind: SYSTEM_TOAST,
           title: archived ? 'Composition archived' : 'Composition restored',
           message: archived
             ? `${name} is archived: it leaves the active list and keeps its versions.`

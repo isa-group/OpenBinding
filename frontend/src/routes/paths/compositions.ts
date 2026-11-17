@@ -4,7 +4,6 @@
 
 import type { Kind } from '../../modules/core/utils/composition/document';
 import { orgPath } from '../../modules/organization/types/paths';
-import { organizationPath } from './problems';
 
 /** The segment of the composition list and the composition page. */
 export const COMPOSITIONS_SEGMENT = 'compositions';
@@ -56,30 +55,25 @@ export function compositionsPath(org: string, filter: CompositionsFilter = {}): 
   });
 }
 
-/** A composition of an organization, with its tab and the version or pair it shows. */
+/** A composition, with its tab and the version or pair it shows: `/compositions/<org>/<composition>/<tab>`, SPHERE's card page. */
 export function compositionPath(
   org: string,
   composition: string,
   tab?: CompositionTabSegment,
   query: CompositionQuery = {}
 ): string {
-  const base = `${organizationPath(org)}/${COMPOSITIONS_SEGMENT}/${encodeURIComponent(composition)}`;
+  const base = `/${COMPOSITIONS_SEGMENT}/${encodeURIComponent(org)}/${encodeURIComponent(composition)}`;
   return withQuery(tab ? `${base}/${tab}` : base, { ...query });
 }
 
-/** The query of a public page: the version shown, and whether the fork dialog opens once the caller is signed in. */
-export interface ShowcaseQuery {
-  version?: number | string;
-  /** `?fork=1`: the page opens the fork dialog for a signed-in caller, then drops the parameter. */
-  fork?: boolean;
+/** Where a composition is created: `/compositions/new`, in the organization `?org=` names. */
+export function newCompositionPath(org?: string): string {
+  return withQuery(`/${COMPOSITIONS_SEGMENT}/new`, { org });
 }
 
-/** The public page of a public composition: `/c/<org>/<composition>`, at a version (an id, a label or an ordinal). */
-export function showcasePath(org: string, composition: string, query: ShowcaseQuery = {}): string {
-  return withQuery(`/c/${encodeURIComponent(org)}/${encodeURIComponent(composition)}`, {
-    version: query.version,
-    fork: query.fork ? 1 : undefined,
-  });
+/** The permanent link of a composition (`/p/<id>`), at a version when one is named. */
+export function permalinkPath(id: string, version?: string): string {
+  return withQuery(`/p/${encodeURIComponent(id)}`, { version });
 }
 
 /** What the public list shows: some kinds, a search text and a page (1 is the first, and is left out of the address). */

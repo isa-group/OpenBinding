@@ -111,7 +111,7 @@ describe('the Playwright specs', () => {
       for (const name of specs) expect(read(name), name).toMatch(/\btest\(|\btest\.describe\(/);
     });
 
-    it('walks J1 and J2 against the lab: derive, seal and compare on lab-main; the public list, a showcase and a fork from lab-other', () => {
+    it('walks J1 and J2 against the lab: derive, seal and compare on lab-main; the public list, a composition page and a fork from lab-other', () => {
       const j1 = read(`${live}/08-derive-seal-compare.spec.ts`);
       expect(j1).toMatch(/test\.describe\('live · J1 /);
       for (const step of [
@@ -128,9 +128,9 @@ describe('the Playwright specs', () => {
       for (const step of [
         "'/compositions'",
         "'Fork this composition'",
-        '/Fork without the problem/',
-        "'Fork as a new composition'",
-        "'No composition here, or you cannot see it'",
+        "'Fork without the problem'",
+        "'Fork as new composition'",
+        "'Page not found'",
       ]) {
         expect(j2, step).toContain(step);
       }

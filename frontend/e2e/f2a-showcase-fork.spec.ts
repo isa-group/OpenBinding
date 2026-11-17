@@ -1,17 +1,18 @@
 import { expect as baseExpect, test } from '@playwright/test';
 import { installMockApi } from './helpers/mockApi';
 
-// J2 · showcase and fork: a visitor opens the public compositions, reads the public page of another organization's composition (its
-// workflow, its values and the upstream plans its candidates come from, named as references), asks to fork it, signs in, and comes
-// back to the page with the fork dialog open. The dialog takes the version into an organization of the account, drops its problem on
-// purpose, and asks for another name because the target already has one at that address. The new private composition says where it
-// was forked from, linked to that public page, and its values are declared. A private composition's public address is not found.
+// J2 · the public composition page and fork: a visitor opens the public compositions, reads another organization's composition on
+// SPHERE's card page (its workflow, its values and the upstream plans its candidates come from, named as references), asks to fork
+// it, signs in, and comes back to the page with the Fork modal open. The modal takes the version into an organization of the
+// account where it is MEMBER, drops its problem on purpose, and asks for another name because the target already has one at that
+// address. The new private composition says where it was forked from, linked to its source, and its values are declared. A
+// private composition reads as missing to a visitor: the in-place 404.
 // There is no backend: e2e/helpers/mockApi.ts answers the API origin; the compositions, lab-other's public one included, are
 // e2e/helpers/mockCompositions.ts's.
 
 const expect = baseExpect.configure({ timeout: 15_000 });
 
-test.describe('J2 · showcase and fork', () => {
+test.describe('J2 · the public composition page and fork', () => {
   test('a visitor finds a public composition, reads it, signs in to fork it, and the fork names where it came from', async ({
     page,
   }) => {
@@ -25,20 +26,20 @@ test.describe('J2 · showcase and fork', () => {
     await expect(
       main.getByRole('heading', { level: 1, name: 'Public compositions' })
     ).toBeVisible();
-    const cards = main.getByRole('region', { name: 'Public compositions' }).getByRole('article');
+    const cards = main.getByRole('article');
     await expect(cards).toHaveCount(2);
     await expect(cards.nth(0)).toContainText('Order desk');
-    const fleet = cards.nth(1);
-    await expect(fleet).toContainText('Workflow · Other Lab');
-    await expect(fleet).toContainText('1.1.0 of 2');
+    const fleet = main.getByRole('article', { name: 'Fleet routing' });
+    await expect(fleet).toContainText('Workflow');
+    await expect(fleet).toContainText('Other Lab');
+    await expect(fleet).toContainText('v1.1.0');
     await expect(fleet).toContainText('Verified');
     await fleet.getByRole('link', { name: 'Fleet routing' }).click();
 
-    // Its public page: what the documents say, and nothing of the problem but its reference.
-    await expect(page).toHaveURL('/c/lab-other/fleet-routing');
+    // Its page: what the documents say, and nothing of the problem but its reference.
+    await expect(page).toHaveURL('/compositions/lab-other/fleet-routing');
     await expect(main.getByRole('heading', { level: 1, name: 'Fleet routing' })).toBeVisible();
-    await expect(main.getByText('Workflow · Other Lab')).toBeVisible();
-    await expect(main.getByText('Version 1.1.0, sealed Sep 30, 2026')).toBeVisible();
+    await expect(main.getByRole('combobox', { name: 'Version' })).toContainText('1.1.0');
     await expect(main.getByRole('region', { name: 'What it does' })).toContainText(
       'Plans the delivery routes of a fleet'
     );
@@ -58,22 +59,14 @@ test.describe('J2 · showcase and fork', () => {
     await expect(main.getByRole('region', { name: 'Offering' })).toContainText(
       'Plans and prices arrive when OpenBinding reads the offering.'
     );
-    const versions = main.getByRole('list', { name: 'Versions' });
-    await expect(versions.getByRole('link', { name: '1.1.0' })).toHaveAttribute(
-      'aria-current',
-      'page'
-    );
-    await expect(versions.getByRole('link', { name: '1.0.0' })).toHaveAttribute(
-      'href',
-      '/c/lab-other/fleet-routing?version=1.0.0'
-    );
-    // A reader who is not a member only reads.
+    // A reader who is not a member only reads: no candidates, findings, Settings or New version.
     for (const region of ['Problem candidates', 'Evaluation findings'])
       await expect(main.getByRole('region', { name: region })).toHaveCount(0);
-    await expect(main.getByRole('tab')).toHaveCount(0);
-    await expect(main.getByRole('link', { name: 'Open in the app' })).toHaveCount(0);
+    const sections = main.getByRole('navigation', { name: 'Composition sections' });
+    await expect(sections.getByRole('link', { name: 'Settings' })).toHaveCount(0);
+    await expect(main.getByRole('button', { name: 'New version' })).toHaveCount(0);
 
-    // Fork asks the visitor to sign in, and the sign-in comes back to the page with the dialog open.
+    // Fork asks the visitor to sign in, and the sign-in comes back to the page with the modal open.
     await main.getByRole('button', { name: 'Fork', exact: true }).click();
     await expect(page).toHaveURL('/authentication');
     await page.getByLabel('Username or email').fill('alex.rivera');
@@ -81,43 +74,41 @@ test.describe('J2 · showcase and fork', () => {
       .getByLabel('Password', { exact: true })
       .fill(['showcase', 'walk', 'not', 'real'].join('-'));
     await page.getByRole('button', { name: 'Log in' }).click();
-    await expect(page).toHaveURL('/c/lab-other/fleet-routing?version=1.1.0');
+    await expect(page).toHaveURL('/compositions/lab-other/fleet-routing?version=1.1.0');
     const dialog = page.getByRole('dialog', { name: 'Fork this composition' });
     await expect(dialog).toBeVisible();
 
-    // Where: an organization of the account where it is MEMBER or more.
-    await expect(dialog.getByRole('radio', { name: 'Read Lab' })).toBeDisabled();
-    await dialog.getByRole('radio', { name: 'ISA Demo Group' }).check();
+    // Where: an organization of the account where it is MEMBER or more (Read Lab, a VIEWER's, is not offered).
+    await dialog.getByRole('button', { name: 'Fork into', exact: true }).click();
+    await expect(dialog.getByRole('option', { name: /Read Lab/ })).toHaveCount(0);
+    await dialog.getByRole('option', { name: /ISA Demo Group/ }).click();
     await dialog.getByRole('button', { name: 'Next' }).click();
     // Its problem: the target cannot read it, so the fork drops it, on purpose.
-    await expect(dialog).toContainText(
-      'This version links a problem of Other Lab, which ISA Demo Group cannot read.'
+    const problem = page.getByRole('dialog', { name: 'Fork it without its problem?' });
+    await expect(problem).toContainText('ISA Demo Group cannot read');
+    await problem.getByRole('button', { name: 'Fork without the problem' }).click();
+    // The target already has a composition named so: another name and address.
+    const rename = page.getByRole('dialog', { name: 'Choose a different name' });
+    await expect(rename).toContainText(
+      'ISA Demo Group already has a composition named “Fleet routing”.'
     );
-    await expect(dialog.getByRole('button', { name: 'Fork', exact: true })).toBeDisabled();
-    await dialog.getByRole('checkbox', { name: /Fork without the problem/ }).check();
-    await dialog.getByRole('button', { name: 'Fork', exact: true }).click();
-    // The target already has a composition at that address: another name.
-    await expect(dialog).toContainText(
-      'ISA Demo Group already has a composition at fleet-routing, named “Fleet routing”.'
-    );
-    await expect(dialog.getByLabel('Name')).toHaveValue('Fleet routing (fork)');
-    await expect(dialog.getByLabel('Address')).toHaveValue('fleet-routing-fork');
-    await dialog.getByRole('button', { name: 'Fork as a new composition' }).click();
+    await expect(rename.getByLabel('Composition name')).toHaveValue('Fleet routing (fork)');
+    await expect(rename.getByLabel('Address')).toHaveValue('fleet-routing-fork');
+    await rename.getByRole('button', { name: 'Fork as new composition' }).click();
 
-    // The fork: private, its values declared, and it names its public source.
-    await expect(page).toHaveURL('/app/isa-demo/compositions/fleet-routing-fork');
-    await expect(main.getByText('Forked. The copy is private. Values are declared.')).toBeVisible();
+    // The fork: private, its values declared, and it names its source.
+    await expect(page).toHaveURL('/compositions/isa-demo/fleet-routing-fork');
+    await expect(page.getByText('Composition forked')).toBeVisible();
     await expect(
       main.getByRole('heading', { level: 1, name: 'Fleet routing (fork)' })
     ).toBeVisible();
-    await expect(main.locator('.cmp-badges')).toContainText('Private');
     const lineage = main.getByRole('list', { name: 'Lineage' });
     await expect(lineage).toContainText(
-      'Forked from Other Lab / Fleet routing 1.1.0, without its problem.'
+      'Forked from Fleet routing (version 1.1.0) · Other Lab, without its problem'
     );
-    await expect(lineage.getByRole('link', { name: 'Other Lab / Fleet routing' })).toHaveAttribute(
+    await expect(lineage.getByRole('link')).toHaveAttribute(
       'href',
-      '/c/lab-other/fleet-routing?version=1.1.0'
+      '/compositions/lab-other/fleet-routing?version=1.1.0'
     );
     await expect(main.getByRole('region', { name: 'Value status' })).toContainText('Declared');
     expect(mock.unmocked).toEqual([]);
@@ -129,7 +120,7 @@ test.describe('J2 · showcase and fork', () => {
     const mock = await installMockApi(page, 'none');
     const main = page.getByRole('main');
 
-    await page.goto('/c/isa-demo/order-desk');
+    await page.goto('/compositions/isa-demo/order-desk');
     await expect(main.getByRole('heading', { level: 1, name: 'Order desk' })).toBeVisible();
     await expect(main.getByRole('region', { name: 'Value status' })).toContainText('Declared');
     await expect(main.getByRole('region', { name: 'Values' })).toContainText('42.5 EUR/month');
@@ -140,15 +131,9 @@ test.describe('J2 · showcase and fork', () => {
     ).toHaveAttribute('href', 'https://pricings.example.org/order-desk/pricing.yml');
     await expect(main.getByRole('region', { name: 'Problem' })).toHaveCount(0);
 
-    await page.goto('/c/isa-demo/fleet-routing');
-    await expect(
-      main.getByRole('heading', { name: 'No composition here, or you cannot see it' })
-    ).toBeVisible();
+    await page.goto('/compositions/isa-demo/fleet-routing');
+    await expect(main.getByRole('heading', { name: 'Page not found' })).toBeVisible();
     await expect(main.getByRole('heading', { level: 1, name: 'Fleet routing' })).toHaveCount(0);
-    await expect(main.getByRole('link', { name: 'Public compositions' }).first()).toHaveAttribute(
-      'href',
-      '/compositions'
-    );
     expect(mock.unmocked).toEqual([]);
   });
 });

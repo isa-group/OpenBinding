@@ -6,7 +6,7 @@
 import { useCallback } from 'react';
 import { Helmet } from 'react-helmet-async';
 import ResourceListView from '../../../core/components/resource-list-view';
-import { showcasePath } from '../../../../routes/paths/compositions';
+import { compositionPath } from '../../../../routes/paths/compositions';
 import { useCompositionsApi, type PublicCompositionView } from '../../api/compositionsApi';
 import CompositionCard from '../../components/composition-card';
 import { KIND_FILTER, RANGE_FILTERS } from '../../components/composition-card/filters';
@@ -35,7 +35,7 @@ export default function CompositionListPage() {
         fetchItems={fetchItems}
         itemKey={item => `${item.organization.slug}/${item.slug}`}
         renderItem={item => (
-          <CompositionCard data={item} to={showcasePath(item.organization.slug, item.slug)} />
+          <CompositionCard data={item} to={compositionPath(item.organization.slug, item.slug)} />
         )}
         title="Public compositions"
         subtitle="Browse every public service composition in OpenBinding."

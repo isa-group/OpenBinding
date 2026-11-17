@@ -62,7 +62,7 @@ function TaskLine({ task }: { task: TaskModel }) {
   return (
     <li>
       <code>{task.id}</code>
-      <span className="cr-arrow" aria-hidden="true">
+      <span className="cr-arrow text-tp-steel" aria-hidden="true">
         →
       </span>
       {task.local ? (
@@ -70,9 +70,13 @@ function TaskLine({ task }: { task: TaskModel }) {
       ) : task.candidate ? (
         <code>{task.candidate}</code>
       ) : (
-        <span className="cr-muted">Not bound</span>
+        <span className="cr-muted m-0 text-[13px] text-tp-steel">Not bound</span>
       )}
-      {task.from && <span className="cr-from">From {provenanceText(task.from)}</span>}
+      {task.from && (
+        <span className="cr-from basis-full text-xs [overflow-wrap:anywhere] text-tp-steel">
+          From {provenanceText(task.from)}
+        </span>
+      )}
     </li>
   );
 }
@@ -139,9 +143,9 @@ export function CatalogMode({
   const member = model.reader === 'member';
 
   const identityBlock = shows('identity') && (
-    <header className="cr-identity">
+    <header className="cr-identity flex flex-col gap-1 [&_h2]:m-0 [&_h2]:text-xl [&_h2]:[overflow-wrap:anywhere] [&_p]:m-0 [&_p]:[overflow-wrap:anywhere] [&_p]:text-tp-slate">
       <h2>{identity.name}</h2>
-      <span className="cr-kind">
+      <span className="cr-kind text-[13px] text-tp-steel">
         {kindLabel(identity.kind)} · {identity.orgName}
       </span>
       {identity.description && <p>{identity.description}</p>}
@@ -152,7 +156,9 @@ export function CatalogMode({
     return (
       <>
         {identityBlock}
-        <p className="cr-muted">No version yet: nothing has been sealed for this composition.</p>
+        <p className="cr-muted m-0 text-[13px] text-tp-steel">
+          No version yet: nothing has been sealed for this composition.
+        </p>
       </>
     );
   }
@@ -166,7 +172,7 @@ export function CatalogMode({
 
       {shows('status') && status.values && (
         <RendererSection title="Value status">
-          <div className="cr-status">
+          <div className="cr-status flex flex-wrap items-center gap-x-3 gap-y-2 [&_p]:m-0 [&_p]:text-sm [&_p]:text-tp-slate">
             <ValueBadge status={status.values} />
             <p>{statusText(model)}</p>
           </div>
@@ -182,9 +188,11 @@ export function CatalogMode({
       {shows('values') && (
         <RendererSection title="Values">
           {model.values.length === 0 ? (
-            <p className="cr-muted">This version records no values.</p>
+            <p className="cr-muted m-0 text-[13px] text-tp-steel">
+              This version records no values.
+            </p>
           ) : (
-            <dl className="cr-values">
+            <dl className="cr-values m-0 grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3 [&_dd]:m-0 [&_dd]:text-base [&_dd]:font-semibold [&_dd]:[overflow-wrap:anywhere] [&_dd]:text-tp-ink [&_dt]:text-xs [&_dt]:[overflow-wrap:anywhere] [&_dt]:text-tp-steel [&>div]:flex [&>div]:min-w-0 [&>div]:flex-col [&>div]:gap-0.5 [&>div]:rounded-xl [&>div]:border [&>div]:border-tp-hairline [&>div]:bg-tp-canvas [&>div]:p-3">
               {model.values.map(value => (
                 <div key={value.name}>
                   <dt>{value.name}</dt>
@@ -199,9 +207,12 @@ export function CatalogMode({
       {shows('binding') && (
         <RendererSection title="Binding">
           {model.tasks.length === 0 ? (
-            <p className="cr-muted">This version binds no task.</p>
+            <p className="cr-muted m-0 text-[13px] text-tp-steel">This version binds no task.</p>
           ) : (
-            <ul className="cr-binding" aria-label="Task bindings">
+            <ul
+              className="cr-binding m-0 flex list-none flex-col gap-1.5 p-0 [&_code]:font-mono [&_code]:text-[13px] [&_code]:[overflow-wrap:anywhere] [&>li]:flex [&>li]:min-w-0 [&>li]:flex-wrap [&>li]:items-baseline [&>li]:gap-x-2 [&>li]:gap-y-1 [&>li]:border-b [&>li]:border-tp-hairline-soft [&>li]:py-1.5"
+              aria-label="Task bindings"
+            >
               {model.tasks.map(task => (
                 <TaskLine key={task.id} task={task} />
               ))}
@@ -213,9 +224,11 @@ export function CatalogMode({
       {shows('offering') && (
         <RendererSection title="Offering">
           {!model.offering ? (
-            <p className="cr-muted">This version names no pricing of its own.</p>
+            <p className="cr-muted m-0 text-[13px] text-tp-steel">
+              This version names no pricing of its own.
+            </p>
           ) : (
-            <p className="cr-muted">
+            <p className="cr-muted m-0 text-[13px] text-tp-steel">
               {model.offering.href ? (
                 <a href={model.offering.href} rel="noreferrer" target="_blank">
                   {model.offering.label}
@@ -231,7 +244,7 @@ export function CatalogMode({
 
       {shows('evidence') && (evidence.length > 0 || derivation) && (
         <RendererSection title="Evidence">
-          <ul className="cr-lines">
+          <ul className="cr-lines m-0 flex list-none flex-col gap-1 p-0 text-sm text-tp-slate [&_code]:font-mono [&_code]:text-[13px] [&_li]:[overflow-wrap:anywhere]">
             {evidence.map((line, index) => (
               <li key={index}>{line}</li>
             ))}
@@ -242,7 +255,7 @@ export function CatalogMode({
 
       {shows('problem') && status.problemRef && (
         <RendererSection title="Problem">
-          <p className="cr-muted">
+          <p className="cr-muted m-0 text-[13px] text-tp-steel">
             {problemHref && status.problemReadable ? (
               <Link to={problemHref}>
                 <code>{status.problemRef}</code>

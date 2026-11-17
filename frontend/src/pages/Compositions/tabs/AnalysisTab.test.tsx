@@ -6,7 +6,7 @@ import {
   compositionViewModel,
   type Reader,
 } from '../../../modules/core/utils/composition/viewModel';
-import { org, renderOrgScreen } from '../../../features/workspace/testKit';
+import { org } from '../../../features/workspace/testKit';
 import type {
   CompositionVersionView,
   CompositionView,
@@ -15,7 +15,8 @@ import type {
 import { readCompositionFragment } from '../../../modules/core/utils/sphere/composition-fragment';
 import { EVALUATED, NEIGHBOURHOOD, fmsVersionView } from '../../../test/fixtures/analysis';
 import fmsFacts from '../../../test/fixtures/core/fms.facts.json';
-import { CompositionDetail } from '../CompositionDetail';
+import CompositionCardPage from '../../../modules/composition/pages/card';
+import { renderCompositionPage } from '../../../test/compositionPage';
 import { AnalysisTab } from './AnalysisTab';
 
 const api = vi.hoisted(() => ({
@@ -93,13 +94,12 @@ function Where() {
 const where = () => screen.getByTestId('where').textContent ?? '';
 
 function renderDetail(url: string, role: 'MEMBER' | 'VIEWER' = 'MEMBER') {
-  return renderOrgScreen(
+  return renderCompositionPage(
     <>
-      <CompositionDetail />
+      <CompositionCardPage />
       <Where />
     </>,
     {
-      path: '/app/:org/compositions/:composition/:tab?',
       url,
       organizations: [org('isa-demo', { name: 'ISA Demo Group', effective_role: role })],
     }
@@ -117,7 +117,7 @@ function renderTab(
   });
   const onNotLinked = vi.fn();
   render(
-    <MemoryRouter initialEntries={['/app/isa-demo/compositions/fleet-routing/analysis']}>
+    <MemoryRouter initialEntries={['/compositions/isa-demo/fleet-routing/analysis']}>
       <Routes>
         <Route
           path="*"
@@ -168,11 +168,11 @@ describe('the Analysis tab', () => {
   });
 
   it('shows for a version whose linked problem the member can read, with one change at a time and the choice per task', async () => {
-    renderDetail('/app/isa-demo/compositions/fleet-routing/analysis');
+    renderDetail('/compositions/isa-demo/fleet-routing/analysis');
 
-    expect(await screen.findByRole('tab', { name: 'Analysis' })).toHaveAttribute(
-      'aria-selected',
-      'true'
+    expect(await screen.findByRole('link', { name: 'Analysis' })).toHaveAttribute(
+      'aria-current',
+      'page'
     );
     expect(await screen.findByRole('region', { name: 'One change at a time' })).toBeInTheDocument();
     expect(await screen.findByRole('radio', { name: 'cand_t1_aws for T1' })).toBeChecked();
@@ -188,14 +188,14 @@ describe('the Analysis tab', () => {
   it('is not a tab of a declared version, and its address explains why there is nothing to explore', async () => {
     api.allVersions.mockResolvedValue([declared()]);
     api.version.mockResolvedValue(declared());
-    const { unmount } = renderDetail('/app/isa-demo/compositions/fleet-routing');
+    const { unmount } = renderDetail('/compositions/isa-demo/fleet-routing');
 
     expect(await screen.findByRole('region', { name: 'Values' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Versions' })).toBeInTheDocument();
-    expect(screen.queryByRole('tab', { name: 'Analysis' })).toBeNull();
+    expect(screen.getByRole('link', { name: 'Versions' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Analysis' })).toBeNull();
     unmount();
 
-    renderDetail('/app/isa-demo/compositions/fleet-routing/analysis');
+    renderDetail('/compositions/isa-demo/fleet-routing/analysis');
     expect(
       await screen.findByText(
         'Values are declared: the calculator and configurator need a linked problem you can read.'
@@ -209,7 +209,7 @@ describe('the Analysis tab', () => {
     api.neighborhood.mockRejectedValue(
       Object.assign(new HttpError(422, 'not linked'), { code: 'composition_not_linked' })
     );
-    renderDetail('/app/isa-demo/compositions/fleet-routing/analysis');
+    renderDetail('/compositions/isa-demo/fleet-routing/analysis');
 
     expect(
       await screen.findByText(
@@ -217,9 +217,9 @@ describe('the Analysis tab', () => {
       )
     ).toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'Choose per task' })).toBeNull();
-    fireEvent.click(screen.getByRole('tab', { name: 'Overview' }));
-    await waitFor(() => expect(where()).toBe('/app/isa-demo/compositions/fleet-routing'));
-    expect(screen.queryByRole('tab', { name: 'Analysis' })).toBeNull();
+    fireEvent.click(screen.getByRole('link', { name: 'Overview' }));
+    await waitFor(() => expect(where()).toBe('/compositions/isa-demo/fleet-routing'));
+    expect(screen.queryByRole('link', { name: 'Analysis' })).toBeNull();
   });
 
   it('is never shown to a public reader', () => {
@@ -277,7 +277,7 @@ describe('the Analysis tab', () => {
 
     fireEvent.click(within(result).getByRole('button', { name: 'Open as a draft' }));
     await waitFor(() =>
-      expect(where()).toMatch(/^\/app\/isa-demo\/compositions\/fleet-routing\/editor#composition=/)
+      expect(where()).toMatch(/^\/compositions\/isa-demo\/fleet-routing\/editor#composition=/)
     );
     expect(api.derive).toHaveBeenCalledWith('isa-demo', 'fleet-routing', {
       revision: 'fms@1',

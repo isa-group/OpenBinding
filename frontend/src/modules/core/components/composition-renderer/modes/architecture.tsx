@@ -55,13 +55,18 @@ export function ArchitectureMode({ model, sections }: ArchitectureModeProps) {
       {shows('plans') && (
         <RendererSection title="Upstream plans">
           {plans.length === 0 ? (
-            <p className="cr-muted">No candidate names the SPHERE plan it comes from.</p>
+            <p className="cr-muted m-0 text-[13px] text-tp-steel">
+              No candidate names the SPHERE plan it comes from.
+            </p>
           ) : (
-            <ul className="cr-plans" aria-label="Upstream plans">
+            <ul
+              className="cr-plans m-0 grid list-none grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-3 p-0 [&_code]:font-mono [&_code]:text-xs [&_code]:[overflow-wrap:anywhere] [&>li]:flex [&>li]:min-w-0 [&>li]:flex-col [&>li]:gap-1"
+              aria-label="Upstream plans"
+            >
               {plans.map(({ reference, tasks }) => (
                 <li key={referenceKey(reference)}>
                   <PricingCard reference={reference} />
-                  <p className="cr-muted">
+                  <p className="cr-muted m-0 text-[13px] text-tp-steel">
                     For{' '}
                     {tasks.map((task, index) => (
                       <span key={task}>

@@ -1,7 +1,7 @@
 // The rules of the fork dialog, without the DOM: which organizations a fork may go to, the steps a version needs, the name a taken
 // one suggests and what each refusal of the gateway says.
 
-import type { Organization } from '../../../../api/platform';
+import type { Organization } from '../../../organization/api/organizationsApi';
 import type { ApiError } from '../../../core/api/errors';
 import type { CompositionFork, CompositionVersionView } from '../../../core/api/types';
 import { SLUG_PATTERN } from '../../../core/utils/slug';

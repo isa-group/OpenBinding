@@ -410,7 +410,7 @@ const OWNER_STOPS: Stop[] = [
 ];
 
 /** lab-main's composition from the seed, its name, and the two versions the comparison stops compare. */
-const COMPOSITION = `${ORG_PATH}/compositions/sequential-workflow`;
+const COMPOSITION = `/compositions/${ORG}/sequential-workflow`;
 const COMPOSITION_NAME = 'Sequential workflow';
 const PAIR = 'from=1.0.0&to=1.1.0';
 const composed = (page: Page) =>
@@ -553,8 +553,22 @@ function compositionStops(mobile: boolean): Stop[] {
   return [
     {
       slug: 'compositions',
-      path: `${ORG_PATH}/compositions`,
-      ready: page => page.locator('main').getByRole('heading', { level: 1, name: 'Compositions' }),
+      path: `/orgs/${ORG}/compositions`,
+      ready: page => page.locator('main').getByRole('heading', { level: 2, name: 'Compositions' }),
+    },
+    {
+      slug: 'my-compositions',
+      path: '/me/compositions',
+      ready: page =>
+        page.locator('main').getByRole('heading', { level: 1, name: 'My compositions' }),
+    },
+    {
+      slug: 'composition-new',
+      path: `/compositions/new?org=${ORG}`,
+      ready: page =>
+        page
+          .locator('main')
+          .getByRole('heading', { level: 1, name: 'Add a composition to OpenBinding' }),
     },
     { slug: 'composition-overview', path: COMPOSITION, ready: page => composed(page) },
     editor,
@@ -610,12 +624,17 @@ const VISITOR_STOPS: Stop[] = [
   },
   {
     slug: 'showcase',
-    path: `/c/${OTHER_ORG}/sequential-workflow`,
+    path: `/compositions/${OTHER_ORG}/sequential-workflow`,
     ready: page =>
       page.getByRole('main').getByRole('heading', { level: 1, name: COMPOSITION_NAME }),
     extra: async (page, label) => {
       await expect
-        .soft(page.getByRole('main').getByRole('tab'), `${label}: a visitor sees tabs`)
+        .soft(
+          page
+            .getByRole('navigation', { name: 'Composition sections' })
+            .getByRole('link', { name: 'Settings' }),
+          `${label}: a visitor sees Settings`
+        )
         .toHaveCount(0);
       await expect
         .soft(
@@ -684,12 +703,12 @@ const VIEWER_STOPS: Stop[] = [
   },
   {
     slug: 'viewer-compositions',
-    path: `${ORG_PATH}/compositions`,
-    ready: page => page.locator('main').getByRole('heading', { level: 1, name: 'Compositions' }),
+    path: `/orgs/${ORG}/compositions`,
+    ready: page => page.locator('main').getByRole('heading', { level: 2, name: 'Compositions' }),
     extra: async (page, label) => {
       await expect
         .soft(
-          page.getByRole('button', { name: 'New composition' }),
+          page.getByRole('link', { name: 'New composition' }),
           `${label}: a viewer sees "New composition"`
         )
         .toHaveCount(0);
@@ -702,13 +721,15 @@ const VIEWER_STOPS: Stop[] = [
     extra: async (page, label) => {
       await expect
         .soft(
-          page.getByText('Sealing versions needs MEMBER.').first(),
-          `${label}: the page does not say sealing needs MEMBER`
+          page.getByRole('button', { name: 'New version' }),
+          `${label}: a viewer sees "New version"`
         )
-        .toBeVisible();
+        .toHaveCount(0);
       await expect
         .soft(
-          page.getByRole('tab', { name: 'Settings' }),
+          page
+            .getByRole('navigation', { name: 'Composition sections' })
+            .getByRole('link', { name: 'Settings' }),
           `${label}: a viewer sees the Settings tab`
         )
         .toHaveCount(0);

@@ -1,4 +1,5 @@
 // Design follows SPHERE frontend/src/modules/pricing/components/pricing-versions-tab/index.tsx (revision 73779a8a); no code copied
+import '../Compositions.css';
 import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { problemsApi } from '../../../api/problems';
@@ -21,7 +22,6 @@ import { problemPath } from '../../../routes/paths/problems';
 import { runPath } from '../../../routes/paths/runs';
 import {
   compositionPath,
-  showcasePath,
   type CompositionQuery,
   type VersionsView,
 } from '../../../routes/paths/compositions';
@@ -222,10 +222,7 @@ function VersionRow({
     }
   };
 
-  const href =
-    composition.visibility === 'public'
-      ? showcasePath(composition.organization.slug, composition.slug, { version: version.label })
-      : compositionPath(org, composition.slug, undefined, { version: version.label });
+  const href = compositionPath(org, composition.slug, undefined, { version: version.label });
 
   return (
     <tr

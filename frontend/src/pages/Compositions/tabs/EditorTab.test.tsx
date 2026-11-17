@@ -3,12 +3,13 @@ import { useLocation } from 'react-router-dom';
 import { EditorView } from '@codemirror/view';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../../api/client';
-import { iker, org, renderOrgScreen } from '../../../features/workspace/testKit';
+import { iker, org } from '../../../features/workspace/testKit';
 import type { CompositionVersionView, CompositionView } from '../../../modules/core/api/types';
 import { draftScope, loadDraft } from '../../../modules/core/editor/drafts';
 import { compositionFragment } from '../../../modules/core/utils/sphere/composition-fragment';
 import fmsVersion from '../../../test/fixtures/core/fms.version.json';
-import { CompositionDetail } from '../CompositionDetail';
+import CompositionCardPage from '../../../modules/composition/pages/card';
+import { renderCompositionPage } from '../../../test/compositionPage';
 
 const api = vi.hoisted(() => ({
   get: vi.fn(),
@@ -103,14 +104,13 @@ function Where() {
 
 const where = () => screen.getByTestId('where').textContent;
 
-function renderEditor(organization = member, url = '/app/isa-demo/compositions/order-desk/editor') {
-  return renderOrgScreen(
+function renderEditor(organization = member, url = '/compositions/isa-demo/order-desk/editor') {
+  return renderCompositionPage(
     <>
-      <CompositionDetail />
+      <CompositionCardPage />
       <Where />
     </>,
     {
-      path: '/app/:org/compositions/:composition/:tab?',
       url,
       organizations: [organization],
     }
@@ -167,9 +167,9 @@ describe('Editor tab', () => {
     api.seal.mockResolvedValue({ created: true, result: sealed('1.3.0') });
     renderEditor();
 
-    expect(await screen.findByRole('tab', { name: 'Editor' })).toHaveAttribute(
-      'aria-selected',
-      'true'
+    expect(await screen.findByRole('link', { name: 'Editor' })).toHaveAttribute(
+      'aria-current',
+      'page'
     );
     await waitFor(() => expect(code()).toBe(TEXT));
     expect(screen.getByText(/Editing from version/)).toHaveTextContent(
@@ -186,7 +186,7 @@ describe('Editor tab', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Seal version' }));
 
     await waitFor(() =>
-      expect(where()).toBe('/app/isa-demo/compositions/order-desk/versions?version=1.3.0')
+      expect(where()).toBe('/compositions/isa-demo/order-desk/versions?version=1.3.0')
     );
     expect(api.seal).toHaveBeenCalledWith(
       'isa-demo',
@@ -208,9 +208,9 @@ describe('Editor tab', () => {
     const notice = await screen.findByText(/This exact version already exists/);
     expect(within(notice).getByRole('link', { name: '1.2.0' })).toHaveAttribute(
       'href',
-      '/app/isa-demo/compositions/order-desk?version=1.2.0'
+      '/compositions/isa-demo/order-desk?version=1.2.0'
     );
-    expect(where()).toBe('/app/isa-demo/compositions/order-desk/editor');
+    expect(where()).toBe('/compositions/isa-demo/order-desk/editor');
   });
 
   it('marks the label when another version holds it', async () => {
@@ -372,11 +372,10 @@ describe('Editor tab', () => {
     window.history.replaceState(
       { kept: true },
       '',
-      `/app/isa-demo/compositions/order-desk/editor${compositionFragment(shared)}`
+      `/compositions/isa-demo/order-desk/editor${compositionFragment(shared)}`
     );
-    renderOrgScreen(<CompositionDetail />, {
-      path: '/app/:org/compositions/:composition/:tab?',
-      url: '/app/isa-demo/compositions/order-desk/editor',
+    renderCompositionPage(<CompositionCardPage />, {
+      url: '/compositions/isa-demo/order-desk/editor',
       organizations: [member],
       user: iker,
     });

@@ -80,8 +80,8 @@ export const EXAMPLE = {
 const PARAMS_OF: Record<string, Record<string, string>> = {
   'eng-detail': { namespace: 'bim.builtin', name: 'random-search', version: '1.0.0' },
   'eng-registration-detail': { name: 'edge-solver' },
-  // The public page of the shared mock's public composition of another organization (e2e/helpers/mockCompositions.ts).
-  'pub-showcase': { org: 'lab-other', composition: 'fleet-routing' },
+  // The permanent link of the shared mock's public Order desk (e2e/helpers/mockCompositions.ts), which opens its page.
+  'composition-permalink': { id: '00000000-0000-4000-8000-000000045057' },
 };
 
 /** The query string that makes a screen show something instead of its starting point. */

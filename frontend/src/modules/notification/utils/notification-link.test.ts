@@ -11,7 +11,7 @@ describe('notificationLink', () => {
         kind: 'CompositionUpdated',
         payload: { organization_slug: 'isa-demo', composition_slug: 'fleet', version: '3' },
       })
-    ).toBe('/app/isa-demo/compositions/fleet?version=3');
+    ).toBe('/compositions/isa-demo/fleet?version=3');
     expect(
       notificationLink({
         kind: 'RunFailed',

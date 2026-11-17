@@ -50,7 +50,7 @@ describe('the dashboard', () => {
     expect(within(stats).getByText('Runs running').previousSibling).toHaveTextContent('1');
     expect(screen.getByRole('link', { name: /Fleet routing/ })).toHaveAttribute(
       'href',
-      '/app/isa-demo/compositions/fleet-routing'
+      '/compositions/isa-demo/fleet-routing'
     );
     expect(screen.getByRole('link', { name: /Checkout flow/ })).toHaveAttribute(
       'href',

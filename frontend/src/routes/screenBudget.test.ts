@@ -22,18 +22,19 @@ const SCREENS: Array<[string, string, string]> = [
   ['org-explore', '/organizations', 'session'],
   ['org-detail', '/orgs/:org/:tab?', 'session'],
   ['pub-compositions', '/compositions', 'session'],
-  ['pub-showcase', '/c/:org/:composition', 'session'],
+  ['composition-card', '/compositions/:org/:composition/:tab?', 'session'],
+  ['composition-permalink', '/p/:id', 'session'],
   ['org-list', '/me/orgs', 'protected'],
   ['org-new', '/orgs/new', 'protected'],
   ['org-join', '/orgs/join/:code', 'protected'],
   ['my-compositions', '/me/compositions', 'protected'],
+  ['composition-new', '/compositions/new', 'protected'],
   ['notifications', '/notifications', 'protected'],
   ['acct-settings', '/me/settings', 'protected'],
   ['acct-api-keys', '/me/api-keys', 'protected'],
   ['eng-register', '/app/engines/new', 'app'],
   ['eng-registrations', '/app/engines/registrations', 'app'],
   ['eng-registration-detail', '/app/engines/registrations/:name', 'app'],
-  ['composition-detail', '/app/:org/compositions/:composition/:tab?', 'app'],
   ['problem-list', '/app/:org/problems', 'app'],
   ['problem-detail', '/app/:org/problems/:case/:tab?', 'app'],
   ['problem-editor', '/app/:org/problem-editor', 'app'],
@@ -49,7 +50,7 @@ const SCREENS: Array<[string, string, string]> = [
   ['admin-moderation', '/app/admin/moderation', 'app'],
 ];
 
-const CEILING = 39;
+const CEILING = 40;
 
 describe('screen budget', () => {
   it('serves exactly the listed screens, with their addresses and layouts, in table order', () => {

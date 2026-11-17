@@ -9,7 +9,7 @@ import { API, installMockApi } from './helpers/mockApi';
 
 const expect = baseExpect.configure({ timeout: 15_000 });
 
-const VERSIONS = '/app/isa-demo/compositions/notification-hub/versions';
+const VERSIONS = '/compositions/isa-demo/notification-hub/versions';
 const main = (page: Page) => page.locator('main');
 
 /** The queries of every versions list the charts asked for (`include=analytics`). */

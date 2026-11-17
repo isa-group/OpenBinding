@@ -123,10 +123,23 @@ Generated from the origin header of each file.
 | `frontend/src/modules/composition/api/compositionsApi.ts` | `frontend/src/modules/pricing/api/pricingsApi.ts` | adapted |
 | `frontend/src/modules/composition/components/change-summary/ChangeSummary.tsx` | `frontend/src/modules/pricing/components/pricing-version-graph/change-summary-card.tsx` | pattern-only |
 | `frontend/src/modules/composition/components/composition-card/index.tsx` | `frontend/src/modules/pricing/components/pricing-card/index.tsx` | adapted |
+| `frontend/src/modules/composition/components/composition-import-modal/index.tsx` | `frontend/src/modules/pricing/components/pricing-import-modal/index.tsx` | adapted |
+| `frontend/src/modules/composition/components/composition-settings-tab/index.tsx` | `frontend/src/modules/pricing/components/pricing-settings-tab/index.tsx` | adapted |
+| `frontend/src/modules/composition/components/composition-tree/index.tsx` | `frontend/src/modules/pricing/components/pricing-tree/index.tsx` | adapted |
 | `frontend/src/modules/composition/components/compositions-tab/index.tsx` | `frontend/src/modules/organization/pages/organization-detail/components/PricingsTab.tsx` | adapted |
+| `frontend/src/modules/composition/components/create-composition-form/index.tsx` | `frontend/src/modules/pricing/components/create-pricing-form/index.tsx` | adapted |
 | `frontend/src/modules/composition/components/evolution-charts/EvolutionCharts.tsx` | `frontend/src/modules/pricing/components/pricing-analytics-tab/index.tsx` | pattern-only |
-| `frontend/src/modules/composition/components/fork/ForkCompositionDialog.tsx` | `frontend/src/modules/pricing/components/fork-pricing-modal/index.tsx` | pattern-only |
+| `frontend/src/modules/composition/components/fork-composition-modal/index.tsx` | `frontend/src/modules/pricing/components/fork-pricing-modal/index.tsx` | adapted |
+| `frontend/src/modules/composition/components/get-composition-menu/index.tsx` | `frontend/src/modules/pricing/components/get-pricing-menu/index.tsx` | adapted |
+| `frontend/src/modules/composition/components/new-version-menu/index.tsx` | `frontend/src/modules/pricing/components/new-version-menu/index.tsx` | adapted |
+| `frontend/src/modules/composition/components/pricing-link-modal/index.tsx` | `frontend/src/modules/pricing/components/pricing-link-modal/index.tsx` | adapted |
+| `frontend/src/modules/composition/components/stats/index.tsx` | `frontend/src/modules/pricing/components/stats/index.tsx` | adapted |
+| `frontend/src/modules/composition/components/visibility-options/index.tsx` | `frontend/src/modules/pricing/components/visibility-options/index.tsx` | adapted |
+| `frontend/src/modules/composition/components/yaml-source-panel/index.tsx` | `frontend/src/modules/pricing/components/yaml-source-panel/index.tsx` | adapted |
+| `frontend/src/modules/composition/pages/card/index.tsx` | `frontend/src/modules/pricing/pages/card/index.tsx` | adapted |
+| `frontend/src/modules/composition/pages/create/index.tsx` | `frontend/src/modules/pricing/pages/create/index.tsx` | adapted |
 | `frontend/src/modules/composition/pages/list/index.tsx` | `frontend/src/modules/pricing/pages/list/index.tsx` | adapted |
+| `frontend/src/modules/composition/pages/permalink/index.tsx` | `frontend/src/modules/pricing/pages/permalink/index.tsx` | adapted |
 | `frontend/src/modules/composition/pages/user-list/index.tsx` | `frontend/src/modules/pricing/pages/user-list/index.tsx` | adapted |
 | `frontend/src/modules/core/components/404-logo/index.tsx` | `frontend/src/modules/core/components/404-logo/index.tsx` | adapted |
 | `frontend/src/modules/core/components/action-button/index.tsx` | `frontend/src/modules/core/components/action-button/index.tsx` | adapted |
@@ -162,6 +175,7 @@ Generated from the origin header of each file.
 | `frontend/src/modules/core/components/pagination/index.tsx` | `frontend/src/modules/pricing/components/pagination/index.tsx` | adapted |
 | `frontend/src/modules/core/components/permanent-link/index.tsx` | `frontend/src/modules/core/components/permanent-link/index.tsx` | verbatim |
 | `frontend/src/modules/core/components/problems-panel/ProblemsPanel.tsx` | `frontend/src/modules/pricing-editor/components/problems-panel/index.tsx` | pattern-only |
+| `frontend/src/modules/core/components/resource-card-shell/index.tsx` | `frontend/src/modules/pricing/pages/card/index.tsx` | adapted |
 | `frontend/src/modules/core/components/resource-list-view/index.tsx` | `frontend/src/modules/core/components/pricing-list-view/index.tsx` | adapted |
 | `frontend/src/modules/core/components/router-link/index.tsx` | `frontend/src/modules/core/components/router-link/index.tsx` | adapted |
 | `frontend/src/modules/core/components/search-input/index.tsx` | `frontend/src/modules/pricing/components/search-input/index.tsx` | adapted |
@@ -269,9 +283,7 @@ Generated from the origin header of each file.
 | `frontend/src/modules/settings/pages/settings-page/index.tsx` | `frontend/src/modules/settings/pages/SettingsPage.tsx` | adapted |
 | `frontend/src/modules/settings/pages/settings-page/sections.ts` | `frontend/src/modules/settings/pages/SettingsPage.tsx` | adapted (extracted) |
 | `frontend/src/modules/settings/utils/useSavedFlash.ts` | `frontend/src/modules/settings/components/AccountSection.tsx` | pattern-only |
-| `frontend/src/pages/Compositions/CompositionDetail.tsx` | `frontend/src/modules/pricing/pages/card/index.tsx` | pattern-only |
 | `frontend/src/pages/Compositions/tabs/VersionsTab.tsx` | `frontend/src/modules/pricing/components/pricing-versions-tab/index.tsx` | pattern-only |
-| `frontend/src/pages/PublicCompositions/Showcase.tsx` | `frontend/src/modules/pricing/pages/card/index.tsx` | pattern-only |
 | `frontend/src/pages/Studies/ParetoFront.tsx` | `frontend/src/modules/pricing/components/configuration-space-view/index.tsx` | pattern-only |
 | `frontend/src/routes/app-layout.tsx` | `frontend/src/routes/app-layout.tsx` | adapted |
 | `frontend/src/routes/router.tsx` | `frontend/src/routes/router.tsx` | pattern-only |

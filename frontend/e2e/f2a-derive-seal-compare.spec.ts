@@ -15,7 +15,7 @@ test.setTimeout(120_000);
 
 const ORG = '/app/isa-demo';
 const RUN = '7c1e5a90-0000-4000-8000-0000000000b1';
-const COMPOSITION = `${ORG}/compositions/fleet-plan`;
+const COMPOSITION = '/compositions/isa-demo/fleet-plan';
 const main = (page: Page) => page.locator('main');
 
 const at = (id: string) => ({ resource: 'catalog', id });
@@ -156,7 +156,7 @@ test.describe('J1 · derive, seal and compare', () => {
     await dialog.getByRole('button', { name: 'Seal 1.0.0' }).click();
 
     await expect(page).toHaveURL(`${COMPOSITION}/versions?version=1.0.0`);
-    await expect(main(page).getByText('Version 1.0.0 sealed.')).toBeVisible();
+    await expect(page.getByText('Version 1.0.0 sealed.')).toBeVisible();
     // The preview and the seal asked for the same bytes.
     expect(sent).toEqual([
       { run: RUN, point: 0, version: '1.0.0', seal: false },
@@ -170,7 +170,10 @@ test.describe('J1 · derive, seal and compare', () => {
     );
 
     // The Editor: the visual form binds T1 to the other candidate, the check states that binding's values, and 1.1.0 is sealed.
-    await main(page).getByRole('tab', { name: 'Editor' }).click();
+    await main(page)
+      .getByRole('navigation', { name: 'Composition sections' })
+      .getByRole('link', { name: 'Editor' })
+      .click();
     await expect(page).toHaveURL(new RegExp(`${COMPOSITION}/editor`));
     const source = main(page).getByRole('textbox', { name: 'composition.yaml source' });
     await expect(source).toContainText('candidate: cand_t1_aws');
@@ -190,7 +193,7 @@ test.describe('J1 · derive, seal and compare', () => {
     await expect(source).toContainText('version: 1.1.0');
     await main(page).getByRole('button', { name: 'Seal version' }).click();
     await expect(page).toHaveURL(`${COMPOSITION}/versions?version=1.1.0`);
-    await expect(main(page).getByText('Version 1.1.0 sealed.')).toBeVisible();
+    await expect(page.getByText('Version 1.1.0 sealed.')).toBeVisible();
 
     // Versions: 1.0.0 against 1.1.0, entry by entry (the binding and the values) and line by line.
     await table

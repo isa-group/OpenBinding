@@ -27,9 +27,8 @@ export type RendererMode = Extract<
  *   candidates each version chose;
  * - calculator: the toolchain's one-task moves of the version's binding;
  * - configurator: what the toolchain makes of the binding chosen, and the linked problem's candidates to choose from;
- * - showcase: the public page of a composition, as the documents say it: who it is, what it does, its values and how far they can
- *   be trusted, the workflow, the providers and the upstream plans, the problem it links (named, never opened), its own pricing, and
- *   the versions there are.
+ * - showcase: a composition as its documents say it, for every reader: what it does, its values and how far they can be trusted,
+ *   the workflow, the providers and the upstream plans, the problem it links (named, never opened), and its own pricing.
  */
 export type Section =
   | 'identity'
@@ -48,8 +47,7 @@ export type Section =
   | 'moves'
   | 'result'
   | 'choice'
-  | 'about'
-  | 'versions';
+  | 'about';
 
 export const MODE_SECTIONS: Readonly<Record<RendererMode, readonly Section[]>> = {
   catalog: [
@@ -67,18 +65,7 @@ export const MODE_SECTIONS: Readonly<Record<RendererMode, readonly Section[]>> =
   comparison: ['changes', 'graph', 'candidates'],
   calculator: ['moves'],
   configurator: ['result', 'choice'],
-  showcase: [
-    'identity',
-    'about',
-    'status',
-    'values',
-    'graph',
-    'providers',
-    'plans',
-    'problem',
-    'offering',
-    'versions',
-  ],
+  showcase: ['about', 'status', 'values', 'graph', 'providers', 'plans', 'problem', 'offering'],
 };
 
 /** How tightly a mode is laid out: a page of its own, or a panel beside something else. */

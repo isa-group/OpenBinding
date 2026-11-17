@@ -1132,7 +1132,16 @@ function adminRoutes(request: Request): Reply {
 }
 
 /** The first path segments the gateway only answers to a session. */
+/** The compositions each page's account follows (`org/slug`), kept with the page's composition store. */
+const FOLLOWS = new WeakMap<object, Set<string>>();
+const followsOf = (store: object): Set<string> => {
+  const known = FOLLOWS.get(store) ?? new Set<string>();
+  FOLLOWS.set(store, known);
+  return known;
+};
+
 const SESSION_ONLY = new Set([
+  'composition-follows',
   'users',
   'admin',
   'notifications',
@@ -1225,6 +1234,16 @@ function route(request: Request): Reply | null {
       return second
         ? request.compositions.language(request)
         : request.compositions.publicList(request);
+    case 'composition-follows': {
+      // `/v1/composition-follows/{org}/{composition}`: who follows is kept for the page.
+      const key = `${second}/${third}`;
+      const followed = followsOf(request.compositions);
+      if (request.method === 'PUT') followed.add(key);
+      if (request.method === 'DELETE') followed.delete(key);
+      return ok({ following: followed.has(key) });
+    }
+    case 'permalinks':
+      return request.compositions.permalink(request);
     case 'engine-registrations':
       return engineRegistrationRoutes(request);
     case 'admin':

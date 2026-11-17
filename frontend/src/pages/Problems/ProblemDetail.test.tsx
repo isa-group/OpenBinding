@@ -362,7 +362,7 @@ describe('Problem page', () => {
       ).toHaveLength(1);
       expect(screen.getByRole('link', { name: 'Back to Fleet plan 1.0.0' })).toHaveAttribute(
         'href',
-        `${root}/compositions/fleet-plan?version=1.0.0`
+        `/compositions/isa-demo/fleet-plan?version=1.0.0`
       );
       expect(compositions.version).toHaveBeenCalledWith('isa-demo', 'fleet-plan', '1.0.0');
       expect(facts.get).toHaveBeenCalledWith(
@@ -509,11 +509,11 @@ describe('Problem page', () => {
       });
       expect(within(table).getByRole('link', { name: 'Fleet plan' })).toHaveAttribute(
         'href',
-        `${root}/compositions/fleet-plan`
+        `/compositions/isa-demo/fleet-plan`
       );
       expect(within(table).getByRole('link', { name: '1.1.0' })).toHaveAttribute(
         'href',
-        `${root}/compositions/fleet-plan?version=1.1.0`
+        `/compositions/isa-demo/fleet-plan?version=1.1.0`
       );
       expect(within(table).getByText('Verified')).toBeInTheDocument();
       const values = await within(table).findByRole('list', { name: 'Values of Fleet plan 1.1.0' });

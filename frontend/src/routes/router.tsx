@@ -75,11 +75,9 @@ const EngRegistrationDetail = named(
 );
 const CompositionListPage = lazy(() => import('../modules/composition/pages/list'));
 const UserCompositionListPage = lazy(() => import('../modules/composition/pages/user-list'));
-const Showcase = named(() => import('../pages/PublicCompositions/Showcase'), 'Showcase');
-const CompositionDetail = named(
-  () => import('../pages/Compositions/CompositionDetail'),
-  'CompositionDetail'
-);
+const CompositionCardPage = lazy(() => import('../modules/composition/pages/card'));
+const CreateCompositionPage = lazy(() => import('../modules/composition/pages/create'));
+const PermanentLinkPage = lazy(() => import('../modules/composition/pages/permalink'));
 const ProblemList = named(() => import('../pages/Problems/ProblemList'), 'ProblemList');
 const ProblemDetail = named(() => import('../pages/Problems/ProblemDetail'), 'ProblemDetail');
 const ProblemEditorPage = named(
@@ -124,7 +122,8 @@ export const screens: Screen[] = [
   { id: 'org-explore', path: '/organizations', layout: 'session', element: <PublicOrganizationsPage /> },
   { id: 'org-detail', path: '/orgs/:org/:tab?', layout: 'session', element: <OrganizationDetailPage /> },
   { id: 'pub-compositions', path: '/compositions', layout: 'session', element: <CompositionListPage /> },
-  { id: 'pub-showcase', path: '/c/:org/:composition', layout: 'session', element: <Showcase /> },
+  { id: 'composition-card', path: '/compositions/:org/:composition/:tab?', layout: 'session', element: <CompositionCardPage /> },
+  { id: 'composition-permalink', path: '/p/:id', layout: 'session', element: <PermanentLinkPage /> },
 
   // ═══════════════════════════════════════════════════════════
   // PROTECTED ROUTES (require auth + AuthenticatedLayout)
@@ -133,6 +132,7 @@ export const screens: Screen[] = [
   { id: 'org-new', path: '/orgs/new', layout: 'protected', element: <CreateOrganizationPage /> },
   { id: 'org-join', path: '/orgs/join/:code', layout: 'protected', element: <OrganizationJoinPage /> },
   { id: 'my-compositions', path: '/me/compositions', layout: 'protected', element: <UserCompositionListPage /> },
+  { id: 'composition-new', path: '/compositions/new', layout: 'protected', element: <CreateCompositionPage /> },
   { id: 'notifications', path: '/notifications', layout: 'protected', element: <InboxPage /> },
   { id: 'acct-settings', path: '/me/settings', layout: 'protected', element: <SettingsPage /> },
   { id: 'acct-api-keys', path: '/me/api-keys', layout: 'protected', element: <ApiKeysPage /> },
@@ -143,7 +143,6 @@ export const screens: Screen[] = [
   { id: 'eng-register', path: '/app/engines/new', layout: 'app', element: <RegisterEngine /> },
   { id: 'eng-registrations', path: '/app/engines/registrations', layout: 'app', element: <EngRegistrations /> },
   { id: 'eng-registration-detail', path: '/app/engines/registrations/:name', layout: 'app', element: <EngRegistrationDetail /> },
-  { id: 'composition-detail', path: '/app/:org/compositions/:composition/:tab?', layout: 'app', element: <CompositionDetail /> },
   { id: 'problem-list', path: '/app/:org/problems', layout: 'app', element: <ProblemList /> },
   { id: 'problem-detail', path: '/app/:org/problems/:case/:tab?', layout: 'app', element: <ProblemDetail /> },
   { id: 'problem-editor', path: '/app/:org/problem-editor', layout: 'app', element: <ProblemEditorPage /> },

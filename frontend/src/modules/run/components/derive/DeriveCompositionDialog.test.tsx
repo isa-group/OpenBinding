@@ -230,7 +230,7 @@ describe('Deriving a composition from a run', () => {
     // Seal: the same request but `seal`, so the sealed bytes are the previewed ones; the new version opens in Versions.
     click(dialog, 'Seal 1.0.0');
     await waitFor(() =>
-      expect(where()).toBe('/app/isa-demo/compositions/fleet-plan/versions?version=1.0.0')
+      expect(where()).toBe('/compositions/isa-demo/fleet-plan/versions?version=1.0.0')
     );
     expect(api.derive).toHaveBeenCalledTimes(2);
     expect(api.derive.mock.calls[1]).toEqual([
@@ -275,7 +275,7 @@ describe('Deriving a composition from a run', () => {
 
     click(dialog, 'Open as draft');
     await waitFor(() =>
-      expect(where()).toMatch(/^\/app\/isa-demo\/compositions\/fleet-routing\/editor#composition=/)
+      expect(where()).toMatch(/^\/compositions\/isa-demo\/fleet-routing\/editor#composition=/)
     );
     expect(readCompositionFragment(where().slice(where().indexOf('#')))).toEqual({
       status: 'ok',
@@ -315,7 +315,7 @@ describe('Deriving a composition from a run', () => {
     expect(api.create).toHaveBeenCalledTimes(1);
     click(dialog, 'Seal 0.1.0');
     await waitFor(() =>
-      expect(where()).toBe('/app/isa-demo/compositions/fleet-plan/versions?version=0.1.0')
+      expect(where()).toBe('/compositions/isa-demo/fleet-plan/versions?version=0.1.0')
     );
   });
 
@@ -468,7 +468,7 @@ describe('Deriving a composition from a binding of a problem version', () => {
 
     click(dialog, 'Seal 1.3.0');
     await waitFor(() =>
-      expect(where()).toBe('/app/isa-demo/compositions/fleet-routing/versions?version=1.3.0')
+      expect(where()).toBe('/compositions/isa-demo/fleet-routing/versions?version=1.3.0')
     );
     expect(api.derive.mock.calls[1]).toEqual([
       'isa-demo',

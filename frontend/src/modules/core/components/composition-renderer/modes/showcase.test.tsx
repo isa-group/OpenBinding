@@ -1,13 +1,12 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { compositionViewModel, type Reader } from '../../../utils/composition/viewModel';
 import type { CompositionVersionView, CompositionView, ProblemFacts } from '../../../api/types';
 import fmsFacts from '../../../../../test/fixtures/core/fms.facts.json';
 import fmsVersion from '../../../../../test/fixtures/core/fms.version.json';
 import { CompositionRenderer } from '../CompositionRenderer';
 import type { Section } from '../presets';
-import type { ShowcaseActions } from './showcase';
 
 const composition = {
   id: 'composition-fms',
@@ -35,24 +34,9 @@ function versionWith(offering: Record<string, string> | null): CompositionVersio
   return { ...version, offering };
 }
 
-const ACTIONS: ShowcaseActions = {
-  versions: [
-    {
-      id: '00000000-0000-4000-8000-000000000008',
-      label: '1.0.0',
-      createdAt: '2026-01-01T00:00:02Z',
-    },
-    { id: 'older', label: '0.9.0', createdAt: '2025-12-01T00:00:00Z' },
-  ],
-  versionHref: label => `/c/lab-other/fms?version=${label}`,
-  permalink: 'https://openbinding.example.org/c/lab-other/fms?version=1.0.0',
-  updatedAt: '2026-02-03T00:00:00Z',
-};
-
 function renderShowcase(
   options: {
     version?: CompositionVersionView | null;
-    actions?: Partial<ShowcaseActions>;
     reader?: Reader;
     hide?: Section[];
     facts?: ProblemFacts;
@@ -67,12 +51,7 @@ function renderShowcase(
   });
   return render(
     <MemoryRouter>
-      <CompositionRenderer
-        model={model}
-        mode="showcase"
-        hideSections={options.hide}
-        showcase={{ ...ACTIONS, ...options.actions }}
-      />
+      <CompositionRenderer model={model} mode="showcase" hideSections={options.hide} />
     </MemoryRouter>
   );
 }
@@ -80,13 +59,9 @@ function renderShowcase(
 const region = (name: string) => screen.getByRole('region', { name });
 
 describe('the showcase mode', () => {
-  it('heads the page with the name, the kind, the organization, the version and the last change', () => {
+  it('says what the composition does; the page header, not the mode, names it', () => {
     renderShowcase();
-    expect(screen.getByRole('heading', { level: 1, name: 'Fleet management' })).toBeInTheDocument();
-    expect(screen.getByText('Application · Other Lab')).toBeInTheDocument();
-    expect(screen.getByText(/sealed/, { selector: 'p' })).toHaveTextContent(
-      'Version 1.0.0, sealed Jan 1, 2026 · Updated Feb 3, 2026'
-    );
+    expect(screen.queryByRole('heading', { level: 1 })).toBeNull();
     expect(region('What it does')).toHaveTextContent('Routes the fleet across providers.');
   });
 
@@ -136,59 +111,18 @@ describe('the showcase mode', () => {
     expect(region('Offering')).toHaveTextContent('fleet/fms in SPHERE');
   });
 
-  it('lists the versions as links to their own page, the one shown marked', () => {
-    renderShowcase();
-    const versions = screen.getByRole('list', { name: 'Versions' });
-    expect(within(versions).getByRole('link', { name: '1.0.0' })).toHaveAttribute(
-      'aria-current',
-      'page'
-    );
-    expect(within(versions).getByRole('link', { name: '0.9.0' })).toHaveAttribute(
-      'href',
-      '/c/lab-other/fms?version=0.9.0'
-    );
-  });
-
-  it('copies the permalink of the version shown and says so', async () => {
-    const writeText = vi.fn().mockResolvedValue(undefined);
-    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
-    renderShowcase();
-    fireEvent.click(screen.getByRole('button', { name: 'Copy permalink' }));
-    expect(writeText).toHaveBeenCalledWith(
-      'https://openbinding.example.org/c/lab-other/fms?version=1.0.0'
-    );
-    expect(await screen.findByText('Link copied.')).toHaveAttribute('role', 'status');
-  });
-
-  it('offers Fork and the app only when the page answers them', () => {
-    const onFork = vi.fn();
-    const { unmount } = renderShowcase();
-    expect(screen.queryByRole('button', { name: 'Fork' })).toBeNull();
-    expect(screen.queryByRole('link', { name: 'Open in the app' })).toBeNull();
-    unmount();
-
-    renderShowcase({ actions: { onFork, appHref: '/app/lab-other/compositions/fms' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Fork' }));
-    expect(onFork).toHaveBeenCalledTimes(1);
-    expect(screen.getByRole('link', { name: 'Open in the app' })).toHaveAttribute(
-      'href',
-      '/app/lab-other/compositions/fms'
-    );
-  });
-
   it('says there is no version yet, and leaves out what a version would show', () => {
-    renderShowcase({ version: null, actions: { versions: [] } });
-    expect(screen.getByRole('heading', { level: 1, name: 'Fleet management' })).toBeInTheDocument();
+    renderShowcase({ version: null });
     expect(
       screen.getByText('No version yet: nothing has been sealed for this composition.')
     ).toBeInTheDocument();
-    for (const name of ['Values', 'Workflow', 'Offering', 'Versions'])
+    for (const name of ['Values', 'Workflow', 'Offering'])
       expect(screen.queryByRole('region', { name })).toBeNull();
   });
 
   it('leaves out the sections a screen hides', () => {
-    renderShowcase({ hide: ['about', 'plans', 'versions'] });
-    for (const name of ['What it does', 'Upstream plans', 'Versions'])
+    renderShowcase({ hide: ['about', 'plans'] });
+    for (const name of ['What it does', 'Upstream plans'])
       expect(screen.queryByRole('region', { name })).toBeNull();
     expect(region('Values')).toBeInTheDocument();
   });

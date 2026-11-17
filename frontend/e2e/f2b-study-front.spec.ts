@@ -100,7 +100,7 @@ test.describe('J4 · study front → compositions', () => {
     await dialog.getByRole('button', { name: 'Done' }).click();
     await expect(first.getByRole('link', { name: 'checkout-flow-p1 1.0.0' })).toHaveAttribute(
       'href',
-      '/app/isa-demo/compositions/checkout-flow-p1/versions?version=1.0.0'
+      '/compositions/isa-demo/checkout-flow-p1/versions?version=1.0.0'
     );
     await expect(second.getByRole('link', { name: 'checkout-flow-p4 1.0.0' })).toBeVisible();
 

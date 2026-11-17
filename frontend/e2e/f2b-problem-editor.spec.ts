@@ -250,7 +250,7 @@ test.describe('J3 · the problem editor checks a package live, locates what the 
       route.fulfill({ status: 200, json: core('fms.validate.json') })
     );
 
-    await page.goto('/app/isa-demo/compositions/fleet-routing?version=1.0.0');
+    await page.goto('/compositions/isa-demo/fleet-routing?version=1.0.0');
     await main(page).getByRole('link', { name: 'Open on its problem in the editor' }).click();
     await expect(page).toHaveURL(
       /\/app\/isa-demo\/problem-editor\?problem=checkout-flow&revision=2&composition=fleet-routing&compositionVersion=1\.0\.0$/
@@ -262,7 +262,7 @@ test.describe('J3 · the problem editor checks a package live, locates what the 
     );
     await expect(note.getByRole('link', { name: 'Back to Fleet routing 1.0.0' })).toHaveAttribute(
       'href',
-      '/app/isa-demo/compositions/fleet-routing?version=1.0.0'
+      '/compositions/isa-demo/fleet-routing?version=1.0.0'
     );
     await expect(checkStatus(page)).toHaveText('Valid package');
 

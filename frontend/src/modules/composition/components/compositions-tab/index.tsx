@@ -2,13 +2,13 @@
 // (revision 73779a8a), https://github.com/SCORELabUS/SPHERE. Copyright (c) 2024 Alejandro García Fernández.
 // MIT licence: the full text is in THIRD_PARTY_NOTICES.md.
 // Changes: the organization's compositions, loaded by the tab itself from the gateway with server paging; the search,
-// the Kind and Archived filters and the page live in the address; the role decides "New composition" and the card's
+// the Kind and Archived filters and the page live in the address; "New composition" opens `/compositions/new?org=`; the role decides it and the card's
 // Archive (OpenBinding's MEMBER and above), not SPHERE's per-entity permissions; a visitor sees the public compositions;
 // a failed load says so with Retry; no collections.
 
 import { AnimatePresence, motion } from 'framer-motion';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { FaProjectDiagram } from 'react-icons/fa';
 import { readApiError } from '../../../core/api/errors';
 import Pagination from '../../../core/components/pagination';
@@ -18,8 +18,7 @@ import {
   transitionDefault,
   transitionFast,
 } from '../../../core/utils/motion-variants';
-import { CreateCompositionDialog } from '../../../../pages/Compositions/CreateCompositionDialog';
-import { compositionPath, showcasePath } from '../../../../routes/paths/compositions';
+import { compositionPath, newCompositionPath } from '../../../../routes/paths/compositions';
 import { useCompositionsApi, type CompositionView } from '../../api/compositionsApi';
 import { useArchiveComposition } from '../../hooks/useArchiveComposition';
 import { roleAtLeast } from '../../hooks/useCompositionRole';
@@ -42,7 +41,6 @@ const list = (value: string | null) => (value ? value.split(',').filter(Boolean)
 
 export default function CompositionsTab({ org, myRole, isPublicView }: Props) {
   const { getOrganizationCompositions } = useCompositionsApi();
-  const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const [compositions, setCompositions] = useState<CompositionView[]>([]);
   const [total, setTotal] = useState(0);
@@ -52,17 +50,6 @@ export default function CompositionsTab({ org, myRole, isPublicView }: Props) {
   const [showFilters, setShowFilters] = useState(false);
   const filtersRef = useRef<HTMLDivElement>(null);
 
-  const creating = params.get('create') === 'composition';
-  const setCreating = (open: boolean) =>
-    setParams(
-      previous => {
-        const next = new URLSearchParams(previous);
-        if (open) next.set('create', 'composition');
-        else next.delete('create');
-        return next;
-      },
-      { replace: true }
-    );
   const q = params.get('q') ?? '';
   const [search, setSearch] = useState(q);
   const kinds = list(params.get('kinds'));
@@ -280,9 +267,8 @@ export default function CompositionsTab({ org, myRole, isPublicView }: Props) {
               </AnimatePresence>
             </div>
             {canWrite && (
-              <button
-                type="button"
-                onClick={() => setCreating(true)}
+              <Link
+                to={newCompositionPath(org.slug)}
                 className="flex h-9 cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-tp-accent px-3 py-2 text-sm font-medium text-tp-on-primary transition-colors hover:bg-tp-primary-deep"
               >
                 <svg
@@ -296,7 +282,7 @@ export default function CompositionsTab({ org, myRole, isPublicView }: Props) {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
                 </svg>
                 New composition
-              </button>
+              </Link>
             )}
           </div>
         </div>
@@ -329,11 +315,7 @@ export default function CompositionsTab({ org, myRole, isPublicView }: Props) {
                   key={composition.id}
                   data={composition}
                   showVisibility={!isPublicView}
-                  to={
-                    isPublicView
-                      ? showcasePath(org.slug, composition.slug)
-                      : compositionPath(org.slug, composition.slug)
-                  }
+                  to={compositionPath(org.slug, composition.slug)}
                   menuItems={archiveMenu(composition, canWrite, archive)}
                 />
               ))}
@@ -356,20 +338,6 @@ export default function CompositionsTab({ org, myRole, isPublicView }: Props) {
           </div>
         )}
       </div>
-
-      {creating && (
-        <CreateCompositionDialog
-          organization={org}
-          onClose={() => setCreating(false)}
-          onCreated={created =>
-            void navigate(compositionPath(org.slug, created.slug, 'editor'), {
-              state: {
-                toast: `Composition “${created.name}” created. It has no version yet: write its first one here.`,
-              },
-            })
-          }
-        />
-      )}
     </motion.section>
   );
 }

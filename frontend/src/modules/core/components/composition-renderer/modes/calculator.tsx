@@ -109,7 +109,7 @@ function Neighbourhood({
     loaded && loaded.key === key ? loaded.value : { state: 'loading' };
   if (neighbourhood.state === 'loading') {
     return (
-      <p className="cr-muted" role="status">
+      <p className="cr-muted m-0 text-[13px] text-tp-steel" role="status">
         The toolchain is evaluating each candidate a task could take instead…
       </p>
     );
@@ -117,7 +117,7 @@ function Neighbourhood({
   if (neighbourhood.state === 'refused') {
     const { refusal } = neighbourhood;
     return refusal.notLinked ? (
-      <p className="cr-muted">{refusal.message}</p>
+      <p className="cr-muted m-0 text-[13px] text-tp-steel">{refusal.message}</p>
     ) : (
       <Notice
         tone="error"
@@ -197,7 +197,7 @@ function Neighbourhood({
         </div>
       )}
       {rows.length > 0 && shown.length === 0 && (
-        <p className="cr-muted">
+        <p className="cr-muted m-0 text-[13px] text-tp-steel">
           No move matches. Clear the search or choose another task or comparison.
         </p>
       )}
@@ -312,7 +312,7 @@ function Neighbourhood({
           </tbody>
         </DataTable>
       )}
-      <p className="cr-muted">
+      <p className="cr-muted m-0 text-[13px] text-tp-steel">
         {`Evaluated ${coverage.evaluated} of ${coverage.total} moves (up to ${coverage.limit}) on the installed toolchain.`}
         {coverage.complete
           ? ''
@@ -328,7 +328,7 @@ export function CalculatorMode({ model, sections, actions }: CalculatorModeProps
     return null;
   return (
     <RendererSection title="One change at a time">
-      <p className="cr-muted">
+      <p className="cr-muted m-0 text-[13px] text-tp-steel">
         Each candidate one task could take instead of this version’s, evaluated by the toolchain
         against this binding. The comparison and every change are the gateway’s.
       </p>

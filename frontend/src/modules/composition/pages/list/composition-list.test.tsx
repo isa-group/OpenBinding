@@ -44,7 +44,7 @@ describe('/compositions', () => {
     const card = await screen.findByRole('article', { name: 'Order desk' });
     expect(within(card).getByRole('link', { name: 'Order desk' })).toHaveAttribute(
       'href',
-      '/c/acme/order-desk'
+      '/compositions/acme/order-desk'
     );
     expect(card).toHaveTextContent('Workflow');
     expect(card).toHaveTextContent('4 tasks');

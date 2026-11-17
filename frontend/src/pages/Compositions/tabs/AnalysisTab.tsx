@@ -1,3 +1,4 @@
+import '../Compositions.css';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Action } from '../../../modules/core/components/action-button';
@@ -17,7 +18,6 @@ import {
   type BindingDerivation,
   type WrittenBinding,
 } from '../../../modules/core/components/composition-renderer/modes/analysis';
-import type { CandidatesState } from './OverviewTab';
 
 interface AnalysisTabProps {
   org: string;
@@ -26,7 +26,8 @@ interface AnalysisTabProps {
   /** Derive versions and open drafts: MEMBER. Reading the moves and evaluating bindings is open to every reader of the organization. */
   canDerive: boolean;
   /** Where the candidates of the linked problem stand, while they are not there. */
-  candidates?: CandidatesState | null;
+  /** Where the candidates of the linked problem stand, while they are not ready. */
+  candidates?: { status: 'loading' | 'error'; marker: string; retry: () => void } | null;
   /** The gateway says the shown version links no problem after all: the page hides the tab. */
   onNotLinked: () => void;
 }

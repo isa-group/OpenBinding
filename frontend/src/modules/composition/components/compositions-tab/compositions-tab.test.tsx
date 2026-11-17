@@ -1,6 +1,6 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { addressNow, fakeGateway, renderModule } from '../../../../test/moduleKit';
+import { fakeGateway, renderModule } from '../../../../test/moduleKit';
 import CompositionsTab from '.';
 
 const composition = (slug: string, over: Record<string, unknown> = {}) => ({
@@ -44,9 +44,10 @@ describe("the organization's Compositions tab", () => {
     expect(screen.getByRole('menuitem', { name: 'Archive' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: '2' }));
     await waitFor(() => expect(gateway.mock.calls.at(-1)?.[0]).toContain('offset=10'));
-    fireEvent.click(screen.getByRole('button', { name: 'New composition' }));
-    expect(addressNow()).toContain('create=composition');
-    expect(screen.getByRole('dialog', { name: 'New composition' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'New composition' })).toHaveAttribute(
+      'href',
+      '/compositions/new?org=acme'
+    );
   });
 
   it('filters by kind and archived state through the address', async () => {
@@ -77,10 +78,10 @@ describe("the organization's Compositions tab", () => {
     expect(screen.getByRole('heading', { name: 'Public compositions' })).toBeInTheDocument();
     expect(within(card).getByRole('link', { name: 'DESK' })).toHaveAttribute(
       'href',
-      '/c/acme/desk'
+      '/compositions/acme/desk'
     );
     expect(within(card).queryByRole('button')).toBeNull();
-    expect(screen.queryByRole('button', { name: 'New composition' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'New composition' })).toBeNull();
     expect(gateway.mock.calls[0][0]).not.toContain('archived');
   });
 });

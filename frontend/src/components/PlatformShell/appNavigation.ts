@@ -1,5 +1,9 @@
 import type { Organization } from '../../api/platform';
-import { COMPOSITIONS_SEGMENT } from '../../routes/paths/compositions';
+import {
+  COMPOSITIONS_SEGMENT,
+  compositionsPath,
+  newCompositionPath,
+} from '../../routes/paths/compositions';
 import { organizationPath, PROBLEMS_SEGMENT } from '../../routes/paths/problems';
 import { RUNS_SEGMENT } from '../../routes/paths/runs';
 import { STUDIES_SEGMENT } from '../../routes/paths/studies';
@@ -61,7 +65,9 @@ export function organizationEntries(
   return [
     {
       id: 'compositions',
-      ...inOrganization('Compositions', organization, `/${COMPOSITIONS_SEGMENT}`),
+      ...(organization
+        ? { label: 'Compositions', to: compositionsPath(organization.slug) }
+        : { label: 'Compositions', hint: NEEDS_ORGANIZATION }),
     },
     { id: 'problems', ...inOrganization('Problems', organization, `/${PROBLEMS_SEGMENT}`) },
     { id: 'runs', ...inOrganization('Runs', organization, `/${RUNS_SEGMENT}`) },
@@ -72,7 +78,9 @@ export function organizationEntries(
 /** Entries of the "New" menu: always these four, each in the organization. */
 export function createItems(organization?: Organization): MenuEntry[] {
   return [
-    inOrganization('Composition', organization, `/${COMPOSITIONS_SEGMENT}?create=composition`),
+    organization
+      ? { label: 'Composition', to: newCompositionPath(organization.slug) }
+      : { label: 'Composition', hint: NEEDS_ORGANIZATION },
     inOrganization('Problem', organization, `/${PROBLEMS_SEGMENT}?create=problem`),
     inOrganization('Study', organization, `/${STUDIES_SEGMENT}/new`),
     inOrganization('Run', organization, `/${RUNS_SEGMENT}/new`),

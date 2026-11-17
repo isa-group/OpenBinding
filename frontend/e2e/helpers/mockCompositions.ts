@@ -641,6 +641,8 @@ export interface CompositionStore {
   publicList: (request: CompositionRequest) => CompositionReply;
   /** `GET /v1/users/me/compositions`: every composition the account reads as a member, across its organizations. */
   mineList: (request: CompositionRequest) => CompositionReply;
+  /** `GET /v1/permalinks/compositions/{id}`: where a composition's permanent link leads (any composition; the page reads it). */
+  permalink: (request: CompositionRequest) => CompositionReply;
   /** Answers the language services `/v1/compositions/{validate,parse,serialise,schema}`; null for anything else. */
   language: (request: CompositionRequest) => CompositionReply | null;
 }
@@ -1822,6 +1824,15 @@ export function compositionStore(options: CompositionSeed = {}): CompositionStor
 
     mineList(request) {
       return list(request, allEntries());
+    },
+
+    permalink(request) {
+      const [, , , id] = request.parts;
+      const entry = allEntries().find(item => item.view.id === id);
+      if (!entry) return missing();
+      const version = request.query.get('version');
+      const location = `/compositions/${entry.view.organization.slug}/${entry.view.slug}${version ? `?version=${encodeURIComponent(version)}` : ''}`;
+      return ok({ location });
     },
 
     language(request) {
