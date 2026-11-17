@@ -14,7 +14,11 @@ import { Link } from 'react-router-dom';
 import type { Job } from '../../../../api/platform';
 import { runsApi } from '../../../../api/runs';
 import { PlanChangedNotice } from '../../../../components/PlanChangedNotice/PlanChangedNotice';
-import { compositionPath, publicCompositionsPath } from '../../../../routes/paths/compositions';
+import {
+  compositionPath,
+  myCompositionsPath,
+  publicCompositionsPath,
+} from '../../../../routes/paths/compositions';
 import { problemPath } from '../../../../routes/paths/problems';
 import { launchPath, runPath } from '../../../../routes/paths/runs';
 import { useAuth } from '../../../auth/hooks/useAuth';
@@ -296,7 +300,7 @@ export default function DashboardPage() {
               </div>
             </Section>
 
-            <Section title="Recent compositions" viewAll={publicCompositionsPath()} delay={0.15}>
+            <Section title="Recent compositions" viewAll={myCompositionsPath()} delay={0.15}>
               {recentComps.length === 0 ? (
                 <Empty>No compositions yet.</Empty>
               ) : (

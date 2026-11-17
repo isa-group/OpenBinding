@@ -453,9 +453,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         );
         await page.keyboard.press('Escape');
       }
-      const list = main.getByRole('region', { name: 'Public compositions' });
+      const list = main;
       await expect(list.getByRole('article')).toHaveCount(2);
-      await expect(list.getByText('2 compositions')).toBeVisible();
+      await expect(list.getByText('2 compositions found')).toBeVisible();
       await ready(page);
       await expectNoHorizontalOverflow(page);
       await page.screenshot({

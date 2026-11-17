@@ -51,7 +51,7 @@ const HEADING: Record<string, RegExp> = {
   notifications: /^Notifications$/,
   'pub-compositions': /^Public compositions$/,
   'pub-showcase': /^Fleet routing$/,
-  'composition-list': /^Compositions$/,
+  'my-compositions': /^My compositions$/,
   'composition-detail': /Fleet routing/,
   'problem-list': /^Problems$/,
   'problem-detail': /Checkout flow/,

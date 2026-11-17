@@ -73,15 +73,9 @@ const EngRegistrationDetail = named(
   () => import('../pages/Engines/EngRegistrationDetail'),
   'EngRegistrationDetail'
 );
-const PublicCompositionList = named(
-  () => import('../pages/PublicCompositions/PublicCompositionList'),
-  'PublicCompositionList'
-);
+const CompositionListPage = lazy(() => import('../modules/composition/pages/list'));
+const UserCompositionListPage = lazy(() => import('../modules/composition/pages/user-list'));
 const Showcase = named(() => import('../pages/PublicCompositions/Showcase'), 'Showcase');
-const CompositionList = named(
-  () => import('../pages/Compositions/CompositionList'),
-  'CompositionList'
-);
 const CompositionDetail = named(
   () => import('../pages/Compositions/CompositionDetail'),
   'CompositionDetail'
@@ -129,7 +123,7 @@ export const screens: Screen[] = [
   { id: 'pub-home', path: '/', layout: 'session', element: <RootPage /> },
   { id: 'org-explore', path: '/organizations', layout: 'session', element: <PublicOrganizationsPage /> },
   { id: 'org-detail', path: '/orgs/:org/:tab?', layout: 'session', element: <OrganizationDetailPage /> },
-  { id: 'pub-compositions', path: '/compositions', layout: 'session', element: <PublicCompositionList /> },
+  { id: 'pub-compositions', path: '/compositions', layout: 'session', element: <CompositionListPage /> },
   { id: 'pub-showcase', path: '/c/:org/:composition', layout: 'session', element: <Showcase /> },
 
   // ═══════════════════════════════════════════════════════════
@@ -138,6 +132,7 @@ export const screens: Screen[] = [
   { id: 'org-list', path: '/me/orgs', layout: 'protected', element: <OrganizationsListPage /> },
   { id: 'org-new', path: '/orgs/new', layout: 'protected', element: <CreateOrganizationPage /> },
   { id: 'org-join', path: '/orgs/join/:code', layout: 'protected', element: <OrganizationJoinPage /> },
+  { id: 'my-compositions', path: '/me/compositions', layout: 'protected', element: <UserCompositionListPage /> },
   { id: 'notifications', path: '/notifications', layout: 'protected', element: <InboxPage /> },
   { id: 'acct-settings', path: '/me/settings', layout: 'protected', element: <SettingsPage /> },
   { id: 'acct-api-keys', path: '/me/api-keys', layout: 'protected', element: <ApiKeysPage /> },
@@ -148,7 +143,6 @@ export const screens: Screen[] = [
   { id: 'eng-register', path: '/app/engines/new', layout: 'app', element: <RegisterEngine /> },
   { id: 'eng-registrations', path: '/app/engines/registrations', layout: 'app', element: <EngRegistrations /> },
   { id: 'eng-registration-detail', path: '/app/engines/registrations/:name', layout: 'app', element: <EngRegistrationDetail /> },
-  { id: 'composition-list', path: '/app/:org/compositions', layout: 'app', element: <CompositionList /> },
   { id: 'composition-detail', path: '/app/:org/compositions/:composition/:tab?', layout: 'app', element: <CompositionDetail /> },
   { id: 'problem-list', path: '/app/:org/problems', layout: 'app', element: <ProblemList /> },
   { id: 'problem-detail', path: '/app/:org/problems/:case/:tab?', layout: 'app', element: <ProblemDetail /> },

@@ -1007,6 +1007,8 @@ function userRoutes(request: Request): Reply {
       return subId ? { status: 204 } : ok({ api_keys: API_KEYS });
     case 'settings':
       return subId === 'beta-features' ? ok({ enabled: false }) : notFound();
+    case 'compositions':
+      return request.compositions.mineList(request);
     case 'identities':
       return ok([
         { id: 'i1', provider: 'us-cas', subject: 'arivera1', verifiedAt: '2026-09-01T00:00:00Z' },

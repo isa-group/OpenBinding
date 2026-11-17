@@ -5,6 +5,7 @@ import {
   compositionPath,
   compositionsPath,
   isCompositionTabSegment,
+  myCompositionsPath,
   publicCompositionsPath,
   showcasePath,
 } from './compositions';
@@ -22,15 +23,15 @@ describe('the address builders of the compositions area', () => {
       expect(isCompositionTabSegment(segment), segment).toBe(false);
   });
 
-  it('builds the list with its filters, leaving out the empty ones', () => {
-    expect(compositionsPath('acme')).toBe('/app/acme/compositions');
+  it("builds an organization's Compositions tab with its filters, leaving out the empty ones", () => {
+    expect(compositionsPath('acme')).toBe('/orgs/acme/compositions');
     expect(compositionsPath('acme', { kind: 'workflow' })).toBe(
-      '/app/acme/compositions?kind=workflow'
+      '/orgs/acme/compositions?kinds=workflow'
     );
     expect(compositionsPath('acme', { kind: 'system', archived: true, q: ' desk ' })).toBe(
-      '/app/acme/compositions?kind=system&archived=true&q=desk'
+      '/orgs/acme/compositions?kinds=system&archived=true&q=desk'
     );
-    expect(compositionsPath('acme', { archived: false, q: '  ' })).toBe('/app/acme/compositions');
+    expect(compositionsPath('acme', { archived: false, q: '  ' })).toBe('/orgs/acme/compositions');
   });
 
   it('builds a composition, the version it shows and the pair and view of its versions', () => {
@@ -69,8 +70,9 @@ describe('the address builders of the compositions area', () => {
     );
     expect(publicCompositionsPath()).toBe('/compositions');
     expect(publicCompositionsPath({ kind: 'workflow', q: ' fleet ', page: 2 })).toBe(
-      '/compositions?kind=workflow&q=fleet&page=2'
+      '/compositions?q=fleet&kinds=workflow&page=2'
     );
     expect(publicCompositionsPath({ q: '  ', page: 1 })).toBe('/compositions');
+    expect(myCompositionsPath()).toBe('/me/compositions');
   });
 });

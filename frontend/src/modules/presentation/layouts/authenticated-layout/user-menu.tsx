@@ -8,11 +8,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
-  FaBuilding,
   FaBell,
+  FaBuilding,
   FaCog,
   FaCogs,
   FaKey,
+  FaLayerGroup,
   FaUserCircle,
   FaUserShield,
 } from 'react-icons/fa';
@@ -25,6 +26,7 @@ import { userEntries } from '../router/header-routes';
 
 const ICONS: Record<string, typeof FaKey> = {
   Organizations: FaBuilding,
+  Compositions: FaLayerGroup,
   Inbox: FaBell,
   Engines: FaCogs,
   'API keys': FaKey,

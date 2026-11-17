@@ -45,7 +45,7 @@ export interface MenuEntry {
 export function newEntries(organization: string | undefined): MenuEntry[] {
   const inOrganization: MenuEntry[] = organization
     ? [
-        { label: 'Composition', to: `/app/${organization}/compositions?create=composition` },
+        { label: 'Composition', to: `/orgs/${organization}/compositions?create=composition` },
         { label: 'Problem', to: `/app/${organization}/problem-editor` },
         { label: 'Run', to: `/app/${organization}/runs/new` },
         { label: 'Study', to: `/app/${organization}/studies/new` },
@@ -62,6 +62,7 @@ export function newEntries(organization: string | undefined): MenuEntry[] {
 export function userEntries(isAdmin: boolean): MenuEntry[] {
   return [
     { label: 'Organizations', to: '/me/orgs' },
+    { label: 'Compositions', to: '/me/compositions' },
     { label: 'Inbox', to: '/notifications' },
     { label: 'Engines', to: '/app/engines/registrations' },
     { label: 'API keys', to: '/me/api-keys' },

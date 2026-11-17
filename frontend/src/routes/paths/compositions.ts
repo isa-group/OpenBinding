@@ -1,7 +1,9 @@
-// Address builders of the compositions area (F2). Code that links to the composition list, a composition, its tabs or its public
-// page builds the address here, so the segments are named once.
+// Address builders of the compositions area. Code that links to a composition list, a composition, its tabs or its public
+// page builds the address here, so the segments are named once. The lists are SPHERE's: `/compositions` (public),
+// `/me/compositions` (the account's) and an organization's Compositions tab (`/orgs/:org/compositions`).
 
 import type { Kind } from '../../modules/core/utils/composition/document';
+import { orgPath } from '../../modules/organization/types/paths';
 import { organizationPath } from './problems';
 
 /** The segment of the composition list and the composition page. */
@@ -15,7 +17,7 @@ export type CompositionTabSegment = (typeof COMPOSITION_TAB_SEGMENTS)[number];
 export const isCompositionTabSegment = (value: string): value is CompositionTabSegment =>
   (COMPOSITION_TAB_SEGMENTS as readonly string[]).includes(value);
 
-/** What the composition list shows: one kind, the archived ones instead of the active ones, and a search text. */
+/** What a composition list shows: some kinds, the archived ones instead of the active ones, and a search text. */
 export interface CompositionsFilter {
   kind?: Kind;
   archived?: boolean;
@@ -45,10 +47,10 @@ function withQuery(
   return search ? `${path}?${search}` : path;
 }
 
-/** The composition list of an organization: `/app/<org>/compositions`, with its filters. */
+/** The compositions of an organization: its Compositions tab, `/orgs/<org>/compositions`, with its filters. */
 export function compositionsPath(org: string, filter: CompositionsFilter = {}): string {
-  return withQuery(`${organizationPath(org)}/${COMPOSITIONS_SEGMENT}`, {
-    kind: filter.kind,
+  return withQuery(orgPath(org, COMPOSITIONS_SEGMENT), {
+    kinds: filter.kind,
     archived: filter.archived,
     q: filter.q?.trim(),
   });
@@ -80,7 +82,7 @@ export function showcasePath(org: string, composition: string, query: ShowcaseQu
   });
 }
 
-/** What the public list shows: one kind, a search text and a page (1 is the first, and is left out of the address). */
+/** What the public list shows: some kinds, a search text and a page (1 is the first, and is left out of the address). */
 export interface PublicCompositionsFilter {
   kind?: Kind;
   q?: string;
@@ -90,8 +92,13 @@ export interface PublicCompositionsFilter {
 /** The public compositions of every organization: `/compositions`, with its filters. */
 export function publicCompositionsPath(filter: PublicCompositionsFilter = {}): string {
   return withQuery(`/${COMPOSITIONS_SEGMENT}`, {
-    kind: filter.kind,
     q: filter.q?.trim(),
+    kinds: filter.kind,
     page: filter.page && filter.page > 1 ? filter.page : undefined,
   });
+}
+
+/** The compositions the account reads as a member: `/me/compositions`. */
+export function myCompositionsPath(): string {
+  return `/me/${COMPOSITIONS_SEGMENT}`;
 }

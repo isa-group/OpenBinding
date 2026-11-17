@@ -1,6 +1,5 @@
 import { useState, type FormEvent } from 'react';
 import { TriangleAlert } from 'lucide-react';
-import type { Organization } from '../../api/platform';
 import { Action } from '../../modules/core/components/action-button';
 import { FormField } from '../../modules/core/components/form-field';
 import { Modal } from '../../modules/core/components/modal';
@@ -24,7 +23,7 @@ export function CreateCompositionDialog({
   onClose,
   onCreated,
 }: {
-  organization: Organization;
+  organization: { slug: string; name: string };
   onClose: () => void;
   onCreated: (created: CompositionView) => void;
 }) {

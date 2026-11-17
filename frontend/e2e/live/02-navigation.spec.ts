@@ -20,11 +20,12 @@ test.describe('live · the organization lab-main and its problems', () => {
     await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
     await capture(page, testInfo, 'navigation-organization');
 
-    // The Compositions and Problems tabs lead to the workspace screens.
+    // The Compositions tab lists the organization's compositions as SPHERE's cards; Problems leads to the workspace screen.
     await page.goto(`${ORG_PAGE}/compositions`);
     await expect(
-      page.locator('main').getByRole('link', { name: 'Open all compositions' }).first()
-    ).toHaveAttribute('href', `${ORG_PATH}/compositions`);
+      page.locator('main').getByRole('heading', { level: 2, name: 'Compositions' })
+    ).toBeVisible();
+    await expect(page.locator('main').getByRole('article').first()).toBeVisible();
     await page.goto(`${ORG_PAGE}/problems`);
     const problems = page.locator('main').getByRole('link', { name: 'Open the problems' }).first();
     await expect(problems).toHaveAttribute('href', `${ORG_PATH}/problems`);

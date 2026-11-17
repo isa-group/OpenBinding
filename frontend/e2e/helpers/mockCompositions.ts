@@ -341,6 +341,47 @@ function composition(
   };
 }
 
+/** What a list row shows of a latest version: its tasks and providers (analytics) and its cost (its values). */
+function figuresOf(versions: CompositionVersionView[]) {
+  const latest = versions[versions.length - 1];
+  if (!latest) return null;
+  const analytics = (latest.analytics ?? {}) as Record<string, unknown>;
+  const cost = latest.values?.cost as { value?: number; unit?: string } | number | undefined;
+  const number = (value: unknown) => (typeof value === 'number' ? value : null);
+  return {
+    tasks: number(analytics.tasks),
+    providers: number(analytics.providers),
+    cost: typeof cost === 'number' ? cost : (cost?.value ?? null),
+    cost_unit: typeof cost === 'object' ? (cost?.unit ?? null) : null,
+  };
+}
+
+/** A list row with its latest version's figures, as the gateway lists it. */
+function listed({ view, versions }: { view: CompositionView; versions: CompositionVersionView[] }) {
+  return view.latest_version
+    ? { ...view, latest_version: { ...view.latest_version, figures: figuresOf(versions) } }
+    : view;
+}
+
+/** The facets of a list: the owners of every match, and the ranges as the gateway sends them (empty here). */
+function facetsOf(rows: { organization: { slug: string; name: string } }[]) {
+  const owners = new Map<string, { slug: string; name: string; count: number }>();
+  for (const row of rows) {
+    const owner = owners.get(row.organization.slug) ?? { ...row.organization, count: 0 };
+    owner.count += 1;
+    owners.set(row.organization.slug, owner);
+  }
+  const empty = { min: null, max: null, data: [] };
+  return {
+    owners: [...owners.values()].map(({ slug, name, count }) => ({ slug, name, count })),
+    ranges: { tasks: empty, providers: empty, cost: empty },
+  };
+}
+
+/** The kinds a list asks for: `kinds` (comma-separated) or the older `kind`. */
+const kindsOf = (query: URLSearchParams) =>
+  (query.get('kinds') ?? query.get('kind') ?? '').split(',').filter(Boolean);
+
 interface Entry {
   view: CompositionView;
   /** Oldest first. */
@@ -598,6 +639,8 @@ export interface CompositionStore {
   ) => CompositionReply;
   /** `GET /v1/compositions`: the public compositions of every organization, with the gateway's filters and paging. */
   publicList: (request: CompositionRequest) => CompositionReply;
+  /** `GET /v1/users/me/compositions`: every composition the account reads as a member, across its organizations. */
+  mineList: (request: CompositionRequest) => CompositionReply;
   /** Answers the language services `/v1/compositions/{validate,parse,serialise,schema}`; null for anything else. */
   language: (request: CompositionRequest) => CompositionReply | null;
 }
@@ -1331,12 +1374,13 @@ export function compositionStore(options: CompositionSeed = {}): CompositionStor
 
   const list = (request: CompositionRequest, pool: Entry[]): CompositionReply => {
     const { query } = request;
-    const kind = query.get('kind');
+    const kinds = kindsOf(query);
     const archived = query.get('archived');
+    const owners = (query.get('owners') ?? '').split(',').filter(Boolean);
     const needle = (query.get('q') ?? '').toLowerCase();
     // `problem`: the compositions with a version linking a revision of that problem (its slug or id).
     const problem = query.get('problem');
-    const rows = pool
+    const matched = pool
       .filter(
         entry =>
           !problem ||
@@ -1345,19 +1389,29 @@ export function compositionStore(options: CompositionSeed = {}): CompositionStor
               version.problem?.problem.slug === problem || version.problem?.problem.id === problem
           )
       )
-      .map(entry => entry.view)
       .filter(
-        view =>
-          (!kind || view.kind === kind) && (archived === null || String(view.archived) === archived)
+        ({ view }) =>
+          (!kinds.length || kinds.includes(view.kind)) &&
+          (archived === null || String(view.archived) === archived)
       )
-      .filter(view => !needle || `${view.name} ${view.slug}`.toLowerCase().includes(needle))
+      .filter(({ view }) => !needle || `${view.name} ${view.slug}`.toLowerCase().includes(needle))
       .sort((a, b) =>
         query.get('sort') === 'updated'
-          ? b.updated_at.localeCompare(a.updated_at)
-          : a.name.localeCompare(b.name)
+          ? b.view.updated_at.localeCompare(a.view.updated_at)
+          : a.view.name.localeCompare(b.view.name)
       );
+    const rows = matched
+      .filter(({ view }) => !owners.length || owners.includes(view.organization.slug))
+      .map(listed);
     const limit = Number(query.get('limit') ?? 50);
-    return ok({ compositions: rows.slice(0, limit), total: rows.length, limit, offset: 0 });
+    const offset = Number(query.get('offset') ?? 0);
+    return ok({
+      compositions: rows.slice(offset, offset + limit),
+      total: rows.length,
+      limit,
+      offset,
+      facets: facetsOf(matched.map(entry => entry.view)),
+    });
   };
 
   const create = (request: CompositionRequest): CompositionReply => {
@@ -1684,13 +1738,23 @@ export function compositionStore(options: CompositionSeed = {}): CompositionStor
               status: 401,
               json: { detail: { code: 'not_authenticated', error: 'Authentication required.' } },
             };
-      if (!slug)
-        return signedIn
-          ? {
-              status: 404,
-              json: { detail: { code: 'not_found', error: 'Organization not found.' } },
-            }
-          : refused();
+      // The list: an organization that publishes answers its public compositions to anybody (G6); one that does not is missing.
+      if (!slug) {
+        const published = poolOf(org).filter(
+          ({ view, versions }) =>
+            view.visibility === 'public' && !view.archived && versions.length > 0
+        );
+        if (request.method === 'GET' && published.length) {
+          const answer = list(request, published);
+          const body = answer.json as { compositions: CompositionView[] };
+          body.compositions = body.compositions.map(view => ({ ...view, created_by_id: null }));
+          return answer;
+        }
+        return {
+          status: 404,
+          json: { detail: { code: 'not_found', error: 'Organization not found.' } },
+        };
+      }
       const entry = poolOf(org).find(item => item.view.slug === slug);
       if (!entry || entry.view.visibility !== 'public')
         return request.method === 'GET' ? missing() : refused();
@@ -1704,7 +1768,8 @@ export function compositionStore(options: CompositionSeed = {}): CompositionStor
 
     publicList(request) {
       const { query } = request;
-      const kind = query.get('kind');
+      const kinds = kindsOf(query);
+      const owners = (query.get('owners') ?? '').split(',').filter(Boolean);
       const organization = query.get('organization');
       const needle = (query.get('q') ?? '').toLowerCase();
       const rows = allEntries()
@@ -1714,7 +1779,7 @@ export function compositionStore(options: CompositionSeed = {}): CompositionStor
         )
         .filter(
           ({ view }) =>
-            (!kind || view.kind === kind) &&
+            (!kinds.length || kinds.includes(view.kind)) &&
             (!organization || view.organization.slug === organization)
         )
         .filter(({ view }) => !needle || `${view.name} ${view.slug}`.toLowerCase().includes(needle))
@@ -1739,17 +1804,24 @@ export function compositionStore(options: CompositionSeed = {}): CompositionStor
               values_status: latest.values_status,
               verified: latest.verified,
               created_at: latest.created_at,
+              figures: figuresOf(versions),
             },
           };
         });
+      const shown = rows.filter(row => !owners.length || owners.includes(row.organization.slug));
       const limit = Number(query.get('limit') ?? 24);
       const offset = Number(query.get('offset') ?? 0);
       return ok({
-        compositions: rows.slice(offset, offset + limit),
-        total: rows.length,
+        compositions: shown.slice(offset, offset + limit),
+        total: shown.length,
         limit,
         offset,
+        facets: facetsOf(rows),
       });
+    },
+
+    mineList(request) {
+      return list(request, allEntries());
     },
 
     language(request) {

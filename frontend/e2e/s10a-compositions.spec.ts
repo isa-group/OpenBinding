@@ -1,7 +1,8 @@
 import { expect as baseExpect, test, type Page } from '@playwright/test';
 import { installMockApi } from './helpers/mockApi';
 
-// S10a · the compositions of an organization: composition-list (/app/:org/compositions) and the composition page composition-detail
+// S10a · the compositions of an organization: its Compositions tab (/orgs/:org/compositions, SPHERE's list) and the composition
+// page composition-detail
 // with its Overview (the catalog of the version shown, its architecture and its workflow), its Editor (Composition2Yaml code with
 // the gateway's lint, and the seal), its Versions (the table, and the comparison of two versions by entry and by line), its
 // Analysis (one change at a time, and a binding chosen per task, evaluated and derived) and its Settings (rename, archive, publish
@@ -12,6 +13,7 @@ import { installMockApi } from './helpers/mockApi';
 // Several browsers share one development server, so a screen can take longer than the default five seconds to settle.
 const expect = baseExpect.configure({ timeout: 15_000 });
 
+const TAB = '/orgs/isa-demo/compositions';
 const LIST = '/app/isa-demo/compositions';
 const main = (page: Page) => page.locator('main');
 const region = (page: Page, name: string) => main(page).getByRole('region', { name, exact: true });
@@ -27,55 +29,53 @@ test.describe('S10a · compositions', () => {
     const header = page.getByRole('banner');
     await header.getByRole('button', { name: 'New', exact: true }).click();
     await header.getByRole('link', { name: 'Composition', exact: true }).click();
-    await expect(page).toHaveURL(`${LIST}?create=composition`);
-    await expect(main(page).getByRole('heading', { level: 1, name: 'Compositions' })).toBeVisible();
+    await expect(page).toHaveURL(`${TAB}?create=composition`);
+    await expect(main(page).getByRole('heading', { level: 2, name: 'Compositions' })).toBeVisible();
     await expect(page.getByRole('dialog', { name: 'New composition' })).toBeVisible();
     expect(mock.unmocked).toEqual([]);
   });
 
-  test('the list shows the active compositions, newest change first, and filters them by kind and state', async ({
+  test('the tab shows the active compositions as cards, newest change first, and filters them by kind and state', async ({
     page,
   }) => {
     const mock = await installMockApi(page, 'admin');
-    await page.goto(LIST);
+    await page.goto(TAB);
 
-    const table = main(page).getByRole('table');
-    const names = table.locator('tbody th a');
+    const cards = main(page).getByRole('article');
+    const names = cards.getByRole('heading', { level: 3 });
     await expect(names).toHaveText(['Fleet routing', 'Order desk']);
-    const fleet = table.getByRole('row', { name: /Fleet routing/ });
+    const fleet = main(page).getByRole('article', { name: 'Fleet routing' });
     await expect(fleet).toContainText('Workflow');
-    await expect(fleet).toContainText('1.2.0');
+    await expect(fleet).toContainText('v1.2.0');
     await expect(fleet).toContainText('Verified');
-    const order = table.getByRole('row', { name: /Order desk/ });
+    const order = main(page).getByRole('article', { name: 'Order desk' });
     await expect(order).toContainText('Declared');
     await expect(order).toContainText('Public');
 
-    await main(page)
-      .getByRole('group', { name: 'Kind' })
-      .getByRole('button', { name: 'Application' })
-      .click();
-    await expect(page).toHaveURL(`${LIST}?kind=application`);
+    const filters = main(page).getByRole('button', { name: /^Filters/ });
+    await filters.click();
+    await main(page).getByRole('checkbox', { name: 'Application' }).click();
+    await expect(page).toHaveURL(`${TAB}?kinds=application`);
     await expect(names).toHaveText(['Order desk']);
 
-    await main(page)
-      .getByRole('group', { name: 'Kind' })
-      .getByRole('button', { name: 'All kinds' })
-      .click();
-    await main(page)
-      .getByRole('group', { name: 'State' })
-      .getByRole('button', { name: 'Archived' })
-      .click();
-    await expect(page).toHaveURL(`${LIST}?archived=true`);
+    await main(page).getByRole('checkbox', { name: 'Application' }).click();
+    await expect(page).toHaveURL(TAB);
+    await main(page).getByRole('checkbox', { name: 'Only archived compositions' }).click();
+    await expect(page).toHaveURL(`${TAB}?archived=true`);
     await expect(names).toHaveText(['Legacy intake']);
-    await expect(table.getByRole('row', { name: /Legacy intake/ })).toContainText('No version yet');
+    await expect(main(page).getByRole('article', { name: 'Legacy intake' })).toContainText(
+      'No version yet'
+    );
 
-    await main(page)
-      .getByRole('group', { name: 'State' })
-      .getByRole('button', { name: 'Active' })
-      .click();
+    await main(page).getByRole('checkbox', { name: 'Only archived compositions' }).click();
+    await expect(page).toHaveURL(TAB);
+    await page.keyboard.press('Escape');
     await main(page).getByRole('searchbox', { name: 'Search compositions' }).fill('desk');
-    await expect(page).toHaveURL(`${LIST}?q=desk`);
+    await expect(page).toHaveURL(`${TAB}?q=desk`);
     await expect(names).toHaveText(['Order desk']);
+
+    await main(page).getByRole('link', { name: 'Order desk' }).click();
+    await expect(page).toHaveURL(`${LIST}/order-desk`);
     expect(mock.unmocked).toEqual([]);
   });
 
@@ -83,7 +83,7 @@ test.describe('S10a · compositions', () => {
     page,
   }) => {
     const mock = await installMockApi(page, 'admin');
-    await page.goto(LIST);
+    await page.goto(TAB);
 
     await main(page).getByRole('button', { name: 'New composition' }).click();
     const dialog = page.getByRole('dialog', { name: 'New composition' });
@@ -122,7 +122,8 @@ test.describe('S10a · compositions', () => {
       .getByRole('navigation', { name: 'Breadcrumb' })
       .getByRole('link', { name: 'Compositions' })
       .click();
-    await expect(main(page).getByRole('table').locator('tbody th a')).toHaveText([
+    await expect(page).toHaveURL(TAB);
+    await expect(main(page).getByRole('article').getByRole('heading', { level: 3 })).toHaveText([
       'Order intake',
       'Fleet routing',
       'Order desk',
@@ -505,9 +506,8 @@ test.describe('S10a · compositions', () => {
     await expect(dialog.getByRole('button', { name: 'Delete permanently' })).toBeDisabled();
     await dialog.getByLabel('Type legacy-intake to confirm').fill('legacy-intake');
     await dialog.getByRole('button', { name: 'Delete permanently' }).click();
-    await expect(page).toHaveURL(LIST);
-    await expect(main(page).getByText('Composition “Legacy intake (old)” deleted.')).toBeVisible();
-    await expect(main(page).getByRole('table').locator('tbody th a')).toHaveText([
+    await expect(page).toHaveURL(TAB);
+    await expect(main(page).getByRole('article').getByRole('heading', { level: 3 })).toHaveText([
       'Fleet routing',
       'Order desk',
     ]);
@@ -525,7 +525,7 @@ test.describe('S10a · compositions', () => {
     ).toBeVisible();
     await expect(main(page)).not.toContainText(/private/i);
     await main(page).getByRole('link', { name: 'All compositions' }).click();
-    await expect(page).toHaveURL(LIST);
+    await expect(page).toHaveURL(TAB);
   });
 
   test('a tab the composition page does not have is a page that does not exist', async ({

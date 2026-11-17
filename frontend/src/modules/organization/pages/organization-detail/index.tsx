@@ -47,6 +47,7 @@ import OrgAvatarModal from './components/OrgAvatarModal';
 import OverviewTab from './components/OverviewTab';
 import PresetsTab from './components/PresetsTab';
 import ResourceTab from './components/ResourceTab';
+import CompositionsTab from '../../../composition/components/compositions-tab';
 import ShareOrgMenu from './components/ShareOrgMenu';
 
 const RANK: Record<OrgRole, number> = { VIEWER: 1, MEMBER: 2, ADMIN: 3, OWNER: 4 };
@@ -519,9 +520,8 @@ export default function OrganizationDetailPage() {
           )}
 
           {activeTab === 'compositions' && (
-            <ResourceTab
+            <CompositionsTab
               key="compositions"
-              kind="compositions"
               org={org}
               myRole={myRole}
               isPublicView={isPublicView}
