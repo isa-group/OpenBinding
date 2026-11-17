@@ -54,7 +54,6 @@ const HEADING: Record<string, RegExp> = {
   'composition-permalink': /^Order desk$/,
   'composition-new': /^Add a composition to OpenBinding$/,
   'my-compositions': /^My compositions$/,
-  'problem-list': /^Problems$/,
   'problem-detail': /Checkout flow/,
   'problem-editor': /^Problem editor$/,
   'run-launch': /New run/,

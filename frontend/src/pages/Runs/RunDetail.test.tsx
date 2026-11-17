@@ -271,10 +271,10 @@ describe('One run', () => {
     ).closest('section') as HTMLElement;
     expect(
       await within(where).findByRole('link', { name: 'Source and compiled form' })
-    ).toHaveAttribute('href', '/app/isa-demo/problems/checkout-flow/source?version=2');
+    ).toHaveAttribute('href', '/problems/isa-demo/checkout-flow/source?version=2');
     expect(
       await within(where).findByRole('link', { name: 'Checkout flow · version 2' })
-    ).toHaveAttribute('href', '/app/isa-demo/problems/checkout-flow?version=2');
+    ).toHaveAttribute('href', '/problems/isa-demo/checkout-flow?version=2');
     expect(
       within(where).getByText('bim.builtin/random-search 1.0.0 · mode sampling', { exact: false })
     ).toBeInTheDocument();
@@ -638,7 +638,7 @@ describe('One run', () => {
     expect(within(why).getByText(/Total latency is 742 ms/)).toBeInTheDocument();
     expect(await within(why).findByRole('link', { name: 'See the rules' })).toHaveAttribute(
       'href',
-      '/app/isa-demo/problems/checkout-flow?version=2'
+      '/problems/isa-demo/checkout-flow?version=2'
     );
     expect(within(why).getByRole('link', { name: 'Try faster providers' })).toHaveAttribute(
       'href',

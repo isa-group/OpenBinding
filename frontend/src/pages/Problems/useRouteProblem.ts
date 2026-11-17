@@ -5,7 +5,7 @@ import { classifyAuthError, type AuthFailure } from '../../modules/core/api/erro
 import { useResource, type Resource } from '../../utils/useResource';
 import { atLeast } from '../../modules/organization/utils/org-tree';
 import { useRouteOrganization, type RouteOrganization } from '../Organization/useRouteOrganization';
-import { newestFirst } from './problemsModel';
+import { newestFirst } from '../../modules/problem/utils/problemsModel';
 
 /** What the account may do with the problems of an organization. */
 export interface ProblemAccess {

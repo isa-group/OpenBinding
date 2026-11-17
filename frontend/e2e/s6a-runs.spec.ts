@@ -797,12 +797,12 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const where = main.getByRole('region', { name: 'Where this result comes from' });
       await expect(where.getByRole('link', { name: 'Source and compiled form' })).toHaveAttribute(
         'href',
-        '/app/isa-demo/problems/checkout-flow/source?version=2'
+        '/problems/isa-demo/checkout-flow/source?version=2'
       );
       await expect(where).not.toContainText(/sha256-|[0-9a-f]{12}/);
       await expect(where.getByRole('link', { name: 'Checkout flow · version 2' })).toHaveAttribute(
         'href',
-        '/app/isa-demo/problems/checkout-flow?version=2'
+        '/problems/isa-demo/checkout-flow?version=2'
       );
       await expect(where.getByRole('link', { name: 'Add to a report' })).toHaveCount(0);
       await capture(page, testInfo, `detail-${name}-provenance`, { area: where });
@@ -992,7 +992,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(why).toContainText('Total latency is 742 ms');
       await expect(why.getByRole('link', { name: 'See the rules' })).toHaveAttribute(
         'href',
-        '/app/isa-demo/problems/checkout-flow?version=2'
+        '/problems/isa-demo/checkout-flow?version=2'
       );
       await expect(
         main.getByRole('heading', { name: 'What if one task used another provider?' })

@@ -48,6 +48,7 @@ import OverviewTab from './components/OverviewTab';
 import PresetsTab from './components/PresetsTab';
 import ResourceTab from './components/ResourceTab';
 import CompositionsTab from '../../../composition/components/compositions-tab';
+import ProblemsTab from '../../../problem/components/problems-tab';
 import ShareOrgMenu from './components/ShareOrgMenu';
 
 const RANK: Record<OrgRole, number> = { VIEWER: 1, MEMBER: 2, ADMIN: 3, OWNER: 4 };
@@ -527,7 +528,8 @@ export default function OrganizationDetailPage() {
               isPublicView={isPublicView}
             />
           )}
-          {(activeTab === 'problems' || activeTab === 'runs' || activeTab === 'studies') && (
+          {activeTab === 'problems' && <ProblemsTab key="problems" org={org} myRole={myRole} />}
+          {(activeTab === 'runs' || activeTab === 'studies') && (
             <ResourceTab key={activeTab} kind={activeTab} org={org} myRole={myRole} />
           )}
 

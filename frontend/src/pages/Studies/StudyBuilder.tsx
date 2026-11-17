@@ -16,7 +16,7 @@ import { problemsApi } from '../../api/problems';
 import { PRESET_PAGE, presetsApi } from '../../modules/run/api/presetsApi';
 import { studyPresetRefusal } from '../../modules/run/api/presetText';
 import type { RunPresetList } from '../../modules/core/api/types';
-import { loadProblems } from '../Problems/problemsData';
+import { loadProblems } from '../../modules/problem/api/loadProblems';
 import type { CaseContent } from '../../features/workspace/model';
 import { SLUG_PATTERN, slugFromName } from '../../modules/core/utils/slug';
 import { studiesPath, studyPath } from '../../routes/paths/studies';

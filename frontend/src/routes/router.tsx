@@ -85,8 +85,7 @@ const EditorLayout = lazy(() => import('../modules/composition-editor/layouts/ed
 const CompositionEditorPage = lazy(
   () => import('../modules/composition-editor/pages/composition-editor')
 );
-const ProblemList = named(() => import('../pages/Problems/ProblemList'), 'ProblemList');
-const ProblemDetail = named(() => import('../pages/Problems/ProblemDetail'), 'ProblemDetail');
+const ProblemCardPage = lazy(() => import('../modules/problem/pages/card'));
 const ProblemEditorPage = named(
   () => import('../pages/Problems/ProblemEditorPage'),
   'ProblemEditorPage'
@@ -143,6 +142,7 @@ export const screens: Screen[] = [
   { id: 'notifications', path: '/notifications', layout: 'protected', element: <InboxPage /> },
   { id: 'acct-settings', path: '/me/settings', layout: 'protected', element: <SettingsPage /> },
   { id: 'acct-api-keys', path: '/me/api-keys', layout: 'protected', element: <ApiKeysPage /> },
+  { id: 'problem-detail', path: '/problems/:org/:problem/:tab?', layout: 'protected', element: <ProblemCardPage /> },
 
   // ═══════════════════════════════════════════════════════════
   // PROTECTED ROUTES (the old workspace under /app, until its screens are poured into SPHERE's pages)
@@ -150,8 +150,6 @@ export const screens: Screen[] = [
   { id: 'eng-register', path: '/app/engines/new', layout: 'app', element: <RegisterEngine /> },
   { id: 'eng-registrations', path: '/app/engines/registrations', layout: 'app', element: <EngRegistrations /> },
   { id: 'eng-registration-detail', path: '/app/engines/registrations/:name', layout: 'app', element: <EngRegistrationDetail /> },
-  { id: 'problem-list', path: '/app/:org/problems', layout: 'app', element: <ProblemList /> },
-  { id: 'problem-detail', path: '/app/:org/problems/:case/:tab?', layout: 'app', element: <ProblemDetail /> },
   { id: 'problem-editor', path: '/app/:org/problem-editor', layout: 'app', element: <ProblemEditorPage /> },
   { id: 'run-launch', path: '/app/:org/runs/new', layout: 'app', element: <RunLaunch /> },
   { id: 'run-list', path: '/app/:org/runs', layout: 'app', element: <RunList /> },

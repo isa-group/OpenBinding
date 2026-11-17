@@ -6,9 +6,11 @@ import { PROBLEM_SLUG, mockProblems } from './helpers-problems';
 // routes added here win over the catch-all of mockApi() because they are registered later.
 //
 // The addresses of these specs are the LITERAL final ones, which match the constants of helpers.ts: the problems and the
-// runs of the organization (`/app/acme/problems`, `/app/acme/runs`). The HTTP API reads both from the organization.
+// runs of the organization (`/orgs/acme/problems`, `/app/acme/runs`), and a problem's page (`/problems/acme/<slug>`). The HTTP
+// API reads them from the organization.
 
-export const PROBLEMS_FINAL = '/app/acme/problems';
+export const PROBLEMS_FINAL = '/orgs/acme/problems';
+export const PROBLEM_PAGES_FINAL = '/problems/acme';
 export const RUNS_FINAL = '/app/acme/runs';
 
 export const API_PROBLEMS = '/v1/organizations/acme/problems';
@@ -45,7 +47,7 @@ export async function mockGateway(page: Page, options: MockOptions = {}): Promis
 
   const problem = {
     id: 'problem-routing', organization_id: 'org-acme', slug: PROBLEM_SLUG, name: 'Routing', description: 'A routing problem',
-    created_by_id: 'user-1', created_at: NOW, updated_at: NOW, latest_revision: null,
+    created_by_id: 'user-1', created_at: NOW, updated_at: NOW, latest_revision: null, revision_count: 0,
   };
   await answer(page, API_PROBLEMS, { problems: [problem], total: 1, limit: 200, offset: 0 });
   await answer(page, `${API_PROBLEMS}/${PROBLEM_SLUG}`, problem);
@@ -63,7 +65,7 @@ const LAB_OTHER = { id: 'org-lab-other', slug: 'lab-other', name: 'Other Lab' };
 /**
  * The screens of the composition and problem vocabulary scope (`src/test/vocabulary.terms.test.ts`), each with the level-1 heading
  * that shows it has loaded: the organization's Compositions tab, the composition `lab-flow` (no version yet) on each of its tabs,
- * the editor, the public list, another organization's public composition, Language, and the problem list and page.
+ * the editor, the public list, another organization's public composition, Language, and the Problems tab and a problem's page.
  */
 export const SCOPED_SCREENS: ReadonlyArray<{ path: string; heading: string | RegExp }> = [
   { path: COMPOSITIONS, heading: 'Acme' },
@@ -75,8 +77,8 @@ export const SCOPED_SCREENS: ReadonlyArray<{ path: string; heading: string | Reg
   { path: '/compositions', heading: 'Public compositions' },
   { path: SHOWCASE, heading: 'Fleet routing' },
   { path: '/language', heading: 'Composition2Yaml' },
-  { path: PROBLEMS_FINAL, heading: 'Problems' },
-  { path: `${PROBLEMS_FINAL}/${PROBLEM_SLUG}`, heading: 'Routing' },
+  { path: PROBLEMS_FINAL, heading: 'Acme' },
+  { path: `${PROBLEM_PAGES_FINAL}/${PROBLEM_SLUG}`, heading: 'Routing' },
 ];
 
 /**

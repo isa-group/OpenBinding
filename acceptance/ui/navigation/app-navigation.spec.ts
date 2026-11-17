@@ -100,10 +100,13 @@ test('New creates in the organization the address names', async ({ page }) => {
   for (const [name, href] of items) await expect(entry(menuScope(page), name)).toHaveAttribute('href', href);
 });
 
-test('the problem dialog opens from the address over the Problems screen', async ({ page }) => {
-  await signedIn(page, `${PROBLEMS}?create=problem`);
+test('the Problems tab of the organization opens the problem dialog from its New menu', async ({ page }) => {
+  await signedIn(page, PROBLEMS);
+  const tab = page.locator('main').getByRole('region', { name: 'Problems' });
+  await expect(tab.getByRole('heading', { level: 2, name: 'Problems' })).toBeVisible();
+  await tab.getByRole('button', { name: /^New/ }).click();
+  await tab.getByRole('menuitem', { name: /Upload BIM package/ }).click();
   await expect(page.getByRole('dialog', { name: 'Upload a BIM package' })).toBeVisible();
-  await expect(page.getByRole('heading', { level: 1, name: 'Problems' })).toBeVisible();
 });
 
 test('account menu lists the person\'s places then Sign out, with Administration for administrators only', async ({ page }) => {

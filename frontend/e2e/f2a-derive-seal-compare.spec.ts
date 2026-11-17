@@ -112,16 +112,22 @@ test.describe('J1 · derive, seal and compare', () => {
     const sent = derivations(page);
 
     // The problem page: version 1's workflow, then the candidates of each task.
-    await page.goto(`${ORG}/problems/checkout-flow?version=1`);
+    await page.goto('/problems/isa-demo/checkout-flow?version=1');
     await expect(main(page).getByRole('group', { name: 'Workflow' })).toBeVisible();
-    await main(page).getByRole('tab', { name: 'Candidates' }).click();
+    await main(page)
+      .getByRole('navigation', { name: 'Problem sections' })
+      .getByRole('link', { name: 'Candidates' })
+      .click();
     const candidates = main(page).getByRole('region', { name: 'Candidates of each task' });
     await expect(candidates.getByRole('region', { name: 'Candidates for T1' })).toContainText(
       'cand_t1_google_cloud'
     );
 
     // One of its runs.
-    await main(page).getByRole('tab', { name: 'Runs' }).click();
+    await main(page)
+      .getByRole('navigation', { name: 'Problem sections' })
+      .getByRole('link', { name: 'Runs' })
+      .click();
     await main(page)
       .getByRole('region', { name: 'Runs of the problem' })
       .getByRole('link', { name: 'Run 1' })

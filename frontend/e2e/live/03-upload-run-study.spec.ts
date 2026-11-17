@@ -3,8 +3,9 @@ import {
   API,
   CASE,
   ORG,
-  ORG_PAGE,
   ORG_PATH,
+  PROBLEM_PAGES,
+  PROBLEMS_TAB,
   RUNS_PATH,
   capture,
   signInByApi,
@@ -17,7 +18,6 @@ import {
 // one study to lab-main, named after the moment it ran; nothing is deleted (runs keep their problem).
 
 const TEMPLATE = 'demo/01_simple_seq';
-const PROBLEMS = `${ORG_PATH}/problems`;
 
 // A finished run: the 'Run result' region holding the chosen providers, or the explanation of why no combination works.
 const finishedResult = (page: Page) =>
@@ -46,10 +46,10 @@ test.describe('live · upload, run and study on lab-main', () => {
     const archive = await template.body();
 
     // 1 · The organization, its problems, and the upload.
-    await page.goto(`${ORG_PAGE}/problems`);
-    await main.getByRole('link', { name: 'Open the problems' }).first().click();
-    await expect(main.getByRole('heading', { level: 1, name: 'Problems' })).toBeVisible();
-    await main.getByRole('button', { name: 'Upload BIM package' }).first().click();
+    await page.goto(PROBLEMS_TAB);
+    await expect(main.getByRole('heading', { level: 2, name: 'Problems' })).toBeVisible();
+    await main.getByRole('button', { name: /^New/ }).click();
+    await main.getByRole('menuitem', { name: /Upload BIM package/ }).click();
     const dialog = page.getByRole('dialog', { name: 'Upload a BIM package' });
     await dialog.getByLabel('BIM package').setInputFiles({
       name: `${name}.bim.zip`,
@@ -61,17 +61,19 @@ test.describe('live · upload, run and study on lab-main', () => {
     await dialog.getByRole('button', { name: 'Upload problem' }).click();
 
     // 2 · Version 1 and its source.
-    await expect(page).toHaveURL(new RegExp(`${PROBLEMS}/${name}$`), { timeout: 60_000 });
-    await expect(main.getByText(`Problem “${name}” created with version 1.`)).toBeVisible();
-    await main.getByRole('tab', { name: 'Source' }).click();
+    await expect(page).toHaveURL(new RegExp(`${PROBLEM_PAGES}/${name}$`), { timeout: 60_000 });
+    await expect(page.getByText(`Problem “${name}” created with version 1.`)).toBeVisible();
+    const sections = main.getByRole('navigation', { name: 'Problem sections' });
+    await sections.getByRole('link', { name: 'Source' }).click();
     await expect(main.getByRole('list', { name: 'Files in the package' })).toContainText(
       'candidates.json'
     );
     await capture(page, testInfo, 'walk-2-source');
 
     // 3 · Edit in the problem editor: the live check passes the edit, and it is saved as version 2.
-    await main.getByRole('tab', { name: 'Overview' }).click();
-    await main.getByRole('link', { name: 'Edit in the problem editor' }).click();
+    await sections.getByRole('link', { name: 'Overview' }).click();
+    await main.getByRole('button', { name: 'New version' }).click();
+    await main.getByRole('menuitem', { name: /Problem editor/ }).click();
     await expect(main.getByText(`Loaded version 1 of ${name}`)).toBeVisible({ timeout: 60_000 });
     const status = main.getByTestId('pe-check-status');
     await expect(status).toHaveText('Valid package', { timeout: 60_000 });
@@ -95,8 +97,9 @@ test.describe('live · upload, run and study on lab-main', () => {
     await expect(main.getByRole('combobox', { name: 'Version' })).toHaveValue('2');
 
     // 4 · A template, checked as it opens and saved as a new problem under a name of this run, offers a run.
-    await page.goto(PROBLEMS);
-    await main.getByRole('link', { name: 'Start from a template' }).click();
+    await page.goto(PROBLEMS_TAB);
+    await main.getByRole('button', { name: /^New/ }).click();
+    await main.getByRole('menuitem', { name: /Start from a template/ }).click();
     await expect(main.getByTestId('pe-check-status')).toHaveText('Valid package', {
       timeout: 60_000,
     });
@@ -195,10 +198,11 @@ test.describe('live · upload, run and study on lab-main', () => {
   }, testInfo) => {
     const errors = watchPageErrors(page);
     await signInByApi(page, 'member');
-    await page.goto(`${PROBLEMS}/${CASE}`);
+    await page.goto(`${PROBLEM_PAGES}/${CASE}`);
 
-    await expect(page.locator('code.case-slug')).toHaveText(CASE);
-    await expect(page.getByRole('link', { name: 'Edit in the problem editor' })).toHaveAttribute(
+    await expect(page.locator('main').getByRole('heading', { level: 1 })).toBeVisible();
+    await page.getByRole('button', { name: 'New version' }).click();
+    await expect(page.getByRole('menuitem', { name: /Problem editor/ })).toHaveAttribute(
       'href',
       new RegExp(`^${ORG_PATH}/problem-editor\\?problem=${CASE}&revision=\\d+$`)
     );
@@ -207,7 +211,11 @@ test.describe('live · upload, run and study on lab-main', () => {
       new RegExp(`^${RUNS_PATH}/new\\?problem=${CASE}&revision=\\d+$`)
     );
     // Deleting needs ADMIN: a member has no such control, in the Settings tab either.
-    await page.getByRole('tab', { name: 'Settings' }).click();
+    await page.keyboard.press('Escape');
+    await page
+      .getByRole('navigation', { name: 'Problem sections' })
+      .getByRole('link', { name: 'Settings' })
+      .click();
     await expect(page.getByRole('button', { name: 'Delete problem' })).toHaveCount(0);
     await capture(page, testInfo, 'case-simple-seq-member');
     expect(errors).toEqual([]);

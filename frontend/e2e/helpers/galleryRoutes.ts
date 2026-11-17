@@ -62,7 +62,7 @@ export interface GalleryScreen {
 export const EXAMPLE = {
   org: 'isa-demo',
   composition: 'fleet-routing',
-  case: 'checkout-flow',
+  problem: 'checkout-flow',
   revision: '2',
   artifact: 'providers-eu',
   draft: 'draft-providers-4',

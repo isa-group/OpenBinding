@@ -1372,12 +1372,12 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const inputs = main.getByRole('region', { name: 'Frozen inputs' });
       await expect(inputs.getByRole('link', { name: 'Checkout flow · version 1' })).toHaveAttribute(
         'href',
-        '/app/isa-demo/problems/checkout-flow?version=1'
+        '/problems/isa-demo/checkout-flow?version=1'
       );
       await expect(inputs.getByText('random-search 1.0.0')).toBeVisible();
       await expect(inputs.getByRole('link', { name: 'Package and compiled form' })).toHaveAttribute(
         'href',
-        '/app/isa-demo/problems/checkout-flow/source?version=1'
+        '/problems/isa-demo/checkout-flow/source?version=1'
       );
       await expect(inputs.getByRole('button', { name: 'Copy cell digest' })).toHaveText(
         'Copy digest'

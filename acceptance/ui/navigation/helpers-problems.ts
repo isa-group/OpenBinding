@@ -1,5 +1,5 @@
 import { expect, type Locator, type Page, type Route } from '@playwright/test';
-import { API, mockApi, organization, PROBLEMS, type MockOptions, type Recorded } from './helpers';
+import { API, mockApi, organization, PROBLEM_PAGES, type MockOptions, type Recorded } from './helpers';
 
 // Mock data and locators of the problem-page and study-page acceptance specs. There is no backend: the API origin is
 // answered by page.route(); routes added here win over the catch-all of mockApi() because they are registered later.
@@ -28,7 +28,7 @@ const revision = (n: number) => ({
 const latest = VERSION_NUMBERS.length;
 const problem = {
   id: 'problem-routing', organization_id: 'org-acme', slug: PROBLEM_SLUG, name: 'Routing', description: 'A routing problem',
-  created_by_id: 'user-1', created_at: NOW, updated_at: NOW,
+  created_by_id: 'user-1', created_at: NOW, updated_at: NOW, revision_count: VERSION_NUMBERS.length,
   latest_revision: { id: `rev-${latest}`, revision: latest, package_digest: revision(latest).package_digest, created_at: NOW, origin: 'upload' },
 };
 
@@ -175,7 +175,7 @@ export function trackGets(page: Page): string[] {
   return seen;
 }
 
-export { PROBLEMS };
+export { PROBLEM_PAGES };
 
 // ---- locators -------------------------------------------------------------------------------------------------
 

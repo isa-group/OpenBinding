@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useResource } from '../../utils/useResource';
-import { loadProblems } from '../Problems/problemsData';
+import { loadProblems } from '../../modules/problem/api/loadProblems';
 import type { CaseContent } from '../../features/workspace/model';
 import { revisionIndex, type RevisionInfo } from './studiesModel';
 

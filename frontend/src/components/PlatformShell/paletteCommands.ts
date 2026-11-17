@@ -1,4 +1,5 @@
 import { newCompositionPath } from '../../routes/paths/compositions';
+import { problemEditorPath } from '../../routes/paths/problems';
 import type { Organization } from '../../api/platform';
 import { accountLinks, createItems, mainLinks, organizationEntries } from './appNavigation';
 
@@ -84,8 +85,8 @@ export function buildCommands({
         command(
           'Create',
           'New problem',
-          `Upload a BIM package in ${organization.name}`,
-          `${entries.problems}?create=problem`,
+          `Write a BIM package in the problem editor of ${organization.name}`,
+          problemEditorPath(organization.slug),
           '+'
         )
       );

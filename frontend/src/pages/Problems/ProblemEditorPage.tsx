@@ -4,7 +4,6 @@ import { OrgFrame, OrgGate, OrgSkeleton } from '../../features/workspace/OrgFram
 import { problemsPath } from '../../routes/paths/problems';
 import { useRouteOrganization } from '../Organization/useRouteOrganization';
 import { problemAccess } from './useRouteProblem';
-import './Problems.css';
 
 /**
  * The problem editor of an organization (`problem-editor`, `/app/:org/problem-editor`): write or change a BIM package, checked as

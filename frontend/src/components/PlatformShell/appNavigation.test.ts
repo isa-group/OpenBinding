@@ -54,7 +54,7 @@ describe('organizationEntries', () => {
   it('lead into the organization (compositions, problems, runs, studies), in this order', () => {
     expect(organizationEntries(organization).map(({ id, label, to }) => [id, label, to])).toEqual([
       ['compositions', 'Compositions', '/orgs/isa-demo/compositions'],
-      ['problems', 'Problems', '/app/isa-demo/problems'],
+      ['problems', 'Problems', '/orgs/isa-demo/problems'],
       ['runs', 'Runs', '/app/isa-demo/runs'],
       ['studies', 'Studies', '/app/isa-demo/studies'],
     ]);
@@ -78,7 +78,7 @@ describe('createItems', () => {
   it('offers Composition, Problem, Study and Run in the organization, in this order', () => {
     expect(createItems(organization).map(item => [item.label, item.to])).toEqual([
       ['Composition', '/compositions/new?org=isa-demo'],
-      ['Problem', '/app/isa-demo/problems?create=problem'],
+      ['Problem', '/app/isa-demo/problem-editor'],
       ['Study', '/app/isa-demo/studies/new'],
       ['Run', '/app/isa-demo/runs/new'],
     ]);

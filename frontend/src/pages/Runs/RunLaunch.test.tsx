@@ -231,7 +231,7 @@ describe('Start a run', () => {
     ).not.toBeChecked();
     expect(screen.getByRole('link', { name: 'Upload a problem' })).toHaveAttribute(
       'href',
-      '/app/isa-demo/problems'
+      '/orgs/isa-demo/problems'
     );
     expect(screen.getByRole('link', { name: 'Cancel' })).toHaveAttribute('href', `${ROOT}/runs`);
     expect(

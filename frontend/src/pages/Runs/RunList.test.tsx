@@ -96,7 +96,7 @@ describe('Runs of an organization', () => {
     expect(within(table).getAllByText('ana')).toHaveLength(2);
     expect(within(table).getByRole('link', { name: 'Checkout flow' })).toHaveAttribute(
       'href',
-      `${ROOT}/problems/checkout-flow`
+      '/problems/isa-demo/checkout-flow'
     );
     expect(within(table).getByText('version 2')).toBeInTheDocument();
     expect(screen.queryByRole('navigation', { name: 'Project sections' })).not.toBeInTheDocument();

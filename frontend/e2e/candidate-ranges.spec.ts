@@ -1,7 +1,7 @@
 import { expect as baseExpect, test, type Page, type TestInfo } from '@playwright/test';
 import { API, PUBLIC_ENGINES, installMockApi } from './helpers/mockApi';
 import { failureBody } from './helpers/problems';
-import { checkoutFacts, digestOf } from '../src/pages/Problems/fixtures';
+import { checkoutFacts, digestOf } from '../src/modules/problem/utils/fixtures';
 import { REGISTRATION, detailOf } from '../src/test/fixtures/jobs';
 import { unzipPackage } from '../src/utils/bimZip';
 
@@ -14,7 +14,7 @@ import { unzipPackage } from '../src/utils/bimZip';
 // The first screens are slow to open under load (the problem page reads the problem and then its compilation), so a wait is generous.
 const expect = baseExpect.configure({ timeout: 20_000 });
 
-const PROBLEMS = '/app/isa-demo/problems';
+const PROBLEMS = '/problems/isa-demo';
 
 function watchCriticalErrors(page: Page) {
   const critical: string[] = [];
@@ -121,12 +121,10 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(candidate('authenticate-4')).toContainText('0.04 EUR');
       await expect(providers.getByText('≤ 60 ms')).toHaveAttribute('title', '(−∞, 60] ms');
       // A range is a stretch on the bar; an open end fades out towards the edge.
-      await expect(providers.locator('.cm-bar.is-interval')).not.toHaveCount(0);
-      await expect(providers.locator('.cm-bar.is-interval i.is-open-low')).not.toHaveCount(0);
-      await expect(providers.locator('.cm-bar.is-interval i.is-open-high')).not.toHaveCount(0);
-      await expect(providers.locator('.cm-bar.is-interval i.is-open-low.is-open-high')).toHaveCount(
-        1
-      );
+      const intervals = providers.locator('[data-cm-bar="interval"]');
+      await expect(intervals).not.toHaveCount(0);
+      await expect(intervals.locator('i[data-open="low"]')).not.toHaveCount(0);
+      await expect(intervals.locator('i[data-open="both"]')).toHaveCount(1);
       await capture(page, testInfo, `revision-${name}`);
       if (isMobile) {
         expect(critical).toEqual([]);

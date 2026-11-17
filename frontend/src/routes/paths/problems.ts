@@ -1,9 +1,10 @@
-// Address builders of the problems area (M2.6; organization-level since F0b). Code that links to a problem, a problem version or the problem list builds the address here,
-// so the segment is named once.
+// Address builders of the problems area. Code that links to a problem, a problem version or the problem list builds the
+// address here, so the segments are named once: the list is the organization's Problems tab (`/orgs/:org/problems`), a
+// problem is SPHERE's card page (`/problems/:org/:problem/:tab?`).
 
 import type { ProblemOrigin } from '../../modules/core/api/types';
 
-/** The segment of the problem list and the problem page. */
+/** The segment of the organization's Problems tab and of the problem pages. */
 export const PROBLEMS_SEGMENT = 'problems';
 
 /** The segments of the problem page after the problem: no segment is the Overview tab. */
@@ -52,27 +53,30 @@ function withQuery(path: string, values: Record<string, string | number | undefi
   return search ? `${path}?${search}` : path;
 }
 
-/** The problem list of an organization: `/app/<org>/problems`, with its filters. */
+/** The problems of an organization, its Problems tab: `/orgs/<org>/problems`, with its filters. */
 export const problemsPath = (org: string, filter: ProblemsFilter = {}): string =>
-  withQuery(`${organizationPath(org)}/${PROBLEMS_SEGMENT}`, {
+  withQuery(`/orgs/${encodeURIComponent(org)}/${PROBLEMS_SEGMENT}`, {
     origin: filter.origin,
     composition: filter.composition,
   });
 
-/** The problem page, with its tab and the version or pair it shows. */
+/** The problem page, `/problems/<org>/<problem>/<tab>`, with the version or pair it shows. */
 export function problemPath(
   org: string,
   problem: string,
   tab?: ProblemTabSegment,
   view: ProblemView = {}
 ): string {
-  return withQuery(`${problemsPath(org)}/${encodeURIComponent(problem)}${tab ? `/${tab}` : ''}`, {
-    version: view.version,
-    from: view.from,
-    to: view.to,
-    composition: view.composition,
-    compositionVersion: view.compositionVersion,
-  });
+  return withQuery(
+    `/${PROBLEMS_SEGMENT}/${encodeURIComponent(org)}/${encodeURIComponent(problem)}${tab ? `/${tab}` : ''}`,
+    {
+      version: view.version,
+      from: view.from,
+      to: view.to,
+      composition: view.composition,
+      compositionVersion: view.compositionVersion,
+    }
+  );
 }
 
 /**

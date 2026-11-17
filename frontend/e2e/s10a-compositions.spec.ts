@@ -308,7 +308,7 @@ test.describe('S10a · compositions', () => {
     );
     await expect(
       region(page, 'Problem').getByRole('link', { name: 'isa-demo/checkout-flow@2' })
-    ).toHaveAttribute('href', '/app/isa-demo/problems/checkout-flow?version=2');
+    ).toHaveAttribute('href', '/problems/isa-demo/checkout-flow?version=2');
     await expect(region(page, 'Evaluation findings')).toContainText('No issues');
 
     const providers = region(page, 'Providers');

@@ -118,7 +118,7 @@ function forbiddenIn(screenId: string, texts: string[]): string[] {
   );
 }
 
-/** A route pattern (`/app/:org/problems/:case/:tab?`) as a regular expression over a pathname. */
+/** A route pattern (`/problems/:org/:problem/:tab?`) as a regular expression over a pathname. */
 function patternRegex(pattern: string): RegExp {
   const segments = pattern
     .split('/')
@@ -155,12 +155,14 @@ test.describe('route registry', () => {
       []
     );
     expect(forbiddenIn('eng-registration-detail', ['Jobs'])).toHaveLength(1);
-    expect(forbiddenIn('problem-list', ['Problems', 'showcase', 'Runs', 'Published'])).toEqual([]);
+    expect(forbiddenIn('problem-detail', ['Problems', 'showcase', 'Runs', 'Published'])).toEqual(
+      []
+    );
   });
 
   test('knows which pathnames are screens of the registry', () => {
-    expect(isScreenAddress('/app/isa-demo/problems/checkout')).toBe(true);
-    expect(isScreenAddress('/app/isa-demo/qos/problems/checkout')).toBe(false);
+    expect(isScreenAddress('/problems/isa-demo/checkout')).toBe(true);
+    expect(isScreenAddress('/app/isa-demo/problems/checkout')).toBe(false);
     expect(isScreenAddress('/me/api-keys')).toBe(true);
     expect(isScreenAddress('/app/account/keys')).toBe(false);
     expect(isScreenAddress('/explore')).toBe(false);

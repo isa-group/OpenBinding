@@ -9,7 +9,6 @@ import type {
   MatrixRow,
 } from '../../utils/binding/candidateMatrix';
 import { ValueBadge } from '../value-badge/ValueBadge';
-import './CandidateMatrix.css';
 
 interface CandidateMatrixProps {
   matrix: Matrix;
@@ -25,6 +24,15 @@ interface CandidateMatrixProps {
   /** Short words beside a candidate's name (the versions that chose it, when two are compared). */
   tags?: (task: string, candidate: string) => readonly string[];
 }
+
+const BAR = 'inline-block h-1.5 w-14 flex-none rounded-full bg-tp-hairline-soft align-middle';
+const ARROW_LOW =
+  "before:absolute before:-top-0.5 before:-left-[7px] before:text-[10px] before:leading-[10px] before:text-tp-primary before:content-['◂']";
+const ARROW_HIGH =
+  "after:absolute after:-top-0.5 after:-right-[7px] after:text-[10px] after:leading-[10px] after:text-tp-primary after:content-['▸']";
+const SELECTED =
+  'ml-2 inline-block rounded-full border border-tp-status-verified px-1.5 text-[11px] font-semibold text-tp-ink-tint';
+const CARD_ROW = 'flex flex-wrap justify-between gap-x-3 gap-y-1';
 
 const NARROW = '(max-width: 640px)';
 const COLUMNS_KEY = 'openbinding.candidate-matrix.more-features';
@@ -80,24 +88,34 @@ function FeatureBar({ value, maximum }: { value: FeatureValue; maximum: number }
   const at = (end: number) => (maximum ? Math.min(1, Math.abs(end) / maximum) : 0);
   if (typeof value === 'number') {
     return (
-      <span className="cm-bar" aria-hidden="true">
-        <i style={{ width: `${Math.round(at(value) * 100)}%` }} />
+      <span className={`${BAR} overflow-hidden`} aria-hidden="true">
+        <i
+          className="block h-full rounded-full bg-tp-primary"
+          style={{ width: `${Math.round(at(value) * 100)}%` }}
+        />
       </span>
     );
   }
   const low = value.min === null ? 0 : at(value.min);
   const high = value.max === null ? 1 : at(value.max);
   const [from, to] = low <= high ? [low, high] : [high, low];
-  const classes = [
-    value.min === null ? 'is-open-low' : '',
-    value.max === null ? 'is-open-high' : '',
-  ]
-    .filter(Boolean)
-    .join(' ');
+  const openLow = value.min === null;
+  const openHigh = value.max === null;
+  const open = openLow && openHigh ? 'both' : openLow ? 'low' : openHigh ? 'high' : undefined;
+  const fill =
+    open === 'both'
+      ? 'bg-[repeating-linear-gradient(to_right,var(--color-tp-primary)_0_4px,transparent_4px_7px)]'
+      : open === 'low'
+        ? 'rounded-l-none bg-linear-to-r from-transparent to-tp-primary'
+        : open === 'high'
+          ? 'rounded-r-none bg-linear-to-l from-transparent to-tp-primary'
+          : 'bg-tp-primary';
+  const arrows = `${openLow ? ARROW_LOW : ''} ${openHigh ? ARROW_HIGH : ''}`;
   return (
-    <span className="cm-bar is-interval" aria-hidden="true">
+    <span className={`${BAR} relative`} data-cm-bar="interval" aria-hidden="true">
       <i
-        className={classes || undefined}
+        data-open={open}
+        className={`absolute top-0 block h-full min-w-[3px] rounded-full ${fill} ${arrows}`}
         style={{ left: `${Math.round(from * 100)}%`, width: `${Math.round((to - from) * 100)}%` }}
       />
     </span>
@@ -105,14 +123,14 @@ function FeatureBar({ value, maximum }: { value: FeatureValue; maximum: number }
 }
 
 function Value({ cell, maximum }: { cell: MatrixCell; maximum: number }) {
-  if (cell.value === null) return <span className="cm-none">not declared</span>;
+  if (cell.value === null) return <span className="text-xs text-tp-stone">not declared</span>;
   const unit = unitOf(cell.unit);
   const range = typeof cell.value !== 'number';
   return (
-    <span className="cm-cell">
+    <span className="inline-flex flex-wrap items-center gap-1.5">
       <FeatureBar value={cell.value} maximum={maximum} />
       <span
-        className={range ? 'cm-range' : undefined}
+        className={range ? 'tabular-nums' : undefined}
         title={range ? formatFeature(cell.value, { long: true, unit }) : undefined}
       >
         {formatFeature(cell.value, { unit })}
@@ -160,7 +178,11 @@ function TaskCandidates({
     );
   };
   const name = (candidate: MatrixCandidate) =>
-    mode === 'edit' && renderName ? renderName(candidate, row) : <code>{candidate.written}</code>;
+    mode === 'edit' && renderName ? (
+      renderName(candidate, row)
+    ) : (
+      <code className="font-mono font-semibold [overflow-wrap:anywhere]">{candidate.written}</code>
+    );
   const radio = (candidate: MatrixCandidate) => (
     <input
       type="radio"
@@ -173,34 +195,37 @@ function TaskCandidates({
   const count = row.candidates.length === 1 ? '1 candidate' : `${row.candidates.length} candidates`;
   const tagsOf = (candidate: MatrixCandidate) =>
     (tags?.(row.task, candidate.key) ?? []).map(tag => (
-      <span key={tag} className="cm-tag">
+      <span
+        key={tag}
+        className="ml-2 inline-block rounded-full border border-dashed border-tp-hairline-strong px-1.5 text-[11px] font-semibold text-tp-ink-tint"
+      >
         {tag}
       </span>
     ));
 
   const body = narrow ? (
-    <ul className="cm-cards" aria-label={`Candidates for ${row.task}`}>
+    <ul className="flex flex-col gap-2" aria-label={`Candidates for ${row.task}`}>
       {row.candidates.map(candidate => (
         <li
           key={candidate.key}
-          className={`cm-card${candidate.selected ? ' is-selected' : ''}`}
+          className={`flex flex-col gap-1.5 rounded-xl border px-3 py-2.5 ${candidate.selected ? 'border-tp-status-verified bg-tp-surface-cream' : 'border-tp-hairline bg-tp-canvas'}`}
           aria-current={candidate.selected ? 'true' : undefined}
         >
-          <div className="cm-card-head">
+          <div className="flex flex-wrap items-center gap-2">
             {mode === 'select' && radio(candidate)}
             {name(candidate)}
-            {candidate.selected && <span className="cm-selected">Selected</span>}
+            {candidate.selected && <span className={SELECTED}>Selected</span>}
             {tagsOf(candidate)}
           </div>
-          <dl>
-            <div>
-              <dt>Provider</dt>
-              <dd>{candidate.provider ?? '—'}</dd>
+          <dl className="grid grid-cols-1 gap-1">
+            <div className={CARD_ROW}>
+              <dt className="text-xs text-tp-steel">Provider</dt>
+              <dd className="text-[13px]">{candidate.provider ?? '—'}</dd>
             </div>
             {features.map(({ feature, index }, column) => (
-              <div key={feature.id}>
-                <dt>{headerOf(feature)}</dt>
-                <dd>{content(candidate, column, index)}</dd>
+              <div key={feature.id} className={CARD_ROW}>
+                <dt className="text-xs text-tp-steel">{headerOf(feature)}</dt>
+                <dd className="text-[13px]">{content(candidate, column, index)}</dd>
               </div>
             ))}
           </dl>
@@ -212,7 +237,7 @@ function TaskCandidates({
       label={`Candidates for ${row.task}`}
       caption={
         <>
-          Task <code>{row.task}</code> · {count}
+          Task <code className="font-mono">{row.task}</code> · {count}
         </>
       }
       minWidth={Math.min(640, 280 + features.length * 120)}
@@ -237,13 +262,13 @@ function TaskCandidates({
         {row.candidates.map(candidate => (
           <tr
             key={candidate.key}
-            className={candidate.selected ? 'cm-row is-selected' : 'cm-row'}
+            className={candidate.selected ? 'bg-tp-surface-cream' : undefined}
             aria-current={candidate.selected ? 'true' : undefined}
           >
             {mode === 'select' && <td>{radio(candidate)}</td>}
             <th scope="row">
               {name(candidate)}
-              {candidate.selected && <span className="cm-selected">Selected</span>}
+              {candidate.selected && <span className={SELECTED}>Selected</span>}
               {tagsOf(candidate)}
             </th>
             <td>{candidate.provider ?? '—'}</td>
@@ -257,11 +282,11 @@ function TaskCandidates({
   );
 
   return mode === 'select' ? (
-    <div className="cm-task" role="radiogroup" aria-label={`Candidate for ${row.task}`}>
+    <div className="min-w-0" role="radiogroup" aria-label={`Candidate for ${row.task}`}>
       {body}
     </div>
   ) : (
-    <div className="cm-task">{body}</div>
+    <div className="min-w-0">{body}</div>
   );
 }
 
@@ -289,14 +314,16 @@ export function CandidateMatrix({
   };
 
   return (
-    <section className="cm" aria-label={label}>
+    <section className="flex min-w-0 flex-col gap-3" aria-label={label}>
       {extras.length > 0 && (
-        <details className="cm-more">
-          <summary>More features ({extras.length})</summary>
-          <fieldset>
+        <details>
+          <summary className="cursor-pointer text-[13px] font-medium text-tp-link">
+            More features ({extras.length})
+          </summary>
+          <fieldset className="mt-2 flex flex-wrap gap-x-4 gap-y-1.5 text-[13px]">
             <legend className="sr-only">Features to show besides the required ones</legend>
             {extras.map(feature => (
-              <label key={feature.id}>
+              <label key={feature.id} className="inline-flex cursor-pointer items-center gap-1.5">
                 <input
                   type="checkbox"
                   checked={shown.includes(feature.id)}
@@ -311,15 +338,15 @@ export function CandidateMatrix({
       {matrix.rows.map(row => {
         if (row.kind === 'local') {
           return (
-            <p key={row.task} className="cm-local">
-              <code>{row.task}</code> is a local task: it gets no candidate.
+            <p key={row.task} className="text-[13px] text-tp-slate">
+              <code className="font-mono">{row.task}</code> is a local task: it gets no candidate.
             </p>
           );
         }
         if (row.candidates.length === 0) {
           return (
-            <p key={row.task} className="cm-local">
-              <code>{row.task}</code> has no candidate that can serve it.
+            <p key={row.task} className="text-[13px] text-tp-slate">
+              <code className="font-mono">{row.task}</code> has no candidate that can serve it.
             </p>
           );
         }

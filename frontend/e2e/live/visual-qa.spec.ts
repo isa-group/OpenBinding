@@ -378,18 +378,19 @@ const OWNER_STOPS: Stop[] = [
   },
   {
     slug: 'organization',
-    path: `/orgs/${ORG}/problems`,
-    ready: page => page.locator('main').getByRole('link', { name: 'Open the problems' }).first(),
+    path: `/orgs/${ORG}`,
+    ready: page => page.locator('main').getByRole('heading', { level: 1 }).first(),
   },
   {
     slug: 'cases',
-    path: `${ORG_PATH}/problems`,
-    ready: page => page.getByRole('list', { name: 'Problems' }),
+    path: `/orgs/${ORG}/problems`,
+    ready: page =>
+      page.locator('main').getByRole('region', { name: 'Problems' }).getByRole('article').first(),
   },
   {
     slug: 'case',
-    path: `${ORG_PATH}/problems/${CASE}`,
-    ready: page => page.locator('code.case-slug'),
+    path: `/problems/${ORG}/${CASE}`,
+    ready: page => page.locator('main').getByRole('heading', { level: 1 }),
   },
   {
     slug: 'jobs',
@@ -446,12 +447,12 @@ function problemStops(mobile: boolean): Stop[] {
   return [
     {
       slug: 'problem-candidates',
-      path: `${ORG_PATH}/problems/${CASE}/candidates`,
+      path: `/problems/${ORG}/${CASE}/candidates`,
       ready: page => page.getByRole('region', { name: 'Candidates of each task' }),
     },
     {
       slug: 'problem-compositions',
-      path: `${ORG_PATH}/problems/${CASE}/compositions`,
+      path: `/problems/${ORG}/${CASE}/compositions`,
       ready: page => main(page).getByRole('heading', { level: 2, name: 'Compositions' }).first(),
     },
     {

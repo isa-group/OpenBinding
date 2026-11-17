@@ -70,11 +70,11 @@ describe('GraphDiff', () => {
     const graph = within(region).getByRole('group', {
       name: 'The workflow of Fleet routing at 1.1.0',
     });
-    const t1 = graph.querySelector('.wg-task.is-changed');
+    const t1 = graph.querySelector('[data-wg-task][data-status="changed"]');
     expect(t1).toHaveTextContent('T1');
     expect(t1).toHaveTextContent('candidate cand_t1_google_cloud');
     expect(t1).toHaveTextContent('changed');
-    expect(graph.querySelectorAll('.wg-status')).toHaveLength(1);
+    expect(graph.querySelectorAll('[data-wg-status]')).toHaveLength(1);
     // No facts: no matrix.
     expect(screen.queryByRole('region', { name: 'Problem candidates' })).toBeNull();
   });

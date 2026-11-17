@@ -26,14 +26,16 @@ test('cancelling the creation page goes back and creates nothing', async ({ page
   expect(requests.filter((request) => request.method === 'POST')).toEqual([]);
 });
 
-test('the organization page offers no New project, and its New problem opens the problem dialog', async ({ page }) => {
+test('the organization page offers no New project, and its Problems tab uploads a BIM package in a dialog', async ({ page }) => {
   await mockApi(page);
   await page.goto('/orgs/acme/problems');
   await expect(page.getByRole('heading', { level: 1, name: 'Acme' })).toBeVisible();
   await expect(opener(page, 'New project')).toHaveCount(0);
-  await page.locator('main').getByRole('link', { name: 'New problem' }).click();
-  await expect.poll(() => pathAndSearch(page)).toBe('/app/acme/problems?create=problem');
+  const tab = page.locator('main').getByRole('region', { name: 'Problems' });
+  await tab.getByRole('button', { name: /^New/ }).click();
+  await tab.getByRole('menuitem', { name: /Upload BIM package/ }).click();
   await expect(page.getByRole('dialog', { name: 'Upload a BIM package' })).toBeVisible();
+  await expect.poll(() => pathAndSearch(page)).toBe('/orgs/acme/problems');
 });
 
 test('New composition opens the creation page, whose editor link publishes lab-flow with its first version', async ({ page }) => {

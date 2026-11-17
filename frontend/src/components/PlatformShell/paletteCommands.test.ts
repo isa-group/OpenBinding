@@ -115,7 +115,7 @@ describe('buildCommands', () => {
     ).toEqual([]);
     expect(
       commands.filter(command => command.label === 'Problems').map(command => command.href)
-    ).toEqual(['/app/isa-demo/problems']);
+    ).toEqual(['/orgs/isa-demo/problems']);
   });
 
   it('offers the compositions of the organization and New composition, and neither without one', () => {
@@ -157,7 +157,7 @@ describe('buildCommands', () => {
         .map(command => [command.label, command.href]);
 
     expect(created(inOrganizationToo)).toEqual([
-      ['New problem', '/app/isa-demo/problems?create=problem'],
+      ['New problem', '/app/isa-demo/problem-editor'],
       ['New run', '/app/isa-demo/runs/new'],
       ['New study', '/app/isa-demo/studies/new'],
     ]);

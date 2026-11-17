@@ -4,7 +4,12 @@ import {
   compositionsPath,
   newCompositionPath,
 } from '../../routes/paths/compositions';
-import { organizationPath, PROBLEMS_SEGMENT } from '../../routes/paths/problems';
+import {
+  organizationPath,
+  PROBLEMS_SEGMENT,
+  problemEditorPath,
+  problemsPath,
+} from '../../routes/paths/problems';
 import { RUNS_SEGMENT } from '../../routes/paths/runs';
 import { STUDIES_SEGMENT } from '../../routes/paths/studies';
 
@@ -69,7 +74,12 @@ export function organizationEntries(
         ? { label: 'Compositions', to: compositionsPath(organization.slug) }
         : { label: 'Compositions', hint: NEEDS_ORGANIZATION }),
     },
-    { id: 'problems', ...inOrganization('Problems', organization, `/${PROBLEMS_SEGMENT}`) },
+    {
+      id: 'problems',
+      ...(organization
+        ? { label: 'Problems', to: problemsPath(organization.slug) }
+        : { label: 'Problems', hint: NEEDS_ORGANIZATION }),
+    },
     { id: 'runs', ...inOrganization('Runs', organization, `/${RUNS_SEGMENT}`) },
     { id: 'studies', ...inOrganization('Studies', organization, `/${STUDIES_SEGMENT}`) },
   ];
@@ -81,7 +91,9 @@ export function createItems(organization?: Organization): MenuEntry[] {
     organization
       ? { label: 'Composition', to: newCompositionPath(organization.slug) }
       : { label: 'Composition', hint: NEEDS_ORGANIZATION },
-    inOrganization('Problem', organization, `/${PROBLEMS_SEGMENT}?create=problem`),
+    organization
+      ? { label: 'Problem', to: problemEditorPath(organization.slug) }
+      : { label: 'Problem', hint: NEEDS_ORGANIZATION },
     inOrganization('Study', organization, `/${STUDIES_SEGMENT}/new`),
     inOrganization('Run', organization, `/${RUNS_SEGMENT}/new`),
   ];

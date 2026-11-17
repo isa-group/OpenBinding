@@ -339,7 +339,7 @@ describe('ProblemEditor', () => {
       { producer: EDITOR_PRODUCER }
     );
     fireEvent.click(screen.getByRole('link', { name: 'Open the problem' }));
-    await waitFor(() => expect(whereOf(router)).toBe('/app/isa-demo/problems/checkout?version=4'));
+    await waitFor(() => expect(whereOf(router)).toBe('/problems/isa-demo/checkout?version=4'));
   });
 
   it('lets a VIEWER edit and check, and not save', async () => {

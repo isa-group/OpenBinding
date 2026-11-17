@@ -15,7 +15,8 @@ import { WALK_ORG, installWalkApi } from './helpers/mockApi';
 const expect = baseExpect.configure({ timeout: 20_000 });
 
 const ORG_PATH = `/app/${WALK_ORG}`;
-const PROBLEMS = `${ORG_PATH}/problems`;
+const PROBLEMS_TAB = `/orgs/${WALK_ORG}/problems`;
+const PROBLEMS = `/problems/${WALK_ORG}`;
 const EXAMPLE = new URL('../../examples/demo/01_simple_seq/', import.meta.url);
 
 /** `examples/demo/01_simple_seq` as a `.bim.zip`, the package the gateway serves as the template `demo/01_simple_seq`. */
@@ -73,9 +74,10 @@ test('the F0b walk: upload, edit in the problem editor, a template, a run and a 
   await page.goto('/me/orgs');
   await page.locator(`main a[href="/orgs/${WALK_ORG}"]`).first().click();
   await expect(page).toHaveURL(new RegExp(`/orgs/${WALK_ORG}/?$`));
-  await page.goto(`${ORG_PATH}/problems`);
-  await expect(main.getByRole('heading', { level: 1, name: 'Problems' })).toBeVisible();
-  await main.getByRole('button', { name: 'Upload BIM package' }).first().click();
+  await page.goto(PROBLEMS_TAB);
+  await expect(main.getByRole('heading', { level: 2, name: 'Problems' })).toBeVisible();
+  await main.getByRole('button', { name: /^New/ }).click();
+  await main.getByRole('menuitem', { name: /Upload BIM package/ }).click();
   const dialog = page.getByRole('dialog', { name: 'Upload a BIM package' });
   await dialog.getByLabel('BIM package').setInputFiles({
     name: 'simple-seq.bim.zip',
@@ -88,17 +90,19 @@ test('the F0b walk: upload, edit in the problem editor, a template, a run and a 
   // 3 · The problem page shows version 1, and its source is the package as uploaded.
   await expect(page).toHaveURL(new RegExp(`${PROBLEMS}/simple-seq$`));
   await expect(main.getByRole('heading', { level: 1, name: 'simple-seq' })).toBeVisible();
-  await expect(main.getByText('Problem “simple-seq” created with version 1.')).toBeVisible();
+  await expect(page.getByText('Problem “simple-seq” created with version 1.')).toBeVisible();
   expect(api.sent.uploads).toHaveLength(1);
   expect(api.sent.uploads[0].bytes.equals(template)).toBe(true);
-  await main.getByRole('tab', { name: 'Source' }).click();
+  const sections = main.getByRole('navigation', { name: 'Problem sections' });
+  await sections.getByRole('link', { name: 'Source' }).click();
   const files = main.getByRole('list', { name: 'Files in the package' });
   await expect(files).toBeVisible();
   await expect(files).toContainText('candidates.json');
 
   // 4 · Edit in the problem editor: one candidate value changes in its form, the live check sends it, and it is saved as version 2.
-  await main.getByRole('tab', { name: 'Overview' }).click();
-  const edit = main.getByRole('link', { name: 'Edit in the problem editor' });
+  await sections.getByRole('link', { name: 'Overview' }).click();
+  await main.getByRole('button', { name: 'New version' }).click();
+  const edit = main.getByRole('menuitem', { name: /Problem editor/ });
   await expect(edit).toHaveAttribute(
     'href',
     `${ORG_PATH}/problem-editor?problem=simple-seq&revision=1`
@@ -145,8 +149,9 @@ test('the F0b walk: upload, edit in the problem editor, a template, a run and a 
   );
 
   // 4b · Start from a template: it is checked as it opens, saved as a new problem, and that problem's page offers a run.
-  await page.goto(PROBLEMS);
-  await main.getByRole('link', { name: 'Start from a template' }).click();
+  await page.goto(PROBLEMS_TAB);
+  await main.getByRole('button', { name: /^New/ }).click();
+  await main.getByRole('menuitem', { name: /Start from a template/ }).click();
   await expect(page).toHaveURL(
     new RegExp(`${ORG_PATH}/problem-editor\\?template=demo%2F01_simple_seq$`)
   );

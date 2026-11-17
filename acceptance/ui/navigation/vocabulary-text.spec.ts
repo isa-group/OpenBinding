@@ -5,11 +5,12 @@ import {
 
 test.use({ viewport: { width: 1440, height: 900 } });
 
-test('the screens are headed Problems and Runs and the Problems screen offers to upload a BIM package', async ({ page }) => {
+test('the screens are headed Problems and Runs and the Problems tab offers to upload a BIM package', async ({ page }) => {
   await mockGateway(page);
   await page.goto(PROBLEMS_FINAL);
   await expect(page.getByRole('heading', { name: 'Problems', exact: true }).first()).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Upload BIM package' }).first()).toBeVisible();
+  await page.locator('main').getByRole('button', { name: /^New/ }).click();
+  await expect(page.getByRole('menuitem', { name: /Upload BIM package/ }).first()).toBeVisible();
   await page.goto(RUNS_FINAL);
   await expect(page.getByRole('heading', { name: 'Runs', exact: true }).first()).toBeVisible();
 });

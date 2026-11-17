@@ -72,10 +72,13 @@ test.describe('live · lab-outsider has no access to lab-main', () => {
     const errors = watchPageErrors(page);
     await signInByApi(page, 'outsider');
 
-    // Problems, runs and studies belong to the organization: the outsider gets its neutral refusal.
+    // A problem of the organization, and its Problems tab, are the page that does not exist.
+    for (const path of [`/orgs/${ORG}/problems`, `/problems/${ORG}/${CASE}`]) {
+      await page.goto(path);
+      await expect(page.getByRole('heading', { name: 'Page not found' }), path).toBeVisible();
+    }
+    // Runs and studies belong to the organization: the outsider gets its neutral refusal.
     for (const path of [
-      `/app/${ORG}/problems`,
-      `/app/${ORG}/problems/${CASE}`,
       RUNS_PATH,
       `${RUNS_PATH}/new`,
       `/app/${ORG}/studies`,

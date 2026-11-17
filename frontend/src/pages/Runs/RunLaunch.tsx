@@ -21,7 +21,7 @@ import {
   presetRegistrationText,
 } from '../../modules/run/api/presetText';
 import type { RunPresetList, RunPresetView } from '../../modules/core/api/types';
-import { loadProblems } from '../Problems/problemsData';
+import { loadProblems } from '../../modules/problem/api/loadProblems';
 import { problemsPath } from '../../routes/paths/problems';
 import { runPath, runsPath } from '../../routes/paths/runs';
 import { OrgGate, OrgSkeleton } from '../../features/workspace/OrgFrame';

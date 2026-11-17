@@ -5,7 +5,7 @@ import type { Page, Route } from '@playwright/test';
 import type { AdminUserView } from '../../src/api/auth';
 import type { Job, Study, StudyCell, StudyRun } from '../../src/api/platform';
 import type { Problem, ProblemRevision } from '../../src/api/problems';
-import { digestOf as caseDigest, compiledDocument } from '../../src/pages/Problems/fixtures';
+import { digestOf as caseDigest, compiledDocument } from '../../src/modules/problem/utils/fixtures';
 import { CURRENT_FIXTURE, catalogFixture } from '../../src/pages/Pricing/pricingFixture';
 import {
   AUDIT,
@@ -836,7 +836,11 @@ function problemRoutes(request: Request, orgSlug: string): Reply {
         201
       );
     return ok({
-      problems: problems.map(item => ({ ...item, latest_revision: latestOf(item) })),
+      problems: problems.map(item => ({
+        ...item,
+        latest_revision: latestOf(item),
+        revision_count: item.id === PROBLEM.id ? PROBLEM_REVISIONS.length : 0,
+      })),
       total: problems.length,
       limit: 200,
       offset: 0,
@@ -844,9 +848,14 @@ function problemRoutes(request: Request, orgSlug: string): Reply {
   }
   const problem = problems.find(item => item.slug === problemSlug || item.id === problemSlug);
   if (!problem) return notFound('Problem not found.');
-  if (!sub) return ok({ ...problem, latest_revision: latestOf(problem) });
-  if (sub !== 'revisions') return notFound('Not mocked.');
   const revisions = problem.id === PROBLEM.id ? PROBLEM_REVISIONS : [];
+  if (!sub)
+    return ok({
+      ...problem,
+      latest_revision: latestOf(problem),
+      revision_count: revisions.length,
+    });
+  if (sub !== 'revisions') return notFound('Not mocked.');
   if (!revisionRef) {
     if (method === 'POST') return ok(uploadOf(problem, revisions.length + 1, true), 201);
     return ok(revisions);
@@ -1465,6 +1474,7 @@ export async function installWalkApi(page: Page, template: Buffer): Promise<Walk
   const shown = (problem: WalkProblem) => ({
     ...problem.item,
     latest_revision: latestOfRow(problem),
+    revision_count: problem.revisions.length,
   });
   const compilationFor = (row: ProblemRevision) => ({
     id: `compilation-${row.id}`,

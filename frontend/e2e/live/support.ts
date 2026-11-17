@@ -24,8 +24,11 @@ export const OTHER_ORG = 'lab-other';
 export const CASE = 'simple-seq';
 /** The organization's page (SPHERE's, with its tabs in the address). */
 export const ORG_PAGE = `/orgs/${ORG}`;
-/** The organization's workspace screens: its problems below `${ORG_PATH}/problems`, its compositions, runs and studies. */
+/** The organization's workspace screens not yet on SPHERE's pages: its runs, studies and the problem editor. */
 export const ORG_PATH = `/app/${ORG}`;
+/** The organization's Problems tab, and the pages of its problems (`${PROBLEM_PAGES}/<slug>`). */
+export const PROBLEMS_TAB = `${ORG_PAGE}/problems`;
+export const PROBLEM_PAGES = `/problems/${ORG}`;
 /** The runs of the lab organization (`run-list`); a run is `${RUNS_PATH}/<id>` and the launcher `${RUNS_PATH}/new`. */
 export const RUNS_PATH = `/app/${ORG}/runs`;
 

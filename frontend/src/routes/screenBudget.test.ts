@@ -32,11 +32,10 @@ const SCREENS: Array<[string, string, string]> = [
   ['notifications', '/notifications', 'protected'],
   ['acct-settings', '/me/settings', 'protected'],
   ['acct-api-keys', '/me/api-keys', 'protected'],
+  ['problem-detail', '/problems/:org/:problem/:tab?', 'protected'],
   ['eng-register', '/app/engines/new', 'app'],
   ['eng-registrations', '/app/engines/registrations', 'app'],
   ['eng-registration-detail', '/app/engines/registrations/:name', 'app'],
-  ['problem-list', '/app/:org/problems', 'app'],
-  ['problem-detail', '/app/:org/problems/:case/:tab?', 'app'],
   ['problem-editor', '/app/:org/problem-editor', 'app'],
   ['run-launch', '/app/:org/runs/new', 'app'],
   ['run-list', '/app/:org/runs', 'app'],
@@ -51,7 +50,7 @@ const SCREENS: Array<[string, string, string]> = [
   ['composition-editor', '/editor', 'standalone'],
 ];
 
-const CEILING = 41;
+const CEILING = 40;
 
 describe('screen budget', () => {
   it('serves exactly the listed screens, with their addresses and layouts, in table order', () => {

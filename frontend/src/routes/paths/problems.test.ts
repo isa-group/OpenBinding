@@ -17,9 +17,9 @@ describe('the address builders of the problems area', () => {
   });
 
   it('builds the list, the problem, its tab and the version or pair it shows', () => {
-    expect(problemsPath('acme')).toBe('/app/acme/problems');
+    expect(problemsPath('acme')).toBe('/orgs/acme/problems');
     expect(problemsPath('acme', { origin: 'editor', composition: 'fleet routing' })).toBe(
-      '/app/acme/problems?origin=editor&composition=fleet+routing'
+      '/orgs/acme/problems?origin=editor&composition=fleet+routing'
     );
     expect(
       problemPath('acme', 'routing', 'candidates', {
@@ -28,20 +28,20 @@ describe('the address builders of the problems area', () => {
         compositionVersion: '1.2.0',
       })
     ).toBe(
-      '/app/acme/problems/routing/candidates?version=1&composition=fleet&compositionVersion=1.2.0'
+      '/problems/acme/routing/candidates?version=1&composition=fleet&compositionVersion=1.2.0'
     );
-    expect(problemPath('acme', 'routing')).toBe('/app/acme/problems/routing');
+    expect(problemPath('acme', 'routing')).toBe('/problems/acme/routing');
     expect(problemPath('acme', 'routing', 'source', { version: 2 })).toBe(
-      '/app/acme/problems/routing/source?version=2'
+      '/problems/acme/routing/source?version=2'
     );
     expect(problemPath('acme', 'routing', 'versions', { from: 1, to: 3 })).toBe(
-      '/app/acme/problems/routing/versions?from=1&to=3'
+      '/problems/acme/routing/versions?from=1&to=3'
     );
     expect(problemPath('acme', 'routing', undefined, { version: '' })).toBe(
-      '/app/acme/problems/routing'
+      '/problems/acme/routing'
     );
     expect(problemPath('acme', 'a b/c', undefined, { version: 'sha256-x' })).toBe(
-      '/app/acme/problems/a%20b%2Fc?version=sha256-x'
+      '/problems/acme/a%20b%2Fc?version=sha256-x'
     );
   });
 

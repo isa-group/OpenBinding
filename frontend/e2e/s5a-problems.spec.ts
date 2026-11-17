@@ -3,11 +3,11 @@ import JSZip from 'jszip';
 import { expect as baseExpect, test, type Page, type Route, type TestInfo } from '@playwright/test';
 import { failureBody } from './helpers/problems';
 import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
-import { checkoutFacts, compiledDocument, digestOf } from '../src/pages/Problems/fixtures';
+import { checkoutFacts, compiledDocument, digestOf } from '../src/modules/problem/utils/fixtures';
 import type { CompositionVersionView } from '../src/modules/core/api/types';
 
-// S5a · the problems of an organization: problem-list (/app/:org/problems, filtered by origin and by linking composition) and the
-// problem page problem-detail with its tabs Overview, Candidates, Versions, Runs, Compositions, Source and Settings. A problem is
+// S5a · the problems of an organization: its Problems tab (/orgs/:org/problems, filtered by origin and by linking composition)
+// and the problem page problem-detail (/problems/:org/:problem/:tab?) with its tabs Overview, Candidates, Versions, Runs, Compositions, Source and Settings. A problem is
 // uploaded as a .bim.zip, a new version is another upload (or a save in the problem editor), and every version is the package exactly
 // as it was uploaded with its compilation by the installed toolchain. A composition that links a version is highlighted on its
 // candidates.
@@ -298,7 +298,8 @@ async function mockApi(page: Page): Promise<State> {
 
     if (!orgSlug) return json(organizations)(route);
     if (!found) return detail(403, 'organization_forbidden', 'Not a member.')(route);
-    if (section === 'members' || section === 'library') return json([])(route);
+    if (['members', 'library', 'invitations', 'hierarchy'].includes(section))
+      return json([])(route);
     if (section === 'runs') return json({ runs: [], total: 0 })(route);
     if (section === 'compositions') {
       // /v1/organizations/{org}/compositions[/{composition}[/versions/{version}]]: fleet-plan links checkout-flow@2 in isa-demo.
@@ -332,8 +333,13 @@ async function mockApi(page: Page): Promise<State> {
           }
         : null;
     };
+    const shown = (row: ProblemRow) => ({
+      ...row.item,
+      latest_revision: latest(row),
+      revision_count: row.revisions.length,
+    });
     const upload = (row: ProblemRow, revision: Revision, created: boolean) => ({
-      problem: { ...row.item, latest_revision: latest(row) },
+      problem: shown(row),
       revision,
       created,
       compilation: { ...compilationOf(revision.revision), compatible_modes: undefined },
@@ -365,9 +371,9 @@ async function mockApi(page: Page): Promise<State> {
             !composition || (composition === COMPOSITION.slug && row.item.slug === 'flujo-checkout')
         );
       return json({
-        problems: listed.map(row => ({ ...row.item, latest_revision: latest(row) })),
+        problems: listed.map(shown),
         total: listed.length,
-        limit: 200,
+        limit: 10,
         offset: 0,
       })(route);
     }
@@ -385,7 +391,7 @@ async function mockApi(page: Page): Promise<State> {
         state.problems[orgSlug] = rows.filter(candidate => candidate !== row);
         return noContent(route);
       }
-      return json({ ...row.item, latest_revision: latest(row) })(route);
+      return json(shown(row))(route);
     }
     if (sub !== 'revisions') return detail(404, 'not_found', 'Not mocked.')(route);
     if (!revisionRef) {
@@ -516,71 +522,72 @@ const viewports = [
   { name: 'mobile', viewport: { width: 390, height: 844 }, isMobile: true, deviceScaleFactor: 2 },
 ] as const;
 
-const PROBLEMS = '/app/isa-demo/problems';
+const TAB = '/orgs/isa-demo/problems';
+const PAGE = '/problems/isa-demo';
 
 for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
   test.describe(`${name} · S5a problems`, () => {
     test.use({ viewport, isMobile, deviceScaleFactor });
 
-    test('problem-list /app/:org/problems · the problems of the organization, an upload and a delete', async ({
+    test('org-detail /orgs/:org/problems · the Problems tab of the organization, an upload and a delete', async ({
       page,
     }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
-      await page.goto(PROBLEMS);
+      await page.goto(TAB);
       const main = page.locator('main');
+      const tab = main.getByRole('region', { name: 'Problems' });
 
-      await expect(main.getByRole('heading', { level: 1, name: 'Problems' })).toBeVisible();
-      const list = main.getByRole('list', { name: 'Problems' });
-      await expect(list.getByRole('listitem')).toHaveCount(2);
-      await expect(list.getByRole('link', { name: /Flujo de checkout/ })).toHaveAttribute(
+      await expect(tab.getByRole('heading', { level: 2, name: 'Problems' })).toBeVisible();
+      await expect(tab.getByRole('article')).toHaveCount(2);
+      const card = tab.getByRole('article', { name: 'Flujo de checkout' });
+      await expect(card.getByRole('link', { name: 'Flujo de checkout' })).toHaveAttribute(
         'href',
-        `${PROBLEMS}/flujo-checkout`
+        `${PAGE}/flujo-checkout`
       );
-      await expect(list.getByText('2 versions')).toBeVisible();
-      await expect(list.getByRole('link', { name: 'Run latest' })).toHaveAttribute(
-        'href',
-        '/app/isa-demo/runs/new?problem=flujo-checkout&revision=2'
-      );
+      await expect(card.getByText(/2 versions · latest v2/)).toBeVisible();
+      await expect(card.getByText('Ready to run')).toBeVisible();
+      await expect(card.getByText('Problem editor', { exact: true })).toBeVisible();
+      await card.getByRole('button', { name: 'Actions for Flujo de checkout' }).click();
       await expect(
-        main.getByRole('link', { name: 'Write one in the problem editor' })
+        card.getByRole('menuitem', { name: 'Run the latest version of Flujo de checkout' })
+      ).toHaveAttribute('href', '/app/isa-demo/runs/new?problem=flujo-checkout&revision=2');
+      await page.keyboard.press('Escape');
+      await tab.getByRole('button', { name: /^New/ }).click();
+      const create = tab.getByRole('menu', { name: 'New problem' });
+      await expect(
+        create.getByRole('menuitem', { name: /Write in the problem editor/ })
       ).toHaveAttribute('href', '/app/isa-demo/problem-editor');
-      await expect(main.getByRole('link', { name: 'Start from a template' })).toHaveAttribute(
+      await expect(create.getByRole('menuitem', { name: /Start from a template/ })).toHaveAttribute(
         'href',
         '/app/isa-demo/problem-editor?template=demo%2F01_simple_seq'
       );
-      await expect(main).not.toContainText(/sha256-|[0-9a-f]{12}/);
-      await expect(
-        list
-          .getByRole('listitem')
-          .filter({ hasText: 'Flujo de checkout' })
-          .getByText('Problem editor', { exact: true })
-      ).toBeVisible();
+      await page.keyboard.press('Escape');
+      await expect(tab).not.toContainText(/sha256-|[0-9a-f]{12}/);
       await capture(page, testInfo, `list-${name}`);
 
       // The gateway narrows the list: by where the latest version came from, and to the problems a composition links.
-      const origins = main.getByRole('group', { name: 'Origin of the latest version' });
-      await origins.getByRole('button', { name: 'Uploaded' }).click();
-      await expect(page).toHaveURL(new RegExp(`${PROBLEMS}\\?origin=upload$`));
-      await expect(main.getByText('No problem matches these filters.')).toBeVisible();
-      await origins.getByRole('button', { name: 'Problem editor' }).click();
-      await expect(page).toHaveURL(new RegExp(`${PROBLEMS}\\?origin=editor$`));
-      await expect(list.getByRole('listitem')).toHaveCount(1);
-      await origins.getByRole('button', { name: 'All origins' }).click();
-      await expect(list.getByRole('listitem')).toHaveCount(2);
-      await main
-        .getByRole('combobox', { name: 'Linked by composition' })
-        .selectOption('fleet-plan');
-      await expect(page).toHaveURL(new RegExp(`${PROBLEMS}\\?composition=fleet-plan$`));
-      await expect(list.getByRole('listitem')).toHaveCount(1);
-      await expect(list.getByRole('link', { name: /Flujo de checkout/ })).toBeVisible();
+      await tab.getByRole('button', { name: /Filters/ }).click();
+      const origins = tab.getByRole('group', { name: 'Origin of the latest version' });
+      await origins.getByRole('radio', { name: 'Uploaded' }).click();
+      await expect(page).toHaveURL(new RegExp(`${TAB}\\?origin=upload$`));
+      await expect(tab.getByText('No problem matches these filters.')).toBeVisible();
+      await origins.getByRole('radio', { name: 'Problem editor' }).click();
+      await expect(page).toHaveURL(new RegExp(`${TAB}\\?origin=editor$`));
+      await expect(tab.getByRole('article')).toHaveCount(1);
+      await origins.getByRole('radio', { name: 'All origins' }).click();
+      await expect(tab.getByRole('article')).toHaveCount(2);
+      await tab.getByRole('combobox', { name: 'Linked by composition' }).selectOption('fleet-plan');
+      await expect(page).toHaveURL(new RegExp(`${TAB}\\?composition=fleet-plan$`));
+      await expect(tab.getByRole('article')).toHaveCount(1);
+      await expect(tab.getByRole('article', { name: 'Flujo de checkout' })).toBeVisible();
       await capture(page, testInfo, `list-${name}-filtered`);
-      await page.goto(PROBLEMS);
-      await expect(list.getByRole('listitem')).toHaveCount(2);
+      await page.goto(TAB);
+      await expect(tab.getByRole('article')).toHaveCount(2);
 
       // Upload a package as a new problem: a refused one lists where it is wrong, an accepted one opens the new problem.
-      await main.getByRole('button', { name: 'Upload BIM package' }).click();
-      await expect(page).toHaveURL(new RegExp(`${PROBLEMS}\\?create=problem$`));
+      await tab.getByRole('button', { name: /^New/ }).click();
+      await tab.getByRole('menuitem', { name: /Upload BIM package/ }).click();
       const dialog = page.getByRole('dialog', { name: 'Upload a BIM package' });
       await dialog.getByLabel('BIM package').setInputFiles(await packageFile());
       await expect(dialog.getByLabel('Name')).toHaveValue('analisis-de-latencia');
@@ -603,12 +610,12 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await capture(page, testInfo, `upload-${name}-422`);
       state.refuse.create = undefined;
       await dialog.getByRole('button', { name: 'Upload problem' }).click();
-      await expect(page).toHaveURL(new RegExp(`${PROBLEMS}/analisis-de-latencia$`));
+      await expect(page).toHaveURL(new RegExp(`${PAGE}/analisis-de-latencia$`));
       await expect(
         main.getByRole('heading', { level: 1, name: 'analisis-de-latencia' })
       ).toBeVisible();
       await expect(
-        main.getByText('Problem “analisis-de-latencia” created with version 1.')
+        page.getByText('Problem “analisis-de-latencia” created with version 1.')
       ).toBeVisible();
       expect(state.sent.create).toContain('slug=analisis-de-latencia');
       expect(state.sent.create).toContain('producer=openbinding-upload');
@@ -619,16 +626,15 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       }
 
       // Deleting a problem that runs used is refused, and says why.
-      await page.goto(PROBLEMS);
+      await page.goto(TAB);
       state.refuse.remove = detail(
         409,
         'problem_has_runs',
         'Runs or studies name a revision of this problem, so it is kept as their evidence.'
       );
-      await main
-        .getByRole('list', { name: 'Problems' })
-        .getByRole('button', { name: 'Delete Flujo de checkout' })
-        .click();
+      const checkoutCard = tab.getByRole('article', { name: 'Flujo de checkout' });
+      await checkoutCard.getByRole('button', { name: 'Actions for Flujo de checkout' }).click();
+      await checkoutCard.getByRole('menuitem', { name: 'Delete Flujo de checkout' }).click();
       const remove = page.getByRole('dialog', { name: 'Delete Flujo de checkout?' });
       await remove.getByLabel('Type flujo-checkout to confirm').fill('flujo-checkout');
       await remove.getByRole('button', { name: 'Delete problem' }).click();
@@ -639,29 +645,39 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('problem-detail /app/:org/problems/:case · overview, candidates, compositions, versions, source, settings and a new version', async ({
+    test('problem-detail /problems/:org/:problem · overview, candidates, compositions, versions, source, settings and a new version', async ({
       page,
     }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
-      await page.goto(`${PROBLEMS}/flujo-checkout`);
+      await page.goto(`${PAGE}/flujo-checkout`);
       const main = page.locator('main');
+      const tabs = main.getByRole('navigation', { name: 'Problem sections' });
 
       await expect(
         main.getByRole('heading', { level: 1, name: 'Flujo de checkout' })
       ).toBeVisible();
-      await expect(main.getByRole('tab', { name: 'Overview' })).toHaveAttribute(
-        'aria-selected',
-        'true'
+      await expect(tabs.getByRole('link', { name: 'Overview' })).toHaveAttribute(
+        'aria-current',
+        'page'
       );
-      await expect(main.getByRole('link', { name: 'Edit in the problem editor' })).toHaveAttribute(
-        'href',
-        '/app/isa-demo/problem-editor?problem=flujo-checkout&revision=2'
-      );
+      await expect(
+        main
+          .getByRole('navigation', { name: 'Breadcrumb' })
+          .getByRole('link', { name: 'ISA Demo Group' })
+      ).toHaveAttribute('href', TAB);
       await expect(main.getByRole('link', { name: 'Run this version' })).toHaveAttribute(
         'href',
         '/app/isa-demo/runs/new?problem=flujo-checkout&revision=2'
       );
+      if (!isMobile) {
+        await main.getByRole('button', { name: 'New version' }).click();
+        await expect(main.getByRole('menuitem', { name: /Problem editor/ })).toHaveAttribute(
+          'href',
+          '/app/isa-demo/problem-editor?problem=flujo-checkout&revision=2'
+        );
+        await page.keyboard.press('Escape');
+      }
       const workflow = main.getByRole('region', { name: 'How the service works' });
       const drawing = workflow.getByRole('group', { name: 'Workflow' });
       await expect(drawing).toBeVisible();
@@ -682,12 +698,11 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(
         rules.getByRole('list', { name: 'What breaking a soft rule costs' })
       ).toContainText('costs weight 5');
-      await expect(main.getByRole('region', { name: 'Resources it’s built from' })).toHaveCount(0);
       await capture(page, testInfo, `overview-${name}`);
 
       // The candidates: a table per task on a desktop, a card per candidate on a phone.
-      await main.getByRole('tab', { name: 'Candidates' }).click();
-      await expect(page).toHaveURL(new RegExp(`${PROBLEMS}/flujo-checkout/candidates`));
+      await tabs.getByRole('link', { name: 'Candidates' }).click();
+      await expect(page).toHaveURL(new RegExp(`${PAGE}/flujo-checkout/candidates`));
       const candidates = main.getByRole('region', { name: 'Candidates of each task' });
       const authenticate = (written: string) =>
         isMobile
@@ -703,8 +718,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await capture(page, testInfo, `candidates-${name}`);
 
       // The compositions that link it: one, whose choice shows on the candidates, with a way back to it.
-      await main.getByRole('tab', { name: 'Compositions' }).click();
-      const linking = main.getByRole('region', { name: 'Compositions that link this problem' });
+      await tabs.getByRole('link', { name: 'Compositions' }).click();
+      const linking = main.getByRole('list', { name: 'Compositions that link this problem' });
       await expect(linking.getByRole('link', { name: 'Fleet plan', exact: true })).toHaveAttribute(
         'href',
         '/compositions/isa-demo/fleet-plan'
@@ -717,7 +732,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await linking.getByRole('link', { name: 'Show Fleet plan 1.0.0 on the problem' }).click();
       await expect(page).toHaveURL(
         new RegExp(
-          `${PROBLEMS}/flujo-checkout/candidates\\?version=2&composition=fleet-plan&compositionVersion=1\\.0\\.0$`
+          `${PAGE}/flujo-checkout/candidates\\?version=2&composition=fleet-plan&compositionVersion=1\\.0\\.0$`
         )
       );
       await expect(
@@ -731,21 +746,27 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       );
       await capture(page, testInfo, `candidates-${name}-highlight`);
 
-      // The versions as a timeline, and what changed between two of them.
-      await main.getByRole('tab', { name: 'Versions' }).click();
-      const versions = main.getByRole('region', { name: 'Versions' });
+      // The versions, newest first, and what changed between two of them.
+      await tabs.getByRole('link', { name: 'Versions' }).click();
+      const versions = main.getByRole('list', { name: 'Versions of Flujo de checkout' });
       await expect(versions.getByRole('link', { name: /^Version \d$/ })).toHaveText([
         'Version 2',
         'Version 1',
       ]);
-      await expect(main.getByRole('heading', { level: 2, name: 'Compare versions' })).toBeVisible();
+      await main.getByRole('button', { name: 'Compare versions' }).click();
       await expect(main.getByRole('row', { name: /Candidates for pay-card/ })).toContainText(
         'Changed'
       );
       await capture(page, testInfo, `versions-${name}`);
+      await main
+        .getByRole('group', { name: 'Comparison view' })
+        .getByRole('button', { name: 'File' })
+        .click();
+      await expect(main.getByLabel('File', { exact: true })).toHaveValue('instance.json');
+      await capture(page, testInfo, `versions-${name}-file`);
 
       // The source: the files of the package as uploaded, and the compiled form.
-      await main.getByRole('tab', { name: 'Source' }).click();
+      await tabs.getByRole('link', { name: 'Source' }).click();
       await expect(main.getByRole('list', { name: 'Files in the package' })).toBeVisible();
       await expect(main.getByRole('region', { name: 'What the engines receive' })).toContainText(
         '2 engine modes can run it.'
@@ -753,45 +774,48 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await capture(page, testInfo, `source-${name}`);
 
       // A new version: another upload of a package.
-      await main.getByRole('button', { name: 'Upload new version' }).click();
+      if (isMobile) {
+        await main.getByRole('button', { name: 'More actions' }).click();
+        await main.getByRole('menuitem', { name: 'Upload a new version' }).click();
+      } else {
+        await main.getByRole('button', { name: 'New version' }).click();
+        await main.getByRole('menuitem', { name: /Upload file/ }).click();
+      }
       const dialog = page.getByRole('dialog', { name: 'New version of Flujo de checkout' });
       await dialog.getByLabel('BIM package').setInputFiles(await packageFile());
       await dialog.getByRole('button', { name: 'Upload version' }).click();
-      await expect(main.getByText('Saved as version 3.')).toBeVisible();
+      await expect(page.getByText('Saved as version 3.')).toBeVisible();
       await expect(main.getByRole('combobox', { name: 'Version' })).toHaveValue('3');
       await capture(page, testInfo, `new-version-${name}`);
 
-      await main.getByRole('tab', { name: 'Settings' }).click();
+      await tabs.getByRole('link', { name: 'Settings' }).click();
       await expect(main.getByLabel('Name', { exact: true })).toHaveValue('Flujo de checkout');
       await expect(main.getByRole('button', { name: 'Delete problem' })).toBeVisible();
       await capture(page, testInfo, `settings-${name}`);
       expect(critical).toEqual([]);
     });
 
-    test('problem-detail /app/:org/problems/:case · a VIEWER reads, and a missing problem answers 404', async ({
+    test('problem-detail /problems/:org/:problem · a VIEWER reads, and a missing problem answers 404', async ({
       page,
     }, testInfo) => {
       const critical = watchCriticalErrors(page);
       await mockApi(page);
       const main = page.locator('main');
-      await page.goto('/app/consultora-demo/problems/flujo-checkout');
+      await page.goto('/problems/consultora-demo/flujo-checkout');
       await expect(
         main.getByRole('heading', { level: 1, name: 'Flujo de checkout' })
       ).toBeVisible();
       await expect(main.getByRole('note')).toContainText(
         'You can read and compare versions. New versions need MEMBER; deleting needs ADMIN.'
       );
-      await expect(main.getByRole('button', { name: 'Upload new version' })).toHaveCount(0);
+      await expect(main.getByRole('button', { name: 'New version' })).toHaveCount(0);
+      await expect(main.getByRole('link', { name: 'Run this version' })).toHaveCount(0);
       await capture(page, testInfo, `viewer-${name}`);
 
-      await page.goto(`${PROBLEMS}/ghost`);
-      await expect(
-        main.getByRole('heading', { name: 'No problem with this address in ISA Demo Group (404)' })
-      ).toBeVisible();
-      await expect(main.getByRole('link', { name: 'All problems' })).toHaveAttribute(
-        'href',
-        PROBLEMS
-      );
+      await page.goto(`${PAGE}/ghost`);
+      await expect(main.getByRole('heading', { name: 'Page not found' })).toBeVisible();
+      await page.goto('/problems/another-org/flujo-checkout');
+      await expect(main.getByRole('heading', { name: 'Page not found' })).toBeVisible();
       await capture(page, testInfo, `missing-${name}`);
       expect(critical).toEqual([]);
     });

@@ -62,7 +62,7 @@ const EXEMPT_FILES: readonly string[] = [
   '/src/components/rendering/SourceView.tsx',
   // fixtures: sample data for tests and demos, with realistic digests and ids
   '/src/components/rendering/runResultFixtures.ts',
-  '/src/pages/Problems/fixtures.ts',
+  '/src/modules/problem/utils/fixtures.ts',
   '/src/modules/organization/pages/organization-detail/auditFixture.ts',
   '/src/pages/Pricing/pricingFixture.ts',
   '/src/test/fixtures/admin.ts',
@@ -81,6 +81,7 @@ const EXEMPT_FILES: readonly string[] = [
   '/src/test/Where.tsx',
   '/src/test/compositionPage.tsx',
   '/src/test/moduleKit.tsx',
+  '/src/test/problemPage.tsx',
   '/src/test/rawRenderingAllowList.ts',
   '/src/test/vocabulary.ts',
   // utils: the uuid helper itself

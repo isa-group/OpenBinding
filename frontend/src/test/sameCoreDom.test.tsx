@@ -4,8 +4,14 @@ import {
   openProblemEditor,
   showPane,
 } from '../modules/problem-editor/components/bim-editor/editorTestKit';
-import { caseOf, org, renderOrgScreen, revisionOf } from '../features/workspace/testKit';
-import { ProblemDetail } from '../pages/Problems/ProblemDetail';
+import ProblemCardPage from '../modules/problem/pages/card';
+import {
+  memberOf,
+  problemGateway,
+  problemOf,
+  renderProblemPage as renderPage,
+  versionOf,
+} from './problemPage';
 import fmsFacts from './fixtures/core/fms.facts.json';
 import fmsValidate from './fixtures/core/fms.validate.json';
 
@@ -41,8 +47,8 @@ vi.mock('../api/runs', async () => ({
 }));
 vi.mock('../api/bim', () => ({ bimApi: bim }));
 
-const problem = caseOf('fms', 'FMS');
-const revision = revisionOf(problem, 1);
+const problem = problemOf('fms', 'FMS');
+const revision = versionOf(problem, 1);
 
 /** Every candidate table as its rows of cell texts, by its name. */
 function tables(): Record<string, string[][]> {
@@ -66,18 +72,16 @@ function description(label: string): string {
 }
 
 function renderProblemPage(tab: '' | '/candidates') {
-  return renderOrgScreen(<ProblemDetail />, {
-    path: '/app/:org/problems/:case/:tab?',
-    url: `/app/isa-demo/problems/fms${tab}`,
-    organizations: [org('isa-demo', { effective_role: 'MEMBER' })],
+  return renderPage(<ProblemCardPage />, {
+    url: `/problems/isa-demo/fms${tab}`,
+    organizations: [memberOf('isa-demo', 'MEMBER')],
+    gateway: problemGateway('isa-demo', problem, [revision]),
   });
 }
 
 describe('the problem page and the problem editor draw the same problem', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    problems.get.mockResolvedValue(problem);
-    problems.revisions.mockResolvedValue([revision]);
     problems.revision.mockResolvedValue({
       ...revision,
       document: { apiVersion: 'bim/v1', kind: 'Instance' },

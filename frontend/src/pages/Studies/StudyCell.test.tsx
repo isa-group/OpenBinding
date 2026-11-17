@@ -100,13 +100,13 @@ describe('One cell of a run, inside the Results tab', () => {
     const inputs = screen.getByRole('region', { name: 'Frozen inputs' });
     expect(
       await within(inputs).findByRole('link', { name: 'Checkout flow · version 1' })
-    ).toHaveAttribute('href', '/app/isa-demo/problems/checkout-flow?version=1');
+    ).toHaveAttribute('href', '/problems/isa-demo/checkout-flow?version=1');
     expect(within(inputs).getByText('random-search 1.0.0')).toBeInTheDocument();
     expect(within(inputs).getByText('sampling')).toBeInTheDocument();
     expect(within(inputs).getByText('Engine defaults')).toBeInTheDocument();
     expect(within(inputs).getByRole('link', { name: 'Package and compiled form' })).toHaveAttribute(
       'href',
-      '/app/isa-demo/problems/checkout-flow/source?version=1'
+      '/problems/isa-demo/checkout-flow/source?version=1'
     );
     expect(within(inputs).getByRole('button', { name: 'Copy cell digest' })).toBeInTheDocument();
     expect(document.body.textContent).not.toMatch(/sha256-|[0-9a-f]{12}/);
