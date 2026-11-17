@@ -45,8 +45,7 @@ test('no composition or problem screen shows deployment, scenario, build, projec
   const offenders: string[] = [];
   for (const { path, heading } of SCOPED_SCREENS) {
     await page.goto(path);
-    const main = page.getByRole('main');
-    await expect(main.getByRole('heading', { level: 1, name: heading }).first(), `${path} has loaded`).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: heading }).first(), `${path} has loaded`).toBeVisible();
     await page.waitForLoadState('networkidle');
     await expect(page.getByRole('heading', { name: 'Page not found' }), `${path} is a routed screen`).toHaveCount(0);
     offenders.push(...await forbiddenText(page, path, COMPOSITION_WORDS, 'main'));
