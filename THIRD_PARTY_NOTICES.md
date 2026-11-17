@@ -23,7 +23,7 @@ patterns from the following MIT-licensed projects:
 | [pricing-renderer](https://github.com/javiercavlop/pricing-renderer) | `0.2.0` | Public rendering of the active iPricing for the web |
 | [lz-string](https://github.com/pieroxy/lz-string) | `1.5.0` | Compressing a composition into the `#composition=` fragment of a share link |
 | [openapi-typescript](https://github.com/openapi-ts/openapi-typescript) | `7.13.0` (development only) | Generating the frontend's API types from `docs/openapi.json` |
-| [@codemirror/lang-xml](https://github.com/codemirror/lang-xml) | `6.1.0` | Highlighting the BPMN (XML) files of a package in the problem editor's code view |
+| [@lezer/json](https://github.com/lezer-parser/json) | `1.0.3` | Reading where a JSON Pointer lands in the text of a package file, to place the gateway's BIM findings |
 | [@lezer/yaml](https://github.com/lezer-parser/yaml) | `1.0.4` | Reading where things are in a Composition2Yaml text (the key path at the cursor, a scalar's range) for completion and the label |
 
 ### Libraries of SPHERE's frontend stack

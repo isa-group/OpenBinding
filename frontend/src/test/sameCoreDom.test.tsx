@@ -1,9 +1,6 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  openProblemEditor,
-  showPane,
-} from '../modules/problem-editor/components/bim-editor/editorTestKit';
+import { openProblemEditor, showPane } from '../modules/problem-editor/utils/renderTestKit';
 import ProblemCardPage from '../modules/problem/pages/card';
 import {
   memberOf,
@@ -46,6 +43,9 @@ vi.mock('../api/runs', async () => ({
   runsApi: runs,
 }));
 vi.mock('../api/bim', () => ({ bimApi: bim }));
+vi.mock('../modules/core/components/code-editor', async () => ({
+  default: (await import('../modules/problem-editor/utils/codeEditorTestKit')).default,
+}));
 
 const problem = problemOf('fms', 'FMS');
 const revision = versionOf(problem, 1);

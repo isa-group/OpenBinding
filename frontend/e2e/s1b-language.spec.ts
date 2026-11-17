@@ -6,7 +6,8 @@ const expect = baseExpect.configure({ timeout: 15_000 });
 import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
 import { zipStore } from '../src/utils/bimZip';
 
-// S1b · public screens, part 2: eng-catalog, eng-detail, pub-language (its smoke; J6 walks it in f2a-language.spec.ts), pub-workbench.
+// S1b · public screens, part 2: eng-catalog, eng-detail, pub-language (its smoke; J6 walks it in f2a-language.spec.ts), and the
+// problem editor for a visitor (its anonymous check; J3 walks it signed in in f2b-problem-editor.spec.ts).
 // There is no backend: the API origin is answered by page.route(). Screenshots go to testInfo.outputPath()
 // (test-results/, ignored by git) so they can be looked at after a run.
 
@@ -473,7 +474,7 @@ const viewports = [
 ] as const;
 
 for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
-  test.describe(`${name} · S1b engines and the workbench`, () => {
+  test.describe(`${name} · S1b engines and the problem editor for visitors`, () => {
     test.use({ viewport, isMobile, deviceScaleFactor });
 
     const shot = (page: Page, testInfo: TestInfo, label: string) =>
@@ -747,12 +748,10 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       }
     });
 
-    test('pub-workbench /workbench validates an uploaded package and draws what the gateway compiled', async ({
+    test('problem-editor checks a package for a visitor and draws what the gateway compiled', async ({
       page,
-      context,
     }, testInfo) => {
       const critical = watchCriticalErrors(page);
-      await context.grantPermissions(['clipboard-read', 'clipboard-write']);
       let asked = '';
       await mockApi(page, {
         validate: route => {
@@ -760,83 +759,55 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
           return route.fulfill({ status: 200, json: validResult });
         },
       });
-      await page.goto('/workbench');
+      await page.goto('/problem-editor');
       const main = page.locator('main');
 
-      await expect(main.getByRole('heading', { level: 1, name: 'Workbench' })).toBeVisible();
-      await expect(main.getByLabel('Package limits')).toContainText('≤ 16 MiB compressed');
-      await expect(main.getByText('No package yet')).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Log in to run' })).toHaveAttribute(
-        'href',
-        '/authentication'
-      );
-      await ready(page);
-      await shot(page, testInfo, 'workbench-idle');
-
-      await main.getByLabel('Package file', { exact: true }).setInputFiles({
-        name: 'checkout-flow.bim.zip',
-        mimeType: 'application/zip',
-        buffer: packageZip(),
-      });
-      await expect(main.getByText('Ready to validate')).toBeVisible();
-      await main.getByRole('button', { name: 'Validate package' }).click();
-
-      await expect(main.getByText('Valid package')).toBeVisible();
+      await expect(page.getByRole('heading', { level: 1, name: 'Problem editor' })).toBeAttached();
+      await expect(main.getByRole('note').filter({ hasText: 'Nothing is stored' })).toBeVisible();
+      await expect(page.getByRole('button', { name: /Sign in/ })).toBeVisible();
+      await expect(page.getByTestId('pe-check-status')).toHaveText('Valid package');
       expect(asked).toBe('facts');
-      await expect(main.getByText('checkout-flow.bim.zip · 7 tasks')).toBeVisible();
-      await expect(main.locator('.workbench-digests')).toContainText('Instance digest');
-      await main.getByRole('button', { name: 'Copy package digest' }).click();
-      expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
-        validResult.packageDigest
-      );
 
-      const holds = main.getByRole('region', { name: 'What the package holds' });
-      await expect(holds).toContainText('7tasks');
-      await expect(holds).toContainText('14candidates');
-      await expect(
-        holds.getByRole('status', { name: /Binding space size: 128 combinations/i })
-      ).toBeVisible();
       const workflow = main.getByRole('group', { name: 'Workflow of the package' });
       for (const task of ['authenticate', 'enrich', 'publish'])
         await expect(workflow).toContainText(task);
-      // A table per task on wide screens, cards on phones: either way each candidate is named.
+      await main.getByRole('tab', { name: 'Candidates' }).click();
       for (const candidate of ['auth-cloud', 'auth-edge', 'audit-edge'])
-        await expect(main.getByRole('region', { name: 'Candidates', exact: true })).toContainText(
+        await expect(main.getByRole('region', { name: 'Candidates of each task' })).toContainText(
           candidate
         );
+      await main.getByRole('tab', { name: 'Rules' }).click();
       await expect(
-        main.getByRole('heading', { level: 2, name: 'Rules and objectives' })
+        main.getByRole('heading', { level: 2, name: 'Rules and objectives', exact: true })
       ).toBeVisible();
-      await expect(main.getByRole('region', { name: 'Problems' })).toHaveCount(0);
-      await expect(main).not.toContainText(/sha256-|[0-9a-f]{12}/);
       await ready(page);
-      await shot(page, testInfo, 'workbench-valid');
-
+      await shot(page, testInfo, 'problem-editor-visitor-valid');
       await expectNoHorizontalOverflow(page);
       expect(critical).toEqual([]);
     });
 
-    test('pub-workbench places the findings of a refused package (422) in its files and draws no structure', async ({
+    test('problem-editor places the findings of an imported package the gateway refuses (422) in its files', async ({
       page,
     }, testInfo) => {
       await mockApi(page, { validate: json(refusedBody, 422) });
-      await page.goto('/workbench');
+      await page.goto('/problem-editor');
       const main = page.locator('main');
+      await expect(page.getByTestId('pe-check-status')).toHaveText(/^Not valid/);
 
-      await main.getByLabel('Package file', { exact: true }).setInputFiles({
+      await page.getByRole('button', { name: 'File' }).click();
+      await page.getByRole('menuitem', { name: 'Import .bim.zip' }).click();
+      const dialog = page.getByRole('dialog', { name: 'Import a .bim.zip' });
+      await dialog.locator('input[type="file"]').setInputFiles({
         name: 'refused.bim.zip',
         mimeType: 'application/zip',
         buffer: refusedZip(),
       });
-      await main.getByRole('button', { name: 'Validate package' }).click();
+      await dialog.getByRole('button', { name: 'Open in the editor' }).click();
+      await expect(dialog).toHaveCount(0);
 
-      await expect(main.getByText(/^Not valid · \d+ errors$/)).toBeVisible();
-      await expect(
-        main.getByText(/^422 invalid_instance\. Each problem names the file and the place to fix\./)
-      ).toBeVisible();
-      await expect(main.getByRole('group', { name: 'Workflow of the package' })).toHaveCount(0);
-      await expect(main.getByRole('region', { name: 'Candidates', exact: true })).toHaveCount(0);
-      const problems = main.getByRole('region', { name: 'Problems' });
+      // On a phone the Problems panel is a tab of its own.
+      if (isMobile) await main.getByRole('tab', { name: /^Problems/ }).click();
+      const problems = page.getByRole('region', { name: 'Problems' });
       await expect(problems.locator('[data-group="candidates.json"]')).toBeVisible();
       await expect(problems.locator('[data-group="workflow.bpmn"]')).toBeVisible();
       const domain = problems.locator('li:not([data-group])', {
@@ -849,14 +820,18 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
           hasText: "BPMN task 'orphan' has no Application task",
         })
       ).toContainText('Diagram element orphan');
+      if (isMobile) await main.getByRole('tab', { name: 'Workflow' }).click();
+      await expect(
+        main.getByText('The workflow appears once the package passes a check.')
+      ).toBeVisible();
       await ready(page);
-      await shot(page, testInfo, 'workbench-invalid');
+      await shot(page, testInfo, 'problem-editor-visitor-invalid');
       await expectNoHorizontalOverflow(page);
     });
 
-    test('pub-workbench names too large (413), rate limit (429) and an unreadable file', async ({
+    test('problem-editor says when the gateway will not check the package (413), and checks it again', async ({
       page,
-    }, testInfo) => {
+    }) => {
       let calls = 0;
       await mockApi(page, {
         validate: route => {
@@ -871,71 +846,15 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
                   detail: 'request body exceeds 16777216 bytes',
                 },
               })
-            : calls === 2
-              ? // Retry-After is only readable across origins when the gateway exposes it.
-                route.fulfill({
-                  status: 429,
-                  contentType: 'application/problem+json',
-                  headers: { 'Retry-After': '9', 'Access-Control-Expose-Headers': 'Retry-After' },
-                  json: { title: 'rate_limited', status: 429, detail: 'slow down' },
-                })
-              : route.fulfill({ status: 200, json: validResult });
+            : route.fulfill({ status: 200, json: validResult });
         },
       });
-      await page.goto('/workbench');
+      await page.goto('/problem-editor');
       const main = page.locator('main');
-      await main.getByLabel('Package file', { exact: true }).setInputFiles({
-        name: 'checkout-flow.bim.zip',
-        mimeType: 'application/zip',
-        buffer: packageZip(),
-      });
-
-      await main.getByRole('button', { name: 'Validate package' }).click();
-      await expect(main.getByRole('alert')).toContainText(
-        'The package is too large (413 · payload_too_large)'
-      );
-      await expect(main.getByRole('alert')).toContainText('your plan sets its own payload ceiling');
-      await ready(page);
-      await shot(page, testInfo, 'workbench-413');
-
-      await main.getByRole('button', { name: 'Validate package' }).click();
-      await expect(main.getByText('Too many validations right now (429).')).toBeVisible();
-      await expect(
-        main.getByText(/Try again in 9 s\. Your file is still selected\./)
-      ).toBeVisible();
-      await shot(page, testInfo, 'workbench-429');
-      await main.getByRole('button', { name: 'Try again' }).click();
-      await expect(main.getByText('Valid package')).toBeVisible();
-
-      await main.getByRole('button', { name: 'Remove file' }).click();
-      await main.getByLabel('Package file', { exact: true }).setInputFiles({
-        name: 'notes.bim.zip',
-        mimeType: 'application/zip',
-        buffer: Buffer.from('this is not a zip archive'),
-      });
-      await main.getByRole('button', { name: 'Validate package' }).click();
-      await expect(main.getByText('This file can’t be read as a BIM package')).toBeVisible();
-      expect(calls).toBe(3);
-    });
-
-    test('pub-workbench opens a template from the address, and a signed-in account can open it in the problem editor', async ({
-      page,
-    }, testInfo) => {
-      await mockApi(page, { signedIn: true });
-      await page.goto('/workbench?template=demo%2F01_simple_seq');
-      const main = page.locator('main');
-
-      await expect(main.getByText('Valid package')).toBeVisible();
-      await expect(main.getByText('Signed in as lucia')).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Log in to run' })).toHaveCount(0);
-      await main.getByRole('button', { name: 'Open in the problem editor' }).click();
-      await expect(main.getByRole('link', { name: 'ISA Demo Group' })).toHaveAttribute(
-        'href',
-        '/app/isa-demo/problem-editor?template=demo%2F01_simple_seq'
-      );
-      await ready(page);
-      await shot(page, testInfo, 'workbench-signed-in');
-      await expectNoHorizontalOverflow(page);
+      await expect(main.getByRole('alert')).toContainText('The package is too large to check');
+      await main.getByRole('button', { name: 'Check again' }).click();
+      await expect(page.getByTestId('pe-check-status')).toHaveText('Valid package');
+      expect(calls).toBe(2);
     });
   });
 }

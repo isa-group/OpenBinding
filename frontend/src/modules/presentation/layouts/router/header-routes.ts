@@ -21,7 +21,7 @@ export const headerRoutes: HeaderRoute[] = [
     children: [
       { name: 'Composition editor', disabled: false, to: '/editor' },
       { name: 'Composition2Yaml', disabled: false, to: '/language' },
-      { name: 'Problem workbench', disabled: false, to: '/workbench' },
+      { name: 'Problem editor', disabled: false, to: '/problem-editor' },
     ],
   },
   {
@@ -47,7 +47,7 @@ export function newEntries(organization: string | undefined): MenuEntry[] {
   const inOrganization: MenuEntry[] = organization
     ? [
         { label: 'Composition', to: `/compositions/new?org=${encodeURIComponent(organization)}` },
-        { label: 'Problem', to: `/app/${organization}/problem-editor` },
+        { label: 'Problem', to: `/problem-editor?org=${encodeURIComponent(organization)}` },
         { label: 'Run', to: `/app/${organization}/runs/new` },
         { label: 'Study', to: `/app/${organization}/studies/new` },
       ]

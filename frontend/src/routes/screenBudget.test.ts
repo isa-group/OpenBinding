@@ -8,7 +8,6 @@ import { screens } from './router';
 
 // prettier-ignore
 const SCREENS: Array<[string, string, string]> = [
-  ['pub-workbench', '/workbench', 'public'],
   ['pub-about', '/about', 'public'],
   ['pub-pricing', '/pricing', 'public'],
   ['pub-language', '/language', 'public'],
@@ -36,7 +35,6 @@ const SCREENS: Array<[string, string, string]> = [
   ['eng-register', '/app/engines/new', 'app'],
   ['eng-registrations', '/app/engines/registrations', 'app'],
   ['eng-registration-detail', '/app/engines/registrations/:name', 'app'],
-  ['problem-editor', '/app/:org/problem-editor', 'app'],
   ['run-launch', '/app/:org/runs/new', 'app'],
   ['run-list', '/app/:org/runs', 'app'],
   ['run-detail', '/app/:org/runs/:job', 'app'],
@@ -48,9 +46,10 @@ const SCREENS: Array<[string, string, string]> = [
   ['admin-user-detail', '/app/admin/users/:user', 'app'],
   ['admin-moderation', '/app/admin/moderation', 'app'],
   ['composition-editor', '/editor', 'standalone'],
+  ['problem-editor', '/problem-editor', 'standalone'],
 ];
 
-const CEILING = 40;
+const CEILING = 39;
 
 describe('screen budget', () => {
   it('serves exactly the listed screens, with their addresses and layouts, in table order', () => {

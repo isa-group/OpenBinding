@@ -197,8 +197,8 @@ export default function DashboardPage() {
     },
     {
       label: 'Problem editor',
-      description: 'Check and compile a BIM package',
-      to: '/workbench',
+      description: 'Write and check a BIM package',
+      to: '/problem-editor',
       icon: 'mdi:file-tree-outline',
     },
     ...(firstOrg

@@ -3,7 +3,6 @@ import {
   API,
   CASE,
   ORG,
-  ORG_PATH,
   PROBLEM_PAGES,
   PROBLEMS_TAB,
   RUNS_PATH,
@@ -204,7 +203,7 @@ test.describe('live · upload, run and study on lab-main', () => {
     await page.getByRole('button', { name: 'New version' }).click();
     await expect(page.getByRole('menuitem', { name: /Problem editor/ })).toHaveAttribute(
       'href',
-      new RegExp(`^${ORG_PATH}/problem-editor\\?problem=${CASE}&revision=\\d+$`)
+      new RegExp(`^/problem-editor\\?org=${ORG}&problem=${CASE}&revision=\\d+$`)
     );
     await expect(page.getByRole('link', { name: 'Run this version' })).toHaveAttribute(
       'href',

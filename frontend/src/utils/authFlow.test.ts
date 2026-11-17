@@ -31,6 +31,7 @@ describe('safeReturnPath', () => {
     '/p/6b0c7f9e-0000-4000-8000-000000000001',
     '/editor',
     '/editor?source=isa-demo%2Forder-desk&version=1.2.0#composition=N4Ig',
+    '/problem-editor?org=isa-demo&problem=checkout-flow&revision=2&carry=1',
   ])('lets a sign-in return to %s', path => {
     expect(safeReturnPath(path)).toBe(path);
   });
@@ -56,6 +57,8 @@ describe('safeReturnPath', () => {
     '/c',
     '/editorx',
     '/editor/x',
+    '/problem-editorx',
+    '/workbench',
   ])('refuses %j', value => {
     expect(safeReturnPath(value)).toBeNull();
   });

@@ -511,7 +511,7 @@ describe('Problem page', () => {
       fireEvent.click(screen.getByRole('button', { name: 'New version' }));
       expect(screen.getByRole('menuitem', { name: /Problem editor/ })).toHaveAttribute(
         'href',
-        '/app/member-lab/problem-editor?problem=flujo-checkout&revision=2'
+        '/problem-editor?org=member-lab&problem=flujo-checkout&revision=2'
       );
       expect(screen.getByRole('menuitem', { name: /Upload file/ })).toBeInTheDocument();
       const tabs = screen.getByRole('navigation', { name: 'Problem sections' });

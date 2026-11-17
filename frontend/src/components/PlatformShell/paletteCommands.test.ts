@@ -105,6 +105,7 @@ describe('buildCommands', () => {
       ['Home', '/'],
       ['Engines', '/engines'],
       ['Pricing', '/pricing'],
+      ['Problem editor', '/problem-editor'],
     ]);
     expect(
       commands.filter(command =>
@@ -157,7 +158,7 @@ describe('buildCommands', () => {
         .map(command => [command.label, command.href]);
 
     expect(created(inOrganizationToo)).toEqual([
-      ['New problem', '/app/isa-demo/problem-editor'],
+      ['New problem', '/problem-editor?org=isa-demo'],
       ['New run', '/app/isa-demo/runs/new'],
       ['New study', '/app/isa-demo/studies/new'],
     ]);

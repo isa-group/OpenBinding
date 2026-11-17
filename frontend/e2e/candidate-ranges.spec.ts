@@ -365,7 +365,7 @@ test.describe('desktop · candidate ranges in the problem editor and in a failed
     });
     const main = page.locator('main');
 
-    await page.goto('/app/isa-demo/problem-editor');
+    await page.goto('/problem-editor?org=isa-demo');
     await main.getByRole('tab', { name: 'Candidates' }).click();
     const row = main
       .getByRole('table', { name: /Task hello/ })
@@ -384,7 +384,7 @@ test.describe('desktop · candidate ranges in the problem editor and in a failed
     await expect
       .poll(() => sent.some(latency => JSON.stringify(latency) === '{"max":null,"min":10}'))
       .toBe(true);
-    await expect(main.getByTestId('pe-check-status')).toHaveText('Valid package');
+    await expect(page.getByTestId('pe-check-status')).toHaveText('Valid package');
     await expect(row).not.toContainText('Pending check');
     const engines = main.getByRole('list', { name: 'Engine modes' });
     const off = engines.getByRole('listitem').filter({ hasText: 'random-search' });

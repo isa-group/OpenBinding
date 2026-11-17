@@ -33,12 +33,12 @@ test('public header lists Tools, Explore, Pricing and About in order, then Log i
   await expect(entry(banner(page), 'Sign up')).toHaveAttribute('href', '/authentication?view=register');
 });
 
-test('public menus lead to the language, the workbench, the compositions and the engines', async ({ page }) => {
+test('public menus lead to the language, the problem editor, the compositions and the engines', async ({ page }) => {
   await mockApi(page, { role: null });
   await page.goto('/');
   await primary(page).getByRole('button', { name: 'Tools' }).click();
   await expect(entry(primary(page), 'Composition2Yaml')).toHaveAttribute('href', '/language');
-  await expect(entry(primary(page), 'Problem workbench')).toHaveAttribute('href', '/workbench');
+  await expect(entry(primary(page), 'Problem editor')).toHaveAttribute('href', '/problem-editor');
   await primary(page).getByRole('button', { name: 'Explore' }).click();
   await expect(entry(primary(page), 'Organizations')).toHaveAttribute('href', '/organizations');
   await expect(entry(primary(page), 'Compositions')).toHaveAttribute('href', '/compositions');
@@ -90,7 +90,7 @@ test('New creates in the organization the address names', async ({ page }) => {
   await banner(page).getByRole('button', { name: 'New', exact: true }).click();
   const items: Array<[string, string]> = [
     ['Composition', '/compositions/new?org=acme'],
-    ['Problem', '/app/acme/problem-editor'],
+    ['Problem', '/problem-editor?org=acme'],
     ['Run', RUN_NEW],
     ['Study', '/app/acme/studies/new'],
     ['Organization', '/orgs/new'],

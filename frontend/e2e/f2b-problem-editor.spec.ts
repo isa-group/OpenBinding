@@ -1,20 +1,21 @@
 import { readFileSync } from 'node:fs';
 import { expect as baseExpect, test, type Page, type Route } from '@playwright/test';
-import { DEFAULT_FILES } from '../src/modules/problem-editor/components/bim-editor/documents';
+import { DEFAULT_FILES } from '../src/modules/problem-editor/utils/documents';
 import { unzipPackage, zipStore } from '../src/utils/bimZip';
 import { API, installMockApi } from './helpers/mockApi';
 
-// J3 · the BIM problem editor (B12, completed by B13 on the candidate matrix): a template opens, already checked → Candidates: a
-// candidate's value is edited in the matrix and waits for the check → the gateway's 422 locates the finding at that value's pointer →
-// the cell, the Problems panel and the file's range show it → the value is fixed in the matrix → 200 → save as a new version of a
+// J3 · the standalone BIM problem editor (`/problem-editor`): a template opens, already checked → Candidates: a candidate's value is
+// edited in the matrix and waits for the check → the gateway's 422 locates the finding at that value's pointer → the cell, the
+// Problems panel and a Monaco marker in the file (Code mode) show it → the value is fixed in the matrix → 200 → save as a new version of a
 // problem → its page. A second case pauses the live check on a 429 for its Retry-After and resumes it; a third opens a composition
-// version's choice on its problem in the editor, from the composition's Overview. There is no backend: e2e/helpers/mockApi.ts answers
+// version's choice on its problem in the editor, from the composition's Overview; a fourth is a visitor, who checks a package
+// anonymously and downloads it, with nothing asked of a CDN. There is no backend: e2e/helpers/mockApi.ts answers
 // the API origin, and the template, the check and the save are this spec's own.
 
 const expect = baseExpect.configure({ timeout: 15_000 });
 test.setTimeout(90_000);
 
-const EDITOR = '/app/isa-demo/problem-editor';
+const EDITOR = '/problem-editor?org=isa-demo';
 const TEMPLATE = 'demo/01_simple_seq';
 const POINTER = '/spec/candidates/service-a/features/latency';
 const main = (page: Page) => page.locator('main');
@@ -99,7 +100,8 @@ async function serveTemplate(page: Page) {
   );
 }
 
-const checkStatus = (page: Page) => main(page).getByTestId('pe-check-status');
+const checkStatus = (page: Page) => page.getByTestId('pe-check-status');
+const saveButton = (page: Page) => page.getByRole('button', { name: 'Save', exact: true });
 
 test.describe('J3 · the problem editor checks a package live, locates what the gateway refuses, and saves it as a version', () => {
   test.use({ viewport: { width: 1440, height: 1000 } });
@@ -122,10 +124,8 @@ test.describe('J3 · the problem editor checks a package live, locates what the 
     });
 
     // 1 · The template opens once the gateway accepts it.
-    await page.goto(`${EDITOR}?template=${encodeURIComponent(TEMPLATE)}`);
-    await expect(
-      main(page).getByRole('heading', { level: 1, name: 'Problem editor' })
-    ).toBeVisible();
+    await page.goto(`${EDITOR}&template=${encodeURIComponent(TEMPLATE)}`);
+    await expect(page.getByRole('heading', { level: 1, name: 'Problem editor' })).toBeVisible();
     await expect(main(page).getByText(`Opened from template ${TEMPLATE}`)).toBeVisible();
     await expect(checkStatus(page)).toHaveText('Valid package');
     expect(checked).toEqual(['valid']);
@@ -153,18 +153,21 @@ test.describe('J3 · the problem editor checks a package live, locates what the 
     await expect(
       problems.getByRole('button', { name: /candidate feature value is above its declared domain/ })
     ).toContainText(POINTER);
-    await expect(main(page).getByRole('button', { name: 'Save as version…' })).toBeDisabled();
+    await expect(saveButton(page)).toBeDisabled();
 
-    // The finding on the cell opens its file at the value's range.
+    // The finding on the cell opens its file in Code at the value's range, marked in Monaco.
     await finding.click();
-    await expect(main(page).getByRole('tab', { name: 'Files' })).toHaveAttribute(
-      'aria-selected',
+    await expect(page.getByRole('button', { name: 'Code' })).toHaveAttribute(
+      'aria-pressed',
       'true'
     );
-    await expect(main(page).getByRole('textbox', { name: 'candidates.json source' })).toBeVisible();
-    await expect(main(page).locator('.cm-lintRange-error')).toHaveText('900');
+    await expect(
+      main(page).getByRole('textbox', { name: 'candidates.json source' })
+    ).toBeAttached();
+    await expect(main(page).locator('.monaco-editor .squiggly-error').first()).toBeVisible();
 
     // 3 · Fixed in the matrix, the package passes again and the cell is checked.
+    await page.getByRole('button', { name: 'Visual' }).click();
     await main(page).getByRole('tab', { name: 'Candidates' }).click();
     await value.fill('20');
     await expect(checkStatus(page)).toHaveText('Valid package');
@@ -194,11 +197,10 @@ test.describe('J3 · the problem editor checks a package live, locates what the 
       request =>
         request.method() === 'POST' && /\/problems\/checkout-flow\/revisions/.test(request.url())
     );
-    await main(page).getByRole('button', { name: 'Save as version…' }).click();
+    await saveButton(page).click();
     const dialog = page.getByRole('dialog', { name: 'Save the package' });
-    await dialog
-      .getByRole('combobox', { name: 'Save into problem' })
-      .selectOption({ label: 'Checkout flow' });
+    await dialog.getByRole('button', { name: 'New version' }).click();
+    await dialog.getByRole('button', { name: /Checkout flow/ }).click();
     await dialog.getByRole('button', { name: 'Save as a new version of Checkout flow' }).click();
     expect(new URL((await saved).url()).searchParams.get('producer')).toBe(
       'openbinding-problem-editor'
@@ -236,7 +238,7 @@ test.describe('J3 · the problem editor checks a package live, locates what the 
     await page.goto(EDITOR);
     await expect(main(page).getByText('A blank package')).toBeVisible();
     await expect(checkStatus(page)).toContainText('Checks paused, resuming in');
-    await expect(main(page).getByRole('button', { name: 'Check now' })).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Check now' })).toBeDisabled();
     await expect(checkStatus(page)).toHaveText('Valid package');
     expect(calls).toBe(2);
   });
@@ -253,7 +255,7 @@ test.describe('J3 · the problem editor checks a package live, locates what the 
     await page.goto('/compositions/isa-demo/fleet-routing?version=1.0.0');
     await main(page).getByRole('link', { name: 'Open on its problem in the editor' }).click();
     await expect(page).toHaveURL(
-      /\/app\/isa-demo\/problem-editor\?problem=checkout-flow&revision=2&composition=fleet-routing&compositionVersion=1\.0\.0$/
+      /\/problem-editor\?org=isa-demo&problem=checkout-flow&revision=2&composition=fleet-routing&compositionVersion=1\.0\.0$/
     );
     await expect(main(page).getByText('Loaded version 2 of checkout-flow')).toBeVisible();
     const note = main(page).getByRole('note').filter({ hasText: 'chose are selected' });
@@ -276,5 +278,41 @@ test.describe('J3 · the problem editor checks a package live, locates what the 
     await expect(chosen).toHaveCount(1);
     await expect(chosen).toContainText('cand_t1_aws');
     await expect(chosen).toContainText('Selected');
+  });
+  test('a visitor checks a package anonymously in the bundled editor and downloads it; nothing comes from a CDN', async ({
+    page,
+  }) => {
+    const foreign: string[] = [];
+    page.on('request', request => {
+      const url = new URL(request.url());
+      if (
+        url.hostname !== 'localhost' &&
+        url.hostname !== '127.0.0.1' &&
+        !url.pathname.startsWith('/v1/')
+      )
+        foreign.push(request.url());
+    });
+    await installMockApi(page, 'visitor');
+    await page.route(`${API}/v1/bim/validate**`, route =>
+      route.fulfill({ status: 200, json: { ...VALID, facts: factsFor(10) } })
+    );
+
+    await page.goto('/problem-editor');
+    await expect(main(page).getByText('A blank package')).toBeVisible();
+    await expect(checkStatus(page)).toHaveText('Valid package');
+    await expect(
+      main(page).getByRole('note').filter({ hasText: 'Nothing is stored' })
+    ).toBeVisible();
+    await expect(saveButton(page)).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /Sign in/ })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Code' }).click();
+    await expect(main(page).locator('.monaco-editor .view-lines')).toContainText('bim/v1');
+
+    await page.getByRole('button', { name: 'Export' }).click();
+    const download = page.waitForEvent('download');
+    await page.getByRole('menuitem', { name: 'Download .bim.zip' }).click();
+    expect((await download).suggestedFilename()).toBe('hello-bim.bim.zip');
+    expect(foreign.filter(url => /monaco|jsdelivr|unpkg|cdnjs/i.test(url))).toEqual([]);
   });
 });

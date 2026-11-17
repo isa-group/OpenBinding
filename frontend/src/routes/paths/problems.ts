@@ -93,11 +93,16 @@ export interface ProblemEditorTarget {
 }
 
 /**
- * The problem editor of an organization: `/app/<org>/problem-editor`, with `?problem=&revision=` or `?template=`, and
- * `&composition=&compositionVersion=` for a highlight.
+ * The standalone problem editor: `/problem-editor`, with `?org=&problem=&revision=` for a version of an organization's problem
+ * or `?template=`, and `&composition=&compositionVersion=` for a highlight. Without an organization it opens a visitor's or a
+ * new package.
  */
-export function problemEditorPath(org: string, target: ProblemEditorTarget = {}): string {
-  return withQuery(`${organizationPath(org)}/problem-editor`, {
+export function problemEditorPath(
+  org: string | null | undefined,
+  target: ProblemEditorTarget = {}
+): string {
+  return withQuery('/problem-editor', {
+    org: org ?? undefined,
     problem: target.problem,
     revision: target.revision,
     template: target.template,

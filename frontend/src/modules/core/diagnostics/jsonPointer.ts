@@ -1,13 +1,13 @@
-import { jsonLanguage } from '@codemirror/lang-json';
+import { parser } from '@lezer/json';
 
 /**
- * Where an RFC 6901 JSON Pointer lands in the text of a JSON document, read on the syntax tree the code editor itself builds
- * (`@codemirror/lang-json`'s Lezer grammar): the `[from, to]` of the value it names, in UTF-16 offsets of the text. No second
+ * Where an RFC 6901 JSON Pointer lands in the text of a JSON document, read on the Lezer JSON syntax tree
+ * (`@lezer/json`, the grammar alone): the `[from, to]` of the value it names, in UTF-16 offsets of the text. No second
  * JSON reader and no search for a key's spelling: the pointer is walked member by member and item by item, so a key written
  * twice, a value that repeats elsewhere or a key that needs escaping lands where the gateway meant.
  */
 
-type SyntaxNode = ReturnType<typeof jsonLanguage.parser.parse>['topNode'];
+type SyntaxNode = ReturnType<typeof parser.parse>['topNode'];
 
 /** The kinds of node that are a JSON value. */
 const VALUES: ReadonlySet<string> = new Set([
@@ -81,7 +81,7 @@ const INDEX = /^(0|[1-9]\d*)$/;
 export function resolvePointer(text: string, pointer: string): PointerTarget | null {
   const tokens = parsePointer(pointer);
   if (!tokens) return null;
-  const root = valuesOf(jsonLanguage.parser.parse(text).topNode)[0];
+  const root = valuesOf(parser.parse(text).topNode)[0];
   if (!root) return null;
   let node = root;
   let index = 0;

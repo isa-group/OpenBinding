@@ -60,7 +60,6 @@ const CreateOrganizationPage = lazy(
   () => import('../modules/organization/pages/create-organization')
 );
 const About = named(() => import('../pages/About/About'), 'About');
-const WorkbenchPage = named(() => import('../pages/Public/PublicPages'), 'WorkbenchPage');
 const Pricing = named(() => import('../pages/Pricing/Pricing'), 'Pricing');
 const LanguagePage = named(() => import('../pages/Language/LanguagePage'), 'LanguagePage');
 const EngineDetail = named(() => import('../pages/EngineDetail/EngineDetail'), 'EngineDetail');
@@ -86,10 +85,8 @@ const CompositionEditorPage = lazy(
   () => import('../modules/composition-editor/pages/composition-editor')
 );
 const ProblemCardPage = lazy(() => import('../modules/problem/pages/card'));
-const ProblemEditorPage = named(
-  () => import('../pages/Problems/ProblemEditorPage'),
-  'ProblemEditorPage'
-);
+const ProblemEditorLayout = lazy(() => import('../modules/problem-editor/layouts/editor-layout'));
+const ProblemEditorPage = lazy(() => import('../modules/problem-editor/pages/problem-editor'));
 const RunLaunch = named(() => import('../pages/Runs/RunLaunch'), 'RunLaunch');
 const RunList = named(() => import('../pages/Runs/RunList'), 'RunList');
 const RunDetail = named(() => import('../pages/Runs/RunDetail'), 'RunDetail');
@@ -110,7 +107,6 @@ export const screens: Screen[] = [
   // ═══════════════════════════════════════════════════════════
   // PUBLIC ROUTES (the public layout)
   // ═══════════════════════════════════════════════════════════
-  { id: 'pub-workbench', path: '/workbench', layout: 'public', element: <WorkbenchPage /> },
   { id: 'pub-about', path: '/about', layout: 'public', element: <About /> },
   { id: 'pub-pricing', path: '/pricing', layout: 'public', element: <Pricing /> },
   { id: 'pub-language', path: '/language', layout: 'public', element: <LanguagePage /> },
@@ -150,7 +146,6 @@ export const screens: Screen[] = [
   { id: 'eng-register', path: '/app/engines/new', layout: 'app', element: <RegisterEngine /> },
   { id: 'eng-registrations', path: '/app/engines/registrations', layout: 'app', element: <EngRegistrations /> },
   { id: 'eng-registration-detail', path: '/app/engines/registrations/:name', layout: 'app', element: <EngRegistrationDetail /> },
-  { id: 'problem-editor', path: '/app/:org/problem-editor', layout: 'app', element: <ProblemEditorPage /> },
   { id: 'run-launch', path: '/app/:org/runs/new', layout: 'app', element: <RunLaunch /> },
   { id: 'run-list', path: '/app/:org/runs', layout: 'app', element: <RunList /> },
   { id: 'run-detail', path: '/app/:org/runs/:job', layout: 'app', element: <RunDetail /> },
@@ -163,9 +158,10 @@ export const screens: Screen[] = [
   { id: 'admin-moderation', path: '/app/admin/moderation', layout: 'app', element: <AdminModeration />, requireAdmin: true },
 
   // ═══════════════════════════════════════════════════════════
-  // EDITORS (standalone layout): `/editor`, and `/problem-editor` (D2)
+  // EDITORS (standalone layout): `/editor` and `/problem-editor`
   // ═══════════════════════════════════════════════════════════
   { id: 'composition-editor', path: '/editor', layout: 'standalone', element: <EditorLayout><CompositionEditorPage /></EditorLayout> },
+  { id: 'problem-editor', path: '/problem-editor', layout: 'standalone', element: <ProblemEditorLayout><ProblemEditorPage /></ProblemEditorLayout> },
 ];
 
 /** The routes of one layout, an administrator's screens behind the guard. */

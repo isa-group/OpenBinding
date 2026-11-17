@@ -4,7 +4,7 @@ import { installMockApi } from './helpers/mockApi';
 // Public routes of the redesigned site. About holds the service-status note; there is no /status page.
 const PUBLIC_ROUTES = [
   '/',
-  '/workbench',
+  '/problem-editor',
   '/engines',
   '/pricing',
   '/about',
@@ -228,10 +228,10 @@ test('mobile problem editor: the panes, the engines and the problems are tabs, i
   test.setTimeout(60_000);
   await page.setViewportSize({ width: 390, height: 844 });
   await installMockApi(page, 'admin');
-  await page.goto('/app/isa-demo/problem-editor');
+  await page.goto('/problem-editor?org=isa-demo');
 
   const main = page.locator('main');
-  await expect(main.getByRole('heading', { level: 1, name: 'Problem editor' })).toBeVisible({
+  await expect(page.getByRole('heading', { level: 1, name: 'Problem editor' })).toBeAttached({
     timeout: 30_000,
   });
   const panes = main.getByRole('tablist', { name: 'Editor panes' });
@@ -239,18 +239,18 @@ test('mobile problem editor: the panes, the engines and the problems are tabs, i
     'Workflow',
     'Candidates',
     'Rules',
-    'Files',
     'Forms',
     'BPMN',
     'Engines',
     'Problems',
   ]);
-  await expect(main.getByTestId('pe-check-status')).toHaveText('Valid package', {
+  await expect(page.getByTestId('pe-check-status')).toHaveText('Valid package', {
     timeout: 15_000,
   });
   await panes.getByRole('tab', { name: 'Engines' }).click();
   await expect(main.getByRole('heading', { name: 'Engines' })).toBeVisible();
-  await panes.getByRole('tab', { name: 'Files' }).click();
+  await page.getByRole('button', { name: 'Code', exact: true }).click();
+  await expect(panes.getByRole('tab')).toHaveText(['Files', 'Engines', 'Problems']);
   await expect(main.getByRole('navigation', { name: 'Files of the package' })).toBeVisible();
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth - window.innerWidth

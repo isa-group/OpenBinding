@@ -44,6 +44,7 @@ export function buildCommands({
     command('Go to', 'Home', 'Organizations and recent activity', mainLinks.home.to),
     command('Go to', 'Engines', 'Engines by exact identity', mainLinks.engines.to),
     command('Go to', 'Pricing', 'Plans, limits and add-ons', '/pricing'),
+    command('Go to', 'Problem editor', 'Write and check a BIM package', problemEditorPath(null)),
   ];
 
   for (const item of organizations) {

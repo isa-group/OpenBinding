@@ -420,24 +420,26 @@ const composed = (page: Page) =>
   page.locator('main').getByRole('heading', { level: 1, name: COMPOSITION_NAME });
 
 /** The problem editor on the seeded problem: its check has passed when the status says so. */
-const EDITOR = `${ORG_PATH}/problem-editor?problem=${CASE}`;
+const EDITOR = `/problem-editor?org=${ORG}&problem=${CASE}`;
 const checked = (page: Page) =>
   page.getByTestId('pe-check-status').filter({ hasText: 'Valid package' });
 
 /**
- * The seeded problem's Candidates and Compositions tabs, the problem editor on it, pane by pane (on a phone the engines and the
- * problems are panes too), and the run presets of lab-main.
+ * The seeded problem's Candidates and Compositions tabs, the problem editor on it, pane by pane (its files are Code mode; on a
+ * phone the engines and the problems are panes too), and the run presets of lab-main.
  */
 function problemStops(mobile: boolean): Stop[] {
-  const pane = (slug: string, tab: RegExp, ready: (page: Page) => Locator): Stop => ({
+  const pane = (slug: string, tab: RegExp | 'Code', ready: (page: Page) => Locator): Stop => ({
     slug,
     path: EDITOR,
     ready: checked,
     extra: async (page, label) => {
-      await page
-        .getByRole('tablist', { name: 'Editor panes' })
-        .getByRole('tab', { name: tab })
-        .click();
+      if (tab === 'Code') await page.getByRole('button', { name: 'Code', exact: true }).click();
+      else
+        await page
+          .getByRole('tablist', { name: 'Editor panes' })
+          .getByRole('tab', { name: tab })
+          .click();
       await expect
         .soft(ready(page), `${label}: the pane did not open`)
         .toBeVisible({ timeout: 30_000 });
@@ -474,7 +476,7 @@ function problemStops(mobile: boolean): Stop[] {
     pane('problem-editor-rules', /^Rules$/, page =>
       main(page).getByRole('heading', { name: 'Rules and objectives' }).first()
     ),
-    pane('problem-editor-files', /^Files$/, page =>
+    pane('problem-editor-files', 'Code', page =>
       page.getByRole('navigation', { name: 'Files of the package' })
     ),
     pane('problem-editor-forms', /^Forms$/, page =>

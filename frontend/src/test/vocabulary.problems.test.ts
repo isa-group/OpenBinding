@@ -166,7 +166,7 @@ describe('the vocabulary scanner', () => {
     }
     for (const path of [
       '/src/modules/problem/components/problems-tab/index.tsx',
-      '/src/modules/problem-editor/components/bim-editor/useProblemEditor.ts',
+      '/src/modules/problem-editor/hooks/useProblemEditor.ts',
       '/src/pages/Studies/StudyList.tsx',
     ]) {
       expect(isTestSupport(path), path).toBe(false);
@@ -195,10 +195,7 @@ describe('the vocabulary scanner', () => {
 
 // The sources of the problem area: the Problems tab and the problem page, and the problem editor with its forms.
 const area = import.meta.glob(
-  [
-    '/src/modules/problem/**/*.{ts,tsx}',
-    '/src/modules/problem-editor/components/bim-editor/**/*.{ts,tsx}',
-  ],
+  ['/src/modules/problem/**/*.{ts,tsx}', '/src/modules/problem-editor/**/*.{ts,tsx}'],
   { query: '?raw', import: 'default', eager: true }
 ) as Record<string, string>;
 
@@ -209,10 +206,7 @@ describe('the problem area', () => {
       paths.filter(path => path.includes('/modules/problem/') && !isTestSupport(path)).length
     ).toBeGreaterThan(10);
     expect(
-      paths.filter(
-        path =>
-          path.includes('/modules/problem-editor/components/bim-editor/') && !isTestSupport(path)
-      ).length
+      paths.filter(path => path.includes('/modules/problem-editor/') && !isTestSupport(path)).length
     ).toBeGreaterThan(10);
     expect(paths.some(path => path.includes('/pages/Workbench/'))).toBe(false);
   });

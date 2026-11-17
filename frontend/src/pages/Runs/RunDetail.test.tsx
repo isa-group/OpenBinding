@@ -642,7 +642,7 @@ describe('One run', () => {
     );
     expect(within(why).getByRole('link', { name: 'Try faster providers' })).toHaveAttribute(
       'href',
-      '/app/isa-demo/problem-editor?problem=checkout-flow&revision=2'
+      '/problem-editor?org=isa-demo&problem=checkout-flow&revision=2'
     );
 
     const badge = within(run).getByText('INFEASIBLE');

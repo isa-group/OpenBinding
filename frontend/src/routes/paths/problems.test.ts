@@ -45,13 +45,14 @@ describe('the address builders of the problems area', () => {
     );
   });
 
-  it('builds the problem editor of the organization, what it opens and what it highlights', () => {
-    expect(problemEditorPath('acme')).toBe('/app/acme/problem-editor');
+  it('builds the standalone problem editor, what it opens and what it highlights', () => {
+    expect(problemEditorPath(null)).toBe('/problem-editor');
+    expect(problemEditorPath('acme')).toBe('/problem-editor?org=acme');
     expect(problemEditorPath('acme', { problem: 'routing', revision: 2 })).toBe(
-      '/app/acme/problem-editor?problem=routing&revision=2'
+      '/problem-editor?org=acme&problem=routing&revision=2'
     );
-    expect(problemEditorPath('acme', { template: 'demo/01_simple_seq' })).toBe(
-      '/app/acme/problem-editor?template=demo%2F01_simple_seq'
+    expect(problemEditorPath(null, { template: 'demo/01_simple_seq' })).toBe(
+      '/problem-editor?template=demo%2F01_simple_seq'
     );
     expect(
       problemEditorPath('acme', {
@@ -61,7 +62,7 @@ describe('the address builders of the problems area', () => {
         compositionVersion: '1.1.0',
       })
     ).toBe(
-      '/app/acme/problem-editor?problem=routing&revision=2&composition=checkout&compositionVersion=1.1.0'
+      '/problem-editor?org=acme&problem=routing&revision=2&composition=checkout&compositionVersion=1.1.0'
     );
   });
 

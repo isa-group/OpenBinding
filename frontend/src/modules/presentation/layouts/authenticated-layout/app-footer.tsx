@@ -15,7 +15,7 @@ const FOOTER_COLUMNS = [
       { label: 'Language', to: '/language' },
       { label: 'Engines', to: '/engines' },
       { label: 'Pricing', to: '/pricing' },
-      { label: 'Workbench', to: '/workbench' },
+      { label: 'Problem editor', to: '/problem-editor' },
     ],
   },
   {

@@ -557,10 +557,10 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const create = tab.getByRole('menu', { name: 'New problem' });
       await expect(
         create.getByRole('menuitem', { name: /Write in the problem editor/ })
-      ).toHaveAttribute('href', '/app/isa-demo/problem-editor');
+      ).toHaveAttribute('href', '/problem-editor?org=isa-demo');
       await expect(create.getByRole('menuitem', { name: /Start from a template/ })).toHaveAttribute(
         'href',
-        '/app/isa-demo/problem-editor?template=demo%2F01_simple_seq'
+        '/problem-editor?org=isa-demo&template=demo%2F01_simple_seq'
       );
       await page.keyboard.press('Escape');
       await expect(tab).not.toContainText(/sha256-|[0-9a-f]{12}/);
@@ -674,7 +674,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         await main.getByRole('button', { name: 'New version' }).click();
         await expect(main.getByRole('menuitem', { name: /Problem editor/ })).toHaveAttribute(
           'href',
-          '/app/isa-demo/problem-editor?problem=flujo-checkout&revision=2'
+          '/problem-editor?org=isa-demo&problem=flujo-checkout&revision=2'
         );
         await page.keyboard.press('Escape');
       }

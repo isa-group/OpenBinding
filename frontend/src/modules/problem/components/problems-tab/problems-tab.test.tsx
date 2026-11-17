@@ -102,7 +102,7 @@ describe("the organization's Problems tab", () => {
     ).toHaveAttribute('href', '/app/isa-demo/runs/new?problem=flujo-checkout&revision=2');
     expect(
       screen.getByRole('menuitem', { name: 'New version of Flujo de checkout' })
-    ).toHaveAttribute('href', '/app/isa-demo/problem-editor?problem=flujo-checkout');
+    ).toHaveAttribute('href', '/problem-editor?org=isa-demo&problem=flujo-checkout');
     expect(screen.queryByRole('menuitem', { name: /Delete/ })).not.toBeInTheDocument();
     const other = screen.getByRole('article', { name: 'Borrador' });
     fireEvent.click(within(other).getByRole('button', { name: 'Actions for Borrador' }));
@@ -123,10 +123,10 @@ describe("the organization's Problems tab", () => {
     expect(within(menu).getByRole('menuitem', { name: /Upload BIM package/ })).toBeInTheDocument();
     expect(
       within(menu).getByRole('menuitem', { name: /Write in the problem editor/ })
-    ).toHaveAttribute('href', '/app/isa-demo/problem-editor');
+    ).toHaveAttribute('href', '/problem-editor?org=isa-demo');
     expect(within(menu).getByRole('menuitem', { name: /Start from a template/ })).toHaveAttribute(
       'href',
-      '/app/isa-demo/problem-editor?template=demo%2F01_simple_seq'
+      '/problem-editor?org=isa-demo&template=demo%2F01_simple_seq'
     );
   });
 

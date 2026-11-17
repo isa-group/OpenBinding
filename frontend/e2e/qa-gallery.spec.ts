@@ -33,7 +33,6 @@ const HEADING: Record<string, RegExp> = {
   'pub-home': /Welcome back, alex\.rivera/,
   'eng-catalog': /Engine catalog/,
   'eng-detail': /bim\.builtin\/random-search@1\.0\.0/,
-  'pub-workbench': /Workbench/,
   'pub-about': /People, research and changes behind OpenBinding/,
   auth: /Welcome back/,
   'auth-forgot-password': /Forgot your password\?/,

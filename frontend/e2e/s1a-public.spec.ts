@@ -223,7 +223,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await main.getByRole('tab', { name: /Validation/ }).click();
       await expect(main.getByRole('link', { name: 'Validate a package' })).toHaveAttribute(
         'href',
-        '/workbench'
+        '/problem-editor'
       );
 
       // The public engines, from GET /v1/engines.

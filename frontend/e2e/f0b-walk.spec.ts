@@ -105,11 +105,11 @@ test('the F0b walk: upload, edit in the problem editor, a template, a run and a 
   const edit = main.getByRole('menuitem', { name: /Problem editor/ });
   await expect(edit).toHaveAttribute(
     'href',
-    `${ORG_PATH}/problem-editor?problem=simple-seq&revision=1`
+    `/problem-editor?org=${WALK_ORG}&problem=simple-seq&revision=1`
   );
   await edit.click();
   await expect(main.getByText('Loaded version 1 of simple-seq')).toBeVisible();
-  const status = main.getByTestId('pe-check-status');
+  const status = page.getByTestId('pe-check-status');
   await expect(status).toHaveText('Valid package');
   await main.getByRole('tab', { name: 'Forms' }).click();
   await main
@@ -126,9 +126,12 @@ test('the F0b walk: upload, edit in the problem editor, a template, a run and a 
     )
     .toBe(12);
   await expect(status).toHaveText('Valid package');
-  await main.getByRole('button', { name: 'Save as version…' }).click();
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
   const save = page.getByRole('dialog', { name: 'Save the package' });
-  await expect(save.getByRole('combobox', { name: 'Save into problem' })).toHaveValue('simple-seq');
+  await expect(save.getByRole('button', { name: 'New version' })).toHaveAttribute(
+    'aria-pressed',
+    'true'
+  );
   await save.getByRole('button', { name: 'Save as a new version of simple-seq' }).click();
   await expect(
     main.getByText('Saved as version 2 of simple-seq. Run it from its page.')
@@ -153,13 +156,16 @@ test('the F0b walk: upload, edit in the problem editor, a template, a run and a 
   await main.getByRole('button', { name: /^New/ }).click();
   await main.getByRole('menuitem', { name: /Start from a template/ }).click();
   await expect(page).toHaveURL(
-    new RegExp(`${ORG_PATH}/problem-editor\\?template=demo%2F01_simple_seq$`)
+    new RegExp(`/problem-editor\\?org=${WALK_ORG}&template=demo%2F01_simple_seq$`)
   );
   await expect(main.getByText('Opened from template demo/01_simple_seq')).toBeVisible();
   await expect(status).toHaveText('Valid package');
   expect(api.sent.validated[api.sent.validated.length - 1].equals(template)).toBe(true);
-  await main.getByRole('button', { name: 'Save as version…' }).click();
-  await expect(save.getByRole('combobox', { name: 'Save into problem' })).toHaveValue('');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(save.getByRole('button', { name: 'New problem' })).toHaveAttribute(
+    'aria-pressed',
+    'true'
+  );
   await save.getByRole('button', { name: 'Save as a new problem' }).click();
   await expect(
     main.getByText('Saved as version 1 of demo_01_simple_seq. Run it from its page.')

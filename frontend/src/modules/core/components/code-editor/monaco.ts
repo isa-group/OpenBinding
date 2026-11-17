@@ -4,16 +4,23 @@
 // (sphere-convergence §2.2, C6) replaces SPHERE's CDN loader with this; SPHERE's own editor setup is otherwise the reference.
 
 import { loader } from '@monaco-editor/react';
-// The editor's API and its features (find, folding, hover, suggestions), and YAML's highlighting: the only language
-// OpenBinding's editors write. Monaco's other languages and their workers are not bundled.
+// The editor's API and its features (find, folding, hover, suggestions), and the languages OpenBinding's editors write:
+// YAML (a composition), JSON and XML (the files of a BIM package: its documents and its BPMN diagram). JSON comes with its
+// worker, which reads the syntax as it is typed; Monaco's other languages and their workers are not bundled.
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 import 'monaco-editor/esm/vs/editor/editor.all';
 import 'monaco-editor/esm/vs/basic-languages/yaml/yaml.contribution';
+import 'monaco-editor/esm/vs/basic-languages/xml/xml.contribution';
+import 'monaco-editor/esm/vs/language/json/monaco.contribution';
 import EditorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
+import JsonWorker from 'monaco-editor/esm/vs/language/json/json.worker?worker';
 import githubDark from '../../theme/editor-themes/GitHub-Dark.json';
 import textmate from '../../theme/editor-themes/Textmate.json';
 
-window.MonacoEnvironment = { getWorker: () => new EditorWorker() };
+window.MonacoEnvironment = {
+  getWorker: (_workerId: string, label: string) =>
+    label === 'json' ? new JsonWorker() : new EditorWorker(),
+};
 
 loader.config({ monaco });
 

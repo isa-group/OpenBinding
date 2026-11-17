@@ -21,7 +21,7 @@ export const PIPELINE: readonly PipelineStage[] = [
     short: '.bim.zip of BIM v1 resources',
     long: 'A portable package of modular BIM v1 resources: the application workflow, candidate catalogs, constraints and the optimization objective.',
     pin: 'instance.json + resource digests',
-    href: '/workbench',
+    href: '/problem-editor',
     cta: 'Try an example package',
   },
   {
@@ -31,7 +31,7 @@ export const PIPELINE: readonly PipelineStage[] = [
     short: 'Localized diagnostics',
     long: 'Every problem is reported where it lives: the resource, a JSON Pointer, a CEL span or a BPMN element, with a suggested fix.',
     pin: 'diagnostics with JSON Pointer paths',
-    href: '/workbench',
+    href: '/problem-editor',
     cta: 'Validate a package',
   },
   {
@@ -41,7 +41,7 @@ export const PIPELINE: readonly PipelineStage[] = [
     short: 'Roles and resource types',
     long: 'The Profile fixes which roles the instance must fill and with what cardinality; installed dialects contribute resource types and IR features.',
     pin: 'schema + adapter digests',
-    href: '/workbench',
+    href: '/problem-editor',
     cta: 'Inspect a compiled package',
   },
   {
@@ -51,7 +51,7 @@ export const PIPELINE: readonly PipelineStage[] = [
     short: 'IR with its own digest',
     long: 'The instance is compiled into a BindingProblem IR. Its digest identifies exactly what any engine was asked to solve.',
     pin: 'bim/v1 BindingProblem digest',
-    href: '/workbench',
+    href: '/problem-editor',
     cta: 'Compile an example package',
   },
   {

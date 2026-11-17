@@ -103,16 +103,15 @@ export function createItems(organization?: Organization): MenuEntry[] {
 const APP_PLACES = new Set(['admin', 'engines']);
 /** `/app/:org/…` screens of the organization itself, which Home marks. */
 const ORGANIZATION_SCREENS = new Set(['settings']);
-/** The second segment of each organization section, and the entry it belongs to (the problem editor edits problems). */
+/** The second segment of each organization section, and the entry it belongs to. */
 const SECTION_OF: Record<string, OrganizationSectionId> = {
   [COMPOSITIONS_SEGMENT]: 'compositions',
   [PROBLEMS_SEGMENT]: 'problems',
-  'problem-editor': 'problems',
   [RUNS_SEGMENT]: 'runs',
   [STUDIES_SEGMENT]: 'studies',
 };
 
-/** The section of the organization the address is in (`/app/:org/compositions/…`, `/app/:org/problems/…`, `/app/:org/problem-editor`, `/app/:org/runs/…`, `/app/:org/studies/…`). */
+/** The section of the organization the address is in (`/app/:org/compositions/…`, `/app/:org/problems/…`, `/app/:org/runs/…`, `/app/:org/studies/…`). */
 export function organizationSectionOf(pathname: string): OrganizationSectionId | null {
   const parts = pathname.split('/').filter(Boolean);
   if (parts[0] !== 'app' || APP_PLACES.has(parts[1])) return null;
