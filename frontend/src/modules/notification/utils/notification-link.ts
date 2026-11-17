@@ -4,7 +4,7 @@
 // version its composition at that version, a finished or failed run the run); the icon of each kind; the time as date-fns
 // says it (SPHERE's two copies of `timeAgo` are gone).
 
-import { formatDistanceToNowStrict } from 'date-fns';
+import { formatDistanceStrict } from 'date-fns';
 import { compositionPath } from '../../../routes/paths/compositions';
 import { runPath } from '../../../routes/paths/runs';
 import type { Notification } from '../api/notificationsApi';
@@ -59,5 +59,5 @@ export function notificationLink(
 export function timeAgo(dateString: string, now = new Date()): string {
   const date = new Date(dateString);
   if (now.getTime() - date.getTime() < 60_000) return 'just now';
-  return `${formatDistanceToNowStrict(date)} ago`;
+  return `${formatDistanceStrict(date, now)} ago`;
 }

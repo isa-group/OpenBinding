@@ -22,18 +22,19 @@ const SCREENS: Array<[string, string, string]> = [
   ['org-explore', '/organizations', 'session'],
   ['org-detail', '/orgs/:org/:tab?', 'session'],
   ['pub-compositions', '/compositions', 'session'],
-  ['pub-showcase', '/c/:org/:composition', 'session'],
+  ['composition-card', '/compositions/:org/:composition/:tab?', 'session'],
+  ['composition-permalink', '/p/:id', 'session'],
   ['org-list', '/me/orgs', 'protected'],
   ['org-new', '/orgs/new', 'protected'],
   ['org-join', '/orgs/join/:code', 'protected'],
+  ['my-compositions', '/me/compositions', 'protected'],
+  ['composition-new', '/compositions/new', 'protected'],
   ['notifications', '/notifications', 'protected'],
   ['acct-settings', '/me/settings', 'protected'],
   ['acct-api-keys', '/me/api-keys', 'protected'],
   ['eng-register', '/app/engines/new', 'app'],
   ['eng-registrations', '/app/engines/registrations', 'app'],
   ['eng-registration-detail', '/app/engines/registrations/:name', 'app'],
-  ['composition-list', '/app/:org/compositions', 'app'],
-  ['composition-detail', '/app/:org/compositions/:composition/:tab?', 'app'],
   ['problem-list', '/app/:org/problems', 'app'],
   ['problem-detail', '/app/:org/problems/:case/:tab?', 'app'],
   ['problem-editor', '/app/:org/problem-editor', 'app'],
@@ -47,9 +48,10 @@ const SCREENS: Array<[string, string, string]> = [
   ['admin-users', '/app/admin/users', 'app'],
   ['admin-user-detail', '/app/admin/users/:user', 'app'],
   ['admin-moderation', '/app/admin/moderation', 'app'],
+  ['composition-editor', '/editor', 'standalone'],
 ];
 
-const CEILING = 39;
+const CEILING = 41;
 
 describe('screen budget', () => {
   it('serves exactly the listed screens, with their addresses and layouts, in table order', () => {
@@ -68,7 +70,7 @@ describe('screen budget', () => {
     const source = readFileSync(`${process.cwd()}/src/routes/router.tsx`, 'utf8');
     const lines =
       source.match(
-        /^\s*\{ id: '[a-z0-9-]+', path: '\/[^']*', layout: '(public|session|protected|app)'.*\},$/gm
+        /^\s*\{ id: '[a-z0-9-]+', path: '\/[^']*', layout: '(public|session|protected|app|standalone)'.*\},$/gm
       ) ?? [];
     expect(lines).toHaveLength(screens.length);
   });

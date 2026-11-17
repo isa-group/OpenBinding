@@ -8,12 +8,12 @@ import { readFileSync } from 'node:fs';
 export interface ScreenLine {
   id: string;
   path: string;
-  layout: 'public' | 'session' | 'protected' | 'app';
+  layout: 'public' | 'session' | 'protected' | 'app' | 'standalone';
   requireAdmin: boolean;
 }
 
 const SCREEN_LINE =
-  /^\s*\{ id: '([a-z0-9-]+)', path: '(\/[^']*)', layout: '(public|session|protected|app)'(.*)$/gm;
+  /^\s*\{ id: '([a-z0-9-]+)', path: '(\/[^']*)', layout: '(public|session|protected|app|standalone)'(.*)$/gm;
 
 function routerSource(): string {
   return readFileSync(new URL('../../src/routes/router.tsx', import.meta.url), 'utf8');
@@ -51,6 +51,8 @@ export interface GalleryScreen {
   requireAdmin: boolean;
   /** The screen needs an account: the old workspace under /app, or a protected screen of SPHERE's authenticated layout. */
   underApp: boolean;
+  /** An editor: its own layout and header (`header.editor-header`), no application chrome. */
+  standalone: boolean;
   /** A public address that signed-in people use too (it renders in the application layout with a session). */
   sessionHeader: boolean;
   /** The address the gallery visits: parameters replaced, plus the query some screens need to show their content. */
@@ -80,8 +82,8 @@ export const EXAMPLE = {
 const PARAMS_OF: Record<string, Record<string, string>> = {
   'eng-detail': { namespace: 'bim.builtin', name: 'random-search', version: '1.0.0' },
   'eng-registration-detail': { name: 'edge-solver' },
-  // The public page of the shared mock's public composition of another organization (e2e/helpers/mockCompositions.ts).
-  'pub-showcase': { org: 'lab-other', composition: 'fleet-routing' },
+  // The permanent link of the shared mock's public Order desk (e2e/helpers/mockCompositions.ts), which opens its page.
+  'composition-permalink': { id: '00000000-0000-4000-8000-000000045057' },
 };
 
 /** The query string that makes a screen show something instead of its starting point. */
@@ -106,6 +108,7 @@ export function readGalleryScreens(): GalleryScreen[] {
       requireAdmin,
       underApp: layout === 'app' || layout === 'protected',
       sessionHeader: layout === 'session',
+      standalone: layout === 'standalone',
       url: `${address}${QUERY_OF[id] ?? ''}`,
     };
   });

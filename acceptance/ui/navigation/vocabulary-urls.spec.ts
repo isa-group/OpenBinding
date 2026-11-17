@@ -17,8 +17,8 @@ test('the Problems screen reads the problems of the organization and the Runs sc
   expect(new URL(page.url()).pathname).toBe(RUNS_FINAL);
 });
 
-// The addresses of the composition screens are `compositions` (an organization's list and its compositions), `c` (the showcase of a
-// public composition) and `language`; none of their links holds a `deployments`, `scenarios` or `builds` segment.
+// The addresses of the composition screens are `orgs/<org>/compositions` (an organization's list), `compositions` (the public list
+// and each composition's card page), `editor` and `language`; none of their links holds a `deployments`, `scenarios` or `builds` segment.
 const FORBIDDEN_SEGMENT = /\/(deployments|scenarios|builds)(?=$|[/?#])/;
 
 test('the composition screens keep their addresses and read the compositions of their organization', async ({ page }) => {
@@ -34,11 +34,11 @@ test('the composition screens keep their addresses and read the compositions of 
   const offenders: string[] = [];
   for (const { path, heading } of SCOPED_SCREENS) {
     await page.goto(path);
-    await expect(page.getByRole('main').getByRole('heading', { level: 1, name: heading }).first(), `${path} has loaded`).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: heading }).first(), `${path} has loaded`).toBeVisible();
     expect(new URL(page.url()).pathname, `${path} stays where it is`).toBe(path);
     const hrefs = await page.locator('a[href]').evaluateAll((links) => links.map((link) => new URL((link as HTMLAnchorElement).href).pathname));
     offenders.push(...hrefs.filter((href) => FORBIDDEN_SEGMENT.test(href)).map((href) => `${path}: ${href}`));
   }
   expect(offenders).toEqual([]);
-  expect(SCOPED_SCREENS.map(({ path }) => path.split('/')[1])).toEqual(expect.arrayContaining(['app', 'compositions', 'c', 'language']));
+  expect(SCOPED_SCREENS.map(({ path }) => path.split('/')[1])).toEqual(expect.arrayContaining(['orgs', 'compositions', 'editor', 'language', 'app']));
 });

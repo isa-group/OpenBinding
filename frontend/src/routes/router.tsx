@@ -4,9 +4,11 @@
 // domain is poured into SPHERE's pages, and lists them in `screens`, the table its screen budget and route tests read.
 
 /* eslint-disable react-refresh/only-export-components -- the table exports `screens` for the budget and route tests */
-import { lazy, type ComponentType, type ReactNode } from 'react';
-import { useRoutes, type RouteObject } from 'react-router-dom';
+import { lazy, Suspense, type ComponentType, type ReactNode } from 'react';
+import { Outlet, useRoutes, type RouteObject } from 'react-router-dom';
+import { RouteFallback } from '../components/PlatformShell/RouteFallback';
 import ProtectedRoute from '../modules/auth/components/protected-route';
+import ErrorBoundary from '../modules/core/components/error-boundary';
 import NotFoundPage from '../modules/core/pages/page-not-found';
 import AuthenticatedLayout from '../modules/presentation/layouts/authenticated-layout';
 import PublicLayout from '../modules/presentation/layouts/public-layout';
@@ -17,9 +19,10 @@ import { LegacyOrgOutlet } from './LegacyOrgOutlet';
 /**
  * Where a screen renders: `public` in the public layout, `session` in the layout of the session (the workspace chrome when
  * signed in, the public one otherwise), `protected` in SPHERE's authenticated layout (an account is needed), `app` in the old
- * workspace under /app, which needs an account too and goes as its screens are poured into SPHERE's pages.
+ * workspace under /app, which needs an account too and goes as its screens are poured into SPHERE's pages, `standalone` with no
+ * application chrome at all: the editors, which draw their own layout and are open to visitors.
  */
-export type ScreenLayout = 'public' | 'session' | 'protected' | 'app';
+export type ScreenLayout = 'public' | 'session' | 'protected' | 'app' | 'standalone';
 
 /** One screen of the application and the address that serves it. */
 export interface Screen {
@@ -73,18 +76,14 @@ const EngRegistrationDetail = named(
   () => import('../pages/Engines/EngRegistrationDetail'),
   'EngRegistrationDetail'
 );
-const PublicCompositionList = named(
-  () => import('../pages/PublicCompositions/PublicCompositionList'),
-  'PublicCompositionList'
-);
-const Showcase = named(() => import('../pages/PublicCompositions/Showcase'), 'Showcase');
-const CompositionList = named(
-  () => import('../pages/Compositions/CompositionList'),
-  'CompositionList'
-);
-const CompositionDetail = named(
-  () => import('../pages/Compositions/CompositionDetail'),
-  'CompositionDetail'
+const CompositionListPage = lazy(() => import('../modules/composition/pages/list'));
+const UserCompositionListPage = lazy(() => import('../modules/composition/pages/user-list'));
+const CompositionCardPage = lazy(() => import('../modules/composition/pages/card'));
+const CreateCompositionPage = lazy(() => import('../modules/composition/pages/create'));
+const PermanentLinkPage = lazy(() => import('../modules/composition/pages/permalink'));
+const EditorLayout = lazy(() => import('../modules/composition-editor/layouts/editor-layout'));
+const CompositionEditorPage = lazy(
+  () => import('../modules/composition-editor/pages/composition-editor')
 );
 const ProblemList = named(() => import('../pages/Problems/ProblemList'), 'ProblemList');
 const ProblemDetail = named(() => import('../pages/Problems/ProblemDetail'), 'ProblemDetail');
@@ -129,8 +128,9 @@ export const screens: Screen[] = [
   { id: 'pub-home', path: '/', layout: 'session', element: <RootPage /> },
   { id: 'org-explore', path: '/organizations', layout: 'session', element: <PublicOrganizationsPage /> },
   { id: 'org-detail', path: '/orgs/:org/:tab?', layout: 'session', element: <OrganizationDetailPage /> },
-  { id: 'pub-compositions', path: '/compositions', layout: 'session', element: <PublicCompositionList /> },
-  { id: 'pub-showcase', path: '/c/:org/:composition', layout: 'session', element: <Showcase /> },
+  { id: 'pub-compositions', path: '/compositions', layout: 'session', element: <CompositionListPage /> },
+  { id: 'composition-card', path: '/compositions/:org/:composition/:tab?', layout: 'session', element: <CompositionCardPage /> },
+  { id: 'composition-permalink', path: '/p/:id', layout: 'session', element: <PermanentLinkPage /> },
 
   // ═══════════════════════════════════════════════════════════
   // PROTECTED ROUTES (require auth + AuthenticatedLayout)
@@ -138,6 +138,8 @@ export const screens: Screen[] = [
   { id: 'org-list', path: '/me/orgs', layout: 'protected', element: <OrganizationsListPage /> },
   { id: 'org-new', path: '/orgs/new', layout: 'protected', element: <CreateOrganizationPage /> },
   { id: 'org-join', path: '/orgs/join/:code', layout: 'protected', element: <OrganizationJoinPage /> },
+  { id: 'my-compositions', path: '/me/compositions', layout: 'protected', element: <UserCompositionListPage /> },
+  { id: 'composition-new', path: '/compositions/new', layout: 'protected', element: <CreateCompositionPage /> },
   { id: 'notifications', path: '/notifications', layout: 'protected', element: <InboxPage /> },
   { id: 'acct-settings', path: '/me/settings', layout: 'protected', element: <SettingsPage /> },
   { id: 'acct-api-keys', path: '/me/api-keys', layout: 'protected', element: <ApiKeysPage /> },
@@ -148,8 +150,6 @@ export const screens: Screen[] = [
   { id: 'eng-register', path: '/app/engines/new', layout: 'app', element: <RegisterEngine /> },
   { id: 'eng-registrations', path: '/app/engines/registrations', layout: 'app', element: <EngRegistrations /> },
   { id: 'eng-registration-detail', path: '/app/engines/registrations/:name', layout: 'app', element: <EngRegistrationDetail /> },
-  { id: 'composition-list', path: '/app/:org/compositions', layout: 'app', element: <CompositionList /> },
-  { id: 'composition-detail', path: '/app/:org/compositions/:composition/:tab?', layout: 'app', element: <CompositionDetail /> },
   { id: 'problem-list', path: '/app/:org/problems', layout: 'app', element: <ProblemList /> },
   { id: 'problem-detail', path: '/app/:org/problems/:case/:tab?', layout: 'app', element: <ProblemDetail /> },
   { id: 'problem-editor', path: '/app/:org/problem-editor', layout: 'app', element: <ProblemEditorPage /> },
@@ -165,8 +165,9 @@ export const screens: Screen[] = [
   { id: 'admin-moderation', path: '/app/admin/moderation', layout: 'app', element: <AdminModeration />, requireAdmin: true },
 
   // ═══════════════════════════════════════════════════════════
-  // EDITORS (standalone layout): `/editor` (C7) and `/problem-editor` (D2)
+  // EDITORS (standalone layout): `/editor`, and `/problem-editor` (D2)
   // ═══════════════════════════════════════════════════════════
+  { id: 'composition-editor', path: '/editor', layout: 'standalone', element: <EditorLayout><CompositionEditorPage /></EditorLayout> },
 ];
 
 /** The routes of one layout, an administrator's screens behind the guard. */
@@ -232,6 +233,20 @@ export default function Router({ table = screens }: { table?: Screen[] }) {
         </ProtectedRoute>
       ),
       children: routesOf(table, 'app'),
+    },
+
+    // ═══════════════════════════════════════════════════════════
+    // STANDALONE (the editors: their own layout, open to visitors)
+    // ═══════════════════════════════════════════════════════════
+    {
+      element: (
+        <ErrorBoundary>
+          <Suspense fallback={<RouteFallback />}>
+            <Outlet />
+          </Suspense>
+        </ErrorBoundary>
+      ),
+      children: routesOf(table, 'standalone'),
     },
 
     // ═══════════════════════════════════════════════════════════

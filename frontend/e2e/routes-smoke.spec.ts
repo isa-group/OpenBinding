@@ -183,15 +183,22 @@ for (const screen of screens) {
 
     await page.goto(exampleUrl(screen.path), { waitUntil: 'domcontentloaded' });
 
-    // Both layouts render a header; app screens render the application header.
-    await expect(page.locator(underApp ? 'header.app-header' : 'header.site-header')).toBeVisible({
+    // Every layout renders a header; app screens render the application header, the editors their own.
+    const standalone = screen.layout === 'standalone';
+    await expect(
+      page.locator(
+        standalone ? 'header.editor-header' : underApp ? 'header.app-header' : 'header.site-header'
+      )
+    ).toBeVisible({
       timeout: 30_000,
     });
-    // A detail page whose entity cannot be loaded (the mocked API answers 404) reports it instead of showing a heading.
+    // A detail page whose entity cannot be loaded (the mocked API answers 404) reports it instead of showing a heading; a
+    // permanent link that resolves to nothing says the resource is unavailable (the same words for missing and unreadable).
     const heading = page
-      .locator('main')
+      .locator(standalone ? 'header.editor-header' : 'main')
       .getByRole('heading')
       .or(page.getByText('HTTP 404: not mocked'))
+      .or(page.getByText(/^This resource is unavailable\./))
       .first();
     await expect(heading, `${screen.path} should show a heading or the API error`).toBeVisible({
       timeout: 30_000,

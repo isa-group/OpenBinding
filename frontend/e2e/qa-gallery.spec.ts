@@ -50,9 +50,10 @@ const HEADING: Record<string, RegExp> = {
   'org-new': /^Create a new organization$/,
   notifications: /^Notifications$/,
   'pub-compositions': /^Public compositions$/,
-  'pub-showcase': /^Fleet routing$/,
-  'composition-list': /^Compositions$/,
-  'composition-detail': /Fleet routing/,
+  'composition-card': /^Fleet routing$/,
+  'composition-permalink': /^Order desk$/,
+  'composition-new': /^Add a composition to OpenBinding$/,
+  'my-compositions': /^My compositions$/,
   'problem-list': /^Problems$/,
   'problem-detail': /Checkout flow/,
   'problem-editor': /^Problem editor$/,
@@ -221,13 +222,16 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of VIEWPORTS) {
 
           // The layout of the screen has arrived, and the screen itself has a title.
           const header = page.locator(
-            screen.underApp || screen.sessionHeader ? 'header.app-header' : 'header.site-header'
+            screen.standalone
+              ? 'header.editor-header'
+              : screen.underApp || screen.sessionHeader
+                ? 'header.app-header'
+                : 'header.site-header'
           );
           await expect(header).toBeVisible({ timeout: 30_000 });
-          await expect(page.locator('main h1, #platform-main h1').first()).toHaveText(
-            HEADING[screen.id] ?? /\S/,
-            { timeout: 30_000 }
-          );
+          await expect(
+            page.locator('main h1, #platform-main h1, header.editor-header h1').first()
+          ).toHaveText(HEADING[screen.id] ?? /\S/, { timeout: 30_000 });
 
           waiting = await waitUntilSettled(page);
           await prepareCapture(page);

@@ -680,7 +680,7 @@ async def test_the_list_names_the_status_of_each_latest_versions_values(api_clie
         "shop": ("verified", True), "stale": ("verified", False), "menu": ("declared", False),
     }
     assert latest["draft"] is None
-    assert set(latest["shop"]) == {"id", "ordinal", "label", "values_status", "verified", "created_at"}
+    assert set(latest["shop"]) == {"id", "ordinal", "label", "values_status", "verified", "created_at", "figures"}
     # The composition's own view says the same as the list, and as its latest version's view.
     for slug in own:
         assert own[slug]["latest_version"] == latest[slug]

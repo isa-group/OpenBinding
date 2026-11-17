@@ -210,17 +210,17 @@ describe('public workbench', () => {
 
     const problems = screen.getByRole('region', { name: 'Problems' });
     // Grouped by file: the value out of its domain is placed on its line in candidates.json, the orphan task in the diagram.
-    const groups = [...problems.querySelectorAll('.pp-group-name')].map(
-      element => element.textContent
+    const groups = [...problems.querySelectorAll<HTMLElement>('[data-group]')].map(
+      element => element.dataset.group
     );
     expect(groups).toEqual(expect.arrayContaining(['candidates.json', 'workflow.bpmn']));
     const domain = within(problems)
       .getByText('candidate feature value is above its declared domain')
-      .closest('.pp-item') as HTMLElement;
+      .closest('li') as HTMLElement;
     expect(domain).toHaveTextContent(/Line \d+, column \d+/);
     expect(domain).toHaveTextContent('/spec/candidates/auth-edge/features/latency');
     expect(
-      within(problems).getByText("BPMN task 'orphan' has no Application task").closest('.pp-item')
+      within(problems).getByText("BPMN task 'orphan' has no Application task").closest('li')
     ).toHaveTextContent('Diagram element orphan');
     // Read-only: the public page has no file to open.
     expect(

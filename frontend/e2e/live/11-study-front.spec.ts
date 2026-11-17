@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { ORG, ORG_PATH, capture, signInByApi, watchPageErrors } from './support';
+import { ORG, capture, signInByApi, watchPageErrors } from './support';
 
 // J4 against the lab (the mocked twin is e2e/f2b-study-front.spec.ts): the owner of lab-main builds a small study of the problem
 // the seed made (simple-seq, version 1) × random-search × seeds 1 and 2, runs it to the end, opens its results and the gateway's
@@ -83,10 +83,10 @@ test.describe('live · J4 study front to a composition on lab-main', () => {
     const made = focused.getByRole('link', { name: `${slug} 1.0.0` });
     await expect(made).toHaveAttribute(
       'href',
-      `${ORG_PATH}/compositions/${slug}/versions?version=1.0.0`
+      `/compositions/${ORG}/${slug}/versions?version=1.0.0`
     );
     await made.click();
-    await expect(page).toHaveURL(`${ORG_PATH}/compositions/${slug}/versions?version=1.0.0`, {
+    await expect(page).toHaveURL(`/compositions/${ORG}/${slug}/versions?version=1.0.0`, {
       timeout: 60_000,
     });
     await expect(main.getByRole('heading', { level: 1 })).toBeVisible();

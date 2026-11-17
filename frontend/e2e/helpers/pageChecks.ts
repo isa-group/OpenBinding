@@ -300,6 +300,8 @@ export async function measurePage(page: Page): Promise<PageMeasure> {
           ) ||
           namesBackdrop(element)
       )
+      // Monaco names its own layers of the text (`view-overlays`, `margin-view-overlays`): they are the editor, not an overlay.
+      .filter(element => !element.closest('.monaco-editor'))
       .filter(visible)
       .map(describe)
       .slice(0, 4);

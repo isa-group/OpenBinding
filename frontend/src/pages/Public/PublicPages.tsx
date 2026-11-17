@@ -24,7 +24,7 @@ import { BIM_PACKAGE_LIMITS, BimPackageError, unzipPackage } from '../../utils/b
 import { formatBytes } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import { CandidateMatrix } from '../../modules/core/components/candidate-matrix/CandidateMatrix';
-import { ProblemsPanel } from '../../modules/core/components/problems-panel/ProblemsPanel';
+import ProblemsPanel from '../../modules/core/components/problems-panel';
 import { RulesAndObjectives } from '../../modules/core/components/rules-and-objectives/RulesAndObjectives';
 import { WorkflowGraph } from '../../modules/core/components/workflow-graph/WorkflowGraph';
 import './PublicPages.css';

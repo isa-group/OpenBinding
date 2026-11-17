@@ -1,39 +1,14 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { ArrowUpRight, Download, Link2, Play, RotateCcw } from 'lucide-react';
-import { CodeEditor } from '../../components/CodeEditor/CodeEditor';
+import type { ReactNode } from 'react';
+import { ArrowUpRight, Download, Pencil } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { SourceView } from '../../components/rendering/SourceView';
-import { Action } from '../../modules/core/components/action-button';
 import { Badge } from '../../modules/core/components/badge';
-import { Notice } from '../../modules/core/components/notice';
 import { PageHeader } from '../../modules/core/components/page-header';
-import { TabBar, TabPanel } from '../../modules/core/components/tab-bar';
-import { useCopy } from '../../modules/core/hooks/useCopy';
 import { config } from '../../config';
 import examples from '../../content/composition2yaml-examples.json';
-import { languageApi } from '../../modules/core/utils/composition/api';
-import { readApiError } from '../../modules/core/api/errors';
-import type { ValidateResult } from '../../modules/core/api/types';
-import { fromC2y, type Located } from '../../modules/core/diagnostics/located';
-import {
-  createScheduler,
-  pausedMessage,
-  type Scheduler,
-  type SchedulerStatus,
-} from '../../modules/core/editor/lintScheduler';
-import {
-  compositionFragment,
-  readCompositionFragment,
-  takeCompositionFragment,
-  type CompositionFragment,
-} from '../../modules/core/utils/sphere/composition-fragment';
-import { ProblemsPanel } from '../../modules/core/components/problems-panel/ProblemsPanel';
+import { compositionFragment } from '../../modules/core/utils/sphere/composition-fragment';
+import { editorPath } from '../../routes/paths/compositions';
 import './LanguagePage.css';
-
-/** Milliseconds of stillness before the playground lints its text: the anonymous read budget is 60 a minute (A-7). */
-export const LANGUAGE_LINT_DELAY_MS = 800;
-
-/** The file the playground's findings are located in. */
-const FILE = 'composition.yaml';
 
 /** The normative specification, on GitHub. */
 export const SPECIFICATION_URL =
@@ -49,7 +24,6 @@ export interface LanguageExample {
   expect: string;
 }
 
-export const STARTER: string = examples.starter;
 export const SECTIONS: readonly LanguageExample[] = examples.sections;
 
 const NOT_IN_THE_LANGUAGE: readonly { title: string; text: string }[] = [
@@ -82,157 +56,12 @@ function withCode(text: string): ReactNode[] {
     .map((part, index) => (index % 2 === 1 ? <code key={index}>{part}</code> : part));
 }
 
-/** The text the playground opens with: the composition a share link carries, or the starter (with why the link could not be read). */
-function opening(fragment: CompositionFragment): { text: string; issue: string | null } {
-  if (fragment.status === 'ok') return { text: fragment.yaml, issue: null };
-  return { text: STARTER, issue: fragment.status === 'invalid' ? fragment.error : null };
-}
-
-type Canonical = { text: string; canonical: string | null; message: string | null };
-
-interface LanguagePageProps {
-  /** The lint delay, in milliseconds (tests shorten it). */
-  delay?: number;
-}
-
 /**
  * Language (`pub-language`, `/language`): the Composition2Yaml reference, with an example per section that the gateway's own tests
- * read, and a playground on the stateless language routes. The playground lints as the text changes (`validate`, 800 ms), lists the
- * findings beside the code, shows the canonical form (`parse`, then `serialise`) and copies a share link that carries the text in
- * its `#composition=` fragment, which never reaches a server. Opening such a link loads its text.
+ * read, each one opening in the composition editor (`/editor`) through a `#composition=` link, which never reaches a server; the
+ * specification, the JSON Schema, the versions of the language and what is not in it.
  */
-export function LanguagePage({ delay = LANGUAGE_LINT_DELAY_MS }: LanguagePageProps) {
-  const [start] = useState(() => opening(readCompositionFragment(window.location.hash)));
-  const [text, setText] = useState(start.text);
-  const [linkIssue, setLinkIssue] = useState<string | null>(start.issue);
-  const [selection, setSelection] = useState<{ anchor: number; head: number } | undefined>();
-  const [panel, setPanel] = useState<'problems' | 'canonical'>('problems');
-  const playground = useRef<HTMLElement>(null);
-  const { copy, status: copied } = useCopy();
-
-  // The fragment has been read: it leaves the address bar. A link opened while the page is open (only the fragment changes) loads too.
-  useEffect(() => {
-    takeCompositionFragment(window.location, window.history);
-    const onHashChange = () => {
-      const fragment = takeCompositionFragment(window.location, window.history);
-      if (fragment.status === 'ok') {
-        setText(fragment.yaml);
-        setLinkIssue(null);
-      } else if (fragment.status === 'invalid') {
-        setLinkIssue(fragment.error);
-      }
-    };
-    window.addEventListener('hashchange', onHashChange);
-    return () => window.removeEventListener('hashchange', onHashChange);
-  }, []);
-
-  // -- The lint
-
-  const [validated, setValidated] = useState<{ text: string; result: ValidateResult } | null>(null);
-  const [lintIssue, setLintIssue] = useState<string | null>(null);
-  const [status, setStatus] = useState<SchedulerStatus>({ state: 'idle' });
-  const linter = useRef<Scheduler<string> | null>(null);
-  useEffect(() => {
-    const lints = createScheduler<string, ValidateResult>({
-      delay,
-      run: (input, signal) => languageApi.validate(input, signal),
-      onResult: (result, input) => {
-        setValidated({ text: input, result });
-        setLintIssue(null);
-      },
-      onError: reason =>
-        setLintIssue(readApiError(reason).message || 'The text couldn’t be checked.'),
-      onStatus: setStatus,
-    });
-    linter.current = lints;
-    return () => lints.dispose();
-  }, [delay]);
-
-  useEffect(() => {
-    linter.current?.schedule(text);
-  }, [text]);
-
-  // While the checks are paused the notice counts down.
-  const pausedUntil = status.state === 'paused' ? status.until : null;
-  const [, tick] = useState(0);
-  useEffect(() => {
-    if (pausedUntil === null) return undefined;
-    const timer = window.setInterval(() => tick(value => value + 1), 1000);
-    return () => window.clearInterval(timer);
-  }, [pausedUntil]);
-
-  const diagnostics: Located[] = useMemo(
-    () =>
-      validated
-        ? validated.result.diagnostics.map(item => fromC2y(item, validated.text, FILE))
-        : [],
-    [validated]
-  );
-  const current = validated && validated.text === text ? validated.result : null;
-
-  // -- The canonical form, read only while it is on screen
-
-  const [canonical, setCanonical] = useState<Canonical | null>(null);
-  const canonicaliser = useRef<Scheduler<string> | null>(null);
-  useEffect(() => {
-    const canonicals = createScheduler<string, string>({
-      delay,
-      run: async (input, signal) =>
-        languageApi.serialise((await languageApi.parse(input, signal)).document, signal),
-      onResult: (written, input) =>
-        setCanonical({ text: input, canonical: written, message: null }),
-      onError: (reason, input) => {
-        const refusal = readApiError(reason);
-        setCanonical({
-          text: input,
-          canonical: null,
-          message:
-            refusal.status === 422
-              ? 'The text has errors: fix them to see its canonical form.'
-              : refusal.message || 'The canonical form couldn’t be read.',
-        });
-      },
-    });
-    canonicaliser.current = canonicals;
-    return () => canonicals.dispose();
-  }, [delay]);
-
-  useEffect(() => {
-    if (panel === 'canonical') canonicaliser.current?.schedule(text);
-    else canonicaliser.current?.cancel();
-  }, [text, panel]);
-
-  const canonicalNow = canonical && canonical.text === text ? canonical : null;
-
-  // -- Actions
-
-  const select = (diagnostic: Located) => {
-    if (diagnostic.where.kind === 'text')
-      setSelection({ anchor: diagnostic.where.from, head: diagnostic.where.to });
-  };
-
-  const load = (yaml: string) => {
-    setText(yaml);
-    setLinkIssue(null);
-    playground.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
-  };
-
-  const shareLink = () => {
-    const { origin, pathname, search } = window.location;
-    return `${origin}${pathname}${search}${compositionFragment(text)}`;
-  };
-
-  let statusText = '';
-  if (copied('share') === 'copied')
-    statusText =
-      'Share link copied. It carries the text in its fragment; nothing is sent to the gateway.';
-  else if (copied('share') === 'failed') statusText = 'The share link couldn’t be copied.';
-  else if (pausedUntil !== null) statusText = pausedMessage(pausedUntil);
-  else if (lintIssue && !current) statusText = '';
-  else if (status.state === 'waiting' || status.state === 'running' || !current)
-    statusText = 'Checking…';
-  else statusText = current.valid ? 'Valid Composition2Yaml' : 'Not valid yet';
-
+export function LanguagePage() {
   return (
     <div className="lang-page">
       <PageHeader
@@ -241,6 +70,9 @@ export function LanguagePage({ delay = LANGUAGE_LINT_DELAY_MS }: LanguagePagePro
         lede="The document of a final composition: the candidate chosen for each task of a workflow, where each one came from, and the values the choice yields. The alternatives it was chosen from live in a BIM problem, which a composition may link to have its values computed and verified."
         actions={
           <>
+            <Link className="ui-action is-primary is-md" to={editorPath()}>
+              <Pencil aria-hidden="true" /> Write in the editor
+            </Link>
             <a
               className="ui-action is-secondary is-md"
               href={SPECIFICATION_URL}
@@ -261,119 +93,6 @@ export function LanguagePage({ delay = LANGUAGE_LINT_DELAY_MS }: LanguagePagePro
           </>
         }
       />
-
-      <section
-        ref={playground}
-        className="lang-section lang-playground"
-        aria-labelledby="lang-playground-title"
-      >
-        <div className="lang-section-head">
-          <h2 id="lang-playground-title">Playground</h2>
-          <p>
-            Write a composition and the gateway checks it as you type. Nothing is stored: the checks
-            are the stateless language services, and a share link keeps the text in the address,
-            after the <code>#</code>.
-          </p>
-        </div>
-
-        <div className="lang-toolbar" role="toolbar" aria-label="Playground">
-          <Action size="sm" variant="ghost" onClick={() => void copy(shareLink(), 'share')}>
-            <Link2 aria-hidden="true" />
-            Copy share link
-          </Action>
-          <Action
-            size="sm"
-            variant="ghost"
-            onClick={() => load(STARTER)}
-            disabled={text === STARTER}
-          >
-            <RotateCcw aria-hidden="true" />
-            Start over
-          </Action>
-          <span className="lang-status" role="status" aria-live="polite">
-            {statusText}
-          </span>
-        </div>
-
-        {linkIssue && (
-          <Notice
-            tone="error"
-            action={
-              <Action variant="secondary" size="sm" onClick={() => setLinkIssue(null)}>
-                Dismiss
-              </Action>
-            }
-          >
-            {linkIssue}
-          </Notice>
-        )}
-        {lintIssue && (
-          <Notice tone="warning">{`The gateway couldn’t check the text: ${lintIssue}`}</Notice>
-        )}
-
-        <div className="lang-workspace">
-          <CodeEditor
-            value={text}
-            onChange={setText}
-            language="yaml"
-            ariaLabel="composition.yaml source"
-            minHeight="320px"
-            maxHeight="70vh"
-            diagnostics={diagnostics}
-            selection={selection}
-          />
-          <div className="lang-side">
-            <TabBar
-              items={[
-                { id: 'problems', label: 'Problems' },
-                { id: 'canonical', label: 'Canonical form' },
-              ]}
-              value={panel}
-              onChange={id => setPanel(id === 'canonical' ? 'canonical' : 'problems')}
-              ariaLabel="Playground results"
-              prefix="lang-results"
-            />
-            <TabPanel prefix="lang-results" active={panel}>
-              {panel === 'problems' && (
-                <ProblemsPanel diagnostics={diagnostics} onSelect={select} />
-              )}
-              {panel === 'canonical' && (
-                <div className="lang-canonical">
-                  <p className="lang-muted">
-                    The exact text a seal would store: keys in order, block style, quotes only where
-                    YAML needs them.
-                  </p>
-                  {!canonicalNow && (
-                    <p className="lang-muted" role="status">
-                      Reading the canonical form…
-                    </p>
-                  )}
-                  {canonicalNow?.message && <Notice tone="info">{canonicalNow.message}</Notice>}
-                  {typeof canonicalNow?.canonical === 'string' && (
-                    <>
-                      <SourceView
-                        source={canonicalNow.canonical}
-                        label="Canonical form"
-                        language="yaml"
-                        filename="composition.yaml"
-                        maxHeight="60vh"
-                      />
-                      <Action
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => setText(canonicalNow.canonical ?? text)}
-                        disabled={canonicalNow.canonical === text}
-                      >
-                        Use the canonical form
-                      </Action>
-                    </>
-                  )}
-                </div>
-              )}
-            </TabPanel>
-          </div>
-        </div>
-      </section>
 
       <section className="lang-section" aria-labelledby="lang-versions-title">
         <div className="lang-section-head">
@@ -403,7 +122,7 @@ export function LanguagePage({ delay = LANGUAGE_LINT_DELAY_MS }: LanguagePagePro
           <h2 id="lang-examples-title">The language by example</h2>
           <p>
             Each example is read by the gateway’s tests, so what it says about itself holds. Open
-            any of them in the playground.
+            any of them in the composition editor.
           </p>
         </div>
         <ol className="lang-examples">
@@ -429,15 +148,14 @@ export function LanguagePage({ delay = LANGUAGE_LINT_DELAY_MS }: LanguagePagePro
                   label={`${example.name} source`}
                   language="yaml"
                 />
-                <Action
-                  size="sm"
-                  variant="secondary"
-                  onClick={() => load(example.yaml)}
-                  aria-label={`Open “${example.name}” in the playground`}
+                <Link
+                  className="ui-action is-secondary is-sm"
+                  to={`${editorPath()}${compositionFragment(example.yaml)}`}
+                  aria-label={`Open “${example.name}” in the editor`}
                 >
-                  <Play aria-hidden="true" />
-                  Open in the playground
-                </Action>
+                  <Pencil aria-hidden="true" />
+                  Open in the editor
+                </Link>
               </article>
             </li>
           ))}

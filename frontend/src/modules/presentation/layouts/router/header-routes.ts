@@ -19,6 +19,7 @@ export const headerRoutes: HeaderRoute[] = [
     name: 'Tools',
     disabled: false,
     children: [
+      { name: 'Composition editor', disabled: false, to: '/editor' },
       { name: 'Composition2Yaml', disabled: false, to: '/language' },
       { name: 'Problem workbench', disabled: false, to: '/workbench' },
     ],
@@ -28,7 +29,7 @@ export const headerRoutes: HeaderRoute[] = [
     disabled: false,
     children: [
       { name: 'Organizations', disabled: false, to: '/organizations' },
-      { name: 'Compositions', disabled: false, to: '/compositions', match: ['/c/'] },
+      { name: 'Compositions', disabled: false, to: '/compositions', match: ['/p/'] },
       { name: 'Engines', disabled: false, to: '/engines' },
     ],
   },
@@ -45,7 +46,7 @@ export interface MenuEntry {
 export function newEntries(organization: string | undefined): MenuEntry[] {
   const inOrganization: MenuEntry[] = organization
     ? [
-        { label: 'Composition', to: `/app/${organization}/compositions?create=composition` },
+        { label: 'Composition', to: `/compositions/new?org=${encodeURIComponent(organization)}` },
         { label: 'Problem', to: `/app/${organization}/problem-editor` },
         { label: 'Run', to: `/app/${organization}/runs/new` },
         { label: 'Study', to: `/app/${organization}/studies/new` },
@@ -62,6 +63,7 @@ export function newEntries(organization: string | undefined): MenuEntry[] {
 export function userEntries(isAdmin: boolean): MenuEntry[] {
   return [
     { label: 'Organizations', to: '/me/orgs' },
+    { label: 'Compositions', to: '/me/compositions' },
     { label: 'Inbox', to: '/notifications' },
     { label: 'Engines', to: '/app/engines/registrations' },
     { label: 'API keys', to: '/me/api-keys' },

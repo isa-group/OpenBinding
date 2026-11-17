@@ -5,8 +5,11 @@ import {
   compositionPath,
   compositionsPath,
   isCompositionTabSegment,
+  myCompositionsPath,
   publicCompositionsPath,
-  showcasePath,
+  newCompositionPath,
+  permalinkPath,
+  editorPath,
 } from './compositions';
 
 describe('the address builders of the compositions area', () => {
@@ -14,63 +17,67 @@ describe('the address builders of the compositions area', () => {
     expect(COMPOSITIONS_SEGMENT).toBe('compositions');
   });
 
-  it('has the Editor, Versions and Analysis tabs so far: Overview is the composition page itself', () => {
-    expect(COMPOSITION_TAB_SEGMENTS).toEqual(['editor', 'versions', 'analysis', 'settings']);
-    for (const segment of ['editor', 'versions', 'analysis', 'settings'])
+  it('has the Analytics, Configuration, Versions and Settings tabs: Overview is the composition page itself', () => {
+    expect(COMPOSITION_TAB_SEGMENTS).toEqual([
+      'analytics',
+      'configuration',
+      'versions',
+      'settings',
+    ]);
+    for (const segment of ['analytics', 'configuration', 'versions', 'settings'])
       expect(isCompositionTabSegment(segment), segment).toBe(true);
-    for (const segment of ['overview', 'operations', ''])
+    for (const segment of ['overview', 'operations', 'editor', ''])
       expect(isCompositionTabSegment(segment), segment).toBe(false);
   });
 
-  it('builds the list with its filters, leaving out the empty ones', () => {
-    expect(compositionsPath('acme')).toBe('/app/acme/compositions');
+  it("builds an organization's Compositions tab with its filters, leaving out the empty ones", () => {
+    expect(compositionsPath('acme')).toBe('/orgs/acme/compositions');
     expect(compositionsPath('acme', { kind: 'workflow' })).toBe(
-      '/app/acme/compositions?kind=workflow'
+      '/orgs/acme/compositions?kinds=workflow'
     );
     expect(compositionsPath('acme', { kind: 'system', archived: true, q: ' desk ' })).toBe(
-      '/app/acme/compositions?kind=system&archived=true&q=desk'
+      '/orgs/acme/compositions?kinds=system&archived=true&q=desk'
     );
-    expect(compositionsPath('acme', { archived: false, q: '  ' })).toBe('/app/acme/compositions');
+    expect(compositionsPath('acme', { archived: false, q: '  ' })).toBe('/orgs/acme/compositions');
   });
 
-  it('builds a composition, the version it shows and the pair and view of its versions', () => {
-    expect(compositionPath('acme', 'order-desk')).toBe('/app/acme/compositions/order-desk');
+  it('builds a composition on its card page, the version it shows and the pair and view of its versions', () => {
+    expect(compositionPath('acme', 'order-desk')).toBe('/compositions/acme/order-desk');
     expect(compositionPath('acme', 'order-desk', undefined, { version: '1.2.0' })).toBe(
-      '/app/acme/compositions/order-desk?version=1.2.0'
+      '/compositions/acme/order-desk?version=1.2.0'
     );
-    expect(
-      compositionPath('acme', 'order-desk', undefined, { from: 1, to: 3, view: 'compare' })
-    ).toBe('/app/acme/compositions/order-desk?from=1&to=3&view=compare');
+    expect(compositionPath('acme', 'order-desk', 'versions', { from: 1, to: 3 })).toBe(
+      '/compositions/acme/order-desk/versions?from=1&to=3'
+    );
     expect(compositionPath('acme', 'a b/c', undefined, { version: '' })).toBe(
-      '/app/acme/compositions/a%20b%2Fc'
+      '/compositions/acme/a%20b%2Fc'
     );
-    expect(compositionPath('acme', 'order-desk', 'editor', { version: '1.2.0' })).toBe(
-      '/app/acme/compositions/order-desk/editor?version=1.2.0'
+    expect(compositionPath('acme', 'order-desk', 'versions', { version: '1.2.0' })).toBe(
+      '/compositions/acme/order-desk/versions?version=1.2.0'
     );
-    expect(
-      compositionPath('acme', 'order-desk', 'versions', {
-        from: '1.0.0',
-        to: '1.1.0',
-        view: 'file',
-      })
-    ).toBe('/app/acme/compositions/order-desk/versions?from=1.0.0&to=1.1.0&view=file');
   });
 
-  it('builds the public page of a composition and the public list', () => {
-    expect(showcasePath('lab-other', 'order-desk')).toBe('/c/lab-other/order-desk');
-    expect(showcasePath('lab-other', 'order-desk', { version: 2 })).toBe(
-      '/c/lab-other/order-desk?version=2'
-    );
-    expect(showcasePath('lab-other', 'order-desk', { version: '1.2.0', fork: true })).toBe(
-      '/c/lab-other/order-desk?version=1.2.0&fork=1'
-    );
-    expect(showcasePath('lab-other', 'order-desk', { fork: false })).toBe(
-      '/c/lab-other/order-desk'
-    );
+  it('opens the standalone editor on a version, in a mode, or on nothing in an organization', () => {
+    expect(editorPath()).toBe('/editor');
+    expect(
+      editorPath({ source: { org: 'acme', slug: 'order-desk' }, version: '1.2.0', mode: 'visual' })
+    ).toBe('/editor?source=acme%2Forder-desk&version=1.2.0&mode=visual');
+    expect(editorPath({ org: 'acme' })).toBe('/editor?org=acme');
+  });
+
+  it('builds the creation page and the permanent link', () => {
+    expect(newCompositionPath()).toBe('/compositions/new');
+    expect(newCompositionPath('acme')).toBe('/compositions/new?org=acme');
+    expect(permalinkPath('c-1')).toBe('/p/c-1');
+    expect(permalinkPath('c-1', '1.2.0')).toBe('/p/c-1?version=1.2.0');
+  });
+
+  it("builds the public list and the account's", () => {
     expect(publicCompositionsPath()).toBe('/compositions');
     expect(publicCompositionsPath({ kind: 'workflow', q: ' fleet ', page: 2 })).toBe(
-      '/compositions?kind=workflow&q=fleet&page=2'
+      '/compositions?q=fleet&kinds=workflow&page=2'
     );
     expect(publicCompositionsPath({ q: '  ', page: 1 })).toBe('/compositions');
+    expect(myCompositionsPath()).toBe('/me/compositions');
   });
 });

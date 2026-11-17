@@ -206,7 +206,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
           await expect(create).toHaveAttribute('aria-expanded', 'true');
           await expect(
             header.getByRole('link', { name: 'Composition', exact: true })
-          ).toHaveAttribute('href', '/app/isa-demo/compositions?create=composition');
+          ).toHaveAttribute('href', '/compositions/new?org=isa-demo');
           for (const label of ['Problem', 'Run', 'Study', 'Organization', 'Engine'])
             await expect(
               header.getByRole('link', { name: label, exact: true }),

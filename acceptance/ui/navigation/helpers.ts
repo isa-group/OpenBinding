@@ -36,9 +36,11 @@ const members = [
   { id: 'm1', organization_id: 'org-acme', user_id: 'user-1', username: 'lucia', email: 'lucia@example.org', role: 'OWNER', created_at: NOW },
 ];
 
-// The compositions, the problems, the runs and the studies belong to the organization (`/app/acme/compositions`, `/app/acme/problems`,
-// `/app/acme/runs`, `/app/acme/studies`).
-export const COMPOSITIONS = '/app/acme/compositions';
+// The compositions, the problems, the runs and the studies belong to the organization: its Compositions tab (`/orgs/acme/compositions`,
+// SPHERE's list), each composition on its card page (`/compositions/acme/<slug>`), and the old workspace's `/app/acme/problems`,
+// `/app/acme/runs` and `/app/acme/studies`.
+export const COMPOSITIONS = '/orgs/acme/compositions';
+export const LAB_FLOW_PAGE = '/compositions/acme/lab-flow';
 export const PROBLEMS_SEGMENT = 'problems';
 export const RUNS_SEGMENT = 'runs';
 export const PROBLEMS = `/app/acme/${PROBLEMS_SEGMENT}`;
@@ -97,8 +99,11 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Re
     ? route.fulfill({ status: 201, json: LAB_FLOW })
     : route.fulfill({ json: { compositions: [], total: 0, limit: 200, offset: 0 } })));
   await page.route(`${API}/v1/organizations/acme/compositions/lab-flow`, json(LAB_FLOW));
-  await page.route((url) => url.origin + url.pathname === `${API}/v1/organizations/acme/compositions/lab-flow/versions`, json({ versions: [], total: 0, limit: 200, offset: 0 }));
-  // The Editor of lab-flow lints its starter document and reads it for the visual editor.
+  // Publishing from the editor seals the first version of lab-flow.
+  await page.route((url) => url.origin + url.pathname === `${API}/v1/organizations/acme/compositions/lab-flow/versions`, (route) => (route.request().method() === 'POST'
+    ? route.fulfill({ status: 201, json: { version: { id: 'version-lab-flow-1', label: '1.0.0', ordinal: 1 }, evaluation: null } })
+    : route.fulfill({ json: { versions: [], total: 0, limit: 200, offset: 0 } })));
+  // The editor lints its starter document and reads it for the preview and the visual editor.
   await page.route(`${API}/v1/compositions/validate`, json({ valid: true, diagnostics: [] }));
   await page.route(`${API}/v1/compositions/schema`, json({ type: 'object', properties: {} }));
   await page.route(`${API}/v1/compositions/parse`, json({

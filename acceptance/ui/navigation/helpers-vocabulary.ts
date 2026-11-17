@@ -1,5 +1,5 @@
 import { type Page, type Route } from '@playwright/test';
-import { API, COMPOSITIONS, mockApi, type MockOptions, type Recorded } from './helpers';
+import { API, COMPOSITIONS, LAB_FLOW_PAGE, mockApi, type MockOptions, type Recorded } from './helpers';
 import { PROBLEM_SLUG, mockProblems } from './helpers-problems';
 
 // Mocks and locators of the vocabulary acceptance specs. There is no backend: the API origin is answered by page.route();
@@ -57,21 +57,21 @@ export async function mockGateway(page: Page, options: MockOptions = {}): Promis
 // ---- the composition and problem screens ----------------------------------------------------------------------
 
 /** A public composition of another organization, with no version yet: its showcase is read without membership. */
-export const SHOWCASE = '/c/lab-other/fleet-routing';
+export const SHOWCASE = '/compositions/lab-other/fleet-routing';
 const LAB_OTHER = { id: 'org-lab-other', slug: 'lab-other', name: 'Other Lab' };
 
 /**
- * The screens of the composition and problem vocabulary scope (`src/test/vocabulary.terms.test.ts`), each with what shows it has
- * loaded: the composition list, the composition `lab-flow` (no version yet) on each of its tabs, the public list, a showcase,
- * Language, and the problem list and page.
+ * The screens of the composition and problem vocabulary scope (`src/test/vocabulary.terms.test.ts`), each with the level-1 heading
+ * that shows it has loaded: the organization's Compositions tab, the composition `lab-flow` (no version yet) on each of its tabs,
+ * the editor, the public list, another organization's public composition, Language, and the problem list and page.
  */
 export const SCOPED_SCREENS: ReadonlyArray<{ path: string; heading: string | RegExp }> = [
-  { path: COMPOSITIONS, heading: 'Compositions' },
-  { path: `${COMPOSITIONS}/lab-flow`, heading: 'Lab flow' },
-  { path: `${COMPOSITIONS}/lab-flow/editor`, heading: 'Lab flow' },
-  { path: `${COMPOSITIONS}/lab-flow/versions`, heading: 'Lab flow' },
-  { path: `${COMPOSITIONS}/lab-flow/analysis`, heading: 'Lab flow' },
-  { path: `${COMPOSITIONS}/lab-flow/settings`, heading: 'Lab flow' },
+  { path: COMPOSITIONS, heading: 'Acme' },
+  { path: LAB_FLOW_PAGE, heading: 'Lab flow' },
+  { path: `${LAB_FLOW_PAGE}/analytics`, heading: 'Lab flow' },
+  { path: `${LAB_FLOW_PAGE}/versions`, heading: 'Lab flow' },
+  { path: `${LAB_FLOW_PAGE}/settings`, heading: 'Lab flow' },
+  { path: '/editor', heading: 'Composition editor' },
   { path: '/compositions', heading: 'Public compositions' },
   { path: SHOWCASE, heading: 'Fleet routing' },
   { path: '/language', heading: 'Composition2Yaml' },

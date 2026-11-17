@@ -1,16 +1,22 @@
-// Copied verbatim from SPHERE frontend/src/modules/pricing/components/search-input/index.tsx (revision 73779a8a),
+// Adapted from SPHERE frontend/src/modules/pricing/components/search-input/index.tsx (revision 73779a8a),
 // https://github.com/SCORELabUS/SPHERE. Copyright (c) 2024 Alejandro García Fernández.
 // MIT licence: the full text is in THIRD_PARTY_NOTICES.md.
+// Changes: an initial value (a list keeps its search in the address), a name for the field and the clear button.
 
 import { useState, type KeyboardEvent } from 'react';
 
 interface Props {
   placeholder?: string;
   onSearch: (value: string) => void;
+  initialValue?: string;
 }
 
-export default function SearchInput({ placeholder = 'Search...', onSearch }: Props) {
-  const [value, setValue] = useState('');
+export default function SearchInput({
+  placeholder = 'Search...',
+  onSearch,
+  initialValue = '',
+}: Props) {
+  const [value, setValue] = useState(initialValue);
 
   const handleKeyDown = (e: KeyboardEvent) => {
     if (e.key === 'Enter') {
@@ -34,7 +40,8 @@ export default function SearchInput({ placeholder = 'Search...', onSearch }: Pro
         />
       </svg>
       <input
-        type="text"
+        type="search"
+        aria-label={placeholder}
         value={value}
         onChange={e => setValue(e.target.value)}
         onKeyDown={handleKeyDown}
@@ -48,6 +55,7 @@ export default function SearchInput({ placeholder = 'Search...', onSearch }: Pro
             setValue('');
             onSearch('');
           }}
+          aria-label="Clear the search"
           className="absolute right-2.5 cursor-pointer rounded p-0.5 text-tp-muted transition-colors hover:text-tp-ink"
         >
           <svg

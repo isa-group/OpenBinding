@@ -22,7 +22,7 @@ from ....db.models import CompositionKind, User
 from ....models.errors import UNAUTHORIZED_RESPONSE
 from ..application import compositions, listing
 from .list_query import BY_NAME, BY_UPDATE, ListQuery, facets_view
-from .routes import _view as member_view
+from .routes import entry_view, figures_of
 from .schemas import (
     CompositionKindName,
     CompositionList,
@@ -81,7 +81,7 @@ async def list_public_compositions(
             kind=entry.composition.kind.value,
             latest_version=PublicVersionSummary(
                 label=version.label, ordinal=version.ordinal, values_status=version.values_status.value,
-                verified=summary.verified, created_at=version.created_at,
+                verified=summary.verified, created_at=version.created_at, figures=figures_of(entry),
             ),
             version_count=summary.count, updated_at=entry.composition.updated_at,
         ))
@@ -116,6 +116,6 @@ async def list_own_compositions(
         order=query.order, limit=limit, offset=offset,
     )
     return CompositionList(
-        compositions=[member_view(entry.composition, entry.organization, entry.summary) for entry in listed.entries],
+        compositions=[entry_view(entry) for entry in listed.entries],
         total=listed.total, limit=limit, offset=offset, facets=facets_view(listed.facets),
     )

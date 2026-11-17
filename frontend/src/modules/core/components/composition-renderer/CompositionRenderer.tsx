@@ -1,14 +1,12 @@
 import type { CompositionViewModel } from '../../utils/composition/viewModel';
 import type { AnalysisActions } from './modes/analysis';
 import { ArchitectureMode } from './modes/architecture';
-import { CalculatorMode } from './modes/calculator';
 import { CatalogMode } from './modes/catalog';
 import { Comparison, type ComparisonData } from './modes/comparison/Comparison';
 import { ConfiguratorMode } from './modes/configurator';
-import { ShowcaseMode, type ShowcaseActions } from './modes/showcase';
+import { ShowcaseMode } from './modes/showcase';
 import { WorkflowMode } from './modes/workflow';
 import { sectionsOf, type Density, type RendererMode, type Section } from './presets';
-import './CompositionRenderer.css';
 
 export interface RendererLinks {
   /** Where the linked problem opens, for a reader who may open it; without it the problem is named as text. */
@@ -30,10 +28,8 @@ interface CompositionRendererProps extends RendererLinks {
   onlyDifferences?: boolean;
   /** The pair the comparison mode compares and what the gateway answered for it; `model` is then the later version's. */
   comparison?: ComparisonData;
-  /** The page's answers to the calculator and the configurator (try, derive, open as a draft), and where the configurator starts. */
+  /** The page's answers to the configurator (try, derive, open as a draft), and where it starts. */
   analysis?: AnalysisActions;
-  /** The public page's versions, permalink and links, and its answer to Fork (the page mounts the dialog). */
-  showcase?: ShowcaseActions;
 }
 
 /**
@@ -48,13 +44,15 @@ export function CompositionRenderer({
   onlyDifferences = true,
   comparison,
   analysis,
-  showcase,
   problemHref = null,
   runHref = null,
 }: CompositionRendererProps) {
   const sections = sectionsOf(mode, hideSections);
   return (
-    <div className={`cr is-${density}`} data-mode={mode}>
+    <div
+      className={`cr is-${density} flex min-w-0 flex-col ${density === 'compact' ? 'gap-4' : 'gap-6'}`}
+      data-mode={mode}
+    >
       {mode === 'catalog' && (
         <CatalogMode
           model={model}
@@ -73,13 +71,10 @@ export function CompositionRenderer({
           onlyDifferences={onlyDifferences}
         />
       )}
-      {mode === 'calculator' && (
-        <CalculatorMode model={model} sections={sections} actions={analysis} />
-      )}
       {mode === 'configurator' && (
         <ConfiguratorMode model={model} sections={sections} actions={analysis} />
       )}
-      {mode === 'showcase' && <ShowcaseMode model={model} sections={sections} actions={showcase} />}
+      {mode === 'showcase' && <ShowcaseMode model={model} sections={sections} />}
     </div>
   );
 }

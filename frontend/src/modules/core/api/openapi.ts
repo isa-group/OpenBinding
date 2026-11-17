@@ -4145,6 +4145,7 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            figures?: components["schemas"]["VersionFigures"];
             /**
              * Id
              * Format: uuid
@@ -6581,6 +6582,7 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            figures?: components["schemas"]["VersionFigures"];
             /**
              * Label
              * @description The document's `version:` (Semantic Versioning).
@@ -7674,6 +7676,24 @@ export interface components {
              * Format: uuid
              */
             id: string;
+        };
+        /**
+         * VersionFigures
+         * @description What a list shows of a version's size and cost: ``tasks`` and ``providers`` from the analytics stored at
+         *     seal, ``cost`` from the latest evaluation's ``cost`` value; each null when the version has none.
+         */
+        VersionFigures: {
+            /** Cost */
+            cost?: number | null;
+            /**
+             * Cost Unit
+             * @description The unit the evaluation gave the cost, if any.
+             */
+            cost_unit?: string | null;
+            /** Providers */
+            providers?: number | null;
+            /** Tasks */
+            tasks?: number | null;
         };
         /**
          * VersionLink

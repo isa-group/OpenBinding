@@ -121,7 +121,7 @@ async def test_the_list_holds_the_public_compositions_of_every_organization(
     for row in rows.values():
         assert set(row) == VIEW_FIELDS
         assert set(row["organization"]) == {"slug", "name"}
-        assert set(row["latest_version"]) == {"label", "ordinal", "values_status", "verified", "created_at"}
+        assert set(row["latest_version"]) == {"label", "ordinal", "values_status", "verified", "created_at", "figures"}
     assert rows["shop"]["organization"] == {"slug": first, "name": linked.organization.name}
     assert rows["shop"]["description"] == "A shop."
     assert rows["shop"]["version_count"] == 1

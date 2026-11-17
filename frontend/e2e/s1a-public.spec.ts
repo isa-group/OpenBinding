@@ -5,7 +5,7 @@ import { compositionStore } from './helpers/mockCompositions';
 const expect = baseExpect.configure({ timeout: 15_000 });
 
 // S1a · public screens: pub-home and pub-about (with the service-status note that took the place of /status), and the public
-// compositions with the public page of one (pub-compositions, pub-showcase), as a visitor reads them.
+// compositions with the page of one (pub-compositions, composition-card), as a visitor reads them.
 // There is no backend: the API origin is answered by page.route(). Screenshots go to testInfo.outputPath()
 // (test-results/, ignored by git) so they can be looked at after a run.
 
@@ -432,7 +432,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('pub-compositions and pub-showcase: the public list opens the public page of a composition', async ({
+    test('pub-compositions and composition-card: the public list opens the page of a composition', async ({
       page,
     }, testInfo) => {
       const critical = watchCriticalErrors(page);
@@ -453,9 +453,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         );
         await page.keyboard.press('Escape');
       }
-      const list = main.getByRole('region', { name: 'Public compositions' });
+      const list = main;
       await expect(list.getByRole('article')).toHaveCount(2);
-      await expect(list.getByText('2 compositions')).toBeVisible();
+      await expect(list.getByText('2 compositions found')).toBeVisible();
       await ready(page);
       await expectNoHorizontalOverflow(page);
       await page.screenshot({
@@ -465,13 +465,18 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       });
 
       await list.getByRole('link', { name: 'Order desk' }).click();
-      await expect(page).toHaveURL('/c/isa-demo/order-desk');
+      await expect(page).toHaveURL('/compositions/isa-demo/order-desk');
       await expect(main.getByRole('heading', { level: 1, name: 'Order desk' })).toBeVisible();
-      await expect(main.getByText('Application · ISA Demo Group')).toBeVisible();
+      await expect(
+        main
+          .getByRole('navigation', { name: 'Breadcrumb' })
+          .getByRole('link', { name: 'ISA Demo Group' })
+      ).toBeVisible();
       await expect(main.getByRole('region', { name: 'Value status' })).toContainText('Declared');
       await expect(main.getByRole('region', { name: 'Workflow' })).toBeVisible();
-      await expect(main.getByRole('button', { name: 'Fork', exact: true })).toBeVisible();
-      await expect(main.getByRole('button', { name: 'Copy permalink' })).toBeVisible();
+      await expect(main.getByRole('button', { name: /Get composition/ })).toBeVisible();
+      if (isMobile) await expect(main.getByRole('button', { name: 'More actions' })).toBeVisible();
+      else await expect(main.getByRole('button', { name: 'Fork', exact: true })).toBeVisible();
       await ready(page);
       await expectNoHorizontalOverflow(page);
       expect(critical).toEqual([]);

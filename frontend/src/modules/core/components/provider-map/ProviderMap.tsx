@@ -1,7 +1,6 @@
 import { useId } from 'react';
 import type { TaskModel } from '../../utils/composition/viewModel';
 import { providerGroups, type ProviderGroup } from './providerGroups';
-import './ProviderMap.css';
 
 interface ProviderMapProps {
   /** The composition's tasks, in workflow order, with what each is bound to. */
@@ -25,7 +24,8 @@ function GroupName({ group }: { group: ProviderGroup }) {
     case 'pricing':
       return (
         <>
-          {group.name} <small className="pm-kind">SPHERE pricing</small>
+          {group.name}{' '}
+          <small className="pm-kind text-xs font-normal text-tp-steel">SPHERE pricing</small>
         </>
       );
     case 'in-house':
@@ -49,7 +49,7 @@ function FromLine({ task, group }: { task: TaskModel; group: ProviderGroup }) {
   const pricing =
     group.kind === 'pricing' ? '' : `${sphere}${registry ? ` on ${registry}` : ''} · `;
   return (
-    <small className="pm-from">
+    <small className="pm-from font-mono text-xs [overflow-wrap:anywhere] text-tp-steel">
       {pricing}
       {parts.join(' · ')}
     </small>
@@ -59,27 +59,38 @@ function FromLine({ task, group }: { task: TaskModel; group: ProviderGroup }) {
 function Group({ group }: { group: ProviderGroup }) {
   const title = useId();
   return (
-    <li className={`pm-group is-${group.kind}`}>
+    <li
+      className={`pm-group is-${group.kind} flex min-w-0 flex-col gap-1.5 rounded-xl border p-3 [&_h3]:m-0 [&_h3]:flex [&_h3]:min-w-0 [&_h3]:flex-wrap [&_h3]:items-baseline [&_h3]:justify-between [&_h3]:gap-x-2 [&_h3]:gap-y-1 [&_h3]:text-[15px] [&_h3]:font-semibold [&_h3]:text-tp-ink ${
+        group.kind === 'in-house'
+          ? 'border-dashed border-tp-hairline bg-tp-surface'
+          : 'border-tp-hairline bg-tp-canvas'
+      }`}
+    >
       <h3 id={title}>
-        <span className="pm-name">
+        <span className="pm-name min-w-0 [overflow-wrap:anywhere]">
           <GroupName group={group} />
         </span>{' '}
-        <span className="pm-count">{plural(group.tasks.length, 'task', 'tasks')}</span>
+        <span className="pm-count text-xs font-normal text-tp-steel">
+          {plural(group.tasks.length, 'task', 'tasks')}
+        </span>
       </h3>
-      <ul className="pm-tasks" aria-labelledby={title}>
+      <ul
+        className="pm-tasks m-0 flex list-none flex-col gap-1.5 p-0 [&>li]:flex [&>li]:min-w-0 [&>li]:flex-col [&>li]:gap-0.5"
+        aria-labelledby={title}
+      >
         {group.tasks.map(task => (
           <li key={task.id}>
-            <span className="pm-task">
+            <span className="pm-task flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1 [&_code]:font-mono [&_code]:text-[13px] [&_code]:[overflow-wrap:anywhere]">
               <code>{task.id}</code>
               {!task.local && (
                 <>
-                  <span className="pm-arrow" aria-hidden="true">
+                  <span className="pm-arrow text-tp-steel" aria-hidden="true">
                     →
                   </span>
                   {task.candidate ? (
                     <code>{task.candidate}</code>
                   ) : (
-                    <span className="pm-muted">Not bound</span>
+                    <span className="pm-muted m-0 text-[13px] text-tp-steel">Not bound</span>
                   )}
                 </>
               )}
@@ -99,12 +110,17 @@ function Group({ group }: { group: ProviderGroup }) {
 export function ProviderMap({ tasks, upstreamPricings }: ProviderMapProps) {
   const groups = providerGroups(tasks);
   return (
-    <div className="pm">
-      {upstreamPricings !== null && <p className="pm-summary">{upstreamText(upstreamPricings)}</p>}
+    <div className="pm flex min-w-0 flex-col gap-3">
+      {upstreamPricings !== null && (
+        <p className="pm-summary m-0 text-[13px] text-tp-steel">{upstreamText(upstreamPricings)}</p>
+      )}
       {groups.length === 0 ? (
-        <p className="pm-muted">This version has no task.</p>
+        <p className="pm-muted m-0 text-[13px] text-tp-steel">This version has no task.</p>
       ) : (
-        <ul className="pm-groups" aria-label="Tasks by provider">
+        <ul
+          className="pm-groups m-0 grid list-none grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-3 p-0"
+          aria-label="Tasks by provider"
+        >
           {groups.map(group => (
             <Group key={`${group.kind}:${group.name}`} group={group} />
           ))}

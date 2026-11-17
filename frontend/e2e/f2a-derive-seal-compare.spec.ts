@@ -3,8 +3,8 @@ import { detailOf, digestOf, jobOf } from '../src/test/fixtures/jobs';
 import { API, installMockApi } from './helpers/mockApi';
 
 // J1 · derive, seal and compare: the problem page (its workflow and candidates) → one of its runs → Derive composition (a new
-// composition, the preview, seal 1.0.0) → the Editor, where the visual form binds task T1 to its other candidate, the check states
-// the values that binding has, and 1.1.0 is sealed → Versions, comparing 1.0.0 with 1.1.0 entry by entry and line by line.
+// composition, the preview, seal 1.0.0) → the standalone editor, where the visual form binds task T1 to its other candidate, the
+// Publish dialog states the values that binding has, and 1.1.0 is sealed → Versions, comparing 1.0.0 with 1.1.0 entry by entry and line by line.
 // There is no backend: e2e/helpers/mockApi.ts answers the API origin, with the derivation and the evaluated composition of
 // e2e/helpers/mockCompositions.ts (the FMS fixture's binding of checkout-flow@1, and the gateway's F1 diff golden of it). The run is
 // this spec's own: a completed run of checkout-flow@1, whose compilation's facts are FMS's.
@@ -15,7 +15,7 @@ test.setTimeout(120_000);
 
 const ORG = '/app/isa-demo';
 const RUN = '7c1e5a90-0000-4000-8000-0000000000b1';
-const COMPOSITION = `${ORG}/compositions/fleet-plan`;
+const COMPOSITION = '/compositions/isa-demo/fleet-plan';
 const main = (page: Page) => page.locator('main');
 
 const at = (id: string) => ({ resource: 'catalog', id });
@@ -156,64 +156,78 @@ test.describe('J1 · derive, seal and compare', () => {
     await dialog.getByRole('button', { name: 'Seal 1.0.0' }).click();
 
     await expect(page).toHaveURL(`${COMPOSITION}/versions?version=1.0.0`);
-    await expect(main(page).getByText('Version 1.0.0 sealed.')).toBeVisible();
+    await expect(page.getByText('Version 1.0.0 sealed.')).toBeVisible();
     // The preview and the seal asked for the same bytes.
     expect(sent).toEqual([
       { run: RUN, point: 0, version: '1.0.0', seal: false },
       { run: RUN, point: 0, version: '1.0.0', seal: true },
     ]);
-    const table = main(page)
-      .getByRole('region', { name: 'Versions of Fleet plan' })
-      .getByRole('table');
-    await expect(table.getByRole('row', { name: /^1\.0\.0/ })).toContainText(
+    const table = main(page).getByRole('list', { name: 'Versions of Fleet plan' });
+    await expect(table.getByRole('listitem', { name: 'Version 1.0.0' })).toContainText(
       'Derived from run 7c1e5a90'
     );
 
-    // The Editor: the visual form binds T1 to the other candidate, the check states that binding's values, and 1.1.0 is sealed.
-    await main(page).getByRole('tab', { name: 'Editor' }).click();
-    await expect(page).toHaveURL(new RegExp(`${COMPOSITION}/editor`));
-    const source = main(page).getByRole('textbox', { name: 'composition.yaml source' });
-    await expect(source).toContainText('candidate: cand_t1_aws');
+    // The editor: the visual form binds T1 to the other candidate, the Publish dialog states that binding's values, and 1.1.0 is
+    // sealed.
+    await main(page).getByRole('button', { name: 'New version' }).click();
     await main(page)
+      .getByRole('menu', { name: 'New version' })
+      .getByRole('menuitem', { name: /Visual editor/ })
+      .click();
+    await expect(page).toHaveURL(
+      /\/editor\?source=isa-demo%2Ffleet-plan&version=1\.0\.0&mode=visual$/
+    );
+    await page
       .getByRole('region', { name: 'Visual editor' })
       .getByRole('radio', { name: 'cand_t1_google_cloud for T1' })
       .click();
-    await expect(source).toContainText('candidate: cand_t1_google_cloud');
-    const onSeal = main(page).getByRole('region', { name: 'Values on seal' });
+    await page
+      .getByRole('group', { name: 'Editor mode' })
+      .getByRole('button', { name: 'Code' })
+      .click();
+    const code = page.locator('.monaco-editor .view-lines');
+    await expect(code).toContainText('candidate: cand_t1_google_cloud');
+
+    await page.getByRole('button', { name: 'Publish' }).click();
+    const publish = page.getByRole('dialog', { name: 'Publish to OpenBinding' });
+    await publish
+      .getByRole('list', { name: 'Compositions you may write' })
+      .getByRole('button', { name: /Fleet plan/ })
+      .click();
+    const label = publish.getByLabel(/^Version label/);
+    await label.fill('1.1.0');
+    await label.press('Enter');
+    await expect(code).toContainText('version: 1.1.0');
+    const onSeal = publish.getByRole('region', { name: 'Values on seal' });
     await expect(onSeal).toContainText('These values will be verified');
     await expect(onSeal).toContainText('3,080 USD/month');
     await onSeal.getByRole('button', { name: 'Use the canonical form' }).click();
-    await expect(source).toContainText('value: 3080');
-    const label = main(page).getByLabel('Label');
-    await label.fill('1.1.0');
-    await label.press('Enter');
-    await expect(source).toContainText('version: 1.1.0');
-    await main(page).getByRole('button', { name: 'Seal version' }).click();
+    await expect(code).toContainText('value: 3080');
+    await publish.getByRole('button', { name: /Publish version/ }).click();
     await expect(page).toHaveURL(`${COMPOSITION}/versions?version=1.1.0`);
-    await expect(main(page).getByText('Version 1.1.0 sealed.')).toBeVisible();
+    await expect(page.getByText('Version 1.1.0 sealed.')).toBeVisible();
 
     // Versions: 1.0.0 against 1.1.0, entry by entry (the binding and the values) and line by line.
     await table
-      .getByRole('row', { name: /^1\.1\.0/ })
+      .getByRole('listitem', { name: 'Version 1.1.0' })
       .getByRole('button', { name: 'Compare with previous' })
       .click();
-    await expect(page).toHaveURL(
-      `${COMPOSITION}/versions?version=1.1.0&view=compare&from=1.0.0&to=1.1.0`
-    );
+    await expect(page).toHaveURL(`${COMPOSITION}/versions?version=1.1.0&from=1.0.0&to=1.1.0`);
     const binding = main(page).getByRole('region', { name: /^Binding/ });
     await expect(binding).toContainText('T1');
     await expect(binding).toContainText('cand_t1_aws');
     await expect(binding).toContainText('cand_t1_google_cloud');
     const values = main(page).getByRole('region', { name: /^Values/ });
-    await expect(values).toContainText('3,060 to 3,080');
-    await expect(values).toContainText('3,180 to 3,190');
+    await expect(values).toContainText('3,060');
+    await expect(values).toContainText('3,080');
+    await expect(values).toContainText('3,190');
 
     await main(page)
-      .getByRole('group', { name: 'Versions view' })
+      .getByRole('group', { name: 'Comparison view' })
       .getByRole('button', { name: 'File' })
       .click();
     await expect(page).toHaveURL(
-      `${COMPOSITION}/versions?version=1.1.0&view=file&from=1.0.0&to=1.1.0`
+      `${COMPOSITION}/versions?version=1.1.0&from=1.0.0&to=1.1.0&diff=file`
     );
     const text = main(page).getByRole('region', { name: 'The text of 1.0.0 and 1.1.0' });
     await expect(text).toContainText('candidate: cand_t1_aws');

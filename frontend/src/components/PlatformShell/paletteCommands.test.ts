@@ -130,12 +130,12 @@ describe('buildCommands', () => {
       inOrganization
         .filter(command => command.label === 'Compositions')
         .map(command => command.href)
-    ).toEqual(['/app/isa-demo/compositions']);
+    ).toEqual(['/orgs/isa-demo/compositions']);
     expect(
       inOrganization
         .filter(command => command.label === 'New composition')
         .map(command => [command.group, command.href])
-    ).toEqual([['Create', '/app/isa-demo/compositions?create=composition']]);
+    ).toEqual([['Create', '/compositions/new?org=isa-demo']]);
     expect(without.filter(command => /composition/i.test(command.label))).toEqual([]);
   });
 

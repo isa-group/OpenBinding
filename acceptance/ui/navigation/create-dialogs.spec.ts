@@ -36,34 +36,35 @@ test('the organization page offers no New project, and its New problem opens the
   await expect(page.getByRole('dialog', { name: 'Upload a BIM package' })).toBeVisible();
 });
 
-test('New composition opens a dialog over the Compositions list, and creating lab-flow opens its Editor with no version yet', async ({ page }) => {
+test('New composition opens the creation page, whose editor link publishes lab-flow with its first version', async ({ page }) => {
   const requests = await mockApi(page);
-  await page.goto('/app/acme/compositions');
-  await page.locator('main').getByRole('button', { name: 'New composition', exact: true }).first().click();
-  await expect.poll(() => pathAndSearch(page)).toBe('/app/acme/compositions?create=composition');
-  const dialog = page.getByRole('dialog', { name: 'New composition' });
-  await expect(dialog).toBeVisible();
-  await dialog.getByLabel('Name').fill('Lab flow');
-  await expect(dialog.getByLabel('Address')).toHaveValue('lab-flow');
-  await dialog.getByRole('button', { name: 'Create composition' }).click();
-  await expect(dialog).toHaveCount(0);
-  await expect.poll(() => pathAndSearch(page)).toBe('/app/acme/compositions/lab-flow/editor');
-  await expect(page.getByRole('heading', { level: 1, name: 'Lab flow' })).toBeVisible();
-  await expect(page.locator('main').getByText(/No version yet/).first()).toBeVisible();
-  // The Editor lints the starter document through the stateless language services; what is created is only the composition.
-  expect(requests.filter((request) => request.method === 'POST' && request.path.startsWith('/v1/organizations/')).map((request) => [request.path, JSON.parse(request.body)])).toEqual([
-    ['/v1/organizations/acme/compositions', { slug: 'lab-flow', name: 'Lab flow', kind: 'application', description: '' }],
+  await page.goto('/orgs/acme/compositions');
+  await page.locator('main').getByRole('link', { name: 'New composition', exact: true }).first().click();
+  await expect.poll(() => pathAndSearch(page)).toBe('/compositions/new?org=acme');
+  await page.locator('main').getByRole('link', { name: 'Write it in the editor' }).click();
+  await expect.poll(() => pathAndSearch(page)).toBe('/editor?org=acme');
+  await expect(page.getByRole('region', { name: 'Problems' })).toContainText('No issues');
+  await page.getByRole('button', { name: 'Publish' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Publish to OpenBinding' });
+  await expect(dialog.getByText('Acme')).toBeVisible();
+  await dialog.getByLabel('Composition name').fill('Lab flow');
+  await expect(dialog.getByText('Its address: lab-flow')).toBeVisible();
+  await dialog.getByRole('button', { name: 'Publish', exact: true }).click();
+  await expect.poll(() => pathAndSearch(page)).toBe('/compositions/acme/lab-flow/versions?version=1.0.0');
+  // The editor lints through the stateless language services; what is written is the composition and its first version.
+  expect(requests.filter((request) => request.method === 'POST' && request.path.startsWith('/v1/organizations/')).map((request) => request.path)).toEqual([
+    '/v1/organizations/acme/compositions',
+    '/v1/organizations/acme/compositions/lab-flow/versions',
   ]);
+  expect(JSON.parse(requests.find((request) => request.path === '/v1/organizations/acme/compositions')!.body)).toEqual({
+    slug: 'lab-flow', name: 'Lab flow', kind: 'application', description: '',
+  });
 });
 
-test('cancelling the composition dialog returns to the list, restores focus and creates nothing', async ({ page }) => {
+test('leaving the creation page returns to the Compositions tab and creates nothing', async ({ page }) => {
   const requests = await mockApi(page);
-  await page.goto('/app/acme/compositions?create=composition');
-  const dialog = page.getByRole('dialog', { name: 'New composition' });
-  await expect(dialog).toBeVisible();
-  await dialog.getByRole('button', { name: 'Cancel' }).click();
-  await expect(dialog).toHaveCount(0);
-  await expect.poll(() => pathAndSearch(page)).toBe('/app/acme/compositions');
-  await expect(page.locator('main').getByRole('button', { name: 'New composition', exact: true }).first()).toBeFocused();
+  await page.goto('/compositions/new?org=acme');
+  await page.locator('main').getByRole('link', { name: 'Back to organization' }).click();
+  await expect.poll(() => pathAndSearch(page)).toBe('/orgs/acme/compositions');
   expect(requests.filter((request) => request.method === 'POST')).toEqual([]);
 });

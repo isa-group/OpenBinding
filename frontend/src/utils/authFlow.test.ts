@@ -25,8 +25,12 @@ describe('safeReturnPath', () => {
     '/me/orgs',
     '/compositions',
     '/compositions?kind=workflow&q=fleet&page=2',
-    '/c/lab-other/fleet-routing',
-    '/c/lab-other/fleet-routing?version=1.2.0&fork=1',
+    '/compositions/lab-other/fleet-routing',
+    '/compositions/lab-other/fleet-routing?version=1.2.0&fork=1',
+    '/compositions/new?org=isa-demo',
+    '/p/6b0c7f9e-0000-4000-8000-000000000001',
+    '/editor',
+    '/editor?source=isa-demo%2Forder-desk&version=1.2.0#composition=N4Ig',
   ])('lets a sign-in return to %s', path => {
     expect(safeReturnPath(path)).toBe(path);
   });
@@ -45,17 +49,13 @@ describe('safeReturnPath', () => {
     null,
     42,
     { path: '/app' },
-    '/c/x',
-    '/c/x/y/z',
-    '//c/x/y',
-    '/c/x/y/',
-    '/c//y',
-    '/c/X/y',
-    '/c/-x/y',
-    '/c/x/y%2Fz',
-    '/compositions/x',
+    '/c/x/y',
+    '//compositions/x/y',
     '/compositionsx',
+    '/px',
     '/c',
+    '/editorx',
+    '/editor/x',
   ])('refuses %j', value => {
     expect(safeReturnPath(value)).toBeNull();
   });
@@ -66,9 +66,9 @@ describe('safeReturnPath', () => {
     expect(afterSignInTarget('/app/account')).toBe('/app/account');
   });
 
-  it('returns to the public page of a composition, with its query, so the fork asked for there opens', () => {
-    expect(afterSignInTarget('/c/lab-other/fleet-routing?version=1.2.0&fork=1')).toBe(
-      '/c/lab-other/fleet-routing?version=1.2.0&fork=1'
+  it('returns to the page of a composition, with its query, so the fork asked for there opens', () => {
+    expect(afterSignInTarget('/compositions/lab-other/fleet-routing?version=1.2.0&fork=1')).toBe(
+      '/compositions/lab-other/fleet-routing?version=1.2.0&fork=1'
     );
     expect(afterSignInTarget('/compositions?kind=workflow')).toBe('/compositions?kind=workflow');
     expect(afterSignInTarget('/c/lab-other')).toBe('/');

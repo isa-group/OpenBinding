@@ -1,6 +1,7 @@
-// Copied verbatim from SPHERE frontend/src/modules/pricing/components/dual-range-slider/index.tsx (revision 73779a8a),
+// Adapted from SPHERE frontend/src/modules/pricing/components/dual-range-slider/index.tsx (revision 73779a8a),
 // https://github.com/SCORELabUS/SPHERE. Copyright (c) 2024 Alejandro García Fernández.
 // MIT licence: the full text is in THIRD_PARTY_NOTICES.md.
+// Changes: each thumb is named after the filter (`label`), for assistive technology.
 
 interface Props {
   min: number;
@@ -9,6 +10,7 @@ interface Props {
   onChange: (value: [number, number]) => void;
   step?: number;
   formatLabel?: (v: number) => string;
+  label?: string;
 }
 
 export default function DualRangeSlider({
@@ -18,6 +20,7 @@ export default function DualRangeSlider({
   onChange,
   step = 1,
   formatLabel,
+  label = 'Range',
 }: Props) {
   const [lo, hi] = value;
   const fmt = formatLabel ?? ((v: number) => String(v));
@@ -54,6 +57,7 @@ export default function DualRangeSlider({
           max={max}
           step={step}
           value={lo}
+          aria-label={`${label}, lowest`}
           onChange={e => handleChange('lo', Number(e.target.value))}
           className="dual-range-low"
           style={{ zIndex: lo === hi ? 2 : 1 }}
@@ -66,6 +70,7 @@ export default function DualRangeSlider({
           max={max}
           step={step}
           value={hi}
+          aria-label={`${label}, highest`}
           onChange={e => handleChange('hi', Number(e.target.value))}
           className="dual-range-high"
         />

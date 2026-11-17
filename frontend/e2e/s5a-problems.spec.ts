@@ -707,7 +707,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const linking = main.getByRole('region', { name: 'Compositions that link this problem' });
       await expect(linking.getByRole('link', { name: 'Fleet plan', exact: true })).toHaveAttribute(
         'href',
-        '/app/isa-demo/compositions/fleet-plan'
+        '/compositions/isa-demo/fleet-plan'
       );
       await expect(linking.getByRole('list', { name: 'Values of Fleet plan 1.0.0' })).toContainText(
         '3,060 USD/month'
@@ -727,7 +727,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(authenticate('authenticate-1')).not.toHaveAttribute('aria-current', 'true');
       await expect(main.getByRole('link', { name: 'Back to Fleet plan 1.0.0' })).toHaveAttribute(
         'href',
-        '/app/isa-demo/compositions/fleet-plan?version=1.0.0'
+        '/compositions/isa-demo/fleet-plan?version=1.0.0'
       );
       await capture(page, testInfo, `candidates-${name}-highlight`);
 

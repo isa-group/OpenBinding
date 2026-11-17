@@ -12,7 +12,7 @@ import { refusalMarker, refusalText, type Refusal } from '../../../core/api/refu
 import { resolvePointer } from '../../../core/diagnostics/jsonPointer';
 import { counts, type Located } from '../../../core/diagnostics/located';
 import type { FeatureSlot } from '../../../../utils/featureRange';
-import { ProblemsPanel } from '../../../core/components/problems-panel/ProblemsPanel';
+import ProblemsPanel from '../../../core/components/problems-panel';
 import type { RuleOrigin } from '../../../core/components/rules-and-objectives/RulesAndObjectives';
 import { CandidatesPane } from './CandidatesPane';
 import { parseJson, type WorkspaceFiles } from './documents';

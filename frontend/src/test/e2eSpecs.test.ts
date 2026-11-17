@@ -111,13 +111,14 @@ describe('the Playwright specs', () => {
       for (const name of specs) expect(read(name), name).toMatch(/\btest\(|\btest\.describe\(/);
     });
 
-    it('walks J1 and J2 against the lab: derive, seal and compare on lab-main; the public list, a showcase and a fork from lab-other', () => {
+    it('walks J1 and J2 against the lab: derive, seal and compare on lab-main; the public list, a composition page and a fork from lab-other', () => {
       const j1 = read(`${live}/08-derive-seal-compare.spec.ts`);
       expect(j1).toMatch(/test\.describe\('live · J1 /);
       for (const step of [
         "'Derive composition'",
         "'Visual editor'",
-        "'Seal version'",
+        "'Publish to OpenBinding'",
+        '/Publish version/',
         "'Compare with previous'",
         "'The text of 1.0.0 and 1.1.0'",
       ]) {
@@ -128,9 +129,9 @@ describe('the Playwright specs', () => {
       for (const step of [
         "'/compositions'",
         "'Fork this composition'",
-        '/Fork without the problem/',
-        "'Fork as a new composition'",
-        "'No composition here, or you cannot see it'",
+        "'Fork without the problem'",
+        "'Fork as new composition'",
+        "'Page not found'",
       ]) {
         expect(j2, step).toContain(step);
       }
@@ -255,19 +256,20 @@ describe('the Playwright specs', () => {
       ]) {
         expect(qa, screen).toContain(screen);
       }
-      // The composition screens (F2a): the list, every tab of the detail and the three views of Versions, the public list, the
-      // showcase and Language for a visitor, the viewer's list and detail, and on mobile the Editor's Visual and Problems tabs.
+      // The composition screens: the list, every tab of the card page and the two views of the version comparison, the public list, the
+      // showcase and Language for a visitor, the viewer's list and detail, and the standalone editor (code, visual, and on mobile
+      // its Problems tab).
       for (const screen of [
         "slug: 'compositions'",
         "slug: 'composition-overview'",
         "slug: 'composition-editor'",
-        "pane('composition-editor-visual'",
+        "slug: 'composition-editor-visual'",
         "pane('composition-editor-problems'",
         "slug: 'composition-versions'",
         "slug: 'composition-versions-compare'",
         "slug: 'composition-versions-file'",
-        "slug: 'composition-versions-evolution'",
-        "slug: 'composition-analysis'",
+        "slug: 'composition-analytics'",
+        "slug: 'composition-configuration'",
         "slug: 'composition-settings'",
         "slug: 'public-compositions'",
         "slug: 'showcase'",

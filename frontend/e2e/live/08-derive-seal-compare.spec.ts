@@ -1,10 +1,10 @@
 import { expect, test, type Page } from '@playwright/test';
-import { API, ORG_PATH, RUNS_PATH, capture, signInByApi, watchPageErrors } from './support';
+import { API, ORG, ORG_PATH, RUNS_PATH, capture, signInByApi, watchPageErrors } from './support';
 
 // J1 against the lab (the mocked twin is e2e/f2a-derive-seal-compare.spec.ts): the owner of lab-main uploads the template the seed
 // uses (demo/01_simple_seq: task t1 has two eligible candidates, c1a and c1b), reads the problem's workflow and candidates, runs it
-// on random-search, derives version 1.0.0 of a new composition from the run, binds t1 to its other candidate in the Editor's visual
-// form (which stops citing the run: its solution is the other binding), seals 1.1.0 and compares the two versions entry by entry
+// on random-search, derives version 1.0.0 of a new composition from the run, binds t1 to its other candidate in the visual
+// form of the standalone editor (which stops citing the run: its solution is the other binding), seals 1.1.0 and compares the two versions entry by entry
 // and line by line. Every run of this spec adds a problem and a
 // composition to lab-main, named after the moment it ran; nothing is deleted (runs keep their problem).
 
@@ -32,7 +32,7 @@ test.describe('live · J1 derive, seal and compare on lab-main', () => {
     const name = `j1-${stamp}`;
     const compositionName = `J1 ${stamp}`;
     const slug = `j1-${stamp}`;
-    const composition = `${ORG_PATH}/compositions/${slug}`;
+    const composition = `/compositions/${ORG}/${slug}`;
     const main = page.locator('main');
 
     // 1 · The problem: the template uploaded through the dialog, its workflow and the candidates of each task.
@@ -124,19 +124,21 @@ test.describe('live · J1 derive, seal and compare on lab-main', () => {
     await dialog.getByRole('button', { name: 'Seal 1.0.0' }).click();
 
     await expect(page).toHaveURL(`${composition}/versions?version=1.0.0`, { timeout: 60_000 });
-    await expect(main.getByText('Version 1.0.0 sealed.')).toBeVisible();
-    const table = main
-      .getByRole('region', { name: `Versions of ${compositionName}` })
-      .getByRole('table');
-    await expect(table.getByRole('row', { name: /^1\.0\.0/ })).toContainText('Derived from run');
+    await expect(page.getByText('Version 1.0.0 sealed.')).toBeVisible();
+    const table = main.getByRole('list', { name: `Versions of ${compositionName}` });
+    await expect(table.getByRole('listitem', { name: 'Version 1.0.0' })).toContainText(
+      'Derived from run'
+    );
 
-    // 4 · The Editor: the visual form binds t1 to the candidate the run did not choose and stops citing the run; the check states
-    // that binding's values; the canonical form is taken and 1.1.0 is sealed.
-    await main.getByRole('tab', { name: 'Editor' }).click();
-    await expect(page).toHaveURL(new RegExp(`${composition}/editor`));
-    const source = main.getByRole('textbox', { name: 'composition.yaml source' });
-    await expect(source).toContainText('candidate: c1');
-    const visual = main.getByRole('region', { name: 'Visual editor' });
+    // 4 · The editor: the visual form binds t1 to the candidate the run did not choose and stops citing the run; the Publish
+    // dialog states that binding's values; the canonical form is taken and 1.1.0 is sealed.
+    await main.getByRole('button', { name: 'New version' }).click();
+    await main
+      .getByRole('menu', { name: 'New version' })
+      .getByRole('menuitem', { name: /Visual editor/ })
+      .click();
+    await expect(page).toHaveURL(/\/editor\?source=lab-main%2F[^&]+&version=1\.0\.0&mode=visual$/);
+    const visual = page.getByRole('region', { name: 'Visual editor' });
     await expect(visual.getByRole('radio', { name: 'c1a for t1' })).toBeVisible({
       timeout: 60_000,
     });
@@ -146,49 +148,63 @@ test.describe('live · J1 derive, seal and compare on lab-main', () => {
     const after = before === 'c1a' ? 'c1b' : 'c1a';
     await expect(visual.getByRole('radio', { name: `${before} for t1` })).toBeChecked();
     await visual.getByRole('radio', { name: `${after} for t1` }).click();
-    await expect(source).toContainText(`candidate: ${after}`);
     await expect(
       visual.getByRole('status').filter({ hasText: 't1: The run is no longer cited' })
     ).toBeVisible();
-    const onSeal = main.getByRole('region', { name: 'Values on seal' });
+    await page
+      .getByRole('group', { name: 'Editor mode' })
+      .getByRole('button', { name: 'Code' })
+      .click();
+    const code = page.locator('.monaco-editor .view-lines');
+    await expect(code).toContainText(`candidate: ${after}`);
+
+    await page.getByRole('button', { name: 'Publish' }).click();
+    const publish = page.getByRole('dialog', { name: 'Publish to OpenBinding' });
+    await publish
+      .getByRole('textbox', { name: 'Search your compositions by name' })
+      .fill(compositionName);
+    await publish
+      .getByRole('list', { name: 'Compositions you may write' })
+      .getByRole('button', { name: new RegExp(compositionName) })
+      .click();
+    const label = publish.getByLabel(/^Version label/);
+    await label.fill('1.1.0');
+    await label.press('Enter');
+    await expect(code).toContainText('version: 1.1.0');
+    const onSeal = publish.getByRole('region', { name: 'Values on seal' });
     await expect(onSeal).toContainText(`${LATENCY_MS[after]} ms`, { timeout: 60_000 });
     await expect(onSeal).toContainText('These values will be verified');
     const canonical = onSeal.getByRole('button', { name: 'Use the canonical form' });
     if (await canonical.isVisible()) await canonical.click();
-    const label = main.getByLabel('Label');
-    await label.fill('1.1.0');
-    await label.press('Enter');
-    await expect(source).toContainText('version: 1.1.0');
     await capture(page, testInfo, 'j1-4-editor');
-    const seal = main.getByRole('button', { name: 'Seal version' });
+    const seal = publish.getByRole('button', { name: /Publish version/ });
     await expect(seal).toBeEnabled({ timeout: 60_000 });
     await seal.click();
     await expect(page).toHaveURL(`${composition}/versions?version=1.1.0`, { timeout: 60_000 });
-    await expect(main.getByText('Version 1.1.0 sealed.')).toBeVisible();
+    await expect(page.getByText('Version 1.1.0 sealed.')).toBeVisible();
 
     // 5 · Versions: 1.0.0 against 1.1.0, the binding row of t1 and the value row of latency, then line by line.
     await table
-      .getByRole('row', { name: /^1\.1\.0/ })
+      .getByRole('listitem', { name: 'Version 1.1.0' })
       .getByRole('button', { name: 'Compare with previous' })
       .click();
-    await expect(page).toHaveURL(
-      `${composition}/versions?version=1.1.0&view=compare&from=1.0.0&to=1.1.0`
-    );
+    await expect(page).toHaveURL(`${composition}/versions?version=1.1.0&from=1.0.0&to=1.1.0`);
     const binding = main.getByRole('region', { name: /^Binding/ });
     await expect(binding).toContainText('t1');
     await expect(binding).toContainText(before);
     await expect(binding).toContainText(after);
     const values = main.getByRole('region', { name: /^Values/ });
     await expect(values).toContainText('latency');
-    await expect(values).toContainText(`${LATENCY_MS[before]} to ${LATENCY_MS[after]}`);
+    await expect(values).toContainText(String(LATENCY_MS[before]));
+    await expect(values).toContainText(String(LATENCY_MS[after]));
     await capture(page, testInfo, 'j1-5-compare');
 
     await main
-      .getByRole('group', { name: 'Versions view' })
+      .getByRole('group', { name: 'Comparison view' })
       .getByRole('button', { name: 'File' })
       .click();
     await expect(page).toHaveURL(
-      `${composition}/versions?version=1.1.0&view=file&from=1.0.0&to=1.1.0`
+      `${composition}/versions?version=1.1.0&from=1.0.0&to=1.1.0&diff=file`
     );
     const text = main.getByRole('region', { name: 'The text of 1.0.0 and 1.1.0' });
     await expect(text).toContainText(`candidate: ${before}`);

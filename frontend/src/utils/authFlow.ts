@@ -5,8 +5,6 @@
  * mode, an internal path or a flag. Tokens never pass through this module.
  */
 
-import { SLUG_PATTERN } from '../modules/core/utils/slug';
-
 const SESSION_ENDED_KEY = 'openbinding-session-ended';
 const CAS_FLOW_KEY = 'openbinding-cas-flow';
 /** A CAS round trip that takes longer than this was abandoned, so its memory is not trusted. */
@@ -22,24 +20,12 @@ function storage(): Storage | null {
   }
 }
 
-/** `/c/<organization>/<composition>`: the public page of a composition, both segments slugs. */
-function isShowcasePath(path: string): boolean {
-  const segments = path.split('/');
-  return (
-    segments.length === 4 &&
-    segments[0] === '' &&
-    segments[1] === 'c' &&
-    SLUG_PATTERN.test(segments[2]) &&
-    SLUG_PATTERN.test(segments[3])
-  );
-}
-
 /**
  * An internal address that a sign-in may send the person back to, or `null`.
  *
  * Only the workspace, the account's own pages (`/me/…`), the organization pages (`/orgs/…`, the invitation link included), the
- * public compositions and the public page of one (where Fork asks for a session)
- * qualify: the value travels through router state and sessionStorage, so it is never used as an arbitrary redirect target.
+ * composition pages (`/compositions/…`, where Fork asks for a session), the permanent links (`/p/…`) and the composition
+ * editor (`/editor`, whose Sign in carries the text in the fragment) qualify: the value travels through router state and sessionStorage, so it is never used as an arbitrary redirect target.
  */
 export function safeReturnPath(value: unknown): string | null {
   if (
@@ -52,7 +38,9 @@ export function safeReturnPath(value: unknown): string | null {
   const path = value.split(/[?#]/)[0];
   if (path === '/app' || path.startsWith('/app/')) return value;
   if (path.startsWith('/me/') || path.startsWith('/orgs/')) return value;
-  if (path === '/compositions' || isShowcasePath(path)) return value;
+  if (path === '/compositions' || path.startsWith('/compositions/') || path.startsWith('/p/'))
+    return value;
+  if (path === '/editor') return value;
   return null;
 }
 

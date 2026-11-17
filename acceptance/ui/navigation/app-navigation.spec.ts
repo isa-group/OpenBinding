@@ -89,7 +89,7 @@ test('New creates in the organization the address names', async ({ page }) => {
   await signedIn(page, COMPOSITIONS);
   await banner(page).getByRole('button', { name: 'New', exact: true }).click();
   const items: Array<[string, string]> = [
-    ['Composition', `${COMPOSITIONS}?create=composition`],
+    ['Composition', '/compositions/new?org=acme'],
     ['Problem', '/app/acme/problem-editor'],
     ['Run', RUN_NEW],
     ['Study', '/app/acme/studies/new'],

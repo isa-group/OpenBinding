@@ -86,7 +86,11 @@ function Values({ model, result }: { model: CompositionViewModel; result: Evalua
   const rows = sideBySide(model.values, result.values);
   const versionStatus = model.status.values ?? 'unverified';
   if (rows.length === 0)
-    return <p className="cr-muted">The toolchain computed no values for this binding.</p>;
+    return (
+      <p className="cr-muted m-0 text-[13px] text-tp-steel">
+        The toolchain computed no values for this binding.
+      </p>
+    );
   return (
     <table className="cr-conf-values">
       <caption className="sr-only">The version’s values and this binding’s, side by side</caption>
@@ -188,24 +192,24 @@ function Configurator({
   const result = (
     <RendererSection title="This binding">
       {!pending && (
-        <p className="cr-muted">
+        <p className="cr-muted m-0 text-[13px] text-tp-steel">
           This is the version’s binding. Choose another candidate for a task to have the toolchain
           evaluate it.
         </p>
       )}
       {pending && status.state === 'paused' && (
-        <p className="cr-muted" role="status">
+        <p className="cr-muted m-0 text-[13px] text-tp-steel" role="status">
           {pausedMessage(status.until)}
         </p>
       )}
       {pending && !shown && status.state !== 'paused' && (
-        <p className="cr-muted" role="status">
+        <p className="cr-muted m-0 text-[13px] text-tp-steel" role="status">
           The toolchain is evaluating this binding…
         </p>
       )}
       {shown?.state === 'refused' &&
         (shown.refusal.notLinked ? (
-          <p className="cr-muted">{shown.refusal.message}</p>
+          <p className="cr-muted m-0 text-[13px] text-tp-steel">{shown.refusal.message}</p>
         ) : (
           <Notice tone="error">
             {shown.refusal.message}
@@ -260,7 +264,7 @@ function Configurator({
       {sections.includes('result') && result}
       {sections.includes('choice') && (
         <RendererSection title="Choose per task">
-          <p className="cr-muted">
+          <p className="cr-muted m-0 text-[13px] text-tp-steel">
             The candidates of the linked problem, on the compilation this version’s values were
             evaluated on. The selected ones start as the version’s binding.
           </p>
@@ -284,7 +288,9 @@ export function ConfiguratorMode({ model, sections, actions }: ConfiguratorModeP
   if (!model.matrix) {
     return sections.includes('choice') ? (
       <RendererSection title="Choose per task">
-        <p className="cr-muted">The candidates of the linked problem are not loaded yet.</p>
+        <p className="cr-muted m-0 text-[13px] text-tp-steel">
+          The candidates of the linked problem are not loaded yet.
+        </p>
       </RendererSection>
     ) : null;
   }

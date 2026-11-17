@@ -4,13 +4,7 @@ import { CandidateMatrix } from '../../../candidate-matrix/CandidateMatrix';
 import { WorkflowGraph } from '../../../workflow-graph/WorkflowGraph';
 import type { Section } from '../../presets';
 import { RendererSection } from '../../RendererSection';
-import {
-  removedTasks,
-  selectionTags,
-  taskOverlay,
-  workflowChanged,
-  type Diff,
-} from './comparisonModel';
+import { removedTasks, selectionTags, taskOverlay, workflowChanged, type Diff } from './diffModel';
 
 interface GraphDiffProps {
   /** The later version, with its document (and, for a member who may read the problem, its candidate matrix). */
@@ -45,7 +39,7 @@ export function GraphDiff({ model, diff, beforeSelection, sections }: GraphDiffP
     <>
       {shows('graph') && (
         <RendererSection title="Workflow changes">
-          <p className="cr-muted">
+          <p className="cr-muted m-0 text-[13px] text-tp-steel">
             {`The workflow of ${to}. A task marked added or changed is bound differently from ${from}.`}
             {workflowChanged(diff)
               ? ' The workflow itself changed too: the file view shows how.'
@@ -57,7 +51,7 @@ export function GraphDiff({ model, diff, beforeSelection, sections }: GraphDiffP
             label={`The workflow of ${model.identity.name} at ${to}`}
           />
           {removed.length > 0 && (
-            <p className="cx-removed">
+            <p className="cx-removed m-0 text-[13px] text-tp-slate [&_code]:font-mono">
               {`Not in ${to} any more: `}
               {removed.map((task, index) => (
                 <span key={task}>
@@ -71,7 +65,7 @@ export function GraphDiff({ model, diff, beforeSelection, sections }: GraphDiffP
       )}
       {shows('candidates') && matrix && (
         <RendererSection title="Problem candidates">
-          <p className="cr-muted">{`What the linked problem offers each task, with the candidate ${from} and ${to} chose marked.`}</p>
+          <p className="cr-muted m-0 text-[13px] text-tp-steel">{`What the linked problem offers each task, with the candidate ${from} and ${to} chose marked.`}</p>
           <CandidateMatrix
             matrix={unselected(matrix)}
             mode="view"

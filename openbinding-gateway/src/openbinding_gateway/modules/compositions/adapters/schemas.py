@@ -264,6 +264,16 @@ class PublicCompositionOrganization(BaseModel):
     name: str = Field(description="The organization's display name.")
 
 
+class VersionFigures(BaseModel):
+    """What a list shows of a version's size and cost: ``tasks`` and ``providers`` from the analytics stored at
+    seal, ``cost`` from the latest evaluation's ``cost`` value; each null when the version has none."""
+
+    tasks: Optional[int] = None
+    providers: Optional[int] = None
+    cost: Optional[float] = None
+    cost_unit: Optional[str] = Field(default=None, description="The unit the evaluation gave the cost, if any.")
+
+
 class PublicVersionSummary(BaseModel):
     """The latest version of a public composition, as a list shows it."""
 
@@ -272,6 +282,7 @@ class PublicVersionSummary(BaseModel):
     values_status: ValuesStatusName
     verified: bool = Field(description="Whether the current evaluation verified the binding and computed the values.")
     created_at: datetime
+    figures: VersionFigures = Field(default_factory=VersionFigures)
 
 
 class PublicCompositionView(BaseModel):
@@ -310,6 +321,7 @@ class CompositionVersionSummary(BaseModel):
     values_status: ValuesStatusName
     verified: bool = Field(description="Whether the current evaluation verified the binding and computed the values.")
     created_at: datetime
+    figures: VersionFigures = Field(default_factory=VersionFigures)
 
 
 class VersionProblem(BaseModel):

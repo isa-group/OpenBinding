@@ -43,7 +43,7 @@ export function WorkflowMode({ model, sections }: WorkflowModeProps) {
       )}
       {shows('candidates') && matrix && (
         <RendererSection title="Problem candidates">
-          <p className="cr-muted">
+          <p className="cr-muted m-0 text-[13px] text-tp-steel">
             What the linked problem offers each task, on the compilation these values were evaluated
             on. The candidate this version uses is selected.
           </p>

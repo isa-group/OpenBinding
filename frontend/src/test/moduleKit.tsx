@@ -7,6 +7,7 @@ import { vi, type Mock } from 'vitest';
 import type { UserProfile } from '../api/auth';
 import { AuthContext } from '../modules/auth/hooks/useAuth';
 import DialogHost from '../modules/core/components/dialog-host';
+import { ToastProvider } from '../modules/core/contexts/toastContext';
 import type { Organization } from '../modules/organization/api/organizationsApi';
 import OrganizationContext, {
   type OrganizationContextInterface,
@@ -141,14 +142,16 @@ export function renderModule(element: ReactElement, options: ModuleRenderOptions
       <MemoryRouter initialEntries={[options.entry ?? '/']}>
         <AuthContext.Provider value={auth}>
           <OrganizationContext.Provider value={organizations}>
-            <Routes>
-              <Route path={options.path ?? '*'} element={element} />
-              {Object.entries(options.routes ?? {}).map(([path, routed]) => (
-                <Route key={path} path={path} element={routed} />
-              ))}
-            </Routes>
-            <Where />
-            <DialogHost />
+            <ToastProvider>
+              <Routes>
+                <Route path={options.path ?? '*'} element={element} />
+                {Object.entries(options.routes ?? {}).map(([path, routed]) => (
+                  <Route key={path} path={path} element={routed} />
+                ))}
+              </Routes>
+              <Where />
+              <DialogHost />
+            </ToastProvider>
           </OrganizationContext.Provider>
         </AuthContext.Provider>
       </MemoryRouter>
