@@ -5,6 +5,8 @@
 // later block of the convergence repoints its entries (the editors, the explore pages, the about pages). The New menu and the
 // user menu live here too, so the header, the mobile drawer and the public header share one list.
 
+import { newStudyPath } from '../../../../routes/paths/studies';
+
 export interface HeaderRoute {
   name: string;
   disabled: boolean;
@@ -21,7 +23,7 @@ export const headerRoutes: HeaderRoute[] = [
     children: [
       { name: 'Composition editor', disabled: false, to: '/editor' },
       { name: 'Composition2Yaml', disabled: false, to: '/language' },
-      { name: 'Problem workbench', disabled: false, to: '/workbench' },
+      { name: 'Problem editor', disabled: false, to: '/problem-editor' },
     ],
   },
   {
@@ -34,7 +36,9 @@ export const headerRoutes: HeaderRoute[] = [
     ],
   },
   { name: 'Pricing', disabled: false, to: '/pricing' },
-  { name: 'About', disabled: false, to: '/about' },
+  { name: 'Team', disabled: false, to: '/team' },
+  { name: 'Research', disabled: false, to: '/research', match: ['/contributions'] },
+  { name: 'Changelog', disabled: false, to: '/changelog' },
 ];
 
 export interface MenuEntry {
@@ -47,15 +51,15 @@ export function newEntries(organization: string | undefined): MenuEntry[] {
   const inOrganization: MenuEntry[] = organization
     ? [
         { label: 'Composition', to: `/compositions/new?org=${encodeURIComponent(organization)}` },
-        { label: 'Problem', to: `/app/${organization}/problem-editor` },
-        { label: 'Run', to: `/app/${organization}/runs/new` },
-        { label: 'Study', to: `/app/${organization}/studies/new` },
+        { label: 'Problem', to: `/problem-editor?org=${encodeURIComponent(organization)}` },
+        { label: 'Run', to: `/runs/new?org=${encodeURIComponent(organization)}` },
+        { label: 'Study', to: newStudyPath(organization) },
       ]
     : [];
   return [
     ...inOrganization,
     { label: 'Organization', to: '/orgs/new' },
-    { label: 'Engine', to: '/app/engines/new' },
+    { label: 'Engine', to: '/me/engines/new' },
   ];
 }
 
@@ -65,10 +69,10 @@ export function userEntries(isAdmin: boolean): MenuEntry[] {
     { label: 'Organizations', to: '/me/orgs' },
     { label: 'Compositions', to: '/me/compositions' },
     { label: 'Inbox', to: '/notifications' },
-    { label: 'Engines', to: '/app/engines/registrations' },
+    { label: 'Engines', to: '/me/engines' },
     { label: 'API keys', to: '/me/api-keys' },
     { label: 'Settings', to: '/me/settings' },
-    ...(isAdmin ? [{ label: 'Administration', to: '/app/admin' }] : []),
+    ...(isAdmin ? [{ label: 'Administration', to: '/admin' }] : []),
   ];
 }
 

@@ -6,12 +6,14 @@ import {
   apiClient,
   PRICING_TOKEN_UPDATED_EVENT,
   SESSION_ENDED_EVENT,
-} from '../../../api/client';
-import type { UserProfile } from '../../../api/auth';
-import { ErrorState } from '../../../components/ui/ErrorState';
-import { clearSessionEnded, markSessionEnded } from '../../../utils/authFlow';
+} from '../../core/api/http';
+import type { UserProfile } from '../../core/api/account';
+import { ErrorState, StateAction } from '../../core/components/error-state';
+import { clearSessionEnded, markSessionEnded } from '../utils/authFlow';
 import { clearUserDrafts } from '../../core/editor/drafts';
 import { AuthContext } from './authContext';
+import { accountClient } from '../api/accountClient';
+import { planClient } from '../../settings/api/planClient';
 
 /**
  * Who is signed in, for the whole interface.
@@ -46,7 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
     try {
-      setUser(await apiClient.getOwnProfile());
+      setUser(await accountClient.getOwnProfile());
       setUnavailable(false);
       clearSessionEnded();
     } catch (caught) {
@@ -61,7 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
     try {
-      await apiClient.getPricingToken();
+      await planClient.getPricingToken();
     } catch {
       // No token could be issued: forget the old one, and tell whoever shows its state.
       localStorage.removeItem('pricingToken');
@@ -107,7 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = useCallback(
     async (usernameOrEmail: string, password: string) => {
-      await apiClient.login(usernameOrEmail, password);
+      await accountClient.login(usernameOrEmail, password);
       await loadProfile();
     },
     [loadProfile]
@@ -115,10 +117,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const register = useCallback(
     async (details: { username: string; email: string; password: string }) => {
-      await apiClient.register(details);
+      await accountClient.register(details);
       // Registering does not sign anybody in, so this does it - nobody wants
       // to type the same password twice in a row to get started.
-      await apiClient.login(details.username, details.password);
+      await accountClient.login(details.username, details.password);
       await loadProfile();
     },
     [loadProfile]
@@ -127,7 +129,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const userId = user?.id;
   const signOut = useCallback(async () => {
     try {
-      await apiClient.logout();
+      await accountClient.logout();
     } finally {
       // The person's editor drafts stay in this browser; they must not outlive their session.
       if (userId) await clearUserDrafts(userId).catch(() => undefined);
@@ -165,14 +167,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           title="We couldn’t check your session"
           checking={retrying}
           actions={
-            <button
-              type="button"
-              className="ui-state-action is-primary"
-              onClick={() => void retry()}
-              disabled={retrying}
-            >
+            <StateAction tone="primary" onClick={() => void retry()} disabled={retrying}>
               Try again
-            </button>
+            </StateAction>
           }
         >
           You’re still signed in. OpenBinding didn’t answer, so nothing was changed. Try again in a

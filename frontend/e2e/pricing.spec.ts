@@ -7,10 +7,11 @@ import {
   type TestInfo,
 } from '@playwright/test';
 import { failureBody } from './helpers/problems';
-import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
+import { CURRENT_FIXTURE, catalogFixture } from '../src/test/fixtures/pricingCatalog';
 import { agreementCatalogFixture } from '../src/test/fixtures/agreementCatalog';
 
-// S3 · pub-pricing /pricing, with the API answered by page.route() (there is no backend).
+// S3 · pub-pricing /pricing: SPHERE's hero, the document drawn by pricing-renderer through the bridge, and OpenBinding's
+// comparison and explainers as cards; the API answered by page.route() (there is no backend).
 // Screenshots go to testInfo.outputPath() (test-results/, ignored by git) so they can be looked at after a run.
 
 const API = 'http://localhost:8000';
@@ -145,12 +146,19 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main).not.toContainText(/fingerprint|sha256-|[0-9a-f]{12}/i);
       await expect(main.getByText('Development pricing.')).toBeVisible();
 
+      // The document, drawn by pricing-renderer through the bridge's commercial preset, under the page's own title.
+      const renderer = main.locator('pricing-renderer[data-pr-root]');
+      await expect(renderer).toBeVisible();
+      await expect(renderer.locator('[data-pr-part="hero"]')).toHaveCount(0);
+      await expect(renderer).toContainText('FREE');
+      await expect(renderer).toContainText('LAB');
+
       // Three plans in the order of the document; the paid one is an agreement, never a price.
       const plans = main.getByRole('list', { name: 'Plans' });
       await expect(plans.getByRole('listitem')).toHaveCount(3);
       await expect(plans.getByText('Contact us', { exact: true })).toHaveCount(2);
       await expect(plans.getByText('institutional agreement')).toHaveCount(1);
-      await expect(main.getByRole('link', { name: 'Sign up' })).toHaveAttribute(
+      await expect(plans.getByRole('link', { name: 'Sign up' })).toHaveAttribute(
         'href',
         '/authentication?view=register'
       );
@@ -158,7 +166,12 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         'href',
         '/authentication'
       );
-      expect(await main.innerText()).not.toMatch(/[€$]\s?\d/);
+      // No price but nothing: the free plans may read €0 in the drawn document, a plan by agreement never has a figure.
+      expect(await main.innerText()).not.toMatch(/[€$]\s?[1-9]/);
+      expect(
+        await main.getByRole('region', { name: 'Plans side by side' }).innerText()
+      ).not.toMatch(/[€$]\s?\d/);
+      await expect(renderer.locator('[data-pr-part="summary"]')).toHaveCount(0);
 
       // Monthly limits are open: the rounded figure with the exact one underneath.
       const monthly = main.getByRole('table', { name: 'Monthly: Renew each month' });
@@ -170,7 +183,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       if (isMobile) {
         // The plans stack instead of scrolling: the page is as wide as the device, the matrix has nothing to scroll, and no plan is cut off.
         const fit = await page.evaluate(deviceWidth => {
-          const scroller = document.querySelector('.pricing-scroller') as HTMLElement;
+          const scroller = document.querySelector('[data-part="matrix-scroller"]') as HTMLElement;
           const reach = (selector: string) =>
             Math.max(
               ...Array.from(document.querySelectorAll(selector)).map(
@@ -180,8 +193,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
           return {
             page: document.documentElement.scrollWidth - deviceWidth,
             scroller: scroller.scrollWidth - scroller.clientWidth,
-            tiles: reach('.pricing-plan-tile') - deviceWidth,
-            cells: reach('.pricing-table td') - deviceWidth,
+            tiles: reach('[data-part="plan-tile"]') - deviceWidth,
+            cells: reach('[data-part="matrix-table"] td') - deviceWidth,
           };
         }, viewport.width);
         expect(fit.page, 'the page should not scroll sideways').toBeLessThanOrEqual(1);
@@ -202,7 +215,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         'aria-pressed',
         'true'
       );
-      await expect(page.locator('.pricing-plan-tile.is-picked')).toHaveCount(1);
+      await expect(page.locator('[data-part="plan-tile"][data-picked]')).toHaveCount(1);
 
       await main
         .getByRole('heading', { name: 'What has to have room before you start' })
@@ -229,7 +242,11 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       });
       await page.goto('/pricing');
 
-      const contact = page.getByRole('button', { name: 'Contact us' }).first();
+      // The comparison's action; the drawn document's opens the same dialog (below).
+      const contact = page
+        .getByRole('list', { name: 'Plans' })
+        .getByRole('button', { name: 'Contact us' })
+        .first();
       await contact.focus();
       await contact.click();
       const dialog = page.getByRole('dialog', { name: 'Ask about LAB' });
@@ -285,6 +302,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       );
       await page.reload();
       await expect(main.getByRole('alert')).toContainText('503 · pricing_unavailable');
+      await expect(main.locator('pricing-renderer')).toHaveCount(0);
       await expect(main.getByRole('list', { name: 'Plans' })).toHaveCount(0);
       await capture(page, testInfo, `pricing-${name}-503`);
 
@@ -319,6 +337,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       await expect(main.getByText('Your current plan')).toHaveCount(1);
       await expect(main.getByRole('link', { name: 'Link CAS identity' })).toHaveCount(0);
+      await expect(
+        main.locator('pricing-renderer [data-pr-part="plan-card"][data-current="true"]')
+      ).toHaveCount(1);
       await expect(main.getByRole('link', { name: 'Manage identities' })).toHaveAttribute(
         'href',
         '/me/settings?section=integrations'
@@ -342,26 +363,19 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('draws the long form of the document with pricing-renderer when asked', async ({
+    test('every plan of the drawn document offers what the comparison offers for it', async ({
       page,
     }) => {
       test.skip(isMobile, 'A behaviour of the page, not of its layout: the desktop run covers it.');
       await mockApi(page);
       await page.goto('/pricing');
 
-      await page.getByRole('button', { name: 'Show the full pricing document' }).click();
-      const shell = page.locator('.pricing-renderer-shell');
-      const renderer = shell.locator('pricing-renderer[data-pr-root]');
+      const renderer = page.locator('pricing-renderer[data-pr-root]');
       await expect(renderer).toBeVisible();
-      await expect(shell).toContainText('FREE');
-      await expect(shell).toContainText('LAB');
       await expect(page.getByRole('link', { name: 'SPHERE' })).toHaveAttribute(
         'href',
         CURRENT_FIXTURE.url
       );
-
-      // The page's title stands for the document's, and every plan offers what the comparison offers for it.
-      await expect(renderer.locator('[data-pr-part="hero"]')).toHaveCount(0);
       await expect(renderer.locator('[data-pr-slot="plan-cta"]')).toHaveText([
         'Sign up',
         'Log in with CAS',
@@ -377,13 +391,14 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await page.getByRole('button', { name: 'Got it' }).click();
     });
 
-    test('in the long form, a change of plan that drops an add-on asks first', async ({ page }) => {
+    test('in the drawn document, a change of plan that drops an add-on asks first', async ({
+      page,
+    }) => {
       test.skip(isMobile, 'A behaviour of the page, not of its layout: the desktop run covers it.');
       // The published pricing has no add-ons; the synthetic agreement catalog has four plans and add-ons to drop.
       await mockApi(page, { catalog: json(agreementCatalogFixture) });
       await page.goto('/pricing');
-      await page.getByRole('button', { name: 'Show the full pricing document' }).click();
-      const renderer = page.locator('.pricing-renderer-shell pricing-renderer[data-pr-root]');
+      const renderer = page.locator('pricing-renderer[data-pr-root]');
       await expect(renderer).toBeVisible();
 
       // The confirmation is a dialog centred on the viewport, not on the section.
@@ -402,9 +417,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await confirm.getByRole('button', { name: 'Cancel' }).click();
     });
 
-    test('marks the plan and add-ons of the account in the long form of the document', async ({
-      page,
-    }) => {
+    test('marks the plan and add-ons of the account in the drawn document', async ({ page }) => {
       test.skip(isMobile, 'A behaviour of the page, not of its layout: the desktop run covers it.');
       const subscription = {
         contractedServices: { openbinding: CURRENT_FIXTURE.version },
@@ -420,8 +433,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       });
       await page.goto('/pricing');
 
-      await page.getByRole('button', { name: 'Show the full pricing document' }).click();
-      const renderer = page.locator('.pricing-renderer-shell pricing-renderer[data-pr-root]');
+      const renderer = page.locator('pricing-renderer[data-pr-root]');
       const cards = renderer.locator('[data-pr-part="plan-card"]');
       await expect(cards.nth(3)).toHaveAttribute('data-current', 'true');
       await expect(

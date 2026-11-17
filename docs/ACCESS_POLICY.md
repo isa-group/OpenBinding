@@ -115,13 +115,12 @@ organization's blob.
 
 ## Reserved organization slugs
 
-An organization slug is the first segment of its screens (`/app/<slug>`), so the
-slugs of the fixed places and of the sections under an organization are refused at
-creation with `422 slug_reserved`: `admin`, `account`, `engines`, `organizations`,
-`invitations`, `compositions`, `presets`, `runs`, `problems`, `studies`, `settings`,
-`problem-editor` and `new` (`RESERVED_ORGANIZATION_SLUGS` in `models/platform.py`, mirrored by
-`frontend/src/components/PlatformShell/workspacePath.ts`, whose test reads the Python
-list and keeps the two equal). A slug cannot be changed after creation.
+An organization's page is `/orgs/<slug>`, so the static children of that address
+(`new`, `join`) and `public`, which would shadow `GET /v1/organizations/public`, are
+refused at creation with `422 slug_reserved` (`RESERVED_ORGANIZATION_SLUGS` in
+`models/platform.py`; `frontend/src/routes/reservedSlugs.test.ts` reads the frontend's
+route table and the Python list and keeps them equal). A slug cannot be changed after
+creation.
 
 ## The runs of an organization (`/v1/organizations/{org}/runs`)
 
@@ -210,7 +209,7 @@ checks the latest text once. Any other refusal is shown, not retried.
 | `POST /v1/compositions/validate` | `read` (60 / 300) | 600 ms after the last keystroke in the composition editor; 800 ms on the anonymous Language page |
 | `POST …/compositions/{composition}/versions/check` | `evaluate` (30 / 150) | 1500 ms after the last keystroke, only when the text has a top-level `problem:`, its last lint was valid, and the reader is a member |
 | `POST …/compositions/{composition}/evaluate` | `evaluate` | the configurator (Analysis), 800 ms after the last change of a task's candidate |
-| `POST /v1/bim/validate?include=facts` | `compile` (10 / 50) | the BIM problem editor (F2b), 2000 ms after the last edit, only when every JSON file of the package parses; the public Workbench (`/workbench`) once per press of Validate package, never live |
+| `POST /v1/bim/validate?include=facts` | `compile` (10 / 50) | the BIM problem editor (`/problem-editor`, a visitor's included), 2000 ms after the last edit, only when every JSON file of the package parses, and on Check now |
 
 Parsing for the visual form and the canonical form (`/parse`, `/serialise`) runs through the same scheduler, at
 600 ms in the editor (only while the visual form is shown) and 800 ms on Language (only while the canonical form is

@@ -13,7 +13,7 @@ import {
   tileColour,
 } from './org-tree';
 import { slugFromName } from '../../core/utils/slug';
-import { org } from '../../../features/workspace/testKit';
+import { org } from '../../../test/fixtures/accounts';
 
 const group = org('isa-demo', { name: 'ISA Demo Group' });
 const lab = org('qos-lab', {
@@ -102,6 +102,6 @@ describe('names', () => {
     expect([...used].every(colour => (TILE_COLOURS as readonly string[]).includes(colour))).toBe(
       true
     );
-    expect(TILE_COLOURS).not.toContain('var(--tp-sunshine-800)');
+    expect(TILE_COLOURS).not.toContain('var(--color-tp-sunshine-800)');
   });
 });

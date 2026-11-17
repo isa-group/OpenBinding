@@ -21,7 +21,7 @@ import {
   FiRepeat,
   FiX,
 } from 'react-icons/fi';
-import { useResource } from '../../../../utils/useResource';
+import { useResource } from '../../../core/hooks/useResource';
 import { readApiError } from '../../../core/api/errors';
 import type {
   CompositionVersionDiff,
@@ -29,7 +29,7 @@ import type {
   CompositionView,
   ProblemFacts,
 } from '../../../core/api/types';
-import { GraphDiff } from '../../../core/components/composition-renderer/modes/comparison/GraphDiff';
+import { GraphDiff } from '../../../core/components/composition-renderer/modes/graph-diff/GraphDiff';
 import {
   activeFilter,
   changeRow,
@@ -40,7 +40,7 @@ import {
   type DiffEntry,
   type DiffSection,
   type FieldChange,
-} from '../../../core/components/composition-renderer/modes/comparison/diffModel';
+} from '../../../core/components/composition-renderer/modes/graph-diff/diffModel';
 import { notComparableShort } from '../../../core/utils/composition/changes';
 import { factsSource } from '../../../core/utils/composition/factsSource';
 import { compositionViewModel } from '../../../core/utils/composition/viewModel';
@@ -263,7 +263,8 @@ function Section({ section }: { section: DiffSection }) {
   );
 }
 
-function DiffResult({
+/** The structured comparison of two documents: the summary tiles, the general changes and the sections. */
+export function DiffResult({
   diff,
   filter,
   onFilterChange,

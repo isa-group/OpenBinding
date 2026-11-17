@@ -33,8 +33,8 @@ import {
 import { formatValue, type ValueStatus } from '../../../core/utils/composition/values';
 import { classifyAuthError, marker as authMarker } from '../../../core/api/errors';
 import type { CompositionVersionView } from '../../../core/api/types';
-import { formatDate, formatNumber } from '../../../../utils/format';
-import { useResource } from '../../../../utils/useResource';
+import { formatDate, formatNumber } from '../../../core/utils/format';
+import { useResource } from '../../../core/hooks/useResource';
 import { ValueBadge } from '../../../core/components/value-badge/ValueBadge';
 import { VALUE_STATUS_TEXT } from '../../../core/components/value-badge/statusText';
 import {

@@ -23,7 +23,7 @@ export default defineConfig([
   },
   {
     // SPHERE's module layout (docs/adr/0053-frontend-on-sphere-stack.md): src/modules/<domain>, with shared code in modules/core.
-    // The legacy folders (components, api, utils, contexts, features, pages) are not modules and stay importable until they empty.
+    // Outside src/modules there are only the application's root (App, main, config), the route table and the test kit.
     files: ['src/**/*.{ts,tsx}'],
     plugins: { boundaries },
     settings: {
@@ -35,34 +35,8 @@ export default defineConfig([
           capture: ['module'],
         },
         { type: 'module', pattern: 'src/modules/*', capture: ['module'] },
-        { type: 'page', pattern: 'src/pages/*', capture: ['name'] },
       ],
       'import/resolver': { node: { extensions: ['.ts', '.tsx', '.js', '.jsx'] } },
-    },
-  },
-  {
-    // Report-only for the pages that predate the layers: an import from one page into another is a warning, never an error.
-    files: ['src/pages/**/*.{ts,tsx}'],
-    rules: {
-      'boundaries/dependencies': [
-        'warn',
-        {
-          default: 'allow',
-          policies: [
-            {
-              from: { element: { type: 'page' } },
-              disallow: {
-                to: {
-                  element: {
-                    type: 'page',
-                    captured: { name: '!{{ from.element.captured.name }}' },
-                  },
-                },
-              },
-            },
-          ],
-        },
-      ],
     },
   },
   {

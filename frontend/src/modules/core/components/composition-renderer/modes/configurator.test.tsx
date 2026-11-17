@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { HttpError } from '../../../../../api/client';
+import { HttpError } from '../../../api/http';
 import { candidateMatrix } from '../../../utils/binding/candidateMatrix';
 import { compositionViewModel } from '../../../utils/composition/viewModel';
 import type { CompositionVersionView, ProblemFacts } from '../../../api/types';

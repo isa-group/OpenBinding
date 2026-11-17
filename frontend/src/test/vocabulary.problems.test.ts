@@ -157,7 +157,7 @@ describe('the vocabulary scanner', () => {
       '/src/a/testUtils.ts',
       '/src/test/fixtures/jobs.ts',
       '/src/a/fixtures.ts',
-      '/src/pages/Pricing/pricingFixture.ts',
+      '/src/test/fixtures/pricingCatalog.ts',
       '/src/components/rendering/runResultFixtures.ts',
       '/src/test/setup.ts',
       '/src/a/x.d.ts',
@@ -165,9 +165,9 @@ describe('the vocabulary scanner', () => {
       expect(isTestSupport(path), path).toBe(true);
     }
     for (const path of [
-      '/src/pages/Problems/ProblemList.tsx',
-      '/src/modules/problem-editor/components/bim-editor/useProblemEditor.ts',
-      '/src/pages/Studies/StudyList.tsx',
+      '/src/modules/problem/components/problems-tab/index.tsx',
+      '/src/modules/problem-editor/hooks/useProblemEditor.ts',
+      '/src/modules/study/components/studies-tab/index.tsx',
     ]) {
       expect(isTestSupport(path), path).toBe(false);
     }
@@ -193,26 +193,20 @@ describe('the vocabulary scanner', () => {
   });
 });
 
-// The sources of the problem area: the problem list and page, and the problem editor with its forms.
+// The sources of the problem area: the Problems tab and the problem page, and the problem editor with its forms.
 const area = import.meta.glob(
-  [
-    '/src/pages/Problems/**/*.{ts,tsx}',
-    '/src/modules/problem-editor/components/bim-editor/**/*.{ts,tsx}',
-  ],
+  ['/src/modules/problem/**/*.{ts,tsx}', '/src/modules/problem-editor/**/*.{ts,tsx}'],
   { query: '?raw', import: 'default', eager: true }
 ) as Record<string, string>;
 
 describe('the problem area', () => {
-  it('reads the sources of pages/Problems and the problem editor', () => {
+  it('reads the sources of modules/problem and the problem editor', () => {
     const paths = Object.keys(area);
     expect(
-      paths.filter(path => path.includes('/pages/Problems/') && !isTestSupport(path)).length
+      paths.filter(path => path.includes('/modules/problem/') && !isTestSupport(path)).length
     ).toBeGreaterThan(10);
     expect(
-      paths.filter(
-        path =>
-          path.includes('/modules/problem-editor/components/bim-editor/') && !isTestSupport(path)
-      ).length
+      paths.filter(path => path.includes('/modules/problem-editor/') && !isTestSupport(path)).length
     ).toBeGreaterThan(10);
     expect(paths.some(path => path.includes('/pages/Workbench/'))).toBe(false);
   });

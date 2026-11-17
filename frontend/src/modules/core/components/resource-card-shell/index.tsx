@@ -4,7 +4,8 @@
 // Changes: the frame of SPHERE's pricing card page, taken out so every resource page of an organization uses it: the
 // breadcrumb (links, not buttons), the `font-display` title with its version line, the actions (on a phone the primary one
 // stays and the rest go into a ⋯ menu), the stat tiles and the underline tabs (pills on a phone). The tabs are links to the
-// tab's address, so a tab can be linked and the back button returns to it; the page decides what each tab holds.
+// tab's address, so a tab can be linked and the back button returns to it; the page decides what each tab holds. A page of
+// sections passes no tabs and gets no tab bar.
 
 import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
@@ -210,45 +211,47 @@ export default function ResourceCardShell({
         </motion.dl>
       )}
 
-      {/* Tabs */}
-      <nav aria-label={tabsLabel} className="mb-6 border-b border-tp-hairline">
-        <div
-          className="mb-2 flex gap-2 overflow-x-auto pb-2 md:mb-0 md:gap-1 md:overflow-visible md:pb-0"
-          style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}
-        >
-          {tabs.map(tab => {
-            const active = activeTab === tab.id;
-            return (
-              <Link
-                key={tab.id}
-                to={tab.to}
-                aria-current={active ? 'page' : undefined}
-                className={`relative shrink-0 cursor-pointer rounded-full px-4 py-2 text-sm font-medium whitespace-nowrap transition-all md:rounded-none md:py-2.5 ${
-                  active
-                    ? 'bg-tp-accent text-tp-on-primary shadow-sm md:bg-transparent md:text-tp-accent md:shadow-none'
-                    : 'bg-tp-surface text-tp-steel hover:bg-tp-hairline hover:text-tp-ink md:bg-transparent md:hover:bg-transparent'
-                }`}
-              >
-                {tab.shortLabel ? (
-                  <>
-                    <span className="md:hidden">{tab.shortLabel}</span>
-                    <span className="hidden md:inline">{tab.label}</span>
-                  </>
-                ) : (
-                  tab.label
-                )}
-                {active && (
-                  <motion.div
-                    layoutId="resource-tab"
-                    className="absolute right-0 bottom-0 left-0 hidden h-0.5 bg-tp-primary md:block"
-                    transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-                  />
-                )}
-              </Link>
-            );
-          })}
-        </div>
-      </nav>
+      {/* Tabs (a page of sections, with no tabs, draws none) */}
+      {tabs.length > 0 && (
+        <nav aria-label={tabsLabel} className="mb-6 border-b border-tp-hairline">
+          <div
+            className="mb-2 flex gap-2 overflow-x-auto pb-2 md:mb-0 md:gap-1 md:overflow-visible md:pb-0"
+            style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}
+          >
+            {tabs.map(tab => {
+              const active = activeTab === tab.id;
+              return (
+                <Link
+                  key={tab.id}
+                  to={tab.to}
+                  aria-current={active ? 'page' : undefined}
+                  className={`relative shrink-0 cursor-pointer rounded-full px-4 py-2 text-sm font-medium whitespace-nowrap transition-all md:rounded-none md:py-2.5 ${
+                    active
+                      ? 'bg-tp-accent text-tp-on-primary shadow-sm md:bg-transparent md:text-tp-accent md:shadow-none'
+                      : 'bg-tp-surface text-tp-steel hover:bg-tp-hairline hover:text-tp-ink md:bg-transparent md:hover:bg-transparent'
+                  }`}
+                >
+                  {tab.shortLabel ? (
+                    <>
+                      <span className="md:hidden">{tab.shortLabel}</span>
+                      <span className="hidden md:inline">{tab.label}</span>
+                    </>
+                  ) : (
+                    tab.label
+                  )}
+                  {active && (
+                    <motion.div
+                      layoutId="resource-tab"
+                      className="absolute right-0 bottom-0 left-0 hidden h-0.5 bg-tp-primary md:block"
+                      transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                    />
+                  )}
+                </Link>
+              );
+            })}
+          </div>
+        </nav>
+      )}
 
       <AnimatePresence mode="wait">
         <motion.div

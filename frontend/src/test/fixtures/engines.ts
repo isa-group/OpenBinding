@@ -1,7 +1,5 @@
-import type { UsageView } from '../../api/auth';
-import type {
-  BimProfile, EngineManifest, EngineRegistrationManifest, EngineRegistrationReport, EngineRegistrationRevision,
-} from '../../api/client';
+import type { UsageView } from '../../modules/core/api/account';
+import type { BimProfile, EngineManifest, EngineRegistrationManifest, EngineRegistrationReport, EngineRegistrationRevision } from '../../modules/engine/api/engineClient';
 
 // Shared by the engine screens' tests and by the end-to-end spec: types only, so it loads in Node as well.
 

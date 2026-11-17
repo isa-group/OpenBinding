@@ -1,4 +1,4 @@
-import { QuotaError } from '../../../../api/auth';
+import { QuotaError } from '../../../core/api/account';
 import type { AuthFailure } from '../../../core/api/errors';
 
 /** The allowance a 402 names: `{ limit_id: 'members', limit: 15, used: 16 }`. */

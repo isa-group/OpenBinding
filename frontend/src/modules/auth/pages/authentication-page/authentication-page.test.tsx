@@ -2,9 +2,9 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { HelmetProvider } from 'react-helmet-async';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { PricingUnavailableError } from '../../../../api/auth';
-import type { UserProfile } from '../../../../api/auth';
-import { HttpError } from '../../../../api/client';
+import { PricingUnavailableError } from '../../../core/api/account';
+import type { UserProfile } from '../../../core/api/account';
+import { HttpError } from '../../../core/api/http';
 import { AuthContext } from '../../hooks/useAuth';
 import {
   clearSessionEnded,
@@ -14,7 +14,7 @@ import {
   markSessionEnded,
   noteSignInStarted,
   readCasFlow,
-} from '../../../../utils/authFlow';
+} from '../../utils/authFlow';
 import AuthenticationPage from '.';
 
 const sampleUser: UserProfile = {
@@ -79,11 +79,11 @@ describe('AuthenticationPage', () => {
             <Routes>
               <Route path="/authentication" element={ui} />
               <Route path="/" element={<h1>Platform Dashboard</h1>} />
-              <Route path="/app/org/project" element={<h1>Project Workspace</h1>} />
+              <Route path="/problems/org/project" element={<h1>Project Workspace</h1>} />
               <Route path="/orgs/join/:code" element={<h1>Invitation page</h1>} />
               <Route path="/compositions/:org/:composition" element={<h1>Public composition</h1>} />
               <Route path="/account" element={<h1>Legacy Account</h1>} />
-              <Route path="/app/account" element={<h1>Account Settings</h1>} />
+              <Route path="/me/settings" element={<h1>Account Settings</h1>} />
               <Route path="/pricing" element={<h1>Public Pricing</h1>} />
               <Route path="/forgot-password" element={<h1>Reset page</h1>} />
             </Routes>
@@ -156,7 +156,7 @@ describe('AuthenticationPage', () => {
       signInMock.mockResolvedValue(undefined);
       renderWithAuth(<AuthenticationPage />, {
         pathname: '/authentication',
-        state: { from: '/app/org/project' },
+        state: { from: '/problems/org/project' },
       });
 
       fillLogin();
@@ -168,7 +168,7 @@ describe('AuthenticationPage', () => {
       signInMock.mockResolvedValue(undefined);
       renderWithAuth(<AuthenticationPage />, {
         pathname: '/authentication',
-        state: { from: '/app/account' },
+        state: { from: '/me/settings' },
       });
 
       fillLogin();
@@ -238,13 +238,13 @@ describe('AuthenticationPage', () => {
     it('sends the already signed-in visitor on to the page they asked for', () => {
       renderWithAuth(
         <AuthenticationPage />,
-        { pathname: '/authentication', state: { from: '/app/org/project' } },
+        { pathname: '/authentication', state: { from: '/problems/org/project' } },
         sampleUser
       );
 
       expect(screen.getByRole('link', { name: 'Continue to your workspace' })).toHaveAttribute(
         'href',
-        '/app/org/project'
+        '/problems/org/project'
       );
     });
 
@@ -296,7 +296,7 @@ describe('AuthenticationPage', () => {
       noteSignInStarted();
       renderWithAuth(
         <AuthenticationPage />,
-        { pathname: '/authentication', state: { from: '/app/org/project' } },
+        { pathname: '/authentication', state: { from: '/problems/org/project' } },
         sampleUser
       );
 
@@ -363,10 +363,8 @@ describe('AuthenticationPage', () => {
       expect(await screen.findByRole('alert')).toHaveTextContent(
         'Sign-in is unavailable right now (503)'
       );
-      expect(screen.getByRole('link', { name: 'Service status' })).toHaveAttribute(
-        'href',
-        '/about'
-      );
+      // The gateway's own health beside the refusal, as the footer shows it.
+      expect(screen.getByRole('alert')).toHaveTextContent(/Service status: /);
     });
 
     it('treats an unreachable pricing service as unavailable, not as a wrong password', async () => {
@@ -430,14 +428,14 @@ describe('AuthenticationPage', () => {
     it('remembers that the CAS flow is a login, and where the person was heading', () => {
       renderWithAuth(<AuthenticationPage />, {
         pathname: '/authentication',
-        state: { from: '/app/org/project' },
+        state: { from: '/problems/org/project' },
       });
       const cas = screen.getByRole('link', { name: 'Continue with Universidad de Sevilla' });
       cas.addEventListener('click', event => event.preventDefault());
 
       fireEvent.click(cas);
 
-      expect(readCasFlow()).toEqual({ mode: 'login', returnTo: '/app/org/project' });
+      expect(readCasFlow()).toEqual({ mode: 'login', returnTo: '/problems/org/project' });
     });
 
     it('waits for the stored session before offering anything', () => {
@@ -478,7 +476,7 @@ describe('AuthenticationPage', () => {
       renderWithAuth(<AuthenticationPage />, {
         pathname: '/authentication',
         search: '?view=register',
-        state: { from: '/app/org/project' },
+        state: { from: '/problems/org/project' },
       });
 
       fillRegister();
@@ -491,7 +489,7 @@ describe('AuthenticationPage', () => {
       renderWithAuth(<AuthenticationPage />, {
         pathname: '/authentication',
         search: '?view=register',
-        state: { from: '/app/account' },
+        state: { from: '/me/settings' },
       });
 
       fillRegister();
@@ -519,7 +517,7 @@ describe('AuthenticationPage', () => {
       noteSignInStarted();
       renderWithAuth(
         <AuthenticationPage />,
-        { pathname: '/authentication', search: '?view=register', state: { from: '/app/account' } },
+        { pathname: '/authentication', search: '?view=register', state: { from: '/me/settings' } },
         sampleUser
       );
 
@@ -651,7 +649,7 @@ describe('AuthenticationPage', () => {
       registerMock.mockResolvedValue(undefined);
       renderWithAuth(<AuthenticationPage />, {
         pathname: '/authentication',
-        state: { from: '/app/org/project' },
+        state: { from: '/problems/org/project' },
       });
 
       fireEvent.click(screen.getByRole('link', { name: 'Create one' }));

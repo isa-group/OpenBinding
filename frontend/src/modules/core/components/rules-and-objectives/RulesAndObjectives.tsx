@@ -1,6 +1,5 @@
 import { describeExpression, isAlways } from '../../utils/problem/expressions';
 import type { ProblemFacts } from '../../api/types';
-import './RulesAndObjectives.css';
 
 /**
  * The rules and objectives of a problem, from the facts of its compilation (A5) or of a checked package: each constraint with its
@@ -16,6 +15,9 @@ const record = (value: unknown): Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {};
+
+const PANEL = 'flex min-w-0 flex-col gap-3 rounded-2xl border border-tp-hairline bg-tp-canvas p-4';
+const CRITERION = 'flex flex-wrap justify-between gap-2 text-[13px] text-tp-ink';
 
 const DIRECTIONS: Readonly<Record<string, string>> = {
   minimize: 'lower is better',
@@ -87,14 +89,18 @@ function WrittenIn({
 }) {
   const place = (
     <>
-      written in <code>{origin.path}</code> at <code>{origin.pointer}</code>
+      written in <code className="font-mono">{origin.path}</code> at{' '}
+      <code className="font-mono">{origin.pointer}</code>
     </>
   );
-  if (!onOpen) return <small className="ro-written">{place}</small>;
+  if (!onOpen)
+    return (
+      <small className="block text-[11px] [overflow-wrap:anywhere] text-tp-steel">{place}</small>
+    );
   return (
     <button
       type="button"
-      className="ro-written ro-open"
+      className="block cursor-pointer text-left text-[11px] [overflow-wrap:anywhere] text-tp-link underline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-tp-primary"
       aria-label={`Open ${rule} in ${origin.path} at ${origin.pointer}`}
       onClick={() => onOpen(origin)}
     >
@@ -105,27 +111,35 @@ function WrittenIn({
 
 function Rules({ facts, subject = 'version', onOpenOrigin }: ViewProps) {
   return (
-    <section className="ro-panel" aria-labelledby="ro-rules">
-      <h3 id="ro-rules">Rules</h3>
+    <section className={PANEL} aria-labelledby="ro-rules">
+      <h3 id="ro-rules" className="text-[15px] font-semibold text-tp-ink">
+        Rules
+      </h3>
       {facts.constraints.length === 0 ? (
-        <p className="ro-muted">{`This ${subject} declares no rules.`}</p>
+        <p className="text-sm text-tp-steel">{`This ${subject} declares no rules.`}</p>
       ) : (
-        <ul className="ro-rules" aria-label={`Rules of this ${subject}`}>
+        <ul className="flex flex-col gap-2" aria-label={`Rules of this ${subject}`}>
           {facts.constraints.map(rule => (
-            <li key={rule.id}>
-              <span className={`ro-must${rule.enforcement === 'soft' ? ' is-should' : ''}`}>
+            <li key={rule.id} className="flex items-baseline gap-2 text-[13px] text-tp-ink">
+              <span
+                className={`flex-none rounded px-1.5 py-px text-[11px] font-semibold ${rule.enforcement === 'soft' ? 'border border-tp-ink text-tp-ink' : 'bg-tp-ink text-tp-on-primary'}`}
+              >
                 {rule.enforcement === 'hard' ? 'Must' : 'Should'}
               </span>
               <span>
                 {describeExpression(rule.expression)}
                 {rule.when !== null && !isAlways(rule.when) && (
-                  <small> · when {describeExpression(rule.when)}</small>
+                  <small className="ml-1 text-[11px] text-tp-steel">
+                    · when {describeExpression(rule.when)}
+                  </small>
                 )}
                 {rule.penalty !== null && (
-                  <small> · penalty {describeExpression(rule.penalty)} if broken</small>
+                  <small className="ml-1 text-[11px] text-tp-steel">
+                    · penalty {describeExpression(rule.penalty)} if broken
+                  </small>
                 )}
-                <small className="ro-rule-id">
-                  <code>{rule.id}</code> ·{' '}
+                <small className="block text-[11px] text-tp-steel">
+                  <code className="font-mono">{rule.id}</code> ·{' '}
                   {rule.enforcement === 'hard'
                     ? 'hard: a binding that breaks it is invalid'
                     : 'soft: a binding may break it, at a cost'}
@@ -146,17 +160,21 @@ function Objectives({ facts, subject = 'version' }: ViewProps) {
   const criteria = criteriaOf(facts);
   const penalties = penaltiesOf(facts);
   return (
-    <section className="ro-panel" aria-labelledby="ro-objectives">
-      <h3 id="ro-objectives">Objectives</h3>
+    <section className={PANEL} aria-labelledby="ro-objectives">
+      <h3 id="ro-objectives" className="text-[15px] font-semibold text-tp-ink">
+        Objectives
+      </h3>
       {criteria.length === 0 ? (
-        <p className="ro-muted">{`This ${subject} declares no criteria to optimize.`}</p>
+        <p className="text-sm text-tp-steel">{`This ${subject} declares no criteria to optimize.`}</p>
       ) : (
-        <ul className="ro-criteria" aria-label="Criteria to optimize">
+        <ul className="flex flex-col gap-2" aria-label="Criteria to optimize">
           {criteria.map(criterion => (
-            <li key={criterion.id}>
+            <li key={criterion.id} className={CRITERION}>
               <span>
                 <b>{criterion.id}</b>
-                {criterion.feature !== criterion.id ? <small> ({criterion.feature})</small> : null}
+                {criterion.feature !== criterion.id ? (
+                  <small className="text-tp-steel"> ({criterion.feature})</small>
+                ) : null}
               </span>
               <span>
                 {criterion.direction}
@@ -167,18 +185,18 @@ function Objectives({ facts, subject = 'version' }: ViewProps) {
         </ul>
       )}
       {penalties.length > 0 && (
-        <ul className="ro-criteria" aria-label="What breaking a soft rule costs">
+        <ul className="flex flex-col gap-2" aria-label="What breaking a soft rule costs">
           {penalties.map(penalty => (
-            <li key={penalty.rule}>
+            <li key={penalty.rule} className={CRITERION}>
               <span>
-                Breaking <code>{penalty.rule}</code>
+                Breaking <code className="font-mono">{penalty.rule}</code>
               </span>
               <span>costs weight {penalty.weight}</span>
             </li>
           ))}
         </ul>
       )}
-      <span className="ro-muted">{`How the criteria trade off against each other is chosen when ${subject === 'version' ? 'the version' : 'a saved version'} is run, so no weights are shown for them.`}</span>
+      <span className="text-sm text-tp-steel">{`How the criteria trade off against each other is chosen when ${subject === 'version' ? 'the version' : 'a saved version'} is run, so no weights are shown for them.`}</span>
     </section>
   );
 }
@@ -186,9 +204,11 @@ function Objectives({ facts, subject = 'version' }: ViewProps) {
 /** The rules and objectives of a problem version (its Overview) or of the package in the problem editor. */
 export function RulesAndObjectives(props: ViewProps) {
   return (
-    <section className="ro" aria-labelledby="ro-title">
-      <h2 id="ro-title">Rules and objectives</h2>
-      <div className="ro-grid">
+    <section className="flex flex-col gap-3" aria-labelledby="ro-title">
+      <h2 id="ro-title" className="text-lg font-medium text-tp-ink">
+        Rules and objectives
+      </h2>
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,340px),1fr))] items-start gap-4">
         <Rules {...props} />
         <Objectives {...props} />
       </div>

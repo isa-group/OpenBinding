@@ -6,7 +6,8 @@
 // in the address (`?q=&owners=&kinds=&min_tasks=&page=`), so a list can be linked and the back button restores it. The
 // owner facet comes from the gateway, counted over every match and named by slug (SPHERE's counted one page and sent
 // display names as `selectedOwners`, which its API reads as `selectedOrganizations`). A failed load says so and offers
-// Retry instead of showing an empty list, and a newer request cancels the one in flight.
+// Retry instead of showing an empty list, and a newer request cancels the one in flight. A page may say something under the
+// title (the engine catalog says whose engines it shows).
 
 import { AnimatePresence, motion } from 'framer-motion';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
@@ -67,6 +68,8 @@ interface Props<T> {
   rangeFilters?: RangeFilter[];
   /** What the page shows beside the title (a "New" button). */
   actions?: ReactNode;
+  /** What the page says under the title, above the search (who sees what). */
+  banner?: ReactNode;
   /** Change it to load the page again (after an item changed). */
   refreshKey?: number;
 }
@@ -94,6 +97,7 @@ export default function ResourceListView<T>({
   choiceFilters = [],
   rangeFilters = [],
   actions,
+  banner,
   refreshKey = 0,
 }: Props<T>) {
   const [params, setParams] = useSearchParams();
@@ -267,6 +271,8 @@ export default function ResourceListView<T>({
         </div>
         {actions}
       </motion.div>
+
+      {banner && <div className="mb-5">{banner}</div>}
 
       <motion.div
         initial={{ opacity: 0, y: 8 }}

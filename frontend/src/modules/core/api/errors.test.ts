@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ApiClient } from '../../../api/client';
+import { HttpTransport } from './http';
 import { classifyAuthError, marker, readApiError } from './errors';
 
 function answer(body: unknown, status: number, headers: Record<string, string> = {}): Response {
@@ -14,7 +14,7 @@ async function refusal(response: Response): Promise<unknown> {
   const fetchMock = vi.fn<typeof fetch>().mockResolvedValueOnce(response);
   vi.stubGlobal('fetch', fetchMock);
   try {
-    await new ApiClient('https://gateway.example').request('/v1/anything');
+    await new HttpTransport('https://gateway.example').request('/v1/anything');
   } catch (caught) {
     return caught;
   }

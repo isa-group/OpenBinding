@@ -15471,6 +15471,8 @@ export interface operations {
                 origin?: ("upload" | "editor" | "qacoforge" | "sphere") | null;
                 /** @description Only problems a version of this composition (slug or id) links; none for an unknown one. */
                 composition?: string | null;
+                /** @description `name` (by name, then slug) or `recent` (newest latest revision first; a problem with none by its creation). */
+                sort?: "name" | "recent";
                 limit?: number;
                 offset?: number;
             };

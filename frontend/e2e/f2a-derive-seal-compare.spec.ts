@@ -13,7 +13,6 @@ const expect = baseExpect.configure({ timeout: 15_000 });
 // Four screens and two seals in one walk, while the development server compiles each on demand.
 test.setTimeout(120_000);
 
-const ORG = '/app/isa-demo';
 const RUN = '7c1e5a90-0000-4000-8000-0000000000b1';
 const COMPOSITION = '/compositions/isa-demo/fleet-plan';
 const main = (page: Page) => page.locator('main');
@@ -112,30 +111,33 @@ test.describe('J1 · derive, seal and compare', () => {
     const sent = derivations(page);
 
     // The problem page: version 1's workflow, then the candidates of each task.
-    await page.goto(`${ORG}/problems/checkout-flow?version=1`);
+    await page.goto('/problems/isa-demo/checkout-flow?version=1');
     await expect(main(page).getByRole('group', { name: 'Workflow' })).toBeVisible();
-    await main(page).getByRole('tab', { name: 'Candidates' }).click();
+    await main(page)
+      .getByRole('navigation', { name: 'Problem sections' })
+      .getByRole('link', { name: 'Candidates' })
+      .click();
     const candidates = main(page).getByRole('region', { name: 'Candidates of each task' });
     await expect(candidates.getByRole('region', { name: 'Candidates for T1' })).toContainText(
       'cand_t1_google_cloud'
     );
 
     // One of its runs.
-    await main(page).getByRole('tab', { name: 'Runs' }).click();
+    await main(page)
+      .getByRole('navigation', { name: 'Problem sections' })
+      .getByRole('link', { name: 'Runs' })
+      .click();
     await main(page)
       .getByRole('region', { name: 'Runs of the problem' })
       .getByRole('link', { name: 'Run 1' })
       .click();
-    await expect(page).toHaveURL(`${ORG}/runs/${RUN}`);
+    await expect(page).toHaveURL(`/runs/isa-demo/${RUN}`);
     await expect(
       main(page).getByRole('heading', { level: 1, name: 'random-search run' })
     ).toBeVisible();
 
     // Derive: a new composition, the first of the run's two solutions, the preview, then the seal of 1.0.0.
-    await main(page)
-      .getByRole('region', { name: 'Keep it as a composition' })
-      .getByRole('button', { name: 'Derive composition' })
-      .click();
+    await main(page).getByRole('button', { name: 'Keep as composition' }).click();
     const dialog = page.getByRole('dialog', { name: 'Derive a composition' });
     await dialog.getByLabel('Name').fill('Fleet plan');
     await expect(dialog.getByLabel('Address')).toHaveValue('fleet-plan');

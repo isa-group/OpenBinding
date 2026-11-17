@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { formatFinding, isTestSupport, scanFiles, wordPattern, type Finding } from './vocabulary';
+import {
+  formatFinding,
+  isHttpClient,
+  isTestSupport,
+  scanFiles,
+  wordPattern,
+  type Finding,
+} from './vocabulary';
 
 // Every application source file shows none of the words `case`, `cases`, `job`, `jobs`, `publication`, `publications` as visible text
 // (`req~frontend-nav-vocabulary-text~1`), except the exemptions listed below. The scanner reads the text a source file puts on screen; text
@@ -11,21 +18,20 @@ const sources = import.meta.glob('/src/**/*.{ts,tsx}', {
   eager: true,
 }) as Record<string, string>;
 
-// Not scanned: the HTTP client layer (`src/api/`, which names API fields and paths), the test kit, and test files (the scanner skips those).
+// Not scanned: the HTTP client layer (`isHttpClient`, which names API fields and paths), the test kit, and test files (the scanner skips those).
 const scanned = Object.fromEntries(
   Object.entries(sources).filter(
-    ([path]) =>
-      !path.startsWith('/src/api/') && !path.startsWith('/src/test/') && !isTestSupport(path)
+    ([path]) => !isHttpClient(path) && !path.startsWith('/src/test/') && !isTestSupport(path)
   )
 );
 
 const ALL_WORDS = wordPattern(['case', 'cases', 'job', 'jobs', 'publication', 'publications']);
 const WORDS_WITHOUT_PUBLICATION = wordPattern(['case', 'cases', 'job', 'jobs']);
 
-// The three engine-registration screens (`eng-register`, `eng-registrations`, `eng-registration-detail`) keep the engine publication text:
-// they are scanned for the other four words only.
+// The three engine-registration screens (`eng-register`, `eng-registrations`, `eng-registration-detail`), with the cards and forms
+// they are drawn with and the lifecycle wording, keep the engine publication text: they are scanned for the other four words only.
 const ENGINE_REGISTRATION =
-  /^\/src\/pages\/(RegisterEngine\/|Engines\/(EngRegistrations|EngRegistrationDetail|registrationModel)\.)/;
+  /^\/src\/modules\/engine\/(pages\/(register|my-engines|registration)\/|components\/(my-deployments|engine-form|deployment-form)\/|api\/registrationModel\.)/;
 
 // Files that still show a forbidden word and that a later task owns; none is left. An entry is a path with the reason.
 // The test below fails when an entry no longer matches, so the list cannot go stale.
@@ -51,14 +57,13 @@ describe('the vocabulary of every source file', () => {
   it('reads the application sources, the engine-registration screens among them', () => {
     const paths = Object.keys(scanned);
     expect(paths.length).toBeGreaterThan(200);
-    // The old pages move into SPHERE's modules domain by domain, so both are read.
+    // Every screen lives in SPHERE's modules; the old pages are gone.
     expect(paths.filter(path => path.startsWith('/src/modules/')).length).toBeGreaterThan(200);
-    expect(paths.filter(path => path.startsWith('/src/pages/')).length).toBeGreaterThan(50);
+    expect(paths.filter(path => path.startsWith('/src/pages/'))).toEqual([]);
     expect(paths.filter(path => ENGINE_REGISTRATION.test(path)).length).toBeGreaterThanOrEqual(4);
     expect(
       paths.some(
-        path =>
-          path.startsWith('/src/api/') || path.startsWith('/src/test/') || /\.test\./.test(path)
+        path => isHttpClient(path) || path.startsWith('/src/test/') || /\.test\./.test(path)
       )
     ).toBe(false);
   });
@@ -77,8 +82,15 @@ describe('the vocabulary of every source file', () => {
   });
 
   it('keeps the message strings of the HTTP client free of the word job', () => {
-    const client = sources['/src/api/client.ts'];
-    expect(client).toBeDefined();
+    const client = [
+      '/src/modules/core/api/http.ts',
+      '/src/modules/engine/api/engineClient.ts',
+      '/src/modules/auth/api/accountClient.ts',
+      '/src/modules/settings/api/planClient.ts',
+    ]
+      .map(path => sources[path])
+      .join('\n');
+    expect(client).toContain('apiClient');
     expect(client).not.toContain('Job failed');
     expect(client).not.toContain('The job could not be found');
   });

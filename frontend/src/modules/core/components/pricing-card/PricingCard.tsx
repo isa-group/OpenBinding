@@ -1,6 +1,5 @@
 import { lazy, Suspense, useId } from 'react';
 import type { Provenance } from '../../utils/composition/document';
-import './PricingCard.css';
 
 // The drawing loads pricing-renderer, so it comes in its own chunk, and only when there is a document to draw.
 const PricingPlan = lazy(() => import('./PricingPlan'));
@@ -26,12 +25,22 @@ export function PricingCard({ reference, yaml }: PricingCardProps) {
   const title = useId();
   const { sphere, registry, version, plan, addons = [] } = reference;
   return (
-    <article className="pc" aria-labelledby={title}>
-      <header className="pc-head">
-        <h3 id={title}>Plan {plan}</h3>
-        <span className="pc-pricing">{sphere}</span>
+    <article
+      className="flex min-w-0 flex-col gap-2 rounded-xl border border-tp-hairline bg-tp-canvas p-3"
+      aria-labelledby={title}
+    >
+      <header className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
+        <h3
+          id={title}
+          className="m-0 text-[15px] font-semibold [overflow-wrap:anywhere] text-tp-ink"
+        >
+          Plan {plan}
+        </h3>
+        <span className="font-mono text-[13px] [overflow-wrap:anywhere] text-tp-slate">
+          {sphere}
+        </span>
       </header>
-      <dl className="pc-facts">
+      <dl className="m-0 flex flex-col gap-0.5 [&_code]:font-mono [&_code]:text-xs [&_code]:[overflow-wrap:anywhere] [&_dd]:m-0 [&_dd]:min-w-0 [&_dd]:[overflow-wrap:anywhere] [&_dd]:text-tp-ink [&_dt]:min-w-16 [&_dt]:text-tp-steel [&>div]:flex [&>div]:min-w-0 [&>div]:flex-wrap [&>div]:gap-x-2 [&>div]:gap-y-1 [&>div]:text-[13px]">
         <div>
           <dt>Version</dt>
           <dd>
@@ -58,7 +67,7 @@ export function PricingCard({ reference, yaml }: PricingCardProps) {
       {yaml !== undefined ? (
         <Suspense
           fallback={
-            <p className="pc-note" role="status">
+            <p className="m-0 text-xs text-tp-steel" role="status">
               Drawing the plan…
             </p>
           }
@@ -66,7 +75,7 @@ export function PricingCard({ reference, yaml }: PricingCardProps) {
           <PricingPlan yaml={yaml} plan={plan} />
         </Suspense>
       ) : (
-        <p className="pc-note">
+        <p className="m-0 text-xs text-tp-steel">
           A reference to a SPHERE plan: its prices and limits are kept in SPHERE.
         </p>
       )}

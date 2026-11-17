@@ -2,11 +2,12 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import JSZip from 'jszip';
 import type { Page, Route } from '@playwright/test';
-import type { AdminUserView } from '../../src/api/auth';
-import type { Job, Study, StudyCell, StudyRun } from '../../src/api/platform';
-import type { Problem, ProblemRevision } from '../../src/api/problems';
-import { digestOf as caseDigest, compiledDocument } from '../../src/pages/Problems/fixtures';
-import { CURRENT_FIXTURE, catalogFixture } from '../../src/pages/Pricing/pricingFixture';
+import type { AdminUserView } from '../../src/modules/core/api/account';
+import type { Job } from '../../src/modules/run/api/runsClient';
+import type { Study, StudyCell, StudyRun } from '../../src/modules/study/api/studiesApi';
+import type { Problem, ProblemRevision } from '../../src/modules/problem/api/problemsClient';
+import { digestOf as caseDigest, compiledDocument } from '../../src/modules/problem/utils/fixtures';
+import { CURRENT_FIXTURE, catalogFixture } from '../../src/test/fixtures/pricingCatalog';
 import {
   AUDIT,
   ERROR_EVENTS,
@@ -836,7 +837,11 @@ function problemRoutes(request: Request, orgSlug: string): Reply {
         201
       );
     return ok({
-      problems: problems.map(item => ({ ...item, latest_revision: latestOf(item) })),
+      problems: problems.map(item => ({
+        ...item,
+        latest_revision: latestOf(item),
+        revision_count: item.id === PROBLEM.id ? PROBLEM_REVISIONS.length : 0,
+      })),
       total: problems.length,
       limit: 200,
       offset: 0,
@@ -844,9 +849,14 @@ function problemRoutes(request: Request, orgSlug: string): Reply {
   }
   const problem = problems.find(item => item.slug === problemSlug || item.id === problemSlug);
   if (!problem) return notFound('Problem not found.');
-  if (!sub) return ok({ ...problem, latest_revision: latestOf(problem) });
-  if (sub !== 'revisions') return notFound('Not mocked.');
   const revisions = problem.id === PROBLEM.id ? PROBLEM_REVISIONS : [];
+  if (!sub)
+    return ok({
+      ...problem,
+      latest_revision: latestOf(problem),
+      revision_count: revisions.length,
+    });
+  if (sub !== 'revisions') return notFound('Not mocked.');
   if (!revisionRef) {
     if (method === 'POST') return ok(uploadOf(problem, revisions.length + 1, true), 201);
     return ok(revisions);
@@ -1252,6 +1262,25 @@ function route(request: Request): Reply | null {
       if (!second) return ok({ engines: OWN_ENGINES });
       if (second === 'revisions') return ok({ revisions: [] });
       if (second === 'protocol') return ok({ profiles: [PROFILE] });
+      // One revision of the catalog (`/v1/engines/{namespace}/{name}/revisions/{version}`): its state and no registration.
+      if (parts[4] === 'revisions' && parts[5]) {
+        const engine = OWN_ENGINES.find(
+          item => item.namespace === second && item.name === third && item.version === parts[5]
+        );
+        return engine
+          ? ok({
+              id: `${engine.namespace}/${engine.name}@${engine.version}`,
+              namespace: engine.namespace,
+              name: engine.name,
+              version: engine.version,
+              digest: engine.digest,
+              state: engine.namespace === 'bim.builtin' ? 'published' : 'private',
+              createdAt: null,
+              document: {},
+              registration: null,
+            })
+          : notFound('Engine revision not found.');
+      }
       return null;
     case 'bim':
       if (second === 'templates')
@@ -1465,6 +1494,7 @@ export async function installWalkApi(page: Page, template: Buffer): Promise<Walk
   const shown = (problem: WalkProblem) => ({
     ...problem.item,
     latest_revision: latestOfRow(problem),
+    revision_count: problem.revisions.length,
   });
   const compilationFor = (row: ProblemRevision) => ({
     id: `compilation-${row.id}`,

@@ -7,14 +7,14 @@ import {
   type TestInfo,
 } from '@playwright/test';
 import { failureBody } from './helpers/problems';
-import type { AdminUserView } from '../src/api/auth';
+import type { AdminUserView } from '../src/modules/core/api/account';
 import {
   AGREEMENT_CURRENT_FIXTURE as CURRENT_FIXTURE,
   agreementCatalogFixture as catalogFixture,
 } from '../src/test/fixtures/agreementCatalog';
 import { ALEX, SAM, USERS, subscriptionOf, usageOf } from '../src/test/fixtures/admin';
 
-// admin-user-detail /app/admin/users/:user · the review of a subscription change, drawn by pricing-renderer's <pricing-change-review>.
+// admin-user-detail /admin/users/:user?tab=agreement · the review of a subscription change, drawn by pricing-renderer's <pricing-change-review>.
 // In jsdom the element never takes its properties, so this is where its drawing is checked: plan, price, add-ons, features and limits
 // side by side, Back to the form and Confirm to the gateway. There is no backend: the API origin is answered by page.route(), and the
 // signed-in account is a platform administrator. With E2E_SCREENSHOTS=1, pictures go to testInfo.outputPath() (test-results/).
@@ -224,7 +224,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
     }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const { sent } = await mockApi(page);
-      await page.goto(`/app/admin/users/${SAM.id}`);
+      await page.goto(`/admin/users/${SAM.id}?tab=agreement`);
       const main = page.locator('main');
       await expect(
         main.getByRole('heading', { level: 1, name: 'sam.okafor', exact: true })
@@ -345,23 +345,30 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       );
       const critical = watchCriticalErrors(page);
       const { sent } = await mockApi(page);
-      await page.goto(`/app/admin/users/${SAM.id}`);
+      await page.goto(`/admin/users/${SAM.id}?tab=agreement`);
       const main = page.locator('main');
       const plans = main.getByRole('radiogroup', { name: 'New plan' });
       const review = main.locator('pricing-change-review');
+      const plan = review.locator('[data-pr-part="review-plan"]');
+      await expect(plans.getByRole('radio', { name: /^BASIC · current/ })).toBeChecked();
 
       // PRO leaves API keys open (`.inf`, served as null): the review says Unlimited, never a dash.
       await plans.getByRole('radio', { name: /^PRO/ }).click();
       await main.getByRole('button', { name: 'Apply agreement', exact: true }).click();
+      await expect(plan).toContainText('BASIC → PRO');
       const limits = review.locator('[data-pr-part="review-limits"]');
       await expect(row(limits, 'API keys')).toContainText('1 key → Unlimited');
       await expect(row(limits, 'Max instance complexity log10')).toContainText('Unlimited');
       await expect(limits).not.toContainText('—');
       await review.locator('[data-pr-part="review-back"]').click();
+      await expect(review).toHaveCount(0);
 
       // RESEARCH needs a CAS identity: the refusal is said in the review, which keeps Confirm for another try.
       await plans.getByRole('radio', { name: /^RESEARCH/ }).click();
+      await expect(plans.getByRole('radio', { name: /^RESEARCH/ })).toBeChecked();
       await main.getByRole('button', { name: 'Apply agreement', exact: true }).click();
+      await expect(plan).toContainText('BASIC → RESEARCH');
+      await expect(review.locator('[data-pr-part="review-title"]')).toBeFocused();
       await review.locator('[data-pr-part="review-confirm"]').click();
       const error = review.locator('[data-pr-part="review-error"]');
       await expect(error).toContainText('The change couldn’t be applied.');
@@ -375,11 +382,10 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       ).toBeVisible();
 
       // “Plan only” is reviewed too, and sends the plan alone.
+      await expect(review).toHaveCount(0);
       await plans.getByRole('radio', { name: /^ADVANCED/ }).click();
       await main.getByRole('button', { name: 'Change plan only, keep add-ons' }).click();
-      await expect(review.locator('[data-pr-part="review-plan"]')).toContainText(
-        'BASIC → ADVANCED'
-      );
+      await expect(plan).toContainText('BASIC → ADVANCED');
       await expect(review.locator('[data-pr-part="review-notices"]')).toContainText(
         'Reason: administrative decision. The add-ons stay as they are.'
       );
@@ -401,11 +407,12 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       );
       const critical = watchCriticalErrors(page);
       const { sent, changeElsewhere } = await mockApi(page);
-      await page.goto(`/app/admin/users/${SAM.id}`);
+      await page.goto(`/admin/users/${SAM.id}?tab=agreement`);
       const main = page.locator('main');
       const plans = main.getByRole('radiogroup', { name: 'New plan' });
       const review = main.locator('pricing-change-review');
       const plan = review.locator('[data-pr-part="review-plan"]');
+      await expect(plans.getByRole('radio', { name: /^BASIC · current/ })).toBeChecked();
 
       await plans.getByRole('radio', { name: /^ADVANCED/ }).click();
       await main.getByLabel(/^Detail/).fill('Agreement 2026-14');

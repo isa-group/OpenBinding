@@ -27,7 +27,9 @@ export function EmptyState({ icon, title, children, action, dashed = false }: Em
         {icon}
       </span>
       <strong className="text-sm font-semibold text-tp-ink">{title}</strong>
-      {children && <span className="ui-empty-text max-w-md text-sm text-tp-slate">{children}</span>}
+      {children && (
+        <span className="ui-empty-text max-w-[28rem] text-sm text-tp-slate">{children}</span>
+      )}
       {action}
     </div>
   );

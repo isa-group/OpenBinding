@@ -12,13 +12,14 @@ import { FiCheck } from 'react-icons/fi';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { classifyAuthError } from '../../../core/api/errors';
 import { Notice } from '../../../core/components/notice';
+import ServiceStatus from '../../../presentation/components/service-status';
 import {
   afterSignInTarget,
   clearSignInNote,
   hasRecentSignIn,
   hasSessionEnded,
   noteSignInStarted,
-} from '../../../../utils/authFlow';
+} from '../../utils/authFlow';
 import { useAuth } from '../../hooks/useAuth';
 import { fieldErrorsFrom } from '../../utils/authErrors';
 import {
@@ -198,18 +199,14 @@ export default function LoginForm() {
             {failure === 'unavailable' && (
               <Notice tone="error">
                 Sign-in is unavailable right now (503). Accounts aren’t reachable from this
-                deployment; public pages still work.{' '}
-                <Link className="underline" to="/about">
-                  Service status
-                </Link>
+                deployment; public pages still work.
+                <ServiceStatus className="mt-2" />
               </Notice>
             )}
             {failure === 'network' && (
               <Notice tone="error">
-                OpenBinding couldn’t be reached. Check your connection and try again.{' '}
-                <Link className="underline" to="/about">
-                  Service status
-                </Link>
+                OpenBinding couldn’t be reached. Check your connection and try again.
+                <ServiceStatus className="mt-2" />
               </Notice>
             )}
             {failure === 'busy' && (

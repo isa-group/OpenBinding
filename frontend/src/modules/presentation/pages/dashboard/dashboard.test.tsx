@@ -4,8 +4,8 @@ import { fakeGateway, orgNode, renderModule } from '../../../../test/moduleKit';
 import DashboardPage from '.';
 
 const runs = vi.hoisted(() => ({ list: vi.fn() }));
-vi.mock('../../../../api/runs', async actual => ({
-  ...(await actual<typeof import('../../../../api/runs')>()),
+vi.mock('../../../run/api/runsClient', async actual => ({
+  ...(await actual<typeof import('../../../run/api/runsClient')>()),
   runsApi: runs,
 }));
 
@@ -54,7 +54,7 @@ describe('the dashboard', () => {
     );
     expect(screen.getByRole('link', { name: /Checkout flow/ })).toHaveAttribute(
       'href',
-      '/app/isa-demo/runs/r1'
+      '/runs/isa-demo/r1'
     );
     expect(
       within(screen.getByRole('region', { name: 'Recent organizations' })).getByRole('link', {

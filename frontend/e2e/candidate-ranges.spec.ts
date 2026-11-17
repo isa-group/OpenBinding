@@ -1,9 +1,9 @@
 import { expect as baseExpect, test, type Page, type TestInfo } from '@playwright/test';
 import { API, PUBLIC_ENGINES, installMockApi } from './helpers/mockApi';
 import { failureBody } from './helpers/problems';
-import { checkoutFacts, digestOf } from '../src/pages/Problems/fixtures';
+import { checkoutFacts, digestOf } from '../src/modules/problem/utils/fixtures';
 import { REGISTRATION, detailOf } from '../src/test/fixtures/jobs';
-import { unzipPackage } from '../src/utils/bimZip';
+import { unzipPackage } from '../src/modules/core/utils/bimZip';
 
 // Candidate ranges · ranges of candidate features, from the problems to the engines (the milestone once called F2 ranges).
 // A feature of a candidate is a number or a range { min, max } whose ends are numbers or null (no limit). This walks it through the
@@ -14,7 +14,7 @@ import { unzipPackage } from '../src/utils/bimZip';
 // The first screens are slow to open under load (the problem page reads the problem and then its compilation), so a wait is generous.
 const expect = baseExpect.configure({ timeout: 20_000 });
 
-const PROBLEMS = '/app/isa-demo/problems';
+const PROBLEMS = '/problems/isa-demo';
 
 function watchCriticalErrors(page: Page) {
   const critical: string[] = [];
@@ -35,7 +35,7 @@ async function capture(page: Page, testInfo: TestInfo, name: string) {
   await page.evaluate(async () => {
     await document.fonts.ready;
     (document.activeElement as HTMLElement | null)?.blur();
-    window.scrollTo(0, 0);
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   });
   await page.screenshot({
     path: testInfo.outputPath(`${name}.png`),
@@ -121,12 +121,10 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(candidate('authenticate-4')).toContainText('0.04 EUR');
       await expect(providers.getByText('≤ 60 ms')).toHaveAttribute('title', '(−∞, 60] ms');
       // A range is a stretch on the bar; an open end fades out towards the edge.
-      await expect(providers.locator('.cm-bar.is-interval')).not.toHaveCount(0);
-      await expect(providers.locator('.cm-bar.is-interval i.is-open-low')).not.toHaveCount(0);
-      await expect(providers.locator('.cm-bar.is-interval i.is-open-high')).not.toHaveCount(0);
-      await expect(providers.locator('.cm-bar.is-interval i.is-open-low.is-open-high')).toHaveCount(
-        1
-      );
+      const intervals = providers.locator('[data-cm-bar="interval"]');
+      await expect(intervals).not.toHaveCount(0);
+      await expect(intervals.locator('i[data-open="low"]')).not.toHaveCount(0);
+      await expect(intervals.locator('i[data-open="both"]')).toHaveCount(1);
       await capture(page, testInfo, `revision-${name}`);
       if (isMobile) {
         expect(critical).toEqual([]);
@@ -220,7 +218,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       );
       const main = page.locator('main');
 
-      await page.goto('/app/isa-demo/runs/new?problem=checkout-flow&revision=2');
+      await page.goto('/runs/new?org=isa-demo&problem=checkout-flow&revision=2');
       await main.getByRole('button', { name: 'Continue' }).click();
       const engines = main.getByRole('radiogroup', { name: 'Engine' });
       const off = engines.getByRole('radio', { name: /^random-search/ });
@@ -243,10 +241,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       );
       await capture(page, testInfo, `launch-engines-${name}`);
 
-      await main.getByRole('button', { name: 'Continue' }).click();
       // The mock engine declares a seed whose default is 0, which the form asks to be a positive number.
       await main.getByLabel('Seed', { exact: true }).fill('1');
-      await main.getByRole('button', { name: 'Continue' }).click();
       await main.getByRole('button', { name: 'Send run' }).click();
       const alert = main
         .getByRole('alert')
@@ -367,7 +363,7 @@ test.describe('desktop · candidate ranges in the problem editor and in a failed
     });
     const main = page.locator('main');
 
-    await page.goto('/app/isa-demo/problem-editor');
+    await page.goto('/problem-editor?org=isa-demo');
     await main.getByRole('tab', { name: 'Candidates' }).click();
     const row = main
       .getByRole('table', { name: /Task hello/ })
@@ -386,7 +382,7 @@ test.describe('desktop · candidate ranges in the problem editor and in a failed
     await expect
       .poll(() => sent.some(latency => JSON.stringify(latency) === '{"max":null,"min":10}'))
       .toBe(true);
-    await expect(main.getByTestId('pe-check-status')).toHaveText('Valid package');
+    await expect(page.getByTestId('pe-check-status')).toHaveText('Valid package');
     await expect(row).not.toContainText('Pending check');
     const engines = main.getByRole('list', { name: 'Engine modes' });
     const off = engines.getByRole('listitem').filter({ hasText: 'random-search' });
@@ -429,7 +425,7 @@ test.describe('desktop · candidate ranges in the problem editor and in a failed
     );
     const main = page.locator('main');
 
-    await page.goto('/app/isa-demo/runs/job-range-failed');
+    await page.goto('/runs/isa-demo/job-range-failed');
     const alert = main
       .getByRole('alert')
       .filter({ hasText: 'This engine only accepts single values' });

@@ -1,11 +1,14 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { openProblemEditor, showPane } from '../modules/problem-editor/utils/renderTestKit';
+import ProblemCardPage from '../modules/problem/pages/card';
 import {
-  openProblemEditor,
-  showPane,
-} from '../modules/problem-editor/components/bim-editor/editorTestKit';
-import { caseOf, org, renderOrgScreen, revisionOf } from '../features/workspace/testKit';
-import { ProblemDetail } from '../pages/Problems/ProblemDetail';
+  memberOf,
+  problemGateway,
+  problemOf,
+  renderProblemPage as renderPage,
+  versionOf,
+} from './problemPage';
 import fmsFacts from './fixtures/core/fms.facts.json';
 import fmsValidate from './fixtures/core/fms.validate.json';
 
@@ -29,20 +32,25 @@ const compositions = vi.hoisted(() => ({ list: vi.fn(), get: vi.fn(), version: v
 const runs = vi.hoisted(() => ({ list: vi.fn() }));
 const bim = vi.hoisted(() => ({ validate: vi.fn(), template: vi.fn(), templates: vi.fn() }));
 
-vi.mock('../api/problems', () => ({ problemsApi: problems }));
+vi.mock('../modules/problem/api/problemsClient', () => ({ problemsApi: problems }));
 vi.mock('../modules/core/utils/problem/facts', async actual => ({
   ...(await actual<typeof import('../modules/core/utils/problem/facts')>()),
   problemFactsApi: facts,
 }));
 vi.mock('../modules/core/utils/composition/api', () => ({ compositionsApi: compositions }));
-vi.mock('../api/runs', async () => ({
-  ...(await vi.importActual<typeof import('../api/runs')>('../api/runs')),
+vi.mock('../modules/run/api/runsClient', async () => ({
+  ...(await vi.importActual<typeof import('../modules/run/api/runsClient')>(
+    '../modules/run/api/runsClient'
+  )),
   runsApi: runs,
 }));
-vi.mock('../api/bim', () => ({ bimApi: bim }));
+vi.mock('../modules/core/api/bim', () => ({ bimApi: bim }));
+vi.mock('../modules/core/components/code-editor', async () => ({
+  default: (await import('../modules/problem-editor/utils/codeEditorTestKit')).default,
+}));
 
-const problem = caseOf('fms', 'FMS');
-const revision = revisionOf(problem, 1);
+const problem = problemOf('fms', 'FMS');
+const revision = versionOf(problem, 1);
 
 /** Every candidate table as its rows of cell texts, by its name. */
 function tables(): Record<string, string[][]> {
@@ -66,18 +74,16 @@ function description(label: string): string {
 }
 
 function renderProblemPage(tab: '' | '/candidates') {
-  return renderOrgScreen(<ProblemDetail />, {
-    path: '/app/:org/problems/:case/:tab?',
-    url: `/app/isa-demo/problems/fms${tab}`,
-    organizations: [org('isa-demo', { effective_role: 'MEMBER' })],
+  return renderPage(<ProblemCardPage />, {
+    url: `/problems/isa-demo/fms${tab}`,
+    organizations: [memberOf('isa-demo', 'MEMBER')],
+    gateway: problemGateway('isa-demo', problem, [revision]),
   });
 }
 
 describe('the problem page and the problem editor draw the same problem', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    problems.get.mockResolvedValue(problem);
-    problems.revisions.mockResolvedValue([revision]);
     problems.revision.mockResolvedValue({
       ...revision,
       document: { apiVersion: 'bim/v1', kind: 'Instance' },

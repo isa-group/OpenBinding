@@ -10,10 +10,10 @@
 import { useMemo, useRef, useState, type FocusEvent, type KeyboardEvent } from 'react';
 import { FaBuilding, FaCogs, FaFileAlt, FaFlask, FaPlay, FaProjectDiagram } from 'react-icons/fa';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { buildCommands } from '../../../../components/PlatformShell/paletteCommands';
-import { workspaceSlugs } from '../../../../components/PlatformShell/workspacePath';
+import { buildCommands } from '../router/paletteCommands';
+import { organizationOfPath } from '../router/organizationOfPath';
 import NotificationBell from '../../../notification/components/notification-bell';
-import { InstitutionMark } from '../../../../components/InstitutionMark';
+import { InstitutionMark } from '../../../auth/components/institution-mark';
 import { config } from '../../../../config';
 import { useAuth } from '../../../auth/hooks/useAuth';
 import CommandPalette, { type PaletteCommand } from '../../../core/components/command-palette';
@@ -54,7 +54,7 @@ export default function AppHeader() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const mobileToggle = useRef<HTMLButtonElement>(null);
 
-  const { org } = workspaceSlugs(location.pathname);
+  const org = organizationOfPath(location.pathname, location.search);
   const organization =
     (org ? organizations.find(item => item.slug === org) : undefined) ?? organizations[0];
 

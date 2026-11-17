@@ -9,7 +9,7 @@ import { describe, expect, it } from 'vitest';
 //
 // Every shipped file outside the allowed set is scanned.
 // Known limits: short digests, digests built from a template and runtime data are not detected; the generated
-// frontend/src/content/changelog.json is rendered on About but is not scanned (JSON is not in the glob).
+// frontend/src/content/changelog.json is rendered on /changelog but is not scanned (JSON is not in the glob).
 
 const files = import.meta.glob(['/src/**/*.{ts,tsx,css}', '!/src/**/*.test.*'], {
   query: '?raw',
@@ -31,9 +31,7 @@ const TEST_KIT = /\/(testKit|[A-Za-z]*TestUtils)\.tsx?$|\/src\/test\/setup\.ts$/
 
 // Every file the TEST_KIT pattern leaves out of the scan; a new test-kit file needs an edit here.
 const TEST_KIT_FILES: readonly string[] = [
-  '/src/features/workspace/testKit.tsx',
-  '/src/pages/Admin/adminTestUtils.tsx',
-  '/src/pages/Organization/testKit.tsx',
+  '/src/modules/admin/utils/adminTestUtils.tsx',
   '/src/test/setup.ts',
 ];
 
@@ -41,50 +39,55 @@ const all = [...Object.entries(files).filter(([path]) => !path.endsWith('.css'))
 const shipped = all.filter(([path]) => !TEST_KIT.test(path));
 
 const ALLOWED =
-  /\/src\/(components\/rendering\/(SourceView|LogPanel)|utils\/uuid|api\/|test\/)|[Ff]ixtures?\.ts$/;
+  /\/src\/(modules\/run\/components\/rendering\/(SourceView|LogPanel)|modules\/core\/utils\/uuid|modules\/core\/api\/(account|bim|health|http|limitNotice|problem)\.ts$|modules\/[a-z-]+\/api\/[a-z]+Client\.ts$|test\/)|[Ff]ixtures?\.ts$/;
 
 // Every shipped file the ALLOWED pattern exempts; a new exempt-named file needs an edit here.
 const EXEMPT_FILES: readonly string[] = [
   // api layer: request and response types carry ids and digests as data
-  '/src/api/auth.ts',
-  '/src/api/bim.ts',
-  '/src/api/client.ts',
-  '/src/api/health.ts',
-  '/src/api/runs.ts',
-  '/src/api/limitNotice.ts',
-  '/src/api/platform.ts',
-  '/src/api/problem.ts',
-  '/src/api/problems.ts',
+  '/src/modules/auth/api/accountClient.ts',
+  '/src/modules/core/api/account.ts',
+  '/src/modules/core/api/bim.ts',
+  '/src/modules/core/api/health.ts',
+  '/src/modules/core/api/http.ts',
+  '/src/modules/core/api/limitNotice.ts',
+  '/src/modules/core/api/problem.ts',
+  '/src/modules/engine/api/engineClient.ts',
+  '/src/modules/organization/api/organizationClient.ts',
+  '/src/modules/problem/api/problemsClient.ts',
+  '/src/modules/run/api/runsClient.ts',
+  '/src/modules/settings/api/planClient.ts',
+  '/src/test/fixtures/boundaries/src/modules/alpha/api/index.ts',
   // log and source views: raw engine output and source text are shown verbatim
-  '/src/components/rendering/LogPanel.css',
-  '/src/components/rendering/LogPanel.tsx',
-  '/src/components/rendering/SourceView.css',
-  '/src/components/rendering/SourceView.tsx',
+  '/src/modules/run/components/rendering/LogPanel.tsx',
+  '/src/modules/run/components/rendering/SourceView.tsx',
+  // ids are generated here
+  '/src/modules/core/utils/uuid.ts',
   // fixtures: sample data for tests and demos, with realistic digests and ids
-  '/src/components/rendering/runResultFixtures.ts',
-  '/src/pages/Problems/fixtures.ts',
   '/src/modules/organization/pages/organization-detail/auditFixture.ts',
-  '/src/pages/Pricing/pricingFixture.ts',
+  '/src/modules/problem/utils/fixtures.ts',
+  '/src/modules/run/components/rendering/runResultFixtures.ts',
+  '/src/test/fixtures/accounts.ts',
   '/src/test/fixtures/admin.ts',
   '/src/test/fixtures/agreementCatalog.ts',
   '/src/test/fixtures/analysis.ts',
-  '/src/test/fixtures/boundaries/src/modules/alpha/api/index.ts',
   '/src/test/fixtures/boundaries/src/modules/alpha/components/index.ts',
   '/src/test/fixtures/boundaries/src/modules/alpha/utils/index.ts',
   '/src/test/fixtures/boundaries/src/modules/core/utils/alpha/index.ts',
   '/src/test/fixtures/engines.ts',
   '/src/test/fixtures/jobs.ts',
   '/src/test/fixtures/presets.ts',
+  '/src/test/fixtures/pricingCatalog.ts',
   '/src/test/fixtures/resources.ts',
   '/src/test/fixtures/studies.ts',
   // test support under src/test/, not shipped behaviour
   '/src/test/Where.tsx',
   '/src/test/compositionPage.tsx',
   '/src/test/moduleKit.tsx',
+  '/src/test/problemPage.tsx',
   '/src/test/rawRenderingAllowList.ts',
+  '/src/test/screenKit.tsx',
+  '/src/test/studyPage.tsx',
   '/src/test/vocabulary.ts',
-  // utils: the uuid helper itself
-  '/src/utils/uuid.ts',
 ];
 
 const DIGEST_LITERAL =
@@ -113,10 +116,8 @@ describe('names, not digests: no digest-shaped string or UUID outside the places
 
   it('reads the stylesheets from disk with their content', () => {
     expect(stylesheets.length).toBeGreaterThan(0);
-    const logPanel = stylesheets.find(
-      ([path]) => path === '/src/components/rendering/LogPanel.css'
-    );
-    expect(logPanel?.[1].trim().length).toBeGreaterThan(0);
+    const theme = stylesheets.find(([path]) => path === '/src/styles/tailwind.css');
+    expect(theme?.[1].trim().length).toBeGreaterThan(0);
   });
 
   it('leaves out exactly the files of the explicit test-kit list', () => {

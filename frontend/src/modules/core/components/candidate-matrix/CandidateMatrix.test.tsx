@@ -47,7 +47,7 @@ describe('CandidateMatrix', () => {
     render(<CandidateMatrix matrix={candidateMatrix(ranged())} mode="view" label="Candidates" />);
     const row = screen.getByRole('row', { name: /c1b/ });
     expect(within(row).getByText('≥ 100 ms')).toHaveAttribute('title', '[100, +∞) ms');
-    expect(row.querySelector('.cm-bar.is-interval i')).toHaveClass('is-open-high');
+    expect(row.querySelector('[data-cm-bar="interval"] i')).toHaveAttribute('data-open', 'high');
     expect(
       within(row).getByText('written in candidates.json at /spec/candidates/c1b/features/latency')
     ).toBeInTheDocument();

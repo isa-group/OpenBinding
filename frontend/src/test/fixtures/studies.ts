@@ -1,5 +1,5 @@
-import type { Analytics, Study, StudyCell, StudyRun } from '../../api/platform';
-import type { Problem, ProblemRevision } from '../../api/problems';
+import type { Analytics, Study, StudyCell, StudyRun } from '../../modules/study/api/studiesApi';
+import type { Problem, ProblemRevision } from '../../modules/problem/api/problemsClient';
 import type { ParetoFront } from '../../modules/core/api/types';
 
 // Shared by the tests of the study screens and the S7a browser spec: the "Engines × seeds" study of the design prototype,

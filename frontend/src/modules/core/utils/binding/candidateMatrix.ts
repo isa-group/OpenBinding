@@ -1,4 +1,4 @@
-import type { FeatureRange } from '../../../../utils/featureRange';
+import type { FeatureRange } from '../featureRange';
 import type { ProblemFacts, ProblemValueOrigin } from '../../api/types';
 
 /**

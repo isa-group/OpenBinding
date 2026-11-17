@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { HttpError } from '../../../api/client';
+import { HttpError } from '../../core/api/http';
 import type { CompositionDiagnosticView } from '../../core/api/types';
 import { draftScope, loadDraft, saveDraft } from '../../core/editor/drafts';
 import {

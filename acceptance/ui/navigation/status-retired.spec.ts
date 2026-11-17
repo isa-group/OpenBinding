@@ -3,10 +3,12 @@ import { mockApi } from './helpers';
 
 test.use({ viewport: { width: 1280, height: 800 } });
 
-test('About shows the service status when every dependency is up', async ({ page }) => {
+test('the footer shows the service status when every dependency is up', async ({ page }) => {
   await mockApi(page, { role: null });
-  await page.goto('/about');
-  await expect(page.getByText('Service status: All systems operational')).toBeVisible();
+  await page.goto('/team');
+  await expect(
+    page.getByRole('contentinfo').getByText('Service status: All systems operational')
+  ).toBeVisible();
 });
 
 test('no footer or header link points to /status', async ({ page }) => {
@@ -16,9 +18,11 @@ test('no footer or header link points to /status', async ({ page }) => {
   await expect(page.locator('footer a[href="/status"], header a[href="/status"]')).toHaveCount(0);
 });
 
-test('About still renders when the gateway does not answer', async ({ page }) => {
+test('the about pages still render when the gateway does not answer', async ({ page }) => {
   await mockApi(page, { role: null, gateway: 'down' });
-  await page.goto('/about');
-  await expect(page.getByText('Service status: not available right now')).toBeVisible();
+  await page.goto('/team');
+  await expect(
+    page.getByRole('contentinfo').getByText('Service status: not available right now')
+  ).toBeVisible();
   await expect(page.getByRole('main').getByRole('heading').first()).toBeVisible();
 });

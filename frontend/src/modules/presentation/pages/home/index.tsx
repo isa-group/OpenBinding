@@ -10,15 +10,15 @@
 import { useRef, useState, type KeyboardEvent } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Link } from 'react-router-dom';
-import { apiClient } from '../../../../api/client';
 import { PRICING_VERSION, planSummaries } from '../../../../content/plans';
-import { useResource } from '../../../../utils/useResource';
+import { useResource } from '../../../core/hooks/useResource';
 import { useAuth } from '../../../auth/hooks/useAuth';
 import BackgroundOrbs from './components/background-orbs';
 import CallToAction from './components/call-to-action';
 import IslandButton from './components/island-button';
 import RevealBlock from './components/reveal-block';
 import { LAYERS, PIPELINE } from './data';
+import { engineClient } from '../../../engine/api/engineClient';
 
 function Eyebrow({ children }: { children: string }) {
   return (
@@ -59,9 +59,9 @@ function SectionHead({
 function RuntimeStatus({ signedIn }: { signedIn: boolean }) {
   const runtime = useResource(`landing-runtime:${signedIn}`, async () => {
     const [profiles, engines] = await Promise.all([
-      apiClient.getProtocolProfiles(),
+      engineClient.getProtocolProfiles(),
       // The full catalogue is for accounts; visitors get the public one.
-      signedIn ? apiClient.getEngines() : apiClient.getPublicEngines(),
+      signedIn ? engineClient.getEngines() : engineClient.getPublicEngines(),
     ]);
     return { profiles: profiles.length, engines: engines.length };
   });
@@ -187,7 +187,7 @@ function Pipeline() {
 }
 
 function PublicEngines() {
-  const engines = useResource('landing-engines', () => apiClient.getPublicEngines());
+  const engines = useResource('landing-engines', () => engineClient.getPublicEngines());
   const engineList = engines.data ?? [];
   const names = [...new Set(engineList.map(engine => engine.name))];
   return (

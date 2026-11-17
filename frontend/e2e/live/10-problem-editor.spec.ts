@@ -1,10 +1,10 @@
 import { expect, test } from '@playwright/test';
-import { ORG_PATH, RUNS_PATH, capture, signInByApi, watchPageErrors } from './support';
+import { LAUNCH_PATH, ORG, capture, signInByApi, watchPageErrors } from './support';
 
 // J3 against the lab (the mocked twin is e2e/f2b-problem-editor.spec.ts): the owner of lab-main opens a template in the problem
-// editor, already checked by the gateway; in the candidate matrix it puts a candidate's latency outside the domain the package
-// declares for it; the live check sends the package to the real compiler, whose finding is placed on that cell and at the value's
-// range in candidates.json; the value is fixed in the matrix, the package passes again, and it is saved as a new problem whose page
+// editor (`/problem-editor?org=lab-main`), already checked by the gateway; in the candidate matrix it puts a candidate's latency
+// outside the domain the package declares for it; the live check sends the package to the real compiler, whose finding is placed
+// on that cell and at the value's range in candidates.json (Code mode, a Monaco marker); the value is fixed in the matrix, the package passes again, and it is saved as a new problem whose page
 // offers a run. Every run of this spec adds a problem to lab-main, named after the moment it ran; nothing is deleted.
 
 /** A template whose latency has a declared domain (0 to 500 ms): 900 is refused by the compiler, 6 is not. */
@@ -27,11 +27,11 @@ test.describe('live · J3 the problem editor on lab-main', () => {
     const stamp = Date.now().toString(36);
     const name = `j3-${stamp}`;
     const main = page.locator('main');
-    const status = main.getByTestId('pe-check-status');
+    const status = page.getByTestId('pe-check-status');
 
     // 1 · The template opens once the gateway has checked it.
-    await page.goto(`${ORG_PATH}/problem-editor?template=${encodeURIComponent(TEMPLATE)}`);
-    await expect(main.getByRole('heading', { level: 1, name: 'Problem editor' })).toBeVisible();
+    await page.goto(`/problem-editor?org=${ORG}&template=${encodeURIComponent(TEMPLATE)}`);
+    await expect(page.getByRole('heading', { level: 1, name: 'Problem editor' })).toBeVisible();
     await expect(main.getByText(`Opened from template ${TEMPLATE}`)).toBeVisible({
       timeout: 60_000,
     });
@@ -58,17 +58,21 @@ test.describe('live · J3 the problem editor on lab-main', () => {
     await expect(problems.getByRole('button', { name: new RegExp(FINDING) })).toContainText(
       POINTER
     );
-    await expect(main.getByRole('button', { name: 'Save as version…' })).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeDisabled();
     await capture(page, testInfo, 'j3-2-refused');
 
-    // The finding on the cell opens candidates.json at the value's range.
+    // The finding on the cell opens candidates.json in Code at the value's range, marked by the compiler's finding.
     await finding.click();
-    await expect(main.getByRole('tab', { name: 'Files' })).toHaveAttribute('aria-selected', 'true');
-    await expect(main.getByRole('textbox', { name: 'candidates.json source' })).toBeVisible();
-    await expect(main.locator('.cm-lintRange-error').first()).toHaveText('900');
+    await expect(page.getByRole('button', { name: 'Code' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
+    await expect(main.getByRole('textbox', { name: 'candidates.json source' })).toBeAttached();
+    await expect(main.locator('.monaco-editor .squiggly-error').first()).toBeVisible();
     await capture(page, testInfo, 'j3-3-file');
 
     // 3 · Fixed in the matrix: the compiler accepts the package again and the cell is no longer pending.
+    await page.getByRole('button', { name: 'Visual' }).click();
     await main.getByRole('tab', { name: 'Candidates' }).click();
     await value.fill('6');
     await expect(status).toHaveText('Valid package', { timeout: 60_000 });
@@ -77,7 +81,7 @@ test.describe('live · J3 the problem editor on lab-main', () => {
     await expect(problems).not.toContainText(FINDING);
 
     // 4 · Saved as a new problem under a name of this run; its page offers a run of version 1, and the launcher opens on it.
-    const save = main.getByRole('button', { name: 'Save as version…' });
+    const save = page.getByRole('button', { name: 'Save', exact: true });
     await expect(save).toBeEnabled({ timeout: 60_000 });
     await save.click();
     const dialog = page.getByRole('dialog', { name: 'Save the package' });
@@ -89,7 +93,7 @@ test.describe('live · J3 the problem editor on lab-main', () => {
     await capture(page, testInfo, 'j3-4-saved');
     await main.getByRole('link', { name: 'Open the problem' }).click();
     const run = main.getByRole('link', { name: 'Run this version' });
-    await expect(run).toHaveAttribute('href', `${RUNS_PATH}/new?problem=${name}&revision=1`);
+    await expect(run).toHaveAttribute('href', `${LAUNCH_PATH}&problem=${name}&revision=1`);
     await run.click();
     await expect(main.getByRole('heading', { level: 1, name: 'New run' })).toBeVisible();
     await expect(

@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import JSZip from 'jszip';
 import { expect as baseExpect, test, type Page } from '@playwright/test';
-import { zipStore } from '../src/utils/bimZip';
+import { zipStore } from '../src/modules/core/utils/bimZip';
 import { WALK_ORG, installWalkApi } from './helpers/mockApi';
 
 // The F0b walk, through the interface: sign in, upload a BIM package as a problem of the organization, read its version and its
@@ -14,8 +14,8 @@ import { WALK_ORG, installWalkApi } from './helpers/mockApi';
 // Several browsers share one development server, so a screen can take longer than the default five seconds to settle.
 const expect = baseExpect.configure({ timeout: 20_000 });
 
-const ORG_PATH = `/app/${WALK_ORG}`;
-const PROBLEMS = `${ORG_PATH}/problems`;
+const PROBLEMS_TAB = `/orgs/${WALK_ORG}/problems`;
+const PROBLEMS = `/problems/${WALK_ORG}`;
 const EXAMPLE = new URL('../../examples/demo/01_simple_seq/', import.meta.url);
 
 /** `examples/demo/01_simple_seq` as a `.bim.zip`, the package the gateway serves as the template `demo/01_simple_seq`. */
@@ -73,9 +73,10 @@ test('the F0b walk: upload, edit in the problem editor, a template, a run and a 
   await page.goto('/me/orgs');
   await page.locator(`main a[href="/orgs/${WALK_ORG}"]`).first().click();
   await expect(page).toHaveURL(new RegExp(`/orgs/${WALK_ORG}/?$`));
-  await page.goto(`${ORG_PATH}/problems`);
-  await expect(main.getByRole('heading', { level: 1, name: 'Problems' })).toBeVisible();
-  await main.getByRole('button', { name: 'Upload BIM package' }).first().click();
+  await page.goto(PROBLEMS_TAB);
+  await expect(main.getByRole('heading', { level: 2, name: 'Problems' })).toBeVisible();
+  await main.getByRole('button', { name: /^New/ }).click();
+  await main.getByRole('menuitem', { name: /Upload BIM package/ }).click();
   const dialog = page.getByRole('dialog', { name: 'Upload a BIM package' });
   await dialog.getByLabel('BIM package').setInputFiles({
     name: 'simple-seq.bim.zip',
@@ -88,24 +89,26 @@ test('the F0b walk: upload, edit in the problem editor, a template, a run and a 
   // 3 · The problem page shows version 1, and its source is the package as uploaded.
   await expect(page).toHaveURL(new RegExp(`${PROBLEMS}/simple-seq$`));
   await expect(main.getByRole('heading', { level: 1, name: 'simple-seq' })).toBeVisible();
-  await expect(main.getByText('Problem “simple-seq” created with version 1.')).toBeVisible();
+  await expect(page.getByText('Problem “simple-seq” created with version 1.')).toBeVisible();
   expect(api.sent.uploads).toHaveLength(1);
   expect(api.sent.uploads[0].bytes.equals(template)).toBe(true);
-  await main.getByRole('tab', { name: 'Source' }).click();
+  const sections = main.getByRole('navigation', { name: 'Problem sections' });
+  await sections.getByRole('link', { name: 'Source' }).click();
   const files = main.getByRole('list', { name: 'Files in the package' });
   await expect(files).toBeVisible();
   await expect(files).toContainText('candidates.json');
 
   // 4 · Edit in the problem editor: one candidate value changes in its form, the live check sends it, and it is saved as version 2.
-  await main.getByRole('tab', { name: 'Overview' }).click();
-  const edit = main.getByRole('link', { name: 'Edit in the problem editor' });
+  await sections.getByRole('link', { name: 'Overview' }).click();
+  await main.getByRole('button', { name: 'New version' }).click();
+  const edit = main.getByRole('menuitem', { name: /Problem editor/ });
   await expect(edit).toHaveAttribute(
     'href',
-    `${ORG_PATH}/problem-editor?problem=simple-seq&revision=1`
+    `/problem-editor?org=${WALK_ORG}&problem=simple-seq&revision=1`
   );
   await edit.click();
   await expect(main.getByText('Loaded version 1 of simple-seq')).toBeVisible();
-  const status = main.getByTestId('pe-check-status');
+  const status = page.getByTestId('pe-check-status');
   await expect(status).toHaveText('Valid package');
   await main.getByRole('tab', { name: 'Forms' }).click();
   await main
@@ -122,9 +125,12 @@ test('the F0b walk: upload, edit in the problem editor, a template, a run and a 
     )
     .toBe(12);
   await expect(status).toHaveText('Valid package');
-  await main.getByRole('button', { name: 'Save as version…' }).click();
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
   const save = page.getByRole('dialog', { name: 'Save the package' });
-  await expect(save.getByRole('combobox', { name: 'Save into problem' })).toHaveValue('simple-seq');
+  await expect(save.getByRole('button', { name: 'New version', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true'
+  );
   await save.getByRole('button', { name: 'Save as a new version of simple-seq' }).click();
   await expect(
     main.getByText('Saved as version 2 of simple-seq. Run it from its page.')
@@ -141,20 +147,24 @@ test('the F0b walk: upload, edit in the problem editor, a template, a run and a 
   await expect(main.getByRole('combobox', { name: 'Version' })).toHaveValue('2');
   await expect(main.getByRole('link', { name: 'Run this version' })).toHaveAttribute(
     'href',
-    `${ORG_PATH}/runs/new?problem=simple-seq&revision=2`
+    `/runs/new?org=${WALK_ORG}&problem=simple-seq&revision=2`
   );
 
   // 4b · Start from a template: it is checked as it opens, saved as a new problem, and that problem's page offers a run.
-  await page.goto(PROBLEMS);
-  await main.getByRole('link', { name: 'Start from a template' }).click();
+  await page.goto(PROBLEMS_TAB);
+  await main.getByRole('button', { name: /^New/ }).click();
+  await main.getByRole('menuitem', { name: /Start from a template/ }).click();
   await expect(page).toHaveURL(
-    new RegExp(`${ORG_PATH}/problem-editor\\?template=demo%2F01_simple_seq$`)
+    new RegExp(`/problem-editor\\?org=${WALK_ORG}&template=demo%2F01_simple_seq$`)
   );
   await expect(main.getByText('Opened from template demo/01_simple_seq')).toBeVisible();
   await expect(status).toHaveText('Valid package');
   expect(api.sent.validated[api.sent.validated.length - 1].equals(template)).toBe(true);
-  await main.getByRole('button', { name: 'Save as version…' }).click();
-  await expect(save.getByRole('combobox', { name: 'Save into problem' })).toHaveValue('');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(save.getByRole('button', { name: 'New problem', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true'
+  );
   await save.getByRole('button', { name: 'Save as a new problem' }).click();
   await expect(
     main.getByText('Saved as version 1 of demo_01_simple_seq. Run it from its page.')
@@ -164,7 +174,7 @@ test('the F0b walk: upload, edit in the problem editor, a template, a run and a 
   await expect(main.getByRole('heading', { level: 1, name: 'demo_01_simple_seq' })).toBeVisible();
   await expect(main.getByRole('link', { name: 'Run this version' })).toHaveAttribute(
     'href',
-    `${ORG_PATH}/runs/new?problem=demo-01-simple-seq&revision=1`
+    `/runs/new?org=${WALK_ORG}&problem=demo-01-simple-seq&revision=1`
   );
 
   // 5 · Run version 2 of simple-seq: pick the engine and its mode, send it, and follow the run until it completes.
@@ -183,11 +193,9 @@ test('the F0b walk: upload, edit in the problem editor, a template, a run and a 
     .getByRole('radio', { name: /^random-search.*Can run this/ });
   await engine.check({ force: true });
   await expect(engine).toBeChecked();
-  await next.click();
   await expect(
     main.getByRole('heading', { level: 2, name: 'Settings', exact: true })
   ).toBeVisible();
-  await next.click();
   await expect(main.getByRole('heading', { name: 'Before you send' })).toBeVisible();
   await main.getByRole('button', { name: 'Send run' }).click();
   await expect(main.getByRole('heading', { name: 'Run accepted · queued' })).toBeVisible();
@@ -208,7 +216,7 @@ test('the F0b walk: upload, edit in the problem editor, a template, a run and a 
   await expect(main.getByText('Live · connected')).toHaveCount(0);
 
   // 6 · A study of version 2 × 2 engine modes × 2 seeds: created, run, followed until its cells finish, and its results.
-  await page.goto(`${ORG_PATH}/studies`);
+  await page.goto(`/orgs/${WALK_ORG}/studies`);
   await main
     .getByRole('link', { name: /New study|Build a study/ })
     .first()
@@ -229,7 +237,7 @@ test('the F0b walk: upload, edit in the problem editor, a template, a run and a 
       .getByText('1 problem version × 2 engines × 1 setting × 2 seeds')
   ).toBeVisible();
   await main.getByRole('button', { name: 'Create study' }).click();
-  await expect(main.getByRole('heading', { name: 'Study created' })).toBeVisible();
+  await expect(main.getByRole('heading', { level: 1, name: 'Walk study' })).toBeVisible();
   expect(api.sent.studies).toHaveLength(1);
   expect(api.sent.studies[0]).toMatchObject({
     slug: 'walk-study',
@@ -245,19 +253,18 @@ test('the F0b walk: upload, edit in the problem editor, a template, a run and a 
     'evolutionary/genetic',
   ]);
 
-  await main.getByRole('link', { name: 'Open the study' }).click();
-  await expect(main.getByRole('heading', { level: 1, name: 'Walk study' })).toBeVisible();
   await main.getByRole('button', { name: 'Run study' }).click();
   await expect(
     main.getByText('Run #1 accepted (202). Cells start as run slots free up.')
   ).toBeVisible();
-  await main.getByRole('link', { name: 'Follow run #1' }).click();
-  await expect(main.getByRole('heading', { level: 2, name: 'Run #1' })).toBeVisible();
+  // What the run froze sits in Setup beside the definition.
   const frozen = main.getByRole('region', { name: 'Frozen definition' });
   await expect(
     frozen.getByRole('button', { name: 'Copy the digest of the frozen definition' })
   ).toBeVisible();
   await expect(frozen).not.toContainText('sha256-');
+  await main.getByRole('link', { name: 'Follow run #1' }).click();
+  await expect(main.getByRole('heading', { level: 2, name: 'Run #1' })).toBeVisible();
   const progress = main.getByRole('region', { name: 'Progress of the run' });
   await expect(progress.getByText('Finished · not live')).toBeVisible({ timeout: 45_000 });
   await expect(progress.getByRole('img', { name: '4 completed of 4 cells' })).toBeVisible();

@@ -11,7 +11,12 @@ const resolve = (path: string) => matchRoutes(config, path)?.at(-1)?.route.id ??
 // prettier-ignore
 const RESOLUTION: Array<[string, string | null]> = [
   ['/', 'pub-home'],
-  ['/about', 'pub-about'],
+  ['/about', null],
+  ['/team', 'pub-team'],
+  ['/research', 'pub-research'],
+  ['/contributions', 'pub-contributions'],
+  ['/changelog', 'pub-changelog'],
+  ['/pricing', 'pub-pricing'],
   ['/app', null],
   ['/app/account', null],
   ['/app/account/billing', null],
@@ -40,18 +45,25 @@ const RESOLUTION: Array<[string, string | null]> = [
   ['/compositions/acme/order-desk/versions/2', null],
   ['/app/acme/jobs/j1', null],
   ['/app/acme/jobs/new', null],
-  ['/app/acme/problem-editor', 'problem-editor'],
-  ['/app/acme/problems', 'problem-list'],
-  ['/app/acme/problems/c1', 'problem-detail'],
-  ['/app/acme/problems/c1/revisions/2', null],
-  ['/app/acme/problems/c1/runs', 'problem-detail'],
-  ['/app/acme/problems/c1/settings', 'problem-detail'],
-  ['/app/acme/problems/c1/source', 'problem-detail'],
-  ['/app/acme/problems/c1/versions', 'problem-detail'],
-  ['/app/acme/problems/compare', 'problem-detail'],
-  ['/app/acme/runs', 'run-list'],
-  ['/app/acme/runs/j1', 'run-detail'],
-  ['/app/acme/runs/new', 'run-launch'],
+  ['/app/acme/problem-editor', null],
+  ['/problem-editor', 'problem-editor'],
+  ['/app/acme/problems', null],
+  ['/app/acme/problems/c1', null],
+  ['/orgs/acme/problems', 'org-detail'],
+  ['/problems/acme/c1', 'problem-detail'],
+  ['/problems/acme/c1/revisions/2', null],
+  ['/problems/acme/c1/runs', 'problem-detail'],
+  ['/problems/acme/c1/settings', 'problem-detail'],
+  ['/problems/acme/c1/source', 'problem-detail'],
+  ['/problems/acme/c1/versions', 'problem-detail'],
+  ['/problems/acme', null],
+  ['/app/acme/runs', null],
+  ['/app/acme/runs/j1', null],
+  ['/app/acme/runs/new', null],
+  ['/runs/new', 'run-launch'],
+  ['/runs/acme/j1', 'run-detail'],
+  ['/runs/acme', null],
+  ['/orgs/acme/runs', 'org-detail'],
   ['/app/acme/settings', null],
   ['/orgs/acme', 'org-detail'],
   ['/orgs/acme/members', 'org-detail'],
@@ -63,22 +75,32 @@ const RESOLUTION: Array<[string, string | null]> = [
   ['/me/settings/account', null],
   ['/me/api-keys', 'acct-api-keys'],
   ['/me/api-keys/new', null],
-  ['/app/acme/studies', 'study-list'],
-  ['/app/acme/studies/new', 'study-builder'],
-  ['/app/acme/studies/s1', 'study-detail'],
-  ['/app/acme/studies/s1/publish', 'study-detail'],
-  ['/app/acme/studies/s1/runs/r1', null],
-  ['/app/acme/studies/s1/runs/r1/analytics', null],
-  ['/app/acme/studies/s1/runs/r1/cells/c1', null],
-  ['/app/acme/studies/s1/setup', 'study-detail'],
-  ['/app/admin', 'admin-overview'],
-  ['/app/admin/users', 'admin-users'],
-  ['/app/admin/users/new', 'admin-user-detail'],
-  ['/app/admin/users/settings', 'admin-user-detail'],
-  ['/app/engines/new', 'eng-register'],
-  ['/app/engines/registrations', 'eng-registrations'],
-  ['/app/engines/registrations/edge', 'eng-registration-detail'],
-  ['/app/engines/registrations/settings', 'eng-registration-detail'],
+  ['/app/acme/studies', null],
+  ['/app/acme/studies/new', null],
+  ['/app/acme/studies/s1', null],
+  ['/studies', null],
+  ['/studies/new', 'study-builder'],
+  ['/studies/acme', null],
+  ['/studies/acme/s1', 'study-detail'],
+  ['/studies/acme/s1/setup', 'study-detail'],
+  ['/studies/acme/s1/front', 'study-detail'],
+  ['/studies/acme/s1/runs/r1', null],
+  ['/orgs/acme/studies', 'org-detail'],
+  ['/admin', 'admin'],
+  ['/admin/users', 'admin'],
+  ['/admin/moderation', 'admin'],
+  ['/admin/zz-no-such-section', 'admin'],
+  ['/admin/users/new', 'admin-user-detail'],
+  ['/admin/users/settings', 'admin-user-detail'],
+  ['/admin/users/u1/keys', null],
+  ['/app/admin', null],
+  ['/app/admin/users', null],
+  ['/app/engines/new', null],
+  ['/app/engines/registrations', null],
+  ['/me/engines', 'eng-registrations'],
+  ['/me/engines/new', 'eng-register'],
+  ['/me/engines/edge', 'eng-registration-detail'],
+  ['/me/engines/edge/settings', null],
   ['/app/settings/settings', null],
   ['/c/acme', null],
   ['/c/acme/order-desk', null],
@@ -113,7 +135,7 @@ describe('address resolution across the route table', () => {
     expect(resolve(path)).toBe(id);
   });
 
-  // A fixed segment under /app (`/app/admin`, `/app/engines`, …): an unknown address one level below it resolves to no screen, or to a
+  // A fixed segment under /app: an unknown address one level below it resolves to no screen, or to a
   // screen that owns that segment.
   const fixedSegments = [
     ...new Set(
@@ -124,20 +146,10 @@ describe('address resolution across the route table', () => {
     ),
   ];
 
-  it('finds fixed segments under /app', () => {
-    expect(fixedSegments).toEqual(expect.arrayContaining(['admin', 'engines']));
+  it('leaves no screen under /app', () => {
+    // Every screen has left /app: no fixed segment remains.
+    expect(fixedSegments).toEqual([]);
   });
-
-  it.each(fixedSegments)(
-    'reads an unknown address below /app/%s as no screen, or as a screen of that segment',
-    segment => {
-      const owners = new Set(
-        screens.filter(screen => screen.path.split('/')[2] === segment).map(screen => screen.id)
-      );
-      const id = resolve(`/app/${segment}/zz-unknown`);
-      expect(id === null || owners.has(id), `/app/${segment}/zz-unknown -> ${id}`).toBe(true);
-    }
-  );
 
   it('has no screen called org-create, proj-create or any proj-*', () => {
     const ids = screens.map(screen => screen.id);

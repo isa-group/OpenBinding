@@ -32,7 +32,6 @@ import {
   startSelection,
   type Selection,
 } from './configuratorModel';
-import './analysis.css';
 
 /**
  * The configurator mode: choose a candidate per task. Each choice is evaluated by the toolchain (`evaluate`, 800 ms after the last
@@ -67,7 +66,10 @@ const keyOf = (binding: WrittenBinding) =>
 function FindingList({ findings, label }: { findings: Finding[]; label: string }) {
   if (findings.length === 0) return null;
   return (
-    <ul className="cr-conf-findings" aria-label={label}>
+    <ul
+      className="m-0 flex list-none flex-col gap-0.5 p-0 text-[13px] [&_code]:font-mono [&_code]:text-[13px] [&_code]:[overflow-wrap:anywhere]"
+      aria-label={label}
+    >
       {findings.map((finding, index) => (
         <li key={`${finding.code}-${finding.task ?? ''}-${index}`}>
           {finding.task && (
@@ -92,7 +94,7 @@ function Values({ model, result }: { model: CompositionViewModel; result: Evalua
       </p>
     );
   return (
-    <table className="cr-conf-values">
+    <table className="w-full border-collapse text-sm [&_td]:border-b [&_td]:border-tp-hairline-soft [&_td]:px-2 [&_td]:py-1.5 [&_td]:text-left [&_td]:align-top [&_td]:[overflow-wrap:anywhere] [&_th]:border-b [&_th]:border-tp-hairline-soft [&_th]:px-2 [&_th]:py-1.5 [&_th]:text-left [&_th]:align-top [&_th]:[overflow-wrap:anywhere] [&_thead_th]:text-xs [&_thead_th]:font-semibold [&_thead_th]:text-tp-steel">
       <caption className="sr-only">The version’s values and this binding’s, side by side</caption>
       <thead>
         <tr>
@@ -217,14 +219,17 @@ function Configurator({
           </Notice>
         ))}
       {shown?.state === 'ready' && (
-        <div className="cr-conf-result">
-          <p className={shown.result.valid ? 'cr-conf-valid' : 'cr-conf-invalid'} role="status">
+        <div className="flex min-w-0 flex-col gap-3">
+          <p className="m-0 text-sm font-semibold text-tp-ink" role="status">
             {shown.result.valid
               ? 'Valid: the toolchain reports no broken hard rule.'
               : 'Not valid: this binding breaks a hard rule.'}
           </p>
           {shown.result.violations.length > 0 && (
-            <ul className="cr-calc-violations" aria-label="Rules broken">
+            <ul
+              className="m-0 mt-1 flex list-none flex-col gap-0.5 p-0 text-[13px] text-tp-slate"
+              aria-label="Rules broken"
+            >
               {shown.result.violations.map((violation, index) => (
                 <li key={`${violationText(violation)}-${index}`}>{violationText(violation)}</li>
               ))}
@@ -240,7 +245,7 @@ function Configurator({
         </div>
       )}
       {pending && (
-        <div className="cr-conf-actions">
+        <div className="flex flex-wrap gap-2">
           <Action variant="secondary" onClick={() => setSelection(base)}>
             Back to the version’s binding
           </Action>

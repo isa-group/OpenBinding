@@ -36,7 +36,7 @@ export async function waitUntilSettled(page: Page): Promise<string[]> {
 export async function prepareCapture(page: Page): Promise<void> {
   await page.evaluate(() => {
     (document.activeElement as HTMLElement | null)?.blur?.();
-    window.scrollTo(0, 0);
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
     for (const element of document.querySelectorAll('main, #platform-main, #main-content'))
       (element as HTMLElement).scrollTop = 0;
   });

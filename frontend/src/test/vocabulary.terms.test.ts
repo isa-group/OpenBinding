@@ -4,7 +4,14 @@ import { describe, expect, it } from 'vitest';
 import examples from '../content/composition2yaml-examples.json';
 import { KINDS } from '../modules/core/utils/composition/document';
 import { KIND_LABELS } from '../modules/core/utils/composition/kinds';
-import { formatFinding, isTestSupport, scanFiles, wordPattern, type Finding } from './vocabulary';
+import {
+  formatFinding,
+  isHttpClient,
+  isTestSupport,
+  scanFiles,
+  wordPattern,
+  type Finding,
+} from './vocabulary';
 
 // The vocabulary of compositions and problems (plan §9: Composition, Problem, Environment, Upstream event, Proposal and Offering;
 // the F1 Deferred "vocabulary tests"; D23). The text a source file puts on screen is read by the scanner of `vocabulary.ts`;
@@ -36,20 +43,19 @@ const sources = import.meta.glob('/src/**/*.{ts,tsx}', {
 }) as Record<string, string>;
 const application = Object.fromEntries(
   Object.entries(sources).filter(
-    ([path]) =>
-      !path.startsWith('/src/api/') && !path.startsWith('/src/test/') && !isTestSupport(path)
+    ([path]) => !isHttpClient(path) && !path.startsWith('/src/test/') && !isTestSupport(path)
   )
 );
 
 /**
  * The composition and problem vocabulary scope: the screens of compositions (list, card page and its tabs, the public list, the
- * editor, Language), the problem screens (`pages/Problems`), and the layers they are built from.
+ * editor, Language), the problem screens (`modules/problem`), and the layers they are built from.
  */
 const SCOPE =
-  /^\/src\/(pages\/(Language|Problems)\/|modules\/core\/components\/(candidate-matrix|composition-renderer|pricing-card|problems-panel|provider-map|rules-and-objectives|value-badge|workflow-graph)\/|modules\/composition\/(api|components|hooks|pages|utils)\/|modules\/core\/utils\/(composition|binding)\/|modules\/composition-editor\/|modules\/run\/components\/derive\/)/;
+  /^\/src\/(modules\/language\/|modules\/problem\/|modules\/core\/components\/(candidate-matrix|composition-renderer|pricing-card|problems-panel|provider-map|rules-and-objectives|value-badge|workflow-graph)\/|modules\/composition\/(api|components|hooks|pages|utils)\/|modules\/core\/utils\/(composition|binding)\/|modules\/composition-editor\/|modules\/run\/components\/derive\/)/;
 const SCOPE_AREAS = [
-  '/src/pages/Language/',
-  '/src/pages/Problems/',
+  '/src/modules/language/',
+  '/src/modules/problem/',
   '/src/modules/core/components/composition-renderer/',
   '/src/modules/core/components/value-badge/',
   '/src/modules/composition/components/version-graph/',
@@ -93,19 +99,19 @@ const PLAN_WITH_PROPOSAL = /^(?=[\s\S]*\bproposals?\b)[\s\S]*\bplans?\b/i;
 /**
  * Outside the scope these words name other things, and stay: rewording them would mislead (D23). Each entry is a file that shows
  * one, with what it names; the test below fails when an entry no longer does, so the list cannot go stale. The engines area,
- * engine registration, runs, studies, account, admin, authentication, pricing, About, Home and the site content are outside the
+ * engine registration, runs, studies, account, admin, authentication, pricing, the about pages, Home and the site content are outside the
  * scope for the same reasons, as is the engine protocol row of the Home compatibility gate (`Deployment`, a single word in a `name`
  * the scanner does not read). The composition-first Home copy is reviewed in the visual QA instead.
  */
 const OUTSIDE: Readonly<Record<string, string>> = {
-  '/src/pages/RegisterEngine/DeploymentForm.tsx':
+  '/src/modules/engine/components/deployment-form/index.tsx':
     'an engine deployment, registered with the platform',
-  '/src/pages/Engines/EngineParts.tsx':
+  '/src/modules/engine/components/engine-parts/index.tsx':
     'an engine deployment, and "Verified" for the outcome of its conformance probe',
-  '/src/pages/Runs/RunLaunch.tsx': 'the engine deployment a federated run is sent to',
+  '/src/modules/run/pages/create/index.tsx': 'the engine deployment a federated run is sent to',
   '/src/modules/auth/components/login-form/index.tsx': 'this OpenBinding installation',
-  '/src/pages/About/AboutPanels.tsx': 'the related projects of About',
-  '/src/pages/Studies/StudyList.tsx': '"Build a study"',
+  '/src/modules/presentation/pages/research/index.tsx': 'the related projects of the Research page',
+  '/src/modules/study/components/studies-tab/index.tsx': '"Build a study"',
   '/src/content/platform.ts':
     'the research topics: scenario aggregation, building comparative studies',
 };
@@ -124,8 +130,8 @@ const WORKFLOW_TITLES: Readonly<Record<string, string>> = {
     'the section of the renderer that draws the workflow',
   '/src/modules/composition-editor/components/visual-pane/index.tsx':
     'the part of the visual editor that shows the workflow',
-  '/src/pages/Problems/ProblemRevision.tsx': 'the workflow of a problem version',
-  '/src/pages/Problems/problemsModel.ts':
+  '/src/modules/problem/components/overview-tab/index.tsx': 'the workflow of a problem version',
+  '/src/modules/problem/utils/problemsModel.ts':
     'the row of a problem comparison that compares the workflows',
 };
 

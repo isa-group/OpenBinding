@@ -1,0 +1,338 @@
+import { describe, expect, it } from 'vitest';
+import { PricingUnavailableError, QuotaError } from '../../core/api/account';
+import { HttpError } from '../../core/api/http';
+import { mismatchedFields, studyRefusal } from './studyErrors';
+
+const refused = (
+  status: number,
+  code?: string,
+  message = 'refused',
+  extra: Partial<HttpError> = {}
+) => Object.assign(new HttpError(status, message), { code }, extra);
+
+describe('why the gateway refuses a study', () => {
+  it('says which allowance a 402 for a new study used up', () => {
+    const refusal = studyRefusal(
+      new QuotaError('quota_exceeded', 'full', { limit_id: 'maxProblems', limit: 25, used: 25 }),
+      'create'
+    );
+    expect(refusal.kind).toBe('quota');
+    expect(refusal.title).toBe('Out of problems (402 · quota_exceeded)');
+    expect(refusal.text).toContain('25 of 25');
+    expect(refusal.text).toContain('Nothing was created.');
+    expect(refusal.limitId).toBe('maxProblems');
+  });
+
+  it('says which limit of the plan was reached, and promises no renewal: nothing renews', () => {
+    const refusal = studyRefusal(
+      new QuotaError('quota_exceeded', 'full', {
+        limit_id: 'maxRepositoryStorage',
+        limit: 3,
+        used: 3,
+        renews_at: '2026-11-01T00:00:00Z',
+      }),
+      'run'
+    );
+    expect(refusal.title).toBe('Out of storage (402 · quota_exceeded)');
+    expect(refusal.text).toBe('You’ve used 3 of 3 storage. Nothing was started.');
+  });
+
+  it('keeps the slots a 429 names and how long to wait', () => {
+    const refusal = studyRefusal(
+      refused(429, 'concurrency_limit_exceeded', 'busy', {
+        concurrency: { limit_id: 'maxConcurrentRuns', limit: 3, used: 3 },
+        retryAfter: 15,
+      }),
+      'run'
+    );
+    expect(refusal.kind).toBe('busy');
+    expect(refusal.retryAfter).toBe(15);
+    expect(refusal.text).toContain('You can have 3 runs going at once.');
+  });
+
+  it('says how the gateway refused a run preset of the study', () => {
+    expect(
+      studyRefusal(
+        refused(422, 'preset_not_found', "This organization has no run preset 'fast'."),
+        'create'
+      )
+    ).toMatchObject({
+      kind: 'not-found',
+      title: 'A run preset of the study no longer exists (422 · preset_not_found)',
+    });
+    expect(
+      studyRefusal(
+        refused(422, 'preset_not_found', "This organization has no run preset 'fast'."),
+        'create'
+      ).text
+    ).toContain("This organization has no run preset 'fast'.");
+    expect(studyRefusal(refused(422, 'preset_federated'), 'run').text).toBe(
+      'Presets of federated engines can’t join a study yet. Remove it from the engines, or pick the engine itself. Nothing was started.'
+    );
+    expect(studyRefusal(refused(422, 'preset_incomplete'), 'update').title).toBe(
+      'A run preset names no optimization (422 · preset_incomplete)'
+    );
+    expect(studyRefusal(refused(422, 'duplicate_study_engines'), 'run')).toMatchObject({
+      kind: 'conflict',
+      title: 'Two engines of the study are the same (422 · duplicate_study_engines)',
+    });
+    expect(
+      studyRefusal(
+        refused(422, 'invalid_engine', "Run preset 'fast' does not resolve to an engine mode."),
+        'run'
+      )
+    ).toMatchObject({
+      kind: 'incompatible',
+      title: 'An engine can’t run this (422 · invalid_engine)',
+    });
+  });
+
+  it('tells a plan without studies from a key that lacks an engine or a permission', () => {
+    expect(
+      studyRefusal(refused(403, 'feature_not_entitled', 'No studies in this plan.'), 'run').kind
+    ).toBe('plan');
+    const key = studyRefusal(
+      refused(403, 'api_key_engine_forbidden', 'The key does not grant Evolutionary.'),
+      'run'
+    );
+    expect(key.kind).toBe('key');
+    expect(key.title).toBe(
+      'This API key isn’t allowed to use one of the study’s engines (403 · api_key_engine_forbidden)'
+    );
+    const permission = studyRefusal(
+      refused(403, 'api_key_forbidden', 'The API key does not include studies:write.'),
+      'create'
+    );
+    expect(permission.permission).toBe('studies:write');
+    expect(studyRefusal(refused(403, 'forbidden', 'Needs ADMIN.'), 'delete').text).toContain(
+      'Deleting needs ADMIN'
+    );
+  });
+
+  it('says a stale edit lost to a newer one (412)', () => {
+    expect(studyRefusal(refused(412, 'precondition_failed'), 'update')).toMatchObject({
+      kind: 'conflict',
+      title: 'The study changed since you opened it (412 · precondition_failed)',
+    });
+  });
+
+  it('words each 409 by what it protects', () => {
+    expect(studyRefusal(refused(409, 'slug_conflict'), 'create').title).toBe(
+      'That address is already used (409 · slug_conflict)'
+    );
+    expect(studyRefusal(refused(409, 'study_archived'), 'run').title).toBe(
+      'This study is archived (409 · study_archived)'
+    );
+    const finished = studyRefusal(refused(409, 'terminal_run'), 'cancel');
+    expect(finished.kind).toBe('terminal');
+    expect(finished.title).toBe('This run already finished (409 · terminal_run)');
+    expect(studyRefusal(refused(409, 'cell_not_retryable'), 'retry').title).toBe(
+      'This cell can’t be retried (409 · cell_not_retryable)'
+    );
+    expect(studyRefusal(refused(409, 'job_not_finished'), 'attach').title).toBe(
+      'That run hasn’t finished (409 · job_not_finished)'
+    );
+    expect(studyRefusal(refused(409, 'study_history_retained'), 'delete').title).toBe(
+      'This study has runs (409 · study_history_retained)'
+    );
+  });
+
+  it('says which of problem, engine, mode and seed a run does not share with the cell (409 cell_job_mismatch)', () => {
+    const perField = studyRefusal(
+      refused(409, 'cell_job_mismatch', 'mismatch', {
+        problem: {
+          detail: {
+            code: 'cell_job_mismatch',
+            fields: ['engine', 'seed'],
+            details: {
+              engine: {
+                cell: 'bim.builtin/evolutionary@1.0.0',
+                job: 'bim.builtin/random-search@1.0.0',
+              },
+              seed: { cell: 2, job: 7 },
+            },
+          },
+        },
+      }),
+      'attach'
+    );
+    expect(perField).toMatchObject({
+      kind: 'conflict',
+      title: 'That run isn’t a run of this cell (409 · cell_job_mismatch)',
+      details: [
+        'Engine: the cell has bim.builtin/evolutionary@1.0.0, the run had bim.builtin/random-search@1.0.0',
+        'Seed: the cell has 2, the run had 7',
+      ],
+    });
+    expect(perField.text).toContain('It differs in the engine and seed.');
+    expect(perField.text).toContain('Nothing changed.');
+
+    const perSide = studyRefusal(
+      refused(409, 'cell_job_mismatch', 'mismatch', {
+        problem: {
+          code: 'cell_job_mismatch',
+          fields: ['case_revision', 'mode', 'seed'],
+          details: {
+            cell: { case_revision: 'r2', mode: 'optimize', seed: 1 },
+            job: { case_revision: 'r1', mode: null, seed: 1 },
+          },
+        },
+      }),
+      'attach'
+    );
+    expect(perSide.text).toContain('It differs in the problem, mode and seed.');
+    expect(perSide.details).toEqual([
+      'Problem: the cell has r2, the run had r1',
+      'Mode: the cell has optimize, the run had none',
+      'Seed: the cell has 1, the run had 1',
+    ]);
+
+    expect(studyRefusal(refused(409, 'cell_job_mismatch'), 'attach')).toMatchObject({
+      title: 'That run isn’t a run of this cell (409 · cell_job_mismatch)',
+      details: [],
+    });
+    expect(
+      mismatchedFields(
+        refused(409, 'cell_job_mismatch', 'x', { problem: { detail: { fields: ['seed'] } } })
+      )
+    ).toEqual([{ field: 'seed', label: 'seed' }]);
+  });
+
+  it('words the other two refusals of an attached result', () => {
+    expect(studyRefusal(refused(409, 'job_result_missing'), 'attach')).toMatchObject({
+      kind: 'terminal',
+      title: 'That run finished without a result (409 · job_result_missing)',
+    });
+    expect(studyRefusal(refused(409, 'job_already_attached'), 'attach')).toMatchObject({
+      kind: 'conflict',
+      title: 'That run is already the result of another cell (409 · job_already_attached)',
+    });
+  });
+
+  it('words each 422 by what the study asked for', () => {
+    expect(studyRefusal(refused(422, 'study_matrix_too_large'), 'create')).toMatchObject({
+      kind: 'too-big',
+      title: 'The matrix is too large (422 · study_matrix_too_large)',
+    });
+    expect(studyRefusal(refused(422, 'revision_not_recompilable'), 'run')).toMatchObject({
+      kind: 'incompatible',
+      title:
+        'A problem version can’t be compiled by the installed toolchain (422 · revision_not_recompilable)',
+    });
+    expect(studyRefusal(refused(422, 'foreign_case_revision'), 'create').title).toBe(
+      'A problem version isn’t in this organization (422 · foreign_case_revision)'
+    );
+    const mode = studyRefusal(
+      refused(422, 'engine_mode_incompatible', 'MiniZinc has no mode for this goal.'),
+      'create'
+    );
+    expect(mode.kind).toBe('incompatible');
+    expect(mode.text).toContain('MiniZinc has no mode for this goal.');
+    expect(studyRefusal(refused(422, 'weird', 'Odd.'), 'create').kind).toBe('other');
+  });
+
+  it('a run over the deployment’s size limit or cell cap says a larger plan changes nothing', () => {
+    const size = studyRefusal(
+      refused(422, 'binding_space_over_technical_limit', 'x', {
+        notice: {
+          limit_id: 'MAX_BINDING_SPACE_LOG10',
+          state: 'exhausted',
+          source: 'technical',
+          limit: 3,
+          used: 6,
+        },
+      }),
+      'run'
+    );
+    expect(size).toMatchObject({
+      kind: 'technical',
+      limitId: 'MAX_BINDING_SPACE_LOG10',
+      title: 'Over this deployment’s size limit (422 · binding_space_over_technical_limit)',
+    });
+
+    const cells = studyRefusal(
+      refused(422, 'study_run_too_large', 'x', {
+        notice: {
+          limit_id: 'maxCellsPerRun',
+          state: 'exhausted',
+          source: 'technical',
+          unit: 'cell',
+          limit: 100,
+          used: 240,
+        },
+      }),
+      'run'
+    );
+    expect(cells).toMatchObject({
+      kind: 'technical',
+      limitId: 'maxCellsPerRun',
+      source: 'technical',
+      title: 'This run is over the deployment’s size limit (422 · study_run_too_large)',
+    });
+    expect(cells.text).toBe(
+      'This deployment limits a study run to 100 cells; this one expands to 240, whatever the plan. Remove an engine, a setting or some seeds. Nothing was started.'
+    );
+  });
+
+  it('a study runs counter that is spent or unreadable is told as such', () => {
+    const spent = studyRefusal(
+      Object.assign(new QuotaError('usage_limit_exceeded', 'x'), {
+        notice: {
+          limit_id: 'studyRuns',
+          state: 'exhausted' as const,
+          source: 'space' as const,
+          unit: 'run',
+        },
+      }),
+      'run'
+    );
+    expect(spent).toMatchObject({
+      kind: 'quota',
+      limitId: 'studyRuns',
+      title: 'Out of study runs (402 · usage_limit_exceeded)',
+    });
+    expect(spent.text).toBe('You’ve used all your study runs. Nothing was started.');
+
+    const unread = studyRefusal(
+      refused(503, 'usage_limit_unknown', 'x', {
+        notice: { limit_id: 'studyRuns', state: 'unknown', source: 'space' },
+      }),
+      'run'
+    );
+    expect(unread).toMatchObject({
+      kind: 'pricing',
+      title: 'Your usage can’t be read right now (503 · usage_limit_unknown)',
+    });
+  });
+
+  it('a 429 for a cell says whose limit it is', () => {
+    const refusal = studyRefusal(
+      refused(429, 'concurrency_limit_exceeded', 'busy', {
+        concurrency: { limit_id: 'maxConcurrentRuns', limit: 1, used: 1, source: 'technical' },
+        retryAfter: 15,
+      }),
+      'run'
+    );
+    expect(refusal.text).toContain(
+      'This deployment allows one account 1 run going at once, whatever its plan.'
+    );
+    expect(refusal.source).toBe('technical');
+  });
+
+  it('separates a missing cell or job, a pricing outage and a service that did not answer', () => {
+    expect(studyRefusal(refused(404, 'not_found'), 'attach').text).toContain(
+      'only a finished run of this organization can be attached'
+    );
+    expect(studyRefusal(new PricingUnavailableError('pricing down'), 'run')).toMatchObject({
+      kind: 'pricing',
+      title: 'Limits can’t be checked right now (503 · pricing_unavailable)',
+    });
+    expect(studyRefusal(refused(503, 'upstream'), 'run').kind).toBe('unavailable');
+    expect(studyRefusal(refused(401), 'run').kind).toBe('session');
+    expect(studyRefusal(new TypeError('fetch failed'), 'run')).toMatchObject({
+      kind: 'unavailable',
+      title: 'OpenBinding couldn’t be reached',
+    });
+    expect(studyRefusal(new Error('odd'), 'update').kind).toBe('other');
+  });
+});

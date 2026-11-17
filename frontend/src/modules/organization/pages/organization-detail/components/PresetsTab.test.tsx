@@ -1,7 +1,8 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { HttpError, type EngineCatalogEntry, type EngineMode } from '../../../../../api/client';
-import { org } from '../../../../../features/workspace/testKit';
+import { HttpError } from '../../../../core/api/http';
+import { type EngineCatalogEntry, type EngineMode } from '../../../../engine/api/engineClient';
+import { org } from '../../../../../test/fixtures/accounts';
 import {
   FEDERATED_PRESET,
   NO_GOAL_PRESET,
@@ -9,7 +10,7 @@ import {
   presetFixture,
   presetPage,
 } from '../../../../../test/fixtures/presets';
-import { renderScreen } from '../../../../../pages/Organization/testKit';
+import { renderScreen } from '../../../../../test/screenKit';
 import PresetsTab from './PresetsTab';
 
 const presets = vi.hoisted(() => ({
@@ -24,11 +25,11 @@ vi.mock('../../../../run/api/presetsApi', async actual => ({
   ...(await actual<typeof import('../../../../run/api/presetsApi')>()),
   presetsApi: presets,
 }));
-vi.mock('../../../../../api/client', async () => ({
-  ...(await vi.importActual<typeof import('../../../../../api/client')>(
-    '../../../../../api/client'
+vi.mock('../../../../engine/api/engineClient', async () => ({
+  ...(await vi.importActual<typeof import('../../../../engine/api/engineClient')>(
+    '../../../../engine/api/engineClient'
   )),
-  apiClient: client,
+  engineClient: client,
 }));
 
 const group = org('isa-demo', { name: 'ISA Demo Group' });
@@ -71,7 +72,6 @@ function renderPresets(slug = 'isa-demo') {
   return renderScreen(<PresetsTab organization={organization} />, {
     path: '/orgs/:org/presets',
     url: `/orgs/${slug}/presets`,
-    organizations: [group, viewing],
   });
 }
 
@@ -112,7 +112,7 @@ describe('the run presets of an organization', () => {
     expect(within(fast).getByText('Can be an engine of a study')).toBeInTheDocument();
     expect(within(fast).getByRole('link', { name: 'Start a run' })).toHaveAttribute(
       'href',
-      '/app/isa-demo/runs/new?preset=fast-sampling'
+      '/runs/new?org=isa-demo&preset=fast-sampling'
     );
 
     const edge = await card('Edge deployment');

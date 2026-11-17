@@ -67,12 +67,9 @@ describe('PricingCard', () => {
     expect(screen.queryAllByRole('link')).toEqual([]);
   });
 
-  it('draws the plan from its document with pricing-renderer, read only and with nothing to buy', async () => {
+  it("draws the plan from its document with pricing-renderer's catalog preset, read only and with nothing to buy", async () => {
     render(<PricingCard reference={STARTER} yaml={brevo} />);
     expect(await screen.findByTestId('pricing-renderer')).toBeInTheDocument();
-    expect(screen.getByTestId('pricing-renderer').parentElement).toHaveClass(
-      'pricing-renderer-shell'
-    );
     expect(renderer.props).toMatchObject({
       yaml: brevo,
       mode: 'catalog',
@@ -80,7 +77,12 @@ describe('PricingCard', () => {
       selectionEnabled: false,
       ctaEnabled: false,
       hideSections: ['hero', 'billing', 'variables', 'summary', 'addOns'],
+      diagnostics: 'verbose',
+      visibility: 'all',
+      theme: 'light',
     });
+    // The platform's tokens reach the renderer through the bridge.
+    expect(renderer.props?.style).toMatchObject({ '--pr-color-accent': 'var(--color-tp-accent)' });
     expect(renderer.props).not.toHaveProperty('renderPlanCta');
     expect(renderer.props).not.toHaveProperty('renderSummaryActions');
     expect(brevo).toContain('STARTER:');

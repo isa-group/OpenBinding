@@ -11,16 +11,18 @@ import react from '@vitejs/plugin-react';
 // so they run in `node` and without the Testing Library setup, instead of paying for a jsdom they
 // never use.
 const CORPUS = [
-  'src/api/removedOperations.test.ts',
+  'src/test/removedOperations.test.ts',
   'src/hygiene.test.ts',
   'src/routes/links.test.ts',
+  'src/routes/reservedSlugs.test.ts',
   'src/routes/screenBudget.test.ts',
   'src/modules/core/api/generatedTypes.test.ts',
   'src/test/boundariesLint.test.ts',
   'src/test/brandContrast.test.ts',
+  'src/test/dialogFocusTrap.test.ts',
   'src/test/digestHygiene.test.ts',
   'src/test/e2eSpecs.test.ts',
-  'src/test/legacyLayer.test.ts',
+  'src/test/oneStylesheet.test.ts',
   'src/test/mobileTouchTargets.test.ts',
   'src/test/vocabulary.all.test.ts',
   'src/test/vocabulary.terms.test.ts',

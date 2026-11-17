@@ -65,7 +65,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         await expect(header.getByRole('navigation', { name: 'Primary navigation' })).toBeHidden();
         await header.getByRole('button', { name: 'Open menu' }).click();
         const menu = page.getByRole('navigation', { name: 'Mobile navigation' });
-        for (const label of ['Pricing', 'About', 'Log in', 'Sign up'])
+        for (const label of ['Pricing', 'Team', 'Research', 'Changelog', 'Log in', 'Sign up'])
           await expect(menu.getByRole('link', { name: label, exact: true })).toBeVisible();
         await menu.getByRole('button', { name: 'Explore' }).click();
         for (const label of ['Compositions', 'Engines'])
@@ -78,7 +78,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         });
         await header.getByRole('button', { name: 'Close menu' }).click();
       } else {
-        // SPHERE's header: Tools and Explore open menus, Pricing and About are links, then Log in and Sign up.
+        // SPHERE's header: Tools and Explore open menus, Pricing, Team, Research and Changelog are links, then Log in and Sign up.
         const nav = header.getByRole('navigation', { name: 'Primary navigation' });
         await expect(nav.getByRole('button', { name: 'Tools' })).toHaveAttribute(
           'aria-expanded',
@@ -102,7 +102,15 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
           'href',
           '/pricing'
         );
-        await expect(nav.getByRole('link', { name: 'About' })).toHaveAttribute('href', '/about');
+        for (const [label, address] of [
+          ['Team', '/team'],
+          ['Research', '/research'],
+          ['Changelog', '/changelog'],
+        ])
+          await expect(nav.getByRole('link', { name: label, exact: true })).toHaveAttribute(
+            'href',
+            address
+          );
         await expect(header.getByRole('link', { name: 'Log in' })).toHaveAttribute(
           'href',
           '/authentication'
@@ -126,8 +134,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(footer.locator('a[href="/status"]')).toHaveCount(0);
       await expect(footerNav.getByRole('link', { name: 'Changelog' })).toHaveAttribute(
         'href',
-        '/about?tab=changelog'
+        '/changelog'
       );
+      await expect(footer.getByText(/^Service status: /)).toBeVisible();
       await expect(footer.getByRole('link', { name: 'SCORE Lab' })).toBeVisible();
       await expect(footer.getByRole('link', { name: 'Universidad de Sevilla' })).toBeVisible();
       await expect(footer.getByRole('img', { name: 'Universidad de Sevilla' })).toHaveCount(0);

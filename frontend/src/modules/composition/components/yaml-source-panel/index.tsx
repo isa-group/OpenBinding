@@ -5,7 +5,7 @@
 // source may be shown verbatim) inside SPHERE's panel; the heading names Composition2Yaml.
 
 import { useState } from 'react';
-import { SourceView } from '../../../../components/rendering/SourceView';
+import { SourceView } from '../../../run/components/rendering/SourceView';
 
 interface YamlSourcePanelProps {
   yamlText: string;

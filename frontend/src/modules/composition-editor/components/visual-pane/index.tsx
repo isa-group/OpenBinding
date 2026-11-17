@@ -267,7 +267,7 @@ function OfferingForm({
         if (choice !== undefined) onSet(choice);
       }}
     >
-      <div className="ui-field">
+      <div className="flex min-w-0 flex-col gap-1 [&>label]:text-xs [&>label]:font-medium [&>label]:text-tp-steel">
         <label htmlFor="ce-offering-form">Source</label>
         <select
           id="ce-offering-form"
@@ -284,7 +284,7 @@ function OfferingForm({
         </select>
       </div>
       {(form === 'sphere' || form === 'registry') && (
-        <div className="ui-field">
+        <div className="flex min-w-0 flex-col gap-1 [&>label]:text-xs [&>label]:font-medium [&>label]:text-tp-steel">
           <label htmlFor="ce-offering-sphere">SPHERE pricing (owner/name)</label>
           <input
             id="ce-offering-sphere"
@@ -297,7 +297,7 @@ function OfferingForm({
         </div>
       )}
       {form === 'registry' && (
-        <div className="ui-field">
+        <div className="flex min-w-0 flex-col gap-1 [&>label]:text-xs [&>label]:font-medium [&>label]:text-tp-steel">
           <label htmlFor="ce-offering-registry">Registry alias</label>
           <input
             id="ce-offering-registry"
@@ -310,7 +310,7 @@ function OfferingForm({
         </div>
       )}
       {form === 'url' && (
-        <div className="ui-field">
+        <div className="flex min-w-0 flex-col gap-1 [&>label]:text-xs [&>label]:font-medium [&>label]:text-tp-steel">
           <label htmlFor="ce-offering-url">Pricing2Yaml URL</label>
           <input
             id="ce-offering-url"

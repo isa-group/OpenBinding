@@ -5,18 +5,19 @@ import {
 
 test.use({ viewport: { width: 1440, height: 900 } });
 
-test('the screens are headed Problems and Runs and the Problems screen offers to upload a BIM package', async ({ page }) => {
+test('the screens are headed Problems and Runs and the Problems tab offers to upload a BIM package', async ({ page }) => {
   await mockGateway(page);
   await page.goto(PROBLEMS_FINAL);
   await expect(page.getByRole('heading', { name: 'Problems', exact: true }).first()).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Upload BIM package' }).first()).toBeVisible();
+  await page.locator('main').getByRole('button', { name: /^New/ }).click();
+  await expect(page.getByRole('menuitem', { name: /Upload BIM package/ }).first()).toBeVisible();
   await page.goto(RUNS_FINAL);
   await expect(page.getByRole('heading', { name: 'Runs', exact: true }).first()).toBeVisible();
 });
 
 const SIGNED_IN_SCREENS = [
   '/', '/orgs/acme', '/orgs/acme/members', PROBLEMS_FINAL, RUNS_FINAL,
-  '/app/acme/studies', '/me/settings?section=plan',
+  '/orgs/acme/studies', '/me/settings?section=plan',
 ];
 
 test('no signed-in screen shows the words case or job outside code, SourceView and LogPanel', async ({ page }) => {

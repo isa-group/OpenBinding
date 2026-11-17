@@ -40,5 +40,5 @@ test('the composition screens keep their addresses and read the compositions of 
     offenders.push(...hrefs.filter((href) => FORBIDDEN_SEGMENT.test(href)).map((href) => `${path}: ${href}`));
   }
   expect(offenders).toEqual([]);
-  expect(SCOPED_SCREENS.map(({ path }) => path.split('/')[1])).toEqual(expect.arrayContaining(['orgs', 'compositions', 'editor', 'language', 'app']));
+  expect(SCOPED_SCREENS.map(({ path }) => path.split('/')[1])).toEqual(expect.arrayContaining(['orgs', 'compositions', 'editor', 'language', 'problems']));
 });

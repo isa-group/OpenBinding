@@ -219,7 +219,7 @@ export default function CompositionEditorPage() {
 
   if (editor.loadError !== null) {
     return (
-      <div className="m-auto max-w-md px-4 text-center" role="alert">
+      <div className="m-auto max-w-[28rem] px-4 text-center" role="alert">
         <p className="font-display text-lg font-semibold text-white">The text couldn’t be loaded</p>
         <p className="mt-2 text-sm text-white/70">
           {editor.loadError || 'The gateway didn’t answer.'}

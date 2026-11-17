@@ -1,4 +1,4 @@
-import { SpaceProviderWrapper } from './contexts/SpaceProviderWrapper';
+import { SpaceProviderWrapper } from './modules/settings/contexts/SpaceProviderWrapper';
 import { AuthProvider } from './modules/auth/contexts/authProvider';
 import DialogHost from './modules/core/components/dialog-host';
 import { ToastProvider } from './modules/core/contexts/toastContext';
@@ -7,7 +7,6 @@ import NotificationsSSEBridge from './modules/notification/components/notificati
 import { NotificationsProvider } from './modules/notification/contexts/notificationsProvider';
 import { OrganizationProvider } from './modules/organization/contexts/organizationProvider';
 import Router from './routes/router';
-import './styles/globals.css';
 
 // SPHERE's provider order (frontend/src/App.tsx), with OpenBinding's SPACE provider, which the /pricing gates need; the
 // notifications' SSE stream turns what arrives into toasts.

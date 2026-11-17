@@ -2,7 +2,7 @@
 // account sees, and where a role comes from. The `/me/orgs` tree reads the gateway's own `role_source`; the screens not yet
 // moved still work it out here.
 
-import type { Organization, OrganizationRole } from '../../../api/platform';
+import type { Organization, OrganizationRole } from '../api/organizationClient';
 
 /** Roles from the most to the least powerful, as the selects list them. */
 export const ROLES: readonly OrganizationRole[] = ['OWNER', 'ADMIN', 'MEMBER', 'VIEWER'];
@@ -63,9 +63,9 @@ export function initialsOf(name: string): string {
 
 /** The brand blues the prototype uses for tiles; the lightest is deepened so the white initials keep 4.5:1 (the raw token is 3.4:1). */
 export const TILE_COLOURS = [
-  'var(--tp-primary-deep)',
-  'var(--tp-primary)',
-  'color-mix(in srgb, var(--tp-sunshine-800) 60%, var(--tp-primary-deep))',
+  'var(--color-tp-accent-hover)',
+  'var(--color-tp-accent)',
+  'color-mix(in srgb, var(--color-tp-sunshine-800) 60%, var(--color-tp-accent-hover))',
 ] as const;
 
 /** A stable brand colour per organization, so the same one looks the same on every screen. */

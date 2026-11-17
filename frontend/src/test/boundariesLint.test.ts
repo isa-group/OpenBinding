@@ -24,27 +24,6 @@ const errorsOf = async (from: string, code: string) => {
   return { found, errors: found.filter(m => (m as { severity?: number }).severity === 2).length };
 };
 
-describe('boundaries rule on page imports', () => {
-  it('warns, without failing, on an import from one page into another', async () => {
-    const result = await lint(
-      'src/pages/About/About.tsx',
-      "import { Pricing } from '../Pricing/Pricing';\nexport const page = Pricing;\n"
-    );
-    const found = boundaries(result.messages);
-    expect(found.length).toBeGreaterThan(0);
-    expect(found.every(m => (m as { severity?: number }).severity === 1)).toBe(true);
-    expect(result.errorCount).toBe(0);
-  });
-
-  it('does not warn on an import inside the same page', async () => {
-    const result = await lint(
-      'src/pages/About/About.tsx',
-      "import * as model from './aboutModel';\nexport const page = model;\n"
-    );
-    expect(boundaries(result.messages)).toEqual([]);
-  });
-});
-
 describe('the module rule', () => {
   it.each([
     ['core', 'src/modules/core/utils/probe.ts', 'alpha/api'],

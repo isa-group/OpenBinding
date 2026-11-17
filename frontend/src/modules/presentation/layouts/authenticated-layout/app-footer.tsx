@@ -2,10 +2,12 @@
 // https://github.com/SCORELabUS/SPHERE. Copyright (c) 2024 Alejandro García Fernández.
 // MIT licence: the full text is in THIRD_PARTY_NOTICES.md.
 // Changes: OpenBinding's statement and columns (from its old site footer), as links instead of buttons; the institutional
-// links open in a new tab; small text at full opacity of the cream foreground, so it reaches 4.5:1; a labelled navigation.
+// links open in a new tab; small text at full opacity of the cream foreground, so it reaches 4.5:1; a labelled navigation;
+// the gateway's service status as a chip in the bottom bar.
 
 import { Link } from 'react-router-dom';
-import { InstitutionMark } from '../../../../components/InstitutionMark';
+import { InstitutionMark } from '../../../auth/components/institution-mark';
+import ServiceStatus from '../../components/service-status';
 
 const FOOTER_COLUMNS = [
   {
@@ -15,16 +17,17 @@ const FOOTER_COLUMNS = [
       { label: 'Language', to: '/language' },
       { label: 'Engines', to: '/engines' },
       { label: 'Pricing', to: '/pricing' },
-      { label: 'Workbench', to: '/workbench' },
+      { label: 'Problem editor', to: '/problem-editor' },
     ],
   },
   {
     title: 'About',
     links: [
-      { label: 'Team', to: '/about?tab=team' },
-      { label: 'Research', to: '/about?tab=research' },
-      { label: 'Funding', to: '/about?tab=funding' },
-      { label: 'Changelog', to: '/about?tab=changelog' },
+      { label: 'Team', to: '/team' },
+      { label: 'Research', to: '/research' },
+      { label: 'Funding', to: '/research#funding' },
+      { label: 'Contributions', to: '/contributions' },
+      { label: 'Changelog', to: '/changelog' },
     ],
   },
 ];
@@ -80,7 +83,10 @@ export default function AppFooter() {
 
         {/* Bottom bar */}
         <div className="mt-10 flex flex-col gap-3 border-t border-tp-on-cream/15 pt-6 text-xs text-tp-on-cream md:flex-row md:items-center md:justify-between">
-          <p>© {new Date().getFullYear()} OpenBinding</p>
+          <div className="flex flex-wrap items-center gap-3">
+            <p>© {new Date().getFullYear()} OpenBinding</p>
+            <ServiceStatus id="service-status" />
+          </div>
           <div className="flex flex-wrap items-center gap-3">
             {INSTITUTIONAL_LINKS.map(link => (
               <a

@@ -66,7 +66,7 @@ describe('internal links written in the code', () => {
 
   it('do not point at the addresses the redesign retired', () => {
     const retired =
-      /^\/(playground|profiles|schemas|team|research|funding|contributions|changelog)(\/|$)|^\/app\/analysis\?job=|^\/app\/[^/]+\/[^/]+\/(verifier|analytics|artifacts|reports|library|resources)(\/|$)|^\/app\/[^/]+\/library(\/|$)|^\/app\/[^/]+\/[^/]+\/cases\/[^/]+\/compose(\/|$)/;
+      /^\/(playground|profiles|schemas|funding|about)(\/|$)|^\/app\/analysis\?job=|^\/app\/[^/]+\/[^/]+\/(verifier|analytics|artifacts|reports|library|resources)(\/|$)|^\/app\/[^/]+\/library(\/|$)|^\/app\/[^/]+\/[^/]+\/cases\/[^/]+\/compose(\/|$)/;
     const old = staticLinks()
       .filter(({ address }) => retired.test(address))
       .map(({ file, line, address }) => `${file}:${line}: ${address}`);

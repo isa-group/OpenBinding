@@ -43,7 +43,7 @@ const section = (name: string) => screen.getByRole('region', { name });
 const taskBox = (id: string) =>
   within(section('Workflow'))
     .getByText(id, { selector: 'code' })
-    .closest('.wg-task') as HTMLElement;
+    .closest('[data-wg-task]') as HTMLElement;
 
 describe('the workflow mode', () => {
   it('draws the workflow with the candidate of each task and the local task as not bound', () => {

@@ -1,7 +1,7 @@
 /* eslint-disable react-refresh/only-export-components -- a test kit, never hot-reloaded */
 import type { ReactElement } from 'react';
 import type { Mock } from 'vitest';
-import type { UserProfile } from '../api/auth';
+import type { UserProfile } from '../modules/core/api/account';
 import type { Organization } from '../modules/organization/api/organizationsApi';
 import { renderModule } from './moduleKit';
 

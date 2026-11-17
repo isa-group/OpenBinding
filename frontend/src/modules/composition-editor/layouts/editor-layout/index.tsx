@@ -6,16 +6,19 @@
 // account; the share link is the full `#composition=` encoding only (no short cached links, plan §13); Import YAML reads a
 // file of at most 256 KiB; a text brought in over unsaved changes (an import, a share link) asks before it replaces them;
 // the Publish dialog is opened from here; the dialogs are labelled, close on Escape, and the share dialog says that the link
-// carries the text and nothing is sent to the gateway.
+// carries the text and nothing is sent to the gateway. The dialog card is core/components/editor-chrome, shared with the
+// problem editor.
 
-import { useCallback, useEffect, useId, useMemo, useState, type ReactNode } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { AnimatePresence } from 'framer-motion';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../../auth/hooks/useAuth';
 import { readApiError } from '../../../core/api/errors';
 import type { CompositionVersionView, CompositionView } from '../../../core/api/types';
 import ConfirmModal from '../../../core/components/confirm-modal';
+import FocusTrapLayer from '../../../core/components/focus-trap-layer';
 import CopyToClipboardIcon from '../../../core/components/copy-icon';
+import { EditorDialog } from '../../../core/components/editor-chrome';
 import FileUpload from '../../../core/components/file-upload-input';
 import EditorSkeleton from '../../../core/components/skeletons/editor-skeleton';
 import { compositionsApi } from '../../../composition/api/compositionsApi';
@@ -31,54 +34,6 @@ import PublishModal from './publish-modal';
 interface Opened {
   composition: Pick<CompositionView, 'slug' | 'kind' | 'name'>;
   version: Pick<CompositionVersionView, 'id' | 'label'> | null;
-}
-
-/** A dialog of the editor: SPHERE's backdrop and card, labelled by its title. */
-function EditorDialog({
-  title,
-  onClose,
-  children,
-}: {
-  title: string;
-  onClose: () => void;
-  children: ReactNode;
-}) {
-  const titleId = useId();
-  useEffect(() => {
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
-    };
-    document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
-  }, [onClose]);
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.2 }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-tp-ink/60 p-4"
-      role="presentation"
-      onClick={onClose}
-    >
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 8 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 8 }}
-        transition={{ duration: 0.2, ease: 'easeOut' }}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        className="w-full max-w-[500px] rounded-xl border border-tp-hairline bg-tp-canvas p-6 shadow-elevation-4"
-        onClick={event => event.stopPropagation()}
-      >
-        <h2 id={titleId} className="text-center font-display text-lg font-semibold text-tp-ink">
-          {title}
-        </h2>
-        {children}
-      </motion.div>
-    </motion.div>
-  );
 }
 
 function EditorFrame({
@@ -192,13 +147,15 @@ function EditorFrame({
 
       <AnimatePresence>
         {editor.incoming && (
-          <ConfirmModal
-            message={`${editor.incoming.source === 'upload' ? 'The imported file' : 'The composition in this link'} replaces the text you have not published. Undo brings your text back.`}
-            onConfirm={editor.acceptIncoming}
-            onCancel={editor.declineIncoming}
-            confirmLabel="Replace"
-            cancelLabel="Keep my changes"
-          />
+          <FocusTrapLayer onEscape={editor.declineIncoming}>
+            <ConfirmModal
+              message={`${editor.incoming.source === 'upload' ? 'The imported file' : 'The composition in this link'} replaces the text you have not published. Undo brings your text back.`}
+              onConfirm={editor.acceptIncoming}
+              onCancel={editor.declineIncoming}
+              confirmLabel="Replace"
+              cancelLabel="Keep my changes"
+            />
+          </FocusTrapLayer>
         )}
       </AnimatePresence>
     </EditorValueContext.Provider>
@@ -263,7 +220,7 @@ export default function EditorLayout({ children }: { children?: ReactNode }) {
         <p className="font-display text-lg font-semibold text-white">
           There is no composition to edit
         </p>
-        <p className="max-w-md text-sm text-white/70">
+        <p className="max-w-[28rem] text-sm text-white/70">
           This composition or version is unavailable. Sign in if you have access to a private
           composition.{resolved.message ? ` (${resolved.message})` : ''}
         </p>

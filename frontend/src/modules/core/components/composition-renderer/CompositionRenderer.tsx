@@ -2,7 +2,6 @@ import type { CompositionViewModel } from '../../utils/composition/viewModel';
 import type { AnalysisActions } from './modes/analysis';
 import { ArchitectureMode } from './modes/architecture';
 import { CatalogMode } from './modes/catalog';
-import { Comparison, type ComparisonData } from './modes/comparison/Comparison';
 import { ConfiguratorMode } from './modes/configurator';
 import { ShowcaseMode } from './modes/showcase';
 import { WorkflowMode } from './modes/workflow';
@@ -17,17 +16,11 @@ export interface RendererLinks {
 
 interface CompositionRendererProps extends RendererLinks {
   model: CompositionViewModel;
-  mode: RendererMode;
+  /** The comparison's sections are drawn by the version diff (`modes/graph-diff`), not by a mode of the renderer. */
+  mode: Exclude<RendererMode, 'comparison'>;
   /** Sections of the mode's preset this screen does not show (the page header already names the composition, say). */
   hideSections?: readonly Section[];
   density?: Density;
-  /**
-   * Show only what differs between two versions: in the comparison mode the file view starts with the unchanged lines folded
-   * (the structured view lists only changes either way). Without it every line shows at first.
-   */
-  onlyDifferences?: boolean;
-  /** The pair the comparison mode compares and what the gateway answered for it; `model` is then the later version's. */
-  comparison?: ComparisonData;
   /** The page's answers to the configurator (try, derive, open as a draft), and where it starts. */
   analysis?: AnalysisActions;
 }
@@ -41,8 +34,6 @@ export function CompositionRenderer({
   mode,
   hideSections = [],
   density = 'comfortable',
-  onlyDifferences = true,
-  comparison,
   analysis,
   problemHref = null,
   runHref = null,
@@ -63,14 +54,6 @@ export function CompositionRenderer({
       )}
       {mode === 'architecture' && <ArchitectureMode model={model} sections={sections} />}
       {mode === 'workflow' && <WorkflowMode model={model} sections={sections} />}
-      {mode === 'comparison' && comparison && (
-        <Comparison
-          {...comparison}
-          model={model}
-          sections={sections}
-          onlyDifferences={onlyDifferences}
-        />
-      )}
       {mode === 'configurator' && (
         <ConfiguratorMode model={model} sections={sections} actions={analysis} />
       )}

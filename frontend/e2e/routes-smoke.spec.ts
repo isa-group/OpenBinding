@@ -93,7 +93,7 @@ const FORBIDDEN_PUBLICATION = /\bpublications?\b/gi;
  */
 async function visibleTexts(page: Page): Promise<string[]> {
   return page.evaluate(() => {
-    const skipped = 'code, pre, script, style, noscript, .rendering-source, .rendering-log';
+    const skipped = 'code, pre, script, style, noscript, [data-rendering]';
     const texts: string[] = [];
     const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
     for (let node = walker.nextNode(); node; node = walker.nextNode()) {
@@ -118,7 +118,7 @@ function forbiddenIn(screenId: string, texts: string[]): string[] {
   );
 }
 
-/** A route pattern (`/app/:org/problems/:case/:tab?`) as a regular expression over a pathname. */
+/** A route pattern (`/problems/:org/:problem/:tab?`) as a regular expression over a pathname. */
 function patternRegex(pattern: string): RegExp {
   const segments = pattern
     .split('/')
@@ -141,12 +141,14 @@ test.describe('route registry', () => {
     expect(new Set(screens.map(screen => screen.id)).size).toBe(screens.length);
     expect(new Set(screens.map(screen => screen.path)).size).toBe(screens.length);
     expect(
-      screens.filter(screen => screen.requireAdmin).every(screen => screen.id.startsWith('admin-'))
+      screens
+        .filter(screen => screen.requireAdmin)
+        .every(screen => screen.id === 'admin' || screen.id.startsWith('admin-'))
     ).toBe(true);
   });
 
   test('rejects the six words, whatever their letter case, except the engine registration publication text', () => {
-    expect(forbiddenIn('run-list', ['Jobs', 'my case', 'Cases and JOB'])).toHaveLength(4);
+    expect(forbiddenIn('run-detail', ['Jobs', 'my case', 'Cases and JOB'])).toHaveLength(4);
     expect(forbiddenIn('pub-home', ['Publications and public results'])).toEqual([
       '"Publications" in "Publications and public results"',
     ]);
@@ -155,12 +157,14 @@ test.describe('route registry', () => {
       []
     );
     expect(forbiddenIn('eng-registration-detail', ['Jobs'])).toHaveLength(1);
-    expect(forbiddenIn('problem-list', ['Problems', 'showcase', 'Runs', 'Published'])).toEqual([]);
+    expect(forbiddenIn('problem-detail', ['Problems', 'showcase', 'Runs', 'Published'])).toEqual(
+      []
+    );
   });
 
   test('knows which pathnames are screens of the registry', () => {
-    expect(isScreenAddress('/app/isa-demo/problems/checkout')).toBe(true);
-    expect(isScreenAddress('/app/isa-demo/qos/problems/checkout')).toBe(false);
+    expect(isScreenAddress('/problems/isa-demo/checkout')).toBe(true);
+    expect(isScreenAddress('/app/isa-demo/problems/checkout')).toBe(false);
     expect(isScreenAddress('/me/api-keys')).toBe(true);
     expect(isScreenAddress('/app/account/keys')).toBe(false);
     expect(isScreenAddress('/explore')).toBe(false);

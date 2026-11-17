@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { FORBIDDEN_ADDRESS_SEGMENTS, OLD_ADDRESS_SEGMENTS, scanAddresses } from './vocabulary';
 
 // The addresses the frontend builds hold no `cases`, `jobs` or `publications` segment (`req~frontend-nav-vocabulary-urls~1`, slices 13 and 14). The gateway
-// API paths in `src/api/` keep them. No file declares an old address: there is no redirect table. Nor do they hold the segments the composition
+// API paths in the HTTP client layer (each module's `api/<name>Client.ts`) keep them. No file declares an old address: there is no redirect table. Nor do they hold the segments the composition
 // vocabulary forbids, `deployments`, `scenarios` and `builds`, while `compositions`, `c` (the showcase) and `language` are addresses of their own.
 
 const EVERY_SEGMENT = [...OLD_ADDRESS_SEGMENTS, ...FORBIDDEN_ADDRESS_SEGMENTS];
@@ -12,7 +12,7 @@ describe('the address scan', () => {
     const files = {
       'pages/X.tsx':
         "export const X = ({ root, slug }) => <Link to={`${root}/cases/${slug}`} />;\nexport const all = '/app/runs';",
-      'src/api/cases.ts':
+      'src/modules/problem/api/casesClient.ts':
         'export const one = (org, project, caseSlug) => `${projectRoot(org, project)}/cases/${enc(caseSlug)}`;',
     };
     expect(scanAddresses(files)).toEqual(['pages/X.tsx: ${root}/cases/${slug}']);
@@ -79,7 +79,7 @@ describe('the address scan', () => {
         "export const fine = '/app/runs';",
         'export const fineToo = `${root}/runs/${id}`;',
       ].join('\n'),
-      'src/api/runsClient.ts':
+      'src/modules/run/api/runsClient.ts':
         'export const list = (org, project) => `${projectRoot(org, project)}/jobs?include_results=false`;',
     };
     expect(scanAddresses(files)).toEqual([
@@ -101,7 +101,8 @@ describe('the address scan', () => {
         "export const language = '/language#composition=abc';",
         "export const word = 'deployments';",
       ].join('\n'),
-      'src/api/engines.ts': 'export const deployments = (org) => `${orgRoot(org)}/deployments`;',
+      'src/modules/engine/api/enginesClient.ts':
+        'export const deployments = (org) => `${orgRoot(org)}/deployments`;',
     };
     expect(scanAddresses(files, FORBIDDEN_ADDRESS_SEGMENTS)).toEqual([
       'pages/C.tsx: ${root}/deployments',
@@ -123,7 +124,8 @@ describe('the address scan', () => {
         'export const one = `${root}/publications/${id}`;',
         "export const fine = '/app/published';",
       ].join('\n'),
-      'src/api/publications.ts': 'export const list = (org) => `${orgRoot(org)}/publications`;',
+      'src/modules/engine/api/publicationsClient.ts':
+        'export const list = (org) => `${orgRoot(org)}/publications`;',
     };
     expect(scanAddresses(files)).toEqual([
       'pages/P.tsx: ${root}/publications',

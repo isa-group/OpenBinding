@@ -182,48 +182,50 @@ openbinding-gateway/src/openbinding_gateway/
 
 ### 5.1 Layout and modules
 
-The frontend converges on SPHERE's ([ADR 0053](adr/0053-frontend-on-sphere-stack.md)): its stack (Tailwind 4 with the
-`tp` tokens, framer-motion, react-icons, react-helmet-async, Monaco), its folders and its shell. PR-A grafted the
-skeleton without changing an address; the screens move into it domain by domain. The older folders empty as they do.
+The frontend is built as SPHERE's ([ADR 0053](adr/0053-frontend-on-sphere-stack.md)): its stack (Tailwind 4 with the
+`tp` tokens, framer-motion, react-icons, react-helmet-async, bundled Monaco), its folders and its shell. Every screen
+is one of SPHERE's pages, copied or adapted (each file names its origin; `THIRD_PARTY_NOTICES.md` lists them with
+their reuse class), and SPHERE's frontend is the reference for any new one (`CONTRIBUTING.md`, "SPHERE first").
 
 ```
 frontend/src/
   main.tsx                SPHERE's order: HelmetProvider > BrowserRouter > SkeletonThemeProvider > Suspense > App; the
                           brand palette is applied before the first paint
-  App.tsx                 AuthProvider > SpaceProviderWrapper > OrganizationProvider > ToastProvider > DialogHost, Router
+  App.tsx                 AuthProvider > SpaceProviderWrapper > OrganizationProvider > NotificationsProvider >
+                          ToastProvider > DialogHost, Router
   routes/                 router.tsx: one useRoutes table under SPHERE's banners and the exported `screens` (one line per
                           screen, read by the screen budget and the end-to-end parsers); app-layout.tsx (the session's
-                          chrome); LegacyOrgOutlet.tsx (the old shell's outlet context, until its last reader goes);
-                          paths/ (address builders)
-  styles/                 tailwind.css (SPHERE's theme, both brand palettes, the layer order); globals.css (the legacy
-                          bridge, whole in @layer legacy)
+                          chrome); route-outlet.tsx (each layout's error boundary and loading state); paths/ (address
+                          builders)
+  styles/tailwind.css     the one stylesheet: SPHERE's theme, both brand palettes, the layer order, the base rules
+  content/                the about pages' data, the changelog and the Composition2Yaml examples
   modules/
-    core/                 SPHERE's kit (components, hooks, utils, pages: dialogs, toasts, avatars, skeletons, pagination,
-                          filters, the command palette, the 404), OpenBinding's primitives drawn with SPHERE's recipes
-                          (action-button with Action and Button, modal, tab-bar, notice, data-table…), the transport and
-                          generated types (api/: http.ts with fetchWithInterceptor, openapi.ts, types.ts, errors.ts with
-                          readApiError, refusals.ts), editor/ (draft store, lint scheduler), diagnostics/, theme/brand.ts,
-                          utils/ (the composition, binding and problem models; sphere/ for SPHERE's ported utilities;
-                          icon-map.ts) and the shared binding core in components/ (composition-renderer with its modes,
-                          workflow-graph, candidate-matrix, value-badge, rules-and-objectives, provider-map, pricing-card,
-                          problems-panel)
-    auth/                 the session context and provider, useAuth (with fetchWithInterceptor), protected-route
-    presentation/         SPHERE's layouts: authenticated (header, user menu, mobile drawer, footer) and public (the
-                          floating morph header), and the header menus (layouts/router/header-routes.ts)
-    organization/         OrganizationContext and useOrganization
-    composition/          fork, change summary, evolution charts
-    composition-editor/   the Composition2Yaml editor
-    problem-editor/       the BIM problem editor
-    run/                  the derive dialog, the presets
-    beta/                 BetaGate, BetaBadge and the registry of beta features
-  pages/                  the screens not yet poured into SPHERE's pages
-  components/, api/, utils/, contexts/, features/workspace/
-                          the older shared code, deleted with its last importer (D8)
+    core/                 SPHERE's kit (components, hooks, utils, pages: dialogs with the focus trap, toasts, avatars,
+                          skeletons, pagination, filters, the command palette, the 404, the card shell and the list view),
+                          the transport and the generated types (api/: http.ts with the one apiClient and
+                          fetchWithInterceptor, openapi.ts, types.ts, errors.ts with readApiError, refusals.ts, and the
+                          account, BIM, health and problem types), editor/ (draft store, lint scheduler), diagnostics/,
+                          theme/ (brand, editor themes), utils/ and the shared binding core in components/
+                          (composition-renderer with its modes, workflow-graph, candidate-matrix, value-badge,
+                          rules-and-objectives, provider-map, pricing-card, pricing-renderer, problems-panel, code-editor)
+    auth/                 the session, sign-in pages, the account's client, the institution mark
+    presentation/         SPHERE's layouts (authenticated and public), the landing and dashboard, the about pages,
+                          /pricing, and the header's menus and palette (layouts/router/)
+    organization/         OrganizationContext, /me/orgs, /organizations, /orgs/:org/:tab?, invitations
+    composition/          the lists, the card page and its tabs, /compositions/new, /p/:id
+    composition-editor/   /editor
+    problem/              the organization's Problems tab and the problem page
+    problem-editor/       /problem-editor
+    run/                  the Runs tab, /runs/new, the run page, the run renderers, presets and derive
+    study/                the Studies tab, /studies/new, the study page
+    engine/               /engines, an engine's page, /me/engines and registration
+    admin/                /admin/:section? and an account's page
+    settings/, api-keys/, notification/, language/, beta/
 ```
 
 Dependency rule, checked by `eslint-plugin-boundaries` at **error** (`boundariesLint.test.ts`): `modules/core` imports
 no domain module, and a module imports another only through its `api/`, `types/`, `components/`, `hooks/` or
-`contexts/`. The older folders are not modules. The older page-to-page edges stay warnings until their screens move.
+`contexts/`. Outside `modules/` there are only the application's root, the route table and the test kit.
 
 New code uses the generated types; a drift between the gateway and the frontend fails `pnpm gen:api --check` in CI.
 
@@ -239,57 +241,51 @@ diagnostics code, the client IR reader (`pages/Cases/bindingModel.ts`) and the c
 the Workbench shell (`pages/Workbench`, replaced by the BIM editor, now `modules/problem-editor`), the public Workbench's client reader of BIM
 source files (`pages/Public/packageModel.ts`, its diagnostics wording and result panels), the BIM types of
 `api/client.ts` and the client Pareto check and CSV export ([ADR 0051](adr/0051-problem-editor-on-the-shared-core.md),
-[ADR 0052](adr/0052-study-front-export-and-presets-on-the-server.md)).
+[ADR 0052](adr/0052-study-front-export-and-presets-on-the-server.md)). F2c deleted the workspace under `/app` with its
+pages, the public Workbench (`/problem-editor` validates for visitors), the API monolith (`api/client.ts`,
+`api/platform.ts`), the legacy stylesheets and their cascade layer, lucide-react and CodeMirror.
 
 ### 5.2 Information architecture
 
-- **Public header:** Home · Compositions · Language · Engines · Pricing · About · Log in. Compositions is the public
-  list of every organization's public compositions (`/compositions`); a composition's public page, the
-  **showcase**, is `/c/:org/:composition` (`?version=<id|label|ordinal>` is its permalink). Language is the
-  Composition2Yaml reference and playground (`/language`), whose examples the gateway checks
-  (`tests/composition/test_the_spec_examples.py` reads `content/composition2yaml-examples.json`). The anonymous
-  Workbench stays at `/workbench`: it validates a package with its facts and draws a valid one with the shared
-  workflow graph and candidate matrix, or places a refused one's findings in its files; nothing is drawn from the
-  files themselves.
-- **Signed in:** the header leads with the organization's Compositions, then Problems, Runs and Studies, Engines and
-  Admin (administrators); "+ New" (composition, problem, study, run); the command palette (⌘K); notifications; the
-  account menu (Profile · Plan · API keys · Identities · Notifications). Home shows the recent compositions of an
-  organization above its recent activity.
-- **Organization:** overview (its compositions first, then problems, runs, studies and sub-organizations) · Settings
-  (General · Members · Run presets · Audit). An organization's screens are
-  `/app/:org/{compositions,problems,problem-editor,runs,studies,settings}`.
-- **Composition page:** `/app/:org/compositions/:composition/:tab?` with the tabs Overview · Editor · Versions ·
-  Analysis · Settings, a version selector (`?version=`), the value status, the lineage (forked from, derived from a
-  run) and, for a member, "New version" (code, visual, upload, derive) and Fork. Versions has the views table,
-  compare and file (`?view=compare|file&from=&to=`) and evolution (`?view=evolution`); Analysis shows for a member
-  reading a version linked to a problem it can read; Settings for MEMBER and above (visibility: ADMIN). Operations
-  joins in F4.
-- **Problem page:** header with the version selector; tabs Overview (workflow graph, binding space, rules and
-  objectives from the facts) · Candidates (the candidate matrix; `?composition=&compositionVersion=` highlights what a
-  composition version chose) · Versions · Runs · Compositions (the compositions that link it) · Source · Settings. The
-  problem list filters by origin (uploaded, problem editor, QACOForge) and by linking composition.
-- **Problem editor:** `/app/:org/problem-editor` (`?template=`, `?problem=&revision=`, and the composition overlay
-  `&composition=&compositionVersion=`). Panes Workflow · Candidates (the matrix, edited in place) · Rules · Files ·
-  Forms · BPMN, the engines beside them and the Problems panel below; on a phone every one of them is a tab. It checks
-  the package live and saves it as a problem version ([ADR 0051](adr/0051-problem-editor-on-the-shared-core.md)).
-- **Run page:** verdict, engine mode and budget first; then the binding table, QoS against bounds, the objective
-  breakdown and engine-claimed versus evaluated values; the trade-off set when there are several objectives; "Keep it
-  as a composition" (derive) for a member; the log collapsed at the bottom.
-- **Study page:** Setup · Progress · Results (the gateway's Pareto front of each problem version, derive a
-  composition per point, compare two, export CSV or JSON from the gateway). Runs and studies start from run presets
-  ([ADR 0052](adr/0052-study-front-export-and-presets-on-the-server.md)).
-- **Screen budget:** exactly **36** routed screens (`routes/screenBudget.test.ts`): F2 added the composition list
-  and detail, the public list, the showcase and Language. F5 retires register, password reset and the CAS callback,
-  which brings it to **33**. Each user journey has a Playwright walk of at most five screens, mocked
-  (`e2e/f2a-*.spec.ts`, `e2e/f2b-*.spec.ts`) and, for J1 to J4, live against the lab
-  (`e2e/live/08-derive-seal-compare.spec.ts`, `09-public-fork.spec.ts`, `10-problem-editor.spec.ts`,
+SPHERE's information architecture is the reference (the owner's decision of 2026-11-16; it supersedes the plan's flat
+header and its 33-screen budget).
+
+- **Header** (SPHERE's): the `OPENBINDING` wordmark; **Tools** (Composition editor `/editor`, Problem editor
+  `/problem-editor`, Composition2Yaml `/language`); **Explore** (Organizations `/organizations`, Compositions
+  `/compositions`, Engines `/engines`); Pricing, Team, Research and Changelog; then **New** ▾ (composition, problem,
+  run, study, organization, engine), the command palette (⌘K), the notification bell and the account menu (Inbox,
+  Organizations, Compositions, Engines, API keys, Settings, Administration for administrators). There is no
+  organization switcher: creation forms choose the organization (`?org=` preselects it).
+- **`/`** is the landing to visitors and the dashboard to a session.
+- **Organization:** `/orgs/:org/:tab?`, SPHERE's hero with tabs Overview · Compositions · Problems · Runs · Studies ·
+  Members · Invitations · Hierarchy · Presets · Audit, each from the least role that may see it. `/me/orgs`,
+  `/organizations`, `/orgs/new` and `/orgs/join/:code` list, explore, create and join.
+- **Resources of an organization** render outside its page, on the card shell, with the breadcrumb "Org / Name":
+  `/compositions/:org/:composition/:tab?` (Overview · Analytics · Configuration · Versions · Settings; the version
+  graph and diff in Versions; `/p/:id` resolves a permanent link), `/problems/:org/:problem/:tab?` (Overview ·
+  Candidates · Versions · Runs · Compositions · Source · Settings), `/runs/:org/:run` (Result · Settings · Provenance ·
+  Timeline) and `/studies/:org/:study/:tab?` (Setup · Progress · Results · Front · Settings). Creation forms:
+  `/compositions/new`, `/runs/new`, `/studies/new`, each with `?org=`.
+- **Editors** are standalone pages open to visitors: `/editor` (Composition2Yaml, publish when signed in) and
+  `/problem-editor` (BIM: a visitor edits, validates and downloads; saving needs an account). Each has Code and Visual,
+  the Problems panel docked below and, below 640 px, its panes as tabs.
+- **Engines:** `/engines` (the catalog), `/engines/:namespace/:name/:version`, and the account's `/me/engines`,
+  `/me/engines/new` and `/me/engines/:name`.
+- **Account and administration:** `/me/settings?section=`, `/me/api-keys`, `/notifications`, `/admin/:section?`
+  and `/admin/users/:user`.
+- **Missing and unreadable read the same:** anything missing, of another organization or not readable renders the
+  in-place 404 (`e2e/not-found-parity.spec.ts` checks every kind of address with a 404 and a 403 answer).
+- **Screen budget:** exactly **38** routed screens (`routes/screenBudget.test.ts`): 20 open to visitors and 18 behind
+  an account. F5 adds `/sso/identity/callback` (39), F7 `/orbit` (40) and F9 five collection routes (45). Each user
+  journey has a Playwright walk, mocked (`e2e/f2a-*.spec.ts`, `e2e/f2b-*.spec.ts`) and, for J1 to J4, live against
+  the lab (`e2e/live/08-derive-seal-compare.spec.ts`, `09-public-fork.spec.ts`, `10-problem-editor.spec.ts`,
   `11-study-front.spec.ts`).
 
 ### 5.3 Rendering catalogue
 
-The composition core ([ADR 0049](adr/0049-composition-renderer-core.md)): `entities/composition/viewModel.ts` turns
+The composition core ([ADR 0049](adr/0049-composition-renderer-core.md)): `modules/core/utils/composition/viewModel.ts` turns
 gateway answers into a `CompositionViewModel`, and `CompositionRenderer` draws one **mode** of it. Each mode's
-sections are a preset in `presets.ts`; a screen narrows them with `hideSections`, `density` and `onlyDifferences`.
+sections are a preset in `presets.ts`; a screen narrows them with `hideSections` and `density`.
 Presentation hints live there and in per-viewer `localStorage` preferences, never in the document or on the
 composition.
 
@@ -298,29 +294,29 @@ composition.
 | `catalog` | identity, value status, values, binding, offering, evidence, problem, the evaluation's findings (members) | the composition, the version with `include=document` | Overview |
 | `architecture` | providers and the upstream SPHERE plan references | the document, the facts of the evaluated compilation, `analytics` | Overview |
 | `workflow` | the workflow with each task's candidate, the problem's candidates (members) | the document, the facts | Overview |
-| `comparison` | the change summary, the later workflow with changes marked, the candidates each version chose; the file diff | `GET …/diff`, both versions' content and documents | Versions (compare, file) |
-| `calculator` | every one-task move with the gateway's comparison word and deltas | `GET …/neighborhood` | Analysis |
-| `configurator` | another binding chosen per task and what the toolchain makes of it | `POST …/evaluate` | Analysis |
-| `showcase` | the public page: header, what it does, value status, values, workflow, providers, plans, the problem's reference, offering, versions | the redacted public reads | `/c/:org/:composition` |
+| `comparison` | the later workflow with what changed marked, and the candidates each version chose (drawn by the version diff, whose structured and file views are SPHERE's) | `GET …/diff`, both versions' content and documents | Versions (compare) |
+| `calculator` | every one-task move with the gateway's comparison word and deltas | `GET …/neighborhood` | Configuration |
+| `configurator` | another binding chosen per task and what the toolchain makes of it | `POST …/evaluate` | Configuration |
+| `showcase` | what a visitor reads: what it does, value status, values, workflow, providers, plans, the problem's reference, offering | the redacted public reads | Overview, for a visitor |
 
-The editor is a feature, not a mode: `modules/composition-editor` (CodeMirror YAML with the gateway's lint and
-completion from the problem, the visual form, the Problems panel, the seal bar) on the draft store.
+The editor is a page, not a mode: `/editor` (`modules/composition-editor`: bundled Monaco with the gateway's lint and
+completion from the problem, the visual pane, the Problems panel, the publish dialog) on the draft store.
 
 | Component | Shows | Used in |
 |---|---|---|
-| `WorkflowGraph` | a Composition2Yaml workflow (seq, and, xor with probabilities, loop) as nested groups, each task with its candidate and status in words | problem Overview, composition Overview, both editors, comparison, showcase, public Workbench |
-| `CandidateMatrix` | tasks × candidates × features from the facts, units in headers, the selected candidate marked, cards below 640 px; `select` mode for choosing, `edit` mode for the problem editor's cells | problem Candidates, composition Overview, both editors, configurator, public Workbench |
+| `WorkflowGraph` | a Composition2Yaml workflow (seq, and, xor with probabilities, loop) as nested groups, each task with its candidate and status in words | problem Overview, composition Overview, both editors, version diff, showcase |
+| `CandidateMatrix` | tasks × candidates × features from the facts, units in headers, the selected candidate marked, cards below 640 px; `select` mode for choosing, `edit` mode for the problem editor's cells | problem Candidates, composition Overview, both editors, configurator |
 | `ValueBadge` | Verified · Declared · Unverified, always in words, and a value's origin | every composition screen |
-| `ProblemsPanel` | located findings as buttons that jump to the place, counts announced, grouped by file for a BIM package | both editors, Language, derive preview, catalog and public Workbench (read-only) |
+| `ProblemsPanel` | located findings as buttons that jump to the place, counts announced, grouped by file for a BIM package | both editors, derive preview, catalog (read-only) |
 | `RulesAndObjectives` | the rules (must or should), objectives and penalties of the facts, each rule with where the package writes it | problem Overview, problem editor (Rules) |
 | `ProviderMap`, `PricingCard` | tasks grouped by provider; a plan's reference face, or pricing-renderer when given Pricing2Yaml (F3) | composition Overview, showcase |
-| `ChangeSummary` | what changed between two versions, or "Not comparable: <reason>" | Versions |
-| `EvolutionCharts` | structure and values per version over time, verified, declared and unverified apart, problem and compilation changes marked, a table for each chart | Versions (evolution) |
+| version graph, change summary card | the versions and the fork lanes, and what changed between two versions on hover | Versions |
+| analytics tab | structure and values per version over time, verified, declared and unverified apart, problem and compilation changes marked, a table for each chart | Analytics |
 | `MetricCards` | a row of key numbers with units | dashboards, headers |
 | `BindingTable`, `QoSAgainstBounds`, `ObjectiveBreakdown`, `EvaluationDiff`, `TradeOffChart`, `RunResult` | the run result: binding, QoS against bounds, objective terms, claimed against evaluated values, the trade-off set | run page, study cell |
 | `VerdictBadge` | OPTIMAL · FEASIBLE · UNSAT · TIMEOUT · INCOMPATIBLE | everywhere a run appears |
-| `BindingSpaceBadge` | the size of the binding space the analysis gives | problem pages, problem editor, public Workbench, study analytics |
-| `CodeEditor` | CodeMirror (JSON, YAML, XML) with located diagnostics and completion | editors, Language |
+| `BindingSpaceBadge` | the size of the binding space the analysis gives | problem pages, study analytics |
+| code editor | bundled Monaco (YAML, JSON, XML) with located diagnostics as markers and completion | both editors |
 | `LogPanel` | collapsed, searchable, downloadable log | run result, admin errors |
 | `SourceView` | read-only code viewer with copy and download | Source tabs, examples, previews |
 
@@ -584,8 +580,8 @@ resources and takes no submissions: what it compiles is what the installed `bim-
 
 Today the gateway serves `GET /v1/engines/protocol` (the installed Profiles with the engine protocol digest, read by
 the engine registration form), `GET /v1/bim/templates` and `POST /v1/bim/validate` (the problem editor checks there
-live and saves through the problems API, `POST /v1/organizations/{org}/problems` and `…/revisions`; the public
-Workbench validates there on demand). `GET /v1/profiles`,
+live and saves through the problems API, `POST /v1/organizations/{org}/problems` and `…/revisions`; a visitor's
+`/problem-editor` validates there too, and saves nothing). `GET /v1/profiles`,
 `GET /v1/dialects`, `/v1/examples`, `/v1/validate`, `/v1/instances` and `/v1/snapshots` were removed in F0b, with
 no deprecation period. The registry routes (`POST /v1/dialects`, `/v1/resources`, their
 approvals), `/v1/schemas/{kind}`, `/v1/catalog` and the deprecated pricing YAML proxy `GET /v1/pricing` were removed in

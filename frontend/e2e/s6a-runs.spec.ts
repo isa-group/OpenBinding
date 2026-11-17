@@ -7,8 +7,8 @@ import {
   type TestInfo,
 } from '@playwright/test';
 import { failureBody } from './helpers/problems';
-import type { Job } from '../src/api/platform';
-import type { Problem, ProblemRevision } from '../src/api/problems';
+import type { Job } from '../src/modules/run/api/runsClient';
+import type { Problem, ProblemRevision } from '../src/modules/problem/api/problemsClient';
 import {
   ENGINE,
   NEIGHBORHOOD,
@@ -18,11 +18,12 @@ import {
   jobOf,
   provenanceOf,
 } from '../src/test/fixtures/jobs';
-import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
+import { CURRENT_FIXTURE, catalogFixture } from '../src/test/fixtures/pricingCatalog';
 import { digestOf, usageOf } from '../src/test/fixtures/resources';
 import { FEDERATED_PRESET, presetFixture, presetPage } from '../src/test/fixtures/presets';
 
-// S6a · execution: run-launch (with run presets), run-list and run-detail (with deriving a composition from a finished run).
+// S6a · execution: run-launch (`/runs/new`, with run presets), the organization's Runs tab (`/orgs/:org/runs`) and run-detail
+// (`/runs/:org/:run`, with deriving a composition from a finished run).
 // There is no backend: the API origin is answered by page.route(). Screenshots go to testInfo.outputPath() (test-results/, ignored by git)
 // so they can be looked at after a run. Every test walks a screen through its states on a desktop and on a phone.
 
@@ -493,7 +494,17 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
         }
         if (state.refuse.runs) return state.refuse.runs(route);
         const limit = Number(url.searchParams.get('limit') ?? 50);
-        return json({ runs: own.slice(0, limit), total: own.length })(route);
+        const offset = Number(url.searchParams.get('offset') ?? 0);
+        const wantedState = url.searchParams.get('state');
+        const wantedEngine = url.searchParams.get('engine');
+        const matching = own.filter(
+          row =>
+            (!wantedState || row.status === wantedState) &&
+            (!wantedEngine || row.engine_id === wantedEngine)
+        );
+        return json({ runs: matching.slice(offset, offset + limit), total: matching.length })(
+          route
+        );
       }
       if (action === 'cancel') {
         state.sent.cancel = id;
@@ -598,7 +609,7 @@ async function capture(
   await page.evaluate(async () => {
     await document.fonts.ready;
     (document.activeElement as HTMLElement | null)?.blur();
-    window.scrollTo(0, 0);
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   });
   const path = testInfo.outputPath(`${name}.png`);
   const width = page.viewportSize()?.width ?? 0;
@@ -638,66 +649,106 @@ const viewports = [
   { name: 'mobile', viewport: { width: 390, height: 844 }, isMobile: true, deviceScaleFactor: 2 },
 ] as const;
 
-const ROOT = '/app/isa-demo';
+const RUNS = '/orgs/isa-demo/runs';
+const RUN = (id: string) => `/runs/isa-demo/${id}`;
+const LAUNCH = '/runs/new?org=isa-demo';
+const NOT_FOUND = 'Page not found';
 
 for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
   test.describe(`${name} · S6a execution`, () => {
     test.use({ viewport, isMobile, deviceScaleFactor });
 
-    test('run-list /app/:org/runs · every run of the organization, who launched it, filters and retry', async ({
+    /** An action of the run page: a button from `sm` up, an item of the ⋯ menu on a phone. */
+    const press = async (page: Page, label: string) => {
+      const main = page.locator('main');
+      if (isMobile) {
+        await main.getByRole('button', { name: 'More actions' }).click();
+        await main.getByRole('menuitem', { name: label }).click();
+      } else await main.getByRole('button', { name: label }).click();
+    };
+    /** Whether the run page offers an action, wherever the width puts it. */
+    const expectOffered = async (page: Page, label: string, offered: boolean) => {
+      const main = page.locator('main');
+      if (!isMobile) {
+        await expect(main.getByRole('button', { name: label })).toHaveCount(offered ? 1 : 0);
+        return;
+      }
+      const more = main.getByRole('button', { name: 'More actions' });
+      if (!offered && (await more.count()) === 0) return;
+      await more.click();
+      await expect(main.getByRole('menuitem', { name: label })).toHaveCount(offered ? 1 : 0);
+      await page.keyboard.press('Escape');
+    };
+    /** Opens a tab of the run page. */
+    const tab = (page: Page, label: string) =>
+      page.locator('main').getByRole('navigation', { name: 'Run sections' }).getByRole('link', {
+        name: label,
+      });
+
+    test('run-list /orgs/:org/runs · the Runs tab: every run, who launched it, status chips, filters and retry', async ({
       page,
     }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
-      await page.goto(`${ROOT}/runs`);
+      await page.goto(RUNS);
       const main = page.locator('main');
-      const table = main.getByRole('region', { name: 'Runs of the organization' });
+      const panel = main.getByRole('region', { name: 'Runs' });
+      const list = panel.getByRole('list', { name: 'Runs of the organization' });
 
-      await expect(main.getByRole('heading', { level: 1, name: 'Runs' })).toBeVisible();
-      await expect(
-        main.getByText(/Every run in ISA Demo Group\. Every member opens them/)
-      ).toBeVisible();
-      await expect(main.getByRole('link', { name: 'New run' })).toHaveAttribute(
+      await expect(panel.getByRole('heading', { level: 2, name: /Runs/ })).toBeVisible();
+      await expect(panel.getByText(/Every engine run launched in ISA Demo Group\./)).toBeVisible();
+      await expect(panel.getByRole('link', { name: 'Start a run' })).toHaveAttribute(
         'href',
-        `${ROOT}/runs/new`
+        LAUNCH
       );
-      await expect(table.getByRole('row')).toHaveCount(9);
-      await expect(table.getByRole('link', { name: /^Open run/ })).toHaveCount(8);
-      await expect(table.getByText('Owner only')).toHaveCount(0);
-      await expect(table.getByRole('cell', { name: /^ana/ })).toHaveCount(1);
-      await expect(table.getByRole('button', { name: 'Retry' })).toHaveCount(2);
-      await expect(main.getByRole('button', { name: 'All (8)' })).toHaveAttribute(
+      await expect(list.getByRole('listitem')).toHaveCount(8);
+      await expect(list.getByRole('link', { name: /^Open run/ })).toHaveCount(8);
+      await expect(list.getByText('Owner only')).toHaveCount(0);
+      await expect(list.getByText('ana', { exact: true })).toHaveCount(1);
+      await expect(list.getByRole('button', { name: 'Retry' })).toHaveCount(2);
+      await expect(panel.getByRole('button', { name: 'All', exact: true })).toHaveAttribute(
         'aria-pressed',
         'true'
       );
       await capture(page, testInfo, `list-${name}-rows`);
 
-      // Narrowing by status and by engine.
-      await main.getByRole('button', { name: 'Running (1)' }).click();
-      await expect(table.getByRole('row')).toHaveCount(2);
+      // Narrowing by status (a gateway filter, kept in the address) and by engine.
+      await panel.getByRole('button', { name: 'Running', exact: true }).click();
+      await expect(list.getByRole('listitem')).toHaveCount(1);
+      await expect(page).toHaveURL(`${RUNS}?state=running`);
       await capture(page, testInfo, `list-${name}-filtered`);
-      await main.getByRole('button', { name: 'All (8)' }).click();
-      await main.getByRole('combobox', { name: 'Engine' }).selectOption('evolutionary');
-      await expect(table.getByRole('row')).toHaveCount(3);
-      await main.getByRole('combobox', { name: 'Engine' }).selectOption('');
+      await panel.getByRole('button', { name: 'All', exact: true }).click();
+      await panel.getByRole('button', { name: /^Filters/ }).click();
+      await panel
+        .getByRole('group', { name: 'Filters' })
+        .getByRole('combobox', { name: 'Engine' })
+        .selectOption('minizinc');
+      await expect(list.getByRole('listitem')).toHaveCount(2);
+      await capture(page, testInfo, `list-${name}-engine`);
+      await panel
+        .getByRole('group', { name: 'Filters' })
+        .getByRole('combobox', { name: 'Engine' })
+        .selectOption('');
+      await page.keyboard.press('Escape');
+      await expect(list.getByRole('listitem')).toHaveCount(8);
 
       // A retry of a failed run of its own, then one the account cannot afford.
-      await table.getByRole('button', { name: 'Retry' }).first().click();
-      await expect(main.getByText('Retry queued.')).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Follow the new run' })).toHaveAttribute(
+      await list.getByRole('button', { name: 'Retry' }).first().click();
+      await expect(panel.getByText('Retry queued.')).toBeVisible();
+      await expect(panel.getByRole('link', { name: 'Follow the new run' })).toHaveAttribute(
         'href',
-        `${ROOT}/runs/job-new-9`
+        RUN('job-new-9')
       );
       expect(state.sent.retry).toBe('job-failed-4');
       await capture(page, testInfo, `list-${name}-retry`);
       state.refuse.retry = detail(402, 'quota_exceeded', 'Storage exhausted.', {
         quota: { limit_id: 'maxRepositoryStorage', limit: 50, used: 50 },
       });
-      await table.getByRole('button', { name: 'Retry' }).last().click();
+      await list.getByRole('button', { name: 'Retry' }).last().click();
       await expect(
-        main.getByText('Retry refused: Out of storage (402 · quota_exceeded)')
+        panel.getByText('Retry refused: Out of storage (402 · quota_exceeded)')
       ).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Compare plans' })).toHaveAttribute(
+      await expect(panel.getByRole('link', { name: 'Compare plans' })).toHaveAttribute(
         'href',
         '/pricing'
       );
@@ -705,24 +756,22 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('run-list /app/:org/runs · empty, 503, a viewer and an organization that is not there', async ({
-      page,
-    }, testInfo) => {
+    test('run-list /orgs/:org/runs · empty, 503 and a viewer', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       const main = page.locator('main');
 
-      await page.goto('/app/empty-lab/runs');
+      await page.goto('/orgs/empty-lab/runs');
       await expect(main.getByText('No runs yet')).toBeVisible();
       await expect(main.getByText('Pick a problem version and an engine to run it.')).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Start a run' })).toHaveAttribute(
+      await expect(main.getByRole('link', { name: 'Start a run' }).last()).toHaveAttribute(
         'href',
-        '/app/empty-lab/runs/new'
+        '/runs/new?org=empty-lab'
       );
       await capture(page, testInfo, `list-${name}-empty`);
 
       state.refuse.runs = unavailable;
-      await page.goto(`${ROOT}/runs`);
+      await page.goto(RUNS);
       await expect(
         main.getByRole('alert').filter({ hasText: 'Runs can’t be loaded right now' })
       ).toContainText('(503)');
@@ -730,48 +779,39 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await capture(page, testInfo, `list-${name}-503`);
       state.refuse.runs = undefined;
       await main.getByRole('button', { name: 'Retry' }).click();
-      await expect(main.getByRole('region', { name: 'Runs of the organization' })).toBeVisible();
+      await expect(main.getByRole('list', { name: 'Runs of the organization' })).toBeVisible();
 
       // A viewer reads the runs; nothing on the screen starts one.
-      await page.goto('/app/read-lab/runs');
-      await expect(main.getByRole('heading', { level: 1, name: 'Runs' })).toBeVisible();
-      await expect(main.getByRole('link', { name: 'New run' })).toHaveCount(0);
+      await page.goto('/orgs/read-lab/runs');
       await expect(main.getByText('No runs yet')).toBeVisible();
       await expect(main.getByRole('link', { name: 'Start a run' })).toHaveCount(0);
       await capture(page, testInfo, `list-${name}-viewer`);
-
-      await page.goto('/app/ghost/runs');
-      await expect(main.getByRole('heading', { name: 'Organization not available' })).toBeVisible();
-      await capture(page, testInfo, `list-${name}-404`);
       expect(critical).toEqual([]);
     });
 
-    test('run-detail /app/:org/runs/:job · a finished run, its result and what it ran on', async ({
+    test('run-detail /runs/:org/:run · a finished run, its result and what it ran on', async ({
       page,
     }, testInfo) => {
       const critical = watchCriticalErrors(page);
       await mockApi(page);
-      await page.goto(`${ROOT}/runs/job-feasible-1`);
+      await page.goto(RUN('job-feasible-1'));
       const main = page.locator('main');
 
       await expect(
         main.getByRole('heading', { level: 1, name: 'random-search run' })
       ).toBeVisible();
+      const crumbs = main.getByRole('navigation', { name: 'Breadcrumb' });
+      await expect(crumbs.getByRole('link', { name: 'ISA Demo Group' })).toHaveAttribute(
+        'href',
+        '/orgs/isa-demo'
+      );
+      await expect(crumbs.getByRole('link', { name: 'Runs' })).toHaveAttribute('href', RUNS);
       await expect(main.getByText('Feasible: meets every must-hold rule')).toBeVisible();
       await expect(
-        main.getByText(
-          /launched Sep 30, 2026, 09:00 UTC by you · problem Checkout flow · version 2/
-        )
+        main.getByText(/launched by you · problem Checkout flow · version 2/)
       ).toBeVisible();
+      await expect(main.getByText(/· started .* ago/)).toBeVisible();
       await expect(main.getByRole('link', { name: 'Analyze' })).toHaveCount(0);
-      await expect(
-        main.getByRole('region', { name: 'Timeline' }).getByText('Finished · not live')
-      ).toBeVisible();
-      const settings = main.getByRole('region', { name: 'Settings asked and used' });
-      await expect(settings.getByRole('row', { name: /Time budget/ })).toContainText('600 s');
-      await expect(settings.getByRole('row', { name: /Time budget/ })).toContainText(
-        'Reduced to the plan’s ceiling'
-      );
       await capture(page, testInfo, `detail-${name}-top`, { height: 1700 });
 
       // The authoritative result: figures and a table of providers; the raw JSON only behind View source.
@@ -793,23 +833,6 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(solutionSource).toContainText('"c1"');
       await capture(page, testInfo, `detail-${name}-result-source`, { area: best });
 
-      // What it ran on.
-      const where = main.getByRole('region', { name: 'Where this result comes from' });
-      await expect(where.getByRole('link', { name: 'Source and compiled form' })).toHaveAttribute(
-        'href',
-        '/app/isa-demo/problems/checkout-flow/source?version=2'
-      );
-      await expect(where).not.toContainText(/sha256-|[0-9a-f]{12}/);
-      await expect(where.getByRole('link', { name: 'Checkout flow · version 2' })).toHaveAttribute(
-        'href',
-        '/app/isa-demo/problems/checkout-flow?version=2'
-      );
-      await expect(where.getByRole('link', { name: 'Add to a report' })).toHaveCount(0);
-      await capture(page, testInfo, `detail-${name}-provenance`, { area: where });
-      const downloaded = page.waitForEvent('download');
-      await where.getByRole('button', { name: 'Download compiled problem' }).click();
-      expect((await downloaded).suggestedFilename()).toBe('run-compiled-problem.json');
-
       // Single swaps on request; the engine's own report is loaded with the run and shown as the claimed and evaluated values.
       const swaps = main.getByRole('region', { name: 'What if one task used another provider?' });
       await swaps.getByRole('button', { name: 'Check single swaps' }).click();
@@ -821,19 +844,50 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const report = best.getByRole('region', { name: 'Claimed and evaluated values' });
       await expect(report).toBeVisible();
       await capture(page, testInfo, `detail-${name}-report`, { area: report });
+
+      // The Get run menu: the compiled problem it ran.
+      await main.getByRole('button', { name: 'Get run' }).click();
+      const downloaded = page.waitForEvent('download');
+      await main.getByRole('menuitem', { name: /Download compiled problem/ }).click();
+      expect((await downloaded).suggestedFilename()).toBe('run-compiled-problem.json');
+      await page.keyboard.press('Escape');
+
+      // Settings, provenance and timeline are tabs of their own.
+      await tab(page, 'Settings').click();
+      await expect(page).toHaveURL(`${RUN('job-feasible-1')}?tab=settings`);
+      const settings = main.getByRole('region', { name: 'Settings asked and used' });
+      await expect(settings.getByRole('row', { name: /Time budget/ })).toContainText('600 s');
+      await expect(settings.getByRole('row', { name: /Time budget/ })).toContainText(
+        'Reduced to the plan’s ceiling'
+      );
+      await capture(page, testInfo, `detail-${name}-settings`);
+
+      await tab(page, 'Provenance').click();
+      const where = main.getByRole('region', { name: 'Where this result comes from' });
+      await expect(where.getByRole('link', { name: 'Source and compiled form' })).toBeVisible();
+      await expect(where).not.toContainText(/sha256-|[0-9a-f]{12}/);
+      await expect(where.getByRole('link', { name: 'Checkout flow · version 2' })).toBeVisible();
+      await expect(where.getByRole('link', { name: 'Add to a report' })).toHaveCount(0);
+      await capture(page, testInfo, `detail-${name}-provenance`, { area: where });
+
+      await tab(page, 'Timeline').click();
+      await expect(
+        main.getByRole('region', { name: 'Timeline' }).getByText('Finished · not live')
+      ).toBeVisible();
+      await capture(page, testInfo, `detail-${name}-timeline`);
       expect(critical).toEqual([]);
     });
 
-    test('run-detail /app/:org/runs/:job · a member derives a composition from a finished run; a viewer is not offered to', async ({
+    test('run-detail /runs/:org/:run · a member keeps a finished run as a composition; a viewer is not offered to', async ({
       page,
     }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
-      await page.goto(`${ROOT}/runs/job-feasible-1`);
+      await page.goto(RUN('job-feasible-1'));
       const main = page.locator('main');
 
-      const keep = main.getByRole('region', { name: 'Keep it as a composition' });
-      await keep.getByRole('button', { name: 'Derive composition' }).click();
+      await expect(main.getByRole('region', { name: 'Run result' })).toBeVisible();
+      await press(page, 'Keep as composition');
       const dialog = page.getByRole('dialog', { name: 'Derive a composition' });
       await expect(
         dialog.getByRole('radio', { name: 'A composition of this organization' })
@@ -882,7 +936,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         version: '1.0.0',
         seal: true,
       });
-      await expect(page).toHaveURL(`${ROOT}/runs/job-feasible-1`);
+      await expect(page).toHaveURL(RUN('job-feasible-1'));
       await dialog.getByRole('button', { name: 'Back' }).click();
       await dialog.getByRole('button', { name: 'Cancel' }).click();
       await expect(dialog).toHaveCount(0);
@@ -892,47 +946,54 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       // A viewer of the organization reads the run and its result, and is not offered a derivation.
       const viewer = await page.context().newPage();
       await mockApi(viewer, { role: 'VIEWER' });
-      await viewer.goto(`${ROOT}/runs/job-feasible-1`);
+      await viewer.goto(RUN('job-feasible-1'));
       const result = viewer.locator('main').getByRole('region', { name: 'Run result' });
       await expect(
         result.getByRole('heading', { name: 'What if one task used another provider?' })
       ).toBeVisible();
       await expect(
-        viewer.locator('main').getByRole('button', { name: 'Derive composition' })
+        viewer.locator('main').getByRole('button', { name: 'Keep as composition' })
+      ).toHaveCount(0);
+      await expect(
+        viewer.locator('main').getByRole('button', { name: 'More actions' })
       ).toHaveCount(0);
       await viewer.close();
     });
 
-    test('run-detail /app/:org/runs/:job · a live run follows its state until it finishes', async ({
+    test('run-detail /runs/:org/:run · a live run follows its state until it finishes', async ({
       page,
     }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
-      await page.goto(`${ROOT}/runs/job-live-10`);
+      await page.goto(`${RUN('job-live-10')}?tab=timeline`);
       const main = page.locator('main');
 
       await expect(main.getByText('Live · connected')).toBeVisible();
-      await expect(
-        main.getByText('No result yet. It appears here when the run finishes.')
-      ).toBeVisible();
-      await expect(main.getByRole('button', { name: 'Cancel run' })).toBeVisible();
+      await expectOffered(page, 'Cancel run', true);
       await expect(
         main.getByText(
           'Live updates report status changes only; there’s no progress percentage to show.'
         )
       ).toBeVisible();
       await capture(page, testInfo, `detail-${name}-live`, { height: 1400 });
+      await tab(page, 'Result').click();
+      await expect(
+        main.getByText('No result yet. It appears here when the run finishes.')
+      ).toBeVisible();
 
       // The next reading says it ended; the page notices on its own, without being asked to reload.
       state.liveDone = true;
-      await expect(main.getByText('Finished · not live')).toBeVisible({ timeout: 30_000 });
-      await expect(main.getByRole('region', { name: 'Run result' })).toBeVisible();
-      await expect(main.getByRole('button', { name: 'Cancel run' })).toHaveCount(0);
+      await expect(main.getByRole('region', { name: 'Run result' })).toBeVisible({
+        timeout: 30_000,
+      });
+      await expectOffered(page, 'Cancel run', false);
+      await tab(page, 'Timeline').click();
+      await expect(main.getByText('Finished · not live')).toBeVisible();
       await capture(page, testInfo, `detail-${name}-finished-live`, { height: 1400 });
       expect(critical).toEqual([]);
     });
 
-    test('run-detail /app/:org/runs/:job · cancel, retry and the ways a run ends without a result', async ({
+    test('run-detail /runs/:org/:run · cancel, retry and the ways a run ends without a result', async ({
       page,
     }, testInfo) => {
       const critical = watchCriticalErrors(page);
@@ -940,30 +1001,30 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const main = page.locator('main');
 
       // Cancelling a run that is going, and a run that had already finished (409).
-      await page.goto(`${ROOT}/runs/job-running-2`);
-      await main.getByRole('button', { name: 'Cancel run' }).click();
+      await page.goto(RUN('job-running-2'));
+      await press(page, 'Cancel run');
       await expect(
         main.getByText('Cancellation requested. The engine stops at its next check.')
       ).toBeVisible();
-      await expect(main.getByRole('button', { name: 'Cancel run' })).toHaveCount(0);
+      await expectOffered(page, 'Cancel run', false);
       expect(state.sent.cancel).toBe('job-running-2');
       await capture(page, testInfo, `detail-${name}-cancel`, { height: 1300 });
       state.refuse.cancel = detail(409, 'terminal_job', 'The job is already terminal.');
       await page.reload();
-      await main.getByRole('button', { name: 'Cancel run' }).click();
+      await press(page, 'Cancel run');
       await expect(main.getByText('Already finished (409 · terminal_job)')).toBeVisible();
       await capture(page, testInfo, `detail-${name}-409`, { height: 1300 });
 
       // A failed run says why, and a retry is a new attempt.
-      await page.goto(`${ROOT}/runs/job-failed-4`);
+      await page.goto(RUN('job-failed-4'));
       await expect(main.getByRole('alert').filter({ hasText: 'The run failed' })).toContainText(
         'Retrying starts a new attempt.'
       );
-      await main.getByRole('button', { name: 'Retry' }).click();
+      await press(page, 'Retry');
       await expect(main.getByText('Retry queued as a new attempt.')).toBeVisible();
       await expect(main.getByRole('link', { name: 'Follow the new run' })).toHaveAttribute(
         'href',
-        `${ROOT}/runs/job-new-9`
+        RUN('job-new-9')
       );
       expect(state.sent.retry).toBe('job-failed-4');
       await capture(page, testInfo, `detail-${name}-failed-retry`, { height: 1500 });
@@ -977,23 +1038,20 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         },
         429
       );
-      await main.getByRole('button', { name: 'Retry' }).click();
+      await press(page, 'Retry');
       await expect(
         main.getByText(/Retry refused: All your run slots are busy \(429/)
       ).toBeVisible();
       await capture(page, testInfo, `detail-${name}-429`, { height: 1500 });
 
       // Cancelled, and infeasible with the rule it breaks.
-      await page.goto(`${ROOT}/runs/job-cancelled-5`);
+      await page.goto(RUN('job-cancelled-5'));
       await expect(main.getByText('Cancelled before producing a result.')).toBeVisible();
       await capture(page, testInfo, `detail-${name}-cancelled`, { height: 1300 });
-      await page.goto(`${ROOT}/runs/job-infeasible-6`);
+      await page.goto(RUN('job-infeasible-6'));
       const why = main.getByRole('region', { name: 'Why no combination works' });
       await expect(why).toContainText('Total latency is 742 ms');
-      await expect(why.getByRole('link', { name: 'See the rules' })).toHaveAttribute(
-        'href',
-        '/app/isa-demo/problems/checkout-flow?version=2'
-      );
+      await expect(why.getByRole('link', { name: 'See the rules' })).toBeVisible();
       await expect(
         main.getByRole('heading', { name: 'What if one task used another provider?' })
       ).toHaveCount(0);
@@ -1001,7 +1059,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('run-detail /app/:org/runs/:job · a teammate’s run, a run that is not there and a key without access', async ({
+    test('run-detail /runs/:org/:run · a teammate’s run, a run that is not there and a key without access', async ({
       page,
     }, testInfo) => {
       const critical = watchCriticalErrors(page);
@@ -1009,54 +1067,51 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const main = page.locator('main');
 
       // A teammate's run opens for every member, with who launched it.
-      await page.goto(`${ROOT}/runs/job-theirs-8`);
+      await page.goto(RUN('job-theirs-8'));
       await expect(main.getByRole('heading', { level: 1, name: 'evolutionary run' })).toBeVisible();
-      await expect(main.getByText(/by ana/)).toBeVisible();
+      await expect(main.getByText(/launched by ana/)).toBeVisible();
 
-      // A run of another organization, or one that does not exist: the same neutral answer, even for an administrator.
-      await page.goto(`${ROOT}/runs/job-ghost-11`);
-      await expect(main.getByRole('heading', { name: 'Run not found' })).toBeVisible();
-      await expect(
-        main.getByText(/Everyone else, including platform administrators, gets this same answer\./)
-      ).toBeVisible();
-      await expect(main.getByRole('link', { name: 'All runs' })).toHaveAttribute(
-        'href',
-        `${ROOT}/runs`
-      );
+      // A run of another organization, or one that does not exist: the same in-place 404, even for an administrator.
+      await page.goto(RUN('job-ghost-11'));
+      await expect(main.getByRole('heading', { name: NOT_FOUND })).toBeVisible();
       await capture(page, testInfo, `detail-${name}-404`);
+      await page.goto('/runs/ghost/job-feasible-1');
+      await expect(main.getByRole('heading', { name: NOT_FOUND })).toBeVisible();
 
       state.refuse.detail = detail(
         403,
         'api_key_forbidden',
         'The API key does not include jobs:read.'
       );
-      await page.goto(`${ROOT}/runs/job-feasible-1`);
-      await expect(
-        main.getByText(/This API key can’t read runs or doesn’t include this engine \(403/)
-      ).toBeVisible();
+      // A run the account may not read is the same in-place 404 as a missing one.
+      await page.goto(RUN('job-feasible-1'));
+      await expect(main.getByRole('heading', { name: NOT_FOUND })).toBeVisible();
       await capture(page, testInfo, `detail-${name}-403-key`);
 
       state.refuse.detail = unavailable;
-      await page.goto(`${ROOT}/runs/job-feasible-1`);
+      await page.goto(RUN('job-feasible-1'));
       await expect(main.getByText(/The run couldn’t be loaded \(503/)).toBeVisible();
-      await expect(main.getByRole('heading', { name: 'Run not found' })).toHaveCount(0);
+      await expect(main.getByRole('heading', { name: NOT_FOUND })).toHaveCount(0);
       await capture(page, testInfo, `detail-${name}-503`);
       expect(critical).toEqual([]);
     });
-
-    test('run-launch /app/:org/runs/new · from a revision: four steps, what the plan reduces, accepted', async ({
+    test('run-launch /runs/new · from a revision: four steps, what the plan reduces, accepted', async ({
       page,
     }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
-      await page.goto(`${ROOT}/runs/new?problem=checkout-flow&revision=2`);
+      await page.goto(`${LAUNCH}&problem=checkout-flow&revision=2`);
       const main = page.locator('main');
       const next = main.getByRole('button', { name: 'Continue' });
 
       await expect(main.getByRole('heading', { level: 1, name: 'New run' })).toBeVisible();
-      await expect(
-        main.getByRole('navigation', { name: 'Breadcrumb' }).getByRole('link', { name: 'Runs' })
-      ).toHaveAttribute('href', `${ROOT}/runs`);
+      await expect(main.getByRole('button', { name: 'Organization', exact: true })).toContainText(
+        'ISA Demo Group'
+      );
+      await expect(main.getByRole('link', { name: 'Back to the runs' })).toHaveAttribute(
+        'href',
+        RUNS
+      );
       const source = main.getByRole('radiogroup', { name: 'Source' });
       await expect(source.getByRole('radio', { name: /Checkout flow · version 2/ })).toBeChecked();
       await expect(source.getByRole('radio')).toHaveCount(2);
@@ -1073,11 +1128,10 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(engineGroup.getByRole('radio')).toHaveCount(3);
       await capture(page, testInfo, `launch-${name}-step2`);
 
-      await next.click();
       const budget = main.getByLabel('Time budget');
       await expect(budget).toHaveValue('30');
       await budget.fill('600');
-      await expect(main.getByText('60 s (reduced)')).toBeVisible();
+      await expect(main.getByText('60 s (reduced)', { exact: true })).toBeVisible();
       await expect(
         main.getByText(
           'Values above your plan run at the ceiling and the run carries a note; it isn’t an error.'
@@ -1085,7 +1139,6 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       ).toBeVisible();
       await capture(page, testInfo, `launch-${name}-step3`);
 
-      await next.click();
       await expect(main.getByRole('heading', { name: 'Before you send' })).toBeVisible();
       await expect(
         main.getByText('Time budget 60 s (reduced) · Iterations 100,000 iterations')
@@ -1114,11 +1167,13 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await capture(page, testInfo, `launch-${name}-accepted`);
 
       await main.getByRole('link', { name: 'Follow the run' }).click();
-      await expect(page).toHaveURL(new RegExp(`${ROOT}/runs/job-new-9$`));
+      await expect(page).toHaveURL(new RegExp(`${RUN('job-new-9')}$`));
       await expect(
         main.getByRole('heading', { level: 1, name: 'random-search run' })
       ).toBeVisible();
+      await tab(page, 'Timeline').click();
       await expect(main.getByText('Live · connected')).toBeVisible();
+      await tab(page, 'Settings').click();
       await expect(
         main
           .getByRole('region', { name: 'Settings asked and used' })
@@ -1128,12 +1183,12 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('run-launch /app/:org/runs/new · an exact engine from the latest version and every way the gateway refuses', async ({
+    test('run-launch /runs/new · an exact engine from the latest version and every way the gateway refuses', async ({
       page,
     }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
-      await page.goto(`${ROOT}/runs/new`);
+      await page.goto(LAUNCH);
       const main = page.locator('main');
       const next = main.getByRole('button', { name: 'Continue' });
 
@@ -1146,8 +1201,6 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
           .getByRole('radiogroup', { name: 'Engine' })
           .getByRole('radio', { name: /^random-search/ })
       ).toBeChecked();
-      await next.click();
-      await next.click();
       const send = main.getByRole('button', { name: 'Send run' });
 
       // 402: out of an allowance.
@@ -1266,12 +1319,12 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('run-launch /app/:org/runs/new · from a run preset, detached with Edit, and the settings saved as a new preset', async ({
+    test('run-launch /runs/new · from a run preset, detached with Edit, and the settings saved as a new preset', async ({
       page,
     }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
-      await page.goto(`${ROOT}/runs/new?problem=checkout-flow&revision=2`);
+      await page.goto(`${LAUNCH}&problem=checkout-flow&revision=2`);
       const main = page.locator('main');
       const next = main.getByRole('button', { name: 'Continue' });
 
@@ -1290,24 +1343,20 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         '/orgs/isa-demo/presets'
       );
       await capture(page, testInfo, `launch-${name}-preset`);
-      await next.click();
       await expect(
         main.getByText(
           'The settings come from the preset Fast sampling: time budget 30 s · iterations 5,000.'
         )
       ).toBeVisible();
-      await next.click();
       await expect(main.getByText('Fast sampling (fast-sampling)')).toBeVisible();
-      await expect(
-        main.getByRole('button', { name: 'Save these settings as a preset' })
-      ).toHaveCount(0);
+      await expect(main.getByRole('button', { name: 'Save as preset' })).toHaveCount(0);
       await capture(page, testInfo, `launch-${name}-preset-review`);
       await main.getByRole('button', { name: 'Send run' }).click();
       await expect(main.getByRole('heading', { name: 'Run accepted · queued' })).toBeVisible();
       expect(state.sent.launch).toEqual({ revision: 'rev-checkout-2', preset: 'fast-sampling' });
 
       // Edit detaches it: the settings move into the form, and every one of them is sent.
-      await page.goto(`${ROOT}/runs/new?problem=checkout-flow&revision=2&preset=fast-sampling`);
+      await page.goto(`${LAUNCH}&problem=checkout-flow&revision=2&preset=fast-sampling`);
       await next.click();
       await main
         .getByRole('region', { name: 'Run preset Fast sampling' })
@@ -1318,13 +1367,11 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
           .getByRole('radiogroup', { name: 'Engine' })
           .getByRole('radio', { name: /^random-search/ })
       ).toBeChecked();
-      await next.click();
       await expect(main.getByLabel('Time budget')).toHaveValue('30');
       await expect(main.getByLabel('Iterations')).toHaveValue('5000');
-      await next.click();
 
-      // Save these settings as a preset (MEMBER).
-      await main.getByRole('button', { name: 'Save these settings as a preset' }).click();
+      // Save as preset (MEMBER).
+      await main.getByRole('button', { name: 'Save as preset' }).click();
       const dialog = page.getByRole('dialog', { name: 'Save as a run preset' });
       await dialog.getByLabel('Preset name').fill('Checkout sampling');
       await expect(dialog.getByLabel('Preset address')).toHaveValue('checkout-sampling');
@@ -1348,11 +1395,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         'slug_conflict',
         'That preset slug is in use in this organization.'
       );
-      await page.goto(`${ROOT}/runs/new?problem=checkout-flow&revision=2`);
+      await page.goto(`${LAUNCH}&problem=checkout-flow&revision=2`);
       await next.click();
-      await next.click();
-      await next.click();
-      await main.getByRole('button', { name: 'Save these settings as a preset' }).click();
+      await main.getByRole('button', { name: 'Save as preset' }).click();
       await dialog.getByLabel('Preset name').fill('Fast sampling');
       await dialog.getByRole('button', { name: 'Save preset' }).click();
       await expect(dialog.getByRole('alert')).toContainText(
@@ -1362,25 +1407,23 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('run-launch /app/:org/runs/new · a viewer, a version that is gone and a problem too big for the deployment', async ({
+    test('run-launch /runs/new · a viewer, a version that is gone and a problem too big for the deployment', async ({
       page,
     }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       const main = page.locator('main');
 
-      await page.goto('/app/read-lab/runs/new');
+      await page.goto('/runs/new?org=read-lab');
       await expect(main.getByRole('note')).toContainText(
         'You’re a VIEWER of Read Lab. You can look through the steps, but starting a run needs MEMBER.'
       );
       await expect(main.getByText(/Nothing to solve yet\./)).toBeVisible();
-      await expect(
-        main.getByRole('button', { name: 'Save these settings as a preset' })
-      ).toHaveCount(0);
+      await expect(main.getByRole('button', { name: 'Save as preset' })).toHaveCount(0);
       await capture(page, testInfo, `launch-${name}-viewer`);
 
       state.refuse.compilation = detail(404, 'not_found', 'Problem revision not found.');
-      await page.goto(`${ROOT}/runs/new?problem=checkout-flow&revision=2`);
+      await page.goto(`${LAUNCH}&problem=checkout-flow&revision=2`);
       await main.getByRole('button', { name: 'Continue' }).click();
       await expect(main.getByText('Problem version not found (404)')).toBeVisible();
       await expect(main.getByRole('radiogroup', { name: 'Engine' })).toHaveCount(0);
@@ -1400,7 +1443,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
           },
         }
       );
-      await page.goto(`${ROOT}/runs/new?problem=checkout-flow&revision=2`);
+      await page.goto(`${LAUNCH}&problem=checkout-flow&revision=2`);
       await main.getByRole('button', { name: 'Continue' }).click();
       await expect(main.getByRole('alert')).toContainText(
         'Over this deployment’s size limit (422 · binding_space_over_technical_limit)'

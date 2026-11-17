@@ -1,19 +1,20 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { HttpError } from '../../../../../api/client';
-import type { OrganizationAuditEvent } from '../../../../../api/platform';
+import { HttpError } from '../../../../core/api/http';
+import type { OrganizationAuditEvent } from '../../../api/organizationClient';
 import { auditFixture } from '../auditFixture';
-import { org } from '../../../../../features/workspace/testKit';
-import { member, renderScreen } from '../../../../../pages/Organization/testKit';
+import { org } from '../../../../../test/fixtures/accounts';
+import { member } from '../../../../../test/fixtures/accounts';
+import { renderScreen } from '../../../../../test/screenKit';
 import AuditTab from './AuditTab';
 
 const platform = vi.hoisted(() => ({ organizationAudit: vi.fn(), members: vi.fn() }));
 
-vi.mock('../../../../../api/platform', async () => ({
-  ...(await vi.importActual<typeof import('../../../../../api/platform')>(
-    '../../../../../api/platform'
+vi.mock('../../../api/organizationClient', async () => ({
+  ...(await vi.importActual<typeof import('../../../api/organizationClient')>(
+    '../../../api/organizationClient'
   )),
-  platformApi: platform,
+  organizationClient: platform,
 }));
 
 const group = org('isa-demo', { name: 'ISA Demo Group' });
@@ -23,7 +24,6 @@ function renderAudit(organizations = [group], slug = 'isa-demo') {
   return renderScreen(<AuditTab organization={organization} />, {
     path: '/orgs/:org/audit',
     url: `/orgs/${slug}/audit`,
-    organizations,
   });
 }
 
@@ -88,7 +88,7 @@ describe('Audit log', () => {
     const open = card(/2 member changes applied together/);
     expect(open).toHaveAttribute('aria-expanded', 'true');
     const details = document.getElementById(open.getAttribute('aria-controls')!)!;
-    expect(within(details).getByText('lucia.vega')).toBeInTheDocument();
+    expect(within(details).getByText('lucia')).toBeInTheDocument();
     expect(within(details).getByText('organization.members.batch_updated')).toBeInTheDocument();
     expect(details).toHaveTextContent('TargetOrganization');
     expect(details).not.toHaveTextContent('org-isa-demo');

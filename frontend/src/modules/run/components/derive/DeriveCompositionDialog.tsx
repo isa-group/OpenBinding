@@ -1,7 +1,14 @@
+// Pattern only, after SPHERE frontend/src/modules/pricing/components/fork-pricing-modal/index.tsx (revision 73779a8a),
+// https://github.com/SCORELabUS/SPHERE. Copyright (c) 2024 Alejandro García Fernández.
+// MIT licence: the full text is in THIRD_PARTY_NOTICES.md.
+// Changes: OpenBinding's derivation (where the version goes, which solution under which label, the previewed document
+// sealed as previewed) drawn on SPHERE's fork modal recipe: the steps, labelled fields, a red refusal box and the
+// right-aligned secondary and primary buttons, in OpenBinding's modal (a focus trap and Escape).
+
 import { useEffect, useId, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { TriangleAlert } from 'lucide-react';
-import { SourceView } from '../../../../components/rendering/SourceView';
+import { MdWarningAmber } from 'react-icons/md';
+import { SourceView } from '../rendering/SourceView';
 import { Action } from '../../../core/components/action-button';
 import { DataTable } from '../../../core/components/data-table';
 import { FormField } from '../../../core/components/form-field';
@@ -23,7 +30,7 @@ import type {
 import { fromC2y } from '../../../core/diagnostics/located';
 import { SLUG_PATTERN, slugFromName } from '../../../core/utils/slug';
 import { compositionFragment } from '../../../core/utils/sphere/composition-fragment';
-import { formatNumber } from '../../../../utils/format';
+import { formatNumber } from '../../../core/utils/format';
 import ProblemsPanel from '../../../core/components/problems-panel';
 import { ValueBadge } from '../../../core/components/value-badge/ValueBadge';
 import { DeriveBatch, type DerivedPoint } from './DeriveBatch';
@@ -44,7 +51,6 @@ import {
   type SingleSource,
 } from './deriveModel';
 import { refusalOf, type Refusal } from './refusal';
-import './DeriveCompositionDialog.css';
 
 type Step = 'where' | 'what' | 'preview';
 
@@ -55,6 +61,11 @@ const STEPS: ReadonlyArray<{ id: Step; label: string }> = [
 ];
 
 const NAME_MAX = 160;
+
+const FORM = 'flex min-w-0 flex-col gap-3';
+const MUTED = 'm-0 text-[13px] [overflow-wrap:anywhere] text-tp-steel';
+const RADIO = 'inline-flex min-h-6 cursor-pointer items-center gap-2 text-sm';
+const ACTIONS = 'mt-1 flex flex-wrap justify-end gap-2';
 
 type Compositions =
   | { status: 'loading' }
@@ -99,7 +110,7 @@ function PointTable({
         {points.map(point => (
           <tr key={point.point} aria-current={point.point === chosen ? 'true' : undefined}>
             <th scope="row">
-              <label className="dc-point">
+              <label className="inline-flex min-h-6 cursor-pointer items-center gap-2 text-sm">
                 <input
                   type="radio"
                   name="dc-point"
@@ -114,12 +125,12 @@ function PointTable({
                 point.objectives.find(objective => objective.criterion === criterion)?.value ??
                 null;
               return (
-                <td key={criterion} className="dc-number">
+                <td key={criterion} className="whitespace-nowrap tabular-nums">
                   {value === null ? '—' : formatNumber(value, 4)}
                 </td>
               );
             })}
-            <td className="dc-number">{scoreText(point.score)}</td>
+            <td className="whitespace-nowrap tabular-nums">{scoreText(point.score)}</td>
           </tr>
         ))}
       </tbody>
@@ -129,22 +140,28 @@ function PointTable({
 
 function RefusalNotice({ refusal }: { refusal: Refusal }) {
   return (
-    <div className="dc-refusal" role="alert">
-      <TriangleAlert aria-hidden="true" />
-      <div>
-        <p>{refusal.message}</p>
+    <div
+      className="flex gap-2 rounded-md border border-red-200 bg-red-50 p-3 text-xs text-red-800"
+      role="alert"
+    >
+      <MdWarningAmber aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" />
+      <div className="min-w-0">
+        <p className="m-0">{refusal.message}</p>
         {refusal.findings.length > 0 && (
-          <ul aria-label="What the gateway found">
+          <ul
+            aria-label="What the gateway found"
+            className="mt-1 list-disc pl-5 [overflow-wrap:anywhere]"
+          >
             {refusal.findings.map((finding, index) => (
               <li key={`${finding.code}-${finding.pointer ?? ''}-${index}`}>
                 {finding.message}
                 {finding.pointer && (
                   <>
                     {' '}
-                    <code>{finding.pointer}</code>
+                    <code className="font-mono">{finding.pointer}</code>
                   </>
                 )}{' '}
-                <code>{finding.code}</code>
+                <code className="font-mono">{finding.code}</code>
               </li>
             ))}
           </ul>
@@ -163,7 +180,8 @@ function BindingTable({ source }: { source: BindingSource }) {
       minWidth={0}
       caption={
         <>
-          On problem version <code>{source.revision}</code>. Local tasks stay local.
+          On problem version <code className="font-mono">{source.revision}</code>. Local tasks stay
+          local.
         </>
       }
     >
@@ -177,10 +195,10 @@ function BindingTable({ source }: { source: BindingSource }) {
         {tasks.map(([task, candidate]) => (
           <tr key={task}>
             <th scope="row">
-              <code>{task}</code>
+              <code className="font-mono text-xs">{task}</code>
             </th>
             <td>
-              <code>{candidate}</code>
+              <code className="font-mono text-xs">{candidate}</code>
             </td>
           </tr>
         ))}
@@ -440,25 +458,35 @@ function DeriveOne({
 
   return (
     <Modal title="Derive a composition" size="lg" onClose={close}>
-      <div className="dc">
-        <ol className="dc-steps" aria-label="Steps">
-          {STEPS.map((item, index) => (
-            <li
-              key={item.id}
-              aria-current={item.id === step ? 'step' : undefined}
-              className={item.id === step ? 'is-current' : undefined}
-            >
-              <span aria-hidden="true">{index + 1}</span>
-              {item.label}
-            </li>
-          ))}
+      <div className="flex min-w-0 flex-col gap-4">
+        <ol className="m-0 flex list-none flex-wrap gap-3 p-0 text-[13px]" aria-label="Steps">
+          {STEPS.map((item, index) => {
+            const current = item.id === step;
+            return (
+              <li
+                key={item.id}
+                aria-current={current ? 'step' : undefined}
+                className={`inline-flex items-center gap-1.5 ${current ? 'font-semibold text-tp-ink' : 'text-tp-steel'}`}
+              >
+                <span
+                  aria-hidden="true"
+                  className={`inline-flex h-5 w-5 items-center justify-center rounded-full border text-xs ${current ? 'border-tp-accent text-tp-accent' : 'border-tp-hairline'}`}
+                >
+                  {index + 1}
+                </span>
+                {item.label}
+              </li>
+            );
+          })}
         </ol>
 
         {step === 'where' && (
-          <form className="dc-form" onSubmit={toWhat} noValidate>
-            <fieldset className="dc-choice">
-              <legend>Where the version goes</legend>
-              <label>
+          <form className={FORM} onSubmit={toWhat} noValidate>
+            <fieldset className="m-0 flex flex-col gap-1.5 border-0 p-0">
+              <legend className="mb-1 p-0 text-[13px] font-semibold text-tp-slate">
+                Where the version goes
+              </legend>
+              <label className={RADIO}>
                 <input
                   type="radio"
                   name="dc-target"
@@ -470,7 +498,7 @@ function DeriveOne({
                 />
                 A new composition
               </label>
-              <label>
+              <label className={RADIO}>
                 <input
                   type="radio"
                   name="dc-target"
@@ -486,7 +514,7 @@ function DeriveOne({
               </label>
             </fieldset>
             {compositions.status === 'loading' && (
-              <p className="dc-muted" role="status">
+              <p className={MUTED} role="status">
                 Reading the compositions of the organization…
               </p>
             )}
@@ -518,11 +546,13 @@ function DeriveOne({
                   error={slugError}
                   hint="Used in the address; can’t be changed later. Taken from the name unless you write one."
                 />
-                <div className="ui-field">
-                  <label htmlFor={`${ids}-kind`}>Kind</label>
+                <div>
+                  <label htmlFor={`${ids}-kind`} className="mb-1 block text-sm text-tp-slate">
+                    Kind
+                  </label>
                   <select
                     id={`${ids}-kind`}
-                    className="dc-select"
+                    className="h-10 w-full cursor-pointer rounded-md border border-tp-input-border bg-tp-input-bg px-3 text-sm text-tp-ink outline-none focus:border-tp-primary"
                     value={kind}
                     onChange={event => setKind(event.target.value as Kind)}
                   >
@@ -533,14 +563,16 @@ function DeriveOne({
                     ))}
                   </select>
                 </div>
-                <p className="dc-muted">The composition is created when you ask for the preview.</p>
+                <p className={MUTED}>The composition is created when you ask for the preview.</p>
               </>
             ) : (
-              <div className="ui-field">
-                <label htmlFor={`${ids}-composition`}>Composition</label>
+              <div>
+                <label htmlFor={`${ids}-composition`} className="mb-1 block text-sm text-tp-slate">
+                  Composition
+                </label>
                 <select
                   id={`${ids}-composition`}
-                  className="dc-select"
+                  className="h-10 w-full cursor-pointer rounded-md border border-tp-input-border bg-tp-input-bg px-3 text-sm text-tp-ink outline-none focus:border-tp-primary"
                   value={chosen}
                   onChange={event => setChosen(event.target.value)}
                 >
@@ -551,16 +583,16 @@ function DeriveOne({
                   ))}
                 </select>
                 {created && created === chosen && (
-                  <span className="ui-field-note">{`${created} was created for this derivation.`}</span>
+                  <span className="mt-1 block text-xs text-tp-steel">{`${created} was created for this derivation.`}</span>
                 )}
               </div>
             )}
             {whereError && (
-              <p className="dc-error" role="alert">
+              <p className="m-0 text-[13px] text-red-700" role="alert">
                 {whereError}
               </p>
             )}
-            <div className="ui-modal-actions">
+            <div className={ACTIONS}>
               <Action variant="secondary" onClick={close}>
                 Cancel
               </Action>
@@ -572,22 +604,22 @@ function DeriveOne({
         )}
 
         {step === 'what' && (
-          <form className="dc-form" onSubmit={event => void toPreview(event)} noValidate>
-            <p className="dc-muted">
+          <form className={FORM} onSubmit={event => void toPreview(event)} noValidate>
+            <p className={MUTED}>
               {`Into ${mode === 'existing' ? (target?.name ?? chosen) : name.trim()} (${slug}).`}
             </p>
             {bound ? (
               <BindingTable source={bound} />
             ) : points.length > 1 ? (
               <>
-                <p className="dc-muted">
+                <p className={MUTED}>
                   The run found {points.length} solutions. Their objectives are as the run’s result
                   gives them.
                 </p>
                 <PointTable points={points} chosen={point} onChoose={setPoint} />
               </>
             ) : (
-              <p className="dc-muted">The run’s solution is derived.</p>
+              <p className={MUTED}>The run’s solution is derived.</p>
             )}
             <FormField
               label="Version label"
@@ -602,7 +634,7 @@ function DeriveOne({
               hint="Semantic Versioning. It is written in the document as its version."
             />
             {refusal && <RefusalNotice refusal={refusal} />}
-            <div className="ui-modal-actions">
+            <div className={ACTIONS}>
               <Action variant="secondary" onClick={() => back('where')} disabled={busy !== null}>
                 Back
               </Action>
@@ -614,8 +646,8 @@ function DeriveOne({
         )}
 
         {step === 'preview' && preview && (
-          <div className="dc-form">
-            <p className="dc-muted">
+          <div className={FORM}>
+            <p className={MUTED}>
               {`${bound ? 'The binding' : (points.find(item => item.point === preview.request.point)?.label ?? 'The solution')} as version ${preview.request.version} of ${preview.slug}. Nothing is stored until you seal it.`}
             </p>
             <SourceView
@@ -624,27 +656,32 @@ function DeriveOne({
               language="yaml"
               maxHeight="16rem"
             />
-            <section className="dc-values" aria-labelledby={`${ids}-values`}>
-              <h3 id={`${ids}-values`}>Values</h3>
-              <p className="dc-muted">
+            <section className="flex flex-col gap-1.5" aria-labelledby={`${ids}-values`}>
+              <h3
+                id={`${ids}-values`}
+                className="m-0 text-[11px] font-bold tracking-[0.12em] text-tp-slate uppercase"
+              >
+                Values
+              </h3>
+              <p className={MUTED}>
                 These values will be verified: <ValueBadge status="verified" />
               </p>
               {values.length > 0 ? (
-                <dl>
+                <dl className="m-0 flex flex-wrap gap-4">
                   {values.map(value => (
                     <div key={value.name}>
-                      <dt>{value.name}</dt>
-                      <dd>{formatValue(value.value, value.unit)}</dd>
+                      <dt className="text-xs text-tp-steel">{value.name}</dt>
+                      <dd className="m-0 tabular-nums">{formatValue(value.value, value.unit)}</dd>
                     </div>
                   ))}
                 </dl>
               ) : (
-                <p className="dc-muted">The document states no values.</p>
+                <p className={MUTED}>The document states no values.</p>
               )}
             </section>
             <ProblemsPanel diagnostics={findings} title="Findings" />
             {refusal && <RefusalNotice refusal={refusal} />}
-            <div className="ui-modal-actions">
+            <div className={ACTIONS}>
               <Action variant="secondary" onClick={() => back('what')} disabled={busy !== null}>
                 Back
               </Action>

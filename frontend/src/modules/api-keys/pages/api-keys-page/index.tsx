@@ -9,7 +9,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { FiCheck, FiCopy, FiPlus } from 'react-icons/fi';
-import { formatCount, LIMIT } from '../../../../utils/limits';
+import { formatCount, LIMIT } from '../../../core/utils/limits';
 import { classifyAuthError } from '../../../core/api/errors';
 import BlockAlert from '../../../core/components/block-alert';
 import { useCopy } from '../../../core/hooks/useCopy';

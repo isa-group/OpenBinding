@@ -3,27 +3,30 @@ import { describe, expect, it } from 'vitest';
 import { screens } from './router';
 
 // The screens of the application, exactly: one row per screen of `screens` (routes/router.tsx), with its address and layout.
-// A block that adds or removes a screen changes this list and the ceiling in the same commit. The convergence on SPHERE ends at
-// 38 screens (D9); while the domains are poured in, old and new addresses coexist and each block pins its own count.
+// The convergence on SPHERE ends here at 38 screens (design §9): 20 public, 18 protected. F5 adds /sso/identity/callback (39),
+// F7 /orbit (40), F9 five collection routes (45); a block that adds or removes a screen changes this list and the ceiling in
+// the same commit.
 
 // prettier-ignore
 const SCREENS: Array<[string, string, string]> = [
-  ['pub-workbench', '/workbench', 'public'],
-  ['pub-about', '/about', 'public'],
-  ['pub-pricing', '/pricing', 'public'],
-  ['pub-language', '/language', 'public'],
   ['auth', '/authentication', 'public'],
   ['auth-forgot-password', '/forgot-password', 'public'],
   ['auth-reset-password', '/reset-password', 'public'],
   ['auth-sso-callback', '/sso/callback', 'public'],
-  ['eng-catalog', '/engines', 'public'],
-  ['eng-detail', '/engines/:namespace/:name/:version', 'public'],
   ['pub-home', '/', 'session'],
   ['org-explore', '/organizations', 'session'],
   ['org-detail', '/orgs/:org/:tab?', 'session'],
   ['pub-compositions', '/compositions', 'session'],
   ['composition-card', '/compositions/:org/:composition/:tab?', 'session'],
   ['composition-permalink', '/p/:id', 'session'],
+  ['eng-catalog', '/engines', 'session'],
+  ['eng-detail', '/engines/:namespace/:name/:version', 'session'],
+  ['pub-language', '/language', 'session'],
+  ['pub-pricing', '/pricing', 'session'],
+  ['pub-team', '/team', 'session'],
+  ['pub-research', '/research', 'session'],
+  ['pub-contributions', '/contributions', 'session'],
+  ['pub-changelog', '/changelog', 'session'],
   ['org-list', '/me/orgs', 'protected'],
   ['org-new', '/orgs/new', 'protected'],
   ['org-join', '/orgs/join/:code', 'protected'],
@@ -32,26 +35,21 @@ const SCREENS: Array<[string, string, string]> = [
   ['notifications', '/notifications', 'protected'],
   ['acct-settings', '/me/settings', 'protected'],
   ['acct-api-keys', '/me/api-keys', 'protected'],
-  ['eng-register', '/app/engines/new', 'app'],
-  ['eng-registrations', '/app/engines/registrations', 'app'],
-  ['eng-registration-detail', '/app/engines/registrations/:name', 'app'],
-  ['problem-list', '/app/:org/problems', 'app'],
-  ['problem-detail', '/app/:org/problems/:case/:tab?', 'app'],
-  ['problem-editor', '/app/:org/problem-editor', 'app'],
-  ['run-launch', '/app/:org/runs/new', 'app'],
-  ['run-list', '/app/:org/runs', 'app'],
-  ['run-detail', '/app/:org/runs/:job', 'app'],
-  ['study-list', '/app/:org/studies', 'app'],
-  ['study-builder', '/app/:org/studies/new', 'app'],
-  ['study-detail', '/app/:org/studies/:study/:tab?', 'app'],
-  ['admin-overview', '/app/admin', 'app'],
-  ['admin-users', '/app/admin/users', 'app'],
-  ['admin-user-detail', '/app/admin/users/:user', 'app'],
-  ['admin-moderation', '/app/admin/moderation', 'app'],
+  ['problem-detail', '/problems/:org/:problem/:tab?', 'protected'],
+  ['run-launch', '/runs/new', 'protected'],
+  ['run-detail', '/runs/:org/:run', 'protected'],
+  ['study-builder', '/studies/new', 'protected'],
+  ['study-detail', '/studies/:org/:study/:tab?', 'protected'],
+  ['eng-registrations', '/me/engines', 'protected'],
+  ['eng-register', '/me/engines/new', 'protected'],
+  ['eng-registration-detail', '/me/engines/:name', 'protected'],
+  ['admin', '/admin/:section?', 'protected'],
+  ['admin-user-detail', '/admin/users/:user', 'protected'],
   ['composition-editor', '/editor', 'standalone'],
+  ['problem-editor', '/problem-editor', 'standalone'],
 ];
 
-const CEILING = 41;
+const CEILING = 38;
 
 describe('screen budget', () => {
   it('serves exactly the listed screens, with their addresses and layouts, in table order', () => {
@@ -64,6 +62,11 @@ describe('screen budget', () => {
       `${screens.length} screens against a ceiling of ${CEILING}`
     ).toBeLessThanOrEqual(CEILING);
     expect(screens).toHaveLength(CEILING);
+  });
+
+  it('opens 20 screens to visitors (the public, session and editor layouts) and keeps 18 behind an account', () => {
+    expect(screens.filter(screen => screen.layout !== 'protected')).toHaveLength(20);
+    expect(screens.filter(screen => screen.layout === 'protected')).toHaveLength(18);
   });
 
   it('keeps one screen per line in router.tsx, which the end-to-end parsers read', () => {

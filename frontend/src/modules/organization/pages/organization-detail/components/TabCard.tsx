@@ -35,7 +35,7 @@ export default function TabCard({ id, title, lede, actions, children }: TabCardP
         </div>
         {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
       </div>
-      <div className="px-5 py-4" aria-live="polite">
+      <div className="flex flex-col gap-4 px-5 py-4" aria-live="polite">
         {children}
       </div>
     </motion.section>

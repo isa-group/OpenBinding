@@ -6,7 +6,7 @@
 // revoke-then-delete); refusals throw the typed error `readApiError` reads.
 
 import { useCallback, useMemo } from 'react';
-import type { EngineCatalogEntry } from '../../../api/client';
+import type { EngineCatalogEntry } from '../../engine/api/engineClient';
 import { readResponse } from '../../core/api/http';
 import type { components } from '../../core/api/openapi';
 import { useAuth } from '../../auth/hooks/useAuth';

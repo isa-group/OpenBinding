@@ -201,18 +201,19 @@ bindings (`…/evaluate`, `…/neighborhood`) and forked into another organizati
 (`/v1/organizations/{org}/presets`) name the settings a run starts from (`createRun {revision, preset}`). The whole path
 is an API test (`openbinding-gateway/tests/test_f1_walk.py`); the decisions are ADRs 0041 to 0046.
 
-On the web, an organization's compositions live at `/app/<org>/compositions`: a list, and a page per composition
-with Overview (values and their status, the workflow, the providers and upstream plan references, the problem's
-candidates), Editor (Composition2Yaml with the gateway's live lint and check, and a visual form), Versions (compare
-two versions entry by entry and line by line, and chart how structure and values evolved), Analysis (every one-task
-alternative and a configurator, on the linked problem) and Settings. A run's result offers "Derive composition". An
-ADMIN can make a composition public: anybody then reads it at `/c/<org>/<composition>`, finds it in the public list
-at `/compositions`, and, signed in, forks it into an organization of their own. `/language` is the Composition2Yaml
-reference and a playground. Every number shown comes from the gateway; the decisions are ADRs 0047 to 0050, and the
+On the web, an organization's compositions are its Compositions tab (`/orgs/<org>/compositions`) and a page per
+composition (`/compositions/<org>/<composition>`) with Overview (values and their status, the workflow, the providers
+and upstream plan references, the problem's candidates), Analytics (how structure and values evolved), Configuration
+(every one-task alternative and a configurator, on the linked problem), Versions (the version graph, and two versions
+compared entry by entry and line by line) and Settings. Compositions are written in the editor (`/editor`, with the
+gateway's live lint and check, and a visual pane). A run's result offers "Keep as composition". An ADMIN can make a
+composition public: anybody then reads it at its page, finds it in the public list at `/compositions`, opens it from
+its permanent link (`/p/<id>`), and, signed in, forks it into an organization of their own. `/language` is the
+Composition2Yaml reference. Every number shown comes from the gateway; the decisions are ADRs 0047 to 0050, and the
 walks are `frontend/e2e/f2a-*.spec.ts` (mocked) and `frontend/e2e/live/08-derive-seal-compare.spec.ts` and
 `09-public-fork.spec.ts` (against the lab).
 
-Problems are written in the problem editor (`/app/<org>/problem-editor`): it opens a template, a problem version or a
+Problems are written in the problem editor (`/problem-editor`): it opens a template, a problem version or a
 blank package, checks it with the gateway as it is edited, places each finding on the matrix cell, the file or the
 diagram element it is about, and saves the package as a problem version. Its candidate matrix, workflow graph and rules
 are the ones the problem page and the composition screens draw from the gateway's facts; a value edited in the matrix is
@@ -278,20 +279,20 @@ always returns `202`. Results use `OPTIMAL`, `FEASIBLE`, `INFEASIBLE`, or `UNKNO
 the BIM services answer errors as `application/problem+json` with source-located
 diagnostics, and the organization's routes as the platform JSON envelope.
 
-The React Workbench is the organization's BIM problem editor, over the same
-package and compiler contracts used by API clients; it saves a valid package as
-a new problem or a new version, and runs nothing itself. Its surrounding
-platform shell adds the organization context, onboarding for new
-accounts, the organization's problems, runs and studies, the public engine catalogue,
-authenticated Engine management (`/app/engines`) with owner telemetry. Pricing
-is managed in the remote SPHERE and SPACE UIs, not in OpenBinding.
+The frontend is built as SPHERE's (its stack, its layouts and its pages; ADR 0053).
+The problem editor (`/problem-editor`) works over the same package and compiler
+contracts used by API clients; it saves a valid package as a new problem or a new
+version, and runs nothing itself. Around it: the organizations and their
+problems, runs and studies, the public engine catalogue (`/engines`) and the
+account's engines (`/me/engines`) with owner telemetry. Pricing is managed in the
+remote SPHERE and SPACE UIs, not in OpenBinding.
 
 ### Scientific Provenance, Deep Inspection & Replication
 
 OpenBinding guarantees strict cryptographic immutability and provenance:
-- **In-browser ZIP Uncompression & Inspection**: Explore `.bim.zip` problem revisions directly in the browser with directory trees and syntax-highlighted code inspection via CodeMirror.
+- **In-browser ZIP Uncompression & Inspection**: Explore `.bim.zip` problem revisions directly in the browser with directory trees and syntax-highlighted code inspection in the bundled Monaco editor.
 - **Frozen study definitions**: A study keeps its editable matrix inline; every study run freezes a copy of it, with its digest and the compilation each problem revision runs on, so editing a study never changes what a run ran. Archive/restore preserves execution history.
-- **Dedicated Deep-Linked Views**: Full-page inspection and editing for Problems (`/app/:org/problems/:problem`), their revisions, Runs (`/app/:org/runs/:run`) and Studies (`/app/:org/studies/:study`).
+- **Dedicated Deep-Linked Views**: Full-page inspection and editing for Problems (`/problems/:org/:problem`), their revisions, Runs (`/runs/:org/:run`) and Studies (`/studies/:org/:study`).
 
 ## Repository layout
 

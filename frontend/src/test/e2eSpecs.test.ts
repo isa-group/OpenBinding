@@ -115,7 +115,7 @@ describe('the Playwright specs', () => {
       const j1 = read(`${live}/08-derive-seal-compare.spec.ts`);
       expect(j1).toMatch(/test\.describe\('live · J1 /);
       for (const step of [
-        "'Derive composition'",
+        "'Keep as composition'",
         "'Visual editor'",
         "'Publish to OpenBinding'",
         '/Publish version/',
@@ -300,5 +300,21 @@ describe('the Playwright specs', () => {
       expect(qa).toContain('Send run');
       expect(qa).toContain('starting a run needs MEMBER');
     });
+  });
+
+  it('keeps the 404-parity sweep over every kind of resource address', () => {
+    const sweep = read(`${e2e}/not-found-parity.spec.ts`);
+    for (const address of [
+      '/orgs/',
+      '/compositions/',
+      '/p/',
+      '/engines/',
+      '/problems/',
+      '/runs/',
+      '/studies/',
+      '/me/engines/',
+      '/admin',
+    ])
+      expect(sweep, address).toContain(`'${address}`);
   });
 });

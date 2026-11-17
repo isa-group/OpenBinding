@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import re
 import uuid
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, Query, Request, Response, status
 from fastapi.responses import Response as RawResponse
@@ -176,6 +176,10 @@ async def list_problems(
         default=None, max_length=64,
         description="Only problems a version of this composition (slug or id) links; none for an unknown one.",
     ),
+    sort: Literal["name", "recent"] = Query(
+        default="name",
+        description="`name` (by name, then slug) or `recent` (newest latest revision first; a problem with none by its creation).",
+    ),
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
     user: User = Depends(get_current_user),
@@ -198,7 +202,16 @@ async def list_problems(
             BindingCase.slug.ilike(pattern, escape=LIKE_ESCAPE),
         ))
     total = int(await session.scalar(select(func.count()).select_from(query.subquery())) or 0)
-    rows = (await session.scalars(query.order_by(BindingCase.name, BindingCase.slug).offset(offset).limit(limit))).all()
+    order = (BindingCase.name, BindingCase.slug)
+    if sort == "recent":
+        latest_at = (
+            select(func.max(BindingCaseRevision.created_at))
+            .where(BindingCaseRevision.binding_case_id == BindingCase.id)
+            .correlate(BindingCase)
+            .scalar_subquery()
+        )
+        order = (func.coalesce(latest_at, BindingCase.created_at).desc(), *order)
+    rows = (await session.scalars(query.order_by(*order).offset(offset).limit(limit))).all()
     latest = await problems.latest_revisions(session, [row.id for row in rows])
     compiled = await problems.current_compilations(session, [revision.id for revision in latest.values()])
     counted = await problems.revision_counts(session, [row.id for row in rows])

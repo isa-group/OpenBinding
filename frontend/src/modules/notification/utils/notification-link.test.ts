@@ -17,7 +17,7 @@ describe('notificationLink', () => {
         kind: 'RunFailed',
         payload: { organization_slug: 'isa-demo', run_id: 'r1' },
       })
-    ).toBe('/app/isa-demo/runs/r1');
+    ).toBe('/runs/isa-demo/r1');
     expect(notificationLink({ kind: 'System', payload: { organization_slug: 'isa-demo' } })).toBe(
       '/orgs/isa-demo'
     );

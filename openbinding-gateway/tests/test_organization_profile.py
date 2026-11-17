@@ -68,7 +68,7 @@ async def test_an_organization_without_a_slug_takes_one_from_its_name(api_client
 async def test_a_derived_slug_is_never_a_reserved_one(api_client, registration, db_session, gate):  # noqa: F811
     _, headers = await make_account(api_client, registration, db_session, gate)
 
-    for name in ("Join", "New", "Admin"):
+    for name in ("Join", "New", "Public"):
         made = await create(api_client, headers, name=name)
         assert made["slug"].startswith(f"{name.lower()}-"), made
 

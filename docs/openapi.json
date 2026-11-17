@@ -24831,6 +24831,22 @@
             }
           },
           {
+            "description": "`name` (by name, then slug) or `recent` (newest latest revision first; a problem with none by its creation).",
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "name",
+              "description": "`name` (by name, then slug) or `recent` (newest latest revision first; a problem with none by its creation).",
+              "enum": [
+                "name",
+                "recent"
+              ],
+              "title": "Sort",
+              "type": "string"
+            }
+          },
+          {
             "in": "query",
             "name": "limit",
             "required": false,

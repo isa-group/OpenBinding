@@ -36,16 +36,18 @@ const members = [
   { id: 'm1', organization_id: 'org-acme', user_id: 'user-1', username: 'lucia', email: 'lucia@example.org', role: 'OWNER', created_at: NOW },
 ];
 
-// The compositions, the problems, the runs and the studies belong to the organization: its Compositions tab (`/orgs/acme/compositions`,
-// SPHERE's list), each composition on its card page (`/compositions/acme/<slug>`), and the old workspace's `/app/acme/problems`,
-// `/app/acme/runs` and `/app/acme/studies`.
+// The compositions, the problems, the runs and the studies belong to the organization: its Compositions, Problems, Runs and
+// Studies tabs (`/orgs/acme/compositions`, `/orgs/acme/problems`, `/orgs/acme/runs`, `/orgs/acme/studies`, SPHERE's lists),
+// and each composition, problem and study on its card page (`/compositions/acme/<slug>`, `/problems/acme/<slug>`,
+// `/studies/acme/<slug>`).
 export const COMPOSITIONS = '/orgs/acme/compositions';
 export const LAB_FLOW_PAGE = '/compositions/acme/lab-flow';
 export const PROBLEMS_SEGMENT = 'problems';
 export const RUNS_SEGMENT = 'runs';
-export const PROBLEMS = `/app/acme/${PROBLEMS_SEGMENT}`;
-export const RUN_NEW = `/app/acme/${RUNS_SEGMENT}/new`;
-export const RUNS = `/app/acme/${RUNS_SEGMENT}`;
+export const PROBLEMS = `/orgs/acme/${PROBLEMS_SEGMENT}`;
+export const PROBLEM_PAGES = `/${PROBLEMS_SEGMENT}/acme`;
+export const RUN_NEW = `/${RUNS_SEGMENT}/new?org=acme`;
+export const RUNS = `/orgs/acme/${RUNS_SEGMENT}`;
 
 const TEMPLATES = ['demo/01_simple_seq', 'demo/02_parallel', 'placement/01_small_placement'];
 

@@ -5,9 +5,11 @@ import {
   API,
   CASE,
   ORG,
-  ORG_PATH,
+  PROBLEMS_TAB,
   OTHER_ORG,
   RESULTS_DIR,
+  LAUNCH_PATH,
+  RUN_PATH,
   RUNS_PATH,
   signInByApi,
 } from './support';
@@ -378,23 +380,25 @@ const OWNER_STOPS: Stop[] = [
   },
   {
     slug: 'organization',
-    path: `/orgs/${ORG}/problems`,
-    ready: page => page.locator('main').getByRole('link', { name: 'Open the problems' }).first(),
+    path: `/orgs/${ORG}`,
+    ready: page => page.locator('main').getByRole('heading', { level: 1 }).first(),
   },
   {
     slug: 'cases',
-    path: `${ORG_PATH}/problems`,
-    ready: page => page.getByRole('list', { name: 'Problems' }),
+    path: `/orgs/${ORG}/problems`,
+    ready: page =>
+      page.locator('main').getByRole('region', { name: 'Problems' }).getByRole('article').first(),
   },
   {
     slug: 'case',
-    path: `${ORG_PATH}/problems/${CASE}`,
-    ready: page => page.locator('code.case-slug'),
+    path: `/problems/${ORG}/${CASE}`,
+    ready: page => page.locator('main').getByRole('heading', { level: 1 }),
   },
   {
     slug: 'jobs',
     path: `${RUNS_PATH}`,
-    ready: page => page.getByRole('heading', { level: 1, name: 'Runs' }),
+    ready: page =>
+      page.getByRole('region', { name: 'Runs' }).getByRole('heading', { level: 2, name: /Runs/ }),
   },
   {
     slug: 'plan-permissions',
@@ -419,24 +423,26 @@ const composed = (page: Page) =>
   page.locator('main').getByRole('heading', { level: 1, name: COMPOSITION_NAME });
 
 /** The problem editor on the seeded problem: its check has passed when the status says so. */
-const EDITOR = `${ORG_PATH}/problem-editor?problem=${CASE}`;
+const EDITOR = `/problem-editor?org=${ORG}&problem=${CASE}`;
 const checked = (page: Page) =>
   page.getByTestId('pe-check-status').filter({ hasText: 'Valid package' });
 
 /**
- * The seeded problem's Candidates and Compositions tabs, the problem editor on it, pane by pane (on a phone the engines and the
- * problems are panes too), and the run presets of lab-main.
+ * The seeded problem's Candidates and Compositions tabs, the problem editor on it, pane by pane (its files are Code mode; on a
+ * phone the engines and the problems are panes too), and the run presets of lab-main.
  */
 function problemStops(mobile: boolean): Stop[] {
-  const pane = (slug: string, tab: RegExp, ready: (page: Page) => Locator): Stop => ({
+  const pane = (slug: string, tab: RegExp | 'Code', ready: (page: Page) => Locator): Stop => ({
     slug,
     path: EDITOR,
     ready: checked,
     extra: async (page, label) => {
-      await page
-        .getByRole('tablist', { name: 'Editor panes' })
-        .getByRole('tab', { name: tab })
-        .click();
+      if (tab === 'Code') await page.getByRole('button', { name: 'Code', exact: true }).click();
+      else
+        await page
+          .getByRole('tablist', { name: 'Editor panes' })
+          .getByRole('tab', { name: tab })
+          .click();
       await expect
         .soft(ready(page), `${label}: the pane did not open`)
         .toBeVisible({ timeout: 30_000 });
@@ -446,12 +452,12 @@ function problemStops(mobile: boolean): Stop[] {
   return [
     {
       slug: 'problem-candidates',
-      path: `${ORG_PATH}/problems/${CASE}/candidates`,
+      path: `/problems/${ORG}/${CASE}/candidates`,
       ready: page => page.getByRole('region', { name: 'Candidates of each task' }),
     },
     {
       slug: 'problem-compositions',
-      path: `${ORG_PATH}/problems/${CASE}/compositions`,
+      path: `/problems/${ORG}/${CASE}/compositions`,
       ready: page => main(page).getByRole('heading', { level: 2, name: 'Compositions' }).first(),
     },
     {
@@ -473,7 +479,7 @@ function problemStops(mobile: boolean): Stop[] {
     pane('problem-editor-rules', /^Rules$/, page =>
       main(page).getByRole('heading', { name: 'Rules and objectives' }).first()
     ),
-    pane('problem-editor-files', /^Files$/, page =>
+    pane('problem-editor-files', 'Code', page =>
       page.getByRole('navigation', { name: 'Files of the package' })
     ),
     pane('problem-editor-forms', /^Forms$/, page =>
@@ -519,7 +525,7 @@ async function studyFrontStop(page: Page, token: string): Promise<Stop | { why: 
     if (finished) {
       return {
         slug: 'study-front',
-        path: `${ORG_PATH}/studies/${encodeURIComponent(study.slug)}/results?run=${finished.id}`,
+        path: `/studies/${ORG}/${encodeURIComponent(study.slug)}/front?run=${finished.id}`,
         ready: target =>
           target.locator('main').getByRole('heading', { level: 2, name: 'Pareto front' }),
       };
@@ -660,8 +666,8 @@ const VISITOR_STOPS: Stop[] = [
 const VIEWER_STOPS: Stop[] = [
   {
     slug: 'viewer-cases',
-    path: `${ORG_PATH}/problems`,
-    ready: page => page.getByRole('list', { name: 'Problems' }),
+    path: PROBLEMS_TAB,
+    ready: page => page.getByRole('region', { name: 'Problems' }),
     extra: async (page, label) => {
       await expect
         .soft(
@@ -674,11 +680,9 @@ const VIEWER_STOPS: Stop[] = [
   {
     slug: 'viewer-jobs',
     path: `${RUNS_PATH}`,
-    ready: page => page.getByRole('heading', { level: 1, name: 'Runs' }),
+    ready: page =>
+      page.getByRole('region', { name: 'Runs' }).getByRole('heading', { level: 2, name: /Runs/ }),
     extra: async (page, label) => {
-      await expect
-        .soft(page.getByRole('link', { name: 'New run' }), `${label}: a viewer sees "New run"`)
-        .toHaveCount(0);
       await expect
         .soft(
           page.getByRole('link', { name: 'Start a run' }),
@@ -689,7 +693,7 @@ const VIEWER_STOPS: Stop[] = [
   },
   {
     slug: 'viewer-run-launch',
-    path: `${RUNS_PATH}/new?problem=${CASE}`,
+    path: `${LAUNCH_PATH}&problem=${CASE}`,
     ready: page => page.getByRole('heading', { level: 1, name: 'New run' }),
     extra: async (page, label) => {
       await expect
@@ -776,7 +780,7 @@ test.describe('live · visual QA', () => {
     if (finished) {
       stops.splice(6, 0, {
         slug: 'job-result',
-        path: `${RUNS_PATH}/${finished.id}`,
+        path: `${RUN_PATH}/${finished.id}`,
         ready: target => finishedResult(target),
       });
     } else {

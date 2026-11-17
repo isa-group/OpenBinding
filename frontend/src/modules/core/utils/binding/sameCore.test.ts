@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { BimValidateResponse } from '../../../../api/bim';
+import type { BimValidateResponse } from '../../api/bim';
 import type { CompositionVersionView, ProblemFacts } from '../../api/types';
 import { candidateMatrix } from './candidateMatrix';
 import { workflowGraph } from './workflowGraph';

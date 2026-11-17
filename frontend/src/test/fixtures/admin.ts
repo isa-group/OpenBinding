@@ -1,8 +1,8 @@
 import type {
   AdminAuditPage, AdminModerationOverview, AdminOverview, AdminQueueStatus, AdminSubscriptionView, AdminUserPage, AdminUserView, UsageView,
-} from '../../api/auth';
-import type { Organization } from '../../api/platform';
-import type { AdminErrorListResponse, AdminErrorOverview, ApiErrorEventItem } from '../../pages/Admin/types';
+} from '../../modules/core/api/account';
+import type { Organization } from '../../modules/organization/api/organizationClient';
+import type { AdminErrorListResponse, AdminErrorOverview, ApiErrorEventItem } from '../../modules/admin/api/types';
 
 /** Stand-ins for the answers of /v1/admin/*, for the tests of the administration screens. They name no real person. */
 

@@ -36,16 +36,19 @@ The interface is English (F2 design choice C7); the redesign plan's Spanish name
 
 | On screen | Plan | Where |
 |---|---|---|
-| Compositions | Composiciones | the header; `/app/<organization>/compositions`; the public list `/compositions` |
-| Overview · Editor · Versions · Analysis · Settings | Resumen · Editor · Versiones · Análisis · Ajustes | the tabs of a composition |
+| Tools | Herramientas | the header menu of the editors: Composition editor (`/editor`), Problem editor (`/problem-editor`), Composition2Yaml (`/language`) |
+| Explore | Explorar | the header menu of the public lists: Organizations (`/organizations`), Compositions (`/compositions`), Engines (`/engines`) |
+| Compositions | Composiciones | an organization's tab (`/orgs/<organization>/compositions`); the account's `/me/compositions`; the public list `/compositions` |
+| Overview · Analytics · Configuration · Versions · Settings | Resumen · Analítica · Configuración · Versiones · Ajustes | the tabs of a composition (`/compositions/<organization>/<composition>/<tab>`) |
+| Permanent link | Enlace permanente | `/p/<composition id>` (`?version=`): the address that keeps working whatever the composition is called; it answers the same for missing and unreadable |
 | New version (Code editor, Visual editor, Upload Composition2Yaml, Derive from a run) | Nueva versión | the composition header |
-| Seal version | Sellar versión | the editor's bottom bar: a sealed version never changes |
-| Derive composition | Derivar composición | a run's result ("Keep it as a composition"), the Analysis tab |
-| Table · Compare · File · Evolution | Tabla · Comparar · Fichero · Evolución | the views of Versions |
+| Publish | Publicar | the editor's Publish dialog: a new composition, or a new version, which never changes once sealed |
+| Keep as composition | Derivar composición | a run's page, the Configuration tab and a study's front |
+| Structured · File | Estructurada · Fichero | the two views of a comparison in Versions (`?from=&to=&diff=file`) |
 | Verified · Declared · Unverified | Verificado · Declarado · Sin verificar | `ValueBadge`, always in words |
 | Public · Private | Pública · Privada | a composition's badge and Settings → Visibility |
-| Fork | Fork | the composition header and the showcase |
-| Language | Lenguaje | the header; `/language`, the Composition2Yaml reference and playground |
+| Fork | Fork | the composition header |
+| Language | Lenguaje | Tools; `/language`, the Composition2Yaml reference (its examples open in `/editor`) |
 
 ## Usage
 

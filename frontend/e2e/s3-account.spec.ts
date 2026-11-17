@@ -1,6 +1,6 @@
 import { expect as baseExpect, test, type Page, type Route, type TestInfo } from '@playwright/test';
 import { failureBody } from './helpers/problems';
-import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
+import { CURRENT_FIXTURE, catalogFixture } from '../src/test/fixtures/pricingCatalog';
 
 // S3 · the account: acct-settings (`/me/settings?section=`: account, sign-in & security, notifications, plan, appearance, beta
 // features, danger zone) and acct-api-keys (`/me/api-keys`, with the Create new API key dialog at `?create=key`).

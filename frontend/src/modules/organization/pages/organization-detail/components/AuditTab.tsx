@@ -1,19 +1,19 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Download } from 'lucide-react';
-import { platformApi } from '../../../../../api/platform';
+import { MdDownload } from 'react-icons/md';
+import { organizationClient } from '../../../api/organizationClient';
 import type {
   Organization,
   OrganizationAuditEvent,
   OrganizationAuditPage,
-} from '../../../../../api/platform';
+} from '../../../api/organizationClient';
 import { Action } from '../../../../core/components/action-button';
 import { Notice } from '../../../../core/components/notice';
 import { Skeleton } from '../../../../core/components/skeleton';
 import { useCopy } from '../../../../core/hooks/useCopy';
 import { useAuth } from '../../../../auth/hooks/useAuth';
-import { formatDateTime } from '../../../../../utils/format';
-import { useResource } from '../../../../../utils/useResource';
+import { formatDateTime } from '../../../../core/utils/format';
+import { useResource } from '../../../../core/hooks/useResource';
 import {
   AUDIT_KINDS,
   KNOWN_ACTIONS,
@@ -27,11 +27,21 @@ import {
 } from '../auditModel';
 import { atLeast, personName } from '../../../utils/org-tree';
 import { isForbidden } from '../orgErrors';
-import { generalFailure } from '../../../../../features/workspace/errors';
+import { generalFailure } from '../../../../core/utils/general-failure';
 import { classifyAuthError, marker } from '../../../../core/api/errors';
-import { SelectField } from '../../../../../pages/Organization/parts';
+import { SelectField } from '../../../../core/components/select-field';
 import TabCard from './TabCard';
-import '../../../../../pages/Organization/Organization.css';
+
+const KIND_CLASS: Record<string, string> = {
+  organization: 'bg-tp-accent-hover text-tp-on-primary',
+  members: 'bg-tp-cream-deeper text-tp-accent-hover',
+  problems: 'border-tp-severity-success-border bg-tp-severity-success-bg text-tp-success-text',
+  content: 'border-tp-severity-warning-border bg-tp-severity-warning-bg text-tp-warning-text',
+  other: 'border-tp-hairline bg-tp-surface text-tp-slate',
+};
+
+const LINK_BUTTON =
+  'cursor-pointer text-sm font-medium text-tp-accent underline underline-offset-2';
 
 const PAGE_SIZE = 50;
 const NOT_RECORDED = '__none';
@@ -50,7 +60,7 @@ async function loadAudit(
 ): Promise<Loaded> {
   return {
     page: permitted
-      ? await platformApi.organizationAudit(slug, {
+      ? await organizationClient.organizationAudit(slug, {
           action: action || undefined,
           offset,
           limit: PAGE_SIZE,
@@ -75,7 +85,7 @@ function DetailView({ value }: { value: DetailValue }) {
     return value.items.length === 0 ? (
       <>none</>
     ) : (
-      <ul className="org-tl-changes">
+      <ul className="m-0 list-disc pl-4">
         {value.items.map((item, position) => (
           <li key={position}>
             <DetailView value={item} />
@@ -87,9 +97,9 @@ function DetailView({ value }: { value: DetailValue }) {
   return value.rows.length === 0 ? (
     <>none</>
   ) : (
-    <dl className="org-tl-nested">
+    <dl className="m-0 grid grid-cols-[max-content_1fr] gap-x-3 gap-y-0.5">
       {value.rows.map(row => (
-        <div key={row.label}>
+        <div key={row.label} className="contents">
           <dt>{row.label}</dt>
           <dd>
             <DetailView value={row.value} />
@@ -121,28 +131,40 @@ function EventCard({
   const copied = status(event.id);
 
   return (
-    <li className="org-tl-item">
-      <span className="org-tl-dot" style={{ background: kind.colour }} aria-hidden="true" />
-      <div className="org-tl-card">
+    <li className="relative pb-3.5 pl-9 before:absolute before:top-0 before:bottom-0 before:left-[11px] before:w-0.5 before:bg-tp-hairline-soft">
+      <span
+        className="absolute top-2.5 left-0.5 h-5 w-5 rounded-full border-[3px] border-tp-surface"
+        style={{ background: kind.colour }}
+        aria-hidden="true"
+      />
+      <div className="relative overflow-hidden rounded-xl border border-tp-hairline bg-tp-canvas">
         <button
           type="button"
-          className="org-tl-head"
+          className="flex w-full cursor-pointer flex-wrap items-center gap-2.5 bg-tp-canvas px-3.5 py-3 text-left text-tp-ink hover:bg-tp-surface"
           aria-expanded={open}
           aria-controls={detailId}
           onClick={onToggle}
         >
-          <span className="org-kind" data-kind={kindOf(event.action)}>
+          <span
+            className={`inline-flex rounded-full border border-transparent px-2.5 py-px text-[11px] font-semibold ${KIND_CLASS[kindOf(event.action)]}`}
+            data-kind={kindOf(event.action)}
+          >
             {kind.label}
           </span>
-          <span className="org-tl-text">{describeEvent(event)}</span>
-          <span className="org-tl-when">{formatDateTime(event.createdAt) ?? event.createdAt}</span>
-          <span aria-hidden="true" className="org-tl-caret">
+          <span className="min-w-[200px] flex-1 text-sm">{describeEvent(event)}</span>
+          <span className="text-xs text-tp-steel">
+            {formatDateTime(event.createdAt) ?? event.createdAt}
+          </span>
+          <span aria-hidden="true" className="text-tp-steel">
             {open ? '−' : '+'}
           </span>
         </button>
         {open && (
-          <div id={detailId} className="org-tl-body">
-            <dl>
+          <div
+            id={detailId}
+            className="flex flex-col items-start gap-2 border-t border-tp-hairline-soft bg-tp-surface px-3.5 py-3"
+          >
+            <dl className="m-0 grid w-full grid-cols-[120px_1fr] gap-x-3 gap-y-1.5 text-[13px] [&_code]:font-mono [&_code]:text-xs [&_dd]:m-0 [&_dd]:min-w-0 [&_dd]:[overflow-wrap:anywhere] [&_dt]:text-tp-steel">
               <dt>Who</dt>
               <dd>{who}</dd>
               <dt>Action</dt>
@@ -155,7 +177,7 @@ function EventCard({
                 <>
                   <dt>Changes</dt>
                   <dd>
-                    <ul className="org-tl-changes">
+                    <ul className="m-0 list-disc pl-4">
                       {batch.map(change => (
                         <li key={change.userId}>
                           {nameOf(change.userId)} → {change.role ?? 'removed'}
@@ -166,7 +188,7 @@ function EventCard({
                 </>
               )}
               {extra.map(row => (
-                <div key={row.label} className="org-tl-fact">
+                <div key={row.label} className="contents">
                   <dt>{row.label}</dt>
                   <dd>
                     <DetailView value={row.value} />
@@ -176,7 +198,7 @@ function EventCard({
             </dl>
             <button
               type="button"
-              className="org-link-button"
+              className={LINK_BUTTON}
               onClick={() => void copy(event.id, event.id)}
             >
               {copied === 'copied'
@@ -210,7 +232,7 @@ export default function AuditBody({ organization }: { organization: Organization
     loadAudit(slug, permitted, action, offset)
   );
   const people = useResource(`audit-people:${slug}`, () =>
-    platformApi.members(slug).catch(() => [])
+    organizationClient.members(slug).catch(() => [])
   );
 
   const failure = data.status === 'error' ? classifyAuthError(data.error) : null;
@@ -265,14 +287,17 @@ export default function AuditBody({ organization }: { organization: Organization
               );
             }}
           >
-            <Download aria-hidden="true" className="org-inline-icon" />
+            <MdDownload aria-hidden="true" className="h-4 w-4" />
             Export this view
           </Action>
         ) : undefined
       }
     >
       {(!permitted || refused) && (
-        <div className="org-forbidden" role="alert">
+        <div
+          className="flex flex-col gap-1 rounded-md border border-tp-severity-error-border bg-tp-severity-error-bg px-4 py-3 text-sm text-tp-error-text [&_a]:font-medium [&_a]:underline"
+          role="alert"
+        >
           <strong>The audit log needs ADMIN (403)</strong>
           <span>
             Your role in {organization.name} is {role ?? 'none'}. An owner or admin can raise it in{' '}
@@ -285,7 +310,7 @@ export default function AuditBody({ organization }: { organization: Organization
 
       {permitted && !refused && (
         <>
-          <div className="org-filters">
+          <div className="mb-4 grid gap-4 sm:grid-cols-3">
             <SelectField
               label="Action"
               value={action}
@@ -315,13 +340,13 @@ export default function AuditBody({ organization }: { organization: Organization
               <option value="30">Last 30 days</option>
               <option value="90">Last 90 days</option>
             </SelectField>
-            <span className="org-muted org-filters-note">
+            <span className="text-xs text-tp-steel sm:col-span-3">
               Action is filtered by the server; actor and period are filtered in this view.
             </span>
           </div>
 
           {data.status === 'loading' && (
-            <div aria-busy="true" role="status" className="org-skeleton">
+            <div aria-busy="true" role="status" className="flex flex-col gap-3">
               <span className="sr-only">Loading the audit log…</span>
               <Skeleton variant="tile" />
               <Skeleton variant="tile" />
@@ -345,11 +370,11 @@ export default function AuditBody({ organization }: { organization: Organization
           )}
 
           {data.status === 'ready' && visible.length === 0 && (
-            <div className="org-empty is-center">
+            <div className="rounded-xl border border-dashed border-tp-hairline px-4 py-10 text-center text-sm text-tp-steel">
               {filtered ? (
                 <>
                   No events match these filters.{' '}
-                  <button type="button" className="org-link-button" onClick={clear}>
+                  <button type="button" className={LINK_BUTTON} onClick={clear}>
                     Clear filters
                   </button>
                 </>
@@ -360,7 +385,7 @@ export default function AuditBody({ organization }: { organization: Organization
           )}
 
           {visible.length > 0 && (
-            <ol className="org-timeline" aria-label="Audit events, newest first">
+            <ol className="relative m-0 list-none p-0" aria-label="Audit events, newest first">
               {visible.map(event => (
                 <EventCard
                   key={event.id}
@@ -375,13 +400,13 @@ export default function AuditBody({ organization }: { organization: Organization
           )}
 
           {page && events.length > 0 && (
-            <div className="org-pager">
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-tp-steel">
               <span>
                 Showing {from}–{to} of {total} · newest first
                 {visible.length !== events.length &&
                   ` · ${visible.length} match the actor and period filters`}
               </span>
-              <span className="org-pager-buttons">
+              <span className="flex gap-2">
                 <Action
                   variant="ghost"
                   size="sm"

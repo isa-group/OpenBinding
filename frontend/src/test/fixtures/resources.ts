@@ -1,4 +1,4 @@
-import type { UsageView } from '../../api/auth';
+import type { UsageView } from '../../modules/core/api/account';
 
 /** Shared by the tests of the account and launch screens, and by the browser specs that mock the same API. */
 

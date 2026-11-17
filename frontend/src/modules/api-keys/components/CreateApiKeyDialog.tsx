@@ -8,7 +8,7 @@
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { FiLock } from 'react-icons/fi';
-import { bimResourceKey } from '../../../api/client';
+import { bimResourceKey } from '../../engine/api/engineClient';
 import { useAuth } from '../../auth/hooks/useAuth';
 import { classifyAuthError } from '../../core/api/errors';
 import BlockAlert from '../../core/components/block-alert';

@@ -5,8 +5,8 @@ run presets, compositions, problems with their revisions and compilations, blob 
 and audit events. Runs and study runs are history, so a subtree that holds any is refused with 409 ``historical_references``. Stored files
 are not unlinked (D14): they are content addressed and may back another organization's blob.
 
-An organization slug is the first segment of ``/app/<slug>``, so the fixed places of the application and the
-sections under an organization are refused with 422 ``slug_reserved``.
+An organization page is ``/orgs/<slug>``, so the static children of that address (``new``, ``join``) and ``public``,
+which would shadow ``GET /v1/organizations/public``, are refused with 422 ``slug_reserved``.
 """
 
 from __future__ import annotations
@@ -205,11 +205,8 @@ async def test_only_an_admin_or_owner_deletes(api_client, db_session, registrati
 # -- reserved slugs -----------------------------------------------------------------------------------------
 
 
-def test_the_reserved_slugs_are_the_fixed_places_and_the_organization_sections():
-    assert RESERVED_ORGANIZATION_SLUGS == {
-        "admin", "account", "engines", "organizations", "invitations",
-        "compositions", "presets", "runs", "problems", "studies", "settings", "problem-editor", "new", "join", "public",
-    }
+def test_the_reserved_slugs_are_the_static_children_of_the_organization_page_and_public():
+    assert RESERVED_ORGANIZATION_SLUGS == {"new", "join", "public"}
 
 
 @pytest.mark.parametrize("slug", sorted(RESERVED_ORGANIZATION_SLUGS))

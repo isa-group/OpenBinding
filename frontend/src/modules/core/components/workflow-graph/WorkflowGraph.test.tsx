@@ -63,10 +63,10 @@ describe('WorkflowGraph', () => {
         }}
       />
     );
-    const t1 = screen.getByText('T1').closest('.wg-task') as HTMLElement;
+    const t1 = screen.getByText('T1').closest('[data-wg-task]') as HTMLElement;
     expect(t1).toHaveTextContent('candidate cand_t1_aws');
     expect(t1).toHaveTextContent('changed');
-    expect(screen.getByText('node_classic_routing').closest('.wg-task')).toHaveTextContent(
+    expect(screen.getByText('node_classic_routing').closest('[data-wg-task]')).toHaveTextContent(
       'local task · not bound'
     );
     expect(screen.getByText('Local task')).toBeInTheDocument();
@@ -96,6 +96,9 @@ describe('WorkflowGraph', () => {
 
   it('stacks vertically when asked to', () => {
     render(<WorkflowGraph graph={workflowGraph('a')} label="Workflow" orientation="vertical" />);
-    expect(screen.getByRole('group', { name: 'Workflow' })).toHaveClass('wg is-vertical');
+    expect(screen.getByRole('group', { name: 'Workflow' })).toHaveAttribute(
+      'data-orientation',
+      'vertical'
+    );
   });
 });

@@ -60,11 +60,10 @@ describe('route table', () => {
     expect(new Set(paths).size).toBe(paths.length);
   });
 
-  it('places every screen under /app in the workspace layout, and no other', () => {
-    for (const screen of screens) {
-      const underApp = screen.path === '/app' || screen.path.startsWith('/app/');
-      expect(screen.layout === 'app', screen.id).toBe(underApp);
-    }
+  it('serves no screen under /app: the old workspace is gone', () => {
+    expect(
+      screens.filter(screen => screen.path === '/app' || screen.path.startsWith('/app/'))
+    ).toEqual([]);
   });
 
   it('lets a screen that takes the chrome of the session be public: it never requires an account or an administrator', () => {
@@ -74,11 +73,11 @@ describe('route table', () => {
   });
 
   it('requires an administrator for every admin screen and for nothing else', () => {
-    const admin = screens.filter(screen => screen.id.startsWith('admin-'));
+    const admin = screens.filter(screen => screen.id === 'admin' || screen.id.startsWith('admin-'));
     expect(admin.length).toBeGreaterThan(0);
     for (const screen of admin) {
       expect(screen.requireAdmin, screen.id).toBe(true);
-      expect(screen.path, screen.id).toMatch(/^\/app\/admin(\/|$)/);
+      expect(screen.path, screen.id).toMatch(/^\/admin(\/|$)/);
     }
     expect(screens.filter(screen => screen.requireAdmin)).toHaveLength(admin.length);
   });
@@ -103,6 +102,7 @@ describe('route table', () => {
       '/playground',
       '/engines/new',
       '/funding',
+      '/about',
       '/profiles',
       '/schemas',
       '/app/acme/atlas/verifier',

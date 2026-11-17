@@ -1,23 +1,11 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { matchRoutes, MemoryRouter, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { UserProfile } from '../api/auth';
+import type { UserProfile } from '../modules/core/api/account';
 import { AuthContext } from '../modules/auth/hooks/useAuth';
 import { NotificationsProvider } from '../modules/notification/contexts/notificationsProvider';
 import { createElement } from 'react';
 import Router, { screens as routeDefinitions } from './router';
-
-vi.mock('../api/platform', async () => ({
-  ...(await vi.importActual<typeof import('../api/platform')>('../api/platform')),
-  platformApi: {
-    organizations: vi.fn().mockResolvedValue([]),
-  },
-}));
-
-vi.mock('../api/client', async () => ({
-  ...(await vi.importActual<typeof import('../api/client')>('../api/client')),
-  apiClient: { listNotifications: vi.fn().mockResolvedValue([]) },
-}));
 
 // These tests are about routing: every screen of the table is replaced by a stub that names itself, so no page file is needed.
 // `explode` names the one that fails to render.
@@ -48,17 +36,16 @@ const exampleOf = (path: string) =>
 // Screens picked by their shape, so the tests name no screen of any area.
 const fixedApp = routeDefinitions.find(
   definition =>
-    definition.layout === 'app' &&
+    definition.layout === 'protected' &&
     !definition.requireAdmin &&
     definition.path !== '/app' &&
     !definition.path.includes(':')
 );
 const inOrganization = routeDefinitions.find(
-  definition => definition.layout === 'app' && definition.path.includes(':org')
+  definition => definition.layout === 'protected' && definition.path.includes(':org')
 );
-const adminOnly = routeDefinitions.find(
-  definition => definition.requireAdmin && !definition.path.includes(':')
-);
+const adminOnly = routeDefinitions.find(definition => definition.requireAdmin);
+const adminScreens = routeDefinitions.filter(definition => definition.requireAdmin);
 const invitation = routeDefinitions.find(definition => definition.layout === 'session');
 if (!fixedApp || !inOrganization || !adminOnly || !invitation)
   throw new Error('the registry lacks a screen of a shape these tests need');
@@ -155,6 +142,15 @@ describe('Router', () => {
     expect(await screen.findByRole('heading', { name: 'Page not found' })).toBeInTheDocument();
     expect(screen.getByTestId('location')).toHaveTextContent(exampleOf(adminOnly.path));
   });
+
+  it.each(adminScreens.map(definition => [definition.id, exampleOf(definition.path)]))(
+    'reads administration (%s, %s) as a page that does not exist to an account that is not an administrator',
+    async (_id, address) => {
+      renderAt(address);
+      expect(await screen.findByRole('heading', { name: 'Page not found' })).toBeInTheDocument();
+      expect(shown()).toBeNull();
+    }
+  );
 
   it('serves a public page of the session inside the public layout when there is no session', async () => {
     renderAt(exampleOf(invitation.path), null);

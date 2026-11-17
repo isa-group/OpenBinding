@@ -1,4 +1,4 @@
-import type { OrganizationAuditEvent } from '../../../../api/platform';
+import type { OrganizationAuditEvent } from '../../api/organizationClient';
 
 /** Audit events as `GET /v1/organizations/{org}/audit` sends them, newest first. For tests. */
 export const auditFixture: OrganizationAuditEvent[] = [

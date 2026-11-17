@@ -11,7 +11,10 @@ import AppHeader from './app-header';
 export default function AuthenticatedLayout({ children }: { children?: ReactNode }) {
   return (
     <div className="flex min-h-dvh flex-col bg-tp-surface">
-      <a className="skip-link" href="#main-content">
+      <a
+        className="skip-link fixed top-3 left-3 z-[1000] -translate-y-[180%] border border-tp-ink bg-tp-canvas px-4 py-3 text-tp-ink transition-transform focus:translate-y-0"
+        href="#main-content"
+      >
         Skip to content
       </a>
       <AppHeader />

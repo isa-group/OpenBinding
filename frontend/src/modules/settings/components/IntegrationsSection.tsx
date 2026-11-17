@@ -17,17 +17,16 @@ import {
   FiShield,
   FiTrash2,
 } from 'react-icons/fi';
-import { apiClient } from '../../../api/client';
-import { InstitutionMark } from '../../../components/InstitutionMark';
+import { InstitutionMark } from '../../auth/components/institution-mark';
 import {
   INSTITUTION_NAME,
   useInstitutionalBranding,
-} from '../../../components/InstitutionMark/institution';
-import { PlanChangedNotice } from '../../../components/PlanChangedNotice/PlanChangedNotice';
-import { readCatalog } from '../../../pages/Pricing/pricingModel';
-import { formatDate } from '../../../utils/format';
-import { LIMIT } from '../../../utils/limits';
-import { leaveTo } from '../../../utils/navigation';
+} from '../../auth/components/institution-mark/institution';
+import { PlanChangedNotice } from '../../auth/components/plan-changed-notice';
+import { readCatalog } from '../../core/utils/pricing/pricingModel';
+import { formatDate } from '../../core/utils/format';
+import { LIMIT } from '../../core/utils/limits';
+import { leaveTo } from '../../core/utils/navigation';
 import { useAuth } from '../../auth/hooks/useAuth';
 import { classifyAuthError, marker, type AuthFailure } from '../../core/api/errors';
 import BlockAlert from '../../core/components/block-alert';
@@ -35,6 +34,7 @@ import { FormField } from '../../core/components/form-field';
 import { Modal } from '../../core/components/modal';
 import { useUserSettingsApi, type ExternalIdentity } from '../api/userSettingsApi';
 import { fallbackMessage } from '../../core/utils/account-errors';
+import { accountClient } from '../../auth/api/accountClient';
 
 /** The phrase the gateway asks for before it moves a RESEARCH account off the institutional plan. */
 const DOWNGRADE_PHRASE = 'DOWNGRADE RESEARCH';
@@ -124,7 +124,7 @@ export default function IntegrationsSection() {
     setLinking(true);
     setMessage(null);
     try {
-      leaveTo(await apiClient.createCasLinkIntent());
+      leaveTo(await accountClient.createCasLinkIntent());
     } catch (caught) {
       setMessage({ variant: 'error', text: linkFailure(classifyAuthError(caught)) });
       setLinking(false);

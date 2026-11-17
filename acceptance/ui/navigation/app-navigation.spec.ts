@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { COMPOSITIONS, PROBLEMS, RUN_NEW, entry, expectInOrder, menuScope, mockApi, type Role } from './helpers';
 
-// SPHERE's header (F2c PR-A): Tools and Explore open menus, Pricing and About are links; signed in, New, the palette, the bell and
+// SPHERE's header (F2c PR-A): Tools and Explore open menus, Pricing, Team, Research and Changelog are links; signed in, New, the palette, the bell and
 // the account menu follow. The entries point at today's screens until each domain moves into SPHERE's pages.
 
 test.use({ viewport: { width: 1280, height: 800 } });
@@ -16,7 +16,7 @@ async function signedIn(page: Page, path: string, role: Role = 'user') {
   await expect(banner(page)).toBeVisible();
 }
 
-test('public header lists Tools, Explore, Pricing and About in order, then Log in and Sign up', async ({ page }) => {
+test('public header lists Tools, Explore, Pricing, Team, Research and Changelog in order, then Log in and Sign up', async ({ page }) => {
   await mockApi(page, { role: null });
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/pricing');
@@ -24,7 +24,9 @@ test('public header lists Tools, Explore, Pricing and About in order, then Log i
     primary(page).getByRole('button', { name: 'Tools' }),
     primary(page).getByRole('button', { name: 'Explore' }),
     entry(primary(page), 'Pricing'),
-    entry(primary(page), 'About'),
+    entry(primary(page), 'Team'),
+    entry(primary(page), 'Research'),
+    entry(primary(page), 'Changelog'),
     entry(banner(page), 'Log in'),
     entry(banner(page), 'Sign up'),
   ]);
@@ -33,12 +35,12 @@ test('public header lists Tools, Explore, Pricing and About in order, then Log i
   await expect(entry(banner(page), 'Sign up')).toHaveAttribute('href', '/authentication?view=register');
 });
 
-test('public menus lead to the language, the workbench, the compositions and the engines', async ({ page }) => {
+test('public menus lead to the language, the problem editor, the compositions and the engines', async ({ page }) => {
   await mockApi(page, { role: null });
   await page.goto('/');
   await primary(page).getByRole('button', { name: 'Tools' }).click();
   await expect(entry(primary(page), 'Composition2Yaml')).toHaveAttribute('href', '/language');
-  await expect(entry(primary(page), 'Problem workbench')).toHaveAttribute('href', '/workbench');
+  await expect(entry(primary(page), 'Problem editor')).toHaveAttribute('href', '/problem-editor');
   await primary(page).getByRole('button', { name: 'Explore' }).click();
   await expect(entry(primary(page), 'Organizations')).toHaveAttribute('href', '/organizations');
   await expect(entry(primary(page), 'Compositions')).toHaveAttribute('href', '/compositions');
@@ -55,7 +57,9 @@ test('phone menu lists the same entries in the same order', async ({ page }) => 
     menu.getByRole('button', { name: 'Tools' }),
     menu.getByRole('button', { name: 'Explore' }),
     entry(menu, 'Pricing'),
-    entry(menu, 'About'),
+    entry(menu, 'Team'),
+    entry(menu, 'Research'),
+    entry(menu, 'Changelog'),
     entry(menu, 'Log in'),
     entry(menu, 'Sign up'),
   ]);
@@ -76,7 +80,9 @@ test('application header keeps SPHERE\'s order and marks no site entry on a work
     main(page).getByRole('button', { name: 'Tools' }),
     main(page).getByRole('button', { name: 'Explore' }),
     entry(main(page), 'Pricing'),
-    entry(main(page), 'About'),
+    entry(main(page), 'Team'),
+    entry(main(page), 'Research'),
+    entry(main(page), 'Changelog'),
     banner(page).getByRole('button', { name: 'New', exact: true }),
     banner(page).getByRole('button', { name: 'Account menu' }),
   ]);
@@ -90,20 +96,23 @@ test('New creates in the organization the address names', async ({ page }) => {
   await banner(page).getByRole('button', { name: 'New', exact: true }).click();
   const items: Array<[string, string]> = [
     ['Composition', '/compositions/new?org=acme'],
-    ['Problem', '/app/acme/problem-editor'],
+    ['Problem', '/problem-editor?org=acme'],
     ['Run', RUN_NEW],
-    ['Study', '/app/acme/studies/new'],
+    ['Study', '/studies/new?org=acme'],
     ['Organization', '/orgs/new'],
-    ['Engine', '/app/engines/new'],
+    ['Engine', '/me/engines/new'],
   ];
   await expectInOrder(items.map(([name]) => entry(menuScope(page), name)));
   for (const [name, href] of items) await expect(entry(menuScope(page), name)).toHaveAttribute('href', href);
 });
 
-test('the problem dialog opens from the address over the Problems screen', async ({ page }) => {
-  await signedIn(page, `${PROBLEMS}?create=problem`);
+test('the Problems tab of the organization opens the problem dialog from its New menu', async ({ page }) => {
+  await signedIn(page, PROBLEMS);
+  const tab = page.locator('main').getByRole('region', { name: 'Problems' });
+  await expect(tab.getByRole('heading', { level: 2, name: 'Problems' })).toBeVisible();
+  await tab.getByRole('button', { name: /^New/ }).click();
+  await tab.getByRole('menuitem', { name: /Upload BIM package/ }).click();
   await expect(page.getByRole('dialog', { name: 'Upload a BIM package' })).toBeVisible();
-  await expect(page.getByRole('heading', { level: 1, name: 'Problems' })).toBeVisible();
 });
 
 test('account menu lists the person\'s places then Sign out, with Administration for administrators only', async ({ page }) => {
@@ -112,7 +121,7 @@ test('account menu lists the person\'s places then Sign out, with Administration
   const items: Array<[string, string]> = [
     ['Organizations', '/me/orgs'],
     ['Inbox', '/notifications'],
-    ['Engines', '/app/engines/registrations'],
+    ['Engines', '/me/engines'],
     ['API keys', '/me/api-keys'],
     ['Settings', '/me/settings'],
   ];
@@ -125,5 +134,5 @@ test('account menu lists the person\'s places then Sign out, with Administration
 test('an administrator\'s account menu leads to the administration', async ({ page }) => {
   await signedIn(page, '/', 'admin');
   await banner(page).getByRole('button', { name: 'Account menu' }).click();
-  await expect(entry(menuScope(page), 'Administration')).toHaveAttribute('href', '/app/admin');
+  await expect(entry(menuScope(page), 'Administration')).toHaveAttribute('href', '/admin');
 });

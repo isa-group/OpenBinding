@@ -29,8 +29,8 @@ test.describe('S10a · compositions', () => {
   }) => {
     const mock = await installMockApi(page, 'admin');
     await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto('/app/isa-demo/runs');
-    await expect(main(page).getByRole('heading', { level: 1, name: 'Runs' })).toBeVisible();
+    await page.goto('/orgs/isa-demo/runs');
+    await expect(main(page).getByRole('list', { name: 'Runs of the organization' })).toBeVisible();
 
     const header = page.getByRole('banner');
     // The menu opens on hover, as SPHERE's does; a click on top of the hover would close it again.
@@ -166,7 +166,7 @@ test.describe('S10a · compositions', () => {
     // Publish it into the composition it was opened on, under a label of its own.
     await page.getByRole('button', { name: 'Publish' }).click();
     const dialog = page.getByRole('dialog', { name: 'Publish to OpenBinding' });
-    await expect(dialog.getByRole('button', { name: 'New version' })).toHaveAttribute(
+    await expect(dialog.getByRole('button', { name: 'New version', exact: true })).toHaveAttribute(
       'aria-pressed',
       'true'
     );
@@ -308,7 +308,7 @@ test.describe('S10a · compositions', () => {
     );
     await expect(
       region(page, 'Problem').getByRole('link', { name: 'isa-demo/checkout-flow@2' })
-    ).toHaveAttribute('href', '/app/isa-demo/problems/checkout-flow?version=2');
+    ).toHaveAttribute('href', '/problems/isa-demo/checkout-flow?version=2');
     await expect(region(page, 'Evaluation findings')).toContainText('No issues');
 
     const providers = region(page, 'Providers');

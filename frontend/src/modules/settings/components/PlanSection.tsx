@@ -8,15 +8,15 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { FiCreditCard, FiExternalLink, FiLoader } from 'react-icons/fi';
-import type { PricingCatalog } from '../../../api/auth';
+import type { PricingCatalog } from '../../core/api/account';
 import {
   INSTITUTION_NAME,
   useInstitutionalBranding,
-} from '../../../components/InstitutionMark/institution';
+} from '../../auth/components/institution-mark/institution';
 import { config } from '../../../config';
-import { featureName, readCatalog, type PricingView } from '../../../pages/Pricing/pricingModel';
-import { describeLimit, formatCount, LIMIT, type LimitDefinition } from '../../../utils/limits';
-import { usePricingTokenStatus, type PricingTokenStatus } from '../../../utils/pricingToken';
+import { featureName, readCatalog, type PricingView } from '../../core/utils/pricing/pricingModel';
+import { describeLimit, formatCount, LIMIT, type LimitDefinition } from '../../core/utils/limits';
+import { usePricingTokenStatus, type PricingTokenStatus } from '../../core/utils/pricingToken';
 import { useAuth } from '../../auth/hooks/useAuth';
 import { classifyAuthError, type AuthFailure } from '../../core/api/errors';
 import BlockAlert from '../../core/components/block-alert';
@@ -30,7 +30,7 @@ const ALLOWANCE_NOTES: Record<string, { note: string; link?: { to: string; label
   [LIMIT.maxConcurrentRuns]: { note: 'Runs that may run at once' },
   [LIMIT.maxFederatedEngines]: {
     note: 'Federated engines you may have active',
-    link: { to: '/app/engines/registrations', label: 'My engines' },
+    link: { to: '/me/engines', label: 'My engines' },
   },
   [LIMIT.maxApiKeys]: { note: 'Active keys', link: { to: '/me/api-keys', label: 'Manage keys' } },
   [LIMIT.maxProblems]: { note: 'Problems you own' },

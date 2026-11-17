@@ -7,10 +7,10 @@
 // `{composition}-{version}.yaml` and opens the share link; Docs is the Composition2Yaml reference (`/language`); "Publish"
 // opens the Publish dialog when signed in, and "Sign in" carries the text in the address so it survives the sign-in; the
 // menus are menus to assistive technology and close on Escape; the toggle is a pair of pressed buttons; Publish is on the
-// accent, which reaches 4.5:1 under its white label.
+// accent, which reaches 4.5:1 under its white label. The menus and the toggle are core/components/editor-chrome, shared
+// with the problem editor.
 
-import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { useState } from 'react';
 import {
   FiArrowUpRight,
   FiCornerUpLeft,
@@ -25,88 +25,16 @@ import {
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../auth/hooks/useAuth';
 import { compositionFragment } from '../../../core/utils/sphere/composition-fragment';
-import { dropdownVariants, transitionFast } from '../../../core/utils/motion-variants';
+import { HeaderMenu, MENU_ITEM as ITEM, ModeToggle } from '../../../core/components/editor-chrome';
 import type { EditorMode } from '../../contexts/editorValueContext';
 import { useEditorValue } from '../../hooks/useEditorValue';
 import { downloadYaml } from '../../services/export';
-import EditorAccountMenu from './editor-account-menu';
+import EditorAccountMenu from '../../components/editor-account-menu';
 
 interface Props {
   onShareLink: () => void;
   onImport: () => void;
   onPublish: () => void;
-}
-
-const ITEM =
-  'flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left text-xs text-white/70 transition-colors hover:bg-white/10 hover:text-white focus:bg-white/10 focus:text-white focus:outline-none disabled:cursor-not-allowed disabled:opacity-40';
-const MENU_BUTTON =
-  'cursor-pointer rounded-md px-2 py-1.5 text-xs font-medium text-white/70 transition-colors hover:bg-white/10 hover:text-white sm:px-3';
-
-function HeaderMenu({
-  label,
-  open,
-  onOpenChange,
-  align,
-  children,
-}: {
-  label: string;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  align: 'left' | 'right';
-  children: ReactNode;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-  const toggle = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
-      if (ref.current && !ref.current.contains(event.target as Node)) onOpenChange(false);
-    };
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        onOpenChange(false);
-        toggle.current?.focus();
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('keydown', handleEscape);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleEscape);
-    };
-  }, [open, onOpenChange]);
-
-  return (
-    <div ref={ref} className="relative">
-      <button
-        ref={toggle}
-        type="button"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        onClick={() => onOpenChange(!open)}
-        className={MENU_BUTTON}
-      >
-        {label}
-      </button>
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            variants={dropdownVariants}
-            initial="hidden"
-            animate="visible"
-            exit="exit"
-            transition={transitionFast}
-            role="menu"
-            aria-label={label}
-            className={`absolute ${align === 'left' ? 'left-0' : 'right-0'} top-full z-50 mt-1 w-[200px] rounded-lg border border-white/10 bg-tp-surface-code py-1 shadow-elevation-4`}
-          >
-            {children}
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
 }
 
 export default function EditorHeader({ onShareLink, onImport, onPublish }: Props) {
@@ -122,9 +50,7 @@ export default function EditorHeader({ onShareLink, onImport, onPublish }: Props
     setMenu(null);
   };
 
-  const handleModeToggle = (mode: EditorMode) => {
-    if (mode !== editorMode) setEditorMode(mode);
-  };
+  const handleModeToggle = (mode: EditorMode) => setEditorMode(mode);
 
   const signIn = () =>
     void navigate('/authentication', {
@@ -160,37 +86,15 @@ export default function EditorHeader({ onShareLink, onImport, onPublish }: Props
 
       {/* Centre: mode toggle */}
       <div className="col-span-3 row-start-2 justify-self-center sm:absolute sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2">
-        <div
-          role="group"
-          aria-label="Editor mode"
-          className="inline-flex items-center rounded-lg border border-white/10 bg-white/5 p-0.5"
-        >
-          {(['code', 'visual'] as EditorMode[]).map(mode => {
-            const isActive = editorMode === mode;
-            return (
-              <button
-                key={mode}
-                type="button"
-                aria-pressed={isActive}
-                onClick={() => handleModeToggle(mode)}
-                className="relative cursor-pointer rounded-md px-3 py-1 text-[11px] font-medium transition-colors"
-              >
-                {isActive && (
-                  <motion.span
-                    layoutId="editor-mode-bg"
-                    className="absolute inset-0 rounded-md bg-white/15"
-                    transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                  />
-                )}
-                <span
-                  className={`relative z-10 ${isActive ? 'text-white' : 'text-white/60 hover:text-white/80'}`}
-                >
-                  {mode === 'code' ? 'Code' : 'Visual'}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+        <ModeToggle
+          modes={[
+            { id: 'code', label: 'Code' },
+            { id: 'visual', label: 'Visual' },
+          ]}
+          value={editorMode}
+          onChange={handleModeToggle}
+          layoutId="editor-mode-bg"
+        />
       </div>
 
       {/* Right: actions */}

@@ -7,7 +7,7 @@
 
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { InstitutionMark } from '../../../../../components/InstitutionMark';
+import { InstitutionMark } from '../../../../auth/components/institution-mark';
 import { config } from '../../../../../config';
 import { useAuth } from '../../../../auth/hooks/useAuth';
 import UserAvatar from '../../../../core/components/user-avatar';

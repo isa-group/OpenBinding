@@ -1,0 +1,120 @@
+import { fireEvent, screen, within } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { HttpError } from '../../../core/api/http';
+import type { Job } from '../../../run/api/runsClient';
+import {
+  memberOf,
+  problemGateway,
+  problemOf,
+  renderProblemPage,
+  versionOf,
+} from '../../../../test/problemPage';
+import ProblemCardPage from '../../pages/card';
+
+const problems = vi.hoisted(() => ({ compilation: vi.fn() }));
+const runsApi = vi.hoisted(() => ({ list: vi.fn() }));
+
+vi.mock('../../api/problemsClient', () => ({ problemsApi: problems }));
+vi.mock('../../../run/api/runsClient', async () => ({
+  ...(await vi.importActual<typeof import('../../../run/api/runsClient')>(
+    '../../../run/api/runsClient'
+  )),
+  runsApi,
+}));
+
+const member = memberOf('isa-demo', 'MEMBER', 'ISA Demo Group');
+const checkout = problemOf('flujo-checkout', 'Flujo de checkout');
+const r1 = versionOf(checkout, 1);
+const r2 = versionOf(checkout, 2);
+const root = '/problems/isa-demo';
+
+const jobOf = (id: string, created: string, revision: { id: string; revision: number }): Job => ({
+  id,
+  engine_id: 'multi-heuristic',
+  status: 'completed',
+  cancellation_requested: false,
+  retry_of_id: null,
+  organization_id: 'org-isa-demo',
+  created_at: created,
+  finished_at: created,
+  termination: 'OPTIMAL',
+  revision,
+});
+
+function renderRuns() {
+  return renderProblemPage(<ProblemCardPage />, {
+    url: `${root}/flujo-checkout/runs`,
+    organizations: [member],
+    gateway: problemGateway('isa-demo', checkout, [r1, r2]),
+  });
+}
+
+/** The table of the runs, which the data table names through the region around it. */
+const runsTable = async () =>
+  within(await screen.findByRole('region', { name: 'Runs of the problem' })).getByRole('table');
+
+describe('Runs tab of the problem page', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    problems.compilation.mockRejectedValue(new HttpError(503, 'down'));
+    runsApi.list.mockResolvedValue({
+      total: 3,
+      runs: [
+        jobOf('job-old', '2026-09-01T00:00:00Z', { id: r1.id, revision: 1 }),
+        jobOf('job-other', '2026-09-02T00:00:00Z', { id: 'rev-elsewhere', revision: 4 }),
+        jobOf('job-new', '2026-09-03T00:00:00Z', { id: r2.id, revision: 2 }),
+      ],
+    });
+  });
+
+  it('lists the organization’s runs of a version of the problem by the revision they name, newest first, each linking to its page', async () => {
+    renderRuns();
+
+    const table = await runsTable();
+    const rows = within(table).getAllByRole('row').slice(1);
+    expect(rows).toHaveLength(2);
+    expect(within(rows[0]).getByRole('link', { name: 'Run 2' })).toHaveAttribute(
+      'href',
+      '/runs/isa-demo/job-new'
+    );
+    expect(within(rows[0]).getByRole('link', { name: 'Version 2' })).toHaveAttribute(
+      'href',
+      `${root}/flujo-checkout?version=2`
+    );
+    expect(within(rows[1]).getByRole('link', { name: 'Run 1' })).toHaveAttribute(
+      'href',
+      '/runs/isa-demo/job-old'
+    );
+    expect(within(rows[1]).getByRole('link', { name: 'Version 1' })).toHaveAttribute(
+      'href',
+      `${root}/flujo-checkout?version=1`
+    );
+    expect(table.textContent).not.toMatch(/job-|sha256-|[0-9a-f]{12}/);
+    expect(runsApi.list).toHaveBeenCalledTimes(1);
+    expect(runsApi.list).toHaveBeenCalledWith('isa-demo', {
+      problem: 'flujo-checkout',
+      limit: 200,
+    });
+  });
+
+  it('says so when no run is of the problem, and offers to start one to a MEMBER', async () => {
+    runsApi.list.mockResolvedValue({ runs: [], total: 0 });
+    renderRuns();
+
+    expect(await screen.findByText('No runs of this problem yet')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Start a run' })).toHaveAttribute(
+      'href',
+      '/runs/new?org=isa-demo&problem=flujo-checkout&revision=2'
+    );
+  });
+
+  it('says the runs cannot be loaded, and retries', async () => {
+    runsApi.list.mockRejectedValueOnce(new HttpError(503, 'unavailable'));
+    renderRuns();
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('The runs can’t be loaded right now');
+    fireEvent.click(within(alert).getByRole('button', { name: 'Retry' }));
+    expect(await runsTable()).toBeInTheDocument();
+  });
+});

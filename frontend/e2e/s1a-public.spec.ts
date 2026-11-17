@@ -4,7 +4,8 @@ import { compositionStore } from './helpers/mockCompositions';
 // The dev server compiles each route on first use, so the first assertion of a test can wait for a cold page.
 const expect = baseExpect.configure({ timeout: 15_000 });
 
-// S1a · public screens: pub-home and pub-about (with the service-status note that took the place of /status), and the public
+// S1a · public screens: pub-home, the about pages (pub-team, pub-research, pub-contributions, pub-changelog) with the footer's
+// service-status chip that took the place of /status, and the public
 // compositions with the page of one (pub-compositions, composition-card), as a visitor reads them.
 // There is no backend: the API origin is answered by page.route(). Screenshots go to testInfo.outputPath()
 // (test-results/, ignored by git) so they can be looked at after a run.
@@ -223,7 +224,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await main.getByRole('tab', { name: /Validation/ }).click();
       await expect(main.getByRole('link', { name: 'Validate a package' })).toHaveAttribute(
         'href',
-        '/workbench'
+        '/problem-editor'
       );
 
       // The public engines, from GET /v1/engines.
@@ -273,16 +274,15 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       });
     });
 
-    test('/about holds the service-status note, and nothing links to /status', async ({
+    test('the footer holds the service-status chip on every page, and nothing links to /status', async ({
       page,
     }, testInfo) => {
       const critical = watchCriticalErrors(page);
       await mockApi(page);
-      await page.goto('/pricing');
-      await page.goto('/about');
-      const main = page.locator('main');
+      await page.goto('/team');
+      const footer = page.locator('footer');
 
-      await expect(main.getByText('Service status: All systems operational')).toBeVisible();
+      await expect(footer.getByText('Service status: All systems operational')).toBeVisible();
       await expect(page.locator('footer a[href="/status"], header a[href="/status"]')).toHaveCount(
         0
       );
@@ -295,31 +295,25 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       // The same check, now that the database is down.
       await page.route(`${API}/health/ready`, json(DEGRADED_READY, 503));
-      await page.goto('/about');
-      await expect(main.getByText('Service status: Degraded')).toBeVisible();
+      await page.goto('/changelog');
+      await expect(footer.getByText('Service status: Degraded')).toBeVisible();
 
       await expectNoHorizontalOverflow(page);
       expect(critical).toEqual([]);
     });
 
-    test('/about · a gateway that does not answer is said so, and the page still renders', async ({
+    test('the service-status chip says a gateway that does not answer, and the page still renders', async ({
       page,
     }, testInfo) => {
       await mockApi(page, { offline: true });
-      await page.goto('/about');
-      const main = page.locator('main');
+      await page.goto('/research');
 
-      await expect(main.getByText('Service status: not available right now')).toBeVisible();
       await expect(
-        main.getByRole('heading', {
-          level: 1,
-          name: 'People, research and changes behind OpenBinding',
-        })
+        page.locator('footer').getByText('Service status: not available right now')
       ).toBeVisible();
-      await expect(main.getByRole('tab', { name: 'Team' })).toHaveAttribute(
-        'aria-selected',
-        'true'
-      );
+      await expect(
+        page.locator('main').getByRole('heading', { level: 1, name: 'Research' })
+      ).toBeVisible();
       await ready(page);
       await page.screenshot({
         path: testInfo.outputPath(`status-${name}-unreachable.png`),
@@ -328,28 +322,21 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       });
     });
 
-    test('pub-about /about', async ({ page, context }, testInfo) => {
+    test('pub-team, pub-research, pub-contributions and pub-changelog: SPHERE’s about pages', async ({
+      page,
+    }, testInfo) => {
       const critical = watchCriticalErrors(page);
-      await context.grantPermissions(['clipboard-read', 'clipboard-write']);
       await mockApi(page);
-      await page.goto('/about');
       const main = page.locator('main');
 
+      // Team: SPHERE's member cards.
+      await page.goto('/team');
+      await expect(main.getByRole('heading', { level: 1, name: 'Team' })).toBeVisible();
       await expect(
-        main.getByRole('heading', {
-          level: 1,
-          name: 'People, research and changes behind OpenBinding',
-        })
-      ).toBeVisible();
-      await expect(main.getByRole('tab', { name: 'Team' })).toHaveAttribute(
-        'aria-selected',
-        'true'
-      );
-      await expect(
-        main.getByRole('heading', { name: 'Francisco Javier Cavero López' })
+        main.getByRole('article', { name: 'Francisco Javier Cavero López' })
       ).toBeVisible();
       await expect(
-        main.getByRole('heading', { name: 'José Antonio Parejo Maestre' })
+        main.getByRole('article', { name: 'José Antonio Parejo Maestre' })
       ).toBeVisible();
       await expect(main.getByText(/\[(Name|Role|Funder|logo)\]/)).toHaveCount(0);
       await ready(page);
@@ -358,23 +345,21 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         fullPage: true,
         animations: 'disabled',
       });
+      await expectNoHorizontalOverflow(page);
 
-      await main.getByRole('tab', { name: 'Research' }).click();
-      await expect(page).toHaveURL(/\/about\?tab=research$/);
+      // Research: the publication timeline, then Funding.
+      await page.goto('/research');
       await expect(
         main.getByRole('heading', { name: 'Sources represented in the executable corpus.' })
       ).toBeVisible();
       await expect(
-        main.getByRole('link', { name: /DOI 10\.1109\/ICDE\.2002\.994738/ })
+        main.getByRole('link', {
+          name: 'Declarative Composition and Peer-to-Peer Provisioning of Dynamic Web Services',
+        })
       ).toHaveAttribute('href', 'https://doi.org/10.1109/ICDE.2002.994738');
-      await page.screenshot({
-        path: testInfo.outputPath(`about-${name}-research.png`),
-        fullPage: true,
-        animations: 'disabled',
-      });
-
-      await main.getByRole('tab', { name: 'Funding' }).click();
-      const sevilla = main.getByRole('link', { name: /Universidad de Sevilla/ });
+      const funding = main.getByRole('region', { name: 'Funding' });
+      const sevilla = funding.getByRole('link', { name: /Universidad de Sevilla/ });
+      await sevilla.scrollIntoViewIfNeeded();
       await expect(sevilla.getByRole('img', { name: 'Universidad de Sevilla' })).toBeVisible();
       await expect
         .poll(() =>
@@ -384,17 +369,19 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         )
         .toBe(true);
       await expect(
-        main.getByRole('heading', { name: 'What each project contributes' })
+        funding.getByRole('heading', { name: 'What each project contributes' })
       ).toBeVisible();
       await page.screenshot({
-        path: testInfo.outputPath(`about-${name}-funding.png`),
+        path: testInfo.outputPath(`about-${name}-research.png`),
         fullPage: true,
         animations: 'disabled',
       });
+      await expectNoHorizontalOverflow(page);
 
       // Contributions open in a dialog that Escape closes.
-      await main.getByRole('tab', { name: 'Contributions' }).click();
+      await page.goto('/contributions');
       const track = main.getByRole('button', { name: /Accessible BPMN binding workbench/ });
+      await expect(track).toBeVisible();
       await page.screenshot({
         path: testInfo.outputPath(`about-${name}-contributions.png`),
         fullPage: true,
@@ -413,15 +400,22 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await page.keyboard.press('Escape');
       await expect(dialog).toHaveCount(0);
       await expect(track).toBeFocused();
+      await expectNoHorizontalOverflow(page);
 
-      // The changelog filters by stream.
-      await main.getByRole('tab', { name: 'Changelog' }).click();
-      await expect(page).toHaveURL(/\/about\?tab=changelog$/);
-      await expect(main.getByText('Binding language and engines')).toBeVisible();
-      await main.getByRole('button', { name: 'Platform' }).click();
-      await expect(main.getByText('Binding language and engines')).toHaveCount(0);
-      await expect(main.getByText('Add collaborative binding analysis platform')).toBeVisible();
-      await main.getByRole('button', { name: 'All' }).click();
+      // The changelog: OpenBinding | Language.
+      await page.goto('/changelog');
+      await expect(main.getByRole('tab', { name: 'OpenBinding' })).toHaveAttribute(
+        'aria-selected',
+        'true'
+      );
+      const release = (title: string) => main.getByRole('heading', { name: title, exact: true });
+      await expect(release('OpenBinding platform')).toBeVisible();
+      await expect(release('OpenBinding documentation')).toBeVisible();
+      await expect(release('Binding language and engines')).toHaveCount(0);
+      await main.getByRole('tab', { name: 'Language' }).click();
+      await expect(page).toHaveURL(/\/changelog\?tab=language$/);
+      await expect(release('Binding language and engines')).toBeVisible();
+      await expect(release('OpenBinding platform')).toHaveCount(0);
       await page.screenshot({
         path: testInfo.outputPath(`about-${name}-changelog.png`),
         fullPage: true,
@@ -487,25 +481,28 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       });
     });
 
-    test('pub-about · the footer and header addresses land on the right tab', async ({ page }) => {
+    test('the footer and the header lead to the about pages, and /about answers Page not found', async ({
+      page,
+    }) => {
       await mockApi(page);
-      await page.goto('/about?tab=funding');
+      await page.goto('/pricing');
+      const footer = page.getByRole('navigation', { name: 'Footer navigation' });
+      for (const [label, address] of [
+        ['Team', '/team'],
+        ['Research', '/research'],
+        ['Funding', '/research#funding'],
+        ['Contributions', '/contributions'],
+        ['Changelog', '/changelog'],
+      ])
+        await expect(footer.getByRole('link', { name: label, exact: true })).toHaveAttribute(
+          'href',
+          address
+        );
+      await footer.getByRole('link', { name: 'Funding', exact: true }).click();
+      await expect(page).toHaveURL(/\/research#funding$/);
+      await expect(page.getByRole('region', { name: 'Funding' })).toBeVisible();
 
-      await expect(page.getByRole('tab', { name: 'Funding' })).toHaveAttribute(
-        'aria-selected',
-        'true'
-      );
-      await page.goto('/about?tab=contrib');
-      await expect(page.getByRole('tab', { name: 'Contributions' })).toHaveAttribute(
-        'aria-selected',
-        'true'
-      );
-      await page.goto('/about?tab=changelog');
-      await expect(page.getByRole('tab', { name: 'Changelog' })).toHaveAttribute(
-        'aria-selected',
-        'true'
-      );
-      for (const old of ['/team', '/research', '/funding', '/contributions', '/changelog']) {
+      for (const old of ['/about', '/about?tab=team', '/funding']) {
         await page.goto(old);
         await expect(page.getByRole('heading', { name: 'Page not found' })).toBeVisible();
       }

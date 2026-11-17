@@ -4,9 +4,9 @@ import { choose, mockStudies, selectedTab, selectorOf, shownBy, tabGroup, tabLab
 
 test.use({ viewport: { width: 1280, height: 800 } });
 
-// Studies belong to the organization (F0b B7).
-const STUDY = '/app/acme/studies/s1';
-const TABS = ['Setup', 'Progress', 'Results'];
+// Studies belong to the organization: its Studies tab lists them, and each one is SPHERE's card page at /studies/:org/:study/:tab?.
+const STUDY = '/studies/acme/s1';
+const TABS = ['Setup', 'Progress', 'Results', 'Front', 'Settings'];
 
 test('a study with runs opens Progress and the run selector shows the latest run r2', async ({ page }) => {
   await mockStudies(page);
@@ -21,7 +21,7 @@ test('a study with runs opens Progress and the run selector shows the latest run
 
 test('a study without runs opens Setup', async ({ page }) => {
   await mockStudies(page);
-  await page.goto('/app/acme/studies/s0');
+  await page.goto('/studies/acme/s0');
   const group = tabGroup(page, TABS);
   await expect.poll(() => tabLabels(group)).toEqual(TABS);
   await expect(selectedTab(group, 'Setup')).toBeVisible();
@@ -40,18 +40,19 @@ test('choosing r1 in the run selector sets ?run=r1 and shows the results of r1',
   expect(analytics[analytics.length - 1]).toContain('/runs/r1/analytics');
 });
 
-test('a cell inside Results links Open run to the run it ran as', async ({ page }) => {
+test('a cell opens in a side sheet over Results and links Open run to the run it ran as', async ({ page }) => {
   await mockStudies(page);
   await page.goto(`${STUDY}/results?run=r1&cell=c7`);
-  const open = page.getByRole('link', { name: 'Open run', exact: true }).first();
+  const sheet = page.getByRole('dialog', { name: 'Study cell' });
+  const open = sheet.getByRole('link', { name: 'Open run', exact: true }).first();
   await expect(open).toBeVisible();
   // Runs belong to the organization: the run of a cell opens under it.
-  await expect(open).toHaveAttribute('href', `/app/acme/${RUNS_SEGMENT}/j9`);
+  await expect(open).toHaveAttribute('href', `/${RUNS_SEGMENT}/acme/j9`);
 });
 
-test('the Progress tab shows the definition the selected run froze', async ({ page }) => {
+test('the Setup tab shows the definition the selected run froze', async ({ page }) => {
   await mockStudies(page);
-  await page.goto(`${STUDY}/progress?run=r1`);
+  await page.goto(`${STUDY}/setup?run=r1`);
   const frozen = page.getByRole('region', { name: 'Frozen definition' });
   await expect(frozen).toBeVisible();
   await expect(frozen.getByRole('list', { name: 'Problem versions of the run' }).getByRole('listitem')).toHaveCount(1);
@@ -70,9 +71,9 @@ test('an unknown study tab shows Page not found', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Page not found' })).toBeVisible();
 });
 
-test('Results lists the gateway’s Pareto front of the run, one table per problem version', async ({ page }) => {
+test('Front lists the gateway’s Pareto front of the run, one table per problem version', async ({ page }) => {
   await mockStudies(page);
-  await page.goto(`${STUDY}/results?run=r1`);
+  await page.goto(`${STUDY}/front?run=r1`);
   const front = page.getByRole('region', { name: 'Pareto front' });
   await expect(front).toBeVisible();
   const table = front.getByRole('region', { name: 'Front of routing · version 1' });
@@ -80,15 +81,18 @@ test('Results lists the gateway’s Pareto front of the run, one table per probl
   await expect(table).toContainText('P1');
 });
 
-test('Export CSV and Export JSON download the gateway’s export of the run under the name it gives', async ({ page }) => {
+test('the Get menu’s Export CSV and Export JSON download the gateway’s export of the run under the name it gives', async ({ page }) => {
   await mockStudies(page);
   const gets = trackGets(page);
   await page.goto(`${STUDY}/results?run=r1`);
+  const get = page.getByRole('button', { name: /Get study/ });
   const csv = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Export CSV' }).click();
+  await get.click();
+  await page.getByRole('menuitem', { name: /Export CSV/ }).click();
   expect((await csv).suggestedFilename()).toBe('s1-run-1.csv');
   const json = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Export JSON' }).click();
+  await get.click();
+  await page.getByRole('menuitem', { name: /Export JSON/ }).click();
   expect((await json).suggestedFilename()).toBe('s1-run-1.json');
   expect(gets).toContain('/v1/organizations/acme/studies/s1/runs/r1/export?format=csv');
   expect(gets).toContain('/v1/organizations/acme/studies/s1/runs/r1/export?format=json');

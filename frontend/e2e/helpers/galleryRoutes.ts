@@ -62,7 +62,7 @@ export interface GalleryScreen {
 export const EXAMPLE = {
   org: 'isa-demo',
   composition: 'fleet-routing',
-  case: 'checkout-flow',
+  problem: 'checkout-flow',
   revision: '2',
   artifact: 'providers-eu',
   draft: 'draft-providers-4',
@@ -82,6 +82,8 @@ export const EXAMPLE = {
 const PARAMS_OF: Record<string, Record<string, string>> = {
   'eng-detail': { namespace: 'bim.builtin', name: 'random-search', version: '1.0.0' },
   'eng-registration-detail': { name: 'edge-solver' },
+  // A run of the organization (the shared mock's first one, a completed random-search run), not a study's run.
+  'run-detail': { run: '00000000-0000-4000-8000-0000000000a1' },
   // The permanent link of the shared mock's public Order desk (e2e/helpers/mockCompositions.ts), which opens its page.
   'composition-permalink': { id: '00000000-0000-4000-8000-000000045057' },
 };
@@ -89,9 +91,9 @@ const PARAMS_OF: Record<string, Record<string, string>> = {
 /** The query string that makes a screen show something instead of its starting point. */
 const QUERY_OF: Record<string, string> = {
   'eng-registration-detail': `?namespace=alex.rivera&version=0.3.1&digest=sha256-${'e5f6'.repeat(16)}`,
-  'run-launch': '?problem=checkout-flow&revision=2',
-  'study-builder': '?case=checkout-flow&revision=2',
-  'problem-editor': '?problem=checkout-flow&revision=2',
+  'run-launch': '?org=isa-demo&problem=checkout-flow&revision=2',
+  'study-builder': '?org=isa-demo&problem=checkout-flow&revision=2',
+  'problem-editor': '?org=isa-demo&problem=checkout-flow&revision=2',
 };
 
 export function readGalleryScreens(): GalleryScreen[] {

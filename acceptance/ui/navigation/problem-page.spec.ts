@@ -1,12 +1,12 @@
 import { expect, test } from '@playwright/test';
-import { PROBLEMS, pathAndSearch } from './helpers';
+import { PROBLEM_PAGES, pathAndSearch } from './helpers';
 import {
   PROBLEM_SLUG, choose, mockProblems, selectedTab, selectorOf, shownBy, tabGroup, tabLabels, trackGets, versionMarker,
 } from './helpers-problems';
 
 test.use({ viewport: { width: 1280, height: 800 } });
 
-const PROBLEM = `${PROBLEMS}/${PROBLEM_SLUG}`;
+const PROBLEM = `${PROBLEM_PAGES}/${PROBLEM_SLUG}`;
 const TABS = ['Overview', 'Candidates', 'Versions', 'Runs', 'Compositions', 'Source', 'Settings'];
 
 test('a member sees the tabs Overview, Candidates, Versions, Runs, Compositions, Source, Settings with Overview selected and version 3', async ({ page }) => {
@@ -32,9 +32,9 @@ test('choosing version 2 in the header sets ?version=2 and the Source tab shows 
   await expect(page.getByText(versionMarker(3))).toHaveCount(0);
 });
 
-test('the Versions tab compares the pair in its address, 1 with 3', async ({ page }) => {
+test('the Versions tab compares the pair in its address, 1 with 3, file by file', async ({ page }) => {
   await mockProblems(page);
-  await page.goto(`${PROBLEM}/versions?from=1&to=3`);
+  await page.goto(`${PROBLEM}/versions?from=1&to=3&diff=file`);
   await expect(selectedTab(tabGroup(page, TABS), 'Versions')).toBeVisible();
   await expect(page.getByText(versionMarker(1)).first()).toBeVisible();
   await expect(page.getByText(versionMarker(3)).first()).toBeVisible();
