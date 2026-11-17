@@ -19,6 +19,7 @@ export const headerRoutes: HeaderRoute[] = [
     name: 'Tools',
     disabled: false,
     children: [
+      { name: 'Composition editor', disabled: false, to: '/editor' },
       { name: 'Composition2Yaml', disabled: false, to: '/language' },
       { name: 'Problem workbench', disabled: false, to: '/workbench' },
     ],

@@ -1,7 +1,7 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { Located } from '../../diagnostics/located';
-import { ProblemsPanel } from './ProblemsPanel';
+import ProblemsPanel from '.';
 
 const UNKNOWN: Located = {
   code: 'c2y_unknown_key',
@@ -79,14 +79,16 @@ describe('ProblemsPanel', () => {
     expect(onSelect).toHaveBeenCalledWith(UNKNOWN);
   });
 
-  it('folds the list from its header', () => {
+  it('folds the list from its header', async () => {
     render(<ProblemsPanel diagnostics={[MISSING]} onSelect={vi.fn()} />);
     const header = screen.getByRole('button', { name: /Problems/ });
     fireEvent.click(header);
     expect(header).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.queryByRole('button', { name: /version is required/ })).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: /version is required/ })).not.toBeInTheDocument()
+    );
     fireEvent.click(header);
-    expect(screen.getByRole('button', { name: /version is required/ })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /version is required/ })).toBeInTheDocument();
   });
 
   it('is a read-only list without onSelect', () => {
@@ -115,9 +117,7 @@ describe('ProblemsPanel', () => {
       where: { kind: 'package' },
     };
     render(<ProblemsPanel diagnostics={[pack, flow, catalog]} onSelect={vi.fn()} groups />);
-    const groups = screen
-      .getAllByRole('listitem')
-      .filter(item => item.classList.contains('pp-group'));
+    const groups = screen.getAllByRole('listitem').filter(item => item.dataset.group);
     expect(groups.map(group => group.firstChild?.textContent)).toEqual([
       'candidates.json',
       'workflow.bpmn',

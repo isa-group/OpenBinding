@@ -4,9 +4,11 @@
 // domain is poured into SPHERE's pages, and lists them in `screens`, the table its screen budget and route tests read.
 
 /* eslint-disable react-refresh/only-export-components -- the table exports `screens` for the budget and route tests */
-import { lazy, type ComponentType, type ReactNode } from 'react';
-import { useRoutes, type RouteObject } from 'react-router-dom';
+import { lazy, Suspense, type ComponentType, type ReactNode } from 'react';
+import { Outlet, useRoutes, type RouteObject } from 'react-router-dom';
+import { RouteFallback } from '../components/PlatformShell/RouteFallback';
 import ProtectedRoute from '../modules/auth/components/protected-route';
+import ErrorBoundary from '../modules/core/components/error-boundary';
 import NotFoundPage from '../modules/core/pages/page-not-found';
 import AuthenticatedLayout from '../modules/presentation/layouts/authenticated-layout';
 import PublicLayout from '../modules/presentation/layouts/public-layout';
@@ -17,9 +19,10 @@ import { LegacyOrgOutlet } from './LegacyOrgOutlet';
 /**
  * Where a screen renders: `public` in the public layout, `session` in the layout of the session (the workspace chrome when
  * signed in, the public one otherwise), `protected` in SPHERE's authenticated layout (an account is needed), `app` in the old
- * workspace under /app, which needs an account too and goes as its screens are poured into SPHERE's pages.
+ * workspace under /app, which needs an account too and goes as its screens are poured into SPHERE's pages, `standalone` with no
+ * application chrome at all: the editors, which draw their own layout and are open to visitors.
  */
-export type ScreenLayout = 'public' | 'session' | 'protected' | 'app';
+export type ScreenLayout = 'public' | 'session' | 'protected' | 'app' | 'standalone';
 
 /** One screen of the application and the address that serves it. */
 export interface Screen {
@@ -78,6 +81,10 @@ const UserCompositionListPage = lazy(() => import('../modules/composition/pages/
 const CompositionCardPage = lazy(() => import('../modules/composition/pages/card'));
 const CreateCompositionPage = lazy(() => import('../modules/composition/pages/create'));
 const PermanentLinkPage = lazy(() => import('../modules/composition/pages/permalink'));
+const EditorLayout = lazy(() => import('../modules/composition-editor/layouts/editor-layout'));
+const CompositionEditorPage = lazy(
+  () => import('../modules/composition-editor/pages/composition-editor')
+);
 const ProblemList = named(() => import('../pages/Problems/ProblemList'), 'ProblemList');
 const ProblemDetail = named(() => import('../pages/Problems/ProblemDetail'), 'ProblemDetail');
 const ProblemEditorPage = named(
@@ -158,8 +165,9 @@ export const screens: Screen[] = [
   { id: 'admin-moderation', path: '/app/admin/moderation', layout: 'app', element: <AdminModeration />, requireAdmin: true },
 
   // ═══════════════════════════════════════════════════════════
-  // EDITORS (standalone layout): `/editor` (C7) and `/problem-editor` (D2)
+  // EDITORS (standalone layout): `/editor`, and `/problem-editor` (D2)
   // ═══════════════════════════════════════════════════════════
+  { id: 'composition-editor', path: '/editor', layout: 'standalone', element: <EditorLayout><CompositionEditorPage /></EditorLayout> },
 ];
 
 /** The routes of one layout, an administrator's screens behind the guard. */
@@ -225,6 +233,20 @@ export default function Router({ table = screens }: { table?: Screen[] }) {
         </ProtectedRoute>
       ),
       children: routesOf(table, 'app'),
+    },
+
+    // ═══════════════════════════════════════════════════════════
+    // STANDALONE (the editors: their own layout, open to visitors)
+    // ═══════════════════════════════════════════════════════════
+    {
+      element: (
+        <ErrorBoundary>
+          <Suspense fallback={<RouteFallback />}>
+            <Outlet />
+          </Suspense>
+        </ErrorBoundary>
+      ),
+      children: routesOf(table, 'standalone'),
     },
 
     // ═══════════════════════════════════════════════════════════

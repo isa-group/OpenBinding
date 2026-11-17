@@ -1,12 +1,7 @@
-import type {
-  Completion,
-  CompletionContext,
-  CompletionResult,
-  CompletionSource,
-} from '@codemirror/autocomplete';
-import { languageApi } from '../../../core/utils/composition/api';
-import type { ProblemFacts } from '../../../core/api/types';
-import { cursorPlace, ITEM, type CursorPlace } from './yamlText';
+import type * as Monaco from 'monaco-editor';
+import { languageApi } from '../../core/utils/composition/api';
+import type { ProblemFacts } from '../../core/api/types';
+import { cursorPlace, ITEM, type CursorPlace } from '../utils/yamlText';
 
 /**
  * What the code editor offers while typing a Composition2Yaml document. Keys come from the JSON Schema the gateway serves
@@ -14,6 +9,16 @@ import { cursorPlace, ITEM, type CursorPlace } from './yamlText';
  * are its task ids, a task's `candidate:` its eligible candidates as the problem writes them, `values:` keys its features and a
  * value's `unit:` that feature's unit. It only offers: the gateway judges the text, and no rule of the language is written here.
  */
+
+/** One thing completion offers: a key (written with its colon) or a value. */
+export interface Completion {
+  label: string;
+  type: 'property' | 'constant';
+  /** What replaces the word being written, when it is not the label. */
+  apply?: string;
+  detail?: string;
+  info?: string;
+}
 
 /** A JSON Schema, as far as completion reads it. */
 export type JsonSchema = Record<string, unknown>;
@@ -174,11 +179,48 @@ export function completionAt(
   return options.length ? { from: place.from, options } : null;
 }
 
-/** The completion source of the code editor over these sources. */
-export function compositionCompletions(sources: CompletionFacts): CompletionSource {
-  return (context: CompletionContext): CompletionResult | null => {
-    const found = completionAt(context.state.doc.toString(), context.pos, sources);
-    if (!found) return null;
-    return { from: found.from, options: found.options, validFor: /^[^\s:,{}[\]#]*$/ };
-  };
+/** The one-based line and column of an offset, as Monaco counts positions. */
+function positionOf(text: string, offset: number): { lineNumber: number; column: number } {
+  const before = text.slice(0, offset);
+  const lineStart = before.lastIndexOf('\n') + 1;
+  return { lineNumber: before.split('\n').length, column: offset - lineStart + 1 };
+}
+
+/**
+ * Completion in Monaco's YAML editor: a `CompletionItemProvider` over `completionAt`. `sources` is read at each request, so the
+ * provider registered once follows the schema and facts the editor has in hand.
+ */
+export function registerCompositionCompletions(
+  monaco: typeof Monaco,
+  sources: () => CompletionFacts
+): Monaco.IDisposable {
+  return monaco.languages.registerCompletionItemProvider('yaml', {
+    triggerCharacters: [' ', ':'],
+    provideCompletionItems(model, position) {
+      const text = model.getValue();
+      const found = completionAt(text, model.getOffsetAt(position), sources());
+      if (!found) return { suggestions: [] };
+      const start = positionOf(text, found.from);
+      const range = {
+        startLineNumber: start.lineNumber,
+        startColumn: start.column,
+        endLineNumber: position.lineNumber,
+        endColumn: position.column,
+      };
+      return {
+        suggestions: found.options.map((option, index) => ({
+          label: option.label,
+          kind:
+            option.type === 'property'
+              ? monaco.languages.CompletionItemKind.Property
+              : monaco.languages.CompletionItemKind.Value,
+          detail: option.detail,
+          documentation: option.info,
+          insertText: option.apply ?? option.label,
+          sortText: String(index).padStart(4, '0'),
+          range,
+        })),
+      };
+    },
+  });
 }

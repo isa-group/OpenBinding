@@ -24,8 +24,8 @@ function storage(): Storage | null {
  * An internal address that a sign-in may send the person back to, or `null`.
  *
  * Only the workspace, the account's own pages (`/me/…`), the organization pages (`/orgs/…`, the invitation link included), the
- * composition pages (`/compositions/…`, where Fork asks for a session) and the permanent links (`/p/…`)
- * qualify: the value travels through router state and sessionStorage, so it is never used as an arbitrary redirect target.
+ * composition pages (`/compositions/…`, where Fork asks for a session), the permanent links (`/p/…`) and the composition
+ * editor (`/editor`, whose Sign in carries the text in the fragment) qualify: the value travels through router state and sessionStorage, so it is never used as an arbitrary redirect target.
  */
 export function safeReturnPath(value: unknown): string | null {
   if (
@@ -40,6 +40,7 @@ export function safeReturnPath(value: unknown): string | null {
   if (path.startsWith('/me/') || path.startsWith('/orgs/')) return value;
   if (path === '/compositions' || path.startsWith('/compositions/') || path.startsWith('/p/'))
     return value;
+  if (path === '/editor') return value;
   return null;
 }
 

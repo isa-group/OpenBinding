@@ -275,7 +275,7 @@ describe('Deriving a composition from a run', () => {
 
     click(dialog, 'Open as draft');
     await waitFor(() =>
-      expect(where()).toMatch(/^\/compositions\/isa-demo\/fleet-routing\/editor#composition=/)
+      expect(where()).toMatch(/^\/editor\?source=isa-demo%2Ffleet-routing#composition=/)
     );
     expect(readCompositionFragment(where().slice(where().indexOf('#')))).toEqual({
       status: 'ok',

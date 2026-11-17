@@ -13,7 +13,6 @@ export const COMPOSITION_TAB_SEGMENTS = [
   'analytics',
   'configuration',
   'versions',
-  'editor',
   'settings',
 ] as const;
 
@@ -71,6 +70,27 @@ export function compositionPath(
 /** Where a composition is created: `/compositions/new`, in the organization `?org=` names. */
 export function newCompositionPath(org?: string): string {
   return withQuery(`/${COMPOSITIONS_SEGMENT}/new`, { org });
+}
+
+/** What the standalone editor opens: a version of a composition (`source`, `version`) in a mode, or nothing in an organization. */
+export interface EditorQuery {
+  /** The composition to edit: its organization and slug. */
+  source?: { org: string; slug: string };
+  /** The version's label; the latest one when it is left out. */
+  version?: string;
+  mode?: 'code' | 'visual';
+  /** The organization a new composition is published in, when the editor opens on no composition. */
+  org?: string;
+}
+
+/** The standalone composition editor: `/editor?source=<org>/<slug>&version=&mode=` or `/editor?org=`. */
+export function editorPath(query: EditorQuery = {}): string {
+  return withQuery('/editor', {
+    source: query.source ? `${query.source.org}/${query.source.slug}` : undefined,
+    version: query.version,
+    mode: query.mode,
+    org: query.org,
+  });
 }
 
 /** The permanent link of a composition (`/p/<id>`), at a version when one is named. */

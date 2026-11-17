@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
-import examples from '../../../../content/composition2yaml-examples.json';
-import { compositionsApi, languageApi } from '../../../core/utils/composition/api';
-import { COMPOSITION_FILE } from '../../../core/utils/composition/viewModel';
-import { problemFactsApi } from '../../../core/utils/problem/facts';
-import { readApiError } from '../../../core/api/errors';
+import examples from '../../../content/composition2yaml-examples.json';
+import { compositionsApi, languageApi } from '../../core/utils/composition/api';
+import { COMPOSITION_FILE } from '../../core/utils/composition/viewModel';
+import { problemFactsApi } from '../../core/utils/problem/facts';
+import { readApiError } from '../../core/api/errors';
 import type {
   CheckResult,
   CompositionDiagnosticView,
@@ -12,24 +12,24 @@ import type {
   ProblemFacts,
   SealResult,
   ValidateResult,
-} from '../../../core/api/types';
-import { draftScope, type DraftFiles } from '../../../core/editor/drafts';
+} from '../../core/api/types';
+import { draftScope, type DraftFiles } from '../../core/editor/drafts';
 import {
   createScheduler,
   pausedMessage,
   type Scheduler,
   type SchedulerStatus,
-} from '../../../core/editor/lintScheduler';
-import { useDraftStore } from '../../../core/editor/useDraftStore';
-import { fromC2y, type Located } from '../../../core/diagnostics/located';
+} from '../../core/editor/lintScheduler';
+import { useDraftStore } from '../../core/editor/useDraftStore';
+import { fromC2y, type Located } from '../../core/diagnostics/located';
 import {
   compositionFragment,
   takeCompositionFragment,
   type CompositionFragment,
-} from '../../../core/utils/sphere/composition-fragment';
-import { compositionCompletions, compositionSchema, type JsonSchema } from './completion';
-import type { DocumentModel } from './mutations';
-import { scalarAt, withTopLevelScalar } from './yamlText';
+} from '../../core/utils/sphere/composition-fragment';
+import { compositionSchema, type CompletionFacts, type JsonSchema } from '../services/completion';
+import type { DocumentModel } from '../utils/mutations';
+import { scalarAt, withTopLevelScalar } from '../utils/yamlText';
 
 /** Milliseconds of stillness before the text is linted (`POST /v1/compositions/validate`, A-7). */
 export const VALIDATE_DELAY_MS = 600;
@@ -37,6 +37,9 @@ export const VALIDATE_DELAY_MS = 600;
 export const CHECK_DELAY_MS = 1500;
 /** The largest file the editor reads; the gateway refuses a larger body with 413 anyway. */
 export const UPLOAD_LIMIT_BYTES = 256 * 1024;
+
+/** The document the editor starts from when it is opened on nothing: the starter of the language reference. */
+export const STARTER: string = examples.starter;
 
 /** The starting document of a composition with no version: the starter, with this composition's slug and kind. */
 export function starterFor(composition: Pick<CompositionView, 'slug' | 'kind'>): string {
@@ -50,16 +53,15 @@ export function starterFor(composition: Pick<CompositionView, 'slug' | 'kind'>):
 /** Does the text link a problem? Only then is a check worth its budget. */
 export const linksProblem = (text: string) => /^problem\s*:/m.test(text);
 
-/** The problem a text links, when it is one of this organization's: what the editor reads the facts of, for completion. */
+/** The problem a text links: what the editor reads the facts of, for completion (the gateway answers 404 if unreadable). */
 export function linkedProblemOf(
-  text: string,
-  org: string
-): { problem: string; revision: string; compilation: string } | null {
+  text: string
+): { org: string; problem: string; revision: string; compilation: string } | null {
   const ref = scalarAt(text, ['problem', 'ref'])?.value;
   const compilation = scalarAt(text, ['problem', 'compilation'])?.value;
   const match = ref ? /^([^/]+)\/problems\/([^@]+)@(.+)$/.exec(ref) : null;
-  if (!match || !compilation || match[1] !== org) return null;
-  return { problem: match[2], revision: match[3], compilation };
+  if (!match || !compilation) return null;
+  return { org: match[1], problem: match[2], revision: match[3], compilation };
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -127,9 +129,16 @@ export interface Incoming {
   source: 'upload' | 'link';
 }
 
-export interface CompositionEditorOptions {
+/** Where a text is sealed: a composition of an organization. */
+export interface SealTarget {
   org: string;
-  composition: Pick<CompositionView, 'slug' | 'kind'>;
+  slug: string;
+}
+
+export interface CompositionEditorOptions {
+  /** The organization of the composition the editor was opened on; null when it was opened on no composition. */
+  org: string | null;
+  composition: Pick<CompositionView, 'slug' | 'kind'> | null;
   /** The version the editor starts from (its text); null for a composition with no version (the starter). */
   version: Pick<CompositionVersionView, 'id' | 'label'> | null;
   /** Whose drafts these are. */
@@ -146,10 +155,11 @@ interface Answer<T> {
 }
 
 /**
- * The Composition2Yaml editor of a composition, without its screens: the text and its 40-step history in the draft store
- * (`kind: composition`, per version it started from), the gateway's lint (validate, 600 ms) merged with the seal's assessment
- * (check, 1500 ms, only for a valid text that links a problem), completion from the schema and the linked problem's facts, the
- * visual editor's round trip through parse and serialise, share links, uploads and the seal.
+ * The Composition2Yaml editor, without its screens: the text and its 40-step history in the draft store (`kind: composition`,
+ * per version it started from, or one scratch draft when it was opened on no composition), the gateway's lint (validate,
+ * 600 ms) merged with the seal's assessment (check, 1500 ms, only for a valid text that links a problem, and only on a
+ * composition), completion from the schema and the linked problem's facts, the visual editor's round trip through parse and
+ * serialise, share links, uploads and the seal into a composition the Publish dialog chooses.
  */
 export function useCompositionEditor({
   org,
@@ -159,14 +169,14 @@ export function useCompositionEditor({
   delays,
   visual = false,
 }: CompositionEditorOptions) {
-  const slug = composition.slug;
+  const slug = composition?.slug ?? null;
   const validateDelay = delays?.validate ?? VALIDATE_DELAY_MS;
   const checkDelay = delays?.check ?? CHECK_DELAY_MS;
   const scope = draftScope({
     user: userId,
     kind: 'composition',
-    org,
-    entity: slug,
+    org: org ?? '',
+    entity: slug ?? 'scratch',
     base: version?.id ?? 'new',
   });
   const draft = useDraftStore<DraftFiles>({ scope, initial: { [COMPOSITION_FILE]: '' } });
@@ -202,6 +212,8 @@ export function useCompositionEditor({
     fragment.current = null;
     if (link?.status === 'invalid') setLinkIssue(link.error);
     if (link?.status === 'ok') {
+      const kept = restored ?? origin;
+      if (link.yaml === kept) return;
       if (restored !== undefined && restored !== origin)
         setIncoming({ text: link.yaml, source: 'link' });
       else draft.commit({ [COMPOSITION_FILE]: link.yaml });
@@ -221,9 +233,12 @@ export function useCompositionEditor({
     let active = true;
     void (async () => {
       const kept = await draft.restore();
-      const origin = version
-        ? await compositionsApi.content(org, slug, version.id)
-        : starterFor(composition);
+      const origin =
+        org && slug && version
+          ? await compositionsApi.content(org, slug, version.id)
+          : composition
+            ? starterFor(composition)
+            : STARTER;
       if (active) hydrate(origin, kept);
     })().catch((reason: unknown) => {
       if (active) fail(reason);
@@ -264,7 +279,7 @@ export function useCompositionEditor({
           waitingCheck.current = input;
           return null;
         }
-        return lint.valid ? compositionsApi.check(org, slug, input, signal) : null;
+        return lint.valid && org && slug ? compositionsApi.check(org, slug, input, signal) : null;
       },
       onResult: (result, input) => {
         if (result) setChecked({ text: input, result });
@@ -349,13 +364,13 @@ export function useCompositionEditor({
     };
   }, []);
 
-  const link = validated ? linkedProblemOf(validated.text, org) : null;
-  const factsKey = link ? `${link.problem}@${link.revision}/${link.compilation}` : null;
+  const link = validated ? linkedProblemOf(validated.text) : null;
+  const factsKey = link ? `${link.org}/${link.problem}@${link.revision}/${link.compilation}` : null;
   const [facts, setFacts] = useState<{ key: string; facts: ProblemFacts } | null>(null);
   useEffect(() => {
     if (!link || !factsKey) return undefined;
     let active = true;
-    problemFactsApi.get(org, link.problem, link.revision, link.compilation).then(
+    problemFactsApi.get(link.org, link.problem, link.revision, link.compilation).then(
       value => {
         if (active) setFacts({ key: factsKey, facts: value });
       },
@@ -366,10 +381,10 @@ export function useCompositionEditor({
     };
     // The key names the link.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [org, factsKey]);
+  }, [factsKey]);
   const linkedFacts = facts && facts.key === factsKey ? facts.facts : null;
-  const completions = useMemo(
-    () => compositionCompletions({ schema, facts: linkedFacts }),
+  const completions: CompletionFacts = useMemo(
+    () => ({ schema, facts: linkedFacts }),
     [schema, linkedFacts]
   );
 
@@ -447,59 +462,75 @@ export function useCompositionEditor({
     [draft]
   );
 
-  /** The address of this editor with the text in its fragment. */
+  /** The editor's address with the text in its fragment: whoever opens it edits a copy of their own. */
   const shareLink = useCallback(() => {
-    const { origin, pathname, search } = window.location;
-    return `${origin}${pathname}${search}${compositionFragment(draft.current()[COMPOSITION_FILE] ?? '')}`;
+    const { origin, pathname } = window.location;
+    return `${origin}${pathname}${compositionFragment(draft.current()[COMPOSITION_FILE] ?? '')}`;
   }, [draft]);
 
   const [sealing, setSealing] = useState(false);
-  const seal = useCallback(async (): Promise<SealOutcome> => {
-    const sent = draft.current()[COMPOSITION_FILE] ?? '';
-    setSealing(true);
-    try {
-      const sealed = await compositionsApi.seal(org, slug, sent);
-      if (!sealed.created) return { kind: 'exists', result: sealed.result };
-      await draft.forget();
-      return { kind: 'created', result: sealed.result };
-    } catch (reason: unknown) {
-      const refusal = readApiError(reason);
-      if (refusal.status === 409 && refusal.code === 'version_label_taken') {
-        const place = scalarAt(sent, ['version']);
-        const where: Located['where'] = place
-          ? {
-              kind: 'text',
-              file: COMPOSITION_FILE,
-              from: place.from,
-              to: place.to,
-              line: sent.slice(0, place.from).split('\n').length,
-              column: place.from - (sent.lastIndexOf('\n', place.from - 1) + 1) + 1,
-            }
-          : { kind: 'file', file: COMPOSITION_FILE };
-        setSealFindings({
-          text: sent,
-          findings: [
-            {
-              code: refusal.code,
-              message: refusal.message,
-              severity: 'error',
-              where,
-              path: 'version',
-              pointer: '/version',
-            },
-          ],
-        });
-        return { kind: 'labelTaken', message: refusal.message };
+  /** Seal the text into a composition: the one the editor was opened on unless the Publish dialog names another. */
+  const seal = useCallback(
+    async (into?: SealTarget): Promise<SealOutcome> => {
+      const sent = draft.current()[COMPOSITION_FILE] ?? '';
+      const target = into ?? (org && slug ? { org, slug } : null);
+      if (!target)
+        return { kind: 'refused', status: 0, message: 'Choose the composition to seal into.' };
+      setSealing(true);
+      try {
+        const sealed = await compositionsApi.seal(target.org, target.slug, sent);
+        if (!sealed.created) return { kind: 'exists', result: sealed.result };
+        await draft.forget();
+        return { kind: 'created', result: sealed.result };
+      } catch (reason: unknown) {
+        const refusal = readApiError(reason);
+        if (refusal.status === 409 && refusal.code === 'version_label_taken') {
+          const place = scalarAt(sent, ['version']);
+          const where: Located['where'] = place
+            ? {
+                kind: 'text',
+                file: COMPOSITION_FILE,
+                from: place.from,
+                to: place.to,
+                line: sent.slice(0, place.from).split('\n').length,
+                column: place.from - (sent.lastIndexOf('\n', place.from - 1) + 1) + 1,
+              }
+            : { kind: 'file', file: COMPOSITION_FILE };
+          setSealFindings({
+            text: sent,
+            findings: [
+              {
+                code: refusal.code,
+                message: refusal.message,
+                severity: 'error',
+                where,
+                path: 'version',
+                pointer: '/version',
+              },
+            ],
+          });
+          return { kind: 'labelTaken', message: refusal.message };
+        }
+        if (refusal.status === 422) {
+          setSealFindings({ text: sent, findings: located(refusalFindings(reason), sent) });
+          return { kind: 'invalid', message: refusal.message };
+        }
+        return { kind: 'refused', status: refusal.status, message: refusal.message };
+      } finally {
+        setSealing(false);
       }
-      if (refusal.status === 422) {
-        setSealFindings({ text: sent, findings: located(refusalFindings(reason), sent) });
-        return { kind: 'invalid', message: refusal.message };
-      }
-      return { kind: 'refused', status: refusal.status, message: refusal.message };
-    } finally {
-      setSealing(false);
-    }
-  }, [draft, org, slug]);
+    },
+    [draft, org, slug]
+  );
+
+  /** Replace the text as one undo step, keeping what was written before it undoable (a template, a cleared editor). */
+  const replace = useCallback(
+    (next: string) => {
+      if ((draft.current()[COMPOSITION_FILE] ?? '') !== next)
+        draft.commit({ [COMPOSITION_FILE]: next });
+    },
+    [draft]
+  );
 
   const checkStatus = checkCurrent && checkCurrent.text === text ? checkCurrent.result : null;
   const busy = [statuses.validate, statuses.check].some(
@@ -517,9 +548,7 @@ export function useCompositionEditor({
       setAttempt(value => value + 1);
     },
     /** Replace the text as one undo step (what the code editor types). */
-    setText: (next: string) => {
-      if (next !== text) draft.commit({ [COMPOSITION_FILE]: next });
-    },
+    setText: replace,
     dirty: draft.dirty,
     canUndo: draft.canUndo,
     canRedo: draft.canRedo,

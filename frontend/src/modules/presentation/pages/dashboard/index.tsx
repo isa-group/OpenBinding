@@ -192,7 +192,7 @@ export default function DashboardPage() {
     {
       label: 'Composition editor',
       description: 'Write Composition2Yaml with live checks',
-      to: '/language',
+      to: '/editor',
       icon: 'mdi:code-braces',
     },
     {

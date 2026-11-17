@@ -29,6 +29,8 @@ describe('safeReturnPath', () => {
     '/compositions/lab-other/fleet-routing?version=1.2.0&fork=1',
     '/compositions/new?org=isa-demo',
     '/p/6b0c7f9e-0000-4000-8000-000000000001',
+    '/editor',
+    '/editor?source=isa-demo%2Forder-desk&version=1.2.0#composition=N4Ig',
   ])('lets a sign-in return to %s', path => {
     expect(safeReturnPath(path)).toBe(path);
   });
@@ -52,6 +54,8 @@ describe('safeReturnPath', () => {
     '/compositionsx',
     '/px',
     '/c',
+    '/editorx',
+    '/editor/x',
   ])('refuses %j', value => {
     expect(safeReturnPath(value)).toBeNull();
   });

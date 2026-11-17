@@ -5,7 +5,7 @@ import type { Evidence, Provenance } from '../../../utils/composition/document';
 import { kindLabel } from '../../../utils/composition/kinds';
 import { formatValue } from '../../../utils/composition/values';
 import type { CompositionViewModel, TaskModel } from '../../../utils/composition/viewModel';
-import { ProblemsPanel } from '../../problems-panel/ProblemsPanel';
+import ProblemsPanel from '../../problems-panel';
 import { ValueBadge } from '../../value-badge/ValueBadge';
 import type { RendererLinks } from '../CompositionRenderer';
 import type { Section } from '../presets';

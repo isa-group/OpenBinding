@@ -48,9 +48,10 @@ const SCREENS: Array<[string, string, string]> = [
   ['admin-users', '/app/admin/users', 'app'],
   ['admin-user-detail', '/app/admin/users/:user', 'app'],
   ['admin-moderation', '/app/admin/moderation', 'app'],
+  ['composition-editor', '/editor', 'standalone'],
 ];
 
-const CEILING = 40;
+const CEILING = 41;
 
 describe('screen budget', () => {
   it('serves exactly the listed screens, with their addresses and layouts, in table order', () => {
@@ -69,7 +70,7 @@ describe('screen budget', () => {
     const source = readFileSync(`${process.cwd()}/src/routes/router.tsx`, 'utf8');
     const lines =
       source.match(
-        /^\s*\{ id: '[a-z0-9-]+', path: '\/[^']*', layout: '(public|session|protected|app)'.*\},$/gm
+        /^\s*\{ id: '[a-z0-9-]+', path: '\/[^']*', layout: '(public|session|protected|app|standalone)'.*\},$/gm
       ) ?? [];
     expect(lines).toHaveLength(screens.length);
   });

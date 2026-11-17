@@ -3,8 +3,8 @@ import { detailOf, digestOf, jobOf } from '../src/test/fixtures/jobs';
 import { API, installMockApi } from './helpers/mockApi';
 
 // J1 · derive, seal and compare: the problem page (its workflow and candidates) → one of its runs → Derive composition (a new
-// composition, the preview, seal 1.0.0) → the Editor, where the visual form binds task T1 to its other candidate, the check states
-// the values that binding has, and 1.1.0 is sealed → Versions, comparing 1.0.0 with 1.1.0 entry by entry and line by line.
+// composition, the preview, seal 1.0.0) → the standalone editor, where the visual form binds task T1 to its other candidate, the
+// Publish dialog states the values that binding has, and 1.1.0 is sealed → Versions, comparing 1.0.0 with 1.1.0 entry by entry and line by line.
 // There is no backend: e2e/helpers/mockApi.ts answers the API origin, with the derivation and the evaluated composition of
 // e2e/helpers/mockCompositions.ts (the FMS fixture's binding of checkout-flow@1, and the gateway's F1 diff golden of it). The run is
 // this spec's own: a completed run of checkout-flow@1, whose compilation's facts are FMS's.
@@ -167,29 +167,43 @@ test.describe('J1 · derive, seal and compare', () => {
       'Derived from run 7c1e5a90'
     );
 
-    // The Editor: the visual form binds T1 to the other candidate, the check states that binding's values, and 1.1.0 is sealed.
+    // The editor: the visual form binds T1 to the other candidate, the Publish dialog states that binding's values, and 1.1.0 is
+    // sealed.
+    await main(page).getByRole('button', { name: 'New version' }).click();
     await main(page)
-      .getByRole('navigation', { name: 'Composition sections' })
-      .getByRole('link', { name: 'Editor' })
+      .getByRole('menu', { name: 'New version' })
+      .getByRole('menuitem', { name: /Visual editor/ })
       .click();
-    await expect(page).toHaveURL(new RegExp(`${COMPOSITION}/editor`));
-    const source = main(page).getByRole('textbox', { name: 'composition.yaml source' });
-    await expect(source).toContainText('candidate: cand_t1_aws');
-    await main(page)
+    await expect(page).toHaveURL(
+      /\/editor\?source=isa-demo%2Ffleet-plan&version=1\.0\.0&mode=visual$/
+    );
+    await page
       .getByRole('region', { name: 'Visual editor' })
       .getByRole('radio', { name: 'cand_t1_google_cloud for T1' })
       .click();
-    await expect(source).toContainText('candidate: cand_t1_google_cloud');
-    const onSeal = main(page).getByRole('region', { name: 'Values on seal' });
+    await page
+      .getByRole('group', { name: 'Editor mode' })
+      .getByRole('button', { name: 'Code' })
+      .click();
+    const code = page.locator('.monaco-editor .view-lines');
+    await expect(code).toContainText('candidate: cand_t1_google_cloud');
+
+    await page.getByRole('button', { name: 'Publish' }).click();
+    const publish = page.getByRole('dialog', { name: 'Publish to OpenBinding' });
+    await publish
+      .getByRole('list', { name: 'Compositions you may write' })
+      .getByRole('button', { name: /Fleet plan/ })
+      .click();
+    const label = publish.getByLabel(/^Version label/);
+    await label.fill('1.1.0');
+    await label.press('Enter');
+    await expect(code).toContainText('version: 1.1.0');
+    const onSeal = publish.getByRole('region', { name: 'Values on seal' });
     await expect(onSeal).toContainText('These values will be verified');
     await expect(onSeal).toContainText('3,080 USD/month');
     await onSeal.getByRole('button', { name: 'Use the canonical form' }).click();
-    await expect(source).toContainText('value: 3080');
-    const label = main(page).getByLabel('Label');
-    await label.fill('1.1.0');
-    await label.press('Enter');
-    await expect(source).toContainText('version: 1.1.0');
-    await main(page).getByRole('button', { name: 'Seal version' }).click();
+    await expect(code).toContainText('value: 3080');
+    await publish.getByRole('button', { name: /Publish version/ }).click();
     await expect(page).toHaveURL(`${COMPOSITION}/versions?version=1.1.0`);
     await expect(page.getByText('Version 1.1.0 sealed.')).toBeVisible();
 

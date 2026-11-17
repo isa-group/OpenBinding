@@ -706,23 +706,22 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await shot(page, testInfo, 'engine-detail-digest-mismatch');
     });
 
-    test('pub-language /language is the Composition2Yaml reference and playground; the old hub addresses answer Page not found', async ({
+    test('pub-language /language is the Composition2Yaml reference, whose examples open in the editor; the old hub addresses answer Page not found', async ({
       page,
     }, testInfo) => {
       const critical = watchCriticalErrors(page);
       await mockApi(page);
-      await page.route(`${API}/v1/compositions/validate`, json({ valid: true, diagnostics: [] }));
       await page.goto('/language');
       const main = page.locator('main');
 
       await expect(main.getByRole('heading', { level: 1, name: 'Composition2Yaml' })).toBeVisible();
-      await expect(main.getByRole('textbox', { name: 'composition.yaml source' })).toContainText(
-        'syntaxVersion: "1.0"'
+      await expect(main.getByRole('link', { name: /Write in the editor/ })).toHaveAttribute(
+        'href',
+        '/editor'
       );
-      await expect(main.getByRole('toolbar', { name: 'Playground' })).toContainText(
-        'Valid Composition2Yaml'
-      );
-      await expect(main.getByRole('region', { name: 'Problems' })).toContainText('No issues');
+      await expect(
+        main.getByRole('link', { name: 'Open “Binding and provenance” in the editor' })
+      ).toHaveAttribute('href', /^\/editor#composition=/);
       const examples = main
         .getByRole('heading', { level: 2, name: 'The language by example' })
         .locator('xpath=ancestor::section[1]');
@@ -838,17 +837,17 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('group', { name: 'Workflow of the package' })).toHaveCount(0);
       await expect(main.getByRole('region', { name: 'Candidates', exact: true })).toHaveCount(0);
       const problems = main.getByRole('region', { name: 'Problems' });
-      await expect(
-        problems.locator('.pp-group-name', { hasText: 'candidates.json' })
-      ).toBeVisible();
-      await expect(problems.locator('.pp-group-name', { hasText: 'workflow.bpmn' })).toBeVisible();
-      const domain = problems.locator('.pp-item', {
+      await expect(problems.locator('[data-group="candidates.json"]')).toBeVisible();
+      await expect(problems.locator('[data-group="workflow.bpmn"]')).toBeVisible();
+      const domain = problems.locator('li:not([data-group])', {
         hasText: 'candidate feature value is above its declared domain',
       });
       await expect(domain).toContainText(/Line \d+, column \d+/);
       await expect(domain).toContainText('/spec/candidates/auth-edge/features/latency');
       await expect(
-        problems.locator('.pp-item', { hasText: "BPMN task 'orphan' has no Application task" })
+        problems.locator('li:not([data-group])', {
+          hasText: "BPMN task 'orphan' has no Application task",
+        })
       ).toContainText('Diagram element orphan');
       await ready(page);
       await shot(page, testInfo, 'workbench-invalid');

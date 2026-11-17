@@ -1,4 +1,4 @@
-import type { Kind } from '../../../core/utils/composition/document';
+import type { Kind } from '../../core/utils/composition/document';
 
 /**
  * The changes the visual editor makes, as pure functions over the document's JSON model (`POST /v1/compositions/parse`). Each

@@ -36,7 +36,7 @@ import type { CompositionViewModel } from '../../../core/utils/composition/viewM
 import { compositionFragment } from '../../../core/utils/sphere/composition-fragment';
 import { DeriveCompositionDialog } from '../../../run/components/derive/DeriveCompositionDialog';
 import { bindingDerivation, nextMinor } from '../../../run/components/derive/deriveModel';
-import { compositionPath } from '../../../../routes/paths/compositions';
+import { editorPath } from '../../../../routes/paths/compositions';
 import { compositionsApi } from '../../api/compositionsApi';
 import ConfigurationDetailsModal from '../configuration-details-modal';
 import ConfigurationSpaceItem from '../configuration-space-item';
@@ -203,7 +203,7 @@ export default function ConfigurationSpaceView({
       );
       if ('version' in answer.result) throw new Error('The gateway sealed a preview.');
       void navigate(
-        `${compositionPath(org, slug, 'editor')}${compositionFragment(answer.result.content)}`
+        `${editorPath({ source: { org, slug } })}${compositionFragment(answer.result.content)}`
       );
     } catch (caught) {
       const error = readApiError(caught);

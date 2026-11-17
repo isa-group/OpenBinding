@@ -412,6 +412,8 @@ const OWNER_STOPS: Stop[] = [
 /** lab-main's composition from the seed, its name, and the two versions the comparison stops compare. */
 const COMPOSITION = `/compositions/${ORG}/sequential-workflow`;
 const COMPOSITION_NAME = 'Sequential workflow';
+/** The standalone editor on lab-main's composition. */
+const EDITOR_ON_COMPOSITION = `/editor?source=${ORG}/sequential-workflow`;
 const PAIR = 'from=1.0.0&to=1.1.0';
 const composed = (page: Page) =>
   page.locator('main').getByRole('heading', { level: 1, name: COMPOSITION_NAME });
@@ -528,17 +530,22 @@ async function studyFrontStop(page: Page, token: string): Promise<Stop | { why: 
   };
 }
 
-/** The compositions of lab-main as its owner reads and edits them: the list and every tab of the detail. */
+/** The compositions of lab-main as its owner reads and edits them: the list, every tab of the card page and the editor. */
 function compositionStops(mobile: boolean): Stop[] {
   const editor: Stop = {
     slug: 'composition-editor',
-    path: `${COMPOSITION}/editor`,
+    path: EDITOR_ON_COMPOSITION,
     ready: page => page.getByRole('textbox', { name: 'composition.yaml source' }),
   };
-  // Below 640 px the Editor's panes are tabs: the Visual and Problems tabs are stops of their own.
+  const visual: Stop = {
+    slug: 'composition-editor-visual',
+    path: `${EDITOR_ON_COMPOSITION}&mode=visual`,
+    ready: page => page.getByRole('radio', { name: /for t1$/ }).first(),
+  };
+  // Below 640 px the editor's code, preview and problems are tabs: the Problems tab is a stop of its own.
   const pane = (slug: string, tab: RegExp, ready: (page: Page) => Locator): Stop => ({
     slug,
-    path: `${COMPOSITION}/editor`,
+    path: EDITOR_ON_COMPOSITION,
     ready: page => page.getByRole('tablist', { name: 'Editor panes' }),
     extra: async (page, label) => {
       await page
@@ -572,11 +579,9 @@ function compositionStops(mobile: boolean): Stop[] {
     },
     { slug: 'composition-overview', path: COMPOSITION, ready: page => composed(page) },
     editor,
+    visual,
     ...(mobile
       ? [
-          pane('composition-editor-visual', /^Visual$/, page =>
-            page.getByRole('radio', { name: /for t1$/ }).first()
-          ),
           pane('composition-editor-problems', /^Problems/, page =>
             page.getByRole('tab', { name: /^Problems/, selected: true })
           ),

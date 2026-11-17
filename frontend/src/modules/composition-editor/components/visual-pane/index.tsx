@@ -1,3 +1,7 @@
+// The visual pane of the composition editor: OpenBinding's per-task candidate selector, kind, label, values and offering over
+// the document as the gateway parses it, each change written back through parse and serialise (utils/mutations). Its parts
+// are drawn as SPHERE's visual editor draws its side panels (rounded cards on the surface); no SPHERE code is copied.
+
 import { useId, useState, type FormEvent, type ReactNode } from 'react';
 import { Action } from '../../../core/components/action-button';
 import { Notice } from '../../../core/components/notice';
@@ -18,7 +22,7 @@ import {
   setVersion,
   type DocumentModel,
   type OfferingChoice,
-} from './mutations';
+} from '../../utils/mutations';
 
 type Mutate = (
   change: (document: DocumentModel) => DocumentModel
@@ -37,7 +41,10 @@ interface VisualPaneProps {
 function Part({ title, children }: { title: string; children: ReactNode }) {
   const id = useId();
   return (
-    <section className="ce-part" aria-labelledby={id}>
+    <section
+      className="flex min-w-0 flex-col gap-2 rounded-xl border border-tp-hairline bg-tp-canvas px-4 py-3 shadow-sm [&_h3]:m-0 [&_h3]:text-[11px] [&_h3]:font-bold [&_h3]:tracking-[0.12em] [&_h3]:text-tp-slate [&_h3]:uppercase"
+      aria-labelledby={id}
+    >
       <h3 id={id}>{title}</h3>
       {children}
     </section>
@@ -67,11 +74,14 @@ function FieldForm({
     if (value.trim()) onSubmit(value.trim());
   };
   return (
-    <form className="ce-inline" onSubmit={submit}>
+    <form
+      className="flex flex-wrap items-center gap-2 [&_label]:text-[13px] [&_label]:text-tp-steel"
+      onSubmit={submit}
+    >
       <label htmlFor={id}>{label}</label>
       <input
         id={id}
-        className="ce-input"
+        className="h-8 min-w-0 rounded-md border border-tp-hairline-strong bg-tp-canvas px-2 text-sm text-tp-ink outline-none focus-visible:ring-2 focus-visible:ring-tp-accent/30"
         value={value}
         placeholder={placeholder}
         spellCheck={false}
@@ -110,18 +120,20 @@ function ValueRow({
   const valid = number.trim() !== '' && Number.isFinite(parsed);
   return (
     <form
-      className="ce-value"
+      className="grid grid-cols-2 items-center gap-2 sm:grid-cols-[minmax(80px,1fr)_minmax(70px,1fr)_minmax(70px,1fr)_auto_auto]"
       aria-label={`Value ${name}`}
       onSubmit={event => {
         event.preventDefault();
         if (valid) onSet(parsed, written);
       }}
     >
-      <code className="ce-value-name">{name}</code>
+      <code className="col-span-full font-mono text-[13px] [overflow-wrap:anywhere] sm:col-span-1">
+        {name}
+      </code>
       <label className="sr-only" htmlFor={`ce-v-${name}`}>{`${name} value`}</label>
       <input
         id={`ce-v-${name}`}
-        className="ce-input"
+        className="h-8 min-w-0 rounded-md border border-tp-hairline-strong bg-tp-canvas px-2 text-sm text-tp-ink outline-none focus-visible:ring-2 focus-visible:ring-tp-accent/30"
         inputMode="decimal"
         value={number}
         disabled={disabled}
@@ -130,7 +142,7 @@ function ValueRow({
       <label className="sr-only" htmlFor={`ce-u-${name}`}>{`${name} unit`}</label>
       <input
         id={`ce-u-${name}`}
-        className="ce-input"
+        className="h-8 min-w-0 rounded-md border border-tp-hairline-strong bg-tp-canvas px-2 text-sm text-tp-ink outline-none focus-visible:ring-2 focus-visible:ring-tp-accent/30"
         value={written}
         placeholder="unit"
         disabled={disabled}
@@ -160,7 +172,7 @@ function NewValue({
   const valid = name.trim() !== '' && number.trim() !== '' && Number.isFinite(parsed);
   return (
     <form
-      className="ce-value"
+      className="grid grid-cols-2 items-center gap-2 sm:grid-cols-[minmax(80px,1fr)_minmax(70px,1fr)_minmax(70px,1fr)_auto_auto]"
       aria-label="New value"
       onSubmit={event => {
         event.preventDefault();
@@ -176,7 +188,7 @@ function NewValue({
       </label>
       <input
         id="ce-new-name"
-        className="ce-input"
+        className="h-8 min-w-0 rounded-md border border-tp-hairline-strong bg-tp-canvas px-2 text-sm text-tp-ink outline-none focus-visible:ring-2 focus-visible:ring-tp-accent/30"
         placeholder="name"
         value={name}
         disabled={disabled}
@@ -188,7 +200,7 @@ function NewValue({
       </label>
       <input
         id="ce-new-value"
-        className="ce-input"
+        className="h-8 min-w-0 rounded-md border border-tp-hairline-strong bg-tp-canvas px-2 text-sm text-tp-ink outline-none focus-visible:ring-2 focus-visible:ring-tp-accent/30"
         inputMode="decimal"
         placeholder="value"
         value={number}
@@ -200,7 +212,7 @@ function NewValue({
       </label>
       <input
         id="ce-new-unit"
-        className="ce-input"
+        className="h-8 min-w-0 rounded-md border border-tp-hairline-strong bg-tp-canvas px-2 text-sm text-tp-ink outline-none focus-visible:ring-2 focus-visible:ring-tp-accent/30"
         placeholder="unit"
         value={unit}
         disabled={disabled}
@@ -249,7 +261,7 @@ function OfferingForm({
             : undefined;
   return (
     <form
-      className="ce-offering"
+      className="flex flex-col gap-2"
       onSubmit={event => {
         event.preventDefault();
         if (choice !== undefined) onSet(choice);
@@ -259,7 +271,7 @@ function OfferingForm({
         <label htmlFor="ce-offering-form">Source</label>
         <select
           id="ce-offering-form"
-          className="cmp-select"
+          className="h-8 min-w-0 rounded-md border border-tp-hairline-strong bg-tp-canvas px-2 text-sm text-tp-ink outline-none focus-visible:ring-2 focus-visible:ring-tp-accent/30"
           value={form}
           disabled={disabled}
           onChange={event => setForm(event.target.value as typeof form)}
@@ -276,7 +288,7 @@ function OfferingForm({
           <label htmlFor="ce-offering-sphere">SPHERE pricing (owner/name)</label>
           <input
             id="ce-offering-sphere"
-            className="ce-input"
+            className="h-8 min-w-0 rounded-md border border-tp-hairline-strong bg-tp-canvas px-2 text-sm text-tp-ink outline-none focus-visible:ring-2 focus-visible:ring-tp-accent/30"
             value={sphere}
             disabled={disabled}
             spellCheck={false}
@@ -289,7 +301,7 @@ function OfferingForm({
           <label htmlFor="ce-offering-registry">Registry alias</label>
           <input
             id="ce-offering-registry"
-            className="ce-input"
+            className="h-8 min-w-0 rounded-md border border-tp-hairline-strong bg-tp-canvas px-2 text-sm text-tp-ink outline-none focus-visible:ring-2 focus-visible:ring-tp-accent/30"
             value={registry}
             disabled={disabled}
             spellCheck={false}
@@ -302,7 +314,7 @@ function OfferingForm({
           <label htmlFor="ce-offering-url">Pricing2Yaml URL</label>
           <input
             id="ce-offering-url"
-            className="ce-input"
+            className="h-8 min-w-0 rounded-md border border-tp-hairline-strong bg-tp-canvas px-2 text-sm text-tp-ink outline-none focus-visible:ring-2 focus-visible:ring-tp-accent/30"
             type="url"
             value={url}
             disabled={disabled}
@@ -328,7 +340,14 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
  * kind, each task's candidate, declared values, the offering). Each change goes through the gateway's parse and serialise and
  * replaces the draft as one undo step. The workflow is shown, not edited.
  */
-export function VisualPane({ document, issue, facts, mutate, busy, readOnly }: VisualPaneProps) {
+export default function VisualPane({
+  document,
+  issue,
+  facts,
+  mutate,
+  busy,
+  readOnly,
+}: VisualPaneProps) {
   const [note, setNote] = useState<string | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
   const disabled = readOnly || busy;
@@ -336,7 +355,7 @@ export function VisualPane({ document, issue, facts, mutate, busy, readOnly }: V
   if (issue) return <Notice tone="error">{issue}</Notice>;
   if (!document) {
     return (
-      <p className="cmp-muted" role="status">
+      <p className="text-sm text-tp-steel" role="status">
         The visual editor shows a document the gateway can read. Fix the problems in the code to use
         it.
       </p>
@@ -409,15 +428,15 @@ export function VisualPane({ document, issue, facts, mutate, busy, readOnly }: V
   // The offering form starts again from the document whenever the offering changes in it.
   const offeringKey = JSON.stringify(document.offering ?? null);
   return (
-    <div className="ce-visual">
+    <div className="flex min-w-0 flex-col gap-4">
       {linked && (
-        <p className="cmp-muted">
+        <p className="text-sm text-tp-steel">
           This version links a problem: values are recomputed when you seal.
         </p>
       )}
       <div aria-live="polite">
         {note && (
-          <p className="ce-note" role="status">
+          <p className="m-0 text-[13px] text-tp-slate" role="status">
             {note}
           </p>
         )}
@@ -433,11 +452,11 @@ export function VisualPane({ document, issue, facts, mutate, busy, readOnly }: V
           disabled={disabled}
           onSubmit={next => void apply(model => setVersion(model, next))}
         />
-        <div className="ce-inline">
+        <div className="flex flex-wrap items-center gap-2 [&_label]:text-[13px] [&_label]:text-tp-steel">
           <label htmlFor="ce-kind">Kind</label>
           <select
             id="ce-kind"
-            className="cmp-select"
+            className="h-8 min-w-0 rounded-md border border-tp-hairline-strong bg-tp-canvas px-2 text-sm text-tp-ink outline-none focus-visible:ring-2 focus-visible:ring-tp-accent/30"
             value={kind}
             disabled={disabled}
             onChange={event => void apply(model => setKind(model, event.target.value as Kind))}
@@ -452,12 +471,14 @@ export function VisualPane({ document, issue, facts, mutate, busy, readOnly }: V
       </Part>
 
       <Part title="Workflow">
-        <p className="cmp-muted">The workflow is edited in the code, as the problem writes it.</p>
+        <p className="text-sm text-tp-steel">
+          The workflow is edited in the code, as the problem writes it.
+        </p>
         <WorkflowGraph graph={graph} overlay={overlay} label="The workflow of this draft" />
       </Part>
 
       <Part title="Binding">
-        <ul className="ce-tasks">
+        <ul className="m-0 flex list-none flex-col gap-2 p-0">
           {tasks.map(task => {
             const entry = binding[task];
             const local = isRecord(entry) && entry.local === true;
@@ -465,10 +486,10 @@ export function VisualPane({ document, issue, facts, mutate, busy, readOnly }: V
               isRecord(entry) && typeof entry.candidate === 'string' ? entry.candidate : '';
             const row = matrix?.rows.find(item => item.task === task);
             return (
-              <li key={task} className="ce-task">
-                <code className="ce-task-name">{task}</code>
+              <li key={task} className="flex min-w-0 flex-col gap-1">
+                <code className="font-mono text-[13px] [overflow-wrap:anywhere]">{task}</code>
                 {local ? (
-                  <span className="cmp-muted">Done in house</span>
+                  <span className="text-sm text-tp-steel">Done in house</span>
                 ) : row && row.candidates.length ? (
                   <CandidateMatrix
                     matrix={{ features: matrix?.features ?? [], rows: [row] }}
@@ -499,7 +520,9 @@ export function VisualPane({ document, issue, facts, mutate, busy, readOnly }: V
 
       <Part title="Values">
         {linked && (
-          <p className="cmp-muted">The gateway replaces these with the values it computes.</p>
+          <p className="text-sm text-tp-steel">
+            The gateway replaces these with the values it computes.
+          </p>
         )}
         {values.map(value => (
           <ValueRow

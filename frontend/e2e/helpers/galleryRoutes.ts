@@ -8,12 +8,12 @@ import { readFileSync } from 'node:fs';
 export interface ScreenLine {
   id: string;
   path: string;
-  layout: 'public' | 'session' | 'protected' | 'app';
+  layout: 'public' | 'session' | 'protected' | 'app' | 'standalone';
   requireAdmin: boolean;
 }
 
 const SCREEN_LINE =
-  /^\s*\{ id: '([a-z0-9-]+)', path: '(\/[^']*)', layout: '(public|session|protected|app)'(.*)$/gm;
+  /^\s*\{ id: '([a-z0-9-]+)', path: '(\/[^']*)', layout: '(public|session|protected|app|standalone)'(.*)$/gm;
 
 function routerSource(): string {
   return readFileSync(new URL('../../src/routes/router.tsx', import.meta.url), 'utf8');
@@ -51,6 +51,8 @@ export interface GalleryScreen {
   requireAdmin: boolean;
   /** The screen needs an account: the old workspace under /app, or a protected screen of SPHERE's authenticated layout. */
   underApp: boolean;
+  /** An editor: its own layout and header (`header.editor-header`), no application chrome. */
+  standalone: boolean;
   /** A public address that signed-in people use too (it renders in the application layout with a session). */
   sessionHeader: boolean;
   /** The address the gallery visits: parameters replaced, plus the query some screens need to show their content. */
@@ -106,6 +108,7 @@ export function readGalleryScreens(): GalleryScreen[] {
       requireAdmin,
       underApp: layout === 'app' || layout === 'protected',
       sessionHeader: layout === 'session',
+      standalone: layout === 'standalone',
       url: `${address}${QUERY_OF[id] ?? ''}`,
     };
   });

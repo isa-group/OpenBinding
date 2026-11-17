@@ -3,8 +3,8 @@ import { installMockApi } from './helpers/mockApi';
 
 // S10a · the compositions of an organization: its Compositions tab (/orgs/:org/compositions, SPHERE's list) and the composition
 // page composition-detail
-// with its Overview (the catalog of the version shown, its architecture and its workflow), its Editor (Composition2Yaml code with
-// the gateway's lint, and the seal), its Versions (the table, and the comparison of two versions by entry and by line), its
+// with its Overview (the catalog of the version shown, its architecture and its workflow), the standalone editor (`/editor`:
+// Composition2Yaml in a bundled Monaco with the gateway's lint, and the Publish dialog), its Versions (the table, and the comparison of two versions by entry and by line), its
 // Analysis (one change at a time, and a binding chosen per task, evaluated and derived) and its Settings (rename, archive, publish
 // and delete), and the fork of the version shown into another organization. The smoke grew with the blocks that built the
 // composition screens: list, create, overview, editor, versions, analysis and settings.
@@ -19,6 +19,9 @@ const main = (page: Page) => page.locator('main');
 const region = (page: Page, name: string) => main(page).getByRole('region', { name, exact: true });
 const sections = (page: Page) =>
   main(page).getByRole('navigation', { name: 'Composition sections' });
+/** The text Monaco shows (its textarea holds only the line being typed). */
+const code = (page: Page) => page.locator('.monaco-editor .view-lines');
+const problems = (page: Page) => page.getByRole('region', { name: 'Problems' });
 
 test.describe('S10a · compositions', () => {
   test('the New menu of the header creates a composition in the organization the address names', async ({
@@ -87,57 +90,46 @@ test.describe('S10a · compositions', () => {
     expect(mock.unmocked).toEqual([]);
   });
 
-  test('a new composition opens in its Editor, on the starter document named after it', async ({
+  test('a new composition is written in the standalone editor and published from it', async ({
     page,
   }) => {
     const mock = await installMockApi(page, 'admin');
+    await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(TAB);
 
     await main(page).getByRole('link', { name: 'New composition' }).click();
     await expect(page).toHaveURL('/compositions/new?org=isa-demo');
-    await main(page).getByLabel('Composition name').fill('Order desk');
-    await main(page).getByRole('button', { name: 'Write it in the editor' }).click();
-    await expect(main(page).getByRole('alert')).toContainText(
+    await main(page).getByRole('link', { name: 'Write it in the editor' }).click();
+    await expect(page).toHaveURL('/editor?org=isa-demo');
+    await expect(page.getByRole('heading', { level: 1, name: 'Composition editor' })).toBeVisible();
+    await expect(code(page)).toContainText('composition: my-composition');
+    await expect(problems(page)).toContainText('No issues');
+
+    await page.getByRole('button', { name: 'Publish' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Publish to OpenBinding' });
+    await expect(dialog.getByRole('button', { name: 'New composition' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
+    await expect(dialog.getByText('ISA Demo Group')).toBeVisible();
+    await dialog.getByLabel('Composition name').fill('Order desk');
+    await dialog.getByRole('button', { name: 'Publish', exact: true }).click();
+    await expect(dialog.getByRole('alert')).toContainText(
       'order-desk is in use in ISA Demo Group. Choose another name.'
     );
+    await dialog.getByLabel('Composition name').fill('Order intake');
+    await expect(dialog.getByText('Its address: order-intake')).toBeVisible();
+    await dialog.getByRole('button', { name: 'Publish', exact: true }).click();
 
-    await main(page).getByLabel('Composition name').fill('Order intake');
-    await expect(main(page).getByText('order-intake', { exact: true })).toBeVisible();
-    await main(page).getByRole('button', { name: 'Write it in the editor' }).click();
-
-    await expect(page).toHaveURL(`${LIST}/order-intake/editor`);
+    await expect(page).toHaveURL(`${LIST}/order-intake/versions?version=1.0.0`);
+    await expect(
+      page.getByText('Composition “Order intake” published with its version 1.0.0.')
+    ).toBeVisible();
     await expect(main(page).getByRole('heading', { level: 1, name: 'Order intake' })).toBeVisible();
-    await expect(
-      page.getByText(
-        'Composition “Order intake” created. It has no version yet: write its first one here.'
-      )
-    ).toBeVisible();
-    await expect(sections(page).getByRole('link', { name: 'Editor' })).toHaveAttribute(
-      'aria-current',
-      'page'
-    );
-    await expect(
-      main(page).getByText('No version yet. Start from this document and seal its first version.')
-    ).toBeVisible();
-    const source = main(page).getByRole('textbox', { name: 'composition.yaml source' });
-    await expect(source).toContainText('composition: order-intake');
-    await expect(source).toContainText('kind: application');
-    await expect(main(page).getByLabel('Label')).toHaveValue('1.0.0');
-
-    await main(page)
-      .getByRole('navigation', { name: 'Breadcrumb' })
-      .getByRole('link', { name: 'ISA Demo Group' })
-      .click();
-    await expect(page).toHaveURL(TAB);
-    await expect(main(page).getByRole('article').getByRole('heading', { level: 3 })).toHaveText([
-      'Order intake',
-      'Fleet routing',
-      'Order desk',
-    ]);
     expect(mock.unmocked).toEqual([]);
   });
 
-  test('the Editor marks what the gateway finds in the code, and seals the fixed text as a new version', async ({
+  test('the editor marks what the gateway finds in the code, and publishes the fixed text as a new version', async ({
     page,
   }) => {
     const mock = await installMockApi(page, 'admin');
@@ -149,37 +141,50 @@ test.describe('S10a · compositions', () => {
       .getByRole('menu', { name: 'New version' })
       .getByRole('menuitem', { name: /Code editor/ })
       .click();
-    await expect(page).toHaveURL(`${LIST}/order-desk/editor`);
-    await expect(main(page).getByText(/Editing from version/)).toContainText(
-      'Editing from version 1.2.0.'
+    await expect(page).toHaveURL('/editor?source=isa-demo%2Forder-desk&version=1.2.0&mode=code');
+    await expect(page.getByText(/^Editing Order desk/)).toContainText(
+      'Editing Order desk · from 1.2.0'
     );
-    const source = main(page).getByRole('textbox', { name: 'composition.yaml source' });
-    await expect(source).toContainText('version: 1.2.0');
-    const problems = main(page).getByRole('region', { name: 'Problems' });
-    await expect(problems).toContainText('No issues');
+    await expect(code(page)).toContainText('version: 1.2.0');
+    await expect(problems(page)).toContainText('No issues');
 
     // Break the kind: the gateway's lint marks it in the code and lists it.
-    await source.getByText('kind: application').click();
+    await page.locator('.view-line', { hasText: /^kind:\s+application$/ }).click();
     await page.keyboard.press('End');
     await page.keyboard.type('x');
-    await expect(
-      problems.getByRole('button', { name: /'applicationx' is not a kind/ })
-    ).toContainText('Line 8, column 7');
-    await expect(main(page).locator('.cm-lintRange-error')).toHaveCount(1);
-    await expect(main(page).getByText('Needs attention')).toBeVisible();
-    await expect(main(page).getByRole('button', { name: 'Seal version' })).toBeDisabled();
-
-    // Fix it, and give the version its own label.
     await page.keyboard.press('Escape');
+    await expect(
+      problems(page).getByRole('button', { name: /'applicationx' is not a kind/ })
+    ).toContainText('Line 8, column 7');
+    await expect(page.locator('.monaco-editor .squiggly-error')).toHaveCount(1);
+
+    // Fix it.
     await page.keyboard.press('Backspace');
-    await expect(problems).toContainText('No issues');
-    await expect(main(page).locator('.cm-lintRange-error')).toHaveCount(0);
-    const label = main(page).getByLabel('Label');
+    await expect(problems(page)).toContainText('No issues');
+    await expect(page.locator('.monaco-editor .squiggly-error')).toHaveCount(0);
+
+    // Publish it into the composition it was opened on, under a label of its own.
+    await page.getByRole('button', { name: 'Publish' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Publish to OpenBinding' });
+    await expect(dialog.getByRole('button', { name: 'New version' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
+    await dialog
+      .getByRole('list', { name: 'Compositions you may write' })
+      .getByRole('button', { name: /Order desk/ })
+      .click();
+    await expect(
+      dialog.getByText('Order desk already has a version 1.2.0.', { exact: false })
+    ).toBeVisible();
+    await expect(dialog.getByRole('button', { name: /Publish version/ })).toBeDisabled();
+    const label = dialog.getByLabel(/^Version label/);
     await label.fill('1.3.0');
     await label.press('Enter');
-    await expect(source).toContainText('version: 1.3.0');
+    await expect(code(page)).toContainText('version: 1.3.0');
+    await expect(dialog.getByRole('region', { name: 'Values on seal' })).toBeVisible();
+    await dialog.getByRole('button', { name: /Publish version/ }).click();
 
-    await main(page).getByRole('button', { name: 'Seal version' }).click();
     await expect(page).toHaveURL(`${LIST}/order-desk/versions?version=1.3.0`);
     await expect(page.getByText('Version 1.3.0 sealed.')).toBeVisible();
     await expect(sections(page).getByRole('link', { name: 'Versions' })).toHaveAttribute(
@@ -193,6 +198,26 @@ test.describe('S10a · compositions', () => {
     await expect(sealed).toContainText('Latest');
     await expect(sealed).toHaveAttribute('aria-current', 'true');
     expect(mock.unmocked).toEqual([]);
+  });
+
+  test('the editor is bundled: Monaco and its worker come from this origin, never from a CDN', async ({
+    page,
+  }) => {
+    const foreign: string[] = [];
+    page.on('request', request => {
+      const url = new URL(request.url());
+      if (
+        url.hostname !== 'localhost' &&
+        url.hostname !== '127.0.0.1' &&
+        !url.pathname.startsWith('/v1/')
+      )
+        foreign.push(request.url());
+    });
+    await installMockApi(page, 'visitor');
+    await page.goto('/editor');
+    await expect(code(page)).toContainText('composition: my-composition');
+    await expect(problems(page)).toContainText('No issues');
+    expect(foreign.filter(url => /monaco|jsdelivr|unpkg|cdnjs/i.test(url))).toEqual([]);
   });
 
   test('the Versions tab lists the versions and compares two of them, entry by entry and line by line', async ({

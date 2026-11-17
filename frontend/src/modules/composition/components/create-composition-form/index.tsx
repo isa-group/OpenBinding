@@ -2,8 +2,8 @@
 // https://github.com/SCORELabUS/SPHERE. Copyright (c) 2024 Alejandro García Fernández.
 // MIT licence: the full text is in THIRD_PARTY_NOTICES.md.
 // Changes: a composition: the file is read by the gateway (`POST /v1/compositions/parse`) instead of pricing4ts, the
-// composition is created and its first version sealed from the file; "Start in the editor" creates it empty and opens it
-// to be written; the organization is one where the account is MEMBER (OpenBinding's roles, not SPHERE's entity
+// composition is created and its first version sealed from the file; "Write it in the editor" opens the standalone editor
+// in the organization, whose Publish dialog creates it; the organization is one where the account is MEMBER (OpenBinding's roles, not SPHERE's entity
 // permissions), preselected by `?org=`; Public needs ADMIN there; the back link and the toggle are links and a switch;
 // refusals are said in words, and what the gateway finds in a file is listed.
 
@@ -17,7 +17,7 @@ import { slugFromName } from '../../../core/utils/slug';
 import OrganizationSelector from '../../../organization/components/organization-selector';
 import type { Organization } from '../../../organization/api/organizationsApi';
 import { orgPath } from '../../../organization/types/paths';
-import { compositionPath } from '../../../../routes/paths/compositions';
+import { compositionPath, editorPath } from '../../../../routes/paths/compositions';
 import { compositionsApi, languageApi } from '../../api/compositionsApi';
 import { roleAtLeast } from '../../hooks/useCompositionRole';
 import { UPLOAD_LIMIT_BYTES } from '../composition-import-modal';
@@ -86,34 +86,6 @@ export default function CreateCompositionForm() {
       void navigate(compositionPath(organization.slug, slug), {
         state: {
           toast: `Composition “${chosenName}” created with its version ${sealed.result.version.label}.`,
-        },
-      });
-    } catch (caught) {
-      const refusal = readApiError(caught);
-      setError(refusal);
-      setProblem(describe(refusal, slug, organization.name));
-      setBusy(false);
-    }
-  };
-
-  const inEditor = async () => {
-    if (!check(true) || !organization) return;
-    setBusy(true);
-    const slug = slugFromName(name);
-    try {
-      await compositionsApi.create(organization.slug, {
-        slug,
-        name: name.trim(),
-        kind: 'application',
-        description: '',
-      });
-      if (visibility === 'public' && canPublish) {
-        const { etag } = await compositionsApi.get(organization.slug, slug);
-        await compositionsApi.update(organization.slug, slug, { visibility: 'public' }, etag);
-      }
-      void navigate(compositionPath(organization.slug, slug, 'editor'), {
-        state: {
-          toast: `Composition “${name.trim()}” created. It has no version yet: write its first one here.`,
         },
       });
     } catch (caught) {
@@ -219,14 +191,12 @@ export default function CreateCompositionForm() {
 
       <p className="text-center text-sm text-tp-steel">
         No file yet?{' '}
-        <button
-          type="button"
-          onClick={() => void inEditor()}
-          disabled={busy}
-          className="cursor-pointer font-medium text-tp-accent underline disabled:cursor-wait disabled:opacity-60"
+        <Link
+          to={editorPath({ org: organization?.slug ?? initialOrg ?? undefined })}
+          className="font-medium text-tp-accent underline"
         >
           Write it in the editor
-        </button>
+        </Link>
       </p>
 
       {problem && (

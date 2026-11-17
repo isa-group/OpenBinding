@@ -1,8 +1,8 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { HttpError } from '../../../../api/client';
-import type { CompositionDiagnosticView } from '../../../core/api/types';
-import { draftScope, loadDraft, saveDraft } from '../../../core/editor/drafts';
+import { HttpError } from '../../../api/client';
+import type { CompositionDiagnosticView } from '../../core/api/types';
+import { draftScope, loadDraft, saveDraft } from '../../core/editor/drafts';
 import {
   CHECK_DELAY_MS,
   VALIDATE_DELAY_MS,
@@ -19,12 +19,12 @@ const language = vi.hoisted(() => ({
   serialise: vi.fn(),
   schema: vi.fn(),
 }));
-vi.mock('../../../core/utils/composition/api', () => ({
+vi.mock('../../core/utils/composition/api', () => ({
   compositionsApi: api,
   languageApi: language,
 }));
 const factsApi = vi.hoisted(() => ({ get: vi.fn() }));
-vi.mock('../../../core/utils/problem/facts', () => ({ problemFactsApi: factsApi }));
+vi.mock('../../core/utils/problem/facts', () => ({ problemFactsApi: factsApi }));
 
 const DECLARED =
   'syntaxVersion: "1.0"\ncomposition: order-desk\nversion: 1.2.0\nkind: application\nworkflow: pick\nbinding: {pick: {candidate: c_pick}}\nvalues: {}\n';
@@ -163,7 +163,8 @@ describe('the composition editor', () => {
     const linted = language.validate.mock.invocationCallOrder.at(-1) ?? 0;
     expect(linted).toBeLessThan(api.check.mock.invocationCallOrder[0]);
     await waitFor(() => expect(result.current.check?.values_status).toBe('verified'));
-    expect(linkedProblemOf(LINKED, 'isa-demo')).toEqual({
+    expect(linkedProblemOf(LINKED)).toEqual({
+      org: 'isa-demo',
       problem: 'checkout-flow',
       revision: '2',
       compilation: 'sha256-abc',

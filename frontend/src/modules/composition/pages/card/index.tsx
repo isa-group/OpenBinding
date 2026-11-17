@@ -39,9 +39,9 @@ import customAlert from '../../../core/utils/custom-alert';
 import { problemFactsApi } from '../../../core/utils/problem/facts';
 import { useAuth } from '../../../auth/hooks/useAuth';
 import { orgPath } from '../../../organization/types/paths';
-import { EditorTab } from '../../../../pages/Compositions/tabs/EditorTab';
 import {
   compositionPath,
+  editorPath,
   compositionsPath,
   isCompositionTabSegment,
   permalinkPath,
@@ -529,7 +529,11 @@ function CardBody({
   const versionQuery = query.get('version') ?? undefined;
   const tabTo = (id: TabId) =>
     compositionPath(org, slug, id === 'overview' ? undefined : id, { version: versionQuery });
-  const open = (id: TabId, state?: unknown) => void navigate(tabTo(id), { state });
+  /** The standalone editor on the version shown (the latest one when none is named), in a mode. */
+  const edit = (mode: 'code' | 'visual') =>
+    void navigate(
+      editorPath({ source: { org, slug }, version: versionQuery ?? picked?.label, mode })
+    );
 
   const fork = () => {
     if (user) {
@@ -587,7 +591,6 @@ function CardBody({
   const tabs: ShellTab[] = useMemo(() => {
     const list: Array<{ id: TabId; label: string; shown: boolean }> = [
       { id: 'overview', label: 'Overview', shown: true },
-      { id: 'editor', label: 'Editor', shown: canWrite || tab === 'editor' },
       { id: 'analytics', label: 'Analytics', shown: true },
       {
         id: 'configuration',
@@ -610,11 +613,11 @@ function CardBody({
       ? [
           {
             label: 'New version in the visual editor',
-            onSelect: () => open('editor', { pane: 'visual' }),
+            onSelect: () => edit('visual'),
           },
           {
             label: 'New version in the code editor',
-            onSelect: () => open('editor', { pane: 'code' }),
+            onSelect: () => edit('code'),
           },
           { label: 'Upload a new version', onSelect: () => setImporting(true) },
           { label: 'Derive from a run', to: runsPath(org) },
@@ -720,8 +723,8 @@ function CardBody({
             )}
             {canWrite && (
               <NewVersionMenu
-                onVisualEditor={() => open('editor', { pane: 'visual' })}
-                onCodeEditor={() => open('editor', { pane: 'code' })}
+                onVisualEditor={() => edit('visual')}
+                onCodeEditor={() => edit('code')}
                 onUploadFile={() => setImporting(true)}
                 deriveHref={runsPath(org)}
               />
@@ -779,15 +782,6 @@ function CardBody({
             version={version}
             member={member}
             candidates={candidates}
-          />
-        )}
-        {tab === 'editor' && (
-          <EditorTab
-            org={org}
-            composition={composition}
-            version={picked ?? null}
-            canSeal={canWrite}
-            onSealed={reload}
           />
         )}
         {tab === 'configuration' && (!picked || shown.status === 'ready') && (

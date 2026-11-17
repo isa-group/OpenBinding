@@ -1,10 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import type { ProblemFacts } from '../../../core/api/types';
-import fmsFacts from '../../../../test/fixtures/core/fms.facts.json';
+import type { ProblemFacts } from '../../core/api/types';
+import fmsFacts from '../../../test/fixtures/core/fms.facts.json';
 import { completionAt, schemaKeys, schemaValues, type JsonSchema } from './completion';
-import { cursorPlace, scalarAt, withTopLevelScalar } from './yamlText';
+import { cursorPlace, scalarAt, withTopLevelScalar } from '../utils/yamlText';
 
 /** The schema the gateway serves (`GET /v1/compositions/schema`), read from the file it ships. */
 const SCHEMA = JSON.parse(

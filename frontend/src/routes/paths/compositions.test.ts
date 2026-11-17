@@ -9,6 +9,7 @@ import {
   publicCompositionsPath,
   newCompositionPath,
   permalinkPath,
+  editorPath,
 } from './compositions';
 
 describe('the address builders of the compositions area', () => {
@@ -16,17 +17,16 @@ describe('the address builders of the compositions area', () => {
     expect(COMPOSITIONS_SEGMENT).toBe('compositions');
   });
 
-  it('has the Analytics, Configuration, Versions, Editor and Settings tabs: Overview is the composition page itself', () => {
+  it('has the Analytics, Configuration, Versions and Settings tabs: Overview is the composition page itself', () => {
     expect(COMPOSITION_TAB_SEGMENTS).toEqual([
       'analytics',
       'configuration',
       'versions',
-      'editor',
       'settings',
     ]);
-    for (const segment of ['analytics', 'configuration', 'versions', 'editor', 'settings'])
+    for (const segment of ['analytics', 'configuration', 'versions', 'settings'])
       expect(isCompositionTabSegment(segment), segment).toBe(true);
-    for (const segment of ['overview', 'operations', ''])
+    for (const segment of ['overview', 'operations', 'editor', ''])
       expect(isCompositionTabSegment(segment), segment).toBe(false);
   });
 
@@ -55,6 +55,14 @@ describe('the address builders of the compositions area', () => {
     expect(compositionPath('acme', 'order-desk', 'versions', { version: '1.2.0' })).toBe(
       '/compositions/acme/order-desk/versions?version=1.2.0'
     );
+  });
+
+  it('opens the standalone editor on a version, in a mode, or on nothing in an organization', () => {
+    expect(editorPath()).toBe('/editor');
+    expect(
+      editorPath({ source: { org: 'acme', slug: 'order-desk' }, version: '1.2.0', mode: 'visual' })
+    ).toBe('/editor?source=acme%2Forder-desk&version=1.2.0&mode=visual');
+    expect(editorPath({ org: 'acme' })).toBe('/editor?org=acme');
   });
 
   it('builds the creation page and the permanent link', () => {

@@ -278,7 +278,7 @@ describe('the Configuration tab', () => {
 
     fireEvent.click(within(result).getByRole('button', { name: 'Open as a draft' }));
     await waitFor(() =>
-      expect(where()).toMatch(/^\/compositions\/isa-demo\/fleet-routing\/editor#composition=/)
+      expect(where()).toMatch(/^\/editor\?source=isa-demo%2Ffleet-routing#composition=/)
     );
     expect(api.derive).toHaveBeenCalledWith('isa-demo', 'fleet-routing', {
       revision: 'fms@1',

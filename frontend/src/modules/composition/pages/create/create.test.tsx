@@ -18,54 +18,84 @@ const tree = [
   orgNode('beta', { name: 'Beta', effective_role: 'VIEWER' }),
 ];
 
+const upload = async (container: HTMLElement, name = 'desk.yaml') => {
+  const input = container.querySelector<HTMLInputElement>('input[type="file"]');
+  if (!input) throw new Error('no file input');
+  const file = new File(['syntaxVersion: "1.0"\n'], name, { type: 'application/yaml' });
+  fireEvent.change(input, { target: { files: [file] } });
+  await screen.findByText(name);
+  fireEvent.click(screen.getByRole('button', { name: 'Upload composition' }));
+};
+
 describe('/compositions/new', () => {
-  it('preselects the organization of `?org=`, and starts an empty composition in the editor', async () => {
-    api.create.mockResolvedValue({});
-    renderModule(<CreateCompositionPage />, {
-      tree,
-      entry: '/compositions/new?org=acme',
-      routes: { '/compositions/:org/:composition/:tab': <p>editor</p> },
-    });
+  it('preselects the organization of `?org=`, and writes a composition in the standalone editor there', async () => {
+    renderModule(<CreateCompositionPage />, { tree, entry: '/compositions/new?org=acme' });
     expect(await screen.findByRole('link', { name: 'Back to organization' })).toHaveAttribute(
       'href',
       '/orgs/acme/compositions'
     );
-    fireEvent.change(screen.getByLabelText('Composition name'), {
-      target: { value: 'Order desk' },
-    });
     // Publishing needs ADMIN: a MEMBER's composition starts private.
     expect(screen.getByRole('radio', { name: 'Public' })).toBeDisabled();
-    fireEvent.click(screen.getByRole('button', { name: 'Write it in the editor' }));
+    expect(screen.getByRole('link', { name: 'Write it in the editor' })).toHaveAttribute(
+      'href',
+      '/editor?org=acme'
+    );
+  });
+
+  it('creates the composition from a file and seals its first version', async () => {
+    language.parse.mockResolvedValue({ document: { composition: 'desk', kind: 'workflow' } });
+    api.create.mockResolvedValue({});
+    api.seal.mockResolvedValue({ created: true, result: { version: { label: '1.0.0' } } });
+    const { container } = renderModule(<CreateCompositionPage />, {
+      tree,
+      entry: '/compositions/new?org=acme',
+      routes: { '/compositions/:org/:composition': <p>card</p> },
+    });
+    fireEvent.change(await screen.findByLabelText('Composition name'), {
+      target: { value: 'Order desk' },
+    });
+    await upload(container);
     await waitFor(() =>
       expect(api.create).toHaveBeenCalledWith('acme', {
         slug: 'order-desk',
         name: 'Order desk',
-        kind: 'application',
+        kind: 'workflow',
         description: '',
       })
     );
-    await waitFor(() => expect(addressNow()).toBe('/compositions/acme/order-desk/editor'));
+    await waitFor(() => expect(addressNow()).toBe('/compositions/acme/order-desk'));
   });
 
-  it('says a taken name in words, and creates nothing else', async () => {
+  it('says a taken name in words', async () => {
+    language.parse.mockResolvedValue({ document: { composition: 'desk', kind: 'workflow' } });
     api.create.mockRejectedValue(
       Object.assign(new HttpError(409, 'Conflict'), { code: 'slug_conflict' })
     );
-    renderModule(<CreateCompositionPage />, { tree, entry: '/compositions/new?org=acme' });
-    await screen.findByRole('link', { name: 'Back to organization' });
-    fireEvent.change(screen.getByLabelText('Composition name'), {
+    const { container } = renderModule(<CreateCompositionPage />, {
+      tree,
+      entry: '/compositions/new?org=acme',
+    });
+    fireEvent.change(await screen.findByLabelText('Composition name'), {
       target: { value: 'Order desk' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Write it in the editor' }));
+    await upload(container);
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'order-desk is in use in Acme. Choose another name.'
     );
+    expect(api.seal).not.toHaveBeenCalled();
   });
 
   it('asks for the organization first', async () => {
-    renderModule(<CreateCompositionPage />, { tree, entry: '/compositions/new' });
+    const { container } = renderModule(<CreateCompositionPage />, {
+      tree,
+      entry: '/compositions/new',
+    });
     fireEvent.change(await screen.findByLabelText('Composition name'), { target: { value: 'X' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Write it in the editor' }));
+    expect(screen.getByRole('link', { name: 'Write it in the editor' })).toHaveAttribute(
+      'href',
+      '/editor'
+    );
+    await upload(container);
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Choose the organization the composition belongs to.'
     );

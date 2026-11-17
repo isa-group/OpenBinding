@@ -1,18 +1,18 @@
-import { yamlLanguage } from '@codemirror/lang-yaml';
+import { parser } from '@lezer/yaml';
 
 /**
- * Where things are in the text of a Composition2Yaml document, read from the Lezer YAML tree of the code editor. Only places are
+ * Where things are in the text of a Composition2Yaml document, read from the Lezer YAML tree (`@lezer/yaml`, the grammar alone). Only places are
  * read here (the key path at the cursor, the range of a scalar): what a document means, and whether it is valid, is always the
  * gateway's answer. Nothing here reads the document into a model.
  */
 
-type Tree = ReturnType<typeof yamlLanguage.parser.parse>;
+type Tree = ReturnType<typeof parser.parse>;
 type Node = Tree['topNode'];
 
 /** A step of a key path: a mapping key, or `[]` for an item of a sequence. */
 export const ITEM = '[]';
 
-const parse = (text: string): Tree => yamlLanguage.parser.parse(text);
+const parse = (text: string): Tree => parser.parse(text);
 
 /** A scalar as YAML reads it: quotes removed (escapes inside a double-quoted scalar are left as written). */
 function unquote(raw: string): string {

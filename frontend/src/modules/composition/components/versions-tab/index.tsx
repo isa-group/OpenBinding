@@ -19,7 +19,7 @@ import { ValueBadge } from '../../../core/components/value-badge/ValueBadge';
 import { useCopy } from '../../../core/hooks/useCopy';
 import { formatValue, valueModels, valueStatus } from '../../../core/utils/composition/values';
 import { pickVersion } from '../../../core/utils/composition/versionRef';
-import { compositionPath, permalinkPath } from '../../../../routes/paths/compositions';
+import { compositionPath, editorPath, permalinkPath } from '../../../../routes/paths/compositions';
 import { problemPath } from '../../../../routes/paths/problems';
 import { runPath } from '../../../../routes/paths/runs';
 import { compositionsApi } from '../../api/compositionsApi';
@@ -228,7 +228,7 @@ function VersionRow({
         )}
         {member && (
           <Link
-            to={compositionPath(org, composition.slug, 'editor', { version: version.label })}
+            to={editorPath({ source: { org, slug: composition.slug }, version: version.label })}
             target="_blank"
             rel="noreferrer"
             className={iconButton}

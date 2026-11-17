@@ -1,4 +1,17 @@
 @layer legacy {
+  /* The version pickers of the pair (moved from the old composition pages' stylesheet with the pages). */
+  .cmp-select {
+    height: 38px;
+    box-sizing: border-box;
+    padding: 0 10px;
+    border: 1px solid var(--tp-input-border);
+    border-radius: var(--tp-radius-md);
+    background: var(--tp-input-bg);
+    color: var(--tp-ink);
+    font: inherit;
+    font-size: 0.875rem;
+  }
+
   /* The comparison mode: the pair, the kind tiles, the entries and their field rows, and the file view. Every mark of a change is
    also written (a sign, a word or a label); colour only repeats it. Light tokens only. */
   .cx {

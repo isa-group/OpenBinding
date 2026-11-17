@@ -208,7 +208,7 @@ describe('the Versions tab', () => {
     const row = await waitFor(() => rowOf('1.1.0'));
     expect(within(row).getByRole('link', { name: 'Open in editor' })).toHaveAttribute(
       'href',
-      '/compositions/isa-demo/fleet-routing/editor?version=1.1.0'
+      '/editor?source=isa-demo%2Ffleet-routing&version=1.1.0'
     );
 
     fireEvent.click(within(row).getByRole('button', { name: 'Download YAML' }));

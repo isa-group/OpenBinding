@@ -12,7 +12,7 @@ import type { Kind } from '../../../core/utils/composition/document';
 import { KIND_OPTIONS } from '../../../core/utils/composition/kinds';
 import { formatValue } from '../../../core/utils/composition/values';
 import { COMPOSITION_FILE } from '../../../core/utils/composition/viewModel';
-import { compositionPath } from '../../../../routes/paths/compositions';
+import { compositionPath, editorPath } from '../../../../routes/paths/compositions';
 import { readApiError } from '../../../core/api/errors';
 import type {
   CompositionDerive,
@@ -24,7 +24,7 @@ import { fromC2y } from '../../../core/diagnostics/located';
 import { SLUG_PATTERN, slugFromName } from '../../../core/utils/slug';
 import { compositionFragment } from '../../../core/utils/sphere/composition-fragment';
 import { formatNumber } from '../../../../utils/format';
-import { ProblemsPanel } from '../../../core/components/problems-panel/ProblemsPanel';
+import ProblemsPanel from '../../../core/components/problems-panel';
 import { ValueBadge } from '../../../core/components/value-badge/ValueBadge';
 import { DeriveBatch, type DerivedPoint } from './DeriveBatch';
 import {
@@ -415,7 +415,7 @@ function DeriveOne({
     if (!preview) return;
     setBusy('draft');
     void navigate(
-      `${compositionPath(org, preview.slug, 'editor')}${compositionFragment(preview.draft.content)}`,
+      `${editorPath({ source: { org, slug: preview.slug } })}${compositionFragment(preview.draft.content)}`,
       { viewTransition: true }
     );
   };

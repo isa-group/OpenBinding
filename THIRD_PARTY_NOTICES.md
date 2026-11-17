@@ -24,6 +24,7 @@ patterns from the following MIT-licensed projects:
 | [lz-string](https://github.com/pieroxy/lz-string) | `1.5.0` | Compressing a composition into the `#composition=` fragment of a share link |
 | [openapi-typescript](https://github.com/openapi-ts/openapi-typescript) | `7.13.0` (development only) | Generating the frontend's API types from `docs/openapi.json` |
 | [@codemirror/lang-xml](https://github.com/codemirror/lang-xml) | `6.1.0` | Highlighting the BPMN (XML) files of a package in the problem editor's code view |
+| [@lezer/yaml](https://github.com/lezer-parser/yaml) | `1.0.4` | Reading where things are in a Composition2Yaml text (the key path at the cursor, a scalar's range) for completion and the label |
 
 ### Libraries of SPHERE's frontend stack
 
@@ -121,7 +122,21 @@ Generated from the origin header of each file.
 | `frontend/src/modules/beta/components/beta-gate/index.tsx` | `frontend/src/modules/beta/components/beta-gate/index.tsx` | verbatim |
 | `frontend/src/modules/beta/config/betaFeatures.ts` | `frontend/src/modules/beta/config/betaFeatures.ts` | adapted |
 | `frontend/src/modules/beta/hooks/useBetaFeatures.ts` | `frontend/src/modules/beta/hooks/useBetaFeatures.ts` | adapted |
-| `frontend/src/modules/composition-editor/components/composition-editor/UploadDialog.tsx` | `frontend/src/modules/pricing/components/pricing-import-modal/index.tsx` | pattern-only |
+| `frontend/src/modules/composition-editor/components/templates-menu/index.tsx` | `frontend/src/modules/pricing-editor/components/templates-menu/index.tsx` | adapted |
+| `frontend/src/modules/composition-editor/contexts/editorValueContext.ts` | `frontend/src/modules/pricing-editor/contexts/editorValueContext.ts` | adapted |
+| `frontend/src/modules/composition-editor/hooks/useCompositionSnippets.ts` | `frontend/src/modules/pricing-editor/hooks/usePricing2YamlSnippets.ts` | adapted |
+| `frontend/src/modules/composition-editor/hooks/useEditorValue.ts` | `frontend/src/modules/pricing-editor/hooks/useEditorValue.ts` | adapted |
+| `frontend/src/modules/composition-editor/layouts/editor-layout/editor-account-menu.tsx` | `frontend/src/modules/pricing-editor/layouts/editor-layout/editor-account-menu.tsx` | adapted |
+| `frontend/src/modules/composition-editor/layouts/editor-layout/editor-header.tsx` | `frontend/src/modules/pricing-editor/layouts/editor-layout/editor-header.tsx` | adapted |
+| `frontend/src/modules/composition-editor/layouts/editor-layout/index.tsx` | `frontend/src/modules/pricing-editor/layouts/editor-layout/index.tsx` | adapted |
+| `frontend/src/modules/composition-editor/layouts/editor-layout/publish-modal.tsx` | `frontend/src/modules/pricing-editor/layouts/editor-layout/publish-pricing-modal.tsx` | adapted |
+| `frontend/src/modules/composition-editor/pages/composition-editor/index.tsx` | `frontend/src/modules/pricing-editor/pages/pricing2yaml-editor/index.tsx` | adapted |
+| `frontend/src/modules/composition-editor/services/export.ts` | `frontend/src/modules/pricing-editor/services/export.service.ts` | adapted |
+| `frontend/src/modules/composition-editor/services/snippets/index.ts` | `frontend/src/modules/pricing-editor/services/pricing2yaml/snippets/index.ts` | verbatim |
+| `frontend/src/modules/composition-editor/services/snippets/insert.ts` | `frontend/src/modules/pricing-editor/services/pricing2yaml/snippets/insert.ts` | verbatim |
+| `frontend/src/modules/composition-editor/services/snippets/monaco.ts` | `frontend/src/modules/pricing-editor/services/pricing2yaml/snippets/monaco.ts` | adapted |
+| `frontend/src/modules/composition-editor/services/snippets/templates.ts` | `frontend/src/modules/pricing-editor/pages/pricing2yaml-editor/templates/snippets.ts` | pattern-only |
+| `frontend/src/modules/composition-editor/services/snippets/types.ts` | `frontend/src/modules/pricing-editor/services/pricing2yaml/snippets/types.ts` | adapted |
 | `frontend/src/modules/composition/api/compositionsApi.ts` | `frontend/src/modules/pricing/api/pricingsApi.ts` | adapted |
 | `frontend/src/modules/composition/components/analytics-tab/index.tsx` | `frontend/src/modules/pricing/components/pricing-analytics-tab/index.tsx` | adapted |
 | `frontend/src/modules/composition/components/composition-card/index.tsx` | `frontend/src/modules/pricing/components/pricing-card/index.tsx` | adapted |
@@ -186,7 +201,7 @@ Generated from the origin header of each file.
 | `frontend/src/modules/core/components/page-header/index.tsx` | `frontend/src/modules/organization/pages/public-organizations-list/index.tsx` | pattern-only |
 | `frontend/src/modules/core/components/pagination/index.tsx` | `frontend/src/modules/pricing/components/pagination/index.tsx` | adapted |
 | `frontend/src/modules/core/components/permanent-link/index.tsx` | `frontend/src/modules/core/components/permanent-link/index.tsx` | verbatim |
-| `frontend/src/modules/core/components/problems-panel/ProblemsPanel.tsx` | `frontend/src/modules/pricing-editor/components/problems-panel/index.tsx` | pattern-only |
+| `frontend/src/modules/core/components/problems-panel/index.tsx` | `frontend/src/modules/pricing-editor/components/problems-panel/index.tsx` | adapted |
 | `frontend/src/modules/core/components/resource-card-shell/index.tsx` | `frontend/src/modules/pricing/pages/card/index.tsx` | adapted |
 | `frontend/src/modules/core/components/resource-list-view/index.tsx` | `frontend/src/modules/core/components/pricing-list-view/index.tsx` | adapted |
 | `frontend/src/modules/core/components/router-link/index.tsx` | `frontend/src/modules/core/components/router-link/index.tsx` | adapted |
