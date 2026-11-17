@@ -19,6 +19,7 @@ const CORPUS = [
   'src/modules/core/api/generatedTypes.test.ts',
   'src/test/boundariesLint.test.ts',
   'src/test/brandContrast.test.ts',
+  'src/test/dialogFocusTrap.test.ts',
   'src/test/digestHygiene.test.ts',
   'src/test/e2eSpecs.test.ts',
   'src/test/oneStylesheet.test.ts',

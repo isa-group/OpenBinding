@@ -16,6 +16,7 @@ import { useAuth } from '../../../auth/hooks/useAuth';
 import { readApiError } from '../../../core/api/errors';
 import type { CompositionVersionView, CompositionView } from '../../../core/api/types';
 import ConfirmModal from '../../../core/components/confirm-modal';
+import FocusTrapLayer from '../../../core/components/focus-trap-layer';
 import CopyToClipboardIcon from '../../../core/components/copy-icon';
 import { EditorDialog } from '../../../core/components/editor-chrome';
 import FileUpload from '../../../core/components/file-upload-input';
@@ -146,13 +147,15 @@ function EditorFrame({
 
       <AnimatePresence>
         {editor.incoming && (
-          <ConfirmModal
-            message={`${editor.incoming.source === 'upload' ? 'The imported file' : 'The composition in this link'} replaces the text you have not published. Undo brings your text back.`}
-            onConfirm={editor.acceptIncoming}
-            onCancel={editor.declineIncoming}
-            confirmLabel="Replace"
-            cancelLabel="Keep my changes"
-          />
+          <FocusTrapLayer onEscape={editor.declineIncoming}>
+            <ConfirmModal
+              message={`${editor.incoming.source === 'upload' ? 'The imported file' : 'The composition in this link'} replaces the text you have not published. Undo brings your text back.`}
+              onConfirm={editor.acceptIncoming}
+              onCancel={editor.declineIncoming}
+              confirmLabel="Replace"
+              cancelLabel="Keep my changes"
+            />
+          </FocusTrapLayer>
         )}
       </AnimatePresence>
     </EditorValueContext.Provider>

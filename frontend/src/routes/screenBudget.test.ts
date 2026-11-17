@@ -3,8 +3,9 @@ import { describe, expect, it } from 'vitest';
 import { screens } from './router';
 
 // The screens of the application, exactly: one row per screen of `screens` (routes/router.tsx), with its address and layout.
-// A block that adds or removes a screen changes this list and the ceiling in the same commit. The convergence on SPHERE ends at
-// 38 screens (D9); while the domains are poured in, old and new addresses coexist and each block pins its own count.
+// The convergence on SPHERE ends here at 38 screens (design §9): 20 public, 18 protected. F5 adds /sso/identity/callback (39),
+// F7 /orbit (40), F9 five collection routes (45); a block that adds or removes a screen changes this list and the ceiling in
+// the same commit.
 
 // prettier-ignore
 const SCREENS: Array<[string, string, string]> = [
@@ -61,6 +62,11 @@ describe('screen budget', () => {
       `${screens.length} screens against a ceiling of ${CEILING}`
     ).toBeLessThanOrEqual(CEILING);
     expect(screens).toHaveLength(CEILING);
+  });
+
+  it('opens 20 screens to visitors (the public, session and editor layouts) and keeps 18 behind an account', () => {
+    expect(screens.filter(screen => screen.layout !== 'protected')).toHaveLength(20);
+    expect(screens.filter(screen => screen.layout === 'protected')).toHaveLength(18);
   });
 
   it('keeps one screen per line in router.tsx, which the end-to-end parsers read', () => {

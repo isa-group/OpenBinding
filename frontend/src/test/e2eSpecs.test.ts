@@ -301,4 +301,20 @@ describe('the Playwright specs', () => {
       expect(qa).toContain('starting a run needs MEMBER');
     });
   });
+
+  it('keeps the 404-parity sweep over every kind of resource address', () => {
+    const sweep = read(`${e2e}/not-found-parity.spec.ts`);
+    for (const address of [
+      '/orgs/',
+      '/compositions/',
+      '/p/',
+      '/engines/',
+      '/problems/',
+      '/runs/',
+      '/studies/',
+      '/me/engines/',
+      '/admin',
+    ])
+      expect(sweep, address).toContain(`'${address}`);
+  });
 });

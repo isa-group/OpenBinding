@@ -10,6 +10,7 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { dropdownVariants, transitionFast } from '../../utils/motion-variants';
+import FocusTrapLayer from '../focus-trap-layer';
 
 /** An entry of a header menu: a button with `role="menuitem"`. */
 export const MENU_ITEM =
@@ -150,39 +151,34 @@ export function EditorDialog({
   wide?: boolean;
 }) {
   const titleId = useId();
-  useEffect(() => {
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
-    };
-    document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
-  }, [onClose]);
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.2 }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-tp-ink/60 p-4"
-      role="presentation"
-      onClick={onClose}
-    >
+    <FocusTrapLayer onEscape={onClose}>
       <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 8 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 8 }}
-        transition={{ duration: 0.2, ease: 'easeOut' }}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        className={`max-h-[90dvh] w-full overflow-y-auto rounded-xl border border-tp-hairline bg-tp-canvas p-6 shadow-elevation-4 ${wide ? 'max-w-[600px]' : 'max-w-[500px]'}`}
-        onClick={event => event.stopPropagation()}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.2 }}
+        className="fixed inset-0 z-50 flex items-center justify-center bg-tp-ink/60 p-4"
+        role="presentation"
+        onClick={onClose}
       >
-        <h2 id={titleId} className="text-center font-display text-lg font-semibold text-tp-ink">
-          {title}
-        </h2>
-        {children}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95, y: 8 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95, y: 8 }}
+          transition={{ duration: 0.2, ease: 'easeOut' }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={titleId}
+          className={`max-h-[90dvh] w-full overflow-y-auto rounded-xl border border-tp-hairline bg-tp-canvas p-6 shadow-elevation-4 ${wide ? 'max-w-[600px]' : 'max-w-[500px]'}`}
+          onClick={event => event.stopPropagation()}
+        >
+          <h2 id={titleId} className="text-center font-display text-lg font-semibold text-tp-ink">
+            {title}
+          </h2>
+          {children}
+        </motion.div>
       </motion.div>
-    </motion.div>
+    </FocusTrapLayer>
   );
 }

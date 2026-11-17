@@ -67,6 +67,7 @@ import ConfigurationSpaceView from '../../components/configuration-space-view';
 import { roleAtLeast, useCompositionRole } from '../../hooks/useCompositionRole';
 import { saveBlob, saveText } from '../../utils/download';
 import { useCardComposition, type LoadedComposition } from './hooks';
+import FocusTrapLayer from '../../../core/components/focus-trap-layer';
 
 type TabId = 'overview' | CompositionTabSegment;
 
@@ -348,49 +349,51 @@ function Overview({
       </div>
       <AnimatePresence>
         {sidebarOpen && (
-          <motion.div
-            key="sidebar-mobile"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-50 flex items-end justify-center bg-tp-ink/40 md:hidden"
-            onClick={() => setSidebarOpen(false)}
-          >
+          <FocusTrapLayer key="sidebar-mobile" onEscape={() => setSidebarOpen(false)}>
             <motion.div
-              role="dialog"
-              aria-modal="true"
-              aria-label="Details"
-              initial={{ y: '100%' }}
-              animate={{ y: 0 }}
-              exit={{ y: '100%' }}
-              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-              className="max-h-[85vh] w-full overflow-y-auto rounded-t-2xl bg-tp-canvas p-5 shadow-elevation-4"
-              onClick={event => event.stopPropagation()}
+              key="sidebar-mobile"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 z-50 flex items-end justify-center bg-tp-ink/40 md:hidden"
+              onClick={() => setSidebarOpen(false)}
             >
-              <div className="mb-4 flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-tp-ink">Details</h3>
-                <button
-                  type="button"
-                  aria-label="Close the details"
-                  onClick={() => setSidebarOpen(false)}
-                  className="cursor-pointer rounded-full p-1 text-tp-steel transition-colors hover:bg-tp-surface hover:text-tp-ink"
-                >
-                  <svg
-                    className="h-5 w-5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                    aria-hidden="true"
+              <motion.div
+                role="dialog"
+                aria-modal="true"
+                aria-label="Details"
+                initial={{ y: '100%' }}
+                animate={{ y: 0 }}
+                exit={{ y: '100%' }}
+                transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                className="max-h-[85vh] w-full overflow-y-auto rounded-t-2xl bg-tp-canvas p-5 shadow-elevation-4"
+                onClick={event => event.stopPropagation()}
+              >
+                <div className="mb-4 flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-tp-ink">Details</h3>
+                  <button
+                    type="button"
+                    aria-label="Close the details"
+                    onClick={() => setSidebarOpen(false)}
+                    className="cursor-pointer rounded-full p-1 text-tp-steel transition-colors hover:bg-tp-surface hover:text-tp-ink"
                   >
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-              {details}
+                    <svg
+                      className="h-5 w-5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                      aria-hidden="true"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                {details}
+              </motion.div>
             </motion.div>
-          </motion.div>
+          </FocusTrapLayer>
         )}
       </AnimatePresence>
     </>

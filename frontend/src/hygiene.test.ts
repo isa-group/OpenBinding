@@ -108,4 +108,26 @@ describe('the interface is light and carries no prototype persona', () => {
     ).toEqual([]);
     expect(grep(/Times New Roman/)).toEqual([]);
   });
+
+  it('sizes nothing with a width that the spacing tokens of SPHERE shrink (max-w-md is 16 px here, not 28 rem)', () => {
+    // tailwind.css keeps SPHERE's `--spacing-xs` … `--spacing-xl` (8 to 24 px), which the named widths resolve to; a width
+    // of that size is written explicitly (`max-w-[28rem]`).
+    expect(grep(/\b(?:max|min)-w-(?:xs|sm|md|lg|xl)\b/, /\.tsx?$/)).toEqual([]);
+  });
+});
+
+describe('the frontend carries none of the libraries it left', () => {
+  const manifest = readFileSync(join(process.cwd(), 'package.json'), 'utf8');
+
+  it.each([
+    ['lucide-react', /lucide-react/],
+    ['CodeMirror', /@codemirror\/|@uiw\/react-codemirror/],
+  ])('has no %s in package.json or in the sources', (_name, pattern) => {
+    expect(pattern.test(manifest)).toBe(false);
+    expect(grep(pattern, /\.tsx?$/)).toEqual([]);
+  });
+
+  it('asks Monaco for nothing from a CDN: the editor is the bundled copy', () => {
+    expect(grep(/cdn\.jsdelivr|unpkg\.com|cdnjs|monaco-editor@/, /\.tsx?$/)).toEqual([]);
+  });
 });

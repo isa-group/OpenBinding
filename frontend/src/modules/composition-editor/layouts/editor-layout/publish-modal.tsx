@@ -37,6 +37,7 @@ import { useOrganization } from '../../../organization/hooks/useOrganization';
 import { compositionPath } from '../../../../routes/paths/compositions';
 import { useEditorValue } from '../../hooks/useEditorValue';
 import { scalarAt } from '../../utils/yamlText';
+import FocusTrapLayer from '../../../core/components/focus-trap-layer';
 
 interface PublishModalProps {
   onClose: () => void;
@@ -83,15 +84,6 @@ export default function PublishModal({ onClose }: PublishModalProps) {
     [organizations]
   );
   const canPublishPublicly = roleAtLeast(selectedOrg?.effective_role, 'ADMIN');
-
-  useEffect(() => {
-    closeRef.current?.focus();
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
-    };
-    document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
-  }, [onClose]);
 
   // The compositions the account may add a version to, the one the editor was opened on first.
   useEffect(() => {
@@ -254,295 +246,301 @@ export default function PublishModal({ onClose }: PublishModalProps) {
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 p-3 pt-[8dvh] backdrop-blur-sm sm:p-4 sm:pt-[10dvh]"
-      role="presentation"
-      onClick={onClose}
-    >
+    <FocusTrapLayer onEscape={onClose}>
       <motion.div
-        initial={{ opacity: 0, scale: 0.97, y: 12 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.97, y: 8 }}
-        transition={{ duration: 0.2, ease: 'easeOut' }}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        className="flex max-h-[calc(92dvh-0.75rem)] w-full max-w-[42rem] flex-col overflow-hidden rounded-2xl border border-tp-hairline bg-tp-canvas shadow-elevation-4 sm:max-h-[calc(90dvh-1rem)]"
-        onClick={event => event.stopPropagation()}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 p-3 pt-[8dvh] backdrop-blur-sm sm:p-4 sm:pt-[10dvh]"
+        role="presentation"
+        onClick={onClose}
       >
-        <header className="relative shrink-0 overflow-hidden border-b border-tp-hairline bg-tp-surface px-5 py-3.5 sm:px-6">
-          <div className="absolute -top-12 -right-8 h-32 w-32 rounded-full bg-tp-primary/10 blur-2xl" />
-          <div className="relative flex items-center justify-between gap-4">
-            <div className="flex min-w-0 items-center gap-3">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-tp-accent text-tp-on-primary shadow-sm">
-                <FiUploadCloud className="h-[18px] w-[18px]" aria-hidden="true" />
-              </span>
-              <div className="min-w-0">
-                <h2
-                  id={titleId}
-                  className="font-display text-lg leading-tight font-semibold text-tp-ink"
-                >
-                  Publish to OpenBinding
-                </h2>
-                {errorsInDocument === 0 ? (
-                  <p className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-tp-steel">
-                    <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full bg-emerald-700 text-white">
-                      <FiCheck className="h-2.5 w-2.5" aria-hidden="true" />
-                    </span>
-                    <span className="truncate">
-                      <span className="font-medium text-tp-ink">{documentName || 'Untitled'}</span>
-                      {label ? ` · ${label}` : ''} · ready to publish
-                    </span>
-                  </p>
-                ) : null}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.97, y: 12 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.97, y: 8 }}
+          transition={{ duration: 0.2, ease: 'easeOut' }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={titleId}
+          className="flex max-h-[calc(92dvh-0.75rem)] w-full max-w-[42rem] flex-col overflow-hidden rounded-2xl border border-tp-hairline bg-tp-canvas shadow-elevation-4 sm:max-h-[calc(90dvh-1rem)]"
+          onClick={event => event.stopPropagation()}
+        >
+          <header className="relative shrink-0 overflow-hidden border-b border-tp-hairline bg-tp-surface px-5 py-3.5 sm:px-6">
+            <div className="absolute -top-12 -right-8 h-32 w-32 rounded-full bg-tp-primary/10 blur-2xl" />
+            <div className="relative flex items-center justify-between gap-4">
+              <div className="flex min-w-0 items-center gap-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-tp-accent text-tp-on-primary shadow-sm">
+                  <FiUploadCloud className="h-[18px] w-[18px]" aria-hidden="true" />
+                </span>
+                <div className="min-w-0">
+                  <h2
+                    id={titleId}
+                    className="font-display text-lg leading-tight font-semibold text-tp-ink"
+                  >
+                    Publish to OpenBinding
+                  </h2>
+                  {errorsInDocument === 0 ? (
+                    <p className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-tp-steel">
+                      <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full bg-emerald-700 text-white">
+                        <FiCheck className="h-2.5 w-2.5" aria-hidden="true" />
+                      </span>
+                      <span className="truncate">
+                        <span className="font-medium text-tp-ink">
+                          {documentName || 'Untitled'}
+                        </span>
+                        {label ? ` · ${label}` : ''} · ready to publish
+                      </span>
+                    </p>
+                  ) : null}
+                </div>
               </div>
+              <button
+                ref={closeRef}
+                data-autofocus
+                type="button"
+                onClick={onClose}
+                aria-label="Close publish dialog"
+                className="cursor-pointer rounded-lg p-2 text-tp-steel transition-colors hover:bg-tp-canvas hover:text-tp-ink"
+              >
+                <FiX className="h-5 w-5" aria-hidden="true" />
+              </button>
             </div>
-            <button
-              ref={closeRef}
-              type="button"
-              onClick={onClose}
-              aria-label="Close publish dialog"
-              className="cursor-pointer rounded-lg p-2 text-tp-steel transition-colors hover:bg-tp-canvas hover:text-tp-ink"
-            >
-              <FiX className="h-5 w-5" aria-hidden="true" />
-            </button>
-          </div>
-        </header>
-        <main className="min-h-0 flex-1 overflow-y-auto px-5 py-4 sm:px-6 sm:py-5">
-          <div className="space-y-4">
-            {errorsInDocument > 0 ? (
-              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-                <p className="font-medium">The YAML needs attention before publishing.</p>
-                <p className="mt-1 text-xs leading-5 text-red-700">
-                  {errorsInDocument === 1
-                    ? 'The problems panel lists 1 error.'
-                    : `The problems panel lists ${errorsInDocument} errors.`}
-                </p>
-              </div>
-            ) : null}
-            <fieldset>
-              <legend className="sr-only">Where should this draft go?</legend>
-              <div className="grid grid-cols-2 gap-1 rounded-xl bg-tp-surface p-1">
-                <DestinationButton
-                  active={destination === 'new'}
-                  icon={<FiFilePlus className="h-4 w-4" aria-hidden="true" />}
-                  title="New composition"
-                  onClick={() => {
-                    setDestination('new');
-                    setErrors([]);
-                  }}
-                />
-                <DestinationButton
-                  active={destination === 'version'}
-                  icon={<FiUploadCloud className="h-4 w-4" aria-hidden="true" />}
-                  title="New version"
-                  onClick={() => {
-                    setDestination('version');
-                    setErrors([]);
-                  }}
-                />
-              </div>
-              <p className="mt-1.5 px-1 text-xs text-tp-steel">
-                {destination === 'new'
-                  ? 'Create a new composition in one of your organizations.'
-                  : 'Add this draft as a new version of a composition you may write.'}
-              </p>
-            </fieldset>
-            {destination === 'new' ? (
-              <>
-                <OrganizationSelector
-                  value={selectedOrg}
-                  onChange={setSelectedOrg}
-                  initialSlug={preferredOrg ?? source?.org ?? null}
-                  minRole="MEMBER"
-                />
-                <label className="block">
-                  <span className="mb-1 block text-sm text-tp-slate">Composition name</span>
-                  <input
-                    value={name}
-                    onChange={event => setName(event.target.value)}
-                    placeholder="e.g. Order desk"
-                    className={INPUT}
-                  />
-                  {name.trim() && (
-                    <span className="mt-1 block text-xs text-tp-steel">
-                      Its address: {slugFromName(name)}
-                    </span>
-                  )}
-                </label>
-                <VisibilityPicker
-                  value={visibility}
-                  onChange={setVisibility}
-                  publicAllowed={canPublishPublicly}
-                />
-              </>
-            ) : (
-              <section aria-labelledby={`${titleId}-target`} className="space-y-4">
-                <div>
-                  <h3 id={`${titleId}-target`} className="text-sm font-medium text-tp-slate">
-                    Choose a composition
-                  </h3>
-                  <p className="mt-0.5 text-xs text-tp-steel">
-                    The version is sealed into the composition you choose, in its organization.
+          </header>
+          <main className="min-h-0 flex-1 overflow-y-auto px-5 py-4 sm:px-6 sm:py-5">
+            <div className="space-y-4">
+              {errorsInDocument > 0 ? (
+                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+                  <p className="font-medium">The YAML needs attention before publishing.</p>
+                  <p className="mt-1 text-xs leading-5 text-red-700">
+                    {errorsInDocument === 1
+                      ? 'The problems panel lists 1 error.'
+                      : `The problems panel lists ${errorsInDocument} errors.`}
                   </p>
                 </div>
-                {target ? (
-                  <SelectedComposition
-                    composition={target}
-                    onChange={() => {
-                      setTarget(null);
-                      setCheck(null);
-                      setLabels([]);
+              ) : null}
+              <fieldset>
+                <legend className="sr-only">Where should this draft go?</legend>
+                <div className="grid grid-cols-2 gap-1 rounded-xl bg-tp-surface p-1">
+                  <DestinationButton
+                    active={destination === 'new'}
+                    icon={<FiFilePlus className="h-4 w-4" aria-hidden="true" />}
+                    title="New composition"
+                    onClick={() => {
+                      setDestination('new');
+                      setErrors([]);
                     }}
                   />
-                ) : (
-                  <>
-                    <div className="relative">
-                      <FiSearch
-                        className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-tp-steel"
-                        aria-hidden="true"
-                      />
-                      <input
-                        value={search}
-                        onChange={event => setSearch(event.target.value)}
-                        onKeyDown={event => {
-                          if (event.key === 'Enter' && results5[0]) {
-                            event.preventDefault();
-                            setTarget(results5[0]);
-                          }
-                        }}
-                        aria-label="Search your compositions by name"
-                        placeholder="Type to search your compositions…"
-                        className={`${INPUT} pl-9`}
-                      />
-                    </div>
-                    <ul aria-label="Compositions you may write" className="space-y-2">
-                      {searching && results5.length === 0 ? (
-                        <EmptyState>Loading compositions…</EmptyState>
-                      ) : searchError ? (
-                        <li className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-                          {searchError}
-                        </li>
-                      ) : results5.length === 0 ? (
-                        <EmptyState>
-                          {search.trim()
-                            ? `None of your compositions match “${search.trim()}”.`
-                            : 'You have no composition to add a version to yet.'}
-                        </EmptyState>
-                      ) : (
-                        results5.map(composition => (
-                          <li key={composition.id}>
-                            <CompositionTarget
-                              composition={composition}
-                              highlight={
-                                !!source &&
-                                composition.slug === source.slug &&
-                                composition.organization.slug === source.org
-                              }
-                              onSelect={setTarget}
-                            />
-                          </li>
-                        ))
-                      )}
-                    </ul>
-                    {hiddenResults > 0 ? (
-                      <p className="text-center text-xs text-tp-steel">
-                        {hiddenResults} more {hiddenResults === 1 ? 'composition' : 'compositions'}{' '}
-                        — keep typing to narrow the list.
-                      </p>
-                    ) : null}
-                  </>
-                )}
-                {target ? (
-                  <>
-                    <label className="block">
-                      <span className="mb-1 block text-xs font-medium text-tp-slate">
-                        Version label
+                  <DestinationButton
+                    active={destination === 'version'}
+                    icon={<FiUploadCloud className="h-4 w-4" aria-hidden="true" />}
+                    title="New version"
+                    onClick={() => {
+                      setDestination('version');
+                      setErrors([]);
+                    }}
+                  />
+                </div>
+                <p className="mt-1.5 px-1 text-xs text-tp-steel">
+                  {destination === 'new'
+                    ? 'Create a new composition in one of your organizations.'
+                    : 'Add this draft as a new version of a composition you may write.'}
+                </p>
+              </fieldset>
+              {destination === 'new' ? (
+                <>
+                  <OrganizationSelector
+                    value={selectedOrg}
+                    onChange={setSelectedOrg}
+                    initialSlug={preferredOrg ?? source?.org ?? null}
+                    minRole="MEMBER"
+                  />
+                  <label className="block">
+                    <span className="mb-1 block text-sm text-tp-slate">Composition name</span>
+                    <input
+                      value={name}
+                      onChange={event => setName(event.target.value)}
+                      placeholder="e.g. Order desk"
+                      className={INPUT}
+                    />
+                    {name.trim() && (
+                      <span className="mt-1 block text-xs text-tp-steel">
+                        Its address: {slugFromName(name)}
                       </span>
-                      <input
-                        key={label}
-                        defaultValue={label}
-                        spellCheck={false}
-                        aria-invalid={Boolean(labelError)}
-                        onBlur={event => editor.setLabel(event.target.value.trim())}
-                        onKeyDown={event => {
-                          if (event.key === 'Enter')
-                            editor.setLabel((event.target as HTMLInputElement).value.trim());
-                        }}
-                        className={INPUT}
-                      />
-                      {labelError ? (
-                        <span className="mt-1 block text-xs text-red-700">{labelError}</span>
-                      ) : (
-                        <span className="mt-1 block text-xs text-tp-steel">
-                          The document’s <code className="font-mono">version</code>; changing it
-                          here changes the document.
+                    )}
+                  </label>
+                  <VisibilityPicker
+                    value={visibility}
+                    onChange={setVisibility}
+                    publicAllowed={canPublishPublicly}
+                  />
+                </>
+              ) : (
+                <section aria-labelledby={`${titleId}-target`} className="space-y-4">
+                  <div>
+                    <h3 id={`${titleId}-target`} className="text-sm font-medium text-tp-slate">
+                      Choose a composition
+                    </h3>
+                    <p className="mt-0.5 text-xs text-tp-steel">
+                      The version is sealed into the composition you choose, in its organization.
+                    </p>
+                  </div>
+                  {target ? (
+                    <SelectedComposition
+                      composition={target}
+                      onChange={() => {
+                        setTarget(null);
+                        setCheck(null);
+                        setLabels([]);
+                      }}
+                    />
+                  ) : (
+                    <>
+                      <div className="relative">
+                        <FiSearch
+                          className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-tp-steel"
+                          aria-hidden="true"
+                        />
+                        <input
+                          value={search}
+                          onChange={event => setSearch(event.target.value)}
+                          onKeyDown={event => {
+                            if (event.key === 'Enter' && results5[0]) {
+                              event.preventDefault();
+                              setTarget(results5[0]);
+                            }
+                          }}
+                          aria-label="Search your compositions by name"
+                          placeholder="Type to search your compositions…"
+                          className={`${INPUT} pl-9`}
+                        />
+                      </div>
+                      <ul aria-label="Compositions you may write" className="space-y-2">
+                        {searching && results5.length === 0 ? (
+                          <EmptyState>Loading compositions…</EmptyState>
+                        ) : searchError ? (
+                          <li className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+                            {searchError}
+                          </li>
+                        ) : results5.length === 0 ? (
+                          <EmptyState>
+                            {search.trim()
+                              ? `None of your compositions match “${search.trim()}”.`
+                              : 'You have no composition to add a version to yet.'}
+                          </EmptyState>
+                        ) : (
+                          results5.map(composition => (
+                            <li key={composition.id}>
+                              <CompositionTarget
+                                composition={composition}
+                                highlight={
+                                  !!source &&
+                                  composition.slug === source.slug &&
+                                  composition.organization.slug === source.org
+                                }
+                                onSelect={setTarget}
+                              />
+                            </li>
+                          ))
+                        )}
+                      </ul>
+                      {hiddenResults > 0 ? (
+                        <p className="text-center text-xs text-tp-steel">
+                          {hiddenResults} more{' '}
+                          {hiddenResults === 1 ? 'composition' : 'compositions'} — keep typing to
+                          narrow the list.
+                        </p>
+                      ) : null}
+                    </>
+                  )}
+                  {target ? (
+                    <>
+                      <label className="block">
+                        <span className="mb-1 block text-xs font-medium text-tp-slate">
+                          Version label
                         </span>
-                      )}
-                    </label>
-                    {check?.valid ? (
-                      <ValuesOnSeal
-                        check={check}
-                        onUseCanonical={
-                          check.content !== null && check.content !== yaml
-                            ? () => {
-                                if (check.content) editor.setText(check.content);
-                              }
-                            : null
-                        }
-                      />
-                    ) : null}
-                  </>
-                ) : null}
-              </section>
-            )}
-            {errors.length > 0 ? (
-              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3" role="alert">
-                {errors.map((error, index) => (
-                  <p key={index} className="text-xs leading-5 text-red-800">
-                    {error}
-                  </p>
-                ))}
-              </div>
-            ) : null}
-          </div>
-        </main>
-        <footer className="flex shrink-0 items-center justify-between gap-4 border-t border-tp-hairline bg-tp-surface px-5 py-3 sm:px-6">
-          <p className="hidden text-xs text-tp-steel sm:block">
-            {destination === 'version'
-              ? target
-                ? `Adding a version to ${target.name}.`
-                : 'Select a composition to add a version.'
-              : 'A new composition will be created in the selected organization.'}
-          </p>
-          <div className="ml-auto flex items-center gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="cursor-pointer rounded-lg px-4 py-2 text-sm font-medium text-tp-slate transition-colors hover:bg-tp-canvas hover:text-tp-ink"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={() => void handlePublish()}
-              disabled={!canPublish}
-              className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-tp-accent px-4 py-2 text-sm font-semibold text-tp-on-primary transition-all hover:bg-tp-accent-hover disabled:cursor-not-allowed disabled:opacity-45"
-            >
-              {isPublishing
-                ? 'Publishing…'
-                : destination === 'version'
-                  ? 'Publish version'
-                  : 'Publish'}
-              {!isPublishing ? <FiArrowUpRight className="h-4 w-4" aria-hidden="true" /> : null}
-            </button>
-          </div>
-        </footer>
+                        <input
+                          key={label}
+                          defaultValue={label}
+                          spellCheck={false}
+                          aria-invalid={Boolean(labelError)}
+                          onBlur={event => editor.setLabel(event.target.value.trim())}
+                          onKeyDown={event => {
+                            if (event.key === 'Enter')
+                              editor.setLabel((event.target as HTMLInputElement).value.trim());
+                          }}
+                          className={INPUT}
+                        />
+                        {labelError ? (
+                          <span className="mt-1 block text-xs text-red-700">{labelError}</span>
+                        ) : (
+                          <span className="mt-1 block text-xs text-tp-steel">
+                            The document’s <code className="font-mono">version</code>; changing it
+                            here changes the document.
+                          </span>
+                        )}
+                      </label>
+                      {check?.valid ? (
+                        <ValuesOnSeal
+                          check={check}
+                          onUseCanonical={
+                            check.content !== null && check.content !== yaml
+                              ? () => {
+                                  if (check.content) editor.setText(check.content);
+                                }
+                              : null
+                          }
+                        />
+                      ) : null}
+                    </>
+                  ) : null}
+                </section>
+              )}
+              {errors.length > 0 ? (
+                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3" role="alert">
+                  {errors.map((error, index) => (
+                    <p key={index} className="text-xs leading-5 text-red-800">
+                      {error}
+                    </p>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          </main>
+          <footer className="flex shrink-0 items-center justify-between gap-4 border-t border-tp-hairline bg-tp-surface px-5 py-3 sm:px-6">
+            <p className="hidden text-xs text-tp-steel sm:block">
+              {destination === 'version'
+                ? target
+                  ? `Adding a version to ${target.name}.`
+                  : 'Select a composition to add a version.'
+                : 'A new composition will be created in the selected organization.'}
+            </p>
+            <div className="ml-auto flex items-center gap-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="cursor-pointer rounded-lg px-4 py-2 text-sm font-medium text-tp-slate transition-colors hover:bg-tp-canvas hover:text-tp-ink"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void handlePublish()}
+                disabled={!canPublish}
+                className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-tp-accent px-4 py-2 text-sm font-semibold text-tp-on-primary transition-all hover:bg-tp-accent-hover disabled:cursor-not-allowed disabled:opacity-45"
+              >
+                {isPublishing
+                  ? 'Publishing…'
+                  : destination === 'version'
+                    ? 'Publish version'
+                    : 'Publish'}
+                {!isPublishing ? <FiArrowUpRight className="h-4 w-4" aria-hidden="true" /> : null}
+              </button>
+            </div>
+          </footer>
+        </motion.div>
       </motion.div>
-    </motion.div>
+    </FocusTrapLayer>
   );
 }
 

@@ -19,6 +19,7 @@ import type { SavedPackage } from '../../contexts/problemEditorContext';
 import type { SaveTarget } from '../../hooks/useProblemEditor';
 import { useProblemEditorValue } from '../../hooks/useProblemEditorValue';
 import { parseJson } from '../../utils/documents';
+import FocusTrapLayer from '../../../core/components/focus-trap-layer';
 
 type Destination = 'new' | 'version';
 
@@ -57,15 +58,6 @@ export default function SaveModal({
   const [issue, setIssue] = useState<ReactNode>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const org = organization?.slug ?? null;
-
-  useEffect(() => {
-    closeRef.current?.focus();
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
-    };
-    document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
-  }, [onClose]);
 
   // The problems of the chosen organization; the one the editor was opened on is chosen at once.
   useEffect(() => {
@@ -134,255 +126,258 @@ export default function SaveModal({
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 p-3 pt-[8dvh] backdrop-blur-sm sm:p-4 sm:pt-[10dvh]"
-      role="presentation"
-      onClick={onClose}
-    >
+    <FocusTrapLayer onEscape={onClose}>
       <motion.div
-        initial={{ opacity: 0, scale: 0.97, y: 12 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.97, y: 8 }}
-        transition={{ duration: 0.2, ease: 'easeOut' }}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        className="flex max-h-[calc(92dvh-0.75rem)] w-full max-w-[42rem] flex-col overflow-hidden rounded-2xl border border-tp-hairline bg-tp-canvas shadow-elevation-4 sm:max-h-[calc(90dvh-1rem)]"
-        onClick={event => event.stopPropagation()}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 p-3 pt-[8dvh] backdrop-blur-sm sm:p-4 sm:pt-[10dvh]"
+        role="presentation"
+        onClick={onClose}
       >
-        <header className="relative shrink-0 overflow-hidden border-b border-tp-hairline bg-tp-surface px-5 py-3.5 sm:px-6">
-          <div className="absolute -top-12 -right-8 h-32 w-32 rounded-full bg-tp-primary/10 blur-2xl" />
-          <div className="relative flex items-center justify-between gap-4">
-            <div className="flex min-w-0 items-center gap-3">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-tp-accent text-tp-on-primary shadow-sm">
-                <FiSave className="h-[18px] w-[18px]" aria-hidden="true" />
-              </span>
-              <div className="min-w-0">
-                <h2
-                  id={titleId}
-                  className="font-display text-lg leading-tight font-semibold text-tp-ink"
-                >
-                  Save the package
-                </h2>
-                {editor.savable ? (
-                  <p className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-tp-steel">
-                    <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full bg-emerald-700 text-white">
-                      <FiCheck className="h-2.5 w-2.5" aria-hidden="true" />
-                    </span>
-                    <span className="truncate">
-                      <span className="font-medium text-tp-ink">{packageName || 'Untitled'}</span> ·
-                      valid, ready to save
-                    </span>
-                  </p>
-                ) : null}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.97, y: 12 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.97, y: 8 }}
+          transition={{ duration: 0.2, ease: 'easeOut' }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={titleId}
+          className="flex max-h-[calc(92dvh-0.75rem)] w-full max-w-[42rem] flex-col overflow-hidden rounded-2xl border border-tp-hairline bg-tp-canvas shadow-elevation-4 sm:max-h-[calc(90dvh-1rem)]"
+          onClick={event => event.stopPropagation()}
+        >
+          <header className="relative shrink-0 overflow-hidden border-b border-tp-hairline bg-tp-surface px-5 py-3.5 sm:px-6">
+            <div className="absolute -top-12 -right-8 h-32 w-32 rounded-full bg-tp-primary/10 blur-2xl" />
+            <div className="relative flex items-center justify-between gap-4">
+              <div className="flex min-w-0 items-center gap-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-tp-accent text-tp-on-primary shadow-sm">
+                  <FiSave className="h-[18px] w-[18px]" aria-hidden="true" />
+                </span>
+                <div className="min-w-0">
+                  <h2
+                    id={titleId}
+                    className="font-display text-lg leading-tight font-semibold text-tp-ink"
+                  >
+                    Save the package
+                  </h2>
+                  {editor.savable ? (
+                    <p className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-tp-steel">
+                      <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full bg-emerald-700 text-white">
+                        <FiCheck className="h-2.5 w-2.5" aria-hidden="true" />
+                      </span>
+                      <span className="truncate">
+                        <span className="font-medium text-tp-ink">{packageName || 'Untitled'}</span>{' '}
+                        · valid, ready to save
+                      </span>
+                    </p>
+                  ) : null}
+                </div>
               </div>
+              <button
+                ref={closeRef}
+                data-autofocus
+                type="button"
+                onClick={onClose}
+                aria-label="Close the save dialog"
+                className="cursor-pointer rounded-lg p-2 text-tp-steel transition-colors hover:bg-tp-canvas hover:text-tp-ink"
+              >
+                <FiX className="h-5 w-5" aria-hidden="true" />
+              </button>
             </div>
-            <button
-              ref={closeRef}
-              type="button"
-              onClick={onClose}
-              aria-label="Close the save dialog"
-              className="cursor-pointer rounded-lg p-2 text-tp-steel transition-colors hover:bg-tp-canvas hover:text-tp-ink"
-            >
-              <FiX className="h-5 w-5" aria-hidden="true" />
-            </button>
-          </div>
-        </header>
-        <main className="min-h-0 flex-1 overflow-y-auto px-5 py-4 sm:px-6 sm:py-5">
-          <div className="space-y-4">
-            {!editor.savable ? (
-              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-                <p className="font-medium">The package saves once it passes its check.</p>
-                <p className="mt-1 text-xs leading-5 text-red-700">
-                  The problems panel lists what the gateway found.
+          </header>
+          <main className="min-h-0 flex-1 overflow-y-auto px-5 py-4 sm:px-6 sm:py-5">
+            <div className="space-y-4">
+              {!editor.savable ? (
+                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+                  <p className="font-medium">The package saves once it passes its check.</p>
+                  <p className="mt-1 text-xs leading-5 text-red-700">
+                    The problems panel lists what the gateway found.
+                  </p>
+                </div>
+              ) : null}
+              <fieldset>
+                <legend className="sr-only">Where should this package go?</legend>
+                <div className="grid grid-cols-2 gap-1 rounded-xl bg-tp-surface p-1">
+                  <DestinationButton
+                    active={destination === 'new'}
+                    icon={<FiFilePlus className="h-4 w-4" aria-hidden="true" />}
+                    title="New problem"
+                    onClick={() => {
+                      setDestination('new');
+                      setIssue(null);
+                    }}
+                  />
+                  <DestinationButton
+                    active={destination === 'version'}
+                    icon={<FiSave className="h-4 w-4" aria-hidden="true" />}
+                    title="New version"
+                    onClick={() => {
+                      setDestination('version');
+                      setIssue(null);
+                    }}
+                  />
+                </div>
+                <p className="mt-1.5 px-1 text-xs text-tp-steel">
+                  {destination === 'new'
+                    ? 'Create a problem in one of your organizations, with this package as its first version.'
+                    : 'Add this package as a new version of a problem you may write. The same package again is not a new version.'}
                 </p>
-              </div>
-            ) : null}
-            <fieldset>
-              <legend className="sr-only">Where should this package go?</legend>
-              <div className="grid grid-cols-2 gap-1 rounded-xl bg-tp-surface p-1">
-                <DestinationButton
-                  active={destination === 'new'}
-                  icon={<FiFilePlus className="h-4 w-4" aria-hidden="true" />}
-                  title="New problem"
-                  onClick={() => {
-                    setDestination('new');
-                    setIssue(null);
-                  }}
-                />
-                <DestinationButton
-                  active={destination === 'version'}
-                  icon={<FiSave className="h-4 w-4" aria-hidden="true" />}
-                  title="New version"
-                  onClick={() => {
-                    setDestination('version');
-                    setIssue(null);
-                  }}
-                />
-              </div>
-              <p className="mt-1.5 px-1 text-xs text-tp-steel">
-                {destination === 'new'
-                  ? 'Create a problem in one of your organizations, with this package as its first version.'
-                  : 'Add this package as a new version of a problem you may write. The same package again is not a new version.'}
-              </p>
-            </fieldset>
-            <OrganizationSelector
-              value={organization}
-              onChange={next => {
-                setOrganization(next);
-                setTarget(null);
-              }}
-              initialSlug={openedOrg}
-              minRole="MEMBER"
-            />
-            {destination === 'new' ? (
-              <label className="block">
-                <span className="mb-1 block text-sm text-tp-slate">Name of the new problem</span>
-                <input
-                  value={name}
-                  onChange={event => setName(event.target.value)}
-                  placeholder="e.g. Checkout flow"
-                  className={INPUT}
-                />
-                {name.trim() && (
-                  <span className="mt-1 block text-xs text-tp-steel">Its address: {slug}</span>
-                )}
-              </label>
-            ) : org ? (
-              <section aria-labelledby={`${titleId}-target`} className="space-y-3">
-                <h3 id={`${titleId}-target`} className="text-sm font-medium text-tp-slate">
-                  Choose a problem
-                </h3>
-                {shownTarget ? (
-                  <div className="flex items-center gap-3 rounded-lg border border-tp-primary bg-tp-primary/5 px-3 py-2">
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-tp-accent text-tp-on-primary">
-                      <FiCheck className="h-3 w-3" aria-hidden="true" />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-semibold text-tp-ink">
-                        {shownTarget.name}
+              </fieldset>
+              <OrganizationSelector
+                value={organization}
+                onChange={next => {
+                  setOrganization(next);
+                  setTarget(null);
+                }}
+                initialSlug={openedOrg}
+                minRole="MEMBER"
+              />
+              {destination === 'new' ? (
+                <label className="block">
+                  <span className="mb-1 block text-sm text-tp-slate">Name of the new problem</span>
+                  <input
+                    value={name}
+                    onChange={event => setName(event.target.value)}
+                    placeholder="e.g. Checkout flow"
+                    className={INPUT}
+                  />
+                  {name.trim() && (
+                    <span className="mt-1 block text-xs text-tp-steel">Its address: {slug}</span>
+                  )}
+                </label>
+              ) : org ? (
+                <section aria-labelledby={`${titleId}-target`} className="space-y-3">
+                  <h3 id={`${titleId}-target`} className="text-sm font-medium text-tp-slate">
+                    Choose a problem
+                  </h3>
+                  {shownTarget ? (
+                    <div className="flex items-center gap-3 rounded-lg border border-tp-primary bg-tp-primary/5 px-3 py-2">
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-tp-accent text-tp-on-primary">
+                        <FiCheck className="h-3 w-3" aria-hidden="true" />
                       </span>
-                      <span className="mt-0.5 block truncate text-xs text-tp-steel">
-                        {organization?.name ?? org}
-                        {shownTarget.latest_revision
-                          ? ` · latest v${shownTarget.latest_revision.revision}`
-                          : ''}
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-semibold text-tp-ink">
+                          {shownTarget.name}
+                        </span>
+                        <span className="mt-0.5 block truncate text-xs text-tp-steel">
+                          {organization?.name ?? org}
+                          {shownTarget.latest_revision
+                            ? ` · latest v${shownTarget.latest_revision.revision}`
+                            : ''}
+                        </span>
                       </span>
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setTarget(null)}
-                      className="cursor-pointer rounded-lg px-2.5 py-1 text-xs font-medium text-tp-accent transition-colors hover:bg-tp-primary/10"
-                    >
-                      Change
-                    </button>
-                  </div>
-                ) : (
-                  <>
-                    <div className="relative">
-                      <FiSearch
-                        className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-tp-steel"
-                        aria-hidden="true"
-                      />
-                      <input
-                        value={search}
-                        onChange={event => setSearch(event.target.value)}
-                        aria-label="Search the organization’s problems by name"
-                        placeholder="Type to search the problems…"
-                        className={`${INPUT} pl-9`}
-                      />
+                      <button
+                        type="button"
+                        onClick={() => setTarget(null)}
+                        className="cursor-pointer rounded-lg px-2.5 py-1 text-xs font-medium text-tp-accent transition-colors hover:bg-tp-primary/10"
+                      >
+                        Change
+                      </button>
                     </div>
-                    <ul aria-label="Problems you may write" className="space-y-2">
-                      {listIssue ? (
-                        <li className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-                          {listIssue}
-                        </li>
-                      ) : !problems || problems.org !== org ? (
-                        <EmptyState>Loading problems…</EmptyState>
-                      ) : shown.length === 0 ? (
-                        <EmptyState>
-                          {query
-                            ? `No problem matches “${search.trim()}”.`
-                            : 'The organization has no problem to add a version to yet.'}
-                        </EmptyState>
-                      ) : (
-                        shown.map(item => (
-                          <li key={item.id}>
-                            <button
-                              type="button"
-                              onClick={() => setTarget(item)}
-                              className="flex w-full cursor-pointer items-center gap-3 rounded-lg border border-tp-hairline bg-tp-canvas px-3 py-2 text-left transition-colors hover:border-tp-primary/40 hover:bg-tp-surface"
-                            >
-                              <span className="min-w-0 flex-1">
-                                <span className="block truncate text-sm font-semibold text-tp-ink">
-                                  {item.name}
-                                </span>
-                                <span className="mt-0.5 block truncate font-mono text-xs text-tp-steel">
-                                  {item.slug}
-                                </span>
-                              </span>
-                              {org === openedOrg && item.slug === openedProblem ? (
-                                <span className="rounded-full bg-tp-primary/10 px-2 py-0.5 text-[10px] font-medium text-tp-accent">
-                                  Opened here
-                                </span>
-                              ) : null}
-                            </button>
+                  ) : (
+                    <>
+                      <div className="relative">
+                        <FiSearch
+                          className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-tp-steel"
+                          aria-hidden="true"
+                        />
+                        <input
+                          value={search}
+                          onChange={event => setSearch(event.target.value)}
+                          aria-label="Search the organization’s problems by name"
+                          placeholder="Type to search the problems…"
+                          className={`${INPUT} pl-9`}
+                        />
+                      </div>
+                      <ul aria-label="Problems you may write" className="space-y-2">
+                        {listIssue ? (
+                          <li className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+                            {listIssue}
                           </li>
-                        ))
-                      )}
-                    </ul>
-                    {hidden > 0 ? (
-                      <p className="text-center text-xs text-tp-steel">
-                        {hidden} more {hidden === 1 ? 'problem' : 'problems'} — keep typing to
-                        narrow the list.
-                      </p>
-                    ) : null}
-                  </>
-                )}
-              </section>
-            ) : null}
-            {issue ? (
-              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3" role="alert">
-                <p className="text-xs font-medium text-red-800">The package wasn’t saved</p>
-                <p className="mt-1 text-xs leading-5 text-red-800">{issue}</p>
-              </div>
-            ) : null}
-          </div>
-        </main>
-        <footer className="flex shrink-0 items-center justify-between gap-4 border-t border-tp-hairline bg-tp-surface px-5 py-3 sm:px-6">
-          <p className="hidden text-xs text-tp-steel sm:block">
-            A saved version runs from its problem page.
-          </p>
-          <div className="ml-auto flex items-center gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="cursor-pointer rounded-lg px-4 py-2 text-sm font-medium text-tp-slate transition-colors hover:bg-tp-canvas hover:text-tp-ink"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={() => void save()}
-              disabled={!canSave}
-              className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-tp-accent px-4 py-2 text-sm font-semibold text-tp-on-primary transition-all hover:bg-tp-accent-hover disabled:cursor-not-allowed disabled:opacity-45"
-            >
-              {editor.saving
-                ? 'Saving…'
-                : destination === 'version'
-                  ? shownTarget
-                    ? `Save as a new version of ${shownTarget.name}`
-                    : 'Save as a new version'
-                  : 'Save as a new problem'}
-              {!editor.saving ? <FiArrowUpRight className="h-4 w-4" aria-hidden="true" /> : null}
-            </button>
-          </div>
-        </footer>
+                        ) : !problems || problems.org !== org ? (
+                          <EmptyState>Loading problems…</EmptyState>
+                        ) : shown.length === 0 ? (
+                          <EmptyState>
+                            {query
+                              ? `No problem matches “${search.trim()}”.`
+                              : 'The organization has no problem to add a version to yet.'}
+                          </EmptyState>
+                        ) : (
+                          shown.map(item => (
+                            <li key={item.id}>
+                              <button
+                                type="button"
+                                onClick={() => setTarget(item)}
+                                className="flex w-full cursor-pointer items-center gap-3 rounded-lg border border-tp-hairline bg-tp-canvas px-3 py-2 text-left transition-colors hover:border-tp-primary/40 hover:bg-tp-surface"
+                              >
+                                <span className="min-w-0 flex-1">
+                                  <span className="block truncate text-sm font-semibold text-tp-ink">
+                                    {item.name}
+                                  </span>
+                                  <span className="mt-0.5 block truncate font-mono text-xs text-tp-steel">
+                                    {item.slug}
+                                  </span>
+                                </span>
+                                {org === openedOrg && item.slug === openedProblem ? (
+                                  <span className="rounded-full bg-tp-primary/10 px-2 py-0.5 text-[10px] font-medium text-tp-accent">
+                                    Opened here
+                                  </span>
+                                ) : null}
+                              </button>
+                            </li>
+                          ))
+                        )}
+                      </ul>
+                      {hidden > 0 ? (
+                        <p className="text-center text-xs text-tp-steel">
+                          {hidden} more {hidden === 1 ? 'problem' : 'problems'} — keep typing to
+                          narrow the list.
+                        </p>
+                      ) : null}
+                    </>
+                  )}
+                </section>
+              ) : null}
+              {issue ? (
+                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3" role="alert">
+                  <p className="text-xs font-medium text-red-800">The package wasn’t saved</p>
+                  <p className="mt-1 text-xs leading-5 text-red-800">{issue}</p>
+                </div>
+              ) : null}
+            </div>
+          </main>
+          <footer className="flex shrink-0 items-center justify-between gap-4 border-t border-tp-hairline bg-tp-surface px-5 py-3 sm:px-6">
+            <p className="hidden text-xs text-tp-steel sm:block">
+              A saved version runs from its problem page.
+            </p>
+            <div className="ml-auto flex items-center gap-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="cursor-pointer rounded-lg px-4 py-2 text-sm font-medium text-tp-slate transition-colors hover:bg-tp-canvas hover:text-tp-ink"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void save()}
+                disabled={!canSave}
+                className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-tp-accent px-4 py-2 text-sm font-semibold text-tp-on-primary transition-all hover:bg-tp-accent-hover disabled:cursor-not-allowed disabled:opacity-45"
+              >
+                {editor.saving
+                  ? 'Saving…'
+                  : destination === 'version'
+                    ? shownTarget
+                      ? `Save as a new version of ${shownTarget.name}`
+                      : 'Save as a new version'
+                    : 'Save as a new problem'}
+                {!editor.saving ? <FiArrowUpRight className="h-4 w-4" aria-hidden="true" /> : null}
+              </button>
+            </div>
+          </footer>
+        </motion.div>
       </motion.div>
-    </motion.div>
+    </FocusTrapLayer>
   );
 }
 
