@@ -121,13 +121,13 @@ Generated from the origin header of each file.
 | `frontend/src/modules/beta/hooks/useBetaFeatures.ts` | `frontend/src/modules/beta/hooks/useBetaFeatures.ts` | adapted |
 | `frontend/src/modules/composition-editor/components/composition-editor/UploadDialog.tsx` | `frontend/src/modules/pricing/components/pricing-import-modal/index.tsx` | pattern-only |
 | `frontend/src/modules/composition/api/compositionsApi.ts` | `frontend/src/modules/pricing/api/pricingsApi.ts` | adapted |
+| `frontend/src/modules/composition/components/analytics-tab/index.tsx` | `frontend/src/modules/pricing/components/pricing-analytics-tab/index.tsx` | adapted |
 | `frontend/src/modules/composition/components/composition-card/index.tsx` | `frontend/src/modules/pricing/components/pricing-card/index.tsx` | adapted |
 | `frontend/src/modules/composition/components/composition-import-modal/index.tsx` | `frontend/src/modules/pricing/components/pricing-import-modal/index.tsx` | adapted |
 | `frontend/src/modules/composition/components/composition-settings-tab/index.tsx` | `frontend/src/modules/pricing/components/pricing-settings-tab/index.tsx` | adapted |
 | `frontend/src/modules/composition/components/composition-tree/index.tsx` | `frontend/src/modules/pricing/components/pricing-tree/index.tsx` | adapted |
 | `frontend/src/modules/composition/components/compositions-tab/index.tsx` | `frontend/src/modules/organization/pages/organization-detail/components/PricingsTab.tsx` | adapted |
 | `frontend/src/modules/composition/components/create-composition-form/index.tsx` | `frontend/src/modules/pricing/components/create-pricing-form/index.tsx` | adapted |
-| `frontend/src/modules/composition/components/evolution-charts/EvolutionCharts.tsx` | `frontend/src/modules/pricing/components/pricing-analytics-tab/index.tsx` | pattern-only |
 | `frontend/src/modules/composition/components/fork-composition-modal/index.tsx` | `frontend/src/modules/pricing/components/fork-pricing-modal/index.tsx` | adapted |
 | `frontend/src/modules/composition/components/get-composition-menu/index.tsx` | `frontend/src/modules/pricing/components/get-pricing-menu/index.tsx` | adapted |
 | `frontend/src/modules/composition/components/new-version-menu/index.tsx` | `frontend/src/modules/pricing/components/new-version-menu/index.tsx` | adapted |

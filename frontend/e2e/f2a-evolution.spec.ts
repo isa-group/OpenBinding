@@ -1,7 +1,7 @@
 import { expect as baseExpect, test, type Page } from '@playwright/test';
 import { API, installMockApi } from './helpers/mockApi';
 
-// J5 · evolution: Versions → Evolution → date filter. A composition declared first, with its costs in EUR/month, then linked to a
+// J5 · evolution: the Analytics tab and its date range. A composition declared first, with its costs in EUR/month, then linked to a
 // problem (verified values, costs in USD/month), then to the problem's next revision, whose last version the installed toolchain
 // no longer verifies. The charts keep verified, declared and unverified apart, give each unit its own chart, mark where the link
 // and the problem revision changed, narrow the versions the gateway is asked for to the days chosen, and say each chart as a table.
@@ -11,6 +11,23 @@ const expect = baseExpect.configure({ timeout: 15_000 });
 
 const ANALYTICS = '/compositions/isa-demo/notification-hub/analytics';
 const main = (page: Page) => page.locator('main');
+
+/** Pick a day in SPHERE's DatePicker: open it, move month by month to `month` (`August 2026`), and press the day. */
+async function pickDay(page: Page, day: string, month: string) {
+  const trigger = main(page).locator('[aria-haspopup="dialog"]');
+  if ((await trigger.getAttribute('aria-expanded')) !== 'true') await trigger.click();
+  const dialog = page.getByRole('dialog', { name: 'Pick date range' });
+  const target = Date.parse(`1 ${month}`);
+  for (let step = 0; step < 36; step++) {
+    const shown = await dialog.getByText(/^[A-Z][a-z]+ \d{4}$/).textContent();
+    const at = Date.parse(`1 ${shown}`);
+    if (at === target) break;
+    await dialog
+      .getByRole('button', { name: at < target ? 'Next month' : 'Previous month' })
+      .click();
+  }
+  await dialog.getByRole('button', { name: day }).click();
+}
 
 /** The queries of every versions list the charts asked for (`include=analytics`). */
 function chartReads(page: Page): URLSearchParams[] {
@@ -29,14 +46,14 @@ function chartReads(page: Page): URLSearchParams[] {
 }
 
 test.describe('J5 · evolution', () => {
-  test('the Analytics tab charts how the structure and the values evolved, by date range, as charts and as tables', async ({
+  test('the Analytics tab charts how the structure and the values evolved, by date range, as charts and as data', async ({
     page,
   }) => {
     const mock = await installMockApi(page, 'admin', { evolution: true });
     await page.setViewportSize({ width: 1440, height: 900 });
     const reads = chartReads(page);
     await page.goto(ANALYTICS);
-    const charts = main(page).getByRole('region', { name: 'Evolution', exact: true });
+    const charts = main(page).getByRole('region', { name: 'Analytics', exact: true });
     await expect(charts.getByText('5 versions, oldest first.')).toBeVisible();
     expect(reads.at(-1)?.get('order')).toBe('oldest');
     const figure = (name: string) => charts.getByRole('figure', { name, exact: true });
@@ -67,7 +84,7 @@ test.describe('J5 · evolution', () => {
     await expect(availability.locator('.ec-dot.is-unverified')).toHaveCount(1);
 
     // The link and the problem revision changes are marked on the charts and said in words.
-    const marked = charts.locator('.ec-markers');
+    const marked = charts.getByRole('list', { name: 'Marked on the charts' });
     await expect(marked.getByRole('listitem')).toHaveText([
       /2\.0\.0.*Linked to checkout-flow@1 \(“linked”\)/,
       /2\.1\.0.*Problem checkout-flow@1 to checkout-flow@2 \(“problem r1 → r2”\)/,
@@ -78,29 +95,33 @@ test.describe('J5 · evolution', () => {
     ]);
 
     // The date filter narrows what the gateway is asked for.
-    await charts.getByLabel('From').fill('2026-08-01');
+    await pickDay(page, 'August 1, 2026', 'August 2026');
     await expect(charts.getByText('3 versions in this date range, oldest first.')).toBeVisible();
     expect(reads.at(-1)?.get('created_after')).toBe('2026-08-01T00:00:00Z');
     await expect(figure('cost · EUR/month')).toHaveCount(0);
-    await charts.getByLabel('To').fill('2026-09-30');
+    await pickDay(page, 'September 30, 2026', 'September 2026');
+    await page.keyboard.press('Escape');
     await expect(charts.getByText('2 versions in this date range, oldest first.')).toBeVisible();
     expect(reads.at(-1)?.get('created_before')).toBe('2026-10-01T00:00:00Z');
 
     // Each chart says the same as a table.
     const usd = figure('cost · USD/month');
-    await usd.getByRole('button', { name: 'Show as table' }).click();
+    await usd.getByRole('button', { name: 'Show data' }).click();
     await expect(usd.getByRole('table').locator('tbody tr')).toHaveText([
       /2\.0\.0.*31 USD\/month.*Verified/,
       /2\.1\.0.*29 USD\/month.*Verified/,
     ]);
-    await usd.getByRole('button', { name: 'Show as chart' }).click();
-    await expect(usd.locator('.ec-plot')).toBeVisible();
+    await usd.getByRole('button', { name: 'Show chart' }).click();
+    await expect(usd.getByRole('img')).toBeVisible();
 
     // A range with no version says so; Clear brings every version back.
-    await charts.getByLabel('To').fill('');
-    await charts.getByLabel('From').fill('2026-11-01');
+    await pickDay(page, 'November 1, 2026', 'November 2026');
     await expect(charts.getByText('No versions in this date range.')).toBeVisible();
-    await charts.getByRole('button', { name: 'Clear' }).click();
+    await page
+      .getByRole('dialog', { name: 'Pick date range' })
+      .getByRole('button', { name: 'Clear' })
+      .click();
+    await page.keyboard.press('Escape');
     await expect(charts.getByText('5 versions, oldest first.')).toBeVisible();
     expect(reads.at(-1)?.has('created_after')).toBe(false);
 
@@ -120,7 +141,7 @@ test.describe('J5 · evolution', () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(ANALYTICS);
 
-    const charts = main(page).getByRole('region', { name: 'Evolution', exact: true });
+    const charts = main(page).getByRole('region', { name: 'Analytics', exact: true });
     const first = charts.getByRole('figure', { name: 'Tasks', exact: true });
     const second = charts.getByRole('figure', { name: 'Bound tasks', exact: true });
     await expect(second).toBeVisible();

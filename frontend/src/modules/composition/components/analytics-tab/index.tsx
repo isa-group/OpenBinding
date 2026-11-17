@@ -1,4 +1,11 @@
-// Design follows SPHERE frontend/src/modules/pricing/components/pricing-analytics-tab/index.tsx and pages/card/index.tsx:259-297 (revision 73779a8a); no code copied
+// Adapted from SPHERE frontend/src/modules/pricing/components/pricing-analytics-tab/index.tsx (revision 73779a8a),
+// https://github.com/SCORELabUS/SPHERE. Copyright (c) 2024 Alejandro García Fernández.
+// MIT licence: the full text is in THIRD_PARTY_NOTICES.md.
+// Changes: SPHERE's layout (a heading with the from/to DatePicker, a grid of chart cards, recharts lines 220 px high) over a
+// composition's versions, with OpenBinding's rules (plan §13): verified, declared and unverified values are separate series,
+// each drawn its own way and never joined; each value and unit has its own chart; the versions where the linked problem or
+// its compilation changed are marked on the axis; the axis is by date or by version; each chart's data sits behind "Show
+// data". No zero point is prepended: a value nobody stated would be drawn as if it were one.
 import { useId, useState, type ReactElement, type ReactNode } from 'react';
 import {
   CartesianGrid,
@@ -11,6 +18,7 @@ import {
   YAxis,
 } from 'recharts';
 import { Action } from '../../../core/components/action-button';
+import DatePicker from '../../../core/components/date-picker';
 import { DataTable } from '../../../core/components/data-table';
 import { FilterPills } from '../../../core/components/filter-pills';
 import { Notice } from '../../../core/components/notice';
@@ -49,7 +57,6 @@ import {
   type StructureRow,
   type ValueRow,
 } from './chartData';
-import './EvolutionCharts.css';
 
 interface EvolutionChartsProps {
   org: string;
@@ -65,15 +72,15 @@ const AXES: ReadonlyArray<{ id: Axis; label: string }> = [
 
 /** Stroke colours: one per status (the legend and the line style say which), and the structure lines. */
 const COLOR: Record<ValueStatus | 'structure', string> = {
-  verified: 'var(--tp-chart-1)',
-  declared: 'var(--tp-chart-2)',
-  unverified: 'var(--tp-chart-3)',
-  structure: 'var(--tp-chart-1)',
+  verified: 'var(--color-tp-chart-1)',
+  declared: 'var(--color-tp-chart-2)',
+  unverified: 'var(--color-tp-chart-3)',
+  structure: 'var(--color-tp-chart-1)',
 };
 
-const TICK = { fontSize: 11, fill: 'var(--tp-slate)' };
+const TICK = { fontSize: 11, fill: 'var(--color-tp-slate)' };
 const MARGIN = { top: 18, right: 12, bottom: 4, left: 0 };
-const HEIGHT = 200;
+const HEIGHT = 220;
 
 interface DotArgs {
   cx?: number | null;
@@ -92,7 +99,7 @@ function StatusMark({ status, x, y }: { status: ValueStatus; x: number; y: numbe
         y={y - 4}
         width={8}
         height={8}
-        fill="var(--tp-canvas)"
+        fill="var(--color-tp-canvas)"
         stroke={COLOR.declared}
         strokeWidth={2}
       />
@@ -105,7 +112,7 @@ function StatusMark({ status, x, y }: { status: ValueStatus; x: number; y: numbe
         cx={x}
         cy={y}
         r={4.5}
-        fill="var(--tp-canvas)"
+        fill="var(--color-tp-canvas)"
         stroke={COLOR.unverified}
         strokeWidth={2}
       />
@@ -157,9 +164,9 @@ function Tip({
   const row = payload?.[0]?.payload as RowBase | undefined;
   if (!active || !row) return null;
   return (
-    <div className="ec-tip">
+    <div className="ec-tip flex flex-col gap-0.5 rounded-lg border border-tp-hairline bg-tp-canvas px-3 py-2 text-xs text-tp-ink shadow-elevation-2">
       <strong>{`Version ${row.label}`}</strong>
-      <span className="ec-tip-date">{formatDate(row.sealed)}</span>
+      <span className="text-tp-steel">{formatDate(row.sealed)}</span>
       {lines(row as never)}
     </div>
   );
@@ -182,7 +189,7 @@ function Plot({ model, axis, rows, children, tip, integers = false }: PlotProps)
   return (
     <ResponsiveContainer width="100%" height={HEIGHT}>
       <LineChart data={[...rows]} margin={MARGIN}>
-        <CartesianGrid strokeDasharray="3 3" stroke="var(--tp-hairline-soft)" />
+        <CartesianGrid strokeDasharray="3 3" stroke="var(--color-tp-hairline-soft)" />
         <XAxis
           dataKey={key}
           type="number"
@@ -195,7 +202,7 @@ function Plot({ model, axis, rows, children, tip, integers = false }: PlotProps)
           allowDecimals={false}
           padding={{ left: 14, right: 14 }}
           tick={TICK}
-          stroke="var(--tp-hairline)"
+          stroke="var(--color-tp-hairline)"
         />
         <YAxis
           tick={TICK}
@@ -203,7 +210,7 @@ function Plot({ model, axis, rows, children, tip, integers = false }: PlotProps)
           width={48}
           domain={['auto', 'auto']}
           allowDecimals={!integers}
-          stroke="var(--tp-hairline)"
+          stroke="var(--color-tp-hairline)"
         />
         <Tooltip
           isAnimationActive={false}
@@ -217,13 +224,13 @@ function Plot({ model, axis, rows, children, tip, integers = false }: PlotProps)
               key={`${marker.kind}-${marker.ordinal}`}
               className={`ec-marker is-${marker.kind}`}
               x={x}
-              stroke="var(--tp-slate)"
+              stroke="var(--color-tp-slate)"
               strokeDasharray="2 3"
               ifOverflow="discard"
               label={{
                 value: markerShort(model, marker),
                 position: right ? 'insideTopRight' : 'insideTopLeft',
-                fill: 'var(--tp-slate)',
+                fill: 'var(--color-tp-slate)',
                 fontSize: 10,
                 offset: 4,
               }}
@@ -248,24 +255,27 @@ function ChartCard({ title, summary, chart, table }: CardProps) {
   const id = useId();
   const [asTable, setAsTable] = useState(false);
   return (
-    <figure className="ec-card" aria-labelledby={id}>
-      <figcaption className="ec-card-head">
-        <span className="ec-card-title" id={id}>
+    <figure
+      className="m-0 flex min-w-0 flex-col gap-2 rounded-xl border border-tp-hairline bg-tp-canvas p-4"
+      aria-labelledby={id}
+    >
+      <figcaption className="flex items-center justify-between gap-2 text-[11px] text-tp-ink">
+        <span className="font-medium" id={id}>
           {title}
         </span>
         <button
           type="button"
-          className="ec-toggle"
+          className="cursor-pointer rounded-md px-2 py-1 text-[11px] font-medium text-tp-accent hover:bg-tp-surface"
           aria-expanded={asTable}
           onClick={() => setAsTable(current => !current)}
         >
-          {asTable ? 'Show as chart' : 'Show as table'}
+          {asTable ? 'Show chart' : 'Show data'}
         </button>
       </figcaption>
       {asTable ? (
         table
       ) : (
-        <div className="ec-plot" role="img" aria-label={summary}>
+        <div role="img" aria-label={summary}>
           {chart}
         </div>
       )}
@@ -330,7 +340,7 @@ function StructureChart({
                 <td>{sealedCell(row)}</td>
                 <td>
                   {row.value === null ? (
-                    <span className="ec-muted">Not recorded</span>
+                    <span className="text-tp-steel">Not recorded</span>
                   ) : (
                     formatNumber(row.value)
                   )}
@@ -403,7 +413,7 @@ function ValueChart({
               strokeWidth={status === 'unverified' ? 0 : 2}
               strokeDasharray={status === 'declared' ? '6 4' : undefined}
               dot={dotOf(status)}
-              activeDot={{ r: 5, fill: COLOR[status], stroke: 'var(--tp-canvas)' }}
+              activeDot={{ r: 5, fill: COLOR[status], stroke: 'var(--color-tp-canvas)' }}
               connectNulls={false}
               isAnimationActive={false}
             />
@@ -432,13 +442,17 @@ function ValueChart({
                   <td>{sealedCell(row)}</td>
                   <td>
                     {value === null ? (
-                      <span className="ec-muted">No value in this unit</span>
+                      <span className="text-tp-steel">No value in this unit</span>
                     ) : (
                       formatValue(value, series.unit)
                     )}
                   </td>
                   <td>
-                    {status ? <ValueBadge status={status} /> : <span className="ec-muted">—</span>}
+                    {status ? (
+                      <ValueBadge status={status} />
+                    ) : (
+                      <span className="text-tp-steel">—</span>
+                    )}
                   </td>
                 </tr>
               );
@@ -453,7 +467,7 @@ function ValueChart({
 /** The legend swatch of a status: its line style and its mark, drawn as the charts draw them. */
 function Swatch({ status }: { status: ValueStatus }) {
   return (
-    <svg className="ec-swatch" width="28" height="12" viewBox="0 0 28 12" aria-hidden="true">
+    <svg className="shrink-0" width="28" height="12" viewBox="0 0 28 12" aria-hidden="true">
       {status !== 'unverified' && (
         <line
           x1="1"
@@ -482,7 +496,11 @@ const OFFERING_TEXT = {
  * each value and unit has its own chart, and the versions where the linked problem or its compilation changed are marked. Every
  * chart has a table that says the same.
  */
-export function EvolutionCharts({ org, composition, refresh = '' }: EvolutionChartsProps) {
+export default function CompositionAnalyticsTab({
+  org,
+  composition,
+  refresh = '',
+}: EvolutionChartsProps) {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [preferences, setPreferences] = useState<Preferences>(readPreferences);
@@ -521,42 +539,22 @@ export function EvolutionCharts({ org, composition, refresh = '' }: EvolutionCha
 
   return (
     <section
-      className="ec"
-      aria-label="Evolution"
+      className="flex flex-col gap-4"
+      aria-label="Analytics"
       aria-busy={versions.status === 'loading' || undefined}
     >
-      <div className="ec-bar">
-        <div className="ec-range" role="group" aria-label="Sealed between">
-          <label className="ec-date">
-            <span>From</span>
-            <input
-              type="date"
-              value={from}
-              max={to || undefined}
-              onChange={event => setFrom(event.target.value)}
-            />
-          </label>
-          <label className="ec-date">
-            <span>To</span>
-            <input
-              type="date"
-              value={to}
-              min={from || undefined}
-              onChange={event => setTo(event.target.value)}
-            />
-          </label>
-          <Action
-            size="sm"
-            variant="ghost"
-            disabled={!filtered}
-            onClick={() => {
-              setFrom('');
-              setTo('');
-            }}
-          >
-            Clear
-          </Action>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h3 className="text-sm font-medium text-tp-ink">Analytics</h3>
+        <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Sealed between">
+          <DatePicker
+            dateFrom={from}
+            dateTo={to}
+            onDateFromChange={setFrom}
+            onDateToChange={setTo}
+          />
         </div>
+      </div>
+      <div className="flex flex-wrap items-center justify-end gap-2">
         <FilterPills
           options={AXES}
           value={preferences.axis}
@@ -583,29 +581,35 @@ export function EvolutionCharts({ org, composition, refresh = '' }: EvolutionCha
         </Notice>
       )}
       {!model && versions.status === 'loading' && (
-        <p className="ec-muted" role="status">
+        <p className="text-sm text-tp-steel" role="status">
           Reading the versions…
         </p>
       )}
 
       {model && !inverted && model.points.length === 0 && (
-        <p className="ec-empty" role="status">
+        <p
+          className="rounded-xl border border-tp-hairline bg-tp-canvas py-16 text-center text-sm text-tp-steel"
+          role="status"
+        >
           {filtered
             ? 'No versions in this date range.'
-            : 'No version yet. Seal the first one in the Editor.'}
+            : 'No version yet. Seal the first one in the editor.'}
         </p>
       )}
 
       {model && model.points.length > 0 && (
         <>
-          <p className="ec-count" role="status">
+          <p className="text-xs text-tp-steel" role="status">
             {`${model.points.length} ${model.points.length === 1 ? 'version' : 'versions'}${filtered ? ' in this date range' : ''}, oldest first.`}
           </p>
 
           {model.markers.length > 0 && (
-            <div className="ec-markers">
-              <h2 className="ec-heading">Marked on the charts</h2>
-              <ul>
+            <div className="rounded-xl border border-tp-hairline bg-tp-canvas p-4">
+              <h2 className="mb-2 text-sm font-medium text-tp-ink">Marked on the charts</h2>
+              <ul
+                aria-label="Marked on the charts"
+                className="flex flex-col gap-1 text-xs text-tp-slate [&_code]:font-mono [&_time]:text-tp-steel [&>li]:flex [&>li]:flex-wrap [&>li]:gap-x-2"
+              >
                 {model.markers.map(marker => {
                   const point = model.points.find(item => item.ordinal === marker.ordinal);
                   return (
@@ -624,15 +628,15 @@ export function EvolutionCharts({ org, composition, refresh = '' }: EvolutionCha
             </div>
           )}
 
-          <section className="ec-section" aria-labelledby={`${headings}-structure`}>
-            <h2 className="ec-heading" id={`${headings}-structure`}>
+          <section className="flex flex-col gap-3" aria-labelledby={`${headings}-structure`}>
+            <h2 className="text-sm font-medium text-tp-ink" id={`${headings}-structure`}>
               Structure
             </h2>
             {!analysed ? (
-              <p className="ec-muted">These versions stored no structure counts.</p>
+              <p className="text-sm text-tp-steel">These versions stored no structure counts.</p>
             ) : (
               <>
-                <div className="ec-grid">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   {STRUCTURE_METRICS.map(metric => (
                     <StructureChart
                       key={metric}
@@ -642,15 +646,27 @@ export function EvolutionCharts({ org, composition, refresh = '' }: EvolutionCha
                     />
                   ))}
                 </div>
-                <div className="ec-offering">
-                  <h3 className="ec-subheading">Offering</h3>
-                  <ol aria-label="Offering per version">
+                <div className="rounded-xl border border-tp-hairline bg-tp-canvas p-4">
+                  <h3 className="mb-2 text-xs font-medium text-tp-ink">Offering</h3>
+                  <ol
+                    aria-label="Offering per version"
+                    className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-tp-slate [&_code]:font-mono [&>li]:flex [&>li]:items-center [&>li]:gap-1.5"
+                  >
                     {model.hasOffering.map(point => {
                       const state =
                         point.value === true ? 'yes' : point.value === false ? 'no' : 'unknown';
                       return (
                         <li key={point.ordinal} className={`is-${state}`}>
-                          <span className="ec-offering-mark" aria-hidden="true" />
+                          <span
+                            className={`inline-block h-2.5 w-2.5 rounded-full ${
+                              state === 'yes'
+                                ? 'bg-tp-chart-1'
+                                : state === 'no'
+                                  ? 'border border-tp-steel bg-tp-canvas'
+                                  : 'border border-dashed border-tp-steel bg-tp-canvas'
+                            }`}
+                            aria-hidden="true"
+                          />
                           <code>
                             {model.points.find(item => item.ordinal === point.ordinal)?.label}
                           </code>
@@ -664,16 +680,16 @@ export function EvolutionCharts({ org, composition, refresh = '' }: EvolutionCha
             )}
           </section>
 
-          <section className="ec-section" aria-labelledby={`${headings}-values`}>
-            <h2 className="ec-heading" id={`${headings}-values`}>
+          <section className="flex flex-col gap-3" aria-labelledby={`${headings}-values`}>
+            <h2 className="text-sm font-medium text-tp-ink" id={`${headings}-values`}>
               Values
             </h2>
-            <div className="ec-legend" role="group" aria-label="Value statuses shown">
+            <div className="flex flex-wrap gap-2" role="group" aria-label="Value statuses shown">
               {STATUSES.map(status => (
                 <button
                   key={status}
                   type="button"
-                  className="ec-legend-item"
+                  className="flex cursor-pointer items-center gap-1.5 rounded-full border border-tp-hairline-strong px-3 py-1 text-xs text-tp-ink transition-colors hover:bg-tp-surface aria-[pressed=false]:opacity-50"
                   aria-pressed={!preferences.hidden.includes(status)}
                   onClick={() => toggle(status)}
                 >
@@ -682,15 +698,15 @@ export function EvolutionCharts({ org, composition, refresh = '' }: EvolutionCha
                 </button>
               ))}
             </div>
-            <p className="ec-note">
+            <p className="text-xs text-tp-steel">
               Verified: solid line, filled dots. Declared: dashed line, hollow squares. Unverified:
               hollow circles, no line. A gap is a version without that value in that unit; each unit
               has its own chart.
             </p>
             {model.values.length === 0 ? (
-              <p className="ec-muted">These versions give no global values.</p>
+              <p className="text-sm text-tp-steel">These versions give no global values.</p>
             ) : (
-              <div className="ec-grid">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 {model.values.map(series => (
                   <ValueChart
                     key={`${series.name}\u0000${series.unit}`}

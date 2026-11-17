@@ -63,7 +63,7 @@ import { compositionStats } from '../../components/stats';
 import YamlSourcePanel from '../../components/yaml-source-panel';
 import CompositionVersionGraph from '../../components/version-graph';
 import CompositionVersionsTab from '../../components/versions-tab';
-import { EvolutionCharts } from '../../components/evolution-charts/EvolutionCharts';
+import CompositionAnalyticsTab from '../../components/analytics-tab';
 import { roleAtLeast, useCompositionRole } from '../../hooks/useCompositionRole';
 import { saveBlob, saveText } from '../../utils/download';
 import { useCardComposition, type LoadedComposition } from './hooks';
@@ -795,7 +795,7 @@ function CardBody({
           />
         )}
         {tab === 'analytics' && (
-          <EvolutionCharts
+          <CompositionAnalyticsTab
             org={org}
             composition={slug}
             refresh={versions.map(item => item.id).join(',')}

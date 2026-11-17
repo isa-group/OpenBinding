@@ -600,7 +600,7 @@ function compositionStops(mobile: boolean): Stop[] {
     {
       slug: 'composition-analytics',
       path: `${COMPOSITION}/analytics`,
-      ready: page => page.getByRole('region', { name: 'Evolution' }),
+      ready: page => page.getByRole('region', { name: 'Analytics' }),
     },
     {
       slug: 'composition-analysis',

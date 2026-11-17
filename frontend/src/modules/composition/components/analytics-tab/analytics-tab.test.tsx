@@ -3,7 +3,7 @@ import { cloneElement, type ReactElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CompositionVersionView } from '../../../core/api/types';
 import { dateBounds, PREFERENCES_KEY } from './chartData';
-import { EvolutionCharts } from './EvolutionCharts';
+import EvolutionCharts from '.';
 
 const api = vi.hoisted(() => ({ allVersions: vi.fn() }));
 vi.mock('../../../core/utils/composition/api', () => ({ compositionsApi: api }));
@@ -97,13 +97,23 @@ const HISTORY = [
 
 const figure = (name: string) => screen.getByRole('figure', { name });
 
+/** Pick a day in the DatePicker (SPHERE's range calendar), opening it and going back month by month to reach it. */
+function pickDay(day: string, month: string) {
+  const trigger = document.querySelector('[aria-haspopup="dialog"]') as HTMLElement;
+  if (trigger.getAttribute('aria-expanded') !== 'true') fireEvent.click(trigger);
+  const dialog = screen.getByRole('dialog', { name: 'Pick date range' });
+  for (let step = 0; step < 36 && !within(dialog).queryByText(month); step++)
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Previous month' }));
+  fireEvent.click(within(dialog).getByRole('button', { name: day }));
+}
+
 async function renderCharts() {
   const view = render(<EvolutionCharts org="isa-demo" composition="fleet-routing" />);
   await screen.findByRole('heading', { name: 'Values' });
   return view;
 }
 
-describe('EvolutionCharts', () => {
+describe('the Analytics tab', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     window.localStorage.clear();
@@ -202,7 +212,7 @@ describe('EvolutionCharts', () => {
   it('shows a chart as a table, every version with its value in that unit and its status', async () => {
     await renderCharts();
     const usd = figure('cost · USD');
-    fireEvent.click(within(usd).getByRole('button', { name: 'Show as table' }));
+    fireEvent.click(within(usd).getByRole('button', { name: 'Show data' }));
     const table = within(figure('cost · USD')).getByRole('table');
     const rows = within(table)
       .getAllByRole('row')
@@ -214,10 +224,10 @@ describe('EvolutionCharts', () => {
     expect(rows[4]).toEqual(['1.5.0', 'Mar 5, 2026', '11 USD', 'Unverified']);
     expect(rows[5]).toEqual(['1.6.0', 'Mar 6, 2026', '9 USD', 'Declared']);
     expect(
-      within(figure('cost · USD')).getByRole('button', { name: 'Show as chart' })
+      within(figure('cost · USD')).getByRole('button', { name: 'Show chart' })
     ).toHaveAttribute('aria-expanded', 'true');
 
-    fireEvent.click(within(figure('Tasks')).getByRole('button', { name: 'Show as table' }));
+    fireEvent.click(within(figure('Tasks')).getByRole('button', { name: 'Show data' }));
     const tasks = within(within(figure('Tasks')).getByRole('table'))
       .getAllByRole('row')
       .slice(1)
@@ -255,7 +265,7 @@ describe('EvolutionCharts', () => {
   it('asks the gateway for the versions sealed within the days chosen, and clears them', async () => {
     await renderCharts();
     api.allVersions.mockResolvedValue(HISTORY.slice(2, 4));
-    fireEvent.change(screen.getByLabelText('From'), { target: { value: '2026-03-03' } });
+    pickDay('March 3, 2026', 'March 2026');
     await waitFor(() =>
       expect(api.allVersions).toHaveBeenLastCalledWith('isa-demo', 'fleet-routing', {
         include: ['analytics'],
@@ -263,7 +273,7 @@ describe('EvolutionCharts', () => {
         createdAfter: '2026-03-03T00:00:00Z',
       })
     );
-    fireEvent.change(screen.getByLabelText('To'), { target: { value: '2026-03-04' } });
+    pickDay('March 4, 2026', 'March 2026');
     await waitFor(() =>
       expect(api.allVersions).toHaveBeenLastCalledWith('isa-demo', 'fleet-routing', {
         include: ['analytics'],
@@ -276,37 +286,32 @@ describe('EvolutionCharts', () => {
       await screen.findByText('2 versions in this date range, oldest first.')
     ).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
+    fireEvent.click(
+      within(screen.getByRole('dialog', { name: 'Pick date range' })).getByRole('button', {
+        name: 'Clear',
+      })
+    );
     await waitFor(() =>
       expect(api.allVersions).toHaveBeenLastCalledWith('isa-demo', 'fleet-routing', {
         include: ['analytics'],
         order: 'oldest',
       })
     );
-    expect(screen.getByLabelText('From')).toHaveValue('');
+    expect(screen.getByRole('button', { name: /Select dates/ })).toBeInTheDocument();
   });
 
-  it('says so when no version was sealed in the range, and asks nothing for an inverted one', async () => {
+  it('says so when no version was sealed in the range', async () => {
     await renderCharts();
     api.allVersions.mockResolvedValue([]);
-    fireEvent.change(screen.getByLabelText('From'), { target: { value: '2026-04-01' } });
+    pickDay('April 1, 2026', 'April 2026');
     expect(await screen.findByText('No versions in this date range.')).toBeInTheDocument();
-
-    const calls = api.allVersions.mock.calls.length;
-    fireEvent.change(screen.getByLabelText('To'), { target: { value: '2026-03-01' } });
-    expect(
-      await screen.findByText(
-        'The first day is after the last, so no version can be in that range.'
-      )
-    ).toBeInTheDocument();
-    expect(api.allVersions).toHaveBeenCalledTimes(calls);
   });
 
   it('says there is no version yet, and offers a retry when the versions cannot be read', async () => {
     api.allVersions.mockResolvedValueOnce([]);
     render(<EvolutionCharts org="isa-demo" composition="fleet-routing" />);
     expect(
-      await screen.findByText('No version yet. Seal the first one in the Editor.')
+      await screen.findByText('No version yet. Seal the first one in the editor.')
     ).toBeInTheDocument();
 
     api.allVersions.mockRejectedValueOnce(new Error('offline'));

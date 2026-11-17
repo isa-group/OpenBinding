@@ -1,7 +1,8 @@
 // Adapted from SPHERE frontend/src/modules/core/components/date-picker/index.tsx (revision 73779a8a),
 // https://github.com/SCORELabUS/SPHERE. Copyright (c) 2024 Alejandro García Fernández.
 // MIT licence: the full text is in THIRD_PARTY_NOTICES.md.
-// Changes: small text set in steel instead of the muted grey, which is 2.3:1 on white.
+// Changes: small text set in steel instead of the muted grey, which is 2.3:1 on white; the month buttons and the days are
+// named ("Previous month", "March 3, 2026") and a chosen day says it is pressed, for assistive technology.
 
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -167,6 +168,7 @@ export default function DatePicker({
               <button
                 type="button"
                 onClick={() => setViewMonth(prev => subMonths(prev, 1))}
+                aria-label="Previous month"
                 className="cursor-pointer rounded-md p-1 text-tp-steel transition-colors hover:bg-tp-surface hover:text-tp-ink"
               >
                 <svg
@@ -189,6 +191,7 @@ export default function DatePicker({
               <button
                 type="button"
                 onClick={() => setViewMonth(prev => addMonths(prev, 1))}
+                aria-label="Next month"
                 className="cursor-pointer rounded-md p-1 text-tp-steel transition-colors hover:bg-tp-surface hover:text-tp-ink"
               >
                 <svg
@@ -240,6 +243,8 @@ export default function DatePicker({
                     key={day.toISOString()}
                     type="button"
                     onClick={() => handleDayClick(day)}
+                    aria-label={format(day, 'MMMM d, yyyy')}
+                    aria-pressed={Boolean(isStart || isEnd)}
                     onMouseEnter={() => selectingEnd && setHoverDate(day)}
                     onMouseLeave={() => setHoverDate(null)}
                     disabled={!inMonth}
