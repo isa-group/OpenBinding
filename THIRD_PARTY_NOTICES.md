@@ -93,12 +93,18 @@ listed with its module:
 <!-- sphere-convergence:start -->
 
 The frontend files of the move to SPHERE's frontend (`docs/adr/0053-frontend-on-sphere-stack.md`), at revision
-`73779a8a`, each with its reuse class: **verbatim** (copied; only imports, wording and types changed), **adapted**
+`73779a8a` of `main` (and `694f292b03` of its `feat/pricing-renderer` branch, for the pricing-renderer bridge, `/pricing`,
+the configuration compare tray and the study front, as each header says), each with its reuse class: **verbatim** (copied; only imports, wording and types changed), **adapted**
 (copied, with logic changed; the header says what) or **pattern-only** (the layout followed, the code written here).
 Generated from the origin header of each file.
 
 | File | SPHERE origin | Class |
 |---|---|---|
+| `frontend/src/modules/admin/api/adminApi.ts` | `frontend/src/modules/pricing/api/pricingsApi.ts` | pattern-only |
+| `frontend/src/modules/admin/components/admin-parts/index.tsx` | `frontend/src/modules/settings/components/AccountSection.tsx` | pattern-only |
+| `frontend/src/modules/admin/pages/admin/index.tsx` | `frontend/src/modules/settings/pages/SettingsPage.tsx` | adapted |
+| `frontend/src/modules/admin/pages/admin/sections.ts` | `frontend/src/modules/settings/pages/SettingsPage.tsx` | adapted |
+| `frontend/src/modules/admin/pages/user/index.tsx` | `frontend/src/modules/pricing/pages/card/index.tsx` | adapted |
 | `frontend/src/modules/api-keys/api/apiKeysApi.ts` | `frontend/src/modules/api-keys/api/apiKeysApi.ts` | adapted |
 | `frontend/src/modules/api-keys/components/ApiKeyCard.tsx` | `frontend/src/modules/api-keys/components/ApiKeyCard.tsx` | adapted |
 | `frontend/src/modules/api-keys/components/ApiKeyList.tsx` | `frontend/src/modules/api-keys/components/ApiKeyList.tsx` | adapted |
@@ -122,11 +128,11 @@ Generated from the origin header of each file.
 | `frontend/src/modules/beta/components/beta-gate/index.tsx` | `frontend/src/modules/beta/components/beta-gate/index.tsx` | verbatim |
 | `frontend/src/modules/beta/config/betaFeatures.ts` | `frontend/src/modules/beta/config/betaFeatures.ts` | adapted |
 | `frontend/src/modules/beta/hooks/useBetaFeatures.ts` | `frontend/src/modules/beta/hooks/useBetaFeatures.ts` | adapted |
+| `frontend/src/modules/composition-editor/components/editor-account-menu/index.tsx` | `frontend/src/modules/pricing-editor/layouts/editor-layout/editor-account-menu.tsx` | adapted |
 | `frontend/src/modules/composition-editor/components/templates-menu/index.tsx` | `frontend/src/modules/pricing-editor/components/templates-menu/index.tsx` | adapted |
 | `frontend/src/modules/composition-editor/contexts/editorValueContext.ts` | `frontend/src/modules/pricing-editor/contexts/editorValueContext.ts` | adapted |
 | `frontend/src/modules/composition-editor/hooks/useCompositionSnippets.ts` | `frontend/src/modules/pricing-editor/hooks/usePricing2YamlSnippets.ts` | adapted |
 | `frontend/src/modules/composition-editor/hooks/useEditorValue.ts` | `frontend/src/modules/pricing-editor/hooks/useEditorValue.ts` | adapted |
-| `frontend/src/modules/composition-editor/layouts/editor-layout/editor-account-menu.tsx` | `frontend/src/modules/pricing-editor/layouts/editor-layout/editor-account-menu.tsx` | adapted |
 | `frontend/src/modules/composition-editor/layouts/editor-layout/editor-header.tsx` | `frontend/src/modules/pricing-editor/layouts/editor-layout/editor-header.tsx` | adapted |
 | `frontend/src/modules/composition-editor/layouts/editor-layout/index.tsx` | `frontend/src/modules/pricing-editor/layouts/editor-layout/index.tsx` | adapted |
 | `frontend/src/modules/composition-editor/layouts/editor-layout/publish-modal.tsx` | `frontend/src/modules/pricing-editor/layouts/editor-layout/publish-pricing-modal.tsx` | adapted |
@@ -151,6 +157,7 @@ Generated from the origin header of each file.
 | `frontend/src/modules/composition/components/configuration-space-view/configuration-comparison.tsx` | `frontend/src/modules/pricing/components/configuration-space-view/configuration-comparison.tsx` | adapted |
 | `frontend/src/modules/composition/components/configuration-space-view/index.tsx` | `frontend/src/modules/pricing/components/configuration-space-view/index.tsx` | adapted |
 | `frontend/src/modules/composition/components/create-composition-form/index.tsx` | `frontend/src/modules/pricing/components/create-pricing-form/index.tsx` | adapted |
+| `frontend/src/modules/composition/components/follow-button/index.tsx` | `frontend/src/modules/pricing/pages/card/index.tsx` | adapted |
 | `frontend/src/modules/composition/components/fork-composition-modal/index.tsx` | `frontend/src/modules/pricing/components/fork-pricing-modal/index.tsx` | adapted |
 | `frontend/src/modules/composition/components/get-composition-menu/index.tsx` | `frontend/src/modules/pricing/components/get-pricing-menu/index.tsx` | adapted |
 | `frontend/src/modules/composition/components/new-version-menu/index.tsx` | `frontend/src/modules/pricing/components/new-version-menu/index.tsx` | adapted |
@@ -177,8 +184,6 @@ Generated from the origin header of each file.
 | `frontend/src/modules/core/components/chip/index.tsx` | `frontend/src/modules/beta/components/beta-badge/index.tsx` | pattern-only |
 | `frontend/src/modules/core/components/code-editor/index.tsx` | `frontend/src/modules/pricing-editor/pages/pricing2yaml-editor/index.tsx` | pattern-only |
 | `frontend/src/modules/core/components/command-palette/index.tsx` | `frontend/src/modules/core/components/command-palette/index.tsx` | adapted |
-| `frontend/src/modules/core/components/composition-renderer/modes/comparison/Comparison.tsx` | `frontend/src/modules/pricing/components/pricing-version-diff/index.tsx` | pattern-only |
-| `frontend/src/modules/core/components/composition-renderer/modes/comparison/FileDiff.tsx` | `frontend/src/modules/pricing/components/pricing-version-diff/file-diff-view.tsx` | pattern-only |
 | `frontend/src/modules/core/components/composition-renderer/modes/showcase.tsx` | `frontend/src/modules/pricing/pages/card/index.tsx` | pattern-only |
 | `frontend/src/modules/core/components/confirm-modal/index.tsx` | `frontend/src/modules/core/components/confirm-modal/index.tsx` | adapted |
 | `frontend/src/modules/core/components/copy-field/index.tsx` | `frontend/src/modules/core/components/copy-icon/index.tsx` | pattern-only |
@@ -186,6 +191,7 @@ Generated from the origin header of each file.
 | `frontend/src/modules/core/components/data-table/index.tsx` | `frontend/src/modules/organization/pages/organization-detail/components/MembersTab.tsx` | pattern-only |
 | `frontend/src/modules/core/components/date-picker/index.tsx` | `frontend/src/modules/core/components/date-picker/index.tsx` | adapted |
 | `frontend/src/modules/core/components/dual-range-slider/index.tsx` | `frontend/src/modules/pricing/components/dual-range-slider/index.tsx` | adapted |
+| `frontend/src/modules/core/components/editor-chrome/index.tsx` | `frontend/src/modules/pricing-editor/layouts/editor-layout/editor-header.tsx` | adapted |
 | `frontend/src/modules/core/components/empty-state/index.tsx` | `frontend/src/modules/organization/pages/organizations-list/index.tsx` | pattern-only |
 | `frontend/src/modules/core/components/error-boundary/index.tsx` | `frontend/src/modules/core/components/error-boundary/index.tsx` | adapted |
 | `frontend/src/modules/core/components/file-upload-input/index.tsx` | `frontend/src/modules/core/components/file-upload-input/index.tsx` | adapted |
@@ -201,11 +207,15 @@ Generated from the origin header of each file.
 | `frontend/src/modules/core/components/page-header/index.tsx` | `frontend/src/modules/organization/pages/public-organizations-list/index.tsx` | pattern-only |
 | `frontend/src/modules/core/components/pagination/index.tsx` | `frontend/src/modules/pricing/components/pagination/index.tsx` | adapted |
 | `frontend/src/modules/core/components/permanent-link/index.tsx` | `frontend/src/modules/core/components/permanent-link/index.tsx` | verbatim |
+| `frontend/src/modules/core/components/pricing-renderer/index.tsx` | `frontend/src/modules/core/components/pricing-renderer/index.tsx` | adapted |
+| `frontend/src/modules/core/components/pricing-renderer/source.ts` | `frontend/src/modules/core/components/pricing-renderer/source.ts` | adapted |
+| `frontend/src/modules/core/components/pricing-renderer/tokens.ts` | `frontend/src/modules/core/components/pricing-renderer/tokens.ts` | adapted |
 | `frontend/src/modules/core/components/problems-panel/index.tsx` | `frontend/src/modules/pricing-editor/components/problems-panel/index.tsx` | adapted |
 | `frontend/src/modules/core/components/resource-card-shell/index.tsx` | `frontend/src/modules/pricing/pages/card/index.tsx` | adapted |
 | `frontend/src/modules/core/components/resource-list-view/index.tsx` | `frontend/src/modules/core/components/pricing-list-view/index.tsx` | adapted |
 | `frontend/src/modules/core/components/router-link/index.tsx` | `frontend/src/modules/core/components/router-link/index.tsx` | adapted |
 | `frontend/src/modules/core/components/search-input/index.tsx` | `frontend/src/modules/pricing/components/search-input/index.tsx` | adapted |
+| `frontend/src/modules/core/components/select-field/index.tsx` | `frontend/src/modules/organization/pages/create-organization/index.tsx` | pattern-only |
 | `frontend/src/modules/core/components/skeleton-theme-provider/index.tsx` | `frontend/src/modules/core/components/skeleton-theme-provider/index.tsx` | adapted |
 | `frontend/src/modules/core/components/skeleton/index.tsx` | `frontend/src/modules/core/components/skeletons/pricing-card-skeleton.tsx` | pattern-only |
 | `frontend/src/modules/core/components/skeletons/collection-card-skeleton.tsx` | `frontend/src/modules/core/components/skeletons/collection-card-skeleton.tsx` | verbatim |
@@ -241,6 +251,16 @@ Generated from the origin header of each file.
 | `frontend/src/modules/core/utils/sphere/graph.ts` | `frontend/src/modules/pricing/types/graph.ts` | verbatim |
 | `frontend/src/modules/core/utils/sphere/version-graph.ts` | `frontend/src/modules/pricing/utils/version-graph.ts` | verbatim |
 | `frontend/src/modules/core/utils/sphere/version-order.ts` | `frontend/src/modules/pricing/utils/version-order.ts` | verbatim |
+| `frontend/src/modules/engine/api/enginesApi.ts` | `frontend/src/modules/api-keys/api/apiKeysApi.ts` | pattern-only |
+| `frontend/src/modules/engine/components/engine-card/index.tsx` | `frontend/src/modules/pricing/components/pricing-card/index.tsx` | adapted |
+| `frontend/src/modules/engine/components/get-engine-menu/index.tsx` | `frontend/src/modules/pricing/components/get-pricing-menu/index.tsx` | adapted |
+| `frontend/src/modules/engine/components/my-deployments/index.tsx` | `frontend/src/modules/api-keys/components/ApiKeyList.tsx` | adapted |
+| `frontend/src/modules/engine/pages/card/index.tsx` | `frontend/src/modules/pricing/pages/card/index.tsx` | adapted |
+| `frontend/src/modules/engine/pages/list/index.tsx` | `frontend/src/modules/pricing/pages/list/index.tsx` | adapted |
+| `frontend/src/modules/engine/pages/my-engines/index.tsx` | `frontend/src/modules/api-keys/pages/ApiKeysPage.tsx` | adapted |
+| `frontend/src/modules/engine/pages/register/index.tsx` | `frontend/src/modules/pricing/components/create-pricing-form/index.tsx` | adapted |
+| `frontend/src/modules/engine/pages/registration/index.tsx` | `frontend/src/modules/pricing/pages/card/index.tsx` | adapted |
+| `frontend/src/modules/language/pages/language/index.tsx` | `frontend/src/modules/settings/pages/SettingsPage.tsx` | pattern-only |
 | `frontend/src/modules/notification/api/notificationsApi.ts` | `frontend/src/modules/notification/api/notificationsApi.ts` | adapted |
 | `frontend/src/modules/notification/components/notification-bell/index.tsx` | `frontend/src/modules/notification/components/notification-bell/index.tsx` | adapted |
 | `frontend/src/modules/notification/components/notification-dropdown/index.tsx` | `frontend/src/modules/notification/components/notification-dropdown/index.tsx` | adapted |
@@ -259,6 +279,7 @@ Generated from the origin header of each file.
 | `frontend/src/modules/organization/components/org-dnd/tree.ts` | `frontend/src/modules/organization/components/org-dnd/tree.ts` | verbatim |
 | `frontend/src/modules/organization/components/organization-card/index.tsx` | `frontend/src/modules/organization/components/organization-card/index.tsx` | adapted |
 | `frontend/src/modules/organization/components/organization-selector/index.tsx` | `frontend/src/modules/pricing/components/organization-selector/index.tsx` | adapted |
+| `frontend/src/modules/organization/components/role-badge/index.tsx` | `frontend/src/modules/organization/pages/organization-detail/constants.ts` | adapted |
 | `frontend/src/modules/organization/components/role-badge/roles.ts` | `frontend/src/modules/organization/pages/organization-detail/constants.ts` | adapted |
 | `frontend/src/modules/organization/components/user-search-input/index.tsx` | `frontend/src/modules/organization/components/user-search-input/index.tsx` | adapted |
 | `frontend/src/modules/organization/contexts/organizationContext.ts` | `frontend/src/modules/organization/contexts/organizationContext.ts` | adapted |
@@ -277,7 +298,6 @@ Generated from the origin header of each file.
 | `frontend/src/modules/organization/pages/organization-detail/components/OrgTreeNode.tsx` | `frontend/src/modules/organization/pages/organization-detail/components/OrgTreeNode.tsx` | adapted |
 | `frontend/src/modules/organization/pages/organization-detail/components/OrganizationExitButton.tsx` | `frontend/src/modules/organization/pages/organization-detail/components/OrganizationExitButton.tsx` | adapted |
 | `frontend/src/modules/organization/pages/organization-detail/components/OverviewTab.tsx` | `frontend/src/modules/organization/pages/organization-detail/components/OverviewTab.tsx` | adapted |
-| `frontend/src/modules/organization/pages/organization-detail/components/ResourceTab.tsx` | `frontend/src/modules/organization/pages/organization-detail/components/PricingsTab.tsx` | pattern-only |
 | `frontend/src/modules/organization/pages/organization-detail/components/ShareOrgMenu.tsx` | `frontend/src/modules/organization/pages/organization-detail/components/ShareOrgMenu.tsx` | adapted |
 | `frontend/src/modules/organization/pages/organization-detail/constants.ts` | `frontend/src/modules/organization/pages/organization-detail/constants.ts` | adapted |
 | `frontend/src/modules/organization/pages/organization-detail/hooks.ts` | `frontend/src/modules/organization/pages/organization-detail/hooks.ts` | verbatim |
@@ -292,16 +312,70 @@ Generated from the origin header of each file.
 | `frontend/src/modules/presentation/layouts/authenticated-layout/index.tsx` | `frontend/src/modules/presentation/layouts/authenticated-layout/index.tsx` | adapted |
 | `frontend/src/modules/presentation/layouts/authenticated-layout/mobile-nav.tsx` | `frontend/src/modules/presentation/layouts/authenticated-layout/mobile-nav.tsx` | adapted |
 | `frontend/src/modules/presentation/layouts/authenticated-layout/user-menu.tsx` | `frontend/src/modules/presentation/layouts/authenticated-layout/user-menu.tsx` | adapted |
+| `frontend/src/modules/presentation/layouts/components/contribution-card/index.tsx` | `frontend/src/modules/presentation/layouts/components/contribution-card/index.tsx` | adapted |
+| `frontend/src/modules/presentation/layouts/components/contribution-details/index.tsx` | `frontend/src/modules/presentation/layouts/components/contribution-details/index.tsx` | adapted |
+| `frontend/src/modules/presentation/layouts/components/team-member-card/index.tsx` | `frontend/src/modules/presentation/layouts/components/team-member-card/index.tsx` | adapted |
 | `frontend/src/modules/presentation/layouts/public-layout/index.tsx` | `frontend/src/modules/presentation/layouts/public-layout/index.tsx` | adapted |
 | `frontend/src/modules/presentation/layouts/router/header-routes.ts` | `frontend/src/modules/presentation/layouts/router/header-routes.ts` | adapted |
+| `frontend/src/modules/presentation/pages/changelog/components/changelog.tsx` | `frontend/src/modules/presentation/pages/changelog/components/changelog.tsx` | adapted |
+| `frontend/src/modules/presentation/pages/changelog/components/release-changes.tsx` | `frontend/src/modules/presentation/pages/changelog/components/release-changes.tsx` | adapted |
+| `frontend/src/modules/presentation/pages/changelog/components/release-content.tsx` | `frontend/src/modules/presentation/pages/changelog/components/release-content.tsx` | adapted |
+| `frontend/src/modules/presentation/pages/changelog/components/release-version.tsx` | `frontend/src/modules/presentation/pages/changelog/components/release-version.tsx` | adapted |
+| `frontend/src/modules/presentation/pages/changelog/index.tsx` | `frontend/src/modules/presentation/pages/changelog/index.tsx` | adapted |
+| `frontend/src/modules/presentation/pages/changelog/types.ts` | `frontend/src/modules/presentation/pages/changelog/types.ts` | adapted |
+| `frontend/src/modules/presentation/pages/contributions/index.tsx` | `frontend/src/modules/presentation/pages/contributions/index.tsx` | adapted |
 | `frontend/src/modules/presentation/pages/dashboard/index.tsx` | `frontend/src/modules/presentation/pages/dashboard/index.tsx` | adapted |
 | `frontend/src/modules/presentation/pages/home/components/background-orbs.tsx` | `frontend/src/modules/presentation/pages/home/components/background-orbs.tsx` | adapted |
 | `frontend/src/modules/presentation/pages/home/components/call-to-action.tsx` | `frontend/src/modules/presentation/pages/home/components/call-to-action.tsx` | adapted |
 | `frontend/src/modules/presentation/pages/home/components/floating-morph-header.tsx` | `frontend/src/modules/presentation/pages/home/components/floating-morph-header.tsx` | adapted |
 | `frontend/src/modules/presentation/pages/home/components/island-button.tsx` | `frontend/src/modules/presentation/pages/home/components/island-button.tsx` | adapted |
 | `frontend/src/modules/presentation/pages/home/components/reveal-block.tsx` | `frontend/src/modules/presentation/pages/home/components/reveal-block.tsx` | adapted |
+| `frontend/src/modules/presentation/pages/home/index.tsx` | `frontend/src/modules/presentation/pages/home/index.tsx` | adapted |
+| `frontend/src/modules/presentation/pages/pricing/index.tsx` | `frontend/src/modules/presentation/pages/pricing/index.tsx` | adapted |
+| `frontend/src/modules/presentation/pages/research/components/timeline.tsx` | `frontend/src/modules/presentation/pages/research/components/timeline.tsx` | adapted |
+| `frontend/src/modules/presentation/pages/research/index.tsx` | `frontend/src/modules/presentation/pages/research/index.tsx` | adapted |
 | `frontend/src/modules/presentation/pages/root/index.tsx` | `frontend/src/routes/router.tsx` | pattern-only |
+| `frontend/src/modules/presentation/pages/team/index.tsx` | `frontend/src/modules/presentation/pages/team/index.tsx` | adapted |
+| `frontend/src/modules/problem-editor/components/code-pane/index.tsx` | `frontend/src/modules/pricing-editor/pages/pricing2yaml-editor/index.tsx` | pattern-only |
+| `frontend/src/modules/problem-editor/components/open-modal/index.tsx` | `frontend/src/modules/pricing-editor/layouts/editor-layout/publish-pricing-modal.tsx` | pattern-only |
+| `frontend/src/modules/problem-editor/components/save-modal/index.tsx` | `frontend/src/modules/pricing-editor/layouts/editor-layout/publish-pricing-modal.tsx` | adapted |
+| `frontend/src/modules/problem-editor/contexts/problemEditorContext.ts` | `frontend/src/modules/pricing-editor/contexts/editorValueContext.ts` | adapted |
+| `frontend/src/modules/problem-editor/hooks/useProblemEditorValue.ts` | `frontend/src/modules/pricing-editor/hooks/useEditorValue.ts` | adapted |
+| `frontend/src/modules/problem-editor/layouts/editor-layout/editor-header.tsx` | `frontend/src/modules/pricing-editor/layouts/editor-layout/editor-header.tsx` | adapted |
+| `frontend/src/modules/problem-editor/layouts/editor-layout/index.tsx` | `frontend/src/modules/pricing-editor/layouts/editor-layout/index.tsx` | adapted |
+| `frontend/src/modules/problem-editor/pages/problem-editor/index.tsx` | `frontend/src/modules/pricing-editor/pages/pricing2yaml-editor/index.tsx` | adapted |
+| `frontend/src/modules/problem-editor/services/export.ts` | `frontend/src/modules/pricing-editor/services/export.service.ts` | adapted |
+| `frontend/src/modules/problem/api/problemsApi.ts` | `frontend/src/modules/pricing/api/pricingsApi.ts` | pattern-only |
+| `frontend/src/modules/problem/components/candidates-explorer/index.tsx` | `frontend/src/modules/pricing/components/configuration-space-view/index.tsx` | adapted |
+| `frontend/src/modules/problem/components/compositions-tab/index.tsx` | `frontend/src/modules/organization/pages/organization-detail/components/PricingsTab.tsx` | pattern-only |
+| `frontend/src/modules/problem/components/delete-problem-modal/index.tsx` | `frontend/src/modules/pricing/components/pricing-settings-tab/index.tsx` | pattern-only |
+| `frontend/src/modules/problem/components/get-problem-menu/index.tsx` | `frontend/src/modules/pricing/components/get-pricing-menu/index.tsx` | adapted |
+| `frontend/src/modules/problem/components/new-version-menu/index.tsx` | `frontend/src/modules/pricing/components/new-version-menu/index.tsx` | adapted |
+| `frontend/src/modules/problem/components/overview-tab/index.tsx` | `frontend/src/modules/pricing/pages/card/index.tsx` | pattern-only |
+| `frontend/src/modules/problem/components/problem-card/index.tsx` | `frontend/src/modules/pricing/components/pricing-card/index.tsx` | adapted |
+| `frontend/src/modules/problem/components/problem-import-modal/index.tsx` | `frontend/src/modules/pricing/components/pricing-import-modal/index.tsx` | adapted |
+| `frontend/src/modules/problem/components/problems-tab/index.tsx` | `frontend/src/modules/organization/pages/organization-detail/components/PricingsTab.tsx` | adapted |
+| `frontend/src/modules/problem/components/runs-tab/index.tsx` | `frontend/src/modules/pricing/pages/card/index.tsx` | pattern-only |
+| `frontend/src/modules/problem/components/settings-tab/index.tsx` | `frontend/src/modules/pricing/components/pricing-settings-tab/index.tsx` | adapted |
+| `frontend/src/modules/problem/components/source-tab/index.tsx` | `frontend/src/modules/pricing/components/yaml-source-panel/index.tsx` | pattern-only |
+| `frontend/src/modules/problem/components/versions-tab/index.tsx` | `frontend/src/modules/pricing/components/pricing-versions-tab/index.tsx` | adapted |
+| `frontend/src/modules/problem/components/versions-tab/version-compare.tsx` | `frontend/src/modules/pricing/components/pricing-version-diff/index.tsx` | adapted |
+| `frontend/src/modules/problem/pages/card/index.tsx` | `frontend/src/modules/pricing/pages/card/index.tsx` | adapted |
+| `frontend/src/modules/run/api/runsApi.ts` | `frontend/src/modules/pricing/api/pricingsApi.ts` | pattern-only |
+| `frontend/src/modules/run/components/derive/DeriveBatch.tsx` | `frontend/src/modules/pricing/components/fork-pricing-modal/index.tsx` | pattern-only |
+| `frontend/src/modules/run/components/derive/DeriveCompositionDialog.tsx` | `frontend/src/modules/pricing/components/fork-pricing-modal/index.tsx` | pattern-only |
+| `frontend/src/modules/run/components/get-run-menu/index.tsx` | `frontend/src/modules/pricing/components/get-pricing-menu/index.tsx` | adapted |
+| `frontend/src/modules/run/components/launch-steps/index.tsx` | `frontend/src/modules/pricing/components/create-pricing-form/index.tsx` | pattern-only |
+| `frontend/src/modules/run/components/preset-picker/index.tsx` | `frontend/src/modules/pricing/components/create-pricing-form/index.tsx` | pattern-only |
+| `frontend/src/modules/run/components/run-facts/index.tsx` | `frontend/src/modules/pricing/pages/card/index.tsx` | pattern-only |
+| `frontend/src/modules/run/components/run-outcome/index.tsx` | `frontend/src/modules/pricing/pages/card/index.tsx` | pattern-only |
+| `frontend/src/modules/run/components/run-row/index.tsx` | `frontend/src/modules/organization/pages/organization-detail/components/MembersTab.tsx` | pattern-only |
+| `frontend/src/modules/run/components/run-status/index.tsx` | `frontend/src/modules/organization/pages/organization-detail/constants.ts` | pattern-only |
+| `frontend/src/modules/run/components/runs-tab/index.tsx` | `frontend/src/modules/organization/pages/organization-detail/components/PricingsTab.tsx` | adapted |
+| `frontend/src/modules/run/pages/card/index.tsx` | `frontend/src/modules/pricing/pages/card/index.tsx` | adapted |
+| `frontend/src/modules/run/pages/create/index.tsx` | `frontend/src/modules/pricing/pages/create/index.tsx` | adapted |
 | `frontend/src/modules/settings/api/userSettingsApi.ts` | `frontend/src/modules/settings/api/userSettingsApi.ts` | adapted |
+| `frontend/src/modules/settings/components/AccountSection.tsx` | `frontend/src/modules/settings/components/AccountSection.tsx` | adapted |
 | `frontend/src/modules/settings/components/AppearanceSection.tsx` | `frontend/src/modules/settings/components/NotificationsSection.tsx` | pattern-only |
 | `frontend/src/modules/settings/components/BetaFeaturesSection.tsx` | `frontend/src/modules/settings/components/BetaFeaturesSection.tsx` | adapted |
 | `frontend/src/modules/settings/components/DangerZoneSection.tsx` | `frontend/src/modules/settings/components/DangerZoneSection.tsx` | adapted |
@@ -313,7 +387,23 @@ Generated from the origin header of each file.
 | `frontend/src/modules/settings/pages/settings-page/index.tsx` | `frontend/src/modules/settings/pages/SettingsPage.tsx` | adapted |
 | `frontend/src/modules/settings/pages/settings-page/sections.ts` | `frontend/src/modules/settings/pages/SettingsPage.tsx` | adapted (extracted) |
 | `frontend/src/modules/settings/utils/useSavedFlash.ts` | `frontend/src/modules/settings/components/AccountSection.tsx` | pattern-only |
-| `frontend/src/pages/Studies/ParetoFront.tsx` | `frontend/src/modules/pricing/components/configuration-space-view/index.tsx` | pattern-only |
+| `frontend/src/modules/study/api/studiesApi.ts` | `frontend/src/modules/profile/api/pricingCollectionsApi.ts` | pattern-only |
+| `frontend/src/modules/study/components/builder-fields/index.tsx` | `frontend/src/modules/profile/components/pricings-selector/index.tsx` | adapted |
+| `frontend/src/modules/study/components/cell-sheet/index.tsx` | `frontend/src/modules/pricing/pages/card/index.tsx` | pattern-only |
+| `frontend/src/modules/study/components/create-study-form/index.tsx` | `frontend/src/modules/profile/components/create-collection-form/index.tsx` | adapted |
+| `frontend/src/modules/study/components/front-comparison/index.tsx` | `frontend/src/modules/pricing/components/configuration-space-view/configuration-comparison.tsx` | pattern-only |
+| `frontend/src/modules/study/components/get-study-menu/index.tsx` | `frontend/src/modules/pricing/components/get-pricing-menu/index.tsx` | adapted |
+| `frontend/src/modules/study/components/pareto-front/index.tsx` | `frontend/src/modules/pricing/components/configuration-space-view/index.tsx` | adapted |
+| `frontend/src/modules/study/components/results/charts.tsx` | `frontend/src/modules/pricing/components/pricing-analytics-tab/index.tsx` | adapted |
+| `frontend/src/modules/study/components/results/index.tsx` | `frontend/src/modules/pricing/pages/collection-card/index.tsx` | adapted |
+| `frontend/src/modules/study/components/selectable-version-card/index.tsx` | `frontend/src/modules/profile/components/selectable-pricing-card/index.tsx` | adapted |
+| `frontend/src/modules/study/components/setup-tab/index.tsx` | `frontend/src/modules/pricing/pages/collection-card/index.tsx` | pattern-only |
+| `frontend/src/modules/study/components/studies-tab/index.tsx` | `frontend/src/modules/organization/pages/organization-detail/components/CollectionsTab.tsx` | adapted |
+| `frontend/src/modules/study/components/study-card/index.tsx` | `frontend/src/modules/pricing/components/collection-card/index.tsx` | adapted |
+| `frontend/src/modules/study/components/study-run/index.tsx` | `frontend/src/modules/pricing/pages/collection-card/index.tsx` | pattern-only |
+| `frontend/src/modules/study/components/study-settings/index.tsx` | `frontend/src/modules/pricing/components/collection-settings/index.tsx` | adapted |
+| `frontend/src/modules/study/pages/card/index.tsx` | `frontend/src/modules/pricing/pages/collection-card/index.tsx` | adapted |
+| `frontend/src/modules/study/pages/create/index.tsx` | `frontend/src/modules/profile/pages/create-collection/index.tsx` | adapted |
 | `frontend/src/routes/app-layout.tsx` | `frontend/src/routes/app-layout.tsx` | adapted |
 | `frontend/src/routes/router.tsx` | `frontend/src/routes/router.tsx` | pattern-only |
 | `frontend/src/styles/tailwind.css` | `frontend/src/styles/tailwind.css` | adapted |

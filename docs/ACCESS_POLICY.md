@@ -209,7 +209,7 @@ checks the latest text once. Any other refusal is shown, not retried.
 | `POST /v1/compositions/validate` | `read` (60 / 300) | 600 ms after the last keystroke in the composition editor; 800 ms on the anonymous Language page |
 | `POST …/compositions/{composition}/versions/check` | `evaluate` (30 / 150) | 1500 ms after the last keystroke, only when the text has a top-level `problem:`, its last lint was valid, and the reader is a member |
 | `POST …/compositions/{composition}/evaluate` | `evaluate` | the configurator (Analysis), 800 ms after the last change of a task's candidate |
-| `POST /v1/bim/validate?include=facts` | `compile` (10 / 50) | the BIM problem editor (F2b), 2000 ms after the last edit, only when every JSON file of the package parses; the public Workbench (`/workbench`) once per press of Validate package, never live |
+| `POST /v1/bim/validate?include=facts` | `compile` (10 / 50) | the BIM problem editor (`/problem-editor`, a visitor's included), 2000 ms after the last edit, only when every JSON file of the package parses, and on Check now |
 
 Parsing for the visual form and the canonical form (`/parse`, `/serialise`) runs through the same scheduler, at
 600 ms in the editor (only while the visual form is shown) and 800 ms on Language (only while the canonical form is

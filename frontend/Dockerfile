@@ -1,4 +1,5 @@
-FROM node:20-slim AS base
+# The stages follow SPHERE's release image (frontend/docker/release/Dockerfile at 73779a8a): node 22 builds, nginx serves.
+FROM node:22-slim AS base
 
 ARG HTTP_PROXY
 ARG HTTPS_PROXY
