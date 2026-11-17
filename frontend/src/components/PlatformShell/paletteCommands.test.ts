@@ -18,7 +18,7 @@ describe('buildCommands', () => {
     expect(commands.length).toBeGreaterThan(19);
     expect(commands.filter(command => command.label === 'Analysis')).toEqual([]);
     expect(commands.filter(command => /^\/app\/analysis([/?#]|$)/.test(command.href))).toEqual([]);
-    expect(commands.map(command => command.href)).toContain('/app/isa-demo/studies');
+    expect(commands.map(command => command.href)).toContain('/orgs/isa-demo/studies');
   });
 
   it('offers no Reports, Publications, Published or Explore command', () => {
@@ -160,7 +160,7 @@ describe('buildCommands', () => {
     expect(created(inOrganizationToo)).toEqual([
       ['New problem', '/problem-editor?org=isa-demo'],
       ['New run', '/runs/new?org=isa-demo'],
-      ['New study', '/app/isa-demo/studies/new'],
+      ['New study', '/studies/new?org=isa-demo'],
     ]);
     expect(created(inOrganization)).toEqual(created(inOrganizationToo));
     expect(
@@ -168,7 +168,7 @@ describe('buildCommands', () => {
     ).toEqual(['/orgs/isa-demo/runs']);
     expect(
       inOrganization.filter(command => command.label === 'Studies').map(command => command.href)
-    ).toEqual(['/app/isa-demo/studies']);
+    ).toEqual(['/orgs/isa-demo/studies']);
     expect(created(without)).toEqual([]);
     expect(
       inOrganizationToo.filter(

@@ -79,7 +79,7 @@ async function signIn(page: Page, persona: keyof typeof personas) {
 
 async function openWorkspace(page: Page) {
   // A screen whose data is not mocked (the API answers 404) keeps the page behind the header independent of any API data.
-  await page.goto('/app/isa-demo/studies');
+  await page.goto('/studies/new');
   await expect(page.locator('header.app-header')).toBeVisible();
   await expect(page.locator('header.app-header button[aria-label="Account menu"]')).toBeAttached();
   await page.evaluate(() => document.fonts.ready);

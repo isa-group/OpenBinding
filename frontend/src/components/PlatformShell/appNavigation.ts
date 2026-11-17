@@ -4,14 +4,9 @@ import {
   compositionsPath,
   newCompositionPath,
 } from '../../routes/paths/compositions';
-import {
-  organizationPath,
-  PROBLEMS_SEGMENT,
-  problemEditorPath,
-  problemsPath,
-} from '../../routes/paths/problems';
+import { PROBLEMS_SEGMENT, problemEditorPath, problemsPath } from '../../routes/paths/problems';
 import { RUNS_SEGMENT, launchPath, runsPath } from '../../routes/paths/runs';
-import { STUDIES_SEGMENT } from '../../routes/paths/studies';
+import { STUDIES_SEGMENT, newStudyPath, studiesPath } from '../../routes/paths/studies';
 
 export interface NavLinkItem {
   to: string;
@@ -52,17 +47,6 @@ export const accountLinks: readonly NavLinkItem[] = [
   { to: '/me/settings?section=appearance', label: 'Appearance' },
 ];
 
-/** An entry of the organization (the one the address names, else the first), disabled with `Needs an organization` when there is none. */
-function inOrganization(
-  label: string,
-  organization: Organization | undefined,
-  suffix: string
-): MenuEntry {
-  return organization
-    ? { label, to: `${organizationPath(organization.slug)}${suffix}` }
-    : { label, hint: NEEDS_ORGANIZATION };
-}
-
 /** The entries of the header that lead into the organization, in order: its compositions, problems, runs and studies. */
 export function organizationEntries(
   organization?: Organization
@@ -86,7 +70,12 @@ export function organizationEntries(
         ? { label: 'Runs', to: runsPath(organization.slug) }
         : { label: 'Runs', hint: NEEDS_ORGANIZATION }),
     },
-    { id: 'studies', ...inOrganization('Studies', organization, `/${STUDIES_SEGMENT}`) },
+    {
+      id: 'studies',
+      ...(organization
+        ? { label: 'Studies', to: studiesPath(organization.slug) }
+        : { label: 'Studies', hint: NEEDS_ORGANIZATION }),
+    },
   ];
 }
 
@@ -99,7 +88,9 @@ export function createItems(organization?: Organization): MenuEntry[] {
     organization
       ? { label: 'Problem', to: problemEditorPath(organization.slug) }
       : { label: 'Problem', hint: NEEDS_ORGANIZATION },
-    inOrganization('Study', organization, `/${STUDIES_SEGMENT}/new`),
+    organization
+      ? { label: 'Study', to: newStudyPath(organization.slug) }
+      : { label: 'Study', hint: NEEDS_ORGANIZATION },
     organization
       ? { label: 'Run', to: launchPath(organization.slug) }
       : { label: 'Run', hint: NEEDS_ORGANIZATION },

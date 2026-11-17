@@ -51,9 +51,9 @@ describe('the vocabulary of every source file', () => {
   it('reads the application sources, the engine-registration screens among them', () => {
     const paths = Object.keys(scanned);
     expect(paths.length).toBeGreaterThan(200);
-    // The old pages move into SPHERE's modules domain by domain, so both are read.
+    // The old pages move into SPHERE's modules domain by domain, so both are read while some remain.
     expect(paths.filter(path => path.startsWith('/src/modules/')).length).toBeGreaterThan(200);
-    expect(paths.filter(path => path.startsWith('/src/pages/')).length).toBeGreaterThan(50);
+    expect(paths.filter(path => path.startsWith('/src/pages/')).length).toBeGreaterThan(0);
     expect(paths.filter(path => ENGINE_REGISTRATION.test(path)).length).toBeGreaterThanOrEqual(4);
     expect(
       paths.some(

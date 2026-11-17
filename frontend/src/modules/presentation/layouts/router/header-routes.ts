@@ -5,6 +5,8 @@
 // later block of the convergence repoints its entries (the editors, the explore pages, the about pages). The New menu and the
 // user menu live here too, so the header, the mobile drawer and the public header share one list.
 
+import { newStudyPath } from '../../../../routes/paths/studies';
+
 export interface HeaderRoute {
   name: string;
   disabled: boolean;
@@ -49,7 +51,7 @@ export function newEntries(organization: string | undefined): MenuEntry[] {
         { label: 'Composition', to: `/compositions/new?org=${encodeURIComponent(organization)}` },
         { label: 'Problem', to: `/problem-editor?org=${encodeURIComponent(organization)}` },
         { label: 'Run', to: `/runs/new?org=${encodeURIComponent(organization)}` },
-        { label: 'Study', to: `/app/${organization}/studies/new` },
+        { label: 'Study', to: newStudyPath(organization) },
       ]
     : [];
   return [

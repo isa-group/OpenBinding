@@ -263,7 +263,8 @@ function Section({ section }: { section: DiffSection }) {
   );
 }
 
-function DiffResult({
+/** The structured comparison of two documents: the summary tiles, the general changes and the sections. */
+export function DiffResult({
   diff,
   filter,
   onFilterChange,

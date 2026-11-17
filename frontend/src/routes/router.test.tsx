@@ -48,13 +48,15 @@ const exampleOf = (path: string) =>
 // Screens picked by their shape, so the tests name no screen of any area.
 const fixedApp = routeDefinitions.find(
   definition =>
-    definition.layout === 'app' &&
+    (definition.layout === 'app' || definition.layout === 'protected') &&
     !definition.requireAdmin &&
     definition.path !== '/app' &&
     !definition.path.includes(':')
 );
 const inOrganization = routeDefinitions.find(
-  definition => definition.layout === 'app' && definition.path.includes(':org')
+  definition =>
+    (definition.layout === 'app' || definition.layout === 'protected') &&
+    definition.path.includes(':org')
 );
 const adminOnly = routeDefinitions.find(
   definition => definition.requireAdmin && !definition.path.includes(':')

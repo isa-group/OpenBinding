@@ -36,9 +36,10 @@ const members = [
   { id: 'm1', organization_id: 'org-acme', user_id: 'user-1', username: 'lucia', email: 'lucia@example.org', role: 'OWNER', created_at: NOW },
 ];
 
-// The compositions, the problems, the runs and the studies belong to the organization: its Compositions, Problems and Runs
-// tabs (`/orgs/acme/compositions`, `/orgs/acme/problems`, `/orgs/acme/runs`, SPHERE's lists), each composition and problem on
-// its card page (`/compositions/acme/<slug>`, `/problems/acme/<slug>`), and the old workspace's `/app/acme/studies`.
+// The compositions, the problems, the runs and the studies belong to the organization: its Compositions, Problems, Runs and
+// Studies tabs (`/orgs/acme/compositions`, `/orgs/acme/problems`, `/orgs/acme/runs`, `/orgs/acme/studies`, SPHERE's lists),
+// and each composition, problem and study on its card page (`/compositions/acme/<slug>`, `/problems/acme/<slug>`,
+// `/studies/acme/<slug>`).
 export const COMPOSITIONS = '/orgs/acme/compositions';
 export const LAB_FLOW_PAGE = '/compositions/acme/lab-flow';
 export const PROBLEMS_SEGMENT = 'problems';

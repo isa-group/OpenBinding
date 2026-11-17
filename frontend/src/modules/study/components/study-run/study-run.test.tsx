@@ -1,0 +1,347 @@
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { QuotaError } from '../../../../api/auth';
+import { HttpError } from '../../../../api/client';
+import type { StudyCell } from '../../api/studiesApi';
+import { renderStudyScreen } from '../../../../test/studyPage';
+import {
+  CHECKOUT,
+  EVOLUTIONARY,
+  REVISION_1,
+  REVISION_2,
+  RUN_ID,
+  cellFixture,
+  cellsFixture,
+  runFixture,
+  studyFixture,
+} from '../../../../test/fixtures/studies';
+import StudyCardPage from '../../pages/card';
+
+const platform = vi.hoisted(() => ({
+  get: vi.fn(),
+  runs: vi.fn(),
+  run: vi.fn(),
+  cells: vi.fn(),
+  cancel: vi.fn(),
+  retryCell: vi.fn(),
+}));
+
+const problems = vi.hoisted(() => ({
+  list: vi.fn(),
+  revisions: vi.fn(),
+  compilation: vi.fn(),
+  ir: vi.fn(),
+}));
+vi.mock('../../api/studiesApi', async () => ({
+  ...(await vi.importActual<typeof import('../../api/studiesApi')>('../../api/studiesApi')),
+  studiesApi: platform,
+}));
+vi.mock('../../../../api/problems', () => ({ problemsApi: problems }));
+
+/** The one-run read answers from what the study's run list answers. */
+function oneRunFromList() {
+  platform.run.mockImplementation(async (_org: string, _study: string, id: string) => {
+    const runs = (await platform.runs()) as Array<{ id: string }>;
+    const found = runs.find(run => run.id === id);
+    if (!found)
+      throw Object.assign(new HttpError(404, 'Study run not found.'), { code: 'not_found' });
+    return found;
+  });
+}
+
+const STUDY = '/studies/isa-demo/engines-vs-seeds';
+const RESULTS = `${STUDY}/results?run=${RUN_ID}`;
+const PROGRESS = `${STUDY}/progress?run=${RUN_ID}`;
+
+const refusal = (status: number, code: string, message = 'refused') =>
+  Object.assign(new HttpError(status, message), { code });
+const running = (cells: StudyCell[]) =>
+  cells.map(cell => (cell.state === 'cancelled' ? { ...cell, state: 'running' as const } : cell));
+
+/** The Progress tab of the study page, on the study run named by `?run=`. */
+function renderRun(options: { slug?: string; run?: string } = {}) {
+  return renderStudyScreen(<StudyCardPage />, {
+    url: `/studies/${options.slug ?? 'isa-demo'}/engines-vs-seeds/progress?run=${options.run ?? RUN_ID}`,
+  });
+}
+
+describe('One run of a study, in the Progress tab', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    platform.get.mockResolvedValue({ value: studyFixture(), etag: null });
+    oneRunFromList();
+    platform.runs.mockResolvedValue([runFixture()]);
+    platform.cells.mockResolvedValue(cellsFixture());
+    problems.list.mockResolvedValue({ problems: [CHECKOUT], total: 1, limit: 200, offset: 0 });
+    problems.revisions.mockResolvedValue([REVISION_1, REVISION_2]);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('shows the run, how its cells ended and the matrix of them', async () => {
+    renderRun();
+
+    expect(await screen.findByRole('heading', { level: 2, name: 'Run #1' })).toBeInTheDocument();
+    expect(screen.getAllByText('Partial').length).toBeGreaterThan(0);
+    expect(
+      screen.getByText(/Sep 20, 2026, 09:00 UTC → Sep 20, 2026, 09:20 UTC/)
+    ).toBeInTheDocument();
+    const progress = screen.getByRole('region', { name: 'Progress of the run' });
+    expect(
+      within(progress).getByRole('img', { name: '6 completed, 1 failed, 1 cancelled of 8 cells' })
+    ).toBeInTheDocument();
+    expect(within(progress).getByText('6 of 6 completed are feasible')).toBeInTheDocument();
+    expect(within(progress).getByText('Finished · not live')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Compare results' })).toHaveAttribute('href', RESULTS);
+    expect(screen.getByRole('button', { name: 'Copy matrix digest' })).toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/sha256-|[0-9a-f]{12}|matrix [0-9a-f]/);
+
+    expect(
+      screen.getByRole('heading', { name: 'Cells · cost (lower is better)' })
+    ).toBeInTheDocument();
+    const heat = screen.getByRole('region', { name: 'Cells of the run as a matrix' });
+    expect(within(heat).getAllByRole('link')).toHaveLength(8);
+    const best = within(heat).getByRole('link', {
+      name: 'Cell 4, Checkout flow r2, evolutionary · seed 1: completed, Cost 0.104',
+    });
+    expect(best).toHaveAttribute('href', `${PROGRESS}&cell=00000000-0000-4000-8000-000000000204`);
+    expect(best).toHaveAttribute('data-heat', '0');
+    expect(
+      within(heat).getByRole('link', { name: /Cell 2, .* completed, Cost 0\.121/ })
+    ).toHaveAttribute('data-heat', '3');
+    expect(within(heat).getByRole('link', { name: /Cell 1, .* failed$/ })).toHaveTextContent(
+      'engine_unreachable'
+    );
+    expect(within(heat).getByRole('link', { name: /Cell 5, .* cancelled$/ })).toHaveAttribute(
+      'data-heat',
+      'cancelled'
+    );
+    expect(screen.getByRole('link', { name: 'ISA Demo Group' })).toHaveAttribute(
+      'href',
+      '/orgs/isa-demo/studies'
+    );
+  });
+
+  it('colours the matrix by another measure on request', async () => {
+    renderRun();
+
+    fireEvent.change(await screen.findByRole('combobox', { name: 'Colour by' }), {
+      target: { value: 'runtime' },
+    });
+    expect(
+      screen.getByRole('heading', { name: 'Cells · time taken (lower is better)' })
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByRole('region', { name: 'Cells of the run as a matrix' })).getByRole(
+        'link',
+        { name: /Cell 2, .* completed, Time taken 58/ }
+      )
+    ).toHaveAttribute('data-heat', '0');
+  });
+
+  it('lists every cell and narrows the list by engine and by state', async () => {
+    renderRun();
+
+    const table = await screen.findByRole('region', { name: 'Cells of the run' });
+    expect(within(table).getAllByRole('row')).toHaveLength(9);
+    fireEvent.click(screen.getByRole('button', { name: 'Failed (1)' }));
+    expect(within(table).getAllByRole('row')).toHaveLength(2);
+    expect(within(table).getByText('Failed')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'All (8)' }));
+    fireEvent.click(screen.getByRole('button', { name: 'random-search' }));
+    expect(within(table).getAllByRole('row')).toHaveLength(5);
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelled (1)' }));
+    expect(await screen.findByText('No cells match these filters')).toBeInTheDocument();
+  });
+
+  it('retries one cell that did not finish', async () => {
+    platform.retryCell.mockResolvedValue({ id: 'x', state: 'queued', fingerprint: 'f' });
+    renderRun();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Retry cell 1' }));
+
+    expect(await screen.findByText('Cell 1 queued again.')).toBeInTheDocument();
+    expect(platform.retryCell).toHaveBeenCalledWith(
+      'isa-demo',
+      'engines-vs-seeds',
+      RUN_ID,
+      '00000000-0000-4000-8000-000000000201'
+    );
+  });
+
+  it('retries every failed or cancelled cell, and says when it stopped', async () => {
+    platform.retryCell
+      .mockResolvedValueOnce({ id: 'x', state: 'queued', fingerprint: 'f' })
+      .mockRejectedValueOnce(refusal(429, 'concurrency_limit_exceeded', 'busy'));
+    renderRun();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Retry 2 unfinished cells' }));
+
+    expect(
+      await screen.findByText(/All your run slots are busy \(429 · concurrency_limit_exceeded\)/)
+    ).toBeInTheDocument();
+    expect(screen.getByText(/1 cell queued again before this stopped\./)).toBeInTheDocument();
+    expect(platform.retryCell).toHaveBeenCalledTimes(2);
+  });
+
+  it('says when a cell can no longer be retried', async () => {
+    platform.retryCell.mockRejectedValue(refusal(409, 'cell_not_retryable'));
+    renderRun();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Retry cell 5' }));
+
+    expect(
+      await screen.findByText('This cell can’t be retried (409 · cell_not_retryable)')
+    ).toBeInTheDocument();
+  });
+
+  it('follows a run that is still going and stops when asked to', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    platform.runs.mockResolvedValue([runFixture({ state: 'running', finished_at: null })]);
+    platform.cells.mockResolvedValue(running(cellsFixture()));
+    renderRun();
+
+    expect(await screen.findByText('Live · every 3 s')).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: 'Keep updating' })).toBeChecked();
+    const before = platform.cells.mock.calls.length;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3100);
+    });
+    await waitFor(() => expect(platform.cells.mock.calls.length).toBeGreaterThan(before));
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Keep updating' }));
+    expect(screen.queryByText('Live · every 3 s')).not.toBeInTheDocument();
+    const stopped = platform.cells.mock.calls.length;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(9000);
+    });
+    expect(platform.cells.mock.calls.length).toBe(stopped);
+  });
+
+  it('cancels a run that is going, and offers nothing to cancel once it ended', async () => {
+    platform.runs.mockResolvedValue([runFixture({ state: 'running', finished_at: null })]);
+    platform.cells.mockResolvedValue(running(cellsFixture()));
+    platform.cancel.mockResolvedValue(runFixture({ state: 'cancelled' }));
+    const view = renderRun();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Cancel run' }));
+    expect(
+      await screen.findByText(
+        'Run cancelled. Cells that hadn’t finished are cancelled; you can retry them.'
+      )
+    ).toBeInTheDocument();
+    expect(platform.cancel).toHaveBeenCalledWith('isa-demo', 'engines-vs-seeds', RUN_ID);
+    view.unmount();
+
+    platform.runs.mockResolvedValue([runFixture()]);
+    renderRun();
+    await screen.findByRole('heading', { level: 2, name: 'Run #1' });
+    expect(screen.queryByRole('button', { name: 'Cancel run' })).not.toBeInTheDocument();
+  });
+
+  it('says why a cancel was refused', async () => {
+    platform.runs.mockResolvedValue([runFixture({ state: 'running', finished_at: null })]);
+    platform.cells.mockResolvedValue(running(cellsFixture()));
+    platform.cancel.mockRejectedValue(refusal(409, 'terminal_run'));
+    renderRun();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Cancel run' }));
+
+    expect(
+      await screen.findByText('This run already finished (409 · terminal_run)')
+    ).toBeInTheDocument();
+    expect(screen.getByText(/There’s nothing left to cancel\./)).toBeInTheDocument();
+  });
+
+  it('shows a viewer everything and offers nothing to change', async () => {
+    renderRun({ slug: 'read-lab' });
+
+    await screen.findByRole('heading', { level: 2, name: 'Run #1' });
+    expect(screen.getByRole('link', { name: 'Compare results' })).toBeInTheDocument();
+    expect(screen.getAllByRole('link', { name: /^Open cell/ })).toHaveLength(8);
+    for (const name of ['Cancel run', 'Retry cell 1', 'Retry 2 unfinished cells'])
+      expect(screen.queryByRole('button', { name })).not.toBeInTheDocument();
+  });
+
+  it('answers a run that is not the study’s with a neutral 404', async () => {
+    renderRun({ run: 'ghost' });
+
+    expect(await screen.findByRole('heading', { name: 'Run not found' })).toBeInTheDocument();
+    expect(screen.getByText(/This run doesn’t exist \(404\)/)).toBeInTheDocument();
+  });
+
+  it('says a key without one of the engines cannot show the run', async () => {
+    platform.cells.mockRejectedValue(
+      refusal(403, 'api_key_engine_forbidden', 'This key does not grant Evolutionary.')
+    );
+    renderRun();
+
+    expect(
+      await screen.findByText(/This API key can’t show this run \(403 · api_key_engine_forbidden\)/)
+    ).toBeInTheDocument();
+    expect(screen.getByText(/This key does not grant Evolutionary\./)).toBeInTheDocument();
+  });
+
+  it('offers a retry when the run cannot be read', async () => {
+    platform.cells.mockRejectedValueOnce(refusal(503, 'unavailable'));
+    renderRun();
+
+    expect(
+      await screen.findByText(/The run couldn’t be loaded \(503 · unavailable\)/)
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(await screen.findByRole('heading', { level: 2, name: 'Run #1' })).toBeInTheDocument();
+  });
+
+  it('flags a run with no cells', async () => {
+    platform.cells.mockResolvedValue([]);
+    renderRun();
+
+    expect(
+      await screen.findByText(/This run has no cells, which shouldn’t happen\./)
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Cells of the run' })).not.toBeInTheDocument();
+  });
+
+  it('leaves the squares out of a very large run and pages the table', async () => {
+    const many = Array.from({ length: 700 }, (_, n) =>
+      cellFixture(n, REVISION_1, EVOLUTIONARY, n, 'completed', {
+        feasible: true,
+        objectives: { cost: n / 1000 },
+        runtimeSeconds: 1,
+      })
+    );
+    platform.cells.mockResolvedValue(many);
+    platform.runs.mockResolvedValue([runFixture({ cells: 700 })]);
+    renderRun();
+
+    expect(
+      await screen.findByText(/This run has 700 cells, too many to draw as squares/)
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('region', { name: 'Cells of the run as a matrix' })
+    ).not.toBeInTheDocument();
+    expect(screen.getByText('Showing 1–50 of 700')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(screen.getByText('Showing 51–100 of 700')).toBeInTheDocument();
+  });
+
+  it('keeps the quota in the words of a retry that is refused for a plan limit', async () => {
+    platform.retryCell.mockRejectedValue(
+      new QuotaError('quota_exceeded', 'full', {
+        limit_id: 'maxRepositoryStorage',
+        limit: 50,
+        used: 50,
+      })
+    );
+    renderRun();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Retry cell 1' }));
+
+    expect(await screen.findByText(/Out of storage \(402 · quota_exceeded\)/)).toBeInTheDocument();
+    expect(screen.getByText(/You’ve used 50 of 50 storage\./)).toBeInTheDocument();
+    expect(screen.queryByText(/renew/i)).not.toBeInTheDocument();
+  });
+});

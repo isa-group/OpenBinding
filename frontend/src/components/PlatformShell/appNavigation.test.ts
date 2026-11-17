@@ -56,7 +56,7 @@ describe('organizationEntries', () => {
       ['compositions', 'Compositions', '/orgs/isa-demo/compositions'],
       ['problems', 'Problems', '/orgs/isa-demo/problems'],
       ['runs', 'Runs', '/orgs/isa-demo/runs'],
-      ['studies', 'Studies', '/app/isa-demo/studies'],
+      ['studies', 'Studies', '/orgs/isa-demo/studies'],
     ]);
     for (const address of addressesOf(organizationEntries(organization))) {
       expect(matchRoutes(routed, address), address).not.toBeNull();
@@ -79,7 +79,7 @@ describe('createItems', () => {
     expect(createItems(organization).map(item => [item.label, item.to])).toEqual([
       ['Composition', '/compositions/new?org=isa-demo'],
       ['Problem', '/problem-editor?org=isa-demo'],
-      ['Study', '/app/isa-demo/studies/new'],
+      ['Study', '/studies/new?org=isa-demo'],
       ['Run', '/runs/new?org=isa-demo'],
     ]);
     for (const address of addressesOf(createItems(organization))) {

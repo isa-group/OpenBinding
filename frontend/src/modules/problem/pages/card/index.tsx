@@ -146,7 +146,7 @@ function CardBody({
 
   const runHref = revision ? runLaunchOf(org.slug, item.slug, revision.revision) : null;
   const studyHref = revision
-    ? newStudyPath(org.slug, { case: item.slug, revision: revision.revision })
+    ? newStudyPath(org.slug, { problem: item.slug, revision: revision.revision })
     : null;
   const editorHref = problemEditorPath(org.slug, {
     problem: item.slug,

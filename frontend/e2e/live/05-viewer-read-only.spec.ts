@@ -90,8 +90,12 @@ test.describe('live · lab-viewer reads and edits nothing', () => {
     const errors = watchPageErrors(page);
     await signInByApi(page, 'viewer');
 
-    await page.goto(`/app/${ORG}/studies`);
-    await expect(page.getByRole('heading', { level: 1, name: 'Studies' })).toBeVisible();
+    await page.goto(`/orgs/${ORG}/studies`);
+    await expect(
+      page
+        .getByRole('region', { name: 'Studies' })
+        .getByRole('heading', { level: 2, name: 'Studies' })
+    ).toBeVisible();
     await expect(page.getByRole('link', { name: 'New study' })).toHaveCount(0);
 
     // The organization page: a viewer reads it, edits nothing and administers nothing.

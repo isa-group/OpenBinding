@@ -14,7 +14,6 @@ import { WALK_ORG, installWalkApi } from './helpers/mockApi';
 // Several browsers share one development server, so a screen can take longer than the default five seconds to settle.
 const expect = baseExpect.configure({ timeout: 20_000 });
 
-const ORG_PATH = `/app/${WALK_ORG}`;
 const PROBLEMS_TAB = `/orgs/${WALK_ORG}/problems`;
 const PROBLEMS = `/problems/${WALK_ORG}`;
 const EXAMPLE = new URL('../../examples/demo/01_simple_seq/', import.meta.url);
@@ -217,7 +216,7 @@ test('the F0b walk: upload, edit in the problem editor, a template, a run and a 
   await expect(main.getByText('Live · connected')).toHaveCount(0);
 
   // 6 · A study of version 2 × 2 engine modes × 2 seeds: created, run, followed until its cells finish, and its results.
-  await page.goto(`${ORG_PATH}/studies`);
+  await page.goto(`/orgs/${WALK_ORG}/studies`);
   await main
     .getByRole('link', { name: /New study|Build a study/ })
     .first()
@@ -238,7 +237,7 @@ test('the F0b walk: upload, edit in the problem editor, a template, a run and a 
       .getByText('1 problem version × 2 engines × 1 setting × 2 seeds')
   ).toBeVisible();
   await main.getByRole('button', { name: 'Create study' }).click();
-  await expect(main.getByRole('heading', { name: 'Study created' })).toBeVisible();
+  await expect(main.getByRole('heading', { level: 1, name: 'Walk study' })).toBeVisible();
   expect(api.sent.studies).toHaveLength(1);
   expect(api.sent.studies[0]).toMatchObject({
     slug: 'walk-study',
@@ -254,19 +253,18 @@ test('the F0b walk: upload, edit in the problem editor, a template, a run and a 
     'evolutionary/genetic',
   ]);
 
-  await main.getByRole('link', { name: 'Open the study' }).click();
-  await expect(main.getByRole('heading', { level: 1, name: 'Walk study' })).toBeVisible();
   await main.getByRole('button', { name: 'Run study' }).click();
   await expect(
     main.getByText('Run #1 accepted (202). Cells start as run slots free up.')
   ).toBeVisible();
-  await main.getByRole('link', { name: 'Follow run #1' }).click();
-  await expect(main.getByRole('heading', { level: 2, name: 'Run #1' })).toBeVisible();
+  // What the run froze sits in Setup beside the definition.
   const frozen = main.getByRole('region', { name: 'Frozen definition' });
   await expect(
     frozen.getByRole('button', { name: 'Copy the digest of the frozen definition' })
   ).toBeVisible();
   await expect(frozen).not.toContainText('sha256-');
+  await main.getByRole('link', { name: 'Follow run #1' }).click();
+  await expect(main.getByRole('heading', { level: 2, name: 'Run #1' })).toBeVisible();
   const progress = main.getByRole('region', { name: 'Progress of the run' });
   await expect(progress.getByText('Finished · not live')).toBeVisible({ timeout: 45_000 });
   await expect(progress.getByRole('img', { name: '4 completed of 4 cells' })).toBeVisible();

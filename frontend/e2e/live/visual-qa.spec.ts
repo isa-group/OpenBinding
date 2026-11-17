@@ -525,7 +525,7 @@ async function studyFrontStop(page: Page, token: string): Promise<Stop | { why: 
     if (finished) {
       return {
         slug: 'study-front',
-        path: `${ORG_PATH}/studies/${encodeURIComponent(study.slug)}/results?run=${finished.id}`,
+        path: `/studies/${ORG}/${encodeURIComponent(study.slug)}/front?run=${finished.id}`,
         ready: target =>
           target.locator('main').getByRole('heading', { level: 2, name: 'Pareto front' }),
       };

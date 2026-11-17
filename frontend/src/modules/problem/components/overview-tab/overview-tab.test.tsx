@@ -30,7 +30,6 @@ const checkout = problemOf('flujo-checkout', 'Flujo de checkout');
 const r1 = versionOf(checkout, 1);
 const r2 = versionOf(checkout, 2, { package_size: 48_213 });
 const root = '/problems/isa-demo';
-const app = '/app/isa-demo';
 
 const refusal = (status: number, code = 'refused') =>
   Object.assign(new HttpError(status, 'refused'), { code });
@@ -263,7 +262,7 @@ describe('Overview tab of the problem page', () => {
     );
     expect(screen.getByRole('link', { name: 'Add to study' })).toHaveAttribute(
       'href',
-      `${app}/studies/new?case=flujo-checkout&revision=2`
+      '/studies/new?org=isa-demo&problem=flujo-checkout&revision=2'
     );
     const select = screen.getByLabelText('Version');
     expect(

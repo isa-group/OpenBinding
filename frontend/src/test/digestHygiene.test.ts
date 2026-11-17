@@ -81,6 +81,7 @@ const EXEMPT_FILES: readonly string[] = [
   '/src/test/moduleKit.tsx',
   '/src/test/problemPage.tsx',
   '/src/test/rawRenderingAllowList.ts',
+  '/src/test/studyPage.tsx',
   '/src/test/vocabulary.ts',
   // utils: the uuid helper itself
   '/src/utils/uuid.ts',

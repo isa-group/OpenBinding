@@ -105,7 +105,7 @@ const OUTSIDE: Readonly<Record<string, string>> = {
   '/src/modules/run/pages/create/index.tsx': 'the engine deployment a federated run is sent to',
   '/src/modules/auth/components/login-form/index.tsx': 'this OpenBinding installation',
   '/src/pages/About/AboutPanels.tsx': 'the related projects of About',
-  '/src/pages/Studies/StudyList.tsx': '"Build a study"',
+  '/src/modules/study/components/studies-tab/index.tsx': '"Build a study"',
   '/src/content/platform.ts':
     'the research topics: scenario aggregation, building comparative studies',
 };

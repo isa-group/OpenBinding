@@ -167,7 +167,7 @@ describe('the vocabulary scanner', () => {
     for (const path of [
       '/src/modules/problem/components/problems-tab/index.tsx',
       '/src/modules/problem-editor/hooks/useProblemEditor.ts',
-      '/src/pages/Studies/StudyList.tsx',
+      '/src/modules/study/components/studies-tab/index.tsx',
     ]) {
       expect(isTestSupport(path), path).toBe(false);
     }

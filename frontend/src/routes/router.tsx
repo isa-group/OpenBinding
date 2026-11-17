@@ -89,9 +89,8 @@ const ProblemEditorLayout = lazy(() => import('../modules/problem-editor/layouts
 const ProblemEditorPage = lazy(() => import('../modules/problem-editor/pages/problem-editor'));
 const RunLaunchPage = lazy(() => import('../modules/run/pages/create'));
 const RunCardPage = lazy(() => import('../modules/run/pages/card'));
-const StudyList = named(() => import('../pages/Studies/StudyList'), 'StudyList');
-const StudyBuilder = named(() => import('../pages/Studies/StudyBuilder'), 'StudyBuilder');
-const StudyDetail = named(() => import('../pages/Studies/StudyDetail'), 'StudyDetail');
+const CreateStudyPage = lazy(() => import('../modules/study/pages/create'));
+const StudyCardPage = lazy(() => import('../modules/study/pages/card'));
 const AdminOverview = named(() => import('../pages/Admin/AdminOverview'), 'AdminOverview');
 const AdminUsers = named(() => import('../pages/Admin/AdminUsers'), 'AdminUsers');
 const AdminUserDetail = named(() => import('../pages/Admin/AdminUserDetail'), 'AdminUserDetail');
@@ -140,6 +139,8 @@ export const screens: Screen[] = [
   { id: 'problem-detail', path: '/problems/:org/:problem/:tab?', layout: 'protected', element: <ProblemCardPage /> },
   { id: 'run-launch', path: '/runs/new', layout: 'protected', element: <RunLaunchPage /> },
   { id: 'run-detail', path: '/runs/:org/:run', layout: 'protected', element: <RunCardPage /> },
+  { id: 'study-builder', path: '/studies/new', layout: 'protected', element: <CreateStudyPage /> },
+  { id: 'study-detail', path: '/studies/:org/:study/:tab?', layout: 'protected', element: <StudyCardPage /> },
 
   // ═══════════════════════════════════════════════════════════
   // PROTECTED ROUTES (the old workspace under /app, until its screens are poured into SPHERE's pages)
@@ -147,9 +148,6 @@ export const screens: Screen[] = [
   { id: 'eng-register', path: '/app/engines/new', layout: 'app', element: <RegisterEngine /> },
   { id: 'eng-registrations', path: '/app/engines/registrations', layout: 'app', element: <EngRegistrations /> },
   { id: 'eng-registration-detail', path: '/app/engines/registrations/:name', layout: 'app', element: <EngRegistrationDetail /> },
-  { id: 'study-list', path: '/app/:org/studies', layout: 'app', element: <StudyList /> },
-  { id: 'study-builder', path: '/app/:org/studies/new', layout: 'app', element: <StudyBuilder /> },
-  { id: 'study-detail', path: '/app/:org/studies/:study/:tab?', layout: 'app', element: <StudyDetail /> },
   { id: 'admin-overview', path: '/app/admin', layout: 'app', element: <AdminOverview />, requireAdmin: true },
   { id: 'admin-users', path: '/app/admin/users', layout: 'app', element: <AdminUsers />, requireAdmin: true },
   { id: 'admin-user-detail', path: '/app/admin/users/:user', layout: 'app', element: <AdminUserDetail />, requireAdmin: true },

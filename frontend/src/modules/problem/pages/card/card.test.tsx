@@ -506,7 +506,7 @@ describe('Problem page', () => {
       );
       expect(screen.getByRole('link', { name: 'Add to study' })).toHaveAttribute(
         'href',
-        '/app/member-lab/studies/new?case=flujo-checkout&revision=2'
+        '/studies/new?org=member-lab&problem=flujo-checkout&revision=2'
       );
       fireEvent.click(screen.getByRole('button', { name: 'New version' }));
       expect(screen.getByRole('menuitem', { name: /Problem editor/ })).toHaveAttribute(

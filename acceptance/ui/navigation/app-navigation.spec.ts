@@ -92,7 +92,7 @@ test('New creates in the organization the address names', async ({ page }) => {
     ['Composition', '/compositions/new?org=acme'],
     ['Problem', '/problem-editor?org=acme'],
     ['Run', RUN_NEW],
-    ['Study', '/app/acme/studies/new'],
+    ['Study', '/studies/new?org=acme'],
     ['Organization', '/orgs/new'],
     ['Engine', '/app/engines/new'],
   ];

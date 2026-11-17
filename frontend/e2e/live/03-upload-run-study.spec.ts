@@ -151,7 +151,7 @@ test.describe('live · upload, run and study on lab-main', () => {
     await capture(page, testInfo, 'walk-5-run');
 
     // 6 · A study of version 2 × random-search and evolutionary-heuristics × seeds 1 and 2: four cells.
-    await page.goto(`/app/${ORG}/studies/new`);
+    await page.goto(`/studies/new?org=${ORG}`);
     await expect(main.getByRole('heading', { level: 1, name: 'New study' })).toBeVisible();
     await main
       .getByRole('group', { name: 'Problem versions' })
@@ -169,17 +169,16 @@ test.describe('live · upload, run and study on lab-main', () => {
     await main.getByLabel('Study name').fill(`Walk ${stamp}`);
     await expect(main.getByLabel(/Seeds \(comma-separated/)).toHaveValue('1, 2');
     await main.getByRole('button', { name: 'Create study' }).click();
-    await expect(main.getByRole('heading', { name: 'Study created' })).toBeVisible({
+    await expect(main.getByRole('heading', { level: 1, name: `Walk ${stamp}` })).toBeVisible({
       timeout: 60_000,
     });
-    await main.getByRole('link', { name: 'Open the study' }).click();
     await main.getByRole('button', { name: 'Run study' }).click();
-    await main.getByRole('link', { name: 'Follow run #1' }).click();
     await expect(
       main
         .getByRole('region', { name: 'Frozen definition' })
         .getByRole('button', { name: 'Copy the digest of the frozen definition' })
     ).toBeVisible();
+    await main.getByRole('link', { name: 'Follow run #1' }).click();
     const progress = main.getByRole('region', { name: 'Progress of the run' });
     await expect(progress.getByText('Finished · not live')).toBeVisible({ timeout: 300_000 });
     await expect(progress.getByRole('img', { name: '4 completed of 4 cells' })).toBeVisible();

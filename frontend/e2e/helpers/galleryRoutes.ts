@@ -92,7 +92,7 @@ const PARAMS_OF: Record<string, Record<string, string>> = {
 const QUERY_OF: Record<string, string> = {
   'eng-registration-detail': `?namespace=alex.rivera&version=0.3.1&digest=sha256-${'e5f6'.repeat(16)}`,
   'run-launch': '?org=isa-demo&problem=checkout-flow&revision=2',
-  'study-builder': '?case=checkout-flow&revision=2',
+  'study-builder': '?org=isa-demo&problem=checkout-flow&revision=2',
   'problem-editor': '?org=isa-demo&problem=checkout-flow&revision=2',
 };
 

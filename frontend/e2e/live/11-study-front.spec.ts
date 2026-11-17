@@ -23,7 +23,7 @@ test.describe('live · J4 study front to a composition on lab-main', () => {
     const main = page.locator('main');
 
     // 1 · The study: the seeded version × random-search × seeds 1 and 2, two cells.
-    await page.goto(`/app/${ORG}/studies/new`);
+    await page.goto(`/studies/new?org=${ORG}`);
     await expect(main.getByRole('heading', { level: 1, name: 'New study' })).toBeVisible();
     await main
       .getByRole('group', { name: 'Problem versions' })
@@ -37,10 +37,9 @@ test.describe('live · J4 study front to a composition on lab-main', () => {
     await main.getByLabel('Study name').fill(`J4 ${stamp}`);
     await expect(main.getByLabel(/Seeds \(comma-separated/)).toHaveValue('1, 2');
     await main.getByRole('button', { name: 'Create study' }).click();
-    await expect(main.getByRole('heading', { name: 'Study created' })).toBeVisible({
+    await expect(main.getByRole('heading', { level: 1, name: `J4 ${stamp}` })).toBeVisible({
       timeout: 60_000,
     });
-    await main.getByRole('link', { name: 'Open the study' }).click();
 
     // 2 · Run it and follow it to the end.
     await main.getByRole('button', { name: 'Run study' }).click();
@@ -50,11 +49,15 @@ test.describe('live · J4 study front to a composition on lab-main', () => {
     await expect(progress.getByRole('img', { name: '2 completed of 2 cells' })).toBeVisible();
     await capture(page, testInfo, 'j4-1-progress');
 
-    // 3 · The results and the gateway's front of the seeded version: at least one point, focused on the first.
+    // 3 · The results, then the Front tab with the gateway's front of the seeded version: at least one point, focused on the first.
     await main.getByRole('link', { name: 'Compare results' }).click();
     await expect(
       main.getByRole('heading', { level: 2, name: 'Compare results · run #1' })
     ).toBeVisible();
+    await main
+      .getByRole('navigation', { name: 'Study sections' })
+      .getByRole('link', { name: 'Front' })
+      .click();
     const front = main.getByRole('region', { name: 'Pareto front' });
     await expect(
       front.getByText(/^\d+ points? · computed by the gateway · lower is better$/)

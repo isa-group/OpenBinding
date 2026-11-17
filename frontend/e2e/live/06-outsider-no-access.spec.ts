@@ -79,18 +79,6 @@ test.describe('live · lab-outsider has no access to lab-main', () => {
       await page.goto(path);
       await expect(page.getByRole('heading', { name: 'Page not found' }), path).toBeVisible();
     }
-    // Studies belong to the organization: the outsider gets its neutral refusal.
-    for (const path of [`/app/${ORG}/studies`, `/app/${ORG}/studies/new`]) {
-      await page.goto(path);
-      await expect(
-        page.getByRole('heading', { name: 'Organization not available' }),
-        path
-      ).toBeVisible();
-      await expect(
-        page.getByRole('heading', { level: 1, name: /^(Problems|Runs|Studies)$/ }),
-        path
-      ).toHaveCount(0);
-    }
     // The Runs tab of the organization and a run of it are the same in-place 404 as anything else unreadable.
     for (const path of [RUNS_PATH, `${RUN_PATH}/00000000-0000-4000-8000-000000000001`]) {
       await page.goto(path);
@@ -101,6 +89,11 @@ test.describe('live · lab-outsider has no access to lab-main', () => {
     await page.goto(LAUNCH_PATH);
     await expect(page.getByText(/Choose the organization the run belongs to/)).toBeVisible();
     await expect(page.getByRole('radiogroup', { name: 'Source' })).toHaveCount(0);
+    // The studies are the organization's Studies tab and the study pages: an outsider gets the same in-place 404.
+    for (const path of [`/orgs/${ORG}/studies`, `/studies/${ORG}/any-study`]) {
+      await page.goto(path);
+      await expect(page.getByRole('heading', { name: 'Page not found' }), path).toBeVisible();
+    }
     expect(errors).toEqual([]);
   });
 });
