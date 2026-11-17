@@ -3668,6 +3668,9 @@
             "title": "Created At",
             "type": "string"
           },
+          "figures": {
+            "$ref": "#/components/schemas/VersionFigures"
+          },
           "id": {
             "format": "uuid",
             "title": "Id",
@@ -9635,6 +9638,9 @@
             "title": "Created At",
             "type": "string"
           },
+          "figures": {
+            "$ref": "#/components/schemas/VersionFigures"
+          },
           "label": {
             "description": "The document's `version:` (Semantic Versioning).",
             "title": "Label",
@@ -11991,6 +11997,58 @@
           "id"
         ],
         "title": "VersionDerivationRun",
+        "type": "object"
+      },
+      "VersionFigures": {
+        "description": "What a list shows of a version's size and cost: ``tasks`` and ``providers`` from the analytics stored at\nseal, ``cost`` from the latest evaluation's ``cost`` value; each null when the version has none.",
+        "properties": {
+          "cost": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost"
+          },
+          "cost_unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The unit the evaluation gave the cost, if any.",
+            "title": "Cost Unit"
+          },
+          "providers": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providers"
+          },
+          "tasks": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tasks"
+          }
+        },
+        "title": "VersionFigures",
         "type": "object"
       },
       "VersionLink": {

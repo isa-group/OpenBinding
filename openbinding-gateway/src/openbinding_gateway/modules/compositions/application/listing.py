@@ -42,6 +42,8 @@ class Entry:
     organization: Organization
     summary: versions.Summary
     numbers: dict[str, float | None] = field(default_factory=dict)
+    #: The unit of ``numbers["cost"]`` as the evaluation named it, if it did.
+    cost_unit: str | None = None
 
 
 @dataclass(frozen=True)
@@ -84,6 +86,7 @@ async def gather(session: AsyncSession, rows: Sequence[tuple[Composition, Organi
     found = await versions.summaries(session, [composition.id for composition, _ in rows])
     latest = {summary.latest.id: summary.latest for summary in found.values() if summary.latest is not None}
     costs: dict[uuid.UUID, float | None] = {}
+    units: dict[uuid.UUID, str | None] = {}
     if latest:
         for version_id, values in (await session.execute(
             select(CompositionEvaluation.version_id, CompositionEvaluation.values)
@@ -92,6 +95,8 @@ async def gather(session: AsyncSession, rows: Sequence[tuple[Composition, Organi
         )).all():
             cost = (values or {}).get("cost")
             costs[version_id] = _number(cost.get("value") if isinstance(cost, dict) else cost)
+            unit = cost.get("unit") if isinstance(cost, dict) else None
+            units[version_id] = unit if isinstance(unit, str) and unit else None
     entries = []
     for composition, organization in rows:
         summary = found[composition.id]
@@ -101,7 +106,7 @@ async def gather(session: AsyncSession, rows: Sequence[tuple[Composition, Organi
             "tasks": _number(analytics.get("tasks")) if version is not None else None,
             "providers": _number(analytics.get("providers")) if version is not None else None,
             "cost": costs.get(version.id) if version is not None else None,
-        }))
+        }, units.get(version.id) if version is not None else None))
     return entries
 
 

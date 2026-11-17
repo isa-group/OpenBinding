@@ -87,6 +87,7 @@ from .schemas import (
     CompositionVersionDiff,
     CompositionVersionList,
     CompositionVersionSummary,
+    VersionFigures,
     CompositionVersionView,
     CompositionView,
     DerivationView,
@@ -129,32 +130,53 @@ def _read_headers(headers, reader: compositions.Reader) -> None:
         headers["Cache-Control"] = "private, no-cache"
 
 
-def _summary(summary: versions.Summary) -> CompositionVersionSummary | None:
+def figures_of(entry: listing.Entry | None) -> VersionFigures:
+    """The figures a list shows of an entry's latest version (all null without an entry)."""
+    if entry is None:
+        return VersionFigures()
+    numbers = entry.numbers
+
+    def whole(value: float | None) -> int | None:
+        return int(value) if value is not None else None
+
+    return VersionFigures(
+        tasks=whole(numbers.get("tasks")), providers=whole(numbers.get("providers")), cost=numbers.get("cost"),
+        cost_unit=entry.cost_unit if numbers.get("cost") is not None else None,
+    )
+
+
+def _summary(summary: versions.Summary, figures: VersionFigures | None = None) -> CompositionVersionSummary | None:
     version = summary.latest
     if version is None:
         return None
     return CompositionVersionSummary(
         id=version.id, ordinal=version.ordinal, label=version.label, values_status=version.values_status.value,
-        verified=summary.verified, created_at=version.created_at,
+        verified=summary.verified, created_at=version.created_at, figures=figures or VersionFigures(),
     )
 
 
 def _view(
     composition: Composition, organization: Organization, summary: versions.Summary | None = None,
+    entry: listing.Entry | None = None,
 ) -> CompositionView:
     return CompositionView(
         id=composition.id, slug=composition.slug, name=composition.name, description=composition.description,
         kind=composition.kind.value, archived=composition.archived, visibility=composition.visibility,
         organization=CompositionOrganization(id=organization.id, slug=organization.slug, name=organization.name),
-        latest_version=_summary(summary) if summary else None,
+        latest_version=_summary(summary, figures_of(entry)) if summary else None,
         version_count=summary.count if summary else 0,
         created_by_id=composition.created_by_id, created_at=composition.created_at, updated_at=composition.updated_at,
     )
 
 
+def entry_view(entry: listing.Entry) -> CompositionView:
+    """A composition of a list, with its latest version's figures."""
+    return _view(entry.composition, entry.organization, entry.summary, entry)
+
+
 async def _viewed(session: AsyncSession, composition: Composition, organization: Organization) -> CompositionView:
-    summary = (await versions.summaries(session, [composition.id]))[composition.id]
-    return _view(composition, organization, summary)
+    (entry,) = await listing.gather(session, [(composition, organization)])
+    return entry_view(entry)
 
 
 @router.get(
@@ -211,7 +233,7 @@ async def list_compositions(
         order=query.order, limit=limit, offset=offset,
     )
     _read_headers(response.headers, reader)
-    views = [_view(entry.composition, entry.organization, entry.summary) for entry in listed.entries]
+    views = [entry_view(entry) for entry in listed.entries]
     if reader.public:
         views = [view.model_copy(update={"created_by_id": None}) for view in views]
     return CompositionList(

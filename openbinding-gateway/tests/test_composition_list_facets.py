@@ -132,6 +132,31 @@ async def test_the_organization_list_sorts_bounds_and_facets(api_client, registr
     assert (await api_client.get(url, headers=headers, params={"kinds": "nope"})).status_code == 422
 
 
+async def test_each_row_carries_its_latest_versions_figures(api_client, registration, db_session, gate):  # noqa: F811
+    _, headers = await make_account(api_client, registration, db_session, gate)
+    org = (await api_client.post("/v1/organizations", headers=headers, json={"name": "Figured"})).json()["slug"]
+    await composed(api_client, headers, org, "priced", 3, 20, visibility="public")
+    await composed(api_client, headers, org, "unpriced", 2, None)
+    await create(api_client, headers, org, "empty")
+
+    rows = {
+        row["slug"]: row for row in
+        (await api_client.get(f"/v1/organizations/{org}/compositions", headers=headers)).json()["compositions"]
+    }
+    one = (await api_client.get(f"/v1/organizations/{org}/compositions/priced", headers=headers)).json()
+    public = [
+        row for row in (await api_client.get("/v1/compositions", params={"organization": org})).json()["compositions"]
+    ]
+
+    assert rows["priced"]["latest_version"]["figures"] == {"tasks": 3, "providers": 3, "cost": 20.0, "cost_unit": "EUR"}
+    assert rows["unpriced"]["latest_version"]["figures"] == {
+        "tasks": 2, "providers": 2, "cost": None, "cost_unit": None,
+    }
+    assert rows["empty"]["latest_version"] is None
+    assert one["latest_version"]["figures"] == rows["priced"]["latest_version"]["figures"]
+    assert public[0]["latest_version"]["figures"]["cost"] == 20.0
+
+
 async def test_a_non_member_reads_only_what_an_organization_publishes(
     api_client, registration, db_session, gate,  # noqa: F811
 ):
