@@ -74,7 +74,7 @@ test.describe('live · upload, run and study on lab-main', () => {
     await main.getByRole('button', { name: 'New version' }).click();
     await main.getByRole('menuitem', { name: /Problem editor/ }).click();
     await expect(main.getByText(`Loaded version 1 of ${name}`)).toBeVisible({ timeout: 60_000 });
-    const status = main.getByTestId('pe-check-status');
+    const status = page.getByTestId('pe-check-status');
     await expect(status).toHaveText('Valid package', { timeout: 60_000 });
     await main.getByRole('tab', { name: 'Forms' }).click();
     await main
@@ -83,7 +83,7 @@ test.describe('live · upload, run and study on lab-main', () => {
       .click();
     await main.getByLabel('c1b QoS latency').fill('12');
     await expect(status).toHaveText('Valid package', { timeout: 60_000 });
-    const save = main.getByRole('button', { name: 'Save as version…' });
+    const save = page.getByRole('button', { name: 'Save', exact: true });
     await expect(save).toBeEnabled({ timeout: 60_000 });
     await save.click();
     const saveDialog = page.getByRole('dialog', { name: 'Save the package' });
@@ -99,10 +99,8 @@ test.describe('live · upload, run and study on lab-main', () => {
     await page.goto(PROBLEMS_TAB);
     await main.getByRole('button', { name: /^New/ }).click();
     await main.getByRole('menuitem', { name: /Start from a template/ }).click();
-    await expect(main.getByTestId('pe-check-status')).toHaveText('Valid package', {
-      timeout: 60_000,
-    });
-    await main.getByRole('button', { name: 'Save as version…' }).click();
+    await expect(status).toHaveText('Valid package', { timeout: 60_000 });
+    await save.click();
     await saveDialog
       .getByRole('textbox', { name: 'Name of the new problem' })
       .fill(`${name}-template`);
