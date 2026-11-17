@@ -81,10 +81,15 @@ const RESOLUTION: Array<[string, string | null]> = [
   ['/studies/acme/s1/front', 'study-detail'],
   ['/studies/acme/s1/runs/r1', null],
   ['/orgs/acme/studies', 'org-detail'],
-  ['/app/admin', 'admin-overview'],
-  ['/app/admin/users', 'admin-users'],
-  ['/app/admin/users/new', 'admin-user-detail'],
-  ['/app/admin/users/settings', 'admin-user-detail'],
+  ['/admin', 'admin'],
+  ['/admin/users', 'admin'],
+  ['/admin/moderation', 'admin'],
+  ['/admin/zz-no-such-section', 'admin'],
+  ['/admin/users/new', 'admin-user-detail'],
+  ['/admin/users/settings', 'admin-user-detail'],
+  ['/admin/users/u1/keys', null],
+  ['/app/admin', null],
+  ['/app/admin/users', null],
   ['/app/engines/new', null],
   ['/app/engines/registrations', null],
   ['/me/engines', 'eng-registrations'],
@@ -125,7 +130,7 @@ describe('address resolution across the route table', () => {
     expect(resolve(path)).toBe(id);
   });
 
-  // A fixed segment under /app (`/app/admin`, …): an unknown address one level below it resolves to no screen, or to a
+  // A fixed segment under /app: an unknown address one level below it resolves to no screen, or to a
   // screen that owns that segment.
   const fixedSegments = [
     ...new Set(
@@ -136,20 +141,10 @@ describe('address resolution across the route table', () => {
     ),
   ];
 
-  it('finds fixed segments under /app', () => {
-    expect(fixedSegments).toEqual(expect.arrayContaining(['admin']));
+  it('leaves no screen under /app', () => {
+    // Every screen has left /app: no fixed segment remains.
+    expect(fixedSegments).toEqual([]);
   });
-
-  it.each(fixedSegments)(
-    'reads an unknown address below /app/%s as no screen, or as a screen of that segment',
-    segment => {
-      const owners = new Set(
-        screens.filter(screen => screen.path.split('/')[2] === segment).map(screen => screen.id)
-      );
-      const id = resolve(`/app/${segment}/zz-unknown`);
-      expect(id === null || owners.has(id), `/app/${segment}/zz-unknown -> ${id}`).toBe(true);
-    }
-  );
 
   it('has no screen called org-create, proj-create or any proj-*', () => {
     const ids = screens.map(screen => screen.id);

@@ -13,8 +13,8 @@ import {
 } from '../src/test/fixtures/agreementCatalog';
 import { ALEX, MARIA, PENDING_ENGINE, usageOf } from '../src/test/fixtures/admin';
 
-// S9b · administration, part two: admin-moderation and the maintenance section of admin-overview (pricing is administered in the native
-// SPACE and SPHERE consoles).
+// S9b · administration, part two: the Moderation and Maintenance sections of `/admin/:section?` (pricing is administered in the
+// native SPACE and SPHERE consoles).
 // There is no backend: the API origin is answered by page.route(), and the signed-in account is a platform administrator.
 // Screenshots go to testInfo.outputPath() (test-results/, ignored by git) so they can be looked at after a run.
 // Every test walks a screen through its states on a desktop and on a phone.
@@ -277,22 +277,27 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
   test.describe(`${name} · S9b administration`, () => {
     test.use({ viewport, isMobile, deviceScaleFactor });
 
-    test('admin-moderation /app/admin/moderation · the queue, the verification report, approve and reject', async ({
+    test('admin /admin/moderation · the queue, the verification report, approve and reject', async ({
       page,
     }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
-      await page.goto('/app/admin/moderation');
+      await page.goto('/admin/moderation');
       const main = page.locator('main');
 
       await expect(
-        main.getByRole('heading', { level: 1, name: 'Moderation', exact: true })
+        main.getByRole('heading', { level: 2, name: 'Moderation', exact: true })
       ).toBeVisible();
-      await expect(
-        main
-          .getByRole('navigation', { name: 'Administration', exact: true })
-          .getByText('Moderation', { exact: true })
-      ).toHaveAttribute('aria-current', 'page');
+      if (isMobile)
+        await expect(
+          main.getByRole('button', { name: 'Administration section: Moderation' })
+        ).toBeVisible();
+      else
+        await expect(
+          main
+            .getByRole('navigation', { name: 'Administration', exact: true })
+            .getByRole('link', { name: 'Moderation' })
+        ).toHaveAttribute('aria-current', 'page');
       await expect(
         main.getByRole('list', { name: 'Waiting for review' }).getByRole('listitem')
       ).toHaveCount(2);
@@ -353,7 +358,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       // The same request again, rejected: the API takes no reason, and says so.
       state.registrations = [structuredClone(PENDING_ENGINE)];
-      await page.goto('/app/admin/moderation');
+      await page.goto('/admin/moderation');
       await main
         .getByRole('listitem', { name: 'maria-santos/edge-solver' })
         .getByRole('button', { name: 'Reject' })
@@ -371,12 +376,12 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       // States: a key without the permission, a failure, an empty queue.
       state.refuse.registrations = forbidden;
-      await page.goto('/app/admin/moderation');
+      await page.goto('/admin/moderation');
       await expect(main.getByText('This key can’t moderate (403)')).toBeVisible();
       await expect(main.getByRole('button', { name: 'Try again' })).toHaveCount(0);
       await capture(page, testInfo, `moderation-${name}-403`, { height: tall(1100) });
       state.refuse.registrations = down;
-      await page.goto('/app/admin/moderation');
+      await page.goto('/admin/moderation');
       await expect(
         main.getByText('A service isn’t available right now (503 · accounts_unavailable)')
       ).toBeVisible();
@@ -388,16 +393,16 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('admin-overview, maintenance section /app/admin?section=maintenance · preview, purge with a typed confirmation and reconcile runs, with no contract action', async ({
+    test('admin /admin/maintenance · preview, purge with a typed confirmation and reconcile runs, with no contract action', async ({
       page,
     }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
-      await page.goto('/app/admin?section=maintenance');
+      await page.goto('/admin/maintenance');
       const main = page.locator('main');
 
       await expect(
-        main.getByRole('heading', { level: 1, name: 'Maintenance', exact: true })
+        main.getByRole('heading', { level: 2, name: 'Maintenance', exact: true })
       ).toBeVisible();
       const impact = main.getByRole('list', { name: 'Maintenance preview' });
       await expect(impact.getByRole('listitem')).toHaveCount(3);
@@ -484,17 +489,17 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await capture(page, testInfo, `maintenance-${name}-done`);
 
       // Nothing left to purge, a dependency down, a key without the permission.
-      await page.goto('/app/admin?section=maintenance');
+      await page.goto('/admin/maintenance');
       await expect(main.getByText('Nothing to purge with these retention periods.')).toBeVisible();
       await capture(page, testInfo, `maintenance-${name}-nothing`, { height: tall(1500) });
       state.refuse.preview = detail(503, 'database_unavailable', 'The database did not answer.');
-      await page.goto('/app/admin?section=maintenance');
+      await page.goto('/admin/maintenance');
       await expect(
         main.getByText('A dependency is down (503 · database_unavailable)')
       ).toBeVisible();
       await capture(page, testInfo, `maintenance-${name}-503`, { height: tall(1500) });
       state.refuse.preview = forbidden;
-      await page.goto('/app/admin?section=maintenance');
+      await page.goto('/admin/maintenance');
       await expect(main.getByText('This key can’t use administration (403)')).toBeVisible();
       expect(critical).toEqual([]);
     });
@@ -504,7 +509,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
     }) => {
       const critical = watchCriticalErrors(page);
       await mockApi(page, { role: 'user' });
-      for (const path of ['/app/admin/moderation', '/app/admin?section=maintenance']) {
+      for (const path of ['/admin/moderation', '/admin/maintenance']) {
         await page.goto(path);
         // Unreadable is the same in-place 404 as missing: the address stays, and nothing of the screen shows.
         await expect(page.getByRole('heading', { level: 1, name: 'Page not found' })).toBeVisible();

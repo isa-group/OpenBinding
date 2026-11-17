@@ -34,7 +34,7 @@ export type OrganizationSectionId = 'compositions' | 'problems' | 'runs' | 'stud
 export const mainLinks = {
   home: { to: '/', label: 'Home' },
   engines: { to: '/engines', label: 'Engines' },
-  admin: { to: '/app/admin', label: 'Admin' },
+  admin: { to: '/admin', label: 'Admin' },
 } as const satisfies Record<string, NavLinkItem>;
 
 /** The person's own places: the settings page and its sections (`/me/settings?section=`), and the API keys. */
@@ -98,7 +98,7 @@ export function createItems(organization?: Organization): MenuEntry[] {
 }
 
 /** The first segments under `/app` that name a place of their own, not an organization. */
-const APP_PLACES = new Set(['admin', 'engines']);
+const APP_PLACES = new Set(['engines']);
 /** `/app/:org/…` screens of the organization itself, which Home marks. */
 const ORGANIZATION_SCREENS = new Set(['settings']);
 /** The second segment of each organization section, and the entry it belongs to. */

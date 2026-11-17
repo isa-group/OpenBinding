@@ -61,7 +61,7 @@ const LIFECYCLE: ReadonlyArray<{
 ];
 
 /** Where an administrator reviews publication requests. */
-const REVIEW_PATH = '/app/admin/moderation';
+const REVIEW_PATH = '/admin/moderation';
 
 interface Message {
   variant: 'success' | 'error' | 'warning' | 'info';

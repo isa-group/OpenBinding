@@ -5,34 +5,22 @@ import {
   PRICING_TOKEN_KEY,
   PRICING_TOKEN_UPDATED_EVENT,
   REFRESH_TOKEN_KEY,
-  type Revised,
 } from '../modules/core/api/http';
 import type {
-  AdminUserPage,
-  AdminSubscriptionView,
-  AdminUserView,
   ApiKeySummary,
-  AdminAuditPage,
-  AdminModerationOverview,
-  AdminOverview,
-  AdminQueueStatus,
   CasSession,
   PlanChange,
   CreateApiKeyRequest,
   CreatedApiKey,
-  ContractChangeReason,
   ExternalIdentity,
-  MaintenancePreview,
   Notification,
   NotificationPreferences,
   PricingCatalog,
   PricingCurrentView,
-  RoleName,
   TokenPair,
   UsageView,
   UserProfile,
 } from './auth';
-import type { AdminErrorOverview, AdminErrorListResponse } from '../pages/Admin/types';
 import { rememberCasFlow } from '../utils/authFlow';
 import type { ImmutableResourceRef } from '../modules/core/api/types';
 
@@ -525,148 +513,6 @@ export class ApiClient extends HttpTransport {
     return body.pricing_token;
   }
 
-  // -- Administration --------------------------------------------------
-
-  async adminListUsers(
-    params: {
-      search?: string;
-      offset?: number;
-      limit?: number;
-    } = {}
-  ): Promise<AdminUserPage> {
-    const query = new URLSearchParams();
-    if (params.search) query.set('search', params.search);
-    if (params.offset != null) query.set('offset', String(params.offset));
-    if (params.limit != null) query.set('limit', String(params.limit));
-    const suffix = query.toString() ? `?${query}` : '';
-    return this.request<AdminUserPage>(`/v1/admin/users${suffix}`);
-  }
-
-  async adminUpdateUser(
-    userId: string,
-    changes: { is_active?: boolean; role?: RoleName }
-  ): Promise<AdminUserView> {
-    return this.request<AdminUserView>(
-      `/v1/admin/users/${userId}`,
-      {
-        method: 'PATCH',
-        body: JSON.stringify(changes),
-      },
-      undefined,
-      true,
-      true
-    );
-  }
-
-  /**
-   * Apply an administrator-authorized SPACE contract novation, keeping the add-ons the account already has.
-   * A 422 (`invalid_subscription`) throws instead of coming back as if it were the answer.
-   * `ifMatch` is the revision of the subscription the change was decided on (from `adminGetSubscription`): a subscription that has
-   * moved since is refused with 412 `precondition_failed` and nothing is written. The answer carries the new revision.
-   */
-  async adminChangePlan(
-    userId: string,
-    plan: string,
-    ifMatch: string | null
-  ): Promise<Revised<AdminUserView>> {
-    return this.revised<AdminUserView>(`/v1/admin/users/${userId}/plan`, ifMatch, {
-      method: 'POST',
-      body: JSON.stringify({ plan }),
-    });
-  }
-
-  /** The contract of an account, with its revision: the tag a change decided on this reading sends back. */
-  async adminGetSubscription(userId: string): Promise<Revised<AdminSubscriptionView>> {
-    return this.revised<AdminSubscriptionView>(`/v1/admin/users/${userId}/subscription`, null);
-  }
-
-  /** An audited agreement. `ifMatch` and the revision of the answer work as in `adminChangePlan`. */
-  async adminUpdateSubscription(
-    userId: string,
-    value: {
-      plan: string;
-      add_ons: Record<string, number>;
-      reason: ContractChangeReason;
-      detail?: string;
-    },
-    ifMatch: string | null
-  ): Promise<Revised<AdminSubscriptionView>> {
-    return this.revised<AdminSubscriptionView>(`/v1/admin/users/${userId}/subscription`, ifMatch, {
-      method: 'POST',
-      body: JSON.stringify(value),
-    });
-  }
-
-  async adminGetUserUsage(userId: string): Promise<UsageView> {
-    return this.request<UsageView>(`/v1/admin/users/${userId}/usage`);
-  }
-
-  async adminRevokeApiKey(userId: string, keyId: string): Promise<void> {
-    await this.request<void>(`/v1/admin/users/${userId}/api-keys/${keyId}`, {
-      method: 'DELETE',
-    });
-  }
-
-  async adminOverview(): Promise<AdminOverview> {
-    return this.request('/v1/admin/overview');
-  }
-
-  /**
-   * The platform audit log, newest first: platform events and the events recorded inside an organization (`organizationId`,
-   * `organizationSlug`). `action` is an exact action name and `organizationId` keeps one organization's events;
-   * the gateway's page is 100 events unless `limit` (at most 500) says otherwise.
-   */
-  async adminAudit(
-    filter?: string | { action?: string; organizationId?: string; offset?: number; limit?: number }
-  ): Promise<AdminAuditPage> {
-    const { action, organizationId, offset, limit } =
-      typeof filter === 'string'
-        ? { action: filter, organizationId: undefined, offset: undefined, limit: undefined }
-        : (filter ?? {});
-    const query = new URLSearchParams();
-    if (action) query.set('action', action);
-    if (organizationId) query.set('organization_id', organizationId);
-    if (offset) query.set('offset', String(offset));
-    if (limit) query.set('limit', String(limit));
-    const suffix = query.toString() ? `?${query}` : '';
-    return this.request(`/v1/admin/audit${suffix}`);
-  }
-
-  async adminQueues(): Promise<AdminQueueStatus> {
-    return this.request('/v1/admin/queues');
-  }
-
-  /** How many engines, dialects and engine registrations sit in each publication state. */
-  async adminModeration(): Promise<AdminModerationOverview> {
-    return this.request('/v1/admin/moderation');
-  }
-
-  async adminMaintenancePreview(retentionDays = 365): Promise<MaintenancePreview> {
-    return this.request(
-      `/v1/admin/maintenance/preview?terminal_job_retention_days=${retentionDays}`
-    );
-  }
-
-  async adminReconcileJobs(): Promise<{ settled: number }> {
-    return this.request('/v1/admin/maintenance/reconcile-jobs', { method: 'POST' });
-  }
-
-  /** `errorRetentionDays` is how long error events are kept (1–3650, the gateway defaults to 90); it isn't part of the preview. */
-  async adminPurgeExpired(
-    confirmation: string,
-    retentionDays = 365,
-    errorRetentionDays?: number
-  ): Promise<Record<string, number>> {
-    return this.request('/v1/admin/maintenance/purge', {
-      method: 'POST',
-      body: JSON.stringify({
-        confirmation,
-        terminal_job_retention_days: retentionDays,
-        ...(errorRetentionDays === undefined ? {} : { error_retention_days: errorRetentionDays }),
-      }),
-    });
-  }
-
   private requireExactResourceRef<T extends object>(body: T): T & ImmutableResourceRef {
     for (const field of ['namespace', 'name', 'version', 'digest'] as const) {
       if (
@@ -869,33 +715,6 @@ export class ApiClient extends HttpTransport {
         }
       )
     );
-  }
-
-  async adminErrorOverview(): Promise<AdminErrorOverview> {
-    return this.request<AdminErrorOverview>('/v1/admin/errors/overview');
-  }
-
-  async adminListErrors(params?: {
-    category?: string;
-    user_id?: string;
-    status_code?: number;
-    search?: string;
-    from_date?: string;
-    to_date?: string;
-    limit?: number;
-    offset?: number;
-  }): Promise<AdminErrorListResponse> {
-    const query = new URLSearchParams();
-    if (params?.category) query.set('category', params.category);
-    if (params?.user_id) query.set('user_id', params.user_id);
-    if (params?.status_code) query.set('status_code', String(params.status_code));
-    if (params?.search) query.set('search', params.search);
-    if (params?.from_date) query.set('from_date', params.from_date);
-    if (params?.to_date) query.set('to_date', params.to_date);
-    if (params?.limit !== undefined) query.set('limit', String(params.limit));
-    if (params?.offset !== undefined) query.set('offset', String(params.offset));
-    const qs = query.toString();
-    return this.request<AdminErrorListResponse>(`/v1/admin/errors${qs ? `?${qs}` : ''}`);
   }
 }
 

@@ -70,7 +70,7 @@ export function userEntries(isAdmin: boolean): MenuEntry[] {
     { label: 'Engines', to: '/me/engines' },
     { label: 'API keys', to: '/me/api-keys' },
     { label: 'Settings', to: '/me/settings' },
-    ...(isAdmin ? [{ label: 'Administration', to: '/app/admin' }] : []),
+    ...(isAdmin ? [{ label: 'Administration', to: '/admin' }] : []),
   ];
 }
 

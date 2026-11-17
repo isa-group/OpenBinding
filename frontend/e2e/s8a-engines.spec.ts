@@ -857,7 +857,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(waiting).toBeVisible();
       await expect(
         waiting.getByRole('link', { name: 'Review region-solver 1.0.0' })
-      ).toHaveAttribute('href', '/app/admin/moderation');
+      ).toHaveAttribute('href', '/admin/moderation');
       await expect(main.getByRole('article', { name: 'edge-solver 0.3.1' })).toHaveCount(0);
       await expect(page).toHaveURL(/review=true/);
       await capture(page, testInfo, `registrations-${name}-review`, { height: tall(1100) });

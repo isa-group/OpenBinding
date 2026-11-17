@@ -74,11 +74,11 @@ describe('route table', () => {
   });
 
   it('requires an administrator for every admin screen and for nothing else', () => {
-    const admin = screens.filter(screen => screen.id.startsWith('admin-'));
+    const admin = screens.filter(screen => screen.id === 'admin' || screen.id.startsWith('admin-'));
     expect(admin.length).toBeGreaterThan(0);
     for (const screen of admin) {
       expect(screen.requireAdmin, screen.id).toBe(true);
-      expect(screen.path, screen.id).toMatch(/^\/app\/admin(\/|$)/);
+      expect(screen.path, screen.id).toMatch(/^\/admin(\/|$)/);
     }
     expect(screens.filter(screen => screen.requireAdmin)).toHaveLength(admin.length);
   });

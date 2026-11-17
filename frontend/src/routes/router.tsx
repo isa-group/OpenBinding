@@ -82,10 +82,8 @@ const RunLaunchPage = lazy(() => import('../modules/run/pages/create'));
 const RunCardPage = lazy(() => import('../modules/run/pages/card'));
 const CreateStudyPage = lazy(() => import('../modules/study/pages/create'));
 const StudyCardPage = lazy(() => import('../modules/study/pages/card'));
-const AdminOverview = named(() => import('../pages/Admin/AdminOverview'), 'AdminOverview');
-const AdminUsers = named(() => import('../pages/Admin/AdminUsers'), 'AdminUsers');
-const AdminUserDetail = named(() => import('../pages/Admin/AdminUserDetail'), 'AdminUserDetail');
-const AdminModeration = named(() => import('../pages/Admin/AdminModeration'), 'AdminModeration');
+const AdminPage = lazy(() => import('../modules/admin/pages/admin'));
+const AdminUserPage = lazy(() => import('../modules/admin/pages/user'));
 
 /**
  * Every screen, one line each with a literal id and path: the end-to-end smoke test and the QA gallery read these lines as
@@ -135,14 +133,12 @@ export const screens: Screen[] = [
   { id: 'eng-registrations', path: '/me/engines', layout: 'protected', element: <MyEnginesPage /> },
   { id: 'eng-register', path: '/me/engines/new', layout: 'protected', element: <RegisterEnginePage /> },
   { id: 'eng-registration-detail', path: '/me/engines/:name', layout: 'protected', element: <RegistrationPage /> },
+  { id: 'admin', path: '/admin/:section?', layout: 'protected', element: <AdminPage />, requireAdmin: true },
+  { id: 'admin-user-detail', path: '/admin/users/:user', layout: 'protected', element: <AdminUserPage />, requireAdmin: true },
 
   // ═══════════════════════════════════════════════════════════
   // PROTECTED ROUTES (the old workspace under /app, until its screens are poured into SPHERE's pages)
   // ═══════════════════════════════════════════════════════════
-  { id: 'admin-overview', path: '/app/admin', layout: 'app', element: <AdminOverview />, requireAdmin: true },
-  { id: 'admin-users', path: '/app/admin/users', layout: 'app', element: <AdminUsers />, requireAdmin: true },
-  { id: 'admin-user-detail', path: '/app/admin/users/:user', layout: 'app', element: <AdminUserDetail />, requireAdmin: true },
-  { id: 'admin-moderation', path: '/app/admin/moderation', layout: 'app', element: <AdminModeration />, requireAdmin: true },
 
   // ═══════════════════════════════════════════════════════════
   // EDITORS (standalone layout): `/editor` and `/problem-editor`

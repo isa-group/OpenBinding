@@ -32,7 +32,7 @@ const TEST_KIT = /\/(testKit|[A-Za-z]*TestUtils)\.tsx?$|\/src\/test\/setup\.ts$/
 // Every file the TEST_KIT pattern leaves out of the scan; a new test-kit file needs an edit here.
 const TEST_KIT_FILES: readonly string[] = [
   '/src/features/workspace/testKit.tsx',
-  '/src/pages/Admin/adminTestUtils.tsx',
+  '/src/modules/admin/utils/adminTestUtils.tsx',
   '/src/pages/Organization/testKit.tsx',
   '/src/test/setup.ts',
 ];

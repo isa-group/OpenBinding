@@ -39,15 +39,13 @@ const SCREENS: Array<[string, string, string]> = [
   ['eng-registrations', '/me/engines', 'protected'],
   ['eng-register', '/me/engines/new', 'protected'],
   ['eng-registration-detail', '/me/engines/:name', 'protected'],
-  ['admin-overview', '/app/admin', 'app'],
-  ['admin-users', '/app/admin/users', 'app'],
-  ['admin-user-detail', '/app/admin/users/:user', 'app'],
-  ['admin-moderation', '/app/admin/moderation', 'app'],
+  ['admin', '/admin/:section?', 'protected'],
+  ['admin-user-detail', '/admin/users/:user', 'protected'],
   ['composition-editor', '/editor', 'standalone'],
   ['problem-editor', '/problem-editor', 'standalone'],
 ];
 
-const CEILING = 37;
+const CEILING = 35;
 
 describe('screen budget', () => {
   it('serves exactly the listed screens, with their addresses and layouts, in table order', () => {

@@ -239,7 +239,7 @@ describe('eng-registrations · my engines', () => {
     expect(api.adminListEngineRegistrations).toHaveBeenCalledOnce();
     expect(
       within(waiting).getByRole('link', { name: 'Review region-solver 1.0.0' })
-    ).toHaveAttribute('href', '/app/admin/moderation');
+    ).toHaveAttribute('href', '/admin/moderation');
     expect(screen.queryByRole('article', { name: 'edge-solver 0.3.1' })).not.toBeInTheDocument();
 
     api.adminListEngineRegistrations.mockResolvedValue([]);

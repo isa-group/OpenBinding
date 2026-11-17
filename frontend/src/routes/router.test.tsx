@@ -58,9 +58,8 @@ const inOrganization = routeDefinitions.find(
     (definition.layout === 'app' || definition.layout === 'protected') &&
     definition.path.includes(':org')
 );
-const adminOnly = routeDefinitions.find(
-  definition => definition.requireAdmin && !definition.path.includes(':')
-);
+const adminOnly = routeDefinitions.find(definition => definition.requireAdmin);
+const adminScreens = routeDefinitions.filter(definition => definition.requireAdmin);
 const invitation = routeDefinitions.find(definition => definition.layout === 'session');
 if (!fixedApp || !inOrganization || !adminOnly || !invitation)
   throw new Error('the registry lacks a screen of a shape these tests need');
@@ -157,6 +156,15 @@ describe('Router', () => {
     expect(await screen.findByRole('heading', { name: 'Page not found' })).toBeInTheDocument();
     expect(screen.getByTestId('location')).toHaveTextContent(exampleOf(adminOnly.path));
   });
+
+  it.each(adminScreens.map(definition => [definition.id, exampleOf(definition.path)]))(
+    'reads administration (%s, %s) as a page that does not exist to an account that is not an administrator',
+    async (_id, address) => {
+      renderAt(address);
+      expect(await screen.findByRole('heading', { name: 'Page not found' })).toBeInTheDocument();
+      expect(shown()).toBeNull();
+    }
+  );
 
   it('serves a public page of the session inside the public layout when there is no session', async () => {
     renderAt(exampleOf(invitation.path), null);

@@ -31,7 +31,8 @@ import {
   userPage,
 } from '../src/test/fixtures/admin';
 
-// S9a · administration, part one: admin-overview (with its audit, errors and queues sections), admin-users and admin-user-detail.
+// S9a · administration, part one: `/admin/:section?` (SPHERE's settings shell: the overview, accounts, audit, errors and queues
+// sections) and `/admin/users/:user` (admin-user-detail, on the card shell with its tabs).
 // There is no backend: the API origin is answered by page.route(), and the signed-in account is a platform administrator.
 // Screenshots go to testInfo.outputPath() (test-results/, ignored by git) so they can be looked at after a run.
 // Every test walks a screen through its states on a desktop and on a phone.
@@ -394,22 +395,29 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
   test.describe(`${name} · S9a administration`, () => {
     test.use({ viewport, isMobile, deviceScaleFactor });
 
-    test('admin-overview /app/admin · the blocks, and the tools that lead to every administration screen', async ({
+    test('admin /admin · the blocks, and the tools that lead to every administration screen', async ({
       page,
     }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
-      await page.goto('/app/admin');
+      await page.goto('/admin');
       const main = page.locator('main');
 
       await expect(
         main.getByRole('heading', { level: 1, name: 'Administration', exact: true })
       ).toBeVisible();
-      await expect(
-        main
-          .getByRole('navigation', { name: 'Administration', exact: true })
-          .getByText('Overview', { exact: true })
-      ).toHaveAttribute('aria-current', 'page');
+      // SPHERE's settings shell: a sticky nav of the sections, a menu of them below `lg`.
+      if (isMobile)
+        await expect(
+          main.getByRole('button', { name: 'Administration section: Overview' })
+        ).toBeVisible();
+      else
+        await expect(
+          main
+            .getByRole('navigation', { name: 'Administration', exact: true })
+            .getByRole('link', { name: 'Overview' })
+        ).toHaveAttribute('aria-current', 'page');
+      await expect(main.getByRole('heading', { level: 2, name: 'Overview' })).toBeVisible();
       const accounts = main.getByRole('region', { name: 'Accounts', exact: true });
       await expect(accounts.getByText('7', { exact: true })).toBeVisible();
       await expect(accounts.getByText('3 FREE', { exact: true })).toBeVisible();
@@ -445,7 +453,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       ).toBeVisible();
       await expect(main.getByRole('link', { name: /^Account agreement/ })).toHaveAttribute(
         'href',
-        '/app/admin/users'
+        '/admin/users'
       );
       await capture(page, testInfo, `overview-${name}-top`, { height: tall(1900) });
 
@@ -455,31 +463,29 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const tools = main.getByRole('region', { name: 'Tools', exact: true });
       await expect(tools.getByRole('link', { name: /^Moderation/ })).toHaveAttribute(
         'href',
-        '/app/admin/moderation'
+        '/admin/moderation'
       );
       await expect(tools.getByRole('link', { name: /^Maintenance/ })).toHaveAttribute(
         'href',
-        '/app/admin?section=maintenance'
+        '/admin/maintenance'
       );
       await capture(page, testInfo, `overview-${name}-full`);
       await tools.getByRole('link', { name: /^Maintenance/ }).click();
-      await expect(page).toHaveURL(/\/app\/admin\?section=maintenance$/);
+      await expect(page).toHaveURL(/\/admin\/maintenance$/);
       await expect(
-        page.locator('main').getByRole('heading', { level: 1, name: 'Maintenance' })
+        page.locator('main').getByRole('heading', { level: 2, name: 'Maintenance' })
       ).toBeVisible();
       await page.goBack();
-      await expect(
-        main.getByRole('heading', { level: 1, name: 'Administration', exact: true })
-      ).toBeVisible();
+      await expect(main.getByRole('heading', { level: 2, name: 'Overview' })).toBeVisible();
       await tools.getByRole('link', { name: /^Moderation/ }).click();
-      await expect(page).toHaveURL(/\/app\/admin\/moderation$/);
+      await expect(page).toHaveURL(/\/admin\/moderation$/);
       await expect(
-        page.locator('main').getByRole('heading', { level: 1, name: 'Moderation' })
+        page.locator('main').getByRole('heading', { level: 2, name: 'Moderation' })
       ).toBeVisible();
 
       // One block failing leaves the rest of the page as it was.
       state.refuse.queues = detail(503, 'accounts_unavailable', 'down');
-      await page.goto('/app/admin');
+      await page.goto('/admin');
       const queue = main.getByRole('region', { name: 'Run queue', exact: true });
       await expect(queue.getByText('This block couldn’t load')).toBeVisible();
       await expect(
@@ -492,7 +498,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       // A key without the permission is told so, and the block offers no retry.
       state.refuse.moderation = forbidden;
-      await page.goto('/app/admin');
+      await page.goto('/admin');
       await expect(
         main
           .getByRole('region', { name: 'Moderation', exact: true })
@@ -504,22 +510,22 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('admin-users /app/admin/users · search, filters, and the changes an administrator may make', async ({
+    test('admin /admin/users · search, filters, and the changes an administrator may make', async ({
       page,
     }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
-      await page.goto('/app/admin/users');
+      await page.goto('/admin/users');
       const main = page.locator('main');
 
       await expect(
-        main.getByRole('heading', { level: 1, name: 'Accounts', exact: true })
+        main.getByRole('heading', { level: 2, name: 'Accounts', exact: true })
       ).toBeVisible();
       const sam = main.getByRole('row', { name: 'sam.okafor', exact: true });
       await expect(sam).toBeVisible();
       await expect(sam.getByRole('link', { name: 'sam.okafor' })).toHaveAttribute(
         'href',
-        `/app/admin/users/${SAM.id}`
+        `/admin/users/${SAM.id}`
       );
       await expect(
         main.getByRole('row', { name: 'jordan.lee', exact: true }).getByText('contract pending')
@@ -612,7 +618,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       // Failures read apart from an empty list.
       state.refuse.users = down;
-      await page.goto('/app/admin/users');
+      await page.goto('/admin/users');
       await expect(
         main.getByText('A service isn’t available right now (503 · accounts_unavailable)')
       ).toBeVisible();
@@ -622,24 +628,29 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await main.getByRole('button', { name: 'Try again' }).click();
       await expect(main.getByRole('row', { name: 'sam.okafor', exact: true })).toBeVisible();
       state.refuse.users = forbidden;
-      await page.goto('/app/admin/users');
+      await page.goto('/admin/users');
       await expect(main.getByText('This key can’t use administration (403)')).toBeVisible();
       await capture(page, testInfo, `users-${name}-403`, { height: tall(900) });
       state.refuse.users = undefined;
       state.users = [];
-      await page.goto('/app/admin/users');
+      await page.goto('/admin/users');
       await expect(main.getByText('There are no accounts yet')).toBeVisible();
       await capture(page, testInfo, `users-${name}-empty`, { height: tall(900) });
       expect(critical).toEqual([]);
     });
 
-    test('admin-user-detail /app/admin/users/:user · agreement, plan limits and keys of one account', async ({
+    test('admin-user-detail /admin/users/:user · agreement, plan limits and keys of one account', async ({
       page,
     }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
-      await page.goto(`/app/admin/users/${SAM.id}`);
+      await page.goto(`/admin/users/${SAM.id}`);
       const main = page.locator('main');
+      const tab = (label: string) =>
+        main
+          .getByRole('navigation', { name: 'Account' })
+          .getByRole('link', { name: label })
+          .click();
 
       await expect(
         main.getByRole('heading', { level: 1, name: 'sam.okafor', exact: true })
@@ -647,13 +658,18 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(
         main.getByText(/sam-okafor@example\.invalid · since Jun 15, 2026/)
       ).toBeVisible();
-      await expect(main.getByText(/Pinned to pricing 0\.1\.0 · renews Nov 1, 2026/)).toBeVisible();
+      await expect(main.getByLabel('Account facts').getByText('None linked')).toBeVisible();
+      await capture(page, testInfo, `detail-${name}-identity`, { height: tall(1400) });
+      await tab('Usage');
+      await expect(page).toHaveURL(new RegExp(`/admin/users/${SAM.id}\\?tab=usage$`));
       await expect(
         main.getByRole('group', { name: 'Allowances' }).getByText('Concurrent runs')
       ).toBeVisible();
       await expect(
         main.getByRole('group', { name: 'Ceilings for each request' }).getByText('Max time per run')
       ).toBeVisible();
+      await tab('Agreement');
+      await expect(main.getByText(/Pinned to pricing 0\.1\.0 · renews Nov 1, 2026/)).toBeVisible();
       const plans = main.getByRole('radiogroup', { name: 'New plan' });
       await expect(plans.getByRole('radio')).toHaveCount(4);
       await expect(plans.getByRole('radio', { name: /^BASIC · current/ })).toBeChecked();
@@ -748,6 +764,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       // A key can be taken back by its id.
       await expect(main.getByRole('button', { name: /resync/i })).toHaveCount(0);
+      await tab('API keys');
       await main.getByLabel('Key id').fill(KEY_ID);
       await main.getByRole('button', { name: 'Revoke key' }).click();
       await capture(page, testInfo, `detail-${name}-revoke-dialog`);
@@ -776,35 +793,36 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       // The pricing cannot be read: the rest of the page stays useful.
       state.refuse.catalog = detail(503, 'pricing_unavailable', 'SPACE is down');
-      await page.goto(`/app/admin/users/${SAM.id}`);
+      await page.goto(`/admin/users/${SAM.id}?tab=agreement`);
       await expect(main.getByText('The active pricing couldn’t be read')).toBeVisible();
       await expect(main.getByRole('radiogroup', { name: 'New plan' })).toHaveCount(0);
+      await tab('Usage');
       await expect(main.getByRole('group', { name: 'Ceilings for each request' })).toBeVisible();
       await capture(page, testInfo, `detail-${name}-pricing-503`, { height: tall(1800) });
       state.refuse.catalog = undefined;
 
       // An account found by name, and one that does not exist.
-      await page.goto('/app/admin/users/maria.santos');
+      await page.goto('/admin/users/maria.santos');
       await expect(
         main.getByRole('heading', { level: 1, name: 'maria.santos', exact: true })
       ).toBeVisible();
       await expect(main.getByText('Institutional identity verified')).toBeVisible();
-      await page.goto('/app/admin/users/00000000-0000-4000-8000-0000000000ff');
-      await expect(main.getByText('No such account', { exact: true })).toBeVisible();
+      await page.goto('/admin/users/00000000-0000-4000-8000-0000000000ff');
+      await expect(page.getByRole('heading', { level: 1, name: 'Page not found' })).toBeVisible();
       await capture(page, testInfo, `detail-${name}-404`, { height: tall(900) });
       expect(critical).toEqual([]);
     });
 
-    test('admin-overview, audit section /app/admin?section=audit · the timeline, the detail of an event and its filters', async ({
+    test('admin /admin/audit · the timeline, the detail of an event and its filters', async ({
       page,
     }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
-      await page.goto('/app/admin?section=audit');
+      await page.goto('/admin/audit');
       const main = page.locator('main');
 
       await expect(
-        main.getByRole('heading', { level: 1, name: 'Audit log', exact: true })
+        main.getByRole('heading', { level: 2, name: 'Audit log', exact: true })
       ).toBeVisible();
       await expect(
         main.getByRole('list', { name: 'Events, newest first' }).getByRole('listitem')
@@ -825,7 +843,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(aside.getByText('Agreement 2026-14', { exact: true })).toBeVisible();
       await expect(aside.getByRole('link', { name: '00000000…' })).toHaveAttribute(
         'href',
-        `/app/admin/users/${ALEX.id}`
+        `/admin/users/${ALEX.id}`
       );
       await capture(page, testInfo, `audit-${name}-detail`, { height: tall(1700) });
 
@@ -893,7 +911,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
           plan_changed: { from: 'BASIC', to: 'RESEARCH', extra_cost: false },
         }),
       ];
-      await page.goto('/app/admin?section=audit');
+      await page.goto('/admin/audit');
       await expect(main.getByText('The organization’s settings were updated.')).toBeVisible();
       await expect(
         main.getByText('Account sam.okafor was updated: status active → inactive.')
@@ -935,11 +953,11 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       state.extraAudit = [];
 
       state.refuse.audit = json({ events: [], total: 0, offset: 0, limit: 100 });
-      await page.goto('/app/admin?section=audit');
+      await page.goto('/admin/audit');
       await expect(main.getByText('No events for this filter')).toBeVisible();
       await capture(page, testInfo, `audit-${name}-empty`, { height: tall(900) });
       state.refuse.audit = down;
-      await page.goto('/app/admin?section=audit');
+      await page.goto('/admin/audit');
       await expect(
         main.getByText('A service isn’t available right now (503 · accounts_unavailable)')
       ).toBeVisible();
@@ -948,21 +966,21 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await main.getByRole('button', { name: 'Try again' }).click();
       await expect(main.getByText('2 abandoned runs were reconciled.')).toBeVisible();
       state.refuse.audit = forbidden;
-      await page.goto('/app/admin?section=audit');
+      await page.goto('/admin/audit');
       await expect(main.getByText('This key can’t use administration (403)')).toBeVisible();
       expect(critical).toEqual([]);
     });
 
-    test('admin-overview, errors section /app/admin?section=errors · the summary, errors grouped by code and the events behind each group', async ({
+    test('admin /admin/errors · the summary, errors grouped by code and the events behind each group', async ({
       page,
     }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
-      await page.goto('/app/admin?section=errors');
+      await page.goto('/admin/errors');
       const main = page.locator('main');
 
       await expect(
-        main.getByRole('heading', { level: 1, name: 'Errors', exact: true })
+        main.getByRole('heading', { level: 2, name: 'Errors', exact: true })
       ).toBeVisible();
       await expect(main.getByText('9 error events')).toBeVisible();
       await expect(
@@ -994,7 +1012,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(groups.getByRole('listitem')).toHaveCount(3);
 
       state.refuse.errors = down;
-      await page.goto('/app/admin?section=errors');
+      await page.goto('/admin/errors');
       await expect(
         main.getByText('A service isn’t available right now (503 · accounts_unavailable)')
       ).toBeVisible();
@@ -1013,26 +1031,26 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         timeline: [],
       });
       state.refuse.errors = json({ items: [], total: 0, limit: 50, offset: 0 });
-      await page.goto('/app/admin?section=errors');
+      await page.goto('/admin/errors');
       await expect(main.getByText('No errors in the retention window')).toBeVisible();
       await capture(page, testInfo, `errors-${name}-empty`, { height: tall(1500) });
       state.refuse.errors = forbidden;
       state.refuse.errorOverview = forbidden;
-      await page.goto('/app/admin?section=errors');
+      await page.goto('/admin/errors');
       await expect(main.getByText('This key can’t use administration (403)').first()).toBeVisible();
       expect(critical).toEqual([]);
     });
 
-    test('admin-overview, queues section /app/admin?section=queues · runs by state, the oldest ones, and what the gateway does not let an administrator do', async ({
+    test('admin /admin/queues · runs by state, the oldest ones, and what the gateway does not let an administrator do', async ({
       page,
     }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
-      await page.goto('/app/admin?section=queues');
+      await page.goto('/admin/queues');
       const main = page.locator('main');
 
       await expect(
-        main.getByRole('heading', { level: 1, name: 'Queues', exact: true })
+        main.getByRole('heading', { level: 2, name: 'Queues', exact: true })
       ).toBeVisible();
       await expect(
         main.getByRole('list', { name: 'Runs by state' }).getByRole('listitem')
@@ -1047,7 +1065,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(jobs.getByRole('listitem', { name: 'random-search queued' })).toBeVisible();
       await expect(main.getByRole('link', { name: 'Reconcile abandoned runs' })).toHaveAttribute(
         'href',
-        '/app/admin?section=maintenance'
+        '/admin/maintenance'
       );
       await expect(main.getByRole('heading', { name: 'What this screen can’t do' })).toBeVisible();
       await capture(page, testInfo, `queues-${name}-list`, { height: tall(1700) });
@@ -1060,11 +1078,11 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await main.getByLabel('Refresh every 10 s').uncheck();
 
       state.refuse.queues = json(EMPTY_QUEUES);
-      await page.goto('/app/admin?section=queues');
+      await page.goto('/admin/queues');
       await expect(main.getByText('Queues are empty')).toBeVisible();
       await capture(page, testInfo, `queues-${name}-empty`, { height: tall(1100) });
       state.refuse.queues = down;
-      await page.goto('/app/admin?section=queues');
+      await page.goto('/admin/queues');
       await expect(
         main.getByText('A service isn’t available right now (503 · accounts_unavailable)')
       ).toBeVisible();
@@ -1073,7 +1091,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await main.getByRole('button', { name: 'Try again' }).click();
       await expect(main.getByRole('list', { name: 'Runs by state' })).toBeVisible();
       state.refuse.queues = forbidden;
-      await page.goto('/app/admin?section=queues');
+      await page.goto('/admin/queues');
       await expect(main.getByText('This key can’t use administration (403)')).toBeVisible();
       expect(critical).toEqual([]);
     });
@@ -1084,12 +1102,15 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const critical = watchCriticalErrors(page);
       await mockApi(page, { role: 'user' });
       for (const path of [
-        '/app/admin',
-        '/app/admin/users',
-        `/app/admin/users/${SAM.id}`,
-        '/app/admin?section=audit',
-        '/app/admin?section=errors',
-        '/app/admin?section=queues',
+        '/admin',
+        '/admin/users',
+        `/admin/users/${SAM.id}`,
+        `/admin/users/${SAM.id}?tab=agreement`,
+        '/admin/moderation',
+        '/admin/audit',
+        '/admin/errors',
+        '/admin/queues',
+        '/admin/maintenance',
       ]) {
         await page.goto(path);
         // Unreadable is the same in-place 404 as missing: the address stays, and nothing of the screen shows.

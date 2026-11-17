@@ -141,7 +141,9 @@ test.describe('route registry', () => {
     expect(new Set(screens.map(screen => screen.id)).size).toBe(screens.length);
     expect(new Set(screens.map(screen => screen.path)).size).toBe(screens.length);
     expect(
-      screens.filter(screen => screen.requireAdmin).every(screen => screen.id.startsWith('admin-'))
+      screens
+        .filter(screen => screen.requireAdmin)
+        .every(screen => screen.id === 'admin' || screen.id.startsWith('admin-'))
     ).toBe(true);
   });
 

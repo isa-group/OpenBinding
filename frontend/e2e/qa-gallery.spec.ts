@@ -63,10 +63,8 @@ const HEADING: Record<string, RegExp> = {
   'eng-register': /Register a private engine/,
   'eng-registrations': /My engines/,
   'eng-registration-detail': /edge-solver/,
-  'admin-overview': /Administration/,
-  'admin-users': /Accounts/,
+  admin: /Administration/,
   'admin-user-detail': /sam\.okafor/,
-  'admin-moderation': /Moderation/,
 };
 
 const VIEWPORTS = [

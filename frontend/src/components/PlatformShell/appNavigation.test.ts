@@ -27,7 +27,7 @@ describe('mainLinks', () => {
     expect(Object.values(mainLinks).map(link => [link.label, link.to])).toEqual([
       ['Home', '/'],
       ['Engines', '/engines'],
-      ['Admin', '/app/admin'],
+      ['Admin', '/admin'],
     ]);
     for (const link of Object.values(mainLinks)) {
       expect(link.to).not.toMatch(/^\/app\/analysis([/?#]|$)/);
@@ -145,8 +145,9 @@ describe('currentSection', () => {
     ['/engines', 'engines'],
     ['/me/engines', 'engines'],
     ['/language', null],
-    ['/app/admin', 'admin'],
-    ['/app/admin/users', 'admin'],
+    ['/admin', 'admin'],
+    ['/admin/users', 'admin'],
+    ['/admin/users/u-1', 'admin'],
     ['/app/isa-demo/qos/published', null],
     ['/app/isa-demo/qos/settings', null],
     ['/me/settings', null],

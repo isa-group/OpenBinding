@@ -128,5 +128,5 @@ test('account menu lists the person\'s places then Sign out, with Administration
 test('an administrator\'s account menu leads to the administration', async ({ page }) => {
   await signedIn(page, '/', 'admin');
   await banner(page).getByRole('button', { name: 'Account menu' }).click();
-  await expect(entry(menuScope(page), 'Administration')).toHaveAttribute('href', '/app/admin');
+  await expect(entry(menuScope(page), 'Administration')).toHaveAttribute('href', '/admin');
 });
