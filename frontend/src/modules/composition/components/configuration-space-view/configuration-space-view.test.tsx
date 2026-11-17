@@ -1,23 +1,20 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { HttpError } from '../../../api/client';
-import {
-  compositionViewModel,
-  type Reader,
-} from '../../../modules/core/utils/composition/viewModel';
-import { org } from '../../../features/workspace/testKit';
+import { HttpError } from '../../../../api/client';
+import { compositionViewModel, type Reader } from '../../../core/utils/composition/viewModel';
+import { org } from '../../../../features/workspace/testKit';
 import type {
   CompositionVersionView,
   CompositionView,
   ProblemFacts,
-} from '../../../modules/core/api/types';
-import { readCompositionFragment } from '../../../modules/core/utils/sphere/composition-fragment';
-import { EVALUATED, NEIGHBOURHOOD, fmsVersionView } from '../../../test/fixtures/analysis';
-import fmsFacts from '../../../test/fixtures/core/fms.facts.json';
-import CompositionCardPage from '../../../modules/composition/pages/card';
-import { renderCompositionPage } from '../../../test/compositionPage';
-import { AnalysisTab } from './AnalysisTab';
+} from '../../../core/api/types';
+import { readCompositionFragment } from '../../../core/utils/sphere/composition-fragment';
+import { EVALUATED, NEIGHBOURHOOD, fmsVersionView } from '../../../../test/fixtures/analysis';
+import fmsFacts from '../../../../test/fixtures/core/fms.facts.json';
+import CompositionCardPage from '../../pages/card';
+import { renderCompositionPage } from '../../../../test/compositionPage';
+import ConfigurationSpaceView from '.';
 
 const api = vi.hoisted(() => ({
   get: vi.fn(),
@@ -29,10 +26,10 @@ const api = vi.hoisted(() => ({
   derive: vi.fn(),
   list: vi.fn(),
 }));
-vi.mock('../../../modules/core/utils/composition/api', () => ({ compositionsApi: api }));
+vi.mock('../../../core/utils/composition/api', () => ({ compositionsApi: api, languageApi: {} }));
 
 const factsApi = vi.hoisted(() => ({ get: vi.fn() }));
-vi.mock('../../../modules/core/utils/problem/facts', () => ({ problemFactsApi: factsApi }));
+vi.mock('../../../core/utils/problem/facts', () => ({ problemFactsApi: factsApi }));
 
 const facts = fmsFacts as ProblemFacts;
 const WAIT = { timeout: 3000 };
@@ -117,13 +114,13 @@ function renderTab(
   });
   const onNotLinked = vi.fn();
   render(
-    <MemoryRouter initialEntries={['/compositions/isa-demo/fleet-routing/analysis']}>
+    <MemoryRouter initialEntries={['/compositions/isa-demo/fleet-routing/configuration']}>
       <Routes>
         <Route
           path="*"
           element={
             <>
-              <AnalysisTab
+              <ConfigurationSpaceView
                 org="isa-demo"
                 composition={composition}
                 model={model}
@@ -140,16 +137,17 @@ function renderTab(
   return { onNotLinked };
 }
 
-const calculatorRow = async (task: string) => {
-  const table = await within(
-    screen.getByRole('region', { name: 'One change at a time' })
-  ).findByRole('table');
-  return within(table)
-    .getAllByRole('row')
-    .find(row => within(row).queryByRole('rowheader')?.textContent === task) as HTMLElement;
+/** Focus the first configuration that moves `task`, from Quick Browse, and answer the focused card. */
+const focusMove = async (task: string) => {
+  const browse = await screen.findByRole('region', { name: 'Quick browse' });
+  const row = within(browse)
+    .getAllByRole('listitem')
+    .find(item => item.textContent?.startsWith(`${task}:`)) as HTMLElement;
+  fireEvent.click(within(row).getAllByRole('button')[0]);
+  return screen.getByRole('group', { name: 'Current selection' });
 };
 
-describe('the Analysis tab', () => {
+describe('the Configuration tab', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     api.get.mockResolvedValue({ value: composition, etag: 'W/"3"' });
@@ -167,14 +165,17 @@ describe('the Analysis tab', () => {
     factsApi.get.mockResolvedValue(facts);
   });
 
-  it('shows for a version whose linked problem the member can read, with one change at a time and the choice per task', async () => {
-    renderDetail('/compositions/isa-demo/fleet-routing/analysis');
+  it('shows for a version whose linked problem the member can read, with the explorer and the choice per task', async () => {
+    renderDetail('/compositions/isa-demo/fleet-routing/configuration');
 
-    expect(await screen.findByRole('link', { name: 'Analysis' })).toHaveAttribute(
+    expect(await screen.findByRole('link', { name: 'Configuration' })).toHaveAttribute(
       'aria-current',
       'page'
     );
-    expect(await screen.findByRole('region', { name: 'One change at a time' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('region', { name: 'Configuration explorer' })
+    ).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Compare' })).toBeInTheDocument();
     expect(await screen.findByRole('radio', { name: 'cand_t1_aws for T1' })).toBeChecked();
     expect(screen.getByRole('region', { name: 'Choose per task' })).toBeInTheDocument();
     await waitFor(() =>
@@ -192,16 +193,16 @@ describe('the Analysis tab', () => {
 
     expect(await screen.findByRole('region', { name: 'Values' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Versions' })).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Analysis' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Configuration' })).toBeNull();
     unmount();
 
-    renderDetail('/compositions/isa-demo/fleet-routing/analysis');
+    renderDetail('/compositions/isa-demo/fleet-routing/configuration');
     expect(
       await screen.findByText(
         'Values are declared: the calculator and configurator need a linked problem you can read.'
       )
     ).toBeInTheDocument();
-    expect(screen.queryByRole('region', { name: 'One change at a time' })).toBeNull();
+    expect(screen.queryByRole('region', { name: 'Configuration explorer' })).toBeNull();
     expect(api.neighborhood).not.toHaveBeenCalled();
   });
 
@@ -209,7 +210,7 @@ describe('the Analysis tab', () => {
     api.neighborhood.mockRejectedValue(
       Object.assign(new HttpError(422, 'not linked'), { code: 'composition_not_linked' })
     );
-    renderDetail('/compositions/isa-demo/fleet-routing/analysis');
+    renderDetail('/compositions/isa-demo/fleet-routing/configuration');
 
     expect(
       await screen.findByText(
@@ -219,7 +220,7 @@ describe('the Analysis tab', () => {
     expect(screen.queryByRole('region', { name: 'Choose per task' })).toBeNull();
     fireEvent.click(screen.getByRole('link', { name: 'Overview' }));
     await waitFor(() => expect(where()).toBe('/compositions/isa-demo/fleet-routing'));
-    expect(screen.queryByRole('link', { name: 'Analysis' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Configuration' })).toBeNull();
   });
 
   it('is never shown to a public reader', () => {
@@ -230,16 +231,16 @@ describe('the Analysis tab', () => {
         'Values are declared: the calculator and configurator need a linked problem you can read.'
       )
     ).toBeInTheDocument();
-    expect(screen.queryByRole('region', { name: 'One change at a time' })).toBeNull();
+    expect(screen.queryByRole('region', { name: 'Configuration explorer' })).toBeNull();
     expect(screen.queryByRole('region', { name: 'Choose per task' })).toBeNull();
     expect(api.neighborhood).not.toHaveBeenCalled();
   });
 
-  it('opens the derive dialog on this composition, at its next minor, for a move of the calculator', async () => {
+  it('opens the derive dialog on this composition, at its next minor, for a move of the explorer', async () => {
     renderTab();
 
     fireEvent.click(
-      within(await calculatorRow('T1')).getByRole('button', { name: 'Derive composition' })
+      within(await focusMove('T1')).getByRole('button', { name: 'Derive as a version' })
     );
     const dialog = screen.getByRole('dialog', { name: 'Derive a composition' });
     expect(
@@ -291,11 +292,11 @@ describe('the Analysis tab', () => {
     });
   });
 
-  it('tries a move of the calculator in the configurator', async () => {
+  it('tries a move of the explorer in the configurator', async () => {
     renderTab();
 
     fireEvent.click(
-      within(await calculatorRow('T6')).getByRole('button', { name: 'Try in configurator' })
+      within(await focusMove('T6')).getByRole('button', { name: 'Try in the configurator' })
     );
     expect(screen.getByRole('radio', { name: 'cand_t6_stripe for T6' })).toBeChecked();
     await waitFor(
@@ -310,12 +311,32 @@ describe('the Analysis tab', () => {
     );
   });
 
+  it('holds two configurations for comparison in the address, and compares them with the gateway', async () => {
+    renderTab();
+
+    fireEvent.click(
+      within(await focusMove('T1')).getByRole('button', { name: 'Compare this one' })
+    );
+    fireEvent.click(within(await focusMove('T6')).getByRole('button', { name: 'Compare with A' }));
+    await waitFor(() => expect(where()).toContain('cfgA=T1%3A'));
+    expect(where()).toContain('cfgB=T6%3A');
+    const compared = await screen.findByRole('region', { name: 'A compared with B' });
+    expect(
+      within(compared).getByRole('table', { name: 'Tasks bound differently' })
+    ).toHaveTextContent('T1');
+    await waitFor(() => expect(api.evaluate).toHaveBeenCalledTimes(2));
+    fireEvent.click(screen.getByRole('button', { name: 'Clear both' }));
+    await waitFor(() => expect(where()).not.toContain('cfgA'));
+  });
+
   it('lets a viewer explore without deriving', async () => {
     renderTab({ canDerive: false });
 
-    const row = await calculatorRow('T1');
-    expect(within(row).getByRole('button', { name: 'Try in configurator' })).toBeInTheDocument();
-    expect(within(row).queryByRole('button', { name: 'Derive composition' })).toBeNull();
+    const card = await focusMove('T1');
+    expect(
+      within(card).getByRole('button', { name: 'Try in the configurator' })
+    ).toBeInTheDocument();
+    expect(within(card).queryByRole('button', { name: 'Derive as a version' })).toBeNull();
     fireEvent.click(screen.getByRole('radio', { name: 'cand_t6_stripe for T6' }));
     const result = screen.getByRole('region', { name: 'This binding' });
     expect(within(result).queryByRole('button', { name: 'Derive as a new version' })).toBeNull();

@@ -16,15 +16,15 @@ describe('the address builders of the compositions area', () => {
     expect(COMPOSITIONS_SEGMENT).toBe('compositions');
   });
 
-  it('has the Editor, Versions and Analysis tabs so far: Overview is the composition page itself', () => {
+  it('has the Analytics, Configuration, Versions, Editor and Settings tabs: Overview is the composition page itself', () => {
     expect(COMPOSITION_TAB_SEGMENTS).toEqual([
       'analytics',
-      'analysis',
+      'configuration',
       'versions',
       'editor',
       'settings',
     ]);
-    for (const segment of ['analytics', 'analysis', 'versions', 'editor', 'settings'])
+    for (const segment of ['analytics', 'configuration', 'versions', 'editor', 'settings'])
       expect(isCompositionTabSegment(segment), segment).toBe(true);
     for (const segment of ['overview', 'operations', ''])
       expect(isCompositionTabSegment(segment), segment).toBe(false);

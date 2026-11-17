@@ -1,7 +1,6 @@
 import type { CompositionViewModel } from '../../utils/composition/viewModel';
 import type { AnalysisActions } from './modes/analysis';
 import { ArchitectureMode } from './modes/architecture';
-import { CalculatorMode } from './modes/calculator';
 import { CatalogMode } from './modes/catalog';
 import { Comparison, type ComparisonData } from './modes/comparison/Comparison';
 import { ConfiguratorMode } from './modes/configurator';
@@ -29,7 +28,7 @@ interface CompositionRendererProps extends RendererLinks {
   onlyDifferences?: boolean;
   /** The pair the comparison mode compares and what the gateway answered for it; `model` is then the later version's. */
   comparison?: ComparisonData;
-  /** The page's answers to the calculator and the configurator (try, derive, open as a draft), and where the configurator starts. */
+  /** The page's answers to the configurator (try, derive, open as a draft), and where it starts. */
   analysis?: AnalysisActions;
 }
 
@@ -71,9 +70,6 @@ export function CompositionRenderer({
           sections={sections}
           onlyDifferences={onlyDifferences}
         />
-      )}
-      {mode === 'calculator' && (
-        <CalculatorMode model={model} sections={sections} actions={analysis} />
       )}
       {mode === 'configurator' && (
         <ConfiguratorMode model={model} sections={sections} actions={analysis} />

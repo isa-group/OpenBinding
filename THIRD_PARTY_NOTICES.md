@@ -127,6 +127,12 @@ Generated from the origin header of each file.
 | `frontend/src/modules/composition/components/composition-settings-tab/index.tsx` | `frontend/src/modules/pricing/components/pricing-settings-tab/index.tsx` | adapted |
 | `frontend/src/modules/composition/components/composition-tree/index.tsx` | `frontend/src/modules/pricing/components/pricing-tree/index.tsx` | adapted |
 | `frontend/src/modules/composition/components/compositions-tab/index.tsx` | `frontend/src/modules/organization/pages/organization-detail/components/PricingsTab.tsx` | adapted |
+| `frontend/src/modules/composition/components/configuration-details-modal/index.tsx` | `frontend/src/modules/pricing/components/configuration-details-modal/index.tsx` | adapted |
+| `frontend/src/modules/composition/components/configuration-space-item/index.tsx` | `frontend/src/modules/pricing/components/configuration-space-item/index.tsx` | adapted |
+| `frontend/src/modules/composition/components/configuration-space-view/compare-slots.ts` | `frontend/src/modules/pricing/components/configuration-space-view/compare-slots.ts` | adapted |
+| `frontend/src/modules/composition/components/configuration-space-view/compare-tray.tsx` | `frontend/src/modules/pricing/components/configuration-space-view/compare-tray.tsx` | adapted |
+| `frontend/src/modules/composition/components/configuration-space-view/configuration-comparison.tsx` | `frontend/src/modules/pricing/components/configuration-space-view/configuration-comparison.tsx` | adapted |
+| `frontend/src/modules/composition/components/configuration-space-view/index.tsx` | `frontend/src/modules/pricing/components/configuration-space-view/index.tsx` | adapted |
 | `frontend/src/modules/composition/components/create-composition-form/index.tsx` | `frontend/src/modules/pricing/components/create-pricing-form/index.tsx` | adapted |
 | `frontend/src/modules/composition/components/fork-composition-modal/index.tsx` | `frontend/src/modules/pricing/components/fork-pricing-modal/index.tsx` | adapted |
 | `frontend/src/modules/composition/components/get-composition-menu/index.tsx` | `frontend/src/modules/pricing/components/get-pricing-menu/index.tsx` | adapted |
@@ -153,7 +159,6 @@ Generated from the origin header of each file.
 | `frontend/src/modules/core/components/block-alert/index.tsx` | `frontend/src/modules/core/components/block-alert/index.tsx` | adapted |
 | `frontend/src/modules/core/components/chip/index.tsx` | `frontend/src/modules/beta/components/beta-badge/index.tsx` | pattern-only |
 | `frontend/src/modules/core/components/command-palette/index.tsx` | `frontend/src/modules/core/components/command-palette/index.tsx` | adapted |
-| `frontend/src/modules/core/components/composition-renderer/modes/calculator.tsx` | `frontend/src/modules/pricing/components/configuration-space-view/index.tsx` | pattern-only |
 | `frontend/src/modules/core/components/composition-renderer/modes/comparison/Comparison.tsx` | `frontend/src/modules/pricing/components/pricing-version-diff/index.tsx` | pattern-only |
 | `frontend/src/modules/core/components/composition-renderer/modes/comparison/FileDiff.tsx` | `frontend/src/modules/pricing/components/pricing-version-diff/file-diff-view.tsx` | pattern-only |
 | `frontend/src/modules/core/components/composition-renderer/modes/showcase.tsx` | `frontend/src/modules/pricing/pages/card/index.tsx` | pattern-only |

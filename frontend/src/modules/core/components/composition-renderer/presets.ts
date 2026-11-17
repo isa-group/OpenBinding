@@ -8,13 +8,7 @@ import type { Mode } from '../../utils/composition/viewModel';
 /** The modes this renderer draws so far; the others join with the blocks that build them. */
 export type RendererMode = Extract<
   Mode,
-  | 'catalog'
-  | 'architecture'
-  | 'workflow'
-  | 'comparison'
-  | 'calculator'
-  | 'configurator'
-  | 'showcase'
+  'catalog' | 'architecture' | 'workflow' | 'comparison' | 'configurator' | 'showcase'
 >;
 
 /**
@@ -25,7 +19,6 @@ export type RendererMode = Extract<
  * - workflow: the workflow drawn with each task's candidate, and the candidates of the linked problem;
  * - comparison: what changed between two versions (the gateway's diff), the later workflow with what changed marked, and the
  *   candidates each version chose;
- * - calculator: the toolchain's one-task moves of the version's binding;
  * - configurator: what the toolchain makes of the binding chosen, and the linked problem's candidates to choose from;
  * - showcase: a composition as its documents say it, for every reader: what it does, its values and how far they can be trusted,
  *   the workflow, the providers and the upstream plans, the problem it links (named, never opened), and its own pricing.
@@ -44,7 +37,6 @@ export type Section =
   | 'graph'
   | 'candidates'
   | 'changes'
-  | 'moves'
   | 'result'
   | 'choice'
   | 'about';
@@ -63,7 +55,6 @@ export const MODE_SECTIONS: Readonly<Record<RendererMode, readonly Section[]>> =
   architecture: ['providers', 'plans'],
   workflow: ['graph', 'candidates'],
   comparison: ['changes', 'graph', 'candidates'],
-  calculator: ['moves'],
   configurator: ['result', 'choice'],
   showcase: ['about', 'status', 'values', 'graph', 'providers', 'plans', 'problem', 'offering'],
 };

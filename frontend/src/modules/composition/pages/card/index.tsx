@@ -39,7 +39,6 @@ import customAlert from '../../../core/utils/custom-alert';
 import { problemFactsApi } from '../../../core/utils/problem/facts';
 import { useAuth } from '../../../auth/hooks/useAuth';
 import { orgPath } from '../../../organization/types/paths';
-import { AnalysisTab } from '../../../../pages/Compositions/tabs/AnalysisTab';
 import { EditorTab } from '../../../../pages/Compositions/tabs/EditorTab';
 import {
   compositionPath,
@@ -64,6 +63,7 @@ import YamlSourcePanel from '../../components/yaml-source-panel';
 import CompositionVersionGraph from '../../components/version-graph';
 import CompositionVersionsTab from '../../components/versions-tab';
 import CompositionAnalyticsTab from '../../components/analytics-tab';
+import ConfigurationSpaceView from '../../components/configuration-space-view';
 import { roleAtLeast, useCompositionRole } from '../../hooks/useCompositionRole';
 import { saveBlob, saveText } from '../../utils/download';
 import { useCardComposition, type LoadedComposition } from './hooks';
@@ -589,7 +589,11 @@ function CardBody({
       { id: 'overview', label: 'Overview', shown: true },
       { id: 'editor', label: 'Editor', shown: canWrite || tab === 'editor' },
       { id: 'analytics', label: 'Analytics', shown: true },
-      { id: 'analysis', label: 'Analysis', shown: analysable || tab === 'analysis' },
+      {
+        id: 'configuration',
+        label: 'Configuration',
+        shown: analysable || tab === 'configuration',
+      },
       { id: 'versions', label: 'Versions', shown: true },
       { id: 'settings', label: 'Settings', shown: canWrite || tab === 'settings' },
     ];
@@ -673,7 +677,9 @@ function CardBody({
 
   const versionFailure = shown.status === 'error' ? classifyAuthError(shown.error) : null;
   const reading =
-    (tab === 'overview' || tab === 'analysis') && picked !== null && shown.status === 'loading';
+    (tab === 'overview' || tab === 'configuration') &&
+    picked !== null &&
+    shown.status === 'loading';
 
   return (
     <>
@@ -747,7 +753,7 @@ function CardBody({
             Loading the version…
           </div>
         )}
-        {(tab === 'overview' || tab === 'analysis') && versionFailure && (
+        {(tab === 'overview' || tab === 'configuration') && versionFailure && (
           <div
             role="alert"
             className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800"
@@ -784,8 +790,8 @@ function CardBody({
             onSealed={reload}
           />
         )}
-        {tab === 'analysis' && (!picked || shown.status === 'ready') && (
-          <AnalysisTab
+        {tab === 'configuration' && (!picked || shown.status === 'ready') && (
+          <ConfigurationSpaceView
             org={org}
             composition={composition}
             model={analysisModel}

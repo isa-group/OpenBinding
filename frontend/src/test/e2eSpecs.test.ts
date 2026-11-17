@@ -267,7 +267,7 @@ describe('the Playwright specs', () => {
         "slug: 'composition-versions-compare'",
         "slug: 'composition-versions-file'",
         "slug: 'composition-analytics'",
-        "slug: 'composition-analysis'",
+        "slug: 'composition-configuration'",
         "slug: 'composition-settings'",
         "slug: 'public-compositions'",
         "slug: 'showcase'",

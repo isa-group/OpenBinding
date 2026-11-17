@@ -603,9 +603,9 @@ function compositionStops(mobile: boolean): Stop[] {
       ready: page => page.getByRole('region', { name: 'Analytics' }),
     },
     {
-      slug: 'composition-analysis',
-      path: `${COMPOSITION}/analysis`,
-      ready: page => page.getByRole('region', { name: 'One change at a time' }),
+      slug: 'composition-configuration',
+      path: `${COMPOSITION}/configuration`,
+      ready: page => page.getByRole('region', { name: 'Configuration explorer' }),
     },
     {
       slug: 'composition-settings',

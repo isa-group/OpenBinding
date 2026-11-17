@@ -11,7 +11,7 @@ export const COMPOSITIONS_SEGMENT = 'compositions';
 /** The segments of the composition page after the composition: no segment is the Overview tab. */
 export const COMPOSITION_TAB_SEGMENTS = [
   'analytics',
-  'analysis',
+  'configuration',
   'versions',
   'editor',
   'settings',

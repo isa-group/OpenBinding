@@ -30,7 +30,8 @@ test.describe('S10a · compositions', () => {
     await expect(main(page).getByRole('heading', { level: 1, name: 'Runs' })).toBeVisible();
 
     const header = page.getByRole('banner');
-    await header.getByRole('button', { name: 'New', exact: true }).click();
+    // The menu opens on hover, as SPHERE's does; a click on top of the hover would close it again.
+    await header.getByRole('button', { name: 'New', exact: true }).hover();
     await header.getByRole('link', { name: 'Composition', exact: true }).click();
     await expect(page).toHaveURL('/compositions/new?org=isa-demo');
     await expect(
@@ -364,27 +365,47 @@ test.describe('S10a · compositions', () => {
     expect(mock.unmocked).toEqual([]);
   });
 
-  test('the Analysis tab tries a move in the configurator, evaluates the binding and derives it as a new version', async ({
+  test('the Configuration tab walks the moves, compares two, tries one in the configurator and derives it as a new version', async ({
     page,
   }) => {
     const mock = await installMockApi(page, 'admin');
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(`${LIST}/fleet-routing`);
 
-    await sections(page).getByRole('link', { name: 'Analysis' }).click();
-    await expect(page).toHaveURL(`${LIST}/fleet-routing/analysis`);
-    const moves = region(page, 'One change at a time');
-    const t1 = moves.getByRole('row', { name: /^T1 / });
-    await expect(t1).toContainText('cand_t1_aws');
-    await expect(t1).toContainText('cand_t1_google_cloud');
+    await sections(page).getByRole('link', { name: 'Configuration' }).click();
+    await expect(page).toHaveURL(`${LIST}/fleet-routing/configuration`);
+    const browse = region(page, 'Quick browse');
+    const t1 = browse
+      .getByRole('listitem')
+      .filter({ hasText: 'T1: cand_t1_aws → cand_t1_google_cloud' });
     await expect(t1).toContainText('Better');
-    await expect(moves.getByRole('row', { name: /^T2 / })).toContainText('Trade-off');
-    await moves.getByRole('combobox', { name: 'Comparison' }).selectOption('trade-off');
-    await expect(moves.getByRole('row', { name: /^T1 / })).toHaveCount(0);
-    await moves.getByRole('combobox', { name: 'Comparison' }).selectOption('');
+    await expect(browse.getByRole('listitem').filter({ hasText: /^T2:/ })).toContainText(
+      'Trade-off'
+    );
+    const explorer = region(page, 'Configuration explorer');
+    await explorer.getByRole('combobox').selectOption('T2');
+    await expect(browse.getByRole('listitem').filter({ hasText: /^T1:/ })).toHaveCount(0);
+    await explorer.getByRole('combobox').selectOption('');
+
+    // Hold the version's binding and the move for comparison: the gateway evaluates both.
+    await browse
+      .getByRole('listitem')
+      .filter({ hasText: 'The version’s binding' })
+      .getByRole('button', { name: /^Compare this one/ })
+      .click();
+    await t1.getByRole('button', { name: /^Compare with A/ }).click();
+    await expect(page).toHaveURL(/cfgA=version&cfgB=T1/);
+    const compared = region(page, 'A compared with B');
+    await expect(compared.getByRole('table', { name: 'Tasks bound differently' })).toContainText(
+      'cand_t1_google_cloud'
+    );
 
     // Change a candidate: the move is tried in the configurator, which has the toolchain evaluate it.
-    await t1.getByRole('button', { name: 'Try in configurator' }).click();
+    await t1.getByRole('button').first().click();
+    await main(page)
+      .getByRole('group', { name: 'Current selection' })
+      .getByRole('button', { name: 'Try in the configurator' })
+      .click();
     await expect(
       main(page).getByRole('radio', { name: 'cand_t1_google_cloud for T1' })
     ).toBeChecked();
@@ -414,13 +435,15 @@ test.describe('S10a · compositions', () => {
     expect(mock.unmocked).toEqual([]);
   });
 
-  test('a declared composition has no Analysis tab, and its address says why', async ({ page }) => {
+  test('a declared composition has no Configuration tab, and its address says why', async ({
+    page,
+  }) => {
     const mock = await installMockApi(page, 'admin');
     await page.goto(`${LIST}/order-desk`);
     await expect(sections(page).getByRole('link', { name: 'Versions' })).toBeVisible();
-    await expect(sections(page).getByRole('link', { name: 'Analysis' })).toHaveCount(0);
+    await expect(sections(page).getByRole('link', { name: 'Configuration' })).toHaveCount(0);
 
-    await page.goto(`${LIST}/order-desk/analysis`);
+    await page.goto(`${LIST}/order-desk/configuration`);
     await expect(
       main(page).getByText(
         'Values are declared: the calculator and configurator need a linked problem you can read.'
