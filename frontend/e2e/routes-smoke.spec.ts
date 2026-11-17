@@ -192,11 +192,13 @@ for (const screen of screens) {
     ).toBeVisible({
       timeout: 30_000,
     });
-    // A detail page whose entity cannot be loaded (the mocked API answers 404) reports it instead of showing a heading.
+    // A detail page whose entity cannot be loaded (the mocked API answers 404) reports it instead of showing a heading; a
+    // permanent link that resolves to nothing says the resource is unavailable (the same words for missing and unreadable).
     const heading = page
       .locator(standalone ? 'header.editor-header' : 'main')
       .getByRole('heading')
       .or(page.getByText('HTTP 404: not mocked'))
+      .or(page.getByText(/^This resource is unavailable\./))
       .first();
     await expect(heading, `${screen.path} should show a heading or the API error`).toBeVisible({
       timeout: 30_000,

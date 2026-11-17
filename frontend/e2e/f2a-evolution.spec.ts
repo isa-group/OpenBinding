@@ -112,7 +112,7 @@ test.describe('J5 · evolution', () => {
       /2\.1\.0.*29 USD\/month.*Verified/,
     ]);
     await usd.getByRole('button', { name: 'Show chart' }).click();
-    await expect(usd.getByRole('img')).toBeVisible();
+    await expect(usd.getByRole('img', { name: /^cost · USD\/month: / })).toBeVisible();
 
     // A range with no version says so; Clear brings every version back.
     await pickDay(page, 'November 1, 2026', 'November 2026');
