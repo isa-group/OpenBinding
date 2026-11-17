@@ -71,6 +71,8 @@ listed with its module:
 |---|---|
 | `openbinding-gateway/src/openbinding_gateway/composition/diff.py` | `frontend/src/modules/pricing/utils/pricing-diff.ts` (the PricingDiff shape and rules) |
 | `openbinding-gateway/src/openbinding_gateway/modules/compositions/application/fork.py` | `PricingService.forkPricing` and its `ForkedFrom` snapshot (the fork rules) |
+| `frontend/src/modules/core/theme/editor-themes/GitHub-Dark.json` | `frontend/src/modules/core/theme/editor-themes/GitHub-Dark.json` | verbatim |
+| `frontend/src/modules/core/theme/editor-themes/Textmate.json` | `frontend/src/modules/core/theme/editor-themes/Textmate.json` | verbatim |
 | `frontend/src/modules/core/utils/sphere/text-diff.ts` | `frontend/src/modules/pricing/utils/text-diff.ts` (copied verbatim) |
 | `frontend/src/modules/core/utils/sphere/requested-version.ts` | `frontend/src/modules/pricing/pages/card/requested-version.ts` (copied verbatim) |
 | `frontend/src/modules/core/utils/sphere/change-summary.ts`, with its test `change-summary.test.ts` | `frontend/src/modules/pricing/utils/change-summary.ts` and `frontend/test/change-summary.test.ts` (adapted: composition sections, candidate and value changes, the gateway's diff) |
@@ -158,6 +160,7 @@ Generated from the origin header of each file.
 | `frontend/src/modules/core/components/badge/index.tsx` | `frontend/src/modules/beta/components/beta-badge/index.tsx` | pattern-only |
 | `frontend/src/modules/core/components/block-alert/index.tsx` | `frontend/src/modules/core/components/block-alert/index.tsx` | adapted |
 | `frontend/src/modules/core/components/chip/index.tsx` | `frontend/src/modules/beta/components/beta-badge/index.tsx` | pattern-only |
+| `frontend/src/modules/core/components/code-editor/index.tsx` | `frontend/src/modules/pricing-editor/pages/pricing2yaml-editor/index.tsx` | pattern-only |
 | `frontend/src/modules/core/components/command-palette/index.tsx` | `frontend/src/modules/core/components/command-palette/index.tsx` | adapted |
 | `frontend/src/modules/core/components/composition-renderer/modes/comparison/Comparison.tsx` | `frontend/src/modules/pricing/components/pricing-version-diff/index.tsx` | pattern-only |
 | `frontend/src/modules/core/components/composition-renderer/modes/comparison/FileDiff.tsx` | `frontend/src/modules/pricing/components/pricing-version-diff/file-diff-view.tsx` | pattern-only |
