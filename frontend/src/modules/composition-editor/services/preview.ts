@@ -17,7 +17,7 @@ export function previewModel(document: CompositionDocument): CompositionViewMode
     name: document.composition,
     kind: document.kind,
     description: '',
-    organization: { id: '', name: '', slug: '' },
+    organization: { id: '', name: 'Not published', slug: '' },
     visibility: 'private',
     archived: false,
     created_at: '',
@@ -29,6 +29,17 @@ export function previewModel(document: CompositionDocument): CompositionViewMode
   const model = compositionViewModel({ composition, version: null, document, reader: 'public' });
   return {
     ...model,
+    // The draft as the version it would be: its label and syntax version, nothing sealed or derived yet.
+    version: {
+      id: 'draft',
+      label: document.version,
+      ordinal: 0,
+      createdAt: '',
+      syntaxVersion: document.syntaxVersion,
+      basedOn: null,
+      forkedFrom: null,
+      derivation: null,
+    },
     status: { ...model.status, values: 'declared' },
     values: Object.entries(document.values ?? {}).map(([name, value]) => ({
       name,

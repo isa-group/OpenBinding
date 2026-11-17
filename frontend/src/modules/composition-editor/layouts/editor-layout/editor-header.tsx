@@ -144,7 +144,7 @@ export default function EditorHeader({ onShareLink, onImport, onPublish }: Props
         <span className="hidden text-white/30 md:inline" aria-hidden="true">
           /
         </span>
-        <h1 className="sr-only text-xs font-normal text-white/60 md:not-sr-only md:inline md:truncate">
+        <h1 className="sr-only font-sans text-xs font-normal text-white/60 md:not-sr-only md:inline md:truncate">
           Composition editor
         </h1>
         {source ? (
