@@ -56,9 +56,6 @@ interface Props {
   myRole: OrgRole | null;
 }
 
-const latestAt = (problem: ProblemView) =>
-  Date.parse(problem.latest_revision?.created_at ?? problem.created_at) || 0;
-
 export default function ProblemsTab({ org, myRole }: Props) {
   const navigate = useNavigate();
   const { addToast } = useToast();
@@ -138,12 +135,8 @@ export default function ProblemsTab({ org, myRole }: Props) {
       controller.signal
     )
       .then(answer => {
-        // The gateway orders by name; until it orders by the latest version, the page is ordered here.
-        setProblems(
-          sort === 'recent'
-            ? [...answer.problems].sort((a, b) => latestAt(b) - latestAt(a))
-            : answer.problems
-        );
+        // The gateway orders the whole list (by name, or newest latest version first) before it pages it.
+        setProblems(answer.problems);
         setTotal(answer.total);
       })
       .catch(caught => {
