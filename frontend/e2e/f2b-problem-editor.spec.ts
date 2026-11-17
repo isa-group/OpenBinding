@@ -199,7 +199,7 @@ test.describe('J3 · the problem editor checks a package live, locates what the 
     );
     await saveButton(page).click();
     const dialog = page.getByRole('dialog', { name: 'Save the package' });
-    await dialog.getByRole('button', { name: 'New version' }).click();
+    await dialog.getByRole('button', { name: 'New version', exact: true }).click();
     await dialog.getByRole('button', { name: /Checkout flow/ }).click();
     await dialog.getByRole('button', { name: 'Save as a new version of Checkout flow' }).click();
     expect(new URL((await saved).url()).searchParams.get('producer')).toBe(
@@ -209,7 +209,7 @@ test.describe('J3 · the problem editor checks a package live, locates what the 
       main(page).getByText('Saved as version 2 of Checkout flow. Run it from its page.')
     ).toBeVisible();
     await main(page).getByRole('link', { name: 'Open the problem' }).click();
-    await expect(page).toHaveURL(/\/app\/isa-demo\/problems\/checkout-flow\?version=2$/);
+    await expect(page).toHaveURL(/\/problems\/isa-demo\/checkout-flow\?version=2$/);
     await expect(
       main(page).getByRole('heading', { level: 1, name: 'Checkout flow' })
     ).toBeVisible();

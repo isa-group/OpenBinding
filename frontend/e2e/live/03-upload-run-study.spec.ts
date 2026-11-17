@@ -197,7 +197,7 @@ test.describe('live · upload, run and study on lab-main', () => {
     await page.goto(`${PROBLEM_PAGES}/${CASE}`);
 
     await expect(page.locator('main').getByRole('heading', { level: 1 })).toBeVisible();
-    await page.getByRole('button', { name: 'New version' }).click();
+    await page.getByRole('button', { name: 'New version', exact: true }).click();
     await expect(page.getByRole('menuitem', { name: /Problem editor/ })).toHaveAttribute(
       'href',
       new RegExp(`^/problem-editor\\?org=${ORG}&problem=${CASE}&revision=\\d+$`)

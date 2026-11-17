@@ -166,7 +166,7 @@ test.describe('S10a · compositions', () => {
     // Publish it into the composition it was opened on, under a label of its own.
     await page.getByRole('button', { name: 'Publish' }).click();
     const dialog = page.getByRole('dialog', { name: 'Publish to OpenBinding' });
-    await expect(dialog.getByRole('button', { name: 'New version' })).toHaveAttribute(
+    await expect(dialog.getByRole('button', { name: 'New version', exact: true })).toHaveAttribute(
       'aria-pressed',
       'true'
     );

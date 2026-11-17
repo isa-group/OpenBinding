@@ -127,7 +127,7 @@ test('the F0b walk: upload, edit in the problem editor, a template, a run and a 
   await expect(status).toHaveText('Valid package');
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   const save = page.getByRole('dialog', { name: 'Save the package' });
-  await expect(save.getByRole('button', { name: 'New version' })).toHaveAttribute(
+  await expect(save.getByRole('button', { name: 'New version', exact: true })).toHaveAttribute(
     'aria-pressed',
     'true'
   );
@@ -161,7 +161,7 @@ test('the F0b walk: upload, edit in the problem editor, a template, a run and a 
   await expect(status).toHaveText('Valid package');
   expect(api.sent.validated[api.sent.validated.length - 1].equals(template)).toBe(true);
   await page.getByRole('button', { name: 'Save', exact: true }).click();
-  await expect(save.getByRole('button', { name: 'New problem' })).toHaveAttribute(
+  await expect(save.getByRole('button', { name: 'New problem', exact: true })).toHaveAttribute(
     'aria-pressed',
     'true'
   );

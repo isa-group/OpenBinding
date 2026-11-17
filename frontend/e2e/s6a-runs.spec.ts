@@ -1083,10 +1083,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         'api_key_forbidden',
         'The API key does not include jobs:read.'
       );
+      // A run the account may not read is the same in-place 404 as a missing one.
       await page.goto(RUN('job-feasible-1'));
-      await expect(
-        main.getByText(/This API key can’t read runs or doesn’t include this engine \(403/)
-      ).toBeVisible();
+      await expect(main.getByRole('heading', { name: NOT_FOUND })).toBeVisible();
       await capture(page, testInfo, `detail-${name}-403-key`);
 
       state.refuse.detail = unavailable;
