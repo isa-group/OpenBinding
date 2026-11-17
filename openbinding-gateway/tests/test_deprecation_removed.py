@@ -1,7 +1,7 @@
 """M9.6: the Deprecation/Sunset mechanism of m24-sunset is gone.
 
 No response carries ``Deprecation`` or ``Sunset``, browsers are offered exactly
-six exposed headers, the module is gone, and the OpenAPI document declares
+seven exposed headers, the module is gone, and the OpenAPI document declares
 neither header and marks no operation deprecated.
 """
 
@@ -15,7 +15,7 @@ from openbinding_gateway import main
 from openbinding_gateway.core.settings import CORS_EXPOSED_HEADERS
 from openbinding_gateway.main import app
 
-EXPOSED = {"Retry-After", "ETag", "Location", "Content-Disposition", "Digest", "Idempotency-Key"}
+EXPOSED = {"Retry-After", "ETag", "Location", "Content-Disposition", "Digest", "Idempotency-Key", "X-Total-Count"}
 RETIREMENT_HEADERS = {"deprecation", "sunset"}
 METHODS = {"get", "put", "post", "delete", "patch", "options", "head", "trace"}
 
@@ -35,14 +35,14 @@ async def test_no_response_carries_a_retirement_header(api_client, path):
     assert not RETIREMENT_HEADERS & {name.lower() for name in response.headers}, (path, dict(response.headers))
 
 
-async def test_a_cross_origin_call_is_offered_exactly_six_headers(api_client):
+async def test_a_cross_origin_call_is_offered_exactly_seven_headers(api_client):
     origin = main.settings.cors_origin_list[0]
 
     response = await api_client.get("/health", headers={"Origin": origin})
 
     exposed = {name.strip() for name in response.headers["access-control-expose-headers"].split(",")}
     assert {name.lower() for name in exposed} == {name.lower() for name in EXPOSED}
-    assert set(CORS_EXPOSED_HEADERS) == EXPOSED and len(CORS_EXPOSED_HEADERS) == 6
+    assert set(CORS_EXPOSED_HEADERS) == EXPOSED and len(CORS_EXPOSED_HEADERS) == 7
 
 
 def test_the_deprecation_module_is_gone():
