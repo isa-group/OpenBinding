@@ -296,8 +296,8 @@ describe('QoSAgainstBounds', () => {
 
   it('uses tokens only and imports nothing from pages', () => {
     const dir = join(process.cwd(), 'src/components/rendering');
-    expect(readFileSync(join(dir, 'QoSAgainstBounds.css'), 'utf8')).not.toMatch(
-      /#[0-9a-fA-F]{3,8}\b/
+    expect(readFileSync(join(dir, 'QoSAgainstBounds.tsx'), 'utf8')).not.toMatch(
+      /#[0-9a-fA-F]{3,8}\b|\.css['"]/
     );
     for (const file of ['QoSAgainstBounds.tsx', 'qosBoundsModel.ts']) {
       expect(readFileSync(join(dir, file), 'utf8')).not.toMatch(

@@ -127,8 +127,11 @@ describe('BindingTable', () => {
     expect(headers()).toEqual(['Task', 'Candidate']);
     expect(screen.getByRole('table')).toHaveStyle({ minWidth: '320px' });
     const first = screen.getAllByRole('row')[1];
-    expect(within(first).getByRole('rowheader').innerHTML).toBe('<code>ship</code>');
-    expect(within(first).getAllByRole('cell')[0].innerHTML).toBe('<code>dhl</code>');
+    const only = (cell: HTMLElement) => [...cell.childNodes].map(node => node.nodeName);
+    expect(only(within(first).getByRole('rowheader'))).toEqual(['CODE']);
+    expect(within(first).getByRole('rowheader')).toHaveTextContent(/^ship$/);
+    expect(only(within(first).getAllByRole('cell')[0])).toEqual(['CODE']);
+    expect(within(first).getAllByRole('cell')[0]).toHaveTextContent(/^dhl$/);
   });
 
   it('shows the Provider column only when a provider is known', () => {
@@ -211,7 +214,7 @@ describe('BindingTable', () => {
 
   it('uses tokens only and imports nothing from pages', () => {
     const read = (name: string) => readFileSync(join(__dirname, name), 'utf8');
-    expect(read('BindingTable.css')).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
+    expect(read('BindingTable.tsx')).not.toMatch(/#[0-9a-fA-F]{3,8}\b|\.css['"]/);
     for (const source of ['BindingTable.tsx', 'bindingTableModel.ts']) {
       const imports = read(source)
         .split('\n')

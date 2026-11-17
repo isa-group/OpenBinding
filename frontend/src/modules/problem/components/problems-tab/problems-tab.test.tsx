@@ -99,7 +99,7 @@ describe("the organization's Problems tab", () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Actions for Flujo de checkout' }));
     expect(
       screen.getByRole('menuitem', { name: 'Run the latest version of Flujo de checkout' })
-    ).toHaveAttribute('href', '/app/isa-demo/runs/new?problem=flujo-checkout&revision=2');
+    ).toHaveAttribute('href', '/runs/new?org=isa-demo&problem=flujo-checkout&revision=2');
     expect(
       screen.getByRole('menuitem', { name: 'New version of Flujo de checkout' })
     ).toHaveAttribute('href', '/problem-editor?org=isa-demo&problem=flujo-checkout');

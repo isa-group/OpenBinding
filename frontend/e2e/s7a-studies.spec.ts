@@ -1388,7 +1388,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(result.getByText('430')).toBeVisible();
       await expect(main.getByRole('link', { name: 'Open run' })).toHaveAttribute(
         'href',
-        '/app/isa-demo/runs/00000000-0000-4000-8000-000000000302'
+        '/runs/isa-demo/00000000-0000-4000-8000-000000000302'
       );
       const rivals = main.getByRole('list', { name: 'Cost of each engine on this input' });
       await expect(rivals.getByRole('listitem')).toHaveCount(2);

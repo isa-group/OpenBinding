@@ -102,7 +102,7 @@ const OUTSIDE: Readonly<Record<string, string>> = {
     'an engine deployment, registered with the platform',
   '/src/pages/Engines/EngineParts.tsx':
     'an engine deployment, and "Verified" for the outcome of its conformance probe',
-  '/src/pages/Runs/RunLaunch.tsx': 'the engine deployment a federated run is sent to',
+  '/src/modules/run/pages/create/index.tsx': 'the engine deployment a federated run is sent to',
   '/src/modules/auth/components/login-form/index.tsx': 'this OpenBinding installation',
   '/src/pages/About/AboutPanels.tsx': 'the related projects of About',
   '/src/pages/Studies/StudyList.tsx': '"Build a study"',

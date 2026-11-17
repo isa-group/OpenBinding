@@ -1,3 +1,9 @@
+// Pattern only, after SPHERE frontend/src/modules/pricing/components/fork-pricing-modal/index.tsx (revision 73779a8a),
+// https://github.com/SCORELabUS/SPHERE. Copyright (c) 2024 Alejandro García Fernández.
+// MIT licence: the full text is in THIRD_PARTY_NOTICES.md.
+// Changes: the points of a study front derived one after another, each a card of SPHERE's modal recipe with
+// its address and its own result.
+
 import { useId, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Action } from '../../../core/components/action-button';
@@ -12,6 +18,15 @@ import type { DeriveResult } from '../../../core/api/types';
 import { SLUG_PATTERN } from '../../../core/utils/slug';
 import { FIRST_LABEL, batchSlugErrors, runDerivation, type FrontPoint } from './deriveModel';
 import { refusalOf } from './refusal';
+
+/** The border of a point's card by how its derivation went. */
+const ROW: Record<RowState['status'], string> = {
+  waiting: 'border-tp-hairline',
+  creating: 'border-tp-primary/40',
+  deriving: 'border-tp-primary/40',
+  done: 'border-tp-severity-success-border',
+  failed: 'border-tp-severity-error-border bg-tp-severity-error-bg',
+};
 
 /** A point's composition once it holds the point as its first version. */
 export interface DerivedPoint {
@@ -196,18 +211,20 @@ export function DeriveBatch({ org, points, onClose, onDerived }: DeriveBatchProp
 
   return (
     <Modal title="Derive compositions" size="lg" onClose={close} dismissible={!running}>
-      <div className="dc">
-        <p className="dc-muted">
+      <div className="flex min-w-0 flex-col gap-4">
+        <p className="text-sm text-tp-steel">
           {`Each point becomes a new composition of this organization, with the point’s solution as its version ${FIRST_LABEL}. `}
           The compositions are created and derived one after another; change an address before you
           start.
         </p>
         {!started && (
-          <div className="ui-field">
-            <label htmlFor={`${ids}-kind`}>Kind</label>
+          <div>
+            <label htmlFor={`${ids}-kind`} className="mb-1 block text-sm text-tp-slate">
+              Kind
+            </label>
             <select
               id={`${ids}-kind`}
-              className="dc-select"
+              className="h-10 w-full cursor-pointer rounded-md border border-tp-input-border bg-tp-input-bg px-3 text-sm text-tp-ink outline-none focus:border-tp-primary"
               value={kind}
               onChange={event => setKind(event.target.value as Kind)}
             >
@@ -219,15 +236,18 @@ export function DeriveBatch({ org, points, onClose, onDerived }: DeriveBatchProp
             </select>
           </div>
         )}
-        <ol className="dc-batch" aria-label="Points to derive">
+        <ol className="m-0 flex list-none flex-col gap-3 p-0" aria-label="Points to derive">
           {rows.map(row => {
             const editable = !running && row.state.status !== 'done';
             const { state } = row;
             return (
-              <li key={row.point.key} className={`dc-batch-row is-${state.status}`}>
-                <p className="dc-batch-head">
+              <li
+                key={row.point.key}
+                className={`flex min-w-0 flex-col gap-1.5 rounded-lg border p-3 ${ROW[state.status]}`}
+              >
+                <p className="m-0 text-sm [overflow-wrap:anywhere]">
                   <strong>{row.point.label}</strong>{' '}
-                  <span className="dc-muted">{row.point.detail}</span>
+                  <span className="text-tp-steel">{row.point.detail}</span>
                 </p>
                 <FormField
                   label={`Address of ${row.point.label}`}
@@ -243,7 +263,10 @@ export function DeriveBatch({ org, points, onClose, onDerived }: DeriveBatchProp
                     })
                   }
                 />
-                <p className="dc-batch-state" aria-label={`Result of ${row.point.label}`}>
+                <p
+                  className="m-0 text-[13px] [overflow-wrap:anywhere] text-tp-ink"
+                  aria-label={`Result of ${row.point.label}`}
+                >
                   {stateText(state)}
                   {state.status === 'done' && (
                     <>
@@ -252,6 +275,7 @@ export function DeriveBatch({ org, points, onClose, onDerived }: DeriveBatchProp
                         to={compositionPath(org, state.derived.slug, 'versions', {
                           version: state.derived.version.label,
                         })}
+                        className="cursor-pointer font-medium text-tp-accent hover:underline"
                       >
                         {`Open ${state.derived.slug} ${state.derived.version.label}`}
                       </Link>
@@ -262,10 +286,10 @@ export function DeriveBatch({ org, points, onClose, onDerived }: DeriveBatchProp
             );
           })}
         </ol>
-        <p className="dc-muted" role="status">
+        <p className="text-sm text-tp-steel" role="status">
           {running ? 'Deriving…' : started ? summaryOf(rows) : ''}
         </p>
-        <div className="ui-modal-actions">
+        <div className="mt-1 flex justify-end gap-2">
           <Action variant="secondary" onClick={close} disabled={running}>
             {allDone ? 'Done' : 'Cancel'}
           </Action>

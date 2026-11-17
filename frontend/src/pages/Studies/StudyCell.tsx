@@ -14,8 +14,8 @@ import { runPath } from '../../routes/paths/runs';
 import { formatDateTime } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import { classifyAuthError, marker } from '../../modules/core/api/errors';
-import { normalizeStatus } from '../Runs/runsModel';
-import { RefusalNotice } from '../Runs/parts';
+import { normalizeStatus } from '../../modules/run/utils/runsModel';
+import { RefusalNotice } from '../../modules/run/components/run-status';
 import { Choice } from '../Organization/parts';
 import { StateChip, StudyGate } from './parts';
 import { loadRun } from './runData';
@@ -183,7 +183,7 @@ function RivalsCard({
       <div className="st-card-head">
         <h2 id="st-rivals-title">Against the other engines</h2>
         {measures.length > 1 && (
-          <label className="job-select">
+          <label className="inline-flex max-w-full flex-wrap items-center gap-2 text-[13px] text-tp-slate [&_select]:h-8 [&_select]:max-w-full [&_select]:min-w-0 [&_select]:rounded-md [&_select]:border [&_select]:border-tp-input-border [&_select]:bg-tp-input-bg [&_select]:px-2 [&_select]:text-tp-ink">
             <span>Compare by</span>
             <select
               aria-label="Compare by"
@@ -408,7 +408,7 @@ export function CellPanel({
             <StateChip state={cell.state} />
           </div>
           {cells.length > 1 && (
-            <label className="job-select">
+            <label className="inline-flex max-w-full flex-wrap items-center gap-2 text-[13px] text-tp-slate [&_select]:h-8 [&_select]:max-w-full [&_select]:min-w-0 [&_select]:rounded-md [&_select]:border [&_select]:border-tp-input-border [&_select]:bg-tp-input-bg [&_select]:px-2 [&_select]:text-tp-ink">
               <span>Other cell</span>
               <select
                 aria-label="Other cell"
@@ -475,9 +475,12 @@ export function CellPanel({
           <>
             <section className="st-card" aria-labelledby="st-inputs-title">
               <h2 id="st-inputs-title">Frozen inputs</h2>
-              <div className="job-facts-grid">
+              <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,220px),1fr))] gap-2.5">
                 {inputs.map(([label, value]) => (
-                  <div key={label} className="job-fact">
+                  <div
+                    key={label}
+                    className="min-w-0 rounded-[10px] bg-tp-surface px-3 py-2.5 [&>div:first-child]:text-xs [&>div:first-child]:text-tp-slate [&>div:last-child]:text-[13px] [&>div:last-child]:font-medium [&>div:last-child]:[overflow-wrap:anywhere]"
+                  >
                     <div>{label}</div>
                     <div>{value}</div>
                   </div>
@@ -498,7 +501,7 @@ export function CellPanel({
                 <h2 id="st-result-title" className="sr-only">
                   Result
                 </h2>
-                <ul className="job-figures">
+                <ul className="m-0 grid list-none grid-cols-[repeat(auto-fit,minmax(min(100%,200px),1fr))] gap-3 p-0 [&_li]:flex [&_li]:flex-col [&_li]:gap-1 [&_li]:rounded-[14px] [&_li]:border [&_li]:border-tp-hairline [&_li]:bg-tp-canvas [&_li]:p-3.5 [&_li_b]:text-[1.625rem] [&_li_b]:font-semibold [&_li_b]:[overflow-wrap:anywhere]">
                   <li>
                     <span>Outcome</span>
                     <b>{metrics.feasible === false ? 'Infeasible' : 'Feasible'}</b>

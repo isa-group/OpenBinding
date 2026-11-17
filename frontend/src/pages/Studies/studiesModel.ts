@@ -12,7 +12,11 @@ import type { ImmutableResourceRef } from '../../modules/core/api/types';
 import { bimResourceKey } from '../../api/client';
 import type { ExecutionOptimization } from '../../api/runs';
 import type { CaseContent } from '../../features/workspace/model';
-import { criteriaCountOf, optimizationFor, optimizationTypeOf } from '../Runs/launchModel';
+import {
+  criteriaCountOf,
+  optimizationFor,
+  optimizationTypeOf,
+} from '../../modules/run/utils/launchModel';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);

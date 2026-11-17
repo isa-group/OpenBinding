@@ -55,7 +55,7 @@ describe('organizationEntries', () => {
     expect(organizationEntries(organization).map(({ id, label, to }) => [id, label, to])).toEqual([
       ['compositions', 'Compositions', '/orgs/isa-demo/compositions'],
       ['problems', 'Problems', '/orgs/isa-demo/problems'],
-      ['runs', 'Runs', '/app/isa-demo/runs'],
+      ['runs', 'Runs', '/orgs/isa-demo/runs'],
       ['studies', 'Studies', '/app/isa-demo/studies'],
     ]);
     for (const address of addressesOf(organizationEntries(organization))) {
@@ -80,7 +80,7 @@ describe('createItems', () => {
       ['Composition', '/compositions/new?org=isa-demo'],
       ['Problem', '/problem-editor?org=isa-demo'],
       ['Study', '/app/isa-demo/studies/new'],
-      ['Run', '/app/isa-demo/runs/new'],
+      ['Run', '/runs/new?org=isa-demo'],
     ]);
     for (const address of addressesOf(createItems(organization))) {
       expect(matchRoutes(routed, pathOf(address)), address).not.toBeNull();
@@ -136,9 +136,9 @@ describe('currentSection', () => {
     ['/app/isa-demo/compositions/order-desk', 'compositions'],
     ['/app/isa-demo/problems', 'problems'],
     ['/app/isa-demo/problems/routing', 'problems'],
-    ['/app/isa-demo/runs', 'runs'],
-    ['/app/isa-demo/runs/new', 'runs'],
-    ['/app/isa-demo/runs/job-1', 'runs'],
+    ['/orgs/isa-demo/runs', 'runs'],
+    ['/runs/new', 'runs'],
+    ['/runs/isa-demo/job-1', 'runs'],
     ['/app/isa-demo/studies', 'studies'],
     ['/app/isa-demo/studies/engines-vs-seeds', 'studies'],
     ['/app/isa-demo/qos/studies', null],

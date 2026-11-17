@@ -677,7 +677,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await main.getByRole('button', { name: 'Run with this engine' }).click();
       await expect(main.getByRole('link', { name: 'ISA Demo Group' })).toHaveAttribute(
         'href',
-        `/app/isa-demo/runs/new?engine=${encodeURIComponent(`lucia/edge-solver@0.3.1#${EDGE_DIGEST}`)}`
+        `/runs/new?org=isa-demo&engine=${encodeURIComponent(`lucia/edge-solver@0.3.1#${EDGE_DIGEST}`)}`
       );
 
       await main.getByRole('tab', { name: /Modes/ }).click();

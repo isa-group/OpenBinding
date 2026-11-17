@@ -157,12 +157,13 @@ describe('VerdictBadge', () => {
     }
   );
 
-  it('has no hard-coded hex colour in its stylesheet', () => {
-    const css = readFileSync(
-      join(process.cwd(), 'src/components/rendering/VerdictBadge.css'),
+  it('has no hard-coded hex colour and no stylesheet of its own', () => {
+    const source = readFileSync(
+      join(process.cwd(), 'src/components/rendering/VerdictBadge.tsx'),
       'utf8'
     );
 
-    expect(css).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
+    expect(source).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
+    expect(source).not.toMatch(/\.css['"]/);
   });
 });

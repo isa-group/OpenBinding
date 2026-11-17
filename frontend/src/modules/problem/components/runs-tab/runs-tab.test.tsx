@@ -25,7 +25,6 @@ const checkout = problemOf('flujo-checkout', 'Flujo de checkout');
 const r1 = versionOf(checkout, 1);
 const r2 = versionOf(checkout, 2);
 const root = '/problems/isa-demo';
-const runs = '/app/isa-demo';
 
 const jobOf = (id: string, created: string, revision: { id: string; revision: number }): Job => ({
   id,
@@ -74,7 +73,7 @@ describe('Runs tab of the problem page', () => {
     expect(rows).toHaveLength(2);
     expect(within(rows[0]).getByRole('link', { name: 'Run 2' })).toHaveAttribute(
       'href',
-      `${runs}/runs/job-new`
+      '/runs/isa-demo/job-new'
     );
     expect(within(rows[0]).getByRole('link', { name: 'Version 2' })).toHaveAttribute(
       'href',
@@ -82,7 +81,7 @@ describe('Runs tab of the problem page', () => {
     );
     expect(within(rows[1]).getByRole('link', { name: 'Run 1' })).toHaveAttribute(
       'href',
-      `${runs}/runs/job-old`
+      '/runs/isa-demo/job-old'
     );
     expect(within(rows[1]).getByRole('link', { name: 'Version 1' })).toHaveAttribute(
       'href',
@@ -103,7 +102,7 @@ describe('Runs tab of the problem page', () => {
     expect(await screen.findByText('No runs of this problem yet')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Start a run' })).toHaveAttribute(
       'href',
-      `${runs}/runs/new?problem=flujo-checkout&revision=2`
+      '/runs/new?org=isa-demo&problem=flujo-checkout&revision=2'
     );
   });
 

@@ -5,7 +5,7 @@ import {
   ORG,
   PROBLEM_PAGES,
   PROBLEMS_TAB,
-  RUNS_PATH,
+  LAUNCH_PATH,
   capture,
   signInByApi,
   watchPageErrors,
@@ -113,11 +113,11 @@ test.describe('live · upload, run and study on lab-main', () => {
     await main.getByRole('link', { name: 'Open the problem' }).click();
     await expect(main.getByRole('link', { name: 'Run this version' })).toHaveAttribute(
       'href',
-      `${RUNS_PATH}/new?problem=${name}-template&revision=1`
+      `${LAUNCH_PATH}&problem=${name}-template&revision=1`
     );
 
     // 5 · Run version 2 on random-search and follow it to its result.
-    await page.goto(`${RUNS_PATH}/new?problem=${name}&revision=2`);
+    await page.goto(`${LAUNCH_PATH}&problem=${name}&revision=2`);
     await expect(main.getByRole('heading', { level: 1, name: 'New run' })).toBeVisible();
     await expect(
       main
@@ -132,10 +132,8 @@ test.describe('live · upload, run and study on lab-main', () => {
       .getByRole('radio', { name: /^random-search/, disabled: false })
       .first()
       .check({ force: true });
-    await next.click();
     const iterations = main.getByLabel('Iterations').first();
     if (await iterations.count()) await iterations.fill('50');
-    await next.click();
     await expect(main.getByRole('heading', { name: 'Before you send' })).toBeVisible();
     const isLaunch = (response: { url(): string; request(): { method(): string } }) =>
       response.request().method() === 'POST' &&
@@ -207,7 +205,7 @@ test.describe('live · upload, run and study on lab-main', () => {
     );
     await expect(page.getByRole('link', { name: 'Run this version' })).toHaveAttribute(
       'href',
-      new RegExp(`^${RUNS_PATH}/new\\?problem=${CASE}&revision=\\d+$`)
+      new RegExp(`^/runs/new\\?org=${ORG}&problem=${CASE}&revision=\\d+$`)
     );
     // Deleting needs ADMIN: a member has no such control, in the Settings tab either.
     await page.keyboard.press('Escape');

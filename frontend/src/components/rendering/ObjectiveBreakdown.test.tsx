@@ -230,8 +230,8 @@ describe('ObjectiveBreakdown', () => {
     expect(container.querySelector('b, i, pre')).toBeNull();
   });
 
-  it('uses tokens only in its stylesheet', () => {
-    const css = readFileSync(join(__dirname, 'ObjectiveBreakdown.css'), 'utf8');
-    expect(css).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
+  it('uses tokens only, with no stylesheet of its own', () => {
+    const source = readFileSync(join(__dirname, 'ObjectiveBreakdown.tsx'), 'utf8');
+    expect(source).not.toMatch(/#[0-9a-fA-F]{3,8}\b|\.css['"]/);
   });
 });

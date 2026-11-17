@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { ORG, RUNS_PATH, capture, signInByApi, watchPageErrors } from './support';
+import { LAUNCH_PATH, ORG, capture, signInByApi, watchPageErrors } from './support';
 
 // J3 against the lab (the mocked twin is e2e/f2b-problem-editor.spec.ts): the owner of lab-main opens a template in the problem
 // editor (`/problem-editor?org=lab-main`), already checked by the gateway; in the candidate matrix it puts a candidate's latency
@@ -93,7 +93,7 @@ test.describe('live · J3 the problem editor on lab-main', () => {
     await capture(page, testInfo, 'j3-4-saved');
     await main.getByRole('link', { name: 'Open the problem' }).click();
     const run = main.getByRole('link', { name: 'Run this version' });
-    await expect(run).toHaveAttribute('href', `${RUNS_PATH}/new?problem=${name}&revision=1`);
+    await expect(run).toHaveAttribute('href', `${LAUNCH_PATH}&problem=${name}&revision=1`);
     await run.click();
     await expect(main.getByRole('heading', { level: 1, name: 'New run' })).toBeVisible();
     await expect(

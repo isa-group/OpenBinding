@@ -371,7 +371,7 @@ describe('RunResult', () => {
       const pres = [...run().querySelectorAll('pre')];
       expect(pres.length).toBeGreaterThan(0);
       for (const pre of pres)
-        expect(pre.closest('.rendering-source, .rendering-log')).not.toBeNull();
+        expect(pre.closest('[data-rendering="source"], [data-rendering="log"]')).not.toBeNull();
     });
 
     it('shows no engine report source for an empty remote or no report', () => {

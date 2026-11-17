@@ -1,5 +1,6 @@
 import { newCompositionPath } from '../../routes/paths/compositions';
 import { problemEditorPath } from '../../routes/paths/problems';
+import { launchPath } from '../../routes/paths/runs';
 import type { Organization } from '../../api/platform';
 import { accountLinks, createItems, mainLinks, organizationEntries } from './appNavigation';
 
@@ -106,7 +107,7 @@ export function buildCommands({
           'Create',
           'New run',
           `Launch an engine run in ${organization.name}`,
-          `${entries.runs}/new`,
+          launchPath(organization.slug),
           '+'
         )
       );

@@ -13,7 +13,7 @@ import { TabBar, TabPanel } from '../../modules/core/components/tab-bar';
 import { formatDateTime } from '../../utils/format';
 import { useResource, type Resource } from '../../utils/useResource';
 import { classifyAuthError, marker } from '../../modules/core/api/errors';
-import { RefusalNotice } from '../Runs/parts';
+import { RefusalNotice } from '../../modules/run/components/run-status';
 import NotFoundScreen from '../../modules/core/pages/page-not-found';
 import { studiesPath } from '../../routes/paths/studies';
 import { CellBar, StateChip, StudyFrame } from './parts';

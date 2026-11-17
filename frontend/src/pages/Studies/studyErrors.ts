@@ -12,7 +12,7 @@ import {
 } from '../../utils/limitRefusals';
 import { LIMIT, limitInfo } from '../../utils/limits';
 import { classifyAuthError, marker } from '../../modules/core/api/errors';
-import type { Refusal } from '../Runs/runErrors';
+import type { Refusal } from '../../modules/run/utils/runErrors';
 
 export type { Refusal };
 

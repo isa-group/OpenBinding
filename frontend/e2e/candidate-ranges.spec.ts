@@ -218,7 +218,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       );
       const main = page.locator('main');
 
-      await page.goto('/app/isa-demo/runs/new?problem=checkout-flow&revision=2');
+      await page.goto('/runs/new?org=isa-demo&problem=checkout-flow&revision=2');
       await main.getByRole('button', { name: 'Continue' }).click();
       const engines = main.getByRole('radiogroup', { name: 'Engine' });
       const off = engines.getByRole('radio', { name: /^random-search/ });
@@ -241,10 +241,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       );
       await capture(page, testInfo, `launch-engines-${name}`);
 
-      await main.getByRole('button', { name: 'Continue' }).click();
       // The mock engine declares a seed whose default is 0, which the form asks to be a positive number.
       await main.getByLabel('Seed', { exact: true }).fill('1');
-      await main.getByRole('button', { name: 'Continue' }).click();
       await main.getByRole('button', { name: 'Send run' }).click();
       const alert = main
         .getByRole('alert')
@@ -427,7 +425,7 @@ test.describe('desktop · candidate ranges in the problem editor and in a failed
     );
     const main = page.locator('main');
 
-    await page.goto('/app/isa-demo/runs/job-range-failed');
+    await page.goto('/runs/isa-demo/job-range-failed');
     const alert = main
       .getByRole('alert')
       .filter({ hasText: 'This engine only accepts single values' });

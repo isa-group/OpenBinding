@@ -159,13 +159,13 @@ describe('buildCommands', () => {
 
     expect(created(inOrganizationToo)).toEqual([
       ['New problem', '/problem-editor?org=isa-demo'],
-      ['New run', '/app/isa-demo/runs/new'],
+      ['New run', '/runs/new?org=isa-demo'],
       ['New study', '/app/isa-demo/studies/new'],
     ]);
     expect(created(inOrganization)).toEqual(created(inOrganizationToo));
     expect(
       inOrganization.filter(command => command.label === 'Runs').map(command => command.href)
-    ).toEqual(['/app/isa-demo/runs']);
+    ).toEqual(['/orgs/isa-demo/runs']);
     expect(
       inOrganization.filter(command => command.label === 'Studies').map(command => command.href)
     ).toEqual(['/app/isa-demo/studies']);

@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import {
   CASE,
+  LAUNCH_PATH,
   ORG,
   PROBLEM_PAGES,
   PROBLEMS_TAB,
@@ -47,7 +48,7 @@ test.describe('live · lab-viewer reads and edits nothing', () => {
   }, testInfo) => {
     const errors = watchPageErrors(page);
     await signInByApi(page, 'viewer');
-    await page.goto(`${RUNS_PATH}/new?problem=${CASE}`);
+    await page.goto(`${LAUNCH_PATH}&problem=${CASE}`);
 
     await expect(page.getByRole('heading', { level: 1, name: 'New run' })).toBeVisible();
     await expect(page.getByText('starting a run needs MEMBER')).toBeVisible();
@@ -65,8 +66,9 @@ test.describe('live · lab-viewer reads and edits nothing', () => {
     await signInByApi(page, 'viewer');
     await page.goto(`${RUNS_PATH}`);
 
-    await expect(page.getByRole('heading', { level: 1, name: 'Runs' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'New run' })).toHaveCount(0);
+    await expect(
+      page.getByRole('region', { name: 'Runs' }).getByRole('heading', { level: 2, name: /Runs/ })
+    ).toBeVisible();
     await expect(page.getByRole('link', { name: 'Start a run' })).toHaveCount(0);
     // The problem offers "Run this version" to a member of the organization, a viewer included, but it only leads to the steps above, read-only. That
     // is noted rather than failed: the entry point is the interface's, the refusal is the gateway's and the launch page's.

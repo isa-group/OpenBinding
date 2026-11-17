@@ -668,7 +668,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       ).toHaveAttribute('href', TAB);
       await expect(main.getByRole('link', { name: 'Run this version' })).toHaveAttribute(
         'href',
-        '/app/isa-demo/runs/new?problem=flujo-checkout&revision=2'
+        '/runs/new?org=isa-demo&problem=flujo-checkout&revision=2'
       );
       if (!isMobile) {
         await main.getByRole('button', { name: 'New version' }).click();

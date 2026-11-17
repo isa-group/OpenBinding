@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { CASE, ORG, RUNS_PATH, capture, signInByApi, watchPageErrors } from './support';
+import { CASE, LAUNCH_PATH, ORG, RUN_PATH, capture, signInByApi, watchPageErrors } from './support';
 
 // This spec starts one real job (random-search, a few iterations) as the owner of lab-main and waits for its result: the engine runs in
 // the lab's worker. With DEMO_SPACE_ENABLED=false (the open gate of the lab) the plan needs no contract; with SPACE enabled and no
@@ -21,7 +21,7 @@ test.describe('live · a random-search job and its result', () => {
     test.setTimeout(300_000);
     const errors = watchPageErrors(page);
     await signInByApi(page, 'owner');
-    await page.goto(`${RUNS_PATH}/new?problem=${CASE}`);
+    await page.goto(`${LAUNCH_PATH}&problem=${CASE}`);
 
     // 1 · what to solve: the case, at its latest revision.
     await expect(page.getByRole('heading', { level: 1, name: 'New run' })).toBeVisible();
@@ -41,7 +41,6 @@ test.describe('live · a random-search job and its result', () => {
     await expect(randomSearch).toBeEnabled();
     await randomSearch.check({ force: true });
     await capture(page, testInfo, 'run-launch-2-engine');
-    await page.getByRole('button', { name: 'Continue' }).click();
 
     // 3 · the settings: a handful of iterations keeps the run short.
     await expect(
@@ -52,12 +51,12 @@ test.describe('live · a random-search job and its result', () => {
     // The form fills each field with the default the manifest declares and must accept all of them as they are: random-search declares
     // `seed` with default 0, which is valid (only a budget has to be above 0). Nothing is typed over a field except the iterations.
     await expect(
-      page.locator('.job-options input[aria-invalid="true"]'),
+      page
+        .getByRole('region', { name: 'Settings against your plan' })
+        .locator('input[aria-invalid="true"]'),
       'a default of the engine is marked invalid'
     ).toHaveCount(0);
-    await expect(page.locator('.job-invalid'), 'a settings field is invalid').toHaveCount(0);
     await capture(page, testInfo, 'run-launch-3-settings');
-    await page.getByRole('button', { name: 'Continue' }).click();
 
     // 4 · review and send. The request carries the optimization the gateway requires; nothing here is metered.
     await expect(page.getByRole('heading', { name: 'Before you send' })).toBeVisible();
@@ -67,7 +66,7 @@ test.describe('live · a random-search job and its result', () => {
     // A disabled button would make the click wait for 30 s and then look like a request that never left: say what the page shows instead.
     await expect(
       send,
-      `"Send run" is disabled; the review says: ${(await page.locator('.job-review').innerText()).replace(/\s+/g, ' ')}`
+      `"Send run" is disabled; the review says: ${(await page.locator('dl').filter({ hasText: 'Solve' }).innerText()).replace(/\s+/g, ' ')}`
     ).toBeEnabled();
     // The API is under /api of the same origin (`API` in support.ts), so the path ends in the organization's runs; a query or a prefix does not matter.
     const isLaunch = (response: { url(): string; request(): { method(): string } }) =>
@@ -84,11 +83,11 @@ test.describe('live · a random-search job and its result', () => {
       scalarization: expect.any(String),
     });
 
-    await expect(page.getByRole('heading', { level: 1, name: /^Run accepted/ })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /^Run accepted/ })).toBeVisible();
     await page.getByRole('link', { name: 'Follow the run' }).click();
 
     // The run page: it moves from queued to completed and shows what the engine found.
-    await expect(page).toHaveURL(new RegExp(`${RUNS_PATH}/[0-9a-f-]+$`));
+    await expect(page).toHaveURL(new RegExp(`${RUN_PATH}/[0-9a-f-]+$`));
     await expect(page.getByRole('heading', { level: 1, name: /random-search run/ })).toBeVisible();
     await expect(finishedResult(page)).toBeVisible({ timeout: 180_000 });
     await capture(page, testInfo, 'job-result');

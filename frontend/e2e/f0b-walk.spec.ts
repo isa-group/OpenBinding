@@ -148,7 +148,7 @@ test('the F0b walk: upload, edit in the problem editor, a template, a run and a 
   await expect(main.getByRole('combobox', { name: 'Version' })).toHaveValue('2');
   await expect(main.getByRole('link', { name: 'Run this version' })).toHaveAttribute(
     'href',
-    `${ORG_PATH}/runs/new?problem=simple-seq&revision=2`
+    `/runs/new?org=${WALK_ORG}&problem=simple-seq&revision=2`
   );
 
   // 4b · Start from a template: it is checked as it opens, saved as a new problem, and that problem's page offers a run.
@@ -175,7 +175,7 @@ test('the F0b walk: upload, edit in the problem editor, a template, a run and a 
   await expect(main.getByRole('heading', { level: 1, name: 'demo_01_simple_seq' })).toBeVisible();
   await expect(main.getByRole('link', { name: 'Run this version' })).toHaveAttribute(
     'href',
-    `${ORG_PATH}/runs/new?problem=demo-01-simple-seq&revision=1`
+    `/runs/new?org=${WALK_ORG}&problem=demo-01-simple-seq&revision=1`
   );
 
   // 5 · Run version 2 of simple-seq: pick the engine and its mode, send it, and follow the run until it completes.
@@ -194,11 +194,9 @@ test('the F0b walk: upload, edit in the problem editor, a template, a run and a 
     .getByRole('radio', { name: /^random-search.*Can run this/ });
   await engine.check({ force: true });
   await expect(engine).toBeChecked();
-  await next.click();
   await expect(
     main.getByRole('heading', { level: 2, name: 'Settings', exact: true })
   ).toBeVisible();
-  await next.click();
   await expect(main.getByRole('heading', { name: 'Before you send' })).toBeVisible();
   await main.getByRole('button', { name: 'Send run' }).click();
   await expect(main.getByRole('heading', { name: 'Run accepted · queued' })).toBeVisible();

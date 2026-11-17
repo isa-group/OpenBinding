@@ -102,7 +102,7 @@ describe('Versions tab of the problem page', () => {
     expect(await within(rows[0]).findByText(/≈ 10\^3\.6 combinations/)).toBeInTheDocument();
     expect(within(rows[0]).getByRole('link', { name: 'Run' })).toHaveAttribute(
       'href',
-      '/app/isa-demo/runs/new?problem=flujo-checkout&revision=2'
+      '/runs/new?org=isa-demo&problem=flujo-checkout&revision=2'
     );
     expect(within(rows[1]).getByRole('link', { name: 'Source' })).toHaveAttribute(
       'href',

@@ -1,7 +1,6 @@
 import { Badge } from '../../modules/core/components/badge';
 import { DataTable } from '../../modules/core/components/data-table';
 import type { BoundOp, QoSBound, QoSRule } from './qosBoundsModel';
-import './QoSAgainstBounds.css';
 
 interface QoSAgainstBoundsProps {
   bounds: QoSBound[];
@@ -62,7 +61,10 @@ export function QoSAgainstBounds({
     bounds.length + rules.length > 0 && [...bounds, ...rules].every(row => row.met === null);
 
   return (
-    <section aria-label={label} className="rendering-qos">
+    <section
+      aria-label={label}
+      className="flex min-w-0 flex-col gap-3 text-tp-ink [&>p]:m-0 [&>p]:text-sm [&>p]:text-tp-steel"
+    >
       {bounds.length + rules.length === 0 && <p>No rules to check.</p>}
       {unchecked && <p>Not checked: this solution carries no violations list from the gateway.</p>}
       {bounds.length > 0 && (
@@ -80,7 +82,7 @@ export function QoSAgainstBounds({
             {bounds.map((bound, index) => (
               <tr key={`${index}-${bound.rule}`}>
                 <td>
-                  <code>{bound.rule}</code>
+                  <code className="font-mono text-xs">{bound.rule}</code>
                 </td>
                 <td>{bound.feature}</td>
                 <td>{kindOf(bound.enforcement)}</td>
@@ -96,14 +98,17 @@ export function QoSAgainstBounds({
         </DataTable>
       )}
       {rules.length > 0 && (
-        <ul aria-label="Other rules" className="rendering-qos__rules">
+        <ul aria-label="Other rules" className="m-0 flex list-none flex-col gap-2 p-0">
           {rules.map((rule, index) => (
-            <li key={`${index}-${rule.rule}`}>
-              <code>{rule.rule}</code> <span>{rule.text}</span>
+            <li
+              key={`${index}-${rule.rule}`}
+              className="min-w-0 rounded-lg border border-tp-hairline bg-tp-surface px-3 py-2 text-sm [overflow-wrap:anywhere]"
+            >
+              <code className="font-mono text-xs">{rule.rule}</code> <span>{rule.text}</span>
               {rule.when !== null && (
-                <span className="rendering-qos__when"> applies when {rule.when}</span>
+                <span className="text-xs text-tp-steel"> applies when {rule.when}</span>
               )}{' '}
-              <span className="rendering-qos__kind">{kindOf(rule.enforcement)}</span>{' '}
+              <span className="text-xs text-tp-steel">{kindOf(rule.enforcement)}</span>{' '}
               <Status met={rule.met} enforcement={rule.enforcement} penalty={rule.penalty} />
             </li>
           ))}

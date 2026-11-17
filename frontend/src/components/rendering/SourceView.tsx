@@ -1,6 +1,5 @@
 import { useCopy } from '../../modules/core/hooks/useCopy';
 import { saveText } from './download';
-import './SourceView.css';
 
 interface SourceViewProps {
   /** A string is shown as is; an object is shown as indented JSON. */
@@ -14,6 +13,14 @@ interface SourceViewProps {
   maxHeight?: string;
 }
 
+const BUTTON =
+  'min-h-6 cursor-pointer rounded border bg-tp-canvas px-2.5 py-0.5 text-xs text-tp-ink transition-colors hover:bg-tp-surface';
+const STATE = {
+  idle: 'border-tp-hairline-strong',
+  copied: 'border-tp-severity-success text-tp-success-text',
+  failed: 'border-tp-severity-error text-tp-error-text',
+} as const;
+
 /** The only place that may stringify an object source and render it in a `<pre>`: read-only, copyable, downloadable. */
 export function SourceView({ source, label, language, filename, maxHeight }: SourceViewProps) {
   const { copy, status } = useCopy();
@@ -25,18 +32,29 @@ export function SourceView({ source, label, language, filename, maxHeight }: Sou
     saveText(text, filename ?? '', isObject ? 'application/json' : 'text/plain');
 
   return (
-    <section className="rendering-source" role="region" aria-label={label} data-language={language}>
-      <div className="rendering-source__bar">
+    <section
+      className="max-w-full overflow-hidden rounded-lg border border-tp-hairline bg-tp-surface"
+      role="region"
+      aria-label={label}
+      data-language={language}
+      data-rendering="source"
+    >
+      <div className="flex justify-end gap-2 border-b border-tp-hairline px-2 py-1">
         <button
           type="button"
-          className={state === 'idle' ? undefined : `is-${state}`}
+          className={`${BUTTON} ${STATE[state]}`}
           aria-label={`Copy ${label}`}
           onClick={() => void copy(text)}
         >
           {state === 'copied' ? 'Copied' : state === 'failed' ? 'Failed' : 'Copy'}
         </button>
         {filename && (
-          <button type="button" aria-label={`Download ${label}`} onClick={download}>
+          <button
+            type="button"
+            aria-label={`Download ${label}`}
+            onClick={download}
+            className={`${BUTTON} ${STATE.idle}`}
+          >
             Download
           </button>
         )}
@@ -48,8 +66,16 @@ export function SourceView({ source, label, language, filename, maxHeight }: Sou
               : ''}
         </span>
       </div>
-      <pre tabIndex={0} style={maxHeight ? { maxHeight } : undefined}>
-        {text === '' ? <span className="rendering-source__empty">Empty</span> : <code>{text}</code>}
+      <pre
+        tabIndex={0}
+        style={maxHeight ? { maxHeight } : undefined}
+        className="m-0 overflow-auto p-3 font-mono text-[13px] leading-normal [tab-size:2] text-tp-ink"
+      >
+        {text === '' ? (
+          <span className="font-sans text-tp-steel italic">Empty</span>
+        ) : (
+          <code>{text}</code>
+        )}
       </pre>
     </section>
   );

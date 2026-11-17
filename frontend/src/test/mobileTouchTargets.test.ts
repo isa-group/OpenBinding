@@ -59,9 +59,10 @@ describe('mobile touch targets (max-width: 640px)', () => {
     expect(action).toMatch(/link: '[^']*max-sm:!min-h-6/);
   });
 
-  it('keeps the job-result links in a container that exists in the markup', () => {
-    const facts = read('pages/Runs/RunFacts.tsx');
-    expect(facts).toContain('className="job-fact"');
+  it('keeps the links of a run’s facts outside running text, where the link rule reaches them', () => {
+    const facts = read('modules/run/components/run-facts/index.tsx');
+    expect(facts).toContain('data-fact');
+    expect(facts).not.toMatch(/<(p|dd|small|label)\b/);
   });
 
   it('does not touch the desktop layout', () => {

@@ -269,7 +269,7 @@ describe('the detector of raw rendering', () => {
     for (const file of EXEMPT_FILES) expect(hits(file), file).toBe(0);
     expect(hits('components/rendering/SourceViewer.tsx')).toBe(1);
     expect(hits('pages/components/rendering/SourceView.tsx')).toBe(1);
-    expect(hits('pages/Runs/RunOutcome.tsx')).toBe(1);
+    expect(hits('modules/run/components/run-outcome/index.tsx')).toBe(1);
   });
 
   it('exempts exactly the two catalogue components', () => {

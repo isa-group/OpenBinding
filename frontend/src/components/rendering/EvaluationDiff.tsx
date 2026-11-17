@@ -10,7 +10,6 @@ import {
   type DiffValue,
   type RunValues,
 } from './evaluationDiffModel';
-import './EvaluationDiff.css';
 
 export interface Downgrade {
   code: string;
@@ -28,6 +27,8 @@ interface EvaluationDiffProps {
 }
 
 const number = new Intl.NumberFormat('en-US', { maximumFractionDigits: 6 });
+const LIST =
+  'm-0 flex list-disc flex-col gap-1.5 rounded-lg border border-tp-hairline bg-tp-surface py-2 pr-3 pl-6';
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 /** Engine text: one text node in its own `bdi`, shortened. Never markup. */
@@ -94,7 +95,10 @@ export function EvaluationDiff({
   );
 
   return (
-    <section aria-label={label} className="evaluation-diff">
+    <section
+      aria-label={label}
+      className="flex flex-col gap-3 text-sm [overflow-wrap:anywhere] text-tp-ink [&_p]:m-0"
+    >
       <p>
         {view.status === 'no-claim' &&
           `The values the engine claimed are not kept for this run. Gateway evaluation: ${termination}, ${solutions}.`}
@@ -104,7 +108,7 @@ export function EvaluationDiff({
           `The engine claim differs from the gateway evaluation in ${plural(view.rows.length, 'value', 'values')}.`}
       </p>
       {view.claimed && !view.paired && (
-        <p className="evaluation-diff__hint">
+        <p className="text-[13px] text-tp-steel">
           Solutions are compared one by one only when both sides have the same number of solutions.
         </p>
       )}
@@ -134,7 +138,7 @@ export function EvaluationDiff({
             </tbody>
           </DataTable>
           {hiddenRows > 0 && (
-            <p className="evaluation-diff__more">
+            <p className="text-[13px] text-tp-steel">
               {hiddenRows === 1
                 ? '1 more difference is not shown.'
                 : `${hiddenRows} more differences are not shown.`}
@@ -143,7 +147,7 @@ export function EvaluationDiff({
         </>
       )}
       {reasons.length > 0 && (
-        <ul aria-label="Why the gateway changed the result" className="evaluation-diff__list">
+        <ul aria-label="Why the gateway changed the result" className={LIST}>
           {reasons.map((d, i) => (
             <li key={i}>
               {Number.isInteger(d.solution) && (d.solution as number) >= 0 && (
@@ -156,7 +160,7 @@ export function EvaluationDiff({
                 <>
                   {' '}
                   <bdi>
-                    <code>{shortText(d.code)}</code>
+                    <code className="font-mono text-xs text-tp-steel">{shortText(d.code)}</code>
                   </bdi>
                 </>
               )}
@@ -166,13 +170,13 @@ export function EvaluationDiff({
       )}
       {noteItems.length > 0 && (
         <>
-          <ul aria-label="Engine notes" className="evaluation-diff__list">
+          <ul aria-label="Engine notes" className={LIST}>
             {noteItems.slice(0, MAX_NOTES).map((n, i) => (
               <li key={i}>{engineText(n)}</li>
             ))}
           </ul>
           {hiddenNotes > 0 && (
-            <p className="evaluation-diff__more">
+            <p className="text-[13px] text-tp-steel">
               {hiddenNotes === 1
                 ? '1 more note is not shown.'
                 : `${hiddenNotes} more notes are not shown.`}

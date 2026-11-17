@@ -18,7 +18,7 @@ import { problemPath } from '../../../../routes/paths/problems';
 import { runPath } from '../../../../routes/paths/runs';
 import { formatDateTime } from '../../../../utils/format';
 import { useResource } from '../../../../utils/useResource';
-import { StatusChip } from '../../../../pages/Runs/parts';
+import { StatusChip } from '../../../run/components/run-status';
 import type { ProblemContent } from '../../types';
 
 /** The Runs tab of the problem page: the organization's runs of a version of this problem, newest first, each linking to its page. */

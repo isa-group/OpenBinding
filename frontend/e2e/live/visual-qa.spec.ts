@@ -8,6 +8,8 @@ import {
   ORG_PATH,
   OTHER_ORG,
   RESULTS_DIR,
+  LAUNCH_PATH,
+  RUN_PATH,
   RUNS_PATH,
   signInByApi,
 } from './support';
@@ -395,7 +397,8 @@ const OWNER_STOPS: Stop[] = [
   {
     slug: 'jobs',
     path: `${RUNS_PATH}`,
-    ready: page => page.getByRole('heading', { level: 1, name: 'Runs' }),
+    ready: page =>
+      page.getByRole('region', { name: 'Runs' }).getByRole('heading', { level: 2, name: /Runs/ }),
   },
   {
     slug: 'plan-permissions',
@@ -677,11 +680,9 @@ const VIEWER_STOPS: Stop[] = [
   {
     slug: 'viewer-jobs',
     path: `${RUNS_PATH}`,
-    ready: page => page.getByRole('heading', { level: 1, name: 'Runs' }),
+    ready: page =>
+      page.getByRole('region', { name: 'Runs' }).getByRole('heading', { level: 2, name: /Runs/ }),
     extra: async (page, label) => {
-      await expect
-        .soft(page.getByRole('link', { name: 'New run' }), `${label}: a viewer sees "New run"`)
-        .toHaveCount(0);
       await expect
         .soft(
           page.getByRole('link', { name: 'Start a run' }),
@@ -692,7 +693,7 @@ const VIEWER_STOPS: Stop[] = [
   },
   {
     slug: 'viewer-run-launch',
-    path: `${RUNS_PATH}/new?problem=${CASE}`,
+    path: `${LAUNCH_PATH}&problem=${CASE}`,
     ready: page => page.getByRole('heading', { level: 1, name: 'New run' }),
     extra: async (page, label) => {
       await expect
@@ -779,7 +780,7 @@ test.describe('live · visual QA', () => {
     if (finished) {
       stops.splice(6, 0, {
         slug: 'job-result',
-        path: `${RUNS_PATH}/${finished.id}`,
+        path: `${RUN_PATH}/${finished.id}`,
         ready: target => finishedResult(target),
       });
     } else {

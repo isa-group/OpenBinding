@@ -6,7 +6,6 @@ import {
   problemsPath,
   problemEditorPath,
 } from './problems';
-import { launchPath, runPath, runsPath } from './runs';
 
 describe('the address builders of the problems area', () => {
   it('names the tab segments of the problem page', () => {
@@ -64,21 +63,6 @@ describe('the address builders of the problems area', () => {
     ).toBe(
       '/problem-editor?org=acme&problem=routing&revision=2&composition=checkout&compositionVersion=1.1.0'
     );
-  });
-
-  it('builds the runs of the organization and the launcher of a run of a problem version or with an engine', () => {
-    expect(runsPath('acme')).toBe('/app/acme/runs');
-    expect(runPath('acme', 'r 1')).toBe('/app/acme/runs/r%201');
-    expect(launchPath('acme', { problem: 'routing', revision: 2 })).toBe(
-      '/app/acme/runs/new?problem=routing&revision=2'
-    );
-    expect(launchPath('acme', { engine: 'bim.builtin/random-search' })).toBe(
-      '/app/acme/runs/new?engine=bim.builtin%2Frandom-search'
-    );
-    expect(launchPath('acme', { problem: 'routing', revision: 2, preset: 'fast-sampling' })).toBe(
-      '/app/acme/runs/new?problem=routing&revision=2&preset=fast-sampling'
-    );
-    expect(launchPath('acme')).toBe('/app/acme/runs/new');
   });
 
   it('names the segment once', () => {

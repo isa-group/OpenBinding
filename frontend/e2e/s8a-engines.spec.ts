@@ -1003,7 +1003,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await main.getByRole('button', { name: 'Launch a run with it' }).click();
       await expect(main.getByRole('link', { name: 'ISA Demo Group' })).toHaveAttribute(
         'href',
-        /\/app\/isa-demo\/runs\/new\?engine=/
+        /\/runs\/new\?org=isa-demo&engine=/
       );
 
       // Someone else’s private registration, or one that does not exist, answer the same.

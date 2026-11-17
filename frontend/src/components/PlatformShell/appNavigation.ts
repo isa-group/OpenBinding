@@ -10,7 +10,7 @@ import {
   problemEditorPath,
   problemsPath,
 } from '../../routes/paths/problems';
-import { RUNS_SEGMENT } from '../../routes/paths/runs';
+import { RUNS_SEGMENT, launchPath, runsPath } from '../../routes/paths/runs';
 import { STUDIES_SEGMENT } from '../../routes/paths/studies';
 
 export interface NavLinkItem {
@@ -80,7 +80,12 @@ export function organizationEntries(
         ? { label: 'Problems', to: problemsPath(organization.slug) }
         : { label: 'Problems', hint: NEEDS_ORGANIZATION }),
     },
-    { id: 'runs', ...inOrganization('Runs', organization, `/${RUNS_SEGMENT}`) },
+    {
+      id: 'runs',
+      ...(organization
+        ? { label: 'Runs', to: runsPath(organization.slug) }
+        : { label: 'Runs', hint: NEEDS_ORGANIZATION }),
+    },
     { id: 'studies', ...inOrganization('Studies', organization, `/${STUDIES_SEGMENT}`) },
   ];
 }
@@ -95,7 +100,9 @@ export function createItems(organization?: Organization): MenuEntry[] {
       ? { label: 'Problem', to: problemEditorPath(organization.slug) }
       : { label: 'Problem', hint: NEEDS_ORGANIZATION },
     inOrganization('Study', organization, `/${STUDIES_SEGMENT}/new`),
-    inOrganization('Run', organization, `/${RUNS_SEGMENT}/new`),
+    organization
+      ? { label: 'Run', to: launchPath(organization.slug) }
+      : { label: 'Run', hint: NEEDS_ORGANIZATION },
   ];
 }
 
@@ -130,7 +137,8 @@ export function currentSection(pathname: string): MainSection {
   if (pathname === mainLinks.home.to) return 'home';
   if (under(pathname, mainLinks.admin.to)) return 'admin';
   if (under(pathname, '/app/engines') || under(pathname, mainLinks.engines.to)) return 'engines';
-  const [root] = pathname.split('/').filter(Boolean);
+  const [root, , tab] = pathname.split('/').filter(Boolean);
+  if (root === RUNS_SEGMENT || (root === 'orgs' && tab === RUNS_SEGMENT)) return 'runs';
   if (root !== 'app') return null;
   return organizationSectionOf(pathname) ?? (isWorkspaceHome(pathname) ? 'home' : null);
 }

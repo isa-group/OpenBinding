@@ -1,6 +1,5 @@
 import { DataTable } from '../../modules/core/components/data-table';
 import type { ObjectiveBreakdownData, ObjectiveTerm } from './objectiveModel';
-import './ObjectiveBreakdown.css';
 
 interface ObjectiveBreakdownProps extends ObjectiveBreakdownData {
   label?: string;
@@ -47,8 +46,8 @@ export function ObjectiveBreakdown({
     : terms.reduce((sum, t) => sum + (t.weighted ?? 0), 0);
 
   return (
-    <section aria-label={label} className="rendering-objective">
-      <dl className="rendering-objective__summary">
+    <section aria-label={label} className="grid min-w-0 gap-3 [&_.is-number]:text-right">
+      <dl className="m-0 grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 [&_dd]:m-0 [&_dd]:font-semibold [&_dd]:[overflow-wrap:anywhere] [&_dd]:text-tp-ink [&_dt]:text-xs [&_dt]:text-tp-steel">
         <dt>Scalarization</dt>
         <dd>
           <Text value={scalarization} />
@@ -56,7 +55,7 @@ export function ObjectiveBreakdown({
         <dt>Score</dt>
         <dd>
           {Array.isArray(score) ? (
-            <ol aria-label="Score" className="rendering-objective__scores">
+            <ol aria-label="Score" className="m-0 list-decimal pl-5 font-normal">
               {score.map((entry, index) => (
                 <li key={`${scoreItemName(terms, index)}-${index}`}>
                   {scoreItemName(terms, index)}: <Num value={entry} />
@@ -131,7 +130,7 @@ export function ObjectiveBreakdown({
             ))}
           </tbody>
           {showTotal && (
-            <tfoot>
+            <tfoot className="border-t border-tp-hairline [&_th]:text-right">
               <tr>
                 <th scope="row" colSpan={columns - 1}>
                   Total weighted loss

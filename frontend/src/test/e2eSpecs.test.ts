@@ -115,7 +115,7 @@ describe('the Playwright specs', () => {
       const j1 = read(`${live}/08-derive-seal-compare.spec.ts`);
       expect(j1).toMatch(/test\.describe\('live · J1 /);
       for (const step of [
-        "'Derive composition'",
+        "'Keep as composition'",
         "'Visual editor'",
         "'Publish to OpenBinding'",
         '/Publish version/',

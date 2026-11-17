@@ -93,7 +93,7 @@ const FORBIDDEN_PUBLICATION = /\bpublications?\b/gi;
  */
 async function visibleTexts(page: Page): Promise<string[]> {
   return page.evaluate(() => {
-    const skipped = 'code, pre, script, style, noscript, .rendering-source, .rendering-log';
+    const skipped = 'code, pre, script, style, noscript, [data-rendering]';
     const texts: string[] = [];
     const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
     for (let node = walker.nextNode(); node; node = walker.nextNode()) {
@@ -146,7 +146,7 @@ test.describe('route registry', () => {
   });
 
   test('rejects the six words, whatever their letter case, except the engine registration publication text', () => {
-    expect(forbiddenIn('run-list', ['Jobs', 'my case', 'Cases and JOB'])).toHaveLength(4);
+    expect(forbiddenIn('run-detail', ['Jobs', 'my case', 'Cases and JOB'])).toHaveLength(4);
     expect(forbiddenIn('pub-home', ['Publications and public results'])).toEqual([
       '"Publications" in "Publications and public results"',
     ]);

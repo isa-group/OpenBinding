@@ -1,10 +1,10 @@
 import { expect, test, type Page } from '@playwright/test';
 import {
   API,
+  LAUNCH_PATH,
   ORG,
   PROBLEM_PAGES,
   PROBLEMS_TAB,
-  RUNS_PATH,
   capture,
   signInByApi,
   watchPageErrors,
@@ -75,7 +75,7 @@ test.describe('live · J1 derive, seal and compare on lab-main', () => {
     await capture(page, testInfo, 'j1-1-problem');
 
     // 2 · A short random-search run of version 1, followed to its result.
-    await page.goto(`${RUNS_PATH}/new?problem=${name}&revision=1`);
+    await page.goto(`${LAUNCH_PATH}&problem=${name}&revision=1`);
     await expect(main.getByRole('heading', { level: 1, name: 'New run' })).toBeVisible();
     await expect(
       main
@@ -90,10 +90,8 @@ test.describe('live · J1 derive, seal and compare on lab-main', () => {
       .getByRole('radio', { name: /^random-search/, disabled: false })
       .first()
       .check({ force: true });
-    await next.click();
     const iterations = main.getByLabel('Iterations').first();
     if (await iterations.count()) await iterations.fill('50');
-    await next.click();
     await expect(main.getByRole('heading', { name: 'Before you send' })).toBeVisible();
     const isLaunch = (response: { url(): string; request(): { method(): string } }) =>
       response.request().method() === 'POST' &&
@@ -111,10 +109,7 @@ test.describe('live · J1 derive, seal and compare on lab-main', () => {
     await capture(page, testInfo, 'j1-2-run');
 
     // 3 · Derive: a new composition (created when the preview is asked for), the run's first solution, the preview, the seal of 1.0.0.
-    await main
-      .getByRole('region', { name: 'Keep it as a composition' })
-      .getByRole('button', { name: 'Derive composition' })
-      .click();
+    await main.getByRole('button', { name: 'Keep as composition' }).click();
     const dialog = page.getByRole('dialog', { name: 'Derive a composition' });
     await expect(dialog.getByRole('radio', { name: 'A new composition' })).toBeChecked();
     await dialog.getByLabel('Name').fill(compositionName);

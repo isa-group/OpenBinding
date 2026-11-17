@@ -502,7 +502,7 @@ describe('Problem page', () => {
       await screen.findByRole('heading', { level: 1, name: 'Flujo de checkout' });
       expect(screen.getByRole('link', { name: 'Run this version' })).toHaveAttribute(
         'href',
-        '/app/member-lab/runs/new?problem=flujo-checkout&revision=2'
+        '/runs/new?org=member-lab&problem=flujo-checkout&revision=2'
       );
       expect(screen.getByRole('link', { name: 'Add to study' })).toHaveAttribute(
         'href',

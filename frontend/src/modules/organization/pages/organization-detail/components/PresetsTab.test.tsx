@@ -112,7 +112,7 @@ describe('the run presets of an organization', () => {
     expect(within(fast).getByText('Can be an engine of a study')).toBeInTheDocument();
     expect(within(fast).getByRole('link', { name: 'Start a run' })).toHaveAttribute(
       'href',
-      '/app/isa-demo/runs/new?preset=fast-sampling'
+      '/runs/new?org=isa-demo&preset=fast-sampling'
     );
 
     const edge = await card('Edge deployment');

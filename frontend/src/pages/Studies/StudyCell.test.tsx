@@ -117,7 +117,7 @@ describe('One cell of a run, inside the Results tab', () => {
     expect(within(result).getByText('58 s')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Open run' })).toHaveAttribute(
       'href',
-      `/app/isa-demo/runs/00000000-0000-4000-8000-000000000302`
+      `/runs/isa-demo/00000000-0000-4000-8000-000000000302`
     );
     expect(screen.getByRole('link', { name: 'Back to the results' })).toHaveAttribute(
       'href',

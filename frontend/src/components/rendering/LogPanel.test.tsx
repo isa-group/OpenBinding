@@ -170,7 +170,7 @@ describe('LogPanel', () => {
   it('shows the line numbers as text, original ones after filtering', () => {
     render(<LogPanel log={LOG} defaultOpen />);
     const nums = () =>
-      [...document.querySelectorAll('.rendering-log__num')].map(n => n.textContent);
+      [...document.querySelectorAll('[data-line] > [aria-hidden="true"]')].map(n => n.textContent);
 
     expect(nums()).toEqual(['1', '2', '3', '4']);
     fireEvent.change(screen.getByLabelText('Search the log'), { target: { value: 'solver' } });
@@ -178,14 +178,21 @@ describe('LogPanel', () => {
   });
 
   it('lets long lines scroll instead of breaking the layout', () => {
-    const css = readFileSync(join(process.cwd(), 'src/components/rendering/LogPanel.css'), 'utf8');
+    const source = readFileSync(
+      join(process.cwd(), 'src/components/rendering/LogPanel.tsx'),
+      'utf8'
+    );
 
-    expect(css).toMatch(/overflow:\s*auto/);
+    expect(source).toMatch(/<pre[^>]*className="[^"]*\boverflow-auto\b/);
   });
 
-  it('has no hard-coded hex colour in its stylesheet', () => {
-    const css = readFileSync(join(process.cwd(), 'src/components/rendering/LogPanel.css'), 'utf8');
+  it('has no hard-coded hex colour and no stylesheet of its own', () => {
+    const source = readFileSync(
+      join(process.cwd(), 'src/components/rendering/LogPanel.tsx'),
+      'utf8'
+    );
 
-    expect(css).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
+    expect(source).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
+    expect(source).not.toMatch(/\.css['"]/);
   });
 });

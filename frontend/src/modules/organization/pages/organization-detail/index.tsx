@@ -49,6 +49,7 @@ import PresetsTab from './components/PresetsTab';
 import ResourceTab from './components/ResourceTab';
 import CompositionsTab from '../../../composition/components/compositions-tab';
 import ProblemsTab from '../../../problem/components/problems-tab';
+import RunsTab from '../../../run/components/runs-tab';
 import ShareOrgMenu from './components/ShareOrgMenu';
 
 const RANK: Record<OrgRole, number> = { VIEWER: 1, MEMBER: 2, ADMIN: 3, OWNER: 4 };
@@ -529,9 +530,10 @@ export default function OrganizationDetailPage() {
             />
           )}
           {activeTab === 'problems' && <ProblemsTab key="problems" org={org} myRole={myRole} />}
-          {(activeTab === 'runs' || activeTab === 'studies') && (
+          {activeTab === 'studies' && (
             <ResourceTab key={activeTab} kind={activeTab} org={org} myRole={myRole} />
           )}
+          {activeTab === 'runs' && <RunsTab key="runs" org={org} myRole={myRole} />}
 
           {activeTab === 'members' && memberOrg && (
             <div key="members" className="flex flex-col gap-6">

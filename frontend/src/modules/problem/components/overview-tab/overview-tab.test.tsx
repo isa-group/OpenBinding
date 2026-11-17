@@ -259,7 +259,7 @@ describe('Overview tab of the problem page', () => {
     await screen.findByRole('heading', { level: 1, name: 'Flujo de checkout' });
     expect(screen.getByRole('link', { name: 'Run this version' })).toHaveAttribute(
       'href',
-      `${app}/runs/new?problem=flujo-checkout&revision=2`
+      '/runs/new?org=isa-demo&problem=flujo-checkout&revision=2'
     );
     expect(screen.getByRole('link', { name: 'Add to study' })).toHaveAttribute(
       'href',
@@ -275,7 +275,7 @@ describe('Overview tab of the problem page', () => {
     await waitFor(() => expect(screen.getByLabelText('Version')).toHaveValue('1'));
     expect(screen.getByRole('link', { name: 'Run this version' })).toHaveAttribute(
       'href',
-      `${app}/runs/new?problem=flujo-checkout&revision=1`
+      '/runs/new?org=isa-demo&problem=flujo-checkout&revision=1'
     );
   });
 

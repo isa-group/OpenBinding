@@ -32,12 +32,11 @@ const SCREENS: Array<[string, string, string]> = [
   ['acct-settings', '/me/settings', 'protected'],
   ['acct-api-keys', '/me/api-keys', 'protected'],
   ['problem-detail', '/problems/:org/:problem/:tab?', 'protected'],
+  ['run-launch', '/runs/new', 'protected'],
+  ['run-detail', '/runs/:org/:run', 'protected'],
   ['eng-register', '/app/engines/new', 'app'],
   ['eng-registrations', '/app/engines/registrations', 'app'],
   ['eng-registration-detail', '/app/engines/registrations/:name', 'app'],
-  ['run-launch', '/app/:org/runs/new', 'app'],
-  ['run-list', '/app/:org/runs', 'app'],
-  ['run-detail', '/app/:org/runs/:job', 'app'],
   ['study-list', '/app/:org/studies', 'app'],
   ['study-builder', '/app/:org/studies/new', 'app'],
   ['study-detail', '/app/:org/studies/:study/:tab?', 'app'],
@@ -49,7 +48,7 @@ const SCREENS: Array<[string, string, string]> = [
   ['problem-editor', '/problem-editor', 'standalone'],
 ];
 
-const CEILING = 39;
+const CEILING = 38;
 
 describe('screen budget', () => {
   it('serves exactly the listed screens, with their addresses and layouts, in table order', () => {

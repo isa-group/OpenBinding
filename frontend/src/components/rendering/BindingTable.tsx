@@ -1,7 +1,6 @@
 import { DataTable } from '../../modules/core/components/data-table';
 import { formatFeature } from '../../utils/featureRange';
 import type { BindingFeature, BindingRow, BindingValue } from './bindingTableModel';
-import './BindingTable.css';
 
 interface BindingTableProps {
   rows: BindingRow[];
@@ -24,10 +23,10 @@ function Missing() {
 /** A name followed by its id, or the id alone when there is no distinct name. */
 function Named({ name, id }: { name: string; id: string }) {
   return name === id ? (
-    <code>{id}</code>
+    <code className="font-mono text-xs">{id}</code>
   ) : (
     <>
-      {name} <code>{id}</code>
+      {name} <code className="ms-2 font-mono text-xs text-tp-steel">{id}</code>
     </>
   );
 }
@@ -55,7 +54,7 @@ export function BindingTable({
           ))}
         </tr>
       </thead>
-      <tbody className="rendering-binding">
+      <tbody>
         {rows.map(row => (
           <tr key={row.task}>
             <th scope="row">
@@ -70,7 +69,7 @@ export function BindingTable({
                 ? row.values[feature.name]
                 : null;
               return (
-                <td key={feature.name} className="rendering-binding__value">
+                <td key={feature.name} className="text-end tabular-nums">
                   {value === null ? <Missing /> : formatFeature(value)}
                 </td>
               );

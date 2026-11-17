@@ -87,9 +87,8 @@ const CompositionEditorPage = lazy(
 const ProblemCardPage = lazy(() => import('../modules/problem/pages/card'));
 const ProblemEditorLayout = lazy(() => import('../modules/problem-editor/layouts/editor-layout'));
 const ProblemEditorPage = lazy(() => import('../modules/problem-editor/pages/problem-editor'));
-const RunLaunch = named(() => import('../pages/Runs/RunLaunch'), 'RunLaunch');
-const RunList = named(() => import('../pages/Runs/RunList'), 'RunList');
-const RunDetail = named(() => import('../pages/Runs/RunDetail'), 'RunDetail');
+const RunLaunchPage = lazy(() => import('../modules/run/pages/create'));
+const RunCardPage = lazy(() => import('../modules/run/pages/card'));
 const StudyList = named(() => import('../pages/Studies/StudyList'), 'StudyList');
 const StudyBuilder = named(() => import('../pages/Studies/StudyBuilder'), 'StudyBuilder');
 const StudyDetail = named(() => import('../pages/Studies/StudyDetail'), 'StudyDetail');
@@ -139,6 +138,8 @@ export const screens: Screen[] = [
   { id: 'acct-settings', path: '/me/settings', layout: 'protected', element: <SettingsPage /> },
   { id: 'acct-api-keys', path: '/me/api-keys', layout: 'protected', element: <ApiKeysPage /> },
   { id: 'problem-detail', path: '/problems/:org/:problem/:tab?', layout: 'protected', element: <ProblemCardPage /> },
+  { id: 'run-launch', path: '/runs/new', layout: 'protected', element: <RunLaunchPage /> },
+  { id: 'run-detail', path: '/runs/:org/:run', layout: 'protected', element: <RunCardPage /> },
 
   // ═══════════════════════════════════════════════════════════
   // PROTECTED ROUTES (the old workspace under /app, until its screens are poured into SPHERE's pages)
@@ -146,9 +147,6 @@ export const screens: Screen[] = [
   { id: 'eng-register', path: '/app/engines/new', layout: 'app', element: <RegisterEngine /> },
   { id: 'eng-registrations', path: '/app/engines/registrations', layout: 'app', element: <EngRegistrations /> },
   { id: 'eng-registration-detail', path: '/app/engines/registrations/:name', layout: 'app', element: <EngRegistrationDetail /> },
-  { id: 'run-launch', path: '/app/:org/runs/new', layout: 'app', element: <RunLaunch /> },
-  { id: 'run-list', path: '/app/:org/runs', layout: 'app', element: <RunList /> },
-  { id: 'run-detail', path: '/app/:org/runs/:job', layout: 'app', element: <RunDetail /> },
   { id: 'study-list', path: '/app/:org/studies', layout: 'app', element: <StudyList /> },
   { id: 'study-builder', path: '/app/:org/studies/new', layout: 'app', element: <StudyBuilder /> },
   { id: 'study-detail', path: '/app/:org/studies/:study/:tab?', layout: 'app', element: <StudyDetail /> },

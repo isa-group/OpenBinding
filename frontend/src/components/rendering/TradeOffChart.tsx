@@ -10,12 +10,14 @@ import {
 } from 'recharts';
 import { DataTable } from '../../modules/core/components/data-table';
 import { nonDominated, type TradeOffChartProps, type TradeOffPoint } from './tradeOffModel';
-import './TradeOffChart.css';
 
 export type { TradeOffChartProps, TradeOffPoint } from './tradeOffModel';
 
 const number = new Intl.NumberFormat('en-US', { maximumFractionDigits: 3 });
-const TICK = { fontSize: 11, fill: 'var(--color-text-secondary)' };
+const TICK = { fontSize: 11, fill: 'var(--color-tp-steel)' };
+const NOTE = 'm-0 text-[13px] text-tp-steel';
+const SELECT =
+  'min-h-6 cursor-pointer rounded-md border border-tp-hairline bg-tp-canvas px-2 py-1 text-sm text-tp-ink outline-none focus:border-tp-primary';
 
 interface Dot {
   x: number;
@@ -54,7 +56,7 @@ export function TradeOffChart({ points, objectives, label = 'Trade-off set' }: T
       .join('; ');
 
   return (
-    <div className="trade-off" role="region" aria-label={label}>
+    <div className="flex flex-col gap-3" role="region" aria-label={label}>
       <DataTable label="Non-dominated solutions" minWidth={480}>
         <thead>
           <tr>
@@ -77,18 +79,18 @@ export function TradeOffChart({ points, objectives, label = 'Trade-off set' }: T
           ))}
         </tbody>
       </DataTable>
-      <p className="trade-off__note">
+      <p className={NOTE}>
         Not dominated: no other solution is at least as good on every objective and better on at
         least one.
       </p>
       {points.length < 2 ? (
-        <p className="trade-off__note">A chart needs at least two solutions; this run has one.</p>
+        <p className={NOTE}>A chart needs at least two solutions; this run has one.</p>
       ) : (
         <>
-          <div className="trade-off__controls">
-            <label className="trade-off__control">
+          <div className="flex flex-wrap gap-3">
+            <label className="flex flex-col gap-1 text-xs text-tp-steel">
               Horizontal axis
-              <select value={x} onChange={e => choose('x', e.target.value)}>
+              <select value={x} onChange={e => choose('x', e.target.value)} className={SELECT}>
                 {objectives.map(o => (
                   <option key={o} value={o}>
                     {o}
@@ -96,9 +98,9 @@ export function TradeOffChart({ points, objectives, label = 'Trade-off set' }: T
                 ))}
               </select>
             </label>
-            <label className="trade-off__control">
+            <label className="flex flex-col gap-1 text-xs text-tp-steel">
               Vertical axis
-              <select value={y} onChange={e => choose('y', e.target.value)}>
+              <select value={y} onChange={e => choose('y', e.target.value)} className={SELECT}>
                 {objectives.map(o => (
                   <option key={o} value={o}>
                     {o}
@@ -107,10 +109,10 @@ export function TradeOffChart({ points, objectives, label = 'Trade-off set' }: T
               </select>
             </label>
           </div>
-          <div className="trade-off__chart" role="img" aria-label={summary}>
+          <div className="h-[280px] w-full" role="img" aria-label={summary}>
             <ResponsiveContainer width="100%" height={280}>
               <ScatterChart margin={{ top: 8, right: 16, bottom: 16, left: 8 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-tp-hairline)" />
                 <XAxis
                   type="number"
                   dataKey="x"
@@ -122,7 +124,7 @@ export function TradeOffChart({ points, objectives, label = 'Trade-off set' }: T
                     position: 'insideBottom',
                     offset: -8,
                     fontSize: 11,
-                    fill: 'var(--color-text-secondary)',
+                    fill: 'var(--color-tp-steel)',
                   }}
                 />
                 <YAxis
@@ -137,7 +139,7 @@ export function TradeOffChart({ points, objectives, label = 'Trade-off set' }: T
                     angle: -90,
                     position: 'insideLeft',
                     fontSize: 11,
-                    fill: 'var(--color-text-secondary)',
+                    fill: 'var(--color-tp-steel)',
                   }}
                 />
                 <Tooltip
@@ -147,8 +149,8 @@ export function TradeOffChart({ points, objectives, label = 'Trade-off set' }: T
                     payload?.[0]?.payload?.name ?? ''
                   }
                   contentStyle={{
-                    background: 'var(--color-bg-secondary)',
-                    border: '1px solid var(--color-border)',
+                    background: 'var(--color-tp-canvas)',
+                    border: '1px solid var(--color-tp-hairline)',
                     borderRadius: 8,
                     fontSize: 12,
                   }}
@@ -157,27 +159,33 @@ export function TradeOffChart({ points, objectives, label = 'Trade-off set' }: T
                   name="not dominated"
                   data={optimal.map(dot)}
                   shape="circle"
-                  fill="var(--color-accent)"
+                  fill="var(--color-tp-primary)"
                   isAnimationActive={false}
                 />
                 <Scatter
                   name="dominated"
                   data={dominatedPoints.map(dot)}
                   shape="cross"
-                  fill="var(--color-text-secondary)"
-                  stroke="var(--color-text-secondary)"
+                  fill="var(--color-tp-steel)"
+                  stroke="var(--color-tp-steel)"
                   isAnimationActive={false}
                 />
               </ScatterChart>
             </ResponsiveContainer>
           </div>
-          <ul className="trade-off__legend">
+          <ul className="m-0 flex list-none flex-wrap gap-4 p-0 text-xs text-tp-steel [&_li]:inline-flex [&_li]:items-center [&_li]:gap-1.5">
             <li>
-              <span className="trade-off__mark is-filled" aria-hidden="true" />
+              <span
+                className="inline-block h-3 w-3 flex-none rounded-full bg-tp-primary"
+                aria-hidden="true"
+              />
               not dominated
             </li>
             <li>
-              <span className="trade-off__mark is-cross" aria-hidden="true" />
+              <span
+                className="relative inline-block h-3 w-3 flex-none before:absolute before:top-1/2 before:left-0 before:h-0.5 before:w-full before:rotate-45 before:bg-tp-steel after:absolute after:top-1/2 after:left-0 after:h-0.5 after:w-full after:-rotate-45 after:bg-tp-steel"
+                aria-hidden="true"
+              />
               dominated
             </li>
           </ul>

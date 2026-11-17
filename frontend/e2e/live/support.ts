@@ -29,8 +29,12 @@ export const ORG_PATH = `/app/${ORG}`;
 /** The organization's Problems tab, and the pages of its problems (`${PROBLEM_PAGES}/<slug>`). */
 export const PROBLEMS_TAB = `${ORG_PAGE}/problems`;
 export const PROBLEM_PAGES = `/problems/${ORG}`;
-/** The runs of the lab organization (`run-list`); a run is `${RUNS_PATH}/<id>` and the launcher `${RUNS_PATH}/new`. */
-export const RUNS_PATH = `/app/${ORG}/runs`;
+/** The runs of the lab organization: its Runs tab. A run is `${RUN_PATH}/<id>` and the launcher `${LAUNCH_PATH}&problem=…`. */
+export const RUNS_PATH = `/orgs/${ORG}/runs`;
+/** Where a run of the lab organization opens: `${RUN_PATH}/<id>` (`run-detail`). */
+export const RUN_PATH = `/runs/${ORG}`;
+/** The run launcher in the lab organization (`run-launch`), to which a problem and a version are added as `&problem=…&revision=…`. */
+export const LAUNCH_PATH = `/runs/new?org=${ORG}`;
 
 /** The addresses of the native consoles the interface links to; the lab build does not override the defaults. */
 export const SPACE_URL = process.env.PLAYWRIGHT_SPACE_URL ?? 'https://space.score.us.es';

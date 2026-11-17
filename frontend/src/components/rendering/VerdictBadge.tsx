@@ -1,5 +1,4 @@
 import { Badge } from '../../modules/core/components/badge';
-import './VerdictBadge.css';
 
 interface VerdictBadgeProps {
   verdict:
@@ -33,7 +32,7 @@ export function VerdictBadge({ verdict, reasons = [], size = 'sm' }: VerdictBadg
   const known = Object.hasOwn(KNOWN, verdict) ? KNOWN[verdict] : undefined;
 
   return (
-    <div className="rendering-verdict">
+    <div className="inline-flex max-w-full flex-col items-start gap-1">
       <span>
         <Badge variant={known?.variant ?? 'default'} size={size}>
           {verdict}
@@ -41,7 +40,7 @@ export function VerdictBadge({ verdict, reasons = [], size = 'sm' }: VerdictBadg
         {known && <span className="sr-only">, {known.description}</span>}
       </span>
       {reasons.length > 0 && (
-        <ul aria-label="Reasons" className="rendering-verdict__reasons">
+        <ul aria-label="Reasons" className="m-0 list-disc pl-[1.125rem] text-xs text-tp-steel">
           {reasons.map((reason, i) => (
             <li key={i}>{reason}</li>
           ))}

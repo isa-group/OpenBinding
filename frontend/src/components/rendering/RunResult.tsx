@@ -25,7 +25,6 @@ import {
   type RunReport,
   type RunResultData,
 } from './runResultModel';
-import './RunResult.css';
 
 interface RunResultProps {
   result: RunResultData;
@@ -74,8 +73,8 @@ export function RunResult({
   const k = index + 1;
 
   return (
-    <section aria-label={label} className="rendering-run">
-      <div className="rendering-run__verdict">
+    <section aria-label={label} className="flex min-w-0 flex-col gap-4 text-sm text-tp-ink">
+      <div className="self-start">
         <VerdictBadge verdict={verdictOf(result.termination)} />
       </div>
       <p>
@@ -86,9 +85,13 @@ export function RunResult({
       {notice}
       {n === 0 && <p>This run finished without producing a binding.</p>}
       {n > 1 && (
-        <label className="rendering-run__choice">
+        <label className="flex flex-wrap items-center gap-3 text-sm text-tp-slate">
           Show solution
-          <select value={index} onChange={e => setChosen(Number(e.target.value))}>
+          <select
+            value={index}
+            onChange={e => setChosen(Number(e.target.value))}
+            className="h-9 cursor-pointer rounded-md border border-tp-input-border bg-tp-input-bg px-2 text-sm text-tp-ink outline-none focus:border-tp-primary"
+          >
             {solutions.map((_, i) => (
               <option key={i} value={i}>{`Solution ${i + 1}`}</option>
             ))}
@@ -133,8 +136,10 @@ export function RunResult({
       {objectives.length >= 2 && <TradeOffChart points={points} objectives={objectives} />}
       {children}
       {(n > 0 || remote !== null) && (
-        <details className="rendering-run__source">
-          <summary>View source</summary>
+        <details className="flex flex-col gap-2 rounded-lg border border-tp-hairline-soft [&[open]]:pb-2">
+          <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-tp-slate">
+            View source
+          </summary>
           {solution && (
             <SourceView
               source={solution}

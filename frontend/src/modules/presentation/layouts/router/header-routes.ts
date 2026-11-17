@@ -48,7 +48,7 @@ export function newEntries(organization: string | undefined): MenuEntry[] {
     ? [
         { label: 'Composition', to: `/compositions/new?org=${encodeURIComponent(organization)}` },
         { label: 'Problem', to: `/problem-editor?org=${encodeURIComponent(organization)}` },
-        { label: 'Run', to: `/app/${organization}/runs/new` },
+        { label: 'Run', to: `/runs/new?org=${encodeURIComponent(organization)}` },
         { label: 'Study', to: `/app/${organization}/studies/new` },
       ]
     : [];

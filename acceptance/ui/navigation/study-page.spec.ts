@@ -46,7 +46,7 @@ test('a cell inside Results links Open run to the run it ran as', async ({ page 
   const open = page.getByRole('link', { name: 'Open run', exact: true }).first();
   await expect(open).toBeVisible();
   // Runs belong to the organization: the run of a cell opens under it.
-  await expect(open).toHaveAttribute('href', `/app/acme/${RUNS_SEGMENT}/j9`);
+  await expect(open).toHaveAttribute('href', `/${RUNS_SEGMENT}/acme/j9`);
 });
 
 test('the Progress tab shows the definition the selected run froze', async ({ page }) => {

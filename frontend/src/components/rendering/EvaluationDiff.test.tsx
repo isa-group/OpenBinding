@@ -403,8 +403,9 @@ describe('EvaluationDiff', () => {
     expect(container.querySelector('pre')).toBeNull();
   });
 
-  it('uses no hex colour in its stylesheet', () => {
-    const css = readFileSync(join(__dirname, 'EvaluationDiff.css'), 'utf8');
-    expect(css).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
+  it('uses no hex colour and no stylesheet of its own', () => {
+    const source = readFileSync(join(__dirname, 'EvaluationDiff.tsx'), 'utf8');
+    expect(source).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
+    expect(source).not.toMatch(/\.css['"]/);
   });
 });

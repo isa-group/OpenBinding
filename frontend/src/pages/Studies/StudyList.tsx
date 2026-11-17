@@ -12,7 +12,7 @@ import { Skeleton } from '../../modules/core/components/skeleton';
 import { formatDate } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import { classifyAuthError, marker } from '../../modules/core/api/errors';
-import { RefusalNotice } from '../Runs/parts';
+import { RefusalNotice } from '../../modules/run/components/run-status';
 import { OrgGate, OrgSkeleton } from '../../features/workspace/OrgFrame';
 import type { StudyContent } from '../../features/workspace/model';
 import { newStudyPath, studyPath } from '../../routes/paths/studies';

@@ -195,8 +195,8 @@ describe('TradeOffChart', () => {
   });
 
   it('uses tokens only and a 24px target on the selects', () => {
-    const css = readFileSync(join(__dirname, 'TradeOffChart.css'), 'utf8');
-    expect(css).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
-    expect(css).toMatch(/select\s*\{[^}]*min-height:\s*24px/);
+    const source = readFileSync(join(__dirname, 'TradeOffChart.tsx'), 'utf8');
+    expect(source).not.toMatch(/#[0-9a-fA-F]{3,8}\b|\.css['"]/);
+    expect(source).toMatch(/const SELECT =\s*'[^']*\bmin-h-6\b/);
   });
 });

@@ -56,9 +56,7 @@ const EXEMPT_FILES: readonly string[] = [
   '/src/api/problem.ts',
   '/src/api/problems.ts',
   // log and source views: raw engine output and source text are shown verbatim
-  '/src/components/rendering/LogPanel.css',
   '/src/components/rendering/LogPanel.tsx',
-  '/src/components/rendering/SourceView.css',
   '/src/components/rendering/SourceView.tsx',
   // fixtures: sample data for tests and demos, with realistic digests and ids
   '/src/components/rendering/runResultFixtures.ts',
@@ -114,10 +112,8 @@ describe('names, not digests: no digest-shaped string or UUID outside the places
 
   it('reads the stylesheets from disk with their content', () => {
     expect(stylesheets.length).toBeGreaterThan(0);
-    const logPanel = stylesheets.find(
-      ([path]) => path === '/src/components/rendering/LogPanel.css'
-    );
-    expect(logPanel?.[1].trim().length).toBeGreaterThan(0);
+    const theme = stylesheets.find(([path]) => path === '/src/styles/tailwind.css');
+    expect(theme?.[1].trim().length).toBeGreaterThan(0);
   });
 
   it('leaves out exactly the files of the explicit test-kit list', () => {

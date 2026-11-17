@@ -5,7 +5,6 @@ import '../Organization/Organization.css';
 import { OrgFrame } from '../../features/workspace/OrgFrame';
 import { stateWord, countStates, breakdownText } from './studiesModel';
 import '../../features/workspace/kit.css';
-import '../Runs/Runs.css';
 import './Studies.css';
 
 interface StudyFrameProps {

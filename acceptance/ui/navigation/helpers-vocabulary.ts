@@ -6,12 +6,12 @@ import { PROBLEM_SLUG, mockProblems } from './helpers-problems';
 // routes added here win over the catch-all of mockApi() because they are registered later.
 //
 // The addresses of these specs are the LITERAL final ones, which match the constants of helpers.ts: the problems and the
-// runs of the organization (`/orgs/acme/problems`, `/app/acme/runs`), and a problem's page (`/problems/acme/<slug>`). The HTTP
-// API reads them from the organization.
+// runs of the organization (`/orgs/acme/problems`, the Runs tab `/orgs/acme/runs`), and a problem's page
+// (`/problems/acme/<slug>`). The HTTP API reads them from the organization.
 
 export const PROBLEMS_FINAL = '/orgs/acme/problems';
 export const PROBLEM_PAGES_FINAL = '/problems/acme';
-export const RUNS_FINAL = '/app/acme/runs';
+export const RUNS_FINAL = '/orgs/acme/runs';
 
 export const API_PROBLEMS = '/v1/organizations/acme/problems';
 export const API_RUNS = '/v1/organizations/acme/runs';
