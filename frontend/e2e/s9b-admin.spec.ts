@@ -228,7 +228,7 @@ async function capture(
   await page.evaluate(async () => {
     await document.fonts.ready;
     (document.activeElement as HTMLElement | null)?.blur();
-    window.scrollTo(0, 0);
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   });
   const path = testInfo.outputPath(`${name}.png`);
   const width = page.viewportSize()?.width ?? 0;

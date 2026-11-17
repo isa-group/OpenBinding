@@ -35,7 +35,7 @@ async function capture(page: Page, testInfo: TestInfo, name: string) {
   await page.evaluate(async () => {
     await document.fonts.ready;
     (document.activeElement as HTMLElement | null)?.blur();
-    window.scrollTo(0, 0);
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   });
   await page.screenshot({
     path: testInfo.outputPath(`${name}.png`),
