@@ -34,7 +34,6 @@ DUMMY_ENV = {
     "SPACE_API_KEY": "",
     "SPACE_ORGANIZATION_ID": "",
     "SPHERE_URL": "",
-    "SPHERE_REGISTRIES": "",
     "SPHERE_API_KEY": "",
     "SPHERE_ORGANIZATION_ID": "",
 }
