@@ -4,7 +4,9 @@
 compiled problem, stored or draft: its tasks with the candidates each may take and how a
 document writes them, every candidate with its values, units and where the package writes each
 value, the features with their direction, the workflow **in the Composition2Yaml shape** (the
-``workflow:`` a document derived from the same compilation writes), the constraints and
+``workflow:`` a document derived from the same compilation writes), every candidate's scalar
+properties (what a requirement predicate reads), where each value came from when a SPHERE import
+wrote it (``sources``, ``provenance``: a revision's value origins, given as plain mappings), the constraints and
 objectives as the IR has them, and the size of the binding space.
 
 Everything is read by the readers the language already has: :meth:`ProblemFacts.from_ir` gives
@@ -34,12 +36,16 @@ def facts_view(
     analysis: Mapping[str, Any] | None,
     *,
     ir_digest: str,
+    sources: Mapping[tuple[str, str, str], Mapping[str, Any]] | None = None,
+    provenance: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """The facts of the compiled problem ``ir``, JSON-native.
 
     ``source_map`` is the compilation's (the IR's own ``spec.sourceMap`` when ``None``);
     ``analysis`` is the compilation's analysis summary, whose ``bindingSpace`` is passed through.
-    :class:`ProblemFactsError` when the IR lacks a member every compiled problem has.
+    ``sources`` (``{(candidate key, "feature" | "property", name): value source}``) and ``provenance``
+    (``{candidate key: upstream plan}``) are a stored revision's value origins, given as plain mappings; a draft
+    has none. :class:`ProblemFactsError` when the IR lacks a member every compiled problem has.
     """
     facts = ProblemFacts.from_ir(ir, source_map)
     try:
@@ -49,7 +55,7 @@ def facts_view(
         view = {
             "ir_digest": ir_digest,
             "tasks": _tasks(facts),
-            "candidates": _candidates(spec, application, located),
+            "candidates": _candidates(spec, application, located, sources or {}, provenance or {}),
             "features": _features(application),
             "workflow": text.workflow_json(derive.written(facts.workflow)),
             "constraints": _constraints(spec, located),
@@ -82,9 +88,14 @@ def _tasks(facts: ProblemFacts) -> list[dict[str, Any]]:
 
 
 def _candidates(
-    spec: Mapping[str, Any], application: Mapping[str, Any], source_map: Mapping[str, Any]
+    spec: Mapping[str, Any],
+    application: Mapping[str, Any],
+    source_map: Mapping[str, Any],
+    sources: Mapping[tuple[str, str, str], Mapping[str, Any]],
+    provenance: Mapping[str, Mapping[str, Any]],
 ) -> list[dict[str, Any]]:
-    """Every candidate of every catalog, by key: its provider, its values by feature and where each is written."""
+    """Every candidate of every catalog, by key: its provider, its values by feature, its scalar properties, where
+    each is written and, for a revision a SPHERE import wrote, where each value came from."""
     resource_of_application = application.get("resource")
     found: list[tuple[CandidateRef, dict[str, Any]]] = []
     for resource, catalog in spec["candidates"].items():
@@ -92,28 +103,52 @@ def _candidates(
         for identifier, candidate in catalog["candidates"].items():
             reference = CandidateRef(str(resource), str(identifier))
             entry = source_map.get(f"/spec/candidates/{_escape(reference.resource)}/{_escape(reference.id)}")
+            key = str(reference)
             values: dict[str, Any] = {}
             origins: dict[str, Any] = {}
             for alias, value in (candidate.get("features") or {}).items():
                 feature = _feature_of(alias, bindings, resource_of_application)
                 values[feature] = _value(value)
                 if isinstance(entry, Mapping) and entry.get("path"):
-                    origins[feature] = {
-                        "kind": "package",
-                        "resource": str(entry.get("resource", reference.resource)),
-                        "path": str(entry["path"]),
-                        "pointer": f"{entry.get('pointer', '')}/features/{_escape(str(alias))}",
-                    }
+                    origins[feature] = _located(entry, reference, f"/features/{_escape(str(alias))}",
+                                                sources.get((key, "feature", feature)))
+            properties: dict[str, Any] = {}
+            property_origins: dict[str, Any] = {}
+            for name, value in (candidate.get("properties") or {}).items():
+                if isinstance(value, Mapping) or isinstance(value, list):
+                    continue
+                properties[str(name)] = value
+                if isinstance(entry, Mapping) and entry.get("path"):
+                    property_origins[str(name)] = _located(
+                        entry, reference, f"/properties/{_escape(str(name))}", sources.get((key, "property", str(name)))
+                    )
             provider = candidate.get("provider")
             found.append((reference, {
-                "key": str(reference),
+                "key": key,
                 "resource": reference.resource,
                 "id": reference.id,
                 "provider": str(provider["id"]) if isinstance(provider, Mapping) and "id" in provider else None,
                 "values": values,
                 "origins": origins,
+                "properties": properties,
+                "propertyOrigins": property_origins,
+                "provenance": dict(provenance[key]) if key in provenance else None,
             }))
     return [item for _, item in sorted(found, key=lambda pair: pair[0])]
+
+
+def _located(
+    entry: Mapping[str, Any], reference: CandidateRef, suffix: str, source: Mapping[str, Any] | None
+) -> dict[str, Any]:
+    """Where the package writes a value, and where it came from when a SPHERE import wrote it."""
+    out: dict[str, Any] = {
+        "kind": "package",
+        "resource": str(entry.get("resource", reference.resource)),
+        "path": str(entry["path"]),
+        "pointer": f"{entry.get('pointer', '')}{suffix}",
+        "source": dict(source) if source is not None else None,
+    }
+    return out
 
 
 def _feature_of(alias: Any, bindings: Mapping[str, Any], application: Any) -> str:

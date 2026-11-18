@@ -9,9 +9,23 @@
           "kind": "package",
           "path": "sphere-email.json",
           "pointer": "/spec/candidates/email.mailgun.basic/features/subscription",
-          "resource": "sphere-email"
+          "resource": "sphere-email",
+          "source": null
         }
       },
+      "properties": {
+        "emailsPerMonth": 10000
+      },
+      "propertyOrigins": {
+        "emailsPerMonth": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.mailgun.basic/properties/emailsPerMonth",
+          "resource": "sphere-email",
+          "source": null
+        }
+      },
+      "provenance": null,
       "provider": "mailgun",
       "resource": "sphere-email",
       "values": {
@@ -26,9 +40,23 @@
           "kind": "package",
           "path": "sphere-email.json",
           "pointer": "/spec/candidates/email.mailgun.foundation/features/subscription",
-          "resource": "sphere-email"
+          "resource": "sphere-email",
+          "source": null
         }
       },
+      "properties": {
+        "emailsPerMonth": 50000
+      },
+      "propertyOrigins": {
+        "emailsPerMonth": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.mailgun.foundation/properties/emailsPerMonth",
+          "resource": "sphere-email",
+          "source": null
+        }
+      },
+      "provenance": null,
       "provider": "mailgun",
       "resource": "sphere-email",
       "values": {
@@ -43,9 +71,23 @@
           "kind": "package",
           "path": "sphere-email.json",
           "pointer": "/spec/candidates/email.mailgun.free/features/subscription",
-          "resource": "sphere-email"
+          "resource": "sphere-email",
+          "source": null
         }
       },
+      "properties": {
+        "emailsPerMonth": 100000000
+      },
+      "propertyOrigins": {
+        "emailsPerMonth": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.mailgun.free/properties/emailsPerMonth",
+          "resource": "sphere-email",
+          "source": null
+        }
+      },
+      "provenance": null,
       "provider": "mailgun",
       "resource": "sphere-email",
       "values": {
@@ -60,9 +102,23 @@
           "kind": "package",
           "path": "sphere-email.json",
           "pointer": "/spec/candidates/email.mailgun.scale/features/subscription",
-          "resource": "sphere-email"
+          "resource": "sphere-email",
+          "source": null
         }
       },
+      "properties": {
+        "emailsPerMonth": 101000
+      },
+      "propertyOrigins": {
+        "emailsPerMonth": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.mailgun.scale/properties/emailsPerMonth",
+          "resource": "sphere-email",
+          "source": null
+        }
+      },
+      "provenance": null,
       "provider": "mailgun",
       "resource": "sphere-email",
       "values": {

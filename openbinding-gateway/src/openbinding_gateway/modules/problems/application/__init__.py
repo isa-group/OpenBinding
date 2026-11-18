@@ -8,6 +8,15 @@ from ..domain.compilation import Compilation, analysis_summary, ir_analysis, pac
 from ..domain.digests import is_digest, revision_digest
 from ..domain.origin import ORIGINS, ProblemOrigin, origin_of
 from .compile import CompileRefusal, compile_package, compile_refusal
+from .origins import (
+    PRICED_KINDS,
+    Provenance,
+    ValueSources,
+    candidate_provenance,
+    origins_digest,
+    origins_for,
+    value_sources,
+)
 from .package import BIM_ZIP_TYPES, PackageRequest, read_package
 from .problems import (
     NOT_RECOMPILABLE,
@@ -31,6 +40,13 @@ from .templates import TemplatePackage, TemplateProblem, template_package, templ
 from .validate import validate_package
 
 __all__ = [
+    "PRICED_KINDS",
+    "Provenance",
+    "ValueSources",
+    "candidate_provenance",
+    "origins_digest",
+    "origins_for",
+    "value_sources",
     "ORIGINS",
     "ProblemOrigin",
     "origin_of",

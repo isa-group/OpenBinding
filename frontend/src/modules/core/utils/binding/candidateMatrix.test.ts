@@ -34,6 +34,7 @@ describe('candidateMatrix', () => {
         resource: 'catalog',
         path: 'candidates.json',
         pointer: '/spec/candidates/c1a/features/latency',
+        source: null,
       },
     });
   });

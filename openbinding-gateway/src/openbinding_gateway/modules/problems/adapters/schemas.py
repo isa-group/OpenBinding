@@ -161,13 +161,57 @@ class ProblemFactsRange(BaseModel):
     max: Union[int, float, None]
 
 
+class ValueSourcePricing(BaseModel):
+    """The upstream pricing a value was read from: names and immutable ids, never a digest."""
+
+    sphere: Optional[str] = Field(description="`owner/slug` of the family in SPHERE when the value was read.")
+    registry: Optional[str] = Field(description="The `SPHERE_REGISTRIES` alias, or null for the default SPHERE.")
+    pricingId: str
+    versionId: Optional[str]
+    versionLabel: Optional[str] = Field(description="The version's name in SPHERE, as read.")
+    plan: Optional[str] = Field(description="The plan, as the pricing names it.")
+    addOns: list[str] = Field(description="The add-on taken with the plan, as the pricing names it (at most one in F3).")
+    permanentUrl: Optional[str] = Field(description="SPHERE's permanent link to that version.")
+
+
+class ValueSource(BaseModel):
+    """Where a value written by a SPHERE import came from."""
+
+    kind: Literal["priced", "guarantee", "limit", "feature", "manual"] = Field(
+        description="`priced` (the plan's price per month), `guarantee`, `limit` (a usage limit), `feature`, or "
+        "`manual` (set by hand when importing, or a hand-made candidate's value).",
+    )
+    pricing: Optional[ValueSourcePricing] = Field(description="Null for a value set by hand.")
+    detail: dict[str, Any] = Field(
+        description="How the value was read: the price parts and formula, the guarantee's table or scale and "
+        "`docUrl`, the limit's raw value and unit, the manual key.",
+    )
+    carried: bool = Field(description="Whether an editor save kept this value (and so its source) from an earlier revision.")
+
+
 class ProblemValueOrigin(BaseModel):
-    """Where the package writes a value: the resource, its file and the JSON Pointer within it."""
+    """Where the package writes a value: the resource, its file and the JSON Pointer within it; and, for a value a
+    SPHERE import wrote, where it came from."""
 
     kind: Literal["package"]
     resource: str
     path: str
     pointer: str
+    source: Optional[ValueSource] = None
+
+
+class CandidateProvenance(BaseModel):
+    """The upstream plan a generated candidate was chosen from: what derive writes as a binding entry's `from`."""
+
+    sphere: Optional[str] = Field(description="`owner/slug` of the family in SPHERE.")
+    registry: Optional[str] = None
+    version: str = Field(description="The SPHERE version id.")
+    versionLabel: Optional[str]
+    plan: Optional[str]
+    addons: list[str] = Field(default_factory=list)
+    pricingId: str
+    snapshot: Optional[str] = Field(description="The pricing snapshot the values were read from.")
+    permanentUrl: Optional[str]
 
 
 class ProblemFactsCandidate(BaseModel):
@@ -177,6 +221,13 @@ class ProblemFactsCandidate(BaseModel):
     provider: Optional[str] = Field(description="The provider's id in the candidate's catalog.")
     values: dict[str, Union[int, float, ProblemFactsRange]] = Field(description="By application feature.")
     origins: dict[str, ProblemValueOrigin] = Field(description="By application feature.")
+    properties: dict[str, Union[bool, int, float, str]] = Field(
+        description="The candidate's scalar properties (what a task's requirement predicate reads), by name.",
+    )
+    propertyOrigins: dict[str, ProblemValueOrigin] = Field(description="By property.")
+    provenance: Optional[CandidateProvenance] = Field(
+        description="For a candidate a SPHERE import generated: the upstream plan its values were read from.",
+    )
 
 
 class ProblemFactsFeature(BaseModel):

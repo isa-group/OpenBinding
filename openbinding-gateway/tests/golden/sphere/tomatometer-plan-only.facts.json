@@ -9,9 +9,23 @@
           "kind": "package",
           "path": "sphere-pomodoro.json",
           "pointer": "/spec/candidates/pomodoro.tomatometer.advanced/features/subscription",
-          "resource": "sphere-pomodoro"
+          "resource": "sphere-pomodoro",
+          "source": null
         }
       },
+      "properties": {
+        "timers": 10
+      },
+      "propertyOrigins": {
+        "timers": {
+          "kind": "package",
+          "path": "sphere-pomodoro.json",
+          "pointer": "/spec/candidates/pomodoro.tomatometer.advanced/properties/timers",
+          "resource": "sphere-pomodoro",
+          "source": null
+        }
+      },
+      "provenance": null,
       "provider": "tomatometer",
       "resource": "sphere-pomodoro",
       "values": {
@@ -26,9 +40,23 @@
           "kind": "package",
           "path": "sphere-pomodoro.json",
           "pointer": "/spec/candidates/pomodoro.tomatometer.advanced.extratimers/features/subscription",
-          "resource": "sphere-pomodoro"
+          "resource": "sphere-pomodoro",
+          "source": null
         }
       },
+      "properties": {
+        "timers": 15
+      },
+      "propertyOrigins": {
+        "timers": {
+          "kind": "package",
+          "path": "sphere-pomodoro.json",
+          "pointer": "/spec/candidates/pomodoro.tomatometer.advanced.extratimers/properties/timers",
+          "resource": "sphere-pomodoro",
+          "source": null
+        }
+      },
+      "provenance": null,
       "provider": "tomatometer",
       "resource": "sphere-pomodoro",
       "values": {
@@ -43,9 +71,23 @@
           "kind": "package",
           "path": "sphere-pomodoro.json",
           "pointer": "/spec/candidates/pomodoro.tomatometer.basic/features/subscription",
-          "resource": "sphere-pomodoro"
+          "resource": "sphere-pomodoro",
+          "source": null
         }
       },
+      "properties": {
+        "timers": 3
+      },
+      "propertyOrigins": {
+        "timers": {
+          "kind": "package",
+          "path": "sphere-pomodoro.json",
+          "pointer": "/spec/candidates/pomodoro.tomatometer.basic/properties/timers",
+          "resource": "sphere-pomodoro",
+          "source": null
+        }
+      },
+      "provenance": null,
       "provider": "tomatometer",
       "resource": "sphere-pomodoro",
       "values": {
@@ -60,9 +102,23 @@
           "kind": "package",
           "path": "sphere-pomodoro.json",
           "pointer": "/spec/candidates/pomodoro.tomatometer.basic.extratimers/features/subscription",
-          "resource": "sphere-pomodoro"
+          "resource": "sphere-pomodoro",
+          "source": null
         }
       },
+      "properties": {
+        "timers": 8
+      },
+      "propertyOrigins": {
+        "timers": {
+          "kind": "package",
+          "path": "sphere-pomodoro.json",
+          "pointer": "/spec/candidates/pomodoro.tomatometer.basic.extratimers/properties/timers",
+          "resource": "sphere-pomodoro",
+          "source": null
+        }
+      },
+      "provenance": null,
       "provider": "tomatometer",
       "resource": "sphere-pomodoro",
       "values": {
@@ -77,9 +133,23 @@
           "kind": "package",
           "path": "sphere-pomodoro.json",
           "pointer": "/spec/candidates/pomodoro.tomatometer.premium/features/subscription",
-          "resource": "sphere-pomodoro"
+          "resource": "sphere-pomodoro",
+          "source": null
         }
       },
+      "properties": {
+        "timers": 15
+      },
+      "propertyOrigins": {
+        "timers": {
+          "kind": "package",
+          "path": "sphere-pomodoro.json",
+          "pointer": "/spec/candidates/pomodoro.tomatometer.premium/properties/timers",
+          "resource": "sphere-pomodoro",
+          "source": null
+        }
+      },
+      "provenance": null,
       "provider": "tomatometer",
       "resource": "sphere-pomodoro",
       "values": {
@@ -94,9 +164,23 @@
           "kind": "package",
           "path": "sphere-pomodoro.json",
           "pointer": "/spec/candidates/pomodoro.tomatometer.premium.exportasjson/features/subscription",
-          "resource": "sphere-pomodoro"
+          "resource": "sphere-pomodoro",
+          "source": null
         }
       },
+      "properties": {
+        "timers": 15
+      },
+      "propertyOrigins": {
+        "timers": {
+          "kind": "package",
+          "path": "sphere-pomodoro.json",
+          "pointer": "/spec/candidates/pomodoro.tomatometer.premium.exportasjson/properties/timers",
+          "resource": "sphere-pomodoro",
+          "source": null
+        }
+      },
+      "provenance": null,
       "provider": "tomatometer",
       "resource": "sphere-pomodoro",
       "values": {
@@ -111,9 +195,23 @@
           "kind": "package",
           "path": "sphere-pomodoro.json",
           "pointer": "/spec/candidates/pomodoro.tomatometer.premium.extratimers/features/subscription",
-          "resource": "sphere-pomodoro"
+          "resource": "sphere-pomodoro",
+          "source": null
         }
       },
+      "properties": {
+        "timers": 20
+      },
+      "propertyOrigins": {
+        "timers": {
+          "kind": "package",
+          "path": "sphere-pomodoro.json",
+          "pointer": "/spec/candidates/pomodoro.tomatometer.premium.extratimers/properties/timers",
+          "resource": "sphere-pomodoro",
+          "source": null
+        }
+      },
+      "provenance": null,
       "provider": "tomatometer",
       "resource": "sphere-pomodoro",
       "values": {

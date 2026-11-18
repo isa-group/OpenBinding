@@ -9,21 +9,27 @@
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/auth.builtin.local/features/availability",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         },
         "latency": {
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/auth.builtin.local/features/latency",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         },
         "subscription": {
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/auth.builtin.local/features/subscription",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         }
       },
+      "properties": {},
+      "propertyOrigins": {},
+      "provenance": null,
       "provider": "builtin",
       "resource": "catalog",
       "values": {
@@ -40,21 +46,45 @@
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/email.selfhosted.postfix/features/availability",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         },
         "latency": {
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/email.selfhosted.postfix/features/latency",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         },
         "subscription": {
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/email.selfhosted.postfix/features/subscription",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         }
       },
+      "properties": {
+        "emailsPerDay": 100000000,
+        "emailsPerMonth": 100000000
+      },
+      "propertyOrigins": {
+        "emailsPerDay": {
+          "kind": "package",
+          "path": "candidates.json",
+          "pointer": "/spec/candidates/email.selfhosted.postfix/properties/emailsPerDay",
+          "resource": "catalog",
+          "source": null
+        },
+        "emailsPerMonth": {
+          "kind": "package",
+          "path": "candidates.json",
+          "pointer": "/spec/candidates/email.selfhosted.postfix/properties/emailsPerMonth",
+          "resource": "catalog",
+          "source": null
+        }
+      },
+      "provenance": null,
       "provider": "selfhosted",
       "resource": "catalog",
       "values": {
@@ -71,21 +101,27 @@
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/quotes.zenquotes.free/features/availability",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         },
         "latency": {
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/quotes.zenquotes.free/features/latency",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         },
         "subscription": {
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/quotes.zenquotes.free/features/subscription",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         }
       },
+      "properties": {},
+      "propertyOrigins": {},
+      "provenance": null,
       "provider": "zenquotes",
       "resource": "catalog",
       "values": {
@@ -102,21 +138,27 @@
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/storage.local.disk/features/availability",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         },
         "latency": {
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/storage.local.disk/features/latency",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         },
         "subscription": {
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/storage.local.disk/features/subscription",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         }
       },
+      "properties": {},
+      "propertyOrigins": {},
+      "provenance": null,
       "provider": "local",
       "resource": "catalog",
       "values": {
@@ -133,21 +175,45 @@
           "kind": "package",
           "path": "sphere-email.json",
           "pointer": "/spec/candidates/email.brevo.free/features/availability",
-          "resource": "sphere-email"
+          "resource": "sphere-email",
+          "source": null
         },
         "latency": {
           "kind": "package",
           "path": "sphere-email.json",
           "pointer": "/spec/candidates/email.brevo.free/features/latency",
-          "resource": "sphere-email"
+          "resource": "sphere-email",
+          "source": null
         },
         "subscription": {
           "kind": "package",
           "path": "sphere-email.json",
           "pointer": "/spec/candidates/email.brevo.free/features/subscription",
-          "resource": "sphere-email"
+          "resource": "sphere-email",
+          "source": null
         }
       },
+      "properties": {
+        "emailsPerDay": 300,
+        "emailsPerMonth": 100000000
+      },
+      "propertyOrigins": {
+        "emailsPerDay": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.brevo.free/properties/emailsPerDay",
+          "resource": "sphere-email",
+          "source": null
+        },
+        "emailsPerMonth": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.brevo.free/properties/emailsPerMonth",
+          "resource": "sphere-email",
+          "source": null
+        }
+      },
+      "provenance": null,
       "provider": "brevo",
       "resource": "sphere-email",
       "values": {
@@ -164,21 +230,45 @@
           "kind": "package",
           "path": "sphere-email.json",
           "pointer": "/spec/candidates/email.brevo.professional/features/availability",
-          "resource": "sphere-email"
+          "resource": "sphere-email",
+          "source": null
         },
         "latency": {
           "kind": "package",
           "path": "sphere-email.json",
           "pointer": "/spec/candidates/email.brevo.professional/features/latency",
-          "resource": "sphere-email"
+          "resource": "sphere-email",
+          "source": null
         },
         "subscription": {
           "kind": "package",
           "path": "sphere-email.json",
           "pointer": "/spec/candidates/email.brevo.professional/features/subscription",
-          "resource": "sphere-email"
+          "resource": "sphere-email",
+          "source": null
         }
       },
+      "properties": {
+        "emailsPerDay": 100000000,
+        "emailsPerMonth": 150000
+      },
+      "propertyOrigins": {
+        "emailsPerDay": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.brevo.professional/properties/emailsPerDay",
+          "resource": "sphere-email",
+          "source": null
+        },
+        "emailsPerMonth": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.brevo.professional/properties/emailsPerMonth",
+          "resource": "sphere-email",
+          "source": null
+        }
+      },
+      "provenance": null,
       "provider": "brevo",
       "resource": "sphere-email",
       "values": {
@@ -195,21 +285,45 @@
           "kind": "package",
           "path": "sphere-email.json",
           "pointer": "/spec/candidates/email.brevo.standard/features/availability",
-          "resource": "sphere-email"
+          "resource": "sphere-email",
+          "source": null
         },
         "latency": {
           "kind": "package",
           "path": "sphere-email.json",
           "pointer": "/spec/candidates/email.brevo.standard/features/latency",
-          "resource": "sphere-email"
+          "resource": "sphere-email",
+          "source": null
         },
         "subscription": {
           "kind": "package",
           "path": "sphere-email.json",
           "pointer": "/spec/candidates/email.brevo.standard/features/subscription",
-          "resource": "sphere-email"
+          "resource": "sphere-email",
+          "source": null
         }
       },
+      "properties": {
+        "emailsPerDay": 100000000,
+        "emailsPerMonth": 5000
+      },
+      "propertyOrigins": {
+        "emailsPerDay": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.brevo.standard/properties/emailsPerDay",
+          "resource": "sphere-email",
+          "source": null
+        },
+        "emailsPerMonth": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.brevo.standard/properties/emailsPerMonth",
+          "resource": "sphere-email",
+          "source": null
+        }
+      },
+      "provenance": null,
       "provider": "brevo",
       "resource": "sphere-email",
       "values": {
@@ -226,21 +340,45 @@
           "kind": "package",
           "path": "sphere-email.json",
           "pointer": "/spec/candidates/email.brevo.starter/features/availability",
-          "resource": "sphere-email"
+          "resource": "sphere-email",
+          "source": null
         },
         "latency": {
           "kind": "package",
           "path": "sphere-email.json",
           "pointer": "/spec/candidates/email.brevo.starter/features/latency",
-          "resource": "sphere-email"
+          "resource": "sphere-email",
+          "source": null
         },
         "subscription": {
           "kind": "package",
           "path": "sphere-email.json",
           "pointer": "/spec/candidates/email.brevo.starter/features/subscription",
-          "resource": "sphere-email"
+          "resource": "sphere-email",
+          "source": null
         }
       },
+      "properties": {
+        "emailsPerDay": 100000000,
+        "emailsPerMonth": 5000
+      },
+      "propertyOrigins": {
+        "emailsPerDay": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.brevo.starter/properties/emailsPerDay",
+          "resource": "sphere-email",
+          "source": null
+        },
+        "emailsPerMonth": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.brevo.starter/properties/emailsPerMonth",
+          "resource": "sphere-email",
+          "source": null
+        }
+      },
+      "provenance": null,
       "provider": "brevo",
       "resource": "sphere-email",
       "values": {
@@ -257,21 +395,45 @@
           "kind": "package",
           "path": "sphere-email.json",
           "pointer": "/spec/candidates/email.mailgun.basic/features/availability",
-          "resource": "sphere-email"
+          "resource": "sphere-email",
+          "source": null
         },
         "latency": {
           "kind": "package",
           "path": "sphere-email.json",
           "pointer": "/spec/candidates/email.mailgun.basic/features/latency",
-          "resource": "sphere-email"
+          "resource": "sphere-email",
+          "source": null
         },
         "subscription": {
           "kind": "package",
           "path": "sphere-email.json",
           "pointer": "/spec/candidates/email.mailgun.basic/features/subscription",
-          "resource": "sphere-email"
+          "resource": "sphere-email",
+          "source": null
         }
       },
+      "properties": {
+        "emailsPerDay": 100000000,
+        "emailsPerMonth": 10000
+      },
+      "propertyOrigins": {
+        "emailsPerDay": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.mailgun.basic/properties/emailsPerDay",
+          "resource": "sphere-email",
+          "source": null
+        },
+        "emailsPerMonth": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.mailgun.basic/properties/emailsPerMonth",
+          "resource": "sphere-email",
+          "source": null
+        }
+      },
+      "provenance": null,
       "provider": "mailgun",
       "resource": "sphere-email",
       "values": {
@@ -288,21 +450,45 @@
           "kind": "package",
           "path": "sphere-email.json",
           "pointer": "/spec/candidates/email.mailgun.foundation/features/availability",
-          "resource": "sphere-email"
+          "resource": "sphere-email",
+          "source": null
         },
         "latency": {
           "kind": "package",
           "path": "sphere-email.json",
           "pointer": "/spec/candidates/email.mailgun.foundation/features/latency",
-          "resource": "sphere-email"
+          "resource": "sphere-email",
+          "source": null
         },
         "subscription": {
           "kind": "package",
           "path": "sphere-email.json",
           "pointer": "/spec/candidates/email.mailgun.foundation/features/subscription",
-          "resource": "sphere-email"
+          "resource": "sphere-email",
+          "source": null
         }
       },
+      "properties": {
+        "emailsPerDay": 100000000,
+        "emailsPerMonth": 50000
+      },
+      "propertyOrigins": {
+        "emailsPerDay": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.mailgun.foundation/properties/emailsPerDay",
+          "resource": "sphere-email",
+          "source": null
+        },
+        "emailsPerMonth": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.mailgun.foundation/properties/emailsPerMonth",
+          "resource": "sphere-email",
+          "source": null
+        }
+      },
+      "provenance": null,
       "provider": "mailgun",
       "resource": "sphere-email",
       "values": {
@@ -319,21 +505,45 @@
           "kind": "package",
           "path": "sphere-email.json",
           "pointer": "/spec/candidates/email.mailgun.free/features/availability",
-          "resource": "sphere-email"
+          "resource": "sphere-email",
+          "source": null
         },
         "latency": {
           "kind": "package",
           "path": "sphere-email.json",
           "pointer": "/spec/candidates/email.mailgun.free/features/latency",
-          "resource": "sphere-email"
+          "resource": "sphere-email",
+          "source": null
         },
         "subscription": {
           "kind": "package",
           "path": "sphere-email.json",
           "pointer": "/spec/candidates/email.mailgun.free/features/subscription",
-          "resource": "sphere-email"
+          "resource": "sphere-email",
+          "source": null
         }
       },
+      "properties": {
+        "emailsPerDay": 100,
+        "emailsPerMonth": 100000000
+      },
+      "propertyOrigins": {
+        "emailsPerDay": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.mailgun.free/properties/emailsPerDay",
+          "resource": "sphere-email",
+          "source": null
+        },
+        "emailsPerMonth": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.mailgun.free/properties/emailsPerMonth",
+          "resource": "sphere-email",
+          "source": null
+        }
+      },
+      "provenance": null,
       "provider": "mailgun",
       "resource": "sphere-email",
       "values": {
@@ -350,21 +560,45 @@
           "kind": "package",
           "path": "sphere-email.json",
           "pointer": "/spec/candidates/email.mailgun.scale/features/availability",
-          "resource": "sphere-email"
+          "resource": "sphere-email",
+          "source": null
         },
         "latency": {
           "kind": "package",
           "path": "sphere-email.json",
           "pointer": "/spec/candidates/email.mailgun.scale/features/latency",
-          "resource": "sphere-email"
+          "resource": "sphere-email",
+          "source": null
         },
         "subscription": {
           "kind": "package",
           "path": "sphere-email.json",
           "pointer": "/spec/candidates/email.mailgun.scale/features/subscription",
-          "resource": "sphere-email"
+          "resource": "sphere-email",
+          "source": null
         }
       },
+      "properties": {
+        "emailsPerDay": 100000000,
+        "emailsPerMonth": 100000
+      },
+      "propertyOrigins": {
+        "emailsPerDay": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.mailgun.scale/properties/emailsPerDay",
+          "resource": "sphere-email",
+          "source": null
+        },
+        "emailsPerMonth": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.mailgun.scale/properties/emailsPerMonth",
+          "resource": "sphere-email",
+          "source": null
+        }
+      },
+      "provenance": null,
       "provider": "mailgun",
       "resource": "sphere-email",
       "values": {
@@ -381,21 +615,45 @@
           "kind": "package",
           "path": "sphere-email.json",
           "pointer": "/spec/candidates/email.postmark.basic/features/availability",
-          "resource": "sphere-email"
+          "resource": "sphere-email",
+          "source": null
         },
         "latency": {
           "kind": "package",
           "path": "sphere-email.json",
           "pointer": "/spec/candidates/email.postmark.basic/features/latency",
-          "resource": "sphere-email"
+          "resource": "sphere-email",
+          "source": null
         },
         "subscription": {
           "kind": "package",
           "path": "sphere-email.json",
           "pointer": "/spec/candidates/email.postmark.basic/features/subscription",
-          "resource": "sphere-email"
+          "resource": "sphere-email",
+          "source": null
         }
       },
+      "properties": {
+        "emailsPerDay": 100000000,
+        "emailsPerMonth": 10000
+      },
+      "propertyOrigins": {
+        "emailsPerDay": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.postmark.basic/properties/emailsPerDay",
+          "resource": "sphere-email",
+          "source": null
+        },
+        "emailsPerMonth": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.postmark.basic/properties/emailsPerMonth",
+          "resource": "sphere-email",
+          "source": null
+        }
+      },
+      "provenance": null,
       "provider": "postmark",
       "resource": "sphere-email",
       "values": {
@@ -412,21 +670,45 @@
           "kind": "package",
           "path": "sphere-email.json",
           "pointer": "/spec/candidates/email.postmark.free/features/availability",
-          "resource": "sphere-email"
+          "resource": "sphere-email",
+          "source": null
         },
         "latency": {
           "kind": "package",
           "path": "sphere-email.json",
           "pointer": "/spec/candidates/email.postmark.free/features/latency",
-          "resource": "sphere-email"
+          "resource": "sphere-email",
+          "source": null
         },
         "subscription": {
           "kind": "package",
           "path": "sphere-email.json",
           "pointer": "/spec/candidates/email.postmark.free/features/subscription",
-          "resource": "sphere-email"
+          "resource": "sphere-email",
+          "source": null
         }
       },
+      "properties": {
+        "emailsPerDay": 100000000,
+        "emailsPerMonth": 100
+      },
+      "propertyOrigins": {
+        "emailsPerDay": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.postmark.free/properties/emailsPerDay",
+          "resource": "sphere-email",
+          "source": null
+        },
+        "emailsPerMonth": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.postmark.free/properties/emailsPerMonth",
+          "resource": "sphere-email",
+          "source": null
+        }
+      },
+      "provenance": null,
       "provider": "postmark",
       "resource": "sphere-email",
       "values": {
@@ -443,21 +725,45 @@
           "kind": "package",
           "path": "sphere-email.json",
           "pointer": "/spec/candidates/email.postmark.platform/features/availability",
-          "resource": "sphere-email"
+          "resource": "sphere-email",
+          "source": null
         },
         "latency": {
           "kind": "package",
           "path": "sphere-email.json",
           "pointer": "/spec/candidates/email.postmark.platform/features/latency",
-          "resource": "sphere-email"
+          "resource": "sphere-email",
+          "source": null
         },
         "subscription": {
           "kind": "package",
           "path": "sphere-email.json",
           "pointer": "/spec/candidates/email.postmark.platform/features/subscription",
-          "resource": "sphere-email"
+          "resource": "sphere-email",
+          "source": null
         }
       },
+      "properties": {
+        "emailsPerDay": 100000000,
+        "emailsPerMonth": 10000
+      },
+      "propertyOrigins": {
+        "emailsPerDay": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.postmark.platform/properties/emailsPerDay",
+          "resource": "sphere-email",
+          "source": null
+        },
+        "emailsPerMonth": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.postmark.platform/properties/emailsPerMonth",
+          "resource": "sphere-email",
+          "source": null
+        }
+      },
+      "provenance": null,
       "provider": "postmark",
       "resource": "sphere-email",
       "values": {
@@ -474,21 +780,45 @@
           "kind": "package",
           "path": "sphere-email.json",
           "pointer": "/spec/candidates/email.postmark.pro/features/availability",
-          "resource": "sphere-email"
+          "resource": "sphere-email",
+          "source": null
         },
         "latency": {
           "kind": "package",
           "path": "sphere-email.json",
           "pointer": "/spec/candidates/email.postmark.pro/features/latency",
-          "resource": "sphere-email"
+          "resource": "sphere-email",
+          "source": null
         },
         "subscription": {
           "kind": "package",
           "path": "sphere-email.json",
           "pointer": "/spec/candidates/email.postmark.pro/features/subscription",
-          "resource": "sphere-email"
+          "resource": "sphere-email",
+          "source": null
         }
       },
+      "properties": {
+        "emailsPerDay": 100000000,
+        "emailsPerMonth": 10000
+      },
+      "propertyOrigins": {
+        "emailsPerDay": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.postmark.pro/properties/emailsPerDay",
+          "resource": "sphere-email",
+          "source": null
+        },
+        "emailsPerMonth": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.postmark.pro/properties/emailsPerMonth",
+          "resource": "sphere-email",
+          "source": null
+        }
+      },
+      "provenance": null,
       "provider": "postmark",
       "resource": "sphere-email",
       "values": {
@@ -505,21 +835,45 @@
           "kind": "package",
           "path": "sphere-email.json",
           "pointer": "/spec/candidates/email.resend.free/features/availability",
-          "resource": "sphere-email"
+          "resource": "sphere-email",
+          "source": null
         },
         "latency": {
           "kind": "package",
           "path": "sphere-email.json",
           "pointer": "/spec/candidates/email.resend.free/features/latency",
-          "resource": "sphere-email"
+          "resource": "sphere-email",
+          "source": null
         },
         "subscription": {
           "kind": "package",
           "path": "sphere-email.json",
           "pointer": "/spec/candidates/email.resend.free/features/subscription",
-          "resource": "sphere-email"
+          "resource": "sphere-email",
+          "source": null
         }
       },
+      "properties": {
+        "emailsPerDay": 100,
+        "emailsPerMonth": 3000
+      },
+      "propertyOrigins": {
+        "emailsPerDay": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.resend.free/properties/emailsPerDay",
+          "resource": "sphere-email",
+          "source": null
+        },
+        "emailsPerMonth": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.resend.free/properties/emailsPerMonth",
+          "resource": "sphere-email",
+          "source": null
+        }
+      },
+      "provenance": null,
       "provider": "resend",
       "resource": "sphere-email",
       "values": {
@@ -536,21 +890,45 @@
           "kind": "package",
           "path": "sphere-email.json",
           "pointer": "/spec/candidates/email.resend.pro/features/availability",
-          "resource": "sphere-email"
+          "resource": "sphere-email",
+          "source": null
         },
         "latency": {
           "kind": "package",
           "path": "sphere-email.json",
           "pointer": "/spec/candidates/email.resend.pro/features/latency",
-          "resource": "sphere-email"
+          "resource": "sphere-email",
+          "source": null
         },
         "subscription": {
           "kind": "package",
           "path": "sphere-email.json",
           "pointer": "/spec/candidates/email.resend.pro/features/subscription",
-          "resource": "sphere-email"
+          "resource": "sphere-email",
+          "source": null
         }
       },
+      "properties": {
+        "emailsPerDay": 100000000,
+        "emailsPerMonth": 50000
+      },
+      "propertyOrigins": {
+        "emailsPerDay": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.resend.pro/properties/emailsPerDay",
+          "resource": "sphere-email",
+          "source": null
+        },
+        "emailsPerMonth": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.resend.pro/properties/emailsPerMonth",
+          "resource": "sphere-email",
+          "source": null
+        }
+      },
+      "provenance": null,
       "provider": "resend",
       "resource": "sphere-email",
       "values": {
@@ -567,21 +945,45 @@
           "kind": "package",
           "path": "sphere-email.json",
           "pointer": "/spec/candidates/email.resend.scale/features/availability",
-          "resource": "sphere-email"
+          "resource": "sphere-email",
+          "source": null
         },
         "latency": {
           "kind": "package",
           "path": "sphere-email.json",
           "pointer": "/spec/candidates/email.resend.scale/features/latency",
-          "resource": "sphere-email"
+          "resource": "sphere-email",
+          "source": null
         },
         "subscription": {
           "kind": "package",
           "path": "sphere-email.json",
           "pointer": "/spec/candidates/email.resend.scale/features/subscription",
-          "resource": "sphere-email"
+          "resource": "sphere-email",
+          "source": null
         }
       },
+      "properties": {
+        "emailsPerDay": 100000000,
+        "emailsPerMonth": 100000
+      },
+      "propertyOrigins": {
+        "emailsPerDay": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.resend.scale/properties/emailsPerDay",
+          "resource": "sphere-email",
+          "source": null
+        },
+        "emailsPerMonth": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.resend.scale/properties/emailsPerMonth",
+          "resource": "sphere-email",
+          "source": null
+        }
+      },
+      "provenance": null,
       "provider": "resend",
       "resource": "sphere-email",
       "values": {
@@ -598,21 +1000,45 @@
           "kind": "package",
           "path": "sphere-email.json",
           "pointer": "/spec/candidates/email.sendgrid.essentials/features/availability",
-          "resource": "sphere-email"
+          "resource": "sphere-email",
+          "source": null
         },
         "latency": {
           "kind": "package",
           "path": "sphere-email.json",
           "pointer": "/spec/candidates/email.sendgrid.essentials/features/latency",
-          "resource": "sphere-email"
+          "resource": "sphere-email",
+          "source": null
         },
         "subscription": {
           "kind": "package",
           "path": "sphere-email.json",
           "pointer": "/spec/candidates/email.sendgrid.essentials/features/subscription",
-          "resource": "sphere-email"
+          "resource": "sphere-email",
+          "source": null
         }
       },
+      "properties": {
+        "emailsPerDay": 100000000,
+        "emailsPerMonth": 50000
+      },
+      "propertyOrigins": {
+        "emailsPerDay": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.sendgrid.essentials/properties/emailsPerDay",
+          "resource": "sphere-email",
+          "source": null
+        },
+        "emailsPerMonth": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.sendgrid.essentials/properties/emailsPerMonth",
+          "resource": "sphere-email",
+          "source": null
+        }
+      },
+      "provenance": null,
       "provider": "sendgrid",
       "resource": "sphere-email",
       "values": {
@@ -629,21 +1055,45 @@
           "kind": "package",
           "path": "sphere-email.json",
           "pointer": "/spec/candidates/email.sendgrid.pro/features/availability",
-          "resource": "sphere-email"
+          "resource": "sphere-email",
+          "source": null
         },
         "latency": {
           "kind": "package",
           "path": "sphere-email.json",
           "pointer": "/spec/candidates/email.sendgrid.pro/features/latency",
-          "resource": "sphere-email"
+          "resource": "sphere-email",
+          "source": null
         },
         "subscription": {
           "kind": "package",
           "path": "sphere-email.json",
           "pointer": "/spec/candidates/email.sendgrid.pro/features/subscription",
-          "resource": "sphere-email"
+          "resource": "sphere-email",
+          "source": null
         }
       },
+      "properties": {
+        "emailsPerDay": 100000000,
+        "emailsPerMonth": 100000
+      },
+      "propertyOrigins": {
+        "emailsPerDay": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.sendgrid.pro/properties/emailsPerDay",
+          "resource": "sphere-email",
+          "source": null
+        },
+        "emailsPerMonth": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.sendgrid.pro/properties/emailsPerMonth",
+          "resource": "sphere-email",
+          "source": null
+        }
+      },
+      "provenance": null,
       "provider": "sendgrid",
       "resource": "sphere-email",
       "values": {

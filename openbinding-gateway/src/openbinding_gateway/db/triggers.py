@@ -122,6 +122,8 @@ def retain_when(table: str, when: tuple[str, str], columns: tuple[str, ...], *, 
 TRIGGERS: tuple[Trigger, ...] = (
     *immutable("binding_case_revisions", delete=False),
     *immutable("problem_compilations", delete=False),
+    # A revision's value origins never change; they go with their revision (ON DELETE CASCADE).
+    *immutable("problem_value_origins", delete=False, message="problem value origins are immutable"),
     *immutable("composition_versions", delete=False),
     *immutable("composition_evaluations", delete=False),
     *immutable("composition_derivations", delete=False),

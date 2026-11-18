@@ -12,7 +12,7 @@ from __future__ import annotations
 import enum
 import uuid
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Any, Optional
 
 from sqlalchemy import (
     JSON,
@@ -290,6 +290,57 @@ class ProblemCompilation(Base):
     ir: Mapped[dict] = mapped_column(JSON, nullable=False)
     source_map: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     analysis: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
+    )
+
+
+class ProblemValueOrigin(Base):
+    """Where one value of a revision's package came from (F3): a SPHERE pricing's price, usage limit, feature or
+    guarantee, or a value set by hand when importing (``manual``).
+
+    One row per generated value, written in the revision's transaction, never changed (insert-only); the rows go
+    with their revision. ``value`` is the scalar the package writes, so a later revision can carry the row when it
+    keeps the value (``carried_from_revision_id``). ``snapshot_id`` and the SPHERE ids are ``NULL`` for a hand-made
+    candidate's values.
+    """
+
+    __tablename__ = "problem_value_origins"
+    __table_args__ = (
+        UniqueConstraint("revision_id", "candidate_key", "target_kind", "target", name="uq_problem_value_origin_target"),
+        CheckConstraint("target_kind IN ('feature', 'property')", name="ck_problem_value_origin_target_kind"),
+        CheckConstraint(
+            "source_kind IN ('priced', 'guarantee', 'limit', 'feature', 'manual')",
+            name="ck_problem_value_origin_source_kind",
+        ),
+        Index("ix_problem_value_origins_pricing_version", "pricing_id", "version_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    revision_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("binding_case_revisions.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    #: ``<resource>/<id>``.
+    candidate_key: Mapped[str] = mapped_column(String(260), nullable=False)
+    target_kind: Mapped[str] = mapped_column(String(16), nullable=False)
+    target: Mapped[str] = mapped_column(String(128), nullable=False)
+    source_kind: Mapped[str] = mapped_column(String(16), nullable=False)
+    value: Mapped[Any] = mapped_column(JSON, nullable=True)
+    snapshot_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("pricing_snapshots.id", ondelete="RESTRICT"), nullable=True, index=True
+    )
+    registry: Mapped[Optional[str]] = mapped_column(String(40), nullable=True)
+    pricing_id: Mapped[Optional[str]] = mapped_column(String(24), nullable=True)
+    version_id: Mapped[Optional[str]] = mapped_column(String(24), nullable=True)
+    #: The raw plan and add-on names, as the pricing writes them.
+    plan: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    add_ons: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    #: The readable ``owner/slug`` of the family at snapshot time.
+    sphere_ref: Mapped[Optional[str]] = mapped_column(String(300), nullable=True)
+    detail: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    #: The revision this row was copied from (an editor save that kept the value); not a foreign key: the
+    #: revisions of a problem go together.
+    carried_from_revision_id: Mapped[Optional[uuid.UUID]] = mapped_column(Uuid, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
     )

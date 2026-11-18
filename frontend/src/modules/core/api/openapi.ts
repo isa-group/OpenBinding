@@ -2175,7 +2175,9 @@ export interface paths {
          * Read the facts of one compilation
          * @description The facts of one compilation, named by its id or its `compilation_digest`: its tasks and the candidates
          *     each may take (as a document writes them), every candidate's values with units and origins, the features,
-         *     the workflow in the Composition2Yaml shape, the constraints, the objectives and the binding-space size.
+         *     the workflow in the Composition2Yaml shape, the constraints, the objectives and the binding-space size; every
+         *     candidate's scalar properties, and, for a revision a SPHERE import wrote, where each value came from (its
+         *     `source`) and the upstream plan each generated candidate was chosen from (`provenance`).
          *
          *     The same projection `POST /v1/bim/validate?include=facts` answers for a package that is not stored.
          */
@@ -3625,6 +3627,39 @@ export interface components {
                     when?: components["schemas"]["BindingProblem"]["$defs"]["expression"];
                 };
             };
+        };
+        /**
+         * CandidateProvenance
+         * @description The upstream plan a generated candidate was chosen from: what derive writes as a binding entry's `from`.
+         */
+        CandidateProvenance: {
+            /** Addons */
+            addons?: string[];
+            /** Permanenturl */
+            permanentUrl: string | null;
+            /** Plan */
+            plan: string | null;
+            /** Pricingid */
+            pricingId: string;
+            /** Registry */
+            registry?: string | null;
+            /**
+             * Snapshot
+             * @description The pricing snapshot the values were read from.
+             */
+            snapshot: string | null;
+            /**
+             * Sphere
+             * @description `owner/slug` of the family in SPHERE.
+             */
+            sphere: string | null;
+            /**
+             * Version
+             * @description The SPHERE version id.
+             */
+            version: string;
+            /** Versionlabel */
+            versionLabel: string | null;
         };
         /** CasExchange */
         CasExchange: {
@@ -6384,6 +6419,22 @@ export interface components {
                 [key: string]: components["schemas"]["ProblemValueOrigin"];
             };
             /**
+             * Properties
+             * @description The candidate's scalar properties (what a task's requirement predicate reads), by name.
+             */
+            properties: {
+                [key: string]: boolean | number | string;
+            };
+            /**
+             * Propertyorigins
+             * @description By property.
+             */
+            propertyOrigins: {
+                [key: string]: components["schemas"]["ProblemValueOrigin"];
+            };
+            /** @description For a candidate a SPHERE import generated: the upstream plan its values were read from. */
+            provenance: components["schemas"]["CandidateProvenance"] | null;
+            /**
              * Provider
              * @description The provider's id in the candidate's catalog.
              */
@@ -6583,7 +6634,8 @@ export interface components {
         };
         /**
          * ProblemValueOrigin
-         * @description Where the package writes a value: the resource, its file and the JSON Pointer within it.
+         * @description Where the package writes a value: the resource, its file and the JSON Pointer within it; and, for a value a
+         *     SPHERE import wrote, where it came from.
          */
         ProblemValueOrigin: {
             /**
@@ -6597,6 +6649,7 @@ export interface components {
             pointer: string;
             /** Resource */
             resource: string;
+            source?: components["schemas"]["ValueSource"] | null;
         };
         /** ProblemView */
         ProblemView: {
@@ -7969,6 +8022,72 @@ export interface components {
             };
             /** @constant */
             valid: true;
+        };
+        /**
+         * ValueSource
+         * @description Where a value written by a SPHERE import came from.
+         */
+        ValueSource: {
+            /**
+             * Carried
+             * @description Whether an editor save kept this value (and so its source) from an earlier revision.
+             */
+            carried: boolean;
+            /**
+             * Detail
+             * @description How the value was read: the price parts and formula, the guarantee's table or scale and `docUrl`, the limit's raw value and unit, the manual key.
+             */
+            detail: {
+                [key: string]: unknown;
+            };
+            /**
+             * Kind
+             * @description `priced` (the plan's price per month), `guarantee`, `limit` (a usage limit), `feature`, or `manual` (set by hand when importing, or a hand-made candidate's value).
+             * @enum {string}
+             */
+            kind: "priced" | "guarantee" | "limit" | "feature" | "manual";
+            /** @description Null for a value set by hand. */
+            pricing: components["schemas"]["ValueSourcePricing"] | null;
+        };
+        /**
+         * ValueSourcePricing
+         * @description The upstream pricing a value was read from: names and immutable ids, never a digest.
+         */
+        ValueSourcePricing: {
+            /**
+             * Addons
+             * @description The add-on taken with the plan, as the pricing names it (at most one in F3).
+             */
+            addOns: string[];
+            /**
+             * Permanenturl
+             * @description SPHERE's permanent link to that version.
+             */
+            permanentUrl: string | null;
+            /**
+             * Plan
+             * @description The plan, as the pricing names it.
+             */
+            plan: string | null;
+            /** Pricingid */
+            pricingId: string;
+            /**
+             * Registry
+             * @description The `SPHERE_REGISTRIES` alias, or null for the default SPHERE.
+             */
+            registry: string | null;
+            /**
+             * Sphere
+             * @description `owner/slug` of the family in SPHERE when the value was read.
+             */
+            sphere: string | null;
+            /** Versionid */
+            versionId: string | null;
+            /**
+             * Versionlabel
+             * @description The version's name in SPHERE, as read.
+             */
+            versionLabel: string | null;
         };
         /**
          * ValueStatusPair
@@ -17000,7 +17119,7 @@ export interface operations {
                 headers: {
                     /** @description `private, immutable`. */
                     "Cache-Control"?: string;
-                    /** @description The compilation digest and `.facts`, quoted: the facts never change. */
+                    /** @description The compilation digest, the digest of the revision's value origins (`package` without any) and `.facts`, quoted: the facts never change. */
                     ETag?: string;
                     [name: string]: unknown;
                 };

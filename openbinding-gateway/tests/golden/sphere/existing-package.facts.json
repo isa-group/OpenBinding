@@ -9,15 +9,20 @@
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/only_t1/features/cost",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         },
         "latency": {
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/only_t1/features/latency",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         }
       },
+      "properties": {},
+      "propertyOrigins": {},
+      "provenance": null,
       "provider": "pB",
       "resource": "catalog",
       "values": {
@@ -33,15 +38,20 @@
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/only_t2/features/cost",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         },
         "latency": {
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/only_t2/features/latency",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         }
       },
+      "properties": {},
+      "propertyOrigins": {},
+      "provenance": null,
       "provider": "pB",
       "resource": "catalog",
       "values": {
@@ -57,15 +67,20 @@
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/only_t3/features/cost",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         },
         "latency": {
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/only_t3/features/latency",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         }
       },
+      "properties": {},
+      "propertyOrigins": {},
+      "provenance": null,
       "provider": "pB",
       "resource": "catalog",
       "values": {
@@ -81,15 +96,20 @@
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/shared/features/cost",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         },
         "latency": {
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/shared/features/latency",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         }
       },
+      "properties": {},
+      "propertyOrigins": {},
+      "provenance": null,
       "provider": "pA",
       "resource": "catalog",
       "values": {
@@ -105,15 +125,20 @@
           "kind": "package",
           "path": "sphere-mail.json",
           "pointer": "/spec/candidates/mail.brevo.professional/features/cost",
-          "resource": "sphere-mail"
+          "resource": "sphere-mail",
+          "source": null
         },
         "latency": {
           "kind": "package",
           "path": "sphere-mail.json",
           "pointer": "/spec/candidates/mail.brevo.professional/features/latency",
-          "resource": "sphere-mail"
+          "resource": "sphere-mail",
+          "source": null
         }
       },
+      "properties": {},
+      "propertyOrigins": {},
+      "provenance": null,
       "provider": "brevo",
       "resource": "sphere-mail",
       "values": {
@@ -129,15 +154,20 @@
           "kind": "package",
           "path": "sphere-mail.json",
           "pointer": "/spec/candidates/mail.brevo.starter/features/cost",
-          "resource": "sphere-mail"
+          "resource": "sphere-mail",
+          "source": null
         },
         "latency": {
           "kind": "package",
           "path": "sphere-mail.json",
           "pointer": "/spec/candidates/mail.brevo.starter/features/latency",
-          "resource": "sphere-mail"
+          "resource": "sphere-mail",
+          "source": null
         }
       },
+      "properties": {},
+      "propertyOrigins": {},
+      "provenance": null,
       "provider": "brevo",
       "resource": "sphere-mail",
       "values": {

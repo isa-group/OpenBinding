@@ -45,6 +45,9 @@ export function checkoutFacts(pay = 8): ProblemFacts {
         provider: 'acme',
         values,
         origins: { latency: origin(id, 'latency'), cost: origin(id, 'cost') },
+        properties: {},
+        propertyOrigins: {},
+        provenance: null,
       });
       eligible.push({ candidate: `providers/${id}`, written: id });
     }

@@ -1,0 +1,3515 @@
+{
+  "binding_space": "8",
+  "candidates": [
+    {
+      "id": "auth.builtin.local",
+      "key": "catalog/auth.builtin.local",
+      "origins": {
+        "availability": {
+          "kind": "package",
+          "path": "candidates.json",
+          "pointer": "/spec/candidates/auth.builtin.local/features/availability",
+          "resource": "catalog",
+          "source": null
+        },
+        "latency": {
+          "kind": "package",
+          "path": "candidates.json",
+          "pointer": "/spec/candidates/auth.builtin.local/features/latency",
+          "resource": "catalog",
+          "source": null
+        },
+        "subscription": {
+          "kind": "package",
+          "path": "candidates.json",
+          "pointer": "/spec/candidates/auth.builtin.local/features/subscription",
+          "resource": "catalog",
+          "source": null
+        }
+      },
+      "properties": {},
+      "propertyOrigins": {},
+      "provenance": null,
+      "provider": "builtin",
+      "resource": "catalog",
+      "values": {
+        "availability": 0.999,
+        "latency": 15,
+        "subscription": 0
+      }
+    },
+    {
+      "id": "email.selfhosted.postfix",
+      "key": "catalog/email.selfhosted.postfix",
+      "origins": {
+        "availability": {
+          "kind": "package",
+          "path": "candidates.json",
+          "pointer": "/spec/candidates/email.selfhosted.postfix/features/availability",
+          "resource": "catalog",
+          "source": null
+        },
+        "latency": {
+          "kind": "package",
+          "path": "candidates.json",
+          "pointer": "/spec/candidates/email.selfhosted.postfix/features/latency",
+          "resource": "catalog",
+          "source": null
+        },
+        "subscription": {
+          "kind": "package",
+          "path": "candidates.json",
+          "pointer": "/spec/candidates/email.selfhosted.postfix/features/subscription",
+          "resource": "catalog",
+          "source": null
+        }
+      },
+      "properties": {
+        "emailsPerDay": 100000000,
+        "emailsPerMonth": 100000000
+      },
+      "propertyOrigins": {
+        "emailsPerDay": {
+          "kind": "package",
+          "path": "candidates.json",
+          "pointer": "/spec/candidates/email.selfhosted.postfix/properties/emailsPerDay",
+          "resource": "catalog",
+          "source": null
+        },
+        "emailsPerMonth": {
+          "kind": "package",
+          "path": "candidates.json",
+          "pointer": "/spec/candidates/email.selfhosted.postfix/properties/emailsPerMonth",
+          "resource": "catalog",
+          "source": null
+        }
+      },
+      "provenance": null,
+      "provider": "selfhosted",
+      "resource": "catalog",
+      "values": {
+        "availability": 0.99,
+        "latency": 300,
+        "subscription": 12
+      }
+    },
+    {
+      "id": "quotes.zenquotes.free",
+      "key": "catalog/quotes.zenquotes.free",
+      "origins": {
+        "availability": {
+          "kind": "package",
+          "path": "candidates.json",
+          "pointer": "/spec/candidates/quotes.zenquotes.free/features/availability",
+          "resource": "catalog",
+          "source": null
+        },
+        "latency": {
+          "kind": "package",
+          "path": "candidates.json",
+          "pointer": "/spec/candidates/quotes.zenquotes.free/features/latency",
+          "resource": "catalog",
+          "source": null
+        },
+        "subscription": {
+          "kind": "package",
+          "path": "candidates.json",
+          "pointer": "/spec/candidates/quotes.zenquotes.free/features/subscription",
+          "resource": "catalog",
+          "source": null
+        }
+      },
+      "properties": {},
+      "propertyOrigins": {},
+      "provenance": null,
+      "provider": "zenquotes",
+      "resource": "catalog",
+      "values": {
+        "availability": 0.98,
+        "latency": 120,
+        "subscription": 0
+      }
+    },
+    {
+      "id": "storage.local.disk",
+      "key": "catalog/storage.local.disk",
+      "origins": {
+        "availability": {
+          "kind": "package",
+          "path": "candidates.json",
+          "pointer": "/spec/candidates/storage.local.disk/features/availability",
+          "resource": "catalog",
+          "source": null
+        },
+        "latency": {
+          "kind": "package",
+          "path": "candidates.json",
+          "pointer": "/spec/candidates/storage.local.disk/features/latency",
+          "resource": "catalog",
+          "source": null
+        },
+        "subscription": {
+          "kind": "package",
+          "path": "candidates.json",
+          "pointer": "/spec/candidates/storage.local.disk/features/subscription",
+          "resource": "catalog",
+          "source": null
+        }
+      },
+      "properties": {},
+      "propertyOrigins": {},
+      "provenance": null,
+      "provider": "local",
+      "resource": "catalog",
+      "values": {
+        "availability": 0.995,
+        "latency": 40,
+        "subscription": 0
+      }
+    },
+    {
+      "id": "email.brevo.free",
+      "key": "sphere-email/email.brevo.free",
+      "origins": {
+        "availability": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.brevo.free/features/availability",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "docUrl": "https://www.brevo.com/legal/termsofuse/",
+              "feature": "sla",
+              "map": {
+                "false": 0.99,
+                "true": 0.9995
+              },
+              "raw": false
+            },
+            "kind": "guarantee",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade2d4440e55445692b07f1?version=6ade2d444b2b5b01c587d80d",
+              "plan": "FREE",
+              "pricingId": "6ade2d4440e55445692b07f1",
+              "registry": null,
+              "sphere": "danruilop1/brevo",
+              "versionId": "6ade2d444b2b5b01c587d80d",
+              "versionLabel": null
+            }
+          }
+        },
+        "latency": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.brevo.free/features/latency",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "key": "brevo"
+            },
+            "kind": "manual",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade2d4440e55445692b07f1?version=6ade2d444b2b5b01c587d80d",
+              "plan": "FREE",
+              "pricingId": "6ade2d4440e55445692b07f1",
+              "registry": null,
+              "sphere": "danruilop1/brevo",
+              "versionId": "6ade2d444b2b5b01c587d80d",
+              "versionLabel": null
+            }
+          }
+        },
+        "subscription": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.brevo.free/features/subscription",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "billing": "monthly",
+              "currency": "USD",
+              "formula": "FREE 0 x 1 (monthly)",
+              "multiplier": 1,
+              "parts": [
+                {
+                  "amount": 0,
+                  "id": "FREE",
+                  "kind": "plan",
+                  "monthlyFactor": 1,
+                  "period": "month",
+                  "seats": 1,
+                  "unit": "account/month",
+                  "unitAmount": 0
+                }
+              ],
+              "seats": 1
+            },
+            "kind": "priced",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade2d4440e55445692b07f1?version=6ade2d444b2b5b01c587d80d",
+              "plan": "FREE",
+              "pricingId": "6ade2d4440e55445692b07f1",
+              "registry": null,
+              "sphere": "danruilop1/brevo",
+              "versionId": "6ade2d444b2b5b01c587d80d",
+              "versionLabel": null
+            }
+          }
+        }
+      },
+      "properties": {
+        "emailsPerDay": 300,
+        "emailsPerMonth": 100000000
+      },
+      "propertyOrigins": {
+        "emailsPerDay": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.brevo.free/properties/emailsPerDay",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "name": "emailsPerDay",
+              "period": {
+                "unit": "DAY",
+                "value": 1
+              },
+              "raw": 300,
+              "unit": "email",
+              "unlimited": false
+            },
+            "kind": "limit",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade2d4440e55445692b07f1?version=6ade2d444b2b5b01c587d80d",
+              "plan": "FREE",
+              "pricingId": "6ade2d4440e55445692b07f1",
+              "registry": null,
+              "sphere": "danruilop1/brevo",
+              "versionId": "6ade2d444b2b5b01c587d80d",
+              "versionLabel": null
+            }
+          }
+        },
+        "emailsPerMonth": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.brevo.free/properties/emailsPerMonth",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "name": "emailsPerMonth",
+              "period": {
+                "unit": "MONTH",
+                "value": 1
+              },
+              "raw": {
+                "unlimited": true
+              },
+              "unit": "email",
+              "unlimited": true
+            },
+            "kind": "limit",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade2d4440e55445692b07f1?version=6ade2d444b2b5b01c587d80d",
+              "plan": "FREE",
+              "pricingId": "6ade2d4440e55445692b07f1",
+              "registry": null,
+              "sphere": "danruilop1/brevo",
+              "versionId": "6ade2d444b2b5b01c587d80d",
+              "versionLabel": null
+            }
+          }
+        }
+      },
+      "provenance": {
+        "addons": [],
+        "permanentUrl": "https://sphere.score.us.es/p/6ade2d4440e55445692b07f1?version=6ade2d444b2b5b01c587d80d",
+        "plan": "FREE",
+        "pricingId": "6ade2d4440e55445692b07f1",
+        "registry": null,
+        "snapshot": null,
+        "sphere": "danruilop1/brevo",
+        "version": "6ade2d444b2b5b01c587d80d",
+        "versionLabel": null
+      },
+      "provider": "brevo",
+      "resource": "sphere-email",
+      "values": {
+        "availability": 0.99,
+        "latency": 300,
+        "subscription": 0
+      }
+    },
+    {
+      "id": "email.brevo.professional",
+      "key": "sphere-email/email.brevo.professional",
+      "origins": {
+        "availability": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.brevo.professional/features/availability",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "docUrl": "https://www.brevo.com/legal/termsofuse/",
+              "feature": "sla",
+              "map": {
+                "false": 0.99,
+                "true": 0.9995
+              },
+              "raw": false
+            },
+            "kind": "guarantee",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade2d4440e55445692b07f1?version=6ade2d444b2b5b01c587d80d",
+              "plan": "PROFESSIONAL",
+              "pricingId": "6ade2d4440e55445692b07f1",
+              "registry": null,
+              "sphere": "danruilop1/brevo",
+              "versionId": "6ade2d444b2b5b01c587d80d",
+              "versionLabel": null
+            }
+          }
+        },
+        "latency": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.brevo.professional/features/latency",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "key": "brevo"
+            },
+            "kind": "manual",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade2d4440e55445692b07f1?version=6ade2d444b2b5b01c587d80d",
+              "plan": "PROFESSIONAL",
+              "pricingId": "6ade2d4440e55445692b07f1",
+              "registry": null,
+              "sphere": "danruilop1/brevo",
+              "versionId": "6ade2d444b2b5b01c587d80d",
+              "versionLabel": null
+            }
+          }
+        },
+        "subscription": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.brevo.professional/features/subscription",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "billing": "monthly",
+              "currency": "USD",
+              "formula": "PROFESSIONAL 499 x 1 (monthly)",
+              "multiplier": 1,
+              "parts": [
+                {
+                  "amount": 499,
+                  "expression": "#professionalPrices[String(#professionalVolume)]",
+                  "id": "PROFESSIONAL",
+                  "kind": "plan",
+                  "monthlyFactor": 1,
+                  "period": "month",
+                  "seats": 1,
+                  "unit": "account/month",
+                  "unitAmount": 499,
+                  "variables": {
+                    "professionalPrices": {
+                      "1000000": 999,
+                      "10000000": 4543,
+                      "150000": 499,
+                      "2000000": 1479,
+                      "250000": 599,
+                      "3000000": 1863,
+                      "4000000": 2170,
+                      "500000": 699,
+                      "5000000": 2447,
+                      "6000000": 2866,
+                      "7000000": 3285,
+                      "8000000": 3705
+                    },
+                    "professionalVolume": 150000
+                  }
+                }
+              ],
+              "seats": 1
+            },
+            "kind": "priced",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade2d4440e55445692b07f1?version=6ade2d444b2b5b01c587d80d",
+              "plan": "PROFESSIONAL",
+              "pricingId": "6ade2d4440e55445692b07f1",
+              "registry": null,
+              "sphere": "danruilop1/brevo",
+              "versionId": "6ade2d444b2b5b01c587d80d",
+              "versionLabel": null
+            }
+          }
+        }
+      },
+      "properties": {
+        "emailsPerDay": 100000000,
+        "emailsPerMonth": 150000
+      },
+      "propertyOrigins": {
+        "emailsPerDay": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.brevo.professional/properties/emailsPerDay",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "name": "emailsPerDay",
+              "period": {
+                "unit": "DAY",
+                "value": 1
+              },
+              "raw": {
+                "unlimited": true
+              },
+              "unit": "email",
+              "unlimited": true
+            },
+            "kind": "limit",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade2d4440e55445692b07f1?version=6ade2d444b2b5b01c587d80d",
+              "plan": "PROFESSIONAL",
+              "pricingId": "6ade2d4440e55445692b07f1",
+              "registry": null,
+              "sphere": "danruilop1/brevo",
+              "versionId": "6ade2d444b2b5b01c587d80d",
+              "versionLabel": null
+            }
+          }
+        },
+        "emailsPerMonth": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.brevo.professional/properties/emailsPerMonth",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "name": "emailsPerMonth",
+              "period": {
+                "unit": "MONTH",
+                "value": 1
+              },
+              "raw": 150000,
+              "unit": "email",
+              "unlimited": false
+            },
+            "kind": "limit",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade2d4440e55445692b07f1?version=6ade2d444b2b5b01c587d80d",
+              "plan": "PROFESSIONAL",
+              "pricingId": "6ade2d4440e55445692b07f1",
+              "registry": null,
+              "sphere": "danruilop1/brevo",
+              "versionId": "6ade2d444b2b5b01c587d80d",
+              "versionLabel": null
+            }
+          }
+        }
+      },
+      "provenance": {
+        "addons": [],
+        "permanentUrl": "https://sphere.score.us.es/p/6ade2d4440e55445692b07f1?version=6ade2d444b2b5b01c587d80d",
+        "plan": "PROFESSIONAL",
+        "pricingId": "6ade2d4440e55445692b07f1",
+        "registry": null,
+        "snapshot": null,
+        "sphere": "danruilop1/brevo",
+        "version": "6ade2d444b2b5b01c587d80d",
+        "versionLabel": null
+      },
+      "provider": "brevo",
+      "resource": "sphere-email",
+      "values": {
+        "availability": 0.99,
+        "latency": 300,
+        "subscription": 499
+      }
+    },
+    {
+      "id": "email.brevo.standard",
+      "key": "sphere-email/email.brevo.standard",
+      "origins": {
+        "availability": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.brevo.standard/features/availability",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "docUrl": "https://www.brevo.com/legal/termsofuse/",
+              "feature": "sla",
+              "map": {
+                "false": 0.99,
+                "true": 0.9995
+              },
+              "raw": false
+            },
+            "kind": "guarantee",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade2d4440e55445692b07f1?version=6ade2d444b2b5b01c587d80d",
+              "plan": "STANDARD",
+              "pricingId": "6ade2d4440e55445692b07f1",
+              "registry": null,
+              "sphere": "danruilop1/brevo",
+              "versionId": "6ade2d444b2b5b01c587d80d",
+              "versionLabel": null
+            }
+          }
+        },
+        "latency": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.brevo.standard/features/latency",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "key": "brevo"
+            },
+            "kind": "manual",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade2d4440e55445692b07f1?version=6ade2d444b2b5b01c587d80d",
+              "plan": "STANDARD",
+              "pricingId": "6ade2d4440e55445692b07f1",
+              "registry": null,
+              "sphere": "danruilop1/brevo",
+              "versionId": "6ade2d444b2b5b01c587d80d",
+              "versionLabel": null
+            }
+          }
+        },
+        "subscription": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.brevo.standard/features/subscription",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "billing": "monthly",
+              "currency": "USD",
+              "formula": "STANDARD 18 x 1 (monthly)",
+              "multiplier": 1,
+              "parts": [
+                {
+                  "amount": 18,
+                  "expression": "#standardPrices[String(#standardVolume)]",
+                  "id": "STANDARD",
+                  "kind": "plan",
+                  "monthlyFactor": 1,
+                  "period": "month",
+                  "seats": 1,
+                  "unit": "account/month",
+                  "unitAmount": 18,
+                  "variables": {
+                    "standardPrices": {
+                      "10000": 35,
+                      "100000": 139,
+                      "15000": 49,
+                      "150000": 179,
+                      "20000": 69,
+                      "250000": 249,
+                      "30000": 79,
+                      "350000": 309,
+                      "40000": 89,
+                      "5000": 18,
+                      "50000": 97,
+                      "500000": 429,
+                      "60000": 104,
+                      "80000": 119
+                    },
+                    "standardVolume": 5000
+                  }
+                }
+              ],
+              "seats": 1
+            },
+            "kind": "priced",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade2d4440e55445692b07f1?version=6ade2d444b2b5b01c587d80d",
+              "plan": "STANDARD",
+              "pricingId": "6ade2d4440e55445692b07f1",
+              "registry": null,
+              "sphere": "danruilop1/brevo",
+              "versionId": "6ade2d444b2b5b01c587d80d",
+              "versionLabel": null
+            }
+          }
+        }
+      },
+      "properties": {
+        "emailsPerDay": 100000000,
+        "emailsPerMonth": 5000
+      },
+      "propertyOrigins": {
+        "emailsPerDay": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.brevo.standard/properties/emailsPerDay",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "name": "emailsPerDay",
+              "period": {
+                "unit": "DAY",
+                "value": 1
+              },
+              "raw": {
+                "unlimited": true
+              },
+              "unit": "email",
+              "unlimited": true
+            },
+            "kind": "limit",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade2d4440e55445692b07f1?version=6ade2d444b2b5b01c587d80d",
+              "plan": "STANDARD",
+              "pricingId": "6ade2d4440e55445692b07f1",
+              "registry": null,
+              "sphere": "danruilop1/brevo",
+              "versionId": "6ade2d444b2b5b01c587d80d",
+              "versionLabel": null
+            }
+          }
+        },
+        "emailsPerMonth": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.brevo.standard/properties/emailsPerMonth",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "name": "emailsPerMonth",
+              "period": {
+                "unit": "MONTH",
+                "value": 1
+              },
+              "raw": 5000,
+              "unit": "email",
+              "unlimited": false
+            },
+            "kind": "limit",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade2d4440e55445692b07f1?version=6ade2d444b2b5b01c587d80d",
+              "plan": "STANDARD",
+              "pricingId": "6ade2d4440e55445692b07f1",
+              "registry": null,
+              "sphere": "danruilop1/brevo",
+              "versionId": "6ade2d444b2b5b01c587d80d",
+              "versionLabel": null
+            }
+          }
+        }
+      },
+      "provenance": {
+        "addons": [],
+        "permanentUrl": "https://sphere.score.us.es/p/6ade2d4440e55445692b07f1?version=6ade2d444b2b5b01c587d80d",
+        "plan": "STANDARD",
+        "pricingId": "6ade2d4440e55445692b07f1",
+        "registry": null,
+        "snapshot": null,
+        "sphere": "danruilop1/brevo",
+        "version": "6ade2d444b2b5b01c587d80d",
+        "versionLabel": null
+      },
+      "provider": "brevo",
+      "resource": "sphere-email",
+      "values": {
+        "availability": 0.99,
+        "latency": 300,
+        "subscription": 18
+      }
+    },
+    {
+      "id": "email.brevo.starter",
+      "key": "sphere-email/email.brevo.starter",
+      "origins": {
+        "availability": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.brevo.starter/features/availability",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "docUrl": "https://www.brevo.com/legal/termsofuse/",
+              "feature": "sla",
+              "map": {
+                "false": 0.99,
+                "true": 0.9995
+              },
+              "raw": false
+            },
+            "kind": "guarantee",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade2d4440e55445692b07f1?version=6ade2d444b2b5b01c587d80d",
+              "plan": "STARTER",
+              "pricingId": "6ade2d4440e55445692b07f1",
+              "registry": null,
+              "sphere": "danruilop1/brevo",
+              "versionId": "6ade2d444b2b5b01c587d80d",
+              "versionLabel": null
+            }
+          }
+        },
+        "latency": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.brevo.starter/features/latency",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "key": "brevo"
+            },
+            "kind": "manual",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade2d4440e55445692b07f1?version=6ade2d444b2b5b01c587d80d",
+              "plan": "STARTER",
+              "pricingId": "6ade2d4440e55445692b07f1",
+              "registry": null,
+              "sphere": "danruilop1/brevo",
+              "versionId": "6ade2d444b2b5b01c587d80d",
+              "versionLabel": null
+            }
+          }
+        },
+        "subscription": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.brevo.starter/features/subscription",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "billing": "monthly",
+              "currency": "USD",
+              "formula": "STARTER 9 x 1 (monthly)",
+              "multiplier": 1,
+              "parts": [
+                {
+                  "amount": 9,
+                  "expression": "#starterPrices[String(#starterVolume)]",
+                  "id": "STARTER",
+                  "kind": "plan",
+                  "monthlyFactor": 1,
+                  "period": "month",
+                  "seats": 1,
+                  "unit": "account/month",
+                  "unitAmount": 9,
+                  "variables": {
+                    "starterPrices": {
+                      "10000": 17,
+                      "100000": 82,
+                      "15000": 25,
+                      "20000": 32,
+                      "30000": 39,
+                      "40000": 46,
+                      "5000": 9,
+                      "50000": 56,
+                      "60000": 65,
+                      "80000": 74
+                    },
+                    "starterVolume": 5000
+                  }
+                }
+              ],
+              "seats": 1
+            },
+            "kind": "priced",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade2d4440e55445692b07f1?version=6ade2d444b2b5b01c587d80d",
+              "plan": "STARTER",
+              "pricingId": "6ade2d4440e55445692b07f1",
+              "registry": null,
+              "sphere": "danruilop1/brevo",
+              "versionId": "6ade2d444b2b5b01c587d80d",
+              "versionLabel": null
+            }
+          }
+        }
+      },
+      "properties": {
+        "emailsPerDay": 100000000,
+        "emailsPerMonth": 5000
+      },
+      "propertyOrigins": {
+        "emailsPerDay": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.brevo.starter/properties/emailsPerDay",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "name": "emailsPerDay",
+              "period": {
+                "unit": "DAY",
+                "value": 1
+              },
+              "raw": {
+                "unlimited": true
+              },
+              "unit": "email",
+              "unlimited": true
+            },
+            "kind": "limit",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade2d4440e55445692b07f1?version=6ade2d444b2b5b01c587d80d",
+              "plan": "STARTER",
+              "pricingId": "6ade2d4440e55445692b07f1",
+              "registry": null,
+              "sphere": "danruilop1/brevo",
+              "versionId": "6ade2d444b2b5b01c587d80d",
+              "versionLabel": null
+            }
+          }
+        },
+        "emailsPerMonth": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.brevo.starter/properties/emailsPerMonth",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "name": "emailsPerMonth",
+              "period": {
+                "unit": "MONTH",
+                "value": 1
+              },
+              "raw": 5000,
+              "unit": "email",
+              "unlimited": false
+            },
+            "kind": "limit",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade2d4440e55445692b07f1?version=6ade2d444b2b5b01c587d80d",
+              "plan": "STARTER",
+              "pricingId": "6ade2d4440e55445692b07f1",
+              "registry": null,
+              "sphere": "danruilop1/brevo",
+              "versionId": "6ade2d444b2b5b01c587d80d",
+              "versionLabel": null
+            }
+          }
+        }
+      },
+      "provenance": {
+        "addons": [],
+        "permanentUrl": "https://sphere.score.us.es/p/6ade2d4440e55445692b07f1?version=6ade2d444b2b5b01c587d80d",
+        "plan": "STARTER",
+        "pricingId": "6ade2d4440e55445692b07f1",
+        "registry": null,
+        "snapshot": null,
+        "sphere": "danruilop1/brevo",
+        "version": "6ade2d444b2b5b01c587d80d",
+        "versionLabel": null
+      },
+      "provider": "brevo",
+      "resource": "sphere-email",
+      "values": {
+        "availability": 0.99,
+        "latency": 300,
+        "subscription": 9
+      }
+    },
+    {
+      "id": "email.mailgun.basic",
+      "key": "sphere-email/email.mailgun.basic",
+      "origins": {
+        "availability": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.mailgun.basic/features/availability",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "docUrl": "https://www.mailgun.com/legal/terms/",
+              "feature": "guaranteedUptimeSla",
+              "map": {
+                "false": 0.99,
+                "true": 0.9995
+              },
+              "raw": false
+            },
+            "kind": "guarantee",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade364540e55445692b0eda?version=6ade36454b2b5b01c587db3d",
+              "plan": "BASIC",
+              "pricingId": "6ade364540e55445692b0eda",
+              "registry": null,
+              "sphere": "danruilop1/mailgun",
+              "versionId": "6ade36454b2b5b01c587db3d",
+              "versionLabel": null
+            }
+          }
+        },
+        "latency": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.mailgun.basic/features/latency",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "key": "mailgun"
+            },
+            "kind": "manual",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade364540e55445692b0eda?version=6ade36454b2b5b01c587db3d",
+              "plan": "BASIC",
+              "pricingId": "6ade364540e55445692b0eda",
+              "registry": null,
+              "sphere": "danruilop1/mailgun",
+              "versionId": "6ade36454b2b5b01c587db3d",
+              "versionLabel": null
+            }
+          }
+        },
+        "subscription": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.mailgun.basic/features/subscription",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "billing": "monthly",
+              "currency": "USD",
+              "formula": "BASIC 15 x 1 (monthly)",
+              "multiplier": 1,
+              "parts": [
+                {
+                  "amount": 15,
+                  "id": "BASIC",
+                  "kind": "plan",
+                  "monthlyFactor": 1,
+                  "period": "month",
+                  "seats": 1,
+                  "unit": "account/month",
+                  "unitAmount": 15
+                }
+              ],
+              "seats": 1
+            },
+            "kind": "priced",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade364540e55445692b0eda?version=6ade36454b2b5b01c587db3d",
+              "plan": "BASIC",
+              "pricingId": "6ade364540e55445692b0eda",
+              "registry": null,
+              "sphere": "danruilop1/mailgun",
+              "versionId": "6ade36454b2b5b01c587db3d",
+              "versionLabel": null
+            }
+          }
+        }
+      },
+      "properties": {
+        "emailsPerDay": 100000000,
+        "emailsPerMonth": 10000
+      },
+      "propertyOrigins": {
+        "emailsPerDay": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.mailgun.basic/properties/emailsPerDay",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "name": "emailsPerDay",
+              "period": {
+                "unit": "DAY",
+                "value": 1
+              },
+              "raw": {
+                "unlimited": true
+              },
+              "unit": "email",
+              "unlimited": true
+            },
+            "kind": "limit",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade364540e55445692b0eda?version=6ade36454b2b5b01c587db3d",
+              "plan": "BASIC",
+              "pricingId": "6ade364540e55445692b0eda",
+              "registry": null,
+              "sphere": "danruilop1/mailgun",
+              "versionId": "6ade36454b2b5b01c587db3d",
+              "versionLabel": null
+            }
+          }
+        },
+        "emailsPerMonth": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.mailgun.basic/properties/emailsPerMonth",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "name": "emailsPerMonth",
+              "period": {
+                "unit": "MONTH",
+                "value": 1
+              },
+              "raw": 10000,
+              "unit": "email",
+              "unlimited": false
+            },
+            "kind": "limit",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade364540e55445692b0eda?version=6ade36454b2b5b01c587db3d",
+              "plan": "BASIC",
+              "pricingId": "6ade364540e55445692b0eda",
+              "registry": null,
+              "sphere": "danruilop1/mailgun",
+              "versionId": "6ade36454b2b5b01c587db3d",
+              "versionLabel": null
+            }
+          }
+        }
+      },
+      "provenance": {
+        "addons": [],
+        "permanentUrl": "https://sphere.score.us.es/p/6ade364540e55445692b0eda?version=6ade36454b2b5b01c587db3d",
+        "plan": "BASIC",
+        "pricingId": "6ade364540e55445692b0eda",
+        "registry": null,
+        "snapshot": null,
+        "sphere": "danruilop1/mailgun",
+        "version": "6ade36454b2b5b01c587db3d",
+        "versionLabel": null
+      },
+      "provider": "mailgun",
+      "resource": "sphere-email",
+      "values": {
+        "availability": 0.99,
+        "latency": 250,
+        "subscription": 15
+      }
+    },
+    {
+      "id": "email.mailgun.foundation",
+      "key": "sphere-email/email.mailgun.foundation",
+      "origins": {
+        "availability": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.mailgun.foundation/features/availability",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "docUrl": "https://www.mailgun.com/legal/terms/",
+              "feature": "guaranteedUptimeSla",
+              "map": {
+                "false": 0.99,
+                "true": 0.9995
+              },
+              "raw": true
+            },
+            "kind": "guarantee",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade364540e55445692b0eda?version=6ade36454b2b5b01c587db3d",
+              "plan": "FOUNDATION",
+              "pricingId": "6ade364540e55445692b0eda",
+              "registry": null,
+              "sphere": "danruilop1/mailgun",
+              "versionId": "6ade36454b2b5b01c587db3d",
+              "versionLabel": null
+            }
+          }
+        },
+        "latency": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.mailgun.foundation/features/latency",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "key": "mailgun.FOUNDATION"
+            },
+            "kind": "manual",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade364540e55445692b0eda?version=6ade36454b2b5b01c587db3d",
+              "plan": "FOUNDATION",
+              "pricingId": "6ade364540e55445692b0eda",
+              "registry": null,
+              "sphere": "danruilop1/mailgun",
+              "versionId": "6ade36454b2b5b01c587db3d",
+              "versionLabel": null
+            }
+          }
+        },
+        "subscription": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.mailgun.foundation/features/subscription",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "billing": "monthly",
+              "currency": "USD",
+              "formula": "FOUNDATION 35 x 1 (monthly)",
+              "multiplier": 1,
+              "parts": [
+                {
+                  "amount": 35,
+                  "id": "FOUNDATION",
+                  "kind": "plan",
+                  "monthlyFactor": 1,
+                  "period": "month",
+                  "seats": 1,
+                  "unit": "account/month",
+                  "unitAmount": 35
+                }
+              ],
+              "seats": 1
+            },
+            "kind": "priced",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade364540e55445692b0eda?version=6ade36454b2b5b01c587db3d",
+              "plan": "FOUNDATION",
+              "pricingId": "6ade364540e55445692b0eda",
+              "registry": null,
+              "sphere": "danruilop1/mailgun",
+              "versionId": "6ade36454b2b5b01c587db3d",
+              "versionLabel": null
+            }
+          }
+        }
+      },
+      "properties": {
+        "emailsPerDay": 100000000,
+        "emailsPerMonth": 50000
+      },
+      "propertyOrigins": {
+        "emailsPerDay": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.mailgun.foundation/properties/emailsPerDay",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "name": "emailsPerDay",
+              "period": {
+                "unit": "DAY",
+                "value": 1
+              },
+              "raw": {
+                "unlimited": true
+              },
+              "unit": "email",
+              "unlimited": true
+            },
+            "kind": "limit",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade364540e55445692b0eda?version=6ade36454b2b5b01c587db3d",
+              "plan": "FOUNDATION",
+              "pricingId": "6ade364540e55445692b0eda",
+              "registry": null,
+              "sphere": "danruilop1/mailgun",
+              "versionId": "6ade36454b2b5b01c587db3d",
+              "versionLabel": null
+            }
+          }
+        },
+        "emailsPerMonth": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.mailgun.foundation/properties/emailsPerMonth",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "name": "emailsPerMonth",
+              "period": {
+                "unit": "MONTH",
+                "value": 1
+              },
+              "raw": 50000,
+              "unit": "email",
+              "unlimited": false
+            },
+            "kind": "limit",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade364540e55445692b0eda?version=6ade36454b2b5b01c587db3d",
+              "plan": "FOUNDATION",
+              "pricingId": "6ade364540e55445692b0eda",
+              "registry": null,
+              "sphere": "danruilop1/mailgun",
+              "versionId": "6ade36454b2b5b01c587db3d",
+              "versionLabel": null
+            }
+          }
+        }
+      },
+      "provenance": {
+        "addons": [],
+        "permanentUrl": "https://sphere.score.us.es/p/6ade364540e55445692b0eda?version=6ade36454b2b5b01c587db3d",
+        "plan": "FOUNDATION",
+        "pricingId": "6ade364540e55445692b0eda",
+        "registry": null,
+        "snapshot": null,
+        "sphere": "danruilop1/mailgun",
+        "version": "6ade36454b2b5b01c587db3d",
+        "versionLabel": null
+      },
+      "provider": "mailgun",
+      "resource": "sphere-email",
+      "values": {
+        "availability": 0.9995,
+        "latency": 200,
+        "subscription": 35
+      }
+    },
+    {
+      "id": "email.mailgun.free",
+      "key": "sphere-email/email.mailgun.free",
+      "origins": {
+        "availability": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.mailgun.free/features/availability",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "docUrl": "https://www.mailgun.com/legal/terms/",
+              "feature": "guaranteedUptimeSla",
+              "map": {
+                "false": 0.99,
+                "true": 0.9995
+              },
+              "raw": false
+            },
+            "kind": "guarantee",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade364540e55445692b0eda?version=6ade36454b2b5b01c587db3d",
+              "plan": "FREE",
+              "pricingId": "6ade364540e55445692b0eda",
+              "registry": null,
+              "sphere": "danruilop1/mailgun",
+              "versionId": "6ade36454b2b5b01c587db3d",
+              "versionLabel": null
+            }
+          }
+        },
+        "latency": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.mailgun.free/features/latency",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "key": "mailgun"
+            },
+            "kind": "manual",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade364540e55445692b0eda?version=6ade36454b2b5b01c587db3d",
+              "plan": "FREE",
+              "pricingId": "6ade364540e55445692b0eda",
+              "registry": null,
+              "sphere": "danruilop1/mailgun",
+              "versionId": "6ade36454b2b5b01c587db3d",
+              "versionLabel": null
+            }
+          }
+        },
+        "subscription": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.mailgun.free/features/subscription",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "billing": "monthly",
+              "currency": "USD",
+              "formula": "FREE 0 x 1 (monthly)",
+              "multiplier": 1,
+              "parts": [
+                {
+                  "amount": 0,
+                  "id": "FREE",
+                  "kind": "plan",
+                  "monthlyFactor": 1,
+                  "period": "month",
+                  "seats": 1,
+                  "unit": "account/month",
+                  "unitAmount": 0
+                }
+              ],
+              "seats": 1
+            },
+            "kind": "priced",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade364540e55445692b0eda?version=6ade36454b2b5b01c587db3d",
+              "plan": "FREE",
+              "pricingId": "6ade364540e55445692b0eda",
+              "registry": null,
+              "sphere": "danruilop1/mailgun",
+              "versionId": "6ade36454b2b5b01c587db3d",
+              "versionLabel": null
+            }
+          }
+        }
+      },
+      "properties": {
+        "emailsPerDay": 100,
+        "emailsPerMonth": 100000000
+      },
+      "propertyOrigins": {
+        "emailsPerDay": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.mailgun.free/properties/emailsPerDay",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "name": "emailsPerDay",
+              "period": {
+                "unit": "DAY",
+                "value": 1
+              },
+              "raw": 100,
+              "unit": "email",
+              "unlimited": false
+            },
+            "kind": "limit",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade364540e55445692b0eda?version=6ade36454b2b5b01c587db3d",
+              "plan": "FREE",
+              "pricingId": "6ade364540e55445692b0eda",
+              "registry": null,
+              "sphere": "danruilop1/mailgun",
+              "versionId": "6ade36454b2b5b01c587db3d",
+              "versionLabel": null
+            }
+          }
+        },
+        "emailsPerMonth": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.mailgun.free/properties/emailsPerMonth",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "name": "emailsPerMonth",
+              "period": {
+                "unit": "MONTH",
+                "value": 1
+              },
+              "raw": {
+                "unlimited": true
+              },
+              "unit": "email",
+              "unlimited": true
+            },
+            "kind": "limit",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade364540e55445692b0eda?version=6ade36454b2b5b01c587db3d",
+              "plan": "FREE",
+              "pricingId": "6ade364540e55445692b0eda",
+              "registry": null,
+              "sphere": "danruilop1/mailgun",
+              "versionId": "6ade36454b2b5b01c587db3d",
+              "versionLabel": null
+            }
+          }
+        }
+      },
+      "provenance": {
+        "addons": [],
+        "permanentUrl": "https://sphere.score.us.es/p/6ade364540e55445692b0eda?version=6ade36454b2b5b01c587db3d",
+        "plan": "FREE",
+        "pricingId": "6ade364540e55445692b0eda",
+        "registry": null,
+        "snapshot": null,
+        "sphere": "danruilop1/mailgun",
+        "version": "6ade36454b2b5b01c587db3d",
+        "versionLabel": null
+      },
+      "provider": "mailgun",
+      "resource": "sphere-email",
+      "values": {
+        "availability": 0.99,
+        "latency": 250,
+        "subscription": 0
+      }
+    },
+    {
+      "id": "email.mailgun.scale",
+      "key": "sphere-email/email.mailgun.scale",
+      "origins": {
+        "availability": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.mailgun.scale/features/availability",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "docUrl": "https://www.mailgun.com/legal/terms/",
+              "feature": "guaranteedUptimeSla",
+              "map": {
+                "false": 0.99,
+                "true": 0.9995
+              },
+              "raw": true
+            },
+            "kind": "guarantee",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade364540e55445692b0eda?version=6ade36454b2b5b01c587db3d",
+              "plan": "SCALE",
+              "pricingId": "6ade364540e55445692b0eda",
+              "registry": null,
+              "sphere": "danruilop1/mailgun",
+              "versionId": "6ade36454b2b5b01c587db3d",
+              "versionLabel": null
+            }
+          }
+        },
+        "latency": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.mailgun.scale/features/latency",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "key": "mailgun"
+            },
+            "kind": "manual",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade364540e55445692b0eda?version=6ade36454b2b5b01c587db3d",
+              "plan": "SCALE",
+              "pricingId": "6ade364540e55445692b0eda",
+              "registry": null,
+              "sphere": "danruilop1/mailgun",
+              "versionId": "6ade36454b2b5b01c587db3d",
+              "versionLabel": null
+            }
+          }
+        },
+        "subscription": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.mailgun.scale/features/subscription",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "billing": "monthly",
+              "currency": "USD",
+              "formula": "SCALE 90 x 1 (monthly)",
+              "multiplier": 1,
+              "parts": [
+                {
+                  "amount": 90,
+                  "id": "SCALE",
+                  "kind": "plan",
+                  "monthlyFactor": 1,
+                  "period": "month",
+                  "seats": 1,
+                  "unit": "account/month",
+                  "unitAmount": 90
+                }
+              ],
+              "seats": 1
+            },
+            "kind": "priced",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade364540e55445692b0eda?version=6ade36454b2b5b01c587db3d",
+              "plan": "SCALE",
+              "pricingId": "6ade364540e55445692b0eda",
+              "registry": null,
+              "sphere": "danruilop1/mailgun",
+              "versionId": "6ade36454b2b5b01c587db3d",
+              "versionLabel": null
+            }
+          }
+        }
+      },
+      "properties": {
+        "emailsPerDay": 100000000,
+        "emailsPerMonth": 100000
+      },
+      "propertyOrigins": {
+        "emailsPerDay": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.mailgun.scale/properties/emailsPerDay",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "name": "emailsPerDay",
+              "period": {
+                "unit": "DAY",
+                "value": 1
+              },
+              "raw": {
+                "unlimited": true
+              },
+              "unit": "email",
+              "unlimited": true
+            },
+            "kind": "limit",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade364540e55445692b0eda?version=6ade36454b2b5b01c587db3d",
+              "plan": "SCALE",
+              "pricingId": "6ade364540e55445692b0eda",
+              "registry": null,
+              "sphere": "danruilop1/mailgun",
+              "versionId": "6ade36454b2b5b01c587db3d",
+              "versionLabel": null
+            }
+          }
+        },
+        "emailsPerMonth": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.mailgun.scale/properties/emailsPerMonth",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "name": "emailsPerMonth",
+              "period": {
+                "unit": "MONTH",
+                "value": 1
+              },
+              "raw": 100000,
+              "unit": "email",
+              "unlimited": false
+            },
+            "kind": "limit",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade364540e55445692b0eda?version=6ade36454b2b5b01c587db3d",
+              "plan": "SCALE",
+              "pricingId": "6ade364540e55445692b0eda",
+              "registry": null,
+              "sphere": "danruilop1/mailgun",
+              "versionId": "6ade36454b2b5b01c587db3d",
+              "versionLabel": null
+            }
+          }
+        }
+      },
+      "provenance": {
+        "addons": [],
+        "permanentUrl": "https://sphere.score.us.es/p/6ade364540e55445692b0eda?version=6ade36454b2b5b01c587db3d",
+        "plan": "SCALE",
+        "pricingId": "6ade364540e55445692b0eda",
+        "registry": null,
+        "snapshot": null,
+        "sphere": "danruilop1/mailgun",
+        "version": "6ade36454b2b5b01c587db3d",
+        "versionLabel": null
+      },
+      "provider": "mailgun",
+      "resource": "sphere-email",
+      "values": {
+        "availability": 0.9995,
+        "latency": 250,
+        "subscription": 90
+      }
+    },
+    {
+      "id": "email.postmark.basic",
+      "key": "sphere-email/email.postmark.basic",
+      "origins": {
+        "availability": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.postmark.basic/features/availability",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "key": "*",
+              "override": true
+            },
+            "kind": "manual",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade2f3b40e55445692b09aa?version=6ade2f3b4b2b5b01c587d8f5",
+              "plan": "BASIC",
+              "pricingId": "6ade2f3b40e55445692b09aa",
+              "registry": null,
+              "sphere": "danruilop1/postmark",
+              "versionId": "6ade2f3b4b2b5b01c587d8f5",
+              "versionLabel": null
+            }
+          }
+        },
+        "latency": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.postmark.basic/features/latency",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "key": "postmark"
+            },
+            "kind": "manual",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade2f3b40e55445692b09aa?version=6ade2f3b4b2b5b01c587d8f5",
+              "plan": "BASIC",
+              "pricingId": "6ade2f3b40e55445692b09aa",
+              "registry": null,
+              "sphere": "danruilop1/postmark",
+              "versionId": "6ade2f3b4b2b5b01c587d8f5",
+              "versionLabel": null
+            }
+          }
+        },
+        "subscription": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.postmark.basic/features/subscription",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "billing": "monthly",
+              "currency": "USD",
+              "formula": "BASIC 15 x 1 (monthly)",
+              "multiplier": 1,
+              "parts": [
+                {
+                  "amount": 15,
+                  "expression": "#basicPriceByVolume[String(#volume)]",
+                  "id": "BASIC",
+                  "kind": "plan",
+                  "monthlyFactor": 1,
+                  "period": "month",
+                  "seats": 1,
+                  "unit": "account/month",
+                  "unitAmount": 15,
+                  "variables": {
+                    "basicPriceByVolume": {
+                      "10000": 15,
+                      "125000": 115,
+                      "1500000": 775,
+                      "300000": 245,
+                      "50000": 55,
+                      "700000": 455
+                    },
+                    "volume": 10000
+                  }
+                }
+              ],
+              "seats": 1
+            },
+            "kind": "priced",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade2f3b40e55445692b09aa?version=6ade2f3b4b2b5b01c587d8f5",
+              "plan": "BASIC",
+              "pricingId": "6ade2f3b40e55445692b09aa",
+              "registry": null,
+              "sphere": "danruilop1/postmark",
+              "versionId": "6ade2f3b4b2b5b01c587d8f5",
+              "versionLabel": null
+            }
+          }
+        }
+      },
+      "properties": {
+        "emailsPerDay": 100000000,
+        "emailsPerMonth": 10000
+      },
+      "propertyOrigins": {
+        "emailsPerDay": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.postmark.basic/properties/emailsPerDay",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "name": "dailyEmailSendingPerDay",
+              "period": {
+                "unit": "DAY",
+                "value": 1
+              },
+              "raw": {
+                "unlimited": true
+              },
+              "unit": "email",
+              "unlimited": true
+            },
+            "kind": "limit",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade2f3b40e55445692b09aa?version=6ade2f3b4b2b5b01c587d8f5",
+              "plan": "BASIC",
+              "pricingId": "6ade2f3b40e55445692b09aa",
+              "registry": null,
+              "sphere": "danruilop1/postmark",
+              "versionId": "6ade2f3b4b2b5b01c587d8f5",
+              "versionLabel": null
+            }
+          }
+        },
+        "emailsPerMonth": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.postmark.basic/properties/emailsPerMonth",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "name": "monthlyEmailVolumeLimit",
+              "period": {
+                "unit": "MONTH",
+                "value": 1
+              },
+              "raw": 10000,
+              "unit": "email",
+              "unlimited": false
+            },
+            "kind": "limit",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade2f3b40e55445692b09aa?version=6ade2f3b4b2b5b01c587d8f5",
+              "plan": "BASIC",
+              "pricingId": "6ade2f3b40e55445692b09aa",
+              "registry": null,
+              "sphere": "danruilop1/postmark",
+              "versionId": "6ade2f3b4b2b5b01c587d8f5",
+              "versionLabel": null
+            }
+          }
+        }
+      },
+      "provenance": {
+        "addons": [],
+        "permanentUrl": "https://sphere.score.us.es/p/6ade2f3b40e55445692b09aa?version=6ade2f3b4b2b5b01c587d8f5",
+        "plan": "BASIC",
+        "pricingId": "6ade2f3b40e55445692b09aa",
+        "registry": null,
+        "snapshot": null,
+        "sphere": "danruilop1/postmark",
+        "version": "6ade2f3b4b2b5b01c587d8f5",
+        "versionLabel": null
+      },
+      "provider": "postmark",
+      "resource": "sphere-email",
+      "values": {
+        "availability": 0.999,
+        "latency": 150,
+        "subscription": 15
+      }
+    },
+    {
+      "id": "email.postmark.free",
+      "key": "sphere-email/email.postmark.free",
+      "origins": {
+        "availability": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.postmark.free/features/availability",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "key": "*",
+              "override": true
+            },
+            "kind": "manual",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade2f3b40e55445692b09aa?version=6ade2f3b4b2b5b01c587d8f5",
+              "plan": "FREE",
+              "pricingId": "6ade2f3b40e55445692b09aa",
+              "registry": null,
+              "sphere": "danruilop1/postmark",
+              "versionId": "6ade2f3b4b2b5b01c587d8f5",
+              "versionLabel": null
+            }
+          }
+        },
+        "latency": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.postmark.free/features/latency",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "key": "postmark"
+            },
+            "kind": "manual",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade2f3b40e55445692b09aa?version=6ade2f3b4b2b5b01c587d8f5",
+              "plan": "FREE",
+              "pricingId": "6ade2f3b40e55445692b09aa",
+              "registry": null,
+              "sphere": "danruilop1/postmark",
+              "versionId": "6ade2f3b4b2b5b01c587d8f5",
+              "versionLabel": null
+            }
+          }
+        },
+        "subscription": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.postmark.free/features/subscription",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "billing": "monthly",
+              "currency": "USD",
+              "formula": "FREE 0 x 1 (monthly)",
+              "multiplier": 1,
+              "parts": [
+                {
+                  "amount": 0,
+                  "id": "FREE",
+                  "kind": "plan",
+                  "monthlyFactor": 1,
+                  "period": "month",
+                  "seats": 1,
+                  "unit": "account/month",
+                  "unitAmount": 0
+                }
+              ],
+              "seats": 1
+            },
+            "kind": "priced",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade2f3b40e55445692b09aa?version=6ade2f3b4b2b5b01c587d8f5",
+              "plan": "FREE",
+              "pricingId": "6ade2f3b40e55445692b09aa",
+              "registry": null,
+              "sphere": "danruilop1/postmark",
+              "versionId": "6ade2f3b4b2b5b01c587d8f5",
+              "versionLabel": null
+            }
+          }
+        }
+      },
+      "properties": {
+        "emailsPerDay": 100000000,
+        "emailsPerMonth": 100
+      },
+      "propertyOrigins": {
+        "emailsPerDay": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.postmark.free/properties/emailsPerDay",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "name": "dailyEmailSendingPerDay",
+              "period": {
+                "unit": "DAY",
+                "value": 1
+              },
+              "raw": {
+                "unlimited": true
+              },
+              "unit": "email",
+              "unlimited": true
+            },
+            "kind": "limit",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade2f3b40e55445692b09aa?version=6ade2f3b4b2b5b01c587d8f5",
+              "plan": "FREE",
+              "pricingId": "6ade2f3b40e55445692b09aa",
+              "registry": null,
+              "sphere": "danruilop1/postmark",
+              "versionId": "6ade2f3b4b2b5b01c587d8f5",
+              "versionLabel": null
+            }
+          }
+        },
+        "emailsPerMonth": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.postmark.free/properties/emailsPerMonth",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "name": "monthlyEmailVolumeLimit",
+              "period": {
+                "unit": "MONTH",
+                "value": 1
+              },
+              "raw": 100,
+              "unit": "email",
+              "unlimited": false
+            },
+            "kind": "limit",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade2f3b40e55445692b09aa?version=6ade2f3b4b2b5b01c587d8f5",
+              "plan": "FREE",
+              "pricingId": "6ade2f3b40e55445692b09aa",
+              "registry": null,
+              "sphere": "danruilop1/postmark",
+              "versionId": "6ade2f3b4b2b5b01c587d8f5",
+              "versionLabel": null
+            }
+          }
+        }
+      },
+      "provenance": {
+        "addons": [],
+        "permanentUrl": "https://sphere.score.us.es/p/6ade2f3b40e55445692b09aa?version=6ade2f3b4b2b5b01c587d8f5",
+        "plan": "FREE",
+        "pricingId": "6ade2f3b40e55445692b09aa",
+        "registry": null,
+        "snapshot": null,
+        "sphere": "danruilop1/postmark",
+        "version": "6ade2f3b4b2b5b01c587d8f5",
+        "versionLabel": null
+      },
+      "provider": "postmark",
+      "resource": "sphere-email",
+      "values": {
+        "availability": 0.999,
+        "latency": 150,
+        "subscription": 0
+      }
+    },
+    {
+      "id": "email.postmark.platform",
+      "key": "sphere-email/email.postmark.platform",
+      "origins": {
+        "availability": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.postmark.platform/features/availability",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "key": "*",
+              "override": true
+            },
+            "kind": "manual",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade2f3b40e55445692b09aa?version=6ade2f3b4b2b5b01c587d8f5",
+              "plan": "PLATFORM",
+              "pricingId": "6ade2f3b40e55445692b09aa",
+              "registry": null,
+              "sphere": "danruilop1/postmark",
+              "versionId": "6ade2f3b4b2b5b01c587d8f5",
+              "versionLabel": null
+            }
+          }
+        },
+        "latency": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.postmark.platform/features/latency",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "key": "postmark"
+            },
+            "kind": "manual",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade2f3b40e55445692b09aa?version=6ade2f3b4b2b5b01c587d8f5",
+              "plan": "PLATFORM",
+              "pricingId": "6ade2f3b40e55445692b09aa",
+              "registry": null,
+              "sphere": "danruilop1/postmark",
+              "versionId": "6ade2f3b4b2b5b01c587d8f5",
+              "versionLabel": null
+            }
+          }
+        },
+        "subscription": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.postmark.platform/features/subscription",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "billing": "monthly",
+              "currency": "USD",
+              "formula": "PLATFORM 18 x 1 (monthly)",
+              "multiplier": 1,
+              "parts": [
+                {
+                  "amount": 18,
+                  "expression": "#platformPriceByVolume[String(#volume)]",
+                  "id": "PLATFORM",
+                  "kind": "plan",
+                  "monthlyFactor": 1,
+                  "period": "month",
+                  "seats": 1,
+                  "unit": "account/month",
+                  "unitAmount": 18,
+                  "variables": {
+                    "platformPriceByVolume": {
+                      "10000": 18,
+                      "125000": 138,
+                      "1500000": 930,
+                      "300000": 294,
+                      "50000": 66,
+                      "700000": 546
+                    },
+                    "volume": 10000
+                  }
+                }
+              ],
+              "seats": 1
+            },
+            "kind": "priced",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade2f3b40e55445692b09aa?version=6ade2f3b4b2b5b01c587d8f5",
+              "plan": "PLATFORM",
+              "pricingId": "6ade2f3b40e55445692b09aa",
+              "registry": null,
+              "sphere": "danruilop1/postmark",
+              "versionId": "6ade2f3b4b2b5b01c587d8f5",
+              "versionLabel": null
+            }
+          }
+        }
+      },
+      "properties": {
+        "emailsPerDay": 100000000,
+        "emailsPerMonth": 10000
+      },
+      "propertyOrigins": {
+        "emailsPerDay": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.postmark.platform/properties/emailsPerDay",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "name": "dailyEmailSendingPerDay",
+              "period": {
+                "unit": "DAY",
+                "value": 1
+              },
+              "raw": {
+                "unlimited": true
+              },
+              "unit": "email",
+              "unlimited": true
+            },
+            "kind": "limit",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade2f3b40e55445692b09aa?version=6ade2f3b4b2b5b01c587d8f5",
+              "plan": "PLATFORM",
+              "pricingId": "6ade2f3b40e55445692b09aa",
+              "registry": null,
+              "sphere": "danruilop1/postmark",
+              "versionId": "6ade2f3b4b2b5b01c587d8f5",
+              "versionLabel": null
+            }
+          }
+        },
+        "emailsPerMonth": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.postmark.platform/properties/emailsPerMonth",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "name": "monthlyEmailVolumeLimit",
+              "period": {
+                "unit": "MONTH",
+                "value": 1
+              },
+              "raw": 10000,
+              "unit": "email",
+              "unlimited": false
+            },
+            "kind": "limit",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade2f3b40e55445692b09aa?version=6ade2f3b4b2b5b01c587d8f5",
+              "plan": "PLATFORM",
+              "pricingId": "6ade2f3b40e55445692b09aa",
+              "registry": null,
+              "sphere": "danruilop1/postmark",
+              "versionId": "6ade2f3b4b2b5b01c587d8f5",
+              "versionLabel": null
+            }
+          }
+        }
+      },
+      "provenance": {
+        "addons": [],
+        "permanentUrl": "https://sphere.score.us.es/p/6ade2f3b40e55445692b09aa?version=6ade2f3b4b2b5b01c587d8f5",
+        "plan": "PLATFORM",
+        "pricingId": "6ade2f3b40e55445692b09aa",
+        "registry": null,
+        "snapshot": null,
+        "sphere": "danruilop1/postmark",
+        "version": "6ade2f3b4b2b5b01c587d8f5",
+        "versionLabel": null
+      },
+      "provider": "postmark",
+      "resource": "sphere-email",
+      "values": {
+        "availability": 0.999,
+        "latency": 150,
+        "subscription": 18
+      }
+    },
+    {
+      "id": "email.postmark.pro",
+      "key": "sphere-email/email.postmark.pro",
+      "origins": {
+        "availability": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.postmark.pro/features/availability",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "key": "*",
+              "override": true
+            },
+            "kind": "manual",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade2f3b40e55445692b09aa?version=6ade2f3b4b2b5b01c587d8f5",
+              "plan": "PRO",
+              "pricingId": "6ade2f3b40e55445692b09aa",
+              "registry": null,
+              "sphere": "danruilop1/postmark",
+              "versionId": "6ade2f3b4b2b5b01c587d8f5",
+              "versionLabel": null
+            }
+          }
+        },
+        "latency": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.postmark.pro/features/latency",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "key": "postmark"
+            },
+            "kind": "manual",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade2f3b40e55445692b09aa?version=6ade2f3b4b2b5b01c587d8f5",
+              "plan": "PRO",
+              "pricingId": "6ade2f3b40e55445692b09aa",
+              "registry": null,
+              "sphere": "danruilop1/postmark",
+              "versionId": "6ade2f3b4b2b5b01c587d8f5",
+              "versionLabel": null
+            }
+          }
+        },
+        "subscription": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.postmark.pro/features/subscription",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "billing": "monthly",
+              "currency": "USD",
+              "formula": "PRO 16.5 x 1 (monthly)",
+              "multiplier": 1,
+              "parts": [
+                {
+                  "amount": 16.5,
+                  "expression": "#proPriceByVolume[String(#volume)]",
+                  "id": "PRO",
+                  "kind": "plan",
+                  "monthlyFactor": 1,
+                  "period": "month",
+                  "seats": 1,
+                  "unit": "account/month",
+                  "unitAmount": 16.5,
+                  "variables": {
+                    "proPriceByVolume": {
+                      "10000": 16.5,
+                      "125000": 126.5,
+                      "1500000": 852.5,
+                      "300000": 269.5,
+                      "50000": 60.5,
+                      "700000": 500.5
+                    },
+                    "volume": 10000
+                  }
+                }
+              ],
+              "seats": 1
+            },
+            "kind": "priced",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade2f3b40e55445692b09aa?version=6ade2f3b4b2b5b01c587d8f5",
+              "plan": "PRO",
+              "pricingId": "6ade2f3b40e55445692b09aa",
+              "registry": null,
+              "sphere": "danruilop1/postmark",
+              "versionId": "6ade2f3b4b2b5b01c587d8f5",
+              "versionLabel": null
+            }
+          }
+        }
+      },
+      "properties": {
+        "emailsPerDay": 100000000,
+        "emailsPerMonth": 10000
+      },
+      "propertyOrigins": {
+        "emailsPerDay": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.postmark.pro/properties/emailsPerDay",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "name": "dailyEmailSendingPerDay",
+              "period": {
+                "unit": "DAY",
+                "value": 1
+              },
+              "raw": {
+                "unlimited": true
+              },
+              "unit": "email",
+              "unlimited": true
+            },
+            "kind": "limit",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade2f3b40e55445692b09aa?version=6ade2f3b4b2b5b01c587d8f5",
+              "plan": "PRO",
+              "pricingId": "6ade2f3b40e55445692b09aa",
+              "registry": null,
+              "sphere": "danruilop1/postmark",
+              "versionId": "6ade2f3b4b2b5b01c587d8f5",
+              "versionLabel": null
+            }
+          }
+        },
+        "emailsPerMonth": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.postmark.pro/properties/emailsPerMonth",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "name": "monthlyEmailVolumeLimit",
+              "period": {
+                "unit": "MONTH",
+                "value": 1
+              },
+              "raw": 10000,
+              "unit": "email",
+              "unlimited": false
+            },
+            "kind": "limit",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade2f3b40e55445692b09aa?version=6ade2f3b4b2b5b01c587d8f5",
+              "plan": "PRO",
+              "pricingId": "6ade2f3b40e55445692b09aa",
+              "registry": null,
+              "sphere": "danruilop1/postmark",
+              "versionId": "6ade2f3b4b2b5b01c587d8f5",
+              "versionLabel": null
+            }
+          }
+        }
+      },
+      "provenance": {
+        "addons": [],
+        "permanentUrl": "https://sphere.score.us.es/p/6ade2f3b40e55445692b09aa?version=6ade2f3b4b2b5b01c587d8f5",
+        "plan": "PRO",
+        "pricingId": "6ade2f3b40e55445692b09aa",
+        "registry": null,
+        "snapshot": null,
+        "sphere": "danruilop1/postmark",
+        "version": "6ade2f3b4b2b5b01c587d8f5",
+        "versionLabel": null
+      },
+      "provider": "postmark",
+      "resource": "sphere-email",
+      "values": {
+        "availability": 0.999,
+        "latency": 150,
+        "subscription": 16.5
+      }
+    },
+    {
+      "id": "email.resend.free",
+      "key": "sphere-email/email.resend.free",
+      "origins": {
+        "availability": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.resend.free/features/availability",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "docUrl": "https://resend.com/enterprise",
+              "feature": "uptimeSla",
+              "map": {
+                "false": 0.99,
+                "true": 0.9995
+              },
+              "raw": false
+            },
+            "kind": "guarantee",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade2d2540e55445692b07c6?version=6ade2d254b2b5b01c587d7ee",
+              "plan": "FREE",
+              "pricingId": "6ade2d2540e55445692b07c6",
+              "registry": null,
+              "sphere": "danruilop1/resend",
+              "versionId": "6ade2d254b2b5b01c587d7ee",
+              "versionLabel": null
+            }
+          }
+        },
+        "latency": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.resend.free/features/latency",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "key": "resend"
+            },
+            "kind": "manual",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade2d2540e55445692b07c6?version=6ade2d254b2b5b01c587d7ee",
+              "plan": "FREE",
+              "pricingId": "6ade2d2540e55445692b07c6",
+              "registry": null,
+              "sphere": "danruilop1/resend",
+              "versionId": "6ade2d254b2b5b01c587d7ee",
+              "versionLabel": null
+            }
+          }
+        },
+        "subscription": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.resend.free/features/subscription",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "billing": "monthly",
+              "currency": "USD",
+              "formula": "FREE 0 x 1 (monthly)",
+              "multiplier": 1,
+              "parts": [
+                {
+                  "amount": 0,
+                  "id": "FREE",
+                  "kind": "plan",
+                  "monthlyFactor": 1,
+                  "period": "month",
+                  "seats": 1,
+                  "unit": "team/month",
+                  "unitAmount": 0
+                }
+              ],
+              "seats": 1
+            },
+            "kind": "priced",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade2d2540e55445692b07c6?version=6ade2d254b2b5b01c587d7ee",
+              "plan": "FREE",
+              "pricingId": "6ade2d2540e55445692b07c6",
+              "registry": null,
+              "sphere": "danruilop1/resend",
+              "versionId": "6ade2d254b2b5b01c587d7ee",
+              "versionLabel": null
+            }
+          }
+        }
+      },
+      "properties": {
+        "emailsPerDay": 100,
+        "emailsPerMonth": 3000
+      },
+      "propertyOrigins": {
+        "emailsPerDay": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.resend.free/properties/emailsPerDay",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "name": "transactionalEmailsPerDay",
+              "period": {
+                "unit": "DAY",
+                "value": 1
+              },
+              "raw": 100,
+              "unit": "email",
+              "unlimited": false
+            },
+            "kind": "limit",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade2d2540e55445692b07c6?version=6ade2d254b2b5b01c587d7ee",
+              "plan": "FREE",
+              "pricingId": "6ade2d2540e55445692b07c6",
+              "registry": null,
+              "sphere": "danruilop1/resend",
+              "versionId": "6ade2d254b2b5b01c587d7ee",
+              "versionLabel": null
+            }
+          }
+        },
+        "emailsPerMonth": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.resend.free/properties/emailsPerMonth",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "name": "transactionalEmailsPerMonth",
+              "period": {
+                "unit": "MONTH",
+                "value": 1
+              },
+              "raw": 3000,
+              "unit": "email",
+              "unlimited": false
+            },
+            "kind": "limit",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade2d2540e55445692b07c6?version=6ade2d254b2b5b01c587d7ee",
+              "plan": "FREE",
+              "pricingId": "6ade2d2540e55445692b07c6",
+              "registry": null,
+              "sphere": "danruilop1/resend",
+              "versionId": "6ade2d254b2b5b01c587d7ee",
+              "versionLabel": null
+            }
+          }
+        }
+      },
+      "provenance": {
+        "addons": [],
+        "permanentUrl": "https://sphere.score.us.es/p/6ade2d2540e55445692b07c6?version=6ade2d254b2b5b01c587d7ee",
+        "plan": "FREE",
+        "pricingId": "6ade2d2540e55445692b07c6",
+        "registry": null,
+        "snapshot": null,
+        "sphere": "danruilop1/resend",
+        "version": "6ade2d254b2b5b01c587d7ee",
+        "versionLabel": null
+      },
+      "provider": "resend",
+      "resource": "sphere-email",
+      "values": {
+        "availability": 0.99,
+        "latency": 180,
+        "subscription": 0
+      }
+    },
+    {
+      "id": "email.resend.pro",
+      "key": "sphere-email/email.resend.pro",
+      "origins": {
+        "availability": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.resend.pro/features/availability",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "docUrl": "https://resend.com/enterprise",
+              "feature": "uptimeSla",
+              "map": {
+                "false": 0.99,
+                "true": 0.9995
+              },
+              "raw": false
+            },
+            "kind": "guarantee",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade2d2540e55445692b07c6?version=6ade2d254b2b5b01c587d7ee",
+              "plan": "PRO",
+              "pricingId": "6ade2d2540e55445692b07c6",
+              "registry": null,
+              "sphere": "danruilop1/resend",
+              "versionId": "6ade2d254b2b5b01c587d7ee",
+              "versionLabel": null
+            }
+          }
+        },
+        "latency": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.resend.pro/features/latency",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "key": "resend"
+            },
+            "kind": "manual",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade2d2540e55445692b07c6?version=6ade2d254b2b5b01c587d7ee",
+              "plan": "PRO",
+              "pricingId": "6ade2d2540e55445692b07c6",
+              "registry": null,
+              "sphere": "danruilop1/resend",
+              "versionId": "6ade2d254b2b5b01c587d7ee",
+              "versionLabel": null
+            }
+          }
+        },
+        "subscription": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.resend.pro/features/subscription",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "billing": "monthly",
+              "currency": "USD",
+              "formula": "PRO 20 x 1 (monthly)",
+              "multiplier": 1,
+              "parts": [
+                {
+                  "amount": 20,
+                  "expression": "#proPriceByVolume[String(#proVolume)]",
+                  "id": "PRO",
+                  "kind": "plan",
+                  "monthlyFactor": 1,
+                  "period": "month",
+                  "seats": 1,
+                  "unit": "team/month",
+                  "unitAmount": 20,
+                  "variables": {
+                    "proPriceByVolume": {
+                      "100000": 35,
+                      "50000": 20
+                    },
+                    "proVolume": 50000
+                  }
+                }
+              ],
+              "seats": 1
+            },
+            "kind": "priced",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade2d2540e55445692b07c6?version=6ade2d254b2b5b01c587d7ee",
+              "plan": "PRO",
+              "pricingId": "6ade2d2540e55445692b07c6",
+              "registry": null,
+              "sphere": "danruilop1/resend",
+              "versionId": "6ade2d254b2b5b01c587d7ee",
+              "versionLabel": null
+            }
+          }
+        }
+      },
+      "properties": {
+        "emailsPerDay": 100000000,
+        "emailsPerMonth": 50000
+      },
+      "propertyOrigins": {
+        "emailsPerDay": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.resend.pro/properties/emailsPerDay",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "name": "transactionalEmailsPerDay",
+              "period": {
+                "unit": "DAY",
+                "value": 1
+              },
+              "raw": {
+                "unlimited": true
+              },
+              "unit": "email",
+              "unlimited": true
+            },
+            "kind": "limit",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade2d2540e55445692b07c6?version=6ade2d254b2b5b01c587d7ee",
+              "plan": "PRO",
+              "pricingId": "6ade2d2540e55445692b07c6",
+              "registry": null,
+              "sphere": "danruilop1/resend",
+              "versionId": "6ade2d254b2b5b01c587d7ee",
+              "versionLabel": null
+            }
+          }
+        },
+        "emailsPerMonth": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.resend.pro/properties/emailsPerMonth",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "name": "transactionalEmailsPerMonth",
+              "period": {
+                "unit": "MONTH",
+                "value": 1
+              },
+              "raw": 50000,
+              "unit": "email",
+              "unlimited": false
+            },
+            "kind": "limit",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade2d2540e55445692b07c6?version=6ade2d254b2b5b01c587d7ee",
+              "plan": "PRO",
+              "pricingId": "6ade2d2540e55445692b07c6",
+              "registry": null,
+              "sphere": "danruilop1/resend",
+              "versionId": "6ade2d254b2b5b01c587d7ee",
+              "versionLabel": null
+            }
+          }
+        }
+      },
+      "provenance": {
+        "addons": [],
+        "permanentUrl": "https://sphere.score.us.es/p/6ade2d2540e55445692b07c6?version=6ade2d254b2b5b01c587d7ee",
+        "plan": "PRO",
+        "pricingId": "6ade2d2540e55445692b07c6",
+        "registry": null,
+        "snapshot": null,
+        "sphere": "danruilop1/resend",
+        "version": "6ade2d254b2b5b01c587d7ee",
+        "versionLabel": null
+      },
+      "provider": "resend",
+      "resource": "sphere-email",
+      "values": {
+        "availability": 0.99,
+        "latency": 180,
+        "subscription": 20
+      }
+    },
+    {
+      "id": "email.resend.scale",
+      "key": "sphere-email/email.resend.scale",
+      "origins": {
+        "availability": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.resend.scale/features/availability",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "docUrl": "https://resend.com/enterprise",
+              "feature": "uptimeSla",
+              "map": {
+                "false": 0.99,
+                "true": 0.9995
+              },
+              "raw": false
+            },
+            "kind": "guarantee",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade2d2540e55445692b07c6?version=6ade2d254b2b5b01c587d7ee",
+              "plan": "SCALE",
+              "pricingId": "6ade2d2540e55445692b07c6",
+              "registry": null,
+              "sphere": "danruilop1/resend",
+              "versionId": "6ade2d254b2b5b01c587d7ee",
+              "versionLabel": null
+            }
+          }
+        },
+        "latency": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.resend.scale/features/latency",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "key": "resend"
+            },
+            "kind": "manual",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade2d2540e55445692b07c6?version=6ade2d254b2b5b01c587d7ee",
+              "plan": "SCALE",
+              "pricingId": "6ade2d2540e55445692b07c6",
+              "registry": null,
+              "sphere": "danruilop1/resend",
+              "versionId": "6ade2d254b2b5b01c587d7ee",
+              "versionLabel": null
+            }
+          }
+        },
+        "subscription": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.resend.scale/features/subscription",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "billing": "monthly",
+              "currency": "USD",
+              "formula": "SCALE 90 x 1 (monthly)",
+              "multiplier": 1,
+              "parts": [
+                {
+                  "amount": 90,
+                  "expression": "#scalePriceByVolume[String(#scaleVolume)]",
+                  "id": "SCALE",
+                  "kind": "plan",
+                  "monthlyFactor": 1,
+                  "period": "month",
+                  "seats": 1,
+                  "unit": "team/month",
+                  "unitAmount": 90,
+                  "variables": {
+                    "scalePriceByVolume": {
+                      "100000": 90,
+                      "1000000": 650,
+                      "1500000": 825,
+                      "200000": 160,
+                      "2500000": 1150,
+                      "500000": 350
+                    },
+                    "scaleVolume": 100000
+                  }
+                }
+              ],
+              "seats": 1
+            },
+            "kind": "priced",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade2d2540e55445692b07c6?version=6ade2d254b2b5b01c587d7ee",
+              "plan": "SCALE",
+              "pricingId": "6ade2d2540e55445692b07c6",
+              "registry": null,
+              "sphere": "danruilop1/resend",
+              "versionId": "6ade2d254b2b5b01c587d7ee",
+              "versionLabel": null
+            }
+          }
+        }
+      },
+      "properties": {
+        "emailsPerDay": 100000000,
+        "emailsPerMonth": 100000
+      },
+      "propertyOrigins": {
+        "emailsPerDay": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.resend.scale/properties/emailsPerDay",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "name": "transactionalEmailsPerDay",
+              "period": {
+                "unit": "DAY",
+                "value": 1
+              },
+              "raw": {
+                "unlimited": true
+              },
+              "unit": "email",
+              "unlimited": true
+            },
+            "kind": "limit",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade2d2540e55445692b07c6?version=6ade2d254b2b5b01c587d7ee",
+              "plan": "SCALE",
+              "pricingId": "6ade2d2540e55445692b07c6",
+              "registry": null,
+              "sphere": "danruilop1/resend",
+              "versionId": "6ade2d254b2b5b01c587d7ee",
+              "versionLabel": null
+            }
+          }
+        },
+        "emailsPerMonth": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.resend.scale/properties/emailsPerMonth",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "name": "transactionalEmailsPerMonth",
+              "period": {
+                "unit": "MONTH",
+                "value": 1
+              },
+              "raw": 100000,
+              "unit": "email",
+              "unlimited": false
+            },
+            "kind": "limit",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ade2d2540e55445692b07c6?version=6ade2d254b2b5b01c587d7ee",
+              "plan": "SCALE",
+              "pricingId": "6ade2d2540e55445692b07c6",
+              "registry": null,
+              "sphere": "danruilop1/resend",
+              "versionId": "6ade2d254b2b5b01c587d7ee",
+              "versionLabel": null
+            }
+          }
+        }
+      },
+      "provenance": {
+        "addons": [],
+        "permanentUrl": "https://sphere.score.us.es/p/6ade2d2540e55445692b07c6?version=6ade2d254b2b5b01c587d7ee",
+        "plan": "SCALE",
+        "pricingId": "6ade2d2540e55445692b07c6",
+        "registry": null,
+        "snapshot": null,
+        "sphere": "danruilop1/resend",
+        "version": "6ade2d254b2b5b01c587d7ee",
+        "versionLabel": null
+      },
+      "provider": "resend",
+      "resource": "sphere-email",
+      "values": {
+        "availability": 0.99,
+        "latency": 180,
+        "subscription": 90
+      }
+    },
+    {
+      "id": "email.sendgrid.essentials",
+      "key": "sphere-email/email.sendgrid.essentials",
+      "origins": {
+        "availability": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.sendgrid.essentials/features/availability",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "key": "*",
+              "override": true
+            },
+            "kind": "manual",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6adf1a6240e55445692b6f14?version=6adf1a62daa2ba78b21d7119",
+              "plan": "ESSENTIALS",
+              "pricingId": "6adf1a6240e55445692b6f14",
+              "registry": null,
+              "sphere": "danruilop1/twilio-sendgrid-email-api",
+              "versionId": "6adf1a62daa2ba78b21d7119",
+              "versionLabel": null
+            }
+          }
+        },
+        "latency": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.sendgrid.essentials/features/latency",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "key": "sendgrid"
+            },
+            "kind": "manual",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6adf1a6240e55445692b6f14?version=6adf1a62daa2ba78b21d7119",
+              "plan": "ESSENTIALS",
+              "pricingId": "6adf1a6240e55445692b6f14",
+              "registry": null,
+              "sphere": "danruilop1/twilio-sendgrid-email-api",
+              "versionId": "6adf1a62daa2ba78b21d7119",
+              "versionLabel": null
+            }
+          }
+        },
+        "subscription": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.sendgrid.essentials/features/subscription",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "billing": "monthly",
+              "currency": "USD",
+              "formula": "ESSENTIALS 19.95 x 1 (monthly)",
+              "multiplier": 1,
+              "parts": [
+                {
+                  "amount": 19.95,
+                  "expression": "#essPriceByTier[String(#essTier)]",
+                  "id": "ESSENTIALS",
+                  "kind": "plan",
+                  "monthlyFactor": 1,
+                  "period": "month",
+                  "seats": 1,
+                  "unit": "account/month",
+                  "unitAmount": 19.95,
+                  "variables": {
+                    "essPriceByTier": {
+                      "100000": 34.95,
+                      "50000": 19.95
+                    },
+                    "essTier": 50000
+                  }
+                }
+              ],
+              "seats": 1
+            },
+            "kind": "priced",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6adf1a6240e55445692b6f14?version=6adf1a62daa2ba78b21d7119",
+              "plan": "ESSENTIALS",
+              "pricingId": "6adf1a6240e55445692b6f14",
+              "registry": null,
+              "sphere": "danruilop1/twilio-sendgrid-email-api",
+              "versionId": "6adf1a62daa2ba78b21d7119",
+              "versionLabel": null
+            }
+          }
+        }
+      },
+      "properties": {
+        "emailsPerDay": 100000000,
+        "emailsPerMonth": 50000
+      },
+      "propertyOrigins": {
+        "emailsPerDay": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.sendgrid.essentials/properties/emailsPerDay",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "assumed": true,
+              "limit": "emailsPerDay",
+              "reason": "not declared by the pricing",
+              "value": "unlimited"
+            },
+            "kind": "manual",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6adf1a6240e55445692b6f14?version=6adf1a62daa2ba78b21d7119",
+              "plan": "ESSENTIALS",
+              "pricingId": "6adf1a6240e55445692b6f14",
+              "registry": null,
+              "sphere": "danruilop1/twilio-sendgrid-email-api",
+              "versionId": "6adf1a62daa2ba78b21d7119",
+              "versionLabel": null
+            }
+          }
+        },
+        "emailsPerMonth": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.sendgrid.essentials/properties/emailsPerMonth",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "name": "emailsPerMonth",
+              "period": {
+                "unit": "MONTH",
+                "value": 1
+              },
+              "raw": 50000,
+              "unit": "email",
+              "unlimited": false
+            },
+            "kind": "limit",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6adf1a6240e55445692b6f14?version=6adf1a62daa2ba78b21d7119",
+              "plan": "ESSENTIALS",
+              "pricingId": "6adf1a6240e55445692b6f14",
+              "registry": null,
+              "sphere": "danruilop1/twilio-sendgrid-email-api",
+              "versionId": "6adf1a62daa2ba78b21d7119",
+              "versionLabel": null
+            }
+          }
+        }
+      },
+      "provenance": {
+        "addons": [],
+        "permanentUrl": "https://sphere.score.us.es/p/6adf1a6240e55445692b6f14?version=6adf1a62daa2ba78b21d7119",
+        "plan": "ESSENTIALS",
+        "pricingId": "6adf1a6240e55445692b6f14",
+        "registry": null,
+        "snapshot": null,
+        "sphere": "danruilop1/twilio-sendgrid-email-api",
+        "version": "6adf1a62daa2ba78b21d7119",
+        "versionLabel": null
+      },
+      "provider": "sendgrid",
+      "resource": "sphere-email",
+      "values": {
+        "availability": 0.999,
+        "latency": 220,
+        "subscription": 19.95
+      }
+    },
+    {
+      "id": "email.sendgrid.pro",
+      "key": "sphere-email/email.sendgrid.pro",
+      "origins": {
+        "availability": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.sendgrid.pro/features/availability",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "key": "*",
+              "override": true
+            },
+            "kind": "manual",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6adf1a6240e55445692b6f14?version=6adf1a62daa2ba78b21d7119",
+              "plan": "PRO",
+              "pricingId": "6adf1a6240e55445692b6f14",
+              "registry": null,
+              "sphere": "danruilop1/twilio-sendgrid-email-api",
+              "versionId": "6adf1a62daa2ba78b21d7119",
+              "versionLabel": null
+            }
+          }
+        },
+        "latency": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.sendgrid.pro/features/latency",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "key": "sendgrid"
+            },
+            "kind": "manual",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6adf1a6240e55445692b6f14?version=6adf1a62daa2ba78b21d7119",
+              "plan": "PRO",
+              "pricingId": "6adf1a6240e55445692b6f14",
+              "registry": null,
+              "sphere": "danruilop1/twilio-sendgrid-email-api",
+              "versionId": "6adf1a62daa2ba78b21d7119",
+              "versionLabel": null
+            }
+          }
+        },
+        "subscription": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.sendgrid.pro/features/subscription",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "billing": "monthly",
+              "currency": "USD",
+              "formula": "PRO 89.95 x 1 (monthly)",
+              "multiplier": 1,
+              "parts": [
+                {
+                  "amount": 89.95,
+                  "expression": "#proPriceByTier[String(#proTier)]",
+                  "id": "PRO",
+                  "kind": "plan",
+                  "monthlyFactor": 1,
+                  "period": "month",
+                  "seats": 1,
+                  "unit": "account/month",
+                  "unitAmount": 89.95,
+                  "variables": {
+                    "proPriceByTier": {
+                      "100000": 89.95,
+                      "1500000": 799,
+                      "2500000": 1099,
+                      "300000": 249,
+                      "700000": 499
+                    },
+                    "proTier": 100000
+                  }
+                }
+              ],
+              "seats": 1
+            },
+            "kind": "priced",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6adf1a6240e55445692b6f14?version=6adf1a62daa2ba78b21d7119",
+              "plan": "PRO",
+              "pricingId": "6adf1a6240e55445692b6f14",
+              "registry": null,
+              "sphere": "danruilop1/twilio-sendgrid-email-api",
+              "versionId": "6adf1a62daa2ba78b21d7119",
+              "versionLabel": null
+            }
+          }
+        }
+      },
+      "properties": {
+        "emailsPerDay": 100000000,
+        "emailsPerMonth": 100000
+      },
+      "propertyOrigins": {
+        "emailsPerDay": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.sendgrid.pro/properties/emailsPerDay",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "assumed": true,
+              "limit": "emailsPerDay",
+              "reason": "not declared by the pricing",
+              "value": "unlimited"
+            },
+            "kind": "manual",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6adf1a6240e55445692b6f14?version=6adf1a62daa2ba78b21d7119",
+              "plan": "PRO",
+              "pricingId": "6adf1a6240e55445692b6f14",
+              "registry": null,
+              "sphere": "danruilop1/twilio-sendgrid-email-api",
+              "versionId": "6adf1a62daa2ba78b21d7119",
+              "versionLabel": null
+            }
+          }
+        },
+        "emailsPerMonth": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.sendgrid.pro/properties/emailsPerMonth",
+          "resource": "sphere-email",
+          "source": {
+            "carried": false,
+            "detail": {
+              "name": "emailsPerMonth",
+              "period": {
+                "unit": "MONTH",
+                "value": 1
+              },
+              "raw": 100000,
+              "unit": "email",
+              "unlimited": false
+            },
+            "kind": "limit",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6adf1a6240e55445692b6f14?version=6adf1a62daa2ba78b21d7119",
+              "plan": "PRO",
+              "pricingId": "6adf1a6240e55445692b6f14",
+              "registry": null,
+              "sphere": "danruilop1/twilio-sendgrid-email-api",
+              "versionId": "6adf1a62daa2ba78b21d7119",
+              "versionLabel": null
+            }
+          }
+        }
+      },
+      "provenance": {
+        "addons": [],
+        "permanentUrl": "https://sphere.score.us.es/p/6adf1a6240e55445692b6f14?version=6adf1a62daa2ba78b21d7119",
+        "plan": "PRO",
+        "pricingId": "6adf1a6240e55445692b6f14",
+        "registry": null,
+        "snapshot": null,
+        "sphere": "danruilop1/twilio-sendgrid-email-api",
+        "version": "6adf1a62daa2ba78b21d7119",
+        "versionLabel": null
+      },
+      "provider": "sendgrid",
+      "resource": "sphere-email",
+      "values": {
+        "availability": 0.999,
+        "latency": 220,
+        "subscription": 89.95
+      }
+    }
+  ],
+  "constraints": [],
+  "features": [
+    {
+      "direction": "max",
+      "id": "availability",
+      "required": true,
+      "unit": "1"
+    },
+    {
+      "direction": "min",
+      "id": "latency",
+      "required": true,
+      "unit": "ms"
+    },
+    {
+      "direction": "min",
+      "id": "subscription",
+      "required": true,
+      "unit": "USD/month"
+    }
+  ],
+  "ir_digest": "sha256-20bdde978f13423a4c72683c00184e410a59920286b876262fa82119a0fa3a3d",
+  "objectives": {
+    "criteria": [
+      {
+        "direction": "minimize",
+        "feature": {
+          "id": "subscription",
+          "resource": "application"
+        },
+        "id": "subscription",
+        "normalize": {
+          "clamp": true,
+          "max": 1000.0,
+          "min": 0.0
+        }
+      },
+      {
+        "direction": "maximize",
+        "feature": {
+          "id": "availability",
+          "resource": "application"
+        },
+        "id": "availability",
+        "normalize": {
+          "clamp": true,
+          "max": 1.0,
+          "min": 0.0
+        }
+      },
+      {
+        "direction": "minimize",
+        "feature": {
+          "id": "latency",
+          "resource": "application"
+        },
+        "id": "latency",
+        "normalize": {
+          "clamp": true,
+          "max": 2000.0,
+          "min": 0.0
+        }
+      }
+    ],
+    "penalties": []
+  },
+  "tasks": [
+    {
+      "eligible": [
+        {
+          "candidate": "catalog/auth.builtin.local",
+          "written": "auth.builtin.local"
+        }
+      ],
+      "id": "login",
+      "kind": "service"
+    },
+    {
+      "eligible": [
+        {
+          "candidate": "catalog/email.selfhosted.postfix",
+          "written": "email.selfhosted.postfix"
+        },
+        {
+          "candidate": "sphere-email/email.brevo.professional",
+          "written": "email.brevo.professional"
+        },
+        {
+          "candidate": "sphere-email/email.mailgun.foundation",
+          "written": "email.mailgun.foundation"
+        },
+        {
+          "candidate": "sphere-email/email.mailgun.scale",
+          "written": "email.mailgun.scale"
+        },
+        {
+          "candidate": "sphere-email/email.resend.pro",
+          "written": "email.resend.pro"
+        },
+        {
+          "candidate": "sphere-email/email.resend.scale",
+          "written": "email.resend.scale"
+        },
+        {
+          "candidate": "sphere-email/email.sendgrid.essentials",
+          "written": "email.sendgrid.essentials"
+        },
+        {
+          "candidate": "sphere-email/email.sendgrid.pro",
+          "written": "email.sendgrid.pro"
+        }
+      ],
+      "id": "dailySummary",
+      "kind": "service"
+    },
+    {
+      "eligible": [
+        {
+          "candidate": "catalog/storage.local.disk",
+          "written": "storage.local.disk"
+        }
+      ],
+      "id": "export",
+      "kind": "service"
+    },
+    {
+      "eligible": [
+        {
+          "candidate": "catalog/quotes.zenquotes.free",
+          "written": "quotes.zenquotes.free"
+        }
+      ],
+      "id": "quotes",
+      "kind": "service"
+    }
+  ],
+  "workflow": {
+    "seq": [
+      "login",
+      {
+        "and": [
+          "dailySummary",
+          "export"
+        ]
+      },
+      "quotes"
+    ]
+  }
+}

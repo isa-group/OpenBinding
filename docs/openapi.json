@@ -2395,6 +2395,106 @@
         ],
         "type": "object"
       },
+      "CandidateProvenance": {
+        "description": "The upstream plan a generated candidate was chosen from: what derive writes as a binding entry's `from`.",
+        "properties": {
+          "addons": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Addons",
+            "type": "array"
+          },
+          "permanentUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Permanenturl"
+          },
+          "plan": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plan"
+          },
+          "pricingId": {
+            "title": "Pricingid",
+            "type": "string"
+          },
+          "registry": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Registry"
+          },
+          "snapshot": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The pricing snapshot the values were read from.",
+            "title": "Snapshot"
+          },
+          "sphere": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`owner/slug` of the family in SPHERE.",
+            "title": "Sphere"
+          },
+          "version": {
+            "description": "The SPHERE version id.",
+            "title": "Version",
+            "type": "string"
+          },
+          "versionLabel": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Versionlabel"
+          }
+        },
+        "required": [
+          "sphere",
+          "version",
+          "versionLabel",
+          "plan",
+          "pricingId",
+          "snapshot",
+          "permanentUrl"
+        ],
+        "title": "CandidateProvenance",
+        "type": "object"
+      },
       "CasExchange": {
         "properties": {
           "code": {
@@ -8946,6 +9046,46 @@
             "title": "Origins",
             "type": "object"
           },
+          "properties": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "The candidate's scalar properties (what a task's requirement predicate reads), by name.",
+            "title": "Properties",
+            "type": "object"
+          },
+          "propertyOrigins": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ProblemValueOrigin"
+            },
+            "description": "By property.",
+            "title": "Propertyorigins",
+            "type": "object"
+          },
+          "provenance": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CandidateProvenance"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "For a candidate a SPHERE import generated: the upstream plan its values were read from."
+          },
           "provider": {
             "anyOf": [
               {
@@ -8987,7 +9127,10 @@
           "id",
           "provider",
           "values",
-          "origins"
+          "origins",
+          "properties",
+          "propertyOrigins",
+          "provenance"
         ],
         "title": "ProblemFactsCandidate",
         "type": "object"
@@ -9404,7 +9547,7 @@
         "type": "object"
       },
       "ProblemValueOrigin": {
-        "description": "Where the package writes a value: the resource, its file and the JSON Pointer within it.",
+        "description": "Where the package writes a value: the resource, its file and the JSON Pointer within it; and, for a value a\nSPHERE import wrote, where it came from.",
         "properties": {
           "kind": {
             "const": "package",
@@ -9422,6 +9565,16 @@
           "resource": {
             "title": "Resource",
             "type": "string"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ValueSource"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -12583,6 +12736,153 @@
           "irDigest",
           "diagnostics"
         ],
+        "type": "object"
+      },
+      "ValueSource": {
+        "description": "Where a value written by a SPHERE import came from.",
+        "properties": {
+          "carried": {
+            "description": "Whether an editor save kept this value (and so its source) from an earlier revision.",
+            "title": "Carried",
+            "type": "boolean"
+          },
+          "detail": {
+            "additionalProperties": true,
+            "description": "How the value was read: the price parts and formula, the guarantee's table or scale and `docUrl`, the limit's raw value and unit, the manual key.",
+            "title": "Detail",
+            "type": "object"
+          },
+          "kind": {
+            "description": "`priced` (the plan's price per month), `guarantee`, `limit` (a usage limit), `feature`, or `manual` (set by hand when importing, or a hand-made candidate's value).",
+            "enum": [
+              "priced",
+              "guarantee",
+              "limit",
+              "feature",
+              "manual"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "pricing": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ValueSourcePricing"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null for a value set by hand."
+          }
+        },
+        "required": [
+          "kind",
+          "pricing",
+          "detail",
+          "carried"
+        ],
+        "title": "ValueSource",
+        "type": "object"
+      },
+      "ValueSourcePricing": {
+        "description": "The upstream pricing a value was read from: names and immutable ids, never a digest.",
+        "properties": {
+          "addOns": {
+            "description": "The add-on taken with the plan, as the pricing names it (at most one in F3).",
+            "items": {
+              "type": "string"
+            },
+            "title": "Addons",
+            "type": "array"
+          },
+          "permanentUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "SPHERE's permanent link to that version.",
+            "title": "Permanenturl"
+          },
+          "plan": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The plan, as the pricing names it.",
+            "title": "Plan"
+          },
+          "pricingId": {
+            "title": "Pricingid",
+            "type": "string"
+          },
+          "registry": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The `SPHERE_REGISTRIES` alias, or null for the default SPHERE.",
+            "title": "Registry"
+          },
+          "sphere": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`owner/slug` of the family in SPHERE when the value was read.",
+            "title": "Sphere"
+          },
+          "versionId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Versionid"
+          },
+          "versionLabel": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The version's name in SPHERE, as read.",
+            "title": "Versionlabel"
+          }
+        },
+        "required": [
+          "sphere",
+          "registry",
+          "pricingId",
+          "versionId",
+          "versionLabel",
+          "plan",
+          "addOns",
+          "permanentUrl"
+        ],
+        "title": "ValueSourcePricing",
         "type": "object"
       },
       "ValueStatusPair": {
@@ -27428,7 +27728,7 @@
     },
     "/v1/organizations/{org}/problems/{problem}/revisions/{revision}/compilations/{compilation}/facts": {
       "get": {
-        "description": "The facts of one compilation, named by its id or its `compilation_digest`: its tasks and the candidates\neach may take (as a document writes them), every candidate's values with units and origins, the features,\nthe workflow in the Composition2Yaml shape, the constraints, the objectives and the binding-space size.\n\nThe same projection `POST /v1/bim/validate?include=facts` answers for a package that is not stored.",
+        "description": "The facts of one compilation, named by its id or its `compilation_digest`: its tasks and the candidates\neach may take (as a document writes them), every candidate's values with units and origins, the features,\nthe workflow in the Composition2Yaml shape, the constraints, the objectives and the binding-space size; every\ncandidate's scalar properties, and, for a revision a SPHERE import wrote, where each value came from (its\n`source`) and the upstream plan each generated candidate was chosen from (`provenance`).\n\nThe same projection `POST /v1/bim/validate?include=facts` answers for a package that is not stored.",
         "operationId": "getProblemCompilationFacts",
         "parameters": [
           {
@@ -27486,7 +27786,7 @@
                 }
               },
               "ETag": {
-                "description": "The compilation digest and `.facts`, quoted: the facts never change.",
+                "description": "The compilation digest, the digest of the revision's value origins (`package` without any) and `.facts`, quoted: the facts never change.",
                 "schema": {
                   "type": "string"
                 }

@@ -9,9 +9,23 @@
           "kind": "package",
           "path": "sphere-storage.json",
           "pointer": "/spec/candidates/storage.dropbox.advanced/features/subscription",
-          "resource": "sphere-storage"
+          "resource": "sphere-storage",
+          "source": null
         }
       },
+      "properties": {
+        "storage": 100000000
+      },
+      "propertyOrigins": {
+        "storage": {
+          "kind": "package",
+          "path": "sphere-storage.json",
+          "pointer": "/spec/candidates/storage.dropbox.advanced/properties/storage",
+          "resource": "sphere-storage",
+          "source": null
+        }
+      },
+      "provenance": null,
       "provider": "dropbox",
       "resource": "sphere-storage",
       "values": {
@@ -26,9 +40,23 @@
           "kind": "package",
           "path": "sphere-storage.json",
           "pointer": "/spec/candidates/storage.dropbox.family/features/subscription",
-          "resource": "sphere-storage"
+          "resource": "sphere-storage",
+          "source": null
         }
       },
+      "properties": {
+        "storage": 2000
+      },
+      "propertyOrigins": {
+        "storage": {
+          "kind": "package",
+          "path": "sphere-storage.json",
+          "pointer": "/spec/candidates/storage.dropbox.family/properties/storage",
+          "resource": "sphere-storage",
+          "source": null
+        }
+      },
+      "provenance": null,
       "provider": "dropbox",
       "resource": "sphere-storage",
       "values": {
@@ -43,9 +71,23 @@
           "kind": "package",
           "path": "sphere-storage.json",
           "pointer": "/spec/candidates/storage.dropbox.plus/features/subscription",
-          "resource": "sphere-storage"
+          "resource": "sphere-storage",
+          "source": null
         }
       },
+      "properties": {
+        "storage": 2000
+      },
+      "propertyOrigins": {
+        "storage": {
+          "kind": "package",
+          "path": "sphere-storage.json",
+          "pointer": "/spec/candidates/storage.dropbox.plus/properties/storage",
+          "resource": "sphere-storage",
+          "source": null
+        }
+      },
+      "provenance": null,
       "provider": "dropbox",
       "resource": "sphere-storage",
       "values": {
@@ -60,9 +102,23 @@
           "kind": "package",
           "path": "sphere-storage.json",
           "pointer": "/spec/candidates/storage.dropbox.professional/features/subscription",
-          "resource": "sphere-storage"
+          "resource": "sphere-storage",
+          "source": null
         }
       },
+      "properties": {
+        "storage": 3000
+      },
+      "propertyOrigins": {
+        "storage": {
+          "kind": "package",
+          "path": "sphere-storage.json",
+          "pointer": "/spec/candidates/storage.dropbox.professional/properties/storage",
+          "resource": "sphere-storage",
+          "source": null
+        }
+      },
+      "provenance": null,
       "provider": "dropbox",
       "resource": "sphere-storage",
       "values": {
@@ -77,9 +133,23 @@
           "kind": "package",
           "path": "sphere-storage.json",
           "pointer": "/spec/candidates/storage.dropbox.standard/features/subscription",
-          "resource": "sphere-storage"
+          "resource": "sphere-storage",
+          "source": null
         }
       },
+      "properties": {
+        "storage": 5000
+      },
+      "propertyOrigins": {
+        "storage": {
+          "kind": "package",
+          "path": "sphere-storage.json",
+          "pointer": "/spec/candidates/storage.dropbox.standard/properties/storage",
+          "resource": "sphere-storage",
+          "source": null
+        }
+      },
+      "provenance": null,
       "provider": "dropbox",
       "resource": "sphere-storage",
       "values": {

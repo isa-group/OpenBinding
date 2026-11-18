@@ -82,7 +82,7 @@ export const RESULT = { termination: 'FEASIBLE', logs: 'solve started\nsolve fin
 
 const candidate = (id: string, provider: string, latency: number, cost: number): ProblemFacts['candidates'][number] => {
   const origin = (feature: string) => ({ kind: 'package' as const, resource: 'catalog', path: 'candidates.json', pointer: `/spec/candidates/${id}/features/${feature}` });
-  return { key: `catalog/${id}`, resource: 'catalog', id, provider, values: { latency, cost }, origins: { latency: origin('latency'), cost: origin('cost') } };
+  return { key: `catalog/${id}`, resource: 'catalog', id, provider, values: { latency, cost }, origins: { latency: origin('latency'), cost: origin('cost') }, properties: {}, propertyOrigins: {}, provenance: null };
 };
 const eligible = (...ids: string[]) => ids.map((id) => ({ candidate: `catalog/${id}`, written: id }));
 

@@ -36,6 +36,7 @@ from ....services.entitlements import entitlement_service
 from ...shared.application import audit
 from ..application import problems
 from ..application.facts import compilation_facts
+from ..application.origins import value_sources
 from ..application.package import PackageRequest, read_package
 from ..domain.compilation import analysis_summary, resource_contracts
 from ..domain.origin import ProblemOrigin
@@ -500,7 +501,8 @@ async def get_problem_compilation_ir(
     summary="Read the facts of one compilation",
     responses={
         200: {"headers": {
-            "ETag": {"description": "The compilation digest and `.facts`, quoted: the facts never change.", "schema": {"type": "string"}},
+            "ETag": {"description": "The compilation digest, the digest of the revision's value origins (`package` "
+                     "without any) and `.facts`, quoted: the facts never change.", "schema": {"type": "string"}},
             "Cache-Control": {"description": "`private, immutable`.", "schema": {"type": "string"}},
         }},
         304: {"description": "The caller's copy (`If-None-Match`) is the facts."},
@@ -520,7 +522,9 @@ async def get_problem_compilation_facts(
 ) -> Any:
     """The facts of one compilation, named by its id or its `compilation_digest`: its tasks and the candidates
     each may take (as a document writes them), every candidate's values with units and origins, the features,
-    the workflow in the Composition2Yaml shape, the constraints, the objectives and the binding-space size.
+    the workflow in the Composition2Yaml shape, the constraints, the objectives and the binding-space size; every
+    candidate's scalar properties, and, for a revision a SPHERE import wrote, where each value came from (its
+    `source`) and the upstream plan each generated candidate was chosen from (`provenance`).
 
     The same projection `POST /v1/bim/validate?include=facts` answers for a package that is not stored.
     """
@@ -529,12 +533,15 @@ async def get_problem_compilation_facts(
     row = await problems.compilation_by_ref(session, found.id, compilation)
     if row is None:
         raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Compilation not found.")
-    tag = f'"{row.compilation_digest}.facts"'
+    # Two revisions with the same bytes (one generated, one uploaded) share a compilation digest, not their origins.
+    origins = await value_sources(session, found.id)
+    tag = f'"{row.compilation_digest}.{origins.digest or "package"}.facts"'
     headers = {"ETag": tag, "Cache-Control": "private, immutable"}
     if tag in {item.strip() for item in request.headers.get("if-none-match", "").split(",")}:
         return RawResponse(status_code=status.HTTP_304_NOT_MODIFIED, headers=headers)
     facts = compilation_facts(
         row.ir, row.source_map, analysis_summary(row.ir, row.analysis), ir_digest=row.ir_digest,
+        sources=origins.sources, provenance=origins.provenance,
     )
     response.headers.update(headers)
     return facts

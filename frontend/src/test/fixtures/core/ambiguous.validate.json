@@ -19,9 +19,13 @@
             "kind": "package",
             "path": "candidates.json",
             "pointer": "/spec/candidates/c1a/features/latency",
-            "resource": "catalog"
+            "resource": "catalog",
+            "source": null
           }
         },
+        "properties": {},
+        "propertyOrigins": {},
+        "provenance": null,
         "provider": null,
         "resource": "catalog",
         "values": {
@@ -36,9 +40,13 @@
             "kind": "package",
             "path": "candidates.json",
             "pointer": "/spec/candidates/c1b/features/latency",
-            "resource": "catalog"
+            "resource": "catalog",
+            "source": null
           }
         },
+        "properties": {},
+        "propertyOrigins": {},
+        "provenance": null,
         "provider": null,
         "resource": "catalog",
         "values": {
@@ -53,9 +61,13 @@
             "kind": "package",
             "path": "candidates.json",
             "pointer": "/spec/candidates/c2a/features/latency",
-            "resource": "catalog"
+            "resource": "catalog",
+            "source": null
           }
         },
+        "properties": {},
+        "propertyOrigins": {},
+        "provenance": null,
         "provider": null,
         "resource": "catalog",
         "values": {
@@ -70,9 +82,13 @@
             "kind": "package",
             "path": "candidates.json",
             "pointer": "/spec/candidates/c3a/features/latency",
-            "resource": "catalog"
+            "resource": "catalog",
+            "source": null
           }
         },
+        "properties": {},
+        "propertyOrigins": {},
+        "provenance": null,
         "provider": null,
         "resource": "catalog",
         "values": {
@@ -87,9 +103,13 @@
             "kind": "package",
             "path": "other.json",
             "pointer": "/spec/candidates/c1a/features/latency",
-            "resource": "other"
+            "resource": "other",
+            "source": null
           }
         },
+        "properties": {},
+        "propertyOrigins": {},
+        "provenance": null,
         "provider": null,
         "resource": "other",
         "values": {

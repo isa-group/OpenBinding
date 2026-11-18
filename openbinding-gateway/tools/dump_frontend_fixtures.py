@@ -12,7 +12,9 @@ response **bodies** (never headers) of the routes the frontend reads:
   composition ``<name>`` derived from the first binding of the problem without a hard violation;
 * ``<name>.diff.json``: ``diffCompositionVersions`` from that 1.0.0 to a 1.1.0 derived from the
   same binding with one task bound to another candidate;
-* ``plans-pricing.json``: ``getPlansPricing``, OpenBinding's published pricing 0.2.0 as the recorded SPHERE serves it.
+* ``plans-pricing.json``: ``getPlansPricing``, OpenBinding's published pricing 0.2.0 as the recorded SPHERE serves it;
+* ``tomatometer-email.facts.json``: the facts of the SPHERE-generated ``tomatometer-email`` golden
+  (``tools/dump_sphere_goldens.py``), stored with its value origins: value sources, properties, provenance.
 
 The packages are ``simple-seq`` (``examples/demo/01_simple_seq``), ``fms`` (``13_fms``: an
 exclusive choice and a local task), ``json-complete`` (``16_json_complete``: a parallel block
@@ -263,6 +265,7 @@ async def _bodies(work: Path) -> tuple[dict[str, Any], dict[str, Any]]:
                     version, diff = await _versions(client, headers, name, bodies[f"{name}.facts.json"])
                     bodies[f"{name}.version.json"] = version
                     bodies[f"{name}.diff.json"] = diff
+                bodies["tomatometer-email.facts.json"] = await _generated_facts(session, client, headers)
                 refused = refused_files()
                 answer = await client.post(
                     "/v1/bim/validate", params={"include": "facts"}, content=packages.zip_files(refused), headers=ZIP,
@@ -278,6 +281,29 @@ async def _bodies(work: Path) -> tuple[dict[str, Any], dict[str, Any]]:
         set_auth_limiter(None)
         await engine.dispose()
     return bodies, sphere
+
+
+async def _generated_facts(session, client, headers: dict[str, str]) -> Any:
+    """The facts of the SPHERE-generated ``tomatometer-email`` golden, stored with its value origins."""
+    from sqlalchemy import select
+
+    from dump_sphere_goldens import Runner
+    from openbinding_gateway.db.models import Organization, User
+    from openbinding_gateway.modules.problems.application import create_problem
+
+    generated = Runner().generated("tomatometer-email")
+    organization = await session.scalar(select(Organization).where(Organization.slug == "fixtures"))
+    user = await session.scalar(select(User).where(User.username == "fixtures"))
+    made = await create_problem(
+        session, organization, generated.archive(), user, slug="tomatometer-email",
+        provenance={"producer": "openbinding-sphere-import"}, value_origins=generated.origins,
+    )
+    facts = await client.get(
+        f"/v1/organizations/fixtures/problems/tomatometer-email/revisions/{made.revision.id}"
+        f"/compilations/{made.compilation.id}/facts",
+        headers=headers,
+    )
+    return _ok(facts, 200).json()
 
 
 async def _versions(client, headers: dict[str, str], name: str, facts: dict[str, Any]) -> tuple[Any, Any]:
