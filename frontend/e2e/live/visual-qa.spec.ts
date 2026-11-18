@@ -277,6 +277,14 @@ async function inspect(
   return { problems, overflowPx };
 }
 
+/**
+ * The palette to look at (`VISUAL_BRAND=sphere|openbinding`): kept in the browser as a person's own choice would be
+ * (core/theme/brand.ts), and the screenshots go to `screenshots-<brand>/`. Unset, the deployment's default and `screenshots/`.
+ */
+const BRAND = process.env.VISUAL_BRAND?.trim() || null;
+const BRAND_KEY = 'openbinding:brand';
+const SCREENSHOTS = `${RESULTS_DIR}/screenshots${BRAND ? `-${BRAND}` : ''}`;
+
 /** Opens each screen, checks it, saves its picture and logs one line. */
 async function walk(
   page: Page,
@@ -288,7 +296,9 @@ async function walk(
   const mobile = viewport === 'mobile';
   const seen = watch(page);
   const rows: Row[] = [];
-  await mkdir(`${RESULTS_DIR}/screenshots`, { recursive: true }).catch(() => undefined);
+  if (BRAND)
+    await page.addInitScript(([key, value]) => window.localStorage.setItem(key, value), [BRAND_KEY, BRAND]);
+  await mkdir(SCREENSHOTS, { recursive: true }).catch(() => undefined);
 
   for (const stop of stops) {
     const label = `${viewport} ${stop.slug}`;
@@ -308,7 +318,7 @@ async function walk(
     await prepareCapture(page);
     await page
       .screenshot({
-        path: `${RESULTS_DIR}/screenshots/${viewport}-${stop.slug}.png`,
+        path: `${SCREENSHOTS}/${viewport}-${stop.slug}.png`,
         fullPage: true,
         animations: 'disabled',
       })
@@ -626,8 +636,15 @@ function compositionStops(mobile: boolean): Stop[] {
   ];
 }
 
-/** What anybody reads with no account: the public compositions, lab-other's public page and the language. */
+/** What anybody reads with no account: the public compositions, lab-other's public page, the language and the pricing. */
 const VISITOR_STOPS: Stop[] = [
+  {
+    // OpenBinding's published pricing (GET /v1/plans/pricing), drawn by pricing-renderer, or the notice that it cannot be read.
+    slug: 'pricing',
+    path: '/pricing',
+    ready: page =>
+      page.getByRole('heading', { level: 1, name: 'Plans for every kind of binding work' }),
+  },
   {
     slug: 'public-compositions',
     path: '/compositions',
@@ -767,6 +784,20 @@ test.describe('live · visual QA', () => {
     const mobile = testInfo.project.name === 'mobile';
     const stops = [...OWNER_STOPS, ...compositionStops(mobile), ...problemStops(mobile)];
     const skipped: Array<{ slug: string; why: string }> = [];
+    // An engine card, whose plan ceilings come from the published pricing's document.
+    const engines = await page.request.get(`${API}/v1/engines`);
+    const engine = engines.ok()
+      ? (
+          (await engines.json()) as { engines: Array<{ namespace: string; name: string; version: string }> }
+        ).engines.find(item => item.name === 'random-search')
+      : undefined;
+    if (engine)
+      stops.push({
+        slug: 'engine-card',
+        path: `/engines/${encodeURIComponent(engine.namespace)}/${encodeURIComponent(engine.name)}/${encodeURIComponent(engine.version)}`,
+        ready: target => target.locator('main').getByRole('heading', { level: 1 }),
+      });
+    else skipped.push({ slug: 'engine-card', why: `GET /v1/engines answered ${engines.status()} without random-search` });
     const front = await studyFrontStop(page, token);
     if ('why' in front) {
       skipped.push({ slug: 'study-front', why: front.why });
