@@ -29,7 +29,7 @@ import httpx  # noqa: E402
 
 from openbinding_gateway.core import outbound  # noqa: E402
 from openbinding_gateway.core.outbound import OutboundError, OutboundPolicy  # noqa: E402
-from openbinding_gateway.core.settings import DEFAULT_SPHERE_URL, get_settings  # noqa: E402
+from openbinding_gateway.core.settings import DEFAULT_SPHERE_URL, Settings  # noqa: E402
 from openbinding_gateway.modules.plans.adapters.sphere import SphereHttpSource  # noqa: E402
 from openbinding_gateway.modules.plans.application import (  # noqa: E402
     DEFAULT_ENDPOINT,
@@ -51,7 +51,8 @@ class Check:
 
 
 async def run(url: str, families: list[str], transport: httpx.AsyncBaseTransport | None = None) -> list[Check]:
-    settings = get_settings().model_copy(update={"sphere_enabled": True, "sphere_url": url.rstrip("/")})
+    # Only the SPHERE settings matter here, at their defaults: no deployment environment is needed.
+    settings = Settings.model_construct(sphere_enabled=True, sphere_url=url.rstrip("/"))
     checks: list[Check] = []
     for family in families:
         source = SphereHttpSource(settings, transport=transport)
