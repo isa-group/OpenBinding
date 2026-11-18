@@ -31,6 +31,7 @@ from openbinding_gateway.db.models import (
     Organization,
     OrganizationInvitationCode,
     OrganizationMembership,
+    PricingSnapshot,
     ProblemCompilation,
     RunPreset,
     Study,
@@ -38,6 +39,7 @@ from openbinding_gateway.db.models import (
     User,
     utcnow,
 )
+from openbinding_gateway.modules.plans.application import DEFAULT_ENDPOINT, Credential, snapshot_url, snapshot_version
 from openbinding_gateway.routes.organizations import delete_organization
 
 pytestmark = pytest.mark.asyncio
@@ -261,3 +263,29 @@ async def test_a_run_the_check_misses_is_caught_by_the_foreign_key_with_the_same
 
     assert refused.value.status_code == 409
     assert refused.value.detail["code"] == "historical_references"
+
+
+async def test_an_organization_that_read_a_private_pricing_and_a_url_is_deleted(two_sessions, sphere):
+    """Its own snapshots go with it (no false historical_references); the public one stays for everyone."""
+    session, reader = two_sessions
+    user = await _user(session)
+    upload = await problem_for(session, user)
+    organization = await session.get(Organization, upload.problem.organization_id)
+    mailgun, version, private = "6ade364540e55445692b0eda", "6ade36454b2b5b01c587db3d", "6b0000000000000000000003"
+    key = "sk-" + "c" * 64
+    sphere.private(mailgun, private, b"saasName: Private\n", credential=key)
+    sphere.add_host("pricings.example", "93.184.216.34")
+    sphere.serve("/offering.yml", b"saasName: A\n", {"content-type": "application/yaml"})
+    await session.commit()
+    public = (await snapshot_version(session, organization.id, DEFAULT_ENDPOINT, mailgun, version)).snapshot.id
+    await snapshot_version(session, organization.id, DEFAULT_ENDPOINT, mailgun, private, Credential(str(organization.id), key))
+    await snapshot_url(session, organization.id, "https://pricings.example/offering.yml", actor_id=user.id)
+    ids, slug = [organization.id], organization.slug
+    assert await _count(reader, PricingSnapshot, PricingSnapshot.organization_id.in_(ids)) == 2
+
+    await delete_organization(org=slug, user=user, session=session)
+    await session.commit()
+
+    assert await _count(reader, Organization, Organization.id.in_(ids)) == 0
+    assert await _count(reader, PricingSnapshot, PricingSnapshot.organization_id.in_(ids)) == 0
+    assert await reader.get(PricingSnapshot, public) is not None

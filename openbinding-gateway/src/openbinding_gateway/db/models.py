@@ -450,6 +450,7 @@ class JobEngineAttempt(Base):
 from .platform_models import (  # noqa: E402,F401
     ApiErrorEvent,
     Blob,
+    PricingSnapshot,
     AuthIdentity,
     AuditEvent,
     BindingCase,

@@ -32,7 +32,9 @@ from dataclasses import dataclass, field
 
 from sqlalchemy import DDL, MetaData, event
 
-__all__ = ["TRIGGERS", "Trigger", "function_names", "immutable", "protect", "register_triggers", "render", "retain"]
+__all__ = [
+    "TRIGGERS", "Trigger", "function_names", "immutable", "protect", "register_triggers", "render", "retain", "retain_when",
+]
 
 
 @dataclass(frozen=True)
@@ -112,6 +114,11 @@ def retain(table: str, *, message: str | None = None) -> Trigger:
     return _trigger(f"retain_{table}", table, "DELETE", message or f"{table} history is retained")
 
 
+def retain_when(table: str, when: tuple[str, str], columns: tuple[str, ...], *, name: str, message: str) -> Trigger:
+    """A DELETE of ``table`` is rejected when ``when`` (``(sqlite, postgresql)``, over ``OLD``) holds."""
+    return _trigger(name, table, "DELETE", message, when[0], when[1], columns)
+
+
 TRIGGERS: tuple[Trigger, ...] = (
     *immutable("binding_case_revisions", delete=False),
     *immutable("problem_compilations", delete=False),
@@ -126,6 +133,17 @@ TRIGGERS: tuple[Trigger, ...] = (
              "seed", "fingerprint"),
             json_columns=("engine_ref", "parameters")),
     retain("study_cells"),
+    # Pricing snapshots are insert-only; public and registry rows are shared by every organization and are
+    # never deleted, an organization's own rows go with it (routes/organizations._delete_subtree).
+    *immutable("pricing_snapshots", delete=False, message="pricing snapshots are immutable"),
+    retain_when(
+        "pricing_snapshots",
+        ("OLD.scope_key = 'public' OR substr(OLD.scope_key, 1, 9) = 'registry:'",
+         "OLD.scope_key = 'public' OR substr(OLD.scope_key, 1, 9) = 'registry:'"),
+        ("scope_key",),
+        name="retain_pricing_snapshots_shared",
+        message="shared pricing snapshots are retained",
+    ),
 )
 
 _REGISTERED = "openbinding_triggers_registered"

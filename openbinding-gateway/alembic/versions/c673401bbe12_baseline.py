@@ -12,7 +12,7 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision: str = '3276929bc950'
+revision: str = 'c673401bbe12'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -28,6 +28,8 @@ SQLITE_TRIGGERS = (
     "CREATE TRIGGER retain_study_runs BEFORE DELETE ON study_runs BEGIN SELECT RAISE(ABORT, 'study_runs history is retained'); END",
     "CREATE TRIGGER protect_study_cells BEFORE UPDATE ON study_cells WHEN OLD.study_run_id IS NOT NEW.study_run_id OR OLD.ordinal IS NOT NEW.ordinal OR OLD.binding_case_revision_id IS NOT NEW.binding_case_revision_id OR OLD.compilation_id IS NOT NEW.compilation_id OR OLD.engine_ref IS NOT NEW.engine_ref OR OLD.parameters IS NOT NEW.parameters OR OLD.seed IS NOT NEW.seed OR OLD.fingerprint IS NOT NEW.fingerprint BEGIN SELECT RAISE(ABORT, 'the protected columns of study_cells are immutable'); END",
     "CREATE TRIGGER retain_study_cells BEFORE DELETE ON study_cells BEGIN SELECT RAISE(ABORT, 'study_cells history is retained'); END",
+    "CREATE TRIGGER immutable_pricing_snapshots_update BEFORE UPDATE ON pricing_snapshots BEGIN SELECT RAISE(ABORT, 'pricing snapshots are immutable'); END",
+    "CREATE TRIGGER retain_pricing_snapshots_shared BEFORE DELETE ON pricing_snapshots WHEN OLD.scope_key = 'public' OR substr(OLD.scope_key, 1, 9) = 'registry:' BEGIN SELECT RAISE(ABORT, 'shared pricing snapshots are retained'); END",
 )
 POSTGRESQL_TRIGGERS = (
     "CREATE OR REPLACE FUNCTION immutable_binding_case_revisions_update() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'binding_case_revisions rows are sealed and immutable'; END $$",
@@ -48,6 +50,10 @@ POSTGRESQL_TRIGGERS = (
     'CREATE TRIGGER protect_study_cells BEFORE UPDATE ON study_cells FOR EACH ROW EXECUTE FUNCTION protect_study_cells()',
     "CREATE OR REPLACE FUNCTION retain_study_cells() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'study_cells history is retained'; END $$",
     'CREATE TRIGGER retain_study_cells BEFORE DELETE ON study_cells FOR EACH ROW EXECUTE FUNCTION retain_study_cells()',
+    "CREATE OR REPLACE FUNCTION immutable_pricing_snapshots_update() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'pricing snapshots are immutable'; END $$",
+    'CREATE TRIGGER immutable_pricing_snapshots_update BEFORE UPDATE ON pricing_snapshots FOR EACH ROW EXECUTE FUNCTION immutable_pricing_snapshots_update()',
+    "CREATE OR REPLACE FUNCTION retain_pricing_snapshots_shared() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF OLD.scope_key = 'public' OR substr(OLD.scope_key, 1, 9) = 'registry:' THEN RAISE EXCEPTION 'shared pricing snapshots are retained'; END IF; RETURN OLD; END $$",
+    'CREATE TRIGGER retain_pricing_snapshots_shared BEFORE DELETE ON pricing_snapshots FOR EACH ROW EXECUTE FUNCTION retain_pricing_snapshots_shared()',
 )
 POSTGRESQL_TRIGGER_FUNCTIONS = (
     'immutable_binding_case_revisions_update',
@@ -59,6 +65,8 @@ POSTGRESQL_TRIGGER_FUNCTIONS = (
     'retain_study_runs',
     'protect_study_cells',
     'retain_study_cells',
+    'immutable_pricing_snapshots_update',
+    'retain_pricing_snapshots_shared',
 )
 
 
@@ -364,6 +372,47 @@ def upgrade() -> None:
     )
     op.create_index(op.f('ix_organization_memberships_organization_id'), 'organization_memberships', ['organization_id'], unique=False)
     op.create_index(op.f('ix_organization_memberships_user_id'), 'organization_memberships', ['user_id'], unique=False)
+    op.create_table('pricing_snapshots',
+    sa.Column('id', sa.Uuid(), nullable=False),
+    sa.Column('source_key', sa.String(length=160), nullable=False),
+    sa.Column('scope_key', sa.String(length=48), nullable=False),
+    sa.Column('organization_id', sa.Uuid(), nullable=True),
+    sa.Column('sha256', sa.String(length=64), nullable=False),
+    sa.Column('size_bytes', sa.Integer(), nullable=False),
+    sa.Column('content_hash', sa.String(length=64), nullable=False),
+    sa.Column('content_hash_verified', sa.Boolean(), nullable=False),
+    sa.Column('source_kind', sa.String(length=16), nullable=False),
+    sa.Column('registry', sa.String(length=40), nullable=True),
+    sa.Column('pricing_id', sa.String(length=24), nullable=True),
+    sa.Column('version_id', sa.String(length=24), nullable=True),
+    sa.Column('version_label', sa.String(length=120), nullable=True),
+    sa.Column('version_created_at', sa.String(length=40), nullable=True),
+    sa.Column('sphere_organization_id', sa.String(length=24), nullable=True),
+    sa.Column('owner', sa.String(length=120), nullable=True),
+    sa.Column('slug', sa.String(length=160), nullable=True),
+    sa.Column('title', sa.String(length=240), nullable=False),
+    sa.Column('collection_slug', sa.String(length=160), nullable=True),
+    sa.Column('url', sa.Text(), nullable=True),
+    sa.Column('etag', sa.String(length=200), nullable=True),
+    sa.Column('last_modified', sa.String(length=80), nullable=True),
+    sa.Column('syntax_version', sa.String(length=16), nullable=True),
+    sa.Column('currency', sa.String(length=8), nullable=True),
+    sa.Column('valid', sa.Boolean(), nullable=False),
+    sa.Column('renamed_from_id', sa.Uuid(), nullable=True),
+    sa.Column('fetched_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.Column('fetched_by_id', sa.Uuid(), nullable=True),
+    sa.CheckConstraint("(organization_id IS NULL) = (scope_key = 'public' OR substr(scope_key, 1, 9) = 'registry:')", name=op.f('ck_pricing_snapshots_ck_pricing_snapshot_scope_organization')),
+    sa.CheckConstraint("source_kind IN ('sphere', 'registry', 'url')", name=op.f('ck_pricing_snapshots_ck_pricing_snapshot_source_kind')),
+    sa.ForeignKeyConstraint(['organization_id'], ['organizations.id'], name=op.f('fk_pricing_snapshots_organization_id_organizations'), ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['renamed_from_id'], ['pricing_snapshots.id'], name=op.f('fk_pricing_snapshots_renamed_from_id_pricing_snapshots')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_pricing_snapshots')),
+    sa.UniqueConstraint('source_key', 'scope_key', 'sha256', name='uq_pricing_snapshot_source_scope_sha256')
+    )
+    op.create_index(op.f('ix_pricing_snapshots_fetched_by_id'), 'pricing_snapshots', ['fetched_by_id'], unique=False)
+    op.create_index(op.f('ix_pricing_snapshots_organization_id'), 'pricing_snapshots', ['organization_id'], unique=False)
+    op.create_index(op.f('ix_pricing_snapshots_pricing_id'), 'pricing_snapshots', ['pricing_id'], unique=False)
+    op.create_index('ix_pricing_snapshots_source_scope', 'pricing_snapshots', ['source_key', 'scope_key', 'fetched_at'], unique=False)
+    op.create_index(op.f('ix_pricing_snapshots_version_id'), 'pricing_snapshots', ['version_id'], unique=False)
     op.create_table('run_presets',
     sa.Column('id', sa.Uuid(), nullable=False),
     sa.Column('organization_id', sa.Uuid(), nullable=False),
@@ -763,6 +812,12 @@ def downgrade() -> None:
     op.drop_table('studies')
     op.drop_index(op.f('ix_run_presets_organization_id'), table_name='run_presets')
     op.drop_table('run_presets')
+    op.drop_index(op.f('ix_pricing_snapshots_version_id'), table_name='pricing_snapshots')
+    op.drop_index('ix_pricing_snapshots_source_scope', table_name='pricing_snapshots')
+    op.drop_index(op.f('ix_pricing_snapshots_pricing_id'), table_name='pricing_snapshots')
+    op.drop_index(op.f('ix_pricing_snapshots_organization_id'), table_name='pricing_snapshots')
+    op.drop_index(op.f('ix_pricing_snapshots_fetched_by_id'), table_name='pricing_snapshots')
+    op.drop_table('pricing_snapshots')
     op.drop_index(op.f('ix_organization_memberships_user_id'), table_name='organization_memberships')
     op.drop_index(op.f('ix_organization_memberships_organization_id'), table_name='organization_memberships')
     op.drop_table('organization_memberships')

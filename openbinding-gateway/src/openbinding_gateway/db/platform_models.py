@@ -723,6 +723,63 @@ class Blob(Base):
     )
 
 
+class PricingSnapshot(Base):
+    """An immutable copy of one upstream pricing version as read: SPHERE, a registry or a URL (F3).
+
+    The bytes live in the global content-addressed store (``modules/shared/blobs``); this row says where they
+    came from, for whom (``scope_key``: ``public``, ``registry:<alias>`` or an organization id) and what they
+    were judged to be. Insert-only: UPDATE is always refused and DELETE is refused for public and registry
+    rows; an organization's own rows go only with the organization (``routes/organizations._delete_subtree``).
+    """
+
+    __tablename__ = "pricing_snapshots"
+    __table_args__ = (
+        UniqueConstraint("source_key", "scope_key", "sha256", name="uq_pricing_snapshot_source_scope_sha256"),
+        CheckConstraint("source_kind IN ('sphere', 'registry', 'url')", name="ck_pricing_snapshot_source_kind"),
+        CheckConstraint(
+            "(organization_id IS NULL) = (scope_key = 'public' OR substr(scope_key, 1, 9) = 'registry:')",
+            name="ck_pricing_snapshot_scope_organization",
+        ),
+        Index("ix_pricing_snapshots_source_scope", "source_key", "scope_key", "fetched_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    source_key: Mapped[str] = mapped_column(String(160), nullable=False)
+    scope_key: Mapped[str] = mapped_column(String(48), nullable=False)
+    organization_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("organizations.id", ondelete="RESTRICT"), nullable=True, index=True
+    )
+    sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    content_hash_verified: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    source_kind: Mapped[str] = mapped_column(String(16), nullable=False)
+    registry: Mapped[Optional[str]] = mapped_column(String(40), nullable=True)
+    pricing_id: Mapped[Optional[str]] = mapped_column(String(24), nullable=True, index=True)
+    version_id: Mapped[Optional[str]] = mapped_column(String(24), nullable=True, index=True)
+    version_label: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    version_created_at: Mapped[Optional[str]] = mapped_column(String(40), nullable=True)
+    sphere_organization_id: Mapped[Optional[str]] = mapped_column(String(24), nullable=True)
+    owner: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    slug: Mapped[Optional[str]] = mapped_column(String(160), nullable=True)
+    title: Mapped[str] = mapped_column(String(240), nullable=False)
+    collection_slug: Mapped[Optional[str]] = mapped_column(String(160), nullable=True)
+    url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    etag: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    last_modified: Mapped[Optional[str]] = mapped_column(String(80), nullable=True)
+    syntax_version: Mapped[Optional[str]] = mapped_column(String(16), nullable=True)
+    currency: Mapped[Optional[str]] = mapped_column(String(8), nullable=True)
+    valid: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    renamed_from_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("pricing_snapshots.id"), nullable=True
+    )
+    fetched_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
+    )
+    #: Who read it (NULL for a system read); not a foreign key, so that it never blocks deleting an account.
+    fetched_by_id: Mapped[Optional[uuid.UUID]] = mapped_column(Uuid, nullable=True, index=True)
+
+
 class Notification(Base):
     __tablename__ = "notifications"
 
