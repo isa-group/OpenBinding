@@ -13794,6 +13794,379 @@
         "title": "UpdateUserRequest",
         "type": "object"
       },
+      "UpstreamEntry": {
+        "properties": {
+          "candidate": {
+            "title": "Candidate",
+            "type": "string"
+          },
+          "from": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The entry's `from`, as the document writes it.",
+            "title": "From"
+          },
+          "plan": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UpstreamPlan"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The plan in the snapshot, when the entry names one it has."
+          },
+          "snapshot": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UpstreamSnapshot"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "enum": [
+              "snapshotted",
+              "not_snapshotted",
+              "registry_unknown"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "task": {
+            "title": "Task",
+            "type": "string"
+          }
+        },
+        "required": [
+          "task",
+          "candidate",
+          "from",
+          "status",
+          "snapshot",
+          "plan"
+        ],
+        "title": "UpstreamEntry",
+        "type": "object"
+      },
+      "UpstreamOffering": {
+        "properties": {
+          "createdAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Createdat"
+          },
+          "snapshot": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UpstreamSnapshot"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "source": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "The offering's source as the version keeps it: `{sphere, registry?}` or `{url}`.",
+            "title": "Source",
+            "type": "object"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "enum": [
+                  "read",
+                  "unreadable",
+                  "invalid_pricing",
+                  "registry_unknown"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "versionName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Versionname"
+          }
+        },
+        "required": [
+          "source",
+          "status",
+          "versionName",
+          "createdAt",
+          "snapshot"
+        ],
+        "title": "UpstreamOffering",
+        "type": "object"
+      },
+      "UpstreamPlan": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "price": {
+            "additionalProperties": true,
+            "description": "`{kind: fixed, amount}`, `{kind: expression, source, value}` or `{kind: label, text}`.",
+            "title": "Price",
+            "type": "object"
+          },
+          "private": {
+            "title": "Private",
+            "type": "boolean"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          }
+        },
+        "required": [
+          "name",
+          "price",
+          "unit",
+          "private"
+        ],
+        "title": "UpstreamPlan",
+        "type": "object"
+      },
+      "UpstreamSnapshot": {
+        "description": "A stored pricing snapshot, by names and dates: the renderer reads its YAML at `…/pricing-snapshots/{id}/yaml`.",
+        "properties": {
+          "createdAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Createdat"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "owner": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner"
+          },
+          "permanentUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "SPHERE's permanent link to that version.",
+            "title": "Permanenturl"
+          },
+          "pricingId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pricingid"
+          },
+          "registry": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Registry"
+          },
+          "slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slug"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          },
+          "versionId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Versionid"
+          },
+          "versionName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Versionname"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "owner",
+          "slug",
+          "pricingId",
+          "versionId",
+          "versionName",
+          "createdAt",
+          "registry",
+          "url",
+          "permanentUrl"
+        ],
+        "title": "UpstreamSnapshot",
+        "type": "object"
+      },
+      "UpstreamValue": {
+        "properties": {
+          "manualOnly": {
+            "description": "No bound candidate's value of it was read from a pricing.",
+            "title": "Manualonly",
+            "type": "boolean"
+          },
+          "sources": {
+            "description": "The kinds of source the bound candidates' values of this global value have.",
+            "items": {
+              "enum": [
+                "priced",
+                "guarantee",
+                "limit",
+                "feature",
+                "manual"
+              ],
+              "type": "string"
+            },
+            "title": "Sources",
+            "type": "array"
+          }
+        },
+        "required": [
+          "sources",
+          "manualOnly"
+        ],
+        "title": "UpstreamValue",
+        "type": "object"
+      },
+      "UpstreamView": {
+        "description": "A version's upstream plans, the sources of its global values and its offering: stored data only.",
+        "properties": {
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/UpstreamEntry"
+            },
+            "title": "Entries",
+            "type": "array"
+          },
+          "offering": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UpstreamOffering"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The offering version the current evaluation read."
+          },
+          "values": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/UpstreamValue"
+            },
+            "title": "Values",
+            "type": "object"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "entries",
+          "values",
+          "offering"
+        ],
+        "title": "UpstreamView",
+        "type": "object"
+      },
       "UsageView": {
         "description": "What an account is on and what its plan allows.\n\nThe plan, the features it includes and its functional limits (``null`` means\nunlimited). It carries no consumption: nothing is counted per account.",
         "properties": {
@@ -24377,6 +24750,148 @@
           }
         ],
         "summary": "Evaluate the one-task alternatives of a version's binding",
+        "tags": [
+          "Compositions"
+        ],
+        "x-required-api-key-permissions": [
+          "compositions:read"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/compositions/{composition}/upstream": {
+      "get": {
+        "description": "Per binding entry, the upstream plan it was chosen from (pricing, version name, plan, permanent link and the\nsnapshot to draw it from); per global value, the kinds of source its bound candidates' values have; and the\noffering version the current evaluation read. Stored data only: SPHERE is never called. A visitor of a public\ncomposition sees public snapshots only.",
+        "operationId": "getCompositionUpstream",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "composition",
+            "required": true,
+            "schema": {
+              "title": "Composition",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Id, label or ordinal; the latest by default.",
+            "in": "query",
+            "name": "version",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Id, label or ordinal; the latest by default.",
+              "title": "Version"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpstreamView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization or composition, or the caller cannot read it."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many `read` requests from this address by a caller with no credential: past the anonymous budget. A signed-in caller is not charged. `Retry-After` says when the window ends. Or: Every Composition2Yaml slot of this process is taken (`composition_busy`).",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          },
+          {}
+        ],
+        "summary": "List a version's upstream pricings with their snapshots",
         "tags": [
           "Compositions"
         ],

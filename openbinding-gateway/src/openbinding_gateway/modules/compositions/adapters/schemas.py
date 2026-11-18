@@ -840,3 +840,64 @@ class PermanentLink(BaseModel):
         description="The application path of the composition (`/compositions/{org}/{composition}`), with "
         "`?version=` when the link names a version the caller reads.",
     )
+
+
+# -- Upstream pricings (``getCompositionUpstream``) --------------------------------------------------------------------
+
+
+class UpstreamSnapshot(BaseModel):
+    """A stored pricing snapshot, by names and dates: the renderer reads its YAML at `…/pricing-snapshots/{id}/yaml`."""
+
+    id: uuid.UUID
+    title: str
+    owner: Optional[str]
+    slug: Optional[str]
+    pricingId: Optional[str]
+    versionId: Optional[str]
+    versionName: Optional[str]
+    createdAt: Optional[str]
+    registry: Optional[str]
+    url: Optional[str]
+    permanentUrl: Optional[str] = Field(description="SPHERE's permanent link to that version.")
+
+
+class UpstreamPlan(BaseModel):
+    name: str
+    price: dict[str, Any] = Field(description="`{kind: fixed, amount}`, `{kind: expression, source, value}` or `{kind: label, text}`.")
+    unit: Optional[str]
+    private: bool
+
+
+class UpstreamEntry(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    task: str
+    candidate: str
+    from_: Optional[dict[str, Any]] = Field(alias="from", description="The entry's `from`, as the document writes it.")
+    status: Literal["snapshotted", "not_snapshotted", "registry_unknown"]
+    snapshot: Optional[UpstreamSnapshot]
+    plan: Optional[UpstreamPlan] = Field(description="The plan in the snapshot, when the entry names one it has.")
+
+
+class UpstreamValue(BaseModel):
+    sources: list[Literal["priced", "guarantee", "limit", "feature", "manual"]] = Field(
+        description="The kinds of source the bound candidates' values of this global value have.",
+    )
+    manualOnly: bool = Field(description="No bound candidate's value of it was read from a pricing.")
+
+
+class UpstreamOffering(BaseModel):
+    source: dict[str, str] = Field(description="The offering's source as the version keeps it: `{sphere, registry?}` or `{url}`.")
+    status: Optional[Literal["read", "unreadable", "invalid_pricing", "registry_unknown"]]
+    versionName: Optional[str]
+    createdAt: Optional[str]
+    snapshot: Optional[UpstreamSnapshot]
+
+
+class UpstreamView(BaseModel):
+    """A version's upstream plans, the sources of its global values and its offering: stored data only."""
+
+    version: str
+    entries: list[UpstreamEntry]
+    values: dict[str, UpstreamValue]
+    offering: Optional[UpstreamOffering] = Field(description="The offering version the current evaluation read.")

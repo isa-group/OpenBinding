@@ -65,13 +65,14 @@ from ....models.errors import (
     api_error,
 )
 from ....security.apikeys import authenticated_api_key, boundary_of
-from ..application import compositions, derive, evaluate, graph, language, listing, offering, seal, versions
+from ..application import compositions, derive, evaluate, graph, language, listing, offering, seal, upstream, versions
 from ..application.fork import NameTaken, fork_composition
 from ..application.language import decode, diagnostic_view
 from ..domain.records import values_json
 from .list_query import BY_NAME, ListQuery, facets_view
 from .language_routes import MAX_DOCUMENT_BYTES, YAML_BODY, YAML_MEDIA_TYPES, document_body
 from .schemas import (
+    UpstreamView,
     EvaluationOffering,
     CheckResult,
     CompositionGraph,
@@ -658,7 +659,7 @@ async def create_composition_version(
     if not checked.valid or checked.assessment is None:
         raise _invalid(checked.diagnostics)
     source = decode(raw)
-    assessment = await offering.with_offering(
+    assessment = await offering.before_seal(
         session, organization, checked.assessment, user,
         source=source if isinstance(source, str) else None, composition_id=found.id,
     )
@@ -1136,7 +1137,7 @@ async def derive_composition(
         )
         return JSONResponse(status_code=status.HTTP_200_OK, content=draft.model_dump(mode="json"))
     # A derivation that seals reads the offering like a seal: only when an evaluation row will be created.
-    assessment = await offering.with_offering(
+    assessment = await offering.before_seal(
         session, organization, derived.assessment, user, source=derived.content, composition_id=found.id,
     )
     diagnostics = [diagnostic_view(item) for item in assessment.diagnostics]
@@ -1230,3 +1231,30 @@ async def download_composition_versions(
     _read_headers(headers, reader)
     headers.setdefault("Cache-Control", "private, no-store")
     return Response(buffer.getvalue(), media_type="application/zip", headers=headers)
+
+
+@router.get(
+    "/{composition}/upstream",
+    response_model=UpstreamView,
+    operation_id="getCompositionUpstream",
+    summary="List a version's upstream pricings with their snapshots",
+    dependencies=[Depends(charge_anonymous_read)],
+    responses={**_UNREADABLE, **_BUSY},
+)
+async def get_composition_upstream(
+    org: str,
+    composition: str,
+    version: str | None = Query(default=None, max_length=64, description="Id, label or ordinal; the latest by default."),
+    user: User | None = Depends(get_reader),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> Any:
+    """Per binding entry, the upstream plan it was chosen from (pricing, version name, plan, permanent link and the
+    snapshot to draw it from); per global value, the kinds of source its bound candidates' values have; and the
+    offering version the current evaluation read. Stored data only: SPHERE is never called. A visitor of a public
+    composition sees public snapshots only."""
+    organization, found, reader = await compositions.readable_composition(session, org, composition, user)
+    row = await upstream.latest_version(session, found) if version is None else await versions.required_version(session, found, version)
+    if row is None:
+        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Version not found.")
+    document = await upstream.stored_document(row)
+    return await upstream.upstream(session, organization, row, document, member=not reader.public)

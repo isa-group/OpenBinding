@@ -228,8 +228,31 @@ async def with_offering(
     )
 
 
+async def before_seal(
+    session: AsyncSession,
+    organization: Organization,
+    assessment: Assessment,
+    actor: User,
+    *,
+    source: str | None,
+    composition_id: uuid.UUID | None = None,
+) -> Assessment:
+    """The seal pre-phase, outside any transaction and slot: the offering read (when an evaluation row will be
+    created) and the snapshots of the versions the binding's hand-written ``from`` pin (``upstream.resolve_provenance``,
+    best effort, at most 8 over the network)."""
+    from .upstream import provenance_entries, resolve_provenance
+
+    assessment = await with_offering(session, organization, assessment, actor, source=source,
+                                     composition_id=composition_id)
+    entries = provenance_entries(assessment.effective)
+    if entries:
+        await resolve_provenance(session, organization.id, entries, actor_id=actor.id)
+    return assessment
+
+
 __all__ = [
     "OfferingOutcome",
+    "before_seal",
     "clear_failures",
     "evaluation_will_be_created",
     "offering_findings",

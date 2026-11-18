@@ -509,6 +509,7 @@ ANONYMOUS_REQUESTS = {
     ),
     ("GET", f"{COMPOSITION}/diff"): ("/v1/organizations/{org}/compositions/none/diff", 404),
     ("GET", f"{COMPOSITION}/graph"): ("/v1/organizations/{org}/compositions/none/graph", 404),
+    ("GET", f"{COMPOSITION}/upstream"): ("/v1/organizations/{org}/compositions/none/upstream", 404),
     ("GET", f"{COMPOSITION}/download"): ("/v1/organizations/{org}/compositions/none/download", 404),
     ("GET", "/v1/permalinks/compositions/{composition_id}"): (
         "/v1/permalinks/compositions/00000000-0000-0000-0000-000000000000", 404,

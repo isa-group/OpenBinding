@@ -100,6 +100,8 @@ WORK_ROUTES: dict[tuple[str, str], WorkClass] = {
 #: (``charge_anonymous_read``). A test pins this table to the routes that depend on ``get_reader``, and the
 #: OpenAPI document declares the 429 from it.
 ANONYMOUS_READ_ROUTES: frozenset[tuple[str, str]] = frozenset({
+    # A version's upstream pricings: stored data only.
+    ("GET", "/v1/organizations/{org}/compositions/{composition}/upstream"),
     ("GET", "/v1/compositions"),
     # An organization's compositions: its public ones for anybody but a member.
     ("GET", "/v1/organizations/{org}/compositions"),

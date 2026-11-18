@@ -1,0 +1,104 @@
+{
+  "entries": [
+    {
+      "candidate": "auth.builtin.local",
+      "from": null,
+      "plan": null,
+      "snapshot": null,
+      "status": "not_snapshotted",
+      "task": "login"
+    },
+    {
+      "candidate": "email.mailgun.foundation",
+      "from": {
+        "plan": "FOUNDATION",
+        "sphere": "danruilop1/mailgun",
+        "version": "6ade36454b2b5b01c587db3d"
+      },
+      "plan": {
+        "name": "FOUNDATION",
+        "price": {
+          "amount": 35.0,
+          "kind": "fixed"
+        },
+        "private": false,
+        "unit": "account/month"
+      },
+      "snapshot": {
+        "createdAt": "2026-01-01T00:00:08Z",
+        "id": "00000000-0000-4000-8000-000000000027",
+        "owner": "danruilop1",
+        "permanentUrl": "https://sphere.score.us.es/p/6ade364540e55445692b0eda?version=6ade36454b2b5b01c587db3d",
+        "pricingId": "6ade364540e55445692b0eda",
+        "registry": null,
+        "slug": "mailgun",
+        "title": "Mailgun",
+        "url": null,
+        "versionId": "6ade36454b2b5b01c587db3d",
+        "versionName": "2026-10"
+      },
+      "status": "snapshotted",
+      "task": "dailySummary"
+    },
+    {
+      "candidate": "storage.local.disk",
+      "from": null,
+      "plan": null,
+      "snapshot": null,
+      "status": "not_snapshotted",
+      "task": "export"
+    },
+    {
+      "candidate": "quotes.zenquotes.free",
+      "from": null,
+      "plan": null,
+      "snapshot": null,
+      "status": "not_snapshotted",
+      "task": "quotes"
+    }
+  ],
+  "offering": {
+    "createdAt": "2026-01-01T00:00:09Z",
+    "snapshot": {
+      "createdAt": "2026-01-01T00:00:09Z",
+      "id": "00000000-0000-4000-8000-000000000031",
+      "owner": "sphere",
+      "permanentUrl": "https://sphere.score.us.es/p/6ab0a323697330667ccce8cd?version=6921867e7004563bd918e7e8",
+      "pricingId": "6ab0a323697330667ccce8cd",
+      "registry": null,
+      "slug": "tomatometer",
+      "title": "TomatoMeter",
+      "url": null,
+      "versionId": "6921867e7004563bd918e7e8",
+      "versionName": "1.0.0"
+    },
+    "source": {
+      "sphere": "sphere/tomatometer"
+    },
+    "status": "read",
+    "versionName": "1.0.0"
+  },
+  "values": {
+    "availability": {
+      "manualOnly": false,
+      "sources": [
+        "guarantee",
+        "manual"
+      ]
+    },
+    "latency": {
+      "manualOnly": true,
+      "sources": [
+        "manual"
+      ]
+    },
+    "subscription": {
+      "manualOnly": false,
+      "sources": [
+        "manual",
+        "priced"
+      ]
+    }
+  },
+  "version": "1.0.0"
+}

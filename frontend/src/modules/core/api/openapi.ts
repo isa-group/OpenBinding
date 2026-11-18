@@ -1651,6 +1651,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/organizations/{org}/compositions/{composition}/upstream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List a version's upstream pricings with their snapshots
+         * @description Per binding entry, the upstream plan it was chosen from (pricing, version name, plan, permanent link and the
+         *     snapshot to draw it from); per global value, the kinds of source its bound candidates' values have; and the
+         *     offering version the current evaluation read. Stored data only: SPHERE is never called. A visitor of a public
+         *     composition sees public snapshots only.
+         */
+        get: operations["getCompositionUpstream"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/organizations/{org}/compositions/{composition}/versions": {
         parameters: {
             query?: never;
@@ -8387,6 +8410,124 @@ export interface components {
             is_active?: boolean | null;
             role?: components["schemas"]["RoleName"] | null;
         };
+        /** UpstreamEntry */
+        UpstreamEntry: {
+            /** Candidate */
+            candidate: string;
+            /**
+             * From
+             * @description The entry's `from`, as the document writes it.
+             */
+            from: {
+                [key: string]: unknown;
+            } | null;
+            /** @description The plan in the snapshot, when the entry names one it has. */
+            plan: components["schemas"]["UpstreamPlan"] | null;
+            snapshot: components["schemas"]["UpstreamSnapshot"] | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "snapshotted" | "not_snapshotted" | "registry_unknown";
+            /** Task */
+            task: string;
+        };
+        /** UpstreamOffering */
+        UpstreamOffering: {
+            /** Createdat */
+            createdAt: string | null;
+            snapshot: components["schemas"]["UpstreamSnapshot"] | null;
+            /**
+             * Source
+             * @description The offering's source as the version keeps it: `{sphere, registry?}` or `{url}`.
+             */
+            source: {
+                [key: string]: string;
+            };
+            /** Status */
+            status: ("read" | "unreadable" | "invalid_pricing" | "registry_unknown") | null;
+            /** Versionname */
+            versionName: string | null;
+        };
+        /** UpstreamPlan */
+        UpstreamPlan: {
+            /** Name */
+            name: string;
+            /**
+             * Price
+             * @description `{kind: fixed, amount}`, `{kind: expression, source, value}` or `{kind: label, text}`.
+             */
+            price: {
+                [key: string]: unknown;
+            };
+            /** Private */
+            private: boolean;
+            /** Unit */
+            unit: string | null;
+        };
+        /**
+         * UpstreamSnapshot
+         * @description A stored pricing snapshot, by names and dates: the renderer reads its YAML at `…/pricing-snapshots/{id}/yaml`.
+         */
+        UpstreamSnapshot: {
+            /** Createdat */
+            createdAt: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Owner */
+            owner: string | null;
+            /**
+             * Permanenturl
+             * @description SPHERE's permanent link to that version.
+             */
+            permanentUrl: string | null;
+            /** Pricingid */
+            pricingId: string | null;
+            /** Registry */
+            registry: string | null;
+            /** Slug */
+            slug: string | null;
+            /** Title */
+            title: string;
+            /** Url */
+            url: string | null;
+            /** Versionid */
+            versionId: string | null;
+            /** Versionname */
+            versionName: string | null;
+        };
+        /** UpstreamValue */
+        UpstreamValue: {
+            /**
+             * Manualonly
+             * @description No bound candidate's value of it was read from a pricing.
+             */
+            manualOnly: boolean;
+            /**
+             * Sources
+             * @description The kinds of source the bound candidates' values of this global value have.
+             */
+            sources: ("priced" | "guarantee" | "limit" | "feature" | "manual")[];
+        };
+        /**
+         * UpstreamView
+         * @description A version's upstream plans, the sources of its global values and its offering: stored data only.
+         */
+        UpstreamView: {
+            /** Entries */
+            entries: components["schemas"]["UpstreamEntry"][];
+            /** @description The offering version the current evaluation read. */
+            offering: components["schemas"]["UpstreamOffering"] | null;
+            /** Values */
+            values: {
+                [key: string]: components["schemas"]["UpstreamValue"];
+            };
+            /** Version */
+            version: string;
+        };
         /**
          * UsageView
          * @description What an account is on and what its plan allows.
@@ -14757,6 +14898,88 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    getCompositionUpstream: {
+        parameters: {
+            query?: {
+                /** @description Id, label or ordinal; the latest by default. */
+                version?: string | null;
+            };
+            header?: never;
+            path: {
+                org: string;
+                composition: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpstreamView"];
+                };
+            };
+            /** @description Missing or invalid account credential. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The account role, API-key permission, or Engine allow-list does not permit this request. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description No such organization or composition, or the caller cannot read it. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request does not satisfy the contract; `diagnostics` says where. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too many `read` requests from this address by a caller with no credential: past the anonymous budget. A signed-in caller is not charged. `Retry-After` says when the window ends. Or: Every Composition2Yaml slot of this process is taken (`composition_busy`). */
+            429: {
+                headers: {
+                    /** @description Seconds until the budget is available again. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Account authentication is not configured on this deployment. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
