@@ -1,0 +1,1122 @@
+{
+  "note": "Golden cases of the SPHERE package generator (tools/dump_sphere_goldens.py). Sources are the recorded SPHERE set (tests/fixtures/sphere) by pricing and version id; `derived` maps synthetic version ids to synthetic files (the recorded set's derived/ and this directory's sources/), none of them fetched from SPHERE. A base is a JSON file map (`bundle`), a package directory read as it is (`dir`), or another case's generated package (`case`, whose recipe is then the previous recipe); `baseSet` and `baseRemove` edit a base by JSON Pointer.",
+  "derived": {
+    "6ade364540e55445692b0eda@000000000000000000000001": {
+      "file": "fixtures/sphere/derived/mailgun-scale.yml",
+      "label": "2026-10 (SCALE's emailsPerMonth raised; synthetic)"
+    },
+    "000000000000000000000a01@000000000000000000000b01": {
+      "file": "golden/sphere/sources/collision.yml",
+      "label": "1 (synthetic)"
+    },
+    "000000000000000000000a02@000000000000000000000b02": {
+      "file": "golden/sphere/sources/many-plans.yml",
+      "label": "1 (synthetic)"
+    }
+  },
+  "cases": [
+    {
+      "name": "tomatometer-email",
+      "recipe": {
+        "file": "examples/tomatometer/email-recipe.json"
+      },
+      "base": {
+        "bundle": "examples/tomatometer/tomatometer-email.base.json"
+      }
+    },
+    {
+      "name": "born-storage",
+      "recipe": {
+        "file": "examples/tomatometer/storage-recipe.json"
+      },
+      "problem": "storage"
+    },
+    {
+      "name": "dropbox-2021",
+      "recipe": {
+        "recipeVersion": "1",
+        "currency": "USD",
+        "billing": "monthly",
+        "features": {
+          "subscription": {
+            "unit": "USD/month",
+            "direction": "minimize"
+          }
+        },
+        "tasks": [
+          {
+            "task": "export",
+            "capability": "service/storage",
+            "from": [
+              {
+                "sphere": {
+                  "pricing": "6ab0a323697330667ccce9c1",
+                  "version": "687e4b68102baa50f3a5c7b7"
+                },
+                "provider": "dropbox",
+                "addons": [],
+                "seats": 1
+              }
+            ],
+            "properties": {
+              "subscription": "price",
+              "storage": "limit:storageLimit"
+            }
+          }
+        ]
+      },
+      "problem": "dropbox"
+    },
+    {
+      "name": "dropbox-2024",
+      "recipe": {
+        "recipeVersion": "1",
+        "currency": "USD",
+        "billing": "monthly",
+        "features": {
+          "subscription": {
+            "unit": "USD/month",
+            "direction": "minimize"
+          }
+        },
+        "tasks": [
+          {
+            "task": "export",
+            "capability": "service/storage",
+            "from": [
+              {
+                "sphere": {
+                  "pricing": "6ab0a323697330667ccce9c1",
+                  "version": "687e4b68102baa50f3a5c7b6"
+                },
+                "provider": "dropbox",
+                "addons": [],
+                "seats": 1
+              }
+            ],
+            "properties": {
+              "subscription": "price",
+              "storage": "limit:storageLimit"
+            }
+          }
+        ]
+      },
+      "base": {
+        "case": "dropbox-2021"
+      },
+      "problem": "dropbox"
+    },
+    {
+      "name": "mailgun-real",
+      "recipe": {
+        "recipeVersion": "1",
+        "currency": "USD",
+        "billing": "monthly",
+        "features": {
+          "subscription": {
+            "unit": "USD/month",
+            "direction": "minimize"
+          }
+        },
+        "tasks": [
+          {
+            "task": "send",
+            "capability": "service/email",
+            "from": [
+              {
+                "sphere": {
+                  "pricing": "6ade364540e55445692b0eda",
+                  "version": "6ade36454b2b5b01c587db3d"
+                },
+                "provider": "mailgun",
+                "addons": []
+              }
+            ],
+            "properties": {
+              "subscription": "price"
+            },
+            "require": {
+              "limits": {
+                "emailsPerMonth": {
+                  "atLeast": "monthlyEmails"
+                }
+              }
+            }
+          }
+        ],
+        "demand": {
+          "monthlyEmails": {
+            "value": 30000,
+            "unit": "email/month"
+          }
+        }
+      },
+      "problem": "mailgun"
+    },
+    {
+      "name": "mailgun-changed",
+      "recipe": {
+        "recipeVersion": "1",
+        "currency": "USD",
+        "billing": "monthly",
+        "features": {
+          "subscription": {
+            "unit": "USD/month",
+            "direction": "minimize"
+          }
+        },
+        "tasks": [
+          {
+            "task": "send",
+            "capability": "service/email",
+            "from": [
+              {
+                "sphere": {
+                  "pricing": "6ade364540e55445692b0eda",
+                  "version": "000000000000000000000001"
+                },
+                "provider": "mailgun",
+                "addons": []
+              }
+            ],
+            "properties": {
+              "subscription": "price"
+            },
+            "require": {
+              "limits": {
+                "emailsPerMonth": {
+                  "atLeast": "monthlyEmails"
+                }
+              }
+            }
+          }
+        ],
+        "demand": {
+          "monthlyEmails": {
+            "value": 30000,
+            "unit": "email/month"
+          }
+        }
+      },
+      "base": {
+        "case": "mailgun-real"
+      },
+      "problem": "mailgun"
+    },
+    {
+      "name": "email-set-a",
+      "recipe": {
+        "recipeVersion": "1",
+        "currency": "USD",
+        "billing": "monthly",
+        "features": {
+          "subscription": {
+            "unit": "USD/month",
+            "direction": "minimize"
+          }
+        },
+        "tasks": [
+          {
+            "task": "send",
+            "capability": "service/email",
+            "from": [
+              {
+                "sphere": {
+                  "pricing": "6ae0772d40e55445692c0143",
+                  "version": "6ae634e3f99de6a6f95a42c5"
+                },
+                "provider": "sendgrid"
+              },
+              {
+                "sphere": {
+                  "pricing": "6ae077ac40e55445692c01ce",
+                  "version": "6ae6349ff99de6a6f95a4282"
+                },
+                "provider": "mailgun"
+              },
+              {
+                "sphere": {
+                  "pricing": "6ae0768440e55445692c0081",
+                  "version": "6ae07684daa2ba78b21d73ce"
+                },
+                "provider": "brevo",
+                "billing": "annual"
+              },
+              {
+                "sphere": {
+                  "pricing": "6ae076f340e55445692c0101",
+                  "version": "6ae076f3daa2ba78b21d7422"
+                },
+                "provider": "resend"
+              },
+              {
+                "sphere": {
+                  "pricing": "6ae0776f40e55445692c018c",
+                  "version": "6ae0776fdaa2ba78b21d7476"
+                },
+                "provider": "postmark"
+              }
+            ],
+            "properties": {
+              "subscription": "price"
+            },
+            "require": {
+              "limits": {
+                "emailsPerMonth": {
+                  "atLeast": "monthlyEmails"
+                }
+              }
+            }
+          }
+        ],
+        "demand": {
+          "monthlyEmails": {
+            "value": 30000,
+            "unit": "email/month"
+          }
+        }
+      },
+      "problem": "email-set-a"
+    },
+    {
+      "name": "tomatometer-plan-only",
+      "recipe": {
+        "recipeVersion": "1",
+        "currency": "USD",
+        "billing": "monthly",
+        "features": {
+          "subscription": {
+            "unit": "USD/month",
+            "direction": "minimize"
+          }
+        },
+        "tasks": [
+          {
+            "task": "track",
+            "capability": "service/pomodoro",
+            "from": [
+              {
+                "sphere": {
+                  "pricing": "6ab0a323697330667ccce8cd",
+                  "version": "6921867e7004563bd918e7e8"
+                },
+                "provider": "tomatometer",
+                "seats": 3
+              }
+            ],
+            "properties": {
+              "subscription": "price",
+              "timers": "limit:maxPomodoroTimers"
+            },
+            "service": "pomodoro"
+          }
+        ]
+      },
+      "problem": "tomatometer"
+    },
+    {
+      "name": "existing-package",
+      "recipe": {
+        "recipeVersion": "1",
+        "currency": "USD",
+        "tasks": [
+          {
+            "task": "t2",
+            "capability": "service/t2",
+            "service": "mail",
+            "from": [
+              {
+                "sphere": {
+                  "pricing": "6ade2d4440e55445692b07f1",
+                  "version": "6ade2d444b2b5b01c587d80d"
+                },
+                "provider": "brevo",
+                "plans": [
+                  "STARTER",
+                  "PROFESSIONAL"
+                ],
+                "addons": []
+              }
+            ],
+            "properties": {
+              "cost": "price",
+              "latency": {
+                "manual": {
+                  "*": 15
+                }
+              }
+            }
+          }
+        ]
+      },
+      "base": {
+        "dir": "examples/demo/14_shared_candidates"
+      }
+    },
+    {
+      "name": "refused-currency",
+      "recipe": {
+        "recipeVersion": "1",
+        "currency": "USD",
+        "billing": "monthly",
+        "features": {
+          "subscription": {
+            "unit": "USD/month",
+            "direction": "minimize"
+          }
+        },
+        "tasks": [
+          {
+            "task": "export",
+            "capability": "service/storage",
+            "from": [
+              {
+                "sphere": {
+                  "pricing": "6ab0a323697330667cccea2d",
+                  "version": "67e9769d3b1f997200c7c155"
+                },
+                "provider": "dropbox",
+                "addons": [],
+                "seats": 1
+              }
+            ],
+            "properties": {
+              "subscription": "price",
+              "storage": "limit:storageLimit"
+            }
+          }
+        ]
+      },
+      "problem": "dropbox"
+    },
+    {
+      "name": "refused-syntax",
+      "recipe": {
+        "recipeVersion": "1",
+        "currency": "USD",
+        "billing": "monthly",
+        "features": {
+          "subscription": {
+            "unit": "USD/month",
+            "direction": "minimize"
+          }
+        },
+        "tasks": [
+          {
+            "task": "export",
+            "capability": "service/storage",
+            "from": [
+              {
+                "sphere": {
+                  "pricing": "6ab0a323697330667ccce9c1",
+                  "version": "687e4b68102baa50f3a5c7b5"
+                },
+                "provider": "dropbox",
+                "addons": [],
+                "seats": 1
+              }
+            ],
+            "properties": {
+              "subscription": "price",
+              "storage": "limit:storageLimit"
+            }
+          }
+        ]
+      },
+      "problem": "dropbox"
+    },
+    {
+      "name": "refused-billing",
+      "recipe": {
+        "recipeVersion": "1",
+        "currency": "USD",
+        "billing": "annual",
+        "features": {
+          "subscription": {
+            "unit": "USD/month",
+            "direction": "minimize"
+          }
+        },
+        "tasks": [
+          {
+            "task": "send",
+            "capability": "service/email",
+            "from": [
+              {
+                "sphere": {
+                  "pricing": "6ae0772d40e55445692c0143",
+                  "version": "6ae634e3f99de6a6f95a42c5"
+                },
+                "provider": "sendgrid"
+              }
+            ],
+            "properties": {
+              "subscription": "price"
+            }
+          }
+        ]
+      },
+      "problem": "sendgrid"
+    },
+    {
+      "name": "refused-limit-unknown",
+      "recipe": {
+        "recipeVersion": "1",
+        "currency": "USD",
+        "billing": "monthly",
+        "demand": {
+          "monthlyEmails": {
+            "value": 30000,
+            "unit": "email/month"
+          },
+          "dailyEmails": {
+            "value": 1000,
+            "unit": "email/day"
+          }
+        },
+        "features": {
+          "subscription": {
+            "unit": "USD/month",
+            "direction": "minimize"
+          },
+          "availability": {
+            "unit": "",
+            "direction": "maximize",
+            "domain": "ratio"
+          },
+          "latency": {
+            "unit": "ms",
+            "direction": "minimize"
+          }
+        },
+        "tasks": [
+          {
+            "task": "dailySummary",
+            "capability": "service/email",
+            "service": "email",
+            "expand": "plans",
+            "from": [
+              {
+                "sphere": {
+                  "pricing": "6ade364540e55445692b0eda",
+                  "version": "6ade36454b2b5b01c587db3d"
+                },
+                "provider": "mailgun",
+                "addons": []
+              },
+              {
+                "sphere": {
+                  "pricing": "6adf1a6240e55445692b6f14",
+                  "version": "6adf1a62daa2ba78b21d7119"
+                },
+                "provider": "sendgrid",
+                "addons": []
+              },
+              {
+                "sphere": {
+                  "pricing": "6ade2d4440e55445692b07f1",
+                  "version": "6ade2d444b2b5b01c587d80d"
+                },
+                "provider": "brevo",
+                "addons": [],
+                "names": {
+                  "guaranteedUptimeSla": "sla"
+                }
+              },
+              {
+                "sphere": {
+                  "pricing": "6ade2d2540e55445692b07c6",
+                  "version": "6ade2d254b2b5b01c587d7ee"
+                },
+                "provider": "resend",
+                "addons": [],
+                "names": {
+                  "guaranteedUptimeSla": "uptimeSla",
+                  "emailsPerMonth": "transactionalEmailsPerMonth",
+                  "emailsPerDay": "transactionalEmailsPerDay"
+                }
+              },
+              {
+                "sphere": {
+                  "pricing": "6ade2f3b40e55445692b09aa",
+                  "version": "6ade2f3b4b2b5b01c587d8f5"
+                },
+                "provider": "postmark",
+                "addons": [],
+                "names": {
+                  "emailsPerMonth": "monthlyEmailVolumeLimit",
+                  "emailsPerDay": "dailyEmailSendingPerDay"
+                }
+              }
+            ],
+            "require": {
+              "limits": {
+                "emailsPerMonth": {
+                  "atLeast": "monthlyEmails"
+                },
+                "emailsPerDay": {
+                  "atLeast": "dailyEmails"
+                }
+              }
+            },
+            "properties": {
+              "subscription": "price",
+              "availability": {
+                "guarantee": "guaranteedUptimeSla",
+                "map": {
+                  "true": 0.9995,
+                  "false": 0.99
+                },
+                "sendgrid": {
+                  "manual": {
+                    "*": 0.999
+                  }
+                },
+                "postmark": {
+                  "manual": {
+                    "*": 0.999
+                  }
+                }
+              },
+              "latency": {
+                "manual": {
+                  "mailgun": 250,
+                  "mailgun.FOUNDATION": 200,
+                  "sendgrid": 220,
+                  "brevo": 300,
+                  "resend": 180,
+                  "postmark": 150,
+                  "*": 400
+                }
+              }
+            },
+            "prune": "none"
+          }
+        ]
+      },
+      "base": {
+        "bundle": "examples/tomatometer/tomatometer-email.base.json"
+      }
+    },
+    {
+      "name": "refused-collision",
+      "recipe": {
+        "recipeVersion": "1",
+        "currency": "USD",
+        "billing": "monthly",
+        "features": {
+          "subscription": {
+            "unit": "USD/month",
+            "direction": "minimize"
+          }
+        },
+        "tasks": [
+          {
+            "task": "send",
+            "capability": "service/email",
+            "from": [
+              {
+                "sphere": {
+                  "pricing": "000000000000000000000a01",
+                  "version": "000000000000000000000b01"
+                },
+                "provider": "collision"
+              }
+            ],
+            "properties": {
+              "subscription": "price"
+            }
+          }
+        ]
+      },
+      "problem": "collision"
+    },
+    {
+      "name": "refused-too-many",
+      "recipe": {
+        "recipeVersion": "1",
+        "currency": "USD",
+        "billing": "monthly",
+        "features": {
+          "subscription": {
+            "unit": "USD/month",
+            "direction": "minimize"
+          }
+        },
+        "tasks": [
+          {
+            "task": "send",
+            "capability": "service/email",
+            "from": [
+              {
+                "sphere": {
+                  "pricing": "000000000000000000000a02",
+                  "version": "000000000000000000000b02"
+                },
+                "provider": "many"
+              }
+            ],
+            "properties": {
+              "subscription": "price"
+            }
+          }
+        ]
+      },
+      "problem": "many"
+    },
+    {
+      "name": "refused-guarantee-unmapped",
+      "recipe": {
+        "recipeVersion": "1",
+        "currency": "USD",
+        "billing": "monthly",
+        "demand": {
+          "monthlyEmails": {
+            "value": 30000,
+            "unit": "email/month"
+          },
+          "dailyEmails": {
+            "value": 1000,
+            "unit": "email/day"
+          }
+        },
+        "features": {
+          "subscription": {
+            "unit": "USD/month",
+            "direction": "minimize"
+          },
+          "availability": {
+            "unit": "",
+            "direction": "maximize",
+            "domain": "ratio"
+          },
+          "latency": {
+            "unit": "ms",
+            "direction": "minimize"
+          }
+        },
+        "tasks": [
+          {
+            "task": "dailySummary",
+            "capability": "service/email",
+            "service": "email",
+            "expand": "plans",
+            "from": [
+              {
+                "sphere": {
+                  "pricing": "6ade364540e55445692b0eda",
+                  "version": "6ade36454b2b5b01c587db3d"
+                },
+                "provider": "mailgun",
+                "addons": []
+              },
+              {
+                "sphere": {
+                  "pricing": "6adf1a6240e55445692b6f14",
+                  "version": "6adf1a62daa2ba78b21d7119"
+                },
+                "provider": "sendgrid",
+                "addons": [],
+                "assume": {
+                  "emailsPerDay": "unlimited"
+                }
+              },
+              {
+                "sphere": {
+                  "pricing": "6ade2d4440e55445692b07f1",
+                  "version": "6ade2d444b2b5b01c587d80d"
+                },
+                "provider": "brevo",
+                "addons": [],
+                "names": {
+                  "guaranteedUptimeSla": "sla"
+                }
+              },
+              {
+                "sphere": {
+                  "pricing": "6ade2d2540e55445692b07c6",
+                  "version": "6ade2d254b2b5b01c587d7ee"
+                },
+                "provider": "resend",
+                "addons": [],
+                "names": {
+                  "guaranteedUptimeSla": "uptimeSla",
+                  "emailsPerMonth": "transactionalEmailsPerMonth",
+                  "emailsPerDay": "transactionalEmailsPerDay"
+                }
+              },
+              {
+                "sphere": {
+                  "pricing": "6ade2f3b40e55445692b09aa",
+                  "version": "6ade2f3b4b2b5b01c587d8f5"
+                },
+                "provider": "postmark",
+                "addons": [],
+                "names": {
+                  "emailsPerMonth": "monthlyEmailVolumeLimit",
+                  "emailsPerDay": "dailyEmailSendingPerDay"
+                }
+              }
+            ],
+            "require": {
+              "limits": {
+                "emailsPerMonth": {
+                  "atLeast": "monthlyEmails"
+                },
+                "emailsPerDay": {
+                  "atLeast": "dailyEmails"
+                }
+              }
+            },
+            "properties": {
+              "subscription": "price",
+              "availability": {
+                "guarantee": "guaranteedUptimeSla",
+                "sendgrid": {
+                  "manual": {
+                    "*": 0.999
+                  }
+                },
+                "postmark": {
+                  "manual": {
+                    "*": 0.999
+                  }
+                }
+              },
+              "latency": {
+                "manual": {
+                  "mailgun": 250,
+                  "mailgun.FOUNDATION": 200,
+                  "sendgrid": 220,
+                  "brevo": 300,
+                  "resend": 180,
+                  "postmark": 150,
+                  "*": 400
+                }
+              }
+            },
+            "prune": "none"
+          }
+        ]
+      },
+      "base": {
+        "bundle": "examples/tomatometer/tomatometer-email.base.json"
+      }
+    },
+    {
+      "name": "refused-property-unmapped",
+      "recipe": {
+        "recipeVersion": "1",
+        "currency": "USD",
+        "billing": "monthly",
+        "demand": {
+          "monthlyEmails": {
+            "value": 30000,
+            "unit": "email/month"
+          },
+          "dailyEmails": {
+            "value": 1000,
+            "unit": "email/day"
+          }
+        },
+        "features": {
+          "subscription": {
+            "unit": "USD/month",
+            "direction": "minimize"
+          },
+          "availability": {
+            "unit": "",
+            "direction": "maximize",
+            "domain": "ratio"
+          },
+          "latency": {
+            "unit": "ms",
+            "direction": "minimize"
+          }
+        },
+        "tasks": [
+          {
+            "task": "dailySummary",
+            "capability": "service/email",
+            "service": "email",
+            "expand": "plans",
+            "from": [
+              {
+                "sphere": {
+                  "pricing": "6ade364540e55445692b0eda",
+                  "version": "6ade36454b2b5b01c587db3d"
+                },
+                "provider": "mailgun",
+                "addons": []
+              },
+              {
+                "sphere": {
+                  "pricing": "6adf1a6240e55445692b6f14",
+                  "version": "6adf1a62daa2ba78b21d7119"
+                },
+                "provider": "sendgrid",
+                "addons": [],
+                "assume": {
+                  "emailsPerDay": "unlimited"
+                }
+              },
+              {
+                "sphere": {
+                  "pricing": "6ade2d4440e55445692b07f1",
+                  "version": "6ade2d444b2b5b01c587d80d"
+                },
+                "provider": "brevo",
+                "addons": [],
+                "names": {
+                  "guaranteedUptimeSla": "sla"
+                }
+              },
+              {
+                "sphere": {
+                  "pricing": "6ade2d2540e55445692b07c6",
+                  "version": "6ade2d254b2b5b01c587d7ee"
+                },
+                "provider": "resend",
+                "addons": [],
+                "names": {
+                  "guaranteedUptimeSla": "uptimeSla",
+                  "emailsPerMonth": "transactionalEmailsPerMonth",
+                  "emailsPerDay": "transactionalEmailsPerDay"
+                }
+              },
+              {
+                "sphere": {
+                  "pricing": "6ade2f3b40e55445692b09aa",
+                  "version": "6ade2f3b4b2b5b01c587d8f5"
+                },
+                "provider": "postmark",
+                "addons": [],
+                "names": {
+                  "emailsPerMonth": "monthlyEmailVolumeLimit",
+                  "emailsPerDay": "dailyEmailSendingPerDay"
+                }
+              }
+            ],
+            "require": {
+              "limits": {
+                "emailsPerMonth": {
+                  "atLeast": "monthlyEmails"
+                },
+                "emailsPerDay": {
+                  "atLeast": "dailyEmails"
+                }
+              }
+            },
+            "properties": {
+              "subscription": "price",
+              "availability": {
+                "guarantee": "guaranteedUptimeSla",
+                "map": {
+                  "true": 0.9995,
+                  "false": 0.99
+                },
+                "sendgrid": {
+                  "manual": {
+                    "*": 0.999
+                  }
+                },
+                "postmark": {
+                  "manual": {
+                    "*": 0.999
+                  }
+                }
+              },
+              "latency": {
+                "manual": {
+                  "mailgun": 250,
+                  "mailgun.FOUNDATION": 200,
+                  "sendgrid": 220,
+                  "brevo": 300,
+                  "resend": 180
+                }
+              }
+            },
+            "prune": "none"
+          }
+        ]
+      },
+      "base": {
+        "bundle": "examples/tomatometer/tomatometer-email.base.json"
+      }
+    },
+    {
+      "name": "refused-property-missing",
+      "recipe": {
+        "file": "examples/tomatometer/email-recipe.json"
+      },
+      "base": {
+        "bundle": "examples/tomatometer/tomatometer-email.base.json",
+        "baseRemove": [
+          [
+            "candidates.json",
+            "/spec/candidates/email.selfhosted.postfix/properties"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "refused-configurations",
+      "recipe": {
+        "recipeVersion": "1",
+        "currency": "USD",
+        "billing": "monthly",
+        "demand": {
+          "monthlyEmails": {
+            "value": 30000,
+            "unit": "email/month"
+          },
+          "dailyEmails": {
+            "value": 1000,
+            "unit": "email/day"
+          }
+        },
+        "features": {
+          "subscription": {
+            "unit": "USD/month",
+            "direction": "minimize"
+          },
+          "availability": {
+            "unit": "",
+            "direction": "maximize",
+            "domain": "ratio"
+          },
+          "latency": {
+            "unit": "ms",
+            "direction": "minimize"
+          }
+        },
+        "tasks": [
+          {
+            "task": "dailySummary",
+            "capability": "service/email",
+            "service": "email",
+            "expand": "configurations",
+            "from": [
+              {
+                "sphere": {
+                  "pricing": "6ade364540e55445692b0eda",
+                  "version": "6ade36454b2b5b01c587db3d"
+                },
+                "provider": "mailgun",
+                "addons": []
+              },
+              {
+                "sphere": {
+                  "pricing": "6adf1a6240e55445692b6f14",
+                  "version": "6adf1a62daa2ba78b21d7119"
+                },
+                "provider": "sendgrid",
+                "addons": [],
+                "assume": {
+                  "emailsPerDay": "unlimited"
+                }
+              },
+              {
+                "sphere": {
+                  "pricing": "6ade2d4440e55445692b07f1",
+                  "version": "6ade2d444b2b5b01c587d80d"
+                },
+                "provider": "brevo",
+                "addons": [],
+                "names": {
+                  "guaranteedUptimeSla": "sla"
+                }
+              },
+              {
+                "sphere": {
+                  "pricing": "6ade2d2540e55445692b07c6",
+                  "version": "6ade2d254b2b5b01c587d7ee"
+                },
+                "provider": "resend",
+                "addons": [],
+                "names": {
+                  "guaranteedUptimeSla": "uptimeSla",
+                  "emailsPerMonth": "transactionalEmailsPerMonth",
+                  "emailsPerDay": "transactionalEmailsPerDay"
+                }
+              },
+              {
+                "sphere": {
+                  "pricing": "6ade2f3b40e55445692b09aa",
+                  "version": "6ade2f3b4b2b5b01c587d8f5"
+                },
+                "provider": "postmark",
+                "addons": [],
+                "names": {
+                  "emailsPerMonth": "monthlyEmailVolumeLimit",
+                  "emailsPerDay": "dailyEmailSendingPerDay"
+                }
+              }
+            ],
+            "require": {
+              "limits": {
+                "emailsPerMonth": {
+                  "atLeast": "monthlyEmails"
+                },
+                "emailsPerDay": {
+                  "atLeast": "dailyEmails"
+                }
+              }
+            },
+            "properties": {
+              "subscription": "price",
+              "availability": {
+                "guarantee": "guaranteedUptimeSla",
+                "map": {
+                  "true": 0.9995,
+                  "false": 0.99
+                },
+                "sendgrid": {
+                  "manual": {
+                    "*": 0.999
+                  }
+                },
+                "postmark": {
+                  "manual": {
+                    "*": 0.999
+                  }
+                }
+              },
+              "latency": {
+                "manual": {
+                  "mailgun": 250,
+                  "mailgun.FOUNDATION": 200,
+                  "sendgrid": 220,
+                  "brevo": 300,
+                  "resend": 180,
+                  "postmark": 150,
+                  "*": 400
+                }
+              }
+            },
+            "prune": "none"
+          }
+        ]
+      },
+      "base": {
+        "bundle": "examples/tomatometer/tomatometer-email.base.json"
+      }
+    },
+    {
+      "name": "refused-requires-edited",
+      "recipe": {
+        "file": "examples/tomatometer/email-recipe.json"
+      },
+      "base": {
+        "case": "tomatometer-email",
+        "baseSet": [
+          [
+            "application.json",
+            "/spec/tasks/dailySummary/requires/predicate",
+            "candidate.properties.emailsPerMonth >= 1"
+          ]
+        ]
+      }
+    }
+  ]
+}

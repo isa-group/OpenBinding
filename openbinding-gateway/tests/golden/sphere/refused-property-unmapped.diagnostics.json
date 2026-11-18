@@ -1,0 +1,65 @@
+[
+  {
+    "at": "/tasks/0/from/1",
+    "code": "sphere_limit_assumed",
+    "limit": "emailsPerDay",
+    "message": "This pricing does not declare emailsPerDay; the recipe assumes unlimited.",
+    "severity": "warning"
+  },
+  {
+    "at": "sphere-email/email.brevo.enterprise",
+    "code": "sphere_plan_private",
+    "message": "The plan ENTERPRISE is private in this pricing; it is left out.",
+    "plan": "ENTERPRISE",
+    "severity": "info"
+  },
+  {
+    "at": "sphere-email/email.mailgun.enterprise",
+    "code": "sphere_plan_private",
+    "message": "The plan ENTERPRISE is private in this pricing; it is left out.",
+    "plan": "ENTERPRISE",
+    "severity": "info"
+  },
+  {
+    "at": "sphere-email/email.postmark.basic",
+    "code": "sphere_property_unmapped",
+    "message": "No value is set by hand for latency here.",
+    "severity": "error",
+    "target": "latency"
+  },
+  {
+    "at": "sphere-email/email.postmark.free",
+    "code": "sphere_property_unmapped",
+    "message": "No value is set by hand for latency here.",
+    "severity": "error",
+    "target": "latency"
+  },
+  {
+    "at": "sphere-email/email.postmark.platform",
+    "code": "sphere_property_unmapped",
+    "message": "No value is set by hand for latency here.",
+    "severity": "error",
+    "target": "latency"
+  },
+  {
+    "at": "sphere-email/email.postmark.pro",
+    "code": "sphere_property_unmapped",
+    "message": "No value is set by hand for latency here.",
+    "severity": "error",
+    "target": "latency"
+  },
+  {
+    "at": "sphere-email/email.resend.enterprise",
+    "code": "sphere_plan_private",
+    "message": "The plan ENTERPRISE is private in this pricing; it is left out.",
+    "plan": "ENTERPRISE",
+    "severity": "info"
+  },
+  {
+    "at": "sphere-email/email.sendgrid.premier",
+    "code": "sphere_plan_private",
+    "message": "The plan PREMIER is private in this pricing; it is left out.",
+    "plan": "PREMIER",
+    "severity": "info"
+  }
+]

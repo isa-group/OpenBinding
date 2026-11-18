@@ -1,0 +1,244 @@
+{
+  "application.json": {
+    "apiVersion": "qos-binding/v1",
+    "kind": "Application",
+    "metadata": {
+      "name": "tomatometer-application"
+    },
+    "spec": {
+      "features": {
+        "availability": {
+          "aggregation": {
+            "parallel": "product",
+            "sequence": "product"
+          },
+          "direction": "maximize",
+          "domain": {
+            "kind": "ratio",
+            "maximum": 1,
+            "minimum": 0
+          },
+          "scope": "invocation",
+          "unit": "1"
+        },
+        "latency": {
+          "aggregation": "sum",
+          "direction": "minimize",
+          "domain": {
+            "kind": "real",
+            "maximum": 2000,
+            "minimum": 0
+          },
+          "scope": "invocation",
+          "unit": "ms"
+        },
+        "subscription": {
+          "aggregation": "sum",
+          "direction": "minimize",
+          "domain": {
+            "kind": "real",
+            "maximum": 1000,
+            "minimum": 0
+          },
+          "scope": "selectedCandidate",
+          "unit": "USD/month"
+        }
+      },
+      "tasks": {
+        "dailySummary": "service/email",
+        "export": "service/storage",
+        "login": "service/auth",
+        "quotes": "service/quotes"
+      },
+      "workflow": {
+        "sequence": [
+          {
+            "task": {
+              "id": "login",
+              "resource": "application"
+            }
+          },
+          {
+            "parallel": [
+              {
+                "task": {
+                  "id": "dailySummary",
+                  "resource": "application"
+                }
+              },
+              {
+                "task": {
+                  "id": "export",
+                  "resource": "application"
+                }
+              }
+            ]
+          },
+          {
+            "task": {
+              "id": "quotes",
+              "resource": "application"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "candidates.json": {
+    "apiVersion": "qos-binding/v1",
+    "kind": "CandidateCatalog",
+    "metadata": {
+      "name": "tomatometer-catalog"
+    },
+    "spec": {
+      "candidates": {
+        "auth.builtin.local": {
+          "features": {
+            "availability": 0.999,
+            "latency": 15,
+            "subscription": 0
+          },
+          "name": "Built-in accounts",
+          "provider": {
+            "id": "builtin",
+            "resource": "catalog"
+          },
+          "provides": "service/auth"
+        },
+        "email.selfhosted.postfix": {
+          "features": {
+            "availability": 0.99,
+            "latency": 300,
+            "subscription": 12
+          },
+          "name": "Postfix on a VPS",
+          "properties": {
+            "emailsPerDay": 100000000,
+            "emailsPerMonth": 100000000
+          },
+          "provider": {
+            "id": "selfhosted",
+            "resource": "catalog"
+          },
+          "provides": "service/email"
+        },
+        "quotes.zenquotes.free": {
+          "features": {
+            "availability": 0.98,
+            "latency": 120,
+            "subscription": 0
+          },
+          "name": "ZenQuotes free",
+          "provider": {
+            "id": "zenquotes",
+            "resource": "catalog"
+          },
+          "provides": "service/quotes"
+        },
+        "storage.local.disk": {
+          "features": {
+            "availability": 0.995,
+            "latency": 40,
+            "subscription": 0
+          },
+          "name": "Local disk",
+          "provider": {
+            "id": "local",
+            "resource": "catalog"
+          },
+          "provides": "service/storage"
+        }
+      },
+      "featureBindings": {
+        "availability": {
+          "id": "availability",
+          "resource": "application"
+        },
+        "latency": {
+          "id": "latency",
+          "resource": "application"
+        },
+        "subscription": {
+          "id": "subscription",
+          "resource": "application"
+        }
+      },
+      "providers": {
+        "builtin": {},
+        "local": {},
+        "selfhosted": {},
+        "zenquotes": {}
+      }
+    }
+  },
+  "instance.json": {
+    "apiVersion": "bim/v1",
+    "kind": "Instance",
+    "metadata": {
+      "description": "TomatoMeter's back end: sign in, then send the daily summary e-mail and export the data in parallel, then fetch a quote. Revision 1 has one hand-made candidate per task; SPHERE adds the e-mail providers' plans.",
+      "name": "tomatometer-email",
+      "version": "1.0.0"
+    },
+    "spec": {
+      "profile": "qos-binding/v1",
+      "resources": {
+        "application": {
+          "application": "application.json"
+        },
+        "candidateCatalog": {
+          "catalog": "candidates.json"
+        },
+        "optimization": {
+          "optimization": "optimization.json"
+        }
+      }
+    }
+  },
+  "optimization.json": {
+    "apiVersion": "qos-binding/v1",
+    "kind": "Optimization",
+    "metadata": {
+      "name": "tomatometer-optimization"
+    },
+    "spec": {
+      "criteria": [
+        {
+          "feature": {
+            "id": "subscription",
+            "resource": "application"
+          },
+          "id": "subscription",
+          "normalize": {
+            "clamp": true,
+            "max": 1000,
+            "min": 0
+          }
+        },
+        {
+          "feature": {
+            "id": "availability",
+            "resource": "application"
+          },
+          "id": "availability",
+          "normalize": {
+            "clamp": true,
+            "max": 1,
+            "min": 0
+          }
+        },
+        {
+          "feature": {
+            "id": "latency",
+            "resource": "application"
+          },
+          "id": "latency",
+          "normalize": {
+            "clamp": true,
+            "max": 2000,
+            "min": 0
+          }
+        }
+      ]
+    }
+  }
+}

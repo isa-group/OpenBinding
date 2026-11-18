@@ -1,0 +1,263 @@
+{
+  "compilation": {
+    "binding_space": "8",
+    "compilation_digest": "sha256-54f288f056ab90e0050c9de96f49bbc422e6a801beb05aa2f7cdbe88e1ff0e78",
+    "compiler_digest": "sha256-b91fc3a05d1a58d128f5589f35396aaf8ebd0c3854e1e072ce17c765fe42b4d4",
+    "created_at": "2026-01-01T00:00:04Z",
+    "current": true,
+    "id": "00000000-0000-4000-8000-000000000007",
+    "ir_digest": "sha256-20bdde978f13423a4c72683c00184e410a59920286b876262fa82119a0fa3a3d",
+    "semantic_digest": "sha256-7568924f5773baa488714b1c34b0b8d9bf72b29bee13712897f355012e7e8f95"
+  },
+  "created": true,
+  "problem": {
+    "created_at": "2026-01-01T00:00:05Z",
+    "created_by_id": "00000000-0000-4000-8000-000000000002",
+    "description": "",
+    "id": "00000000-0000-4000-8000-000000000008",
+    "latest_revision": {
+      "created_at": "2026-01-01T00:00:06Z",
+      "current_compilation": {
+        "binding_space": "8",
+        "compilation_digest": "sha256-54f288f056ab90e0050c9de96f49bbc422e6a801beb05aa2f7cdbe88e1ff0e78",
+        "compiler_digest": "sha256-b91fc3a05d1a58d128f5589f35396aaf8ebd0c3854e1e072ce17c765fe42b4d4",
+        "created_at": "2026-01-01T00:00:04Z",
+        "current": true,
+        "id": "00000000-0000-4000-8000-000000000007",
+        "ir_digest": "sha256-20bdde978f13423a4c72683c00184e410a59920286b876262fa82119a0fa3a3d",
+        "semantic_digest": "sha256-7568924f5773baa488714b1c34b0b8d9bf72b29bee13712897f355012e7e8f95"
+      },
+      "id": "00000000-0000-4000-8000-000000000009",
+      "origin": "sphere",
+      "package_digest": "sha256-22a9ed0e33ccdffa89ca2450a487ecb1a5d8ae827740bbea2c2d97bb4d9b29ad",
+      "revision": 2
+    },
+    "name": "tomatometer-email",
+    "organization_id": "00000000-0000-4000-8000-000000000005",
+    "revision_count": 2,
+    "slug": "tomatometer-email",
+    "updated_at": "2026-01-01T00:00:07Z"
+  },
+  "revision": {
+    "created_at": "2026-01-01T00:00:06Z",
+    "created_by_id": "00000000-0000-4000-8000-000000000002",
+    "id": "00000000-0000-4000-8000-000000000009",
+    "instance_digest": "sha256-1e89f9ef47d8663d5fe5fce93288d158079a601a4f1a695d6d49ae70d27b3bcf",
+    "origin": "sphere",
+    "package_digest": "sha256-22a9ed0e33ccdffa89ca2450a487ecb1a5d8ae827740bbea2c2d97bb4d9b29ad",
+    "package_size": 14094,
+    "problem_id": "00000000-0000-4000-8000-000000000008",
+    "provenance": {
+      "generator": "1",
+      "producer": "openbinding-sphere-import",
+      "recipe": {
+        "billing": "monthly",
+        "currency": "USD",
+        "demand": {
+          "dailyEmails": {
+            "unit": "email/day",
+            "value": 1000
+          },
+          "monthlyEmails": {
+            "unit": "email/month",
+            "value": 30000
+          }
+        },
+        "features": {
+          "availability": {
+            "direction": "maximize",
+            "domain": "ratio",
+            "unit": ""
+          },
+          "latency": {
+            "direction": "minimize",
+            "unit": "ms"
+          },
+          "subscription": {
+            "direction": "minimize",
+            "unit": "USD/month"
+          }
+        },
+        "recipeVersion": "1",
+        "tasks": [
+          {
+            "capability": "service/email",
+            "expand": "plans",
+            "from": [
+              {
+                "addons": [],
+                "provider": "mailgun",
+                "sphere": {
+                  "pricing": "6ade364540e55445692b0eda",
+                  "version": "6ade36454b2b5b01c587db3d"
+                }
+              },
+              {
+                "addons": [],
+                "assume": {
+                  "emailsPerDay": "unlimited"
+                },
+                "provider": "sendgrid",
+                "sphere": {
+                  "pricing": "6adf1a6240e55445692b6f14",
+                  "version": "6adf1a62daa2ba78b21d7119"
+                }
+              },
+              {
+                "addons": [],
+                "names": {
+                  "guaranteedUptimeSla": "sla"
+                },
+                "provider": "brevo",
+                "sphere": {
+                  "pricing": "6ade2d4440e55445692b07f1",
+                  "version": "6ade2d444b2b5b01c587d80d"
+                }
+              },
+              {
+                "addons": [],
+                "names": {
+                  "emailsPerDay": "transactionalEmailsPerDay",
+                  "emailsPerMonth": "transactionalEmailsPerMonth",
+                  "guaranteedUptimeSla": "uptimeSla"
+                },
+                "provider": "resend",
+                "sphere": {
+                  "pricing": "6ade2d2540e55445692b07c6",
+                  "version": "6ade2d254b2b5b01c587d7ee"
+                }
+              },
+              {
+                "addons": [],
+                "names": {
+                  "emailsPerDay": "dailyEmailSendingPerDay",
+                  "emailsPerMonth": "monthlyEmailVolumeLimit"
+                },
+                "provider": "postmark",
+                "sphere": {
+                  "pricing": "6ade2f3b40e55445692b09aa",
+                  "version": "6ade2f3b4b2b5b01c587d8f5"
+                }
+              }
+            ],
+            "properties": {
+              "availability": {
+                "guarantee": "guaranteedUptimeSla",
+                "map": {
+                  "false": 0.99,
+                  "true": 0.9995
+                },
+                "postmark": {
+                  "manual": {
+                    "*": 0.999
+                  }
+                },
+                "sendgrid": {
+                  "manual": {
+                    "*": 0.999
+                  }
+                }
+              },
+              "latency": {
+                "manual": {
+                  "*": 400,
+                  "brevo": 300,
+                  "mailgun": 250,
+                  "mailgun.FOUNDATION": 200,
+                  "postmark": 150,
+                  "resend": 180,
+                  "sendgrid": 220
+                }
+              },
+              "subscription": "price"
+            },
+            "prune": "none",
+            "require": {
+              "limits": {
+                "emailsPerDay": {
+                  "atLeast": "dailyEmails"
+                },
+                "emailsPerMonth": {
+                  "atLeast": "monthlyEmails"
+                }
+              }
+            },
+            "service": "email",
+            "task": "dailySummary"
+          }
+        ]
+      },
+      "recipeDigest": "sha256-6b84ab0e25c298ea4d83c38911549baffd25e627df50c29c3808d8f2456b752c",
+      "snapshots": [
+        "00000000-0000-4000-8000-000000000010",
+        "00000000-0000-4000-8000-000000000011",
+        "00000000-0000-4000-8000-000000000012",
+        "00000000-0000-4000-8000-000000000013",
+        "00000000-0000-4000-8000-000000000014"
+      ],
+      "sources": [
+        {
+          "pricingId": "6ade2d2540e55445692b07c6",
+          "registry": null,
+          "title": "Resend",
+          "versionId": "6ade2d254b2b5b01c587d7ee",
+          "versionLabel": "2026-10"
+        },
+        {
+          "pricingId": "6ade2d4440e55445692b07f1",
+          "registry": null,
+          "title": "brevo",
+          "versionId": "6ade2d444b2b5b01c587d80d",
+          "versionLabel": "2026-10"
+        },
+        {
+          "pricingId": "6ade2f3b40e55445692b09aa",
+          "registry": null,
+          "title": "postmark",
+          "versionId": "6ade2f3b4b2b5b01c587d8f5",
+          "versionLabel": "2026-10"
+        },
+        {
+          "pricingId": "6ade364540e55445692b0eda",
+          "registry": null,
+          "title": "Mailgun",
+          "versionId": "6ade36454b2b5b01c587db3d",
+          "versionLabel": "2026-10"
+        },
+        {
+          "pricingId": "6adf1a6240e55445692b6f14",
+          "registry": null,
+          "title": "Twilio SendGrid Email API",
+          "versionId": "6adf1a62daa2ba78b21d7119",
+          "versionLabel": "2026-10"
+        }
+      ]
+    },
+    "revision": 2,
+    "sphere": {
+      "recipeDigest": "sha256-6b84ab0e25c298ea4d83c38911549baffd25e627df50c29c3808d8f2456b752c",
+      "sources": [
+        {
+          "title": "Resend",
+          "versionLabel": "2026-10"
+        },
+        {
+          "title": "brevo",
+          "versionLabel": "2026-10"
+        },
+        {
+          "title": "postmark",
+          "versionLabel": "2026-10"
+        },
+        {
+          "title": "Mailgun",
+          "versionLabel": "2026-10"
+        },
+        {
+          "title": "Twilio SendGrid Email API",
+          "versionLabel": "2026-10"
+        }
+      ]
+    }
+  }
+}

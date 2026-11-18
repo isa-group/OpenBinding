@@ -509,6 +509,15 @@ from: {sphere: <owner/name>, registry: <alias>, version: <versionId>, plan: <pla
   snapshots F3 keeps (`c2y_unknown_key`).
 - Any field that is not well formed (an `owner/name`, an alias, a version id, a plan or add-on name of 1 to 128
   characters with no control character), or an add-on listed twice, is `c2y_from_shape`.
+- **Derive writes it.** A composition derived from a problem a SPHERE import generated gets the `from` of every
+  candidate the import generated, from the revision's value origins: the family's `owner/name` when it was read,
+  the version id, the plan and add-ons as the pricing names them. A candidate written by hand gets none.
+- **Coherence with the problem.** Wherever a document is assessed against its problem (check, seal, derive, fork,
+  re-evaluation, stored versions included), a `from` on a candidate the import generated must say what the
+  revision recorded: `owner/name`, registry, version, plan and the add-ons as a set (`c2y_provenance_mismatch`, an
+  error at the first field that differs). An entry **without** `from` on such a candidate is valid, with the
+  warning `c2y_provenance_missing`: the version then pins no upstream version of its own (it can still be watched
+  through the revision's value origins). On a candidate no import generated, a hand-written `from` is not checked.
 
 ```yaml c2y valid registries=lab
 syntaxVersion: "1.0"
@@ -589,9 +598,17 @@ bytes and the feed's ETag stay the same. Changing *which* offering is referenced
 - a `url` that is not an absolute `https://` URL: `c2y_offering_url_not_https`.
 
 **Warnings** (the composition stays valid and sealable; it only has no margins): a `registry` the deployment does not
-define (`c2y_offering_registry_unknown`, from F1), and, from F3, an offering that cannot be read
-(`c2y_offering_unreadable`) or whose content is not a valid Pricing2Yaml (`c2y_offering_invalid_pricing`). **The
-commercial part never invalidates the binding.**
+define (`c2y_offering_registry_unknown`, from the language, and then nothing is read), an offering that cannot be read
+(`c2y_offering_unreadable`, with the reason in words: not found or not visible, ambiguous, a redirect or an address it
+may not follow, too large, too slow) or whose content is not a valid Pricing2Yaml 3.x pricing
+(`c2y_offering_invalid_pricing`). **The commercial part never invalidates the binding.**
+
+**When it is read.** The offering is read when an evaluation is created: on a seal, a derivation that seals, a fork
+and a re-evaluation on a new basis, never on `versions/check` (the editor's lint), `evaluate` or `neighborhood`, and
+never when reading a sealed version. Sealing content that already has an evaluation on the requested basis returns
+that evaluation and reads nothing: the offering version per evaluation is the one read when the evaluation was first
+created. `sphere: owner/name` is resolved by organization and exact slug (never by display name; two families with
+one name are "ambiguous"), and its latest version (by date) is read.
 
 What is stored: F1 keeps the offering's source on each version (`composition_versions.offering`, for the version
 view and the F6 watcher, without re-reading the YAML). From F3, every evaluation and every upstream event also
@@ -1056,6 +1073,8 @@ organization, the toolchain's evaluation and the evidence run.
 | `c2y_offering_shape` | error | language | an offering that is not a well-formed reference |
 | `c2y_offering_url_not_https` | error | language | an offering URL that is not an absolute `https://` URL |
 | `c2y_offering_registry_unknown` | warning | language | an offering on a registry the deployment does not define |
+| `c2y_offering_unreadable` | warning | assessment | the offering cannot be read when the evaluation is created; no margins |
+| `c2y_offering_invalid_pricing` | warning | assessment | the offering's content is not a valid Pricing2Yaml 3.x pricing; no margins |
 | `c2y_value_shape` | error | language | a value that is a boolean, or an empty unit |
 | `c2y_evidence_shape` | error | language | evidence that does not hold together |
 | `c2y_evidence_gateway_without_problem` | error | language | `evaluatedBy: gateway` with no problem |
@@ -1075,6 +1094,8 @@ organization, the toolchain's evaluation and the evidence run.
 | `c2y_value_not_computed` | warning | problem | a declared value of a property the toolchain does not compute; dropped |
 | `c2y_constraint_violated` | error | problem | the binding violates a hard constraint |
 | `c2y_constraint_soft` | warning | problem | the binding misses a soft constraint, with its penalty |
+| `c2y_provenance_mismatch` | error | problem | a `from` disagrees with the provenance a SPHERE-generated problem recorded for the candidate (owner/name, registry, version, plan, add-ons) |
+| `c2y_provenance_missing` | warning | problem | an entry without `from` whose candidate a SPHERE import generated: the version pins no upstream version of its own |
 | `c2y_problem_foreign` | error | assessment | `problem.ref` names a problem of another organization |
 | `c2y_problem_not_found` | error | assessment | no such problem or revision in the organization |
 | `c2y_problem_not_recompilable` | error | assessment | the installed toolchain refuses the linked revision's stored package |
@@ -1087,14 +1108,6 @@ organization, the toolchain's evaluation and the evidence run.
 | `c2y_run_foreign_revision` | error | assessment | the run solved another revision, or a compilation that reads it differently |
 | `c2y_run_point_invalid` | error | assessment | the run has no binding to cite, or `point` is not one of its solutions |
 | `c2y_run_binding_mismatch` | error | assessment | the binding is not the run's solution |
-
-**Reserved for F3**, named here and emitted then (no constant defines them yet):
-
-| Code | Severity | Phase | Meaning |
-|---|---|---|---|
-| `c2y_offering_unreadable` | warning | assessment | the offering cannot be read; no margins |
-| `c2y_offering_invalid_pricing` | warning | assessment | the offering's content is not a valid Pricing2Yaml; no margins |
-| `c2y_provenance_mismatch` | error | problem | a `from` disagrees with the provenance a SPHERE-generated problem recorded for the candidate |
 
 The HTTP codes that wrap these findings (`composition_invalid`, `evaluation_invalid`, `derivation_invalid`, …) are in
 [ERRORS.md](ERRORS.md).

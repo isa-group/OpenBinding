@@ -43,7 +43,7 @@ async def test_the_facts_of_a_compilation_by_id_and_by_digest_with_an_immutable_
 
     by_id = await api_client.get(_facts_url(uploaded, compilation["id"]), headers=headers)
     assert by_id.status_code == 200, by_id.text
-    tag = f'"{compilation["compilation_digest"]}.facts"'
+    tag = f'"{compilation["compilation_digest"]}.package.facts"'
     assert by_id.headers["etag"] == tag
     assert by_id.headers["cache-control"] == "private, immutable"
     body = by_id.json()
@@ -150,3 +150,46 @@ async def test_a_compilation_the_facts_cannot_read_is_a_422_with_the_reason(
     drafted = await api_client.post(VALIDATE, params={"include": "facts"}, content=package_bytes(), headers=ZIP)
     assert drafted.status_code == 422, drafted.text
     assert drafted.json()["code"] == "problem_facts_unreadable"
+
+
+async def test_a_generated_revision_has_other_facts_than_the_same_bytes_uploaded(
+    api_client, registration, db_session, gate  # noqa: F811
+):
+    from openbinding_gateway.modules.problems.application import create_problem
+    from problems._sphere_helpers import flagship, member
+
+    headers, org, organization, user = await member(api_client, registration, db_session, gate)
+    generated = flagship()
+    uploaded = await upload_problem(api_client, headers, org, archive=generated.archive(), slug="uploaded")
+    made = await create_problem(db_session, organization, generated.archive(), user, slug="generated",
+                                value_origins=generated.origins)
+    await db_session.commit()
+    assert made.compilation.compilation_digest == uploaded["compilation"]["compilation_digest"]
+
+    plain = await api_client.get(_facts_url(uploaded, uploaded["compilation"]["id"]), headers=headers)
+    url = f"/v1/organizations/{org}/problems/generated/revisions/1/compilations/{made.compilation.id}/facts"
+    rich = await api_client.get(url, headers=headers)
+    assert plain.status_code == rich.status_code == 200, rich.text
+    assert plain.headers["etag"].endswith('.package.facts"')
+    assert rich.headers["etag"] != plain.headers["etag"] and rich.headers["etag"].startswith(
+        f'"{made.compilation.compilation_digest}.sha256-'
+    )
+    unchanged = await api_client.get(url, headers={**headers, "If-None-Match": rich.headers["etag"]})
+    assert unchanged.status_code == 304
+    stale = await api_client.get(url, headers={**headers, "If-None-Match": plain.headers["etag"]})
+    assert stale.status_code == 200
+
+    body = rich.json()
+    _assert_component("ProblemFactsView", body)
+    candidate = next(c for c in body["candidates"] if c["key"] == "sphere-email/email.mailgun.foundation")
+    assert candidate["properties"] == {"emailsPerDay": 100000000, "emailsPerMonth": 50000}
+    assert candidate["origins"]["subscription"]["source"]["kind"] == "priced"
+    assert candidate["origins"]["subscription"]["source"]["pricing"]["plan"] == "FOUNDATION"
+    assert candidate["propertyOrigins"]["emailsPerMonth"]["source"]["kind"] == "limit"
+    assert candidate["propertyOrigins"]["emailsPerMonth"]["pointer"].endswith("/properties/emailsPerMonth")
+    assert candidate["provenance"]["sphere"] == "danruilop1/mailgun"
+    postfix = next(c for c in body["candidates"] if c["key"] == "catalog/email.selfhosted.postfix")
+    assert postfix["provenance"] is None and postfix["origins"]["latency"]["source"] is None
+    assert postfix["properties"] == {"emailsPerDay": 100000000, "emailsPerMonth": 100000000}
+    without = plain.json()
+    assert all(c["provenance"] is None for c in without["candidates"])

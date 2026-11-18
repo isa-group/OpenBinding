@@ -42,6 +42,11 @@ NEIGHBORHOOD = "/v1/organizations/{org}/compositions/{composition}/neighborhood"
 DERIVE = "/v1/organizations/{org}/compositions/{composition}/derive"
 CONNECTION = "/v1/organizations/{org}/connections/sphere"
 BAD_KEY = {"content": b'{"apiKey": "not-a-key"}', "headers": {"content-type": "application/json"}}
+NO_RECIPE = {"content": b'{"recipe": {}, "base": null}', "headers": {"content-type": "application/json"}}
+NO_RECIPE_APPLY = {
+    "content": b'{"recipe": {}, "base": null, "expect": {"packageDigest": "sha256-' + b"0" * 64 + b'"}}',
+    "headers": {"content-type": "application/json"},
+}
 
 #: A request for every route that reaches the limiter: ``(method, template) -> (method, concrete path, body)``,
 #: the concrete path filled in by the ``member`` fixture's organization and problem.
@@ -52,6 +57,13 @@ REQUESTS = {
         "POST", "/v1/organizations/{org}/problems/{problem}/revisions", EMPTY_PACKAGE,
     ),
     ("GET", COMPILATION): ("GET", "/v1/organizations/{org}/problems/{problem}/revisions/1/compilation", {}),
+    # A refused recipe: a 200 with findings (expand) or a 422 (apply), then a 429.
+    ("POST", "/v1/organizations/{org}/problems/{problem}/sphere/expand"): (
+        "POST", "/v1/organizations/{org}/problems/none/sphere/expand", NO_RECIPE,
+    ),
+    ("POST", "/v1/organizations/{org}/problems/{problem}/sphere/apply"): (
+        "POST", "/v1/organizations/{org}/problems/none/sphere/apply", NO_RECIPE_APPLY,
+    ),
     ("POST", f"{LANGUAGE}/validate"): ("POST", f"{LANGUAGE}/validate", EMPTY_YAML),
     ("POST", f"{LANGUAGE}/parse"): ("POST", f"{LANGUAGE}/parse", EMPTY_YAML),
     ("POST", f"{LANGUAGE}/serialise"): ("POST", f"{LANGUAGE}/serialise", EMPTY_JSON),
@@ -497,6 +509,7 @@ ANONYMOUS_REQUESTS = {
     ),
     ("GET", f"{COMPOSITION}/diff"): ("/v1/organizations/{org}/compositions/none/diff", 404),
     ("GET", f"{COMPOSITION}/graph"): ("/v1/organizations/{org}/compositions/none/graph", 404),
+    ("GET", f"{COMPOSITION}/upstream"): ("/v1/organizations/{org}/compositions/none/upstream", 404),
     ("GET", f"{COMPOSITION}/download"): ("/v1/organizations/{org}/compositions/none/download", 404),
     ("GET", "/v1/permalinks/compositions/{composition_id}"): (
         "/v1/permalinks/compositions/00000000-0000-0000-0000-000000000000", 404,

@@ -1,0 +1,1955 @@
+[
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.brevo.free",
+    "detail": {
+      "billing": "annual",
+      "currency": "USD",
+      "formula": "free 0 x 0.9 (annual)",
+      "multiplier": 0.9,
+      "parts": [
+        {
+          "amount": 0,
+          "id": "free",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "month",
+          "unitAmount": 0
+        }
+      ],
+      "seats": 1
+    },
+    "plan": "free",
+    "pricingId": "6ae0768440e55445692c0081",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "danvelcam/brevo",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 0,
+    "versionId": "6ae07684daa2ba78b21d73ce"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.brevo.free",
+    "detail": {
+      "name": "emailsPerMonth",
+      "period": {
+        "unit": "MONTH",
+        "value": 1
+      },
+      "raw": {
+        "unlimited": true
+      },
+      "unit": "email",
+      "unlimited": true
+    },
+    "plan": "free",
+    "pricingId": "6ae0768440e55445692c0081",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danvelcam/brevo",
+    "target": "emailsPerMonth",
+    "targetKind": "property",
+    "value": 100000000,
+    "versionId": "6ae07684daa2ba78b21d73ce"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.brevo.professional",
+    "detail": {
+      "billing": "annual",
+      "currency": "USD",
+      "formula": "professional 499 x 0.9 (annual)",
+      "multiplier": 0.9,
+      "parts": [
+        {
+          "amount": 449.1,
+          "id": "professional",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "month",
+          "unitAmount": 499
+        }
+      ],
+      "seats": 1
+    },
+    "plan": "professional",
+    "pricingId": "6ae0768440e55445692c0081",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "danvelcam/brevo",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 449.1,
+    "versionId": "6ae07684daa2ba78b21d73ce"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.brevo.professional",
+    "detail": {
+      "name": "emailsPerMonth",
+      "period": {
+        "unit": "MONTH",
+        "value": 1
+      },
+      "raw": 150000,
+      "unit": "email",
+      "unlimited": false
+    },
+    "plan": "professional",
+    "pricingId": "6ae0768440e55445692c0081",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danvelcam/brevo",
+    "target": "emailsPerMonth",
+    "targetKind": "property",
+    "value": 150000,
+    "versionId": "6ae07684daa2ba78b21d73ce"
+  },
+  {
+    "addOns": [
+      "dedicatedIp"
+    ],
+    "candidateKey": "sphere-email/email.brevo.professional.dedicatedip",
+    "detail": {
+      "billing": "annual",
+      "currency": "USD",
+      "formula": "(professional 499 + dedicatedIp 251 x 0.083333333) x 0.9 (annual)",
+      "multiplier": 0.9,
+      "parts": [
+        {
+          "amount": 449.1,
+          "id": "professional",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "month",
+          "unitAmount": 499
+        },
+        {
+          "amount": 18.825,
+          "id": "dedicatedIp",
+          "kind": "addOn",
+          "monthlyFactor": 0.083333333,
+          "period": "year",
+          "seats": 1,
+          "unit": "IP/year",
+          "unitAmount": 251
+        }
+      ],
+      "seats": 1
+    },
+    "plan": "professional",
+    "pricingId": "6ae0768440e55445692c0081",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "danvelcam/brevo",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 467.925,
+    "versionId": "6ae07684daa2ba78b21d73ce"
+  },
+  {
+    "addOns": [
+      "dedicatedIp"
+    ],
+    "candidateKey": "sphere-email/email.brevo.professional.dedicatedip",
+    "detail": {
+      "name": "emailsPerMonth",
+      "period": {
+        "unit": "MONTH",
+        "value": 1
+      },
+      "raw": 150000,
+      "unit": "email",
+      "unlimited": false
+    },
+    "plan": "professional",
+    "pricingId": "6ae0768440e55445692c0081",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danvelcam/brevo",
+    "target": "emailsPerMonth",
+    "targetKind": "property",
+    "value": 150000,
+    "versionId": "6ae07684daa2ba78b21d73ce"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.brevo.standard",
+    "detail": {
+      "billing": "annual",
+      "currency": "USD",
+      "formula": "standard 18 x 0.9 (annual)",
+      "multiplier": 0.9,
+      "parts": [
+        {
+          "amount": 16.2,
+          "id": "standard",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "month",
+          "unitAmount": 18
+        }
+      ],
+      "seats": 1
+    },
+    "plan": "standard",
+    "pricingId": "6ae0768440e55445692c0081",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "danvelcam/brevo",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 16.2,
+    "versionId": "6ae07684daa2ba78b21d73ce"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.brevo.standard",
+    "detail": {
+      "name": "emailsPerMonth",
+      "period": {
+        "unit": "MONTH",
+        "value": 1
+      },
+      "raw": 5000,
+      "unit": "email",
+      "unlimited": false
+    },
+    "plan": "standard",
+    "pricingId": "6ae0768440e55445692c0081",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danvelcam/brevo",
+    "target": "emailsPerMonth",
+    "targetKind": "property",
+    "value": 5000,
+    "versionId": "6ae07684daa2ba78b21d73ce"
+  },
+  {
+    "addOns": [
+      "extraSeats"
+    ],
+    "candidateKey": "sphere-email/email.brevo.standard.extraseats",
+    "detail": {
+      "billing": "annual",
+      "currency": "USD",
+      "formula": "(standard 18 + extraSeats 12) x 0.9 (annual)",
+      "multiplier": 0.9,
+      "parts": [
+        {
+          "amount": 16.2,
+          "id": "standard",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "month",
+          "unitAmount": 18
+        },
+        {
+          "amount": 10.8,
+          "id": "extraSeats",
+          "kind": "addOn",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "user/month",
+          "unitAmount": 12
+        }
+      ],
+      "seats": 1
+    },
+    "plan": "standard",
+    "pricingId": "6ae0768440e55445692c0081",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "danvelcam/brevo",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 27,
+    "versionId": "6ae07684daa2ba78b21d73ce"
+  },
+  {
+    "addOns": [
+      "extraSeats"
+    ],
+    "candidateKey": "sphere-email/email.brevo.standard.extraseats",
+    "detail": {
+      "name": "emailsPerMonth",
+      "period": {
+        "unit": "MONTH",
+        "value": 1
+      },
+      "raw": 5000,
+      "unit": "email",
+      "unlimited": false
+    },
+    "plan": "standard",
+    "pricingId": "6ae0768440e55445692c0081",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danvelcam/brevo",
+    "target": "emailsPerMonth",
+    "targetKind": "property",
+    "value": 5000,
+    "versionId": "6ae07684daa2ba78b21d73ce"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.brevo.starter",
+    "detail": {
+      "billing": "annual",
+      "currency": "USD",
+      "formula": "starter 9 x 0.9 (annual)",
+      "multiplier": 0.9,
+      "parts": [
+        {
+          "amount": 8.1,
+          "id": "starter",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "month",
+          "unitAmount": 9
+        }
+      ],
+      "seats": 1
+    },
+    "plan": "starter",
+    "pricingId": "6ae0768440e55445692c0081",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "danvelcam/brevo",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 8.1,
+    "versionId": "6ae07684daa2ba78b21d73ce"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.brevo.starter",
+    "detail": {
+      "name": "emailsPerMonth",
+      "period": {
+        "unit": "MONTH",
+        "value": 1
+      },
+      "raw": 5000,
+      "unit": "email",
+      "unlimited": false
+    },
+    "plan": "starter",
+    "pricingId": "6ae0768440e55445692c0081",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danvelcam/brevo",
+    "target": "emailsPerMonth",
+    "targetKind": "property",
+    "value": 5000,
+    "versionId": "6ae07684daa2ba78b21d73ce"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.mailgun.basic",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "basic 15 x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 15,
+          "id": "basic",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "month",
+          "unitAmount": 15
+        }
+      ],
+      "seats": 1
+    },
+    "plan": "basic",
+    "pricingId": "6ae077ac40e55445692c01ce",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "danvelcam/mailgun",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 15,
+    "versionId": "6ae6349ff99de6a6f95a4282"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.mailgun.basic",
+    "detail": {
+      "name": "emailsPerMonth",
+      "period": {
+        "unit": "MONTH",
+        "value": 1
+      },
+      "raw": 10000,
+      "unit": "email",
+      "unlimited": false
+    },
+    "plan": "basic",
+    "pricingId": "6ae077ac40e55445692c01ce",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danvelcam/mailgun",
+    "target": "emailsPerMonth",
+    "targetKind": "property",
+    "value": 10000,
+    "versionId": "6ae6349ff99de6a6f95a4282"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.mailgun.foundation",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "foundation 35 x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 35,
+          "id": "foundation",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "month",
+          "unitAmount": 35
+        }
+      ],
+      "seats": 1
+    },
+    "plan": "foundation",
+    "pricingId": "6ae077ac40e55445692c01ce",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "danvelcam/mailgun",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 35,
+    "versionId": "6ae6349ff99de6a6f95a4282"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.mailgun.foundation",
+    "detail": {
+      "name": "emailsPerMonth",
+      "period": {
+        "unit": "MONTH",
+        "value": 1
+      },
+      "raw": 50000,
+      "unit": "email",
+      "unlimited": false
+    },
+    "plan": "foundation",
+    "pricingId": "6ae077ac40e55445692c01ce",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danvelcam/mailgun",
+    "target": "emailsPerMonth",
+    "targetKind": "property",
+    "value": 50000,
+    "versionId": "6ae6349ff99de6a6f95a4282"
+  },
+  {
+    "addOns": [
+      "extraDedicatedIp"
+    ],
+    "candidateKey": "sphere-email/email.mailgun.foundation.extradedicatedip",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "(foundation 35 + extraDedicatedIp 59) x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 35,
+          "id": "foundation",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "month",
+          "unitAmount": 35
+        },
+        {
+          "amount": 59,
+          "id": "extraDedicatedIp",
+          "kind": "addOn",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "IP/month",
+          "unitAmount": 59
+        }
+      ],
+      "seats": 1
+    },
+    "plan": "foundation",
+    "pricingId": "6ae077ac40e55445692c01ce",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "danvelcam/mailgun",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 94,
+    "versionId": "6ae6349ff99de6a6f95a4282"
+  },
+  {
+    "addOns": [
+      "extraDedicatedIp"
+    ],
+    "candidateKey": "sphere-email/email.mailgun.foundation.extradedicatedip",
+    "detail": {
+      "name": "emailsPerMonth",
+      "period": {
+        "unit": "MONTH",
+        "value": 1
+      },
+      "raw": 50000,
+      "unit": "email",
+      "unlimited": false
+    },
+    "plan": "foundation",
+    "pricingId": "6ae077ac40e55445692c01ce",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danvelcam/mailgun",
+    "target": "emailsPerMonth",
+    "targetKind": "property",
+    "value": 50000,
+    "versionId": "6ae6349ff99de6a6f95a4282"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.mailgun.free",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "free 0 x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 0,
+          "id": "free",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "month",
+          "unitAmount": 0
+        }
+      ],
+      "seats": 1
+    },
+    "plan": "free",
+    "pricingId": "6ae077ac40e55445692c01ce",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "danvelcam/mailgun",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 0,
+    "versionId": "6ae6349ff99de6a6f95a4282"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.mailgun.free",
+    "detail": {
+      "name": "emailsPerMonth",
+      "period": {
+        "unit": "MONTH",
+        "value": 1
+      },
+      "raw": 3000,
+      "unit": "email",
+      "unlimited": false
+    },
+    "plan": "free",
+    "pricingId": "6ae077ac40e55445692c01ce",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danvelcam/mailgun",
+    "target": "emailsPerMonth",
+    "targetKind": "property",
+    "value": 3000,
+    "versionId": "6ae6349ff99de6a6f95a4282"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.mailgun.scale",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "scale 90 x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 90,
+          "id": "scale",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "month",
+          "unitAmount": 90
+        }
+      ],
+      "seats": 1
+    },
+    "plan": "scale",
+    "pricingId": "6ae077ac40e55445692c01ce",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "danvelcam/mailgun",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 90,
+    "versionId": "6ae6349ff99de6a6f95a4282"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.mailgun.scale",
+    "detail": {
+      "name": "emailsPerMonth",
+      "period": {
+        "unit": "MONTH",
+        "value": 1
+      },
+      "raw": 100000,
+      "unit": "email",
+      "unlimited": false
+    },
+    "plan": "scale",
+    "pricingId": "6ae077ac40e55445692c01ce",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danvelcam/mailgun",
+    "target": "emailsPerMonth",
+    "targetKind": "property",
+    "value": 100000,
+    "versionId": "6ae6349ff99de6a6f95a4282"
+  },
+  {
+    "addOns": [
+      "extraDedicatedIp"
+    ],
+    "candidateKey": "sphere-email/email.mailgun.scale.extradedicatedip",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "(scale 90 + extraDedicatedIp 59) x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 90,
+          "id": "scale",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "month",
+          "unitAmount": 90
+        },
+        {
+          "amount": 59,
+          "id": "extraDedicatedIp",
+          "kind": "addOn",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "IP/month",
+          "unitAmount": 59
+        }
+      ],
+      "seats": 1
+    },
+    "plan": "scale",
+    "pricingId": "6ae077ac40e55445692c01ce",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "danvelcam/mailgun",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 149,
+    "versionId": "6ae6349ff99de6a6f95a4282"
+  },
+  {
+    "addOns": [
+      "extraDedicatedIp"
+    ],
+    "candidateKey": "sphere-email/email.mailgun.scale.extradedicatedip",
+    "detail": {
+      "name": "emailsPerMonth",
+      "period": {
+        "unit": "MONTH",
+        "value": 1
+      },
+      "raw": 100000,
+      "unit": "email",
+      "unlimited": false
+    },
+    "plan": "scale",
+    "pricingId": "6ae077ac40e55445692c01ce",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danvelcam/mailgun",
+    "target": "emailsPerMonth",
+    "targetKind": "property",
+    "value": 100000,
+    "versionId": "6ae6349ff99de6a6f95a4282"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.postmark.basic",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "basic 15 x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 15,
+          "id": "basic",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "month",
+          "unitAmount": 15
+        }
+      ],
+      "seats": 1
+    },
+    "plan": "basic",
+    "pricingId": "6ae0776f40e55445692c018c",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "danvelcam/postmark",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 15,
+    "versionId": "6ae0776fdaa2ba78b21d7476"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.postmark.basic",
+    "detail": {
+      "name": "emailsPerMonth",
+      "period": {
+        "unit": "MONTH",
+        "value": 1
+      },
+      "raw": 10000,
+      "unit": "email",
+      "unlimited": false
+    },
+    "plan": "basic",
+    "pricingId": "6ae0776f40e55445692c018c",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danvelcam/postmark",
+    "target": "emailsPerMonth",
+    "targetKind": "property",
+    "value": 10000,
+    "versionId": "6ae0776fdaa2ba78b21d7476"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.postmark.free",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "free 0 x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 0,
+          "id": "free",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "month",
+          "unitAmount": 0
+        }
+      ],
+      "seats": 1
+    },
+    "plan": "free",
+    "pricingId": "6ae0776f40e55445692c018c",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "danvelcam/postmark",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 0,
+    "versionId": "6ae0776fdaa2ba78b21d7476"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.postmark.free",
+    "detail": {
+      "name": "emailsPerMonth",
+      "period": {
+        "unit": "MONTH",
+        "value": 1
+      },
+      "raw": 100,
+      "unit": "email",
+      "unlimited": false
+    },
+    "plan": "free",
+    "pricingId": "6ae0776f40e55445692c018c",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danvelcam/postmark",
+    "target": "emailsPerMonth",
+    "targetKind": "property",
+    "value": 100,
+    "versionId": "6ae0776fdaa2ba78b21d7476"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.postmark.platform",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "platform 18 x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 18,
+          "id": "platform",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "month",
+          "unitAmount": 18
+        }
+      ],
+      "seats": 1
+    },
+    "plan": "platform",
+    "pricingId": "6ae0776f40e55445692c018c",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "danvelcam/postmark",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 18,
+    "versionId": "6ae0776fdaa2ba78b21d7476"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.postmark.platform",
+    "detail": {
+      "name": "emailsPerMonth",
+      "period": {
+        "unit": "MONTH",
+        "value": 1
+      },
+      "raw": 10000,
+      "unit": "email",
+      "unlimited": false
+    },
+    "plan": "platform",
+    "pricingId": "6ae0776f40e55445692c018c",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danvelcam/postmark",
+    "target": "emailsPerMonth",
+    "targetKind": "property",
+    "value": 10000,
+    "versionId": "6ae0776fdaa2ba78b21d7476"
+  },
+  {
+    "addOns": [
+      "dedicatedIp"
+    ],
+    "candidateKey": "sphere-email/email.postmark.platform.dedicatedip",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "(platform 18 + dedicatedIp 50) x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 18,
+          "id": "platform",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "month",
+          "unitAmount": 18
+        },
+        {
+          "amount": 50,
+          "id": "dedicatedIp",
+          "kind": "addOn",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "IP/month",
+          "unitAmount": 50
+        }
+      ],
+      "seats": 1
+    },
+    "plan": "platform",
+    "pricingId": "6ae0776f40e55445692c018c",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "danvelcam/postmark",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 68,
+    "versionId": "6ae0776fdaa2ba78b21d7476"
+  },
+  {
+    "addOns": [
+      "dedicatedIp"
+    ],
+    "candidateKey": "sphere-email/email.postmark.platform.dedicatedip",
+    "detail": {
+      "name": "emailsPerMonth",
+      "period": {
+        "unit": "MONTH",
+        "value": 1
+      },
+      "raw": 10000,
+      "unit": "email",
+      "unlimited": false
+    },
+    "plan": "platform",
+    "pricingId": "6ae0776f40e55445692c018c",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danvelcam/postmark",
+    "target": "emailsPerMonth",
+    "targetKind": "property",
+    "value": 10000,
+    "versionId": "6ae0776fdaa2ba78b21d7476"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.postmark.pro",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "pro 16.5 x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 16.5,
+          "id": "pro",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "month",
+          "unitAmount": 16.5
+        }
+      ],
+      "seats": 1
+    },
+    "plan": "pro",
+    "pricingId": "6ae0776f40e55445692c018c",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "danvelcam/postmark",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 16.5,
+    "versionId": "6ae0776fdaa2ba78b21d7476"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.postmark.pro",
+    "detail": {
+      "name": "emailsPerMonth",
+      "period": {
+        "unit": "MONTH",
+        "value": 1
+      },
+      "raw": 10000,
+      "unit": "email",
+      "unlimited": false
+    },
+    "plan": "pro",
+    "pricingId": "6ae0776f40e55445692c018c",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danvelcam/postmark",
+    "target": "emailsPerMonth",
+    "targetKind": "property",
+    "value": 10000,
+    "versionId": "6ae0776fdaa2ba78b21d7476"
+  },
+  {
+    "addOns": [
+      "dedicatedIp"
+    ],
+    "candidateKey": "sphere-email/email.postmark.pro.dedicatedip",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "(pro 16.5 + dedicatedIp 50) x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 16.5,
+          "id": "pro",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "month",
+          "unitAmount": 16.5
+        },
+        {
+          "amount": 50,
+          "id": "dedicatedIp",
+          "kind": "addOn",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "IP/month",
+          "unitAmount": 50
+        }
+      ],
+      "seats": 1
+    },
+    "plan": "pro",
+    "pricingId": "6ae0776f40e55445692c018c",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "danvelcam/postmark",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 66.5,
+    "versionId": "6ae0776fdaa2ba78b21d7476"
+  },
+  {
+    "addOns": [
+      "dedicatedIp"
+    ],
+    "candidateKey": "sphere-email/email.postmark.pro.dedicatedip",
+    "detail": {
+      "name": "emailsPerMonth",
+      "period": {
+        "unit": "MONTH",
+        "value": 1
+      },
+      "raw": 10000,
+      "unit": "email",
+      "unlimited": false
+    },
+    "plan": "pro",
+    "pricingId": "6ae0776f40e55445692c018c",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danvelcam/postmark",
+    "target": "emailsPerMonth",
+    "targetKind": "property",
+    "value": 10000,
+    "versionId": "6ae0776fdaa2ba78b21d7476"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.resend.free",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "free 0 x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 0,
+          "id": "free",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "month",
+          "unitAmount": 0
+        }
+      ],
+      "seats": 1
+    },
+    "plan": "free",
+    "pricingId": "6ae076f340e55445692c0101",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "danvelcam/resend",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 0,
+    "versionId": "6ae076f3daa2ba78b21d7422"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.resend.free",
+    "detail": {
+      "name": "emailsPerMonth",
+      "period": {
+        "unit": "MONTH",
+        "value": 1
+      },
+      "raw": 3000,
+      "unit": "email",
+      "unlimited": false
+    },
+    "plan": "free",
+    "pricingId": "6ae076f340e55445692c0101",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danvelcam/resend",
+    "target": "emailsPerMonth",
+    "targetKind": "property",
+    "value": 3000,
+    "versionId": "6ae076f3daa2ba78b21d7422"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.resend.pro",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "pro 20 x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 20,
+          "id": "pro",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "month",
+          "unitAmount": 20
+        }
+      ],
+      "seats": 1
+    },
+    "plan": "pro",
+    "pricingId": "6ae076f340e55445692c0101",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "danvelcam/resend",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 20,
+    "versionId": "6ae076f3daa2ba78b21d7422"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.resend.pro",
+    "detail": {
+      "name": "emailsPerMonth",
+      "period": {
+        "unit": "MONTH",
+        "value": 1
+      },
+      "raw": 50000,
+      "unit": "email",
+      "unlimited": false
+    },
+    "plan": "pro",
+    "pricingId": "6ae076f340e55445692c0101",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danvelcam/resend",
+    "target": "emailsPerMonth",
+    "targetKind": "property",
+    "value": 50000,
+    "versionId": "6ae076f3daa2ba78b21d7422"
+  },
+  {
+    "addOns": [
+      "extraDomains"
+    ],
+    "candidateKey": "sphere-email/email.resend.pro.extradomains",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "(pro 20 + extraDomains 20) x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 20,
+          "id": "pro",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "month",
+          "unitAmount": 20
+        },
+        {
+          "amount": 20,
+          "id": "extraDomains",
+          "kind": "addOn",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "month",
+          "unitAmount": 20
+        }
+      ],
+      "seats": 1
+    },
+    "plan": "pro",
+    "pricingId": "6ae076f340e55445692c0101",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "danvelcam/resend",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 40,
+    "versionId": "6ae076f3daa2ba78b21d7422"
+  },
+  {
+    "addOns": [
+      "extraDomains"
+    ],
+    "candidateKey": "sphere-email/email.resend.pro.extradomains",
+    "detail": {
+      "name": "emailsPerMonth",
+      "period": {
+        "unit": "MONTH",
+        "value": 1
+      },
+      "raw": 50000,
+      "unit": "email",
+      "unlimited": false
+    },
+    "plan": "pro",
+    "pricingId": "6ae076f340e55445692c0101",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danvelcam/resend",
+    "target": "emailsPerMonth",
+    "targetKind": "property",
+    "value": 50000,
+    "versionId": "6ae076f3daa2ba78b21d7422"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.resend.scale",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "scale 90 x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 90,
+          "id": "scale",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "month",
+          "unitAmount": 90
+        }
+      ],
+      "seats": 1
+    },
+    "plan": "scale",
+    "pricingId": "6ae076f340e55445692c0101",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "danvelcam/resend",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 90,
+    "versionId": "6ae076f3daa2ba78b21d7422"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.resend.scale",
+    "detail": {
+      "name": "emailsPerMonth",
+      "period": {
+        "unit": "MONTH",
+        "value": 1
+      },
+      "raw": 100000,
+      "unit": "email",
+      "unlimited": false
+    },
+    "plan": "scale",
+    "pricingId": "6ae076f340e55445692c0101",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danvelcam/resend",
+    "target": "emailsPerMonth",
+    "targetKind": "property",
+    "value": 100000,
+    "versionId": "6ae076f3daa2ba78b21d7422"
+  },
+  {
+    "addOns": [
+      "dedicatedIp"
+    ],
+    "candidateKey": "sphere-email/email.resend.scale.dedicatedip",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "(scale 90 + dedicatedIp 30) x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 90,
+          "id": "scale",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "month",
+          "unitAmount": 90
+        },
+        {
+          "amount": 30,
+          "id": "dedicatedIp",
+          "kind": "addOn",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "month",
+          "unitAmount": 30
+        }
+      ],
+      "seats": 1
+    },
+    "plan": "scale",
+    "pricingId": "6ae076f340e55445692c0101",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "danvelcam/resend",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 120,
+    "versionId": "6ae076f3daa2ba78b21d7422"
+  },
+  {
+    "addOns": [
+      "dedicatedIp"
+    ],
+    "candidateKey": "sphere-email/email.resend.scale.dedicatedip",
+    "detail": {
+      "name": "emailsPerMonth",
+      "period": {
+        "unit": "MONTH",
+        "value": 1
+      },
+      "raw": 100000,
+      "unit": "email",
+      "unlimited": false
+    },
+    "plan": "scale",
+    "pricingId": "6ae076f340e55445692c0101",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danvelcam/resend",
+    "target": "emailsPerMonth",
+    "targetKind": "property",
+    "value": 100000,
+    "versionId": "6ae076f3daa2ba78b21d7422"
+  },
+  {
+    "addOns": [
+      "extraDomains"
+    ],
+    "candidateKey": "sphere-email/email.resend.scale.extradomains",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "(scale 90 + extraDomains 20) x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 90,
+          "id": "scale",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "month",
+          "unitAmount": 90
+        },
+        {
+          "amount": 20,
+          "id": "extraDomains",
+          "kind": "addOn",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "month",
+          "unitAmount": 20
+        }
+      ],
+      "seats": 1
+    },
+    "plan": "scale",
+    "pricingId": "6ae076f340e55445692c0101",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "danvelcam/resend",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 110,
+    "versionId": "6ae076f3daa2ba78b21d7422"
+  },
+  {
+    "addOns": [
+      "extraDomains"
+    ],
+    "candidateKey": "sphere-email/email.resend.scale.extradomains",
+    "detail": {
+      "name": "emailsPerMonth",
+      "period": {
+        "unit": "MONTH",
+        "value": 1
+      },
+      "raw": 100000,
+      "unit": "email",
+      "unlimited": false
+    },
+    "plan": "scale",
+    "pricingId": "6ae076f340e55445692c0101",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danvelcam/resend",
+    "target": "emailsPerMonth",
+    "targetKind": "property",
+    "value": 100000,
+    "versionId": "6ae076f3daa2ba78b21d7422"
+  },
+  {
+    "addOns": [
+      "singleSignOn"
+    ],
+    "candidateKey": "sphere-email/email.resend.scale.singlesignon",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "(scale 90 + singleSignOn 150) x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 90,
+          "id": "scale",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "month",
+          "unitAmount": 90
+        },
+        {
+          "amount": 150,
+          "id": "singleSignOn",
+          "kind": "addOn",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "month",
+          "unitAmount": 150
+        }
+      ],
+      "seats": 1
+    },
+    "plan": "scale",
+    "pricingId": "6ae076f340e55445692c0101",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "danvelcam/resend",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 240,
+    "versionId": "6ae076f3daa2ba78b21d7422"
+  },
+  {
+    "addOns": [
+      "singleSignOn"
+    ],
+    "candidateKey": "sphere-email/email.resend.scale.singlesignon",
+    "detail": {
+      "name": "emailsPerMonth",
+      "period": {
+        "unit": "MONTH",
+        "value": 1
+      },
+      "raw": 100000,
+      "unit": "email",
+      "unlimited": false
+    },
+    "plan": "scale",
+    "pricingId": "6ae076f340e55445692c0101",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danvelcam/resend",
+    "target": "emailsPerMonth",
+    "targetKind": "property",
+    "value": 100000,
+    "versionId": "6ae076f3daa2ba78b21d7422"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.sendgrid.essentials",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "essentials 19.95 x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 19.95,
+          "id": "essentials",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "month",
+          "unitAmount": 19.95
+        }
+      ],
+      "seats": 1
+    },
+    "plan": "essentials",
+    "pricingId": "6ae0772d40e55445692c0143",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "danvelcam/sendgrid",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 19.95,
+    "versionId": "6ae634e3f99de6a6f95a42c5"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.sendgrid.essentials",
+    "detail": {
+      "name": "emailsPerMonth",
+      "period": {
+        "unit": "MONTH",
+        "value": 1
+      },
+      "raw": 50000,
+      "unit": "email",
+      "unlimited": false
+    },
+    "plan": "essentials",
+    "pricingId": "6ae0772d40e55445692c0143",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danvelcam/sendgrid",
+    "target": "emailsPerMonth",
+    "targetKind": "property",
+    "value": 50000,
+    "versionId": "6ae634e3f99de6a6f95a42c5"
+  },
+  {
+    "addOns": [
+      "emailTestingCredits30"
+    ],
+    "candidateKey": "sphere-email/email.sendgrid.essentials.emailtestingcredits30",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "(essentials 19.95 + emailTestingCredits30 18) x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 19.95,
+          "id": "essentials",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "month",
+          "unitAmount": 19.95
+        },
+        {
+          "amount": 18,
+          "id": "emailTestingCredits30",
+          "kind": "addOn",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "month",
+          "unitAmount": 18
+        }
+      ],
+      "seats": 1
+    },
+    "plan": "essentials",
+    "pricingId": "6ae0772d40e55445692c0143",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "danvelcam/sendgrid",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 37.95,
+    "versionId": "6ae634e3f99de6a6f95a42c5"
+  },
+  {
+    "addOns": [
+      "emailTestingCredits30"
+    ],
+    "candidateKey": "sphere-email/email.sendgrid.essentials.emailtestingcredits30",
+    "detail": {
+      "name": "emailsPerMonth",
+      "period": {
+        "unit": "MONTH",
+        "value": 1
+      },
+      "raw": 50000,
+      "unit": "email",
+      "unlimited": false
+    },
+    "plan": "essentials",
+    "pricingId": "6ae0772d40e55445692c0143",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danvelcam/sendgrid",
+    "target": "emailsPerMonth",
+    "targetKind": "property",
+    "value": 50000,
+    "versionId": "6ae634e3f99de6a6f95a42c5"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.sendgrid.freetrial",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "freeTrial 0 x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 0,
+          "id": "freeTrial",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "month",
+          "unitAmount": 0
+        }
+      ],
+      "seats": 1
+    },
+    "plan": "freeTrial",
+    "pricingId": "6ae0772d40e55445692c0143",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "danvelcam/sendgrid",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 0,
+    "versionId": "6ae634e3f99de6a6f95a42c5"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.sendgrid.freetrial",
+    "detail": {
+      "name": "emailsPerMonth",
+      "period": {
+        "unit": "MONTH",
+        "value": 1
+      },
+      "raw": {
+        "unlimited": true
+      },
+      "unit": "email",
+      "unlimited": true
+    },
+    "plan": "freeTrial",
+    "pricingId": "6ae0772d40e55445692c0143",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danvelcam/sendgrid",
+    "target": "emailsPerMonth",
+    "targetKind": "property",
+    "value": 100000000,
+    "versionId": "6ae634e3f99de6a6f95a42c5"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.sendgrid.pro",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "pro 89.95 x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 89.95,
+          "id": "pro",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "month",
+          "unitAmount": 89.95
+        }
+      ],
+      "seats": 1
+    },
+    "plan": "pro",
+    "pricingId": "6ae0772d40e55445692c0143",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "danvelcam/sendgrid",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 89.95,
+    "versionId": "6ae634e3f99de6a6f95a42c5"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.sendgrid.pro",
+    "detail": {
+      "name": "emailsPerMonth",
+      "period": {
+        "unit": "MONTH",
+        "value": 1
+      },
+      "raw": 100000,
+      "unit": "email",
+      "unlimited": false
+    },
+    "plan": "pro",
+    "pricingId": "6ae0772d40e55445692c0143",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danvelcam/sendgrid",
+    "target": "emailsPerMonth",
+    "targetKind": "property",
+    "value": 100000,
+    "versionId": "6ae634e3f99de6a6f95a42c5"
+  },
+  {
+    "addOns": [
+      "emailTestingCredits30"
+    ],
+    "candidateKey": "sphere-email/email.sendgrid.pro.emailtestingcredits30",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "(pro 89.95 + emailTestingCredits30 18) x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 89.95,
+          "id": "pro",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "month",
+          "unitAmount": 89.95
+        },
+        {
+          "amount": 18,
+          "id": "emailTestingCredits30",
+          "kind": "addOn",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "month",
+          "unitAmount": 18
+        }
+      ],
+      "seats": 1
+    },
+    "plan": "pro",
+    "pricingId": "6ae0772d40e55445692c0143",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "danvelcam/sendgrid",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 107.95,
+    "versionId": "6ae634e3f99de6a6f95a42c5"
+  },
+  {
+    "addOns": [
+      "emailTestingCredits30"
+    ],
+    "candidateKey": "sphere-email/email.sendgrid.pro.emailtestingcredits30",
+    "detail": {
+      "name": "emailsPerMonth",
+      "period": {
+        "unit": "MONTH",
+        "value": 1
+      },
+      "raw": 100000,
+      "unit": "email",
+      "unlimited": false
+    },
+    "plan": "pro",
+    "pricingId": "6ae0772d40e55445692c0143",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danvelcam/sendgrid",
+    "target": "emailsPerMonth",
+    "targetKind": "property",
+    "value": 100000,
+    "versionId": "6ae634e3f99de6a6f95a42c5"
+  },
+  {
+    "addOns": [
+      "extraDedicatedIp"
+    ],
+    "candidateKey": "sphere-email/email.sendgrid.pro.extradedicatedip",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "(pro 89.95 + extraDedicatedIp 30) x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 89.95,
+          "id": "pro",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "month",
+          "unitAmount": 89.95
+        },
+        {
+          "amount": 30,
+          "id": "extraDedicatedIp",
+          "kind": "addOn",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "IP/month",
+          "unitAmount": 30
+        }
+      ],
+      "seats": 1
+    },
+    "plan": "pro",
+    "pricingId": "6ae0772d40e55445692c0143",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "danvelcam/sendgrid",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 119.95,
+    "versionId": "6ae634e3f99de6a6f95a42c5"
+  },
+  {
+    "addOns": [
+      "extraDedicatedIp"
+    ],
+    "candidateKey": "sphere-email/email.sendgrid.pro.extradedicatedip",
+    "detail": {
+      "name": "emailsPerMonth",
+      "period": {
+        "unit": "MONTH",
+        "value": 1
+      },
+      "raw": 100000,
+      "unit": "email",
+      "unlimited": false
+    },
+    "plan": "pro",
+    "pricingId": "6ae0772d40e55445692c0143",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danvelcam/sendgrid",
+    "target": "emailsPerMonth",
+    "targetKind": "property",
+    "value": 100000,
+    "versionId": "6ae634e3f99de6a6f95a42c5"
+  }
+]

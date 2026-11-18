@@ -1,0 +1,274 @@
+[
+  {
+    "addOns": [],
+    "candidateKey": "sphere-storage/storage.dropbox.advanced",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "ADVANCED 20 x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 20,
+          "id": "ADVANCED",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": null,
+          "seats": 1,
+          "unit": "user",
+          "unitAmount": 20
+        }
+      ],
+      "seats": 1
+    },
+    "plan": "ADVANCED",
+    "pricingId": "6ab0a323697330667ccce9c1",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "atenea/dropbox",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 20,
+    "versionId": "687e4b68102baa50f3a5c7b7"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-storage/storage.dropbox.advanced",
+    "detail": {
+      "name": "storageLimit",
+      "period": null,
+      "raw": {
+        "unlimited": true
+      },
+      "unit": "GB",
+      "unlimited": true
+    },
+    "plan": "ADVANCED",
+    "pricingId": "6ab0a323697330667ccce9c1",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "atenea/dropbox",
+    "target": "storage",
+    "targetKind": "property",
+    "value": 100000000,
+    "versionId": "687e4b68102baa50f3a5c7b7"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-storage/storage.dropbox.family",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "FAMILY 16.99 x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 16.99,
+          "id": "FAMILY",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": null,
+          "seats": 1,
+          "unit": "account",
+          "unitAmount": 16.99
+        }
+      ],
+      "seats": 1
+    },
+    "plan": "FAMILY",
+    "pricingId": "6ab0a323697330667ccce9c1",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "atenea/dropbox",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 16.99,
+    "versionId": "687e4b68102baa50f3a5c7b7"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-storage/storage.dropbox.family",
+    "detail": {
+      "name": "storageLimit",
+      "period": null,
+      "raw": 2000,
+      "unit": "GB",
+      "unlimited": false
+    },
+    "plan": "FAMILY",
+    "pricingId": "6ab0a323697330667ccce9c1",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "atenea/dropbox",
+    "target": "storage",
+    "targetKind": "property",
+    "value": 2000,
+    "versionId": "687e4b68102baa50f3a5c7b7"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-storage/storage.dropbox.plus",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "PLUS 9.99 x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 9.99,
+          "id": "PLUS",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": null,
+          "seats": 1,
+          "unit": "account",
+          "unitAmount": 9.99
+        }
+      ],
+      "seats": 1
+    },
+    "plan": "PLUS",
+    "pricingId": "6ab0a323697330667ccce9c1",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "atenea/dropbox",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 9.99,
+    "versionId": "687e4b68102baa50f3a5c7b7"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-storage/storage.dropbox.plus",
+    "detail": {
+      "name": "storageLimit",
+      "period": null,
+      "raw": 2000,
+      "unit": "GB",
+      "unlimited": false
+    },
+    "plan": "PLUS",
+    "pricingId": "6ab0a323697330667ccce9c1",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "atenea/dropbox",
+    "target": "storage",
+    "targetKind": "property",
+    "value": 2000,
+    "versionId": "687e4b68102baa50f3a5c7b7"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-storage/storage.dropbox.professional",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "PROFESSIONAL 16.58 x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 16.58,
+          "id": "PROFESSIONAL",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": null,
+          "seats": 1,
+          "unit": "account",
+          "unitAmount": 16.58
+        }
+      ],
+      "seats": 1
+    },
+    "plan": "PROFESSIONAL",
+    "pricingId": "6ab0a323697330667ccce9c1",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "atenea/dropbox",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 16.58,
+    "versionId": "687e4b68102baa50f3a5c7b7"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-storage/storage.dropbox.professional",
+    "detail": {
+      "name": "storageLimit",
+      "period": null,
+      "raw": 3000,
+      "unit": "GB",
+      "unlimited": false
+    },
+    "plan": "PROFESSIONAL",
+    "pricingId": "6ab0a323697330667ccce9c1",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "atenea/dropbox",
+    "target": "storage",
+    "targetKind": "property",
+    "value": 3000,
+    "versionId": "687e4b68102baa50f3a5c7b7"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-storage/storage.dropbox.standard",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "STANDARD 12.5 x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 12.5,
+          "id": "STANDARD",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": null,
+          "seats": 1,
+          "unit": "user",
+          "unitAmount": 12.5
+        }
+      ],
+      "seats": 1
+    },
+    "plan": "STANDARD",
+    "pricingId": "6ab0a323697330667ccce9c1",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "atenea/dropbox",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 12.5,
+    "versionId": "687e4b68102baa50f3a5c7b7"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-storage/storage.dropbox.standard",
+    "detail": {
+      "name": "storageLimit",
+      "period": null,
+      "raw": 5000,
+      "unit": "GB",
+      "unlimited": false
+    },
+    "plan": "STANDARD",
+    "pricingId": "6ab0a323697330667ccce9c1",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "atenea/dropbox",
+    "target": "storage",
+    "targetKind": "property",
+    "value": 5000,
+    "versionId": "687e4b68102baa50f3a5c7b7"
+  }
+]

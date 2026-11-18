@@ -1,0 +1,9 @@
+[
+  {
+    "at": "sphere-email/email.mailgun.enterprise",
+    "code": "sphere_plan_private",
+    "message": "The plan ENTERPRISE is private in this pricing; it is left out.",
+    "plan": "ENTERPRISE",
+    "severity": "info"
+  }
+]

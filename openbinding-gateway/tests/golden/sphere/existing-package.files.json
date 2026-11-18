@@ -1,0 +1,268 @@
+{
+  "application.json": {
+    "apiVersion": "qos-binding/v1",
+    "kind": "Application",
+    "metadata": {
+      "name": "demo_14_shared_candidates_application"
+    },
+    "spec": {
+      "features": {
+        "cost": {
+          "aggregation": "sum",
+          "direction": "minimize",
+          "domain": {
+            "kind": "real",
+            "maximum": 500,
+            "minimum": 0
+          },
+          "scope": "selectedCandidate",
+          "unit": "eur"
+        },
+        "latency": {
+          "aggregation": "sum",
+          "direction": "minimize",
+          "domain": {
+            "kind": "real",
+            "maximum": 1000,
+            "minimum": 0
+          },
+          "scope": "invocation",
+          "unit": "ms"
+        }
+      },
+      "tasks": {
+        "t1": "service/t1",
+        "t2": "service/t2",
+        "t3": "service/t3"
+      },
+      "workflow": {
+        "sequence": [
+          {
+            "task": {
+              "id": "t1",
+              "resource": "application"
+            }
+          },
+          {
+            "task": {
+              "id": "t2",
+              "resource": "application"
+            }
+          },
+          {
+            "task": {
+              "id": "t3",
+              "resource": "application"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "candidates.json": {
+    "apiVersion": "qos-binding/v1",
+    "kind": "CandidateCatalog",
+    "metadata": {
+      "name": "demo_14_shared_candidates_catalog"
+    },
+    "spec": {
+      "candidates": {
+        "only_t1": {
+          "features": {
+            "cost": 7,
+            "latency": 10
+          },
+          "provider": {
+            "id": "pB",
+            "resource": "catalog"
+          },
+          "provides": "service/t1"
+        },
+        "only_t2": {
+          "features": {
+            "cost": 7,
+            "latency": 10
+          },
+          "provider": {
+            "id": "pB",
+            "resource": "catalog"
+          },
+          "provides": "service/t2"
+        },
+        "only_t3": {
+          "features": {
+            "cost": 4,
+            "latency": 10
+          },
+          "provider": {
+            "id": "pB",
+            "resource": "catalog"
+          },
+          "provides": "service/t3"
+        },
+        "shared": {
+          "features": {
+            "cost": 12,
+            "latency": 20
+          },
+          "provider": {
+            "id": "pA",
+            "resource": "catalog"
+          },
+          "provides": [
+            "service/t1",
+            "service/t2",
+            "service/t3"
+          ]
+        }
+      },
+      "featureBindings": {
+        "cost": {
+          "id": "cost",
+          "resource": "application"
+        },
+        "latency": {
+          "id": "latency",
+          "resource": "application"
+        }
+      },
+      "providers": {
+        "pA": {},
+        "pB": {}
+      }
+    }
+  },
+  "constraints.json": {
+    "apiVersion": "qos-binding/v1",
+    "kind": "ConstraintSet",
+    "metadata": {
+      "name": "demo_14_shared_candidates_constraints"
+    },
+    "spec": {
+      "constraints": {
+        "first_two_on_one_thing": {
+          "assert": "tasks.t1.candidate == tasks.t2.candidate",
+          "enforcement": "hard"
+        },
+        "keep_the_third_apart": {
+          "assert": "tasks.t2.candidate != tasks.t3.candidate",
+          "enforcement": "hard"
+        }
+      }
+    }
+  },
+  "instance.json": {
+    "apiVersion": "bim/v1",
+    "kind": "Instance",
+    "metadata": {
+      "annotations": {
+        "level": "intermediate",
+        "openbinding.org/sphere-recipe": "sha256-f7e7d356584fbb6854760b95634988ee2a6e7556913698d8f0cf0797e0d820bd"
+      },
+      "description": "One candidate can implement several tasks. Cost is accounted once per selected candidate, while latency is accounted per invocation. Typed constraints require the first two tasks to share a candidate and the third to use another candidate.",
+      "name": "demo_14_shared_candidates",
+      "version": "1.0.0"
+    },
+    "spec": {
+      "profile": "qos-binding/v1",
+      "resources": {
+        "application": {
+          "application": "application.json"
+        },
+        "candidateCatalog": {
+          "catalog": "candidates.json",
+          "sphere-mail": "sphere-mail.json"
+        },
+        "constraintSet": {
+          "constraints": "constraints.json"
+        },
+        "optimization": {
+          "optimization": "optimization.json"
+        }
+      }
+    }
+  },
+  "optimization.json": {
+    "apiVersion": "qos-binding/v1",
+    "kind": "Optimization",
+    "metadata": {
+      "name": "demo_14_shared_candidates_optimization"
+    },
+    "spec": {
+      "criteria": [
+        {
+          "feature": {
+            "id": "cost",
+            "resource": "application"
+          },
+          "id": "cost",
+          "normalize": {
+            "clamp": true,
+            "max": 500,
+            "min": 0
+          }
+        },
+        {
+          "feature": {
+            "id": "latency",
+            "resource": "application"
+          },
+          "id": "latency",
+          "normalize": {
+            "clamp": true,
+            "max": 90,
+            "min": 0
+          }
+        }
+      ]
+    }
+  },
+  "sphere-mail.json": {
+    "apiVersion": "qos-binding/v1",
+    "kind": "CandidateCatalog",
+    "metadata": {
+      "name": "sphere-mail"
+    },
+    "spec": {
+      "candidates": {
+        "mail.brevo.professional": {
+          "features": {
+            "cost": 499,
+            "latency": 15
+          },
+          "name": "PROFESSIONAL",
+          "provider": {
+            "id": "brevo",
+            "resource": "sphere-mail"
+          },
+          "provides": "service/t2"
+        },
+        "mail.brevo.starter": {
+          "features": {
+            "cost": 9,
+            "latency": 15
+          },
+          "name": "STARTER",
+          "provider": {
+            "id": "brevo",
+            "resource": "sphere-mail"
+          },
+          "provides": "service/t2"
+        }
+      },
+      "featureBindings": {
+        "cost": {
+          "id": "cost",
+          "resource": "application"
+        },
+        "latency": {
+          "id": "latency",
+          "resource": "application"
+        }
+      },
+      "providers": {
+        "brevo": {}
+      }
+    }
+  }
+}

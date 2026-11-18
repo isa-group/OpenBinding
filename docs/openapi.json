@@ -2395,6 +2395,106 @@
         ],
         "type": "object"
       },
+      "CandidateProvenance": {
+        "description": "The upstream plan a generated candidate was chosen from: what derive writes as a binding entry's `from`.",
+        "properties": {
+          "addons": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Addons",
+            "type": "array"
+          },
+          "permanentUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Permanenturl"
+          },
+          "plan": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plan"
+          },
+          "pricingId": {
+            "title": "Pricingid",
+            "type": "string"
+          },
+          "registry": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Registry"
+          },
+          "snapshot": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The pricing snapshot the values were read from.",
+            "title": "Snapshot"
+          },
+          "sphere": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`owner/slug` of the family in SPHERE.",
+            "title": "Sphere"
+          },
+          "version": {
+            "description": "The SPHERE version id.",
+            "title": "Version",
+            "type": "string"
+          },
+          "versionLabel": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Versionlabel"
+          }
+        },
+        "required": [
+          "sphere",
+          "version",
+          "versionLabel",
+          "plan",
+          "pricingId",
+          "snapshot",
+          "permanentUrl"
+        ],
+        "title": "CandidateProvenance",
+        "type": "object"
+      },
       "CasExchange": {
         "properties": {
           "code": {
@@ -6047,6 +6147,66 @@
         "title": "EvaluationCompilation",
         "type": "object"
       },
+      "EvaluationOffering": {
+        "description": "The offering version read when the evaluation was created; names and dates, never a digest.",
+        "properties": {
+          "createdAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When SPHERE says that version was published.",
+            "title": "Createdat"
+          },
+          "snapshot": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The pricing snapshot read (`…/pricing-snapshots/{snapshot}`).",
+            "title": "Snapshot"
+          },
+          "status": {
+            "enum": [
+              "read",
+              "unreadable",
+              "invalid_pricing",
+              "registry_unknown"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "versionName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The version's name in SPHERE, or null (a URL, or nothing read).",
+            "title": "Versionname"
+          }
+        },
+        "required": [
+          "status",
+          "versionName",
+          "createdAt",
+          "snapshot"
+        ],
+        "title": "EvaluationOffering",
+        "type": "object"
+      },
       "EvaluationSummary": {
         "description": "A version's current evaluation, named: what a list row shows without the evaluations themselves.",
         "properties": {
@@ -6183,6 +6343,17 @@
             "format": "uuid",
             "title": "Id",
             "type": "string"
+          },
+          "offering": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EvaluationOffering"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The offering version read when this evaluation was created; null for a document without an offering."
           },
           "outcome": {
             "enum": [
@@ -8946,6 +9117,46 @@
             "title": "Origins",
             "type": "object"
           },
+          "properties": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "The candidate's scalar properties (what a task's requirement predicate reads), by name.",
+            "title": "Properties",
+            "type": "object"
+          },
+          "propertyOrigins": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ProblemValueOrigin"
+            },
+            "description": "By property.",
+            "title": "Propertyorigins",
+            "type": "object"
+          },
+          "provenance": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CandidateProvenance"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "For a candidate a SPHERE import generated: the upstream plan its values were read from."
+          },
           "provider": {
             "anyOf": [
               {
@@ -8987,7 +9198,10 @@
           "id",
           "provider",
           "values",
-          "origins"
+          "origins",
+          "properties",
+          "propertyOrigins",
+          "provenance"
         ],
         "title": "ProblemFactsCandidate",
         "type": "object"
@@ -9404,7 +9618,7 @@
         "type": "object"
       },
       "ProblemValueOrigin": {
-        "description": "Where the package writes a value: the resource, its file and the JSON Pointer within it.",
+        "description": "Where the package writes a value: the resource, its file and the JSON Pointer within it; and, for a value a\nSPHERE import wrote, where it came from.",
         "properties": {
           "kind": {
             "const": "package",
@@ -9422,6 +9636,16 @@
           "resource": {
             "title": "Resource",
             "type": "string"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ValueSource"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -10486,6 +10710,17 @@
           "revision": {
             "title": "Revision",
             "type": "integer"
+          },
+          "sphere": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RevisionSphere"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "For a revision a SPHERE import generated: its recipe digest and pricings."
           }
         },
         "required": [
@@ -10501,6 +10736,53 @@
           "files"
         ],
         "title": "RevisionDetail",
+        "type": "object"
+      },
+      "RevisionSphere": {
+        "description": "What a SPHERE import generated the revision from: the recipe's digest and the pricings it read.",
+        "properties": {
+          "recipeDigest": {
+            "title": "Recipedigest",
+            "type": "string"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/RevisionSphereSource"
+            },
+            "title": "Sources",
+            "type": "array"
+          }
+        },
+        "required": [
+          "recipeDigest",
+          "sources"
+        ],
+        "title": "RevisionSphere",
+        "type": "object"
+      },
+      "RevisionSphereSource": {
+        "properties": {
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "versionLabel": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Versionlabel"
+          }
+        },
+        "required": [
+          "title",
+          "versionLabel"
+        ],
+        "title": "RevisionSphereSource",
         "type": "object"
       },
       "RevisionView": {
@@ -10570,6 +10852,17 @@
           "revision": {
             "title": "Revision",
             "type": "integer"
+          },
+          "sphere": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RevisionSphere"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "For a revision a SPHERE import generated: its recipe digest and pricings."
           }
         },
         "required": [
@@ -11260,6 +11553,266 @@
         "title": "SphereAnalytics",
         "type": "object"
       },
+      "SphereApplyRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "base": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SphereBase"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null for a new problem, whose slug is the `{problem}` of the address."
+          },
+          "expect": {
+            "$ref": "#/components/schemas/SphereExpect"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 160,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A new problem's name.",
+            "title": "Name"
+          },
+          "recipe": {
+            "$ref": "#/components/schemas/SphereImportRecipe"
+          }
+        },
+        "required": [
+          "recipe",
+          "expect"
+        ],
+        "title": "SphereApplyRequest",
+        "type": "object"
+      },
+      "SphereBase": {
+        "additionalProperties": false,
+        "properties": {
+          "revision": {
+            "description": "The revision the import builds on: the latest one, for an apply.",
+            "minimum": 1.0,
+            "title": "Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "revision"
+        ],
+        "title": "SphereBase",
+        "type": "object"
+      },
+      "SphereCandidate": {
+        "properties": {
+          "addOns": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Addons",
+            "type": "array"
+          },
+          "eligible": {
+            "description": "Whether the task's requirements hold (the compiler decides the same).",
+            "title": "Eligible",
+            "type": "boolean"
+          },
+          "handMade": {
+            "title": "Handmade",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "plan": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The plan as the pricing names it; null for a hand-made candidate.",
+            "title": "Plan"
+          },
+          "price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The subscription per month, when the recipe prices it.",
+            "title": "Price"
+          },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          },
+          "requirements": {
+            "items": {
+              "$ref": "#/components/schemas/SphereRequirementTerm"
+            },
+            "title": "Requirements",
+            "type": "array"
+          },
+          "sphere": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SphereCandidateSource"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "task": {
+            "title": "Task",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "id",
+          "task",
+          "provider",
+          "plan",
+          "addOns",
+          "price",
+          "eligible",
+          "requirements",
+          "handMade",
+          "sphere"
+        ],
+        "title": "SphereCandidate",
+        "type": "object"
+      },
+      "SphereCandidateSource": {
+        "properties": {
+          "pricingId": {
+            "title": "Pricingid",
+            "type": "string"
+          },
+          "registry": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Registry"
+          },
+          "sphereRef": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sphereref"
+          },
+          "versionId": {
+            "title": "Versionid",
+            "type": "string"
+          },
+          "versionLabel": {
+            "title": "Versionlabel",
+            "type": "string"
+          }
+        },
+        "required": [
+          "pricingId",
+          "versionId",
+          "registry",
+          "sphereRef",
+          "versionLabel"
+        ],
+        "title": "SphereCandidateSource",
+        "type": "object"
+      },
+      "SphereChangedCandidate": {
+        "properties": {
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "properties": {
+            "additionalProperties": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "description": "`{property: {before, after}}`.",
+            "title": "Properties",
+            "type": "object"
+          },
+          "values": {
+            "additionalProperties": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "description": "`{feature: {before, after}}`.",
+            "title": "Values",
+            "type": "object"
+          }
+        },
+        "required": [
+          "key"
+        ],
+        "title": "SphereChangedCandidate",
+        "type": "object"
+      },
+      "SphereChanges": {
+        "properties": {
+          "added": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Added",
+            "type": "array"
+          },
+          "changed": {
+            "items": {
+              "$ref": "#/components/schemas/SphereChangedCandidate"
+            },
+            "title": "Changed",
+            "type": "array"
+          },
+          "removed": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Removed",
+            "type": "array"
+          }
+        },
+        "required": [
+          "added",
+          "removed",
+          "changed"
+        ],
+        "title": "SphereChanges",
+        "type": "object"
+      },
       "SphereCollection": {
         "properties": {
           "id": {
@@ -11311,6 +11864,634 @@
           "apiKey"
         ],
         "title": "SphereConnectionUpdate",
+        "type": "object"
+      },
+      "SphereExpandRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "base": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SphereBase"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null for a new problem, whose slug is the `{problem}` of the address."
+          },
+          "recipe": {
+            "$ref": "#/components/schemas/SphereImportRecipe"
+          }
+        },
+        "required": [
+          "recipe"
+        ],
+        "title": "SphereExpandRequest",
+        "type": "object"
+      },
+      "SphereExpandView": {
+        "description": "The preview of a recipe: what apply would store, and why each candidate is (in)eligible.",
+        "properties": {
+          "candidates": {
+            "items": {
+              "$ref": "#/components/schemas/SphereCandidate"
+            },
+            "title": "Candidates",
+            "type": "array"
+          },
+          "changes": {
+            "$ref": "#/components/schemas/SphereChanges",
+            "description": "Against the base revision's facts."
+          },
+          "diagnostics": {
+            "items": {
+              "$ref": "#/components/schemas/SphereFinding"
+            },
+            "title": "Diagnostics",
+            "type": "array"
+          },
+          "facts": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProblemFactsView"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The generated package's facts, with their value sources."
+          },
+          "packageDigest": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What apply's `expect.packageDigest` must be.",
+            "title": "Packagedigest"
+          },
+          "recipe": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SphereImportRecipe"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The recipe with every version pinned (what apply stores)."
+          },
+          "recipeDigest": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recipedigest"
+          },
+          "snapshots": {
+            "items": {
+              "$ref": "#/components/schemas/SphereSnapshotView"
+            },
+            "title": "Snapshots",
+            "type": "array"
+          },
+          "valid": {
+            "description": "No error: apply would store this package.",
+            "title": "Valid",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "valid",
+          "recipe",
+          "recipeDigest",
+          "packageDigest",
+          "snapshots",
+          "candidates",
+          "changes",
+          "diagnostics",
+          "facts"
+        ],
+        "title": "SphereExpandView",
+        "type": "object"
+      },
+      "SphereExpect": {
+        "additionalProperties": false,
+        "properties": {
+          "packageDigest": {
+            "description": "The preview's `packageDigest`.",
+            "pattern": "^sha256-[0-9a-f]{64}$",
+            "title": "Packagedigest",
+            "type": "string"
+          }
+        },
+        "required": [
+          "packageDigest"
+        ],
+        "title": "SphereExpect",
+        "type": "object"
+      },
+      "SphereFinding": {
+        "additionalProperties": true,
+        "description": "A `sphere_*` finding, or a compiler finding of the generated package.",
+        "properties": {
+          "at": {
+            "default": "",
+            "description": "A JSON Pointer into the recipe, a candidate key, or empty.",
+            "title": "At",
+            "type": "string"
+          },
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "severity": {
+            "enum": [
+              "error",
+              "warning",
+              "info"
+            ],
+            "title": "Severity",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "severity",
+          "message"
+        ],
+        "title": "SphereFinding",
+        "type": "object"
+      },
+      "SphereImportRecipe": {
+        "$defs": {
+          "manualMap": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "minProperties": 1,
+            "propertyNames": {
+              "pattern": "^(?:\\*|[a-z][a-z0-9-]{0,39}(?:\\.[^\\u0000-\\u001f\\u007f-\\u009f]{1,128})?)$"
+            },
+            "type": "object"
+          },
+          "name": {
+            "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]{1,128}$",
+            "type": "string"
+          },
+          "numberMap": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "minProperties": 1,
+            "type": "object"
+          },
+          "predicateName": {
+            "pattern": "^[A-Za-z][A-Za-z0-9_]{0,63}$",
+            "type": "string"
+          },
+          "provider": {
+            "pattern": "^[a-z][a-z0-9-]{0,39}$",
+            "type": "string"
+          },
+          "source": {
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "addons": {
+                    "items": {
+                      "$ref": "#/components/schemas/SphereImportRecipe/$defs/name"
+                    },
+                    "type": "array"
+                  },
+                  "assume": {
+                    "additionalProperties": {
+                      "oneOf": [
+                        {
+                          "const": "unlimited"
+                        },
+                        {
+                          "minimum": 0,
+                          "type": "number"
+                        }
+                      ]
+                    },
+                    "propertyNames": {
+                      "$ref": "#/components/schemas/SphereImportRecipe/$defs/symbol"
+                    },
+                    "type": "object"
+                  },
+                  "billing": {
+                    "$ref": "#/components/schemas/SphereImportRecipe/$defs/name"
+                  },
+                  "names": {
+                    "additionalProperties": {
+                      "$ref": "#/components/schemas/SphereImportRecipe/$defs/name"
+                    },
+                    "propertyNames": {
+                      "$ref": "#/components/schemas/SphereImportRecipe/$defs/symbol"
+                    },
+                    "type": "object"
+                  },
+                  "plans": {
+                    "items": {
+                      "$ref": "#/components/schemas/SphereImportRecipe/$defs/name"
+                    },
+                    "type": "array"
+                  },
+                  "provider": {
+                    "$ref": "#/components/schemas/SphereImportRecipe/$defs/provider"
+                  },
+                  "seats": {
+                    "maximum": 100000,
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  "sphere": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "pricing": {
+                        "$ref": "#/components/schemas/SphereImportRecipe/$defs/sphereId"
+                      },
+                      "registry": {
+                        "pattern": "^[a-z0-9](?:[a-z0-9-]{0,30}[a-z0-9])?$",
+                        "type": "string"
+                      },
+                      "version": {
+                        "description": "latest only in a preview; apply refuses it (sphere_version_unpinned).",
+                        "oneOf": [
+                          {
+                            "$ref": "#/components/schemas/SphereImportRecipe/$defs/sphereId"
+                          },
+                          {
+                            "const": "latest"
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "pricing",
+                      "version"
+                    ],
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "sphere",
+                  "provider"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "candidate": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "$ref": "#/components/schemas/SphereImportRecipe/$defs/symbol"
+                      },
+                      "name": {
+                        "maxLength": 160,
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "properties": {
+                        "additionalProperties": {
+                          "oneOf": [
+                            {
+                              "type": "number"
+                            },
+                            {
+                              "type": "boolean"
+                            },
+                            {
+                              "maxLength": 256,
+                              "type": "string"
+                            }
+                          ]
+                        },
+                        "propertyNames": {
+                          "$ref": "#/components/schemas/SphereImportRecipe/$defs/symbol"
+                        },
+                        "type": "object"
+                      },
+                      "provider": {
+                        "$ref": "#/components/schemas/SphereImportRecipe/$defs/provider"
+                      },
+                      "values": {
+                        "additionalProperties": {
+                          "type": "number"
+                        },
+                        "propertyNames": {
+                          "$ref": "#/components/schemas/SphereImportRecipe/$defs/symbol"
+                        },
+                        "type": "object"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "provider"
+                    ],
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "candidate"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "spec": {
+            "oneOf": [
+              {
+                "description": "A constant.",
+                "type": "number"
+              },
+              {
+                "pattern": "^(?:price|(?:limit|feature|guarantee):[^\\u0000-\\u001f\\u007f-\\u009f]{1,128})$",
+                "type": "string"
+              },
+              {
+                "additionalProperties": false,
+                "minProperties": 1,
+                "oneOf": [
+                  {
+                    "required": [
+                      "guarantee"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "limit"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "feature"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "manual"
+                    ]
+                  }
+                ],
+                "patternProperties": {
+                  "^(?!(?:guarantee|map|scale|limit|feature|manual)$)[a-z][a-z0-9-]{0,39}$": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "manual": {
+                        "$ref": "#/components/schemas/SphereImportRecipe/$defs/manualMap"
+                      }
+                    },
+                    "required": [
+                      "manual"
+                    ],
+                    "type": "object"
+                  }
+                },
+                "properties": {
+                  "feature": {
+                    "$ref": "#/components/schemas/SphereImportRecipe/$defs/name"
+                  },
+                  "guarantee": {
+                    "$ref": "#/components/schemas/SphereImportRecipe/$defs/name"
+                  },
+                  "limit": {
+                    "$ref": "#/components/schemas/SphereImportRecipe/$defs/name"
+                  },
+                  "manual": {
+                    "$ref": "#/components/schemas/SphereImportRecipe/$defs/manualMap"
+                  },
+                  "map": {
+                    "additionalProperties": {
+                      "type": "number"
+                    },
+                    "minProperties": 1,
+                    "propertyNames": {
+                      "enum": [
+                        "true",
+                        "false"
+                      ]
+                    },
+                    "type": "object"
+                  },
+                  "scale": {
+                    "exclusiveMinimum": 0,
+                    "type": "number"
+                  },
+                  "unlimitedAs": {
+                    "minimum": 0,
+                    "type": "number"
+                  }
+                },
+                "type": "object"
+              }
+            ]
+          },
+          "sphereId": {
+            "pattern": "^[0-9a-f]{24}$",
+            "type": "string"
+          },
+          "symbol": {
+            "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+            "type": "string"
+          },
+          "task": {
+            "additionalProperties": false,
+            "properties": {
+              "capability": {
+                "maxLength": 128,
+                "pattern": "^[A-Za-z][A-Za-z0-9_.-]*(/[A-Za-z0-9_.-]+){0,7}$",
+                "type": "string"
+              },
+              "expand": {
+                "const": "plans",
+                "default": "plans"
+              },
+              "from": {
+                "items": {
+                  "$ref": "#/components/schemas/SphereImportRecipe/$defs/source"
+                },
+                "maxItems": 8,
+                "minItems": 1,
+                "type": "array"
+              },
+              "properties": {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/SphereImportRecipe/$defs/spec"
+                },
+                "propertyNames": {
+                  "$ref": "#/components/schemas/SphereImportRecipe/$defs/symbol"
+                },
+                "type": "object"
+              },
+              "prune": {
+                "default": "none",
+                "enum": [
+                  "none",
+                  "dominated"
+                ]
+              },
+              "require": {
+                "additionalProperties": false,
+                "properties": {
+                  "features": {
+                    "items": {
+                      "$ref": "#/components/schemas/SphereImportRecipe/$defs/predicateName"
+                    },
+                    "type": "array"
+                  },
+                  "limits": {
+                    "additionalProperties": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "atLeast": {
+                          "oneOf": [
+                            {
+                              "$ref": "#/components/schemas/SphereImportRecipe/$defs/symbol"
+                            },
+                            {
+                              "maximum": 100000000,
+                              "minimum": 0,
+                              "type": "number"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "atLeast"
+                      ],
+                      "type": "object"
+                    },
+                    "propertyNames": {
+                      "$ref": "#/components/schemas/SphereImportRecipe/$defs/predicateName"
+                    },
+                    "type": "object"
+                  }
+                },
+                "type": "object"
+              },
+              "service": {
+                "$ref": "#/components/schemas/SphereImportRecipe/$defs/provider",
+                "description": "The first segment of generated candidate ids; defaults to the slug of the capability's last segment."
+              },
+              "task": {
+                "$ref": "#/components/schemas/SphereImportRecipe/$defs/symbol"
+              }
+            },
+            "required": [
+              "task",
+              "capability",
+              "from"
+            ],
+            "type": "object"
+          }
+        },
+        "$id": "https://openbinding.org/schemas/sphere-recipe/1/recipe.schema.json",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "description": "A SPHERE import recipe, version 1: which SPHERE pricings (by pricingId and versionId) and hand-made candidates provide each task, which plans and add-ons to take, how each problem feature or candidate property is read, and the requirements a candidate must meet. The gateway validates it and stores it pinned in the generated revision's provenance.",
+        "properties": {
+          "billing": {
+            "$ref": "#/components/schemas/SphereImportRecipe/$defs/name",
+            "default": "monthly",
+            "description": "The billing period every source uses unless it names its own."
+          },
+          "currency": {
+            "description": "ISO 4217; a pricing in another currency is refused (sphere_currency_mismatch).",
+            "pattern": "^[A-Z]{3}$",
+            "type": "string"
+          },
+          "demand": {
+            "additionalProperties": {
+              "additionalProperties": false,
+              "properties": {
+                "unit": {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                "value": {
+                  "maximum": 100000000,
+                  "minimum": 0,
+                  "type": "number"
+                }
+              },
+              "required": [
+                "value"
+              ],
+              "type": "object"
+            },
+            "propertyNames": {
+              "$ref": "#/components/schemas/SphereImportRecipe/$defs/symbol"
+            },
+            "type": "object"
+          },
+          "features": {
+            "additionalProperties": {
+              "additionalProperties": false,
+              "properties": {
+                "direction": {
+                  "enum": [
+                    "minimize",
+                    "maximize"
+                  ]
+                },
+                "domain": {
+                  "default": "real",
+                  "enum": [
+                    "real",
+                    "ratio"
+                  ]
+                },
+                "unit": {
+                  "maxLength": 64,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "direction"
+              ],
+              "type": "object"
+            },
+            "propertyNames": {
+              "$ref": "#/components/schemas/SphereImportRecipe/$defs/symbol"
+            },
+            "type": "object"
+          },
+          "recipeVersion": {
+            "const": "1"
+          },
+          "tasks": {
+            "items": {
+              "$ref": "#/components/schemas/SphereImportRecipe/$defs/task"
+            },
+            "maxItems": 16,
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "recipeVersion",
+          "currency",
+          "tasks"
+        ],
+        "title": "SphereImportRecipe",
         "type": "object"
       },
       "SphereLatestVersion": {
@@ -11508,6 +12689,233 @@
           "registries"
         ],
         "title": "SpherePricingSearch",
+        "type": "object"
+      },
+      "SphereRecipeView": {
+        "properties": {
+          "recipe": {
+            "$ref": "#/components/schemas/SphereImportRecipe"
+          },
+          "recipeDigest": {
+            "title": "Recipedigest",
+            "type": "string"
+          },
+          "revision": {
+            "description": "The revision the recipe generated.",
+            "title": "Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "revision",
+          "recipeDigest",
+          "recipe"
+        ],
+        "title": "SphereRecipeView",
+        "type": "object"
+      },
+      "SphereRequirementTerm": {
+        "properties": {
+          "bound": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Bound"
+          },
+          "operator": {
+            "enum": [
+              ">=",
+              "=="
+            ],
+            "title": "Operator",
+            "type": "string"
+          },
+          "property": {
+            "title": "Property",
+            "type": "string"
+          },
+          "satisfied": {
+            "title": "Satisfied",
+            "type": "boolean"
+          },
+          "text": {
+            "description": "`emailsPerDay: 100 < 1000`: the term in words, for the preview.",
+            "title": "Text",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value"
+          }
+        },
+        "required": [
+          "property",
+          "operator",
+          "bound",
+          "value",
+          "satisfied",
+          "text"
+        ],
+        "title": "SphereRequirementTerm",
+        "type": "object"
+      },
+      "SphereSnapshotView": {
+        "description": "A pricing version the preview read: names and dates, never a digest.",
+        "properties": {
+          "createdAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Createdat"
+          },
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "latest": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Whether it is the family's latest version (null when not read).",
+            "title": "Latest"
+          },
+          "owner": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner"
+          },
+          "permanentUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Permanenturl"
+          },
+          "pricingId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pricingid"
+          },
+          "registry": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Registry"
+          },
+          "slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slug"
+          },
+          "syntaxVersion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Syntaxversion"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "versionId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Versionid"
+          },
+          "versionName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Versionname"
+          }
+        },
+        "required": [
+          "id",
+          "pricingId",
+          "versionId",
+          "versionName",
+          "createdAt",
+          "title",
+          "owner",
+          "slug",
+          "registry",
+          "currency",
+          "syntaxVersion",
+          "latest",
+          "permanentUrl"
+        ],
+        "title": "SphereSnapshotView",
         "type": "object"
       },
       "SphereVersionEntry": {
@@ -12386,6 +13794,379 @@
         "title": "UpdateUserRequest",
         "type": "object"
       },
+      "UpstreamEntry": {
+        "properties": {
+          "candidate": {
+            "title": "Candidate",
+            "type": "string"
+          },
+          "from": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The entry's `from`, as the document writes it.",
+            "title": "From"
+          },
+          "plan": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UpstreamPlan"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The plan in the snapshot, when the entry names one it has."
+          },
+          "snapshot": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UpstreamSnapshot"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "enum": [
+              "snapshotted",
+              "not_snapshotted",
+              "registry_unknown"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "task": {
+            "title": "Task",
+            "type": "string"
+          }
+        },
+        "required": [
+          "task",
+          "candidate",
+          "from",
+          "status",
+          "snapshot",
+          "plan"
+        ],
+        "title": "UpstreamEntry",
+        "type": "object"
+      },
+      "UpstreamOffering": {
+        "properties": {
+          "createdAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Createdat"
+          },
+          "snapshot": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UpstreamSnapshot"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "source": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "The offering's source as the version keeps it: `{sphere, registry?}` or `{url}`.",
+            "title": "Source",
+            "type": "object"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "enum": [
+                  "read",
+                  "unreadable",
+                  "invalid_pricing",
+                  "registry_unknown"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "versionName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Versionname"
+          }
+        },
+        "required": [
+          "source",
+          "status",
+          "versionName",
+          "createdAt",
+          "snapshot"
+        ],
+        "title": "UpstreamOffering",
+        "type": "object"
+      },
+      "UpstreamPlan": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "price": {
+            "additionalProperties": true,
+            "description": "`{kind: fixed, amount}`, `{kind: expression, source, value}` or `{kind: label, text}`.",
+            "title": "Price",
+            "type": "object"
+          },
+          "private": {
+            "title": "Private",
+            "type": "boolean"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          }
+        },
+        "required": [
+          "name",
+          "price",
+          "unit",
+          "private"
+        ],
+        "title": "UpstreamPlan",
+        "type": "object"
+      },
+      "UpstreamSnapshot": {
+        "description": "A stored pricing snapshot, by names and dates: the renderer reads its YAML at `…/pricing-snapshots/{id}/yaml`.",
+        "properties": {
+          "createdAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Createdat"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "owner": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner"
+          },
+          "permanentUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "SPHERE's permanent link to that version.",
+            "title": "Permanenturl"
+          },
+          "pricingId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pricingid"
+          },
+          "registry": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Registry"
+          },
+          "slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slug"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          },
+          "versionId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Versionid"
+          },
+          "versionName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Versionname"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "owner",
+          "slug",
+          "pricingId",
+          "versionId",
+          "versionName",
+          "createdAt",
+          "registry",
+          "url",
+          "permanentUrl"
+        ],
+        "title": "UpstreamSnapshot",
+        "type": "object"
+      },
+      "UpstreamValue": {
+        "properties": {
+          "manualOnly": {
+            "description": "No bound candidate's value of it was read from a pricing.",
+            "title": "Manualonly",
+            "type": "boolean"
+          },
+          "sources": {
+            "description": "The kinds of source the bound candidates' values of this global value have.",
+            "items": {
+              "enum": [
+                "priced",
+                "guarantee",
+                "limit",
+                "feature",
+                "manual"
+              ],
+              "type": "string"
+            },
+            "title": "Sources",
+            "type": "array"
+          }
+        },
+        "required": [
+          "sources",
+          "manualOnly"
+        ],
+        "title": "UpstreamValue",
+        "type": "object"
+      },
+      "UpstreamView": {
+        "description": "A version's upstream plans, the sources of its global values and its offering: stored data only.",
+        "properties": {
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/UpstreamEntry"
+            },
+            "title": "Entries",
+            "type": "array"
+          },
+          "offering": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UpstreamOffering"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The offering version the current evaluation read."
+          },
+          "values": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/UpstreamValue"
+            },
+            "title": "Values",
+            "type": "object"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "entries",
+          "values",
+          "offering"
+        ],
+        "title": "UpstreamView",
+        "type": "object"
+      },
       "UsageView": {
         "description": "What an account is on and what its plan allows.\n\nThe plan, the features it includes and its functional limits (``null`` means\nunlimited). It carries no consumption: nothing is counted per account.",
         "properties": {
@@ -12583,6 +14364,153 @@
           "irDigest",
           "diagnostics"
         ],
+        "type": "object"
+      },
+      "ValueSource": {
+        "description": "Where a value written by a SPHERE import came from.",
+        "properties": {
+          "carried": {
+            "description": "Whether an editor save kept this value (and so its source) from an earlier revision.",
+            "title": "Carried",
+            "type": "boolean"
+          },
+          "detail": {
+            "additionalProperties": true,
+            "description": "How the value was read: the price parts and formula, the guarantee's table or scale and `docUrl`, the limit's raw value and unit, the manual key.",
+            "title": "Detail",
+            "type": "object"
+          },
+          "kind": {
+            "description": "`priced` (the plan's price per month), `guarantee`, `limit` (a usage limit), `feature`, or `manual` (set by hand when importing, or a hand-made candidate's value).",
+            "enum": [
+              "priced",
+              "guarantee",
+              "limit",
+              "feature",
+              "manual"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "pricing": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ValueSourcePricing"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null for a value set by hand."
+          }
+        },
+        "required": [
+          "kind",
+          "pricing",
+          "detail",
+          "carried"
+        ],
+        "title": "ValueSource",
+        "type": "object"
+      },
+      "ValueSourcePricing": {
+        "description": "The upstream pricing a value was read from: names and immutable ids, never a digest.",
+        "properties": {
+          "addOns": {
+            "description": "The add-on taken with the plan, as the pricing names it (at most one in F3).",
+            "items": {
+              "type": "string"
+            },
+            "title": "Addons",
+            "type": "array"
+          },
+          "permanentUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "SPHERE's permanent link to that version.",
+            "title": "Permanenturl"
+          },
+          "plan": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The plan, as the pricing names it.",
+            "title": "Plan"
+          },
+          "pricingId": {
+            "title": "Pricingid",
+            "type": "string"
+          },
+          "registry": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The `SPHERE_REGISTRIES` alias, or null for the default SPHERE.",
+            "title": "Registry"
+          },
+          "sphere": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`owner/slug` of the family in SPHERE when the value was read.",
+            "title": "Sphere"
+          },
+          "versionId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Versionid"
+          },
+          "versionLabel": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The version's name in SPHERE, as read.",
+            "title": "Versionlabel"
+          }
+        },
+        "required": [
+          "sphere",
+          "registry",
+          "pricingId",
+          "versionId",
+          "versionLabel",
+          "plan",
+          "addOns",
+          "permanentUrl"
+        ],
+        "title": "ValueSourcePricing",
         "type": "object"
       },
       "ValueStatusPair": {
@@ -22830,6 +24758,148 @@
         ]
       }
     },
+    "/v1/organizations/{org}/compositions/{composition}/upstream": {
+      "get": {
+        "description": "Per binding entry, the upstream plan it was chosen from (pricing, version name, plan, permanent link and the\nsnapshot to draw it from); per global value, the kinds of source its bound candidates' values have; and the\noffering version the current evaluation read. Stored data only: SPHERE is never called. A visitor of a public\ncomposition sees public snapshots only.",
+        "operationId": "getCompositionUpstream",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "composition",
+            "required": true,
+            "schema": {
+              "title": "Composition",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Id, label or ordinal; the latest by default.",
+            "in": "query",
+            "name": "version",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Id, label or ordinal; the latest by default.",
+              "title": "Version"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpstreamView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization or composition, or the caller cannot read it."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many `read` requests from this address by a caller with no credential: past the anonymous budget. A signed-in caller is not charged. `Retry-After` says when the window ends. Or: Every Composition2Yaml slot of this process is taken (`composition_busy`).",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          },
+          {}
+        ],
+        "summary": "List a version's upstream pricings with their snapshots",
+        "tags": [
+          "Compositions"
+        ],
+        "x-required-api-key-permissions": [
+          "compositions:read"
+        ]
+      }
+    },
     "/v1/organizations/{org}/compositions/{composition}/versions": {
       "get": {
         "description": "The composition's versions, each with its values, value status and current evaluation.",
@@ -27428,7 +29498,7 @@
     },
     "/v1/organizations/{org}/problems/{problem}/revisions/{revision}/compilations/{compilation}/facts": {
       "get": {
-        "description": "The facts of one compilation, named by its id or its `compilation_digest`: its tasks and the candidates\neach may take (as a document writes them), every candidate's values with units and origins, the features,\nthe workflow in the Composition2Yaml shape, the constraints, the objectives and the binding-space size.\n\nThe same projection `POST /v1/bim/validate?include=facts` answers for a package that is not stored.",
+        "description": "The facts of one compilation, named by its id or its `compilation_digest`: its tasks and the candidates\neach may take (as a document writes them), every candidate's values with units and origins, the features,\nthe workflow in the Composition2Yaml shape, the constraints, the objectives and the binding-space size; every\ncandidate's scalar properties, and, for a revision a SPHERE import wrote, where each value came from (its\n`source`) and the upstream plan each generated candidate was chosen from (`provenance`).\n\nThe same projection `POST /v1/bim/validate?include=facts` answers for a package that is not stored.",
         "operationId": "getProblemCompilationFacts",
         "parameters": [
           {
@@ -27486,7 +29556,7 @@
                 }
               },
               "ETag": {
-                "description": "The compilation digest and `.facts`, quoted: the facts never change.",
+                "description": "The compilation digest, the digest of the revision's value origins (`package` without any) and `.facts`, quoted: the facts never change.",
                 "schema": {
                   "type": "string"
                 }
@@ -27770,6 +29840,452 @@
           }
         ],
         "summary": "Get Problem Revision Source",
+        "tags": [
+          "Problems"
+        ],
+        "x-required-api-key-permissions": [
+          "problems:read"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/problems/{problem}/sphere/apply": {
+      "post": {
+        "description": "Store the package a pinned recipe generates as a new problem (`base` null) or as the revision after\n`base`, exactly as its preview showed (`expect.packageDigest`), with the recipe in its provenance and the\norigin of every generated value. An apply repeated after it succeeded answers the same revision (200).",
+        "operationId": "applySphereRecipe",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "problem",
+            "required": true,
+            "schema": {
+              "title": "Problem",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SphereApplyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemUpload"
+                }
+              }
+            },
+            "description": "The problem already has that package; nothing was stored."
+          },
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemUpload"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "402": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The account's plan has no room (`quota_exceeded`: maxProblems or maxRepositoryStorage)."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such resource, or none this caller may see."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`problem_exists` (a new problem's slug is taken), `revision_moved` (another revision was added since; with `latest`) or `sphere_preview_stale` (the recipe generates another package than the preview)."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request body exceeds 256 KiB."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The recipe is refused (`sphere_recipe_invalid`, `sphere_recipe_refused`, with `diagnostics`) or the toolchain refused the package (`invalid_instance`)."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many `compile` requests from this client: past the budget of its address, or of its account when signed in. `Retry-After` says when the window ends.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Store what a SPHERE import recipe generates",
+        "tags": [
+          "Problems"
+        ],
+        "x-required-api-key-permissions": [
+          "problems:write"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/problems/{problem}/sphere/expand": {
+      "post": {
+        "description": "Read every pricing the recipe names (snapshotting each), generate the BIM package over the base revision\n(or a new problem whose slug is `{problem}`), compile it and answer the candidates, why each is (in)eligible,\nthe changes against the base, the facts with their value sources and the package digest apply expects.\n\nThe `sphere_*` findings, and the compiler's on the generated package, come back located with a 200.",
+        "operationId": "expandSphereRecipe",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "problem",
+            "required": true,
+            "schema": {
+              "title": "Problem",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SphereExpandRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SphereExpandView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such resource, or none this caller may see."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`problem_exists` (a new problem's slug is taken), `revision_moved` (another revision was added since; with `latest`) or `sphere_preview_stale` (the recipe generates another package than the preview)."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request body exceeds 256 KiB."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many `compile` requests from this client: past the budget of its address, or of its account when signed in. `Retry-After` says when the window ends.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Preview the candidates a SPHERE import recipe generates",
+        "tags": [
+          "Problems"
+        ],
+        "x-required-api-key-permissions": [
+          "problems:write"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/problems/{problem}/sphere/recipe": {
+      "get": {
+        "description": "The pinned recipe of revision `revision`, or of the newest revision a SPHERE import generated; 404 when\nnone did.",
+        "operationId": "getSphereRecipe",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "problem",
+            "required": true,
+            "schema": {
+              "title": "Problem",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Defaults to the newest revision SPHERE generated.",
+            "in": "query",
+            "name": "revision",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Defaults to the newest revision SPHERE generated.",
+              "title": "Revision"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SphereRecipeView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such resource, or none this caller may see."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Read the SPHERE recipe that generated a revision",
         "tags": [
           "Problems"
         ],

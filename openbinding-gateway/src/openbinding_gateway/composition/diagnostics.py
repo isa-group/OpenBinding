@@ -85,6 +85,10 @@ OFFERING_SHAPE = "c2y_offering_shape"
 OFFERING_URL_NOT_HTTPS = "c2y_offering_url_not_https"
 #: An offering on a registry the deployment does not define; a warning.
 OFFERING_REGISTRY_UNKNOWN = "c2y_offering_registry_unknown"
+#: The offering cannot be read when the evaluation is created; a warning, no margins.
+OFFERING_UNREADABLE = "c2y_offering_unreadable"
+#: The offering's content is not a valid Pricing2Yaml 3.x pricing; a warning, no margins.
+OFFERING_INVALID_PRICING = "c2y_offering_invalid_pricing"
 #: A value that is a boolean, or a unit that is empty.
 VALUE_SHAPE = "c2y_value_shape"
 #: Evidence that does not hold together: a run and ``manual``, a point without a run, a run
@@ -126,6 +130,11 @@ VALUE_NOT_COMPUTED = "c2y_value_not_computed"
 CONSTRAINT_VIOLATED = "c2y_constraint_violated"
 #: The binding does not meet a soft constraint of the problem; a warning, with its penalty.
 CONSTRAINT_SOFT = "c2y_constraint_soft"
+#: A ``from`` disagrees with the provenance a SPHERE-generated problem recorded for the candidate.
+PROVENANCE_MISMATCH = "c2y_provenance_mismatch"
+#: An entry without ``from`` whose candidate a SPHERE import generated: the version pins no upstream version of its
+#: own; a warning.
+PROVENANCE_MISSING = "c2y_provenance_missing"
 
 # Assessing a document against the problem it links, in an organization: finding the problem and
 # its compilation, the toolchain's verdict on the binding, and the run the evidence names.

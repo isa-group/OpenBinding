@@ -1,0 +1,80 @@
+[
+  {
+    "at": "/tasks/0/from/0",
+    "code": "sphere_unit_unknown",
+    "message": "The unit 'account' names no period; prices in it are taken as monthly.",
+    "severity": "warning",
+    "unit": "account"
+  },
+  {
+    "at": "/tasks/0/from/0/sphere/version",
+    "code": "sphere_version_not_latest",
+    "message": "A newer version of this pricing exists in SPHERE.",
+    "severity": "info"
+  },
+  {
+    "at": "sphere-storage/storage.dropbox.advanced",
+    "code": "sphere_candidate_removed",
+    "message": "storage.dropbox.advanced is no longer generated; a binding to it will not survive.",
+    "severity": "info"
+  },
+  {
+    "at": "sphere-storage/storage.dropbox.business",
+    "code": "sphere_price_expression",
+    "message": "The price of BUSINESS cannot be computed: variable \"#dbxBusinessYearlyAdvertisedMonthlyPricePerLicense\" is not defined.",
+    "plan": "BUSINESS",
+    "severity": "warning"
+  },
+  {
+    "at": "sphere-storage/storage.dropbox.business-plus",
+    "code": "sphere_price_expression",
+    "message": "The price of BUSINESS_PLUS cannot be computed: variable \"#dbxBusinessPlusYearlyAdvertisedMonthlyPricePerLicense\" is not defined.",
+    "plan": "BUSINESS_PLUS",
+    "severity": "warning"
+  },
+  {
+    "at": "sphere-storage/storage.dropbox.enterprise",
+    "code": "sphere_plan_private",
+    "message": "The plan ENTERPRISE is private in this pricing; it is left out.",
+    "plan": "ENTERPRISE",
+    "severity": "info"
+  },
+  {
+    "at": "sphere-storage/storage.dropbox.essentials",
+    "code": "sphere_price_expression",
+    "message": "The price of ESSENTIALS cannot be computed: variable \"#hellosignProBundleYearlyAdvertisedMonthlyPrice\" is not defined.",
+    "plan": "ESSENTIALS",
+    "severity": "warning"
+  },
+  {
+    "at": "sphere-storage/storage.dropbox.family",
+    "code": "sphere_candidate_removed",
+    "message": "storage.dropbox.family is no longer generated; a binding to it will not survive.",
+    "severity": "info"
+  },
+  {
+    "at": "sphere-storage/storage.dropbox.plus",
+    "code": "sphere_candidate_removed",
+    "message": "storage.dropbox.plus is no longer generated; a binding to it will not survive.",
+    "severity": "info"
+  },
+  {
+    "at": "sphere-storage/storage.dropbox.plus",
+    "code": "sphere_price_expression",
+    "message": "The price of PLUS cannot be computed: variable \"#plusYearlyAdvertisedMonthlyPrice\" is not defined.",
+    "plan": "PLUS",
+    "severity": "warning"
+  },
+  {
+    "at": "sphere-storage/storage.dropbox.professional",
+    "code": "sphere_candidate_removed",
+    "message": "storage.dropbox.professional is no longer generated; a binding to it will not survive.",
+    "severity": "info"
+  },
+  {
+    "at": "sphere-storage/storage.dropbox.standard",
+    "code": "sphere_candidate_removed",
+    "message": "storage.dropbox.standard is no longer generated; a binding to it will not survive.",
+    "severity": "info"
+  }
+]

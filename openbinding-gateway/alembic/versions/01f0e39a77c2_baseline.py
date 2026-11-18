@@ -12,7 +12,7 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision: str = '8c2a7e79f842'
+revision: str = '01f0e39a77c2'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -21,6 +21,7 @@ depends_on: Union[str, Sequence[str], None] = None
 SQLITE_TRIGGERS = (
     "CREATE TRIGGER immutable_binding_case_revisions_update BEFORE UPDATE ON binding_case_revisions BEGIN SELECT RAISE(ABORT, 'binding_case_revisions rows are sealed and immutable'); END",
     "CREATE TRIGGER immutable_problem_compilations_update BEFORE UPDATE ON problem_compilations BEGIN SELECT RAISE(ABORT, 'problem_compilations rows are sealed and immutable'); END",
+    "CREATE TRIGGER immutable_problem_value_origins_update BEFORE UPDATE ON problem_value_origins BEGIN SELECT RAISE(ABORT, 'problem value origins are immutable'); END",
     "CREATE TRIGGER immutable_composition_versions_update BEFORE UPDATE ON composition_versions BEGIN SELECT RAISE(ABORT, 'composition_versions rows are sealed and immutable'); END",
     "CREATE TRIGGER immutable_composition_evaluations_update BEFORE UPDATE ON composition_evaluations BEGIN SELECT RAISE(ABORT, 'composition_evaluations rows are sealed and immutable'); END",
     "CREATE TRIGGER immutable_composition_derivations_update BEFORE UPDATE ON composition_derivations BEGIN SELECT RAISE(ABORT, 'composition_derivations rows are sealed and immutable'); END",
@@ -37,6 +38,8 @@ POSTGRESQL_TRIGGERS = (
     'CREATE TRIGGER immutable_binding_case_revisions_update BEFORE UPDATE ON binding_case_revisions FOR EACH ROW EXECUTE FUNCTION immutable_binding_case_revisions_update()',
     "CREATE OR REPLACE FUNCTION immutable_problem_compilations_update() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'problem_compilations rows are sealed and immutable'; END $$",
     'CREATE TRIGGER immutable_problem_compilations_update BEFORE UPDATE ON problem_compilations FOR EACH ROW EXECUTE FUNCTION immutable_problem_compilations_update()',
+    "CREATE OR REPLACE FUNCTION immutable_problem_value_origins_update() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'problem value origins are immutable'; END $$",
+    'CREATE TRIGGER immutable_problem_value_origins_update BEFORE UPDATE ON problem_value_origins FOR EACH ROW EXECUTE FUNCTION immutable_problem_value_origins_update()',
     "CREATE OR REPLACE FUNCTION immutable_composition_versions_update() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'composition_versions rows are sealed and immutable'; END $$",
     'CREATE TRIGGER immutable_composition_versions_update BEFORE UPDATE ON composition_versions FOR EACH ROW EXECUTE FUNCTION immutable_composition_versions_update()',
     "CREATE OR REPLACE FUNCTION immutable_composition_evaluations_update() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'composition_evaluations rows are sealed and immutable'; END $$",
@@ -61,6 +64,7 @@ POSTGRESQL_TRIGGERS = (
 POSTGRESQL_TRIGGER_FUNCTIONS = (
     'immutable_binding_case_revisions_update',
     'immutable_problem_compilations_update',
+    'immutable_problem_value_origins_update',
     'immutable_composition_versions_update',
     'immutable_composition_evaluations_update',
     'immutable_composition_derivations_update',
@@ -571,6 +575,34 @@ def upgrade() -> None:
     op.create_index(op.f('ix_problem_compilations_ir_digest'), 'problem_compilations', ['ir_digest'], unique=False)
     op.create_index(op.f('ix_problem_compilations_revision_id'), 'problem_compilations', ['revision_id'], unique=False)
     op.create_index('ix_problem_compilations_revision_semantic', 'problem_compilations', ['revision_id', 'semantic_digest'], unique=False)
+    op.create_table('problem_value_origins',
+    sa.Column('id', sa.Uuid(), nullable=False),
+    sa.Column('revision_id', sa.Uuid(), nullable=False),
+    sa.Column('candidate_key', sa.String(length=260), nullable=False),
+    sa.Column('target_kind', sa.String(length=16), nullable=False),
+    sa.Column('target', sa.String(length=128), nullable=False),
+    sa.Column('source_kind', sa.String(length=16), nullable=False),
+    sa.Column('value', sa.JSON(), nullable=True),
+    sa.Column('snapshot_id', sa.Uuid(), nullable=True),
+    sa.Column('registry', sa.String(length=40), nullable=True),
+    sa.Column('pricing_id', sa.String(length=24), nullable=True),
+    sa.Column('version_id', sa.String(length=24), nullable=True),
+    sa.Column('plan', sa.String(length=128), nullable=True),
+    sa.Column('add_ons', sa.JSON(), nullable=False),
+    sa.Column('sphere_ref', sa.String(length=300), nullable=True),
+    sa.Column('detail', sa.JSON(), nullable=False),
+    sa.Column('carried_from_revision_id', sa.Uuid(), nullable=True),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.CheckConstraint("source_kind IN ('priced', 'guarantee', 'limit', 'feature', 'manual')", name=op.f('ck_problem_value_origins_ck_problem_value_origin_source_kind')),
+    sa.CheckConstraint("target_kind IN ('feature', 'property')", name=op.f('ck_problem_value_origins_ck_problem_value_origin_target_kind')),
+    sa.ForeignKeyConstraint(['revision_id'], ['binding_case_revisions.id'], name=op.f('fk_problem_value_origins_revision_id_binding_case_revisions'), ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['snapshot_id'], ['pricing_snapshots.id'], name=op.f('fk_problem_value_origins_snapshot_id_pricing_snapshots'), ondelete='RESTRICT'),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_problem_value_origins')),
+    sa.UniqueConstraint('revision_id', 'candidate_key', 'target_kind', 'target', name='uq_problem_value_origin_target')
+    )
+    op.create_index('ix_problem_value_origins_pricing_version', 'problem_value_origins', ['pricing_id', 'version_id'], unique=False)
+    op.create_index(op.f('ix_problem_value_origins_revision_id'), 'problem_value_origins', ['revision_id'], unique=False)
+    op.create_index(op.f('ix_problem_value_origins_snapshot_id'), 'problem_value_origins', ['snapshot_id'], unique=False)
     op.create_table('jobs',
     sa.Column('id', sa.Uuid(), nullable=False),
     sa.Column('created_by_id', sa.Uuid(), nullable=True),
@@ -758,17 +790,21 @@ def upgrade() -> None:
     sa.Column('values', sa.JSON(), nullable=False),
     sa.Column('result', sa.JSON(), nullable=True),
     sa.Column('diagnostics', sa.JSON(), nullable=False),
+    sa.Column('offering_snapshot_id', sa.Uuid(), nullable=True),
+    sa.Column('offering_status', sa.String(length=24), nullable=True),
     sa.Column('created_by_id', sa.Uuid(), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.CheckConstraint("(basis = 'bim') = (compilation_id IS NOT NULL)", name=op.f('ck_composition_evaluations_composition_evaluation_bim_compiled')),
     sa.CheckConstraint("(basis = 'declared') = (outcome = 'declared')", name=op.f('ck_composition_evaluations_composition_evaluation_declared_outcome')),
     sa.ForeignKeyConstraint(['compilation_id', 'revision_id'], ['problem_compilations.id', 'problem_compilations.revision_id'], name='fk_composition_evaluations_compilation', ondelete='RESTRICT'),
     sa.ForeignKeyConstraint(['created_by_id'], ['users.id'], name=op.f('fk_composition_evaluations_created_by_id_users'), ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['offering_snapshot_id'], ['pricing_snapshots.id'], name=op.f('fk_composition_evaluations_offering_snapshot_id_pricing_snapshots'), ondelete='RESTRICT'),
     sa.ForeignKeyConstraint(['version_id'], ['composition_versions.id'], name=op.f('fk_composition_evaluations_version_id_composition_versions'), ondelete='RESTRICT'),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_composition_evaluations')),
     sa.UniqueConstraint('version_id', 'basis_key', name='uq_composition_evaluations_version_basis')
     )
     op.create_index(op.f('ix_composition_evaluations_created_by_id'), 'composition_evaluations', ['created_by_id'], unique=False)
+    op.create_index(op.f('ix_composition_evaluations_offering_snapshot_id'), 'composition_evaluations', ['offering_snapshot_id'], unique=False)
     op.create_index(op.f('ix_composition_evaluations_revision_id'), 'composition_evaluations', ['revision_id'], unique=False)
     op.create_index(op.f('ix_composition_evaluations_version_id'), 'composition_evaluations', ['version_id'], unique=False)
     # Foreign keys that close a cycle: inline on SQLite, added once both tables exist elsewhere.
@@ -784,6 +820,7 @@ def downgrade() -> None:
         op.drop_constraint('fk_jobs_study_cell_id', 'jobs', type_='foreignkey')
     op.drop_index(op.f('ix_composition_evaluations_version_id'), table_name='composition_evaluations')
     op.drop_index(op.f('ix_composition_evaluations_revision_id'), table_name='composition_evaluations')
+    op.drop_index(op.f('ix_composition_evaluations_offering_snapshot_id'), table_name='composition_evaluations')
     op.drop_index(op.f('ix_composition_evaluations_created_by_id'), table_name='composition_evaluations')
     op.drop_table('composition_evaluations')
     op.drop_index(op.f('ix_composition_derivations_job_id'), table_name='composition_derivations')
@@ -817,6 +854,10 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_jobs_created_at'), table_name='jobs')
     op.drop_index(op.f('ix_jobs_compilation_id'), table_name='jobs')
     op.drop_table('jobs')
+    op.drop_index(op.f('ix_problem_value_origins_snapshot_id'), table_name='problem_value_origins')
+    op.drop_index(op.f('ix_problem_value_origins_revision_id'), table_name='problem_value_origins')
+    op.drop_index('ix_problem_value_origins_pricing_version', table_name='problem_value_origins')
+    op.drop_table('problem_value_origins')
     op.drop_index('ix_problem_compilations_revision_semantic', table_name='problem_compilations')
     op.drop_index(op.f('ix_problem_compilations_revision_id'), table_name='problem_compilations')
     op.drop_index(op.f('ix_problem_compilations_ir_digest'), table_name='problem_compilations')

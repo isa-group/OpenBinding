@@ -1,0 +1,135 @@
+{
+  "compilation": {
+    "binding_space": "5",
+    "compilation_digest": "sha256-c0810d01462b25d7a3a72909b4f5876459687f52d3c1b2f9a0cfb7851df6f681",
+    "compiler_digest": "sha256-b91fc3a05d1a58d128f5589f35396aaf8ebd0c3854e1e072ce17c765fe42b4d4",
+    "created_at": "2026-01-01T00:00:00Z",
+    "current": true,
+    "id": "00000000-0000-4000-8000-000000000001",
+    "ir_digest": "sha256-4b89b13c6e75133e45a83188422f328ad78b4f70fa54a3a41514e625d590875a",
+    "semantic_digest": "sha256-4231d7a6d5987149566f776c49b73f495a668b2a9e23ce32f6c1f4a89d5207af"
+  },
+  "created": true,
+  "problem": {
+    "created_at": "2026-01-01T00:00:01Z",
+    "created_by_id": "00000000-0000-4000-8000-000000000002",
+    "description": "",
+    "id": "00000000-0000-4000-8000-000000000003",
+    "latest_revision": {
+      "created_at": "2026-01-01T00:00:02Z",
+      "current_compilation": {
+        "binding_space": "5",
+        "compilation_digest": "sha256-c0810d01462b25d7a3a72909b4f5876459687f52d3c1b2f9a0cfb7851df6f681",
+        "compiler_digest": "sha256-b91fc3a05d1a58d128f5589f35396aaf8ebd0c3854e1e072ce17c765fe42b4d4",
+        "created_at": "2026-01-01T00:00:00Z",
+        "current": true,
+        "id": "00000000-0000-4000-8000-000000000001",
+        "ir_digest": "sha256-4b89b13c6e75133e45a83188422f328ad78b4f70fa54a3a41514e625d590875a",
+        "semantic_digest": "sha256-4231d7a6d5987149566f776c49b73f495a668b2a9e23ce32f6c1f4a89d5207af"
+      },
+      "id": "00000000-0000-4000-8000-000000000004",
+      "origin": "sphere",
+      "package_digest": "sha256-370f6fd5f2f0b2fffdef3390cb867ae8e7b2cc1f278225b8eab575c7bb01a239",
+      "revision": 1
+    },
+    "name": "storage",
+    "organization_id": "00000000-0000-4000-8000-000000000005",
+    "revision_count": 1,
+    "slug": "storage",
+    "updated_at": "2026-01-01T00:00:03Z"
+  },
+  "revision": {
+    "created_at": "2026-01-01T00:00:02Z",
+    "created_by_id": "00000000-0000-4000-8000-000000000002",
+    "id": "00000000-0000-4000-8000-000000000004",
+    "instance_digest": "sha256-27f74f7766718ad1fd2d5061f98051e83a2c949d3bce87283e319ea6cc88a673",
+    "origin": "sphere",
+    "package_digest": "sha256-370f6fd5f2f0b2fffdef3390cb867ae8e7b2cc1f278225b8eab575c7bb01a239",
+    "package_size": 5047,
+    "problem_id": "00000000-0000-4000-8000-000000000003",
+    "provenance": {
+      "generator": "1",
+      "producer": "openbinding-sphere-import",
+      "recipe": {
+        "billing": "monthly",
+        "currency": "USD",
+        "demand": {
+          "storageGB": {
+            "unit": "GB",
+            "value": 1000
+          }
+        },
+        "features": {
+          "availability": {
+            "direction": "maximize",
+            "domain": "ratio",
+            "unit": ""
+          },
+          "subscription": {
+            "direction": "minimize",
+            "unit": "USD/month"
+          }
+        },
+        "recipeVersion": "1",
+        "tasks": [
+          {
+            "capability": "service/storage",
+            "expand": "plans",
+            "from": [
+              {
+                "addons": [],
+                "provider": "dropbox",
+                "seats": 1,
+                "sphere": {
+                  "pricing": "6ab0a323697330667ccce9c1",
+                  "version": "687e4b68102baa50f3a5c7b7"
+                }
+              }
+            ],
+            "properties": {
+              "availability": {
+                "manual": {
+                  "dropbox": 0.999
+                }
+              },
+              "subscription": "price"
+            },
+            "prune": "none",
+            "require": {
+              "limits": {
+                "storageLimit": {
+                  "atLeast": "storageGB"
+                }
+              }
+            },
+            "service": "storage",
+            "task": "export"
+          }
+        ]
+      },
+      "recipeDigest": "sha256-fcd019e7735dc4042830f3874f41bcd85c8b733cfc6a6d94def4cd3b17b5f8bb",
+      "snapshots": [
+        "00000000-0000-4000-8000-000000000006"
+      ],
+      "sources": [
+        {
+          "pricingId": "6ab0a323697330667ccce9c1",
+          "registry": null,
+          "title": "Dropbox",
+          "versionId": "687e4b68102baa50f3a5c7b7",
+          "versionLabel": "2021"
+        }
+      ]
+    },
+    "revision": 1,
+    "sphere": {
+      "recipeDigest": "sha256-fcd019e7735dc4042830f3874f41bcd85c8b733cfc6a6d94def4cd3b17b5f8bb",
+      "sources": [
+        {
+          "title": "Dropbox",
+          "versionLabel": "2021"
+        }
+      ]
+    }
+  }
+}

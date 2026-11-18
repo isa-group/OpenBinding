@@ -34,8 +34,6 @@ from openbinding_gateway.composition import text
 SPEC = REPO_ROOT / "docs" / "COMPOSITION2YAML.md"
 PAGE_EXAMPLES = REPO_ROOT / "frontend" / "src" / "content" / "composition2yaml-examples.json"
 FENCE = re.compile(r"^```yaml c2y (?P<info>[^\n]*)\n(?P<body>.*?)^```$", re.MULTILINE | re.DOTALL)
-#: Codes the language reserves for later phases: named in the specification, defined by no module yet.
-RESERVED = ("c2y_offering_unreadable", "c2y_offering_invalid_pricing", "c2y_provenance_mismatch")
 
 
 @dataclass(frozen=True)
@@ -97,13 +95,12 @@ def test_each_example_reads_as_its_fence_says(example: Example):
         assert text.serialise(reading.document) == example.body
 
 
-def test_the_code_table_names_every_code_and_the_reserved_ones():
+def test_the_code_table_names_every_code():
     spec = SPEC.read_text(encoding="utf-8")
     defined = sorted(value for value in vars(codes).values() if isinstance(value, str) and value.startswith("c2y_"))
     assert len(defined) > 50
-    missing = [code for code in (*defined, *RESERVED) if f"| `{code}`" not in spec]
+    missing = [code for code in defined if f"| `{code}`" not in spec]
     assert not missing, f"not in the code table of docs/COMPOSITION2YAML.md: {missing}"
-    assert not set(RESERVED) & set(defined), "a reserved code is defined: move it out of the reserved list"
 
 
 def _page_examples() -> dict:

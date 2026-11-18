@@ -24,8 +24,11 @@ ROLES = {"lab-owner": "OWNER", "lab-member": "MEMBER", "lab-viewer": "VIEWER"}
 LIMIT = 3
 ALL_STEPS = [
     "proxy_and_spa", "login", "upload", "owner_job", "study", "idempotency", "authorization",
-    "concurrency_limit", "cors", "body_limit", "public_compositions", "plan_usage", "login_throttle",
+    "concurrency_limit", "cors", "body_limit", "public_compositions", "sphere_candidates", "sphere_engines",
+    "plan_usage", "login_throttle",
 ]
+#: The steps that need the seed's SPHERE problem; a lab without it skips them.
+SPHERE_STEPS = ("sphere_candidates", "sphere_engines")
 NOT_FOUND = {"detail": {"code": "not_found", "error": "Composition not found."}, "code": "not_found", "status": 404}
 TEMPLATE = b"PK-example"
 ENGINE = {"name": "random-search", "namespace": "bim.builtin", "version": "1.0.0", "digest": "sha256-e"}
@@ -42,6 +45,8 @@ class FakeLab:
         self.issued = 0
         self.login_hits: Counter[str] = Counter()
         self.revisions: dict[str, str] = {"rev-1": "simple-seq"}
+        if "sphere" in self.faults:
+            self.revisions["rev-tm-2"] = "tomatometer-email"
         self.problems: dict[str, bytes] = {}
         self.jobs: dict[str, dict] = {}
         self.keys: dict[tuple[str, str], tuple[str, str]] = {}
@@ -221,6 +226,8 @@ class FakeLab:
             return self.reply(200, {"problems": listed, "total": len(listed)})
         if sub == f"{problems}/simple-seq/revisions":
             return self.reply(200, [{"id": "rev-1", "revision": 1}])
+        if sub.startswith(f"{problems}/tomatometer-email"):
+            return self.sphere_problem(sub.removeprefix(f"{problems}/tomatometer-email"))
         if sub.startswith(f"{problems}/") and sub.removeprefix(f"{problems}/").split("/")[0] in self.problems:
             return self.revision_part(sub.removeprefix(f"{problems}/"))
         studies = "/v1/organizations/lab-main/studies"
@@ -275,6 +282,31 @@ class FakeLab:
             return self.reply(200, {"id": "compilation-1", "compatible_modes": modes})
         return self.problem(404, "not_found")
 
+    def sphere_problem(self, rest: str) -> httpx.Response:
+        """The seed's SPHERE problem: revision 1 uploaded, revision 2 generated (only with ``sphere``: a seed that
+        reached SPHERE)."""
+        if "sphere" not in self.faults:
+            return self.problem(404, "not_found")
+        if rest == "/revisions":
+            return self.reply(200, [
+                {"id": "rev-tm-1", "revision": 1, "origin": "upload", "sphere": None},
+                {"id": "rev-tm-2", "revision": 2, "origin": "sphere",
+                 "sphere": {"recipeDigest": "sha256-recipe", "sources": [{"title": "Mailgun", "versionLabel": "2026-10"}]}},
+            ])
+        if rest == "/revisions/2/compilation":
+            modes = [{"engine": {"name": name}, "registration": {"name": name}, "mode": mode, "compatible": True}
+                     for name, mode, _ in smoke_lab.SPHERE_ENGINES]
+            return self.reply(200, {"id": "compilation-tm", "compatible_modes": modes})
+        if rest == "/revisions/2/compilations/compilation-tm/facts":
+            generated = [
+                {"key": f"sphere-email/email.{name}", "provenance": {"sphere": f"danruilop1/{name.split('.')[0]}"},
+                 "origins": {"subscription": {"source": {"kind": "priced"}}}}
+                for name in ("mailgun.foundation", "mailgun.scale", "resend.pro", "sendgrid.pro", "brevo.professional")
+            ]
+            eligible = [{"candidate": item["key"]} for item in generated]
+            return self.reply(200, {"tasks": [{"id": "dailySummary", "eligible": eligible}], "candidates": generated})
+        return self.problem(404, "not_found")
+
     def study_run(self, rest: str) -> httpx.Response:
         parts = rest.split("/")
         if len(parts) < 3 or parts[0] not in self.studies or parts[2] != "run-1":
@@ -315,7 +347,8 @@ class FakeLab:
         # The gateway resolves the optimization (bim-service) before it reads the plan (SPACE).
         if not isinstance(body.get("optimization"), dict):
             return self.problem(422, "optimization_required")
-        if body.get("mode") != "seeded":
+        sphere_modes = {mode for _, mode, _ in smoke_lab.SPHERE_ENGINES}
+        if body.get("mode") != "seeded" and not (body.get("revision") == "rev-tm-2" and body.get("mode") in sphere_modes):
             return self.problem(422, "engine_mode_incompatible")
         if "pricing_blocked" in self.faults:
             return self.pricing_unavailable("run")
@@ -360,6 +393,9 @@ class FakeLab:
         body: dict = {"id": job_id, "status": job["status"], "revision": {"id": job["revision"], "revision": 1}}
         if job["status"] == "completed":
             body.update(self.finished())
+            if job["revision"] == "rev-tm-2":
+                email = {"resource": "sphere-email", "id": "email.mailgun.foundation"}
+                body["result"]["solutions"][0]["decision"]["binding"] = {"dailySummary": email}
         return self.reply(200, body)
 
     def finished(self) -> dict:
@@ -417,10 +453,10 @@ def run_main(fake: FakeLab, capsys, *args: str, environ: dict | None = None) -> 
 
 
 def test_every_step_passes_against_a_healthy_lab():
-    report = smoke(FakeLab(), with_space=True)
+    report = smoke(FakeLab("sphere"), with_space=True)
     assert failing(report) == [], [step for step in report["steps"] if not step["ok"]]
     assert [step["name"] for step in report["steps"]] == ALL_STEPS
-    assert report["ok"] is True and report["passed"] == 13 and report["failed"] == 0 and report["skipped"] == []
+    assert report["ok"] is True and report["passed"] == 15 and report["failed"] == 0 and report["skipped"] == []
     assert report["blocked"] == 0 and report["blockedSteps"] == []
     assert not any(step["blockedByRemote"] for step in report["steps"])
 
@@ -596,7 +632,9 @@ def test_skip_leaves_out_optional_steps_and_the_space_step_needs_its_flag():
     assert [step["name"] for step in report["steps"]] == [
         "proxy_and_spa", "login", "upload", "owner_job", "study", "idempotency", "authorization", "public_compositions",
     ]
-    assert report["skipped"] == ["concurrency_limit", "cors", "body_limit", "plan_usage", "login_throttle"]
+    assert report["skipped"] == [
+        "concurrency_limit", "cors", "body_limit", "sphere_candidates", "sphere_engines", "plan_usage", "login_throttle",
+    ]
     assert report["ok"] is True
 
 
@@ -604,14 +642,16 @@ def test_without_with_space_every_other_step_completes_and_the_usage_endpoint_is
     fake = FakeLab()
     report = smoke(fake)
     assert report["ok"] is True and report["failed"] == 0 and report["blocked"] == 0
-    assert [step["name"] for step in report["steps"]] == [name for name in ALL_STEPS if name != "plan_usage"]
-    assert report["skipped"] == ["plan_usage"]
+    assert [step["name"] for step in report["steps"]] == [
+        name for name in ALL_STEPS if name != "plan_usage" and name not in SPHERE_STEPS
+    ]
+    assert report["skipped"] == [*SPHERE_STEPS, "plan_usage"]
     assert not [request for request in fake.requests if request[1].endswith("/users/me/usage")]
 
     fake = FakeLab()
     code = smoke_lab.main([], {"DEMO_SEED_PASSWORD": PASSWORD}, transport=fake.transport(), sleep=lambda _: None)
     assert code == smoke_lab.EXIT_OK
-    assert json.loads(capsys.readouterr().out)["skipped"] == ["plan_usage"]
+    assert json.loads(capsys.readouterr().out)["skipped"] == [*SPHERE_STEPS, "plan_usage"]
     assert not [request for request in fake.requests if request[1].endswith("/users/me/usage")]
 
 
@@ -911,3 +951,20 @@ def test_checks_summarise_passes_and_failures():
     checks.expect(False, "b")
     checks.note("n")
     assert not checks.ok and checks.detail() == "FAILED 1/2: b [n]"
+
+
+def test_the_sphere_steps_check_the_generated_problem_and_one_run_per_engine():
+    fake = FakeLab("sphere")
+    report = smoke(fake)
+    steps = steps_of(report)
+    assert steps["sphere_candidates"]["ok"] and steps["sphere_engines"]["ok"], report["steps"]
+    sphere_runs = [body for body in fake.job_bodies if body["revision"] == "rev-tm-2"]
+    assert sorted(body["engine"]["name"] for body in sphere_runs) == sorted(name for name, _, _ in smoke_lab.SPHERE_ENGINES)
+    assert all(body["optimization"] == smoke_lab.SPHERE_OPTIMIZATION for body in sphere_runs)
+
+
+def test_the_sphere_steps_are_skipped_when_the_seed_skipped_sphere():
+    report = smoke(FakeLab())
+    assert report["ok"] is True
+    assert "sphere_candidates" in report["skipped"] and "sphere_engines" in report["skipped"]
+    assert "sphere_candidates" not in steps_of(report)

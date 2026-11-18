@@ -1,0 +1,187 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openbinding.org/schemas/sphere-recipe/1/recipe.schema.json",
+  "title": "SphereImportRecipe",
+  "description": "A SPHERE import recipe, version 1: which SPHERE pricings (by pricingId and versionId) and hand-made candidates provide each task, which plans and add-ons to take, how each problem feature or candidate property is read, and the requirements a candidate must meet. The gateway validates it and stores it pinned in the generated revision's provenance.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["recipeVersion", "currency", "tasks"],
+  "properties": {
+    "recipeVersion": {"const": "1"},
+    "currency": {"type": "string", "pattern": "^[A-Z]{3}$", "description": "ISO 4217; a pricing in another currency is refused (sphere_currency_mismatch)."},
+    "billing": {"$ref": "#/$defs/name", "default": "monthly", "description": "The billing period every source uses unless it names its own."},
+    "demand": {
+      "type": "object",
+      "propertyNames": {"$ref": "#/$defs/symbol"},
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["value"],
+        "properties": {
+          "value": {"type": "number", "minimum": 0, "maximum": 100000000},
+          "unit": {"type": "string", "maxLength": 64}
+        }
+      }
+    },
+    "features": {
+      "type": "object",
+      "propertyNames": {"$ref": "#/$defs/symbol"},
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["direction"],
+        "properties": {
+          "unit": {"type": "string", "maxLength": 64},
+          "direction": {"enum": ["minimize", "maximize"]},
+          "domain": {"enum": ["real", "ratio"], "default": "real"}
+        }
+      }
+    },
+    "tasks": {"type": "array", "minItems": 1, "maxItems": 16, "items": {"$ref": "#/$defs/task"}}
+  },
+  "$defs": {
+    "symbol": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$"},
+    "predicateName": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]{0,63}$"},
+    "name": {"type": "string", "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]{1,128}$"},
+    "provider": {"type": "string", "pattern": "^[a-z][a-z0-9-]{0,39}$"},
+    "sphereId": {"type": "string", "pattern": "^[0-9a-f]{24}$"},
+    "numberMap": {"type": "object", "minProperties": 1, "additionalProperties": {"type": "number"}},
+    "task": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["task", "capability", "from"],
+      "properties": {
+        "task": {"$ref": "#/$defs/symbol"},
+        "capability": {"type": "string", "maxLength": 128, "pattern": "^[A-Za-z][A-Za-z0-9_.-]*(/[A-Za-z0-9_.-]+){0,7}$"},
+        "service": {"$ref": "#/$defs/provider", "description": "The first segment of generated candidate ids; defaults to the slug of the capability's last segment."},
+        "expand": {"const": "plans", "default": "plans"},
+        "from": {"type": "array", "minItems": 1, "maxItems": 8, "items": {"$ref": "#/$defs/source"}},
+        "require": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "features": {"type": "array", "items": {"$ref": "#/$defs/predicateName"}},
+            "limits": {
+              "type": "object",
+              "propertyNames": {"$ref": "#/$defs/predicateName"},
+              "additionalProperties": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["atLeast"],
+                "properties": {
+                  "atLeast": {"oneOf": [{"$ref": "#/$defs/symbol"}, {"type": "number", "minimum": 0, "maximum": 100000000}]}
+                }
+              }
+            }
+          }
+        },
+        "properties": {
+          "type": "object",
+          "propertyNames": {"$ref": "#/$defs/symbol"},
+          "additionalProperties": {"$ref": "#/$defs/spec"}
+        },
+        "prune": {"enum": ["none", "dominated"], "default": "none"}
+      }
+    },
+    "source": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["sphere", "provider"],
+          "properties": {
+            "sphere": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["pricing", "version"],
+              "properties": {
+                "pricing": {"$ref": "#/$defs/sphereId"},
+                "version": {"oneOf": [{"$ref": "#/$defs/sphereId"}, {"const": "latest"}], "description": "latest only in a preview; apply refuses it (sphere_version_unpinned)."},
+                "registry": {"type": "string", "pattern": "^[a-z0-9](?:[a-z0-9-]{0,30}[a-z0-9])?$"}
+              }
+            },
+            "provider": {"$ref": "#/$defs/provider"},
+            "plans": {"type": "array", "items": {"$ref": "#/$defs/name"}},
+            "addons": {"type": "array", "items": {"$ref": "#/$defs/name"}},
+            "seats": {"type": "integer", "minimum": 1, "maximum": 100000},
+            "names": {"type": "object", "propertyNames": {"$ref": "#/$defs/symbol"}, "additionalProperties": {"$ref": "#/$defs/name"}},
+            "assume": {
+              "type": "object",
+              "propertyNames": {"$ref": "#/$defs/symbol"},
+              "additionalProperties": {"oneOf": [{"const": "unlimited"}, {"type": "number", "minimum": 0}]}
+            },
+            "billing": {"$ref": "#/$defs/name"}
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["candidate"],
+          "properties": {
+            "candidate": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["id", "provider"],
+              "properties": {
+                "id": {"$ref": "#/$defs/symbol"},
+                "provider": {"$ref": "#/$defs/provider"},
+                "name": {"type": "string", "minLength": 1, "maxLength": 160},
+                "properties": {
+                  "type": "object",
+                  "propertyNames": {"$ref": "#/$defs/symbol"},
+                  "additionalProperties": {"oneOf": [{"type": "number"}, {"type": "boolean"}, {"type": "string", "maxLength": 256}]}
+                },
+                "values": {"type": "object", "propertyNames": {"$ref": "#/$defs/symbol"}, "additionalProperties": {"type": "number"}}
+              }
+            }
+          }
+        }
+      ]
+    },
+    "manualMap": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {"pattern": "^(?:\\*|[a-z][a-z0-9-]{0,39}(?:\\.[^\\u0000-\\u001f\\u007f-\\u009f]{1,128})?)$"},
+      "additionalProperties": {"type": "number"}
+    },
+    "spec": {
+      "oneOf": [
+        {"type": "number", "description": "A constant."},
+        {"type": "string", "pattern": "^(?:price|(?:limit|feature|guarantee):[^\\u0000-\\u001f\\u007f-\\u009f]{1,128})$"},
+        {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": false,
+          "properties": {
+            "guarantee": {"$ref": "#/$defs/name"},
+            "map": {
+              "type": "object",
+              "minProperties": 1,
+              "propertyNames": {"enum": ["true", "false"]},
+              "additionalProperties": {"type": "number"}
+            },
+            "scale": {"type": "number", "exclusiveMinimum": 0},
+            "limit": {"$ref": "#/$defs/name"},
+            "unlimitedAs": {"type": "number", "minimum": 0},
+            "feature": {"$ref": "#/$defs/name"},
+            "manual": {"$ref": "#/$defs/manualMap"}
+          },
+          "patternProperties": {
+            "^(?!(?:guarantee|map|scale|limit|feature|manual)$)[a-z][a-z0-9-]{0,39}$": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["manual"],
+              "properties": {"manual": {"$ref": "#/$defs/manualMap"}}
+            }
+          },
+          "oneOf": [
+            {"required": ["guarantee"]},
+            {"required": ["limit"]},
+            {"required": ["feature"]},
+            {"required": ["manual"]}
+          ]
+        }
+      ]
+    }
+  }
+}

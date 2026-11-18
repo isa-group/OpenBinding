@@ -1,0 +1,8 @@
+[
+  {
+    "at": "/tasks/0/expand",
+    "code": "sphere_expand_unsupported",
+    "message": "Add-on combinations (configurations) are not imported yet; expand plans instead.",
+    "severity": "error"
+  }
+]

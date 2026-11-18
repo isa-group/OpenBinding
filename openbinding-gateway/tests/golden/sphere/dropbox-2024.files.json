@@ -1,0 +1,118 @@
+{
+  "application.json": {
+    "apiVersion": "qos-binding/v1",
+    "kind": "Application",
+    "metadata": {
+      "name": "dropbox-application"
+    },
+    "spec": {
+      "features": {
+        "subscription": {
+          "aggregation": "sum",
+          "direction": "minimize",
+          "domain": {
+            "kind": "real",
+            "maximum": 20,
+            "minimum": 0
+          },
+          "scope": "selectedCandidate",
+          "unit": "USD/month"
+        }
+      },
+      "tasks": {
+        "export": "service/storage"
+      },
+      "workflow": {
+        "sequence": [
+          {
+            "task": {
+              "id": "export",
+              "resource": "application"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "instance.json": {
+    "apiVersion": "bim/v1",
+    "kind": "Instance",
+    "metadata": {
+      "annotations": {
+        "openbinding.org/sphere-recipe": "sha256-8adac00443b9d60f494b58a93c6a308223828fed62e8191a293dfa224ed713f3"
+      },
+      "name": "dropbox"
+    },
+    "spec": {
+      "profile": "qos-binding/v1",
+      "resources": {
+        "application": {
+          "application": "application.json"
+        },
+        "candidateCatalog": {
+          "sphere-storage": "sphere-storage.json"
+        },
+        "optimization": {
+          "optimization": "optimization.json"
+        }
+      }
+    }
+  },
+  "optimization.json": {
+    "apiVersion": "qos-binding/v1",
+    "kind": "Optimization",
+    "metadata": {
+      "name": "dropbox-optimization"
+    },
+    "spec": {
+      "criteria": [
+        {
+          "feature": {
+            "id": "subscription",
+            "resource": "application"
+          },
+          "id": "subscription",
+          "normalize": {
+            "clamp": true,
+            "max": 20,
+            "min": 0
+          }
+        }
+      ]
+    }
+  },
+  "sphere-storage.json": {
+    "apiVersion": "qos-binding/v1",
+    "kind": "CandidateCatalog",
+    "metadata": {
+      "name": "sphere-storage"
+    },
+    "spec": {
+      "candidates": {
+        "storage.dropbox.basic": {
+          "features": {
+            "subscription": 0
+          },
+          "name": "BASIC",
+          "properties": {
+            "storage": 2
+          },
+          "provider": {
+            "id": "dropbox",
+            "resource": "sphere-storage"
+          },
+          "provides": "service/storage"
+        }
+      },
+      "featureBindings": {
+        "subscription": {
+          "id": "subscription",
+          "resource": "application"
+        }
+      },
+      "providers": {
+        "dropbox": {}
+      }
+    }
+  }
+}

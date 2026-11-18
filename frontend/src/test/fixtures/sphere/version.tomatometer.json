@@ -10,8 +10,8 @@
   "snapshot": {
     "collection": "spherelab",
     "currency": "USD",
-    "fetchedAt": "2026-01-01T00:00:11Z",
-    "id": "00000000-0000-4000-8000-000000000003",
+    "fetchedAt": "2026-01-01T00:00:20Z",
+    "id": "00000000-0000-4000-8000-000000000015",
     "owner": "sphere",
     "permanentUrl": "https://sphere.score.us.es/p/6ab0a323697330667ccce8cd?version=6921867e7004563bd918e7e8",
     "pricingId": "6ab0a323697330667ccce8cd",
@@ -23,10 +23,10 @@
     "title": "TomatoMeter",
     "url": null,
     "valid": true,
-    "versionCreatedAt": "2026-01-01T00:00:04Z",
+    "versionCreatedAt": "2026-01-01T00:00:13Z",
     "versionId": "6921867e7004563bd918e7e8",
     "versionLabel": "1.0.0",
-    "yamlHref": "/v1/organizations/fixtures/pricing-snapshots/00000000-0000-4000-8000-000000000003/yaml"
+    "yamlHref": "/v1/organizations/fixtures/pricing-snapshots/00000000-0000-4000-8000-000000000015/yaml"
   },
   "summary": {
     "addOns": [

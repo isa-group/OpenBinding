@@ -34,6 +34,7 @@ from ....db.models import (
     Job,
     Organization,
     ProblemCompilation,
+    ProblemValueOrigin,
     StudyCell,
     User,
     utcnow,
@@ -49,6 +50,7 @@ from ..domain.compilation import Compilation
 from ..domain.digests import is_digest
 from ..domain.origin import origin_of
 from .compile import compile_package, compile_refusal
+from .origins import carried_rows, rows_from
 
 #: The slug pattern of the platform (``models/platform.SLUG``).
 SLUG = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$")
@@ -395,12 +397,14 @@ async def create_problem(
     name: str | None = None,
     description: str | None = None,
     provenance: dict[str, Any] | None = None,
+    value_origins: list[dict[str, Any]] | None = None,
 ) -> Upload:
     """Create a problem of ``organization`` whose revision 1 is ``archive`` (201).
 
     The slug defaults from the Instance's ``metadata.name``. 409 ``slug_conflict`` when it is taken, 402
     when the account's plan has no room (``maxProblems``, ``maxRepositoryStorage``), 422 with the
-    toolchain's diagnostics when the package is refused.
+    toolchain's diagnostics when the package is refused. ``value_origins`` (a SPHERE import's) are inserted
+    with the revision, in its transaction.
     """
     if slug is not None and not SLUG.match(slug):
         raise api_error(422, "invalid_slug", "A slug is 1 to 64 lowercase letters, digits and hyphens.")
@@ -436,6 +440,7 @@ async def create_problem(
             revision = _new_revision(problem.id, 1, compilation, blob, len(archive), actor, provenance)
             session.add(revision)
             await session.flush()
+            session.add_all(rows_from(revision.id, value_origins or ()))
             compiled = await store_compilation(session, revision.id, compilation)
     except IntegrityError as exc:
         raise _slug_conflict() from exc
@@ -452,11 +457,20 @@ async def add_revision(
     actor: User,
     *,
     provenance: dict[str, Any] | None = None,
+    value_origins: list[dict[str, Any]] | None = None,
+    expected_latest: int | None = None,
 ) -> Upload:
     """Add ``archive`` as the next revision of ``problem`` (201), or answer the revision it already is (200).
 
     Idempotent on ``(problem, packageDigest)``: the same package, however zipped, is the same revision, and
-    nothing is stored for it again.
+    nothing is stored for it again (its origins included: the first writer's stay). ``value_origins`` (a SPHERE
+    import's) are inserted with a new revision, in its transaction; without them (an editor save, an upload) the
+    origins of the predecessor (the latest revision under the problem lock) whose values the new compilation keeps
+    are carried (``origins.carried_rows``).
+
+    ``expected_latest`` (a SPHERE apply's base) must be the latest revision when the problem is locked, after the
+    digest dedupe: otherwise 409 ``revision_moved`` with the latest number, so a save that landed between the
+    caller's read and this insert is never silently built over.
     """
     caps = await entitlement_service.caps_or_503(actor.id)
     entitlement_service.require_feature(caps, ids.REPOSITORY)
@@ -489,12 +503,25 @@ async def add_revision(
         latest = await session.scalar(
             select(func.max(BindingCaseRevision.revision)).where(BindingCaseRevision.binding_case_id == problem_id)
         )
+        # The true predecessor, read under the problem lock: what an editor save or an upload carries origins from.
+        predecessor = await session.scalar(select(BindingCaseRevision.id).where(
+            BindingCaseRevision.binding_case_id == problem_id, BindingCaseRevision.revision == latest,
+        )) if latest else None
+        if expected_latest is not None and int(latest or 0) != expected_latest:
+            raise api_error(
+                409, "revision_moved", "Another revision was added since; preview again on the latest one.",
+                latest=int(latest or 0),
+            )
         try:
             async with session.begin_nested():
                 blob = await put_row(session, organization_id, stored, PACKAGE_MEDIA_TYPE, actor_id)
                 revision = _new_revision(problem_id, int(latest or 0) + 1, compilation, blob, len(archive), actor, provenance)
                 session.add(revision)
                 await session.flush()
+                if value_origins is not None:
+                    session.add_all(rows_from(revision.id, value_origins))
+                elif predecessor is not None:
+                    session.add_all(await carried_rows(session, predecessor, revision.id, compilation.ir))
                 compiled = await store_compilation(session, revision.id, compilation)
         except IntegrityError:
             # A concurrent identical upload won: the loop answers with its revision.
@@ -529,6 +556,10 @@ async def delete_problem(session: AsyncSession, problem: BindingCase, actor: Use
     try:
         async with session.begin_nested():
             if revision_ids:
+                for origin in (await session.scalars(
+                    select(ProblemValueOrigin).where(ProblemValueOrigin.revision_id.in_(revision_ids))
+                )).all():
+                    await session.delete(origin)
                 for compilation in (await session.scalars(
                     select(ProblemCompilation).where(ProblemCompilation.revision_id.in_(revision_ids))
                 )).all():

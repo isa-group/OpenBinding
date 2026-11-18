@@ -43,6 +43,7 @@ from ..db.models import (
     OrganizationMembership,
     OrganizationRole,
     ProblemCompilation,
+    ProblemValueOrigin,
     OrgConnection,
     PricingSnapshot,
     RunPreset,
@@ -686,6 +687,7 @@ async def _delete_subtree(session: AsyncSession, organization: Organization, uni
         await session.execute(delete(Composition).where(Composition.organization_id == oid))
         cases = select(BindingCase.id).where(BindingCase.organization_id == oid)
         revisions = select(BindingCaseRevision.id).where(BindingCaseRevision.binding_case_id.in_(cases))
+        await session.execute(delete(ProblemValueOrigin).where(ProblemValueOrigin.revision_id.in_(revisions)))
         await session.execute(delete(ProblemCompilation).where(ProblemCompilation.revision_id.in_(revisions)))
         await session.execute(delete(BindingCaseRevision).where(BindingCaseRevision.binding_case_id.in_(cases)))
         await session.execute(delete(BindingCase).where(BindingCase.organization_id == oid))

@@ -1,0 +1,43 @@
+[
+  {
+    "at": "/tasks/0/from/1",
+    "code": "sphere_limit_assumed",
+    "limit": "emailsPerDay",
+    "message": "This pricing does not declare emailsPerDay; the recipe assumes unlimited.",
+    "severity": "warning"
+  },
+  {
+    "at": "/tasks/0/require",
+    "code": "sphere_requires_conflict",
+    "message": "The task dailySummary has a requirement predicate this import did not write; it is not overwritten.",
+    "severity": "error"
+  },
+  {
+    "at": "sphere-email/email.brevo.enterprise",
+    "code": "sphere_plan_private",
+    "message": "The plan ENTERPRISE is private in this pricing; it is left out.",
+    "plan": "ENTERPRISE",
+    "severity": "info"
+  },
+  {
+    "at": "sphere-email/email.mailgun.enterprise",
+    "code": "sphere_plan_private",
+    "message": "The plan ENTERPRISE is private in this pricing; it is left out.",
+    "plan": "ENTERPRISE",
+    "severity": "info"
+  },
+  {
+    "at": "sphere-email/email.resend.enterprise",
+    "code": "sphere_plan_private",
+    "message": "The plan ENTERPRISE is private in this pricing; it is left out.",
+    "plan": "ENTERPRISE",
+    "severity": "info"
+  },
+  {
+    "at": "sphere-email/email.sendgrid.premier",
+    "code": "sphere_plan_private",
+    "message": "The plan PREMIER is private in this pricing; it is left out.",
+    "plan": "PREMIER",
+    "severity": "info"
+  }
+]

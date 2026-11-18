@@ -166,6 +166,70 @@ is not needed.
 | `preset_with_settings` | 422 | `createRun` names a `preset` together with `engine`, `registration`, `mode`, `options` or `optimization`: a run takes its settings from the preset or from the request, never both |
 | `preset_not_found` | 422 | `createRun` names a `preset` the run's organization has no run preset by (slug or id) |
 | `invalid_request_fields` | 422 | `createRun`: a field outside the run contract, or a `preset` that is not a slug or id |
+| `revision_moved` | 409 | `applySphereRecipe`: another revision was added after `base` (an editor save, an upload, another apply); `latest` is its number. Preview again on it |
+| `problem_exists` | 409 | `expandSphereRecipe` or `applySphereRecipe` with `base: null` on a slug the organization already uses |
+| `sphere_preview_stale` | 409 | `applySphereRecipe`: the recipe now generates another package than `expect.packageDigest` (another snapshot, another base); `packageDigest` is the new one |
+| `sphere_recipe_invalid` | 422 | `applySphereRecipe`: the recipe is malformed, or names a version as `latest`; `diagnostics` are the `sphere_*` findings below |
+| `sphere_recipe_refused` | 422 | `applySphereRecipe`: the recipe has an error finding (an unreadable pricing, an unknown plan, an unmapped value…); `diagnostics` are the `sphere_*` findings below |
+
+## SPHERE reads
+
+The SPHERE routes of an organization (`…/sphere/pricings…`, `…/pricing-snapshots/…`, `…/connections/sphere`):
+
+| `code` | Status | Meaning |
+|---|---|---|
+| `sphere_pricing_not_found` | 404 | a pricing or version that is missing, hidden, private without access, or not a SPHERE id: one answer for every unreadable one |
+| `pricing_snapshot_not_found` | 404 | a snapshot that does not exist, or that the caller may not read under that organization |
+| `sphere_registry_unknown` | 422 | a `registry` the deployment does not define in `SPHERE_REGISTRIES` |
+| `sphere_pricing_invalid`, `sphere_syntax_unsupported` | 422 | a version that is not a Pricing2Yaml 3.x pricing; `diagnostics` locate why |
+| `sphere_busy` | 503 | SPHERE's rate limit, or the gateway's back-off for it; `Retry-After` says when to try again |
+| `sphere_unavailable` | 503 | SPHERE cannot be read right now (`reason`: `timeout`, `unavailable`, `transport`, `too_large`, `integrity`, `redirect`, `encoding`, `disabled`) |
+| `sphere_key_malformed` | 422 | `PUT …/connections/sphere` with a key that is not `sk-` and 64 hexadecimal characters |
+| `sphere_key_rejected` | 422 | SPHERE does not accept the key |
+| `secrets_unavailable` | 503 | the deployment has no `SECRETS_FERNET_KEYS`, so a key cannot be stored |
+
+A URL that cannot be read (an offering) never reaches the API as an error: its reason is the warning
+`c2y_offering_unreadable` of the evaluation.
+
+## SPHERE imports
+
+`expandSphereRecipe` (`POST …/problems/{problem}/sphere/expand`) answers these findings in `diagnostics` with a
+`200`; `applySphereRecipe` refuses a recipe with an **error** among them (`422 sphere_recipe_refused`). Each is
+`{code, severity, message, at}`, `at` a JSON Pointer into the recipe (`/tasks/0/from/1`) or a candidate key
+(`sphere-email/email.mailgun.foundation`), plus the members the code names. The compiler's own refusals of the
+generated package (`missing_feature`, `feature_value_domain`, `capability_predicate`, `ineligible_task`,
+`normalization_required`…) come back in the same list in a preview, and as `422 invalid_instance` in an apply.
+
+| `code` | Severity | Meaning |
+|---|---|---|
+| `sphere_recipe_shape` | error | the recipe is malformed: a missing or unknown member, a value of the wrong kind, an id that is not a SPHERE id (24 lowercase hexadecimal characters), a bound passed (64 KiB, 16 tasks, 8 sources a task, 24 distinct pricing versions) |
+| `sphere_source_unreadable` | error | a pricing version could not be read; `reason`: `not_found` (missing, or private without access), `unavailable`, `busy` (with `retryAfter`), `deadline` (the preview's 30 s ran out) or `registry_unknown` |
+| `sphere_billing_unknown` | error | the pricing declares no such billing period (one with no `billing` block declares only `monthly`) |
+| `sphere_syntax_unsupported` | error | the pricing is Pricing2Yaml 1.x or 2.x; only 3.0 and 3.1 are read |
+| `sphere_pricing_invalid` | error | the pricing is not a Pricing2Yaml document this gateway reads |
+| `sphere_expand_unsupported` | error | `expand: configurations` (add-on combinations); only `plans` is imported |
+| `sphere_version_unpinned` | error | an apply whose recipe still says `latest` |
+| `sphere_plan_unknown`, `sphere_addon_unknown` | error | the recipe names a plan or add-on the pricing does not have (or a metered add-on, which is never imported) |
+| `sphere_feature_unknown`, `sphere_limit_unknown` | error | a property reads a feature or usage limit the pricing does not declare (alias it with `names`; a required limit may be assumed with `assume`) |
+| `sphere_guarantee_unmapped` | error | a boolean guarantee with no value for it in the spec's `map` |
+| `sphere_unlimited_unmapped` | error | an unlimited limit read into a problem feature without `unlimitedAs` |
+| `sphere_property_unmapped` | error | a candidate gets no value for a target (no manual value for its provider, a hand-made candidate without it, a value that is not a number for a feature) |
+| `sphere_currency_mismatch` | error | the pricing's currency is not the recipe's; no currency is converted |
+| `sphere_demand_too_large` | error | a demand above `1e8`, the value that stands for unlimited |
+| `sphere_too_many_candidates` | error | more than 50 candidates from one source, or a package over the package limits |
+| `sphere_no_candidates` | error | no candidate is generated for a task |
+| `sphere_id_collision`, `sphere_id_too_long` | error | two plans or variants slug to one id (`Pro` and `PRO`), or an id over 128 characters |
+| `sphere_task_unknown`, `sphere_task_capability_conflict` | error | the base problem has no such task, or it requires another capability |
+| `sphere_feature_conflict` | error | the problem already has the feature with another unit or direction, or a priced feature is not `scope: selectedCandidate` |
+| `sphere_requires_conflict`, `sphere_resource_conflict` | error | a task's `requires.predicate`, or a catalog `sphere-<service>`, that no earlier SPHERE recipe of the problem wrote: the import never overwrites it |
+| `sphere_property_missing_on_candidate` | error | a candidate of another catalog provides the capability but lacks a property the requirements read; add it to the recipe as a hand-made candidate |
+| `sphere_limit_assumed` | warning | a required limit the pricing does not declare took the recipe's `assume` value |
+| `sphere_price_not_numeric`, `sphere_price_expression` | warning | a plan or add-on without a published price, or whose price expression has no value, is left out (an **error** when the recipe names that plan) |
+| `sphere_unit_unknown`, `sphere_unit_per_user` | warning | a price unit with no period is taken as monthly; a per-user price without `seats` is priced for one seat |
+| `sphere_rescaled` | warning | generated values go past a feature's domain or a criterion's normalisation, which were widened |
+| `sphere_objective_manual_only` | warning | every generated value of an objective's feature was set by hand |
+| `sphere_content_hash_unverified` | warning | SPHERE's content hash of the version differs from the one computed here; the bytes match their ETag and are used |
+| `sphere_plan_private`, `sphere_pruned`, `sphere_version_not_latest`, `sphere_candidate_removed` | info | a private plan was left out; a dominated candidate was pruned (`prune: dominated`); a newer version exists; a candidate of the base revision is no longer generated (a binding to it will not survive) |
 
 ## Run presets
 
@@ -275,6 +339,8 @@ Against a compiled problem, and when assessing a document in an organization (th
 | `c2y_value_not_computed` | **warning**: a declared value of a property the toolchain does not compute; dropped |
 | `c2y_constraint_violated` | the binding violates a hard constraint |
 | `c2y_constraint_soft` | **warning**: the binding misses a soft constraint, with its penalty |
+| `c2y_provenance_mismatch` | a `from` disagrees with the provenance a SPHERE-generated problem recorded for its candidate (owner/name, registry, version, plan, add-ons); located at the first field that differs |
+| `c2y_provenance_missing` | **warning**: an entry without `from` on a candidate a SPHERE import generated; the version pins no upstream version of its own |
 | `c2y_problem_foreign` | `problem.ref` names a problem of another organization; it is not looked up there |
 | `c2y_problem_not_found` | the organization has no such problem or revision (or it was deleted while the version was being sealed) |
 | `c2y_problem_not_recompilable` | the installed toolchain refuses the linked revision's stored package |
@@ -288,10 +354,10 @@ Against a compiled problem, and when assessing a document in an organization (th
 | `c2y_run_point_invalid` | the run has no binding to cite, or `evidence.point` is not one of its solutions (`deriveComposition`: the request's `point`) |
 | `c2y_run_binding_mismatch` | the binding is not the run's solution (`point`) or none of them; the message lists the tasks that differ |
 
-Reserved for F3, which emits them (no route reports them yet): `c2y_offering_unreadable` (**warning**: the
-offering cannot be read; no margins), `c2y_offering_invalid_pricing` (**warning**: its content is not a valid
-Pricing2Yaml; no margins) and `c2y_provenance_mismatch` (a `from` disagrees with the provenance a
-SPHERE-generated problem recorded for its candidate).
+An evaluation created on a seal, a derivation that seals, a fork or a re-evaluation records the offering version it
+read (`EvaluationView.offering`); reading it can give `c2y_offering_unreadable` (**warning**: the offering cannot be
+read, the reason in words; no margins) and `c2y_offering_invalid_pricing` (**warning**: its content is not a valid
+Pricing2Yaml 3.x pricing; no margins). Neither invalidates the binding or blocks a seal.
 
 ## Compositions
 

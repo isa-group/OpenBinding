@@ -25,11 +25,17 @@ from .derive import DerivationBug, Derived, derive_version
 from .evaluate import Evaluated, Reevaluated, evaluate_binding, neighbourhood, reevaluate
 from .fork import Forked, NameTaken, fork_composition
 from .language import LanguageRefusal, diff, diff_stored, parse, serialise, validate
+from .offering import OfferingOutcome, read_offering, with_offering
+from .upstream import resolve_provenance
 from .seal import Checked, Sealed, check, insert_derivation, insert_evaluation, judge, persist, seal_into
 from .slots import evaluation_slot, language_slot
 from .versions import diff_pair, list_versions, required_version, summaries, version_by_ref
 
 __all__ = [
+    "OfferingOutcome",
+    "resolve_provenance",
+    "read_offering",
+    "with_offering",
     "STRICTER_THAN_TOOLCHAIN",
     "Assessment",
     "Checked",

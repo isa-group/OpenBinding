@@ -41,6 +41,7 @@ from ...shared.application import audit
 from .compositions import TARGET, insert_composition, require_repository, slug_holder
 from .language import diagnostic_view
 from .seal import Checked, Sealed, judge, seal_into
+from .offering import before_seal
 from .slots import language_slot
 
 
@@ -133,6 +134,8 @@ async def fork_composition(
             diagnostics=[diagnostic_view(item) for item in checked.diagnostics],
         )
 
+    # A fork creates its composition and its first evaluation: the offering is read, before any transaction.
+    assessment = await before_seal(session, target, assessment, actor, source=raw.decode("utf-8"))
     based_on = {"composition_id": str(source.id), "version_id": str(version.id), "label": version.label}
     snapshot = _snapshot(source_organization, source, version, linked)
     # Phase 1 read in a transaction of its own; the composition and its version are one transaction.

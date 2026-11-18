@@ -1,0 +1,172 @@
+# Synthetic Pricing2Yaml 3.1 for the SPHERE generator goldens (tests/golden/sphere/cases.json); not a SPHERE pricing.
+syntaxVersion: "3.1"
+saasName: Many plans
+version: "1"
+createdAt: "2026-11-18"
+currency: USD
+features:
+  sending:
+    valueType: BOOLEAN
+    defaultValue: true
+    type: DOMAIN
+usageLimits:
+  emailsPerMonth:
+    valueType: NUMERIC
+    defaultValue: 1000
+    unit: email
+    type: NON_RENEWABLE
+    linkedFeatures: [sending]
+plans:
+  P00:
+    price: 0
+    unit: account/month
+  P01:
+    price: 1
+    unit: account/month
+  P02:
+    price: 2
+    unit: account/month
+  P03:
+    price: 3
+    unit: account/month
+  P04:
+    price: 4
+    unit: account/month
+  P05:
+    price: 5
+    unit: account/month
+  P06:
+    price: 6
+    unit: account/month
+  P07:
+    price: 7
+    unit: account/month
+  P08:
+    price: 8
+    unit: account/month
+  P09:
+    price: 9
+    unit: account/month
+  P10:
+    price: 10
+    unit: account/month
+  P11:
+    price: 11
+    unit: account/month
+  P12:
+    price: 12
+    unit: account/month
+  P13:
+    price: 13
+    unit: account/month
+  P14:
+    price: 14
+    unit: account/month
+  P15:
+    price: 15
+    unit: account/month
+  P16:
+    price: 16
+    unit: account/month
+  P17:
+    price: 17
+    unit: account/month
+  P18:
+    price: 18
+    unit: account/month
+  P19:
+    price: 19
+    unit: account/month
+  P20:
+    price: 20
+    unit: account/month
+  P21:
+    price: 21
+    unit: account/month
+  P22:
+    price: 22
+    unit: account/month
+  P23:
+    price: 23
+    unit: account/month
+  P24:
+    price: 24
+    unit: account/month
+  P25:
+    price: 25
+    unit: account/month
+  P26:
+    price: 26
+    unit: account/month
+  P27:
+    price: 27
+    unit: account/month
+  P28:
+    price: 28
+    unit: account/month
+  P29:
+    price: 29
+    unit: account/month
+  P30:
+    price: 30
+    unit: account/month
+  P31:
+    price: 31
+    unit: account/month
+  P32:
+    price: 32
+    unit: account/month
+  P33:
+    price: 33
+    unit: account/month
+  P34:
+    price: 34
+    unit: account/month
+  P35:
+    price: 35
+    unit: account/month
+  P36:
+    price: 36
+    unit: account/month
+  P37:
+    price: 37
+    unit: account/month
+  P38:
+    price: 38
+    unit: account/month
+  P39:
+    price: 39
+    unit: account/month
+  P40:
+    price: 40
+    unit: account/month
+  P41:
+    price: 41
+    unit: account/month
+  P42:
+    price: 42
+    unit: account/month
+  P43:
+    price: 43
+    unit: account/month
+  P44:
+    price: 44
+    unit: account/month
+  P45:
+    price: 45
+    unit: account/month
+  P46:
+    price: 46
+    unit: account/month
+  P47:
+    price: 47
+    unit: account/month
+  P48:
+    price: 48
+    unit: account/month
+  P49:
+    price: 49
+    unit: account/month
+  P50:
+    price: 50
+    unit: account/month

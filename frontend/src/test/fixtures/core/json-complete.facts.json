@@ -9,27 +9,34 @@
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/audit-cloud/features/carbon",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         },
         "cost": {
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/audit-cloud/features/cost",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         },
         "latency": {
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/audit-cloud/features/latency",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         },
         "trust": {
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/audit-cloud/features/trust",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         }
       },
+      "properties": {},
+      "propertyOrigins": {},
+      "provenance": null,
       "provider": "cloud-grid",
       "resource": "catalog",
       "values": {
@@ -47,27 +54,34 @@
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/audit-edge/features/carbon",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         },
         "cost": {
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/audit-edge/features/cost",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         },
         "latency": {
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/audit-edge/features/latency",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         },
         "trust": {
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/audit-edge/features/trust",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         }
       },
+      "properties": {},
+      "propertyOrigins": {},
+      "provenance": null,
       "provider": "edge-labs",
       "resource": "catalog",
       "values": {
@@ -85,27 +99,34 @@
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/auth-cloud/features/carbon",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         },
         "cost": {
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/auth-cloud/features/cost",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         },
         "latency": {
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/auth-cloud/features/latency",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         },
         "trust": {
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/auth-cloud/features/trust",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         }
       },
+      "properties": {},
+      "propertyOrigins": {},
+      "provenance": null,
       "provider": "cloud-grid",
       "resource": "catalog",
       "values": {
@@ -123,27 +144,34 @@
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/auth-edge/features/carbon",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         },
         "cost": {
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/auth-edge/features/cost",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         },
         "latency": {
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/auth-edge/features/latency",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         },
         "trust": {
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/auth-edge/features/trust",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         }
       },
+      "properties": {},
+      "propertyOrigins": {},
+      "provenance": null,
       "provider": "edge-labs",
       "resource": "catalog",
       "values": {
@@ -161,27 +189,34 @@
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/cache-cloud/features/carbon",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         },
         "cost": {
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/cache-cloud/features/cost",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         },
         "latency": {
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/cache-cloud/features/latency",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         },
         "trust": {
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/cache-cloud/features/trust",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         }
       },
+      "properties": {},
+      "propertyOrigins": {},
+      "provenance": null,
       "provider": "cloud-grid",
       "resource": "catalog",
       "values": {
@@ -199,27 +234,34 @@
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/cache-edge/features/carbon",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         },
         "cost": {
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/cache-edge/features/cost",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         },
         "latency": {
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/cache-edge/features/latency",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         },
         "trust": {
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/cache-edge/features/trust",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         }
       },
+      "properties": {},
+      "propertyOrigins": {},
+      "provenance": null,
       "provider": "edge-labs",
       "resource": "catalog",
       "values": {
@@ -237,27 +279,34 @@
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/enrich-cloud/features/carbon",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         },
         "cost": {
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/enrich-cloud/features/cost",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         },
         "latency": {
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/enrich-cloud/features/latency",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         },
         "trust": {
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/enrich-cloud/features/trust",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         }
       },
+      "properties": {},
+      "propertyOrigins": {},
+      "provenance": null,
       "provider": "cloud-grid",
       "resource": "catalog",
       "values": {
@@ -275,27 +324,34 @@
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/enrich-edge/features/carbon",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         },
         "cost": {
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/enrich-edge/features/cost",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         },
         "latency": {
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/enrich-edge/features/latency",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         },
         "trust": {
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/enrich-edge/features/trust",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         }
       },
+      "properties": {},
+      "propertyOrigins": {},
+      "provenance": null,
       "provider": "edge-labs",
       "resource": "catalog",
       "values": {
@@ -313,27 +369,34 @@
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/fetch-cloud/features/carbon",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         },
         "cost": {
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/fetch-cloud/features/cost",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         },
         "latency": {
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/fetch-cloud/features/latency",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         },
         "trust": {
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/fetch-cloud/features/trust",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         }
       },
+      "properties": {},
+      "propertyOrigins": {},
+      "provenance": null,
       "provider": "cloud-grid",
       "resource": "catalog",
       "values": {
@@ -351,27 +414,34 @@
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/fetch-fog/features/carbon",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         },
         "cost": {
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/fetch-fog/features/cost",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         },
         "latency": {
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/fetch-fog/features/latency",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         },
         "trust": {
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/fetch-fog/features/trust",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         }
       },
+      "properties": {},
+      "propertyOrigins": {},
+      "provenance": null,
       "provider": "fog-works",
       "resource": "catalog",
       "values": {
@@ -389,27 +459,34 @@
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/publish-cloud/features/carbon",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         },
         "cost": {
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/publish-cloud/features/cost",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         },
         "latency": {
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/publish-cloud/features/latency",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         },
         "trust": {
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/publish-cloud/features/trust",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         }
       },
+      "properties": {},
+      "propertyOrigins": {},
+      "provenance": null,
       "provider": "cloud-grid",
       "resource": "catalog",
       "values": {
@@ -427,27 +504,34 @@
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/publish-fog/features/carbon",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         },
         "cost": {
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/publish-fog/features/cost",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         },
         "latency": {
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/publish-fog/features/latency",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         },
         "trust": {
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/publish-fog/features/trust",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         }
       },
+      "properties": {},
+      "propertyOrigins": {},
+      "provenance": null,
       "provider": "fog-works",
       "resource": "catalog",
       "values": {
@@ -465,27 +549,34 @@
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/score-cloud/features/carbon",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         },
         "cost": {
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/score-cloud/features/cost",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         },
         "latency": {
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/score-cloud/features/latency",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         },
         "trust": {
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/score-cloud/features/trust",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         }
       },
+      "properties": {},
+      "propertyOrigins": {},
+      "provenance": null,
       "provider": "cloud-grid",
       "resource": "catalog",
       "values": {
@@ -503,27 +594,34 @@
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/score-fog/features/carbon",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         },
         "cost": {
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/score-fog/features/cost",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         },
         "latency": {
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/score-fog/features/latency",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         },
         "trust": {
           "kind": "package",
           "path": "candidates.json",
           "pointer": "/spec/candidates/score-fog/features/trust",
-          "resource": "catalog"
+          "resource": "catalog",
+          "source": null
         }
       },
+      "properties": {},
+      "propertyOrigins": {},
+      "provenance": null,
       "provider": "fog-works",
       "resource": "catalog",
       "values": {

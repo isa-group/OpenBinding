@@ -1,0 +1,178 @@
+{
+  "binding_space": "3",
+  "candidates": [
+    {
+      "id": "email.mailgun.basic",
+      "key": "sphere-email/email.mailgun.basic",
+      "origins": {
+        "subscription": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.mailgun.basic/features/subscription",
+          "resource": "sphere-email",
+          "source": null
+        }
+      },
+      "properties": {
+        "emailsPerMonth": 10000
+      },
+      "propertyOrigins": {
+        "emailsPerMonth": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.mailgun.basic/properties/emailsPerMonth",
+          "resource": "sphere-email",
+          "source": null
+        }
+      },
+      "provenance": null,
+      "provider": "mailgun",
+      "resource": "sphere-email",
+      "values": {
+        "subscription": 15
+      }
+    },
+    {
+      "id": "email.mailgun.foundation",
+      "key": "sphere-email/email.mailgun.foundation",
+      "origins": {
+        "subscription": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.mailgun.foundation/features/subscription",
+          "resource": "sphere-email",
+          "source": null
+        }
+      },
+      "properties": {
+        "emailsPerMonth": 50000
+      },
+      "propertyOrigins": {
+        "emailsPerMonth": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.mailgun.foundation/properties/emailsPerMonth",
+          "resource": "sphere-email",
+          "source": null
+        }
+      },
+      "provenance": null,
+      "provider": "mailgun",
+      "resource": "sphere-email",
+      "values": {
+        "subscription": 35
+      }
+    },
+    {
+      "id": "email.mailgun.free",
+      "key": "sphere-email/email.mailgun.free",
+      "origins": {
+        "subscription": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.mailgun.free/features/subscription",
+          "resource": "sphere-email",
+          "source": null
+        }
+      },
+      "properties": {
+        "emailsPerMonth": 100000000
+      },
+      "propertyOrigins": {
+        "emailsPerMonth": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.mailgun.free/properties/emailsPerMonth",
+          "resource": "sphere-email",
+          "source": null
+        }
+      },
+      "provenance": null,
+      "provider": "mailgun",
+      "resource": "sphere-email",
+      "values": {
+        "subscription": 0
+      }
+    },
+    {
+      "id": "email.mailgun.scale",
+      "key": "sphere-email/email.mailgun.scale",
+      "origins": {
+        "subscription": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.mailgun.scale/features/subscription",
+          "resource": "sphere-email",
+          "source": null
+        }
+      },
+      "properties": {
+        "emailsPerMonth": 101000
+      },
+      "propertyOrigins": {
+        "emailsPerMonth": {
+          "kind": "package",
+          "path": "sphere-email.json",
+          "pointer": "/spec/candidates/email.mailgun.scale/properties/emailsPerMonth",
+          "resource": "sphere-email",
+          "source": null
+        }
+      },
+      "provenance": null,
+      "provider": "mailgun",
+      "resource": "sphere-email",
+      "values": {
+        "subscription": 90
+      }
+    }
+  ],
+  "constraints": [],
+  "features": [
+    {
+      "direction": "min",
+      "id": "subscription",
+      "required": true,
+      "unit": "USD/month"
+    }
+  ],
+  "ir_digest": "sha256-ae66b7cdbd9a67be9ba70849f880f45e964e4b3961ca904a6a2b625582f116df",
+  "objectives": {
+    "criteria": [
+      {
+        "direction": "minimize",
+        "feature": {
+          "id": "subscription",
+          "resource": "application"
+        },
+        "id": "subscription",
+        "normalize": {
+          "clamp": true,
+          "max": 100.0,
+          "min": 0.0
+        }
+      }
+    ],
+    "penalties": []
+  },
+  "tasks": [
+    {
+      "eligible": [
+        {
+          "candidate": "sphere-email/email.mailgun.foundation",
+          "written": "email.mailgun.foundation"
+        },
+        {
+          "candidate": "sphere-email/email.mailgun.free",
+          "written": "email.mailgun.free"
+        },
+        {
+          "candidate": "sphere-email/email.mailgun.scale",
+          "written": "email.mailgun.scale"
+        }
+      ],
+      "id": "send",
+      "kind": "service"
+    }
+  ],
+  "workflow": "send"
+}

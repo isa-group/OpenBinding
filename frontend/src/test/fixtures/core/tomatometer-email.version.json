@@ -1,0 +1,198 @@
+{
+  "analytics": {
+    "boundTasks": 4,
+    "hasOffering": true,
+    "localTasks": 0,
+    "providers": 4,
+    "tasks": 4,
+    "upstreamPricings": 1,
+    "workflow": {
+      "and": 1,
+      "depth": 2,
+      "loop": 0,
+      "xor": 0
+    }
+  },
+  "based_on": null,
+  "content_digest": "sha256-7974798d9e27731cb07f50f9fb0139ea06136554d1c1ee77a74f17ff04cd95ce",
+  "created_at": "2026-01-01T00:00:10Z",
+  "created_by_id": "00000000-0000-4000-8000-000000000003",
+  "current_evaluation": {
+    "basis": "bim",
+    "compilation": {
+      "compilation_digest": "sha256-54f288f056ab90e0050c9de96f49bbc422e6a801beb05aa2f7cdbe88e1ff0e78",
+      "semantic_digest": "sha256-7568924f5773baa488714b1c34b0b8d9bf72b29bee13712897f355012e7e8f95",
+      "toolchain": {
+        "apiVersion": "bim/v1",
+        "compilerDigest": "sha256-b91fc3a05d1a58d128f5589f35396aaf8ebd0c3854e1e072ce17c765fe42b4d4",
+        "name": "bim-core",
+        "version": "0.2.0"
+      }
+    },
+    "created_at": "2026-01-01T00:00:11Z",
+    "id": "00000000-0000-4000-8000-000000000032",
+    "outcome": "verified"
+  },
+  "current_evaluation_id": "00000000-0000-4000-8000-000000000032",
+  "derivation": {
+    "point": null,
+    "revision": {
+      "id": "00000000-0000-4000-8000-000000000033",
+      "revision": 2
+    },
+    "run": null,
+    "source": "binding"
+  },
+  "document": {
+    "binding": {
+      "dailySummary": {
+        "candidate": "email.mailgun.foundation",
+        "from": {
+          "plan": "FOUNDATION",
+          "sphere": "danruilop1/mailgun",
+          "version": "6ade36454b2b5b01c587db3d"
+        }
+      },
+      "export": {
+        "candidate": "storage.local.disk"
+      },
+      "login": {
+        "candidate": "auth.builtin.local"
+      },
+      "quotes": {
+        "candidate": "quotes.zenquotes.free"
+      }
+    },
+    "composition": "tomatometer",
+    "evidence": {
+      "evaluatedBy": "gateway",
+      "manual": true,
+      "toolchain": "bim-core 0.2.0"
+    },
+    "kind": "application",
+    "offering": {
+      "sphere": "sphere/tomatometer"
+    },
+    "problem": {
+      "compilation": "sha256-54f288f056ab90e0050c9de96f49bbc422e6a801beb05aa2f7cdbe88e1ff0e78",
+      "ref": "fixtures/problems/tomatometer-email@2"
+    },
+    "syntaxVersion": "1.0",
+    "values": {
+      "availability": 0.9736378375500001,
+      "latency": {
+        "unit": "ms",
+        "value": 375.0
+      },
+      "subscription": {
+        "unit": "USD/month",
+        "value": 35.0
+      }
+    },
+    "version": "1.0.0",
+    "workflow": {
+      "seq": [
+        "login",
+        {
+          "and": [
+            "dailySummary",
+            "export"
+          ]
+        },
+        "quotes"
+      ]
+    }
+  },
+  "evaluations": [
+    {
+      "basis": "bim",
+      "binding": {
+        "dailySummary": "sphere-email/email.mailgun.foundation",
+        "export": "catalog/storage.local.disk",
+        "login": "catalog/auth.builtin.local",
+        "quotes": "catalog/quotes.zenquotes.free"
+      },
+      "compilation": {
+        "compilation_digest": "sha256-54f288f056ab90e0050c9de96f49bbc422e6a801beb05aa2f7cdbe88e1ff0e78",
+        "compiler_digest": "sha256-b91fc3a05d1a58d128f5589f35396aaf8ebd0c3854e1e072ce17c765fe42b4d4",
+        "id": "00000000-0000-4000-8000-000000000034",
+        "semantic_digest": "sha256-7568924f5773baa488714b1c34b0b8d9bf72b29bee13712897f355012e7e8f95",
+        "toolchain": {
+          "apiVersion": "bim/v1",
+          "compilerDigest": "sha256-b91fc3a05d1a58d128f5589f35396aaf8ebd0c3854e1e072ce17c765fe42b4d4",
+          "name": "bim-core",
+          "version": "0.2.0"
+        }
+      },
+      "created_at": "2026-01-01T00:00:11Z",
+      "current": true,
+      "diagnostics": [],
+      "id": "00000000-0000-4000-8000-000000000032",
+      "offering": {
+        "createdAt": "2026-01-01T00:00:09Z",
+        "snapshot": "00000000-0000-4000-8000-000000000031",
+        "status": "read",
+        "versionName": "1.0.0"
+      },
+      "outcome": "verified",
+      "values": {
+        "availability": {
+          "unit": "1",
+          "value": 0.9736378375500001
+        },
+        "latency": {
+          "unit": "ms",
+          "value": 375.0
+        },
+        "subscription": {
+          "unit": "USD/month",
+          "value": 35.0
+        }
+      },
+      "violations": []
+    }
+  ],
+  "evidence_run": null,
+  "forked_from": null,
+  "id": "00000000-0000-4000-8000-000000000035",
+  "kind": "application",
+  "label": "1.0.0",
+  "offering": {
+    "sphere": "sphere/tomatometer"
+  },
+  "ordinal": 1,
+  "problem": {
+    "linked_compilation": {
+      "compilation_digest": "sha256-54f288f056ab90e0050c9de96f49bbc422e6a801beb05aa2f7cdbe88e1ff0e78",
+      "id": "00000000-0000-4000-8000-000000000034",
+      "semantic_digest": "sha256-7568924f5773baa488714b1c34b0b8d9bf72b29bee13712897f355012e7e8f95"
+    },
+    "problem": {
+      "id": "00000000-0000-4000-8000-000000000036",
+      "name": "tomatometer-email",
+      "slug": "tomatometer-email"
+    },
+    "revision": {
+      "id": "00000000-0000-4000-8000-000000000033",
+      "revision": 2
+    }
+  },
+  "size_bytes": 855,
+  "syntax_version": "1.0",
+  "values": {
+    "availability": {
+      "unit": "1",
+      "value": 0.9736378375500001
+    },
+    "latency": {
+      "unit": "ms",
+      "value": 375.0
+    },
+    "subscription": {
+      "unit": "USD/month",
+      "value": 35.0
+    }
+  },
+  "values_status": "verified",
+  "verified": true
+}

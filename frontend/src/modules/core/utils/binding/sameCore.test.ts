@@ -21,9 +21,11 @@ const NAMES = ['simple-seq', 'fms', 'json-complete', 'ambiguous'];
 
 describe('the same graph and the same matrix', () => {
   it('has every fixture package', () => {
-    expect(Object.keys(all).filter(path => path.endsWith('.facts.json'))).toHaveLength(
-      NAMES.length
+    // A package is drafted and stored: a `.validate.json` beside its `.facts.json` (the refused draft has no facts).
+    const drafted = Object.keys(all).filter(
+      path => path.endsWith('.validate.json') && !path.endsWith('/refused.validate.json')
     );
+    expect(drafted).toHaveLength(NAMES.length);
   });
 
   describe.each(NAMES)('%s', name => {

@@ -1,0 +1,42 @@
+{
+  "sphere-email/email.mailgun.basic": [
+    {
+      "bound": 30000,
+      "operator": ">=",
+      "property": "emailsPerMonth",
+      "satisfied": false,
+      "text": "emailsPerMonth: 10000 < 30000",
+      "value": 10000
+    }
+  ],
+  "sphere-email/email.mailgun.foundation": [
+    {
+      "bound": 30000,
+      "operator": ">=",
+      "property": "emailsPerMonth",
+      "satisfied": true,
+      "text": "emailsPerMonth: 50000 >= 30000",
+      "value": 50000
+    }
+  ],
+  "sphere-email/email.mailgun.free": [
+    {
+      "bound": 30000,
+      "operator": ">=",
+      "property": "emailsPerMonth",
+      "satisfied": true,
+      "text": "emailsPerMonth: 100000000 >= 30000",
+      "value": 100000000
+    }
+  ],
+  "sphere-email/email.mailgun.scale": [
+    {
+      "bound": 30000,
+      "operator": ">=",
+      "property": "emailsPerMonth",
+      "satisfied": true,
+      "text": "emailsPerMonth: 100000 >= 30000",
+      "value": 100000
+    }
+  ]
+}

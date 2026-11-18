@@ -479,6 +479,7 @@ from .platform_models import (  # noqa: E402,F401
     StudyState,
     PasswordResetToken,
     ProblemCompilation,
+    ProblemValueOrigin,
     ValuesStatus,
 )
 

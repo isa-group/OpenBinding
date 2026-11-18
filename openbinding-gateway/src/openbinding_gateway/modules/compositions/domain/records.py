@@ -59,6 +59,9 @@ class EvaluationDraft:
     result: Mapping[str, Any] | None = None
     #: What the assessment found, every severity; located in the version's content when it is stored.
     diagnostics: tuple[Diagnostic, ...] = ()
+    #: The offering version read when the row is created (``application.offering``), and how the read went.
+    offering_snapshot_id: uuid.UUID | None = None
+    offering_status: str | None = None
 
     @classmethod
     def declared(cls, values: Iterable[tuple[str, Value]], diagnostics: Iterable[Diagnostic] = ()) -> "EvaluationDraft":

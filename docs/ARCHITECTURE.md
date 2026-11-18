@@ -683,6 +683,18 @@ flowchart LR
   OWNER reads every private version of that organization, a VIEW key a private pricing only with an explicit grant.
   The key is sent only to the default SPHERE, never to a registry or a URL; a 401 marks the connection invalid and
   the read is retried anonymously. "Connect SPHERE" by OAuth cannot read a version's YAML and waits for F8.
+- **Problems from SPHERE (F3).** `modules/problems` turns pricings into ordinary BIM candidates: a validated import
+  recipe (`problems/domain/sphere/recipe.py`, stored pinned in the generated revision's provenance), a deterministic
+  generator (`problems/application/sphere/generate.py`, in `application` because it reads `plans`' normaliser, which
+  no `modules.*.domain` may import), `sphere/expand` and `sphere/apply` (apply stores exactly what the preview showed,
+  its base checked under the problem lock) and `problem_value_origins`, one immutable row per generated value. Demand
+  and requirements are compile-time `requires.predicate`s: eligibility stays the compiler's. Every generated package
+  in the repository is a JSON file map, so the BIM corpus does not move. `docs/SPHERE.md` is the reference.
+- **Provenance and the offering (F3).** Derive writes a generated candidate's `from` from the revision's value origins,
+  and the assessment refuses a `from` that misstates it (`c2y_provenance_mismatch`). A composition's offering is read
+  through the port when an evaluation row is created (never on `versions/check`) and its version is stored on the
+  evaluation; `GET …/compositions/{composition}/upstream` answers upstream plans, value sources and the offering from
+  stored snapshots alone.
 - `GET /v1/plans/pricing` (public, F3) serves OpenBinding's own pricing through the `PricingSource` port: the family
   `SPHERE_OPENBINDING_PRICING_ID`, the version labelled `SPACE_PRICING_VERSION` in its manifest (so a new release
   is a setting), snapshotted once and verified like every SPHERE read; the answer carries the label, the version

@@ -1651,6 +1651,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/organizations/{org}/compositions/{composition}/upstream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List a version's upstream pricings with their snapshots
+         * @description Per binding entry, the upstream plan it was chosen from (pricing, version name, plan, permanent link and the
+         *     snapshot to draw it from); per global value, the kinds of source its bound candidates' values have; and the
+         *     offering version the current evaluation read. Stored data only: SPHERE is never called. A visitor of a public
+         *     composition sees public snapshots only.
+         */
+        get: operations["getCompositionUpstream"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/organizations/{org}/compositions/{composition}/versions": {
         parameters: {
             query?: never;
@@ -2175,7 +2198,9 @@ export interface paths {
          * Read the facts of one compilation
          * @description The facts of one compilation, named by its id or its `compilation_digest`: its tasks and the candidates
          *     each may take (as a document writes them), every candidate's values with units and origins, the features,
-         *     the workflow in the Composition2Yaml shape, the constraints, the objectives and the binding-space size.
+         *     the workflow in the Composition2Yaml shape, the constraints, the objectives and the binding-space size; every
+         *     candidate's scalar properties, and, for a revision a SPHERE import wrote, where each value came from (its
+         *     `source`) and the upstream plan each generated candidate was chosen from (`provenance`).
          *
          *     The same projection `POST /v1/bim/validate?include=facts` answers for a package that is not stored.
          */
@@ -2217,6 +2242,73 @@ export interface paths {
         };
         /** Get Problem Revision Source */
         get: operations["getProblemRevisionSource"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{org}/problems/{problem}/sphere/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Store what a SPHERE import recipe generates
+         * @description Store the package a pinned recipe generates as a new problem (`base` null) or as the revision after
+         *     `base`, exactly as its preview showed (`expect.packageDigest`), with the recipe in its provenance and the
+         *     origin of every generated value. An apply repeated after it succeeded answers the same revision (200).
+         */
+        post: operations["applySphereRecipe"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{org}/problems/{problem}/sphere/expand": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview the candidates a SPHERE import recipe generates
+         * @description Read every pricing the recipe names (snapshotting each), generate the BIM package over the base revision
+         *     (or a new problem whose slug is `{problem}`), compile it and answer the candidates, why each is (in)eligible,
+         *     the changes against the base, the facts with their value sources and the package digest apply expects.
+         *
+         *     The `sphere_*` findings, and the compiler's on the generated package, come back located with a 200.
+         */
+        post: operations["expandSphereRecipe"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{org}/problems/{problem}/sphere/recipe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the SPHERE recipe that generated a revision
+         * @description The pinned recipe of revision `revision`, or of the newest revision a SPHERE import generated; 404 when
+         *     none did.
+         */
+        get: operations["getSphereRecipe"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3625,6 +3717,39 @@ export interface components {
                     when?: components["schemas"]["BindingProblem"]["$defs"]["expression"];
                 };
             };
+        };
+        /**
+         * CandidateProvenance
+         * @description The upstream plan a generated candidate was chosen from: what derive writes as a binding entry's `from`.
+         */
+        CandidateProvenance: {
+            /** Addons */
+            addons?: string[];
+            /** Permanenturl */
+            permanentUrl: string | null;
+            /** Plan */
+            plan: string | null;
+            /** Pricingid */
+            pricingId: string;
+            /** Registry */
+            registry?: string | null;
+            /**
+             * Snapshot
+             * @description The pricing snapshot the values were read from.
+             */
+            snapshot: string | null;
+            /**
+             * Sphere
+             * @description `owner/slug` of the family in SPHERE.
+             */
+            sphere: string | null;
+            /**
+             * Version
+             * @description The SPHERE version id.
+             */
+            version: string;
+            /** Versionlabel */
+            versionLabel: string | null;
         };
         /** CasExchange */
         CasExchange: {
@@ -5171,6 +5296,32 @@ export interface components {
             };
         };
         /**
+         * EvaluationOffering
+         * @description The offering version read when the evaluation was created; names and dates, never a digest.
+         */
+        EvaluationOffering: {
+            /**
+             * Createdat
+             * @description When SPHERE says that version was published.
+             */
+            createdAt: string | null;
+            /**
+             * Snapshot
+             * @description The pricing snapshot read (`…/pricing-snapshots/{snapshot}`).
+             */
+            snapshot: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "read" | "unreadable" | "invalid_pricing" | "registry_unknown";
+            /**
+             * Versionname
+             * @description The version's name in SPHERE, or null (a URL, or nothing read).
+             */
+            versionName: string | null;
+        };
+        /**
          * EvaluationSummary
          * @description A version's current evaluation, named: what a list row shows without the evaluations themselves.
          */
@@ -5250,6 +5401,8 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            /** @description The offering version read when this evaluation was created; null for a document without an offering. */
+            offering?: components["schemas"]["EvaluationOffering"] | null;
             /**
              * Outcome
              * @enum {string}
@@ -6384,6 +6537,22 @@ export interface components {
                 [key: string]: components["schemas"]["ProblemValueOrigin"];
             };
             /**
+             * Properties
+             * @description The candidate's scalar properties (what a task's requirement predicate reads), by name.
+             */
+            properties: {
+                [key: string]: boolean | number | string;
+            };
+            /**
+             * Propertyorigins
+             * @description By property.
+             */
+            propertyOrigins: {
+                [key: string]: components["schemas"]["ProblemValueOrigin"];
+            };
+            /** @description For a candidate a SPHERE import generated: the upstream plan its values were read from. */
+            provenance: components["schemas"]["CandidateProvenance"] | null;
+            /**
              * Provider
              * @description The provider's id in the candidate's catalog.
              */
@@ -6583,7 +6752,8 @@ export interface components {
         };
         /**
          * ProblemValueOrigin
-         * @description Where the package writes a value: the resource, its file and the JSON Pointer within it.
+         * @description Where the package writes a value: the resource, its file and the JSON Pointer within it; and, for a value a
+         *     SPHERE import wrote, where it came from.
          */
         ProblemValueOrigin: {
             /**
@@ -6597,6 +6767,7 @@ export interface components {
             pointer: string;
             /** Resource */
             resource: string;
+            source?: components["schemas"]["ValueSource"] | null;
         };
         /** ProblemView */
         ProblemView: {
@@ -7041,6 +7212,25 @@ export interface components {
             };
             /** Revision */
             revision: number;
+            /** @description For a revision a SPHERE import generated: its recipe digest and pricings. */
+            sphere?: components["schemas"]["RevisionSphere"] | null;
+        };
+        /**
+         * RevisionSphere
+         * @description What a SPHERE import generated the revision from: the recipe's digest and the pricings it read.
+         */
+        RevisionSphere: {
+            /** Recipedigest */
+            recipeDigest: string;
+            /** Sources */
+            sources: components["schemas"]["RevisionSphereSource"][];
+        };
+        /** RevisionSphereSource */
+        RevisionSphereSource: {
+            /** Title */
+            title: string;
+            /** Versionlabel */
+            versionLabel: string | null;
         };
         /** RevisionView */
         RevisionView: {
@@ -7082,6 +7272,8 @@ export interface components {
             } | null;
             /** Revision */
             revision: number;
+            /** @description For a revision a SPHERE import generated: its recipe digest and pricings. */
+            sphere?: components["schemas"]["RevisionSphere"] | null;
         };
         /**
          * RoleName
@@ -7363,6 +7555,104 @@ export interface components {
             /** Plans */
             plans?: number | null;
         };
+        /** SphereApplyRequest */
+        SphereApplyRequest: {
+            /** @description Null for a new problem, whose slug is the `{problem}` of the address. */
+            base?: components["schemas"]["SphereBase"] | null;
+            expect: components["schemas"]["SphereExpect"];
+            /**
+             * Name
+             * @description A new problem's name.
+             */
+            name?: string | null;
+            recipe: components["schemas"]["SphereImportRecipe"];
+        };
+        /** SphereBase */
+        SphereBase: {
+            /**
+             * Revision
+             * @description The revision the import builds on: the latest one, for an apply.
+             */
+            revision: number;
+        };
+        /** SphereCandidate */
+        SphereCandidate: {
+            /** Addons */
+            addOns: string[];
+            /**
+             * Eligible
+             * @description Whether the task's requirements hold (the compiler decides the same).
+             */
+            eligible: boolean;
+            /** Handmade */
+            handMade: boolean;
+            /** Id */
+            id: string;
+            /** Key */
+            key: string;
+            /**
+             * Plan
+             * @description The plan as the pricing names it; null for a hand-made candidate.
+             */
+            plan: string | null;
+            /**
+             * Price
+             * @description The subscription per month, when the recipe prices it.
+             */
+            price: number | null;
+            /** Provider */
+            provider: string;
+            /** Requirements */
+            requirements: components["schemas"]["SphereRequirementTerm"][];
+            sphere: components["schemas"]["SphereCandidateSource"] | null;
+            /** Task */
+            task: string;
+        };
+        /** SphereCandidateSource */
+        SphereCandidateSource: {
+            /** Pricingid */
+            pricingId: string;
+            /** Registry */
+            registry: string | null;
+            /** Sphereref */
+            sphereRef: string | null;
+            /** Versionid */
+            versionId: string;
+            /** Versionlabel */
+            versionLabel: string;
+        };
+        /** SphereChangedCandidate */
+        SphereChangedCandidate: {
+            /** Key */
+            key: string;
+            /**
+             * Properties
+             * @description `{property: {before, after}}`.
+             */
+            properties?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            };
+            /**
+             * Values
+             * @description `{feature: {before, after}}`.
+             */
+            values?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            };
+        };
+        /** SphereChanges */
+        SphereChanges: {
+            /** Added */
+            added: string[];
+            /** Changed */
+            changed: components["schemas"]["SphereChangedCandidate"][];
+            /** Removed */
+            removed: string[];
+        };
         /** SphereCollection */
         SphereCollection: {
             /** Id */
@@ -7382,6 +7672,194 @@ export interface components {
              * @description The SPHERE API key (write-only).
              */
             apiKey: string;
+        };
+        /** SphereExpandRequest */
+        SphereExpandRequest: {
+            /** @description Null for a new problem, whose slug is the `{problem}` of the address. */
+            base?: components["schemas"]["SphereBase"] | null;
+            recipe: components["schemas"]["SphereImportRecipe"];
+        };
+        /**
+         * SphereExpandView
+         * @description The preview of a recipe: what apply would store, and why each candidate is (in)eligible.
+         */
+        SphereExpandView: {
+            /** Candidates */
+            candidates: components["schemas"]["SphereCandidate"][];
+            /** @description Against the base revision's facts. */
+            changes: components["schemas"]["SphereChanges"];
+            /** Diagnostics */
+            diagnostics: components["schemas"]["SphereFinding"][];
+            /** @description The generated package's facts, with their value sources. */
+            facts: components["schemas"]["ProblemFactsView"] | null;
+            /**
+             * Packagedigest
+             * @description What apply's `expect.packageDigest` must be.
+             */
+            packageDigest: string | null;
+            /** @description The recipe with every version pinned (what apply stores). */
+            recipe: components["schemas"]["SphereImportRecipe"] | null;
+            /** Recipedigest */
+            recipeDigest: string | null;
+            /** Snapshots */
+            snapshots: components["schemas"]["SphereSnapshotView"][];
+            /**
+             * Valid
+             * @description No error: apply would store this package.
+             */
+            valid: boolean;
+        };
+        /** SphereExpect */
+        SphereExpect: {
+            /**
+             * Packagedigest
+             * @description The preview's `packageDigest`.
+             */
+            packageDigest: string;
+        };
+        /**
+         * SphereFinding
+         * @description A `sphere_*` finding, or a compiler finding of the generated package.
+         */
+        SphereFinding: {
+            /**
+             * At
+             * @description A JSON Pointer into the recipe, a candidate key, or empty.
+             * @default
+             */
+            at: string;
+            /** Code */
+            code: string;
+            /** Message */
+            message: string;
+            /**
+             * Severity
+             * @enum {string}
+             */
+            severity: "error" | "warning" | "info";
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * SphereImportRecipe
+         * @description A SPHERE import recipe, version 1: which SPHERE pricings (by pricingId and versionId) and hand-made candidates provide each task, which plans and add-ons to take, how each problem feature or candidate property is read, and the requirements a candidate must meet. The gateway validates it and stores it pinned in the generated revision's provenance.
+         */
+        SphereImportRecipe: {
+            /**
+             * @description The billing period every source uses unless it names its own.
+             * @default monthly
+             */
+            billing: components["schemas"]["SphereImportRecipe"]["$defs"]["name"];
+            /** @description ISO 4217; a pricing in another currency is refused (sphere_currency_mismatch). */
+            currency: string;
+            demand?: {
+                [key: string]: {
+                    unit?: string;
+                    value: number;
+                };
+            };
+            features?: {
+                [key: string]: {
+                    /** @enum {unknown} */
+                    direction: "minimize" | "maximize";
+                    /**
+                     * @default real
+                     * @enum {unknown}
+                     */
+                    domain: "real" | "ratio";
+                    unit?: string;
+                };
+            };
+            /** @constant */
+            recipeVersion: "1";
+            tasks: components["schemas"]["SphereImportRecipe"]["$defs"]["task"][];
+            $defs: {
+                manualMap: {
+                    [key: string]: number;
+                };
+                name: string;
+                numberMap: {
+                    [key: string]: number;
+                };
+                predicateName: string;
+                provider: string;
+                source: {
+                    addons?: components["schemas"]["SphereImportRecipe"]["$defs"]["name"][];
+                    assume?: {
+                        [key: string]: "unlimited" | number;
+                    };
+                    billing?: components["schemas"]["SphereImportRecipe"]["$defs"]["name"];
+                    names?: {
+                        [key: string]: components["schemas"]["SphereImportRecipe"]["$defs"]["name"];
+                    };
+                    plans?: components["schemas"]["SphereImportRecipe"]["$defs"]["name"][];
+                    provider: components["schemas"]["SphereImportRecipe"]["$defs"]["provider"];
+                    seats?: number;
+                    sphere: {
+                        pricing: components["schemas"]["SphereImportRecipe"]["$defs"]["sphereId"];
+                        registry?: string;
+                        /** @description latest only in a preview; apply refuses it (sphere_version_unpinned). */
+                        version: components["schemas"]["SphereImportRecipe"]["$defs"]["sphereId"] | "latest";
+                    };
+                } | {
+                    candidate: {
+                        id: components["schemas"]["SphereImportRecipe"]["$defs"]["symbol"];
+                        name?: string;
+                        properties?: {
+                            [key: string]: number | boolean | string;
+                        };
+                        provider: components["schemas"]["SphereImportRecipe"]["$defs"]["provider"];
+                        values?: {
+                            [key: string]: number;
+                        };
+                    };
+                };
+                spec: number | string | (({
+                    feature?: components["schemas"]["SphereImportRecipe"]["$defs"]["name"];
+                    guarantee?: components["schemas"]["SphereImportRecipe"]["$defs"]["name"];
+                    limit?: components["schemas"]["SphereImportRecipe"]["$defs"]["name"];
+                    manual?: components["schemas"]["SphereImportRecipe"]["$defs"]["manualMap"];
+                    map?: {
+                        [key: string]: number;
+                    };
+                    scale?: number;
+                    unlimitedAs?: number;
+                } & {
+                    [key: string]: {
+                        manual: components["schemas"]["SphereImportRecipe"]["$defs"]["manualMap"];
+                    };
+                }) & (unknown | unknown | unknown | unknown));
+                sphereId: string;
+                symbol: string;
+                task: {
+                    capability: string;
+                    /**
+                     * @default plans
+                     * @constant
+                     */
+                    expand: "plans";
+                    from: components["schemas"]["SphereImportRecipe"]["$defs"]["source"][];
+                    properties?: {
+                        [key: string]: components["schemas"]["SphereImportRecipe"]["$defs"]["spec"];
+                    };
+                    /**
+                     * @default none
+                     * @enum {unknown}
+                     */
+                    prune: "none" | "dominated";
+                    require?: {
+                        features?: components["schemas"]["SphereImportRecipe"]["$defs"]["predicateName"][];
+                        limits?: {
+                            [key: string]: {
+                                atLeast: components["schemas"]["SphereImportRecipe"]["$defs"]["symbol"] | number;
+                            };
+                        };
+                    };
+                    /** @description The first segment of generated candidate ids; defaults to the slug of the capability's last segment. */
+                    service?: components["schemas"]["SphereImportRecipe"]["$defs"]["provider"];
+                    task: components["schemas"]["SphereImportRecipe"]["$defs"]["symbol"];
+                };
+            };
         };
         /** SphereLatestVersion */
         SphereLatestVersion: {
@@ -7452,6 +7930,73 @@ export interface components {
             registries: string[];
             /** Total */
             total: number;
+        };
+        /** SphereRecipeView */
+        SphereRecipeView: {
+            recipe: components["schemas"]["SphereImportRecipe"];
+            /** Recipedigest */
+            recipeDigest: string;
+            /**
+             * Revision
+             * @description The revision the recipe generated.
+             */
+            revision: number;
+        };
+        /** SphereRequirementTerm */
+        SphereRequirementTerm: {
+            /** Bound */
+            bound: boolean | number;
+            /**
+             * Operator
+             * @enum {string}
+             */
+            operator: ">=" | "==";
+            /** Property */
+            property: string;
+            /** Satisfied */
+            satisfied: boolean;
+            /**
+             * Text
+             * @description `emailsPerDay: 100 < 1000`: the term in words, for the preview.
+             */
+            text: string;
+            /** Value */
+            value: unknown;
+        };
+        /**
+         * SphereSnapshotView
+         * @description A pricing version the preview read: names and dates, never a digest.
+         */
+        SphereSnapshotView: {
+            /** Createdat */
+            createdAt: string | null;
+            /** Currency */
+            currency: string | null;
+            /** Id */
+            id: string;
+            /**
+             * Latest
+             * @description Whether it is the family's latest version (null when not read).
+             */
+            latest: boolean | null;
+            /** Owner */
+            owner: string | null;
+            /** Permanenturl */
+            permanentUrl: string | null;
+            /** Pricingid */
+            pricingId: string | null;
+            /** Registry */
+            registry: string | null;
+            /** Slug */
+            slug: string | null;
+            /** Syntaxversion */
+            syntaxVersion: string | null;
+            /** Title */
+            title: string;
+            /** Versionid */
+            versionId: string | null;
+            /** Versionname */
+            versionName: string | null;
         };
         /** SphereVersionEntry */
         SphereVersionEntry: {
@@ -7865,6 +8410,124 @@ export interface components {
             is_active?: boolean | null;
             role?: components["schemas"]["RoleName"] | null;
         };
+        /** UpstreamEntry */
+        UpstreamEntry: {
+            /** Candidate */
+            candidate: string;
+            /**
+             * From
+             * @description The entry's `from`, as the document writes it.
+             */
+            from: {
+                [key: string]: unknown;
+            } | null;
+            /** @description The plan in the snapshot, when the entry names one it has. */
+            plan: components["schemas"]["UpstreamPlan"] | null;
+            snapshot: components["schemas"]["UpstreamSnapshot"] | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "snapshotted" | "not_snapshotted" | "registry_unknown";
+            /** Task */
+            task: string;
+        };
+        /** UpstreamOffering */
+        UpstreamOffering: {
+            /** Createdat */
+            createdAt: string | null;
+            snapshot: components["schemas"]["UpstreamSnapshot"] | null;
+            /**
+             * Source
+             * @description The offering's source as the version keeps it: `{sphere, registry?}` or `{url}`.
+             */
+            source: {
+                [key: string]: string;
+            };
+            /** Status */
+            status: ("read" | "unreadable" | "invalid_pricing" | "registry_unknown") | null;
+            /** Versionname */
+            versionName: string | null;
+        };
+        /** UpstreamPlan */
+        UpstreamPlan: {
+            /** Name */
+            name: string;
+            /**
+             * Price
+             * @description `{kind: fixed, amount}`, `{kind: expression, source, value}` or `{kind: label, text}`.
+             */
+            price: {
+                [key: string]: unknown;
+            };
+            /** Private */
+            private: boolean;
+            /** Unit */
+            unit: string | null;
+        };
+        /**
+         * UpstreamSnapshot
+         * @description A stored pricing snapshot, by names and dates: the renderer reads its YAML at `…/pricing-snapshots/{id}/yaml`.
+         */
+        UpstreamSnapshot: {
+            /** Createdat */
+            createdAt: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Owner */
+            owner: string | null;
+            /**
+             * Permanenturl
+             * @description SPHERE's permanent link to that version.
+             */
+            permanentUrl: string | null;
+            /** Pricingid */
+            pricingId: string | null;
+            /** Registry */
+            registry: string | null;
+            /** Slug */
+            slug: string | null;
+            /** Title */
+            title: string;
+            /** Url */
+            url: string | null;
+            /** Versionid */
+            versionId: string | null;
+            /** Versionname */
+            versionName: string | null;
+        };
+        /** UpstreamValue */
+        UpstreamValue: {
+            /**
+             * Manualonly
+             * @description No bound candidate's value of it was read from a pricing.
+             */
+            manualOnly: boolean;
+            /**
+             * Sources
+             * @description The kinds of source the bound candidates' values of this global value have.
+             */
+            sources: ("priced" | "guarantee" | "limit" | "feature" | "manual")[];
+        };
+        /**
+         * UpstreamView
+         * @description A version's upstream plans, the sources of its global values and its offering: stored data only.
+         */
+        UpstreamView: {
+            /** Entries */
+            entries: components["schemas"]["UpstreamEntry"][];
+            /** @description The offering version the current evaluation read. */
+            offering: components["schemas"]["UpstreamOffering"] | null;
+            /** Values */
+            values: {
+                [key: string]: components["schemas"]["UpstreamValue"];
+            };
+            /** Version */
+            version: string;
+        };
         /**
          * UsageView
          * @description What an account is on and what its plan allows.
@@ -7969,6 +8632,72 @@ export interface components {
             };
             /** @constant */
             valid: true;
+        };
+        /**
+         * ValueSource
+         * @description Where a value written by a SPHERE import came from.
+         */
+        ValueSource: {
+            /**
+             * Carried
+             * @description Whether an editor save kept this value (and so its source) from an earlier revision.
+             */
+            carried: boolean;
+            /**
+             * Detail
+             * @description How the value was read: the price parts and formula, the guarantee's table or scale and `docUrl`, the limit's raw value and unit, the manual key.
+             */
+            detail: {
+                [key: string]: unknown;
+            };
+            /**
+             * Kind
+             * @description `priced` (the plan's price per month), `guarantee`, `limit` (a usage limit), `feature`, or `manual` (set by hand when importing, or a hand-made candidate's value).
+             * @enum {string}
+             */
+            kind: "priced" | "guarantee" | "limit" | "feature" | "manual";
+            /** @description Null for a value set by hand. */
+            pricing: components["schemas"]["ValueSourcePricing"] | null;
+        };
+        /**
+         * ValueSourcePricing
+         * @description The upstream pricing a value was read from: names and immutable ids, never a digest.
+         */
+        ValueSourcePricing: {
+            /**
+             * Addons
+             * @description The add-on taken with the plan, as the pricing names it (at most one in F3).
+             */
+            addOns: string[];
+            /**
+             * Permanenturl
+             * @description SPHERE's permanent link to that version.
+             */
+            permanentUrl: string | null;
+            /**
+             * Plan
+             * @description The plan, as the pricing names it.
+             */
+            plan: string | null;
+            /** Pricingid */
+            pricingId: string;
+            /**
+             * Registry
+             * @description The `SPHERE_REGISTRIES` alias, or null for the default SPHERE.
+             */
+            registry: string | null;
+            /**
+             * Sphere
+             * @description `owner/slug` of the family in SPHERE when the value was read.
+             */
+            sphere: string | null;
+            /** Versionid */
+            versionId: string | null;
+            /**
+             * Versionlabel
+             * @description The version's name in SPHERE, as read.
+             */
+            versionLabel: string | null;
         };
         /**
          * ValueStatusPair
@@ -14173,6 +14902,88 @@ export interface operations {
             };
         };
     };
+    getCompositionUpstream: {
+        parameters: {
+            query?: {
+                /** @description Id, label or ordinal; the latest by default. */
+                version?: string | null;
+            };
+            header?: never;
+            path: {
+                org: string;
+                composition: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpstreamView"];
+                };
+            };
+            /** @description Missing or invalid account credential. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The account role, API-key permission, or Engine allow-list does not permit this request. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description No such organization or composition, or the caller cannot read it. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request does not satisfy the contract; `diagnostics` says where. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too many `read` requests from this address by a caller with no credential: past the anonymous budget. A signed-in caller is not charged. `Retry-After` says when the window ends. Or: Every Composition2Yaml slot of this process is taken (`composition_busy`). */
+            429: {
+                headers: {
+                    /** @description Seconds until the budget is available again. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Account authentication is not configured on this deployment. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     listCompositionVersions: {
         parameters: {
             query?: {
@@ -17000,7 +17811,7 @@ export interface operations {
                 headers: {
                     /** @description `private, immutable`. */
                     "Cache-Control"?: string;
-                    /** @description The compilation digest and `.facts`, quoted: the facts never change. */
+                    /** @description The compilation digest, the digest of the revision's value origins (`package` without any) and `.facts`, quoted: the facts never change. */
                     ETag?: string;
                     [name: string]: unknown;
                 };
@@ -17161,6 +17972,297 @@ export interface operations {
                 };
                 content: {
                     "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The request does not satisfy the contract; `diagnostics` says where. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Account authentication is not configured on this deployment. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    applySphereRecipe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                problem: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SphereApplyRequest"];
+            };
+        };
+        responses: {
+            /** @description The problem already has that package; nothing was stored. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemUpload"];
+                };
+            };
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemUpload"];
+                };
+            };
+            /** @description Missing or invalid account credential. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The account's plan has no room (`quota_exceeded`: maxProblems or maxRepositoryStorage). */
+            402: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The account role, API-key permission, or Engine allow-list does not permit this request. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description No such resource, or none this caller may see. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description `problem_exists` (a new problem's slug is taken), `revision_moved` (another revision was added since; with `latest`) or `sphere_preview_stale` (the recipe generates another package than the preview). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request body exceeds 256 KiB. */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The recipe is refused (`sphere_recipe_invalid`, `sphere_recipe_refused`, with `diagnostics`) or the toolchain refused the package (`invalid_instance`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too many `compile` requests from this client: past the budget of its address, or of its account when signed in. `Retry-After` says when the window ends. */
+            429: {
+                headers: {
+                    /** @description Seconds until the budget is available again. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Account authentication is not configured on this deployment. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    expandSphereRecipe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                problem: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SphereExpandRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SphereExpandView"];
+                };
+            };
+            /** @description Missing or invalid account credential. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The account role, API-key permission, or Engine allow-list does not permit this request. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description No such resource, or none this caller may see. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description `problem_exists` (a new problem's slug is taken), `revision_moved` (another revision was added since; with `latest`) or `sphere_preview_stale` (the recipe generates another package than the preview). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request body exceeds 256 KiB. */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request does not satisfy the contract; `diagnostics` says where. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too many `compile` requests from this client: past the budget of its address, or of its account when signed in. `Retry-After` says when the window ends. */
+            429: {
+                headers: {
+                    /** @description Seconds until the budget is available again. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Account authentication is not configured on this deployment. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getSphereRecipe: {
+        parameters: {
+            query?: {
+                /** @description Defaults to the newest revision SPHERE generated. */
+                revision?: number | null;
+            };
+            header?: never;
+            path: {
+                org: string;
+                problem: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SphereRecipeView"];
+                };
+            };
+            /** @description Missing or invalid account credential. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The account role, API-key permission, or Engine allow-list does not permit this request. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description No such resource, or none this caller may see. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
             /** @description The request does not satisfy the contract; `diagnostics` says where. */

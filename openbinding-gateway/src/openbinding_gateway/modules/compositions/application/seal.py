@@ -187,6 +187,8 @@ async def insert_evaluation(
         values={name: dict(value) for name, value in draft.values.items()},
         result=None if draft.result is None else dict(draft.result),
         diagnostics=relocated(draft.diagnostics, version.content),
+        offering_snapshot_id=draft.offering_snapshot_id,
+        offering_status=draft.offering_status,
         created_by_id=actor.id,
     )
     try:

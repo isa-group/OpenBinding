@@ -12,7 +12,12 @@ response **bodies** (never headers) of the routes the frontend reads:
   composition ``<name>`` derived from the first binding of the problem without a hard violation;
 * ``<name>.diff.json``: ``diffCompositionVersions`` from that 1.0.0 to a 1.1.0 derived from the
   same binding with one task bound to another candidate;
-* ``plans-pricing.json``: ``getPlansPricing``, OpenBinding's published pricing 0.2.0 as the recorded SPHERE serves it.
+* ``plans-pricing.json``: ``getPlansPricing``, OpenBinding's published pricing 0.2.0 as the recorded SPHERE serves it;
+* ``tomatometer-email.facts.json``: the facts of revision 2 of ``tomatometer-email``, which a SPHERE import
+  generated (``sphere/apply``): value sources, properties and provenance;
+* ``tomatometer-email.version.json``: version 1.0.0 of a composition ``tomatometer`` derived from that revision,
+  whose binding carries the generated e-mail plan's ``from`` and whose offering (``sphere/tomatometer``) was read
+  when it was sealed, and ``tomatometer-email.upstream.json``, its upstream view (``getCompositionUpstream``).
 
 The packages are ``simple-seq`` (``examples/demo/01_simple_seq``), ``fms`` (``13_fms``: an
 exclusive choice and a local task), ``json-complete`` (``16_json_complete``: a parallel block
@@ -49,7 +54,10 @@ gateway's ``tests/``): for every recorded Pricing2Yaml 3.x version and every syn
 gateway's own answers about SPHERE for the frontend's mocks, read with the recorded SPHERE
 (``tests/sphere_recorded.py``) installed as the pricing source: ``search.<name>.json``
 (``searchSpherePricings``), ``manifest.<name>.json`` (``getSpherePricing``) and ``version.<name>.json``
-(``getSpherePricingVersion``) for TomatoMeter, set-B Mailgun and Dropbox (``…ce9c1``).
+(``getSpherePricingVersion``) for TomatoMeter, set-B Mailgun and Dropbox (``…ce9c1``); and the two SPHERE import
+journeys, ``expand.<name>.json`` (``expandSphereRecipe``), ``apply.<name>.json`` (``applySphereRecipe``) and
+``recipe.<name>.json`` (``getSphereRecipe``) for ``tomatometer-email`` (the e-mail recipe on the TomatoMeter base
+problem, J2) and ``storage`` (a new problem from Dropbox, J1).
 
     python tools/dump_frontend_fixtures.py               # rewrite frontend/src/test/fixtures/{core,sphere}/
     python tools/dump_frontend_fixtures.py --out DIR     # write DIR/core/ and DIR/sphere/ instead
@@ -270,6 +278,9 @@ async def _bodies(work: Path) -> tuple[dict[str, Any], dict[str, Any]]:
                 bodies["refused.validate.json"] = _ok(answer, 422).json()
                 bodies["refused.package.json"] = {path: content.decode("utf-8") for path, content in refused.items()}
                 sphere = await _sphere_bodies(client, headers)
+                imported_core, imported_sphere = await _sphere_imports(client, headers)
+                bodies.update(imported_core)
+                sphere.update(imported_sphere)
                 bodies["plans-pricing.json"] = _ok(await client.get("/v1/plans/pricing"), 200).json()
     finally:
         app.dependency_overrides.clear()
@@ -278,6 +289,60 @@ async def _bodies(work: Path) -> tuple[dict[str, Any], dict[str, Any]]:
         set_auth_limiter(None)
         await engine.dispose()
     return bodies, sphere
+
+
+async def _sphere_imports(client, headers: dict[str, str]) -> tuple[dict[str, Any], dict[str, Any]]:
+    """The two SPHERE import journeys through the API: ``core/``'s generated facts and ``sphere/``'s bodies.
+
+    J2 uploads the TomatoMeter base problem, previews and applies ``examples/tomatometer/email-recipe.json`` on it
+    (revision 2); J1 previews and applies ``storage-recipe.json`` as a new problem ``storage``.
+    """
+    from dump_sphere_goldens import RUNNER_BASE_BUNDLE, bundle_files
+
+    from openbinding_gateway.integrations import packages
+
+    examples = REPO_ROOT / "examples" / "tomatometer"
+    core: dict[str, Any] = {}
+    sphere: dict[str, Any] = {}
+    base = packages.zip_files(bundle_files(REPO_ROOT / RUNNER_BASE_BUNDLE))
+    _ok(await client.post("/v1/organizations/fixtures/problems", params={"slug": "tomatometer-email"}, content=base,
+                          headers={**headers, **ZIP}), 201)
+    journeys = (
+        ("tomatometer-email", json.loads((examples / "email-recipe.json").read_text()), {"revision": 1}),
+        ("storage", json.loads((examples / "storage-recipe.json").read_text()), None),
+    )
+    for name, recipe, base_ref in journeys:
+        url = f"/v1/organizations/fixtures/problems/{name}/sphere"
+        preview = _ok(await client.post(f"{url}/expand", json={"recipe": recipe, "base": base_ref}, headers=headers), 200).json()
+        sphere[f"expand.{name}.json"] = preview
+        applied = await client.post(
+            f"{url}/apply", json={"recipe": recipe, "base": base_ref, "expect": {"packageDigest": preview["packageDigest"]}},
+            headers=headers,
+        )
+        sphere[f"apply.{name}.json"] = _ok(applied, 201).json()
+        sphere[f"recipe.{name}.json"] = _ok(await client.get(f"{url}/recipe", headers=headers), 200).json()
+    revision = sphere["apply.tomatometer-email.json"]["revision"]["id"]
+    compilation = sphere["apply.tomatometer-email.json"]["compilation"]["id"]
+    facts = await client.get(
+        f"/v1/organizations/fixtures/problems/tomatometer-email/revisions/{revision}/compilations/{compilation}/facts",
+        headers=headers,
+    )
+    core["tomatometer-email.facts.json"] = _ok(facts, 200).json()
+    # A composition derived from revision 2: its binding carries the e-mail plan's ``from``.
+    compositions = "/v1/organizations/fixtures/compositions"
+    _ok(await client.post(compositions, json={"slug": "tomatometer", "name": "TomatoMeter"}, headers=headers), 201)
+    binding = {
+        "login": "auth.builtin.local", "dailySummary": "email.mailgun.foundation",
+        "export": "storage.local.disk", "quotes": "quotes.zenquotes.free",
+    }
+    _ok(await client.post(f"{compositions}/tomatometer/derive", headers=headers,
+                          json={"revision": "tomatometer-email@2", "binding": binding, "version": "1.0.0",
+                                "offering": {"sphere": "sphere/tomatometer"}}), 201)
+    version = await client.get(f"{compositions}/tomatometer/versions/1.0.0", params={"include": "document"}, headers=headers)
+    core["tomatometer-email.version.json"] = _ok(version, 200).json()
+    upstream = await client.get(f"{compositions}/tomatometer/upstream", headers=headers)
+    core["tomatometer-email.upstream.json"] = _ok(upstream, 200).json()
+    return core, sphere
 
 
 async def _versions(client, headers: dict[str, str], name: str, facts: dict[str, Any]) -> tuple[Any, Any]:

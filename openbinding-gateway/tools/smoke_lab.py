@@ -34,6 +34,13 @@ Steps (a failure never aborts the next one; 8-11 can be dropped with ``--skip``;
    12 plan_usage        (--with-space) the owner's plan and capabilities, without usage counters
    13 public_compositions  anonymous: the public list holds lab-other's two public compositions, the public linked one
                         reads 200, and the private one answers 404 with the body of a missing one
+   14 sphere_candidates the seeded tomatometer-email revision 2 came from SPHERE: origin sphere, and its facts give its
+                        generated candidates value sources (a priced subscription) and provenance
+   15 sphere_engines    one run of tomatometer-email revision 2 on each built-in single-objective engine (MiniZinc,
+                        random search, the elitist genetic search), each completing with an eligible e-mail candidate
+
+Steps 14 and 15 are reported ``skipped`` when the seed skipped SPHERE (it was disabled or unreachable): the problem
+then has no revision 2, as ``plan_usage`` is skipped without ``--with-space``.
 
 Steps 3 to 5 are the F0b walk (upload, run, study) on the organization's paths. Every smoke uploads one problem
 (``smoke-<run id>``) and creates one study of it in lab-main; nothing is deleted, since runs keep their problem.
@@ -92,6 +99,19 @@ STUDY_SEEDS = (1, 2)
 PUBLIC_ORG = "lab-other"
 PUBLIC_COMPOSITIONS = ("order-desk", "sequential-workflow")
 PRIVATE_COMPOSITION = "internal-draft"
+#: The problem tools/seed_lab.py builds from SPHERE pricings when SPHERE is reachable.
+SPHERE_PROBLEM = f"/v1/organizations/{ORG}/problems/tomatometer-email"
+#: The engines and options of step 15: every built-in single-objective engine, with the same explicit weights.
+SPHERE_ENGINES = (
+    ("minizinc-csp", "exact-weighted", {"solver": "gecode", "time_budget_ms": 10_000}),
+    ("random-search", "seeded", {"iterations": 256, "seed": 7}),
+    ("evolutionary-heuristics", "elitist-genetic",
+     {"algorithm": "elitist-genetic", "population_size": 16, "max_evaluations": 256, "seed": 7}),
+)
+SPHERE_OPTIMIZATION = {
+    "type": "SINGLE", "scalarization": "weighted-sum",
+    "weights": [{"criteria": name, "value": 1 / 3} for name in ("subscription", "availability", "latency")],
+}
 
 TERMINAL = frozenset({"completed", "failed", "cancelled"})
 #: A study run that is over (``partial``: some cells failed or were cancelled).
@@ -120,7 +140,7 @@ BLOCKED_HINT = (
 #: Step number -> optional via --skip.
 SKIPPABLE = (8, 9, 10, 11)
 #: 11 last: it burns the per-address login budget.
-RUN_ORDER = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 13, 12, 11)
+RUN_ORDER = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 13, 14, 15, 12, 11)
 
 #: Key words that make a name look like a credential or an address (as security/redaction.py).
 SENSITIVE_WORDS = frozenset(
@@ -960,6 +980,76 @@ def step_plan_usage(lab: Lab) -> Checks:
     return checks
 
 
+def sphere_revision(lab: Lab) -> Mapping[str, Any] | None:
+    """Revision 2 of the seeded SPHERE problem as the owner reads it, or ``None`` when the seed skipped SPHERE."""
+    if not hasattr(lab, "_sphere_revision"):
+        response = lab.call("GET", f"{SPHERE_PROBLEM}/revisions", "owner")
+        listing = body_of(response) if response.status_code == 200 else []
+        found = [mapping(item) for item in listing if mapping(item).get("revision") == 2] if isinstance(listing, list) else []
+        lab._sphere_revision = found[0] if found else None  # type: ignore[attr-defined]
+    return lab._sphere_revision  # type: ignore[attr-defined]
+
+
+def step_sphere_candidates(lab: Lab) -> Checks:
+    checks = lab.begin()
+    revision = sphere_revision(lab)
+    if not checks.expect(revision is not None, "tomatometer-email has a revision 2"):
+        return checks
+    checks.expect(revision.get("origin") == "sphere", f"revision 2 came from SPHERE ({revision.get('origin')})")
+    checks.expect(bool(mapping(revision.get("sphere")).get("sources")), "the revision names the pricings it was read from")
+    compilation = lab.call("GET", f"{SPHERE_PROBLEM}/revisions/2/compilation", "owner")
+    compiled = mapping(body_of(compilation))
+    if not checks.expect(compilation.status_code == 200 and compiled.get("id"), f"revision 2 compiles ({describe(compilation)})"):
+        return checks
+    facts = mapping(body_of(lab.call("GET", f"{SPHERE_PROBLEM}/revisions/2/compilations/{compiled['id']}/facts", "owner")))
+    generated = [mapping(item) for item in facts.get("candidates") or [] if mapping(item).get("provenance")]
+    checks.expect(len(generated) >= 5, f"generated candidates carry provenance ({len(generated)})")
+    priced = [item for item in generated
+              if mapping(mapping(mapping(item.get("origins")).get("subscription")).get("source")).get("kind") == "priced"]
+    checks.expect(priced, "a generated candidate's subscription is priced from SPHERE")
+    checks.note(f"{len(generated)} candidates from SPHERE")
+    return checks
+
+
+def step_sphere_engines(lab: Lab) -> Checks:
+    checks = lab.begin()
+    revision = sphere_revision(lab)
+    if not checks.expect(revision is not None and revision.get("id"), "tomatometer-email has a revision 2"):
+        return checks
+    compiled = mapping(body_of(lab.call("GET", f"{SPHERE_PROBLEM}/revisions/2/compilation", "owner")))
+    facts = mapping(body_of(lab.call("GET", f"{SPHERE_PROBLEM}/revisions/2/compilations/{compiled.get('id')}/facts", "owner")))
+    eligible = {
+        item["candidate"] for task in facts.get("tasks") or [] if mapping(task).get("id") == "dailySummary"
+        for item in mapping(task).get("eligible") or [] if isinstance(item, Mapping)
+    }
+    modes = [mapping(item) for item in compiled.get("compatible_modes") or []]
+    chosen: dict[str, str] = {}
+    for engine, mode, options in SPHERE_ENGINES:
+        match = next((item for item in modes if item.get("compatible") and mapping(item.get("engine")).get("name") == engine
+                      and item.get("mode") == mode), None)
+        if not checks.expect(match is not None, f"{engine}/{mode} is compatible"):
+            continue
+        accepted = lab.call("POST", RUNS, "owner", json={
+            "revision": revision["id"], "engine": match["engine"], "registration": match["registration"],
+            "mode": mode, "options": options, "optimization": SPHERE_OPTIMIZATION,
+        })
+        job_id = mapping(body_of(accepted)).get("id")
+        if not checks.expect(accepted.status_code == 202 and isinstance(job_id, str), f"{engine} launch ({describe(accepted)})"):
+            continue
+        state, job = lab.wait_for_job("owner", job_id)
+        if not checks.expect(state == "completed", f"{engine} completes (got {state})"):
+            continue
+        solutions = mapping(job.get("result")).get("solutions") or []
+        binding = mapping(mapping(mapping(solutions[0]).get("decision")).get("binding")) if solutions else {}
+        email = mapping(binding.get("dailySummary"))
+        key = f"{email.get('resource')}/{email.get('id')}"
+        checks.expect(key in eligible, f"{engine} binds an eligible e-mail candidate ({key})")
+        chosen[engine] = key
+    checks.expect(len(set(chosen.values())) <= 1, f"the engines agree on the e-mail candidate ({chosen})")
+    checks.note(", ".join(f"{engine}: {key}" for engine, key in chosen.items()))
+    return checks
+
+
 STEPS: dict[int, tuple[str, Callable[[Lab], Checks]]] = {
     1: ("proxy_and_spa", step_proxy_and_spa),
     2: ("login", step_login),
@@ -974,7 +1064,11 @@ STEPS: dict[int, tuple[str, Callable[[Lab], Checks]]] = {
     11: ("login_throttle", step_login_throttle),
     12: ("plan_usage", step_plan_usage),
     13: ("public_compositions", step_public_compositions),
+    14: ("sphere_candidates", step_sphere_candidates),
+    15: ("sphere_engines", step_sphere_engines),
 }
+#: The steps that need the seed's SPHERE problem.
+SPHERE_STEPS = (14, 15)
 
 
 # --------------------------------------------------------------------------
@@ -1016,6 +1110,9 @@ def run_smoke(
         if number in config.skip or (number == 12 and not config.with_space):
             skipped.append(name)
             continue
+        if number in SPHERE_STEPS and not _sphere_seeded(lab):
+            skipped.append(name)
+            continue
         steps.append(run_step(lab, number))
     blocked_steps = [step["name"] for step in steps if step["blockedByRemote"]]
     return {
@@ -1030,6 +1127,13 @@ def run_smoke(
         "elapsedS": round(clock() - started, 1),
         "steps": steps,
     }
+
+
+def _sphere_seeded(lab: Lab) -> bool:
+    try:
+        return sphere_revision(lab) is not None
+    except (StepError, RemoteBlocked, httpx.HTTPError):
+        return False
 
 
 def parse_skip(value: str) -> frozenset[int]:

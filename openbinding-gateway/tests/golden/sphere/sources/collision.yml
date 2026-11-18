@@ -1,0 +1,31 @@
+# Synthetic Pricing2Yaml 3.1 for the SPHERE generator goldens (tests/golden/sphere/cases.json); not a SPHERE pricing.
+syntaxVersion: "3.1"
+saasName: Collision
+version: "1"
+createdAt: "2026-11-18"
+currency: USD
+features:
+  sending:
+    valueType: BOOLEAN
+    defaultValue: true
+    type: DOMAIN
+usageLimits:
+  emailsPerMonth:
+    valueType: NUMERIC
+    defaultValue: 1000
+    unit: email
+    type: NON_RENEWABLE
+    linkedFeatures: [sending]
+plans:
+  Pro:
+    price: 10
+    unit: account/month
+    usageLimits:
+      emailsPerMonth:
+        value: 50000
+  PRO:
+    price: 12
+    unit: account/month
+    usageLimits:
+      emailsPerMonth:
+        value: 60000

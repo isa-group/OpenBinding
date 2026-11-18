@@ -1,0 +1,114 @@
+[
+  {
+    "at": "/tasks/0/from/1",
+    "code": "sphere_limit_assumed",
+    "limit": "emailsPerDay",
+    "message": "This pricing does not declare emailsPerDay; the recipe assumes unlimited.",
+    "severity": "warning"
+  },
+  {
+    "at": "sphere-email/email.brevo.enterprise",
+    "code": "sphere_plan_private",
+    "message": "The plan ENTERPRISE is private in this pricing; it is left out.",
+    "plan": "ENTERPRISE",
+    "severity": "info"
+  },
+  {
+    "at": "sphere-email/email.brevo.free",
+    "code": "sphere_guarantee_unmapped",
+    "message": "The guarantee sla is false here; give its value in a table (map).",
+    "severity": "error",
+    "target": "availability"
+  },
+  {
+    "at": "sphere-email/email.brevo.professional",
+    "code": "sphere_guarantee_unmapped",
+    "message": "The guarantee sla is false here; give its value in a table (map).",
+    "severity": "error",
+    "target": "availability"
+  },
+  {
+    "at": "sphere-email/email.brevo.standard",
+    "code": "sphere_guarantee_unmapped",
+    "message": "The guarantee sla is false here; give its value in a table (map).",
+    "severity": "error",
+    "target": "availability"
+  },
+  {
+    "at": "sphere-email/email.brevo.starter",
+    "code": "sphere_guarantee_unmapped",
+    "message": "The guarantee sla is false here; give its value in a table (map).",
+    "severity": "error",
+    "target": "availability"
+  },
+  {
+    "at": "sphere-email/email.mailgun.basic",
+    "code": "sphere_guarantee_unmapped",
+    "message": "The guarantee guaranteedUptimeSla is false here; give its value in a table (map).",
+    "severity": "error",
+    "target": "availability"
+  },
+  {
+    "at": "sphere-email/email.mailgun.enterprise",
+    "code": "sphere_plan_private",
+    "message": "The plan ENTERPRISE is private in this pricing; it is left out.",
+    "plan": "ENTERPRISE",
+    "severity": "info"
+  },
+  {
+    "at": "sphere-email/email.mailgun.foundation",
+    "code": "sphere_guarantee_unmapped",
+    "message": "The guarantee guaranteedUptimeSla is true here; give its value in a table (map).",
+    "severity": "error",
+    "target": "availability"
+  },
+  {
+    "at": "sphere-email/email.mailgun.free",
+    "code": "sphere_guarantee_unmapped",
+    "message": "The guarantee guaranteedUptimeSla is false here; give its value in a table (map).",
+    "severity": "error",
+    "target": "availability"
+  },
+  {
+    "at": "sphere-email/email.mailgun.scale",
+    "code": "sphere_guarantee_unmapped",
+    "message": "The guarantee guaranteedUptimeSla is true here; give its value in a table (map).",
+    "severity": "error",
+    "target": "availability"
+  },
+  {
+    "at": "sphere-email/email.resend.enterprise",
+    "code": "sphere_plan_private",
+    "message": "The plan ENTERPRISE is private in this pricing; it is left out.",
+    "plan": "ENTERPRISE",
+    "severity": "info"
+  },
+  {
+    "at": "sphere-email/email.resend.free",
+    "code": "sphere_guarantee_unmapped",
+    "message": "The guarantee uptimeSla is false here; give its value in a table (map).",
+    "severity": "error",
+    "target": "availability"
+  },
+  {
+    "at": "sphere-email/email.resend.pro",
+    "code": "sphere_guarantee_unmapped",
+    "message": "The guarantee uptimeSla is false here; give its value in a table (map).",
+    "severity": "error",
+    "target": "availability"
+  },
+  {
+    "at": "sphere-email/email.resend.scale",
+    "code": "sphere_guarantee_unmapped",
+    "message": "The guarantee uptimeSla is false here; give its value in a table (map).",
+    "severity": "error",
+    "target": "availability"
+  },
+  {
+    "at": "sphere-email/email.sendgrid.premier",
+    "code": "sphere_plan_private",
+    "message": "The plan PREMIER is private in this pricing; it is left out.",
+    "plan": "PREMIER",
+    "severity": "info"
+  }
+]

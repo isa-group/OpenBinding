@@ -1,0 +1,547 @@
+{
+  "application.json": {
+    "apiVersion": "qos-binding/v1",
+    "kind": "Application",
+    "metadata": {
+      "name": "email-set-a-application"
+    },
+    "spec": {
+      "features": {
+        "subscription": {
+          "aggregation": "sum",
+          "direction": "minimize",
+          "domain": {
+            "kind": "real",
+            "maximum": 500,
+            "minimum": 0
+          },
+          "scope": "selectedCandidate",
+          "unit": "USD/month"
+        }
+      },
+      "tasks": {
+        "send": {
+          "requires": {
+            "predicate": "candidate.properties.emailsPerMonth >= 30000",
+            "type": "service/email"
+          }
+        }
+      },
+      "workflow": {
+        "sequence": [
+          {
+            "task": {
+              "id": "send",
+              "resource": "application"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "instance.json": {
+    "apiVersion": "bim/v1",
+    "kind": "Instance",
+    "metadata": {
+      "annotations": {
+        "openbinding.org/sphere-recipe": "sha256-2ba62bcbaf5742431440257bedc906dbe1b05b4a0acd474abd229735ccb5dd6a"
+      },
+      "name": "email-set-a"
+    },
+    "spec": {
+      "profile": "qos-binding/v1",
+      "resources": {
+        "application": {
+          "application": "application.json"
+        },
+        "candidateCatalog": {
+          "sphere-email": "sphere-email.json"
+        },
+        "optimization": {
+          "optimization": "optimization.json"
+        }
+      }
+    }
+  },
+  "optimization.json": {
+    "apiVersion": "qos-binding/v1",
+    "kind": "Optimization",
+    "metadata": {
+      "name": "email-set-a-optimization"
+    },
+    "spec": {
+      "criteria": [
+        {
+          "feature": {
+            "id": "subscription",
+            "resource": "application"
+          },
+          "id": "subscription",
+          "normalize": {
+            "clamp": true,
+            "max": 500,
+            "min": 0
+          }
+        }
+      ]
+    }
+  },
+  "sphere-email.json": {
+    "apiVersion": "qos-binding/v1",
+    "kind": "CandidateCatalog",
+    "metadata": {
+      "name": "sphere-email"
+    },
+    "spec": {
+      "candidates": {
+        "email.brevo.free": {
+          "features": {
+            "subscription": 0
+          },
+          "name": "free",
+          "properties": {
+            "emailsPerMonth": 100000000
+          },
+          "provider": {
+            "id": "brevo",
+            "resource": "sphere-email"
+          },
+          "provides": "service/email"
+        },
+        "email.brevo.professional": {
+          "features": {
+            "subscription": 449.1
+          },
+          "name": "professional",
+          "properties": {
+            "emailsPerMonth": 150000
+          },
+          "provider": {
+            "id": "brevo",
+            "resource": "sphere-email"
+          },
+          "provides": "service/email"
+        },
+        "email.brevo.professional.dedicatedip": {
+          "features": {
+            "subscription": 467.925
+          },
+          "name": "professional + dedicatedIp",
+          "properties": {
+            "emailsPerMonth": 150000
+          },
+          "provider": {
+            "id": "brevo",
+            "resource": "sphere-email"
+          },
+          "provides": "service/email"
+        },
+        "email.brevo.standard": {
+          "features": {
+            "subscription": 16.2
+          },
+          "name": "standard",
+          "properties": {
+            "emailsPerMonth": 5000
+          },
+          "provider": {
+            "id": "brevo",
+            "resource": "sphere-email"
+          },
+          "provides": "service/email"
+        },
+        "email.brevo.standard.extraseats": {
+          "features": {
+            "subscription": 27
+          },
+          "name": "standard + extraSeats",
+          "properties": {
+            "emailsPerMonth": 5000
+          },
+          "provider": {
+            "id": "brevo",
+            "resource": "sphere-email"
+          },
+          "provides": "service/email"
+        },
+        "email.brevo.starter": {
+          "features": {
+            "subscription": 8.1
+          },
+          "name": "starter",
+          "properties": {
+            "emailsPerMonth": 5000
+          },
+          "provider": {
+            "id": "brevo",
+            "resource": "sphere-email"
+          },
+          "provides": "service/email"
+        },
+        "email.mailgun.basic": {
+          "features": {
+            "subscription": 15
+          },
+          "name": "basic",
+          "properties": {
+            "emailsPerMonth": 10000
+          },
+          "provider": {
+            "id": "mailgun",
+            "resource": "sphere-email"
+          },
+          "provides": "service/email"
+        },
+        "email.mailgun.foundation": {
+          "features": {
+            "subscription": 35
+          },
+          "name": "foundation",
+          "properties": {
+            "emailsPerMonth": 50000
+          },
+          "provider": {
+            "id": "mailgun",
+            "resource": "sphere-email"
+          },
+          "provides": "service/email"
+        },
+        "email.mailgun.foundation.extradedicatedip": {
+          "features": {
+            "subscription": 94
+          },
+          "name": "foundation + extraDedicatedIp",
+          "properties": {
+            "emailsPerMonth": 50000
+          },
+          "provider": {
+            "id": "mailgun",
+            "resource": "sphere-email"
+          },
+          "provides": "service/email"
+        },
+        "email.mailgun.free": {
+          "features": {
+            "subscription": 0
+          },
+          "name": "free",
+          "properties": {
+            "emailsPerMonth": 3000
+          },
+          "provider": {
+            "id": "mailgun",
+            "resource": "sphere-email"
+          },
+          "provides": "service/email"
+        },
+        "email.mailgun.scale": {
+          "features": {
+            "subscription": 90
+          },
+          "name": "scale",
+          "properties": {
+            "emailsPerMonth": 100000
+          },
+          "provider": {
+            "id": "mailgun",
+            "resource": "sphere-email"
+          },
+          "provides": "service/email"
+        },
+        "email.mailgun.scale.extradedicatedip": {
+          "features": {
+            "subscription": 149
+          },
+          "name": "scale + extraDedicatedIp",
+          "properties": {
+            "emailsPerMonth": 100000
+          },
+          "provider": {
+            "id": "mailgun",
+            "resource": "sphere-email"
+          },
+          "provides": "service/email"
+        },
+        "email.postmark.basic": {
+          "features": {
+            "subscription": 15
+          },
+          "name": "basic",
+          "properties": {
+            "emailsPerMonth": 10000
+          },
+          "provider": {
+            "id": "postmark",
+            "resource": "sphere-email"
+          },
+          "provides": "service/email"
+        },
+        "email.postmark.free": {
+          "features": {
+            "subscription": 0
+          },
+          "name": "free",
+          "properties": {
+            "emailsPerMonth": 100
+          },
+          "provider": {
+            "id": "postmark",
+            "resource": "sphere-email"
+          },
+          "provides": "service/email"
+        },
+        "email.postmark.platform": {
+          "features": {
+            "subscription": 18
+          },
+          "name": "platform",
+          "properties": {
+            "emailsPerMonth": 10000
+          },
+          "provider": {
+            "id": "postmark",
+            "resource": "sphere-email"
+          },
+          "provides": "service/email"
+        },
+        "email.postmark.platform.dedicatedip": {
+          "features": {
+            "subscription": 68
+          },
+          "name": "platform + dedicatedIp",
+          "properties": {
+            "emailsPerMonth": 10000
+          },
+          "provider": {
+            "id": "postmark",
+            "resource": "sphere-email"
+          },
+          "provides": "service/email"
+        },
+        "email.postmark.pro": {
+          "features": {
+            "subscription": 16.5
+          },
+          "name": "pro",
+          "properties": {
+            "emailsPerMonth": 10000
+          },
+          "provider": {
+            "id": "postmark",
+            "resource": "sphere-email"
+          },
+          "provides": "service/email"
+        },
+        "email.postmark.pro.dedicatedip": {
+          "features": {
+            "subscription": 66.5
+          },
+          "name": "pro + dedicatedIp",
+          "properties": {
+            "emailsPerMonth": 10000
+          },
+          "provider": {
+            "id": "postmark",
+            "resource": "sphere-email"
+          },
+          "provides": "service/email"
+        },
+        "email.resend.free": {
+          "features": {
+            "subscription": 0
+          },
+          "name": "free",
+          "properties": {
+            "emailsPerMonth": 3000
+          },
+          "provider": {
+            "id": "resend",
+            "resource": "sphere-email"
+          },
+          "provides": "service/email"
+        },
+        "email.resend.pro": {
+          "features": {
+            "subscription": 20
+          },
+          "name": "pro",
+          "properties": {
+            "emailsPerMonth": 50000
+          },
+          "provider": {
+            "id": "resend",
+            "resource": "sphere-email"
+          },
+          "provides": "service/email"
+        },
+        "email.resend.pro.extradomains": {
+          "features": {
+            "subscription": 40
+          },
+          "name": "pro + extraDomains",
+          "properties": {
+            "emailsPerMonth": 50000
+          },
+          "provider": {
+            "id": "resend",
+            "resource": "sphere-email"
+          },
+          "provides": "service/email"
+        },
+        "email.resend.scale": {
+          "features": {
+            "subscription": 90
+          },
+          "name": "scale",
+          "properties": {
+            "emailsPerMonth": 100000
+          },
+          "provider": {
+            "id": "resend",
+            "resource": "sphere-email"
+          },
+          "provides": "service/email"
+        },
+        "email.resend.scale.dedicatedip": {
+          "features": {
+            "subscription": 120
+          },
+          "name": "scale + dedicatedIp",
+          "properties": {
+            "emailsPerMonth": 100000
+          },
+          "provider": {
+            "id": "resend",
+            "resource": "sphere-email"
+          },
+          "provides": "service/email"
+        },
+        "email.resend.scale.extradomains": {
+          "features": {
+            "subscription": 110
+          },
+          "name": "scale + extraDomains",
+          "properties": {
+            "emailsPerMonth": 100000
+          },
+          "provider": {
+            "id": "resend",
+            "resource": "sphere-email"
+          },
+          "provides": "service/email"
+        },
+        "email.resend.scale.singlesignon": {
+          "features": {
+            "subscription": 240
+          },
+          "name": "scale + singleSignOn",
+          "properties": {
+            "emailsPerMonth": 100000
+          },
+          "provider": {
+            "id": "resend",
+            "resource": "sphere-email"
+          },
+          "provides": "service/email"
+        },
+        "email.sendgrid.essentials": {
+          "features": {
+            "subscription": 19.95
+          },
+          "name": "essentials",
+          "properties": {
+            "emailsPerMonth": 50000
+          },
+          "provider": {
+            "id": "sendgrid",
+            "resource": "sphere-email"
+          },
+          "provides": "service/email"
+        },
+        "email.sendgrid.essentials.emailtestingcredits30": {
+          "features": {
+            "subscription": 37.95
+          },
+          "name": "essentials + emailTestingCredits30",
+          "properties": {
+            "emailsPerMonth": 50000
+          },
+          "provider": {
+            "id": "sendgrid",
+            "resource": "sphere-email"
+          },
+          "provides": "service/email"
+        },
+        "email.sendgrid.freetrial": {
+          "features": {
+            "subscription": 0
+          },
+          "name": "freeTrial",
+          "properties": {
+            "emailsPerMonth": 100000000
+          },
+          "provider": {
+            "id": "sendgrid",
+            "resource": "sphere-email"
+          },
+          "provides": "service/email"
+        },
+        "email.sendgrid.pro": {
+          "features": {
+            "subscription": 89.95
+          },
+          "name": "pro",
+          "properties": {
+            "emailsPerMonth": 100000
+          },
+          "provider": {
+            "id": "sendgrid",
+            "resource": "sphere-email"
+          },
+          "provides": "service/email"
+        },
+        "email.sendgrid.pro.emailtestingcredits30": {
+          "features": {
+            "subscription": 107.95
+          },
+          "name": "pro + emailTestingCredits30",
+          "properties": {
+            "emailsPerMonth": 100000
+          },
+          "provider": {
+            "id": "sendgrid",
+            "resource": "sphere-email"
+          },
+          "provides": "service/email"
+        },
+        "email.sendgrid.pro.extradedicatedip": {
+          "features": {
+            "subscription": 119.95
+          },
+          "name": "pro + extraDedicatedIp",
+          "properties": {
+            "emailsPerMonth": 100000
+          },
+          "provider": {
+            "id": "sendgrid",
+            "resource": "sphere-email"
+          },
+          "provides": "service/email"
+        }
+      },
+      "featureBindings": {
+        "subscription": {
+          "id": "subscription",
+          "resource": "application"
+        }
+      },
+      "providers": {
+        "brevo": {},
+        "mailgun": {},
+        "postmark": {},
+        "resend": {},
+        "sendgrid": {}
+      }
+    }
+  }
+}

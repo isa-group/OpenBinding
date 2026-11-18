@@ -564,8 +564,8 @@ def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_o
     if not schema_root.is_dir():
         schema_root = Path(__file__).resolve().parents[3] / "schemas"
 
-    def embedded_schema(filename: str, component: str) -> dict:
-        value = json.loads((schema_root / "bim" / "v1" / filename).read_text(encoding="utf-8"))
+    def embedded_schema(filename: str, component: str, path: Path | None = None) -> dict:
+        value = json.loads((path or schema_root / "bim" / "v1" / filename).read_text(encoding="utf-8"))
 
         def rewrite(item):
             if isinstance(item, dict):
@@ -599,6 +599,18 @@ def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_o
         "A bare null is not a valid value."
     )
     schemas["ProfileManifest"] = embedded_schema("profile.schema.json", "ProfileManifest")
+    # The SPHERE import recipe: the gateway's own schema file is the OpenAPI component (no second model of it).
+    schemas["SphereImportRecipe"] = embedded_schema(
+        "recipe.schema.json", "SphereImportRecipe",
+        Path(__file__).resolve().parent / "modules" / "problems" / "resources" / "sphere-recipe" / "1" / "recipe.schema.json",
+    )
+    recipe_ref = {"$ref": "#/components/schemas/SphereImportRecipe"}
+    for component in ("SphereExpandRequest", "SphereApplyRequest", "SphereRecipeView"):
+        schemas[component]["properties"]["recipe"] = dict(recipe_ref)
+    schemas["SphereExpandView"]["properties"]["recipe"] = {
+        "anyOf": [dict(recipe_ref), {"type": "null"}],
+        "description": "The recipe with every version pinned (what apply stores).",
+    }
     digest_schema = {"type": "string", "pattern": "^sha256-[0-9a-f]{64}$"}
     diagnostic_list = {"type": "array", "items": {"type": "object", "additionalProperties": True}}
     digest_map = {"type": "object", "additionalProperties": digest_schema}

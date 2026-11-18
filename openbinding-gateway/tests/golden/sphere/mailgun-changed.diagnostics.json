@@ -1,0 +1,15 @@
+[
+  {
+    "at": "/tasks/0/from/0/sphere/version",
+    "code": "sphere_version_not_latest",
+    "message": "A newer version of this pricing exists in SPHERE.",
+    "severity": "info"
+  },
+  {
+    "at": "sphere-email/email.mailgun.enterprise",
+    "code": "sphere_plan_private",
+    "message": "The plan ENTERPRISE is private in this pricing; it is left out.",
+    "plan": "ENTERPRISE",
+    "severity": "info"
+  }
+]

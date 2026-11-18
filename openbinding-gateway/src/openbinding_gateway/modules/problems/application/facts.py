@@ -21,13 +21,16 @@ def compilation_facts(
     analysis: Mapping[str, Any],
     *,
     ir_digest: str,
+    sources: Mapping[tuple[str, str, str], Mapping[str, Any]] | None = None,
+    provenance: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """The facts of a compilation; 422 ``problem_facts_unreadable``, with the reason, when the IR cannot be read.
 
-    ``analysis`` is the compilation's analysis summary (``analysis_summary``).
+    ``analysis`` is the compilation's analysis summary (``analysis_summary``); ``sources`` and ``provenance`` are the
+    revision's value origins (``origins.value_sources``), absent for a draft.
     """
     try:
-        return facts_view(ir, source_map or None, analysis, ir_digest=ir_digest)
+        return facts_view(ir, source_map or None, analysis, ir_digest=ir_digest, sources=sources, provenance=provenance)
     except ProblemFactsError as error:
         raise api_error(
             422, FACTS_UNREADABLE, "The facts of this compiled problem cannot be read.", reason=str(error),

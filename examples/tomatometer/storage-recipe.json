@@ -1,0 +1,57 @@
+{
+  "recipeVersion": "1",
+  "currency": "USD",
+  "billing": "monthly",
+  "demand": {
+    "storageGB": {
+      "value": 1000,
+      "unit": "GB"
+    }
+  },
+  "features": {
+    "subscription": {
+      "unit": "USD/month",
+      "direction": "minimize"
+    },
+    "availability": {
+      "unit": "",
+      "direction": "maximize",
+      "domain": "ratio"
+    }
+  },
+  "tasks": [
+    {
+      "task": "export",
+      "capability": "service/storage",
+      "service": "storage",
+      "expand": "plans",
+      "from": [
+        {
+          "sphere": {
+            "pricing": "6ab0a323697330667ccce9c1",
+            "version": "687e4b68102baa50f3a5c7b7"
+          },
+          "provider": "dropbox",
+          "addons": [],
+          "seats": 1
+        }
+      ],
+      "require": {
+        "limits": {
+          "storageLimit": {
+            "atLeast": "storageGB"
+          }
+        }
+      },
+      "properties": {
+        "subscription": "price",
+        "availability": {
+          "manual": {
+            "dropbox": 0.999
+          }
+        }
+      },
+      "prune": "none"
+    }
+  ]
+}

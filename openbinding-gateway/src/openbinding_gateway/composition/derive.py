@@ -10,7 +10,9 @@ own reader and checks accept:
   without them (a three-way choice is ``0.3333333333333333`` three times, whose exact sum is
   not one); any other routed choice states its probabilities, exactly as the IR has them;
 * a local task is bound ``{local: true}``;
-* no ``from`` is written: provenance comes from the problem's value origins, later.
+* a candidate a SPHERE import generated is written with its ``from`` (``owner/name``, the version id, the raw plan
+  name and add-ons), from the problem's value origins the caller gives as ``provenance``; any other candidate is
+  written without one.
 
 Evaluating the binding is the caller's: the toolchain computes the values, never this module.
 """
@@ -36,8 +38,10 @@ def derived(
     features: Mapping[str, float],
     evidence: Evidence,
     offering: Offering | None = None,
+    provenance: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> Document:
-    """The document of ``bim_binding``, whose evaluated features are ``features``."""
+    """The document of ``bim_binding``, whose evaluated features are ``features``; ``provenance`` is
+    ``{<resource>/<id>: {sphere, version, plan, registry?, addons?}}``."""
     return Document(
         syntax_version=SYNTAX_VERSION,
         composition=slug,
@@ -45,7 +49,7 @@ def derived(
         kind=kind,
         problem=ProblemLink(ref=problem_ref, compilation=compilation_digest),
         workflow=written(facts.workflow),
-        binding=document_binding(bim_binding, facts),
+        binding=document_binding(bim_binding, facts, provenance),
         values=computed_values(features, facts),
         offering=offering,
         evidence=evidence,
