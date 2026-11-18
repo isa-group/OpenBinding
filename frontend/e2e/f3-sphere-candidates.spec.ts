@@ -319,6 +319,11 @@ test.describe('J2 · TomatoMeter: candidates added from SPHERE to an existing pr
       .getByRole('combobox', { name: 'Search SPHERE pricings by name' })
       .fill('mailgun');
     await dialog(page).getByRole('option').filter({ hasText: 'danruilop1 PERSONAL' }).click();
+    // The version step has arrived (and holds the focus trap) before Escape is pressed.
+    await expect(dialog(page).getByRole('radio', { name: /2026-10/ })).toBeVisible();
+    await dialog(page)
+      .getByRole('radio', { name: /2026-10/ })
+      .focus();
     await page.keyboard.press('Escape');
     const confirm = page.getByRole('alertdialog').or(page.getByRole('dialog', { name: /Discard/ }));
     await expect(

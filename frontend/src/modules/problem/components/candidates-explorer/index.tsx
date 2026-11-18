@@ -194,9 +194,15 @@ export default function CandidatesExplorer({
 
         <div className="mt-4 flex flex-col gap-3">
           {revision.sphere && revision.sphere.sources.length > 0 && (
-            <Notice
-              tone="info"
-              action={
+            <Notice tone="info">
+              <span className="block">
+                {`Version ${revision.revision} was generated from SPHERE (${revision.sphere.sources
+                  .map(source =>
+                    source.versionLabel ? `${source.title} ${source.versionLabel}` : source.title
+                  )
+                  .join(', ')}): each value says where it comes from.`}
+              </span>
+              <span className="mt-2 block">
                 <Action
                   to={problemEditorPath(org, { problem: item.slug, revision: revision.revision })}
                   variant="secondary"
@@ -204,13 +210,7 @@ export default function CandidatesExplorer({
                 >
                   Open in the problem editor
                 </Action>
-              }
-            >
-              {`Version ${revision.revision} was generated from SPHERE (${revision.sphere.sources
-                .map(source =>
-                  source.versionLabel ? `${source.title} ${source.versionLabel}` : source.title
-                )
-                .join(', ')}): each value says where it comes from.`}
+              </span>
             </Notice>
           )}
           {asked && highlight.status === 'loading' && (
