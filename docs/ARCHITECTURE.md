@@ -684,10 +684,12 @@ flowchart LR
   OWNER reads every private version of that organization, a VIEW key a private pricing only with an explicit grant.
   The key is sent only to the default SPHERE, never to a registry or a URL; a 401 marks the connection invalid and
   the read is retried anonymously. "Connect SPHERE" by OAuth cannot read a version's YAML and waits for F8.
-- `GET /v1/plans/pricing` (public) returns the pricing descriptor (permanent link, SPHERE version id and label,
-  content hash, the version SPACE has activated) and the YAML read from SPHERE's public API
-  (`/api/v1/public/pricings/{pricingId}` and `.../versions/{versionId}/yaml`, bounded to 5 MiB, hash-verified,
-  ETag-cached). OpenBinding holds no SPHERE key.
+- `GET /v1/plans/pricing` (public, F3) serves OpenBinding's own pricing through the `PricingSource` port: the family
+  `SPHERE_OPENBINDING_PRICING_ID`, the version labelled `SPACE_PRICING_VERSION` in its manifest (so a new release
+  is a setting), snapshotted once and verified like every SPHERE read; the answer carries the label, the version
+  id, the permanent link, the YAML (for pricing-renderer) and the parsed document (`.inf` as `null`), with an
+  `ETag` and `public, max-age=300`. When SPHERE cannot be read, a stored snapshot of that label is served; with
+  none, `503 pricing_unavailable`. It needs no SPHERE key.
 - Removed: `sphere_client.py`, `pricing_catalog.py`, the deprecated `/v1/pricing` proxy and `/v1/pricing/catalog`,
   admin pricing validation, `space_client/deployments.py`, the release sweeps, local metering
   (`domain/usage_counters.py`) and the sponsorship capacity checks.

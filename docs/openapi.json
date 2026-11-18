@@ -8597,6 +8597,64 @@
         "title": "PlanChange",
         "type": "object"
       },
+      "PlansPricingView": {
+        "description": "OpenBinding's own published pricing, read through the pricing source.",
+        "properties": {
+          "createdAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Createdat"
+          },
+          "document": {
+            "additionalProperties": true,
+            "description": "The parsed document as JSON (`.inf` is null).",
+            "title": "Document",
+            "type": "object"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "permanentUrl": {
+            "title": "Permanenturl",
+            "type": "string"
+          },
+          "pricingId": {
+            "title": "Pricingid",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          },
+          "versionId": {
+            "title": "Versionid",
+            "type": "string"
+          },
+          "yaml": {
+            "description": "The Pricing2Yaml text, for pricing-renderer.",
+            "title": "Yaml",
+            "type": "string"
+          }
+        },
+        "required": [
+          "pricingId",
+          "name",
+          "version",
+          "versionId",
+          "permanentUrl",
+          "yaml",
+          "document"
+        ],
+        "title": "PlansPricingView",
+        "type": "object"
+      },
       "PricingCurrentView": {
         "properties": {
           "digest": {
@@ -31285,6 +31343,49 @@
         ],
         "x-required-api-key-permissions": [
           "compositions:read"
+        ]
+      }
+    },
+    "/v1/plans/pricing": {
+      "get": {
+        "description": "The published pricing: the YAML for pricing-renderer and the parsed document (``.inf`` as ``null``).",
+        "operationId": "getPlansPricing",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlansPricingView"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "ETag": {
+                "description": "The SHA-256 of the YAML.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "The caller's copy (`If-None-Match`) is current."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The published pricing cannot be read (`pricing_unavailable`)."
+          }
+        },
+        "summary": "OpenBinding's published pricing (the version SPACE_PRICING_VERSION names), read from SPHERE",
+        "tags": [
+          "Pricing"
         ]
       }
     },

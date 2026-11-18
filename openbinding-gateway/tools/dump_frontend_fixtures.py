@@ -11,7 +11,8 @@ response **bodies** (never headers) of the routes the frontend reads:
 * ``<name>.version.json``: ``getCompositionVersion?include=document`` of version 1.0.0 of a
   composition ``<name>`` derived from the first binding of the problem without a hard violation;
 * ``<name>.diff.json``: ``diffCompositionVersions`` from that 1.0.0 to a 1.1.0 derived from the
-  same binding with one task bound to another candidate.
+  same binding with one task bound to another candidate;
+* ``plans-pricing.json``: ``getPlansPricing``, OpenBinding's published pricing 0.2.0 as the recorded SPHERE serves it.
 
 The packages are ``simple-seq`` (``examples/demo/01_simple_seq``), ``fms`` (``13_fms``: an
 exclusive choice and a local task), ``json-complete`` (``16_json_complete``: a parallel block
@@ -211,6 +212,8 @@ async def _bodies(work: Path) -> tuple[dict[str, Any], dict[str, Any]]:
     set_work_limiter(WorkRateLimiter(primary=None))
     set_auth_limiter(AuthRateLimiter(primary=None))
     space_client.set_gate(OpenGate())
+    settings.sphere_enabled = True
+    settings.space_pricing_version = "0.2.0"
     _install_recorded_sphere(settings)
 
     engine = create_async_engine(f"sqlite+aiosqlite:///{work / 'fixtures.db'}")
@@ -267,6 +270,7 @@ async def _bodies(work: Path) -> tuple[dict[str, Any], dict[str, Any]]:
                 bodies["refused.validate.json"] = _ok(answer, 422).json()
                 bodies["refused.package.json"] = {path: content.decode("utf-8") for path, content in refused.items()}
                 sphere = await _sphere_bodies(client, headers)
+                bodies["plans-pricing.json"] = _ok(await client.get("/v1/plans/pricing"), 200).json()
     finally:
         app.dependency_overrides.clear()
         space_client.set_gate(None)

@@ -408,6 +408,9 @@ class Settings(BaseSettings):
     sphere_cache_ttl_s: float = Field(default=300.0, gt=0)
     #: The longest a SPHERE ``Retry-After`` or the port's own back-off keeps a bucket closed (``SPHERE_BACKOFF_MAX_S``).
     sphere_backoff_max_s: float = Field(default=60.0, gt=0)
+    #: OpenBinding's own pricing family in SPHERE (``GET /v1/plans/pricing`` serves the version
+    #: ``SPACE_PRICING_VERSION`` names from it).
+    sphere_openbinding_pricing_id: str = Field(default="6ab0a323697330667ccce891", pattern=r"^[0-9a-f]{24}$")
     #: Redirects a user-supplied Pricing2Yaml URL may take, each revalidated (``OFFERING_URL_MAX_REDIRECTS``).
     offering_url_max_redirects: int = Field(default=3, ge=0, le=10)
     #: A URL read again within this many seconds of its last snapshot in a scope reuses it (``OFFERING_URL_MIN_INTERVAL_S``).

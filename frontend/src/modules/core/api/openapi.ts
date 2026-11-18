@@ -2673,6 +2673,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/plans/pricing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * OpenBinding's published pricing (the version SPACE_PRICING_VERSION names), read from SPHERE
+         * @description The published pricing: the YAML for pricing-renderer and the parsed document (``.inf`` as ``null``).
+         */
+        get: operations["getPlansPricing"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/pricing/catalog": {
         parameters: {
             query?: never;
@@ -6262,6 +6282,36 @@ export interface components {
              * @description The plan after.
              */
             to: string;
+        };
+        /**
+         * PlansPricingView
+         * @description OpenBinding's own published pricing, read through the pricing source.
+         */
+        PlansPricingView: {
+            /** Createdat */
+            createdAt?: string | null;
+            /**
+             * Document
+             * @description The parsed document as JSON (`.inf` is null).
+             */
+            document: {
+                [key: string]: unknown;
+            };
+            /** Name */
+            name: string;
+            /** Permanenturl */
+            permanentUrl: string;
+            /** Pricingid */
+            pricingId: string;
+            /** Version */
+            version: string;
+            /** Versionid */
+            versionId: string;
+            /**
+             * Yaml
+             * @description The Pricing2Yaml text, for pricing-renderer.
+             */
+            yaml: string;
         };
         /** PricingCurrentView */
         PricingCurrentView: {
@@ -19213,6 +19263,44 @@ export interface operations {
                 };
                 content: {
                     "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getPlansPricing: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    /** @description The SHA-256 of the YAML. */
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlansPricingView"];
+                };
+            };
+            /** @description The caller's copy (`If-None-Match`) is current. */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The published pricing cannot be read (`pricing_unavailable`). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };

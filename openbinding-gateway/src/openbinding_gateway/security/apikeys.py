@@ -96,6 +96,8 @@ OPEN_V1_PREFIXES = (
 OPEN_V1_GET_PATHS = frozenset({
     "/v1/engines/protocol",
     "/v1/compositions/schema",
+    # OpenBinding's own published pricing: public, as the pricing page is.
+    "/v1/plans/pricing",
 })
 #: The operations on an organization's compositions that write nothing: reading, and
 #: checking or evaluating a document against its problem.

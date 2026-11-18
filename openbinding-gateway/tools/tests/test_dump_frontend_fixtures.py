@@ -40,7 +40,7 @@ def test_two_runs_write_byte_identical_trees(two_runs) -> None:
     assert _tree(first / "sphere") == _tree(second / "sphere")
     assert sorted(_tree(first / "core")) == sorted(
         [f"{name}.{kind}.json" for name, _ in tool.PACKAGES for kind in ("facts", "validate", "version", "diff")]
-        + ["refused.package.json", "refused.validate.json"]
+        + ["refused.package.json", "refused.validate.json", "plans-pricing.json"]
     )
 
 

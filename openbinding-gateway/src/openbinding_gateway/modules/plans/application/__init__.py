@@ -27,6 +27,7 @@ from ..domain.sources import (
 )
 from . import connections, discovery
 from .discovery import FamilyAmbiguous, resolve_family
+from .own_pricing import OwnPricing, OwnPricingUnavailable, own_pricing
 from .connections import credential_for, mark_invalid
 from .parsing import ParsedPricing, parse, parse_sync
 from .snapshots import (
@@ -66,6 +67,8 @@ __all__ = [
     "Manifest",
     "ManifestVersion",
     "NotModified",
+    "OwnPricing",
+    "OwnPricingUnavailable",
     "ParsedPricing",
     "PricingDiagnostic",
     "PricingError",
@@ -94,6 +97,7 @@ __all__ = [
     "latest_for",
     "mark_invalid",
     "normalised",
+    "own_pricing",
     "parse",
     "parse_sync",
     "pricing2yaml",

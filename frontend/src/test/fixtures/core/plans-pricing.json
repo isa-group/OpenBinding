@@ -1,0 +1,442 @@
+{
+  "createdAt": "2026-01-01T00:00:06Z",
+  "document": {
+    "billing": {
+      "monthly": 1
+    },
+    "createdAt": "2026-10-22",
+    "currency": "EUR",
+    "features": {
+      "apiAccess": {
+        "defaultValue": true,
+        "description": "Use the public API with API keys, from scripts, QACOBench or MCP clients.",
+        "expression": "pricingContext['features']['apiAccess']",
+        "integrationType": "API",
+        "tag": "Collaboration",
+        "type": "INTEGRATION",
+        "valueType": "BOOLEAN"
+      },
+      "collaboration": {
+        "defaultValue": true,
+        "description": "Organizations, projects and members with roles; projects are public or private.",
+        "expression": "pricingContext['features']['collaboration']",
+        "tag": "Collaboration",
+        "type": "MANAGEMENT",
+        "valueType": "BOOLEAN"
+      },
+      "federatedEngines": {
+        "defaultValue": true,
+        "description": "Register remote engines that pass conformance and run problems on them.",
+        "expression": "pricingContext['features']['federatedEngines']",
+        "integrationType": "API",
+        "tag": "Engines",
+        "type": "INTEGRATION",
+        "valueType": "BOOLEAN"
+      },
+      "generator": {
+        "defaultValue": true,
+        "description": "Generate problem collections with the solver-aware generator, with provenance.",
+        "expression": "pricingContext['features']['generator'] && subscriptionContext['generatedInstances'] < pricingContext['usageLimits']['generatedInstances']",
+        "tag": "Laboratory",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN"
+      },
+      "repository": {
+        "defaultValue": true,
+        "description": "Author, version and publish binding problems and collections, with permanent links, citations and verification.",
+        "expression": "pricingContext['features']['repository']",
+        "tag": "Repository",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN"
+      },
+      "runs": {
+        "defaultValue": true,
+        "description": "Run problem versions on the built-in engines; the platform re-evaluates every result.",
+        "expression": "pricingContext['features']['runs'] && subscriptionContext['solverHours'] < pricingContext['usageLimits']['solverHours']",
+        "tag": "Laboratory",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN"
+      },
+      "studies": {
+        "defaultValue": true,
+        "description": "Compare engines over problems or a collection with budgets and seeds, read the protocol metrics and publish frozen, citable results.",
+        "expression": "pricingContext['features']['studies'] && subscriptionContext['solverHours'] < pricingContext['usageLimits']['solverHours']",
+        "tag": "Laboratory",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN"
+      }
+    },
+    "plans": {
+      "FREE": {
+        "description": "For any researcher. Author, run, compare, generate and publish binding problems, with a repository sized for one author.",
+        "features": {
+          "apiAccess": {
+            "value": true
+          },
+          "collaboration": {
+            "value": true
+          },
+          "federatedEngines": {
+            "value": true
+          },
+          "generator": {
+            "value": true
+          },
+          "repository": {
+            "value": true
+          },
+          "runs": {
+            "value": true
+          },
+          "studies": {
+            "value": true
+          }
+        },
+        "price": 0,
+        "unit": "user/month",
+        "usageLimits": {
+          "generatedInstances": {
+            "value": 1000
+          },
+          "maxApiKeys": {
+            "value": 2
+          },
+          "maxCollections": {
+            "value": 5
+          },
+          "maxConcurrentRuns": {
+            "value": 1
+          },
+          "maxFederatedEngines": {
+            "value": 1
+          },
+          "maxInstancesPerGeneration": {
+            "value": 100
+          },
+          "maxPrivateProjects": {
+            "value": 1
+          },
+          "maxProblems": {
+            "value": 25
+          },
+          "maxRepositoryStorage": {
+            "value": 500
+          },
+          "maxRunMinutes": {
+            "value": 5
+          },
+          "maxStudyCells": {
+            "value": 500
+          },
+          "solverHours": {
+            "value": 5
+          }
+        }
+      },
+      "LAB": {
+        "description": "By agreement, for groups that run benchmark campaigns or operate engines. Campaign-scale solver time, concurrency and generation.",
+        "features": {
+          "apiAccess": {
+            "value": true
+          },
+          "collaboration": {
+            "value": true
+          },
+          "federatedEngines": {
+            "value": true
+          },
+          "generator": {
+            "value": true
+          },
+          "repository": {
+            "value": true
+          },
+          "runs": {
+            "value": true
+          },
+          "studies": {
+            "value": true
+          }
+        },
+        "price": "Contact us",
+        "unit": "user/month",
+        "usageLimits": {
+          "generatedInstances": {
+            "value": 1000000
+          },
+          "maxApiKeys": {
+            "value": 200
+          },
+          "maxCollections": {
+            "value": null
+          },
+          "maxConcurrentRuns": {
+            "value": 32
+          },
+          "maxFederatedEngines": {
+            "value": 50
+          },
+          "maxInstancesPerGeneration": {
+            "value": 100000
+          },
+          "maxPrivateProjects": {
+            "value": 500
+          },
+          "maxProblems": {
+            "value": null
+          },
+          "maxRepositoryStorage": {
+            "value": null
+          },
+          "maxRunMinutes": {
+            "value": 1440
+          },
+          "maxStudyCells": {
+            "value": 500000
+          },
+          "solverHours": {
+            "value": 10000
+          }
+        }
+      },
+      "RESEARCH": {
+        "description": "Free for Universidad de Sevilla members who sign in with CAS. An unlimited repository and research-scale laboratory limits.",
+        "features": {
+          "apiAccess": {
+            "value": true
+          },
+          "collaboration": {
+            "value": true
+          },
+          "federatedEngines": {
+            "value": true
+          },
+          "generator": {
+            "value": true
+          },
+          "repository": {
+            "value": true
+          },
+          "runs": {
+            "value": true
+          },
+          "studies": {
+            "value": true
+          }
+        },
+        "price": 0,
+        "unit": "user/month",
+        "usageLimits": {
+          "generatedInstances": {
+            "value": 100000
+          },
+          "maxApiKeys": {
+            "value": 10
+          },
+          "maxCollections": {
+            "value": null
+          },
+          "maxConcurrentRuns": {
+            "value": 4
+          },
+          "maxFederatedEngines": {
+            "value": 3
+          },
+          "maxInstancesPerGeneration": {
+            "value": 10000
+          },
+          "maxPrivateProjects": {
+            "value": 10
+          },
+          "maxProblems": {
+            "value": null
+          },
+          "maxRepositoryStorage": {
+            "value": null
+          },
+          "maxRunMinutes": {
+            "value": 30
+          },
+          "maxStudyCells": {
+            "value": 5000
+          },
+          "solverHours": {
+            "value": 100
+          }
+        }
+      }
+    },
+    "saasName": "OpenBinding",
+    "syntaxVersion": "3.1",
+    "tags": [
+      "Repository",
+      "Laboratory",
+      "Engines",
+      "Collaboration"
+    ],
+    "usageLimits": {
+      "generatedInstances": {
+        "defaultValue": 1000,
+        "description": "Problem instances the generator writes per account and month; each generated instance counts once.",
+        "linkedFeatures": [
+          "generator"
+        ],
+        "period": {
+          "unit": "MONTH",
+          "value": 1
+        },
+        "tag": "Laboratory",
+        "type": "RENEWABLE",
+        "unit": "instance/month",
+        "valueType": "NUMERIC"
+      },
+      "maxApiKeys": {
+        "defaultValue": 2,
+        "description": "Active API keys of the account.",
+        "linkedFeatures": [
+          "apiAccess"
+        ],
+        "tag": "Collaboration",
+        "trackable": false,
+        "type": "NON_RENEWABLE",
+        "unit": "key",
+        "valueType": "NUMERIC"
+      },
+      "maxCollections": {
+        "defaultValue": 5,
+        "description": "Collections the account owns in the repository.",
+        "linkedFeatures": [
+          "repository"
+        ],
+        "tag": "Repository",
+        "trackable": false,
+        "type": "NON_RENEWABLE",
+        "unit": "collection",
+        "valueType": "NUMERIC"
+      },
+      "maxConcurrentRuns": {
+        "defaultValue": 1,
+        "description": "Runs of one account executing at the same time, on built-in or federated engines.",
+        "linkedFeatures": [
+          "runs",
+          "studies",
+          "generator",
+          "federatedEngines"
+        ],
+        "tag": "Laboratory",
+        "trackable": false,
+        "type": "NON_RENEWABLE",
+        "unit": "run",
+        "valueType": "NUMERIC"
+      },
+      "maxFederatedEngines": {
+        "defaultValue": 1,
+        "description": "Federated engine deployments registered by the account.",
+        "linkedFeatures": [
+          "federatedEngines"
+        ],
+        "tag": "Engines",
+        "trackable": false,
+        "type": "NON_RENEWABLE",
+        "unit": "engine",
+        "valueType": "NUMERIC"
+      },
+      "maxInstancesPerGeneration": {
+        "defaultValue": 100,
+        "description": "Instances in one generation request.",
+        "linkedFeatures": [
+          "generator"
+        ],
+        "tag": "Laboratory",
+        "trackable": false,
+        "type": "NON_RENEWABLE",
+        "unit": "instance",
+        "valueType": "NUMERIC"
+      },
+      "maxPrivateProjects": {
+        "defaultValue": 1,
+        "description": "Private projects in the organizations the account owns.",
+        "linkedFeatures": [
+          "collaboration"
+        ],
+        "tag": "Collaboration",
+        "trackable": false,
+        "type": "NON_RENEWABLE",
+        "unit": "project",
+        "valueType": "NUMERIC"
+      },
+      "maxProblems": {
+        "defaultValue": 25,
+        "description": "Problems the account owns in the repository, public or private.",
+        "linkedFeatures": [
+          "repository"
+        ],
+        "tag": "Repository",
+        "trackable": false,
+        "type": "NON_RENEWABLE",
+        "unit": "problem",
+        "valueType": "NUMERIC"
+      },
+      "maxRepositoryStorage": {
+        "defaultValue": 500,
+        "description": "Stored size of every version of the problems and collections the account owns.",
+        "linkedFeatures": [
+          "repository"
+        ],
+        "tag": "Repository",
+        "trackable": false,
+        "type": "NON_RENEWABLE",
+        "unit": "MB",
+        "valueType": "NUMERIC"
+      },
+      "maxRunMinutes": {
+        "defaultValue": 5,
+        "description": "Largest time budget of one run.",
+        "linkedFeatures": [
+          "runs",
+          "studies"
+        ],
+        "tag": "Laboratory",
+        "trackable": false,
+        "type": "NON_RENEWABLE",
+        "unit": "minute",
+        "valueType": "NUMERIC"
+      },
+      "maxStudyCells": {
+        "defaultValue": 500,
+        "description": "Cells (problem version × engine mode × budget × seed) in one study run.",
+        "linkedFeatures": [
+          "studies"
+        ],
+        "tag": "Laboratory",
+        "trackable": false,
+        "type": "NON_RENEWABLE",
+        "unit": "cell",
+        "valueType": "NUMERIC"
+      },
+      "solverHours": {
+        "defaultValue": 5,
+        "description": "Solver time on the built-in engines per account and month; each run counts its time budget when it starts.",
+        "linkedFeatures": [
+          "runs",
+          "studies"
+        ],
+        "period": {
+          "unit": "MONTH",
+          "value": 1
+        },
+        "tag": "Laboratory",
+        "type": "RENEWABLE",
+        "unit": "hour/month",
+        "valueType": "NUMERIC"
+      }
+    },
+    "version": "0.2.0"
+  },
+  "name": "OpenBinding",
+  "permanentUrl": "https://sphere.score.us.es/p/6ab0a323697330667ccce891",
+  "pricingId": "6ab0a323697330667ccce891",
+  "version": "0.2.0",
+  "versionId": "6ada6dbd4b2b5b01c587d17f",
+  "yaml": "syntaxVersion: '3.1'\nsaasName: OpenBinding\nversion: 0.2.0\ncreatedAt: '2026-10-22'\ncurrency: EUR\nbilling:\n  monthly: 1\ntags:\n- Repository\n- Laboratory\n- Engines\n- Collaboration\nfeatures:\n  repository:\n    description: Author, version and publish binding problems and collections, with permanent links, citations and\n      verification.\n    tag: Repository\n    type: DOMAIN\n    valueType: BOOLEAN\n    defaultValue: true\n    expression: pricingContext['features']['repository']\n  runs:\n    description: Run problem versions on the built-in engines; the platform re-evaluates every result.\n    tag: Laboratory\n    type: DOMAIN\n    valueType: BOOLEAN\n    defaultValue: true\n    expression: pricingContext['features']['runs'] && subscriptionContext['solverHours'] < pricingContext['usageLimits']['solverHours']\n  studies:\n    description: Compare engines over problems or a collection with budgets and seeds, read the protocol metrics and\n      publish frozen, citable results.\n    tag: Laboratory\n    type: DOMAIN\n    valueType: BOOLEAN\n    defaultValue: true\n    expression: pricingContext['features']['studies'] && subscriptionContext['solverHours'] < pricingContext['usageLimits']['solverHours']\n  generator:\n    description: Generate problem collections with the solver-aware generator, with provenance.\n    tag: Laboratory\n    type: DOMAIN\n    valueType: BOOLEAN\n    defaultValue: true\n    expression: pricingContext['features']['generator'] && subscriptionContext['generatedInstances'] < pricingContext['usageLimits']['generatedInstances']\n  federatedEngines:\n    description: Register remote engines that pass conformance and run problems on them.\n    tag: Engines\n    type: INTEGRATION\n    integrationType: API\n    valueType: BOOLEAN\n    defaultValue: true\n    expression: pricingContext['features']['federatedEngines']\n  collaboration:\n    description: Organizations, projects and members with roles; projects are public or private.\n    tag: Collaboration\n    type: MANAGEMENT\n    valueType: BOOLEAN\n    defaultValue: true\n    expression: pricingContext['features']['collaboration']\n  apiAccess:\n    description: Use the public API with API keys, from scripts, QACOBench or MCP clients.\n    tag: Collaboration\n    type: INTEGRATION\n    integrationType: API\n    valueType: BOOLEAN\n    defaultValue: true\n    expression: pricingContext['features']['apiAccess']\nusageLimits:\n  maxProblems:\n    description: Problems the account owns in the repository, public or private.\n    tag: Repository\n    type: NON_RENEWABLE\n    trackable: false\n    valueType: NUMERIC\n    defaultValue: 25\n    unit: problem\n    linkedFeatures:\n    - repository\n  maxCollections:\n    description: Collections the account owns in the repository.\n    tag: Repository\n    type: NON_RENEWABLE\n    trackable: false\n    valueType: NUMERIC\n    defaultValue: 5\n    unit: collection\n    linkedFeatures:\n    - repository\n  maxRepositoryStorage:\n    description: Stored size of every version of the problems and collections the account owns.\n    tag: Repository\n    type: NON_RENEWABLE\n    trackable: false\n    valueType: NUMERIC\n    defaultValue: 500\n    unit: MB\n    linkedFeatures:\n    - repository\n  solverHours:\n    description: Solver time on the built-in engines per account and month; each run counts its time budget when it\n      starts.\n    tag: Laboratory\n    type: RENEWABLE\n    period:\n      value: 1\n      unit: MONTH\n    valueType: NUMERIC\n    defaultValue: 5\n    unit: hour/month\n    linkedFeatures:\n    - runs\n    - studies\n  maxRunMinutes:\n    description: Largest time budget of one run.\n    tag: Laboratory\n    type: NON_RENEWABLE\n    trackable: false\n    valueType: NUMERIC\n    defaultValue: 5\n    unit: minute\n    linkedFeatures:\n    - runs\n    - studies\n  maxConcurrentRuns:\n    description: Runs of one account executing at the same time, on built-in or federated engines.\n    tag: Laboratory\n    type: NON_RENEWABLE\n    trackable: false\n    valueType: NUMERIC\n    defaultValue: 1\n    unit: run\n    linkedFeatures:\n    - runs\n    - studies\n    - generator\n    - federatedEngines\n  maxStudyCells:\n    description: Cells (problem version × engine mode × budget × seed) in one study run.\n    tag: Laboratory\n    type: NON_RENEWABLE\n    trackable: false\n    valueType: NUMERIC\n    defaultValue: 500\n    unit: cell\n    linkedFeatures:\n    - studies\n  generatedInstances:\n    description: Problem instances the generator writes per account and month; each generated instance counts once.\n    tag: Laboratory\n    type: RENEWABLE\n    period:\n      value: 1\n      unit: MONTH\n    valueType: NUMERIC\n    defaultValue: 1000\n    unit: instance/month\n    linkedFeatures:\n    - generator\n  maxInstancesPerGeneration:\n    description: Instances in one generation request.\n    tag: Laboratory\n    type: NON_RENEWABLE\n    trackable: false\n    valueType: NUMERIC\n    defaultValue: 100\n    unit: instance\n    linkedFeatures:\n    - generator\n  maxFederatedEngines:\n    description: Federated engine deployments registered by the account.\n    tag: Engines\n    type: NON_RENEWABLE\n    trackable: false\n    valueType: NUMERIC\n    defaultValue: 1\n    unit: engine\n    linkedFeatures:\n    - federatedEngines\n  maxPrivateProjects:\n    description: Private projects in the organizations the account owns.\n    tag: Collaboration\n    type: NON_RENEWABLE\n    trackable: false\n    valueType: NUMERIC\n    defaultValue: 1\n    unit: project\n    linkedFeatures:\n    - collaboration\n  maxApiKeys:\n    description: Active API keys of the account.\n    tag: Collaboration\n    type: NON_RENEWABLE\n    trackable: false\n    valueType: NUMERIC\n    defaultValue: 2\n    unit: key\n    linkedFeatures:\n    - apiAccess\nplans:\n  FREE:\n    description: For any researcher. Author, run, compare, generate and publish binding problems, with a repository\n      sized for one author.\n    price: 0\n    unit: user/month\n    features:\n      repository:\n        value: true\n      runs:\n        value: true\n      studies:\n        value: true\n      generator:\n        value: true\n      federatedEngines:\n        value: true\n      collaboration:\n        value: true\n      apiAccess:\n        value: true\n    usageLimits:\n      maxProblems:\n        value: 25\n      maxCollections:\n        value: 5\n      maxRepositoryStorage:\n        value: 500\n      solverHours:\n        value: 5\n      maxRunMinutes:\n        value: 5\n      maxConcurrentRuns:\n        value: 1\n      maxStudyCells:\n        value: 500\n      generatedInstances:\n        value: 1000\n      maxInstancesPerGeneration:\n        value: 100\n      maxFederatedEngines:\n        value: 1\n      maxPrivateProjects:\n        value: 1\n      maxApiKeys:\n        value: 2\n  RESEARCH:\n    description: Free for Universidad de Sevilla members who sign in with CAS. An unlimited repository and\n      research-scale laboratory limits.\n    price: 0\n    unit: user/month\n    features:\n      repository:\n        value: true\n      runs:\n        value: true\n      studies:\n        value: true\n      generator:\n        value: true\n      federatedEngines:\n        value: true\n      collaboration:\n        value: true\n      apiAccess:\n        value: true\n    usageLimits:\n      maxProblems:\n        value: .inf\n      maxCollections:\n        value: .inf\n      maxRepositoryStorage:\n        value: .inf\n      solverHours:\n        value: 100\n      maxRunMinutes:\n        value: 30\n      maxConcurrentRuns:\n        value: 4\n      maxStudyCells:\n        value: 5000\n      generatedInstances:\n        value: 100000\n      maxInstancesPerGeneration:\n        value: 10000\n      maxFederatedEngines:\n        value: 3\n      maxPrivateProjects:\n        value: 10\n      maxApiKeys:\n        value: 10\n  LAB:\n    description: By agreement, for groups that run benchmark campaigns or operate engines. Campaign-scale solver time,\n      concurrency and generation.\n    price: Contact us\n    unit: user/month\n    features:\n      repository:\n        value: true\n      runs:\n        value: true\n      studies:\n        value: true\n      generator:\n        value: true\n      federatedEngines:\n        value: true\n      collaboration:\n        value: true\n      apiAccess:\n        value: true\n    usageLimits:\n      maxProblems:\n        value: .inf\n      maxCollections:\n        value: .inf\n      maxRepositoryStorage:\n        value: .inf\n      solverHours:\n        value: 10000\n      maxRunMinutes:\n        value: 1440\n      maxConcurrentRuns:\n        value: 32\n      maxStudyCells:\n        value: 500000\n      generatedInstances:\n        value: 1000000\n      maxInstancesPerGeneration:\n        value: 100000\n      maxFederatedEngines:\n        value: 50\n      maxPrivateProjects:\n        value: 500\n      maxApiKeys:\n        value: 200\n"
+}

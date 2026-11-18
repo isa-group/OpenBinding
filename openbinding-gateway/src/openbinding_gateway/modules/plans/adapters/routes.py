@@ -21,9 +21,12 @@ from ....access.dependencies import get_current_user, get_reader, session_depend
 from ....access.work_limits import charge_anonymous_read, limit_work
 from ....collaboration import effective_role, organization_by_ref, require_role
 from ....core import revision as etags
+from ....core.public_errors import PUBLISHED_PRICING_UNAVAILABLE, pricing_unavailable_error
+from ....core.settings import Settings, get_settings
 from ....db.models import Composition, CompositionVersion, Organization, OrganizationRole, PricingSnapshot, User
 from ....models.errors import NOT_FOUND_RESPONSE, ErrorResponse, api_error
 from ..application import connections, discovery
+from ..application.own_pricing import OwnPricingUnavailable, own_pricing
 from ..application.pricing_source import (
     PricingNotFound,
     PricingSourceBusy,
@@ -34,6 +37,7 @@ from ..application.snapshots import read_snapshot, snapshot_bytes
 from ..domain.errors import PricingInvalid
 from ..domain.sources import MAX_PAGE, SearchQuery, SearchRow, SphereEndpoint, is_sphere_id
 from .schemas import (
+    PlansPricingView,
     ConnectionList,
     ConnectionScope,
     ConnectionView,
@@ -52,6 +56,8 @@ from .schemas import (
 )
 
 router = APIRouter(prefix="/v1/organizations/{org}", tags=["Organizations"])
+#: OpenBinding's own plans, public.
+public_router = APIRouter(prefix="/v1/plans", tags=["Pricing"])
 
 FORBIDDEN_RESPONSE = {"model": ErrorResponse, "description": "The caller is not an ADMIN of the organization."}
 
@@ -464,3 +470,40 @@ async def get_pricing_snapshot_yaml(
     except PricingSourceUnavailable as exc:
         raise api_error(409, "content_integrity", "The stored pricing does not match its digest.") from exc
     return RawResponse(content=content, media_type="application/yaml", headers=headers)
+
+
+# -- OpenBinding's own pricing ---------------------------------------------------------------------------------
+
+
+@public_router.get(
+    "/pricing",
+    operation_id="getPlansPricing",
+    summary="OpenBinding's published pricing (the version SPACE_PRICING_VERSION names), read from SPHERE",
+    response_model=PlansPricingView,
+    responses={
+        200: {"headers": {"ETag": {"description": "The SHA-256 of the YAML.", "schema": {"type": "string"}}}},
+        304: {"description": "The caller's copy (`If-None-Match`) is current."},
+        503: {"model": ErrorResponse, "description": "The published pricing cannot be read (`pricing_unavailable`)."},
+    },
+)
+async def get_plans_pricing(
+    request: Request,
+    response: Response,
+    settings: Settings = Depends(get_settings),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+):
+    """The published pricing: the YAML for pricing-renderer and the parsed document (``.inf`` as ``null``)."""
+    try:
+        value = await own_pricing(session, settings)
+    except OwnPricingUnavailable as exc:
+        raise pricing_unavailable_error(exc, where="published pricing", problem=PUBLISHED_PRICING_UNAVAILABLE) from exc
+    tag = f'"{value.sha256}"'
+    cache = "public, max-age=300"
+    if tag in [part.strip() for part in request.headers.get("if-none-match", "").split(",")]:
+        return RawResponse(status_code=304, headers={"ETag": tag, "Cache-Control": cache})
+    response.headers["ETag"] = tag
+    response.headers["Cache-Control"] = cache
+    return PlansPricingView(
+        pricing_id=value.pricing_id, name=value.name, version=value.version, version_id=value.version_id,
+        created_at=value.created_at, permanent_url=value.permanent_url, yaml=value.yaml, document=value.document,
+    )
