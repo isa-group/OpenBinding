@@ -24,7 +24,7 @@ const DIRECTORY = join(
   import.meta.dirname ?? join(process.cwd(), 'src', 'test', 'sphere'),
   '..',
   'fixtures',
-  'sphere',
+  'sphere'
 );
 const EXPRESSION: ExpressionOptions = { functions: { String: (value: unknown) => String(value) } };
 const SENTINEL = 1e8;
@@ -96,12 +96,14 @@ function fromCompared(value: ComparedValue, limit: boolean, numeric: boolean): u
 }
 
 function capable(value: unknown): boolean {
-  if (value === null || value === undefined || value === false || value === 0 || value === '') return false;
+  if (value === null || value === undefined || value === false || value === 0 || value === '')
+    return false;
   return true;
 }
 
 function close(actual: number | undefined, expected: number | null | undefined): boolean {
-  if (actual === undefined || expected === null || expected === undefined) return actual === expected;
+  if (actual === undefined || expected === null || expected === undefined)
+    return actual === expected;
   return Math.abs(actual - expected) <= EPSILON * Math.max(1, Math.abs(expected));
 }
 
@@ -122,7 +124,9 @@ function load(name: string): Fixture {
 function rendererPricing(fixture: Fixture): NormalizedPricing {
   const result = parsePricingYaml(fixture.yaml);
   if (!result.value) {
-    throw new Error(`${fixture.name}: pricing-renderer refused it: ${JSON.stringify(result.diagnostics)}`);
+    throw new Error(
+      `${fixture.name}: pricing-renderer refused it: ${JSON.stringify(result.diagnostics)}`
+    );
   }
   return result.value;
 }
@@ -134,7 +138,9 @@ const FIXTURES = readdirSync(DIRECTORY)
 
 function numericSets(golden: Golden): { features: Set<string> } {
   return {
-    features: new Set(golden.pricing.features.filter(f => f.valueType === 'NUMERIC').map(f => f.id)),
+    features: new Set(
+      golden.pricing.features.filter(f => f.valueType === 'NUMERIC').map(f => f.id)
+    ),
   };
 }
 
@@ -144,12 +150,16 @@ function planValues(pricing: NormalizedPricing, planId: string, numeric: Set<str
     Object.prototype.hasOwnProperty.call(values, id) && values[id] !== undefined;
   const features: Record<string, unknown> = {};
   for (const feature of pricing.features) {
-    const raw = own(plan.features, feature.id) ? unwrapValue(plan.features[feature.id]) : feature.defaultValue;
+    const raw = own(plan.features, feature.id)
+      ? unwrapValue(plan.features[feature.id])
+      : feature.defaultValue;
     features[feature.id] = fromRaw(raw, false, numeric.has(feature.id));
   }
   const usageLimits: Record<string, unknown> = {};
   for (const limit of pricing.usageLimits) {
-    const raw = own(plan.usageLimits, limit.id) ? unwrapValue(plan.usageLimits[limit.id]) : limit.defaultValue;
+    const raw = own(plan.usageLimits, limit.id)
+      ? unwrapValue(plan.usageLimits[limit.id])
+      : limit.defaultValue;
     usageLimits[limit.id] = fromRaw(raw, true, true);
   }
   return { features, usageLimits };
@@ -157,7 +167,8 @@ function planValues(pricing: NormalizedPricing, planId: string, numeric: Set<str
 
 function selection(effective: GoldenEffective): Partial<PricingSelection> {
   const addOns: PricingSelection['addOns'] = {};
-  for (const [id, quantity] of Object.entries(effective.addOns)) addOns[id] = { selected: true, quantity };
+  for (const [id, quantity] of Object.entries(effective.addOns))
+    addOns[id] = { selected: true, quantity };
   return { planId: effective.plan, addOns };
 }
 
@@ -174,18 +185,32 @@ describe('the Python Pricing2Yaml normaliser reads every recorded pricing as pri
       const numeric = numericSets(golden);
 
       it('has the same names, billing and price kinds', () => {
-        expect(pricing.plans.map(p => p.id), `${name} plans`).toEqual(golden.pricing.plans.map(p => p.id));
-        expect(pricing.addOns.map(a => a.id), `${name} add-ons`).toEqual(golden.pricing.addOns.map(a => a.id));
-        expect(pricing.features.map(f => f.id), `${name} features`).toEqual(golden.pricing.features.map(f => f.id));
-        expect(pricing.usageLimits.map(u => u.id), `${name} usage limits`).toEqual(
-          golden.pricing.usageLimits.map(u => u.id),
-        );
+        expect(
+          pricing.plans.map(p => p.id),
+          `${name} plans`
+        ).toEqual(golden.pricing.plans.map(p => p.id));
+        expect(
+          pricing.addOns.map(a => a.id),
+          `${name} add-ons`
+        ).toEqual(golden.pricing.addOns.map(a => a.id));
+        expect(
+          pricing.features.map(f => f.id),
+          `${name} features`
+        ).toEqual(golden.pricing.features.map(f => f.id));
+        expect(
+          pricing.usageLimits.map(u => u.id),
+          `${name} usage limits`
+        ).toEqual(golden.pricing.usageLimits.map(u => u.id));
         if (golden.pricing.billing.every(b => b.synthesized)) {
-          expect(pricing.billing.every(b => b.synthesized === true), `${name} billing`).toBe(true);
+          expect(
+            pricing.billing.every(b => b.synthesized === true),
+            `${name} billing`
+          ).toBe(true);
         } else {
-          expect(pricing.billing.map(b => [b.id, b.multiplier]), `${name} billing`).toEqual(
-            golden.pricing.billing.map(b => [b.id, b.multiplier]),
-          );
+          expect(
+            pricing.billing.map(b => [b.id, b.multiplier]),
+            `${name} billing`
+          ).toEqual(golden.pricing.billing.map(b => [b.id, b.multiplier]));
         }
         for (const plan of golden.pricing.plans) {
           const theirs = pricing.plans.find(p => p.id === plan.id)!;
@@ -199,22 +224,30 @@ describe('the Python Pricing2Yaml normaliser reads every recorded pricing as pri
 
       it('prices every plan and single add-on variant alike', () => {
         for (const [variant, effective] of Object.entries(golden.effective)) {
-          const resolved = resolvePricing(pricing, selection(effective), { expression: EXPRESSION });
-          expect(resolved.breakdown.billingPeriod?.multiplier ?? 1, `${name} ${variant} billing`).toBe(
-            effective.billing.multiplier,
-          );
+          const resolved = resolvePricing(pricing, selection(effective), {
+            expression: EXPRESSION,
+          });
+          expect(
+            resolved.breakdown.billingPeriod?.multiplier ?? 1,
+            `${name} ${variant} billing`
+          ).toBe(effective.billing.multiplier);
           expect(
             close(resolved.breakdown.subtotal, effective.subtotal),
-            `${name} ${variant} subtotal ${resolved.breakdown.subtotal} != ${effective.subtotal}`,
+            `${name} ${variant} subtotal ${resolved.breakdown.subtotal} != ${effective.subtotal}`
           ).toBe(true);
-          expect(resolved.breakdown.requiresQuote, `${name} ${variant} requiresQuote`).toBe(effective.requiresQuote);
+          expect(resolved.breakdown.requiresQuote, `${name} ${variant} requiresQuote`).toBe(
+            effective.requiresQuote
+          );
           const plan = golden.pricing.plans.find(p => p.id === effective.plan)!;
           if (plan.price.kind === 'expression') {
             const theirs = resolved.planPrices[effective.plan]!;
             if (plan.price.value === null || plan.price.value === undefined) {
               expect(theirs.kind, `${name} ${variant} expression`).toBe('error');
             } else {
-              expect(theirs.kind === 'amount' && close(theirs.baseAmount, plan.price.value), `${name} ${variant} expression value`).toBe(true);
+              expect(
+                theirs.kind === 'amount' && close(theirs.baseAmount, plan.price.value),
+                `${name} ${variant} expression value`
+              ).toBe(true);
             }
           }
         }
@@ -225,10 +258,14 @@ describe('the Python Pricing2Yaml normaliser reads every recorded pricing as pri
           if (Object.keys(effective.addOns).length > 0) continue;
           const values = planValues(pricing, effective.plan, numeric.features);
           for (const [id, value] of Object.entries(effective.features)) {
-            expect(values.features[id], `${name} plan ${variant} feature ${id}`).toEqual(fromGolden(value));
+            expect(values.features[id], `${name} plan ${variant} feature ${id}`).toEqual(
+              fromGolden(value)
+            );
           }
           for (const [id, value] of Object.entries(effective.usageLimits)) {
-            expect(values.usageLimits[id], `${name} plan ${variant} usage limit ${id}`).toEqual(fromGolden(value));
+            expect(values.usageLimits[id], `${name} plan ${variant} usage limit ${id}`).toEqual(
+              fromGolden(value)
+            );
           }
         }
       });
@@ -249,19 +286,29 @@ describe('the Python Pricing2Yaml normaliser reads every recorded pricing as pri
             ...comparison.features.lost,
             ...comparison.features.changed,
           ]) {
-            reported.set(change.id, fromCompared(change.after, false, numeric.features.has(change.id)));
+            reported.set(
+              change.id,
+              fromCompared(change.after, false, numeric.features.has(change.id))
+            );
           }
           for (const [id, value] of Object.entries(effective.features)) {
             const expected = fromGolden(value);
             if (reported.has(id)) {
               expect(reported.get(id), `${name} ${variant} feature ${id}`).toEqual(expected);
             } else {
-              const same = JSON.stringify(expected) === JSON.stringify(fromGolden(base.features[id]));
-              expect(same || (!capable(expected) && !capable(fromGolden(base.features[id]))), `${name} ${variant} feature ${id} (unchanged)`).toBe(true);
+              const same =
+                JSON.stringify(expected) === JSON.stringify(fromGolden(base.features[id]));
+              expect(
+                same || (!capable(expected) && !capable(fromGolden(base.features[id]))),
+                `${name} ${variant} feature ${id} (unchanged)`
+              ).toBe(true);
             }
           }
           const limits = new Map(
-            comparison.usageLimits.changed.map(change => [change.id, fromCompared(change.after, true, true)]),
+            comparison.usageLimits.changed.map(change => [
+              change.id,
+              fromCompared(change.after, true, true),
+            ])
           );
           for (const [id, value] of Object.entries(effective.usageLimits)) {
             const expected = fromGolden(value);
@@ -275,7 +322,12 @@ describe('the Python Pricing2Yaml normaliser reads every recorded pricing as pri
 });
 
 describe('the same plan across two versions compares as the goldens say (the inputs of the F6 classifier)', () => {
-  function across(beforeName: string, afterName: string, plans: string[] | 'all', withPrice: boolean) {
+  function across(
+    beforeName: string,
+    afterName: string,
+    plans: string[] | 'all',
+    withPrice: boolean
+  ) {
     const before = load(beforeName);
     const after = load(afterName);
     const beforePricing = rendererPricing(before);
@@ -291,34 +343,55 @@ describe('the same plan across two versions compares as the goldens say (the inp
       const goldenBefore = before.golden.effective[plan]!;
       const goldenAfter = after.golden.effective[plan]!;
       if (withPrice) {
-        expect(close(comparison.price.before.subtotal, goldenBefore.subtotal), `${plan} price before`).toBe(true);
-        expect(close(comparison.price.after.subtotal, goldenAfter.subtotal), `${plan} price after`).toBe(true);
+        expect(
+          close(comparison.price.before.subtotal, goldenBefore.subtotal),
+          `${plan} price before`
+        ).toBe(true);
+        expect(
+          close(comparison.price.after.subtotal, goldenAfter.subtotal),
+          `${plan} price after`
+        ).toBe(true);
       }
       for (const change of comparison.usageLimits.changed) {
-        expect(fromCompared(change.before, true, true), `${plan} usage limit ${change.id} before`).toEqual(
-          fromGolden(goldenBefore.usageLimits[change.id]),
-        );
-        expect(fromCompared(change.after, true, true), `${plan} usage limit ${change.id} after`).toEqual(
-          fromGolden(goldenAfter.usageLimits[change.id]),
-        );
+        expect(
+          fromCompared(change.before, true, true),
+          `${plan} usage limit ${change.id} before`
+        ).toEqual(fromGolden(goldenBefore.usageLimits[change.id]));
+        expect(
+          fromCompared(change.after, true, true),
+          `${plan} usage limit ${change.id} after`
+        ).toEqual(fromGolden(goldenAfter.usageLimits[change.id]));
       }
       for (const change of [...comparison.features.gained, ...comparison.features.lost]) {
         const isNumeric = numeric.features.has(change.id);
-        expect(fromCompared(change.before, false, isNumeric), `${plan} feature ${change.id} before`).toEqual(
-          fromGolden(goldenBefore.features[change.id]),
-        );
-        expect(fromCompared(change.after, false, isNumeric), `${plan} feature ${change.id} after`).toEqual(
-          fromGolden(goldenAfter.features[change.id]),
-        );
+        expect(
+          fromCompared(change.before, false, isNumeric),
+          `${plan} feature ${change.id} before`
+        ).toEqual(fromGolden(goldenBefore.features[change.id]));
+        expect(
+          fromCompared(change.after, false, isNumeric),
+          `${plan} feature ${change.id} after`
+        ).toEqual(fromGolden(goldenAfter.features[change.id]));
       }
     }
   }
 
   it('the synthetic Mailgun pair, every plan, with prices', () => {
-    across('6ade364540e55445692b0eda.6ade36454b2b5b01c587db3d', 'derived.mailgun-scale', 'all', true);
+    across(
+      '6ade364540e55445692b0eda.6ade36454b2b5b01c587db3d',
+      'derived.mailgun-scale',
+      'all',
+      true
+    );
     const scale = compareSelections({
-      before: { pricing: rendererPricing(load('6ade364540e55445692b0eda.6ade36454b2b5b01c587db3d')), selection: { planId: 'SCALE' } },
-      after: { pricing: rendererPricing(load('derived.mailgun-scale')), selection: { planId: 'SCALE' } },
+      before: {
+        pricing: rendererPricing(load('6ade364540e55445692b0eda.6ade36454b2b5b01c587db3d')),
+        selection: { planId: 'SCALE' },
+      },
+      after: {
+        pricing: rendererPricing(load('derived.mailgun-scale')),
+        selection: { planId: 'SCALE' },
+      },
       expression: EXPRESSION,
     });
     expect(scale.usageLimits.changed.map(change => change.id)).toEqual(['emailsPerMonth']);
@@ -329,7 +402,7 @@ describe('the same plan across two versions compares as the goldens say (the inp
       '6ab0a323697330667ccce9c1.687e4b68102baa50f3a5c7b7',
       '6ab0a323697330667ccce9c1.687e4b68102baa50f3a5c7b6',
       ['PLUS'],
-      false,
+      false
     );
   });
 });

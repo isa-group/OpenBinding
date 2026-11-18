@@ -769,7 +769,10 @@ describe('admin-user-detail · one account', () => {
   });
 
   it('says it is reading the subscription again in the review in words too, and only then lets the change be confirmed', async () => {
-    api.getPlansPricing.mockResolvedValue({ ...PRICING_FIXTURE, document: { ...catalogFixture, syntaxVersion: '9.0' } });
+    api.getPlansPricing.mockResolvedValue({
+      ...PRICING_FIXTURE,
+      document: { ...catalogFixture, syntaxVersion: '9.0' },
+    });
     const gateway = subscriptionGateway();
     open();
     await ready();
@@ -806,7 +809,10 @@ describe('admin-user-detail · one account', () => {
   });
 
   it('still lets a change be reviewed in words and applied when the renderer cannot read the pricing document', async () => {
-    api.getPlansPricing.mockResolvedValue({ ...PRICING_FIXTURE, document: { ...catalogFixture, syntaxVersion: '9.0' } });
+    api.getPlansPricing.mockResolvedValue({
+      ...PRICING_FIXTURE,
+      document: { ...catalogFixture, syntaxVersion: '9.0' },
+    });
     open();
     await ready();
     choose(/^ADVANCED/);

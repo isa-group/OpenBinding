@@ -182,7 +182,6 @@ export default function PricingPage() {
             </>
           )}
 
-
           {!loading && failed && (
             <BlockAlert
               variant="error"
