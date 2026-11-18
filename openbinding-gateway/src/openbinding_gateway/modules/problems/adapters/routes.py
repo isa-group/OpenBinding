@@ -35,12 +35,18 @@ from ....services.engines import compatible_modes
 from ....services.entitlements import entitlement_service
 from ...shared.application import audit
 from ..application import problems
+from ..application import sphere
 from ..application.facts import compilation_facts
 from ..application.origins import value_sources
 from ..application.package import PackageRequest, read_package
 from ..domain.compilation import analysis_summary, resource_contracts
-from ..domain.origin import ProblemOrigin
+from ..domain.origin import SPHERE_PRODUCER, ProblemOrigin
 from .schemas import (
+    RevisionSphere,
+    SphereApplyRequest,
+    SphereExpandRequest,
+    SphereExpandView,
+    SphereRecipeView,
     CompilationIr,
     CompilationSummary,
     CompilationView,
@@ -148,11 +154,22 @@ def _problem_view(
     )
 
 
+def _sphere_of(provenance: dict[str, Any] | None) -> RevisionSphere | None:
+    if not provenance or provenance.get("producer") != SPHERE_PRODUCER or not provenance.get("recipeDigest"):
+        return None
+    return RevisionSphere(
+        recipeDigest=provenance["recipeDigest"],
+        sources=[{"title": item.get("title") or "", "versionLabel": item.get("versionLabel")}
+                 for item in provenance.get("sources") or [] if isinstance(item, dict)],
+    )
+
+
 def _revision_view(row: BindingCaseRevision) -> RevisionView:
     return RevisionView(
         id=row.id, problem_id=row.binding_case_id, revision=row.revision, package_digest=row.package_digest,
         instance_digest=row.instance_digest, package_size=row.package_size, provenance=row.provenance,
         origin=row.origin, created_by_id=row.created_by_id, created_at=row.created_at,
+        sphere=_sphere_of(row.provenance),
     )
 
 
@@ -545,3 +562,108 @@ async def get_problem_compilation_facts(
     )
     response.headers.update(headers)
     return facts
+
+
+# -- SPHERE imports ---------------------------------------------------------------------------------------------
+
+#: The largest SPHERE import request body.
+SPHERE_BODY_LIMIT = 256 * 1024
+SPHERE_RESPONSES: dict[int | str, dict[str, Any]] = {
+    404: NOT_FOUND_RESPONSE,
+    409: {"model": ErrorResponse, "description": "`problem_exists` (a new problem's slug is taken), "
+          "`revision_moved` (another revision was added since; with `latest`) or `sphere_preview_stale` "
+          "(the recipe generates another package than the preview)."},
+    413: {"model": ErrorResponse, "description": "The request body exceeds 256 KiB."},
+}
+
+
+async def _sphere_body_limit(request: Request) -> None:
+    if len(await request.body()) > SPHERE_BODY_LIMIT:
+        raise api_error(413, "payload_too_large", f"A SPHERE import request is at most {SPHERE_BODY_LIMIT} bytes.")
+
+
+@router.post(
+    "/{problem}/sphere/expand",
+    response_model=SphereExpandView,
+    operation_id="expandSphereRecipe",
+    summary="Preview the candidates a SPHERE import recipe generates",
+    responses=SPHERE_RESPONSES,
+    dependencies=[Depends(_sphere_body_limit), Depends(limit_work)],
+)
+async def expand_sphere_recipe(
+    org: str,
+    problem: str,
+    payload: SphereExpandRequest,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> Any:
+    """Read every pricing the recipe names (snapshotting each), generate the BIM package over the base revision
+    (or a new problem whose slug is `{problem}`), compile it and answer the candidates, why each is (in)eligible,
+    the changes against the base, the facts with their value sources and the package digest apply expects.
+
+    The `sphere_*` findings, and the compiler's on the generated package, come back located with a 200.
+    """
+    organization = await _organization(session, org, user, OrganizationRole.MEMBER)
+    preview = await sphere.expand(
+        session, organization, problem, payload.recipe, payload.base.revision if payload.base else None, user,
+    )
+    return preview.view
+
+
+@router.post(
+    "/{problem}/sphere/apply",
+    status_code=status.HTTP_201_CREATED,
+    response_model=ProblemUpload,
+    operation_id="applySphereRecipe",
+    summary="Store what a SPHERE import recipe generates",
+    responses={
+        200: {"model": ProblemUpload, "description": "The problem already has that package; nothing was stored."},
+        402: UPLOAD_RESPONSES[402],
+        422: {"description": "The recipe is refused (`sphere_recipe_invalid`, `sphere_recipe_refused`, with "
+              "`diagnostics`) or the toolchain refused the package (`invalid_instance`)."},
+        **SPHERE_RESPONSES,
+    },
+    dependencies=[Depends(_sphere_body_limit), Depends(limit_work)],
+)
+async def apply_sphere_recipe(
+    org: str,
+    problem: str,
+    payload: SphereApplyRequest,
+    response: Response,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> ProblemUpload:
+    """Store the package a pinned recipe generates as a new problem (`base` null) or as the revision after
+    `base`, exactly as its preview showed (`expect.packageDigest`), with the recipe in its provenance and the
+    origin of every generated value. An apply repeated after it succeeded answers the same revision (200).
+    """
+    organization = await _organization(session, org, user, OrganizationRole.MEMBER)
+    upload = await sphere.apply(
+        session, organization, problem, payload.recipe, payload.base.revision if payload.base else None,
+        payload.expect.packageDigest, user, name=payload.name,
+    )
+    if not upload.created:
+        response.status_code = status.HTTP_200_OK
+    return _upload_view(upload)
+
+
+@router.get(
+    "/{problem}/sphere/recipe",
+    response_model=SphereRecipeView,
+    operation_id="getSphereRecipe",
+    summary="Read the SPHERE recipe that generated a revision",
+    responses={404: NOT_FOUND_RESPONSE},
+)
+async def get_sphere_recipe(
+    org: str,
+    problem: str,
+    revision: int | None = Query(default=None, ge=1, description="Defaults to the newest revision SPHERE generated."),
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> SphereRecipeView:
+    """The pinned recipe of revision `revision`, or of the newest revision a SPHERE import generated; 404 when
+    none did."""
+    organization = await _organization(session, org, user, OrganizationRole.VIEWER)
+    found = await _problem(session, organization, problem)
+    row, recipe = await sphere.recipe_of(session, found, revision)
+    return SphereRecipeView(revision=row.revision, recipeDigest=row.provenance["recipeDigest"], recipe=dict(recipe.document))

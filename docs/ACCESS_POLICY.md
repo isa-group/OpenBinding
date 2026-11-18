@@ -34,6 +34,7 @@ malformed, and a malformed boundary denies everything.
 | `` (the organization), `/members`, `/members/batch`, `/members/{member}`, `/invitations` | VIEWER (members list) | ADMIN; owner changes need OWNER; deleting needs ADMIN (below) | `organizations:read` / `organizations:write` |
 | `/audit` | ADMIN | — | `organizations:read` |
 | `/problems`, `/problems/{problem}`, `/problems/{problem}/revisions/...` (the facts of a compilation, `…/revisions/{revision}/compilations/{compilation}/facts`, included) | VIEWER | MEMBER uploads, adds revisions and edits; ADMIN deletes | `problems:read` / `problems:write` |
+| `/problems/{problem}/sphere/expand`, `/problems/{problem}/sphere/apply`, `/problems/{problem}/sphere/recipe` (SPHERE imports; `{problem}` is the slug a new problem will have) | VIEWER reads a revision's recipe | MEMBER previews and applies (a VIEWER gets `403`) | `problems:read` / `problems:write` |
 | `/runs/...` | VIEWER (redacted below MEMBER) | MEMBER | `jobs:read` / `engines:execute` |
 | `/presets`, `/presets/{preset}` | VIEWER (options redacted below MEMBER; a non-member gets `404`) | MEMBER creates, edits and deletes | `jobs:read` / `engines:execute` |
 | `/studies/...` (study runs and cells included; the export of a run, `GET …/studies/{study}/runs/{run}/export?format=csv\|json`, too) | VIEWER | MEMBER creates, edits and runs; ADMIN deletes | `studies:read` / `studies:write` |
@@ -160,7 +161,7 @@ cannot keep the compiler busy for everybody else, every client also has a budget
 
 | Class | Routes | Anonymous, per client address | Signed in, per account |
 |---|---|---|---|
-| `compile` | `POST /v1/bim/validate`, `POST /v1/organizations/{org}/problems`, `POST …/problems/{problem}/revisions`, `GET …/revisions/{revision}/compilation` | `WORK_RATE_LIMIT_COMPILE_REQUESTS` (default 10) | that, times `WORK_RATE_LIMIT_SIGNED_IN_MULTIPLIER` (default 5) |
+| `compile` | `POST /v1/bim/validate`, `POST /v1/organizations/{org}/problems`, `POST …/problems/{problem}/revisions`, `GET …/revisions/{revision}/compilation`, `POST …/problems/{problem}/sphere/expand`, `POST …/problems/{problem}/sphere/apply` | `WORK_RATE_LIMIT_COMPILE_REQUESTS` (default 10) | that, times `WORK_RATE_LIMIT_SIGNED_IN_MULTIPLIER` (default 5) |
 | `read` | `POST /v1/compositions/validate`, `/parse`, `/serialise`, `/diff`; and, for a visitor only, `GET /v1/compositions` and the five reads of a public composition | `WORK_RATE_LIMIT_READ_REQUESTS` (default 60) | that, times `WORK_RATE_LIMIT_SIGNED_IN_MULTIPLIER` (not charged on the reads of a composition) |
 | `evaluate` | `POST /v1/organizations/{org}/compositions/{composition}/versions`, `POST …/versions/check`, `POST …/fork`, `POST …/versions/{version}/evaluations`, `POST …/evaluate`, `GET …/neighborhood`, `POST …/derive` | `WORK_RATE_LIMIT_EVALUATE_REQUESTS` (default 30) | that, times `WORK_RATE_LIMIT_SIGNED_IN_MULTIPLIER` |
 

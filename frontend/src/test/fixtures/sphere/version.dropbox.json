@@ -3,8 +3,8 @@
   "snapshot": {
     "collection": "a-mint",
     "currency": "USD",
-    "fetchedAt": "2026-01-01T00:00:09Z",
-    "id": "00000000-0000-4000-8000-000000000001",
+    "fetchedAt": "2026-01-01T00:00:18Z",
+    "id": "00000000-0000-4000-8000-000000000006",
     "owner": "atenea",
     "permanentUrl": "https://sphere.score.us.es/p/6ab0a323697330667ccce9c1?version=687e4b68102baa50f3a5c7b7",
     "pricingId": "6ab0a323697330667ccce9c1",
@@ -16,10 +16,10 @@
     "title": "Dropbox",
     "url": null,
     "valid": true,
-    "versionCreatedAt": "2026-01-01T00:00:00Z",
+    "versionCreatedAt": "2026-01-01T00:00:08Z",
     "versionId": "687e4b68102baa50f3a5c7b7",
     "versionLabel": "2021",
-    "yamlHref": "/v1/organizations/fixtures/pricing-snapshots/00000000-0000-4000-8000-000000000001/yaml"
+    "yamlHref": "/v1/organizations/fixtures/pricing-snapshots/00000000-0000-4000-8000-000000000006/yaml"
   },
   "summary": {
     "addOns": [],

@@ -3,8 +3,8 @@
   "snapshot": {
     "collection": null,
     "currency": "USD",
-    "fetchedAt": "2026-01-01T00:00:10Z",
-    "id": "00000000-0000-4000-8000-000000000002",
+    "fetchedAt": "2026-01-01T00:00:19Z",
+    "id": "00000000-0000-4000-8000-000000000013",
     "owner": "danruilop1",
     "permanentUrl": "https://sphere.score.us.es/p/6ade364540e55445692b0eda?version=6ade36454b2b5b01c587db3d",
     "pricingId": "6ade364540e55445692b0eda",
@@ -16,10 +16,10 @@
     "title": "Mailgun",
     "url": null,
     "valid": true,
-    "versionCreatedAt": "2026-01-01T00:00:03Z",
+    "versionCreatedAt": "2026-01-01T00:00:09Z",
     "versionId": "6ade36454b2b5b01c587db3d",
     "versionLabel": "2026-10",
-    "yamlHref": "/v1/organizations/fixtures/pricing-snapshots/00000000-0000-4000-8000-000000000002/yaml"
+    "yamlHref": "/v1/organizations/fixtures/pricing-snapshots/00000000-0000-4000-8000-000000000013/yaml"
   },
   "summary": {
     "addOns": [

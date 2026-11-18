@@ -1,4 +1,6 @@
-"""SPHERE imports: the package generator (and, from ``expand``, the preview and apply of a recipe)."""
+"""SPHERE imports: the package generator, and the preview, apply and recipe read of ``expand``."""
+
+from .expand import EXPAND_DEADLINE_S, Preview, apply, expand, latest_sphere_revision, recipe_of, resolve_sources
 
 from .generate import (
     GENERATOR_VERSION,
@@ -13,6 +15,13 @@ from .generate import (
 )
 
 __all__ = [
+    "EXPAND_DEADLINE_S",
+    "Preview",
+    "apply",
+    "expand",
+    "latest_sphere_revision",
+    "recipe_of",
+    "resolve_sources",
     "GENERATOR_VERSION",
     "RECIPE_ANNOTATION",
     "Generated",

@@ -1,0 +1,141 @@
+{
+  "recipe": {
+    "billing": "monthly",
+    "currency": "USD",
+    "demand": {
+      "dailyEmails": {
+        "unit": "email/day",
+        "value": 1000
+      },
+      "monthlyEmails": {
+        "unit": "email/month",
+        "value": 30000
+      }
+    },
+    "features": {
+      "availability": {
+        "direction": "maximize",
+        "domain": "ratio",
+        "unit": ""
+      },
+      "latency": {
+        "direction": "minimize",
+        "unit": "ms"
+      },
+      "subscription": {
+        "direction": "minimize",
+        "unit": "USD/month"
+      }
+    },
+    "recipeVersion": "1",
+    "tasks": [
+      {
+        "capability": "service/email",
+        "expand": "plans",
+        "from": [
+          {
+            "addons": [],
+            "provider": "mailgun",
+            "sphere": {
+              "pricing": "6ade364540e55445692b0eda",
+              "version": "6ade36454b2b5b01c587db3d"
+            }
+          },
+          {
+            "addons": [],
+            "assume": {
+              "emailsPerDay": "unlimited"
+            },
+            "provider": "sendgrid",
+            "sphere": {
+              "pricing": "6adf1a6240e55445692b6f14",
+              "version": "6adf1a62daa2ba78b21d7119"
+            }
+          },
+          {
+            "addons": [],
+            "names": {
+              "guaranteedUptimeSla": "sla"
+            },
+            "provider": "brevo",
+            "sphere": {
+              "pricing": "6ade2d4440e55445692b07f1",
+              "version": "6ade2d444b2b5b01c587d80d"
+            }
+          },
+          {
+            "addons": [],
+            "names": {
+              "emailsPerDay": "transactionalEmailsPerDay",
+              "emailsPerMonth": "transactionalEmailsPerMonth",
+              "guaranteedUptimeSla": "uptimeSla"
+            },
+            "provider": "resend",
+            "sphere": {
+              "pricing": "6ade2d2540e55445692b07c6",
+              "version": "6ade2d254b2b5b01c587d7ee"
+            }
+          },
+          {
+            "addons": [],
+            "names": {
+              "emailsPerDay": "dailyEmailSendingPerDay",
+              "emailsPerMonth": "monthlyEmailVolumeLimit"
+            },
+            "provider": "postmark",
+            "sphere": {
+              "pricing": "6ade2f3b40e55445692b09aa",
+              "version": "6ade2f3b4b2b5b01c587d8f5"
+            }
+          }
+        ],
+        "properties": {
+          "availability": {
+            "guarantee": "guaranteedUptimeSla",
+            "map": {
+              "false": 0.99,
+              "true": 0.9995
+            },
+            "postmark": {
+              "manual": {
+                "*": 0.999
+              }
+            },
+            "sendgrid": {
+              "manual": {
+                "*": 0.999
+              }
+            }
+          },
+          "latency": {
+            "manual": {
+              "*": 400,
+              "brevo": 300,
+              "mailgun": 250,
+              "mailgun.FOUNDATION": 200,
+              "postmark": 150,
+              "resend": 180,
+              "sendgrid": 220
+            }
+          },
+          "subscription": "price"
+        },
+        "prune": "none",
+        "require": {
+          "limits": {
+            "emailsPerDay": {
+              "atLeast": "dailyEmails"
+            },
+            "emailsPerMonth": {
+              "atLeast": "monthlyEmails"
+            }
+          }
+        },
+        "service": "email",
+        "task": "dailySummary"
+      }
+    ]
+  },
+  "recipeDigest": "sha256-6b84ab0e25c298ea4d83c38911549baffd25e627df50c29c3808d8f2456b752c",
+  "revision": 2
+}

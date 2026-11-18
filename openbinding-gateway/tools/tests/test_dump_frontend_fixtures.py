@@ -44,6 +44,17 @@ def test_two_runs_write_byte_identical_trees(two_runs) -> None:
     )
 
 
+def test_the_sphere_import_journeys_are_written(two_runs) -> None:
+    first, _ = two_runs
+    names = set(_tree(first / "sphere"))
+    for journey in ("tomatometer-email", "storage"):
+        assert {f"expand.{journey}.json", f"apply.{journey}.json", f"recipe.{journey}.json"} <= names
+    preview = json.loads((first / "sphere" / "expand.tomatometer-email.json").read_text(encoding="utf-8"))
+    applied = json.loads((first / "sphere" / "apply.tomatometer-email.json").read_text(encoding="utf-8"))
+    assert preview["valid"] and applied["revision"]["package_digest"] == preview["packageDigest"]
+    assert applied["revision"]["origin"] == "sphere" and applied["revision"]["revision"] == 2
+
+
 def test_the_generated_facts_carry_sources_properties_and_provenance(two_runs) -> None:
     first, _ = two_runs
     facts = json.loads((first / "core" / "tomatometer-email.facts.json").read_text(encoding="utf-8"))

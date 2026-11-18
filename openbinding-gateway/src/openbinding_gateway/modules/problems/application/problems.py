@@ -458,12 +458,17 @@ async def add_revision(
     *,
     provenance: dict[str, Any] | None = None,
     value_origins: list[dict[str, Any]] | None = None,
+    expected_latest: int | None = None,
 ) -> Upload:
     """Add ``archive`` as the next revision of ``problem`` (201), or answer the revision it already is (200).
 
     Idempotent on ``(problem, packageDigest)``: the same package, however zipped, is the same revision, and
     nothing is stored for it again (its origins included: the first writer's stay). ``value_origins`` (a SPHERE
     import's) are inserted with a new revision, in its transaction.
+
+    ``expected_latest`` (a SPHERE apply's base) must be the latest revision when the problem is locked, after the
+    digest dedupe: otherwise 409 ``revision_moved`` with the latest number, so a save that landed between the
+    caller's read and this insert is never silently built over.
     """
     caps = await entitlement_service.caps_or_503(actor.id)
     entitlement_service.require_feature(caps, ids.REPOSITORY)
@@ -496,6 +501,11 @@ async def add_revision(
         latest = await session.scalar(
             select(func.max(BindingCaseRevision.revision)).where(BindingCaseRevision.binding_case_id == problem_id)
         )
+        if expected_latest is not None and int(latest or 0) != expected_latest:
+            raise api_error(
+                409, "revision_moved", "Another revision was added since; preview again on the latest one.",
+                latest=int(latest or 0),
+            )
         try:
             async with session.begin_nested():
                 blob = await put_row(session, organization_id, stored, PACKAGE_MEDIA_TYPE, actor_id)

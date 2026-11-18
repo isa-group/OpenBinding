@@ -196,7 +196,7 @@
               "registry": null,
               "sphere": "danruilop1/brevo",
               "versionId": "6ade2d444b2b5b01c587d80d",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         },
@@ -219,7 +219,7 @@
               "registry": null,
               "sphere": "danruilop1/brevo",
               "versionId": "6ade2d444b2b5b01c587d80d",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         },
@@ -258,7 +258,7 @@
               "registry": null,
               "sphere": "danruilop1/brevo",
               "versionId": "6ade2d444b2b5b01c587d80d",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         }
@@ -294,7 +294,7 @@
               "registry": null,
               "sphere": "danruilop1/brevo",
               "versionId": "6ade2d444b2b5b01c587d80d",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         },
@@ -326,7 +326,7 @@
               "registry": null,
               "sphere": "danruilop1/brevo",
               "versionId": "6ade2d444b2b5b01c587d80d",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         }
@@ -337,10 +337,10 @@
         "plan": "FREE",
         "pricingId": "6ade2d4440e55445692b07f1",
         "registry": null,
-        "snapshot": null,
+        "snapshot": "00000000-0000-4000-8000-000000000026",
         "sphere": "danruilop1/brevo",
         "version": "6ade2d444b2b5b01c587d80d",
-        "versionLabel": null
+        "versionLabel": "2026-10"
       },
       "provider": "brevo",
       "resource": "sphere-email",
@@ -379,7 +379,7 @@
               "registry": null,
               "sphere": "danruilop1/brevo",
               "versionId": "6ade2d444b2b5b01c587d80d",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         },
@@ -402,7 +402,7 @@
               "registry": null,
               "sphere": "danruilop1/brevo",
               "versionId": "6ade2d444b2b5b01c587d80d",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         },
@@ -459,7 +459,7 @@
               "registry": null,
               "sphere": "danruilop1/brevo",
               "versionId": "6ade2d444b2b5b01c587d80d",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         }
@@ -497,7 +497,7 @@
               "registry": null,
               "sphere": "danruilop1/brevo",
               "versionId": "6ade2d444b2b5b01c587d80d",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         },
@@ -527,7 +527,7 @@
               "registry": null,
               "sphere": "danruilop1/brevo",
               "versionId": "6ade2d444b2b5b01c587d80d",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         }
@@ -538,10 +538,10 @@
         "plan": "PROFESSIONAL",
         "pricingId": "6ade2d4440e55445692b07f1",
         "registry": null,
-        "snapshot": null,
+        "snapshot": "00000000-0000-4000-8000-000000000026",
         "sphere": "danruilop1/brevo",
         "version": "6ade2d444b2b5b01c587d80d",
-        "versionLabel": null
+        "versionLabel": "2026-10"
       },
       "provider": "brevo",
       "resource": "sphere-email",
@@ -580,7 +580,7 @@
               "registry": null,
               "sphere": "danruilop1/brevo",
               "versionId": "6ade2d444b2b5b01c587d80d",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         },
@@ -603,7 +603,7 @@
               "registry": null,
               "sphere": "danruilop1/brevo",
               "versionId": "6ade2d444b2b5b01c587d80d",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         },
@@ -662,7 +662,7 @@
               "registry": null,
               "sphere": "danruilop1/brevo",
               "versionId": "6ade2d444b2b5b01c587d80d",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         }
@@ -700,7 +700,7 @@
               "registry": null,
               "sphere": "danruilop1/brevo",
               "versionId": "6ade2d444b2b5b01c587d80d",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         },
@@ -730,7 +730,7 @@
               "registry": null,
               "sphere": "danruilop1/brevo",
               "versionId": "6ade2d444b2b5b01c587d80d",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         }
@@ -741,10 +741,10 @@
         "plan": "STANDARD",
         "pricingId": "6ade2d4440e55445692b07f1",
         "registry": null,
-        "snapshot": null,
+        "snapshot": "00000000-0000-4000-8000-000000000026",
         "sphere": "danruilop1/brevo",
         "version": "6ade2d444b2b5b01c587d80d",
-        "versionLabel": null
+        "versionLabel": "2026-10"
       },
       "provider": "brevo",
       "resource": "sphere-email",
@@ -783,7 +783,7 @@
               "registry": null,
               "sphere": "danruilop1/brevo",
               "versionId": "6ade2d444b2b5b01c587d80d",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         },
@@ -806,7 +806,7 @@
               "registry": null,
               "sphere": "danruilop1/brevo",
               "versionId": "6ade2d444b2b5b01c587d80d",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         },
@@ -861,7 +861,7 @@
               "registry": null,
               "sphere": "danruilop1/brevo",
               "versionId": "6ade2d444b2b5b01c587d80d",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         }
@@ -899,7 +899,7 @@
               "registry": null,
               "sphere": "danruilop1/brevo",
               "versionId": "6ade2d444b2b5b01c587d80d",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         },
@@ -929,7 +929,7 @@
               "registry": null,
               "sphere": "danruilop1/brevo",
               "versionId": "6ade2d444b2b5b01c587d80d",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         }
@@ -940,10 +940,10 @@
         "plan": "STARTER",
         "pricingId": "6ade2d4440e55445692b07f1",
         "registry": null,
-        "snapshot": null,
+        "snapshot": "00000000-0000-4000-8000-000000000026",
         "sphere": "danruilop1/brevo",
         "version": "6ade2d444b2b5b01c587d80d",
-        "versionLabel": null
+        "versionLabel": "2026-10"
       },
       "provider": "brevo",
       "resource": "sphere-email",
@@ -982,7 +982,7 @@
               "registry": null,
               "sphere": "danruilop1/mailgun",
               "versionId": "6ade36454b2b5b01c587db3d",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         },
@@ -1005,7 +1005,7 @@
               "registry": null,
               "sphere": "danruilop1/mailgun",
               "versionId": "6ade36454b2b5b01c587db3d",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         },
@@ -1044,7 +1044,7 @@
               "registry": null,
               "sphere": "danruilop1/mailgun",
               "versionId": "6ade36454b2b5b01c587db3d",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         }
@@ -1082,7 +1082,7 @@
               "registry": null,
               "sphere": "danruilop1/mailgun",
               "versionId": "6ade36454b2b5b01c587db3d",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         },
@@ -1112,7 +1112,7 @@
               "registry": null,
               "sphere": "danruilop1/mailgun",
               "versionId": "6ade36454b2b5b01c587db3d",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         }
@@ -1123,10 +1123,10 @@
         "plan": "BASIC",
         "pricingId": "6ade364540e55445692b0eda",
         "registry": null,
-        "snapshot": null,
+        "snapshot": "00000000-0000-4000-8000-000000000027",
         "sphere": "danruilop1/mailgun",
         "version": "6ade36454b2b5b01c587db3d",
-        "versionLabel": null
+        "versionLabel": "2026-10"
       },
       "provider": "mailgun",
       "resource": "sphere-email",
@@ -1165,7 +1165,7 @@
               "registry": null,
               "sphere": "danruilop1/mailgun",
               "versionId": "6ade36454b2b5b01c587db3d",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         },
@@ -1188,7 +1188,7 @@
               "registry": null,
               "sphere": "danruilop1/mailgun",
               "versionId": "6ade36454b2b5b01c587db3d",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         },
@@ -1227,7 +1227,7 @@
               "registry": null,
               "sphere": "danruilop1/mailgun",
               "versionId": "6ade36454b2b5b01c587db3d",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         }
@@ -1265,7 +1265,7 @@
               "registry": null,
               "sphere": "danruilop1/mailgun",
               "versionId": "6ade36454b2b5b01c587db3d",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         },
@@ -1295,7 +1295,7 @@
               "registry": null,
               "sphere": "danruilop1/mailgun",
               "versionId": "6ade36454b2b5b01c587db3d",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         }
@@ -1306,10 +1306,10 @@
         "plan": "FOUNDATION",
         "pricingId": "6ade364540e55445692b0eda",
         "registry": null,
-        "snapshot": null,
+        "snapshot": "00000000-0000-4000-8000-000000000027",
         "sphere": "danruilop1/mailgun",
         "version": "6ade36454b2b5b01c587db3d",
-        "versionLabel": null
+        "versionLabel": "2026-10"
       },
       "provider": "mailgun",
       "resource": "sphere-email",
@@ -1348,7 +1348,7 @@
               "registry": null,
               "sphere": "danruilop1/mailgun",
               "versionId": "6ade36454b2b5b01c587db3d",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         },
@@ -1371,7 +1371,7 @@
               "registry": null,
               "sphere": "danruilop1/mailgun",
               "versionId": "6ade36454b2b5b01c587db3d",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         },
@@ -1410,7 +1410,7 @@
               "registry": null,
               "sphere": "danruilop1/mailgun",
               "versionId": "6ade36454b2b5b01c587db3d",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         }
@@ -1446,7 +1446,7 @@
               "registry": null,
               "sphere": "danruilop1/mailgun",
               "versionId": "6ade36454b2b5b01c587db3d",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         },
@@ -1478,7 +1478,7 @@
               "registry": null,
               "sphere": "danruilop1/mailgun",
               "versionId": "6ade36454b2b5b01c587db3d",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         }
@@ -1489,10 +1489,10 @@
         "plan": "FREE",
         "pricingId": "6ade364540e55445692b0eda",
         "registry": null,
-        "snapshot": null,
+        "snapshot": "00000000-0000-4000-8000-000000000027",
         "sphere": "danruilop1/mailgun",
         "version": "6ade36454b2b5b01c587db3d",
-        "versionLabel": null
+        "versionLabel": "2026-10"
       },
       "provider": "mailgun",
       "resource": "sphere-email",
@@ -1531,7 +1531,7 @@
               "registry": null,
               "sphere": "danruilop1/mailgun",
               "versionId": "6ade36454b2b5b01c587db3d",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         },
@@ -1554,7 +1554,7 @@
               "registry": null,
               "sphere": "danruilop1/mailgun",
               "versionId": "6ade36454b2b5b01c587db3d",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         },
@@ -1593,7 +1593,7 @@
               "registry": null,
               "sphere": "danruilop1/mailgun",
               "versionId": "6ade36454b2b5b01c587db3d",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         }
@@ -1631,7 +1631,7 @@
               "registry": null,
               "sphere": "danruilop1/mailgun",
               "versionId": "6ade36454b2b5b01c587db3d",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         },
@@ -1661,7 +1661,7 @@
               "registry": null,
               "sphere": "danruilop1/mailgun",
               "versionId": "6ade36454b2b5b01c587db3d",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         }
@@ -1672,10 +1672,10 @@
         "plan": "SCALE",
         "pricingId": "6ade364540e55445692b0eda",
         "registry": null,
-        "snapshot": null,
+        "snapshot": "00000000-0000-4000-8000-000000000027",
         "sphere": "danruilop1/mailgun",
         "version": "6ade36454b2b5b01c587db3d",
-        "versionLabel": null
+        "versionLabel": "2026-10"
       },
       "provider": "mailgun",
       "resource": "sphere-email",
@@ -1709,7 +1709,7 @@
               "registry": null,
               "sphere": "danruilop1/postmark",
               "versionId": "6ade2f3b4b2b5b01c587d8f5",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         },
@@ -1732,7 +1732,7 @@
               "registry": null,
               "sphere": "danruilop1/postmark",
               "versionId": "6ade2f3b4b2b5b01c587d8f5",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         },
@@ -1783,7 +1783,7 @@
               "registry": null,
               "sphere": "danruilop1/postmark",
               "versionId": "6ade2f3b4b2b5b01c587d8f5",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         }
@@ -1821,7 +1821,7 @@
               "registry": null,
               "sphere": "danruilop1/postmark",
               "versionId": "6ade2f3b4b2b5b01c587d8f5",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         },
@@ -1851,7 +1851,7 @@
               "registry": null,
               "sphere": "danruilop1/postmark",
               "versionId": "6ade2f3b4b2b5b01c587d8f5",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         }
@@ -1862,10 +1862,10 @@
         "plan": "BASIC",
         "pricingId": "6ade2f3b40e55445692b09aa",
         "registry": null,
-        "snapshot": null,
+        "snapshot": "00000000-0000-4000-8000-000000000028",
         "sphere": "danruilop1/postmark",
         "version": "6ade2f3b4b2b5b01c587d8f5",
-        "versionLabel": null
+        "versionLabel": "2026-10"
       },
       "provider": "postmark",
       "resource": "sphere-email",
@@ -1899,7 +1899,7 @@
               "registry": null,
               "sphere": "danruilop1/postmark",
               "versionId": "6ade2f3b4b2b5b01c587d8f5",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         },
@@ -1922,7 +1922,7 @@
               "registry": null,
               "sphere": "danruilop1/postmark",
               "versionId": "6ade2f3b4b2b5b01c587d8f5",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         },
@@ -1961,7 +1961,7 @@
               "registry": null,
               "sphere": "danruilop1/postmark",
               "versionId": "6ade2f3b4b2b5b01c587d8f5",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         }
@@ -1999,7 +1999,7 @@
               "registry": null,
               "sphere": "danruilop1/postmark",
               "versionId": "6ade2f3b4b2b5b01c587d8f5",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         },
@@ -2029,7 +2029,7 @@
               "registry": null,
               "sphere": "danruilop1/postmark",
               "versionId": "6ade2f3b4b2b5b01c587d8f5",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         }
@@ -2040,10 +2040,10 @@
         "plan": "FREE",
         "pricingId": "6ade2f3b40e55445692b09aa",
         "registry": null,
-        "snapshot": null,
+        "snapshot": "00000000-0000-4000-8000-000000000028",
         "sphere": "danruilop1/postmark",
         "version": "6ade2f3b4b2b5b01c587d8f5",
-        "versionLabel": null
+        "versionLabel": "2026-10"
       },
       "provider": "postmark",
       "resource": "sphere-email",
@@ -2077,7 +2077,7 @@
               "registry": null,
               "sphere": "danruilop1/postmark",
               "versionId": "6ade2f3b4b2b5b01c587d8f5",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         },
@@ -2100,7 +2100,7 @@
               "registry": null,
               "sphere": "danruilop1/postmark",
               "versionId": "6ade2f3b4b2b5b01c587d8f5",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         },
@@ -2151,7 +2151,7 @@
               "registry": null,
               "sphere": "danruilop1/postmark",
               "versionId": "6ade2f3b4b2b5b01c587d8f5",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         }
@@ -2189,7 +2189,7 @@
               "registry": null,
               "sphere": "danruilop1/postmark",
               "versionId": "6ade2f3b4b2b5b01c587d8f5",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         },
@@ -2219,7 +2219,7 @@
               "registry": null,
               "sphere": "danruilop1/postmark",
               "versionId": "6ade2f3b4b2b5b01c587d8f5",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         }
@@ -2230,10 +2230,10 @@
         "plan": "PLATFORM",
         "pricingId": "6ade2f3b40e55445692b09aa",
         "registry": null,
-        "snapshot": null,
+        "snapshot": "00000000-0000-4000-8000-000000000028",
         "sphere": "danruilop1/postmark",
         "version": "6ade2f3b4b2b5b01c587d8f5",
-        "versionLabel": null
+        "versionLabel": "2026-10"
       },
       "provider": "postmark",
       "resource": "sphere-email",
@@ -2267,7 +2267,7 @@
               "registry": null,
               "sphere": "danruilop1/postmark",
               "versionId": "6ade2f3b4b2b5b01c587d8f5",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         },
@@ -2290,7 +2290,7 @@
               "registry": null,
               "sphere": "danruilop1/postmark",
               "versionId": "6ade2f3b4b2b5b01c587d8f5",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         },
@@ -2341,7 +2341,7 @@
               "registry": null,
               "sphere": "danruilop1/postmark",
               "versionId": "6ade2f3b4b2b5b01c587d8f5",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         }
@@ -2379,7 +2379,7 @@
               "registry": null,
               "sphere": "danruilop1/postmark",
               "versionId": "6ade2f3b4b2b5b01c587d8f5",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         },
@@ -2409,7 +2409,7 @@
               "registry": null,
               "sphere": "danruilop1/postmark",
               "versionId": "6ade2f3b4b2b5b01c587d8f5",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         }
@@ -2420,10 +2420,10 @@
         "plan": "PRO",
         "pricingId": "6ade2f3b40e55445692b09aa",
         "registry": null,
-        "snapshot": null,
+        "snapshot": "00000000-0000-4000-8000-000000000028",
         "sphere": "danruilop1/postmark",
         "version": "6ade2f3b4b2b5b01c587d8f5",
-        "versionLabel": null
+        "versionLabel": "2026-10"
       },
       "provider": "postmark",
       "resource": "sphere-email",
@@ -2462,7 +2462,7 @@
               "registry": null,
               "sphere": "danruilop1/resend",
               "versionId": "6ade2d254b2b5b01c587d7ee",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         },
@@ -2485,7 +2485,7 @@
               "registry": null,
               "sphere": "danruilop1/resend",
               "versionId": "6ade2d254b2b5b01c587d7ee",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         },
@@ -2524,7 +2524,7 @@
               "registry": null,
               "sphere": "danruilop1/resend",
               "versionId": "6ade2d254b2b5b01c587d7ee",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         }
@@ -2560,7 +2560,7 @@
               "registry": null,
               "sphere": "danruilop1/resend",
               "versionId": "6ade2d254b2b5b01c587d7ee",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         },
@@ -2590,7 +2590,7 @@
               "registry": null,
               "sphere": "danruilop1/resend",
               "versionId": "6ade2d254b2b5b01c587d7ee",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         }
@@ -2601,10 +2601,10 @@
         "plan": "FREE",
         "pricingId": "6ade2d2540e55445692b07c6",
         "registry": null,
-        "snapshot": null,
+        "snapshot": "00000000-0000-4000-8000-000000000029",
         "sphere": "danruilop1/resend",
         "version": "6ade2d254b2b5b01c587d7ee",
-        "versionLabel": null
+        "versionLabel": "2026-10"
       },
       "provider": "resend",
       "resource": "sphere-email",
@@ -2643,7 +2643,7 @@
               "registry": null,
               "sphere": "danruilop1/resend",
               "versionId": "6ade2d254b2b5b01c587d7ee",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         },
@@ -2666,7 +2666,7 @@
               "registry": null,
               "sphere": "danruilop1/resend",
               "versionId": "6ade2d254b2b5b01c587d7ee",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         },
@@ -2713,7 +2713,7 @@
               "registry": null,
               "sphere": "danruilop1/resend",
               "versionId": "6ade2d254b2b5b01c587d7ee",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         }
@@ -2751,7 +2751,7 @@
               "registry": null,
               "sphere": "danruilop1/resend",
               "versionId": "6ade2d254b2b5b01c587d7ee",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         },
@@ -2781,7 +2781,7 @@
               "registry": null,
               "sphere": "danruilop1/resend",
               "versionId": "6ade2d254b2b5b01c587d7ee",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         }
@@ -2792,10 +2792,10 @@
         "plan": "PRO",
         "pricingId": "6ade2d2540e55445692b07c6",
         "registry": null,
-        "snapshot": null,
+        "snapshot": "00000000-0000-4000-8000-000000000029",
         "sphere": "danruilop1/resend",
         "version": "6ade2d254b2b5b01c587d7ee",
-        "versionLabel": null
+        "versionLabel": "2026-10"
       },
       "provider": "resend",
       "resource": "sphere-email",
@@ -2834,7 +2834,7 @@
               "registry": null,
               "sphere": "danruilop1/resend",
               "versionId": "6ade2d254b2b5b01c587d7ee",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         },
@@ -2857,7 +2857,7 @@
               "registry": null,
               "sphere": "danruilop1/resend",
               "versionId": "6ade2d254b2b5b01c587d7ee",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         },
@@ -2908,7 +2908,7 @@
               "registry": null,
               "sphere": "danruilop1/resend",
               "versionId": "6ade2d254b2b5b01c587d7ee",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         }
@@ -2946,7 +2946,7 @@
               "registry": null,
               "sphere": "danruilop1/resend",
               "versionId": "6ade2d254b2b5b01c587d7ee",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         },
@@ -2976,7 +2976,7 @@
               "registry": null,
               "sphere": "danruilop1/resend",
               "versionId": "6ade2d254b2b5b01c587d7ee",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         }
@@ -2987,10 +2987,10 @@
         "plan": "SCALE",
         "pricingId": "6ade2d2540e55445692b07c6",
         "registry": null,
-        "snapshot": null,
+        "snapshot": "00000000-0000-4000-8000-000000000029",
         "sphere": "danruilop1/resend",
         "version": "6ade2d254b2b5b01c587d7ee",
-        "versionLabel": null
+        "versionLabel": "2026-10"
       },
       "provider": "resend",
       "resource": "sphere-email",
@@ -3024,7 +3024,7 @@
               "registry": null,
               "sphere": "danruilop1/twilio-sendgrid-email-api",
               "versionId": "6adf1a62daa2ba78b21d7119",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         },
@@ -3047,7 +3047,7 @@
               "registry": null,
               "sphere": "danruilop1/twilio-sendgrid-email-api",
               "versionId": "6adf1a62daa2ba78b21d7119",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         },
@@ -3094,7 +3094,7 @@
               "registry": null,
               "sphere": "danruilop1/twilio-sendgrid-email-api",
               "versionId": "6adf1a62daa2ba78b21d7119",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         }
@@ -3126,7 +3126,7 @@
               "registry": null,
               "sphere": "danruilop1/twilio-sendgrid-email-api",
               "versionId": "6adf1a62daa2ba78b21d7119",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         },
@@ -3156,7 +3156,7 @@
               "registry": null,
               "sphere": "danruilop1/twilio-sendgrid-email-api",
               "versionId": "6adf1a62daa2ba78b21d7119",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         }
@@ -3167,10 +3167,10 @@
         "plan": "ESSENTIALS",
         "pricingId": "6adf1a6240e55445692b6f14",
         "registry": null,
-        "snapshot": null,
+        "snapshot": "00000000-0000-4000-8000-000000000030",
         "sphere": "danruilop1/twilio-sendgrid-email-api",
         "version": "6adf1a62daa2ba78b21d7119",
-        "versionLabel": null
+        "versionLabel": "2026-10"
       },
       "provider": "sendgrid",
       "resource": "sphere-email",
@@ -3204,7 +3204,7 @@
               "registry": null,
               "sphere": "danruilop1/twilio-sendgrid-email-api",
               "versionId": "6adf1a62daa2ba78b21d7119",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         },
@@ -3227,7 +3227,7 @@
               "registry": null,
               "sphere": "danruilop1/twilio-sendgrid-email-api",
               "versionId": "6adf1a62daa2ba78b21d7119",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         },
@@ -3277,7 +3277,7 @@
               "registry": null,
               "sphere": "danruilop1/twilio-sendgrid-email-api",
               "versionId": "6adf1a62daa2ba78b21d7119",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         }
@@ -3309,7 +3309,7 @@
               "registry": null,
               "sphere": "danruilop1/twilio-sendgrid-email-api",
               "versionId": "6adf1a62daa2ba78b21d7119",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         },
@@ -3339,7 +3339,7 @@
               "registry": null,
               "sphere": "danruilop1/twilio-sendgrid-email-api",
               "versionId": "6adf1a62daa2ba78b21d7119",
-              "versionLabel": null
+              "versionLabel": "2026-10"
             }
           }
         }
@@ -3350,10 +3350,10 @@
         "plan": "PRO",
         "pricingId": "6adf1a6240e55445692b6f14",
         "registry": null,
-        "snapshot": null,
+        "snapshot": "00000000-0000-4000-8000-000000000030",
         "sphere": "danruilop1/twilio-sendgrid-email-api",
         "version": "6adf1a62daa2ba78b21d7119",
-        "versionLabel": null
+        "versionLabel": "2026-10"
       },
       "provider": "sendgrid",
       "resource": "sphere-email",

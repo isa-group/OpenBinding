@@ -160,7 +160,7 @@
       },
       "currency": "EUR",
       "latestVersion": {
-        "createdAt": "2026-01-01T00:00:05Z",
+        "createdAt": "2026-01-01T00:00:14Z",
         "id": "67e975243b1f997200c7be7a",
         "label": "2025"
       },
@@ -189,7 +189,7 @@
       },
       "currency": "USD",
       "latestVersion": {
-        "createdAt": "2026-01-01T00:00:00Z",
+        "createdAt": "2026-01-01T00:00:08Z",
         "id": "687e4b68102baa50f3a5c7b7",
         "label": "2021"
       },
@@ -218,7 +218,7 @@
       },
       "currency": "EUR",
       "latestVersion": {
-        "createdAt": "2026-01-01T00:00:06Z",
+        "createdAt": "2026-01-01T00:00:15Z",
         "id": "67e9769d3b1f997200c7c155",
         "label": "2024-07-16"
       },
@@ -247,7 +247,7 @@
       },
       "currency": "EUR",
       "latestVersion": {
-        "createdAt": "2026-01-01T00:00:06Z",
+        "createdAt": "2026-01-01T00:00:15Z",
         "id": "687e3ca4102baa50f3a5c50d",
         "label": "2024-07-16"
       },

@@ -46,6 +46,8 @@ SFX = TESTS / "fixtures" / "sphere"
 DEFAULT_OUT = TESTS / "golden" / "sphere"
 CASES = DEFAULT_OUT / "cases.json"
 REPO = Path(os.environ.get("OPENBINDING_REPO_ROOT", ROOT.parent))
+#: The TomatoMeter base problem, a JSON file map (also the frontend fixtures' J2 base).
+RUNNER_BASE_BUNDLE = "examples/tomatometer/tomatometer-email.base.json"
 #: What a run writes for a case; a refused case writes only the diagnostics.
 SUFFIXES = (".files.json", ".origins.json", ".diagnostics.json", ".requirements.json", ".package.digest", ".facts.json")
 

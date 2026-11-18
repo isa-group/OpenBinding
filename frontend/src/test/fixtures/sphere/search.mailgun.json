@@ -160,7 +160,7 @@
       },
       "currency": "USD",
       "latestVersion": {
-        "createdAt": "2026-01-01T00:00:07Z",
+        "createdAt": "2026-01-01T00:00:16Z",
         "id": "6ae6349ff99de6a6f95a4282",
         "label": "2026-10-31"
       },
@@ -189,7 +189,7 @@
       },
       "currency": "USD",
       "latestVersion": {
-        "createdAt": "2026-01-01T00:00:08Z",
+        "createdAt": "2026-01-01T00:00:17Z",
         "id": "6ae0c106daa2ba78b21d80db",
         "label": "2026-10"
       },
@@ -214,7 +214,7 @@
       "collection": null,
       "currency": "USD",
       "latestVersion": {
-        "createdAt": "2026-01-01T00:00:03Z",
+        "createdAt": "2026-01-01T00:00:09Z",
         "id": "6ade36454b2b5b01c587db3d",
         "label": "2026-10"
       },

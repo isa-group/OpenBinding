@@ -67,6 +67,9 @@ WORK_ROUTES: dict[tuple[str, str], WorkClass] = {
     ("POST", "/v1/bim/validate"): "compile",
     ("POST", "/v1/organizations/{org}/problems"): "compile",
     ("POST", "/v1/organizations/{org}/problems/{problem}/revisions"): "compile",
+    # A SPHERE import compiles the package it generates (and reads SPHERE before that, outside the compile).
+    ("POST", "/v1/organizations/{org}/problems/{problem}/sphere/expand"): "compile",
+    ("POST", "/v1/organizations/{org}/problems/{problem}/sphere/apply"): "compile",
     # It compiles the revision on a miss (a toolchain release), as validation does.
     ("GET", "/v1/organizations/{org}/problems/{problem}/revisions/{revision}/compilation"): "compile",
     ("POST", "/v1/compositions/validate"): "read",
