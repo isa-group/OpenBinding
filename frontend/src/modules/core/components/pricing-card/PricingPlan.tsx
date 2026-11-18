@@ -8,13 +8,16 @@ import SpherePricingRenderer from '../pricing-renderer';
  */
 const HIDDEN_SECTIONS = [
   'hero',
+  'saasName',
+  'description',
+  'metadata',
   'billing',
   'variables',
   'summary',
   'addOns',
   'comparison',
 ] as const;
-const HIDDEN_WITH_ADDONS = ['hero', 'billing', 'variables', 'summary', 'comparison'] as const;
+const HIDDEN_WITH_ADDONS = HIDDEN_SECTIONS.filter(section => section !== 'addOns');
 
 /**
  * One plan of a Pricing2Yaml document, drawn by pricing-renderer through the bridge's `catalog` preset: read only, with that
