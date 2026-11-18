@@ -40,11 +40,14 @@ function GroupName({ group }: { group: ProviderGroup }) {
   }
 }
 
-/** The SPHERE plan a task's candidate comes from: the plan, the pinned version and the add-ons, and the pricing when the group does not name it. */
+/**
+ * The SPHERE plan a task's candidate comes from: the plan and the add-ons, and the pricing when the group does not name it. The
+ * pinned version is a SPHERE id, not a name: the upstream plan card says its name.
+ */
 function FromLine({ task, group }: { task: TaskModel; group: ProviderGroup }) {
   if (!task.from) return null;
-  const { sphere, registry, plan, version, addons = [] } = task.from;
-  const parts = [`plan ${plan}`, `version ${version}`];
+  const { sphere, registry, plan, addons = [] } = task.from;
+  const parts = [`plan ${plan}`];
   if (addons.length) parts.push(`add-ons ${addons.join(', ')}`);
   const pricing =
     group.kind === 'pricing' ? '' : `${sphere}${registry ? ` on ${registry}` : ''} · `;

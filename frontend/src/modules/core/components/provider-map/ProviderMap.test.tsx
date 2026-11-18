@@ -116,8 +116,9 @@ describe('ProviderMap', () => {
       />
     );
     expect(screen.getByText('The candidates come from 2 SPHERE pricings.')).toBeInTheDocument();
-    expect(group('brevo/brevo')).toHaveTextContent('plan STARTER · version 665f1c2e · add-ons SMS');
-    expect(group('acme')).toHaveTextContent('acme/picking on lab · plan Pro · version v7');
+    expect(group('brevo/brevo')).toHaveTextContent('plan STARTER · add-ons SMS');
+    expect(group('brevo/brevo')).not.toHaveTextContent('665f1c2e');
+    expect(group('acme')).toHaveTextContent('acme/picking on lab · plan Pro');
     expect(
       screen.getByRole('heading', { level: 3, name: 'Provider not known 1 task' })
     ).toBeInTheDocument();
