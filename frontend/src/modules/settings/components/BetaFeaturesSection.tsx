@@ -12,7 +12,7 @@ import { classifyAuthError } from '../../core/api/errors';
 import BlockAlert from '../../core/components/block-alert';
 import { offerReloadIfChanged } from '../../core/utils/offer-reload';
 import BetaBadge from '../../beta/components/beta-badge';
-import { useBetaFeatureList } from '../../beta/hooks/useBetaFeatures';
+import { BETA_FEATURES_CHANGED, useBetaFeatureList } from '../../beta/hooks/useBetaFeatures';
 import { useUserSettingsApi } from '../api/userSettingsApi';
 import { fallbackMessage } from '../../core/utils/account-errors';
 
@@ -31,6 +31,12 @@ export default function BetaFeaturesSection() {
       .then(answer => {
         if (!current) return;
         setState({ enabled: answer.value.enabled === true, etag: answer.etag });
+        // The beta tabs and gates of the other screens follow the switch at once.
+        window.dispatchEvent(
+          new CustomEvent(BETA_FEATURES_CHANGED, {
+            detail: { enabled: answer.value.enabled === true },
+          })
+        );
         setError(null);
       })
       .catch((caught: unknown) => {
@@ -54,6 +60,12 @@ export default function BetaFeaturesSection() {
     try {
       const answer = await api.updateBetaFeatures(!state.enabled, state.etag);
       setState({ enabled: answer.value.enabled === true, etag: answer.etag });
+      // The beta tabs and gates of the other screens follow the switch at once.
+      window.dispatchEvent(
+        new CustomEvent(BETA_FEATURES_CHANGED, {
+          detail: { enabled: answer.value.enabled === true },
+        })
+      );
     } catch (caught) {
       if (!offerReloadIfChanged(caught, { resource: 'your settings', reload }))
         setError(fallbackMessage(classifyAuthError(caught), 'changed'));

@@ -1,4 +1,5 @@
 import { useId, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { MdOpenInNew } from 'react-icons/md';
 import { DataTable } from '../data-table';
 import { formatFeature, type FeatureValue } from '../../utils/featureRange';
 import type {
@@ -7,7 +8,9 @@ import type {
   MatrixCell,
   MatrixFeature,
   MatrixRow,
+  PropertyCell,
 } from '../../utils/binding/candidateMatrix';
+import { planText } from '../value-badge/originText';
 import { ValueBadge } from '../value-badge/ValueBadge';
 
 interface CandidateMatrixProps {
@@ -126,6 +129,7 @@ function Value({ cell, maximum }: { cell: MatrixCell; maximum: number }) {
   if (cell.value === null) return <span className="text-xs text-tp-stone">not declared</span>;
   const unit = unitOf(cell.unit);
   const range = typeof cell.value !== 'number';
+  const shown = formatFeature(cell.value, { unit });
   return (
     <span className="inline-flex flex-wrap items-center gap-1.5">
       <FeatureBar value={cell.value} maximum={maximum} />
@@ -133,9 +137,65 @@ function Value({ cell, maximum }: { cell: MatrixCell; maximum: number }) {
         className={range ? 'tabular-nums' : undefined}
         title={range ? formatFeature(cell.value, { long: true, unit }) : undefined}
       >
-        {formatFeature(cell.value, { unit })}
+        {shown}
       </span>
+      <ValueBadge origin={cell.origin} compact shown={shown} />
+    </span>
+  );
+}
+
+/** pricing4ts's sentinel for an unlimited limit (`1e8`), which a SPHERE import writes for one. */
+const UNLIMITED = 1e8;
+
+/** A property as words: `yes`/`no`, a number, `unlimited` for the sentinel, or the text. */
+function propertyText(value: PropertyCell['value']): string {
+  if (value === null) return 'not declared';
+  if (typeof value === 'boolean') return value ? 'yes' : 'no';
+  if (typeof value === 'number')
+    return value >= UNLIMITED
+      ? 'unlimited'
+      : value.toLocaleString('en', { maximumFractionDigits: 6 });
+  return value;
+}
+
+function Property({ cell }: { cell: PropertyCell }) {
+  if (cell.value === null) return <span className="text-xs text-tp-stone">not declared</span>;
+  return (
+    <span className="inline-flex flex-wrap items-center gap-1.5">
+      <span className="tabular-nums">{propertyText(cell.value)}</span>
       <ValueBadge origin={cell.origin} compact />
+    </span>
+  );
+}
+
+/** Which upstream plan a SPHERE import read a candidate from, with SPHERE's page for that version. */
+function Provenance({ candidate }: { candidate: MatrixCandidate }) {
+  const from = candidate.provenance;
+  if (!from) return null;
+  const words = `From ${planText({
+    sphere: from.sphere,
+    plan: from.plan,
+    addOns: from.addons ?? [],
+    versionLabel: from.versionLabel,
+    registry: from.registry ?? null,
+    pricingId: from.pricingId,
+    versionId: from.version,
+    permanentUrl: from.permanentUrl,
+  })}`;
+  return (
+    <span className="cm-provenance mt-0.5 flex flex-wrap items-center gap-x-1.5 font-sans text-[11px] font-normal tracking-normal text-tp-steel normal-case">
+      <span className="[overflow-wrap:anywhere]">{words}</span>
+      {from.permanentUrl && /^https:\/\//.test(from.permanentUrl) && (
+        <a
+          href={from.permanentUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-0.5 text-tp-link underline"
+        >
+          Open in SPHERE
+          <MdOpenInNew aria-hidden="true" className="h-3 w-3" />
+        </a>
+      )}
     </span>
   );
 }
@@ -143,6 +203,8 @@ function Value({ cell, maximum }: { cell: MatrixCell; maximum: number }) {
 interface TaskProps {
   row: MatrixRow;
   features: Array<{ feature: MatrixFeature; index: number }>;
+  /** The read-only property columns (names of `CandidateMatrix.properties`); empty hides the group. */
+  properties: string[];
   mode: CandidateMatrixProps['mode'];
   onSelect?: CandidateMatrixProps['onSelect'];
   renderCell?: CandidateMatrixProps['renderCell'];
@@ -155,6 +217,7 @@ interface TaskProps {
 function TaskCandidates({
   row,
   features,
+  properties,
   mode,
   onSelect,
   renderCell,
@@ -177,12 +240,20 @@ function TaskCandidates({
       <Value cell={cell} maximum={maxima[column]} />
     );
   };
-  const name = (candidate: MatrixCandidate) =>
-    mode === 'edit' && renderName ? (
-      renderName(candidate, row)
-    ) : (
-      <code className="font-mono font-semibold [overflow-wrap:anywhere]">{candidate.written}</code>
-    );
+  const name = (candidate: MatrixCandidate) => (
+    <>
+      {mode === 'edit' && renderName ? (
+        renderName(candidate, row)
+      ) : (
+        <code className="font-mono font-semibold [overflow-wrap:anywhere]">
+          {candidate.written}
+        </code>
+      )}
+      <Provenance candidate={candidate} />
+    </>
+  );
+  const propertyCells = (candidate: MatrixCandidate) =>
+    candidate.properties.filter(cell => properties.includes(cell.name));
   const radio = (candidate: MatrixCandidate) => (
     <input
       type="radio"
@@ -213,7 +284,7 @@ function TaskCandidates({
         >
           <div className="flex flex-wrap items-center gap-2">
             {mode === 'select' && radio(candidate)}
-            {name(candidate)}
+            <span className="flex min-w-0 flex-col">{name(candidate)}</span>
             {candidate.selected && <span className={SELECTED}>Selected</span>}
             {tagsOf(candidate)}
           </div>
@@ -229,6 +300,23 @@ function TaskCandidates({
               </div>
             ))}
           </dl>
+          {properties.length > 0 && (
+            <details className="cm-properties">
+              <summary className="cursor-pointer text-xs font-medium text-tp-link">
+                Properties ({properties.length})
+              </summary>
+              <dl className="mt-1 grid grid-cols-1 gap-1">
+                {propertyCells(candidate).map(cell => (
+                  <div key={cell.name} className={CARD_ROW}>
+                    <dt className="font-mono text-xs text-tp-steel">{cell.name}</dt>
+                    <dd className="text-[13px]">
+                      <Property cell={cell} />
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </details>
+          )}
         </li>
       ))}
     </ul>
@@ -240,9 +328,24 @@ function TaskCandidates({
           Task <code className="font-mono">{row.task}</code> · {count}
         </>
       }
-      minWidth={Math.min(640, 280 + features.length * 120)}
+      minWidth={Math.min(
+        640 + properties.length * 120,
+        280 + (features.length + properties.length) * 120
+      )}
     >
       <thead>
+        {properties.length > 0 && (
+          <tr className="cm-groups">
+            <td colSpan={(mode === 'select' ? 3 : 2) + features.length} />
+            <th
+              scope="colgroup"
+              colSpan={properties.length}
+              className="border-l border-tp-hairline text-[11px] font-semibold tracking-wider text-tp-steel uppercase"
+            >
+              Properties
+            </th>
+          </tr>
+        )}
         <tr>
           {mode === 'select' && (
             <th scope="col">
@@ -254,6 +357,15 @@ function TaskCandidates({
           {features.map(({ feature }) => (
             <th scope="col" key={feature.id}>
               {headerOf(feature)}
+            </th>
+          ))}
+          {properties.map((property, index) => (
+            <th
+              scope="col"
+              key={`property-${property}`}
+              className={index === 0 ? 'border-l border-tp-hairline' : undefined}
+            >
+              <span className="font-mono normal-case">{property}</span>
             </th>
           ))}
         </tr>
@@ -274,6 +386,14 @@ function TaskCandidates({
             <td>{candidate.provider ?? '—'}</td>
             {features.map(({ feature, index }, column) => (
               <td key={feature.id}>{content(candidate, column, index)}</td>
+            ))}
+            {propertyCells(candidate).map((cell, index) => (
+              <td
+                key={`property-${cell.name}`}
+                className={index === 0 ? 'border-l border-tp-hairline' : undefined}
+              >
+                <Property cell={cell} />
+              </td>
             ))}
           </tr>
         ))}
@@ -355,6 +475,7 @@ export function CandidateMatrix({
             key={row.task}
             row={row}
             features={features}
+            properties={matrix.properties}
             mode={mode}
             onSelect={onSelect}
             renderCell={renderCell}

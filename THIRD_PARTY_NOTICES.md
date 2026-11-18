@@ -20,7 +20,7 @@ patterns from the following MIT-licensed projects:
 | [space-python-client](https://github.com/Alex-GF/space-python-client) | `1a61898adca73ca500eca4758c24d32f673dd790` (`v1.1.0`) | Official SPACE Python client integration |
 | [Pricing4TS](https://github.com/Alex-GF/Pricing4TS) | `0.11.1` | Pricing2Yaml 3.1 parsing and validation for TypeScript |
 | [space-react-client](https://github.com/Alex-GF/space-react-client) | `0.4.0` | Browser presentation of SPACE-evaluated feature state for React |
-| [pricing-renderer](https://github.com/javiercavlop/pricing-renderer) | `0.2.0` | Public rendering of the active iPricing for the web |
+| [pricing-renderer](https://github.com/javiercavlop/pricing-renderer) | `0.2.0` | Public rendering of the active iPricing for the web; through its public API only (`pricing-renderer`, `/yaml`, `/react`), the SPHERE wizard's plan picker, upstream plan cards, offering storefronts and the plan change review (`compareSelections`, `PricingChangeReview`), with `String()` as the one extra expression function |
 | [lz-string](https://github.com/pieroxy/lz-string) | `1.5.0` | Compressing a composition into the `#composition=` fragment of a share link |
 | [openapi-typescript](https://github.com/openapi-ts/openapi-typescript) | `7.13.0` (development only) | Generating the frontend's API types from `docs/openapi.json` |
 | [@lezer/json](https://github.com/lezer-parser/json) | `1.0.3` | Reading where a JSON Pointer lands in the text of a package file, to place the gateway's BIM findings |
@@ -70,6 +70,7 @@ reads pricings as the two TypeScript readers do, so that the gateway and the scr
 | File | Origin | Use |
 |---|---|---|
 | `pricing2yaml/expression.py` | [pricing-renderer](https://github.com/javiercavlop/pricing-renderer) `v0.2.0` `src/core/expression.ts` (MIT, Copyright (c) 2026 Francisco Javier Cavero) | Grammar ported: the tokenizer, the precedence-climbing parser, the whitelist and the size limits; evaluation in `Decimal`, with `String(x)` as the one extra function |
+| `frontend/src/modules/core/components/value-badge/originText.ts`, `candidate-matrix/CandidateMatrix.tsx` | [Pricing4TS](https://github.com/Alex-GF/Pricing4TS) `0.12.1` `pricing-validators.js` (`unlimitedValue`) | Semantics followed, no code copied: a generated value of `1e8` reads "unlimited" |
 | `pricing2yaml/normalise.py`, `model.py`, `effective.py`, `units.py`, `summary.py` | pricing-renderer `v0.2.0` `src/core/normalize.ts`, `compare-values.ts`, `breakdown.ts`, `resolve.ts`; [Pricing4TS](https://github.com/Alex-GF/Pricing4TS) `0.12.1` `pricing-parser.js`, `pricing-validators.js`, `version-manager.js` (MIT, Copyright (c) 2024 Alejandro García Fernández) | Semantics followed, no code copied: defaults and overrides, add-on extensions, unlimited values (pricing4ts's `1e8` sentinel included), billing, the kept validations |
 
 ## Code ported from SPHERE
@@ -105,7 +106,7 @@ listed with its module:
 
 The frontend files of the move to SPHERE's frontend (`docs/adr/0053-frontend-on-sphere-stack.md`), at revision
 `73779a8a` of `main` (and `694f292b03` of its `feat/pricing-renderer` branch, for the pricing-renderer bridge, `/pricing`,
-the configuration compare tray and the study front, as each header says), each with its reuse class: **verbatim** (copied; only imports, wording and types changed), **adapted**
+the configuration compare tray, the study front and the SPHERE wizard's plan picker and selection mapping, as each header says), each with its reuse class: **verbatim** (copied; only imports, wording and types changed), **adapted**
 (copied, with logic changed; the header says what) or **pattern-only** (the layout followed, the code written here).
 Generated from the origin header of each file.
 
@@ -260,6 +261,7 @@ Generated from the origin header of each file.
 | `frontend/src/modules/core/utils/offer-reload.ts` | `frontend/src/modules/pricing/pages/card/index.tsx` | adapted (extracted) |
 | `frontend/src/modules/core/utils/recentItems.ts` | `frontend/src/modules/core/utils/recentItems.ts` | adapted |
 | `frontend/src/modules/core/utils/sphere/graph.ts` | `frontend/src/modules/pricing/types/graph.ts` | verbatim |
+| `frontend/src/modules/core/utils/sphere/selection-mapping.ts` | `frontend/src/modules/pricing/components/configuration-space-view/selection-mapping.ts` (feat/pricing-renderer) | verbatim |
 | `frontend/src/modules/core/utils/sphere/version-graph.ts` | `frontend/src/modules/pricing/utils/version-graph.ts` | verbatim |
 | `frontend/src/modules/core/utils/sphere/version-order.ts` | `frontend/src/modules/pricing/utils/version-order.ts` | verbatim |
 | `frontend/src/modules/engine/api/enginesApi.ts` | `frontend/src/modules/api-keys/api/apiKeysApi.ts` | pattern-only |
@@ -283,7 +285,10 @@ Generated from the origin header of each file.
 | `frontend/src/modules/notification/hooks/useNotificationsSSE.ts` | `frontend/src/modules/notification/hooks/useNotificationsSSE.ts` | adapted |
 | `frontend/src/modules/notification/pages/inbox/index.tsx` | `frontend/src/modules/notification/pages/inbox/index.tsx` | adapted |
 | `frontend/src/modules/notification/utils/notification-link.ts` | `frontend/src/modules/notification/components/notification-item/index.tsx` | adapted |
+| `frontend/src/modules/organization/api/connectionsApi.ts` | `frontend/src/modules/pricing/api/pricingsApi.ts` | pattern-only |
 | `frontend/src/modules/organization/api/organizationsApi.ts` | `frontend/src/modules/organization/api/organizationsApi.ts` | adapted |
+| `frontend/src/modules/organization/components/connections-tab/SphereKeyCard.tsx` | `frontend/src/modules/settings/components/IntegrationsSection.tsx` | adapted |
+| `frontend/src/modules/organization/components/connections-tab/index.tsx` | `frontend/src/modules/organization/pages/organization-detail/index.tsx` | pattern-only |
 | `frontend/src/modules/organization/components/move-organization-modal/index.tsx` | `frontend/src/modules/organization/pages/organizations-list/index.tsx` | pattern-only |
 | `frontend/src/modules/organization/components/org-dnd/index.tsx` | `frontend/src/modules/organization/components/org-dnd/index.tsx` | adapted |
 | `frontend/src/modules/organization/components/org-dnd/row.ts` | `frontend/src/modules/organization/components/org-dnd/row.ts` | verbatim |
@@ -357,6 +362,7 @@ Generated from the origin header of each file.
 | `frontend/src/modules/problem-editor/pages/problem-editor/index.tsx` | `frontend/src/modules/pricing-editor/pages/pricing2yaml-editor/index.tsx` | adapted |
 | `frontend/src/modules/problem-editor/services/export.ts` | `frontend/src/modules/pricing-editor/services/export.service.ts` | adapted |
 | `frontend/src/modules/problem/api/problemsApi.ts` | `frontend/src/modules/pricing/api/pricingsApi.ts` | pattern-only |
+| `frontend/src/modules/problem/api/sphereApi.ts` | `frontend/src/modules/pricing/api/pricingsApi.ts` | pattern-only |
 | `frontend/src/modules/problem/components/candidates-explorer/index.tsx` | `frontend/src/modules/pricing/components/configuration-space-view/index.tsx` | adapted |
 | `frontend/src/modules/problem/components/compositions-tab/index.tsx` | `frontend/src/modules/organization/pages/organization-detail/components/PricingsTab.tsx` | pattern-only |
 | `frontend/src/modules/problem/components/delete-problem-modal/index.tsx` | `frontend/src/modules/pricing/components/pricing-settings-tab/index.tsx` | pattern-only |
@@ -369,6 +375,9 @@ Generated from the origin header of each file.
 | `frontend/src/modules/problem/components/runs-tab/index.tsx` | `frontend/src/modules/pricing/pages/card/index.tsx` | pattern-only |
 | `frontend/src/modules/problem/components/settings-tab/index.tsx` | `frontend/src/modules/pricing/components/pricing-settings-tab/index.tsx` | adapted |
 | `frontend/src/modules/problem/components/source-tab/index.tsx` | `frontend/src/modules/pricing/components/yaml-source-panel/index.tsx` | pattern-only |
+| `frontend/src/modules/problem/components/sphere-candidates-modal/index.tsx` | `frontend/src/modules/pricing-editor/layouts/editor-layout/publish-pricing-modal.tsx` | adapted |
+| `frontend/src/modules/problem/components/sphere-candidates-modal/plan-picker.tsx` | `frontend/src/modules/pricing/components/configuration-space-view/configuration-picker.tsx` (feat/pricing-renderer) | adapted |
+| `frontend/src/modules/problem/components/sphere-candidates-modal/pricing-search.tsx` | `frontend/src/modules/pricing-editor/layouts/editor-layout/publish-pricing-modal.tsx` | adapted |
 | `frontend/src/modules/problem/components/versions-tab/index.tsx` | `frontend/src/modules/pricing/components/pricing-versions-tab/index.tsx` | adapted |
 | `frontend/src/modules/problem/components/versions-tab/version-compare.tsx` | `frontend/src/modules/pricing/components/pricing-version-diff/index.tsx` | adapted |
 | `frontend/src/modules/problem/pages/card/index.tsx` | `frontend/src/modules/pricing/pages/card/index.tsx` | adapted |

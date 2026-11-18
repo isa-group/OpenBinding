@@ -71,6 +71,9 @@ const VISITOR: string[] = [
 
 const MEMBER: string[] = [
   '/orgs/other-lab/audit',
+  '/orgs/other-lab/connections',
+  '/orgs/isa-demo/connections',
+  '/problems/isa-demo/ghost?sphereStep=pricing&sphere=6ade364540e55445692b0eda',
   '/compositions/isa-demo/ghost',
   '/problems/isa-demo/ghost',
   '/problems/other-lab/checkout-flow/versions',

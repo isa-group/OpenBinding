@@ -1,4 +1,6 @@
 import { MdOpenInNew } from 'react-icons/md';
+import type { RendererUpstream } from '../../../utils/composition/upstream';
+import { OfferingDrawn } from './OfferingDrawn';
 import type { CompositionViewModel, OfferingModel } from '../../../utils/composition/viewModel';
 import type { Section } from '../presets';
 import { RendererSection } from '../RendererSection';
@@ -7,16 +9,18 @@ import { CatalogMode } from './catalog';
 import { WorkflowMode } from './workflow';
 
 /**
- * The showcase mode: a composition drawn only from what its documents say, for every reader of the composition page. What it
- * does, its values with how far they can be trusted, the workflow with each task's candidate, the providers and the upstream plans
- * the candidates come from (reference cards: no pricing document is held for them yet), the problem it links named as text, and its
- * own pricing as a reference. It never shows the problem's candidates, an evaluation's findings or what-if analysis. The page's
- * header names the composition and holds its versions, links and actions.
+ * The showcase mode: a composition drawn only from what its documents and the gateway's stored snapshots say, for every reader of
+ * the composition page. What it does, its values with how far they can be trusted, the workflow with each task's candidate, the
+ * providers and the upstream plans the candidates come from (drawn from their snapshots, else the reference), the problem it links
+ * named as text, and its own pricing: the storefront drawn from the offering version the evaluation read, or the reference with
+ * why it was not read. It never shows the problem's candidates, an evaluation's findings or what-if analysis. The page's header
+ * names the composition and holds its versions, links and actions.
  */
 
 interface ShowcaseModeProps {
   model: CompositionViewModel;
   sections: readonly Section[];
+  upstream?: RendererUpstream | null;
 }
 
 /** The composition's own pricing, as a reference: SPHERE pricings have no address of their own here yet (A12). */
@@ -48,7 +52,7 @@ function OfferingLine({ offering }: { offering: OfferingModel }) {
   );
 }
 
-export function ShowcaseMode({ model, sections }: ShowcaseModeProps) {
+export function ShowcaseMode({ model, sections, upstream = null }: ShowcaseModeProps) {
   const shows = (section: Section) => sections.includes(section);
   const only = (...wanted: Section[]) => wanted.filter(shows);
   const { identity, version, status } = model;
@@ -69,9 +73,13 @@ export function ShowcaseMode({ model, sections }: ShowcaseModeProps) {
         </p>
       ) : (
         <>
-          <CatalogMode model={model} sections={only('status', 'values')} />
+          <CatalogMode model={model} sections={only('status', 'values')} upstream={upstream} />
           <WorkflowMode model={model} sections={only('graph')} />
-          <ArchitectureMode model={model} sections={only('providers', 'plans')} />
+          <ArchitectureMode
+            model={model}
+            sections={only('providers', 'plans')}
+            upstream={upstream}
+          />
 
           {shows('problem') && status.problemRef && (
             <RendererSection title="Problem">
@@ -91,9 +99,7 @@ export function ShowcaseMode({ model, sections }: ShowcaseModeProps) {
                   This version names no pricing of its own.
                 </p>
               )}
-              <p className="cr-muted m-0 text-[13px] text-tp-steel">
-                Plans and prices arrive when OpenBinding reads the offering.
-              </p>
+              {model.offering && <OfferingDrawn upstream={upstream} />}
             </RendererSection>
           )}
         </>

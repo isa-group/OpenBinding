@@ -1,5 +1,5 @@
 import type { FeatureRange } from '../featureRange';
-import type { ProblemFacts, ProblemValueOrigin } from '../../api/types';
+import type { CandidateProvenance, ProblemFacts, ProblemValueOrigin } from '../../api/types';
 
 /**
  * The candidate matrix view-model: for every task of a problem, the candidates it can take with their values, one column
@@ -7,8 +7,20 @@ import type { ProblemFacts, ProblemValueOrigin } from '../../api/types';
  * matrix only places them. A candidate's key (`<resource>/<id>`) is opaque: it is compared, never parsed.
  */
 
-/** Where a value comes from. F2 knows only the package it is written in; F3 adds priced, guarantee, limit, feature, manual and measured. */
+/**
+ * Where a value comes from: the place its package writes it, and, when a SPHERE import wrote it, its `source`: `priced` (a plan's
+ * price per month), `guarantee`, `limit` (a usage limit), `feature` or `manual` (set by hand when importing). The gateway says
+ * which; the matrix only shows it.
+ */
 export type ValueOrigin = ProblemValueOrigin;
+
+/** A candidate's scalar property (what a task's requirement reads, such as a usage limit), with where it is written. */
+export interface PropertyCell {
+  name: string;
+  /** `null` when the candidate declares no such property. */
+  value: boolean | number | string | null;
+  origin: ValueOrigin | null;
+}
 
 export interface MatrixCell {
   feature: string;
@@ -26,6 +38,10 @@ export interface MatrixCandidate {
   written: string;
   provider: string | null;
   cells: MatrixCell[];
+  /** One per name of `CandidateMatrix.properties`, in that order. */
+  properties: PropertyCell[];
+  /** The upstream plan a SPHERE import read its values from; null for a hand-written candidate. */
+  provenance: CandidateProvenance | null;
   selected: boolean;
 }
 
@@ -47,6 +63,8 @@ export interface CandidateMatrix {
   features: MatrixFeature[];
   /** In the problem's task order (the order a depth-first walk of the workflow meets them). */
   rows: MatrixRow[];
+  /** The names of the properties the shown candidates declare, sorted; read-only, never a column to optimise. */
+  properties: string[];
 }
 
 /** The matrix of a problem's facts. `selection` (task → candidate key, as `EvaluationView.binding` has it) marks the chosen candidates. */
@@ -65,6 +83,16 @@ export function candidateMatrix(
   }));
   const byKey = new Map(facts.candidates.map(candidate => [candidate.key, candidate]));
   const selection = options.selection ?? {};
+  const shownKeys = new Set(
+    facts.tasks.flatMap(task => (task.kind === 'local' ? [] : task.eligible.map(e => e.candidate)))
+  );
+  const properties = [
+    ...new Set(
+      facts.candidates
+        .filter(candidate => shownKeys.has(candidate.key))
+        .flatMap(candidate => Object.keys(candidate.properties ?? {}))
+    ),
+  ].sort();
 
   const rows: MatrixRow[] = facts.tasks.map(task => ({
     task: task.id,
@@ -87,9 +115,18 @@ export function candidateMatrix(
                 unit: feature.unit,
                 origin: candidate?.origins[feature.id] ?? null,
               })),
+              properties: properties.map(name => ({
+                name,
+                value:
+                  candidate?.properties && Object.hasOwn(candidate.properties, name)
+                    ? candidate.properties[name]
+                    : null,
+                origin: candidate?.propertyOrigins?.[name] ?? null,
+              })),
+              provenance: candidate?.provenance ?? null,
               selected: selection[task.id] === eligible.candidate,
             };
           }),
   }));
-  return { features, rows };
+  return { features, rows, properties };
 }

@@ -492,7 +492,11 @@ export default function VisualPane({
                   <span className="text-sm text-tp-steel">Done in house</span>
                 ) : row && row.candidates.length ? (
                   <CandidateMatrix
-                    matrix={{ features: matrix?.features ?? [], rows: [row] }}
+                    matrix={{
+                      features: matrix?.features ?? [],
+                      rows: [row],
+                      properties: matrix?.properties ?? [],
+                    }}
                     mode={disabled ? 'view' : 'select'}
                     onSelect={(chosen, key) =>
                       chooseCandidate(

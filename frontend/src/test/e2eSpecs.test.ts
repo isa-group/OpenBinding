@@ -80,6 +80,20 @@ describe('the Playwright specs', () => {
       expect(read(`${e2e}/${name}`), name).toMatch(/\btest\.describe\('J\d+ · /);
   });
 
+  it('walks each F3 journey closed so far in a mocked spec of its own: J1 and J2 SPHERE candidates; J3 connections; J4 upstream plans and the offering', () => {
+    const journeys = ts.sys
+      .readDirectory(e2e, ['.ts'], undefined, undefined, 1)
+      .map(name => name.replace(`${e2e}/`, ''))
+      .filter(name => name.startsWith('f3-'));
+    expect(journeys.sort()).toEqual([
+      'f3-connections.spec.ts',
+      'f3-sphere-candidates.spec.ts',
+      'f3-upstream.spec.ts',
+    ]);
+    for (const name of journeys)
+      expect(read(`${e2e}/${name}`), name).toMatch(/\btest\.describe\('J\d+ · /);
+  });
+
   it('walks each F2b journey in a mocked spec of its own: J3 the problem editor; J4 study front to compositions', () => {
     const journeys = ts.sys
       .readDirectory(e2e, ['.ts'], undefined, undefined, 1)
@@ -93,7 +107,7 @@ describe('the Playwright specs', () => {
   describe('the live project', () => {
     const specs = liveFiles.filter(name => name.endsWith('.spec.ts'));
 
-    it('covers login, navigation, the upload-run-study walk, a job, the viewer, the outsider, the plan page, J1 to J4 and the visual QA', () => {
+    it('covers login, navigation, the upload-run-study walk, a job, the viewer, the outsider, the plan page, J1 to J4, SPHERE candidates, the visual QA and the palette sweep', () => {
       expect(specs.map(name => name.replace(`${live}/`, ''))).toEqual([
         '01-login.spec.ts',
         '02-navigation.spec.ts',
@@ -106,7 +120,9 @@ describe('the Playwright specs', () => {
         '09-public-fork.spec.ts',
         '10-problem-editor.spec.ts',
         '11-study-front.spec.ts',
+        '12-sphere-candidates.spec.ts',
         'visual-qa.spec.ts',
+        'visual-sweep.spec.ts',
       ]);
       for (const name of specs) expect(read(name), name).toMatch(/\btest\(|\btest\.describe\(/);
     });
@@ -161,6 +177,33 @@ describe('the Playwright specs', () => {
       ]) {
         expect(j4, step).toContain(step);
       }
+    });
+
+    it('walks F3 against the lab and live SPHERE: two pinned pricings into a problem, the drawn upstream plan and storefront, a registry, a refused key', () => {
+      const f3 = read(`${live}/12-sphere-candidates.spec.ts`);
+      expect(f3).toMatch(/test\.describe\('live · F3 /);
+      for (const step of [
+        "'6ade36454b2b5b01c587db3d'",
+        "'6ade2f3b4b2b5b01c587d8f5'",
+        'SPHERE is busy; preview again in',
+        "'Open in SPHERE'",
+        "'score-mirror'",
+        "'SPHERE API key'",
+      ]) {
+        expect(f3, step).toContain(step);
+      }
+    });
+
+    it('sweeps every screen of the route table in both palettes at 1440x900 and 390x844, a 375 px pass and a dark OS', () => {
+      const sweep = read(`${live}/visual-sweep.spec.ts`);
+      expect(sweep).toContain('readScreenLines()');
+      expect(sweep).toContain("['sphere', 'openbinding']");
+      expect(sweep).toMatch(/width: 1440, height: 900/);
+      expect(sweep).toMatch(/width: 390, height: 844/);
+      expect(sweep).toMatch(/width: 375/);
+      expect(sweep).toContain("colorScheme: 'dark'");
+      for (const screen of ['sphere-wizard-pricing', 'sphere-wizard-preview', 'org-connections'])
+        expect(sweep, screen).toContain(screen);
     });
 
     it('takes the synthetic users from the lab and the password from the environment only', () => {
@@ -300,6 +343,14 @@ describe('the Playwright specs', () => {
       ]) {
         expect(qa, screen).toContain(screen);
       }
+      // F3: a SPHERE problem's Candidates, the wizard's steps, a composition drawn from snapshots and the Connections tab.
+      for (const screen of [
+        "slug: 'sphere-candidates'",
+        'sphere-wizard-',
+        "slug: 'sphere-composition'",
+        "slug: 'connections'",
+      ])
+        expect(qa, screen).toContain(screen);
       // A viewer is not offered a way to start a run.
       expect(qa).toContain('Send run');
       expect(qa).toContain('starting a run needs MEMBER');

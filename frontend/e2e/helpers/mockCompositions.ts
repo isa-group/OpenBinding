@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import type { CompositionVersionView, CompositionView } from '../../src/modules/core/api/types';
+import { upstreamOf } from './sphereMock';
 
 // The compositions of the shared mock (e2e/helpers/mockApi.ts registers them): in `isa-demo`, a declared composition and one linked
 // to the problem `checkout-flow`, three versions each, with evaluations and analytics, and an archived one with no version. The
@@ -71,7 +72,7 @@ const orderBinding = {
   signIn: { local: true },
   notify: {
     candidate: 'email.brevo.starter',
-    from: { sphere: 'brevo/brevo', version: '665f1c2e9b1d4a0012ab34cd', plan: 'STARTER' },
+    from: { sphere: 'danruilop1/brevo', version: '6ade2d444b2b5b01c587d80d', plan: 'STARTER' },
   },
   archive: { candidate: 'storage.dropbox.plus' },
   post: { candidate: 'shipping.post.standard' },
@@ -920,16 +921,77 @@ function publicVersion(
   } as CompositionVersionView;
 }
 
+/**
+ * TomatoMeter (F3 J4): the composition the lab derives from tomatometer-email@2, whose version 1.0.0 is the gateway's fixture
+ * (core/tomatometer-email.version.json: Mailgun FOUNDATION pinned by `from`, the offering `sphere/tomatometer` read when it was
+ * evaluated) and whose version 1.1.0 binds Mailgun SCALE of the same pricing version instead.
+ */
+function tomatometerEntry(): Entry {
+  const base = core('tomatometer-email.version.json') as unknown as CompositionVersionView;
+  const problem = base.problem && {
+    ...base.problem,
+    problem: {
+      id: 'case-tomatometer-email',
+      slug: 'tomatometer-email',
+      name: 'TomatoMeter e-mail',
+    },
+    revision: { id: 'rev-tomatometer-2', revision: 2 },
+  };
+  const first: CompositionVersionView = {
+    ...structuredClone(base),
+    id: uuid(0xe001),
+    created_at: '2026-10-03T09:00:00Z',
+    created_by_id: AUTHOR,
+    problem,
+  };
+  const document = structuredClone(base.document ?? {}) as Record<string, unknown> & {
+    binding: Record<string, Record<string, unknown>>;
+  };
+  document.version = '1.1.0';
+  document.binding.dailySummary = {
+    candidate: 'email.mailgun.scale',
+    from: { plan: 'SCALE', sphere: 'danruilop1/mailgun', version: '6ade36454b2b5b01c587db3d' },
+  };
+  const second: CompositionVersionView = {
+    ...structuredClone(first),
+    id: uuid(0xe002),
+    ordinal: 2,
+    label: '1.1.0',
+    created_at: '2026-10-04T09:00:00Z',
+    content_digest: digest('e'),
+    document,
+    values: { ...first.values, subscription: { value: 90, unit: 'USD/month' } },
+  };
+  const versions = [first, second];
+  return {
+    view: composition(
+      5,
+      'tomatometer',
+      'TomatoMeter',
+      {
+        description:
+          'Daily summaries by e-mail, with plans of SPHERE pricings; its own offering is TomatoMeter’s pricing.',
+        visibility: 'public',
+      },
+      versions
+    ),
+    versions,
+  };
+}
+
 /** What a page's store seeds beyond the three compositions every page has. */
 export interface CompositionSeed {
   /** Also seed Notification hub, whose history the evolution charts draw (J5). */
   evolution?: boolean;
+  /** Also seed TomatoMeter, with upstream plans and an offering drawn from snapshots (F3 J4). */
+  tomatometer?: boolean;
 }
 
 /** A store of compositions for one page: the seeded ones plus what the page creates. */
 export function compositionStore(options: CompositionSeed = {}): CompositionStore {
   const entries = seed();
   if (options.evolution) entries.push(evolutionEntry());
+  if (options.tomatometer) entries.push(tomatometerEntry());
   /** The compositions of the other organizations: lab-other's, and those forks made, by organization slug. */
   const others = new Map<string, Entry[]>([[PUBLIC_ORG, otherEntries()]]);
   const allEntries = () => [...entries, ...[...others.values()].flat()];
@@ -1717,6 +1779,17 @@ export function compositionStore(options: CompositionSeed = {}): CompositionStor
         });
       return ok(versionDiff(from, to));
     }
+    // The upstream plans and the offering of a version, from stored data (e2e/helpers/sphereMock.ts).
+    if (section === 'upstream' && request.method === 'GET') {
+      const asked = request.query.get('version');
+      const version = asked ? find(asked) : entry.versions.at(-1);
+      if (!version)
+        return {
+          status: 404,
+          json: { detail: { code: 'not_found', error: 'Composition version not found.' } },
+        };
+      return ok(upstreamOf(version));
+    }
     if (section !== 'versions') return { status: 404, json: { detail: 'not mocked' } };
     const newest = [...entry.versions].reverse();
     if (!ref && request.method === 'POST') return seal(entry, request.text());
@@ -1802,7 +1875,7 @@ export function compositionStore(options: CompositionSeed = {}): CompositionStor
         return signedIn ? fork(entry, request, organizations, org) : refused();
       const reads =
         request.method === 'GET' &&
-        (!section || ['versions', 'diff', 'graph', 'download'].includes(section));
+        (!section || ['versions', 'diff', 'graph', 'download', 'upstream'].includes(section));
       if (!reads) return refused();
       return redacted(answer(request, org, organizations), section, ref, tail);
     },

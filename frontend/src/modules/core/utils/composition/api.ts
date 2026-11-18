@@ -22,6 +22,7 @@ import type {
   ParseResult,
   PublicCompositionList,
   SealResult,
+  UpstreamView,
   ValidateResult,
 } from '../../api/types';
 import type { Kind } from './document';
@@ -256,6 +257,15 @@ export const compositionsApi = {
     );
     return { created, result: body };
   },
+
+  /**
+   * A version's upstream plans with their stored snapshots, the source kinds of its global values and the offering its current
+   * evaluation read (by id, label or ordinal; the latest without one). Stored data only: the gateway never calls SPHERE for it.
+   */
+  upstream: (org: string, composition: string, version?: string) =>
+    apiClient.request<UpstreamView>(
+      `${compositionRoot(org, composition)}/upstream${query({ version })}`
+    ),
 
   /** What changed from one version to another (by id, label or ordinal); the gateway picks the defaults. */
   diff: (org: string, composition: string, from?: string, to?: string) =>

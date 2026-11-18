@@ -1,64 +1,13 @@
-import {
-  useMemo,
-  type CSSProperties,
-  type ForwardRefExoticComponent,
-  type RefAttributes,
-} from 'react';
+import { useMemo } from 'react';
 import {
   compareSelections,
   normalizePricing,
   type IPricingLike,
   type PricingSelection,
 } from 'pricing-renderer';
-import {
-  PricingChangeReview,
-  type PricingChangeReviewElement,
-  type PricingChangeReviewProps,
-} from 'pricing-renderer/react';
-import 'pricing-renderer/styles.css';
 import { Action } from '../../../core/components/action-button';
 import { Notice } from '../../../core/components/notice';
-
-/**
- * The React props of the review (0.2.0) leave out `hideSections`, which the element has. The adapter sets every property the
- * element declares, so the prop reaches it all the same; only the type has to say so.
- */
-const ChangeReview = PricingChangeReview as ForwardRefExoticComponent<
-  PricingChangeReviewProps &
-    Pick<PricingChangeReviewElement, 'hideSections'> &
-    RefAttributes<PricingChangeReviewElement>
->;
-
-/**
- * The Upgrade/Downgrade badge reads the order in which the document declares its plans as a ladder, and OpenBinding's plans are
- * not one: RESEARCH is free and is declared between FREE and LAB.
- */
-const HIDDEN_SECTIONS = ['relation'] as const;
-
-/** The review in the interface's palette: pricing-renderer's custom properties set to the `tp` tokens. */
-const REVIEW_TOKENS = {
-  '--pr-color-text': 'var(--color-tp-ink)',
-  '--pr-color-muted': 'var(--color-tp-steel)',
-  '--pr-color-surface': 'var(--color-tp-canvas)',
-  '--pr-color-surface-raised': 'var(--color-tp-canvas)',
-  '--pr-color-surface-subtle': 'var(--color-tp-surface)',
-  '--pr-color-border': 'var(--color-tp-hairline)',
-  '--pr-color-border-strong': 'var(--color-tp-hairline-strong)',
-  '--pr-color-accent': 'var(--color-tp-accent)',
-  '--pr-color-link': 'var(--color-tp-link)',
-  '--pr-color-focus': 'var(--color-tp-primary)',
-  '--pr-color-success': 'var(--color-tp-success-text)',
-  '--pr-color-warning': 'var(--color-tp-warning-text)',
-  '--pr-color-warning-surface': 'var(--color-tp-severity-warning-bg)',
-  '--pr-radius-sm': '0.375rem',
-  '--pr-radius-md': '0.5rem',
-  '--pr-radius-lg': '0.75rem',
-  '--pr-shadow-sm': 'none',
-} as CSSProperties;
-
-/** Inside a card the review keeps the card's scale: its title and section headings at the size of the card's own. */
-const REVIEW_SCALE =
-  'flex min-w-0 flex-col gap-3 [&_[data-pr-part=review-title]]:text-lg [&_[data-pr-part=review-title]]:font-semibold [&_[data-pr-part=review-title]]:tracking-normal [&_[data-pr-part=change-review]>section>h3]:text-[15px] [&_[data-pr-part=change-review]>section>h3]:font-semibold [&_[data-pr-part=change-review]>section>h3]:tracking-normal';
+import PricingChangeReview from '../../../core/components/pricing-change-review';
 
 /** The review speaks to the holder of the subscription by default; here an administrator reviews somebody else's contract. */
 const MESSAGES: Record<string, string> = {
@@ -131,12 +80,8 @@ export default function AgreementReview({
     [read, before, after]
   );
   const messages = useMemo(
-    () => ({
-      ...MESSAGES,
-      'pricing.reviewTitle': title,
-      'pricing.reviewPending': PENDING[pending ?? 'applying'],
-    }),
-    [title, pending]
+    () => ({ ...MESSAGES, 'pricing.reviewPending': PENDING[pending ?? 'applying'] }),
+    [pending]
   );
 
   if (!comparison) {
@@ -180,18 +125,17 @@ export default function AgreementReview({
   }
 
   return (
-    <div className={REVIEW_SCALE} style={REVIEW_TOKENS}>
-      <ChangeReview
-        comparison={comparison}
-        hideSections={HIDDEN_SECTIONS}
-        messages={messages}
-        notices={notices}
-        pending={pending !== null}
-        error={error}
-        confirmLabel={confirmLabel}
-        onConfirm={onConfirm}
-        onBack={onBack}
-      />
-    </div>
+    <PricingChangeReview
+      comparison={comparison}
+      title={title}
+      hideRelation
+      messages={messages}
+      notices={notices}
+      pending={pending !== null}
+      error={error}
+      confirmLabel={confirmLabel}
+      onConfirm={onConfirm}
+      onBack={onBack}
+    />
   );
 }

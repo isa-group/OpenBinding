@@ -1,7 +1,13 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
+import type { ProblemFacts } from '../../api/types';
+import tomatometer from '../../../../test/fixtures/core/tomatometer-email.facts.json';
 import { originText } from './originText';
 import { ValueBadge } from './ValueBadge';
+
+const mailgun = (tomatometer as ProblemFacts).candidates.find(
+  entry => entry.id === 'email.mailgun.foundation'
+)!;
 
 const ORIGIN = {
   kind: 'package' as const,
@@ -44,5 +50,26 @@ describe('ValueBadge', () => {
   it('shows nothing it was not given', () => {
     const { container } = render(<ValueBadge origin={null} />);
     expect(container.textContent).toBe('');
+  });
+
+  it('names a value’s source in a word beside its sentence', () => {
+    const { container } = render(
+      <ValueBadge origin={mailgun.origins.subscription} shown="35 USD/month" />
+    );
+    expect(container.querySelector('.vb-source')).toHaveTextContent('Priced');
+    expect(
+      screen.getByText(
+        /^Priced from SPHERE: danruilop1\/mailgun FOUNDATION, version 2026-10 \(35 USD\/month\)/
+      )
+    ).toBeInTheDocument();
+  });
+
+  it('keeps a compact source’s sentence for assistive technology and links a guarantee’s terms outside', () => {
+    const { container } = render(<ValueBadge origin={mailgun.origins.availability} compact />);
+    expect(container.querySelector('.vb-source')).toHaveTextContent('Guarantee');
+    expect(screen.getByText(/^From the guarantee guaranteedUptimeSla/)).toHaveClass('sr-only');
+    const link = screen.getByRole('link', { name: 'Guarantee terms (opens in a new tab)' });
+    expect(link).toHaveAttribute('href', 'https://www.mailgun.com/legal/terms/');
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
   });
 });

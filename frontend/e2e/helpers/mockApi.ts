@@ -53,6 +53,7 @@ import {
 } from '../../src/test/fixtures/studies';
 import { presetPage } from '../../src/test/fixtures/presets';
 import { compositionStore, type CompositionSeed, type CompositionStore } from './mockCompositions';
+import { snapshotRoutes, sphereProblemRoutes, sphereRoutes, tomatometerListed } from './sphereMock';
 
 // One mock of the gateway for the whole QA gallery: a platform administrator of a RESEARCH (institutional) account, one organization
 // with compositions, problems, runs and studies, and everything the public screens read.
@@ -836,17 +837,21 @@ function problemRoutes(request: Request, orgSlug: string): Reply {
         ),
         201
       );
-    return ok({
-      problems: problems.map(item => ({
+    const origin = request.query.get('origin');
+    const listed = [
+      ...problems.map(item => ({
         ...item,
         latest_revision: latestOf(item),
         revision_count: item.id === PROBLEM.id ? PROBLEM_REVISIONS.length : 0,
       })),
-      total: problems.length,
-      limit: 200,
-      offset: 0,
-    });
+      ...(orgSlug === 'isa-demo' ? [tomatometerListed()] : []),
+    ].filter(item => !origin || item.latest_revision?.origin === origin);
+    return ok({ problems: listed, total: listed.length, limit: 200, offset: 0 });
   }
+  // tomatometer-email (its version 2 imported from SPHERE), storage (J1's) and the SPHERE routes of a problem
+  // (e2e/helpers/sphereMock.ts).
+  const sphere = orgSlug === 'isa-demo' ? sphereProblemRoutes(method, parts) : null;
+  if (sphere) return sphere;
   const problem = problems.find(item => item.slug === problemSlug || item.id === problemSlug);
   if (!problem) return notFound('Problem not found.');
   const revisions = problem.id === PROBLEM.id ? PROBLEM_REVISIONS : [];
@@ -978,6 +983,11 @@ function organizationRoutes(request: Request): Reply {
         : ok(presetPage(found.slug === 'isa-demo' ? undefined : []));
     case 'compositions':
       return request.compositions.route(request, found.slug, ORGANIZATIONS);
+    case 'sphere':
+      return sphereRoutes(parts, query) ?? notFound('Not mocked.');
+    case 'connections':
+      // No connection yet; a spec that connects one answers the writes itself (e2e/f3-connections.spec.ts).
+      return parts[4] ? notFound('No connection.') : ok({ connections: [] });
     default:
       return notFound('Not mocked.');
   }
@@ -1187,6 +1197,9 @@ function route(request: Request): Reply | null {
     return request.compositions.publicRoute(request, second, request.signedIn, ORGANIZATIONS);
   }
 
+  // A stored pricing snapshot, under whichever organization its view names (e2e/helpers/sphereMock.ts).
+  if (area === 'organizations' && parts[3] === 'pricing-snapshots') return snapshotRoutes(parts);
+
   switch (area) {
     case 'auth':
       return second === 'refresh'
@@ -1372,7 +1385,8 @@ export async function installMockApi(
     const compositionRead = parts[1] === 'organizations' && parts[3] === 'compositions';
     // The public organizations, an organization's profile and an invitation's preview answer anybody too.
     const openRead =
-      (parts[1] === 'organizations' && (parts[2] === 'public' || parts[3] === 'profile')) ||
+      (parts[1] === 'organizations' &&
+        (parts[2] === 'public' || parts[3] === 'profile' || parts[3] === 'pricing-snapshots')) ||
       (parts[1] === 'invitations' && parts[3] === 'preview');
     if (
       !signedIn &&

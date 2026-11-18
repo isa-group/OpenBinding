@@ -216,4 +216,27 @@ describe('CandidatesPane', () => {
     expect(row).toHaveTextContent('Selected');
     expect(within(row).getByRole('textbox', { name: 'latency for service-a' })).toHaveValue('10');
   });
+
+  it('says which values come from SPHERE and warns that editing one makes it hand-written', () => {
+    const facts = factsOf();
+    facts.candidates[0].origins.latency = {
+      ...facts.candidates[0].origins.latency,
+      source: {
+        kind: 'manual',
+        carried: false,
+        detail: { key: 'service-a' },
+        pricing: null,
+      },
+    };
+    renderPane({ facts });
+    expect(screen.getByText(/One value comes from SPHERE/)).toBeInTheDocument();
+    expect(
+      within(cell()).getByText('Comes from SPHERE; editing makes it a hand-written value.')
+    ).toHaveClass('group-focus-within:inline');
+  });
+
+  it('says nothing about SPHERE when no value was imported', () => {
+    renderPane();
+    expect(screen.queryByText(/from SPHERE/)).toBeNull();
+  });
 });

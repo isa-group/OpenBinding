@@ -171,7 +171,7 @@ describe("the organization's Problems tab", () => {
         within(origins)
           .getAllByRole('radio')
           .map(radio => radio.closest('label')?.textContent)
-      ).toEqual(['All origins', 'Uploaded', 'Problem editor', 'QACOForge']);
+      ).toEqual(['All origins', 'Uploaded', 'Problem editor', 'QACOForge', 'SPHERE']);
       fireEvent.click(within(origins).getByRole('radio', { name: 'Problem editor' }));
       await waitFor(() => expect(addressNow()).toBe('/orgs/isa-demo/problems?origin=editor'));
       await waitFor(() => expect(lastList(gateway).get('origin')).toBe('editor'));

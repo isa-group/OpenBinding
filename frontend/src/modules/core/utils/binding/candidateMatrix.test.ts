@@ -3,6 +3,7 @@ import type { ProblemFacts } from '../../api/types';
 import ambiguous from '../../../../test/fixtures/core/ambiguous.facts.json';
 import fms from '../../../../test/fixtures/core/fms.facts.json';
 import simpleSeq from '../../../../test/fixtures/core/simple-seq.facts.json';
+import tomatometer from '../../../../test/fixtures/core/tomatometer-email.facts.json';
 import { candidateMatrix } from './candidateMatrix';
 
 /** simple-seq with a second feature and every kind of value on task t1: a number, a closed range, one open above, one open below. */
@@ -96,5 +97,32 @@ describe('candidateMatrix', () => {
       'carbon',
       'trust',
     ]);
+  });
+
+  it('carries each value’s source and each candidate’s properties and provenance from the facts', () => {
+    const matrix = candidateMatrix(tomatometer as ProblemFacts);
+    expect(matrix.properties).toEqual(['emailsPerDay', 'emailsPerMonth']);
+    const mailgun = matrix.rows
+      .find(row => row.task === 'dailySummary')!
+      .candidates.find(candidate => candidate.written === 'email.mailgun.foundation')!;
+    expect(mailgun.cells.map(cell => [cell.feature, cell.origin?.source?.kind])).toEqual([
+      ['availability', 'guarantee'],
+      ['latency', 'manual'],
+      ['subscription', 'priced'],
+    ]);
+    expect(
+      mailgun.properties.map(cell => [cell.name, cell.value, cell.origin?.source?.kind])
+    ).toEqual([
+      ['emailsPerDay', 100000000, 'limit'],
+      ['emailsPerMonth', 50000, 'limit'],
+    ]);
+    expect(mailgun.provenance).toMatchObject({ sphere: 'danruilop1/mailgun', plan: 'FOUNDATION' });
+    const login = matrix.rows.find(row => row.task === 'login')!.candidates[0];
+    expect(login.provenance).toBeNull();
+    expect(login.properties.map(cell => cell.value)).toEqual([null, null]);
+  });
+
+  it('lists no property group when no candidate declares one', () => {
+    expect(candidateMatrix(simpleSeq as ProblemFacts).properties).toEqual([]);
   });
 });

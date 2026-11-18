@@ -120,6 +120,18 @@ function VersionRow({
           {change} · {formatBytes(revision.package_size)?.split(' (')[0] ?? ''}
           {space !== null && ` · ≈ ${powerText(space)} combinations`}
         </p>
+        {revision.sphere && revision.sphere.sources.length > 0 && (
+          <p className="pv-sphere mt-1 text-[11px] [overflow-wrap:anywhere] text-tp-steel">
+            Generated from SPHERE:{' '}
+            {revision.sphere.sources
+              .map(source =>
+                source.versionLabel
+                  ? `${source.title}, version ${source.versionLabel}`
+                  : source.title
+              )
+              .join('; ')}
+          </p>
+        )}
         {failure && (
           <p role="alert" className="mt-1 text-xs text-red-700">
             {failure}

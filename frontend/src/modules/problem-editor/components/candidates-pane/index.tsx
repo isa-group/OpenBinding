@@ -100,6 +100,11 @@ export function CandidatesPane({
   }, [facts, files]);
 
   if (!facts || !matrix) return <NotChecked what="The candidates of each task appear" />;
+  const imported = facts.candidates.reduce(
+    (count, candidate) =>
+      count + Object.values(candidate.origins).filter(origin => origin.source).length,
+    0
+  );
   const shown =
     task && matrix.rows.some(row => row.task === task)
       ? { ...matrix, rows: matrix.rows.filter(row => row.task === task) }
@@ -167,14 +172,23 @@ export function CandidatesPane({
       );
     }
     const pending = isPending(cell.value, source);
+    const imported = origin.source ?? null;
     return (
-      <div className="flex min-w-0 flex-col items-start gap-1" data-pending={pending || undefined}>
+      <div
+        className="group flex min-w-0 flex-col items-start gap-1"
+        data-pending={pending || undefined}
+      >
         <FeatureCell
           feature={cell.feature}
           candidate={candidate.written}
           value={source.kind === 'value' ? source.value : undefined}
           onChange={value => onEdit(origin, value)}
         />
+        {imported && (
+          <span className="pe-imported hidden max-w-[220px] text-[11px] whitespace-normal text-tp-warning-text group-focus-within:inline">
+            Comes from SPHERE; editing makes it a hand-written value.
+          </span>
+        )}
         <span className="inline-flex flex-wrap items-center gap-1.5">
           <ValueBadge origin={origin} compact />
           {pending && (
@@ -242,6 +256,11 @@ export function CandidatesPane({
           Each value is written where the package declares it. An edited value is pending until the
           next check; a new candidate appears under the tasks that can take it after the next check.
         </p>
+      )}
+      {editing && imported > 0 && (
+        <Notice tone="info">
+          {`${imported === 1 ? 'One value comes' : `${imported} values come`} from SPHERE (marked Priced, Guarantee, Limit, Feature or Manual). Editing one makes it a hand-written value: the next version no longer says where it came from.`}
+        </Notice>
       )}
       <div
         className={
