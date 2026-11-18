@@ -284,7 +284,10 @@ Generated from the origin header of each file.
 | `frontend/src/modules/notification/hooks/useNotificationsSSE.ts` | `frontend/src/modules/notification/hooks/useNotificationsSSE.ts` | adapted |
 | `frontend/src/modules/notification/pages/inbox/index.tsx` | `frontend/src/modules/notification/pages/inbox/index.tsx` | adapted |
 | `frontend/src/modules/notification/utils/notification-link.ts` | `frontend/src/modules/notification/components/notification-item/index.tsx` | adapted |
+| `frontend/src/modules/organization/api/connectionsApi.ts` | `frontend/src/modules/pricing/api/pricingsApi.ts` | pattern-only |
 | `frontend/src/modules/organization/api/organizationsApi.ts` | `frontend/src/modules/organization/api/organizationsApi.ts` | adapted |
+| `frontend/src/modules/organization/components/connections-tab/SphereKeyCard.tsx` | `frontend/src/modules/settings/components/IntegrationsSection.tsx` | adapted |
+| `frontend/src/modules/organization/components/connections-tab/index.tsx` | `frontend/src/modules/organization/pages/organization-detail/index.tsx` | pattern-only |
 | `frontend/src/modules/organization/components/move-organization-modal/index.tsx` | `frontend/src/modules/organization/pages/organizations-list/index.tsx` | pattern-only |
 | `frontend/src/modules/organization/components/org-dnd/index.tsx` | `frontend/src/modules/organization/components/org-dnd/index.tsx` | adapted |
 | `frontend/src/modules/organization/components/org-dnd/row.ts` | `frontend/src/modules/organization/components/org-dnd/row.ts` | verbatim |

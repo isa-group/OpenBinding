@@ -985,6 +985,9 @@ function organizationRoutes(request: Request): Reply {
       return request.compositions.route(request, found.slug, ORGANIZATIONS);
     case 'sphere':
       return sphereRoutes(parts, query) ?? notFound('Not mocked.');
+    case 'connections':
+      // No connection yet; a spec that connects one answers the writes itself (e2e/f3-connections.spec.ts).
+      return parts[4] ? notFound('No connection.') : ok({ connections: [] });
     default:
       return notFound('Not mocked.');
   }

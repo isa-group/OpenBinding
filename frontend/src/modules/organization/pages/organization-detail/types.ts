@@ -1,8 +1,8 @@
 // Adapted from SPHERE frontend/src/modules/organization/pages/organization-detail/types.ts (revision 73779a8a),
 // https://github.com/SCORELabUS/SPHERE. Copyright (c) 2024 Alejandro García Fernández.
 // MIT licence: the full text is in THIRD_PARTY_NOTICES.md.
-// Changes: OpenBinding's tabs (the resources an organization holds, presets and the audit log; no pricings, collections,
-// services or permissions); the tree is named by slug.
+// Changes: OpenBinding's tabs (the resources an organization holds, presets, the audit log and the beta Connections; no
+// pricings, collections, services or permissions); the tree is named by slug.
 
 export interface TreeNode {
   id: string;
@@ -26,6 +26,7 @@ export type Tab =
   | 'invitations'
   | 'hierarchy'
   | 'presets'
-  | 'audit';
+  | 'audit'
+  | 'connections';
 
 export const PER_PAGE = 10;

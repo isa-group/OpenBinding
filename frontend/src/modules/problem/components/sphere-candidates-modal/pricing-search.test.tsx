@@ -73,7 +73,7 @@ describe('PricingSearch', () => {
   });
 
   it('waits for SPHERE’s Retry-After when it is busy, then asks once more', async () => {
-    const busy = Object.assign(new HttpError(429, 'HTTP 429: SPHERE is busy.'), {
+    const busy = Object.assign(new HttpError(429, 'SPHERE is busy.'), {
       code: 'sphere_busy',
       retryAfter: 1,
     });

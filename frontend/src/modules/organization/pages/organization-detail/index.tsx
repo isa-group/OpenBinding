@@ -2,7 +2,8 @@
 // https://github.com/SCORELabUS/SPHERE. Copyright (c) 2024 Alejandro García Fernández.
 // MIT licence: the full text is in THIRD_PARTY_NOTICES.md.
 // Changes: the organization is named by slug and the tab is in the address (`/orgs/:org/:tab?`), so a tab is a link and the
-// back button works; OpenBinding's tabs (compositions, problems, runs, studies, presets, audit) and VIEWER; the stats come
+// back button works; OpenBinding's tabs (compositions, problems, runs, studies, presets, audit, and Connections, a beta tab as
+// SPHERE's are: filtered by the beta switch and labelled Beta) and VIEWER; the stats come
 // from the gateway; a non-member reads the public profile (overview and public compositions) and anything else, or an
 // organization that publishes nothing, is the in-place 404; dialogs are accessible; no pricings, collections, services or
 // permissions.
@@ -35,6 +36,9 @@ import { ROLE_COLORS, ROLE_LABELS, TAB_META, TABS, isTab } from './constants';
 import type { Tab, TreeNode } from './types';
 import AddMemberModal from './components/AddMemberModal';
 import AuditTab from './components/AuditTab';
+import ConnectionsTab from '../../components/connections-tab';
+import BetaBadge from '../../../beta/components/beta-badge';
+import { useBetaFeatureStatus } from '../../../beta/hooks/useBetaFeatures';
 import ChildRolesManager from './components/ChildRolesManager';
 import CreateSubOrgModal from './components/CreateSubOrgModal';
 import EditOrgModal from './components/EditOrgModal';
@@ -245,13 +249,18 @@ export default function OrganizationDetailPage() {
   }, []);
 
   /* ─── Tabs ─── */
+  // A beta tab shows only for users who turned beta features on (SPHERE's `beta` flag); until the switch is read, a beta tab
+  // named in the address waits instead of answering 404.
+  const beta = useBetaFeatureStatus();
   const availableTabs = useMemo<Tab[]>(() => {
     if (isPublicView) return ['overview', 'compositions'];
     return TABS.filter(tab => {
-      const minimum = TAB_META[tab].minRole;
+      const meta = TAB_META[tab];
+      if (meta.beta && beta !== 'on') return false;
+      const minimum = meta.minRole;
       return !minimum || (myRole !== null && RANK[myRole] >= RANK[minimum]);
     });
-  }, [isPublicView, myRole]);
+  }, [isPublicView, myRole, beta]);
 
   const activeTab: Tab | null =
     tabParam === undefined ? 'overview' : isTab(tabParam) ? tabParam : null;
@@ -279,6 +288,8 @@ export default function OrganizationDetailPage() {
     );
   }
   if (deciding || !shown) return <OrgDetailSkeleton />;
+  if (activeTab && TAB_META[activeTab].beta && beta === 'unknown' && !isPublicView)
+    return <OrgDetailSkeleton />;
   // A tab that does not exist, or that this reader may not open, is the same 404 as a missing organization.
   if (!activeTab || !availableTabs.includes(activeTab)) return <NotFoundPage />;
 
@@ -464,6 +475,7 @@ export default function OrganizationDetailPage() {
                 {availableTabs.map(tab => (
                   <option key={tab} value={tab}>
                     {TAB_META[tab].label}
+                    {TAB_META[tab].beta ? ' (Beta)' : ''}
                   </option>
                 ))}
               </select>
@@ -501,6 +513,7 @@ export default function OrganizationDetailPage() {
                 >
                   <Iconify icon={meta.icon} width={16} />
                   {meta.label}
+                  {meta.beta && <BetaBadge />}
                 </Link>
               );
             })}
@@ -587,6 +600,9 @@ export default function OrganizationDetailPage() {
           )}
 
           {activeTab === 'audit' && memberOrg && <AuditTab key="audit" organization={memberOrg} />}
+          {activeTab === 'connections' && memberOrg && (
+            <ConnectionsTab key="connections" org={memberOrg.slug} />
+          )}
         </AnimatePresence>
       </div>
 
