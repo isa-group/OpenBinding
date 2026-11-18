@@ -105,7 +105,7 @@ listed with its module:
 
 The frontend files of the move to SPHERE's frontend (`docs/adr/0053-frontend-on-sphere-stack.md`), at revision
 `73779a8a` of `main` (and `694f292b03` of its `feat/pricing-renderer` branch, for the pricing-renderer bridge, `/pricing`,
-the configuration compare tray and the study front, as each header says), each with its reuse class: **verbatim** (copied; only imports, wording and types changed), **adapted**
+the configuration compare tray, the study front and the SPHERE wizard's plan picker and selection mapping, as each header says), each with its reuse class: **verbatim** (copied; only imports, wording and types changed), **adapted**
 (copied, with logic changed; the header says what) or **pattern-only** (the layout followed, the code written here).
 Generated from the origin header of each file.
 
@@ -260,6 +260,7 @@ Generated from the origin header of each file.
 | `frontend/src/modules/core/utils/offer-reload.ts` | `frontend/src/modules/pricing/pages/card/index.tsx` | adapted (extracted) |
 | `frontend/src/modules/core/utils/recentItems.ts` | `frontend/src/modules/core/utils/recentItems.ts` | adapted |
 | `frontend/src/modules/core/utils/sphere/graph.ts` | `frontend/src/modules/pricing/types/graph.ts` | verbatim |
+| `frontend/src/modules/core/utils/sphere/selection-mapping.ts` | `frontend/src/modules/pricing/components/configuration-space-view/selection-mapping.ts` (feat/pricing-renderer) | verbatim |
 | `frontend/src/modules/core/utils/sphere/version-graph.ts` | `frontend/src/modules/pricing/utils/version-graph.ts` | verbatim |
 | `frontend/src/modules/core/utils/sphere/version-order.ts` | `frontend/src/modules/pricing/utils/version-order.ts` | verbatim |
 | `frontend/src/modules/engine/api/enginesApi.ts` | `frontend/src/modules/api-keys/api/apiKeysApi.ts` | pattern-only |
@@ -357,6 +358,7 @@ Generated from the origin header of each file.
 | `frontend/src/modules/problem-editor/pages/problem-editor/index.tsx` | `frontend/src/modules/pricing-editor/pages/pricing2yaml-editor/index.tsx` | adapted |
 | `frontend/src/modules/problem-editor/services/export.ts` | `frontend/src/modules/pricing-editor/services/export.service.ts` | adapted |
 | `frontend/src/modules/problem/api/problemsApi.ts` | `frontend/src/modules/pricing/api/pricingsApi.ts` | pattern-only |
+| `frontend/src/modules/problem/api/sphereApi.ts` | `frontend/src/modules/pricing/api/pricingsApi.ts` | pattern-only |
 | `frontend/src/modules/problem/components/candidates-explorer/index.tsx` | `frontend/src/modules/pricing/components/configuration-space-view/index.tsx` | adapted |
 | `frontend/src/modules/problem/components/compositions-tab/index.tsx` | `frontend/src/modules/organization/pages/organization-detail/components/PricingsTab.tsx` | pattern-only |
 | `frontend/src/modules/problem/components/delete-problem-modal/index.tsx` | `frontend/src/modules/pricing/components/pricing-settings-tab/index.tsx` | pattern-only |
@@ -369,6 +371,8 @@ Generated from the origin header of each file.
 | `frontend/src/modules/problem/components/runs-tab/index.tsx` | `frontend/src/modules/pricing/pages/card/index.tsx` | pattern-only |
 | `frontend/src/modules/problem/components/settings-tab/index.tsx` | `frontend/src/modules/pricing/components/pricing-settings-tab/index.tsx` | adapted |
 | `frontend/src/modules/problem/components/source-tab/index.tsx` | `frontend/src/modules/pricing/components/yaml-source-panel/index.tsx` | pattern-only |
+| `frontend/src/modules/problem/components/sphere-candidates-modal/plan-picker.tsx` | `frontend/src/modules/pricing/components/configuration-space-view/configuration-picker.tsx` (feat/pricing-renderer) | adapted |
+| `frontend/src/modules/problem/components/sphere-candidates-modal/pricing-search.tsx` | `frontend/src/modules/pricing-editor/layouts/editor-layout/publish-pricing-modal.tsx` | adapted |
 | `frontend/src/modules/problem/components/versions-tab/index.tsx` | `frontend/src/modules/pricing/components/pricing-versions-tab/index.tsx` | adapted |
 | `frontend/src/modules/problem/components/versions-tab/version-compare.tsx` | `frontend/src/modules/pricing/components/pricing-version-diff/index.tsx` | adapted |
 | `frontend/src/modules/problem/pages/card/index.tsx` | `frontend/src/modules/pricing/pages/card/index.tsx` | adapted |

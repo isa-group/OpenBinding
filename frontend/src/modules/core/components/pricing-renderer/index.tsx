@@ -3,9 +3,11 @@
 // MIT licence: the full text is in THIRD_PARTY_NOTICES.md.
 // Changes: the package's stylesheet is imported here, so only the screens that draw a pricing load it; the source helpers are
 // imported from `./source` rather than re-exported (a component module exports components only, for fast refresh); the theme
-// note speaks of OpenBinding, which is light only.
+// note speaks of OpenBinding, which is light only; `String` is registered as the one expression function beyond the package's own,
+// as the gateway's normaliser evaluates it (SPHERE pricings write prices such as `#priceByTier[String(#tier)]`).
 
 import { forwardRef } from 'react';
+import type { ExpressionOptions } from 'pricing-renderer';
 import {
   PricingRenderer,
   type PricingRendererElement,
@@ -18,6 +20,14 @@ import { SPHERE_PRICING_TOKENS } from './tokens';
 import type { SpherePricingSource } from './source';
 
 export type { SpherePricingSource } from './source';
+
+/**
+ * The expression functions a price may call: `String`, the one the Pricing2Yaml documents in SPHERE use beyond the package's own
+ * operators, and the one the gateway's normaliser allows. One object for the module, so the element never sees a new option.
+ */
+const EXPRESSION_OPTIONS: ExpressionOptions = {
+  functions: { String: (value: unknown) => String(value) },
+};
 
 /** Everything the package accepts except the source, which `source` carries instead. */
 type RendererOverrides = Omit<
@@ -84,6 +94,7 @@ export const SpherePricingRenderer = forwardRef<PricingRendererElement, SpherePr
       ...PRESETS[preset],
       theme: 'light',
       locale: 'en-US',
+      expressionOptions: EXPRESSION_OPTIONS,
       ...overrides,
       style: { ...SPHERE_PRICING_TOKENS, ...style },
     } as PricingRendererProps;
