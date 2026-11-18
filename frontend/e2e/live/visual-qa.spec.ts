@@ -287,25 +287,30 @@ const SCREENSHOTS = `${RESULTS_DIR}/screenshots${BRAND ? `-${BRAND}` : ''}`;
 
 /** Opens each screen, checks it, saves its picture and logs one line. */
 async function walk(
-  page: Page,
+  first: Page,
   testInfo: TestInfo,
   stops: Stop[],
   skipped: Array<{ slug: string; why: string }> = []
 ): Promise<Row[]> {
   const viewport = testInfo.project.name;
   const mobile = viewport === 'mobile';
-  const seen = watch(page);
+  const context = first.context();
   const rows: Row[] = [];
+  // One page per screen: the lab's browser has 576 MB, and one page kept for every screen (pricing-renderer drawings,
+  // Monaco) runs out of it. The palette and the session live in the context's storage: the first page's start writes the
+  // session `signInByApi` handed it, and every new page reads it there.
   if (BRAND)
-    await page.addInitScript(
+    await context.addInitScript(
       ([key, value]) => window.localStorage.setItem(key, value),
       [BRAND_KEY, BRAND]
     );
+  await first.goto('/');
   await mkdir(SCREENSHOTS, { recursive: true }).catch(() => undefined);
 
   for (const stop of stops) {
     const label = `${viewport} ${stop.slug}`;
-    seen.take();
+    const page = await context.newPage();
+    const seen = watch(page);
     await page.goto(stop.path);
     await expect
       .soft(stop.ready(page), `${label}: the screen did not arrive (${stop.path})`)
@@ -336,6 +341,7 @@ async function walk(
       overflowPx,
       http4xx: found.http4xx,
     });
+    await page.close();
   }
   for (const item of skipped) {
     rows.push({
