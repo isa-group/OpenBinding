@@ -34,7 +34,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ....core.settings import get_settings
 from ....db.models import BindingCaseRevision, PricingSnapshot
-from ...shared.blobs import path_for, write_file
+from ...shared.application import path_for, write_file
 from ..domain.errors import PricingInvalid
 from ..domain.snapshots import (
     PUBLIC_SCOPE,
