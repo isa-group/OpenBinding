@@ -183,7 +183,7 @@ function Provenance({ candidate }: { candidate: MatrixCandidate }) {
     permanentUrl: from.permanentUrl,
   })}`;
   return (
-    <span className="cm-provenance mt-0.5 flex flex-wrap items-center gap-x-1.5 text-[11px] font-normal text-tp-steel">
+    <span className="cm-provenance mt-0.5 flex flex-wrap items-center gap-x-1.5 font-sans text-[11px] font-normal tracking-normal text-tp-steel normal-case">
       <span className="[overflow-wrap:anywhere]">{words}</span>
       {from.permanentUrl && /^https:\/\//.test(from.permanentUrl) && (
         <a
@@ -365,7 +365,7 @@ function TaskCandidates({
               key={`property-${property}`}
               className={index === 0 ? 'border-l border-tp-hairline' : undefined}
             >
-              <span className="font-mono">{property}</span>
+              <span className="font-mono normal-case">{property}</span>
             </th>
           ))}
         </tr>
