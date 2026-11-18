@@ -77,7 +77,7 @@ function DocLink({ href, compact }: { href: string; compact: boolean }) {
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className="vb-doc inline-flex items-center gap-0.5 text-[11px] text-tp-link underline"
+      className="vb-doc inline-flex items-center justify-center gap-0.5 text-[11px] text-tp-link underline max-sm:min-h-6 max-sm:min-w-6"
       aria-label={compact ? 'Guarantee terms (opens in a new tab)' : undefined}
     >
       {!compact && 'Guarantee terms'}
