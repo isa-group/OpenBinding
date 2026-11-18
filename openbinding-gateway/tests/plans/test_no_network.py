@@ -12,11 +12,12 @@ from pathlib import Path
 
 import pytest
 
+from _paths import GATEWAY_ROOT
 from openbinding_gateway.core import outbound
 from openbinding_gateway.core.outbound import OutboundPolicy
 from sphere_recorded import NetworkForbidden
 
-GATEWAY = Path(__file__).resolve().parents[2]
+GATEWAY = GATEWAY_ROOT
 
 
 async def test_an_unscripted_outbound_read_is_forbidden() -> None:

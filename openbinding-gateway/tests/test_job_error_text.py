@@ -12,6 +12,8 @@ Nothing here reaches a network: engines are ``httpx.MockTransport`` or a stub of
 
 from __future__ import annotations
 
+import socket
+
 import logging
 import re
 import time
@@ -305,6 +307,12 @@ async def test_an_unreachable_engine_shows_its_sentence_and_not_its_host(
     api_client, db_session, registration, monkeypatch, logs
 ):
     real_solve = remote.solve_remote
+
+    def unresolvable(*_args, **_kwargs):
+        raise socket.gaierror(f"{PRIVATE_HOST}: Name or service not known")
+
+    # The resolver is scripted: the tests never ask a real DNS server (tests/conftest.py).
+    monkeypatch.setattr(socket, "getaddrinfo", unresolvable)
 
     async def solve(*_args, **_kwargs):
         return await real_solve(RemoteRegistration(f"https://{PRIVATE_HOST}:8443", {}), {}, {}, {}, timeout_s=2.0)
