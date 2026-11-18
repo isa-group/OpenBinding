@@ -335,7 +335,7 @@ export default function MappingStep({ form, onForm, summaries, editableFeatures 
             ))}
           </ul>
         )}
-        <label className="min-w-0 sm:max-w-xs">
+        <label className="min-w-0 sm:max-w-[20rem]">
           <span className={LABEL}>Dominated plans</span>
           <select
             className={INPUT}
@@ -621,7 +621,7 @@ function FeatureMapping({
       </div>
 
       {reads && (
-        <label className="min-w-0 sm:max-w-sm">
+        <label className="min-w-0 sm:max-w-[24rem]">
           <span className={LABEL}>{`The ${property.kind} ${feature.id} reads`}</span>
           <select
             className={INPUT}
@@ -648,7 +648,7 @@ function FeatureMapping({
             The guarantee is a number: scale it instead of a table
           </label>
           {property.useScale ? (
-            <label className="min-w-0 sm:max-w-xs">
+            <label className="min-w-0 sm:max-w-[20rem]">
               <span className={LABEL}>Multiply by</span>
               <input
                 className={INPUT}
@@ -660,7 +660,7 @@ function FeatureMapping({
               />
             </label>
           ) : (
-            <div className="grid grid-cols-2 gap-2 sm:max-w-sm">
+            <div className="grid grid-cols-2 gap-2 sm:max-w-[24rem]">
               {(['true', 'false'] as const).map(word => (
                 <label key={word} className="min-w-0">
                   <span
@@ -684,7 +684,7 @@ function FeatureMapping({
         </div>
       )}
       {property.kind === 'limit' && property.name && (
-        <label className="min-w-0 sm:max-w-xs">
+        <label className="min-w-0 sm:max-w-[20rem]">
           <span className={LABEL}>An unlimited {property.name} counts as</span>
           <input
             className={INPUT}
@@ -697,7 +697,7 @@ function FeatureMapping({
         </label>
       )}
       {property.kind === 'constant' && (
-        <label className="min-w-0 sm:max-w-xs">
+        <label className="min-w-0 sm:max-w-[20rem]">
           <span className={LABEL}>{`${feature.id} of every candidate`}</span>
           <input
             className={INPUT}
