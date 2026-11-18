@@ -62,6 +62,16 @@ OpenBinding source and documentation retain the license declared by this reposit
 Names, logos and institutional marks are not transferred by the MIT license and
 must not be used to imply an endorsement.
 
+## Pricing2Yaml readers followed
+
+The Python Pricing2Yaml normaliser (`openbinding-gateway/src/openbinding_gateway/modules/plans/domain/pricing2yaml/`)
+reads pricings as the two TypeScript readers do, so that the gateway and the screens agree. Each file names its origin.
+
+| File | Origin | Use |
+|---|---|---|
+| `pricing2yaml/expression.py` | [pricing-renderer](https://github.com/javiercavlop/pricing-renderer) `v0.2.0` `src/core/expression.ts` (MIT, Copyright (c) 2026 Francisco Javier Cavero) | Grammar ported: the tokenizer, the precedence-climbing parser, the whitelist and the size limits; evaluation in `Decimal`, with `String(x)` as the one extra function |
+| `pricing2yaml/normalise.py`, `model.py`, `effective.py`, `units.py`, `summary.py` | pricing-renderer `v0.2.0` `src/core/normalize.ts`, `compare-values.ts`, `breakdown.ts`, `resolve.ts`; [Pricing4TS](https://github.com/Alex-GF/Pricing4TS) `0.12.1` `pricing-parser.js`, `pricing-validators.js`, `version-manager.js` (MIT, Copyright (c) 2024 Alejandro García Fernández) | Semantics followed, no code copied: defaults and overrides, add-on extensions, unlimited values (pricing4ts's `1e8` sentinel included), billing, the kept validations |
+
 ## Code ported from SPHERE
 
 The files below port SPHERE code at revision `73779a8a`, and each names its origin in its header (the SVGs, which

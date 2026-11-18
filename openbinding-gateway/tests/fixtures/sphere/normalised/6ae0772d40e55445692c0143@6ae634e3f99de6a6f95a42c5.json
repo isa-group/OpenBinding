@@ -1,0 +1,830 @@
+{
+  "pricing": {
+    "syntaxVersion": "3.1",
+    "title": "SendGrid",
+    "version": "2026-10-31",
+    "createdAt": "2026-09-06",
+    "currency": "USD",
+    "billing": [
+      {
+        "id": "monthly",
+        "multiplier": 1.0,
+        "synthesized": true
+      }
+    ],
+    "features": [
+      {
+        "id": "transactionalEmailApi",
+        "name": "transactionalEmailApi",
+        "type": "INTEGRATION",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "smtpRelay",
+        "name": "smtpRelay",
+        "type": "INTEGRATION",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "sandboxMode",
+        "name": "sandboxMode",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "dedicatedIp",
+        "name": "dedicatedIp",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "euDataResidency",
+        "name": "euDataResidency",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "emailValidation",
+        "name": "emailValidation",
+        "type": "INTEGRATION",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "emailTesting",
+        "name": "emailTesting",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "eventWebhooks",
+        "name": "eventWebhooks",
+        "type": "INTEGRATION",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "teammates",
+        "name": "teammates",
+        "type": "MANAGEMENT",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "subuserManagement",
+        "name": "subuserManagement",
+        "type": "MANAGEMENT",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "activityData",
+        "name": "activityData",
+        "type": "INFORMATION",
+        "valueType": "BOOLEAN",
+        "default": true
+      }
+    ],
+    "usageLimits": [
+      {
+        "id": "emailsPerMonth",
+        "name": "emailsPerMonth",
+        "valueType": "NUMERIC",
+        "unit": "email",
+        "default": {
+          "unlimited": true
+        },
+        "linkedFeatures": [
+          "transactionalEmailApi",
+          "smtpRelay"
+        ]
+      },
+      {
+        "id": "emailsPerDay",
+        "name": "emailsPerDay",
+        "valueType": "NUMERIC",
+        "unit": "email",
+        "default": 100,
+        "linkedFeatures": [
+          "transactionalEmailApi",
+          "smtpRelay"
+        ]
+      },
+      {
+        "id": "mailSendRequestsPerSecond",
+        "name": "mailSendRequestsPerSecond",
+        "valueType": "NUMERIC",
+        "unit": "request",
+        "default": 10000,
+        "linkedFeatures": [
+          "transactionalEmailApi"
+        ]
+      },
+      {
+        "id": "recipientsPerRequest",
+        "name": "recipientsPerRequest",
+        "valueType": "NUMERIC",
+        "unit": "recipient",
+        "default": 1000,
+        "linkedFeatures": [
+          "transactionalEmailApi"
+        ]
+      },
+      {
+        "id": "personalizationsPerRequest",
+        "name": "personalizationsPerRequest",
+        "valueType": "NUMERIC",
+        "unit": "personalization",
+        "default": 1000,
+        "linkedFeatures": [
+          "transactionalEmailApi"
+        ]
+      },
+      {
+        "id": "requestSize",
+        "name": "requestSize",
+        "valueType": "NUMERIC",
+        "unit": "MiB",
+        "default": 30,
+        "linkedFeatures": [
+          "transactionalEmailApi"
+        ]
+      },
+      {
+        "id": "smtpMessagesPerConnection",
+        "name": "smtpMessagesPerConnection",
+        "valueType": "NUMERIC",
+        "unit": "email",
+        "default": 5000,
+        "linkedFeatures": [
+          "smtpRelay"
+        ]
+      },
+      {
+        "id": "smtpConcurrentConnections",
+        "name": "smtpConcurrentConnections",
+        "valueType": "NUMERIC",
+        "unit": "connection",
+        "default": 10000,
+        "linkedFeatures": [
+          "smtpRelay"
+        ]
+      },
+      {
+        "id": "maxDedicatedIps",
+        "name": "maxDedicatedIps",
+        "valueType": "NUMERIC",
+        "unit": "IP",
+        "default": 0,
+        "linkedFeatures": [
+          "dedicatedIp"
+        ]
+      },
+      {
+        "id": "includedEmailValidations",
+        "name": "includedEmailValidations",
+        "valueType": "NUMERIC",
+        "unit": "validation",
+        "default": 0,
+        "linkedFeatures": [
+          "emailValidation"
+        ]
+      },
+      {
+        "id": "emailTestingCreditsPerMonth",
+        "name": "emailTestingCreditsPerMonth",
+        "valueType": "NUMERIC",
+        "unit": "credit",
+        "default": 0,
+        "linkedFeatures": [
+          "emailTesting"
+        ]
+      },
+      {
+        "id": "maxEventWebhooks",
+        "name": "maxEventWebhooks",
+        "valueType": "NUMERIC",
+        "unit": "webhook",
+        "default": 1,
+        "linkedFeatures": [
+          "eventWebhooks"
+        ]
+      },
+      {
+        "id": "maxTeammates",
+        "name": "maxTeammates",
+        "valueType": "NUMERIC",
+        "unit": "user",
+        "default": 1,
+        "linkedFeatures": [
+          "teammates"
+        ]
+      },
+      {
+        "id": "activityRetentionDays",
+        "name": "activityRetentionDays",
+        "valueType": "NUMERIC",
+        "unit": "day",
+        "default": 3,
+        "linkedFeatures": [
+          "activityData"
+        ]
+      }
+    ],
+    "plans": [
+      {
+        "id": "freeTrial",
+        "name": "freeTrial",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 0.0
+        },
+        "unit": "month",
+        "period": "month",
+        "perSeat": false,
+        "features": {
+          "transactionalEmailApi": true,
+          "smtpRelay": true,
+          "sandboxMode": true,
+          "dedicatedIp": false,
+          "euDataResidency": false,
+          "emailValidation": false,
+          "emailTesting": false,
+          "eventWebhooks": true,
+          "teammates": true,
+          "subuserManagement": false,
+          "activityData": true
+        },
+        "usageLimits": {
+          "emailsPerMonth": {
+            "unlimited": true
+          },
+          "emailsPerDay": 100,
+          "mailSendRequestsPerSecond": 10000,
+          "recipientsPerRequest": 1000,
+          "personalizationsPerRequest": 1000,
+          "requestSize": 30,
+          "smtpMessagesPerConnection": 5000,
+          "smtpConcurrentConnections": 10000,
+          "maxDedicatedIps": 0,
+          "includedEmailValidations": 0,
+          "emailTestingCreditsPerMonth": 0,
+          "maxEventWebhooks": 1,
+          "maxTeammates": 1,
+          "activityRetentionDays": 3
+        }
+      },
+      {
+        "id": "essentials",
+        "name": "essentials",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 19.95
+        },
+        "unit": "month",
+        "period": "month",
+        "perSeat": false,
+        "features": {
+          "transactionalEmailApi": true,
+          "smtpRelay": true,
+          "sandboxMode": true,
+          "dedicatedIp": false,
+          "euDataResidency": false,
+          "emailValidation": false,
+          "emailTesting": false,
+          "eventWebhooks": true,
+          "teammates": true,
+          "subuserManagement": false,
+          "activityData": true
+        },
+        "usageLimits": {
+          "emailsPerMonth": 50000,
+          "emailsPerDay": {
+            "unlimited": true
+          },
+          "mailSendRequestsPerSecond": 10000,
+          "recipientsPerRequest": 1000,
+          "personalizationsPerRequest": 1000,
+          "requestSize": 30,
+          "smtpMessagesPerConnection": 5000,
+          "smtpConcurrentConnections": 10000,
+          "maxDedicatedIps": 0,
+          "includedEmailValidations": 0,
+          "emailTestingCreditsPerMonth": 0,
+          "maxEventWebhooks": 2,
+          "maxTeammates": 1,
+          "activityRetentionDays": 3
+        }
+      },
+      {
+        "id": "pro",
+        "name": "pro",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 89.95
+        },
+        "unit": "month",
+        "period": "month",
+        "perSeat": false,
+        "features": {
+          "transactionalEmailApi": true,
+          "smtpRelay": true,
+          "sandboxMode": true,
+          "dedicatedIp": true,
+          "euDataResidency": true,
+          "emailValidation": true,
+          "emailTesting": true,
+          "eventWebhooks": true,
+          "teammates": true,
+          "subuserManagement": true,
+          "activityData": true
+        },
+        "usageLimits": {
+          "emailsPerMonth": 100000,
+          "emailsPerDay": {
+            "unlimited": true
+          },
+          "mailSendRequestsPerSecond": 10000,
+          "recipientsPerRequest": 1000,
+          "personalizationsPerRequest": 1000,
+          "requestSize": 30,
+          "smtpMessagesPerConnection": 5000,
+          "smtpConcurrentConnections": 10000,
+          "maxDedicatedIps": 1,
+          "includedEmailValidations": 2500,
+          "emailTestingCreditsPerMonth": 60,
+          "maxEventWebhooks": 5,
+          "maxTeammates": 1000,
+          "activityRetentionDays": 7
+        }
+      }
+    ],
+    "addOns": [
+      {
+        "id": "extraDedicatedIp",
+        "name": "extraDedicatedIp",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 30.0
+        },
+        "unit": "IP/month",
+        "period": "month",
+        "availableFor": [
+          "pro"
+        ],
+        "dependsOn": [],
+        "excludes": [],
+        "features": {},
+        "usageLimits": {},
+        "usageLimitsExtensions": {
+          "maxDedicatedIps": 1.0
+        },
+        "metered": false
+      },
+      {
+        "id": "emailTestingCredits30",
+        "name": "emailTestingCredits30",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 18.0
+        },
+        "unit": "month",
+        "period": "month",
+        "availableFor": [
+          "essentials",
+          "pro"
+        ],
+        "dependsOn": [],
+        "excludes": [],
+        "features": {
+          "emailTesting": true
+        },
+        "usageLimits": {},
+        "usageLimitsExtensions": {
+          "emailTestingCreditsPerMonth": 30.0
+        },
+        "metered": false
+      },
+      {
+        "id": "overageEssentials",
+        "name": "overageEssentials",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 1.3
+        },
+        "unit": "1000 emails",
+        "quantity": 1000.0,
+        "availableFor": [
+          "essentials"
+        ],
+        "usageLimitsExtensions": {
+          "emailsPerMonth": 1000.0
+        },
+        "metered": true
+      },
+      {
+        "id": "overagePro",
+        "name": "overagePro",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 1.1
+        },
+        "unit": "1000 emails",
+        "quantity": 1000.0,
+        "availableFor": [
+          "pro"
+        ],
+        "usageLimitsExtensions": {
+          "emailsPerMonth": 1000.0
+        },
+        "metered": true
+      }
+    ],
+    "diagnostics": [],
+    "variables": {}
+  },
+  "effective": {
+    "freeTrial": {
+      "plan": "freeTrial",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {},
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "freeTrial",
+          "quantity": 1,
+          "price": {
+            "kind": "fixed",
+            "amount": 0.0
+          },
+          "unitAmount": 0.0,
+          "amount": 0.0
+        }
+      ],
+      "subtotal": 0.0,
+      "requiresQuote": false,
+      "features": {
+        "transactionalEmailApi": true,
+        "smtpRelay": true,
+        "sandboxMode": true,
+        "dedicatedIp": false,
+        "euDataResidency": false,
+        "emailValidation": false,
+        "emailTesting": false,
+        "eventWebhooks": true,
+        "teammates": true,
+        "subuserManagement": false,
+        "activityData": true
+      },
+      "usageLimits": {
+        "emailsPerMonth": {
+          "unlimited": true
+        },
+        "emailsPerDay": 100,
+        "mailSendRequestsPerSecond": 10000,
+        "recipientsPerRequest": 1000,
+        "personalizationsPerRequest": 1000,
+        "requestSize": 30,
+        "smtpMessagesPerConnection": 5000,
+        "smtpConcurrentConnections": 10000,
+        "maxDedicatedIps": 0,
+        "includedEmailValidations": 0,
+        "emailTestingCreditsPerMonth": 0,
+        "maxEventWebhooks": 1,
+        "maxTeammates": 1,
+        "activityRetentionDays": 3
+      }
+    },
+    "essentials": {
+      "plan": "essentials",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {},
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "essentials",
+          "quantity": 1,
+          "price": {
+            "kind": "fixed",
+            "amount": 19.95
+          },
+          "unitAmount": 19.95,
+          "amount": 19.95
+        }
+      ],
+      "subtotal": 19.95,
+      "requiresQuote": false,
+      "features": {
+        "transactionalEmailApi": true,
+        "smtpRelay": true,
+        "sandboxMode": true,
+        "dedicatedIp": false,
+        "euDataResidency": false,
+        "emailValidation": false,
+        "emailTesting": false,
+        "eventWebhooks": true,
+        "teammates": true,
+        "subuserManagement": false,
+        "activityData": true
+      },
+      "usageLimits": {
+        "emailsPerMonth": 50000,
+        "emailsPerDay": {
+          "unlimited": true
+        },
+        "mailSendRequestsPerSecond": 10000,
+        "recipientsPerRequest": 1000,
+        "personalizationsPerRequest": 1000,
+        "requestSize": 30,
+        "smtpMessagesPerConnection": 5000,
+        "smtpConcurrentConnections": 10000,
+        "maxDedicatedIps": 0,
+        "includedEmailValidations": 0,
+        "emailTestingCreditsPerMonth": 0,
+        "maxEventWebhooks": 2,
+        "maxTeammates": 1,
+        "activityRetentionDays": 3
+      }
+    },
+    "essentials+emailTestingCredits30": {
+      "plan": "essentials",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {
+        "emailTestingCredits30": 1.0
+      },
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "essentials",
+          "quantity": 1,
+          "price": {
+            "kind": "fixed",
+            "amount": 19.95
+          },
+          "unitAmount": 19.95,
+          "amount": 19.95
+        },
+        {
+          "kind": "addOn",
+          "id": "emailTestingCredits30",
+          "quantity": 1.0,
+          "price": {
+            "kind": "fixed",
+            "amount": 18.0
+          },
+          "unitAmount": 18.0,
+          "amount": 18.0
+        }
+      ],
+      "subtotal": 37.95,
+      "requiresQuote": false,
+      "features": {
+        "transactionalEmailApi": true,
+        "smtpRelay": true,
+        "sandboxMode": true,
+        "dedicatedIp": false,
+        "euDataResidency": false,
+        "emailValidation": false,
+        "emailTesting": true,
+        "eventWebhooks": true,
+        "teammates": true,
+        "subuserManagement": false,
+        "activityData": true
+      },
+      "usageLimits": {
+        "emailsPerMonth": 50000,
+        "emailsPerDay": {
+          "unlimited": true
+        },
+        "mailSendRequestsPerSecond": 10000,
+        "recipientsPerRequest": 1000,
+        "personalizationsPerRequest": 1000,
+        "requestSize": 30,
+        "smtpMessagesPerConnection": 5000,
+        "smtpConcurrentConnections": 10000,
+        "maxDedicatedIps": 0,
+        "includedEmailValidations": 0,
+        "emailTestingCreditsPerMonth": 30.0,
+        "maxEventWebhooks": 2,
+        "maxTeammates": 1,
+        "activityRetentionDays": 3
+      }
+    },
+    "pro": {
+      "plan": "pro",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {},
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "pro",
+          "quantity": 1,
+          "price": {
+            "kind": "fixed",
+            "amount": 89.95
+          },
+          "unitAmount": 89.95,
+          "amount": 89.95
+        }
+      ],
+      "subtotal": 89.95,
+      "requiresQuote": false,
+      "features": {
+        "transactionalEmailApi": true,
+        "smtpRelay": true,
+        "sandboxMode": true,
+        "dedicatedIp": true,
+        "euDataResidency": true,
+        "emailValidation": true,
+        "emailTesting": true,
+        "eventWebhooks": true,
+        "teammates": true,
+        "subuserManagement": true,
+        "activityData": true
+      },
+      "usageLimits": {
+        "emailsPerMonth": 100000,
+        "emailsPerDay": {
+          "unlimited": true
+        },
+        "mailSendRequestsPerSecond": 10000,
+        "recipientsPerRequest": 1000,
+        "personalizationsPerRequest": 1000,
+        "requestSize": 30,
+        "smtpMessagesPerConnection": 5000,
+        "smtpConcurrentConnections": 10000,
+        "maxDedicatedIps": 1,
+        "includedEmailValidations": 2500,
+        "emailTestingCreditsPerMonth": 60,
+        "maxEventWebhooks": 5,
+        "maxTeammates": 1000,
+        "activityRetentionDays": 7
+      }
+    },
+    "pro+extraDedicatedIp": {
+      "plan": "pro",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {
+        "extraDedicatedIp": 1.0
+      },
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "pro",
+          "quantity": 1,
+          "price": {
+            "kind": "fixed",
+            "amount": 89.95
+          },
+          "unitAmount": 89.95,
+          "amount": 89.95
+        },
+        {
+          "kind": "addOn",
+          "id": "extraDedicatedIp",
+          "quantity": 1.0,
+          "price": {
+            "kind": "fixed",
+            "amount": 30.0
+          },
+          "unitAmount": 30.0,
+          "amount": 30.0
+        }
+      ],
+      "subtotal": 119.95,
+      "requiresQuote": false,
+      "features": {
+        "transactionalEmailApi": true,
+        "smtpRelay": true,
+        "sandboxMode": true,
+        "dedicatedIp": true,
+        "euDataResidency": true,
+        "emailValidation": true,
+        "emailTesting": true,
+        "eventWebhooks": true,
+        "teammates": true,
+        "subuserManagement": true,
+        "activityData": true
+      },
+      "usageLimits": {
+        "emailsPerMonth": 100000,
+        "emailsPerDay": {
+          "unlimited": true
+        },
+        "mailSendRequestsPerSecond": 10000,
+        "recipientsPerRequest": 1000,
+        "personalizationsPerRequest": 1000,
+        "requestSize": 30,
+        "smtpMessagesPerConnection": 5000,
+        "smtpConcurrentConnections": 10000,
+        "maxDedicatedIps": 2.0,
+        "includedEmailValidations": 2500,
+        "emailTestingCreditsPerMonth": 60,
+        "maxEventWebhooks": 5,
+        "maxTeammates": 1000,
+        "activityRetentionDays": 7
+      }
+    },
+    "pro+emailTestingCredits30": {
+      "plan": "pro",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {
+        "emailTestingCredits30": 1.0
+      },
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "pro",
+          "quantity": 1,
+          "price": {
+            "kind": "fixed",
+            "amount": 89.95
+          },
+          "unitAmount": 89.95,
+          "amount": 89.95
+        },
+        {
+          "kind": "addOn",
+          "id": "emailTestingCredits30",
+          "quantity": 1.0,
+          "price": {
+            "kind": "fixed",
+            "amount": 18.0
+          },
+          "unitAmount": 18.0,
+          "amount": 18.0
+        }
+      ],
+      "subtotal": 107.95,
+      "requiresQuote": false,
+      "features": {
+        "transactionalEmailApi": true,
+        "smtpRelay": true,
+        "sandboxMode": true,
+        "dedicatedIp": true,
+        "euDataResidency": true,
+        "emailValidation": true,
+        "emailTesting": true,
+        "eventWebhooks": true,
+        "teammates": true,
+        "subuserManagement": true,
+        "activityData": true
+      },
+      "usageLimits": {
+        "emailsPerMonth": 100000,
+        "emailsPerDay": {
+          "unlimited": true
+        },
+        "mailSendRequestsPerSecond": 10000,
+        "recipientsPerRequest": 1000,
+        "personalizationsPerRequest": 1000,
+        "requestSize": 30,
+        "smtpMessagesPerConnection": 5000,
+        "smtpConcurrentConnections": 10000,
+        "maxDedicatedIps": 1,
+        "includedEmailValidations": 2500,
+        "emailTestingCreditsPerMonth": 90.0,
+        "maxEventWebhooks": 5,
+        "maxTeammates": 1000,
+        "activityRetentionDays": 7
+      }
+    }
+  }
+}

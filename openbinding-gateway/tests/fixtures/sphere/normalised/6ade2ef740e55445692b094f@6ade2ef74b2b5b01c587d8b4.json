@@ -1,0 +1,360 @@
+{
+  "pricing": {
+    "syntaxVersion": "3.1",
+    "title": "sendgrid@rapidapi",
+    "version": "2026-10",
+    "createdAt": "2026-10-25",
+    "currency": "USD",
+    "billing": [
+      {
+        "id": "monthly",
+        "multiplier": 1.0,
+        "synthesized": false
+      }
+    ],
+    "features": [
+      {
+        "id": "emails",
+        "name": "emails",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "apiRequests",
+        "name": "apiRequests",
+        "type": "INTEGRATION",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "bandwidth",
+        "name": "bandwidth",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      }
+    ],
+    "usageLimits": [
+      {
+        "id": "emailsPerDay",
+        "name": "emailsPerDay",
+        "valueType": "NUMERIC",
+        "unit": "email",
+        "default": 50,
+        "linkedFeatures": [
+          "emails"
+        ]
+      },
+      {
+        "id": "emailsPerMonth",
+        "name": "emailsPerMonth",
+        "valueType": "NUMERIC",
+        "unit": "email",
+        "default": {
+          "unlimited": true
+        },
+        "linkedFeatures": [
+          "emails"
+        ]
+      },
+      {
+        "id": "apiRequestsPerSecond",
+        "name": "apiRequestsPerSecond",
+        "valueType": "NUMERIC",
+        "unit": "request",
+        "default": 10,
+        "linkedFeatures": [
+          "apiRequests"
+        ]
+      },
+      {
+        "id": "bandwidthPerMonth",
+        "name": "bandwidthPerMonth",
+        "valueType": "NUMERIC",
+        "unit": "MB",
+        "default": 10240,
+        "linkedFeatures": [
+          "bandwidth"
+        ]
+      }
+    ],
+    "plans": [
+      {
+        "id": "BASIC",
+        "name": "BASIC",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 0.0
+        },
+        "unit": "account/month",
+        "period": "month",
+        "perSeat": false,
+        "features": {
+          "emails": true,
+          "apiRequests": true,
+          "bandwidth": true
+        },
+        "usageLimits": {
+          "emailsPerDay": 50,
+          "emailsPerMonth": {
+            "unlimited": true
+          },
+          "apiRequestsPerSecond": 10,
+          "bandwidthPerMonth": 10240
+        }
+      },
+      {
+        "id": "PRO",
+        "name": "PRO",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 9.95
+        },
+        "unit": "account/month",
+        "period": "month",
+        "perSeat": false,
+        "features": {
+          "emails": true,
+          "apiRequests": true,
+          "bandwidth": true
+        },
+        "usageLimits": {
+          "emailsPerDay": {
+            "unlimited": true
+          },
+          "emailsPerMonth": 40000,
+          "apiRequestsPerSecond": 10,
+          "bandwidthPerMonth": 10240
+        }
+      },
+      {
+        "id": "ULTRA",
+        "name": "ULTRA",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 79.95
+        },
+        "unit": "account/month",
+        "period": "month",
+        "perSeat": false,
+        "features": {
+          "emails": true,
+          "apiRequests": true,
+          "bandwidth": true
+        },
+        "usageLimits": {
+          "emailsPerDay": {
+            "unlimited": true
+          },
+          "emailsPerMonth": 100000,
+          "apiRequestsPerSecond": 10,
+          "bandwidthPerMonth": 10240
+        }
+      },
+      {
+        "id": "MEGA",
+        "name": "MEGA",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 199.95
+        },
+        "unit": "account/month",
+        "period": "month",
+        "perSeat": false,
+        "features": {
+          "emails": true,
+          "apiRequests": true,
+          "bandwidth": true
+        },
+        "usageLimits": {
+          "emailsPerDay": {
+            "unlimited": true
+          },
+          "emailsPerMonth": 300000,
+          "apiRequestsPerSecond": 50,
+          "bandwidthPerMonth": 10240
+        }
+      }
+    ],
+    "addOns": [
+      {
+        "id": "bandwidthPlatformFee",
+        "name": "bandwidthPlatformFee",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 0.001
+        },
+        "unit": "1 MB",
+        "quantity": 1.0,
+        "availableFor": [
+          "BASIC",
+          "PRO",
+          "ULTRA",
+          "MEGA"
+        ],
+        "usageLimitsExtensions": {
+          "bandwidthPerMonth": 1.0
+        },
+        "metered": true
+      }
+    ],
+    "diagnostics": [],
+    "variables": {}
+  },
+  "effective": {
+    "BASIC": {
+      "plan": "BASIC",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {},
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "BASIC",
+          "quantity": 1,
+          "price": {
+            "kind": "fixed",
+            "amount": 0.0
+          },
+          "unitAmount": 0.0,
+          "amount": 0.0
+        }
+      ],
+      "subtotal": 0.0,
+      "requiresQuote": false,
+      "features": {
+        "emails": true,
+        "apiRequests": true,
+        "bandwidth": true
+      },
+      "usageLimits": {
+        "emailsPerDay": 50,
+        "emailsPerMonth": {
+          "unlimited": true
+        },
+        "apiRequestsPerSecond": 10,
+        "bandwidthPerMonth": 10240
+      }
+    },
+    "PRO": {
+      "plan": "PRO",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {},
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "PRO",
+          "quantity": 1,
+          "price": {
+            "kind": "fixed",
+            "amount": 9.95
+          },
+          "unitAmount": 9.95,
+          "amount": 9.95
+        }
+      ],
+      "subtotal": 9.95,
+      "requiresQuote": false,
+      "features": {
+        "emails": true,
+        "apiRequests": true,
+        "bandwidth": true
+      },
+      "usageLimits": {
+        "emailsPerDay": {
+          "unlimited": true
+        },
+        "emailsPerMonth": 40000,
+        "apiRequestsPerSecond": 10,
+        "bandwidthPerMonth": 10240
+      }
+    },
+    "ULTRA": {
+      "plan": "ULTRA",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {},
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "ULTRA",
+          "quantity": 1,
+          "price": {
+            "kind": "fixed",
+            "amount": 79.95
+          },
+          "unitAmount": 79.95,
+          "amount": 79.95
+        }
+      ],
+      "subtotal": 79.95,
+      "requiresQuote": false,
+      "features": {
+        "emails": true,
+        "apiRequests": true,
+        "bandwidth": true
+      },
+      "usageLimits": {
+        "emailsPerDay": {
+          "unlimited": true
+        },
+        "emailsPerMonth": 100000,
+        "apiRequestsPerSecond": 10,
+        "bandwidthPerMonth": 10240
+      }
+    },
+    "MEGA": {
+      "plan": "MEGA",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {},
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "MEGA",
+          "quantity": 1,
+          "price": {
+            "kind": "fixed",
+            "amount": 199.95
+          },
+          "unitAmount": 199.95,
+          "amount": 199.95
+        }
+      ],
+      "subtotal": 199.95,
+      "requiresQuote": false,
+      "features": {
+        "emails": true,
+        "apiRequests": true,
+        "bandwidth": true
+      },
+      "usageLimits": {
+        "emailsPerDay": {
+          "unlimited": true
+        },
+        "emailsPerMonth": 300000,
+        "apiRequestsPerSecond": 50,
+        "bandwidthPerMonth": 10240
+      }
+    }
+  }
+}
