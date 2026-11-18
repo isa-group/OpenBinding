@@ -26,7 +26,7 @@ import { factsSource } from '../../../core/utils/composition/factsSource';
 import { bindingSelection } from '../../../core/utils/composition/viewModel';
 import { problemFactsApi } from '../../../core/utils/problem/facts';
 import { compositionPath } from '../../../../routes/paths/compositions';
-import { problemPath } from '../../../../routes/paths/problems';
+import { problemEditorPath, problemPath } from '../../../../routes/paths/problems';
 import { useResource, type Resource } from '../../../core/hooks/useResource';
 import type { ProblemContent } from '../../types';
 import type { ModelState } from '../../utils/modelLoader';
@@ -193,6 +193,26 @@ export default function CandidatesExplorer({
         )}
 
         <div className="mt-4 flex flex-col gap-3">
+          {revision.sphere && revision.sphere.sources.length > 0 && (
+            <Notice
+              tone="info"
+              action={
+                <Action
+                  to={problemEditorPath(org, { problem: item.slug, revision: revision.revision })}
+                  variant="secondary"
+                  size="sm"
+                >
+                  Open in the problem editor
+                </Action>
+              }
+            >
+              {`Version ${revision.revision} was generated from SPHERE (${revision.sphere.sources
+                .map(source =>
+                  source.versionLabel ? `${source.title} ${source.versionLabel}` : source.title
+                )
+                .join(', ')}): each value says where it comes from.`}
+            </Notice>
+          )}
           {asked && highlight.status === 'loading' && (
             <p className="text-xs text-tp-steel" role="status">
               Loading the composition version to highlight…

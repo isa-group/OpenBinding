@@ -371,6 +371,7 @@ Generated from the origin header of each file.
 | `frontend/src/modules/problem/components/runs-tab/index.tsx` | `frontend/src/modules/pricing/pages/card/index.tsx` | pattern-only |
 | `frontend/src/modules/problem/components/settings-tab/index.tsx` | `frontend/src/modules/pricing/components/pricing-settings-tab/index.tsx` | adapted |
 | `frontend/src/modules/problem/components/source-tab/index.tsx` | `frontend/src/modules/pricing/components/yaml-source-panel/index.tsx` | pattern-only |
+| `frontend/src/modules/problem/components/sphere-candidates-modal/index.tsx` | `frontend/src/modules/pricing-editor/layouts/editor-layout/publish-pricing-modal.tsx` | adapted |
 | `frontend/src/modules/problem/components/sphere-candidates-modal/plan-picker.tsx` | `frontend/src/modules/pricing/components/configuration-space-view/configuration-picker.tsx` (feat/pricing-renderer) | adapted |
 | `frontend/src/modules/problem/components/sphere-candidates-modal/pricing-search.tsx` | `frontend/src/modules/pricing-editor/layouts/editor-layout/publish-pricing-modal.tsx` | adapted |
 | `frontend/src/modules/problem/components/versions-tab/index.tsx` | `frontend/src/modules/pricing/components/pricing-versions-tab/index.tsx` | adapted |

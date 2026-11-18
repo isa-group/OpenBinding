@@ -42,6 +42,8 @@ import GetProblemMenu from '../../components/get-problem-menu';
 import NewVersionMenu from '../../components/new-version-menu';
 import OverviewTab from '../../components/overview-tab';
 import ProblemImportModal from '../../components/problem-import-modal';
+import SphereCandidatesModal from '../../components/sphere-candidates-modal';
+import { useSphereApi } from '../../api/sphereApi';
 import RunsTab from '../../components/runs-tab';
 import SettingsTab from '../../components/settings-tab';
 import SourceTab from '../../components/source-tab';
@@ -97,6 +99,33 @@ function CardBody({
   const { item, revisions, etag } = loaded;
   const { canCreate, canAdminister, role } = access;
   const [uploading, setUploading] = useState(false);
+  const sphereApi = useSphereApi();
+  // Whether a SPHERE import pinned a recipe on the latest version: "Update from SPHERE" opens on it (404 when none).
+  const latestRevision = revisions[0]?.revision ?? null;
+  const recipe = useResource<boolean>(
+    `problem-sphere-recipe:${org.slug}/${item.slug}@${latestRevision ?? 'none'}:${canCreate}`,
+    async () => {
+      if (!canCreate || latestRevision === null) return false;
+      try {
+        await sphereApi.recipe(org.slug, item.slug);
+        return true;
+      } catch {
+        return false;
+      }
+    }
+  );
+  const openSphere = (update: boolean) =>
+    setQuery(
+      current => {
+        const next = new URLSearchParams(current);
+        next.set('sphereStep', 'pricing');
+        if (update) next.set('sphereUpdate', '1');
+        else next.delete('sphereUpdate');
+        return next;
+      },
+      { replace: false }
+    );
+  const sphereOpen = canCreate && latestRevision !== null && query.has('sphereStep');
 
   // The version shown: the one the address names (a number; a fingerprint or an id is asked of the gateway), else the latest.
   const named = query.get('version') ?? '';
@@ -256,6 +285,8 @@ function CardBody({
     ? [
         { label: 'New version in the problem editor', to: editorHref },
         { label: 'Upload a new version', onSelect: () => setUploading(true) },
+        { label: 'Add candidates from SPHERE', onSelect: () => openSphere(false) },
+        ...(recipe.data ? [{ label: 'Update from SPHERE', onSelect: () => openSphere(true) }] : []),
         ...(studyHref ? [{ label: 'Add to study', to: studyHref }] : []),
       ]
     : [];
@@ -316,7 +347,12 @@ function CardBody({
         actions={
           <>
             {canCreate && (
-              <NewVersionMenu editorHref={editorHref} onUploadFile={() => setUploading(true)} />
+              <NewVersionMenu
+                editorHref={editorHref}
+                onUploadFile={() => setUploading(true)}
+                onSphere={() => openSphere(false)}
+                onSphereUpdate={recipe.data ? () => openSphere(true) : undefined}
+              />
             )}
             {canCreate && studyHref && (
               <Link to={studyHref} className={actionClass}>
@@ -408,6 +444,29 @@ function CardBody({
         )}
       </ResourceCardShell>
 
+      {sphereOpen && latestRevision !== null && (
+        <SphereCandidatesModal
+          org={org.slug}
+          problem={{ slug: item.slug, name: item.name, latest: latestRevision }}
+          update={query.get('sphereUpdate') === '1'}
+          onClose={() => undefined}
+          onApplied={applied => {
+            addToast({
+              kind: SYSTEM_TOAST,
+              title: applied.created
+                ? `Revision ${applied.revision.revision} added from SPHERE.`
+                : `Unchanged: this import is version ${applied.revision.revision}.`,
+            });
+            reload();
+            void navigate(
+              problemPath(org.slug, item.slug, 'candidates', {
+                version: applied.revision.revision,
+              }),
+              { replace: true }
+            );
+          }}
+        />
+      )}
       {uploading && (
         <ProblemImportModal
           mode="version"

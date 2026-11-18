@@ -4,7 +4,7 @@
 // Changes: the organization's problems, loaded by the tab itself from the gateway with server paging (each row embeds its
 // latest revision and how many it has); the search, the filters (the origin of the latest version, the composition that links
 // it, the order) and the page live in the address; "New" ▾ offers an uploaded BIM package (the import modal, in this
-// organization), the problem editor and a template; the role decides it and the card's kebab (Run latest and New version
+// organization), the problem editor, a template and SPHERE pricings (the SPHERE wizard, its step in the address); the role decides it and the card's kebab (Run latest and New version
 // for a MEMBER, Delete for an ADMIN with the address typed), not SPHERE's per-entity permissions; a VIEWER reads only; a
 // failed load says so with Retry; no collections.
 
@@ -32,6 +32,7 @@ import { runLaunchOf } from '../../utils/runTarget';
 import DeleteProblemModal from '../delete-problem-modal';
 import ProblemCard, { type ProblemMenuItem } from '../problem-card';
 import ProblemImportModal from '../problem-import-modal';
+import SphereCandidatesModal from '../sphere-candidates-modal';
 
 /** Problems per page of the tab, as SPHERE's organization tabs. */
 export const PER_PAGE = 10;
@@ -444,6 +445,29 @@ export default function ProblemsTab({ org, myRole }: Props) {
                         </span>
                       </span>
                     </Link>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setShowNew(false);
+                        setParams(
+                          previous => {
+                            const next = new URLSearchParams(previous);
+                            next.set('sphereStep', 'pricing');
+                            return next;
+                          },
+                          { replace: false }
+                        );
+                      }}
+                      className={newItemClass}
+                    >
+                      <span>
+                        <span className="block font-medium">From SPHERE</span>
+                        <span className="mt-0.5 block text-[11px] text-tp-steel">
+                          Candidates from SPHERE pricings
+                        </span>
+                      </span>
+                    </button>
                   </div>
                 )}
               </div>
@@ -528,6 +552,25 @@ export default function ProblemsTab({ org, myRole }: Props) {
         )}
       </div>
 
+      {canCreate && params.has('sphereStep') && (
+        <SphereCandidatesModal
+          org={org.slug}
+          problem={null}
+          onClose={() => undefined}
+          onApplied={applied => {
+            void navigate(
+              problemPath(org.slug, applied.problem.slug, 'candidates', {
+                version: applied.revision.revision,
+              }),
+              {
+                state: {
+                  toast: `Problem “${applied.problem.name}” created from SPHERE with version ${applied.revision.revision}.`,
+                },
+              }
+            );
+          }}
+        />
+      )}
       {importing && (
         <ProblemImportModal
           mode="problem"

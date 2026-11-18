@@ -1,20 +1,30 @@
 // Adapted from SPHERE frontend/src/modules/pricing/components/new-version-menu/index.tsx (revision 73779a8a),
 // https://github.com/SCORELabUS/SPHERE. Copyright (c) 2024 Alejandro García Fernández.
 // MIT licence: the full text is in THIRD_PARTY_NOTICES.md.
-// Changes: a problem's two ways to a new version: the problem editor (a link) and an uploaded BIM package; the icons take
-// the accent token.
+// Changes: a problem's ways to a new version: the problem editor (a link), an uploaded BIM package and SPHERE candidates
+// (the SPHERE wizard, and "Update from SPHERE" when an import pinned a recipe); the icons take the accent token.
 
 import { useEffect, useRef, useState } from 'react';
-import { FiEdit3, FiUploadCloud } from 'react-icons/fi';
+import { FiEdit3, FiRefreshCw, FiUploadCloud } from 'react-icons/fi';
+import { MdCloudDownload } from 'react-icons/md';
 import { Link } from 'react-router-dom';
 
 interface Props {
   /** The problem editor on the version shown. */
   editorHref: string;
   onUploadFile: () => void;
+  /** Opens the SPHERE wizard on the latest version. */
+  onSphere: () => void;
+  /** Opens it on the recipe a SPHERE import pinned; absent when no import did. */
+  onSphereUpdate?: () => void;
 }
 
-export default function NewVersionMenu({ editorHref, onUploadFile }: Props) {
+export default function NewVersionMenu({
+  editorHref,
+  onUploadFile,
+  onSphere,
+  onSphereUpdate,
+}: Props) {
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -107,6 +117,42 @@ export default function NewVersionMenu({ editorHref, onUploadFile }: Props) {
               </span>
             </span>
           </button>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              onSphere();
+              setOpen(false);
+            }}
+            className={itemClass}
+          >
+            <MdCloudDownload className={iconClass} aria-hidden="true" />
+            <span>
+              <span className="block font-medium">Add candidates from SPHERE</span>
+              <span className="mt-0.5 block text-[11px] text-tp-steel">
+                Plans of SPHERE pricings as candidates
+              </span>
+            </span>
+          </button>
+          {onSphereUpdate && (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                onSphereUpdate();
+                setOpen(false);
+              }}
+              className={itemClass}
+            >
+              <FiRefreshCw className={iconClass} aria-hidden="true" />
+              <span>
+                <span className="block font-medium">Update from SPHERE</span>
+                <span className="mt-0.5 block text-[11px] text-tp-steel">
+                  Newer versions of the pricings this problem imported
+                </span>
+              </span>
+            </button>
+          )}
         </div>
       )}
     </div>

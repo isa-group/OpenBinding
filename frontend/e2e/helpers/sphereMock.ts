@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 
 // The SPHERE side of the gallery's gateway (e2e/helpers/mockApi.ts): the problem `tomatometer-email` of `isa-demo`, whose version 2
 // a SPHERE import generated, and (from the wizard on) the discovery, preview and apply routes. Every body is a gateway-produced
@@ -30,10 +30,10 @@ const notFound = (message: string): SphereReply => ({
   json: { detail: { code: 'not_found', error: message } },
 });
 
-const APPLY = fixture<{ problem: Json; revision: Json & { revision: number } }>(
-  'sphere',
-  'apply.tomatometer-email.json'
-);
+const APPLY = fixture<{
+  problem: Json;
+  revision: Json & { revision: number; package_digest: string };
+}>('sphere', 'apply.tomatometer-email.json');
 const FACTS = fixture<{
   candidates: Array<{ key: string; provenance: unknown }>;
   tasks: Array<{ id: string; kind: string; eligible: Array<{ candidate: string }> }>;
@@ -53,7 +53,9 @@ export const TOMATOMETER_PROBLEM = {
 };
 
 /** Version 2 is the import (origin `sphere`, with the pricings it read); version 1 the base bundle that was uploaded. */
-export const TOMATOMETER_REVISIONS = [
+export const TOMATOMETER_REVISIONS: Array<
+  Json & { id: string; revision: number; package_digest: string; created_at: string }
+> = [
   {
     ...APPLY.revision,
     id: 'rev-tomatometer-2',
@@ -108,38 +110,172 @@ export const tomatometerListed = () => ({
   revision_count: TOMATOMETER_REVISIONS.length,
 });
 
-const compilation = (revision: number) => ({
-  id: `compilation-tomatometer-${revision}`,
-  revision_id: `rev-tomatometer-${revision}`,
-  compilation_digest: `sha256-${'91'.repeat(32)}`,
-  compiler_digest: `sha256-${'82'.repeat(32)}`,
-  ir_digest: `sha256-${'c3'.repeat(32)}`,
-  binding_space: String(tomatometerFacts(revision).binding_space),
-  created_at: '2026-10-02T00:00:00Z',
-  current: true,
-  toolchain: {},
-  analysis: {
-    tasks: 4,
-    candidates: revision === 2 ? 21 : 4,
-    constraints: 0,
-    placement: false,
-    bindingSpace: String(tomatometerFacts(revision).binding_space),
+/** `storage`, the problem J1 creates from Dropbox: answered once it exists (not listed, so the lists of the gallery stay as they are). */
+const STORAGE_APPLY = fixture<{ problem: Json; revision: Json & { revision: number } }>(
+  'sphere',
+  'apply.storage.json'
+);
+const STORAGE_FACTS = fixture<{ facts: Json }>('sphere', 'expand.storage.json').facts;
+
+interface SphereProblem {
+  item: Json;
+  revisions: Array<Json & { id: string; revision: number; package_digest: string }>;
+  facts: (revision: number) => Json;
+  listed: () => Json;
+}
+
+const SPHERE_PROBLEMS: Record<string, SphereProblem> = {
+  [TOMATOMETER_SLUG]: {
+    item: TOMATOMETER_PROBLEM,
+    revisions: TOMATOMETER_REVISIONS,
+    facts: tomatometerFacts,
+    listed: tomatometerListed,
   },
-  resources: {},
-  compatible_modes: [],
-});
+  storage: {
+    item: { ...STORAGE_APPLY.problem, organization_id: 'org-isa-demo' },
+    revisions: [
+      STORAGE_APPLY.revision as Json & { id: string; revision: number; package_digest: string },
+    ],
+    facts: () => structuredClone(STORAGE_FACTS),
+    listed: () => ({ ...STORAGE_APPLY.problem, organization_id: 'org-isa-demo' }),
+  },
+};
+
+const compilationOf = (slug: string, problem: SphereProblem, revision: number) => {
+  const space = String(problem.facts(revision).binding_space ?? '1');
+  return {
+    id: `compilation-${slug}-${revision}`,
+    revision_id: `rev-${slug}-${revision}`,
+    compilation_digest: `sha256-${'91'.repeat(32)}`,
+    compiler_digest: `sha256-${'82'.repeat(32)}`,
+    ir_digest: `sha256-${'c3'.repeat(32)}`,
+    binding_space: space,
+    created_at: '2026-10-02T00:00:00Z',
+    current: true,
+    toolchain: {},
+    analysis: { tasks: 4, candidates: 0, constraints: 0, placement: false, bindingSpace: space },
+    resources: {},
+    compatible_modes: [],
+  };
+};
+
+// -- SPHERE through the gateway: every answer is a recorded or gateway-written fixture.
+
+const SPHERE_DIR = new URL('../../src/test/fixtures/sphere/', import.meta.url);
+const sphereFiles = readdirSync(SPHERE_DIR);
+const byPricing = (prefix: string) =>
+  Object.fromEntries(
+    sphereFiles
+      .filter(file => file.startsWith(prefix) && file.endsWith('.json'))
+      .map(file => {
+        const body = fixture<Json & { pricingId?: string; snapshot?: { versionId: string } }>(
+          'sphere',
+          file
+        );
+        return [prefix === 'version.' ? body.snapshot?.versionId : body.pricingId, body];
+      })
+  ) as Record<string, Json>;
+const MANIFESTS = byPricing('manifest.');
+const VERSIONS = byPricing('version.');
+
+/** Every snapshot id a fixture names, with the recorded YAML of its version. */
+const SNAPSHOT_YAML: Record<string, string> = (() => {
+  const found: Record<string, string> = {};
+  const visit = (value: unknown) => {
+    if (Array.isArray(value)) return value.forEach(visit);
+    if (!value || typeof value !== 'object') return;
+    const node = value as Record<string, unknown>;
+    if (
+      typeof node.id === 'string' &&
+      typeof node.pricingId === 'string' &&
+      typeof node.versionId === 'string'
+    ) {
+      const file = `${node.pricingId}.${node.versionId}.yml`;
+      if (existsSync(new URL(file, SPHERE_DIR))) found[node.id] = fixtureText('sphere', file);
+    }
+    Object.values(node).forEach(visit);
+  };
+  for (const file of sphereFiles.filter(
+    name => name.endsWith('.json') && !name.includes('normalised')
+  ))
+    visit(fixture('sphere', file));
+  visit(fixture('core', 'tomatometer-email.upstream.json'));
+  return found;
+})();
+
+const searchFor = (q: string): Json => {
+  const word = q.toLowerCase();
+  if (word.includes('dropbox')) return fixture('sphere', 'search.dropbox.json');
+  if (word.includes('tomato')) return fixture('sphere', 'search.tomatometer.json');
+  return fixture('sphere', 'search.mailgun.json');
+};
+
+const sphereNotFound: SphereReply = {
+  status: 404,
+  json: {
+    detail: {
+      code: 'sphere_pricing_not_found',
+      error: 'No such SPHERE pricing in this organization.',
+    },
+  },
+};
+
+/** `GET …/pricing-snapshots/{snapshot}[/yaml]` under any organization: a stored snapshot's metadata or bytes. */
+export function snapshotRoutes(parts: string[]): SphereReply | null {
+  const [, , , section, snapshot, tail] = parts;
+  if (section !== 'pricing-snapshots' || !snapshot) return null;
+  const yaml = SNAPSHOT_YAML[snapshot];
+  if (!yaml)
+    return {
+      status: 404,
+      json: { detail: { code: 'pricing_snapshot_not_found', error: 'No such pricing snapshot.' } },
+    };
+  if (tail === 'yaml') return { status: 200, text: yaml, type: 'application/yaml' };
+  return ok({ id: snapshot });
+}
+
+/** `/v1/organizations/{org}/sphere/pricings[/{pricingId}[/versions/{versionId}]]`. */
+export function sphereRoutes(parts: string[], query: URLSearchParams): SphereReply | null {
+  const [, , , section, kind, pricingId, versions, versionId] = parts;
+  if (section !== 'sphere' || kind !== 'pricings') return null;
+  if (!pricingId) return ok(searchFor(query.get('q') ?? ''));
+  if (!versions) return MANIFESTS[pricingId] ? ok(MANIFESTS[pricingId]) : sphereNotFound;
+  const view = versionId ? VERSIONS[versionId] : undefined;
+  return view ? ok(view) : sphereNotFound;
+}
 
 /**
- * `/v1/organizations/isa-demo/problems/tomatometer-email/…`: the problem, its two versions, their compilations and facts. `parts` is
- * the path split at the slashes; null when the path is not this problem's.
+ * `/v1/organizations/isa-demo/problems/{tomatometer-email|storage}/…`: the problem, its versions, their compilations and facts,
+ * and its SPHERE routes (`sphere/expand`, `sphere/apply`, `sphere/recipe`). `parts` is the path split at the slashes; null when
+ * the path is none of these.
  */
-export function tomatometerRoutes(method: string, parts: string[]): SphereReply | null {
+export function sphereProblemRoutes(method: string, parts: string[]): SphereReply | null {
   const [, , , , problemSlug, sub, revisionRef, tail, compilationId, last] = parts;
-  if (problemSlug !== TOMATOMETER_SLUG) return null;
-  if (!sub) return ok(tomatometerListed());
+  if (sub === 'sphere') {
+    const action = revisionRef;
+    const known = problemSlug === TOMATOMETER_SLUG;
+    if (action === 'expand' && method === 'POST')
+      return ok(fixture('sphere', known ? 'expand.tomatometer-email.json' : 'expand.storage.json'));
+    if (action === 'apply' && method === 'POST')
+      return ok(
+        fixture('sphere', known ? 'apply.tomatometer-email.json' : 'apply.storage.json'),
+        known ? 200 : 201
+      );
+    if (action === 'recipe')
+      return known
+        ? ok(fixture('sphere', 'recipe.tomatometer-email.json'))
+        : {
+            status: 404,
+            json: { detail: { code: 'sphere_recipe_not_found', error: 'No SPHERE recipe.' } },
+          };
+    return null;
+  }
+  const problem = problemSlug ? SPHERE_PROBLEMS[problemSlug] : undefined;
+  if (!problem) return null;
+  if (!sub) return ok(problem.listed());
   if (sub !== 'revisions') return null;
-  if (!revisionRef) return method === 'GET' ? ok(TOMATOMETER_REVISIONS) : null;
-  const revision = TOMATOMETER_REVISIONS.find(
+  if (!revisionRef) return method === 'GET' ? ok(problem.revisions) : null;
+  const revision = problem.revisions.find(
     item =>
       String(item.revision) === revisionRef ||
       item.id === revisionRef ||
@@ -149,13 +285,13 @@ export function tomatometerRoutes(method: string, parts: string[]): SphereReply 
   if (!tail)
     return ok({
       ...revision,
-      document: { apiVersion: 'bim/v1', kind: 'Instance', metadata: { name: 'tomatometer' } },
+      document: { apiVersion: 'bim/v1', kind: 'Instance', metadata: { name: problemSlug } },
       compilations: [],
       files: [],
       resource_digests: {},
     });
-  if (tail === 'compilation') return ok(compilation(revision.revision));
+  if (tail === 'compilation') return ok(compilationOf(problemSlug!, problem, revision.revision));
   if (tail === 'compilations' && compilationId && last === 'facts')
-    return ok(tomatometerFacts(revision.revision));
+    return ok(problem.facts(revision.revision));
   return notFound('Not mocked.');
 }
