@@ -50,7 +50,7 @@ from ..domain.compilation import Compilation
 from ..domain.digests import is_digest
 from ..domain.origin import origin_of
 from .compile import compile_package, compile_refusal
-from .origins import rows_from
+from .origins import carried_rows, rows_from
 
 #: The slug pattern of the platform (``models/platform.SLUG``).
 SLUG = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$")
@@ -464,7 +464,9 @@ async def add_revision(
 
     Idempotent on ``(problem, packageDigest)``: the same package, however zipped, is the same revision, and
     nothing is stored for it again (its origins included: the first writer's stay). ``value_origins`` (a SPHERE
-    import's) are inserted with a new revision, in its transaction.
+    import's) are inserted with a new revision, in its transaction; without them (an editor save, an upload) the
+    origins of the predecessor (the latest revision under the problem lock) whose values the new compilation keeps
+    are carried (``origins.carried_rows``).
 
     ``expected_latest`` (a SPHERE apply's base) must be the latest revision when the problem is locked, after the
     digest dedupe: otherwise 409 ``revision_moved`` with the latest number, so a save that landed between the
@@ -501,6 +503,10 @@ async def add_revision(
         latest = await session.scalar(
             select(func.max(BindingCaseRevision.revision)).where(BindingCaseRevision.binding_case_id == problem_id)
         )
+        # The true predecessor, read under the problem lock: what an editor save or an upload carries origins from.
+        predecessor = await session.scalar(select(BindingCaseRevision.id).where(
+            BindingCaseRevision.binding_case_id == problem_id, BindingCaseRevision.revision == latest,
+        )) if latest else None
         if expected_latest is not None and int(latest or 0) != expected_latest:
             raise api_error(
                 409, "revision_moved", "Another revision was added since; preview again on the latest one.",
@@ -512,7 +518,10 @@ async def add_revision(
                 revision = _new_revision(problem_id, int(latest or 0) + 1, compilation, blob, len(archive), actor, provenance)
                 session.add(revision)
                 await session.flush()
-                session.add_all(rows_from(revision.id, value_origins or ()))
+                if value_origins is not None:
+                    session.add_all(rows_from(revision.id, value_origins))
+                elif predecessor is not None:
+                    session.add_all(await carried_rows(session, predecessor, revision.id, compilation.ir))
                 compiled = await store_compilation(session, revision.id, compilation)
         except IntegrityError:
             # A concurrent identical upload won: the loop answers with its revision.

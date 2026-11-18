@@ -7,6 +7,11 @@ Rows are written with their revision, in its transaction, and never change. They
 A candidate's **provenance** comes from its rows that read a pricing (``priced``, ``guarantee``, ``limit``,
 ``feature``); all of them name one snapshot, plan and add-ons. A candidate whose values were all set by hand has no
 provenance.
+
+**Carry-forward.** An editor save or an upload after a revision with origins copies every row whose candidate and
+target still hold the same value in the new compilation (``carried_from_revision_id``, the predecessor under the
+problem lock); a changed or removed value loses its source. A candidate keeps its provenance only while every row
+that read a pricing was carried: once one is lost, the rows that stay are marked (``provenanceLost``) and stay so.
 """
 
 from __future__ import annotations
@@ -26,6 +31,10 @@ from ...plans.application import SphereEndpoint, installed_pricing_source
 
 #: Rows that read a pricing (as opposed to ``manual``).
 PRICED_KINDS = frozenset({"priced", "guarantee", "limit", "feature"})
+#: Set in a carried row's ``detail`` when its candidate lost a priced value on the way: the values that stayed keep
+#: their source, but the candidate no longer has a provenance (derive writes no ``from`` for it).
+PROVENANCE_LOST = "provenanceLost"
+_MISSING = object()
 
 
 @dataclass(frozen=True)
@@ -148,9 +157,13 @@ def _pricing(row: ProblemValueOrigin, snapshot: PricingSnapshot | None) -> dict[
 
 
 def provenance_of(rows: Iterable[ProblemValueOrigin], snapshots: Mapping[uuid.UUID, PricingSnapshot]) -> dict[str, Provenance]:
-    """Each candidate's provenance, from its rows that read a pricing."""
+    """Each candidate's provenance, from its rows that read a pricing (none once one of them was lost)."""
+    rows = list(rows)
+    lost = {row.candidate_key for row in rows if (row.detail or {}).get(PROVENANCE_LOST)}
     out: dict[str, Provenance] = {}
     for row in rows:
+        if row.candidate_key in lost:
+            continue
         if row.source_kind not in PRICED_KINDS or row.pricing_id is None or row.version_id is None:
             continue
         if row.candidate_key in out:
@@ -200,3 +213,64 @@ async def value_sources(session: AsyncSession, revision_id: uuid.UUID) -> ValueS
     }
     provenance = {key: value.as_dict() for key, value in provenance_of(rows, snapshots).items()}
     return ValueSources(sources, provenance, origins_digest(rows))
+
+
+# -- Carry-forward ---------------------------------------------------------------------------------------------------
+
+
+def candidate_values(ir: Mapping[str, Any]) -> dict[tuple[str, str, str], Any]:
+    """``{(candidate key, "feature" | "property", name): value}`` of a compiled problem."""
+    spec = ir.get("spec") or {}
+    application = (spec.get("application") or {}).get("resource")
+    out: dict[tuple[str, str, str], Any] = {}
+    for resource, catalog in (spec.get("candidates") or {}).items():
+        bindings = catalog.get("featureBindings") or {}
+        for identifier, candidate in (catalog.get("candidates") or {}).items():
+            key = f"{resource}/{identifier}"
+            for alias, value in (candidate.get("features") or {}).items():
+                bound = bindings.get(alias)
+                feature = bound["id"] if isinstance(bound, Mapping) and bound.get("resource", application) == application and "id" in bound else alias
+                out[(key, "feature", str(feature))] = value
+            for name, value in (candidate.get("properties") or {}).items():
+                out[(key, "property", str(name))] = value
+    return out
+
+
+def _same(before: Any, after: Any) -> bool:
+    if after is _MISSING:
+        return False
+    numbers = (int, float)
+    if isinstance(before, bool) or isinstance(after, bool):
+        return before is after
+    if isinstance(before, numbers) and isinstance(after, numbers):
+        return float(before) == float(after)
+    return before == after
+
+
+async def carried_rows(
+    session: AsyncSession, predecessor_id: uuid.UUID, revision_id: uuid.UUID, ir: Mapping[str, Any]
+) -> list[ProblemValueOrigin]:
+    """The predecessor's rows whose value the new compilation keeps, copied onto ``revision_id``."""
+    rows = await origins_for(session, predecessor_id)
+    if not rows:
+        return []
+    values = candidate_values(ir)
+    kept: list[ProblemValueOrigin] = []
+    lost: set[str] = set()
+    for row in rows:
+        if _same(row.value, values.get((row.candidate_key, row.target_kind, row.target), _MISSING)):
+            kept.append(row)
+        elif row.source_kind in PRICED_KINDS:
+            lost.add(row.candidate_key)
+    out = []
+    for row in kept:
+        detail = dict(row.detail or {})
+        if row.candidate_key in lost and row.source_kind in PRICED_KINDS | {"manual"}:
+            detail[PROVENANCE_LOST] = True
+        out.append(ProblemValueOrigin(
+            revision_id=revision_id, candidate_key=row.candidate_key, target_kind=row.target_kind, target=row.target,
+            source_kind=row.source_kind, value=row.value, snapshot_id=row.snapshot_id, registry=row.registry,
+            pricing_id=row.pricing_id, version_id=row.version_id, plan=row.plan, add_ons=list(row.add_ons or []),
+            sphere_ref=row.sphere_ref, detail=detail, carried_from_revision_id=predecessor_id,
+        ))
+    return out
