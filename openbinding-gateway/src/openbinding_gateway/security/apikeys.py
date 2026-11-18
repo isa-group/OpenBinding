@@ -255,6 +255,7 @@ def allows_request(api_key: Any, *, method: str, path_params: Mapping[str, Any],
             "engine-registrations": {"engine-registration", "engine-registrations"},
             "pricing": {"pricing"},
             "notifications": {"notification", "notifications"},
+            "connections": {"organization", "organizations"},
         }
         # The last fixed collection in FastAPI's route template is the most
         # specific resource. Thus `/organizations/{org}/problems` is a problem
@@ -392,6 +393,10 @@ def required_permissions(path: str, method: str) -> frozenset[str]:
             if reads
             else {ApiKeyPermission.COMPOSITIONS_WRITE.value}
         )
+    if path.startswith("/v1/organizations/") and path.split("/")[4:5] == ["connections"]:
+        # An organization's connections (a SPHERE key): administration of the organization, reads included,
+        # since even listing them is an ADMIN's.
+        return frozenset({ApiKeyPermission.ORGANIZATIONS_WRITE.value})
     if path.startswith("/v1/organizations/") and path.split("/")[4:5] == ["studies"]:
         # The studies of an organization, their runs and cells: one permission pair for all of them.
         return frozenset(

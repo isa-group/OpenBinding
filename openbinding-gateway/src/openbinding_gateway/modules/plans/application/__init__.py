@@ -25,6 +25,8 @@ from ..domain.sources import (
     SphereUser,
     is_sphere_id,
 )
+from . import connections
+from .connections import credential_for, mark_invalid
 from .parsing import ParsedPricing, parse, parse_sync
 from .snapshots import (
     Snapshotted,
@@ -80,11 +82,14 @@ __all__ = [
     "SphereUser",
     "VersionRead",
     "account_stored_bytes",
+    "connections",
+    "credential_for",
     "entitlement_map",
     "get_pricing_source",
     "installed_pricing_source",
     "is_sphere_id",
     "latest_for",
+    "mark_invalid",
     "normalised",
     "parse",
     "parse_sync",

@@ -31,6 +31,7 @@ from openbinding_gateway.db.models import (
     Organization,
     OrganizationInvitationCode,
     OrganizationMembership,
+    OrgConnection,
     PricingSnapshot,
     ProblemCompilation,
     RunPreset,
@@ -289,3 +290,20 @@ async def test_an_organization_that_read_a_private_pricing_and_a_url_is_deleted(
     assert await _count(reader, Organization, Organization.id.in_(ids)) == 0
     assert await _count(reader, PricingSnapshot, PricingSnapshot.organization_id.in_(ids)) == 0
     assert await reader.get(PricingSnapshot, public) is not None
+
+
+async def test_an_organization_with_a_sphere_connection_is_deleted_with_it(two_sessions):
+    """No ciphertext is left behind."""
+    session, reader = two_sessions
+    user = await _user(session)
+    upload = await problem_for(session, user)
+    organization = await session.get(Organization, upload.problem.organization_id)
+    session.add(OrgConnection(organization_id=organization.id, kind="sphere", secret="gAAAA-ciphertext", key_hint="abcd"))
+    await session.commit()
+    ids, slug = [organization.id], organization.slug
+
+    await delete_organization(org=slug, user=user, session=session)
+    await session.commit()
+
+    assert await _count(reader, OrgConnection, OrgConnection.organization_id.in_(ids)) == 0
+    assert await _count(reader, Organization, Organization.id.in_(ids)) == 0

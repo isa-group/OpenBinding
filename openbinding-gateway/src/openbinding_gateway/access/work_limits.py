@@ -84,6 +84,8 @@ WORK_ROUTES: dict[tuple[str, str], WorkClass] = {
     ("GET", "/v1/organizations/{org}/compositions/{composition}/neighborhood"): "evaluate",
     # A derivation evaluates the binding it writes the document of, and seals it as a seal does.
     ("POST", "/v1/organizations/{org}/compositions/{composition}/derive"): "evaluate",
+    # Connecting to SPHERE asks SPHERE who the key is: one outbound read per request.
+    ("PUT", "/v1/organizations/{org}/connections/sphere"): "read",
 }
 
 #: The routes a visitor may read public compositions through (``get_reader``): the list of every organization's,

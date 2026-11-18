@@ -144,6 +144,8 @@ TRIGGERS: tuple[Trigger, ...] = (
         name="retain_pricing_snapshots_shared",
         message="shared pricing snapshots are retained",
     ),
+    # A connection is replaced or deleted, never moved to another organization or kind.
+    protect("org_connections", ("organization_id", "kind")),
 )
 
 _REGISTERED = "openbinding_triggers_registered"

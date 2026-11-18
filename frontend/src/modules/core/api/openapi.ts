@@ -1755,6 +1755,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/organizations/{org}/connections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The organization's connections (never their secrets) */
+        get: operations["listOrganizationConnections"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{org}/connections/sphere": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Connect the organization to SPHERE with an API key (write-only) */
+        put: operations["putOrganizationSphereConnection"];
+        post?: never;
+        /** Remove the organization's SPHERE connection and its key */
+        delete: operations["deleteOrganizationSphereConnection"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/organizations/{org}/hierarchy": {
         parameters: {
             query?: never;
@@ -4332,6 +4367,57 @@ export interface components {
              * @enum {string}
              */
             visibility: "private" | "public";
+        };
+        /** ConnectionList */
+        ConnectionList: {
+            /** Connections */
+            connections: components["schemas"]["ConnectionView"][];
+        };
+        /** ConnectionScope */
+        ConnectionScope: {
+            /**
+             * Organizationid
+             * @description A SPHERE organization the key may act in.
+             */
+            organizationId: string;
+            /**
+             * Scope
+             * @description The key's scope there (`VIEW`, `MANAGEMENT`, `ALL`).
+             */
+            scope: string;
+        };
+        /**
+         * ConnectionView
+         * @description An organization's connection. The secret is never returned; `keyHint` is its last four characters.
+         */
+        ConnectionView: {
+            /** Expiresat */
+            expiresAt?: string | null;
+            /** Keyhint */
+            keyHint: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "sphere" | "space";
+            /**
+             * Scopes
+             * @description The SPHERE organizations the key may act in, as SPHERE reported them (null when it did not).
+             */
+            scopes?: components["schemas"]["ConnectionScope"][] | null;
+            /**
+             * Status
+             * @description `invalid` once SPHERE refused the key.
+             * @enum {string}
+             */
+            status: "active" | "invalid";
+            /**
+             * Username
+             * @description The SPHERE user the key belongs to.
+             */
+            username?: string | null;
+            /** Validatedat */
+            validatedAt?: string | null;
         };
         /** ContractSubscriptionView */
         ContractSubscriptionView: {
@@ -7101,6 +7187,17 @@ export interface components {
             key: "binding" | "values" | "offering";
             /** Label */
             label: string;
+        };
+        /**
+         * SphereConnectionUpdate
+         * @description The key of a SPHERE connection: ``sk-`` and 64 hexadecimal characters. It is written, never read back.
+         */
+        SphereConnectionUpdate: {
+            /**
+             * Apikey
+             * @description The SPHERE API key (write-only).
+             */
+            apiKey: string;
         };
         /** StreamTicket */
         StreamTicket: {
@@ -14374,6 +14471,245 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    listOrganizationConnections: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionList"];
+                };
+            };
+            /** @description Missing or invalid account credential. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The caller is not an ADMIN of the organization. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No such resource, or none this caller may see. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request does not satisfy the contract; `diagnostics` says where. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Account authentication is not configured on this deployment. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    putOrganizationSphereConnection: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Revision the client last read, as given by the `ETag` of a GET or of an earlier edit: an entity-tag, a list of them, or `*` for any existing resource. Absent: the edit is applied without a revision check. Weak tags never match. */
+                "If-Match"?: string | null;
+            };
+            path: {
+                org: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SphereConnectionUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    /** @description Revision of the resource; send it back as `If-Match` to edit it. */
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionView"];
+                };
+            };
+            /** @description `If-Match` is not a list of entity-tags or `*` (code `invalid_if_match`). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Missing or invalid account credential. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The caller is not an ADMIN of the organization. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No such resource, or none this caller may see. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description `If-Match` does not match the current revision (code `precondition_failed`): nothing was applied. The `ETag` header carries the current revision. */
+            412: {
+                headers: {
+                    /** @description Revision of the resource; send it back as `If-Match` to edit it. */
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The key is malformed (`sphere_key_malformed`) or SPHERE refused it (`sphere_key_rejected`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too many `read` requests from this client: past the budget of its address, or of its account when signed in. `Retry-After` says when the window ends. */
+            429: {
+                headers: {
+                    /** @description Seconds until the budget is available again. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No secrets can be kept (`secrets_unavailable`), or SPHERE is busy or unreachable (`sphere_busy`, `sphere_unavailable`). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    deleteOrganizationSphereConnection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or invalid account credential. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The caller is not an ADMIN of the organization. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No such resource, or none this caller may see. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request does not satisfy the contract; `diagnostics` says where. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Account authentication is not configured on this deployment. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };

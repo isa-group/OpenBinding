@@ -675,6 +675,15 @@ flowchart LR
   (`yaml12.py`, alias, depth and node limits), the hash and the normaliser (`pricing2yaml/`) run in a worker thread.
   The tests read SPHERE from recordings (`tests/fixtures/sphere`, `tools/record_sphere_fixtures.py`) and cannot open
   a network socket (`OPENBINDING_FORBID_NETWORK=1` in the CI unit shards).
+- **Organization connections (F3).** An organization ADMIN connects the organization to SPHERE with an API key
+  (`org_connections`, `PUT /v1/organizations/{org}/connections/sphere`). The key is checked with SPHERE's
+  `/users/me`, encrypted with the deployment's Fernet keys (`security/secrets.CredentialStore`, the store that
+  already holds engine credentials: one key store and one rotation, rather than a second AES-256-GCM cipher),
+  decrypted only for one call and never returned or logged; of `/users/me` only the user id, username, the key's
+  scopes and expiry are kept. SPHERE decides what a key reads: a MANAGEMENT or ALL key of an organization ADMIN or
+  OWNER reads every private version of that organization, a VIEW key a private pricing only with an explicit grant.
+  The key is sent only to the default SPHERE, never to a registry or a URL; a 401 marks the connection invalid and
+  the read is retried anonymously. "Connect SPHERE" by OAuth cannot read a version's YAML and waits for F8.
 - `GET /v1/plans/pricing` (public) returns the pricing descriptor (permanent link, SPHERE version id and label,
   content hash, the version SPACE has activated) and the YAML read from SPHERE's public API
   (`/api/v1/public/pricings/{pricingId}` and `.../versions/{versionId}/yaml`, bounded to 5 MiB, hash-verified,

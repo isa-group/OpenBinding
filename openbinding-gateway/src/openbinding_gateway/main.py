@@ -61,6 +61,7 @@ from .modules.compositions.adapters.public_routes import me_router as own_compos
 from .modules.compositions.adapters.public_routes import router as public_compositions_router
 from .modules.compositions.adapters.routes import router as compositions_router
 from .modules.execution.adapters.preset_routes import router as run_presets_router
+from .modules.plans.adapters.routes import router as plans_router
 from .modules.plans.adapters.sphere import SphereHttpSource
 from .modules.plans.application import installed_pricing_source, set_pricing_source
 from .modules.execution.adapters.routes import router as runs_router
@@ -458,6 +459,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(runs_router)
     app.include_router(run_presets_router)
     app.include_router(notifications_router)
+    app.include_router(plans_router)
 
     generated_openapi = app.openapi
     app.openapi = lambda: openapi_with_security_contract(app, settings, generated_openapi)

@@ -43,6 +43,7 @@ from ..db.models import (
     OrganizationMembership,
     OrganizationRole,
     ProblemCompilation,
+    OrgConnection,
     PricingSnapshot,
     RunPreset,
     Study,
@@ -691,6 +692,8 @@ async def _delete_subtree(session: AsyncSession, organization: Organization, uni
         # The organization's own pricing snapshots (private SPHERE versions, URLs), once nothing above refers to
         # them; shared (public, registry) snapshots are never deleted. Their bytes follow the blob store's rule.
         await session.execute(delete(PricingSnapshot).where(PricingSnapshot.organization_id == oid))
+        # Its connections: the encrypted key goes with the organization (its audit trail went above).
+        await session.execute(delete(OrgConnection).where(OrgConnection.organization_id == oid))
         await session.execute(
             delete(Blob).where(Blob.organization_id == oid)
         )

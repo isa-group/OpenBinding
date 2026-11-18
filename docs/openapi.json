@@ -4053,6 +4053,125 @@
         "title": "CompositionView",
         "type": "object"
       },
+      "ConnectionList": {
+        "properties": {
+          "connections": {
+            "items": {
+              "$ref": "#/components/schemas/ConnectionView"
+            },
+            "title": "Connections",
+            "type": "array"
+          }
+        },
+        "required": [
+          "connections"
+        ],
+        "title": "ConnectionList",
+        "type": "object"
+      },
+      "ConnectionScope": {
+        "properties": {
+          "organizationId": {
+            "description": "A SPHERE organization the key may act in.",
+            "title": "Organizationid",
+            "type": "string"
+          },
+          "scope": {
+            "description": "The key's scope there (`VIEW`, `MANAGEMENT`, `ALL`).",
+            "title": "Scope",
+            "type": "string"
+          }
+        },
+        "required": [
+          "organizationId",
+          "scope"
+        ],
+        "title": "ConnectionScope",
+        "type": "object"
+      },
+      "ConnectionView": {
+        "description": "An organization's connection. The secret is never returned; `keyHint` is its last four characters.",
+        "properties": {
+          "expiresAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expiresat"
+          },
+          "keyHint": {
+            "title": "Keyhint",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "sphere",
+              "space"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "scopes": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ConnectionScope"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The SPHERE organizations the key may act in, as SPHERE reported them (null when it did not).",
+            "title": "Scopes"
+          },
+          "status": {
+            "description": "`invalid` once SPHERE refused the key.",
+            "enum": [
+              "active",
+              "invalid"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The SPHERE user the key belongs to.",
+            "title": "Username"
+          },
+          "validatedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Validatedat"
+          }
+        },
+        "required": [
+          "kind",
+          "status",
+          "keyHint"
+        ],
+        "title": "ConnectionView",
+        "type": "object"
+      },
       "ContractSubscriptionView": {
         "properties": {
           "add_ons": {
@@ -10807,6 +10926,24 @@
           "entries"
         ],
         "title": "SectionDiffView",
+        "type": "object"
+      },
+      "SphereConnectionUpdate": {
+        "additionalProperties": false,
+        "description": "The key of a SPHERE connection: ``sk-`` and 64 hexadecimal characters. It is written, never read back.",
+        "properties": {
+          "apiKey": {
+            "description": "The SPHERE API key (write-only).",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Apikey",
+            "type": "string"
+          }
+        },
+        "required": [
+          "apiKey"
+        ],
+        "title": "SphereConnectionUpdate",
         "type": "object"
       },
       "StreamTicket": {
@@ -23092,6 +23229,359 @@
         ],
         "x-required-api-key-permissions": [
           "compositions:write"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/connections": {
+      "get": {
+        "operationId": "listOrganizationConnections",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectionList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is not an ADMIN of the organization."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such resource, or none this caller may see."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "The organization's connections (never their secrets)",
+        "tags": [
+          "Organizations"
+        ],
+        "x-required-api-key-permissions": [
+          "organizations:write"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/connections/sphere": {
+      "delete": {
+        "operationId": "deleteOrganizationSphereConnection",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is not an ADMIN of the organization."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such resource, or none this caller may see."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Remove the organization's SPHERE connection and its key",
+        "tags": [
+          "Organizations"
+        ],
+        "x-required-api-key-permissions": [
+          "organizations:write"
+        ]
+      },
+      "put": {
+        "operationId": "putOrganizationSphereConnection",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Revision the client last read, as given by the `ETag` of a GET or of an earlier edit: an entity-tag, a list of them, or `*` for any existing resource. Absent: the edit is applied without a revision check. Weak tags never match.",
+            "in": "header",
+            "name": "If-Match",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Revision the client last read, as given by the `ETag` of a GET or of an earlier edit: an entity-tag, a list of them, or `*` for any existing resource. Absent: the edit is applied without a revision check. Weak tags never match.",
+              "title": "If-Match"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SphereConnectionUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectionView"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "ETag": {
+                "description": "Revision of the resource; send it back as `If-Match` to edit it.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`If-Match` is not a list of entity-tags or `*` (code `invalid_if_match`)."
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is not an ADMIN of the organization."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such resource, or none this caller may see."
+          },
+          "412": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`If-Match` does not match the current revision (code `precondition_failed`): nothing was applied. The `ETag` header carries the current revision.",
+            "headers": {
+              "ETag": {
+                "description": "Revision of the resource; send it back as `If-Match` to edit it.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The key is malformed (`sphere_key_malformed`) or SPHERE refused it (`sphere_key_rejected`)."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many `read` requests from this client: past the budget of its address, or of its account when signed in. `Retry-After` says when the window ends.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No secrets can be kept (`secrets_unavailable`), or SPHERE is busy or unreachable (`sphere_busy`, `sphere_unavailable`)."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Connect the organization to SPHERE with an API key (write-only)",
+        "tags": [
+          "Organizations"
+        ],
+        "x-required-api-key-permissions": [
+          "organizations:write"
         ]
       }
     },

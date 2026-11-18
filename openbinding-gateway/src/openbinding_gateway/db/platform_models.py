@@ -780,6 +780,45 @@ class PricingSnapshot(Base):
     fetched_by_id: Mapped[Optional[uuid.UUID]] = mapped_column(Uuid, nullable=True, index=True)
 
 
+class OrgConnection(Base):
+    """An organization's connection to an outside service (``sphere``; ``space`` in F8), with a write-only secret.
+
+    ``secret`` is a Fernet token of the key (``security/secrets.CredentialStore``), decrypted only for one call
+    and never returned; ``key_hint`` is its last four characters. Of SPHERE's ``/users/me`` only the user id,
+    the username, the key's scopes and its expiry are kept. ``updated_at`` is the ETag's revision.
+    """
+
+    __tablename__ = "org_connections"
+    __table_args__ = (
+        UniqueConstraint("organization_id", "kind", name="uq_org_connection_organization_kind"),
+        CheckConstraint("kind IN ('sphere', 'space')", name="ck_org_connection_kind"),
+        CheckConstraint("status IN ('active', 'invalid')", name="ck_org_connection_status"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    kind: Mapped[str] = mapped_column(String(16), nullable=False)
+    secret: Mapped[str] = mapped_column(Text, nullable=False)
+    key_hint: Mapped[str] = mapped_column(String(8), nullable=False)
+    sphere_user_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    sphere_username: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    scopes: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
+    expires_at: Mapped[Optional[str]] = mapped_column(String(40), nullable=True)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="active")
+    last_error: Mapped[Optional[str]] = mapped_column(String(240), nullable=True)
+    validated_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    #: Who set it; not a foreign key, so that it never blocks deleting an account.
+    created_by_id: Mapped[Optional[uuid.UUID]] = mapped_column(Uuid, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow, server_default=func.now()
+    )
+
+
 class Notification(Base):
     __tablename__ = "notifications"
 

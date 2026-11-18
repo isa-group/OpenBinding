@@ -12,7 +12,7 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision: str = 'c673401bbe12'
+revision: str = '8c2a7e79f842'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -30,6 +30,7 @@ SQLITE_TRIGGERS = (
     "CREATE TRIGGER retain_study_cells BEFORE DELETE ON study_cells BEGIN SELECT RAISE(ABORT, 'study_cells history is retained'); END",
     "CREATE TRIGGER immutable_pricing_snapshots_update BEFORE UPDATE ON pricing_snapshots BEGIN SELECT RAISE(ABORT, 'pricing snapshots are immutable'); END",
     "CREATE TRIGGER retain_pricing_snapshots_shared BEFORE DELETE ON pricing_snapshots WHEN OLD.scope_key = 'public' OR substr(OLD.scope_key, 1, 9) = 'registry:' BEGIN SELECT RAISE(ABORT, 'shared pricing snapshots are retained'); END",
+    "CREATE TRIGGER protect_org_connections BEFORE UPDATE ON org_connections WHEN OLD.organization_id IS NOT NEW.organization_id OR OLD.kind IS NOT NEW.kind BEGIN SELECT RAISE(ABORT, 'the protected columns of org_connections are immutable'); END",
 )
 POSTGRESQL_TRIGGERS = (
     "CREATE OR REPLACE FUNCTION immutable_binding_case_revisions_update() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'binding_case_revisions rows are sealed and immutable'; END $$",
@@ -54,6 +55,8 @@ POSTGRESQL_TRIGGERS = (
     'CREATE TRIGGER immutable_pricing_snapshots_update BEFORE UPDATE ON pricing_snapshots FOR EACH ROW EXECUTE FUNCTION immutable_pricing_snapshots_update()',
     "CREATE OR REPLACE FUNCTION retain_pricing_snapshots_shared() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF OLD.scope_key = 'public' OR substr(OLD.scope_key, 1, 9) = 'registry:' THEN RAISE EXCEPTION 'shared pricing snapshots are retained'; END IF; RETURN OLD; END $$",
     'CREATE TRIGGER retain_pricing_snapshots_shared BEFORE DELETE ON pricing_snapshots FOR EACH ROW EXECUTE FUNCTION retain_pricing_snapshots_shared()',
+    "CREATE OR REPLACE FUNCTION protect_org_connections() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF OLD.organization_id IS DISTINCT FROM NEW.organization_id OR OLD.kind IS DISTINCT FROM NEW.kind THEN RAISE EXCEPTION 'the protected columns of org_connections are immutable'; END IF; RETURN NEW; END $$",
+    'CREATE TRIGGER protect_org_connections BEFORE UPDATE ON org_connections FOR EACH ROW EXECUTE FUNCTION protect_org_connections()',
 )
 POSTGRESQL_TRIGGER_FUNCTIONS = (
     'immutable_binding_case_revisions_update',
@@ -67,6 +70,7 @@ POSTGRESQL_TRIGGER_FUNCTIONS = (
     'retain_study_cells',
     'immutable_pricing_snapshots_update',
     'retain_pricing_snapshots_shared',
+    'protect_org_connections',
 )
 
 
@@ -342,6 +346,29 @@ def upgrade() -> None:
     op.create_index(op.f('ix_compositions_created_by_id'), 'compositions', ['created_by_id'], unique=False)
     op.create_index(op.f('ix_compositions_organization_id'), 'compositions', ['organization_id'], unique=False)
     op.create_index('ix_compositions_visibility_updated', 'compositions', ['visibility', 'updated_at'], unique=False)
+    op.create_table('org_connections',
+    sa.Column('id', sa.Uuid(), nullable=False),
+    sa.Column('organization_id', sa.Uuid(), nullable=False),
+    sa.Column('kind', sa.String(length=16), nullable=False),
+    sa.Column('secret', sa.Text(), nullable=False),
+    sa.Column('key_hint', sa.String(length=8), nullable=False),
+    sa.Column('sphere_user_id', sa.String(length=64), nullable=True),
+    sa.Column('sphere_username', sa.String(length=120), nullable=True),
+    sa.Column('scopes', sa.JSON(), nullable=True),
+    sa.Column('expires_at', sa.String(length=40), nullable=True),
+    sa.Column('status', sa.String(length=16), nullable=False),
+    sa.Column('last_error', sa.String(length=240), nullable=True),
+    sa.Column('validated_at', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('created_by_id', sa.Uuid(), nullable=True),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.CheckConstraint("kind IN ('sphere', 'space')", name=op.f('ck_org_connections_ck_org_connection_kind')),
+    sa.CheckConstraint("status IN ('active', 'invalid')", name=op.f('ck_org_connections_ck_org_connection_status')),
+    sa.ForeignKeyConstraint(['organization_id'], ['organizations.id'], name=op.f('fk_org_connections_organization_id_organizations'), ondelete='RESTRICT'),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_org_connections')),
+    sa.UniqueConstraint('organization_id', 'kind', name='uq_org_connection_organization_kind')
+    )
+    op.create_index(op.f('ix_org_connections_organization_id'), 'org_connections', ['organization_id'], unique=False)
     op.create_table('organization_invitation_codes',
     sa.Column('id', sa.Uuid(), nullable=False),
     sa.Column('organization_id', sa.Uuid(), nullable=False),
@@ -824,6 +851,8 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_organization_invitation_codes_organization_id'), table_name='organization_invitation_codes')
     op.drop_index(op.f('ix_organization_invitation_codes_code'), table_name='organization_invitation_codes')
     op.drop_table('organization_invitation_codes')
+    op.drop_index(op.f('ix_org_connections_organization_id'), table_name='org_connections')
+    op.drop_table('org_connections')
     op.drop_index('ix_compositions_visibility_updated', table_name='compositions')
     op.drop_index(op.f('ix_compositions_organization_id'), table_name='compositions')
     op.drop_index(op.f('ix_compositions_created_by_id'), table_name='compositions')
