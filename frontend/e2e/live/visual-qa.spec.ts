@@ -130,7 +130,7 @@ function smallTargets(page: Page): Promise<string[]> {
         continue;
       // Hidden from everyone (the skip link sits above the page until it is focused) or only for screen readers.
       if (
-        control.closest('.sr-only, [aria-hidden="true"], [hidden]') ||
+        control.closest('.sr-only, .pr-sr-only, [aria-hidden="true"], [hidden]') ||
         box.bottom <= 0 ||
         box.right <= 0
       )
@@ -208,7 +208,7 @@ function clippedContent(page: Page): Promise<string[]> {
       if (style.position === 'fixed' || style.position === 'absolute') continue;
       if (
         element.closest(
-          '.sr-only, [aria-hidden="true"], [hidden], details:not([open]) > :not(summary)'
+          '.sr-only, .pr-sr-only, [aria-hidden="true"], [hidden], details:not([open]) > :not(summary)'
         )
       )
         continue;
@@ -297,7 +297,10 @@ async function walk(
   const seen = watch(page);
   const rows: Row[] = [];
   if (BRAND)
-    await page.addInitScript(([key, value]) => window.localStorage.setItem(key, value), [BRAND_KEY, BRAND]);
+    await page.addInitScript(
+      ([key, value]) => window.localStorage.setItem(key, value),
+      [BRAND_KEY, BRAND]
+    );
   await mkdir(SCREENSHOTS, { recursive: true }).catch(() => undefined);
 
   for (const stop of stops) {
@@ -788,7 +791,9 @@ test.describe('live · visual QA', () => {
     const engines = await page.request.get(`${API}/v1/engines`);
     const engine = engines.ok()
       ? (
-          (await engines.json()) as { engines: Array<{ namespace: string; name: string; version: string }> }
+          (await engines.json()) as {
+            engines: Array<{ namespace: string; name: string; version: string }>;
+          }
         ).engines.find(item => item.name === 'random-search')
       : undefined;
     if (engine)
@@ -797,7 +802,11 @@ test.describe('live · visual QA', () => {
         path: `/engines/${encodeURIComponent(engine.namespace)}/${encodeURIComponent(engine.name)}/${encodeURIComponent(engine.version)}`,
         ready: target => target.locator('main').getByRole('heading', { level: 1 }),
       });
-    else skipped.push({ slug: 'engine-card', why: `GET /v1/engines answered ${engines.status()} without random-search` });
+    else
+      skipped.push({
+        slug: 'engine-card',
+        why: `GET /v1/engines answered ${engines.status()} without random-search`,
+      });
     const front = await studyFrontStop(page, token);
     if ('why' in front) {
       skipped.push({ slug: 'study-front', why: front.why });
