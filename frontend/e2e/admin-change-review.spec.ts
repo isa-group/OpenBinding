@@ -8,10 +8,7 @@ import {
 } from '@playwright/test';
 import { failureBody } from './helpers/problems';
 import type { AdminUserView } from '../src/modules/core/api/account';
-import {
-  AGREEMENT_CURRENT_FIXTURE as CURRENT_FIXTURE,
-  agreementCatalogFixture as catalogFixture,
-} from '../src/test/fixtures/agreementCatalog';
+import { AGREEMENT_PRICING_FIXTURE as PRICING_FIXTURE } from '../src/test/fixtures/agreementPricing';
 import { ALEX, SAM, USERS, subscriptionOf, usageOf } from '../src/test/fixtures/admin';
 
 // admin-user-detail /admin/users/:user?tab=agreement · the review of a subscription change, drawn by pricing-renderer's <pricing-change-review>.
@@ -103,8 +100,7 @@ async function mockApi(
       expires_in: 900,
     })
   );
-  await page.route(`${API}/v1/pricing/catalog`, json(catalogFixture));
-  await page.route(`${API}/v1/pricing/current`, json(CURRENT_FIXTURE));
+  await page.route(`${API}/v1/plans/pricing`, json(PRICING_FIXTURE));
   await page.route(`${API}/v1/users/me`, json(ALEX));
   await page.route(`${API}/v1/users/me/usage`, json(usageOf('PRO')));
   await page.route(`${API}/v1/users/me/pricing-token`, json({ pricing_token: token(3600) }));

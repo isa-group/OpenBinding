@@ -1,0 +1,394 @@
+{
+  "/api/v1/orgs/6a2d90d2e7661f8a65098f97": {
+    "file": "orgs/6a2d90d2e7661f8a65098f97.json",
+    "headers": "orgs/6a2d90d2e7661f8a65098f97.headers.json"
+  },
+  "/api/v1/orgs/6a69bffdcc66dffbac53dfd4": {
+    "file": "orgs/6a69bffdcc66dffbac53dfd4.json",
+    "headers": "orgs/6a69bffdcc66dffbac53dfd4.headers.json"
+  },
+  "/api/v1/orgs/6a9d1aea93628b97bbf639d2": {
+    "file": "orgs/6a9d1aea93628b97bbf639d2.json",
+    "headers": "orgs/6a9d1aea93628b97bbf639d2.headers.json"
+  },
+  "/api/v1/orgs/6ade2ce94b2b5b01c587d7c6": {
+    "file": "orgs/6ade2ce94b2b5b01c587d7c6.json",
+    "headers": "orgs/6ade2ce94b2b5b01c587d7c6.headers.json"
+  },
+  "/api/v1/orgs/6ae075fddaa2ba78b21d739a": {
+    "file": "orgs/6ae075fddaa2ba78b21d739a.json",
+    "headers": "orgs/6ae075fddaa2ba78b21d739a.headers.json"
+  },
+  "/api/v1/orgs/public?q=atenea": {
+    "file": "orgs-public/atenea.json",
+    "headers": "orgs-public/atenea.headers.json"
+  },
+  "/api/v1/orgs/public?q=danruilop1": {
+    "file": "orgs-public/danruilop1.json",
+    "headers": "orgs-public/danruilop1.headers.json"
+  },
+  "/api/v1/orgs/public?q=danvelcam": {
+    "file": "orgs-public/danvelcam.json",
+    "headers": "orgs-public/danvelcam.headers.json"
+  },
+  "/api/v1/orgs/public?q=nobody": {
+    "file": "orgs-public/nobody.json",
+    "headers": "orgs-public/nobody.headers.json"
+  },
+  "/api/v1/orgs/public?q=sphere": {
+    "file": "orgs-public/sphere.json",
+    "headers": "orgs-public/sphere.headers.json"
+  },
+  "/api/v1/permalinks/pricing/6ab0a323697330667ccce891": {
+    "file": "permalinks/6ab0a323697330667ccce891.json",
+    "headers": "permalinks/6ab0a323697330667ccce891.headers.json"
+  },
+  "/api/v1/permalinks/pricing/6ab0a323697330667ccce8cd": {
+    "file": "permalinks/6ab0a323697330667ccce8cd.json",
+    "headers": "permalinks/6ab0a323697330667ccce8cd.headers.json"
+  },
+  "/api/v1/permalinks/pricing/6ab0a323697330667ccce8e9": {
+    "file": "permalinks/6ab0a323697330667ccce8e9.json",
+    "headers": "permalinks/6ab0a323697330667ccce8e9.headers.json"
+  },
+  "/api/v1/permalinks/pricing/6ab0a323697330667ccce93d": {
+    "file": "permalinks/6ab0a323697330667ccce93d.json",
+    "headers": "permalinks/6ab0a323697330667ccce93d.headers.json"
+  },
+  "/api/v1/permalinks/pricing/6ab0a323697330667ccce9c1": {
+    "file": "permalinks/6ab0a323697330667ccce9c1.json",
+    "headers": "permalinks/6ab0a323697330667ccce9c1.headers.json"
+  },
+  "/api/v1/permalinks/pricing/6ab0a323697330667ccce9d9": {
+    "file": "permalinks/6ab0a323697330667ccce9d9.json",
+    "headers": "permalinks/6ab0a323697330667ccce9d9.headers.json"
+  },
+  "/api/v1/permalinks/pricing/6ab0a323697330667cccea11": {
+    "file": "permalinks/6ab0a323697330667cccea11.json",
+    "headers": "permalinks/6ab0a323697330667cccea11.headers.json"
+  },
+  "/api/v1/permalinks/pricing/6ab0a323697330667cccea2d": {
+    "file": "permalinks/6ab0a323697330667cccea2d.json",
+    "headers": "permalinks/6ab0a323697330667cccea2d.headers.json"
+  },
+  "/api/v1/permalinks/pricing/6ade2d2540e55445692b07c6": {
+    "file": "permalinks/6ade2d2540e55445692b07c6.json",
+    "headers": "permalinks/6ade2d2540e55445692b07c6.headers.json"
+  },
+  "/api/v1/permalinks/pricing/6ade2d4440e55445692b07f1": {
+    "file": "permalinks/6ade2d4440e55445692b07f1.json",
+    "headers": "permalinks/6ade2d4440e55445692b07f1.headers.json"
+  },
+  "/api/v1/permalinks/pricing/6ade2ef740e55445692b094f": {
+    "file": "permalinks/6ade2ef740e55445692b094f.json",
+    "headers": "permalinks/6ade2ef740e55445692b094f.headers.json"
+  },
+  "/api/v1/permalinks/pricing/6ade2f3b40e55445692b09aa": {
+    "file": "permalinks/6ade2f3b40e55445692b09aa.json",
+    "headers": "permalinks/6ade2f3b40e55445692b09aa.headers.json"
+  },
+  "/api/v1/permalinks/pricing/6ade364540e55445692b0eda": {
+    "file": "permalinks/6ade364540e55445692b0eda.json",
+    "headers": "permalinks/6ade364540e55445692b0eda.headers.json"
+  },
+  "/api/v1/permalinks/pricing/6adf1a6240e55445692b6f14": {
+    "file": "permalinks/6adf1a6240e55445692b6f14.json",
+    "headers": "permalinks/6adf1a6240e55445692b6f14.headers.json"
+  },
+  "/api/v1/permalinks/pricing/6ae0768440e55445692c0081": {
+    "file": "permalinks/6ae0768440e55445692c0081.json",
+    "headers": "permalinks/6ae0768440e55445692c0081.headers.json"
+  },
+  "/api/v1/permalinks/pricing/6ae076f340e55445692c0101": {
+    "file": "permalinks/6ae076f340e55445692c0101.json",
+    "headers": "permalinks/6ae076f340e55445692c0101.headers.json"
+  },
+  "/api/v1/permalinks/pricing/6ae0772d40e55445692c0143": {
+    "file": "permalinks/6ae0772d40e55445692c0143.json",
+    "headers": "permalinks/6ae0772d40e55445692c0143.headers.json"
+  },
+  "/api/v1/permalinks/pricing/6ae0776f40e55445692c018c": {
+    "file": "permalinks/6ae0776f40e55445692c018c.json",
+    "headers": "permalinks/6ae0776f40e55445692c018c.headers.json"
+  },
+  "/api/v1/permalinks/pricing/6ae077ac40e55445692c01ce": {
+    "file": "permalinks/6ae077ac40e55445692c01ce.json",
+    "headers": "permalinks/6ae077ac40e55445692c01ce.headers.json"
+  },
+  "/api/v1/pricings/6a2d90d2e7661f8a65098f97?limit=24&offset=0": {
+    "file": "org-pricings/6a2d90d2e7661f8a65098f97.0.json",
+    "headers": "org-pricings/6a2d90d2e7661f8a65098f97.0.headers.json"
+  },
+  "/api/v1/pricings/6a69bffdcc66dffbac53dfd4?limit=24&offset=0": {
+    "file": "org-pricings/6a69bffdcc66dffbac53dfd4.0.json",
+    "headers": "org-pricings/6a69bffdcc66dffbac53dfd4.0.headers.json"
+  },
+  "/api/v1/pricings/6a69bffdcc66dffbac53dfd4?limit=24&offset=120": {
+    "file": "org-pricings/6a69bffdcc66dffbac53dfd4.5.json",
+    "headers": "org-pricings/6a69bffdcc66dffbac53dfd4.5.headers.json"
+  },
+  "/api/v1/pricings/6a69bffdcc66dffbac53dfd4?limit=24&offset=24": {
+    "file": "org-pricings/6a69bffdcc66dffbac53dfd4.1.json",
+    "headers": "org-pricings/6a69bffdcc66dffbac53dfd4.1.headers.json"
+  },
+  "/api/v1/pricings/6a69bffdcc66dffbac53dfd4?limit=24&offset=48": {
+    "file": "org-pricings/6a69bffdcc66dffbac53dfd4.2.json",
+    "headers": "org-pricings/6a69bffdcc66dffbac53dfd4.2.headers.json"
+  },
+  "/api/v1/pricings/6a69bffdcc66dffbac53dfd4?limit=24&offset=72": {
+    "file": "org-pricings/6a69bffdcc66dffbac53dfd4.3.json",
+    "headers": "org-pricings/6a69bffdcc66dffbac53dfd4.3.headers.json"
+  },
+  "/api/v1/pricings/6a69bffdcc66dffbac53dfd4?limit=24&offset=96": {
+    "file": "org-pricings/6a69bffdcc66dffbac53dfd4.4.json",
+    "headers": "org-pricings/6a69bffdcc66dffbac53dfd4.4.headers.json"
+  },
+  "/api/v1/pricings/6a9d1aea93628b97bbf639d2?limit=24&offset=0": {
+    "file": "org-pricings/6a9d1aea93628b97bbf639d2.0.json",
+    "headers": "org-pricings/6a9d1aea93628b97bbf639d2.0.headers.json"
+  },
+  "/api/v1/pricings/6ade2ce94b2b5b01c587d7c6?limit=24&offset=0": {
+    "file": "org-pricings/6ade2ce94b2b5b01c587d7c6.0.json",
+    "headers": "org-pricings/6ade2ce94b2b5b01c587d7c6.0.headers.json"
+  },
+  "/api/v1/pricings/6ae075fddaa2ba78b21d739a?limit=24&offset=0": {
+    "file": "org-pricings/6ae075fddaa2ba78b21d739a.0.json",
+    "headers": "org-pricings/6ae075fddaa2ba78b21d739a.0.headers.json"
+  },
+  "/api/v1/pricings?collection=email-apis-pricing-intelligence&limit=24&offset=0": {
+    "file": "search/collection-email-apis-pricing-intelligence.json",
+    "headers": "search/collection-email-apis-pricing-intelligence.headers.json"
+  },
+  "/api/v1/pricings?limit=24&min-minPrice=10&name=Mailgun&offset=0": {
+    "file": "search/min-minPrice-10__name-Mailgun.json",
+    "headers": "search/min-minPrice-10__name-Mailgun.headers.json"
+  },
+  "/api/v1/pricings?limit=24&name=Dropbox&offset=0": {
+    "file": "search/name-Dropbox.json",
+    "headers": "search/name-Dropbox.headers.json"
+  },
+  "/api/v1/pricings?limit=24&name=Mailgun&offset=0": {
+    "file": "search/name-Mailgun.json",
+    "headers": "search/name-Mailgun.headers.json"
+  },
+  "/api/v1/pricings?limit=24&name=nosuchpricing&offset=0": {
+    "file": "search/name-nosuchpricing.json",
+    "headers": "search/name-nosuchpricing.headers.json"
+  },
+  "/api/v1/pricings?limit=24&name=resend&offset=0": {
+    "file": "search/name-resend.json",
+    "headers": "search/name-resend.headers.json"
+  },
+  "/api/v1/pricings?limit=24&name=sendgrid&offset=0": {
+    "file": "search/name-sendgrid.json",
+    "headers": "search/name-sendgrid.headers.json"
+  },
+  "/api/v1/pricings?limit=24&name=sendgridrapidapi&offset=0": {
+    "file": "search/name-sendgridrapidapi.json",
+    "headers": "search/name-sendgridrapidapi.headers.json"
+  },
+  "/api/v1/pricings?limit=24&name=tomatometer&offset=0": {
+    "file": "search/name-tomatometer.json",
+    "headers": "search/name-tomatometer.headers.json"
+  },
+  "/api/v1/pricings?limit=24&name=twilio+sendgrid+email+api&offset=0": {
+    "file": "search/name-twilio_sendgrid_email_api.json",
+    "headers": "search/name-twilio_sendgrid_email_api.headers.json"
+  },
+  "/api/v1/pricings?limit=24&name=twilio-sendgrid-email-api&offset=0": {
+    "file": "search/name-twilio-sendgrid-email-api.json",
+    "headers": "search/name-twilio-sendgrid-email-api.headers.json"
+  },
+  "/api/v1/pricings?limit=24&offset=0&sort=asc&sortBy=minPrice": {
+    "file": "search/sort-asc__sortBy-minPrice.json",
+    "headers": "search/sort-asc__sortBy-minPrice.headers.json"
+  },
+  "/api/v1/public/pricings/6ab0a323697330667ccce891": {
+    "file": "6ab0a323697330667ccce891/manifest.json",
+    "headers": "6ab0a323697330667ccce891/manifest.headers.json"
+  },
+  "/api/v1/public/pricings/6ab0a323697330667ccce891/versions/6ada6dbd4b2b5b01c587d17f/yaml": {
+    "file": "6ab0a323697330667ccce891/6ada6dbd4b2b5b01c587d17f.yml",
+    "headers": "6ab0a323697330667ccce891/6ada6dbd4b2b5b01c587d17f.headers.json"
+  },
+  "/api/v1/public/pricings/6ab0a323697330667ccce8cd": {
+    "file": "6ab0a323697330667ccce8cd/manifest.json",
+    "headers": "6ab0a323697330667ccce8cd/manifest.headers.json"
+  },
+  "/api/v1/public/pricings/6ab0a323697330667ccce8cd/versions/6921867e7004563bd918e7e8/yaml": {
+    "file": "6ab0a323697330667ccce8cd/6921867e7004563bd918e7e8.yml",
+    "headers": "6ab0a323697330667ccce8cd/6921867e7004563bd918e7e8.headers.json"
+  },
+  "/api/v1/public/pricings/6ab0a323697330667ccce8e9": {
+    "file": "6ab0a323697330667ccce8e9/manifest.json",
+    "headers": "6ab0a323697330667ccce8e9/manifest.headers.json"
+  },
+  "/api/v1/public/pricings/6ab0a323697330667ccce8e9/versions/69639298641bc8e6c0f764d1/yaml": {
+    "file": "6ab0a323697330667ccce8e9/69639298641bc8e6c0f764d1.yml",
+    "headers": "6ab0a323697330667ccce8e9/69639298641bc8e6c0f764d1.headers.json"
+  },
+  "/api/v1/public/pricings/6ab0a323697330667ccce93d": {
+    "file": "6ab0a323697330667ccce93d/manifest.json",
+    "headers": "6ab0a323697330667ccce93d/manifest.headers.json"
+  },
+  "/api/v1/public/pricings/6ab0a323697330667ccce93d/versions/67e975243b1f997200c7be76/yaml": {
+    "file": "6ab0a323697330667ccce93d/67e975243b1f997200c7be76.yml",
+    "headers": "6ab0a323697330667ccce93d/67e975243b1f997200c7be76.headers.json"
+  },
+  "/api/v1/public/pricings/6ab0a323697330667ccce93d/versions/67e975243b1f997200c7be77/yaml": {
+    "file": "6ab0a323697330667ccce93d/67e975243b1f997200c7be77.yml",
+    "headers": "6ab0a323697330667ccce93d/67e975243b1f997200c7be77.headers.json"
+  },
+  "/api/v1/public/pricings/6ab0a323697330667ccce93d/versions/67e975243b1f997200c7be78/yaml": {
+    "file": "6ab0a323697330667ccce93d/67e975243b1f997200c7be78.yml",
+    "headers": "6ab0a323697330667ccce93d/67e975243b1f997200c7be78.headers.json"
+  },
+  "/api/v1/public/pricings/6ab0a323697330667ccce93d/versions/67e975243b1f997200c7be79/yaml": {
+    "file": "6ab0a323697330667ccce93d/67e975243b1f997200c7be79.yml",
+    "headers": "6ab0a323697330667ccce93d/67e975243b1f997200c7be79.headers.json"
+  },
+  "/api/v1/public/pricings/6ab0a323697330667ccce93d/versions/67e975243b1f997200c7be7a/yaml": {
+    "file": "6ab0a323697330667ccce93d/67e975243b1f997200c7be7a.yml",
+    "headers": "6ab0a323697330667ccce93d/67e975243b1f997200c7be7a.headers.json"
+  },
+  "/api/v1/public/pricings/6ab0a323697330667ccce9c1": {
+    "file": "6ab0a323697330667ccce9c1/manifest.json",
+    "headers": "6ab0a323697330667ccce9c1/manifest.headers.json"
+  },
+  "/api/v1/public/pricings/6ab0a323697330667ccce9c1/versions/687e4b68102baa50f3a5c7b5/yaml": {
+    "file": "6ab0a323697330667ccce9c1/687e4b68102baa50f3a5c7b5.yml",
+    "headers": "6ab0a323697330667ccce9c1/687e4b68102baa50f3a5c7b5.headers.json"
+  },
+  "/api/v1/public/pricings/6ab0a323697330667ccce9c1/versions/687e4b68102baa50f3a5c7b6/yaml": {
+    "file": "6ab0a323697330667ccce9c1/687e4b68102baa50f3a5c7b6.yml",
+    "headers": "6ab0a323697330667ccce9c1/687e4b68102baa50f3a5c7b6.headers.json"
+  },
+  "/api/v1/public/pricings/6ab0a323697330667ccce9c1/versions/687e4b68102baa50f3a5c7b7/yaml": {
+    "file": "6ab0a323697330667ccce9c1/687e4b68102baa50f3a5c7b7.yml",
+    "headers": "6ab0a323697330667ccce9c1/687e4b68102baa50f3a5c7b7.headers.json"
+  },
+  "/api/v1/public/pricings/6ab0a323697330667ccce9d9": {
+    "file": "6ab0a323697330667ccce9d9/manifest.json",
+    "headers": "6ab0a323697330667ccce9d9/manifest.headers.json"
+  },
+  "/api/v1/public/pricings/6ab0a323697330667ccce9d9/versions/687e3ca4102baa50f3a5c50d/yaml": {
+    "file": "6ab0a323697330667ccce9d9/687e3ca4102baa50f3a5c50d.yml",
+    "headers": "6ab0a323697330667ccce9d9/687e3ca4102baa50f3a5c50d.headers.json"
+  },
+  "/api/v1/public/pricings/6ab0a323697330667cccea11": {
+    "file": "6ab0a323697330667cccea11/manifest.json",
+    "headers": "6ab0a323697330667cccea11/manifest.headers.json"
+  },
+  "/api/v1/public/pricings/6ab0a323697330667cccea11/versions/698222e314b5a1547fbcbb95/yaml": {
+    "file": "6ab0a323697330667cccea11/698222e314b5a1547fbcbb95.yml",
+    "headers": "6ab0a323697330667cccea11/698222e314b5a1547fbcbb95.headers.json"
+  },
+  "/api/v1/public/pricings/6ab0a323697330667cccea2d": {
+    "file": "6ab0a323697330667cccea2d/manifest.json",
+    "headers": "6ab0a323697330667cccea2d/manifest.headers.json"
+  },
+  "/api/v1/public/pricings/6ab0a323697330667cccea2d/versions/67e9769d3b1f997200c7c152/yaml": {
+    "file": "6ab0a323697330667cccea2d/67e9769d3b1f997200c7c152.yml",
+    "headers": "6ab0a323697330667cccea2d/67e9769d3b1f997200c7c152.headers.json"
+  },
+  "/api/v1/public/pricings/6ab0a323697330667cccea2d/versions/67e9769d3b1f997200c7c153/yaml": {
+    "file": "6ab0a323697330667cccea2d/67e9769d3b1f997200c7c153.yml",
+    "headers": "6ab0a323697330667cccea2d/67e9769d3b1f997200c7c153.headers.json"
+  },
+  "/api/v1/public/pricings/6ab0a323697330667cccea2d/versions/67e9769d3b1f997200c7c154/yaml": {
+    "file": "6ab0a323697330667cccea2d/67e9769d3b1f997200c7c154.yml",
+    "headers": "6ab0a323697330667cccea2d/67e9769d3b1f997200c7c154.headers.json"
+  },
+  "/api/v1/public/pricings/6ab0a323697330667cccea2d/versions/67e9769d3b1f997200c7c155/yaml": {
+    "file": "6ab0a323697330667cccea2d/67e9769d3b1f997200c7c155.yml",
+    "headers": "6ab0a323697330667cccea2d/67e9769d3b1f997200c7c155.headers.json"
+  },
+  "/api/v1/public/pricings/6ade2d2540e55445692b07c6": {
+    "file": "6ade2d2540e55445692b07c6/manifest.json",
+    "headers": "6ade2d2540e55445692b07c6/manifest.headers.json"
+  },
+  "/api/v1/public/pricings/6ade2d2540e55445692b07c6/versions/6ade2d254b2b5b01c587d7ee/yaml": {
+    "file": "6ade2d2540e55445692b07c6/6ade2d254b2b5b01c587d7ee.yml",
+    "headers": "6ade2d2540e55445692b07c6/6ade2d254b2b5b01c587d7ee.headers.json"
+  },
+  "/api/v1/public/pricings/6ade2d4440e55445692b07f1": {
+    "file": "6ade2d4440e55445692b07f1/manifest.json",
+    "headers": "6ade2d4440e55445692b07f1/manifest.headers.json"
+  },
+  "/api/v1/public/pricings/6ade2d4440e55445692b07f1/versions/6ade2d444b2b5b01c587d80d/yaml": {
+    "file": "6ade2d4440e55445692b07f1/6ade2d444b2b5b01c587d80d.yml",
+    "headers": "6ade2d4440e55445692b07f1/6ade2d444b2b5b01c587d80d.headers.json"
+  },
+  "/api/v1/public/pricings/6ade2ef740e55445692b094f": {
+    "file": "6ade2ef740e55445692b094f/manifest.json",
+    "headers": "6ade2ef740e55445692b094f/manifest.headers.json"
+  },
+  "/api/v1/public/pricings/6ade2ef740e55445692b094f/versions/6ade2ef74b2b5b01c587d8b4/yaml": {
+    "file": "6ade2ef740e55445692b094f/6ade2ef74b2b5b01c587d8b4.yml",
+    "headers": "6ade2ef740e55445692b094f/6ade2ef74b2b5b01c587d8b4.headers.json"
+  },
+  "/api/v1/public/pricings/6ade2f3b40e55445692b09aa": {
+    "file": "6ade2f3b40e55445692b09aa/manifest.json",
+    "headers": "6ade2f3b40e55445692b09aa/manifest.headers.json"
+  },
+  "/api/v1/public/pricings/6ade2f3b40e55445692b09aa/versions/6ade2f3b4b2b5b01c587d8f5/yaml": {
+    "file": "6ade2f3b40e55445692b09aa/6ade2f3b4b2b5b01c587d8f5.yml",
+    "headers": "6ade2f3b40e55445692b09aa/6ade2f3b4b2b5b01c587d8f5.headers.json"
+  },
+  "/api/v1/public/pricings/6ade364540e55445692b0eda": {
+    "file": "6ade364540e55445692b0eda/manifest.json",
+    "headers": "6ade364540e55445692b0eda/manifest.headers.json"
+  },
+  "/api/v1/public/pricings/6ade364540e55445692b0eda/versions/6ade36454b2b5b01c587db3d/yaml": {
+    "file": "6ade364540e55445692b0eda/6ade36454b2b5b01c587db3d.yml",
+    "headers": "6ade364540e55445692b0eda/6ade36454b2b5b01c587db3d.headers.json"
+  },
+  "/api/v1/public/pricings/6adf1a6240e55445692b6f14": {
+    "file": "6adf1a6240e55445692b6f14/manifest.json",
+    "headers": "6adf1a6240e55445692b6f14/manifest.headers.json"
+  },
+  "/api/v1/public/pricings/6adf1a6240e55445692b6f14/versions/6adf1a62daa2ba78b21d7119/yaml": {
+    "file": "6adf1a6240e55445692b6f14/6adf1a62daa2ba78b21d7119.yml",
+    "headers": "6adf1a6240e55445692b6f14/6adf1a62daa2ba78b21d7119.headers.json"
+  },
+  "/api/v1/public/pricings/6ae0768440e55445692c0081": {
+    "file": "6ae0768440e55445692c0081/manifest.json",
+    "headers": "6ae0768440e55445692c0081/manifest.headers.json"
+  },
+  "/api/v1/public/pricings/6ae0768440e55445692c0081/versions/6ae07684daa2ba78b21d73ce/yaml": {
+    "file": "6ae0768440e55445692c0081/6ae07684daa2ba78b21d73ce.yml",
+    "headers": "6ae0768440e55445692c0081/6ae07684daa2ba78b21d73ce.headers.json"
+  },
+  "/api/v1/public/pricings/6ae076f340e55445692c0101": {
+    "file": "6ae076f340e55445692c0101/manifest.json",
+    "headers": "6ae076f340e55445692c0101/manifest.headers.json"
+  },
+  "/api/v1/public/pricings/6ae076f340e55445692c0101/versions/6ae076f3daa2ba78b21d7422/yaml": {
+    "file": "6ae076f340e55445692c0101/6ae076f3daa2ba78b21d7422.yml",
+    "headers": "6ae076f340e55445692c0101/6ae076f3daa2ba78b21d7422.headers.json"
+  },
+  "/api/v1/public/pricings/6ae0772d40e55445692c0143": {
+    "file": "6ae0772d40e55445692c0143/manifest.json",
+    "headers": "6ae0772d40e55445692c0143/manifest.headers.json"
+  },
+  "/api/v1/public/pricings/6ae0772d40e55445692c0143/versions/6ae634e3f99de6a6f95a42c5/yaml": {
+    "file": "6ae0772d40e55445692c0143/6ae634e3f99de6a6f95a42c5.yml",
+    "headers": "6ae0772d40e55445692c0143/6ae634e3f99de6a6f95a42c5.headers.json"
+  },
+  "/api/v1/public/pricings/6ae0776f40e55445692c018c": {
+    "file": "6ae0776f40e55445692c018c/manifest.json",
+    "headers": "6ae0776f40e55445692c018c/manifest.headers.json"
+  },
+  "/api/v1/public/pricings/6ae0776f40e55445692c018c/versions/6ae0776fdaa2ba78b21d7476/yaml": {
+    "file": "6ae0776f40e55445692c018c/6ae0776fdaa2ba78b21d7476.yml",
+    "headers": "6ae0776f40e55445692c018c/6ae0776fdaa2ba78b21d7476.headers.json"
+  },
+  "/api/v1/public/pricings/6ae077ac40e55445692c01ce": {
+    "file": "6ae077ac40e55445692c01ce/manifest.json",
+    "headers": "6ae077ac40e55445692c01ce/manifest.headers.json"
+  },
+  "/api/v1/public/pricings/6ae077ac40e55445692c01ce/versions/6ae6349ff99de6a6f95a4282/yaml": {
+    "file": "6ae077ac40e55445692c01ce/6ae6349ff99de6a6f95a4282.yml",
+    "headers": "6ae077ac40e55445692c01ce/6ae6349ff99de6a6f95a4282.headers.json"
+  }
+}

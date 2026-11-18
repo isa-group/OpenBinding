@@ -13,7 +13,7 @@ const api = vi.hoisted(() => ({
   adminQueues: vi.fn(),
   adminModeration: vi.fn(),
   adminErrorOverview: vi.fn(),
-  getCurrentPricing: vi.fn(),
+  getPlansPricing: vi.fn(),
   adminListEngineRegistrations: vi.fn(),
 }));
 
@@ -35,7 +35,7 @@ describe('admin · the settings shell of administration', () => {
       top_solvers_failed: [],
       timeline: [],
     });
-    api.getCurrentPricing.mockResolvedValue({ version: '1.0.0', digest: 'd', url: 'u' });
+    api.getPlansPricing.mockResolvedValue({ version: '1.0.0' });
     api.adminListEngineRegistrations.mockResolvedValue([]);
   });
 

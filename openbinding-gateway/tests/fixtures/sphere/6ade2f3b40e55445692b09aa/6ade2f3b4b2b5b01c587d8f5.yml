@@ -1,0 +1,617 @@
+saasName: postmark
+syntaxVersion: '3.1'
+version: 2026-10
+createdAt: '2026-10-25'
+url: https://postmarkapp.com/pricing
+currency: USD
+tags:
+  - Send and Receive
+  - Seamless Integration
+  - Data & Analytics
+  - Support & Security
+  - Users
+  - Optional add-ons
+  - Billing
+billing:
+  monthly: 1
+variables:
+  volume: 10000
+  basicPriceByVolume:
+    '10000': 15
+    '50000': 55
+    '125000': 115
+    '300000': 245
+    '700000': 455
+    '1500000': 775
+  proPriceByVolume:
+    '10000': 16.5
+    '50000': 60.5
+    '125000': 126.5
+    '300000': 269.5
+    '700000': 500.5
+    '1500000': 852.5
+  platformPriceByVolume:
+    '10000': 18
+    '50000': 66
+    '125000': 138
+    '300000': 294
+    '700000': 546
+    '1500000': 930
+  basicOverageByVolume:
+    '10000': 1.8
+    '50000': 1.8
+    '125000': 1.8
+    '300000': 1.7
+    '700000': 1.7
+    '1500000': 1.7
+  proOverageByVolume:
+    '10000': 1.3
+    '50000': 1.3
+    '125000': 1.3
+    '300000': 1.25
+    '700000': 1.25
+    '1500000': 1.2
+  platformOverageByVolume:
+    '10000': 1.2
+    '50000': 1.2
+    '125000': 1.2
+    '300000': 1.15
+    '700000': 1.15
+    '1500000': 1.15
+features:
+  restApi:
+    description: Send email through the REST API.
+    type: INTEGRATION
+    integrationType: API
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Send and Receive
+  smtp:
+    description: Send email through the SMTP service.
+    type: INTEGRATION
+    integrationType: API
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Send and Receive
+  multiRegionRoutingSmtp:
+    description: SMTP traffic routed to the closest endpoints.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Send and Receive
+  transactionalEmail:
+    description: Send user-triggered transactional emails.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Send and Receive
+  bulkEmailApi:
+    description: Send the same message to many recipients with one API call.
+    type: INTEGRATION
+    integrationType: API
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Send and Receive
+  batchSending:
+    description: Send many messages in a single batch call.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Send and Receive
+  monthlyEmailVolume:
+    description: Emails sent and received per month included in the plan.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Send and Receive
+  dailyEmailSending:
+    description: Daily email sending allowance.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Send and Receive
+  inboundEmail:
+    description: Inbound email processing, parsed to JSON and posted to a webhook.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Send and Receive
+  messageStreams:
+    description: Transactional and marketing/bulk/broadcast message streams.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Send and Receive
+  servers:
+    description: Servers to isolate applications or environments.
+    type: MANAGEMENT
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Send and Receive
+  customSendingDomains:
+    description: Custom sending domains.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Send and Receive
+  responsiveEmailTemplates:
+    description: Responsive email templates.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Send and Receive
+  emailTemplateEditorAndImportTool:
+    description: Email template editor and import tool.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Send and Receive
+  highQualityVettedIps:
+    description: Sending over high quality, vetted shared IPs.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Send and Receive
+  dedicatedIps:
+    description: Fully managed dedicated IPs.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Send and Receive
+  suppressionManagement:
+    description: Suppression management.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Send and Receive
+  automaticSuppression:
+    description: Automatic suppression of bounced and complaining recipients.
+    type: AUTOMATION
+    automationType: FILTERING
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Send and Receive
+  dkimSpfDmarcAuthentication:
+    description: DKIM, SPF and DMARC authentication.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Send and Receive
+  industryLeadingDeliverability:
+    description: Industry-leading deliverability rates and speed.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Send and Receive
+  sandboxMode:
+    description: Sandbox mode for testing without delivering email.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Seamless Integration
+  dynamicApiDocumentation:
+    description: Dynamic API documentation.
+    type: INFORMATION
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Seamless Integration
+  migrationGuides:
+    description: Migration guides from other providers.
+    type: INFORMATION
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Seamless Integration
+  eventWebhooks:
+    description: Event webhooks.
+    type: INTEGRATION
+    integrationType: API
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Seamless Integration
+  secureWebhookEndpoints:
+    description: Secure webhook endpoints.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Seamless Integration
+  officialSdks:
+    description: Official SDKs.
+    type: INTEGRATION
+    integrationType: API
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Seamless Integration
+  detailedActivityRetention:
+    description: Full message content and activity retention.
+    type: INFORMATION
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Data & Analytics
+  granularBounceData:
+    description: Granular bounce data.
+    type: INFORMATION
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Data & Analytics
+  deliveryBounceSpamOpenRates:
+    description: Delivery, bounce, spam and open rates.
+    type: INFORMATION
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Data & Analytics
+  emailOpenAndLinkTracking:
+    description: Email open and link tracking.
+    type: INFORMATION
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Data & Analytics
+  customTagging:
+    description: Custom tagging of messages for statistics.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Data & Analytics
+  statsApi:
+    description: Stats API.
+    type: INTEGRATION
+    integrationType: API
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Data & Analytics
+  detailedAnalytics:
+    description: Detailed analytics and insights.
+    type: INFORMATION
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Data & Analytics
+  userRoles:
+    description: User roles.
+    type: MANAGEMENT
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Support & Security
+  gdprCompliance:
+    description: GDPR compliance.
+    type: GUARANTEE
+    docUrl: https://postmarkapp.com/eu-privacy#gdpr
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Support & Security
+  penetrationTesting:
+    description: Penetration testing.
+    type: GUARANTEE
+    docUrl: https://postmarkapp.com/security
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Support & Security
+  ddosProtection:
+    description: DDoS protection.
+    type: GUARANTEE
+    docUrl: https://postmarkapp.com/security
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Support & Security
+  twoFactorAuthentication:
+    description: Two-factor authentication.
+    type: MANAGEMENT
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Support & Security
+  apiPermissionControls:
+    description: API permission controls.
+    type: MANAGEMENT
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Support & Security
+  users:
+    description: Users on the account.
+    type: MANAGEMENT
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Users
+  customActivityRetention:
+    description: Customize how long activity data and message content are stored (7 to 365 days).
+    type: MANAGEMENT
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Optional add-ons
+  dmarcMonitoring:
+    description: DMARC monitoring with DMARC Digests.
+    type: INFORMATION
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Optional add-ons
+  paymentMethods:
+    description: Accepted payment methods (Visa, MasterCard, American Express, Diners, JCB; no PayPal or purchase orders).
+    type: PAYMENT
+    valueType: TEXT
+    defaultValue:
+      - CARD
+    tag: Billing
+usageLimits:
+  monthlyEmailVolumeLimit:
+    description: Emails sent and received per month included in the plan.
+    valueType: NUMERIC
+    defaultValue: 100
+    unit: email
+    type: RENEWABLE
+    period:
+      value: 1
+      unit: MONTH
+    linkedFeatures:
+      - monthlyEmailVolume
+  dailyEmailSendingPerDay:
+    description: Daily email limit.
+    valueType: NUMERIC
+    defaultValue: .inf
+    unit: email
+    type: RENEWABLE
+    period:
+      value: 1
+      unit: DAY
+    linkedFeatures:
+      - dailyEmailSending
+  messageStreamsLimit:
+    description: Maximum number of message streams.
+    valueType: NUMERIC
+    defaultValue: 30
+    unit: stream
+    type: NON_RENEWABLE
+    trackable: true
+    linkedFeatures:
+      - messageStreams
+  serversLimit:
+    description: Maximum number of servers.
+    valueType: NUMERIC
+    defaultValue: 10
+    unit: server
+    type: NON_RENEWABLE
+    trackable: true
+    linkedFeatures:
+      - servers
+  customSendingDomainsLimit:
+    description: Maximum number of custom sending domains.
+    valueType: NUMERIC
+    defaultValue: 10
+    unit: domain
+    type: NON_RENEWABLE
+    trackable: true
+    linkedFeatures:
+      - customSendingDomains
+  detailedActivityRetentionDays:
+    description: Days that message content and activity data are kept.
+    valueType: NUMERIC
+    defaultValue: 45
+    unit: day
+    type: NON_RENEWABLE
+    trackable: false
+    linkedFeatures:
+      - detailedActivityRetention
+  usersLimit:
+    description: Maximum number of users.
+    valueType: NUMERIC
+    defaultValue: 6
+    unit: user
+    type: NON_RENEWABLE
+    trackable: true
+    linkedFeatures:
+      - users
+  dedicatedIpsLimit:
+    description: Number of dedicated IPs assigned to the account.
+    valueType: NUMERIC
+    defaultValue: 0
+    unit: IP
+    type: NON_RENEWABLE
+    trackable: true
+    linkedFeatures:
+      - dedicatedIps
+  dmarcMonitoredDomainsLimit:
+    description: Number of domains monitored with DMARC Digests.
+    valueType: NUMERIC
+    defaultValue: 0
+    unit: domain
+    type: NON_RENEWABLE
+    trackable: true
+    linkedFeatures:
+      - dmarcMonitoring
+plans:
+  FREE:
+    description: Test your integration with 100 emails/month. No overages allowed.
+    price: 0
+    unit: account/month
+    features: null
+    usageLimits: null
+  BASIC:
+    description: For solo developers and smaller teams.
+    price: '#basicPriceByVolume[String(#volume)]'
+    unit: account/month
+    features:
+      bulkEmailApi:
+        value: true
+      inboundEmail:
+        value: false
+    usageLimits:
+      monthlyEmailVolumeLimit:
+        value: 10000
+      messageStreamsLimit:
+        value: 15
+      serversLimit:
+        value: 5
+      customSendingDomainsLimit:
+        value: 5
+      usersLimit:
+        value: 4
+  PRO:
+    description: For start-ups and small businesses.
+    price: '#proPriceByVolume[String(#volume)]'
+    unit: account/month
+    features:
+      bulkEmailApi:
+        value: true
+    usageLimits:
+      monthlyEmailVolumeLimit:
+        value: 10000
+  PLATFORM:
+    description: For agencies and larger teams.
+    price: '#platformPriceByVolume[String(#volume)]'
+    unit: account/month
+    features:
+      bulkEmailApi:
+        value: true
+    usageLimits:
+      monthlyEmailVolumeLimit:
+        value: 10000
+      messageStreamsLimit:
+        value: .inf
+      serversLimit:
+        value: .inf
+      customSendingDomainsLimit:
+        value: .inf
+      usersLimit:
+        value: .inf
+addOns:
+  extraEmailsBasic:
+    description: Extra emails beyond the Basic plan's monthly volume, billed per 1,000.
+    price: '#basicOverageByVolume[String(#volume)]'
+    unit: 1000 emails
+    availableFor:
+      - BASIC
+    features: null
+    usageLimitsExtensions:
+      monthlyEmailVolumeLimit:
+        value: 1000
+    subscriptionConstraints:
+      minQuantity: 1
+      maxQuantity: .inf
+      quantityStep: 1
+  extraEmailsPro:
+    description: Extra emails beyond the Pro plan's monthly volume, billed per 1,000.
+    price: '#proOverageByVolume[String(#volume)]'
+    unit: 1000 emails
+    availableFor:
+      - PRO
+    features: null
+    usageLimitsExtensions:
+      monthlyEmailVolumeLimit:
+        value: 1000
+    subscriptionConstraints:
+      minQuantity: 1
+      maxQuantity: .inf
+      quantityStep: 1
+  extraEmailsPlatform:
+    description: Extra emails beyond the Platform plan's monthly volume, billed per 1,000.
+    price: '#platformOverageByVolume[String(#volume)]'
+    unit: 1000 emails
+    availableFor:
+      - PLATFORM
+    features: null
+    usageLimitsExtensions:
+      monthlyEmailVolumeLimit:
+        value: 1000
+    subscriptionConstraints:
+      minQuantity: 1
+      maxQuantity: .inf
+      quantityStep: 1
+  dedicatedIp:
+    description: Fully managed dedicated IP, for customers sending 300,000+ emails/month. Starts at $50/month per IP.
+    price: 50
+    unit: IP/month
+    availableFor:
+      - PRO
+      - PLATFORM
+    features:
+      dedicatedIps:
+        value: true
+    usageLimits:
+      dedicatedIpsLimit:
+        value: 1
+  additionalDedicatedIp:
+    description: Each additional dedicated IP (requires 100,000+ messages/day). $50/month per IP.
+    price: 50
+    unit: IP/month
+    availableFor:
+      - PRO
+      - PLATFORM
+    dependsOn:
+      - dedicatedIp
+    features: null
+    usageLimitsExtensions:
+      dedicatedIpsLimit:
+        value: 1
+    subscriptionConstraints:
+      minQuantity: 1
+      maxQuantity: .inf
+      quantityStep: 1
+  customActivityRetention:
+    description: Custom activity retention (7 to 365 days). Starts at $5/month; price depends on plan and retention period.
+    price: 5
+    unit: account/month
+    availableFor:
+      - PRO
+      - PLATFORM
+    features:
+      customActivityRetention:
+        value: true
+  dmarcMonitoring:
+    description: DMARC monitoring with DMARC Digests. Starts at $14/month per domain.
+    price: 14
+    unit: domain/month
+    availableFor:
+      - FREE
+      - BASIC
+      - PRO
+      - PLATFORM
+    features:
+      dmarcMonitoring:
+        value: true
+    usageLimits:
+      dmarcMonitoredDomainsLimit:
+        value: 1
+  additionalDmarcMonitoredDomain:
+    description: Each additional domain monitored with DMARC Digests. Starts at $14/month per domain.
+    price: 14
+    unit: domain/month
+    availableFor:
+      - FREE
+      - BASIC
+      - PRO
+      - PLATFORM
+    dependsOn:
+      - dmarcMonitoring
+    features: null
+    usageLimitsExtensions:
+      dmarcMonitoredDomainsLimit:
+        value: 1
+    subscriptionConstraints:
+      minQuantity: 1
+      maxQuantity: .inf
+      quantityStep: 1
+custom:
+  unmodeled:
+    - element: monthly volume tiers above 1,500,000 emails
+      source_says: 'Volume table ends at 1,500,000 with ''More: Contact sales'' for every plan; the slider reaches 3,000,000 and pricing.txt says published pricing covers up to 3 million emails/month'
+      why: a price map entry cannot be a negotiated price; the Contact-sales tier is not representable as a volume key
+    - element: per-tier included volume
+      source_says: each paid plan's included monthly volume equals the selected tier (10k, 50k, 125k, 300k, 700k, 1.5M)
+      why: usage-limit values cannot use variables; monthlyEmailVolumeLimit is fixed at the 10,000 default tier
+    - element: no overages on Free
+      source_says: The Free plan does not allow overages
+      why: expressed only by the absence of an overage add-on for FREE
+    - element: overage billing timing
+      source_says: Extra emails are calculated at the end of the billing cycle and included with the plan cost for the upcoming month
+      why: Pricing2Yaml has no billing-timing construct
+    - element: dedicated IP eligibility
+      source_says: Requires at least 300,000 messages/month; an additional IP requires 100,000+ messages/day; no setup fees
+      why: Pricing2Yaml has no usage-volume eligibility conditions for add-ons
+    - element: custom activity retention price grid
+      source_says: price depends on the base plan and the chosen period (7 to 365 days; 90, 180 and 365 days named in the launch post); grid published only as an image
+      why: grid values unknown (image) and a retention period cannot drive a usage-limit value
+    - element: DMARC monitoring tiers
+      source_says: Starts at $14/month per domain (DMARC Digests is a separate product with its own pricing)
+      why: only the starting price is published on the Postmark pricing page
+    - element: bootstrapped company credit
+      source_says: Launched, charging, no outside investment -> $75 account credit on request
+      why: Pricing2Yaml has no customer-segment discounts or credits
+    - element: high-volume custom pricing
+      source_says: Big senders can contact sales for custom pricing
+      why: negotiated pricing tied to volume, not a distinct published plan

@@ -21,9 +21,9 @@ import {
  * - no horizontal overflow (`document.documentElement.scrollWidth <= window.innerWidth`);
  * - no `console.error`, no `pageerror`, no 5xx answer (4xx answers are counted and listed, not failed: a 404 the interface expects is
  *   not a defect, and Chromium logs each one as a console error that would hide the real ones, so those log lines are set aside);
- *   the one 5xx listed with them is the 503 of the published pricing (`GET /v1/pricing/catalog|current`, `pricing_unavailable`),
- *   which is how the gateway says SPHERE cannot be read: the lab runs without SPHERE credentials, and the screens that read the
- *   pricing say it cannot be read instead of failing;
+ *   the one 5xx listed with them is the 503 of the published pricing (`GET /v1/plans/pricing`, `pricing_unavailable`),
+ *   which is how the gateway says SPHERE cannot be read (SPHERE unreachable from the lab, or switched off), and the screens that
+ *   read the pricing say it cannot be read instead of failing;
  * - a visible main landmark;
  * - on mobile, every visible button, link, summary and field at least 24 px high (WCAG 2.5.8; a link inside a line of text is exempt,
  *   as the criterion says);
@@ -58,8 +58,8 @@ const finishedResult = (target: Page) =>
   });
 /** Chromium logs every 4xx/5xx of a sub-resource as a console error; the answers are counted on their own. */
 const STATUS_LOG = /^Failed to load resource: the server responded with a status of \d{3}/;
-/** The published pricing answers 503 `pricing_unavailable` whenever SPHERE cannot be read, as in a lab without SPHERE credentials. */
-const PRICING_UNREADABLE = /^\/api\/v1\/pricing\/(catalog|current)$/;
+/** The published pricing answers 503 `pricing_unavailable` whenever SPHERE cannot be read. */
+const PRICING_UNREADABLE = /^\/api\/v1\/plans\/pricing$/;
 
 interface Stop {
   /** Label of the screen in the log and the name of its screenshot. */
@@ -130,7 +130,7 @@ function smallTargets(page: Page): Promise<string[]> {
         continue;
       // Hidden from everyone (the skip link sits above the page until it is focused) or only for screen readers.
       if (
-        control.closest('.sr-only, [aria-hidden="true"], [hidden]') ||
+        control.closest('.sr-only, .pr-sr-only, [aria-hidden="true"], [hidden]') ||
         box.bottom <= 0 ||
         box.right <= 0
       )
@@ -208,7 +208,7 @@ function clippedContent(page: Page): Promise<string[]> {
       if (style.position === 'fixed' || style.position === 'absolute') continue;
       if (
         element.closest(
-          '.sr-only, [aria-hidden="true"], [hidden], details:not([open]) > :not(summary)'
+          '.sr-only, .pr-sr-only, [aria-hidden="true"], [hidden], details:not([open]) > :not(summary)'
         )
       )
         continue;
@@ -277,6 +277,14 @@ async function inspect(
   return { problems, overflowPx };
 }
 
+/**
+ * The palette to look at (`VISUAL_BRAND=sphere|openbinding`): kept in the browser as a person's own choice would be
+ * (core/theme/brand.ts), and the screenshots go to `screenshots-<brand>/`. Unset, the deployment's default and `screenshots/`.
+ */
+const BRAND = process.env.VISUAL_BRAND?.trim() || null;
+const BRAND_KEY = 'openbinding:brand';
+const SCREENSHOTS = `${RESULTS_DIR}/screenshots${BRAND ? `-${BRAND}` : ''}`;
+
 /** Opens each screen, checks it, saves its picture and logs one line. */
 async function walk(
   page: Page,
@@ -288,7 +296,12 @@ async function walk(
   const mobile = viewport === 'mobile';
   const seen = watch(page);
   const rows: Row[] = [];
-  await mkdir(`${RESULTS_DIR}/screenshots`, { recursive: true }).catch(() => undefined);
+  if (BRAND)
+    await page.addInitScript(
+      ([key, value]) => window.localStorage.setItem(key, value),
+      [BRAND_KEY, BRAND]
+    );
+  await mkdir(SCREENSHOTS, { recursive: true }).catch(() => undefined);
 
   for (const stop of stops) {
     const label = `${viewport} ${stop.slug}`;
@@ -308,7 +321,7 @@ async function walk(
     await prepareCapture(page);
     await page
       .screenshot({
-        path: `${RESULTS_DIR}/screenshots/${viewport}-${stop.slug}.png`,
+        path: `${SCREENSHOTS}/${viewport}-${stop.slug}.png`,
         fullPage: true,
         animations: 'disabled',
       })
@@ -626,8 +639,15 @@ function compositionStops(mobile: boolean): Stop[] {
   ];
 }
 
-/** What anybody reads with no account: the public compositions, lab-other's public page and the language. */
+/** What anybody reads with no account: the public compositions, lab-other's public page, the language and the pricing. */
 const VISITOR_STOPS: Stop[] = [
+  {
+    // OpenBinding's published pricing (GET /v1/plans/pricing), drawn by pricing-renderer, or the notice that it cannot be read.
+    slug: 'pricing',
+    path: '/pricing',
+    ready: page =>
+      page.getByRole('heading', { level: 1, name: 'Plans for every kind of binding work' }),
+  },
   {
     slug: 'public-compositions',
     path: '/compositions',
@@ -767,6 +787,26 @@ test.describe('live · visual QA', () => {
     const mobile = testInfo.project.name === 'mobile';
     const stops = [...OWNER_STOPS, ...compositionStops(mobile), ...problemStops(mobile)];
     const skipped: Array<{ slug: string; why: string }> = [];
+    // An engine card, whose plan ceilings come from the published pricing's document.
+    const engines = await page.request.get(`${API}/v1/engines`);
+    const engine = engines.ok()
+      ? (
+          (await engines.json()) as {
+            engines: Array<{ namespace: string; name: string; version: string }>;
+          }
+        ).engines.find(item => item.name === 'random-search')
+      : undefined;
+    if (engine)
+      stops.push({
+        slug: 'engine-card',
+        path: `/engines/${encodeURIComponent(engine.namespace)}/${encodeURIComponent(engine.name)}/${encodeURIComponent(engine.version)}`,
+        ready: target => target.locator('main').getByRole('heading', { level: 1 }),
+      });
+    else
+      skipped.push({
+        slug: 'engine-card',
+        why: `GET /v1/engines answered ${engines.status()} without random-search`,
+      });
     const front = await studyFrontStop(page, token);
     if ('why' in front) {
       skipped.push({ slug: 'study-front', why: front.why });

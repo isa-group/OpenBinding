@@ -126,19 +126,19 @@ async def test_the_pricing_503_does_not_repeat_the_reason_of_the_pricing_client(
     assert "space.internal.corp" not in response.text
 
 
-async def test_the_anonymous_pricing_503_does_not_repeat_what_sphere_said(api_client, monkeypatch):
-    """Closed (C3): ``routes/pricing.py`` answers an anonymous caller with a fixed sentence."""
+async def test_the_anonymous_pricing_503_does_not_repeat_what_sphere_said(api_client, monkeypatch, sphere):
+    """Closed (C3): ``/v1/plans/pricing`` answers an anonymous caller with a fixed sentence."""
     from openbinding_gateway.core.settings import get_settings
-    from openbinding_gateway.pricing_catalog import PricingCatalogError
-    from openbinding_gateway.routes import pricing
+    from openbinding_gateway.modules.plans.adapters import routes as plans_routes
+    from openbinding_gateway.modules.plans.application import OwnPricingUnavailable
 
-    async def unavailable(_settings):
-        raise PricingCatalogError("SPHERE is unavailable: ConnectError to https://sphere.internal.corp")
+    async def unavailable(*_args, **_kwargs):
+        raise OwnPricingUnavailable("SPHERE is unavailable: ConnectError to https://sphere.internal.corp")
 
     monkeypatch.setattr(get_settings(), "sphere_enabled", True)
-    monkeypatch.setattr(pricing, "published_pricing", unavailable)
+    monkeypatch.setattr(plans_routes, "own_pricing", unavailable)
 
-    response = await api_client.get("/v1/pricing/current")
+    response = await api_client.get("/v1/plans/pricing")
 
     precondition(response.status_code == 503, f"answered {response.status_code}")
     assert "sphere.internal.corp" not in response.text

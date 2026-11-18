@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pytest
 
-from _pricing import pricing_catalog
+from _pricing import fixture_catalog
 
 
 async def register(client, details) -> dict:
@@ -34,7 +34,7 @@ async def test_a_new_account_starts_active_on_the_basic_plan(api_client, registr
     assert profile["username"] == details["username"]
     assert profile["role"] == "user"
     assert profile["is_active"] is True
-    assert profile["plan"] == pricing_catalog().default_plan
+    assert profile["plan"] == fixture_catalog().default_plan
 
 
 async def test_registration_never_echoes_the_password(api_client, registration):

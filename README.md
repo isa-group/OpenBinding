@@ -140,7 +140,7 @@ exercised yet.
 **Development scope.** The development pricing and the development service
 registered in SPACE are private and distinct from the production ones, but
 they live inside the *same organizations*. A shared organization does **not**
-isolate credentials: a development `SPACE_API_KEY` or `SPHERE_API_KEY` with
+isolate credentials: a development `SPACE_API_KEY` with
 `MANAGEMENT` scope can act on whatever that organization holds, so treat it as
 a high-risk secret, keep it out of images, logs and the browser, and never reuse
 a production key for development.

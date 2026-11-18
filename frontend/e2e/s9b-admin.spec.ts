@@ -7,10 +7,7 @@ import {
   type TestInfo,
 } from '@playwright/test';
 import { failureBody } from './helpers/problems';
-import {
-  AGREEMENT_CURRENT_FIXTURE as CURRENT_FIXTURE,
-  agreementCatalogFixture as catalogFixture,
-} from '../src/test/fixtures/agreementCatalog';
+import { AGREEMENT_PRICING_FIXTURE as PRICING_FIXTURE } from '../src/test/fixtures/agreementPricing';
 import { ALEX, MARIA, PENDING_ENGINE, usageOf } from '../src/test/fixtures/admin';
 
 // S9b · administration, part two: the Moderation and Maintenance sections of `/admin/:section?` (pricing is administered in the
@@ -128,8 +125,7 @@ async function mockApi(page: Page, options: { role?: 'admin' | 'user' } = {}): P
       expires_in: 900,
     })
   );
-  await page.route(`${API}/v1/pricing/catalog`, json(catalogFixture));
-  await page.route(`${API}/v1/pricing/current`, json(CURRENT_FIXTURE));
+  await page.route(`${API}/v1/plans/pricing`, json(PRICING_FIXTURE));
   await page.route(`${API}/v1/users/me`, json(me));
   await page.route(`${API}/v1/users/me/usage`, json(usageOf('PRO')));
   await page.route(`${API}/v1/users/me/pricing-token`, json({ pricing_token: token(3600) }));

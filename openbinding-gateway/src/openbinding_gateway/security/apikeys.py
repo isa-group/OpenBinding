@@ -57,7 +57,6 @@ class ApiKeyPermission(str, Enum):
     COMPOSITIONS_READ = "compositions:read"
     COMPOSITIONS_WRITE = "compositions:write"
     NOTIFICATIONS_READ = "notifications:read"
-    PRICING_READ = "pricing:read"
     ADMIN_ACCOUNTS_READ = "admin:accounts:read"
     ADMIN_ACCOUNTS_WRITE = "admin:accounts:write"
 
@@ -96,6 +95,8 @@ OPEN_V1_PREFIXES = (
 OPEN_V1_GET_PATHS = frozenset({
     "/v1/engines/protocol",
     "/v1/compositions/schema",
+    # OpenBinding's own published pricing: public, as the pricing page is.
+    "/v1/plans/pricing",
 })
 #: The operations on an organization's compositions that write nothing: reading, and
 #: checking or evaluating a document against its problem.
@@ -255,6 +256,9 @@ def allows_request(api_key: Any, *, method: str, path_params: Mapping[str, Any],
             "engine-registrations": {"engine-registration", "engine-registrations"},
             "pricing": {"pricing"},
             "notifications": {"notification", "notifications"},
+            "connections": {"organization", "organizations"},
+            "sphere": {"problem", "problems"},
+            "pricing-snapshots": {"problem", "problems"},
         }
         # The last fixed collection in FastAPI's route template is the most
         # specific resource. Thus `/organizations/{org}/problems` is a problem
@@ -392,6 +396,13 @@ def required_permissions(path: str, method: str) -> frozenset[str]:
             if reads
             else {ApiKeyPermission.COMPOSITIONS_WRITE.value}
         )
+    if path.startswith("/v1/organizations/") and path.split("/")[4:5] in (["sphere"], ["pricing-snapshots"]):
+        # SPHERE discovery and the stored upstream pricings of an organization: what a problem is built from.
+        return frozenset({ApiKeyPermission.PROBLEMS_READ.value})
+    if path.startswith("/v1/organizations/") and path.split("/")[4:5] == ["connections"]:
+        # An organization's connections (a SPHERE key): administration of the organization, reads included,
+        # since even listing them is an ADMIN's.
+        return frozenset({ApiKeyPermission.ORGANIZATIONS_WRITE.value})
     if path.startswith("/v1/organizations/") and path.split("/")[4:5] == ["studies"]:
         # The studies of an organization, their runs and cells: one permission pair for all of them.
         return frozenset(
@@ -409,8 +420,6 @@ def required_permissions(path: str, method: str) -> frozenset[str]:
         return frozenset({ApiKeyPermission.ORGANIZATIONS_WRITE.value})
     if path.startswith("/v1/notifications"):
         return frozenset({ApiKeyPermission.NOTIFICATIONS_READ.value})
-    if path.startswith("/v1/pricing"):
-        return frozenset({ApiKeyPermission.PRICING_READ.value})
     if path.startswith(("/v1/permalinks/compositions", "/v1/composition-follows")):
         # Resolving a composition's permanent link, and following one: reads of compositions (a follow writes
         # nothing of the composition, as SPHERE keeps it out of the pricing write path).

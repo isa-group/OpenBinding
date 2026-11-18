@@ -13,17 +13,18 @@ from __future__ import annotations
 
 import asyncio
 import base64
-import ipaddress
 import json
-import socket
+import socket  # noqa: F401 - tests script the resolver through ``remote.socket.getaddrinfo``
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from urllib.parse import SplitResult, quote, urljoin, urlparse, urlsplit, urlunsplit
+from urllib.parse import quote, urljoin, urlparse
 
 import httpx
 from bim_core import PackageError
 
+from ..core import outbound
 from ..core.jsonio import strict_json_loads
+from ..core.outbound import OutboundError
 from ..core.public_errors import DEFAULT_ENGINE_FAILURE, bounded
 
 
@@ -75,67 +76,24 @@ class RemoteRegistration:
 MAX_REMOTE_RESPONSE = 4 * 1024 * 1024
 
 
-def _permitted_address(value: str, *, internal: bool) -> str:
-    try:
-        address = ipaddress.ip_address(value)
-    except ValueError as exc:
-        raise RemoteEngineError(
-            f"engine endpoint resolved to an invalid address: {value}", code="engine_endpoint_invalid"
-        ) from exc
-    if address.is_multicast or address.is_unspecified or address.is_reserved:
-        raise RemoteEngineError(
-            "engine endpoint targets an address outside its permitted network class",
-            code="engine_endpoint_invalid",
-        )
-    local = address.is_private or address.is_loopback or address.is_link_local
-    if (internal and not local) or (not internal and not address.is_global):
-        raise RemoteEngineError(
-            "engine endpoint targets an address outside its permitted network class",
-            code="engine_endpoint_invalid",
-        )
-    return address.compressed
+def _engine_error(exc: OutboundError) -> RemoteEngineError:
+    """The engine category of a refused or failed outbound step (the message stays internal)."""
+    code = "engine_unreachable" if exc.code == "outbound_dns" else "engine_endpoint_invalid"
+    message = str(exc).replace("endpoint", "engine endpoint", 1) if str(exc).startswith("endpoint") else str(exc)
+    return RemoteEngineError(message, code=code)
 
 
 def validate_endpoint(endpoint: str, *, allow_internal_http: bool = False) -> tuple[str, ...]:
-    """Validate an endpoint and return the complete permitted DNS answer.
+    """Validate an endpoint and return the complete permitted DNS answer (``core.outbound``'s policy).
 
     Callers must connect to one of the returned addresses instead of resolving
     the hostname again.  This closes the DNS-rebinding gap between policy
     validation and the actual TCP connection.
     """
-
-    parsed = urlparse(endpoint)
-    allowed_scheme = parsed.scheme == "https" or (allow_internal_http and parsed.scheme == "http")
-    if not allowed_scheme or not parsed.hostname or parsed.username or parsed.password or parsed.fragment:
-        requirement = "HTTPS" if not allow_internal_http else "HTTPS or trusted internal HTTP"
-        raise RemoteEngineError(
-            f"engine endpoint must use {requirement} without userinfo or fragments",
-            code="engine_endpoint_invalid",
-        )
-    host = parsed.hostname
-    internal = parsed.scheme == "http"
     try:
-        address = ipaddress.ip_address(host)
-    except ValueError:
-        try:
-            resolved = {
-                item[4][0]
-                for item in socket.getaddrinfo(
-                    host,
-                    parsed.port or (443 if parsed.scheme == "https" else 80),
-                    type=socket.SOCK_STREAM,
-                )
-            }
-        except OSError as exc:
-            raise RemoteEngineError(
-                f"engine endpoint cannot be resolved: {host}", code="engine_unreachable"
-            ) from exc
-        if not resolved:
-            raise RemoteEngineError(
-                f"engine endpoint cannot be resolved: {host}", code="engine_unreachable"
-            ) from None
-        return tuple(sorted(_permitted_address(value, internal=internal) for value in resolved))
-    return (_permitted_address(address.compressed, internal=internal),)
+        return outbound.validate_endpoint(endpoint, allow_internal_http=allow_internal_http)
+    except OutboundError as exc:
+        raise _engine_error(exc) from exc
 
 
 async def avalidate_endpoint(
@@ -160,25 +118,6 @@ async def avalidate_endpoint(
     return await asyncio.to_thread(
         validate or validate_endpoint, endpoint, allow_internal_http=allow_internal_http
     )
-
-
-def _pinned_url(url: str, address: str) -> str:
-    parsed: SplitResult = urlsplit(url)
-    ip = ipaddress.ip_address(address)
-    host = f"[{ip.compressed}]" if ip.version == 6 else ip.compressed
-    if parsed.port is not None:
-        host = f"{host}:{parsed.port}"
-    return urlunsplit((parsed.scheme, host, parsed.path, parsed.query, ""))
-
-
-def _host_header(parsed: SplitResult) -> str:
-    host = parsed.hostname or ""
-    try:
-        if ipaddress.ip_address(host).version == 6:
-            host = f"[{host}]"
-    except ValueError:
-        pass
-    return f"{host}:{parsed.port}" if parsed.port is not None else host
 
 
 def _path(base: str, value: object, default: str) -> str:
@@ -287,19 +226,12 @@ async def _judge(validate_result: ResultValidator | None, answer: object) -> Non
 
 
 async def _bounded_bytes(response: httpx.Response, *, limit: int | None = None) -> bytes:
-    if limit is None:
-        limit = MAX_REMOTE_RESPONSE
-    declared = response.headers.get("content-length")
-    if declared and declared.isdigit() and int(declared) > limit:
-        raise RemoteEngineError("engine response exceeds the configured size limit", code="engine_protocol_error")
-    content = bytearray()
-    async for chunk in response.aiter_bytes():
-        content.extend(chunk)
-        if len(content) > limit:
-            raise RemoteEngineError(
-                "engine response exceeds the configured size limit", code="engine_protocol_error"
-            )
-    return bytes(content)
+    try:
+        return await outbound.read_bounded(response, limit=MAX_REMOTE_RESPONSE if limit is None else limit)
+    except OutboundError as exc:
+        raise RemoteEngineError(
+            "engine response exceeds the configured size limit", code="engine_protocol_error"
+        ) from exc
 
 
 async def _bounded_json(response: httpx.Response) -> object:
@@ -325,16 +257,10 @@ async def fetch_remote_document(
     headers = _headers(registration)
     headers["accept"] = "application/json"
     pinned_address = addresses[0] if addresses else None
-    original = urlsplit(registration.endpoint)
-    if pinned_address:
-        url = _pinned_url(url, pinned_address)
-        headers["host"] = _host_header(original)
     timeout = httpx.Timeout(timeout_s, connect=min(timeout_s, 5.0))
     async with httpx.AsyncClient(timeout=timeout, follow_redirects=False, transport=transport, trust_env=False) as client:
         try:
-            request = client.build_request("GET", url, headers=headers)
-            if pinned_address and original.hostname:
-                request.extensions["sni_hostname"] = original.hostname
+            request = outbound.build_pinned_request(client, "GET", url, pinned_address, headers=headers)
             response = await client.send(request, stream=True)
         except httpx.HTTPError as exc:
             raise RemoteEngineError(f"engine document request failed: {exc}", code=_transport_code(exc)) from exc
@@ -416,15 +342,11 @@ async def solve_remote(
     # A test transport may deliberately bypass resolution by monkeypatching the
     # validator to return None.
     pinned_address = addresses[0] if addresses else None
-    original = urlsplit(registration.endpoint)
-    if pinned_address:
-        request_url = _pinned_url(request_url, pinned_address)
-        headers["host"] = _host_header(original)
     async with httpx.AsyncClient(timeout=timeout, follow_redirects=False, transport=transport, trust_env=False) as client:
         try:
-            request = client.build_request("POST", request_url, headers=headers, content=content)
-            if pinned_address and original.hostname:
-                request.extensions["sni_hostname"] = original.hostname
+            request = outbound.build_pinned_request(
+                client, "POST", request_url, pinned_address, headers=headers, content=content
+            )
             response = await client.send(request, stream=True)
         except httpx.HTTPError as exc:
             raise RemoteEngineError(f"engine request failed: {exc}", code=_transport_code(exc)) from exc
@@ -469,12 +391,8 @@ async def solve_remote(
             poll_url = _path(
                 registration.endpoint, str(poll_template).replace("{id}", engine_job_id), "/internal/v1/jobs/{id}"
             )
-            if pinned_address:
-                poll_url = _pinned_url(poll_url, pinned_address)
             try:
-                poll_request = client.build_request("GET", poll_url, headers=headers)
-                if pinned_address and original.hostname:
-                    poll_request.extensions["sni_hostname"] = original.hostname
+                poll_request = outbound.build_pinned_request(client, "GET", poll_url, pinned_address, headers=headers)
                 polled = await client.send(poll_request, stream=True)
             except httpx.HTTPError as exc:
                 raise RemoteEngineError(f"engine polling failed: {exc}", code=_transport_code(exc)) from exc
@@ -534,17 +452,11 @@ async def cancel_remote(
         )
         headers = _headers(registration)
         pinned_address = addresses[0] if addresses else None
-        original = urlsplit(registration.endpoint)
-        if pinned_address:
-            url = _pinned_url(url, pinned_address)
-            headers["host"] = _host_header(original)
         timeout = httpx.Timeout(timeout_s, connect=min(timeout_s, 2.0))
         async with httpx.AsyncClient(
             timeout=timeout, follow_redirects=False, transport=transport, trust_env=False
         ) as client:
-            request = client.build_request("DELETE", url, headers=headers)
-            if pinned_address and original.hostname:
-                request.extensions["sni_hostname"] = original.hostname
+            request = outbound.build_pinned_request(client, "DELETE", url, pinned_address, headers=headers)
             response = await client.send(request, stream=True)
             await response.aclose()
             if on_status is not None:

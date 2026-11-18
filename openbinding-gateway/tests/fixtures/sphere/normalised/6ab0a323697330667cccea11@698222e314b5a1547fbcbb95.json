@@ -1,0 +1,1059 @@
+{
+  "pricing": {
+    "syntaxVersion": "3.0",
+    "title": "Resend",
+    "version": "2026",
+    "createdAt": "2026-01-11",
+    "currency": "USD",
+    "billing": [
+      {
+        "id": "monthly",
+        "multiplier": 1.0,
+        "synthesized": true
+      }
+    ],
+    "features": [
+      {
+        "id": "dailySendingLimit",
+        "name": "dailySendingLimit",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "inboundEmails",
+        "name": "inboundEmails",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "restfulAPI",
+        "name": "restfulAPI",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "smtpRelay",
+        "name": "smtpRelay",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "officialSDKs",
+        "name": "officialSDKs",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "scheduleEmails",
+        "name": "scheduleEmails",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "batchSending",
+        "name": "batchSending",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "openTracking",
+        "name": "openTracking",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "linkTracking",
+        "name": "linkTracking",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "reactEmail",
+        "name": "reactEmail",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "customDomains",
+        "name": "customDomains",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "dedicatedIPs",
+        "name": "dedicatedIPs",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "pristineSharedIPs",
+        "name": "pristineSharedIPs",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "automaticSuppressionList",
+        "name": "automaticSuppressionList",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "bounceDetails",
+        "name": "bounceDetails",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "multiRegion",
+        "name": "multiRegion",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "dataRetentionDays",
+        "name": "dataRetentionDays",
+        "type": "DOMAIN",
+        "valueType": "TEXT",
+        "default": ""
+      },
+      {
+        "id": "deliverabilityInsights",
+        "name": "deliverabilityInsights",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "dkimSpfDmarcAuthentication",
+        "name": "dkimSpfDmarcAuthentication",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "webhookEndpoints",
+        "name": "webhookEndpoints",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "webhookEvents",
+        "name": "webhookEvents",
+        "type": "DOMAIN",
+        "valueType": "TEXT",
+        "default": "All Events"
+      },
+      {
+        "id": "socialLogin",
+        "name": "socialLogin",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "teamMembers",
+        "name": "teamMembers",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "gdprCompliance",
+        "name": "gdprCompliance",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "soc2TypeIICertification",
+        "name": "soc2TypeIICertification",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "penetrationTesting",
+        "name": "penetrationTesting",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "ddosProtection",
+        "name": "ddosProtection",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "automatedBackups",
+        "name": "automatedBackups",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "multifactorAuthentication",
+        "name": "multifactorAuthentication",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "apiKeyPermissions",
+        "name": "apiKeyPermissions",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "signedWebhookEndpoints",
+        "name": "signedWebhookEndpoints",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "ticketSupport",
+        "name": "ticketSupport",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "slackSupport",
+        "name": "slackSupport",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "urgentResponseSLA",
+        "name": "urgentResponseSLA",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "deliverabilityExpertise",
+        "name": "deliverabilityExpertise",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "inAppDocumentation",
+        "name": "inAppDocumentation",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "aiAssistant",
+        "name": "aiAssistant",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      }
+    ],
+    "usageLimits": [
+      {
+        "id": "maxDailyLimit",
+        "name": "maxDailyLimit",
+        "valueType": "NUMERIC",
+        "unit": "email",
+        "default": 100,
+        "linkedFeatures": [
+          "dailySendingLimit"
+        ]
+      },
+      {
+        "id": "maxCustomDomains",
+        "name": "maxCustomDomains",
+        "valueType": "NUMERIC",
+        "unit": "domain",
+        "default": 1,
+        "linkedFeatures": [
+          "customDomains"
+        ]
+      },
+      {
+        "id": "maxWebhookEndpoints",
+        "name": "maxWebhookEndpoints",
+        "valueType": "NUMERIC",
+        "unit": "endpoint",
+        "default": 1,
+        "linkedFeatures": [
+          "webhookEndpoints"
+        ]
+      },
+      {
+        "id": "maxTeamMembers",
+        "name": "maxTeamMembers",
+        "valueType": "NUMERIC",
+        "unit": "member",
+        "default": 1,
+        "linkedFeatures": [
+          "teamMembers"
+        ]
+      }
+    ],
+    "plans": [
+      {
+        "id": "FREE",
+        "name": "FREE",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 0.0
+        },
+        "unit": "user/month",
+        "period": "month",
+        "perSeat": true,
+        "features": {
+          "dailySendingLimit": true,
+          "inboundEmails": true,
+          "restfulAPI": true,
+          "smtpRelay": true,
+          "officialSDKs": true,
+          "scheduleEmails": true,
+          "batchSending": true,
+          "openTracking": true,
+          "linkTracking": true,
+          "reactEmail": true,
+          "customDomains": true,
+          "dedicatedIPs": false,
+          "pristineSharedIPs": true,
+          "automaticSuppressionList": true,
+          "bounceDetails": true,
+          "multiRegion": true,
+          "dataRetentionDays": "1 day",
+          "deliverabilityInsights": true,
+          "dkimSpfDmarcAuthentication": true,
+          "webhookEndpoints": true,
+          "webhookEvents": "All Events",
+          "socialLogin": true,
+          "teamMembers": true,
+          "gdprCompliance": true,
+          "soc2TypeIICertification": true,
+          "penetrationTesting": true,
+          "ddosProtection": true,
+          "automatedBackups": true,
+          "multifactorAuthentication": true,
+          "apiKeyPermissions": true,
+          "signedWebhookEndpoints": true,
+          "ticketSupport": true,
+          "slackSupport": false,
+          "urgentResponseSLA": false,
+          "deliverabilityExpertise": false,
+          "inAppDocumentation": true,
+          "aiAssistant": true
+        },
+        "usageLimits": {
+          "maxDailyLimit": 100,
+          "maxCustomDomains": 1,
+          "maxWebhookEndpoints": 1,
+          "maxTeamMembers": 1
+        }
+      },
+      {
+        "id": "PRO",
+        "name": "PRO",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 20.0
+        },
+        "unit": "user/month",
+        "period": "month",
+        "perSeat": true,
+        "features": {
+          "dailySendingLimit": true,
+          "inboundEmails": true,
+          "restfulAPI": true,
+          "smtpRelay": true,
+          "officialSDKs": true,
+          "scheduleEmails": true,
+          "batchSending": true,
+          "openTracking": true,
+          "linkTracking": true,
+          "reactEmail": true,
+          "customDomains": true,
+          "dedicatedIPs": false,
+          "pristineSharedIPs": true,
+          "automaticSuppressionList": true,
+          "bounceDetails": true,
+          "multiRegion": true,
+          "dataRetentionDays": "3 days",
+          "deliverabilityInsights": true,
+          "dkimSpfDmarcAuthentication": true,
+          "webhookEndpoints": true,
+          "webhookEvents": "All Events",
+          "socialLogin": true,
+          "teamMembers": true,
+          "gdprCompliance": true,
+          "soc2TypeIICertification": true,
+          "penetrationTesting": true,
+          "ddosProtection": true,
+          "automatedBackups": true,
+          "multifactorAuthentication": true,
+          "apiKeyPermissions": true,
+          "signedWebhookEndpoints": true,
+          "ticketSupport": true,
+          "slackSupport": false,
+          "urgentResponseSLA": false,
+          "deliverabilityExpertise": true,
+          "inAppDocumentation": true,
+          "aiAssistant": true
+        },
+        "usageLimits": {
+          "maxDailyLimit": {
+            "unlimited": true
+          },
+          "maxCustomDomains": 10,
+          "maxWebhookEndpoints": 10,
+          "maxTeamMembers": 5
+        }
+      },
+      {
+        "id": "SCALE",
+        "name": "SCALE",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 90.0
+        },
+        "unit": "user/month",
+        "period": "month",
+        "perSeat": true,
+        "features": {
+          "dailySendingLimit": true,
+          "inboundEmails": true,
+          "restfulAPI": true,
+          "smtpRelay": true,
+          "officialSDKs": true,
+          "scheduleEmails": true,
+          "batchSending": true,
+          "openTracking": true,
+          "linkTracking": true,
+          "reactEmail": true,
+          "customDomains": true,
+          "dedicatedIPs": false,
+          "pristineSharedIPs": true,
+          "automaticSuppressionList": true,
+          "bounceDetails": true,
+          "multiRegion": true,
+          "dataRetentionDays": "7 days",
+          "deliverabilityInsights": true,
+          "dkimSpfDmarcAuthentication": true,
+          "webhookEndpoints": true,
+          "webhookEvents": "All Events",
+          "socialLogin": true,
+          "teamMembers": true,
+          "gdprCompliance": true,
+          "soc2TypeIICertification": true,
+          "penetrationTesting": true,
+          "ddosProtection": true,
+          "automatedBackups": true,
+          "multifactorAuthentication": true,
+          "apiKeyPermissions": true,
+          "signedWebhookEndpoints": true,
+          "ticketSupport": true,
+          "slackSupport": true,
+          "urgentResponseSLA": true,
+          "deliverabilityExpertise": true,
+          "inAppDocumentation": true,
+          "aiAssistant": true
+        },
+        "usageLimits": {
+          "maxDailyLimit": {
+            "unlimited": true
+          },
+          "maxCustomDomains": 1000,
+          "maxWebhookEndpoints": 10,
+          "maxTeamMembers": 100
+        }
+      },
+      {
+        "id": "ENTERPRISE",
+        "name": "ENTERPRISE",
+        "private": false,
+        "price": {
+          "kind": "label",
+          "text": "Contact Sales"
+        },
+        "unit": "user/month",
+        "period": "month",
+        "perSeat": true,
+        "features": {
+          "dailySendingLimit": true,
+          "inboundEmails": true,
+          "restfulAPI": true,
+          "smtpRelay": true,
+          "officialSDKs": true,
+          "scheduleEmails": true,
+          "batchSending": true,
+          "openTracking": true,
+          "linkTracking": true,
+          "reactEmail": true,
+          "customDomains": true,
+          "dedicatedIPs": false,
+          "pristineSharedIPs": true,
+          "automaticSuppressionList": true,
+          "bounceDetails": true,
+          "multiRegion": true,
+          "dataRetentionDays": "Flexible",
+          "deliverabilityInsights": true,
+          "dkimSpfDmarcAuthentication": true,
+          "webhookEndpoints": true,
+          "webhookEvents": "All Events",
+          "socialLogin": true,
+          "teamMembers": true,
+          "gdprCompliance": true,
+          "soc2TypeIICertification": true,
+          "penetrationTesting": true,
+          "ddosProtection": true,
+          "automatedBackups": true,
+          "multifactorAuthentication": true,
+          "apiKeyPermissions": true,
+          "signedWebhookEndpoints": true,
+          "ticketSupport": true,
+          "slackSupport": true,
+          "urgentResponseSLA": true,
+          "deliverabilityExpertise": true,
+          "inAppDocumentation": true,
+          "aiAssistant": true
+        },
+        "usageLimits": {
+          "maxDailyLimit": {
+            "unlimited": true
+          },
+          "maxCustomDomains": {
+            "unlimited": true
+          },
+          "maxWebhookEndpoints": {
+            "unlimited": true
+          },
+          "maxTeamMembers": {
+            "unlimited": true
+          }
+        }
+      }
+    ],
+    "addOns": [
+      {
+        "id": "dedicatedIPsAddOn",
+        "name": "dedicatedIPsAddOn",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 30.0
+        },
+        "unit": "user/month",
+        "period": "month",
+        "availableFor": [
+          "SCALE",
+          "ENTERPRISE"
+        ],
+        "dependsOn": [],
+        "excludes": [],
+        "features": {
+          "dedicatedIPs": true
+        },
+        "usageLimits": {},
+        "usageLimitsExtensions": {},
+        "metered": false
+      }
+    ],
+    "diagnostics": [
+      {
+        "code": "p2y_syntax_read_as_3_1",
+        "severity": "info",
+        "message": "Pricing2Yaml 3.0 is read as 3.1.",
+        "at": "/syntaxVersion"
+      }
+    ],
+    "variables": {}
+  },
+  "effective": {
+    "FREE": {
+      "plan": "FREE",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {},
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "FREE",
+          "quantity": 1,
+          "price": {
+            "kind": "fixed",
+            "amount": 0.0
+          },
+          "unitAmount": 0.0,
+          "amount": 0.0
+        }
+      ],
+      "subtotal": 0.0,
+      "requiresQuote": false,
+      "features": {
+        "dailySendingLimit": true,
+        "inboundEmails": true,
+        "restfulAPI": true,
+        "smtpRelay": true,
+        "officialSDKs": true,
+        "scheduleEmails": true,
+        "batchSending": true,
+        "openTracking": true,
+        "linkTracking": true,
+        "reactEmail": true,
+        "customDomains": true,
+        "dedicatedIPs": false,
+        "pristineSharedIPs": true,
+        "automaticSuppressionList": true,
+        "bounceDetails": true,
+        "multiRegion": true,
+        "dataRetentionDays": "1 day",
+        "deliverabilityInsights": true,
+        "dkimSpfDmarcAuthentication": true,
+        "webhookEndpoints": true,
+        "webhookEvents": "All Events",
+        "socialLogin": true,
+        "teamMembers": true,
+        "gdprCompliance": true,
+        "soc2TypeIICertification": true,
+        "penetrationTesting": true,
+        "ddosProtection": true,
+        "automatedBackups": true,
+        "multifactorAuthentication": true,
+        "apiKeyPermissions": true,
+        "signedWebhookEndpoints": true,
+        "ticketSupport": true,
+        "slackSupport": false,
+        "urgentResponseSLA": false,
+        "deliverabilityExpertise": false,
+        "inAppDocumentation": true,
+        "aiAssistant": true
+      },
+      "usageLimits": {
+        "maxDailyLimit": 100,
+        "maxCustomDomains": 1,
+        "maxWebhookEndpoints": 1,
+        "maxTeamMembers": 1
+      }
+    },
+    "PRO": {
+      "plan": "PRO",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {},
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "PRO",
+          "quantity": 1,
+          "price": {
+            "kind": "fixed",
+            "amount": 20.0
+          },
+          "unitAmount": 20.0,
+          "amount": 20.0
+        }
+      ],
+      "subtotal": 20.0,
+      "requiresQuote": false,
+      "features": {
+        "dailySendingLimit": true,
+        "inboundEmails": true,
+        "restfulAPI": true,
+        "smtpRelay": true,
+        "officialSDKs": true,
+        "scheduleEmails": true,
+        "batchSending": true,
+        "openTracking": true,
+        "linkTracking": true,
+        "reactEmail": true,
+        "customDomains": true,
+        "dedicatedIPs": false,
+        "pristineSharedIPs": true,
+        "automaticSuppressionList": true,
+        "bounceDetails": true,
+        "multiRegion": true,
+        "dataRetentionDays": "3 days",
+        "deliverabilityInsights": true,
+        "dkimSpfDmarcAuthentication": true,
+        "webhookEndpoints": true,
+        "webhookEvents": "All Events",
+        "socialLogin": true,
+        "teamMembers": true,
+        "gdprCompliance": true,
+        "soc2TypeIICertification": true,
+        "penetrationTesting": true,
+        "ddosProtection": true,
+        "automatedBackups": true,
+        "multifactorAuthentication": true,
+        "apiKeyPermissions": true,
+        "signedWebhookEndpoints": true,
+        "ticketSupport": true,
+        "slackSupport": false,
+        "urgentResponseSLA": false,
+        "deliverabilityExpertise": true,
+        "inAppDocumentation": true,
+        "aiAssistant": true
+      },
+      "usageLimits": {
+        "maxDailyLimit": {
+          "unlimited": true
+        },
+        "maxCustomDomains": 10,
+        "maxWebhookEndpoints": 10,
+        "maxTeamMembers": 5
+      }
+    },
+    "SCALE": {
+      "plan": "SCALE",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {},
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "SCALE",
+          "quantity": 1,
+          "price": {
+            "kind": "fixed",
+            "amount": 90.0
+          },
+          "unitAmount": 90.0,
+          "amount": 90.0
+        }
+      ],
+      "subtotal": 90.0,
+      "requiresQuote": false,
+      "features": {
+        "dailySendingLimit": true,
+        "inboundEmails": true,
+        "restfulAPI": true,
+        "smtpRelay": true,
+        "officialSDKs": true,
+        "scheduleEmails": true,
+        "batchSending": true,
+        "openTracking": true,
+        "linkTracking": true,
+        "reactEmail": true,
+        "customDomains": true,
+        "dedicatedIPs": false,
+        "pristineSharedIPs": true,
+        "automaticSuppressionList": true,
+        "bounceDetails": true,
+        "multiRegion": true,
+        "dataRetentionDays": "7 days",
+        "deliverabilityInsights": true,
+        "dkimSpfDmarcAuthentication": true,
+        "webhookEndpoints": true,
+        "webhookEvents": "All Events",
+        "socialLogin": true,
+        "teamMembers": true,
+        "gdprCompliance": true,
+        "soc2TypeIICertification": true,
+        "penetrationTesting": true,
+        "ddosProtection": true,
+        "automatedBackups": true,
+        "multifactorAuthentication": true,
+        "apiKeyPermissions": true,
+        "signedWebhookEndpoints": true,
+        "ticketSupport": true,
+        "slackSupport": true,
+        "urgentResponseSLA": true,
+        "deliverabilityExpertise": true,
+        "inAppDocumentation": true,
+        "aiAssistant": true
+      },
+      "usageLimits": {
+        "maxDailyLimit": {
+          "unlimited": true
+        },
+        "maxCustomDomains": 1000,
+        "maxWebhookEndpoints": 10,
+        "maxTeamMembers": 100
+      }
+    },
+    "SCALE+dedicatedIPsAddOn": {
+      "plan": "SCALE",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {
+        "dedicatedIPsAddOn": 1.0
+      },
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "SCALE",
+          "quantity": 1,
+          "price": {
+            "kind": "fixed",
+            "amount": 90.0
+          },
+          "unitAmount": 90.0,
+          "amount": 90.0
+        },
+        {
+          "kind": "addOn",
+          "id": "dedicatedIPsAddOn",
+          "quantity": 1.0,
+          "price": {
+            "kind": "fixed",
+            "amount": 30.0
+          },
+          "unitAmount": 30.0,
+          "amount": 30.0
+        }
+      ],
+      "subtotal": 120.0,
+      "requiresQuote": false,
+      "features": {
+        "dailySendingLimit": true,
+        "inboundEmails": true,
+        "restfulAPI": true,
+        "smtpRelay": true,
+        "officialSDKs": true,
+        "scheduleEmails": true,
+        "batchSending": true,
+        "openTracking": true,
+        "linkTracking": true,
+        "reactEmail": true,
+        "customDomains": true,
+        "dedicatedIPs": true,
+        "pristineSharedIPs": true,
+        "automaticSuppressionList": true,
+        "bounceDetails": true,
+        "multiRegion": true,
+        "dataRetentionDays": "7 days",
+        "deliverabilityInsights": true,
+        "dkimSpfDmarcAuthentication": true,
+        "webhookEndpoints": true,
+        "webhookEvents": "All Events",
+        "socialLogin": true,
+        "teamMembers": true,
+        "gdprCompliance": true,
+        "soc2TypeIICertification": true,
+        "penetrationTesting": true,
+        "ddosProtection": true,
+        "automatedBackups": true,
+        "multifactorAuthentication": true,
+        "apiKeyPermissions": true,
+        "signedWebhookEndpoints": true,
+        "ticketSupport": true,
+        "slackSupport": true,
+        "urgentResponseSLA": true,
+        "deliverabilityExpertise": true,
+        "inAppDocumentation": true,
+        "aiAssistant": true
+      },
+      "usageLimits": {
+        "maxDailyLimit": {
+          "unlimited": true
+        },
+        "maxCustomDomains": 1000,
+        "maxWebhookEndpoints": 10,
+        "maxTeamMembers": 100
+      }
+    },
+    "ENTERPRISE": {
+      "plan": "ENTERPRISE",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {},
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "ENTERPRISE",
+          "quantity": 1,
+          "price": {
+            "kind": "label",
+            "text": "Contact Sales"
+          },
+          "unitAmount": null,
+          "amount": null
+        }
+      ],
+      "subtotal": 0.0,
+      "requiresQuote": true,
+      "features": {
+        "dailySendingLimit": true,
+        "inboundEmails": true,
+        "restfulAPI": true,
+        "smtpRelay": true,
+        "officialSDKs": true,
+        "scheduleEmails": true,
+        "batchSending": true,
+        "openTracking": true,
+        "linkTracking": true,
+        "reactEmail": true,
+        "customDomains": true,
+        "dedicatedIPs": false,
+        "pristineSharedIPs": true,
+        "automaticSuppressionList": true,
+        "bounceDetails": true,
+        "multiRegion": true,
+        "dataRetentionDays": "Flexible",
+        "deliverabilityInsights": true,
+        "dkimSpfDmarcAuthentication": true,
+        "webhookEndpoints": true,
+        "webhookEvents": "All Events",
+        "socialLogin": true,
+        "teamMembers": true,
+        "gdprCompliance": true,
+        "soc2TypeIICertification": true,
+        "penetrationTesting": true,
+        "ddosProtection": true,
+        "automatedBackups": true,
+        "multifactorAuthentication": true,
+        "apiKeyPermissions": true,
+        "signedWebhookEndpoints": true,
+        "ticketSupport": true,
+        "slackSupport": true,
+        "urgentResponseSLA": true,
+        "deliverabilityExpertise": true,
+        "inAppDocumentation": true,
+        "aiAssistant": true
+      },
+      "usageLimits": {
+        "maxDailyLimit": {
+          "unlimited": true
+        },
+        "maxCustomDomains": {
+          "unlimited": true
+        },
+        "maxWebhookEndpoints": {
+          "unlimited": true
+        },
+        "maxTeamMembers": {
+          "unlimited": true
+        }
+      }
+    },
+    "ENTERPRISE+dedicatedIPsAddOn": {
+      "plan": "ENTERPRISE",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {
+        "dedicatedIPsAddOn": 1.0
+      },
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "ENTERPRISE",
+          "quantity": 1,
+          "price": {
+            "kind": "label",
+            "text": "Contact Sales"
+          },
+          "unitAmount": null,
+          "amount": null
+        },
+        {
+          "kind": "addOn",
+          "id": "dedicatedIPsAddOn",
+          "quantity": 1.0,
+          "price": {
+            "kind": "fixed",
+            "amount": 30.0
+          },
+          "unitAmount": 30.0,
+          "amount": 30.0
+        }
+      ],
+      "subtotal": 30.0,
+      "requiresQuote": true,
+      "features": {
+        "dailySendingLimit": true,
+        "inboundEmails": true,
+        "restfulAPI": true,
+        "smtpRelay": true,
+        "officialSDKs": true,
+        "scheduleEmails": true,
+        "batchSending": true,
+        "openTracking": true,
+        "linkTracking": true,
+        "reactEmail": true,
+        "customDomains": true,
+        "dedicatedIPs": true,
+        "pristineSharedIPs": true,
+        "automaticSuppressionList": true,
+        "bounceDetails": true,
+        "multiRegion": true,
+        "dataRetentionDays": "Flexible",
+        "deliverabilityInsights": true,
+        "dkimSpfDmarcAuthentication": true,
+        "webhookEndpoints": true,
+        "webhookEvents": "All Events",
+        "socialLogin": true,
+        "teamMembers": true,
+        "gdprCompliance": true,
+        "soc2TypeIICertification": true,
+        "penetrationTesting": true,
+        "ddosProtection": true,
+        "automatedBackups": true,
+        "multifactorAuthentication": true,
+        "apiKeyPermissions": true,
+        "signedWebhookEndpoints": true,
+        "ticketSupport": true,
+        "slackSupport": true,
+        "urgentResponseSLA": true,
+        "deliverabilityExpertise": true,
+        "inAppDocumentation": true,
+        "aiAssistant": true
+      },
+      "usageLimits": {
+        "maxDailyLimit": {
+          "unlimited": true
+        },
+        "maxCustomDomains": {
+          "unlimited": true
+        },
+        "maxWebhookEndpoints": {
+          "unlimited": true
+        },
+        "maxTeamMembers": {
+          "unlimited": true
+        }
+      }
+    }
+  }
+}

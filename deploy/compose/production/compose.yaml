@@ -124,8 +124,6 @@ services:
       SPHERE_ENABLED: ${SPHERE_ENABLED:-false}
       # A placeholder: SPHERE is off by default; set SPHERE_URL in site.env together with SPHERE_ENABLED=true.
       SPHERE_URL: ${SPHERE_URL:-https://sphere.example.org}
-      SPHERE_API_KEY_FILE: /run/secrets/sphere_api_key
-      SPHERE_ORGANIZATION_ID: ${SPHERE_ORGANIZATION_ID:-}
       CAS_ENABLED: ${CAS_ENABLED:-false}
       CAS_ENVIRONMENT: ${CAS_ENVIRONMENT:-production}
       CAS_STORE_BACKEND: redis
@@ -140,7 +138,6 @@ services:
       - database_url
       - gateway_jwt_secret
       - space_api_key
-      - sphere_api_key
       - secrets_fernet_keys
       - bootstrap_admin_password
     volumes:
@@ -208,12 +205,9 @@ services:
       PUBLIC_BASE_URL: ${PUBLIC_ORIGIN:?set PUBLIC_ORIGIN in site.env}
       SPHERE_ENABLED: ${SPHERE_ENABLED:-false}
       SPHERE_URL: ${SPHERE_URL:-https://sphere.example.org}
-      SPHERE_API_KEY_FILE: /run/secrets/sphere_api_key
-      SPHERE_ORGANIZATION_ID: ${SPHERE_ORGANIZATION_ID:-}
     secrets:
       - database_url
       - space_api_key
-      - sphere_api_key
       - secrets_fernet_keys
     volumes:
       - artifacts:/var/lib/openbinding/artifacts
@@ -424,8 +418,6 @@ secrets:
     file: ${OPENBINDING_SECRETS_DIR:?set OPENBINDING_SECRETS_DIR in site.env}/gateway_jwt_secret
   space_api_key:
     file: ${OPENBINDING_SECRETS_DIR:?set OPENBINDING_SECRETS_DIR in site.env}/space_api_key
-  sphere_api_key:
-    file: ${OPENBINDING_SECRETS_DIR:?set OPENBINDING_SECRETS_DIR in site.env}/sphere_api_key
   secrets_fernet_keys:
     file: ${OPENBINDING_SECRETS_DIR:?set OPENBINDING_SECRETS_DIR in site.env}/secrets_fernet_keys
   bootstrap_admin_password:

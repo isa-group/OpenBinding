@@ -8,10 +8,7 @@ import {
 } from '@playwright/test';
 import { failureBody } from './helpers/problems';
 import type { AdminAuditPage, AdminUserView } from '../src/modules/core/api/account';
-import {
-  AGREEMENT_CURRENT_FIXTURE as CURRENT_FIXTURE,
-  agreementCatalogFixture as catalogFixture,
-} from '../src/test/fixtures/agreementCatalog';
+import { AGREEMENT_PRICING_FIXTURE as PRICING_FIXTURE } from '../src/test/fixtures/agreementPricing';
 import {
   ALEX,
   AUDIT,
@@ -171,8 +168,7 @@ async function mockApi(page: Page, options: { role?: 'admin' | 'user' } = {}): P
       expires_in: 900,
     })
   );
-  await page.route(`${API}/v1/pricing/catalog`, route => answer('catalog', catalogFixture)(route));
-  await page.route(`${API}/v1/pricing/current`, json(CURRENT_FIXTURE));
+  await page.route(`${API}/v1/plans/pricing`, route => answer('catalog', PRICING_FIXTURE)(route));
   await page.route(`${API}/v1/users/me`, json(me));
   await page.route(`${API}/v1/users/me/usage`, json(usageOf('PRO')));
   await page.route(`${API}/v1/users/me/pricing-token`, json({ pricing_token: token(3600) }));

@@ -67,6 +67,9 @@ DEFAULT_SPACE_SERVICE_NAME = "openbinding"
 SPACE_SERVICE_NAME_PATTERN = re.compile(r"[a-z0-9][a-z0-9_-]{1,62}")
 
 
+#: The public SPHERE (``SPHERE_URL``'s default).
+DEFAULT_SPHERE_URL = "https://sphere.score.us.es"
+
 #: A SPHERE registry alias: the pattern a Composition2Yaml ``registry:`` names one by
 #: (``composition/ids.py`` ``ALIAS``; a test keeps the two the same).
 SPHERE_REGISTRY_ALIAS = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,30}[a-z0-9])?$")
@@ -75,7 +78,7 @@ SPHERE_REGISTRY_ALIAS = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,30}[a-z0-9])?$")
 class SphereRegistry(BaseModel):
     """One on-premise SPHERE a document may name by its alias (``registry: <alias>``).
 
-    F1 reads only the aliases; the address and the key are for the pricing reader (F3). The
+    The pricing source (``modules/plans``) reads it at its address with its key. The
     key is a ``SecretStr``, so neither ``repr`` nor a log line shows it, and neither the
     address nor the key ever reaches a response.
     """
@@ -391,20 +394,33 @@ class Settings(BaseSettings):
     expose_recovery_tokens: bool = False
 
     # -- SPHERE pricing source (read only) ------------------------------
+    # Read by the PricingSource port (modules/plans). OpenBinding holds no SPHERE key of its own: an
+    # organization connects its key (org_connections), a registry carries its operator key.
+    #: Whether the default SPHERE (``SPHERE_URL``) is read; registries and Pricing2Yaml URLs are read either way.
     sphere_enabled: bool = False
-    sphere_url: str = "https://sphere.score.us.es"
-    sphere_api_key: Optional[str] = None
-    sphere_organization_name: Literal["OpenBinding"] = "OpenBinding"
-    sphere_organization_id: Optional[str] = None
-    sphere_pricing_slug: Literal["openbinding"] = "openbinding"
-    sphere_timeout_s: float = 10.0
+    sphere_url: str = DEFAULT_SPHERE_URL
+    sphere_timeout_s: float = Field(default=10.0, gt=0)
+    #: The largest pricing answer read from SPHERE, a registry or a URL (``SPHERE_MAX_BYTES``).
+    sphere_max_bytes: int = Field(default=5 * 1024 * 1024, gt=0)
+    #: How long an anonymous SPHERE answer (manifest, discovery, family identity) is served from the
+    #: process cache before it is revalidated with ``If-None-Match`` (``SPHERE_CACHE_TTL_S``).
+    sphere_cache_ttl_s: float = Field(default=300.0, gt=0)
+    #: The longest a SPHERE ``Retry-After`` or the port's own back-off keeps a bucket closed (``SPHERE_BACKOFF_MAX_S``).
+    sphere_backoff_max_s: float = Field(default=60.0, gt=0)
+    #: OpenBinding's own pricing family in SPHERE (``GET /v1/plans/pricing`` serves the version
+    #: ``SPACE_PRICING_VERSION`` names from it).
+    sphere_openbinding_pricing_id: str = Field(default="6ab0a323697330667ccce891", pattern=r"^[0-9a-f]{24}$")
+    #: Redirects a user-supplied Pricing2Yaml URL may take, each revalidated (``OFFERING_URL_MAX_REDIRECTS``).
+    offering_url_max_redirects: int = Field(default=3, ge=0, le=10)
+    #: A URL read again within this many seconds of its last snapshot in a scope reuses it (``OFFERING_URL_MIN_INTERVAL_S``).
+    offering_url_min_interval_s: float = Field(default=300.0, gt=0)
     #: The on-premise SPHERE registries a Composition2Yaml document may name
     #: (``SPHERE_REGISTRIES``), as JSON keyed by alias, for example
     #: ``{"lab": {"url": "https://sphere.lab.local", "api_key": "..."}}``. A
     #: ``registry:`` alias that is not here is an error in a ``from`` and a warning
     #: in an ``offering``. The URL must be https; secrets live here, never in a
-    #: document. The default SPHERE (``sphere:`` without ``registry:``) is the
-    #: pricing reader's to configure (F3).
+    #: document. The pricing source reads each one with its operator key, and may
+    #: reach private addresses (an on-premise registry), never redirected.
     sphere_registries: dict[str, SphereRegistry] = Field(default_factory=dict)
 
     # -- Composition2Yaml ------------------------------------------------
@@ -445,6 +461,16 @@ class Settings(BaseSettings):
     federation_require_https: bool = True
 
     # -- Startup checks --------------------------------------------------
+
+    @field_validator("sphere_url", mode="before")
+    @classmethod
+    def sphere_url_is_https(cls, url: object) -> object:
+        """An organization's key travels to ``SPHERE_URL``, so it is reached over https only (empty: the default)."""
+        if url is None or (isinstance(url, str) and not url.strip()):
+            return DEFAULT_SPHERE_URL
+        if not isinstance(url, str) or not url.startswith("https://") or len(url) <= len("https://"):
+            raise ValueError("SPHERE_URL must be an https URL")
+        return url.rstrip("/")
 
     @field_validator("sphere_registries")
     @classmethod
@@ -593,7 +619,7 @@ class Settings(BaseSettings):
 
     @property
     def sphere_registry_aliases(self) -> frozenset[str]:
-        """The registry aliases a document may name; F1 reads nothing else of ``SPHERE_REGISTRIES``."""
+        """The registry aliases a document may name; the pricing source (``modules/plans``) reads the rest."""
         return frozenset(self.sphere_registries)
 
     @property

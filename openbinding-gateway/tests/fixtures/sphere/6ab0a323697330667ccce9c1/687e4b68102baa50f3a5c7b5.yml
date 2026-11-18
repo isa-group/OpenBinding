@@ -1,0 +1,960 @@
+syntaxVersion: '2.1'
+saasName: dropbox
+version: '2023'
+createdAt: '2025-07-06'
+url: https://web.archive.org/web/20231203025118/https://www.dropbox.com/plans
+billing:
+  monthly: 1
+  yearly: 1
+currency: USD
+tags:
+- Content and accident protection
+- DocSend core features
+- Dropbox Sign features
+- Dropbox core features
+- Productivity and sharing tools
+- Support
+- Team Management
+- Video tools
+features:
+  linkForGettingStarted:
+    description: Provides a link or button to initiate the plan subscription or trial.
+    valueType: TEXT
+    type: DOMAIN
+    defaultValue: Buy now
+  users:
+    description: Number of users allowed per plan.
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  storage:
+    description: Total storage space available.
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  bestInClassSyncTechnology:
+    description: Utilize Dropbox's leading synchronization technology for files.
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  easyAndSecureSharing:
+    description: Share files easily and securely with others.
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  anytimeAnywhereAccess:
+    description: Access your files from any location at any time.
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  connectUnlimitedDevices:
+    description: Connect an unlimited number of devices to your Dropbox account.
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  256BitAesAndSslTlsEncryption:
+    description: Secure your files with industry-standard 256-bit AES and SSL/TLS
+      encryption.
+    valueType: BOOLEAN
+    type: GUARANTEE
+    docUrl: https://www.dropbox.com/security
+    defaultValue: true
+  unlimitedSelfSigning:
+    description: Sign an unlimited number of documents yourself.
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  signatureRequests:
+    description: Send requests for signatures on documents.
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  industryLeadingSecurityAndPrivacy:
+    description: Benefit from top-tier security and privacy measures for your documents.
+    valueType: BOOLEAN
+    type: GUARANTEE
+    docUrl: https://www.dropbox.com/security
+    defaultValue: true
+  signatureTemplates:
+    description: Create and use templates for signature requests.
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  branding:
+    description: Customize your documents and signature requests with your brand.
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: false
+  realTimeDocumentAnalytics:
+    description: Gain insights into document engagement with real-time analytics.
+    valueType: BOOLEAN
+    type: INFORMATION
+    defaultValue: false
+  passcodeAndEmailVerification:
+    description: Secure documents with passcode protection and email verification.
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: false
+  viewerEngagementDashboard:
+    description: Monitor viewer engagement with a dedicated dashboard.
+    valueType: BOOLEAN
+    type: INFORMATION
+    defaultValue: false
+  backup:
+    description: Automatically back up your files.
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  accountRecoveryAndVersionHistory:
+    description: Recover your account and access previous versions of your files.
+    valueType: BOOLEAN
+    type: GUARANTEE
+    docUrl: https://www.dropbox.com/help/files-folders/version-history
+    defaultValue: true
+  restoreDeletedFiles:
+    description: Ability to restore files after they have been deleted.
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  passwordManagement:
+    description: Manage and secure your passwords.
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  multiFactorAuthentication:
+    description: Add an extra layer of security with multi-factor authentication.
+    valueType: BOOLEAN
+    type: GUARANTEE
+    docUrl: https://www.dropbox.com/help/security/multi-factor-authentication
+    defaultValue: true
+  documentScanning:
+    description: Scan physical documents into digital files.
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  remoteDeviceWipe:
+    description: Remotely wipe Dropbox data from lost or stolen devices.
+    valueType: BOOLEAN
+    type: MANAGEMENT
+    defaultValue: false
+  watermarking:
+    description: Apply watermarks to your documents for protection.
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: false
+  sharedLinkControls:
+    description: Control access and permissions for shared links.
+    valueType: BOOLEAN
+    type: MANAGEMENT
+    defaultValue: false
+  accountTransferTool:
+    description: Transfer account ownership or content to another user.
+    valueType: BOOLEAN
+    type: MANAGEMENT
+    defaultValue: false
+  granularPermissions:
+    description: Set highly specific permissions for files and folders.
+    valueType: BOOLEAN
+    type: MANAGEMENT
+    defaultValue: false
+  hipaaCompliance:
+    description: Meet HIPAA compliance requirements for healthcare data.
+    valueType: BOOLEAN
+    type: GUARANTEE
+    docUrl: https://www.dropbox.com/security/compliance/hipaa
+    defaultValue: false
+  deviceApprovals:
+    description: Approve or deny devices connecting to your account.
+    valueType: BOOLEAN
+    type: MANAGEMENT
+    defaultValue: false
+  externalSharingControlsAndReporting:
+    description: Control and report on file sharing with external users.
+    valueType: BOOLEAN
+    type: MANAGEMENT
+    defaultValue: false
+  dataClassification:
+    description: Classify and categorize data for better organization and security.
+    valueType: BOOLEAN
+    type: MANAGEMENT
+    defaultValue: false
+  ransomwareDetectionAndRecovery:
+    description: Detect ransomware attacks and recover affected files.
+    valueType: BOOLEAN
+    type: AUTOMATION
+    automationType: FILTERING
+    defaultValue: false
+  suspiciousActivityAlerts:
+    description: Receive alerts for suspicious activities on your account.
+    valueType: BOOLEAN
+    type: AUTOMATION
+    automationType: TRACKING
+    defaultValue: false
+  complianceTracking:
+    description: Track and manage compliance with various regulations.
+    valueType: BOOLEAN
+    type: GUARANTEE
+    docUrl: https://www.dropbox.com/security/compliance
+    defaultValue: false
+  screenAndVideoRecordingsWithDropboxCapture:
+    description: Record your screen and videos using Dropbox Capture.
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  dropboxCaptureVideoQuality:
+    description: Video quality available for screen and video recordings with Dropbox
+      Capture.
+    valueType: TEXT
+    type: DOMAIN
+    defaultValue: Full HD
+  advancedVideoEditingWithDropboxCapture:
+    description: Access to advanced video editing features within Dropbox Capture.
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: false
+  videoTranscriptsAndClosedCaptions:
+    description: Generate transcripts and closed captions for your videos.
+    valueType: BOOLEAN
+    type: AUTOMATION
+    automationType: TASK_AUTOMATION
+    defaultValue: false
+  videoEditing:
+    description: Edit video content directly within Dropbox.
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: false
+  videoCommenting:
+    description: Add comments directly to videos for collaborative review.
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: false
+  creativeReviewAndApprovalsWithDropboxReplay:
+    description: Collaborate on creative assets with review and approval workflows
+      using Dropbox Replay.
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  liveReviewWithDropboxReplay:
+    description: Conduct live reviews of creative assets using Dropbox Replay.
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  versionControlWithDropboxReplay:
+    description: Manage different versions of creative assets in Dropbox Replay.
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  videoCollaborationWithDropboxReplay:
+    description: Collaborate on video projects within Dropbox Replay.
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  largeFileDelivery:
+    description: Deliver large files to recipients.
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  brandedLargeFileDelivery:
+    description: Deliver large files with custom branding.
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: false
+  fileRequests:
+    description: Request files from anyone, even if they don't have a Dropbox account.
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  integratedCloudContent:
+    description: Integrate and manage content from other cloud services.
+    valueType: BOOLEAN
+    type: INTEGRATION
+    integrationType: WEB_SAAS
+    pricingUrls:
+    - https://www.dropbox.com/integrations
+    defaultValue: true
+  onlineDocumentsAndNoteTaking:
+    description: Create and edit documents and notes online.
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  webPreviewsAndComments:
+    description: Preview files online and add comments.
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  plusButton:
+    description: Access additional features or shortcuts via the Plus button.
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  pdfEditing:
+    description: Edit PDF documents.
+    valueType: TEXT
+    type: DOMAIN
+    defaultValue: ''
+  annotateAndSignPdfs:
+    description: Annotate and add signatures to PDF documents.
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  imageEditing:
+    description: Edit images directly within Dropbox.
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: false
+  imageSearch:
+    description: Search for images based on their content.
+    valueType: BOOLEAN
+    type: AUTOMATION
+    automationType: FILTERING
+    defaultValue: false
+  fullTextSearch:
+    description: Search for text within documents and files.
+    valueType: BOOLEAN
+    type: AUTOMATION
+    automationType: FILTERING
+    defaultValue: true
+  brandedSharing:
+    description: Share files with custom branding.
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: false
+  fileLocking:
+    description: Lock files to prevent simultaneous editing and conflicts.
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: false
+  viewerHistory:
+    description: Track who has viewed your shared files and when.
+    valueType: BOOLEAN
+    type: INFORMATION
+    defaultValue: false
+  adminConsole:
+    description: Access an administrative console for team management.
+    valueType: BOOLEAN
+    type: MANAGEMENT
+    defaultValue: false
+  multiTeamAdminLogin:
+    description: Manage multiple teams from a single admin login.
+    valueType: BOOLEAN
+    type: MANAGEMENT
+    defaultValue: false
+  centralizedBilling:
+    description: Manage billing for all team members from a central location.
+    valueType: BOOLEAN
+    type: MANAGEMENT
+    defaultValue: false
+  companyManagedGroups:
+    description: Create and manage user groups within your company.
+    valueType: BOOLEAN
+    type: MANAGEMENT
+    defaultValue: false
+  apiAccessToSecurityPlatformPartners:
+    description: Integrate with security platform partners via API.
+    valueType: BOOLEAN
+    type: INTEGRATION
+    integrationType: API
+    defaultValue: false
+  apiAccessToProductivityPlatformPartners:
+    description: Integrate with productivity platform partners via API.
+    valueType: BOOLEAN
+    type: INTEGRATION
+    integrationType: API
+    defaultValue: false
+  apiCallsForDataTransportPartners:
+    description: Make API calls for data transport partners.
+    valueType: BOOLEAN
+    type: INTEGRATION
+    integrationType: API
+    defaultValue: false
+  tieredAdminRoles:
+    description: Assign different levels of administrative roles to team members.
+    valueType: BOOLEAN
+    type: MANAGEMENT
+    defaultValue: false
+  signInAsUser:
+    description: Administrators can sign in as other users for support or management.
+    valueType: BOOLEAN
+    type: MANAGEMENT
+    defaultValue: false
+  auditLogsWithFileEventTracking:
+    description: Access audit logs to track file events and user activities.
+    valueType: BOOLEAN
+    type: INFORMATION
+    defaultValue: false
+  singleSignOnSsoIntegrations:
+    description: Integrate with single sign-on (SSO) providers for user authentication.
+    valueType: BOOLEAN
+    type: INTEGRATION
+    integrationType: IDENTITY_PROVIDER
+    defaultValue: false
+  inviteEnforcement:
+    description: Enforce specific rules for inviting new users to the team.
+    valueType: BOOLEAN
+    type: MANAGEMENT
+    defaultValue: false
+  priorityEmailSupport:
+    description: Receive prioritized support via email.
+    valueType: BOOLEAN
+    type: SUPPORT
+    defaultValue: true
+  liveChatSupport:
+    description: Access support through live chat.
+    valueType: BOOLEAN
+    type: SUPPORT
+    defaultValue: false
+  phoneSupportDuringBusinessHours:
+    description: Get phone support during standard business hours.
+    valueType: BOOLEAN
+    type: SUPPORT
+    defaultValue: false
+usageLimits:
+  userLimit:
+    description: Maximum number of users allowed for the plan.
+    type: NON_RENEWABLE
+    valueType: NUMERIC
+    unit: users
+    linkedFeatures:
+    - users
+    defaultValue: 1
+  storageLimit:
+    description: Maximum storage space provided.
+    type: NON_RENEWABLE
+    valueType: NUMERIC
+    unit: GB
+    linkedFeatures:
+    - storage
+    defaultValue: 2000
+  signatureRequestLimit:
+    description: Maximum number of signature requests allowed per month.
+    type: RENEWABLE
+    valueType: NUMERIC
+    unit: requests/month
+    linkedFeatures:
+    - signatureRequests
+    defaultValue: 3
+  signatureTemplateLimit:
+    description: Maximum number of templates for signature requests.
+    type: NON_RENEWABLE
+    valueType: NUMERIC
+    unit: templates
+    linkedFeatures:
+    - signatureTemplates
+    defaultValue: 5
+  versionHistoryRetention:
+    description: Duration for which file versions and account recovery data are retained.
+    type: TIME_DRIVEN
+    valueType: NUMERIC
+    unit: days
+    linkedFeatures:
+    - accountRecoveryAndVersionHistory
+    defaultValue: 30
+  deletedFileRestorationPeriod:
+    description: Period within which deleted files can be restored.
+    type: TIME_DRIVEN
+    valueType: NUMERIC
+    unit: days
+    linkedFeatures:
+    - restoreDeletedFiles
+    defaultValue: 30
+  dropboxCaptureRecordingTime:
+    description: Maximum recording time for screen and video recordings with Dropbox
+      Capture.
+    type: RENEWABLE
+    valueType: NUMERIC
+    unit: minutes
+    linkedFeatures:
+    - screenAndVideoRecordingsWithDropboxCapture
+    defaultValue: 120
+  dropboxReplayFileUploads:
+    description: Maximum number of file uploads allowed for creative review and approvals
+      with Dropbox Replay.
+    type: RENEWABLE
+    valueType: NUMERIC
+    unit: file uploads
+    linkedFeatures:
+    - creativeReviewAndApprovalsWithDropboxReplay
+    defaultValue: 4
+  largeFileDeliverySize:
+    description: Maximum size of files that can be delivered.
+    type: NON_RENEWABLE
+    valueType: NUMERIC
+    unit: GB
+    linkedFeatures:
+    - largeFileDelivery
+    defaultValue: 2
+  securityPlatformApiAccess:
+    description: Access to API for security platform partners.
+    type: NON_RENEWABLE
+    valueType: TEXT
+    unit: access
+    linkedFeatures:
+    - apiAccessToSecurityPlatformPartners
+    defaultValue: ''
+  productivityPlatformApiAccess:
+    description: Access to API for productivity platform partners.
+    type: NON_RENEWABLE
+    valueType: TEXT
+    unit: access
+    linkedFeatures:
+    - apiAccessToProductivityPlatformPartners
+    defaultValue: ''
+  dataTransportApiCalls:
+    description: Maximum number of API calls per month for data transport partners.
+    type: RENEWABLE
+    valueType: NUMERIC
+    unit: calls/month
+    linkedFeatures:
+    - apiCallsForDataTransportPartners
+    defaultValue: 0
+plans:
+  PLUS:
+    description: For personal use
+    price: 0.0
+    unit: user
+    features: null
+    usageLimits: null
+  ESSENTIALS:
+    description: For professionals
+    price: 0.0
+    unit: user
+    features:
+      linkForGettingStarted:
+        value: Try for free, or buy now
+      branding:
+        value: true
+      realTimeDocumentAnalytics:
+        value: true
+      passcodeAndEmailVerification:
+        value: true
+      viewerEngagementDashboard:
+        value: true
+      remoteDeviceWipe:
+        value: true
+      watermarking:
+        value: true
+      sharedLinkControls:
+        value: true
+      dropboxCaptureVideoQuality:
+        value: 4K
+      advancedVideoEditingWithDropboxCapture:
+        value: true
+      videoTranscriptsAndClosedCaptions:
+        value: true
+      videoEditing:
+        value: true
+      videoCommenting:
+        value: true
+      brandedLargeFileDelivery:
+        value: true
+      pdfEditing:
+        value: Advanced editing, includes editing existing text
+      imageEditing:
+        value: true
+      imageSearch:
+        value: true
+      brandedSharing:
+        value: true
+      fileLocking:
+        value: true
+      viewerHistory:
+        value: true
+      liveChatSupport:
+        value: true
+    usageLimits:
+      storageLimit:
+        value: 3000
+      signatureRequestLimit:
+        value: .inf
+      signatureTemplateLimit:
+        value: 15
+      versionHistoryRetention:
+        value: 180
+      deletedFileRestorationPeriod:
+        value: 180
+      dropboxCaptureRecordingTime:
+        value: .inf
+      dropboxReplayFileUploads:
+        value: 10
+      largeFileDeliverySize:
+        value: 100
+  BUSINESS:
+    description: For teams
+    price: 0.0
+    unit: user
+    features:
+      linkForGettingStarted:
+        value: Try for free, or buy now
+      branding:
+        value: true
+      realTimeDocumentAnalytics:
+        value: true
+      passcodeAndEmailVerification:
+        value: true
+      viewerEngagementDashboard:
+        value: true
+      remoteDeviceWipe:
+        value: true
+      watermarking:
+        value: true
+      sharedLinkControls:
+        value: true
+      accountTransferTool:
+        value: true
+      granularPermissions:
+        value: true
+      deviceApprovals:
+        value: true
+      externalSharingControlsAndReporting:
+        value: true
+      dropboxCaptureVideoQuality:
+        value: 4K
+      advancedVideoEditingWithDropboxCapture:
+        value: true
+      videoTranscriptsAndClosedCaptions:
+        value: true
+      videoEditing:
+        value: true
+      videoCommenting:
+        value: true
+      brandedLargeFileDelivery:
+        value: true
+      pdfEditing:
+        value: Advanced editing, includes editing existing text
+      imageEditing:
+        value: true
+      imageSearch:
+        value: true
+      brandedSharing:
+        value: true
+      fileLocking:
+        value: true
+      viewerHistory:
+        value: true
+      adminConsole:
+        value: true
+      centralizedBilling:
+        value: true
+      companyManagedGroups:
+        value: true
+      apiAccessToSecurityPlatformPartners:
+        value: true
+      apiAccessToProductivityPlatformPartners:
+        value: true
+      signInAsUser:
+        value: true
+      auditLogsWithFileEventTracking:
+        value: true
+      singleSignOnSsoIntegrations:
+        value: true
+      inviteEnforcement:
+        value: true
+      liveChatSupport:
+        value: true
+      phoneSupportDuringBusinessHours:
+        value: true
+    usageLimits:
+      userLimit:
+        value: 3
+      storageLimit:
+        value: 9000
+      signatureRequestLimit:
+        value: .inf
+      signatureTemplateLimit:
+        value: .inf
+      versionHistoryRetention:
+        value: 180
+      deletedFileRestorationPeriod:
+        value: 180
+      dropboxCaptureRecordingTime:
+        value: .inf
+      dropboxReplayFileUploads:
+        value: 10
+      largeFileDeliverySize:
+        value: 100
+      securityPlatformApiAccess:
+        value: Unlimited
+      productivityPlatformApiAccess:
+        value: Unlimited
+  BUSINESS_PLUS:
+    description: For companies
+    price: 0.0
+    unit: user
+    features:
+      linkForGettingStarted:
+        value: Try for free, or buy now
+      branding:
+        value: true
+      realTimeDocumentAnalytics:
+        value: true
+      passcodeAndEmailVerification:
+        value: true
+      viewerEngagementDashboard:
+        value: true
+      remoteDeviceWipe:
+        value: true
+      watermarking:
+        value: true
+      sharedLinkControls:
+        value: true
+      accountTransferTool:
+        value: true
+      granularPermissions:
+        value: true
+      hipaaCompliance:
+        value: true
+      deviceApprovals:
+        value: true
+      externalSharingControlsAndReporting:
+        value: true
+      dataClassification:
+        value: true
+      ransomwareDetectionAndRecovery:
+        value: true
+      suspiciousActivityAlerts:
+        value: true
+      complianceTracking:
+        value: true
+      dropboxCaptureVideoQuality:
+        value: 4K
+      advancedVideoEditingWithDropboxCapture:
+        value: true
+      videoTranscriptsAndClosedCaptions:
+        value: true
+      videoEditing:
+        value: true
+      videoCommenting:
+        value: true
+      brandedLargeFileDelivery:
+        value: true
+      pdfEditing:
+        value: Advanced editing, includes editing existing text
+      imageEditing:
+        value: true
+      imageSearch:
+        value: true
+      brandedSharing:
+        value: true
+      fileLocking:
+        value: true
+      viewerHistory:
+        value: true
+      adminConsole:
+        value: true
+      multiTeamAdminLogin:
+        value: true
+      centralizedBilling:
+        value: true
+      companyManagedGroups:
+        value: true
+      apiAccessToSecurityPlatformPartners:
+        value: true
+      apiAccessToProductivityPlatformPartners:
+        value: true
+      apiCallsForDataTransportPartners:
+        value: true
+      tieredAdminRoles:
+        value: true
+      signInAsUser:
+        value: true
+      auditLogsWithFileEventTracking:
+        value: true
+      singleSignOnSsoIntegrations:
+        value: true
+      inviteEnforcement:
+        value: true
+      liveChatSupport:
+        value: true
+      phoneSupportDuringBusinessHours:
+        value: true
+    usageLimits:
+      userLimit:
+        value: 3
+      storageLimit:
+        value: 15000
+      signatureRequestLimit:
+        value: .inf
+      signatureTemplateLimit:
+        value: .inf
+      versionHistoryRetention:
+        value: 365
+      deletedFileRestorationPeriod:
+        value: 365
+      dropboxCaptureRecordingTime:
+        value: .inf
+      dropboxReplayFileUploads:
+        value: 10
+      largeFileDeliverySize:
+        value: 250
+      securityPlatformApiAccess:
+        value: Unlimited
+      productivityPlatformApiAccess:
+        value: Unlimited
+      dataTransportApiCalls:
+        value: 1000000000
+  BASIC:
+    description: 2 GB to store and share your files
+    price: 0
+    unit: account
+    features:
+      linkForGettingStarted:
+        value: Get Basic
+      unlimitedSelfSigning:
+        value: false
+      signatureRequests:
+        value: false
+      signatureTemplates:
+        value: false
+      passwordManagement:
+        value: false
+      screenAndVideoRecordingsWithDropboxCapture:
+        value: false
+      dropboxCaptureVideoQuality:
+        value: ''
+      creativeReviewAndApprovalsWithDropboxReplay:
+        value: false
+      liveReviewWithDropboxReplay:
+        value: false
+      versionControlWithDropboxReplay:
+        value: false
+      videoCollaborationWithDropboxReplay:
+        value: false
+      largeFileDelivery:
+        value: false
+      plusButton:
+        value: false
+      annotateAndSignPdfs:
+        value: false
+      priorityEmailSupport:
+        value: false
+    usageLimits:
+      storageLimit:
+        value: 2
+      signatureRequestLimit:
+        value: 0
+      signatureTemplateLimit:
+        value: 0
+      dropboxCaptureRecordingTime:
+        value: 0
+      dropboxReplayFileUploads:
+        value: 0
+      largeFileDeliverySize:
+        value: 0
+  ENTERPRISE:
+    description: Customize to your business with enterprise-grade security, integrations
+      with best-in-class security solutions, and live support from dedicated experts
+    price: Contact Sales
+    unit: account
+    features:
+      linkForGettingStarted:
+        value: Contact us
+      branding:
+        value: true
+      realTimeDocumentAnalytics:
+        value: true
+      passcodeAndEmailVerification:
+        value: true
+      viewerEngagementDashboard:
+        value: true
+      remoteDeviceWipe:
+        value: true
+      watermarking:
+        value: true
+      sharedLinkControls:
+        value: true
+      accountTransferTool:
+        value: true
+      granularPermissions:
+        value: true
+      hipaaCompliance:
+        value: true
+      deviceApprovals:
+        value: true
+      externalSharingControlsAndReporting:
+        value: true
+      dataClassification:
+        value: true
+      ransomwareDetectionAndRecovery:
+        value: true
+      suspiciousActivityAlerts:
+        value: true
+      complianceTracking:
+        value: true
+      dropboxCaptureVideoQuality:
+        value: 4K
+      advancedVideoEditingWithDropboxCapture:
+        value: true
+      videoTranscriptsAndClosedCaptions:
+        value: true
+      videoEditing:
+        value: true
+      videoCommenting:
+        value: true
+      brandedLargeFileDelivery:
+        value: true
+      pdfEditing:
+        value: Advanced editing, includes editing existing text
+      imageEditing:
+        value: true
+      imageSearch:
+        value: true
+      brandedSharing:
+        value: true
+      fileLocking:
+        value: true
+      viewerHistory:
+        value: true
+      adminConsole:
+        value: true
+      multiTeamAdminLogin:
+        value: true
+      centralizedBilling:
+        value: true
+      companyManagedGroups:
+        value: true
+      apiAccessToSecurityPlatformPartners:
+        value: true
+      apiAccessToProductivityPlatformPartners:
+        value: true
+      apiCallsForDataTransportPartners:
+        value: true
+      tieredAdminRoles:
+        value: true
+      signInAsUser:
+        value: true
+      auditLogsWithFileEventTracking:
+        value: true
+      singleSignOnSsoIntegrations:
+        value: true
+      inviteEnforcement:
+        value: true
+      liveChatSupport:
+        value: true
+      phoneSupportDuringBusinessHours:
+        value: true
+    usageLimits:
+      userLimit:
+        value: .inf
+      storageLimit:
+        value: .inf
+      signatureRequestLimit:
+        value: .inf
+      signatureTemplateLimit:
+        value: .inf
+      versionHistoryRetention:
+        value: .inf
+      deletedFileRestorationPeriod:
+        value: .inf
+      dropboxCaptureRecordingTime:
+        value: .inf
+      dropboxReplayFileUploads:
+        value: .inf
+      largeFileDeliverySize:
+        value: .inf
+      securityPlatformApiAccess:
+        value: Unlimited
+      productivityPlatformApiAccess:
+        value: Unlimited
+      dataTransportApiCalls:
+        value: 1000000000
+addOns: {}

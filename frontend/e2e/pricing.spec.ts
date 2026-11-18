@@ -7,8 +7,8 @@ import {
   type TestInfo,
 } from '@playwright/test';
 import { failureBody } from './helpers/problems';
-import { CURRENT_FIXTURE, catalogFixture } from '../src/test/fixtures/pricingCatalog';
-import { agreementCatalogFixture } from '../src/test/fixtures/agreementCatalog';
+import { PLANS_PRICING_FIXTURE } from '../src/test/fixtures/plansPricing';
+import { AGREEMENT_PRICING_FIXTURE } from '../src/test/fixtures/agreementPricing';
 
 // S3 · pub-pricing /pricing: SPHERE's hero, the document drawn by pricing-renderer through the bridge, and OpenBinding's
 // comparison and explainers as cards; the API answered by page.route() (there is no backend).
@@ -55,8 +55,7 @@ const account = (plan: string) => ({
 interface Mocks {
   /** Signed in with this plan. Omit for a visitor. */
   plan?: string;
-  catalog?: (route: Route) => Promise<void> | void;
-  current?: (route: Route) => Promise<void> | void;
+  pricing?: (route: Route) => Promise<void> | void;
   pricingToken?: string;
 }
 
@@ -64,8 +63,7 @@ async function mockApi(page: Page, mocks: Mocks = {}) {
   await page.route(`${API}/**`, route =>
     route.fulfill({ status: 404, json: { detail: 'not mocked' } })
   );
-  await page.route(`${API}/v1/pricing/catalog`, mocks.catalog ?? json(catalogFixture));
-  await page.route(`${API}/v1/pricing/current`, mocks.current ?? json(CURRENT_FIXTURE));
+  await page.route(`${API}/v1/plans/pricing`, mocks.pricing ?? json(PLANS_PRICING_FIXTURE));
   await page.route(`${API}/health**`, json({ status: 'ok' }));
   if (mocks.plan) {
     await page.addInitScript(() =>
@@ -226,10 +224,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       for (const outcome of ['Reduced', 'Wait', 'Rejected'])
         await expect(main.getByText(outcome, { exact: true })).toBeVisible();
 
-      // The deprecated YAML endpoint is not used; the catalog and the release are.
-      expect(requested.filter(url => url === `${API}/v1/pricing`)).toEqual([]);
-      expect(requested).toContain(`${API}/v1/pricing/catalog`);
-      expect(requested).toContain(`${API}/v1/pricing/current`);
+      // The published pricing is read once, from /v1/plans/pricing; the retired keyed proxy is never asked.
+      expect(requested.filter(url => url.startsWith(`${API}/v1/pricing`))).toEqual([]);
+      expect(requested).toContain(`${API}/v1/plans/pricing`);
       expect(critical).toEqual([]);
     });
 
@@ -260,7 +257,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(posts).toEqual([]);
     });
 
-    test('says what it cannot show: loading, no live release, pricing unavailable, digest mismatch', async ({
+    test('says what it cannot show: loading, pricing unavailable, digest mismatch', async ({
       page,
     }, testInfo) => {
       const critical = watchCriticalErrors(page);
@@ -269,9 +266,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         release = resolve;
       });
       await mockApi(page, {
-        catalog: async route => {
+        pricing: async route => {
           await gate;
-          await json(catalogFixture)(route);
+          await json(PLANS_PRICING_FIXTURE)(route);
         },
       });
       await page.goto('/pricing');
@@ -284,20 +281,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('list', { name: 'Plans' })).toBeVisible();
       if (isMobile) return;
 
-      await page.unroute(`${API}/v1/pricing/current`);
+      await page.unroute(`${API}/v1/plans/pricing`);
       await page.route(
-        `${API}/v1/pricing/current`,
-        detail(404, 'not_found', 'No public pricing release is live.')
-      );
-      await page.reload();
-      await expect(main.getByText('No public pricing release is live')).toBeVisible();
-      await expect(main.getByText(/Accounts keep the plan they already have/)).toBeVisible();
-      await expect(main.getByRole('list', { name: 'Plans' })).toHaveCount(0);
-      await page.unroute(`${API}/v1/pricing/current`);
-      await page.route(`${API}/v1/pricing/current`, json(CURRENT_FIXTURE));
-      await page.unroute(`${API}/v1/pricing/catalog`);
-      await page.route(
-        `${API}/v1/pricing/catalog`,
+        `${API}/v1/plans/pricing`,
         detail(503, 'pricing_unavailable', 'SPHERE is not reachable.')
       );
       await page.reload();
@@ -306,9 +292,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('list', { name: 'Plans' })).toHaveCount(0);
       await capture(page, testInfo, `pricing-${name}-503`);
 
-      await page.unroute(`${API}/v1/pricing/catalog`);
+      await page.unroute(`${API}/v1/plans/pricing`);
       await page.route(
-        `${API}/v1/pricing/catalog`,
+        `${API}/v1/plans/pricing`,
         detail(
           502,
           'pricing_digest_mismatch',
@@ -318,9 +304,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await page.reload();
       await expect(main.getByRole('alert')).toContainText('502 · pricing_digest_mismatch');
 
-      // Retrying once the catalog is back shows the plans without a reload.
-      await page.unroute(`${API}/v1/pricing/catalog`);
-      await page.route(`${API}/v1/pricing/catalog`, json(catalogFixture));
+      // Retrying once the pricing is back shows the plans without a reload.
+      await page.unroute(`${API}/v1/plans/pricing`);
+      await page.route(`${API}/v1/plans/pricing`, json(PLANS_PRICING_FIXTURE));
       await main.getByRole('alert').getByRole('button', { name: 'Retry' }).click();
       await expect(main.getByRole('list', { name: 'Plans' })).toBeVisible();
       expect(critical).toEqual([]);
@@ -374,7 +360,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(renderer).toBeVisible();
       await expect(page.getByRole('link', { name: 'SPHERE' })).toHaveAttribute(
         'href',
-        CURRENT_FIXTURE.url
+        PLANS_PRICING_FIXTURE.permanentUrl
       );
       await expect(renderer.locator('[data-pr-slot="plan-cta"]')).toHaveText([
         'Sign up',
@@ -396,7 +382,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
     }) => {
       test.skip(isMobile, 'A behaviour of the page, not of its layout: the desktop run covers it.');
       // The published pricing has no add-ons; the synthetic agreement catalog has four plans and add-ons to drop.
-      await mockApi(page, { catalog: json(agreementCatalogFixture) });
+      await mockApi(page, { pricing: json(AGREEMENT_PRICING_FIXTURE) });
       await page.goto('/pricing');
       const renderer = page.locator('pricing-renderer[data-pr-root]');
       await expect(renderer).toBeVisible();
@@ -420,7 +406,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
     test('marks the plan and add-ons of the account in the drawn document', async ({ page }) => {
       test.skip(isMobile, 'A behaviour of the page, not of its layout: the desktop run covers it.');
       const subscription = {
-        contractedServices: { openbinding: CURRENT_FIXTURE.version },
+        contractedServices: { openbinding: PLANS_PRICING_FIXTURE.version },
         subscriptionPlans: { openbinding: 'PRO' },
         subscriptionAddOns: { openbinding: { STORAGE_PACK: 2 } },
         contractVersion: '4',
@@ -429,7 +415,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await mockApi(page, {
         plan: 'PRO',
         pricingToken: token(3600, { subscription }),
-        catalog: json(agreementCatalogFixture),
+        pricing: json(AGREEMENT_PRICING_FIXTURE),
       });
       await page.goto('/pricing');
 

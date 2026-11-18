@@ -40,6 +40,8 @@ REEVALUATE = "/v1/organizations/{org}/compositions/{composition}/versions/{versi
 EVALUATE = "/v1/organizations/{org}/compositions/{composition}/evaluate"
 NEIGHBORHOOD = "/v1/organizations/{org}/compositions/{composition}/neighborhood"
 DERIVE = "/v1/organizations/{org}/compositions/{composition}/derive"
+CONNECTION = "/v1/organizations/{org}/connections/sphere"
+BAD_KEY = {"content": b'{"apiKey": "not-a-key"}', "headers": {"content-type": "application/json"}}
 
 #: A request for every route that reaches the limiter: ``(method, template) -> (method, concrete path, body)``,
 #: the concrete path filled in by the ``member`` fixture's organization and problem.
@@ -62,10 +64,23 @@ REQUESTS = {
     ("POST", EVALUATE): ("POST", "/v1/organizations/{org}/compositions/none/evaluate", EMPTY_JSON),
     ("GET", NEIGHBORHOOD): ("GET", "/v1/organizations/{org}/compositions/none/neighborhood", {}),
     ("POST", DERIVE): ("POST", "/v1/organizations/{org}/compositions/none/derive", EMPTY_JSON),
+    # Counted before the key is checked: the first is a 422, the second a 429.
+    ("PUT", CONNECTION): ("PUT", CONNECTION, BAD_KEY),
+    # Answered from the recorded SPHERE.
+    ("GET", "/v1/organizations/{org}/sphere/pricings"): ("GET", "/v1/organizations/{org}/sphere/pricings?q=Mailgun", {}),
+    ("GET", "/v1/organizations/{org}/sphere/pricings/{pricing_id}"): (
+        "GET", "/v1/organizations/{org}/sphere/pricings/6ab0a323697330667ccce8cd", {},
+    ),
+    ("GET", "/v1/organizations/{org}/sphere/pricings/{pricing_id}/versions/{version_id}"): (
+        "GET", "/v1/organizations/{org}/sphere/pricings/6ab0a323697330667ccce8cd/versions/6921867e7004563bd918e7e8", {},
+    ),
 }
 
 #: The stateless language services: open to anybody, and answering ``application/problem+json``.
 LANGUAGE_ROUTES = {route for route in REQUESTS if route[1].startswith(LANGUAGE)}
+#: The routes that read SPHERE on the caller's behalf (``read`` class).
+SPHERE_ROUTES = {route for route in REQUESTS if route[1].startswith(("/v1/organizations/{org}/connections",
+                                                                      "/v1/organizations/{org}/sphere"))}
 BIM_ROUTES = {("POST", PROBE)} | LANGUAGE_ROUTES
 
 
@@ -154,6 +169,8 @@ def test_a_route_added_under_the_compiling_prefixes_has_to_be_classified():
             "/v1/compositions/", "/v1/bim/", "/v1/organizations/{org}/problems",
             "/v1/organizations/{org}/compositions/{composition}/",
         )))
+        or (method in {"PUT", "POST"} and path.startswith("/v1/organizations/{org}/connections"))
+        or path.startswith("/v1/organizations/{org}/sphere")
         or path.endswith("/compilation")
         or (path.startswith("/v1/organizations/{org}/compositions/{composition}/") and path.endswith("/neighborhood"))
     }
@@ -167,7 +184,7 @@ def test_every_counted_route_is_exercised_below():
 
 def test_compile_read_and_evaluate_are_the_classes_the_policy_states():
     assert set(WORK_ROUTES.values()) == {"compile", "read", "evaluate"}
-    assert {route for route, work_class in WORK_ROUTES.items() if work_class == "read"} == LANGUAGE_ROUTES
+    assert {route for route, work_class in WORK_ROUTES.items() if work_class == "read"} == LANGUAGE_ROUTES | SPHERE_ROUTES
     assert {route for route, work_class in WORK_ROUTES.items() if work_class == "evaluate"} == {
         ("POST", VERSIONS), ("POST", f"{VERSIONS}/check"), ("POST", FORK),
         ("POST", REEVALUATE), ("POST", EVALUATE), ("GET", NEIGHBORHOOD), ("POST", DERIVE),
@@ -483,6 +500,12 @@ ANONYMOUS_REQUESTS = {
     ("GET", f"{COMPOSITION}/download"): ("/v1/organizations/{org}/compositions/none/download", 404),
     ("GET", "/v1/permalinks/compositions/{composition_id}"): (
         "/v1/permalinks/compositions/00000000-0000-0000-0000-000000000000", 404,
+    ),
+    ("GET", "/v1/organizations/{org}/pricing-snapshots/{snapshot}"): (
+        "/v1/organizations/{org}/pricing-snapshots/00000000-0000-0000-0000-000000000000", 404,
+    ),
+    ("GET", "/v1/organizations/{org}/pricing-snapshots/{snapshot}/yaml"): (
+        "/v1/organizations/{org}/pricing-snapshots/00000000-0000-0000-0000-000000000000/yaml", 404,
     ),
 }
 

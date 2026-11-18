@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from sqlalchemy import select
 
-from _pricing import fake_pricing_gate, pricing_catalog
+from _pricing import fake_pricing_gate, fixture_catalog
 from openbinding_gateway.core.settings import Settings
 from openbinding_gateway.db.bootstrap import (
     DEFAULT_ADMIN_USERNAME,
@@ -94,7 +94,7 @@ async def test_seeding_is_refused_once_anybody_exists(db_session):
             username="someone",
             email="someone@example.org",
             password_hash="x",
-            plan_cache=pricing_catalog().default_plan,
+            plan_cache=fixture_catalog().default_plan,
         )
     )
     await db_session.flush()
@@ -163,7 +163,7 @@ async def test_an_existing_account_is_promoted_rather_than_duplicated(db_session
             username="alice",
             email="alice@example.org",
             password_hash="x",
-            plan_cache=pricing_catalog().default_plan,
+            plan_cache=fixture_catalog().default_plan,
         )
     )
     await db_session.flush()
@@ -223,7 +223,7 @@ async def test_nothing_happens_once_an_administrator_exists(db_session):
             email="existing@example.org",
             password_hash="x",
             role=UserRole.ADMIN,
-            plan_cache=pricing_catalog().default_plan,
+            plan_cache=fixture_catalog().default_plan,
         )
     )
     await db_session.flush()

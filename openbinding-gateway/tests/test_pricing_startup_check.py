@@ -15,7 +15,7 @@ import pytest
 import yaml
 from pydantic import ValidationError
 
-from _fake_space import FakePricingGate, PricingCatalog
+from _fake_space import FakePricingGate, FixtureCatalog
 from _fake_space_http import VERSION, JwksSpace, gate_over, settings_for
 from _pricing import PRICING_YAML
 from _space_tokens import ORGANIZATION
@@ -33,7 +33,7 @@ PRODUCTION = {
 }
 
 
-def catalog_without(limit: str | None = None, *, not_numeric: str | None = None) -> PricingCatalog:
+def catalog_without(limit: str | None = None, *, not_numeric: str | None = None) -> FixtureCatalog:
     document = yaml.safe_load(PRICING_YAML.read_bytes())
     if limit is not None:
         del document["usageLimits"][limit]
@@ -41,7 +41,7 @@ def catalog_without(limit: str | None = None, *, not_numeric: str | None = None)
             plan["usageLimits"].pop(limit, None)
     if not_numeric is not None:
         document["usageLimits"][not_numeric]["valueType"] = "TEXT"
-    return PricingCatalog.parse(yaml.safe_dump(document).encode())
+    return FixtureCatalog.parse(yaml.safe_dump(document).encode())
 
 
 async def start(settings: Settings) -> None:

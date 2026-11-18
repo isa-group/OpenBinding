@@ -18,7 +18,7 @@ import {
   jobOf,
   provenanceOf,
 } from '../src/test/fixtures/jobs';
-import { CURRENT_FIXTURE, catalogFixture } from '../src/test/fixtures/pricingCatalog';
+import { PLANS_PRICING_FIXTURE } from '../src/test/fixtures/plansPricing';
 import { digestOf, usageOf } from '../src/test/fixtures/resources';
 import { FEDERATED_PRESET, presetFixture, presetPage } from '../src/test/fixtures/presets';
 
@@ -430,8 +430,7 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
       expires_in: 900,
     })
   );
-  await page.route(`${API}/v1/pricing/catalog`, json(catalogFixture));
-  await page.route(`${API}/v1/pricing/current`, json(CURRENT_FIXTURE));
+  await page.route(`${API}/v1/plans/pricing`, json(PLANS_PRICING_FIXTURE));
   await page.route(`${API}/v1/users/me`, json(lucia));
   await page.route(
     `${API}/v1/users/me/usage`,

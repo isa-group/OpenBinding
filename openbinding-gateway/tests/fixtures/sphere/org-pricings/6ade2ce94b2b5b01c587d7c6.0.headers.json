@@ -1,0 +1,7 @@
+{
+  "content-type": "application/json; charset=utf-8",
+  "etag": "W/\"17c3-De4ygYgPyDwwmCgV04edBpmsFlQ\"",
+  "ratelimit-limit": "300",
+  "ratelimit-remaining": "299",
+  "ratelimit-reset": "10"
+}

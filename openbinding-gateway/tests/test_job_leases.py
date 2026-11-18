@@ -23,7 +23,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from _paths import GATEWAY_ROOT
-from _pricing import pricing_catalog
+from _pricing import fixture_catalog
 from _repo import REPO_ROOT as EXAMPLES_ROOT
 from openbinding_gateway.core.public_errors import JOB_FAILURES
 from openbinding_gateway.db.models import Job, JobState, User, UserRole, utcnow
@@ -43,7 +43,7 @@ async def owner(db_session) -> User:
         email=f"{uuid.uuid4().hex[:8]}@example.org",
         password_hash="not-a-real-hash",
         role=UserRole.USER,
-        plan_cache=pricing_catalog().default_plan,
+        plan_cache=fixture_catalog().default_plan,
     )
     db_session.add(user)
     await db_session.commit()

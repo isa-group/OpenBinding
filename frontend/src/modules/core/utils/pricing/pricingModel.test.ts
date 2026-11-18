@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { LIMIT_ORDER } from '../limits';
-import { catalogFixture } from '../../../../test/fixtures/pricingCatalog';
+import { catalogFixture } from '../../../../test/fixtures/plansPricing';
 import { currentSelectionOf, readCatalog, withInfiniteLimits } from './pricingModel';
 
 const view = readCatalog(catalogFixture)!;

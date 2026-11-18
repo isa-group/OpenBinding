@@ -20,7 +20,7 @@ import pytest
 from sqlalchemy import func, select
 
 from _fake_space import FakePricingGate
-from _pricing import pricing_catalog
+from _pricing import fixture_catalog
 from openbinding_gateway import space_client
 from openbinding_gateway.db.models import (
     ApiKey,
@@ -212,7 +212,7 @@ def request_transactions(db_session):
 
 async def test_a_contract_that_cannot_be_removed_changes_nothing(api_client, registration, db_session, request_transactions):
     profile, headers, details = await signed_in(api_client, registration)
-    gate = FakePricingGate(pricing_catalog())
+    gate = FakePricingGate(fixture_catalog())
     space_client.set_gate(gate)
 
     async def remove_contract(user_id):

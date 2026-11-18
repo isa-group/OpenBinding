@@ -351,6 +351,8 @@ jobs:
           OPENBINDING_REPO_ROOT: ${{ github.workspace }}
           # The test kit is checked out only in the bim-toolchain job, which runs this module with no skips.
           BIM_ZIP_DIR_ALLOW_NO_CORPUS: "1"
+          # A connect to anything but loopback fails (tests/conftest.py): SPHERE and URLs are read from recordings.
+          OPENBINDING_FORBID_NETWORK: "1"
         run: |
           list="$(python3 ../tools/ci_shard.py --shard ${{ matrix.shard }}/2 --root openbinding-gateway/tests)"
           test -n "$list"

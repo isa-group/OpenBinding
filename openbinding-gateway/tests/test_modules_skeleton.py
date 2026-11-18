@@ -162,9 +162,9 @@ def test_nothing_outside_the_new_packages_imports_them_but_a_modules_application
 
 def test_the_composition_root_mounts_only_adapters_of_known_modules() -> None:
     mounted = [entry for entry in _offenders(SOURCE) if _composition_root_mounts_adapters(entry)]
-    assert mounted, "main.py mounts the routers of modules/problems, modules/execution and modules/compositions"
+    assert mounted, "main.py mounts the adapters of modules/problems, execution, compositions and plans"
     modules = {entry.split(": ", 1)[1].split(".")[2] for entry in mounted}
-    assert modules == {"problems", "execution", "compositions"}, mounted
+    assert modules == {"problems", "execution", "compositions", "plans"}, mounted
 
 
 def test_import_resolver_finds_every_import_form(tmp_path: Path) -> None:

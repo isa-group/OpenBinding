@@ -12,9 +12,9 @@ import pytest
 import pytest_asyncio
 
 from openbinding_gateway import space_client
-from _pricing import caps_for, fake_pricing_gate, largest_plan, pricing_catalog
+from _pricing import caps_for, fake_pricing_gate, largest_plan, fixture_catalog
 
-CATALOG = pricing_catalog()
+CATALOG = fixture_catalog()
 DEFAULT_PLAN = CATALOG.default_plan
 LARGER_PLAN = largest_plan()
 

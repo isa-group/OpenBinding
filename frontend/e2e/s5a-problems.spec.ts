@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import JSZip from 'jszip';
 import { expect as baseExpect, test, type Page, type Route, type TestInfo } from '@playwright/test';
 import { failureBody } from './helpers/problems';
-import { CURRENT_FIXTURE, catalogFixture } from '../src/test/fixtures/pricingCatalog';
+import { PLANS_PRICING_FIXTURE } from '../src/test/fixtures/plansPricing';
 import { checkoutFacts, compiledDocument, digestOf } from '../src/modules/problem/utils/fixtures';
 import type { CompositionVersionView } from '../src/modules/core/api/types';
 
@@ -281,8 +281,7 @@ async function mockApi(page: Page): Promise<State> {
       expires_in: 900,
     })
   );
-  await page.route(`${API}/v1/pricing/catalog`, json(catalogFixture));
-  await page.route(`${API}/v1/pricing/current`, json(CURRENT_FIXTURE));
+  await page.route(`${API}/v1/plans/pricing`, json(PLANS_PRICING_FIXTURE));
   await page.route(`${API}/v1/users/me`, json(lucia));
   await page.route(`${API}/v1/users/me/pricing-token`, json({ pricing_token: token(3600) }));
   await page.route(`${API}/v1/users/me/usage`, json(researchUsage()));

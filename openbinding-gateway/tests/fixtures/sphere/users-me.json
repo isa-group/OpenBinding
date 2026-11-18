@@ -1,0 +1,16 @@
+{
+  "apiKey": {
+    "id": "6b00000000000000000000ab",
+    "scopes": [
+      {
+        "organizationId": "6ade2ce94b2b5b01c587d7c6",
+        "scope": "MANAGEMENT"
+      }
+    ]
+  },
+  "email": "fixture-user@example.invalid",
+  "firstName": "Fixture",
+  "id": "6b00000000000000000000aa",
+  "role": "USER",
+  "username": "fixture-user"
+}

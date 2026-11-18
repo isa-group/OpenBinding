@@ -1,0 +1,402 @@
+saasName: Postmark
+syntaxVersion: '3.1'
+version: '2026-08-03'
+url: https://postmarkapp.com/pricing
+createdAt: '2026-08-03'
+currency: USD
+variables: {}
+tags:
+  - Envío
+  - Recursos
+features:
+  transactionalEmailApi:
+    description: Envío individual por POST /email [DS:75-80, DS:283-284]
+    valueType: BOOLEAN
+    defaultValue: true
+    type: INTEGRATION
+    integrationType: API
+    tag: Envío
+  templateEmailApi:
+    description: Envío con plantilla por POST /email/withTemplate [DS:81-86, DS:285]
+    valueType: BOOLEAN
+    defaultValue: true
+    type: INTEGRATION
+    integrationType: API
+    tag: Envío
+  batchEmailApi:
+    description: Envío en lote por POST /email/batch [DS:87-92, DS:287]
+    valueType: BOOLEAN
+    defaultValue: true
+    type: INTEGRATION
+    integrationType: API
+    tag: Envío
+  batchWithTemplatesApi:
+    description: Lote con plantillas por POST /email/batchWithTemplates [DS:93-98, DS:287]
+    valueType: BOOLEAN
+    defaultValue: true
+    type: INTEGRATION
+    integrationType: API
+    tag: Envío
+  bulkEmailApi:
+    description: >-
+      Envío masivo por POST /email/bulk, solo por streams de broadcast; su
+      disponibilidad por plan no está documentada [DS:99-104, DS:292, DS:307]
+    valueType: BOOLEAN
+    defaultValue: true
+    type: INTEGRATION
+    integrationType: API
+    tag: Envío
+  smtpRelay:
+    description: >-
+      Canal SMTP; 10 conexiones por IP recomendadas y no aplicadas [DS:295,
+      DS:297]
+    valueType: BOOLEAN
+    defaultValue: true
+    type: INTEGRATION
+    integrationType: API
+    tag: Envío
+  inboundEmailProcessing:
+    description: >-
+      Procesado de correo entrante y GET /messages/inbound; desde Pro
+      [DS:201-206, DS:277, DS:297]
+    valueType: BOOLEAN
+    defaultValue: false
+    type: DOMAIN
+    tag: Envío
+  dedicatedIp:
+    description: IP dedicada, solo como add-on de Pro y Platform [DS:278]
+    valueType: BOOLEAN
+    defaultValue: false
+    type: DOMAIN
+    tag: Envío
+  eventWebhooks:
+    description: >-
+      Todos los webhooks de eventos; el panel los lista en Pro y Platform
+      [DS:297]
+    valueType: BOOLEAN
+    defaultValue: false
+    type: INTEGRATION
+    integrationType: API
+    tag: Recursos
+  statsTrackingApis:
+    description: >-
+      APIs de estadísticas y de seguimiento de aperturas y enlaces; el panel
+      solo las lista en Pro [DS:297]
+    valueType: BOOLEAN
+    defaultValue: false
+    type: INFORMATION
+    tag: Recursos
+  outboundMessagesApi:
+    description: Consulta de enviados por GET /messages/outbound [DS:105-110, DS:291]
+    valueType: BOOLEAN
+    defaultValue: true
+    type: INFORMATION
+    tag: Recursos
+  activityData:
+    description: >-
+      Conservación del contenido, los eventos y los metadatos de los mensajes
+      [DS:294]
+    valueType: BOOLEAN
+    defaultValue: true
+    type: INFORMATION
+    tag: Recursos
+  emailTemplates:
+    description: Plantillas por servidor [DS:293]
+    valueType: BOOLEAN
+    defaultValue: true
+    type: DOMAIN
+    tag: Recursos
+  servers:
+    description: Servidores de la cuenta [DS:297]
+    valueType: BOOLEAN
+    defaultValue: true
+    type: MANAGEMENT
+    tag: Recursos
+  messageStreams:
+    description: Streams de mensajes [DS:297]
+    valueType: BOOLEAN
+    defaultValue: true
+    type: MANAGEMENT
+    tag: Recursos
+  signatureDomains:
+    description: Dominios de firma [DS:297]
+    valueType: BOOLEAN
+    defaultValue: true
+    type: MANAGEMENT
+    tag: Recursos
+  teamUsers:
+    description: Usuarios de la cuenta [DS:297]
+    valueType: BOOLEAN
+    defaultValue: true
+    type: MANAGEMENT
+    tag: Recursos
+usageLimits:
+  emailsPerMonth:
+    description: >-
+      Cuota mensual de emails; en Free se repone con el ciclo de la cuenta
+      [DS:15-55, DS:292, DS:298]
+    valueType: NUMERIC
+    defaultValue: 100
+    unit: email
+    type: RENEWABLE
+    period:
+      unit: MONTH
+      value: 1
+    linkedFeatures:
+      - transactionalEmailApi
+      - templateEmailApi
+      - batchEmailApi
+      - batchWithTemplatesApi
+      - bulkEmailApi
+      - smtpRelay
+  apiRequestsPerSecond:
+    description: >-
+      Caudal de la API REST, leído de la cabecera ratelimit-limit; no publicado,
+      429 no alcanzado (ámbar) [DS:57-64, DS:289, DS:302]
+    valueType: NUMERIC
+    defaultValue: 5000
+    unit: request
+    type: RENEWABLE
+    period:
+      unit: SEC
+      value: 1
+    linkedFeatures:
+      - transactionalEmailApi
+      - templateEmailApi
+      - batchEmailApi
+      - batchWithTemplatesApi
+      - bulkEmailApi
+      - outboundMessagesApi
+  recipientsPerMessage:
+    description: >-
+      Destinatarios por mensaje, 50 en total entre To, Cc y Bcc (verificado)
+      [DS:79-86, DS:284-285]
+    valueType: NUMERIC
+    defaultValue: 50
+    unit: recipient
+    type: NON_RENEWABLE
+    trackable: false
+    linkedFeatures:
+      - transactionalEmailApi
+      - templateEmailApi
+  messagesPerBatchRequest:
+    description: >-
+      Mensajes por llamada a los dos endpoints de lote; 500 entra y 501 no
+      [DS:91-98, DS:287]
+    valueType: NUMERIC
+    defaultValue: 500
+    unit: email
+    type: NON_RENEWABLE
+    trackable: false
+    linkedFeatures:
+      - batchEmailApi
+      - batchWithTemplatesApi
+  emailSize:
+    description: >-
+      Tamaño de un mensaje de la Email API, medido tras codificar en Base64
+      [DS:282]
+    valueType: NUMERIC
+    defaultValue: 10
+    unit: MB
+    type: NON_RENEWABLE
+    trackable: false
+    linkedFeatures:
+      - transactionalEmailApi
+      - templateEmailApi
+  batchPayloadSize:
+    description: Carga total de una llamada de lote o masiva, con adjuntos [DS:282, DS:292]
+    valueType: NUMERIC
+    defaultValue: 50
+    unit: MB
+    type: NON_RENEWABLE
+    trackable: false
+    linkedFeatures:
+      - batchEmailApi
+      - batchWithTemplatesApi
+      - bulkEmailApi
+  resultsPerMessagesRequest:
+    description: Resultados por petición a la Messages API [DS:105-110, DS:291]
+    valueType: NUMERIC
+    defaultValue: 500
+    unit: message
+    type: NON_RENEWABLE
+    trackable: false
+    linkedFeatures:
+      - outboundMessagesApi
+  maxTemplatesPerServer:
+    description: Plantillas por servidor [DS:293]
+    valueType: NUMERIC
+    defaultValue: 100
+    unit: template
+    type: NON_RENEWABLE
+    trackable: true
+    linkedFeatures:
+      - emailTemplates
+  activityRetentionDays:
+    description: Retención por defecto de la actividad [DS:294]
+    valueType: NUMERIC
+    defaultValue: 45
+    unit: day
+    type: NON_RENEWABLE
+    trackable: false
+    linkedFeatures:
+      - activityData
+  maxServers:
+    description: Servidores por cuenta; Free sin cifra en la Datasheet [DS:297]
+    valueType: NUMERIC
+    defaultValue: 5
+    unit: server
+    type: NON_RENEWABLE
+    trackable: true
+    linkedFeatures:
+      - servers
+  maxStreams:
+    description: Streams por cuenta; Free sin cifra en la Datasheet [DS:297]
+    valueType: NUMERIC
+    defaultValue: 15
+    unit: stream
+    type: NON_RENEWABLE
+    trackable: true
+    linkedFeatures:
+      - messageStreams
+  maxSignatureDomains:
+    description: Dominios de firma por cuenta; Free sin cifra en la Datasheet [DS:297]
+    valueType: NUMERIC
+    defaultValue: 5
+    unit: domain
+    type: NON_RENEWABLE
+    trackable: true
+    linkedFeatures:
+      - signatureDomains
+  maxUsers:
+    description: Usuarios por cuenta; Free sin cifra en la Datasheet [DS:297]
+    valueType: NUMERIC
+    defaultValue: 4
+    unit: user
+    type: NON_RENEWABLE
+    trackable: true
+    linkedFeatures:
+      - teamUsers
+plans:
+  free:
+    description: >-
+      Free; tope duro sin sobrecoste, pensado para probar la integración
+      [DS:66-73, DS:274]
+    price: 0
+    unit: month
+    features: null
+    usageLimits: null
+  basic:
+    description: >-
+      Basic en su primer volumen, 10.000 emails al mes [DS:112-118, DS:275,
+      DS:296]
+    price: 15
+    unit: month
+    features: null
+    usageLimits:
+      emailsPerMonth:
+        value: 10000
+  pro:
+    description: >-
+      Pro en su primer volumen, 10.000 emails al mes [DS:157-163, DS:275,
+      DS:297]
+    price: 16.5
+    unit: month
+    features:
+      inboundEmailProcessing:
+        value: true
+      eventWebhooks:
+        value: true
+      statsTrackingApis:
+        value: true
+    usageLimits:
+      emailsPerMonth:
+        value: 10000
+      maxServers:
+        value: 10
+      maxStreams:
+        value: 30
+      maxSignatureDomains:
+        value: 10
+      maxUsers:
+        value: 6
+  platform:
+    description: >-
+      Platform en su primer volumen, 10.000 emails al mes [DS:208-214, DS:275,
+      DS:297]
+    price: 18
+    unit: month
+    features:
+      inboundEmailProcessing:
+        value: true
+      eventWebhooks:
+        value: true
+    usageLimits:
+      emailsPerMonth:
+        value: 10000
+      maxServers:
+        value: 100000000
+      maxStreams:
+        value: 100000000
+      maxSignatureDomains:
+        value: 100000000
+      maxUsers:
+        value: 100000000
+addOns:
+  extraEmailsBasic:
+    description: >-
+      Sobrecoste de Basic en su primer volumen: 1,80 USD por 1.000 emails
+      [DS:31-33, DS:276]
+    availableFor:
+      - basic
+    price: 1.8
+    unit: 1000 emails
+    usageLimitsExtensions:
+      emailsPerMonth:
+        value: 1000
+    subscriptionConstraints:
+      minQuantity: 1
+      maxQuantity: 100000000
+      quantityStep: 1
+  extraEmailsPro:
+    description: >-
+      Sobrecoste de Pro en su primer volumen: 1,30 USD por 1.000 emails
+      [DS:42-44, DS:276]
+    availableFor:
+      - pro
+    price: 1.3
+    unit: 1000 emails
+    usageLimitsExtensions:
+      emailsPerMonth:
+        value: 1000
+    subscriptionConstraints:
+      minQuantity: 1
+      maxQuantity: 100000000
+      quantityStep: 1
+  extraEmailsPlatform:
+    description: >-
+      Sobrecoste de Platform en su primer volumen: 1,20 USD por 1.000 emails
+      [DS:53-55, DS:276]
+    availableFor:
+      - platform
+    price: 1.2
+    unit: 1000 emails
+    usageLimitsExtensions:
+      emailsPerMonth:
+        value: 1000
+    subscriptionConstraints:
+      minQuantity: 1
+      maxQuantity: 100000000
+      quantityStep: 1
+  dedicatedIp:
+    description: >-
+      IP dedicada a 50 USD al mes por IP; exige 300.000 emails al mes o más
+      [DS:278]
+    availableFor:
+      - pro
+      - platform
+    price: 50
+    unit: IP/month
+    features:
+      dedicatedIp:
+        value: true

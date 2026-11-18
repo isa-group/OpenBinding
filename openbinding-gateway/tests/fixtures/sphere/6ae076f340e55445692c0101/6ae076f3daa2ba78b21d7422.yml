@@ -1,0 +1,251 @@
+saasName: Resend
+syntaxVersion: '3.1'
+version: '2026-09-01'
+url: https://resend.com/pricing
+createdAt: '2026-09-01'
+currency: USD
+variables: {}
+tags:
+  - Envío
+  - Recursos
+features:
+  transactionalEmailApi:
+    description: Envío individual por POST /emails [DS:98-104]
+    valueType: BOOLEAN
+    defaultValue: true
+    type: INTEGRATION
+    integrationType: API
+    tag: Envío
+  batchEmailApi:
+    description: Envío en lote por POST /emails/batch, sin adjuntos [DS:105-110, DS:262]
+    valueType: BOOLEAN
+    defaultValue: true
+    type: INTEGRATION
+    integrationType: API
+    tag: Envío
+  cancelScheduledEmail:
+    description: >-
+      Cancelación de un envío programado, POST /emails/{id}/cancel; ausente del
+      Free [DS:151, DS:190, DS:229]
+    valueType: BOOLEAN
+    defaultValue: false
+    type: AUTOMATION
+    automationType: TASK_AUTOMATION
+    tag: Envío
+  smtpRelay:
+    description: Canal SMTP alternativo a la API REST, smtp.resend.com [DS:274]
+    valueType: BOOLEAN
+    defaultValue: true
+    type: INTEGRATION
+    integrationType: API
+    tag: Envío
+  inboundEmail:
+    description: Recepción de correo; consume la misma cuota que el envío [DS:268, DS:278]
+    valueType: BOOLEAN
+    defaultValue: true
+    type: DOMAIN
+    tag: Envío
+  dedicatedIp:
+    description: IP dedicada, solo como add-on de Scale [DS:265, DS:272]
+    valueType: BOOLEAN
+    defaultValue: false
+    type: DOMAIN
+    tag: Envío
+  singleSignOn:
+    description: SSO, solo como add-on de Scale [DS:272]
+    valueType: BOOLEAN
+    defaultValue: false
+    type: INTEGRATION
+    integrationType: IDENTITY_PROVIDER
+    tag: Recursos
+  sendingDomains:
+    description: Dominios de envío verificados [DS:263, DS:281]
+    valueType: BOOLEAN
+    defaultValue: true
+    type: MANAGEMENT
+    tag: Recursos
+  activityData:
+    description: Conservación de los datos de actividad [DS:264, DS:275]
+    valueType: BOOLEAN
+    defaultValue: true
+    type: INFORMATION
+    tag: Recursos
+usageLimits:
+  emailsPerMonth:
+    description: >-
+      Cuota mensual de emails, por destinatario; cuentan enviados y recibidos
+      [DS:23-51, DS:254, DS:278]
+    valueType: NUMERIC
+    defaultValue: 3000
+    unit: email
+    type: RENEWABLE
+    period:
+      unit: MONTH
+      value: 1
+    linkedFeatures:
+      - transactionalEmailApi
+      - batchEmailApi
+      - smtpRelay
+      - inboundEmail
+  emailsPerDay:
+    description: >-
+      Cuota diaria de emails del Free; los planes de pago no tienen límite
+      diario [DS:16-22, DS:280]
+    valueType: NUMERIC
+    defaultValue: 100
+    unit: email
+    type: RENEWABLE
+    period:
+      unit: DAY
+      value: 1
+    linkedFeatures:
+      - transactionalEmailApi
+      - batchEmailApi
+  apiRequestsPerSecond:
+    description: Caudal por equipo, compartido por todas las claves [DS:62-80, DS:255]
+    valueType: NUMERIC
+    defaultValue: 10
+    unit: request
+    type: RENEWABLE
+    period:
+      unit: SEC
+      value: 1
+    linkedFeatures:
+      - transactionalEmailApi
+      - batchEmailApi
+      - cancelScheduledEmail
+  recipientsPerEmailRequest:
+    description: >-
+      Destinatarios por petición a /emails, 50 en total entre to y cc [DS:103,
+      DS:284]
+    valueType: NUMERIC
+    defaultValue: 50
+    unit: recipient
+    type: NON_RENEWABLE
+    trackable: false
+    linkedFeatures:
+      - transactionalEmailApi
+  messagesPerBatchRequest:
+    description: Mensajes por llamada a /emails/batch [DS:109, DS:262]
+    valueType: NUMERIC
+    defaultValue: 100
+    unit: email
+    type: NON_RENEWABLE
+    trackable: false
+    linkedFeatures:
+      - batchEmailApi
+  attachmentSizePerEmail:
+    description: Tamaño de adjuntos por email tras codificar en Base64 [DS:261]
+    valueType: NUMERIC
+    defaultValue: 40
+    unit: MB
+    type: NON_RENEWABLE
+    trackable: false
+    linkedFeatures:
+      - transactionalEmailApi
+  maxSendingDomains:
+    description: Dominios incluidos por plan [DS:263, DS:281]
+    valueType: NUMERIC
+    defaultValue: 3
+    unit: domain
+    type: NON_RENEWABLE
+    trackable: true
+    linkedFeatures:
+      - sendingDomains
+  activityRetentionDays:
+    description: Retención de datos [DS:264, DS:275]
+    valueType: NUMERIC
+    defaultValue: 30
+    unit: day
+    type: NON_RENEWABLE
+    trackable: false
+    linkedFeatures:
+      - activityData
+plans:
+  free:
+    description: >-
+      Free; la cuota es tope duro, sin sobrecoste ni pay-as-you-go [DS:90,
+      DS:249, DS:271, DS:280]
+    price: 0
+    unit: month
+    features: null
+    usageLimits: null
+  pro:
+    description: Pro en su primer volumen, 50.000 emails al mes [DS:125, DS:250]
+    price: 20
+    unit: month
+    features:
+      cancelScheduledEmail:
+        value: true
+    usageLimits:
+      emailsPerMonth:
+        value: 50000
+      emailsPerDay:
+        value: 100000000
+      maxSendingDomains:
+        value: 10
+  scale:
+    description: Scale en su primer volumen, 100.000 emails al mes [DS:164, DS:250]
+    price: 90
+    unit: month
+    features:
+      cancelScheduledEmail:
+        value: true
+    usageLimits:
+      emailsPerMonth:
+        value: 100000
+      emailsPerDay:
+        value: 100000000
+      maxSendingDomains:
+        value: 1000
+addOns:
+  extraEmailsPayAsYouGo:
+    description: >-
+      Pay-as-you-go: 0,90 USD por cada bloque de 1.000 emails sobre la cuota; no
+      disponible en Free [DS:38-40, DS:271]
+    availableFor:
+      - pro
+      - scale
+    price: 0.9
+    unit: 1000 emails
+    usageLimitsExtensions:
+      emailsPerMonth:
+        value: 1000
+    subscriptionConstraints:
+      minQuantity: 1
+      maxQuantity: 100000000
+      quantityStep: 1
+  extraDomains:
+    description: Añade 100 dominios; solo planes de pago [DS:272]
+    availableFor:
+      - pro
+      - scale
+    price: 20
+    unit: month
+    usageLimitsExtensions:
+      maxSendingDomains:
+        value: 100
+    subscriptionConstraints:
+      minQuantity: 1
+      maxQuantity: 100000000
+      quantityStep: 1
+  dedicatedIp:
+    description: >-
+      IP dedicada; Scale o superior y más de 3.000 emails al día [DS:265,
+      DS:272]
+    availableFor:
+      - scale
+    price: 30
+    unit: month
+    features:
+      dedicatedIp:
+        value: true
+  singleSignOn:
+    description: Single Sign-On; Scale o superior [DS:272]
+    availableFor:
+      - scale
+    price: 150
+    unit: month
+    features:
+      singleSignOn:
+        value: true

@@ -43,7 +43,7 @@ from ....domain.binding_space import BindingSpace
 from ....models.errors import api_error
 from ....services.entitlements import entitlement_service
 from ...plans.application import entitlement_map as ids
-from ...plans.application import quotas
+from ...plans.application import account_stored_bytes, quotas
 from ...shared.application import audit, put_row, read_verified, write_file
 from ..domain.compilation import Compilation
 from ..domain.digests import is_digest
@@ -331,11 +331,9 @@ async def _problems_of(session: AsyncSession, user_id: uuid.UUID) -> int:
 
 
 async def _stored_bytes(session: AsyncSession, user_id: uuid.UUID) -> int:
-    """What ``maxRepositoryStorage`` charges the account: the size of every revision it created (D23)."""
-    return int(await session.scalar(
-        select(func.coalesce(func.sum(BindingCaseRevision.package_size), 0))
-        .where(BindingCaseRevision.created_by_id == user_id)
-    ) or 0)
+    """What ``maxRepositoryStorage`` charges the account: every revision it created (D23) and every pricing URL
+    it read (``plans.application.account_stored_bytes``)."""
+    return await account_stored_bytes(session, user_id)
 
 
 async def _slug_taken(session: AsyncSession, organization_id: uuid.UUID, slug: str) -> bool:

@@ -1,6 +1,6 @@
 import type { PricingSelection } from 'pricing-renderer';
 import { selectionFromContract, type SpaceContractLike } from 'pricing-renderer/space';
-import type { PricingCatalog } from '../../api/account';
+import type { PricingDocument } from '../../api/account';
 import { inInterfaceWords } from '../interfaceWords';
 import { describeLimit, FEATURE, LIMIT, limitInfo, LIMIT_GROUPS, type LimitGroup } from '../limits';
 
@@ -8,7 +8,7 @@ import { describeLimit, FEATURE, LIMIT, limitInfo, LIMIT_GROUPS, type LimitGroup
  * The pricing document, read for display.
  *
  * Everything shown on the Pricing screen is derived from the catalog the gateway serves
- * (`GET /v1/pricing/catalog`): plan names and order, which features and limits exist, what each plan gets,
+ * (`GET /v1/plans/pricing`, its `document`): plan names and order, which features and limits exist, what each plan gets,
  * the add-ons and which features need room before they start. The few words this file adds are display
  * names for identifiers the document does not name (`apiAccess`), never values.
  */
@@ -184,7 +184,7 @@ const STARTS: Record<string, string> = {
 };
 
 /** `null` when the document is not a pricing at all (no plans), so the screen can say so. */
-export function readCatalog(catalog: PricingCatalog): PricingView | null {
+export function readCatalog(catalog: PricingDocument): PricingView | null {
   const plansById = dictOf(catalog.plans);
   const planIds = Object.keys(plansById);
   if (planIds.length === 0) return null;

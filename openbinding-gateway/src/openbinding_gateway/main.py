@@ -61,6 +61,10 @@ from .modules.compositions.adapters.public_routes import me_router as own_compos
 from .modules.compositions.adapters.public_routes import router as public_compositions_router
 from .modules.compositions.adapters.routes import router as compositions_router
 from .modules.execution.adapters.preset_routes import router as run_presets_router
+from .modules.plans.adapters.routes import public_router as plans_public_router
+from .modules.plans.adapters.routes import router as plans_router
+from .modules.plans.adapters.sphere import SphereHttpSource
+from .modules.plans.application import installed_pricing_source, set_pricing_source
 from .modules.execution.adapters.routes import router as runs_router
 from .modules.problems.adapters.bim_routes import router as bim_router
 from .modules.problems.adapters.routes import router as problems_router
@@ -69,7 +73,6 @@ from .routes.auth import router as auth_router
 from .routes.cas import identity_router, router as cas_router
 from .routes.notifications import router as notifications_router
 from .routes.organizations import avatar_router, invitation_router, router as organizations_router
-from .routes.pricing import public_router as pricing_router
 from .routes.studies import router as studies_router
 from .routes.users import router as users_router
 from .routes.v1 import router as v1_router
@@ -103,7 +106,6 @@ def _configure_logging(startup_settings: Settings) -> None:
         secrets=(
             startup_settings.gateway_jwt_secret or "",
             startup_settings.space_api_key or "",
-            startup_settings.sphere_api_key or "",
             startup_settings.bootstrap_admin_password or "",
             startup_settings.federation_secret_key or "",
             *(startup_settings.secrets_fernet_keys or "").split(","),
@@ -131,12 +133,16 @@ async def _lifespan(settings: Settings):
 
     gate = space_client.build_gate(settings)
     space_client.set_gate(gate)
+    # The one reader of SPHERE, its registries and Pricing2Yaml URLs (modules/plans); its requests go through
+    # core.outbound, so there is nothing to close but its in-process cache.
+    set_pricing_source(SphereHttpSource(settings))
     try:
         await check_pricing(settings, gate)
     except BaseException:
         if hasattr(gate, "aclose"):
             await gate.aclose()
         space_client.set_gate(None)
+        set_pricing_source(None)
         await db_base.dispose_engine()
         bim_integration.close_bim()
         raise
@@ -167,6 +173,7 @@ async def _lifespan(settings: Settings):
         if hasattr(gate, "aclose"):
             await gate.aclose()
         space_client.set_gate(None)
+        set_pricing_source(None)
         await db_base.dispose_engine()
         bim_integration.close_bim()
 
@@ -241,8 +248,8 @@ TAGS_METADATA = [
     {
         "name": "Pricing",
         "description": (
-            "The published pricing, read only from SPHERE. Pricings, versions, plans and "
-            "contracts are administered in the SPHERE and SPACE consoles."
+            "OpenBinding's published pricing, SPHERE discovery and the stored upstream pricings, read through the "
+            "pricing source. Pricings, versions, plans and contracts are administered in the SPHERE and SPACE consoles."
         ),
     },
 ]
@@ -366,7 +373,11 @@ async def readiness(
             status_code=503,
             detail={"code": "not_ready", "dependencies": dependencies},
         ) from exc
-    dependencies["sphere"] = "configured" if runtime_settings.sphere_enabled else "disabled"
+    # From the pricing source's own state (enabled, switched off, or backing off after failures); no request.
+    source = installed_pricing_source()
+    dependencies["sphere"] = (
+        source.state() if source is not None else ("configured" if runtime_settings.sphere_enabled else "disabled")
+    )
     dependencies["space"] = "configured" if runtime_settings.space_enabled else "disabled"
     return {"status": "ready", "dependencies": dependencies}
 
@@ -431,7 +442,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(users_router)
     app.include_router(identity_router)
     app.include_router(admin_router)
-    app.include_router(pricing_router)
     app.include_router(organizations_router)
     app.include_router(invitation_router)
     app.include_router(avatar_router)
@@ -447,6 +457,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(runs_router)
     app.include_router(run_presets_router)
     app.include_router(notifications_router)
+    app.include_router(plans_router)
+    app.include_router(plans_public_router)
 
     generated_openapi = app.openapi
     app.openapi = lambda: openapi_with_security_contract(app, settings, generated_openapi)

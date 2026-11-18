@@ -23,11 +23,11 @@ from openbinding_gateway.main import app
 from openbinding_gateway.models.errors import api_error
 from openbinding_gateway.routes import cas as cas_routes
 from openbinding_gateway.routes.cas import CAS_ERROR_CODES
-from _pricing import fake_pricing_gate, largest_plan, pricing_catalog
+from _pricing import fake_pricing_gate, largest_plan, fixture_catalog
 
 FRONTEND = "https://app.openbinding.example"
 CALLBACK_PREFIX = f"{FRONTEND}/sso/callback?"
-DEFAULT_PLAN = pricing_catalog().default_plan
+DEFAULT_PLAN = fixture_catalog().default_plan
 
 
 def make_settings(**overrides) -> Settings:

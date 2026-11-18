@@ -607,7 +607,6 @@
           "compositions:read",
           "compositions:write",
           "notifications:read",
-          "pricing:read",
           "admin:accounts:read",
           "admin:accounts:write"
         ],
@@ -4053,6 +4052,125 @@
         "title": "CompositionView",
         "type": "object"
       },
+      "ConnectionList": {
+        "properties": {
+          "connections": {
+            "items": {
+              "$ref": "#/components/schemas/ConnectionView"
+            },
+            "title": "Connections",
+            "type": "array"
+          }
+        },
+        "required": [
+          "connections"
+        ],
+        "title": "ConnectionList",
+        "type": "object"
+      },
+      "ConnectionScope": {
+        "properties": {
+          "organizationId": {
+            "description": "A SPHERE organization the key may act in.",
+            "title": "Organizationid",
+            "type": "string"
+          },
+          "scope": {
+            "description": "The key's scope there (`VIEW`, `MANAGEMENT`, `ALL`).",
+            "title": "Scope",
+            "type": "string"
+          }
+        },
+        "required": [
+          "organizationId",
+          "scope"
+        ],
+        "title": "ConnectionScope",
+        "type": "object"
+      },
+      "ConnectionView": {
+        "description": "An organization's connection. The secret is never returned; `keyHint` is its last four characters.",
+        "properties": {
+          "expiresAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expiresat"
+          },
+          "keyHint": {
+            "title": "Keyhint",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "sphere",
+              "space"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "scopes": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ConnectionScope"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The SPHERE organizations the key may act in, as SPHERE reported them (null when it did not).",
+            "title": "Scopes"
+          },
+          "status": {
+            "description": "`invalid` once SPHERE refused the key.",
+            "enum": [
+              "active",
+              "invalid"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The SPHERE user the key belongs to.",
+            "title": "Username"
+          },
+          "validatedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Validatedat"
+          }
+        },
+        "required": [
+          "kind",
+          "status",
+          "keyHint"
+        ],
+        "title": "ConnectionView",
+        "type": "object"
+      },
       "ContractSubscriptionView": {
         "properties": {
           "add_ons": {
@@ -6146,6 +6264,49 @@
           "name"
         ],
         "title": "ExistingComposition",
+        "type": "object"
+      },
+      "Facets": {
+        "description": "SPHERE's histograms over the whole result (never computed from one page).",
+        "properties": {
+          "configurationSpaceSize": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Configurationspacesize"
+          },
+          "maxPrice": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Maxprice"
+          },
+          "minPrice": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Minprice"
+          }
+        },
+        "title": "Facets",
         "type": "object"
       },
       "FieldChangeView": {
@@ -8435,27 +8596,245 @@
         "title": "PlanChange",
         "type": "object"
       },
-      "PricingCurrentView": {
+      "PlansPricingView": {
+        "description": "OpenBinding's own published pricing, read through the pricing source.",
         "properties": {
-          "digest": {
-            "title": "Digest",
+          "createdAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Createdat"
+          },
+          "document": {
+            "additionalProperties": true,
+            "description": "The parsed document as JSON (`.inf` is null).",
+            "title": "Document",
+            "type": "object"
+          },
+          "name": {
+            "title": "Name",
             "type": "string"
           },
-          "url": {
-            "title": "Url",
+          "permanentUrl": {
+            "title": "Permanenturl",
+            "type": "string"
+          },
+          "pricingId": {
+            "title": "Pricingid",
             "type": "string"
           },
           "version": {
             "title": "Version",
             "type": "string"
+          },
+          "versionId": {
+            "title": "Versionid",
+            "type": "string"
+          },
+          "yaml": {
+            "description": "The Pricing2Yaml text, for pricing-renderer.",
+            "title": "Yaml",
+            "type": "string"
           }
         },
         "required": [
+          "pricingId",
+          "name",
           "version",
-          "digest",
-          "url"
+          "versionId",
+          "permanentUrl",
+          "yaml",
+          "document"
         ],
-        "title": "PricingCurrentView",
+        "title": "PlansPricingView",
+        "type": "object"
+      },
+      "PricingSnapshotView": {
+        "description": "A stored upstream pricing version: where it came from and what it is, by name (no digests).",
+        "properties": {
+          "collection": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection"
+          },
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency"
+          },
+          "fetchedAt": {
+            "format": "date-time",
+            "title": "Fetchedat",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "owner": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner"
+          },
+          "permanentUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Permanenturl"
+          },
+          "pricingId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pricingid"
+          },
+          "registry": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Registry"
+          },
+          "renamed": {
+            "description": "Whether an earlier snapshot of the same source had the same content.",
+            "title": "Renamed",
+            "type": "boolean"
+          },
+          "slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slug"
+          },
+          "source": {
+            "enum": [
+              "sphere",
+              "registry",
+              "url"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "syntaxVersion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Syntaxversion"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          },
+          "valid": {
+            "title": "Valid",
+            "type": "boolean"
+          },
+          "versionCreatedAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Versioncreatedat"
+          },
+          "versionId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Versionid"
+          },
+          "versionLabel": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Versionlabel"
+          },
+          "yamlHref": {
+            "title": "Yamlhref",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "source",
+          "title",
+          "valid",
+          "fetchedAt",
+          "renamed",
+          "yamlHref"
+        ],
+        "title": "PricingSnapshotView",
         "type": "object"
       },
       "PricingTokenView": {
@@ -10807,6 +11186,390 @@
           "entries"
         ],
         "title": "SectionDiffView",
+        "type": "object"
+      },
+      "SphereAnalytics": {
+        "properties": {
+          "addOns": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Addons"
+          },
+          "configurationSpaceSize": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Configurationspacesize"
+          },
+          "features": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Features"
+          },
+          "maxPrice": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Maxprice"
+          },
+          "minPrice": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Minprice"
+          },
+          "plans": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plans"
+          }
+        },
+        "title": "SphereAnalytics",
+        "type": "object"
+      },
+      "SphereCollection": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slug"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "title": "SphereCollection",
+        "type": "object"
+      },
+      "SphereConnectionUpdate": {
+        "additionalProperties": false,
+        "description": "The key of a SPHERE connection: ``sk-`` and 64 hexadecimal characters. It is written, never read back.",
+        "properties": {
+          "apiKey": {
+            "description": "The SPHERE API key (write-only).",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Apikey",
+            "type": "string"
+          }
+        },
+        "required": [
+          "apiKey"
+        ],
+        "title": "SphereConnectionUpdate",
+        "type": "object"
+      },
+      "SphereLatestVersion": {
+        "properties": {
+          "createdAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Createdat"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label"
+        ],
+        "title": "SphereLatestVersion",
+        "type": "object"
+      },
+      "SphereManifestView": {
+        "properties": {
+          "latestVersionId": {
+            "title": "Latestversionid",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "permanentUrl": {
+            "title": "Permanenturl",
+            "type": "string"
+          },
+          "pricingId": {
+            "title": "Pricingid",
+            "type": "string"
+          },
+          "versions": {
+            "description": "Newest first by date (SPHERE's latest is by date).",
+            "items": {
+              "$ref": "#/components/schemas/SphereVersionEntry"
+            },
+            "title": "Versions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "pricingId",
+          "name",
+          "permanentUrl",
+          "latestVersionId",
+          "versions"
+        ],
+        "title": "SphereManifestView",
+        "type": "object"
+      },
+      "SphereOwner": {
+        "properties": {
+          "displayName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Displayname"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "SphereOwner",
+        "type": "object"
+      },
+      "SpherePricingRow": {
+        "properties": {
+          "analytics": {
+            "$ref": "#/components/schemas/SphereAnalytics"
+          },
+          "collection": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SphereCollection"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency"
+          },
+          "latestVersion": {
+            "$ref": "#/components/schemas/SphereLatestVersion"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "owner": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SphereOwner"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pricingId": {
+            "title": "Pricingid",
+            "type": "string"
+          },
+          "private": {
+            "default": false,
+            "title": "Private",
+            "type": "boolean"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "pricingId",
+          "name",
+          "slug",
+          "latestVersion",
+          "analytics"
+        ],
+        "title": "SpherePricingRow",
+        "type": "object"
+      },
+      "SpherePricingSearch": {
+        "properties": {
+          "connected": {
+            "description": "Whether the organization has an active SPHERE connection.",
+            "title": "Connected",
+            "type": "boolean"
+          },
+          "facets": {
+            "$ref": "#/components/schemas/Facets"
+          },
+          "pricings": {
+            "items": {
+              "$ref": "#/components/schemas/SpherePricingRow"
+            },
+            "title": "Pricings",
+            "type": "array"
+          },
+          "registries": {
+            "description": "The SPHERE registries this deployment can read, by alias.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Registries",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "pricings",
+          "total",
+          "facets",
+          "connected",
+          "registries"
+        ],
+        "title": "SpherePricingSearch",
+        "type": "object"
+      },
+      "SphereVersionEntry": {
+        "properties": {
+          "createdAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Createdat"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "private": {
+            "default": false,
+            "title": "Private",
+            "type": "boolean"
+          },
+          "versionId": {
+            "title": "Versionid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "versionId",
+          "label"
+        ],
+        "title": "SphereVersionEntry",
+        "type": "object"
+      },
+      "SphereVersionView": {
+        "properties": {
+          "diagnostics": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Diagnostics",
+            "type": "array"
+          },
+          "snapshot": {
+            "$ref": "#/components/schemas/PricingSnapshotView"
+          },
+          "summary": {
+            "additionalProperties": true,
+            "description": "The normalised pricing: plans, add-ons (metered apart), features, limits.",
+            "title": "Summary",
+            "type": "object"
+          }
+        },
+        "required": [
+          "snapshot",
+          "summary",
+          "diagnostics"
+        ],
+        "title": "SphereVersionView",
         "type": "object"
       },
       "StreamTicket": {
@@ -23095,6 +23858,359 @@
         ]
       }
     },
+    "/v1/organizations/{org}/connections": {
+      "get": {
+        "operationId": "listOrganizationConnections",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectionList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is not an ADMIN of the organization."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such resource, or none this caller may see."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "The organization's connections (never their secrets)",
+        "tags": [
+          "Organizations"
+        ],
+        "x-required-api-key-permissions": [
+          "organizations:write"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/connections/sphere": {
+      "delete": {
+        "operationId": "deleteOrganizationSphereConnection",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is not an ADMIN of the organization."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such resource, or none this caller may see."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Remove the organization's SPHERE connection and its key",
+        "tags": [
+          "Organizations"
+        ],
+        "x-required-api-key-permissions": [
+          "organizations:write"
+        ]
+      },
+      "put": {
+        "operationId": "putOrganizationSphereConnection",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Revision the client last read, as given by the `ETag` of a GET or of an earlier edit: an entity-tag, a list of them, or `*` for any existing resource. Absent: the edit is applied without a revision check. Weak tags never match.",
+            "in": "header",
+            "name": "If-Match",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Revision the client last read, as given by the `ETag` of a GET or of an earlier edit: an entity-tag, a list of them, or `*` for any existing resource. Absent: the edit is applied without a revision check. Weak tags never match.",
+              "title": "If-Match"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SphereConnectionUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectionView"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "ETag": {
+                "description": "Revision of the resource; send it back as `If-Match` to edit it.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`If-Match` is not a list of entity-tags or `*` (code `invalid_if_match`)."
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is not an ADMIN of the organization."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such resource, or none this caller may see."
+          },
+          "412": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`If-Match` does not match the current revision (code `precondition_failed`): nothing was applied. The `ETag` header carries the current revision.",
+            "headers": {
+              "ETag": {
+                "description": "Revision of the resource; send it back as `If-Match` to edit it.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The key is malformed (`sphere_key_malformed`) or SPHERE refused it (`sphere_key_rejected`)."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many `read` requests from this client: past the budget of its address, or of its account when signed in. `Retry-After` says when the window ends.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No secrets can be kept (`secrets_unavailable`), or SPHERE is busy or unreachable (`sphere_busy`, `sphere_unavailable`)."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Connect the organization to SPHERE with an API key (write-only)",
+        "tags": [
+          "Organizations"
+        ],
+        "x-required-api-key-permissions": [
+          "organizations:write"
+        ]
+      }
+    },
     "/v1/organizations/{org}/hierarchy": {
       "get": {
         "description": "The whole branch the organization sits in (its root, and everything below the root), flat and by name,\neach node saying whether the caller opens it, as SPHERE's ``GET /orgs/{id}/hierarchy``. For its members\nonly: anybody else gets 404.",
@@ -24753,6 +25869,263 @@
         "x-api-key-engine-access": "exact-revision-allow-list-or-all",
         "x-required-api-key-permissions": [
           "engines:execute"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/pricing-snapshots/{snapshot}": {
+      "get": {
+        "operationId": "getPricingSnapshot",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "snapshot",
+            "required": true,
+            "schema": {
+              "title": "Snapshot",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PricingSnapshotView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such snapshot, or none this caller may read (`pricing_snapshot_not_found`)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many `read` requests from this address by a caller with no credential: past the anonymous budget. A signed-in caller is not charged. `Retry-After` says when the window ends.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          },
+          {}
+        ],
+        "summary": "A stored upstream pricing version",
+        "tags": [
+          "Organizations",
+          "Pricing"
+        ],
+        "x-required-api-key-permissions": [
+          "problems:read"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/pricing-snapshots/{snapshot}/yaml": {
+      "get": {
+        "operationId": "getPricingSnapshotYaml",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "snapshot",
+            "required": true,
+            "schema": {
+              "title": "Snapshot",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/yaml": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "ETag": {
+                "description": "Revision of the resource; send it back as `If-Match` to edit it.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "The caller's copy (`If-None-Match`) is current."
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such snapshot, or none this caller may read (`pricing_snapshot_not_found`)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many `read` requests from this address by a caller with no credential: past the anonymous budget. A signed-in caller is not charged. `Retry-After` says when the window ends.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          },
+          {}
+        ],
+        "summary": "The bytes of a stored upstream pricing version",
+        "tags": [
+          "Organizations",
+          "Pricing"
+        ],
+        "x-required-api-key-permissions": [
+          "problems:read"
         ]
       }
     },
@@ -27599,6 +28972,559 @@
         ]
       }
     },
+    "/v1/organizations/{org}/sphere/pricings": {
+      "get": {
+        "operationId": "searchSpherePricings",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Words of the pricing's name.",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 120,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Words of the pricing's name.",
+              "title": "Q"
+            }
+          },
+          {
+            "description": "A SPHERE collection slug.",
+            "in": "query",
+            "name": "collection",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 160,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "A SPHERE collection slug.",
+              "title": "Collection"
+            }
+          },
+          {
+            "description": "A SPHERE organization of the connection's scopes: its private pricings are listed too.",
+            "in": "query",
+            "name": "organization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^[0-9a-f]{24}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "A SPHERE organization of the connection's scopes: its private pricings are listed too.",
+              "title": "Organization"
+            }
+          },
+          {
+            "description": "A configured SPHERE registry alias.",
+            "in": "query",
+            "name": "registry",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 32,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "A configured SPHERE registry alias.",
+              "title": "Registry"
+            }
+          },
+          {
+            "description": "Only pricings whose cheapest plan costs at least this.",
+            "in": "query",
+            "name": "minPrice",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only pricings whose cheapest plan costs at least this.",
+              "title": "Minprice"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "name",
+                    "minPrice"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Sort"
+            }
+          },
+          {
+            "in": "query",
+            "name": "order",
+            "required": false,
+            "schema": {
+              "default": "asc",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "title": "Order",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 24,
+              "maximum": 24,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 10000,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpherePricingSearch"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is not a MEMBER of the organization."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such SPHERE pricing, or none this organization may read (`sphere_pricing_not_found`)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An unknown registry (`sphere_registry_unknown`), or a version the gateway does not read (`sphere_syntax_unsupported`, `sphere_pricing_invalid`)."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many `read` requests from this client: past the budget of its address, or of its account when signed in. `Retry-After` says when the window ends.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "SPHERE is busy (`sphere_busy`, with `Retry-After`) or unavailable (`sphere_unavailable`)."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Search SPHERE's pricings (and, with a connection, a connected organization's private ones)",
+        "tags": [
+          "Organizations",
+          "Pricing"
+        ],
+        "x-required-api-key-permissions": [
+          "problems:read"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/sphere/pricings/{pricing_id}": {
+      "get": {
+        "operationId": "getSpherePricing",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "pricing_id",
+            "required": true,
+            "schema": {
+              "title": "Pricing Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "registry",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 32,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Registry"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SphereManifestView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is not a MEMBER of the organization."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such SPHERE pricing, or none this organization may read (`sphere_pricing_not_found`)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An unknown registry (`sphere_registry_unknown`), or a version the gateway does not read (`sphere_syntax_unsupported`, `sphere_pricing_invalid`)."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many `read` requests from this client: past the budget of its address, or of its account when signed in. `Retry-After` says when the window ends.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "SPHERE is busy (`sphere_busy`, with `Retry-After`) or unavailable (`sphere_unavailable`)."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "A SPHERE pricing's versions, newest first by date",
+        "tags": [
+          "Organizations",
+          "Pricing"
+        ],
+        "x-required-api-key-permissions": [
+          "problems:read"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/sphere/pricings/{pricing_id}/versions/{version_id}": {
+      "get": {
+        "operationId": "getSpherePricingVersion",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "pricing_id",
+            "required": true,
+            "schema": {
+              "title": "Pricing Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version_id",
+            "required": true,
+            "schema": {
+              "title": "Version Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "registry",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 32,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Registry"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SphereVersionView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is not a MEMBER of the organization."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such SPHERE pricing, or none this organization may read (`sphere_pricing_not_found`)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An unknown registry (`sphere_registry_unknown`), or a version the gateway does not read (`sphere_syntax_unsupported`, `sphere_pricing_invalid`)."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many `read` requests from this client: past the budget of its address, or of its account when signed in. `Retry-After` says when the window ends.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "SPHERE is busy (`sphere_busy`, with `Retry-After`) or unavailable (`sphere_unavailable`)."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "One SPHERE version, kept as a snapshot, with its plans, add-ons, features and limits",
+        "tags": [
+          "Organizations",
+          "Pricing"
+        ],
+        "x-required-api-key-permissions": [
+          "problems:read"
+        ]
+      }
+    },
     "/v1/organizations/{org}/studies": {
       "get": {
         "description": "The organization's studies by name, paged with ``limit`` and ``offset``; the total is ``X-Total-Count``.",
@@ -29396,52 +31322,44 @@
         ]
       }
     },
-    "/v1/pricing/catalog": {
+    "/v1/plans/pricing": {
       "get": {
-        "description": "Return the published, digest-verified Pricing2Yaml document unchanged, as JSON.",
-        "operationId": "getPricingCatalog",
+        "description": "The published pricing: the YAML for pricing-renderer and the parsed document (``.inf`` as ``null``).",
+        "operationId": "getPlansPricing",
         "responses": {
           "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Getpricingcatalog",
-                  "type": "object"
+                  "$ref": "#/components/schemas/PlansPricingView"
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Successful Response",
+            "headers": {
+              "ETag": {
+                "description": "The SHA-256 of the YAML.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "The caller's copy (`If-None-Match`) is current."
           },
           "503": {
-            "description": "The published pricing cannot be read: SPHERE is not enabled, `SPACE_PRICING_VERSION` is not set, or SPHERE does not serve that public version (`pricing_unavailable`)."
-          }
-        },
-        "summary": "Pricing Catalog",
-        "tags": [
-          "Pricing"
-        ]
-      }
-    },
-    "/v1/pricing/current": {
-      "get": {
-        "operationId": "getCurrentPricing",
-        "responses": {
-          "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PricingCurrentView"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             },
-            "description": "Successful Response"
-          },
-          "503": {
-            "description": "The published pricing cannot be read: SPHERE is not enabled, `SPACE_PRICING_VERSION` is not set, or SPHERE does not serve that public version (`pricing_unavailable`)."
+            "description": "The published pricing cannot be read (`pricing_unavailable`)."
           }
         },
-        "summary": "Current Pricing",
+        "summary": "OpenBinding's published pricing (the version SPACE_PRICING_VERSION names), read from SPHERE",
         "tags": [
           "Pricing"
         ]
@@ -31039,7 +32957,7 @@
       "name": "Notifications"
     },
     {
-      "description": "The published pricing, read only from SPHERE. Pricings, versions, plans and contracts are administered in the SPHERE and SPACE consoles.",
+      "description": "OpenBinding's published pricing, SPHERE discovery and the stored upstream pricings, read through the pricing source. Pricings, versions, plans and contracts are administered in the SPHERE and SPACE consoles.",
       "name": "Pricing"
     }
   ],
@@ -31063,7 +32981,6 @@
     "compositions:read",
     "compositions:write",
     "notifications:read",
-    "pricing:read",
     "admin:accounts:read",
     "admin:accounts:write"
   ]

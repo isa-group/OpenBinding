@@ -1,0 +1,1027 @@
+{
+  "diagnostics": [],
+  "snapshot": {
+    "collection": null,
+    "currency": "USD",
+    "fetchedAt": "2026-01-01T00:00:10Z",
+    "id": "00000000-0000-4000-8000-000000000002",
+    "owner": "danruilop1",
+    "permanentUrl": "https://sphere.score.us.es/p/6ade364540e55445692b0eda?version=6ade36454b2b5b01c587db3d",
+    "pricingId": "6ade364540e55445692b0eda",
+    "registry": null,
+    "renamed": false,
+    "slug": "mailgun",
+    "source": "sphere",
+    "syntaxVersion": "3.1",
+    "title": "Mailgun",
+    "url": null,
+    "valid": true,
+    "versionCreatedAt": "2026-01-01T00:00:03Z",
+    "versionId": "6ade36454b2b5b01c587db3d",
+    "versionLabel": "2026-10",
+    "yamlHref": "/v1/organizations/fixtures/pricing-snapshots/00000000-0000-4000-8000-000000000002/yaml"
+  },
+  "summary": {
+    "addOns": [
+      {
+        "availableFor": [
+          "FOUNDATION",
+          "SCALE",
+          "ENTERPRISE"
+        ],
+        "dependsOn": [],
+        "excludes": [],
+        "features": {
+          "automatedDedicatedIpWarmUp": true,
+          "dedicatedIps": true
+        },
+        "id": "dedicatedIp",
+        "name": "dedicatedIp",
+        "period": "month",
+        "price": {
+          "amount": 59.0,
+          "kind": "fixed"
+        },
+        "private": false,
+        "unit": "ip/month",
+        "usageLimits": {},
+        "usageLimitsExtensions": {
+          "dedicatedIpsLimit": 1.0
+        }
+      }
+    ],
+    "billing": [
+      {
+        "id": "monthly",
+        "multiplier": 1.0,
+        "synthesized": false
+      }
+    ],
+    "createdAt": "2026-10-25",
+    "currency": "USD",
+    "diagnostics": [],
+    "features": [
+      {
+        "default": true,
+        "id": "smtpRelays",
+        "name": "smtpRelays",
+        "type": "INTEGRATION",
+        "valueType": "BOOLEAN"
+      },
+      {
+        "default": true,
+        "id": "restfulEmailApi",
+        "name": "restfulEmailApi",
+        "type": "INTEGRATION",
+        "valueType": "BOOLEAN"
+      },
+      {
+        "default": true,
+        "id": "mailingLists",
+        "name": "mailingLists",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN"
+      },
+      {
+        "default": true,
+        "id": "recipientVariables",
+        "name": "recipientVariables",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN"
+      },
+      {
+        "default": true,
+        "id": "customSendingDomains",
+        "name": "customSendingDomains",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN"
+      },
+      {
+        "default": true,
+        "id": "logRetention",
+        "name": "logRetention",
+        "type": "INFORMATION",
+        "valueType": "BOOLEAN"
+      },
+      {
+        "default": true,
+        "id": "bounceClassification",
+        "name": "bounceClassification",
+        "type": "INFORMATION",
+        "valueType": "BOOLEAN"
+      },
+      {
+        "default": false,
+        "id": "messageRetention",
+        "name": "messageRetention",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN"
+      },
+      {
+        "default": true,
+        "id": "analytics",
+        "name": "analytics",
+        "type": "INFORMATION",
+        "valueType": "BOOLEAN"
+      },
+      {
+        "default": false,
+        "id": "scheduledAnalyticsReports",
+        "name": "scheduledAnalyticsReports",
+        "type": "INFORMATION",
+        "valueType": "BOOLEAN"
+      },
+      {
+        "default": true,
+        "id": "inboundRouting",
+        "name": "inboundRouting",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN"
+      },
+      {
+        "default": false,
+        "id": "emailTemplates",
+        "name": "emailTemplates",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN"
+      },
+      {
+        "default": true,
+        "id": "webhooks",
+        "name": "webhooks",
+        "type": "INTEGRATION",
+        "valueType": "BOOLEAN"
+      },
+      {
+        "default": true,
+        "id": "apiKeys",
+        "name": "apiKeys",
+        "type": "INTEGRATION",
+        "valueType": "BOOLEAN"
+      },
+      {
+        "default": false,
+        "docUrl": "https://www.mailgun.com/legal/terms/",
+        "id": "guaranteedUptimeSla",
+        "name": "guaranteedUptimeSla",
+        "type": "GUARANTEE",
+        "valueType": "BOOLEAN"
+      },
+      {
+        "default": false,
+        "id": "sendTimeOptimization",
+        "name": "sendTimeOptimization",
+        "type": "AUTOMATION",
+        "valueType": "BOOLEAN"
+      },
+      {
+        "default": false,
+        "id": "emailValidations",
+        "name": "emailValidations",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN"
+      },
+      {
+        "default": true,
+        "id": "suppressionManagement",
+        "name": "suppressionManagement",
+        "type": "AUTOMATION",
+        "valueType": "BOOLEAN"
+      },
+      {
+        "default": false,
+        "id": "automatedDedicatedIpWarmUp",
+        "name": "automatedDedicatedIpWarmUp",
+        "type": "AUTOMATION",
+        "valueType": "BOOLEAN"
+      },
+      {
+        "default": true,
+        "id": "authenticationProtocols",
+        "name": "authenticationProtocols",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN"
+      },
+      {
+        "default": true,
+        "id": "linkTracking",
+        "name": "linkTracking",
+        "type": "AUTOMATION",
+        "valueType": "BOOLEAN"
+      },
+      {
+        "default": false,
+        "id": "dedicatedIps",
+        "name": "dedicatedIps",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN"
+      },
+      {
+        "default": false,
+        "id": "dedicatedIpPools",
+        "name": "dedicatedIpPools",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN"
+      },
+      {
+        "default": false,
+        "docUrl": "https://www.mailgun.com/enterprise/",
+        "id": "rapidFireSla",
+        "name": "rapidFireSla",
+        "type": "GUARANTEE",
+        "valueType": "BOOLEAN"
+      },
+      {
+        "default": true,
+        "docUrl": "https://www.mailgun.com/legal/terms/",
+        "id": "twoFactorAuthentication",
+        "name": "twoFactorAuthentication",
+        "type": "GUARANTEE",
+        "valueType": "BOOLEAN"
+      },
+      {
+        "default": true,
+        "id": "userAccounts",
+        "name": "userAccounts",
+        "type": "MANAGEMENT",
+        "valueType": "BOOLEAN"
+      },
+      {
+        "default": false,
+        "id": "multiUserAccess",
+        "name": "multiUserAccess",
+        "type": "MANAGEMENT",
+        "valueType": "BOOLEAN"
+      },
+      {
+        "default": false,
+        "id": "userRolesAndPermissions",
+        "name": "userRolesAndPermissions",
+        "type": "MANAGEMENT",
+        "valueType": "BOOLEAN"
+      },
+      {
+        "default": false,
+        "id": "samlSso",
+        "name": "samlSso",
+        "type": "INTEGRATION",
+        "valueType": "BOOLEAN"
+      },
+      {
+        "default": false,
+        "id": "subaccounts",
+        "name": "subaccounts",
+        "type": "MANAGEMENT",
+        "valueType": "BOOLEAN"
+      },
+      {
+        "default": false,
+        "id": "rbacApiKeys",
+        "name": "rbacApiKeys",
+        "type": "MANAGEMENT",
+        "valueType": "BOOLEAN"
+      },
+      {
+        "default": true,
+        "id": "knowledgeCenter",
+        "name": "knowledgeCenter",
+        "type": "SUPPORT",
+        "valueType": "BOOLEAN"
+      },
+      {
+        "default": true,
+        "id": "comprehensiveSdks",
+        "name": "comprehensiveSdks",
+        "type": "SUPPORT",
+        "valueType": "BOOLEAN"
+      },
+      {
+        "default": true,
+        "id": "customerFeedbackForum",
+        "name": "customerFeedbackForum",
+        "type": "SUPPORT",
+        "valueType": "BOOLEAN"
+      },
+      {
+        "default": true,
+        "id": "documentation",
+        "name": "documentation",
+        "type": "SUPPORT",
+        "valueType": "BOOLEAN"
+      },
+      {
+        "default": true,
+        "id": "ticketSupport",
+        "name": "ticketSupport",
+        "type": "SUPPORT",
+        "valueType": "BOOLEAN"
+      },
+      {
+        "default": false,
+        "id": "chatSupport",
+        "name": "chatSupport",
+        "type": "SUPPORT",
+        "valueType": "BOOLEAN"
+      },
+      {
+        "default": false,
+        "id": "phoneSupport",
+        "name": "phoneSupport",
+        "type": "SUPPORT",
+        "valueType": "BOOLEAN"
+      }
+    ],
+    "meteredAddOns": [
+      {
+        "availableFor": [
+          "BASIC"
+        ],
+        "id": "extraEmailsBasic",
+        "name": "extraEmailsBasic",
+        "price": {
+          "amount": 1.8,
+          "kind": "fixed"
+        },
+        "private": false,
+        "quantity": 1000.0,
+        "unit": "1000 emails",
+        "usageLimitsExtensions": {
+          "emailsPerMonth": 1000.0
+        }
+      },
+      {
+        "availableFor": [
+          "FOUNDATION"
+        ],
+        "id": "extraEmailsFoundation",
+        "name": "extraEmailsFoundation",
+        "price": {
+          "amount": 1.3,
+          "kind": "fixed"
+        },
+        "private": false,
+        "quantity": 1000.0,
+        "unit": "1000 emails",
+        "usageLimitsExtensions": {
+          "emailsPerMonth": 1000.0
+        }
+      },
+      {
+        "availableFor": [
+          "SCALE"
+        ],
+        "id": "extraEmailsScale",
+        "name": "extraEmailsScale",
+        "price": {
+          "amount": 1.1,
+          "kind": "fixed"
+        },
+        "private": false,
+        "quantity": 1000.0,
+        "unit": "1000 emails",
+        "usageLimitsExtensions": {
+          "emailsPerMonth": 1000.0
+        }
+      },
+      {
+        "availableFor": [
+          "BASIC"
+        ],
+        "id": "emailValidationsBasic",
+        "name": "emailValidationsBasic",
+        "price": {
+          "amount": 1.2,
+          "kind": "fixed"
+        },
+        "private": false,
+        "quantity": 100.0,
+        "unit": "100 validations",
+        "usageLimitsExtensions": {
+          "emailValidationsPerMonth": 100.0
+        }
+      },
+      {
+        "availableFor": [
+          "FOUNDATION"
+        ],
+        "id": "emailValidationsFoundationFirst5k",
+        "name": "emailValidationsFoundationFirst5k",
+        "price": {
+          "amount": 1.2,
+          "kind": "fixed"
+        },
+        "private": false,
+        "quantity": 100.0,
+        "unit": "100 validations",
+        "usageLimitsExtensions": {
+          "emailValidationsPerMonth": 100.0
+        }
+      },
+      {
+        "availableFor": [
+          "FOUNDATION"
+        ],
+        "id": "emailValidationsFoundationNext45k",
+        "name": "emailValidationsFoundationNext45k",
+        "price": {
+          "amount": 0.8,
+          "kind": "fixed"
+        },
+        "private": false,
+        "quantity": 100.0,
+        "unit": "100 validations",
+        "usageLimitsExtensions": {
+          "emailValidationsPerMonth": 100.0
+        }
+      },
+      {
+        "availableFor": [
+          "FOUNDATION"
+        ],
+        "id": "emailValidationsFoundationNext50k",
+        "name": "emailValidationsFoundationNext50k",
+        "price": {
+          "amount": 0.5,
+          "kind": "fixed"
+        },
+        "private": false,
+        "quantity": 100.0,
+        "unit": "100 validations",
+        "usageLimitsExtensions": {
+          "emailValidationsPerMonth": 100.0
+        }
+      },
+      {
+        "availableFor": [
+          "FOUNDATION"
+        ],
+        "id": "emailValidationsFoundationNext150k",
+        "name": "emailValidationsFoundationNext150k",
+        "price": {
+          "amount": 0.35,
+          "kind": "fixed"
+        },
+        "private": false,
+        "quantity": 100.0,
+        "unit": "100 validations",
+        "usageLimitsExtensions": {
+          "emailValidationsPerMonth": 100.0
+        }
+      },
+      {
+        "availableFor": [
+          "FOUNDATION"
+        ],
+        "id": "emailValidationsFoundationNext250k",
+        "name": "emailValidationsFoundationNext250k",
+        "price": {
+          "amount": 0.25,
+          "kind": "fixed"
+        },
+        "private": false,
+        "quantity": 100.0,
+        "unit": "100 validations",
+        "usageLimitsExtensions": {
+          "emailValidationsPerMonth": 100.0
+        }
+      },
+      {
+        "availableFor": [
+          "SCALE"
+        ],
+        "id": "emailValidationsScaleNext45k",
+        "name": "emailValidationsScaleNext45k",
+        "price": {
+          "amount": 0.8,
+          "kind": "fixed"
+        },
+        "private": false,
+        "quantity": 100.0,
+        "unit": "100 validations",
+        "usageLimitsExtensions": {
+          "emailValidationsPerMonth": 100.0
+        }
+      },
+      {
+        "availableFor": [
+          "SCALE"
+        ],
+        "id": "emailValidationsScaleNext50k",
+        "name": "emailValidationsScaleNext50k",
+        "price": {
+          "amount": 0.5,
+          "kind": "fixed"
+        },
+        "private": false,
+        "quantity": 100.0,
+        "unit": "100 validations",
+        "usageLimitsExtensions": {
+          "emailValidationsPerMonth": 100.0
+        }
+      },
+      {
+        "availableFor": [
+          "SCALE"
+        ],
+        "id": "emailValidationsScaleNext150k",
+        "name": "emailValidationsScaleNext150k",
+        "price": {
+          "amount": 0.35,
+          "kind": "fixed"
+        },
+        "private": false,
+        "quantity": 100.0,
+        "unit": "100 validations",
+        "usageLimitsExtensions": {
+          "emailValidationsPerMonth": 100.0
+        }
+      },
+      {
+        "availableFor": [
+          "SCALE"
+        ],
+        "id": "emailValidationsScaleNext250k",
+        "name": "emailValidationsScaleNext250k",
+        "price": {
+          "amount": 0.25,
+          "kind": "fixed"
+        },
+        "private": false,
+        "quantity": 100.0,
+        "unit": "100 validations",
+        "usageLimitsExtensions": {
+          "emailValidationsPerMonth": 100.0
+        }
+      }
+    ],
+    "plans": [
+      {
+        "features": {
+          "analytics": true,
+          "apiKeys": true,
+          "authenticationProtocols": true,
+          "automatedDedicatedIpWarmUp": false,
+          "bounceClassification": true,
+          "chatSupport": false,
+          "comprehensiveSdks": true,
+          "customSendingDomains": true,
+          "customerFeedbackForum": true,
+          "dedicatedIpPools": false,
+          "dedicatedIps": false,
+          "documentation": true,
+          "emailTemplates": false,
+          "emailValidations": false,
+          "guaranteedUptimeSla": false,
+          "inboundRouting": true,
+          "knowledgeCenter": true,
+          "linkTracking": true,
+          "logRetention": true,
+          "mailingLists": true,
+          "messageRetention": false,
+          "multiUserAccess": false,
+          "phoneSupport": false,
+          "rapidFireSla": false,
+          "rbacApiKeys": false,
+          "recipientVariables": true,
+          "restfulEmailApi": true,
+          "samlSso": false,
+          "scheduledAnalyticsReports": false,
+          "sendTimeOptimization": false,
+          "smtpRelays": true,
+          "subaccounts": false,
+          "suppressionManagement": true,
+          "ticketSupport": true,
+          "twoFactorAuthentication": true,
+          "userAccounts": true,
+          "userRolesAndPermissions": false,
+          "webhooks": true
+        },
+        "id": "FREE",
+        "name": "FREE",
+        "perSeat": false,
+        "period": "month",
+        "price": {
+          "amount": 0.0,
+          "kind": "fixed"
+        },
+        "private": false,
+        "unit": "account/month",
+        "usageLimits": {
+          "apiKeysLimit": 2,
+          "bounceClassificationDays": 1,
+          "customSendingDomainsLimit": 1,
+          "dedicatedIpsLimit": 0,
+          "emailValidationsPerMonth": 0,
+          "emailsPerDay": 100,
+          "emailsPerMonth": {
+            "unlimited": true
+          },
+          "inboundRoutesLimit": 1,
+          "logRetentionDays": 1,
+          "messageRetentionDays": 0,
+          "usersLimit": 1
+        }
+      },
+      {
+        "features": {
+          "analytics": true,
+          "apiKeys": true,
+          "authenticationProtocols": true,
+          "automatedDedicatedIpWarmUp": false,
+          "bounceClassification": true,
+          "chatSupport": false,
+          "comprehensiveSdks": true,
+          "customSendingDomains": true,
+          "customerFeedbackForum": true,
+          "dedicatedIpPools": false,
+          "dedicatedIps": false,
+          "documentation": true,
+          "emailTemplates": false,
+          "emailValidations": false,
+          "guaranteedUptimeSla": false,
+          "inboundRouting": true,
+          "knowledgeCenter": true,
+          "linkTracking": true,
+          "logRetention": true,
+          "mailingLists": true,
+          "messageRetention": false,
+          "multiUserAccess": false,
+          "phoneSupport": false,
+          "rapidFireSla": false,
+          "rbacApiKeys": false,
+          "recipientVariables": true,
+          "restfulEmailApi": true,
+          "samlSso": false,
+          "scheduledAnalyticsReports": false,
+          "sendTimeOptimization": false,
+          "smtpRelays": true,
+          "subaccounts": false,
+          "suppressionManagement": true,
+          "ticketSupport": true,
+          "twoFactorAuthentication": true,
+          "userAccounts": true,
+          "userRolesAndPermissions": false,
+          "webhooks": true
+        },
+        "id": "BASIC",
+        "name": "BASIC",
+        "perSeat": false,
+        "period": "month",
+        "price": {
+          "amount": 15.0,
+          "kind": "fixed"
+        },
+        "private": false,
+        "unit": "account/month",
+        "usageLimits": {
+          "apiKeysLimit": 2,
+          "bounceClassificationDays": 1,
+          "customSendingDomainsLimit": 1,
+          "dedicatedIpsLimit": 0,
+          "emailValidationsPerMonth": 0,
+          "emailsPerDay": {
+            "unlimited": true
+          },
+          "emailsPerMonth": 10000,
+          "inboundRoutesLimit": 5,
+          "logRetentionDays": 1,
+          "messageRetentionDays": 0,
+          "usersLimit": 1
+        }
+      },
+      {
+        "features": {
+          "analytics": true,
+          "apiKeys": true,
+          "authenticationProtocols": true,
+          "automatedDedicatedIpWarmUp": false,
+          "bounceClassification": true,
+          "chatSupport": false,
+          "comprehensiveSdks": true,
+          "customSendingDomains": true,
+          "customerFeedbackForum": true,
+          "dedicatedIpPools": false,
+          "dedicatedIps": false,
+          "documentation": true,
+          "emailTemplates": true,
+          "emailValidations": false,
+          "guaranteedUptimeSla": true,
+          "inboundRouting": true,
+          "knowledgeCenter": true,
+          "linkTracking": true,
+          "logRetention": true,
+          "mailingLists": true,
+          "messageRetention": true,
+          "multiUserAccess": true,
+          "phoneSupport": false,
+          "rapidFireSla": false,
+          "rbacApiKeys": true,
+          "recipientVariables": true,
+          "restfulEmailApi": true,
+          "samlSso": false,
+          "scheduledAnalyticsReports": false,
+          "sendTimeOptimization": false,
+          "smtpRelays": true,
+          "subaccounts": false,
+          "suppressionManagement": true,
+          "ticketSupport": true,
+          "twoFactorAuthentication": true,
+          "userAccounts": true,
+          "userRolesAndPermissions": true,
+          "webhooks": true
+        },
+        "id": "FOUNDATION",
+        "name": "FOUNDATION",
+        "perSeat": false,
+        "period": "month",
+        "price": {
+          "amount": 35.0,
+          "kind": "fixed"
+        },
+        "private": false,
+        "unit": "account/month",
+        "usageLimits": {
+          "apiKeysLimit": 2,
+          "bounceClassificationDays": 5,
+          "customSendingDomainsLimit": 1000,
+          "dedicatedIpsLimit": 0,
+          "emailValidationsPerMonth": 0,
+          "emailsPerDay": {
+            "unlimited": true
+          },
+          "emailsPerMonth": 50000,
+          "inboundRoutesLimit": {
+            "unlimited": true
+          },
+          "logRetentionDays": 5,
+          "messageRetentionDays": 1,
+          "usersLimit": {
+            "unlimited": true
+          }
+        }
+      },
+      {
+        "features": {
+          "analytics": true,
+          "apiKeys": true,
+          "authenticationProtocols": true,
+          "automatedDedicatedIpWarmUp": true,
+          "bounceClassification": true,
+          "chatSupport": true,
+          "comprehensiveSdks": true,
+          "customSendingDomains": true,
+          "customerFeedbackForum": true,
+          "dedicatedIpPools": true,
+          "dedicatedIps": true,
+          "documentation": true,
+          "emailTemplates": true,
+          "emailValidations": true,
+          "guaranteedUptimeSla": true,
+          "inboundRouting": true,
+          "knowledgeCenter": true,
+          "linkTracking": true,
+          "logRetention": true,
+          "mailingLists": true,
+          "messageRetention": true,
+          "multiUserAccess": true,
+          "phoneSupport": true,
+          "rapidFireSla": false,
+          "rbacApiKeys": true,
+          "recipientVariables": true,
+          "restfulEmailApi": true,
+          "samlSso": true,
+          "scheduledAnalyticsReports": true,
+          "sendTimeOptimization": true,
+          "smtpRelays": true,
+          "subaccounts": false,
+          "suppressionManagement": true,
+          "ticketSupport": true,
+          "twoFactorAuthentication": true,
+          "userAccounts": true,
+          "userRolesAndPermissions": true,
+          "webhooks": true
+        },
+        "id": "SCALE",
+        "name": "SCALE",
+        "perSeat": false,
+        "period": "month",
+        "price": {
+          "amount": 90.0,
+          "kind": "fixed"
+        },
+        "private": false,
+        "unit": "account/month",
+        "usageLimits": {
+          "apiKeysLimit": 2,
+          "bounceClassificationDays": 30,
+          "customSendingDomainsLimit": 1000,
+          "dedicatedIpsLimit": 1,
+          "emailValidationsPerMonth": 5000,
+          "emailsPerDay": {
+            "unlimited": true
+          },
+          "emailsPerMonth": 100000,
+          "inboundRoutesLimit": {
+            "unlimited": true
+          },
+          "logRetentionDays": 30,
+          "messageRetentionDays": 7,
+          "usersLimit": {
+            "unlimited": true
+          }
+        }
+      },
+      {
+        "features": {
+          "analytics": true,
+          "apiKeys": true,
+          "authenticationProtocols": true,
+          "automatedDedicatedIpWarmUp": true,
+          "bounceClassification": true,
+          "chatSupport": true,
+          "comprehensiveSdks": true,
+          "customSendingDomains": true,
+          "customerFeedbackForum": true,
+          "dedicatedIpPools": true,
+          "dedicatedIps": true,
+          "documentation": true,
+          "emailTemplates": true,
+          "emailValidations": true,
+          "guaranteedUptimeSla": true,
+          "inboundRouting": true,
+          "knowledgeCenter": true,
+          "linkTracking": true,
+          "logRetention": true,
+          "mailingLists": true,
+          "messageRetention": true,
+          "multiUserAccess": true,
+          "phoneSupport": true,
+          "rapidFireSla": true,
+          "rbacApiKeys": true,
+          "recipientVariables": true,
+          "restfulEmailApi": true,
+          "samlSso": true,
+          "scheduledAnalyticsReports": true,
+          "sendTimeOptimization": true,
+          "smtpRelays": true,
+          "subaccounts": true,
+          "suppressionManagement": true,
+          "ticketSupport": true,
+          "twoFactorAuthentication": true,
+          "userAccounts": true,
+          "userRolesAndPermissions": true,
+          "webhooks": true
+        },
+        "id": "ENTERPRISE",
+        "name": "ENTERPRISE",
+        "perSeat": false,
+        "period": "month",
+        "price": {
+          "kind": "label",
+          "text": "Contact Sales"
+        },
+        "private": true,
+        "unit": "account/month",
+        "usageLimits": {
+          "apiKeysLimit": 2,
+          "bounceClassificationDays": 30,
+          "customSendingDomainsLimit": 1000,
+          "dedicatedIpsLimit": 1,
+          "emailValidationsPerMonth": 5000,
+          "emailsPerDay": {
+            "unlimited": true
+          },
+          "emailsPerMonth": 100000,
+          "inboundRoutesLimit": {
+            "unlimited": true
+          },
+          "logRetentionDays": 30,
+          "messageRetentionDays": 7,
+          "usersLimit": {
+            "unlimited": true
+          }
+        }
+      }
+    ],
+    "syntaxVersion": "3.1",
+    "title": "Mailgun",
+    "usageLimits": [
+      {
+        "default": 100,
+        "id": "emailsPerDay",
+        "linkedFeatures": [
+          "smtpRelays",
+          "restfulEmailApi"
+        ],
+        "name": "emailsPerDay",
+        "unit": "email",
+        "valueType": "NUMERIC"
+      },
+      {
+        "default": {
+          "unlimited": true
+        },
+        "id": "emailsPerMonth",
+        "linkedFeatures": [
+          "smtpRelays",
+          "restfulEmailApi"
+        ],
+        "name": "emailsPerMonth",
+        "unit": "email",
+        "valueType": "NUMERIC"
+      },
+      {
+        "default": 1,
+        "id": "customSendingDomainsLimit",
+        "linkedFeatures": [
+          "customSendingDomains"
+        ],
+        "name": "customSendingDomainsLimit",
+        "unit": "domain",
+        "valueType": "NUMERIC"
+      },
+      {
+        "default": 1,
+        "id": "logRetentionDays",
+        "linkedFeatures": [
+          "logRetention"
+        ],
+        "name": "logRetentionDays",
+        "unit": "day",
+        "valueType": "NUMERIC"
+      },
+      {
+        "default": 1,
+        "id": "bounceClassificationDays",
+        "linkedFeatures": [
+          "bounceClassification"
+        ],
+        "name": "bounceClassificationDays",
+        "unit": "day",
+        "valueType": "NUMERIC"
+      },
+      {
+        "default": 0,
+        "id": "messageRetentionDays",
+        "linkedFeatures": [
+          "messageRetention"
+        ],
+        "name": "messageRetentionDays",
+        "unit": "day",
+        "valueType": "NUMERIC"
+      },
+      {
+        "default": 1,
+        "id": "inboundRoutesLimit",
+        "linkedFeatures": [
+          "inboundRouting"
+        ],
+        "name": "inboundRoutesLimit",
+        "unit": "route",
+        "valueType": "NUMERIC"
+      },
+      {
+        "default": 2,
+        "id": "apiKeysLimit",
+        "linkedFeatures": [
+          "apiKeys"
+        ],
+        "name": "apiKeysLimit",
+        "unit": "key",
+        "valueType": "NUMERIC"
+      },
+      {
+        "default": 0,
+        "id": "emailValidationsPerMonth",
+        "linkedFeatures": [
+          "emailValidations"
+        ],
+        "name": "emailValidationsPerMonth",
+        "unit": "validation",
+        "valueType": "NUMERIC"
+      },
+      {
+        "default": 0,
+        "id": "dedicatedIpsLimit",
+        "linkedFeatures": [
+          "dedicatedIps"
+        ],
+        "name": "dedicatedIpsLimit",
+        "unit": "ip",
+        "valueType": "NUMERIC"
+      },
+      {
+        "default": 1,
+        "id": "usersLimit",
+        "linkedFeatures": [
+          "userAccounts",
+          "multiUserAccess"
+        ],
+        "name": "usersLimit",
+        "unit": "user",
+        "valueType": "NUMERIC"
+      }
+    ],
+    "version": "2026-10"
+  }
+}

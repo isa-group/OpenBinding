@@ -18,9 +18,9 @@ from fastapi import HTTPException
 from openbinding_gateway.access import policy
 from openbinding_gateway.core.settings import get_settings
 from openbinding_gateway.space_client import OpenGate, PlanCaps
-from _pricing import caps_for, largest_plan, pricing_catalog
+from _pricing import caps_for, largest_plan, fixture_catalog
 
-CATALOG = pricing_catalog()
+CATALOG = fixture_catalog()
 BASE = caps_for(CATALOG.default_plan)
 LARGE = caps_for(largest_plan())
 

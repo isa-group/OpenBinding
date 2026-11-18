@@ -62,6 +62,16 @@ OpenBinding source and documentation retain the license declared by this reposit
 Names, logos and institutional marks are not transferred by the MIT license and
 must not be used to imply an endorsement.
 
+## Pricing2Yaml readers followed
+
+The Python Pricing2Yaml normaliser (`openbinding-gateway/src/openbinding_gateway/modules/plans/domain/pricing2yaml/`)
+reads pricings as the two TypeScript readers do, so that the gateway and the screens agree. Each file names its origin.
+
+| File | Origin | Use |
+|---|---|---|
+| `pricing2yaml/expression.py` | [pricing-renderer](https://github.com/javiercavlop/pricing-renderer) `v0.2.0` `src/core/expression.ts` (MIT, Copyright (c) 2026 Francisco Javier Cavero) | Grammar ported: the tokenizer, the precedence-climbing parser, the whitelist and the size limits; evaluation in `Decimal`, with `String(x)` as the one extra function |
+| `pricing2yaml/normalise.py`, `model.py`, `effective.py`, `units.py`, `summary.py` | pricing-renderer `v0.2.0` `src/core/normalize.ts`, `compare-values.ts`, `breakdown.ts`, `resolve.ts`; [Pricing4TS](https://github.com/Alex-GF/Pricing4TS) `0.12.1` `pricing-parser.js`, `pricing-validators.js`, `version-manager.js` (MIT, Copyright (c) 2024 Alejandro García Fernández) | Semantics followed, no code copied: defaults and overrides, add-on extensions, unlimited values (pricing4ts's `1e8` sentinel included), billing, the kept validations |
+
 ## Code ported from SPHERE
 
 The files below port SPHERE code at revision `73779a8a`, and each names its origin in its header (the SVGs, which
@@ -84,6 +94,7 @@ listed with its module:
 | `openbinding-gateway/src/openbinding_gateway/services/organizations.py` | `api/src/main/utils/slug-manager.ts` (`generateSlug`, `deduplicateSlug`), `api/src/main/config/defaultAvatars.ts` (the predefined avatars, the colour check) and `api/src/main/services/OrganizationService.ts` (`updateAvatar`, `removeAvatar`, the default colours) (adapted: accents folded, reserved slugs never derived, uploads kept as blobs) |
 | `openbinding-gateway/src/openbinding_gateway/static/avatars/avatar-*.svg` | `api/public/static/avatars/users/default/avatar-*.svg` (copied verbatim) |
 | `openbinding-gateway/src/openbinding_gateway/routes/organizations.py` (the public, profile, hierarchy, invitation-code and ownership routes) | `api/src/main/services/OrganizationService.ts` (`indexPublicRoots`, `getHierarchy`, `createInvitation`, `previewInvitation`, `joinViaInvitation`, `inviteUsersToOrganization`, `transferOwnership`, `removeMember`) and `api/src/main/routes/OrganizationRoutes.ts` (adapted: one transaction, 404 for non-readers, public profiles only with a public composition) |
+| `openbinding-gateway/src/openbinding_gateway/modules/plans/domain/content_hash.py` (with the YAML 1.2 core reading of `yaml12.py`) | `api/src/main/services/PermanentLinkService.ts` (`functionalHash`: js-yaml load, `saasName` dropped, sorted keys, `JSON.stringify`, SHA-256), unchanged at `fc776b4d` (adapted: Python, with JavaScript number formatting and key order) |
 | `openbinding-gateway/src/openbinding_gateway/routes/notifications.py` and `openbinding-gateway/src/openbinding_gateway/modules/shared/application/notifications.py` | `api/src/main/controllers/NotificationController.ts`, `api/src/main/routes/NotificationRoutes.ts` and `api/src/main/services/NotificationService.ts` (adapted: the kinds, the per-kind channels, the unread count and the stream's events kept; a single-use ticket instead of the access token in the stream's URL, the stream reading committed rows instead of an in-process client map, deleting only one's own notifications) |
 | `openbinding-gateway/src/openbinding_gateway/modules/compositions/application/listing.py` | `api/src/main/repositories/mongoose/aggregators/pricings/filters-data-generator.ts` (adapted: the ten-bucket histogram up to the 80th percentile kept; facets over every match, each ignoring its own filter, and a value equal to the percentile counted) |
 | `openbinding-gateway/src/openbinding_gateway/modules/compositions/application/graph.py` | `api/src/main/services/PricingService.ts` (`graph`, `_graphLane`, `_unavailableSourceLane`, `GRAPH_MAX_LANES`) (adapted: composition lanes; no unavailable lane, and no edge to it, for a reader who is not a member) |

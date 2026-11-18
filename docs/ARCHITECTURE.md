@@ -642,8 +642,7 @@ flowchart LR
   open gate), refuses to start when a feature or limit it references is missing or not `NUMERIC`, and, with SPACE
   enabled, requires `SPACE_ORGANIZATION_ID` and the `pricing-token-jwks` capability (fatal under `APP_ENV=prod`, a
   warning elsewhere). Pricing tokens are verified against SPACE's JWKS and matched to the account with
-  `pricing_token_user_id`; there is no unverified fallback. The same check on `pricing_activated` moves to F3/F8,
-  with the `PricingSource` port and the SPACE ledger.
+  `pricing_token_user_id`; there is no unverified fallback. The same check on `pricing_activated` moves to F8, with the SPACE ledger.
 - Quotas are per account (`modules/plans/domain/quotas.py`); organizations carry no billing sponsor.
 - Pricing 0.2.0 (`docs/pricing/`) declares seven features and twelve limits. SPACE tracks two usage levels, both
   renewable and monthly: `solverHours` and `generatedInstances`. A run on a built-in engine, a study cell or the
@@ -658,13 +657,42 @@ flowchart LR
   calls `revert_evaluation` (SPACE honours it within two minutes).
 - SPACE events (`synchronized`, `pricing_created`, `pricing_activated`, `pricing_archived`, `service_disabled`)
   invalidate caches and are relayed to browsers as a `plans.changed` notification.
-- `GET /v1/plans/pricing` (public) returns the pricing descriptor (permanent link, SPHERE version id and label,
-  content hash, the version SPACE has activated) and the YAML read from SPHERE's public API
-  (`/api/v1/public/pricings/{pricingId}` and `.../versions/{versionId}/yaml`, bounded to 5 MiB, hash-verified,
-  ETag-cached). OpenBinding holds no SPHERE key.
-- Removed: `sphere_client.py`, `pricing_catalog.py`, the deprecated `/v1/pricing` proxy and `/v1/pricing/catalog`,
-  admin pricing validation, `space_client/deployments.py`, the release sweeps, local metering
-  (`domain/usage_counters.py`) and the sponsorship capacity checks.
+- **The `PricingSource` port (F3).** Every read of SPHERE, of an operator's `SPHERE_REGISTRIES` and of a
+  user-supplied Pricing2Yaml URL goes through one port, `modules/plans/application/pricing_source.py`, installed by
+  `main._lifespan` (`SphereHttpSource` for the default SPHERE and each registry, `UrlSource` for URLs). Its requests
+  go through `core/outbound.py`, the one outbound policy the remote engine client shares: https only, every DNS
+  answer checked and pinned (global addresses, except an operator's registry), no redirects for SPHERE and at most
+  `OFFERING_URL_MAX_REDIRECTS` revalidated ones for a URL, identity encoding, `SPHERE_MAX_BYTES` (5 MiB) and
+  `SPHERE_TIMEOUT_S`. SPHERE ids are checked (24 hexadecimal characters) before a URL is built. Only anonymous answers
+  are cached, for `SPHERE_CACHE_TTL_S` and then revalidated by `ETag` (SPHERE serves no `Last-Modified`); a keyed
+  answer is never cached. Back-off follows SPHERE's own keying (per organization key, per registry, anonymous): a
+  429 closes that bucket only, `RateLimit-Remaining` at its 10 % reserve closes it until `RateLimit-Reset`, a 404 or
+  503 is a 60 s negative entry for that path, and transport failures back the host off. A version's bytes must match
+  its `ETag`; the manifest's `contentHash` is SPHERE's *functional* hash (`content_hash.py`, js-yaml reading, sorted
+  keys, `saasName` dropped), and a mismatch is logged and reported, never a refusal. Pricings are read **before** a
+  compile or evaluation slot and outside any transaction, never during compilation or evaluation; the YAML loader
+  (`yaml12.py`, alias, depth and node limits), the hash and the normaliser (`pricing2yaml/`) run in a worker thread.
+  The tests read SPHERE from recordings (`tests/fixtures/sphere`, `tools/record_sphere_fixtures.py`) and cannot open
+  a network socket (`OPENBINDING_FORBID_NETWORK=1` in the CI unit shards).
+- **Organization connections (F3).** An organization ADMIN connects the organization to SPHERE with an API key
+  (`org_connections`, `PUT /v1/organizations/{org}/connections/sphere`). The key is checked with SPHERE's
+  `/users/me`, encrypted with the deployment's Fernet keys (`security/secrets.CredentialStore`, the store that
+  already holds engine credentials: one key store and one rotation, rather than a second AES-256-GCM cipher),
+  decrypted only for one call and never returned or logged; of `/users/me` only the user id, username, the key's
+  scopes and expiry are kept. SPHERE decides what a key reads: a MANAGEMENT or ALL key of an organization ADMIN or
+  OWNER reads every private version of that organization, a VIEW key a private pricing only with an explicit grant.
+  The key is sent only to the default SPHERE, never to a registry or a URL; a 401 marks the connection invalid and
+  the read is retried anonymously. "Connect SPHERE" by OAuth cannot read a version's YAML and waits for F8.
+- `GET /v1/plans/pricing` (public, F3) serves OpenBinding's own pricing through the `PricingSource` port: the family
+  `SPHERE_OPENBINDING_PRICING_ID`, the version labelled `SPACE_PRICING_VERSION` in its manifest (so a new release
+  is a setting), snapshotted once and verified like every SPHERE read; the answer carries the label, the version
+  id, the permanent link, the YAML (for pricing-renderer) and the parsed document (`.inf` as `null`), with an
+  `ETag` and `public, max-age=300`. When SPHERE cannot be read, a stored snapshot of that label is served; with
+  none, `503 pricing_unavailable`. It needs no SPHERE key.
+- Removed: the legacy SPHERE client and pricing catalog modules, the keyed `/v1/pricing` proxy (its `current` and
+  `catalog` routes) with its key permission, and OpenBinding's own SPHERE key and organization settings (F3); admin
+  pricing validation, `space_client/deployments.py`, the release sweeps, local
+  metering (`domain/usage_counters.py`) and the sponsorship capacity checks.
 
 ### 9.3 Browser side
 

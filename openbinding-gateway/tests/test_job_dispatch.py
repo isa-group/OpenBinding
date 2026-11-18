@@ -14,7 +14,7 @@ from openbinding_gateway.core.settings import get_settings
 from openbinding_gateway.db import base as db_base
 from openbinding_gateway.db.models import Job, JobState, User
 from openbinding_gateway.services import execution
-from _pricing import fake_pricing_gate, pricing_catalog
+from _pricing import fake_pricing_gate, fixture_catalog
 
 
 @pytest_asyncio.fixture
@@ -102,7 +102,7 @@ async def test_reconciler_redelivers_only_persisted_queued_jobs(db_session, monk
         username=f"user{uuid.uuid4().hex[:8]}",
         email=f"{uuid.uuid4().hex[:8]}@example.org",
         password_hash="not-a-real-hash",
-        plan_cache=pricing_catalog().default_plan,
+        plan_cache=fixture_catalog().default_plan,
     )
     db_session.add(user)
     await db_session.flush()

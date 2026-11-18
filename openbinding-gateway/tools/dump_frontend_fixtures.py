@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Write the gateway-produced fixtures of the frontend to frontend/src/test/fixtures/core/.
+"""Write the gateway-produced fixtures of the frontend to frontend/src/test/fixtures/core/ and sphere/.
 
 The frontend's view-models and mocks read what the gateway really answers, not a hand-written
 copy of it. This tool runs the gateway in process (SQLite, inline dispatch, the pinned
@@ -11,7 +11,8 @@ response **bodies** (never headers) of the routes the frontend reads:
 * ``<name>.version.json``: ``getCompositionVersion?include=document`` of version 1.0.0 of a
   composition ``<name>`` derived from the first binding of the problem without a hard violation;
 * ``<name>.diff.json``: ``diffCompositionVersions`` from that 1.0.0 to a 1.1.0 derived from the
-  same binding with one task bound to another candidate.
+  same binding with one task bound to another candidate;
+* ``plans-pricing.json``: ``getPlansPricing``, OpenBinding's published pricing 0.2.0 as the recorded SPHERE serves it.
 
 The packages are ``simple-seq`` (``examples/demo/01_simple_seq``), ``fms`` (``13_fms``: an
 exclusive choice and a local task), ``json-complete`` (``16_json_complete``: a parallel block
@@ -41,8 +42,17 @@ appearance across the fixture set (files in a fixed order, keys sorted), and eac
 instant ``2026-01-01T00:00:00Z`` plus one second per distinct value in order of appearance, so
 ordering by date survives. Content digests are deterministic and left as they are.
 
-    python tools/dump_frontend_fixtures.py               # rewrite frontend/src/test/fixtures/core/
-    python tools/dump_frontend_fixtures.py --out DIR     # write somewhere else
+``sphere/`` holds the recorded SPHERE set the frontend's parity test reads (the frontend never reads the
+gateway's ``tests/``): for every recorded Pricing2Yaml 3.x version and every synthetic one,
+``<pricingId>.<versionId>.yml`` (``derived.<name>.yml``) and the matching ``.normalised.json``, copied from
+``openbinding-gateway/tests/fixtures/sphere/normalised/`` (``tools/dump_normalised_pricings.py``); and the
+gateway's own answers about SPHERE for the frontend's mocks, read with the recorded SPHERE
+(``tests/sphere_recorded.py``) installed as the pricing source: ``search.<name>.json``
+(``searchSpherePricings``), ``manifest.<name>.json`` (``getSpherePricing``) and ``version.<name>.json``
+(``getSpherePricingVersion``) for TomatoMeter, set-B Mailgun and Dropbox (``…ce9c1``).
+
+    python tools/dump_frontend_fixtures.py               # rewrite frontend/src/test/fixtures/{core,sphere}/
+    python tools/dump_frontend_fixtures.py --out DIR     # write DIR/core/ and DIR/sphere/ instead
     python tools/dump_frontend_fixtures.py --check       # fail if the checked-in fixtures differ
 """
 
@@ -64,6 +74,8 @@ from typing import Any
 GATEWAY_ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = Path(os.environ.get("OPENBINDING_REPO_ROOT", Path(__file__).resolve().parents[2])).resolve()
 FIXTURES = REPO_ROOT / "frontend" / "src" / "test" / "fixtures" / "core"
+SPHERE_FIXTURES = FIXTURES.parent / "sphere"
+SFX = Path(__file__).resolve().parents[1] / "tests" / "fixtures" / "sphere"
 DEMO = REPO_ROOT / "examples" / "demo"
 
 sys.path.insert(0, str(GATEWAY_ROOT / "src"))
@@ -139,8 +151,45 @@ def _archive(directory: Path | None) -> bytes:
     return packages.zip_files(ambiguous_files()) if directory is None else packages.zip_directory(directory)
 
 
-async def _bodies(work: Path) -> dict[str, Any]:
-    """Every fixture body, by file name, from a fresh in-process gateway."""
+#: The gateway's answers about SPHERE written to ``sphere/``: name -> (pricingId, versionId, search words).
+SPHERE_FAMILIES = {
+    "tomatometer": ("6ab0a323697330667ccce8cd", "6921867e7004563bd918e7e8", "tomatometer"),
+    "mailgun": ("6ade364540e55445692b0eda", "6ade36454b2b5b01c587db3d", "Mailgun"),
+    "dropbox": ("6ab0a323697330667ccce9c1", "687e4b68102baa50f3a5c7b7", "Dropbox"),
+}
+
+
+def _install_recorded_sphere(settings: Any) -> None:
+    """The recorded SPHERE as the pricing source, resolving only its own hosts (nothing reaches the network)."""
+    tests = Path(__file__).resolve().parents[1] / "tests"
+    if str(tests) not in sys.path:
+        sys.path.insert(0, str(tests))
+    from sphere_recorded import RecordedSphere
+
+    from openbinding_gateway.core import outbound
+    from openbinding_gateway.modules.plans.adapters.sphere import SphereHttpSource
+    from openbinding_gateway.modules.plans.application import set_pricing_source
+
+    recorded = RecordedSphere()
+    outbound._getaddrinfo = lambda host, port: recorded.getaddrinfo(host, port)
+    set_pricing_source(
+        SphereHttpSource(settings.model_copy(update={"sphere_enabled": True}), transport=recorded.transport())
+    )
+
+
+async def _sphere_bodies(client, headers: dict[str, str]) -> dict[str, Any]:
+    bodies: dict[str, Any] = {}
+    base = "/v1/organizations/fixtures/sphere/pricings"
+    for name, (pricing_id, version_id, words) in SPHERE_FAMILIES.items():
+        bodies[f"search.{name}.json"] = _ok(await client.get(base, params={"q": words}, headers=headers), 200).json()
+        bodies[f"manifest.{name}.json"] = _ok(await client.get(f"{base}/{pricing_id}", headers=headers), 200).json()
+        version = await client.get(f"{base}/{pricing_id}/versions/{version_id}", headers=headers)
+        bodies[f"version.{name}.json"] = _ok(version, 200).json()
+    return bodies
+
+
+async def _bodies(work: Path) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Every fixture body, by file name, from a fresh in-process gateway: ``core/``'s and ``sphere/``'s."""
     from httpx import ASGITransport, AsyncClient
     from sqlalchemy import event
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -163,6 +212,9 @@ async def _bodies(work: Path) -> dict[str, Any]:
     set_work_limiter(WorkRateLimiter(primary=None))
     set_auth_limiter(AuthRateLimiter(primary=None))
     space_client.set_gate(OpenGate())
+    settings.sphere_enabled = True
+    settings.space_pricing_version = "0.2.0"
+    _install_recorded_sphere(settings)
 
     engine = create_async_engine(f"sqlite+aiosqlite:///{work / 'fixtures.db'}")
 
@@ -180,6 +232,7 @@ async def _bodies(work: Path) -> dict[str, Any]:
         await connection.run_sync(Base.metadata.create_all)
     factory = async_sessionmaker(engine, expire_on_commit=False)
     bodies: dict[str, Any] = {}
+    sphere: dict[str, Any] = {}
     try:
         async with factory() as session:
             async def _session():
@@ -216,13 +269,15 @@ async def _bodies(work: Path) -> dict[str, Any]:
                 )
                 bodies["refused.validate.json"] = _ok(answer, 422).json()
                 bodies["refused.package.json"] = {path: content.decode("utf-8") for path, content in refused.items()}
+                sphere = await _sphere_bodies(client, headers)
+                bodies["plans-pricing.json"] = _ok(await client.get("/v1/plans/pricing"), 200).json()
     finally:
         app.dependency_overrides.clear()
         space_client.set_gate(None)
         set_work_limiter(None)
         set_auth_limiter(None)
         await engine.dispose()
-    return bodies
+    return bodies, sphere
 
 
 async def _versions(client, headers: dict[str, str], name: str, facts: dict[str, Any]) -> tuple[Any, Any]:
@@ -322,10 +377,27 @@ def _environment() -> None:
     os.environ["SPHERE_ENABLED"] = "false"
 
 
-def generate() -> dict[str, str]:
+def generate() -> tuple[dict[str, str], dict[str, str]]:
+    """``core/``'s files and the gateway-answered files of ``sphere/``."""
     _environment()
     with tempfile.TemporaryDirectory(prefix="ob-fixtures-") as work:
-        return render(asyncio.run(_bodies(Path(work))))
+        core, sphere = asyncio.run(_bodies(Path(work)))
+        # OpenBinding's pricing is the recorded SPHERE version, the same on every run, and its document's key order is
+        # the pricing's own (plans in the order they are offered): written as the gateway answers it, not normalised.
+        verbatim = {"plans-pricing.json": core.pop("plans-pricing.json")}
+        files = render(core)
+        files.update({name: json.dumps(body, indent=2, ensure_ascii=False) + "\n" for name, body in verbatim.items()})
+        return dict(sorted(files.items())), _render_sphere(sphere)
+
+
+def _render_sphere(bodies: dict[str, Any]) -> dict[str, str]:
+    """As ``render``; a snapshot's ``yamlHref`` embeds its id, so it is written again from the replaced id."""
+    normalised = normalise(bodies)
+    for body in normalised.values():
+        snapshot = body.get("snapshot") if isinstance(body, dict) else None
+        if isinstance(snapshot, dict) and "yamlHref" in snapshot:
+            snapshot["yamlHref"] = f"/v1/organizations/fixtures/pricing-snapshots/{snapshot['id']}/yaml"
+    return {name: json.dumps(body, indent=2, sort_keys=True, ensure_ascii=False) + "\n" for name, body in normalised.items()}
 
 
 def drift(files: dict[str, str], directory: Path) -> list[str]:
@@ -340,6 +412,31 @@ def drift(files: dict[str, str], directory: Path) -> list[str]:
     return found
 
 
+def sphere_files() -> dict[str, str]:
+    """``sphere/``: every readable recorded or derived version and its golden, by file name."""
+    files: dict[str, str] = {}
+    for golden in sorted((SFX / "normalised").glob("*.json")):
+        text = golden.read_text(encoding="utf-8")
+        if '"refused"' in text[:40]:
+            continue
+        family, _, version = golden.stem.partition("@")
+        source = SFX / family / f"{version}.yml"
+        files[f"{family}.{version}.yml"] = source.read_text(encoding="utf-8")
+        files[f"{family}.{version}.normalised.json"] = text
+    return files
+
+
+def sphere_drift(files: dict[str, str], directory: Path) -> list[str]:
+    present = {path.name for path in directory.iterdir() if path.is_file()} if directory.is_dir() else set()
+    found = [f"missing: sphere/{name}" for name in sorted(set(files) - present)]
+    found += [f"not generated: sphere/{name}" for name in sorted(present - set(files))]
+    found += [
+        f"differs: sphere/{name}" for name in sorted(set(files) & present)
+        if (directory / name).read_text(encoding="utf-8") != files[name]
+    ]
+    return found
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     target = parser.add_mutually_exclusive_group()
@@ -347,23 +444,31 @@ def main(argv: list[str] | None = None) -> int:
     target.add_argument("--check", action="store_true", help="Do not write; exit non-zero if the checked-in fixtures differ.")
     arguments = parser.parse_args(argv)
 
-    files = generate()
+    files, answered = generate()
+    sphere = {**sphere_files(), **answered}
     if arguments.check:
-        found = drift(files, FIXTURES)
+        found = drift(files, FIXTURES) + sphere_drift(sphere, SPHERE_FIXTURES)
         if found:
             print("The frontend fixtures are out of date; run tools/dump_frontend_fixtures.py and commit the result:")
             print("\n".join(f"  {line}" for line in found))
             return 1
-        print(f"{FIXTURES.relative_to(REPO_ROOT)} is up to date ({len(files)} files).")
+        print(f"{FIXTURES.parent.relative_to(REPO_ROOT)} is up to date ({len(files) + len(sphere)} files).")
         return 0
-    out = arguments.out or FIXTURES
-    out.mkdir(parents=True, exist_ok=True)
-    for stale in out.glob("*.json"):
+    core_out = arguments.out / "core" if arguments.out else FIXTURES
+    sphere_out = arguments.out / "sphere" if arguments.out else SPHERE_FIXTURES
+    core_out.mkdir(parents=True, exist_ok=True)
+    for stale in core_out.glob("*.json"):
         if stale.name not in files:
             stale.unlink()
     for name, content in files.items():
-        (out / name).write_text(content, encoding="utf-8")
-    print(f"Wrote {len(files)} files to {out}")
+        (core_out / name).write_text(content, encoding="utf-8")
+    sphere_out.mkdir(parents=True, exist_ok=True)
+    for stale in sphere_out.iterdir():
+        if stale.is_file() and stale.name not in sphere:
+            stale.unlink()
+    for name, content in sphere.items():
+        (sphere_out / name).write_text(content, encoding="utf-8")
+    print(f"Wrote {len(files)} files to {core_out} and {len(sphere)} to {sphere_out}")
     return 0
 
 

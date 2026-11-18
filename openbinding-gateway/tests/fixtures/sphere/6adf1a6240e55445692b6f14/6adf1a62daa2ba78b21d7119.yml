@@ -1,0 +1,530 @@
+saasName: Twilio SendGrid Email API
+syntaxVersion: "3.1"
+version: "2026-10"
+createdAt: "2026-10-26"
+url: https://www.twilio.com/en-us/products/email-api/pricing
+currency: USD
+tags:
+  - Integration
+  - Deliverability
+  - Privacy and Security
+  - Analytics
+  - Support
+  - Collaboration
+billing:
+  monthly: 1
+variables:
+  essTier: 50000
+  essPriceByTier: {"50000": 19.95, "100000": 34.95}
+  essOverageByTier: {"50000": 0.00133, "100000": 0.00088}
+  proTier: 100000
+  proPriceByTier: {"100000": 89.95, "300000": 249.00, "700000": 499.00, "1500000": 799.00, "2500000": 1099.00}
+  proOverageByTier: {"100000": 0.00110, "300000": 0.00091, "700000": 0.00078, "1500000": 0.00059, "2500000": 0.00047}
+features:
+  # ---------- Integration ----------
+  smtpAndApi:
+    description: Send email through SMTP relay and the Web API.
+    type: INTEGRATION
+    integrationType: API
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Integration
+  comprehensiveClientLibraries:
+    description: Official client libraries for the Email API.
+    type: INTEGRATION
+    integrationType: API
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Integration
+  setupGuide:
+    description: Setup guide for integrating the Email API.
+    type: SUPPORT
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Integration
+  interactiveApiDocs:
+    description: Interactive API documentation.
+    type: SUPPORT
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Integration
+  knowledgeCenter:
+    description: Access to the knowledge center.
+    type: SUPPORT
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Integration
+  technicalSupport:
+    description: Technical support channels included with the plan.
+    type: SUPPORT
+    valueType: TEXT
+    defaultValue: "Ticket & chat support"
+    tag: Integration
+  # ---------- Deliverability ----------
+  purposeBuiltMailTransferAgent:
+    description: Purpose-built mail transfer agent.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Deliverability
+  domainAuthentication:
+    description: Domain authentication (SPF/DKIM).
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Deliverability
+  dedicatedIpAddresses:
+    description: Dedicated IP addresses for sending.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Deliverability
+  dedicatedIpPooling:
+    description: Grouping of dedicated IPs into pools.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Deliverability
+  automatedDedicatedIpWarmUp:
+    description: Automated warm up of dedicated IPs.
+    type: AUTOMATION
+    automationType: TASK_AUTOMATION
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Deliverability
+  emailAddressValidationApi:
+    description: Email Address Validation API with included validations.
+    type: INTEGRATION
+    integrationType: API
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Deliverability
+  reputationAndDeliveryVisibility:
+    description: Visibility of sender reputation and delivery.
+    type: INFORMATION
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Deliverability
+  suppressionManagement:
+    description: Management of bounce, unsubscribe and spam-report suppressions.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Deliverability
+  globallyDistributedArchitecture:
+    description: Globally distributed sending architecture.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Deliverability
+  linkBranding:
+    description: Link branding for tracked links.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Deliverability
+  reverseDns:
+    description: Reverse DNS for sending IPs.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Deliverability
+  universalLinks:
+    description: Universal links support.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Deliverability
+  # ---------- Privacy and Security ----------
+  ipAccessManagement:
+    description: Restrict account access by IP address.
+    type: MANAGEMENT
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Privacy and Security
+  singleSignOn:
+    description: Single sign-on (SSO).
+    type: INTEGRATION
+    integrationType: IDENTITY_PROVIDER
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Privacy and Security
+  twoFactorAuthentication:
+    description: Two-factor authentication for account access.
+    type: MANAGEMENT
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Privacy and Security
+  tlsEncryption:
+    description: TLS encryption.
+    type: GUARANTEE
+    docUrl: https://www.twilio.com/en-us/trust-center
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Privacy and Security
+  soc2TypeIICertification:
+    description: SOC 2 Type II certification.
+    type: GUARANTEE
+    docUrl: https://www.twilio.com/en-us/trust-center
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Privacy and Security
+  gdprCompliance:
+    description: GDPR compliance.
+    type: GUARANTEE
+    docUrl: https://www.twilio.com/en-us/trust-center
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Privacy and Security
+  dataResidencyEu:
+    description: Data residency for email in the EU.
+    type: GUARANTEE
+    docUrl: https://www.twilio.com/en-us/blog/products/data-residency-for-email-eu
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Privacy and Security
+  eventWebhookSecurity:
+    description: Security (signing/OAuth) for the Event Webhook.
+    type: GUARANTEE
+    docUrl: https://www.twilio.com/en-us/trust-center
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Privacy and Security
+  # ---------- Analytics ----------
+  eventWebhook:
+    description: Event Webhook that posts delivery and engagement events.
+    type: INTEGRATION
+    integrationType: API
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Analytics
+  deliverabilityInsights:
+    description: Deliverability insights.
+    type: INFORMATION
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Analytics
+  realTimeAnalytics:
+    description: Real-time analytics.
+    type: INFORMATION
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Analytics
+  advancedStatistics:
+    description: Advanced statistics.
+    type: INFORMATION
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Analytics
+  inboundParseWebhook:
+    description: Inbound Parse Webhook for receiving email.
+    type: INTEGRATION
+    integrationType: API
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Analytics
+  bounceAndBlockClassifications:
+    description: Bounce and block classifications.
+    type: INFORMATION
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Analytics
+  engagementTracking:
+    description: Open and click engagement tracking.
+    type: INFORMATION
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Analytics
+  ispFeedbackLoopData:
+    description: ISP feedback loop data.
+    type: INFORMATION
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Analytics
+  subuserComparisonStatistics:
+    description: Statistics comparing subusers.
+    type: INFORMATION
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Analytics
+  searchableEmailActivity:
+    description: Searchable email activity feed with a retention window.
+    type: INFORMATION
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Analytics
+  additionalEmailActivityHistory:
+    description: Extended email activity history beyond the included window.
+    type: INFORMATION
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Analytics
+  senderEngagementQualityScore:
+    description: Sender Engagement Quality (SEQ) score.
+    type: INFORMATION
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Analytics
+  emailLogs:
+    description: Searchable email event logs.
+    type: INFORMATION
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Analytics
+  # ---------- Support ----------
+  expertServices:
+    description: Access to expert services.
+    type: SUPPORT
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Support
+  personalizedSupport:
+    description: Access to personalized support.
+    type: SUPPORT
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Support
+  expertEmailProgramManagement:
+    description: Expert email program management.
+    type: SUPPORT
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Support
+  # ---------- Collaboration ----------
+  dynamicTemplates:
+    description: Dynamic templates with editor.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Collaboration
+  emailContentTesting:
+    description: Email content testing with monthly credits.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Collaboration
+  teammatePermissions:
+    description: Teammates with permission management.
+    type: MANAGEMENT
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Collaboration
+  apiKeyPermissions:
+    description: Scoped permissions for API keys.
+    type: MANAGEMENT
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Collaboration
+  subuserManagement:
+    description: Create and manage subuser accounts.
+    type: MANAGEMENT
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Collaboration
+usageLimits:
+  emailsPerMonth:
+    description: Emails included in the plan each month (one credit per recipient).
+    valueType: NUMERIC
+    defaultValue: 50000
+    unit: email
+    type: RENEWABLE
+    period: {value: 1, unit: MONTH}
+    linkedFeatures: [smtpAndApi]
+  dedicatedIpsLimit:
+    description: Dedicated IP addresses included.
+    valueType: NUMERIC
+    defaultValue: 0
+    unit: ip
+    type: NON_RENEWABLE
+    trackable: true
+    linkedFeatures: [dedicatedIpAddresses]
+  emailValidationsIncluded:
+    description: Free email address validations included (period not stated by the provider).
+    valueType: NUMERIC
+    defaultValue: 0
+    unit: validation
+    type: NON_RENEWABLE
+    trackable: true
+    linkedFeatures: [emailAddressValidationApi]
+  eventWebhooksLimit:
+    description: Event Webhooks included.
+    valueType: NUMERIC
+    defaultValue: 2
+    unit: webhook
+    type: NON_RENEWABLE
+    trackable: true
+    linkedFeatures: [eventWebhook]
+  emailActivityHistoryDays:
+    description: Days of searchable email activity history.
+    valueType: NUMERIC
+    defaultValue: 3
+    unit: day
+    type: NON_RENEWABLE
+    trackable: false
+    linkedFeatures: [searchableEmailActivity]
+  emailTestingCreditsPerMonth:
+    description: Email content testing credits per month.
+    valueType: NUMERIC
+    defaultValue: 0
+    unit: credit
+    type: RENEWABLE
+    period: {value: 1, unit: MONTH}
+    linkedFeatures: [emailContentTesting]
+  teammatesLimit:
+    description: Teammates allowed on the account.
+    valueType: NUMERIC
+    defaultValue: 1
+    unit: teammate
+    type: NON_RENEWABLE
+    trackable: true
+    linkedFeatures: [teammatePermissions]
+plans:
+  ESSENTIALS:
+    description: Core sending, tracking and deliverability tools for smaller programs (50k–100k emails/month).
+    price: "#essPriceByTier[String(#essTier)]"
+    unit: account/month
+    features: null
+    usageLimits: null
+  PRO:
+    description: Adds dedicated IPs, subuser management, single sign-on and email testing (100k–2.5M emails/month).
+    price: "#proPriceByTier[String(#proTier)]"
+    unit: account/month
+    features:
+      technicalSupport: {value: "Ticket, chat, & phone support"}
+      dedicatedIpAddresses: {value: true}
+      dedicatedIpPooling: {value: true}
+      automatedDedicatedIpWarmUp: {value: true}
+      emailAddressValidationApi: {value: true}
+      singleSignOn: {value: true}
+      subuserComparisonStatistics: {value: true}
+      emailContentTesting: {value: true}
+      subuserManagement: {value: true}
+    usageLimits:
+      emailsPerMonth: {value: 100000}
+      dedicatedIpsLimit: {value: 1}
+      emailValidationsIncluded: {value: 2500}
+      eventWebhooksLimit: {value: 5}
+      emailActivityHistoryDays: {value: 7}
+      emailTestingCreditsPerMonth: {value: 60}
+      teammatesLimit: {value: 1000}
+  PREMIER:
+    description: Custom high-volume pricing with more validations and expert program management.
+    price: "Contact Sales"
+    unit: account/month
+    private: true
+    features:
+      technicalSupport: {value: "Prioritized support"}
+      dedicatedIpAddresses: {value: true}
+      dedicatedIpPooling: {value: true}
+      automatedDedicatedIpWarmUp: {value: true}
+      emailAddressValidationApi: {value: true}
+      singleSignOn: {value: true}
+      subuserComparisonStatistics: {value: true}
+      emailContentTesting: {value: true}
+      subuserManagement: {value: true}
+    usageLimits:
+      emailsPerMonth: {value: 5000000}
+      dedicatedIpsLimit: {value: 1}
+      emailValidationsIncluded: {value: 5000}
+      eventWebhooksLimit: {value: 5}
+      emailActivityHistoryDays: {value: 7}
+      emailTestingCreditsPerMonth: {value: 60}
+      teammatesLimit: {value: 1000}
+addOns:
+  extraEmailsEssentials:
+    description: Overage for each email sent beyond the Essentials allotment (rate depends on the tier).
+    price: "#essOverageByTier[String(#essTier)]"
+    unit: email
+    availableFor: [ESSENTIALS]
+    features: null
+    usageLimitsExtensions:
+      emailsPerMonth: {value: 1}
+    subscriptionConstraints: {minQuantity: 1, maxQuantity: .inf, quantityStep: 1}
+  extraEmailsPro:
+    description: Overage for each email sent beyond the Pro allotment (rate depends on the tier).
+    price: "#proOverageByTier[String(#proTier)]"
+    unit: email
+    availableFor: [PRO]
+    features: null
+    usageLimitsExtensions:
+      emailsPerMonth: {value: 1}
+    subscriptionConstraints: {minQuantity: 1, maxQuantity: .inf, quantityStep: 1}
+  extraEmailsPremier:
+    description: Overage for emails beyond the Premier allotment; custom rate.
+    price: "Contact Sales"
+    unit: email
+    private: true
+    availableFor: [PREMIER]
+    features: null
+    usageLimitsExtensions:
+      emailsPerMonth: {value: 1}
+    subscriptionConstraints: {minQuantity: 1, maxQuantity: .inf, quantityStep: 1}
+  additionalDedicatedIp:
+    description: Additional dedicated IP address, $30 per IP per month; up to 3 through the console, more via support.
+    price: 30
+    unit: ip/month
+    availableFor: [PRO, PREMIER]
+    features: null
+    usageLimitsExtensions:
+      dedicatedIpsLimit: {value: 1}
+    subscriptionConstraints: {minQuantity: 1, maxQuantity: 3, quantityStep: 1}
+  emailTestingCredits2000:
+    description: 2,000 Email Testing credits per month.
+    price: 800.00
+    unit: 2000 credits/month
+    availableFor: [PRO, PREMIER]
+    features: null
+    usageLimitsExtensions:
+      emailTestingCreditsPerMonth: {value: 2000}
+    subscriptionConstraints: {minQuantity: 1, maxQuantity: 1, quantityStep: 1}
+  additionalEmailActivityHistory:
+    description: Additional email activity history (not available to Premier 100M and above).
+    price: "Not published"
+    unit: account/month
+    availableFor: [ESSENTIALS, PRO, PREMIER]
+    features:
+      additionalEmailActivityHistory: {value: true}
+  expertServices:
+    description: Access to expert services.
+    price: "Not published"
+    unit: account/month
+    availableFor: [ESSENTIALS, PRO, PREMIER]
+    features:
+      expertServices: {value: true}
+  personalizedSupport:
+    description: Access to personalized support.
+    price: "Not published"
+    unit: account/month
+    availableFor: [ESSENTIALS, PRO, PREMIER]
+    features:
+      personalizedSupport: {value: true}
+  expertEmailProgramManagement:
+    description: Expert email program management.
+    price: "Not published"
+    unit: account/month
+    availableFor: [PREMIER]
+    features:
+      expertEmailProgramManagement: {value: true}
+custom:
+  unmodeled:
+    - element: Premier 100M+ exclusions
+      source_says: Searchable email activity (7 days) and additional email activity history are not available to Premier 100M and above
+      why: Pricing2Yaml cannot condition a plan value on a sub-tier of a negotiated plan
+    - element: Overage cap for third-party accounts
+      source_says: Accounts created through Heroku or Google Cloud do not allow overages
+      why: Conditions on how the account was created have no construct
+    - element: Free Trial
+      source_says: $0 for 60 days, 100 emails/day, cannot exceed limits
+      why: Trials are not modeled by rule
+  valueUnknownIconCells:
+    note: >-
+      These comparison-table cells are drawn as icons on the pricing page and could not be read
+      (no browser available). The YAML shows them as available in every plan (defaultValue true);
+      that is an assumption, not a statement of the provider.
+    features: [smtpAndApi, comprehensiveClientLibraries, setupGuide, interactiveApiDocs, knowledgeCenter,
+      purposeBuiltMailTransferAgent, domainAuthentication, reputationAndDeliveryVisibility, suppressionManagement,
+      globallyDistributedArchitecture, linkBranding, reverseDns, universalLinks, ipAccessManagement,
+      twoFactorAuthentication, tlsEncryption, soc2TypeIICertification, gdprCompliance, dataResidencyEu,
+      eventWebhookSecurity, deliverabilityInsights, realTimeAnalytics, advancedStatistics, inboundParseWebhook,
+      bounceAndBlockClassifications, engagementTracking, ispFeedbackLoopData, senderEngagementQualityScore,
+      emailLogs, apiKeyPermissions]

@@ -1,0 +1,951 @@
+{
+  "pricing": {
+    "syntaxVersion": "3.1",
+    "title": "Postmark",
+    "version": "2026-08-03",
+    "createdAt": "2026-08-03",
+    "currency": "USD",
+    "billing": [
+      {
+        "id": "monthly",
+        "multiplier": 1.0,
+        "synthesized": true
+      }
+    ],
+    "features": [
+      {
+        "id": "transactionalEmailApi",
+        "name": "transactionalEmailApi",
+        "type": "INTEGRATION",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "templateEmailApi",
+        "name": "templateEmailApi",
+        "type": "INTEGRATION",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "batchEmailApi",
+        "name": "batchEmailApi",
+        "type": "INTEGRATION",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "batchWithTemplatesApi",
+        "name": "batchWithTemplatesApi",
+        "type": "INTEGRATION",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "bulkEmailApi",
+        "name": "bulkEmailApi",
+        "type": "INTEGRATION",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "smtpRelay",
+        "name": "smtpRelay",
+        "type": "INTEGRATION",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "inboundEmailProcessing",
+        "name": "inboundEmailProcessing",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "dedicatedIp",
+        "name": "dedicatedIp",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "eventWebhooks",
+        "name": "eventWebhooks",
+        "type": "INTEGRATION",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "statsTrackingApis",
+        "name": "statsTrackingApis",
+        "type": "INFORMATION",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "outboundMessagesApi",
+        "name": "outboundMessagesApi",
+        "type": "INFORMATION",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "activityData",
+        "name": "activityData",
+        "type": "INFORMATION",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "emailTemplates",
+        "name": "emailTemplates",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "servers",
+        "name": "servers",
+        "type": "MANAGEMENT",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "messageStreams",
+        "name": "messageStreams",
+        "type": "MANAGEMENT",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "signatureDomains",
+        "name": "signatureDomains",
+        "type": "MANAGEMENT",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "teamUsers",
+        "name": "teamUsers",
+        "type": "MANAGEMENT",
+        "valueType": "BOOLEAN",
+        "default": true
+      }
+    ],
+    "usageLimits": [
+      {
+        "id": "emailsPerMonth",
+        "name": "emailsPerMonth",
+        "valueType": "NUMERIC",
+        "unit": "email",
+        "default": 100,
+        "linkedFeatures": [
+          "transactionalEmailApi",
+          "templateEmailApi",
+          "batchEmailApi",
+          "batchWithTemplatesApi",
+          "bulkEmailApi",
+          "smtpRelay"
+        ]
+      },
+      {
+        "id": "apiRequestsPerSecond",
+        "name": "apiRequestsPerSecond",
+        "valueType": "NUMERIC",
+        "unit": "request",
+        "default": 5000,
+        "linkedFeatures": [
+          "transactionalEmailApi",
+          "templateEmailApi",
+          "batchEmailApi",
+          "batchWithTemplatesApi",
+          "bulkEmailApi",
+          "outboundMessagesApi"
+        ]
+      },
+      {
+        "id": "recipientsPerMessage",
+        "name": "recipientsPerMessage",
+        "valueType": "NUMERIC",
+        "unit": "recipient",
+        "default": 50,
+        "linkedFeatures": [
+          "transactionalEmailApi",
+          "templateEmailApi"
+        ]
+      },
+      {
+        "id": "messagesPerBatchRequest",
+        "name": "messagesPerBatchRequest",
+        "valueType": "NUMERIC",
+        "unit": "email",
+        "default": 500,
+        "linkedFeatures": [
+          "batchEmailApi",
+          "batchWithTemplatesApi"
+        ]
+      },
+      {
+        "id": "emailSize",
+        "name": "emailSize",
+        "valueType": "NUMERIC",
+        "unit": "MB",
+        "default": 10,
+        "linkedFeatures": [
+          "transactionalEmailApi",
+          "templateEmailApi"
+        ]
+      },
+      {
+        "id": "batchPayloadSize",
+        "name": "batchPayloadSize",
+        "valueType": "NUMERIC",
+        "unit": "MB",
+        "default": 50,
+        "linkedFeatures": [
+          "batchEmailApi",
+          "batchWithTemplatesApi",
+          "bulkEmailApi"
+        ]
+      },
+      {
+        "id": "resultsPerMessagesRequest",
+        "name": "resultsPerMessagesRequest",
+        "valueType": "NUMERIC",
+        "unit": "message",
+        "default": 500,
+        "linkedFeatures": [
+          "outboundMessagesApi"
+        ]
+      },
+      {
+        "id": "maxTemplatesPerServer",
+        "name": "maxTemplatesPerServer",
+        "valueType": "NUMERIC",
+        "unit": "template",
+        "default": 100,
+        "linkedFeatures": [
+          "emailTemplates"
+        ]
+      },
+      {
+        "id": "activityRetentionDays",
+        "name": "activityRetentionDays",
+        "valueType": "NUMERIC",
+        "unit": "day",
+        "default": 45,
+        "linkedFeatures": [
+          "activityData"
+        ]
+      },
+      {
+        "id": "maxServers",
+        "name": "maxServers",
+        "valueType": "NUMERIC",
+        "unit": "server",
+        "default": 5,
+        "linkedFeatures": [
+          "servers"
+        ]
+      },
+      {
+        "id": "maxStreams",
+        "name": "maxStreams",
+        "valueType": "NUMERIC",
+        "unit": "stream",
+        "default": 15,
+        "linkedFeatures": [
+          "messageStreams"
+        ]
+      },
+      {
+        "id": "maxSignatureDomains",
+        "name": "maxSignatureDomains",
+        "valueType": "NUMERIC",
+        "unit": "domain",
+        "default": 5,
+        "linkedFeatures": [
+          "signatureDomains"
+        ]
+      },
+      {
+        "id": "maxUsers",
+        "name": "maxUsers",
+        "valueType": "NUMERIC",
+        "unit": "user",
+        "default": 4,
+        "linkedFeatures": [
+          "teamUsers"
+        ]
+      }
+    ],
+    "plans": [
+      {
+        "id": "free",
+        "name": "free",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 0.0
+        },
+        "unit": "month",
+        "period": "month",
+        "perSeat": false,
+        "features": {
+          "transactionalEmailApi": true,
+          "templateEmailApi": true,
+          "batchEmailApi": true,
+          "batchWithTemplatesApi": true,
+          "bulkEmailApi": true,
+          "smtpRelay": true,
+          "inboundEmailProcessing": false,
+          "dedicatedIp": false,
+          "eventWebhooks": false,
+          "statsTrackingApis": false,
+          "outboundMessagesApi": true,
+          "activityData": true,
+          "emailTemplates": true,
+          "servers": true,
+          "messageStreams": true,
+          "signatureDomains": true,
+          "teamUsers": true
+        },
+        "usageLimits": {
+          "emailsPerMonth": 100,
+          "apiRequestsPerSecond": 5000,
+          "recipientsPerMessage": 50,
+          "messagesPerBatchRequest": 500,
+          "emailSize": 10,
+          "batchPayloadSize": 50,
+          "resultsPerMessagesRequest": 500,
+          "maxTemplatesPerServer": 100,
+          "activityRetentionDays": 45,
+          "maxServers": 5,
+          "maxStreams": 15,
+          "maxSignatureDomains": 5,
+          "maxUsers": 4
+        }
+      },
+      {
+        "id": "basic",
+        "name": "basic",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 15.0
+        },
+        "unit": "month",
+        "period": "month",
+        "perSeat": false,
+        "features": {
+          "transactionalEmailApi": true,
+          "templateEmailApi": true,
+          "batchEmailApi": true,
+          "batchWithTemplatesApi": true,
+          "bulkEmailApi": true,
+          "smtpRelay": true,
+          "inboundEmailProcessing": false,
+          "dedicatedIp": false,
+          "eventWebhooks": false,
+          "statsTrackingApis": false,
+          "outboundMessagesApi": true,
+          "activityData": true,
+          "emailTemplates": true,
+          "servers": true,
+          "messageStreams": true,
+          "signatureDomains": true,
+          "teamUsers": true
+        },
+        "usageLimits": {
+          "emailsPerMonth": 10000,
+          "apiRequestsPerSecond": 5000,
+          "recipientsPerMessage": 50,
+          "messagesPerBatchRequest": 500,
+          "emailSize": 10,
+          "batchPayloadSize": 50,
+          "resultsPerMessagesRequest": 500,
+          "maxTemplatesPerServer": 100,
+          "activityRetentionDays": 45,
+          "maxServers": 5,
+          "maxStreams": 15,
+          "maxSignatureDomains": 5,
+          "maxUsers": 4
+        }
+      },
+      {
+        "id": "pro",
+        "name": "pro",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 16.5
+        },
+        "unit": "month",
+        "period": "month",
+        "perSeat": false,
+        "features": {
+          "transactionalEmailApi": true,
+          "templateEmailApi": true,
+          "batchEmailApi": true,
+          "batchWithTemplatesApi": true,
+          "bulkEmailApi": true,
+          "smtpRelay": true,
+          "inboundEmailProcessing": true,
+          "dedicatedIp": false,
+          "eventWebhooks": true,
+          "statsTrackingApis": true,
+          "outboundMessagesApi": true,
+          "activityData": true,
+          "emailTemplates": true,
+          "servers": true,
+          "messageStreams": true,
+          "signatureDomains": true,
+          "teamUsers": true
+        },
+        "usageLimits": {
+          "emailsPerMonth": 10000,
+          "apiRequestsPerSecond": 5000,
+          "recipientsPerMessage": 50,
+          "messagesPerBatchRequest": 500,
+          "emailSize": 10,
+          "batchPayloadSize": 50,
+          "resultsPerMessagesRequest": 500,
+          "maxTemplatesPerServer": 100,
+          "activityRetentionDays": 45,
+          "maxServers": 10,
+          "maxStreams": 30,
+          "maxSignatureDomains": 10,
+          "maxUsers": 6
+        }
+      },
+      {
+        "id": "platform",
+        "name": "platform",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 18.0
+        },
+        "unit": "month",
+        "period": "month",
+        "perSeat": false,
+        "features": {
+          "transactionalEmailApi": true,
+          "templateEmailApi": true,
+          "batchEmailApi": true,
+          "batchWithTemplatesApi": true,
+          "bulkEmailApi": true,
+          "smtpRelay": true,
+          "inboundEmailProcessing": true,
+          "dedicatedIp": false,
+          "eventWebhooks": true,
+          "statsTrackingApis": false,
+          "outboundMessagesApi": true,
+          "activityData": true,
+          "emailTemplates": true,
+          "servers": true,
+          "messageStreams": true,
+          "signatureDomains": true,
+          "teamUsers": true
+        },
+        "usageLimits": {
+          "emailsPerMonth": 10000,
+          "apiRequestsPerSecond": 5000,
+          "recipientsPerMessage": 50,
+          "messagesPerBatchRequest": 500,
+          "emailSize": 10,
+          "batchPayloadSize": 50,
+          "resultsPerMessagesRequest": 500,
+          "maxTemplatesPerServer": 100,
+          "activityRetentionDays": 45,
+          "maxServers": {
+            "unlimited": true
+          },
+          "maxStreams": {
+            "unlimited": true
+          },
+          "maxSignatureDomains": {
+            "unlimited": true
+          },
+          "maxUsers": {
+            "unlimited": true
+          }
+        }
+      }
+    ],
+    "addOns": [
+      {
+        "id": "extraEmailsBasic",
+        "name": "extraEmailsBasic",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 1.8
+        },
+        "unit": "1000 emails",
+        "quantity": 1000.0,
+        "availableFor": [
+          "basic"
+        ],
+        "usageLimitsExtensions": {
+          "emailsPerMonth": 1000.0
+        },
+        "metered": true
+      },
+      {
+        "id": "extraEmailsPro",
+        "name": "extraEmailsPro",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 1.3
+        },
+        "unit": "1000 emails",
+        "quantity": 1000.0,
+        "availableFor": [
+          "pro"
+        ],
+        "usageLimitsExtensions": {
+          "emailsPerMonth": 1000.0
+        },
+        "metered": true
+      },
+      {
+        "id": "extraEmailsPlatform",
+        "name": "extraEmailsPlatform",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 1.2
+        },
+        "unit": "1000 emails",
+        "quantity": 1000.0,
+        "availableFor": [
+          "platform"
+        ],
+        "usageLimitsExtensions": {
+          "emailsPerMonth": 1000.0
+        },
+        "metered": true
+      },
+      {
+        "id": "dedicatedIp",
+        "name": "dedicatedIp",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 50.0
+        },
+        "unit": "IP/month",
+        "period": "month",
+        "availableFor": [
+          "pro",
+          "platform"
+        ],
+        "dependsOn": [],
+        "excludes": [],
+        "features": {
+          "dedicatedIp": true
+        },
+        "usageLimits": {},
+        "usageLimitsExtensions": {},
+        "metered": false
+      }
+    ],
+    "diagnostics": [],
+    "variables": {}
+  },
+  "effective": {
+    "free": {
+      "plan": "free",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {},
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "free",
+          "quantity": 1,
+          "price": {
+            "kind": "fixed",
+            "amount": 0.0
+          },
+          "unitAmount": 0.0,
+          "amount": 0.0
+        }
+      ],
+      "subtotal": 0.0,
+      "requiresQuote": false,
+      "features": {
+        "transactionalEmailApi": true,
+        "templateEmailApi": true,
+        "batchEmailApi": true,
+        "batchWithTemplatesApi": true,
+        "bulkEmailApi": true,
+        "smtpRelay": true,
+        "inboundEmailProcessing": false,
+        "dedicatedIp": false,
+        "eventWebhooks": false,
+        "statsTrackingApis": false,
+        "outboundMessagesApi": true,
+        "activityData": true,
+        "emailTemplates": true,
+        "servers": true,
+        "messageStreams": true,
+        "signatureDomains": true,
+        "teamUsers": true
+      },
+      "usageLimits": {
+        "emailsPerMonth": 100,
+        "apiRequestsPerSecond": 5000,
+        "recipientsPerMessage": 50,
+        "messagesPerBatchRequest": 500,
+        "emailSize": 10,
+        "batchPayloadSize": 50,
+        "resultsPerMessagesRequest": 500,
+        "maxTemplatesPerServer": 100,
+        "activityRetentionDays": 45,
+        "maxServers": 5,
+        "maxStreams": 15,
+        "maxSignatureDomains": 5,
+        "maxUsers": 4
+      }
+    },
+    "basic": {
+      "plan": "basic",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {},
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "basic",
+          "quantity": 1,
+          "price": {
+            "kind": "fixed",
+            "amount": 15.0
+          },
+          "unitAmount": 15.0,
+          "amount": 15.0
+        }
+      ],
+      "subtotal": 15.0,
+      "requiresQuote": false,
+      "features": {
+        "transactionalEmailApi": true,
+        "templateEmailApi": true,
+        "batchEmailApi": true,
+        "batchWithTemplatesApi": true,
+        "bulkEmailApi": true,
+        "smtpRelay": true,
+        "inboundEmailProcessing": false,
+        "dedicatedIp": false,
+        "eventWebhooks": false,
+        "statsTrackingApis": false,
+        "outboundMessagesApi": true,
+        "activityData": true,
+        "emailTemplates": true,
+        "servers": true,
+        "messageStreams": true,
+        "signatureDomains": true,
+        "teamUsers": true
+      },
+      "usageLimits": {
+        "emailsPerMonth": 10000,
+        "apiRequestsPerSecond": 5000,
+        "recipientsPerMessage": 50,
+        "messagesPerBatchRequest": 500,
+        "emailSize": 10,
+        "batchPayloadSize": 50,
+        "resultsPerMessagesRequest": 500,
+        "maxTemplatesPerServer": 100,
+        "activityRetentionDays": 45,
+        "maxServers": 5,
+        "maxStreams": 15,
+        "maxSignatureDomains": 5,
+        "maxUsers": 4
+      }
+    },
+    "pro": {
+      "plan": "pro",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {},
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "pro",
+          "quantity": 1,
+          "price": {
+            "kind": "fixed",
+            "amount": 16.5
+          },
+          "unitAmount": 16.5,
+          "amount": 16.5
+        }
+      ],
+      "subtotal": 16.5,
+      "requiresQuote": false,
+      "features": {
+        "transactionalEmailApi": true,
+        "templateEmailApi": true,
+        "batchEmailApi": true,
+        "batchWithTemplatesApi": true,
+        "bulkEmailApi": true,
+        "smtpRelay": true,
+        "inboundEmailProcessing": true,
+        "dedicatedIp": false,
+        "eventWebhooks": true,
+        "statsTrackingApis": true,
+        "outboundMessagesApi": true,
+        "activityData": true,
+        "emailTemplates": true,
+        "servers": true,
+        "messageStreams": true,
+        "signatureDomains": true,
+        "teamUsers": true
+      },
+      "usageLimits": {
+        "emailsPerMonth": 10000,
+        "apiRequestsPerSecond": 5000,
+        "recipientsPerMessage": 50,
+        "messagesPerBatchRequest": 500,
+        "emailSize": 10,
+        "batchPayloadSize": 50,
+        "resultsPerMessagesRequest": 500,
+        "maxTemplatesPerServer": 100,
+        "activityRetentionDays": 45,
+        "maxServers": 10,
+        "maxStreams": 30,
+        "maxSignatureDomains": 10,
+        "maxUsers": 6
+      }
+    },
+    "pro+dedicatedIp": {
+      "plan": "pro",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {
+        "dedicatedIp": 1.0
+      },
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "pro",
+          "quantity": 1,
+          "price": {
+            "kind": "fixed",
+            "amount": 16.5
+          },
+          "unitAmount": 16.5,
+          "amount": 16.5
+        },
+        {
+          "kind": "addOn",
+          "id": "dedicatedIp",
+          "quantity": 1.0,
+          "price": {
+            "kind": "fixed",
+            "amount": 50.0
+          },
+          "unitAmount": 50.0,
+          "amount": 50.0
+        }
+      ],
+      "subtotal": 66.5,
+      "requiresQuote": false,
+      "features": {
+        "transactionalEmailApi": true,
+        "templateEmailApi": true,
+        "batchEmailApi": true,
+        "batchWithTemplatesApi": true,
+        "bulkEmailApi": true,
+        "smtpRelay": true,
+        "inboundEmailProcessing": true,
+        "dedicatedIp": true,
+        "eventWebhooks": true,
+        "statsTrackingApis": true,
+        "outboundMessagesApi": true,
+        "activityData": true,
+        "emailTemplates": true,
+        "servers": true,
+        "messageStreams": true,
+        "signatureDomains": true,
+        "teamUsers": true
+      },
+      "usageLimits": {
+        "emailsPerMonth": 10000,
+        "apiRequestsPerSecond": 5000,
+        "recipientsPerMessage": 50,
+        "messagesPerBatchRequest": 500,
+        "emailSize": 10,
+        "batchPayloadSize": 50,
+        "resultsPerMessagesRequest": 500,
+        "maxTemplatesPerServer": 100,
+        "activityRetentionDays": 45,
+        "maxServers": 10,
+        "maxStreams": 30,
+        "maxSignatureDomains": 10,
+        "maxUsers": 6
+      }
+    },
+    "platform": {
+      "plan": "platform",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {},
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "platform",
+          "quantity": 1,
+          "price": {
+            "kind": "fixed",
+            "amount": 18.0
+          },
+          "unitAmount": 18.0,
+          "amount": 18.0
+        }
+      ],
+      "subtotal": 18.0,
+      "requiresQuote": false,
+      "features": {
+        "transactionalEmailApi": true,
+        "templateEmailApi": true,
+        "batchEmailApi": true,
+        "batchWithTemplatesApi": true,
+        "bulkEmailApi": true,
+        "smtpRelay": true,
+        "inboundEmailProcessing": true,
+        "dedicatedIp": false,
+        "eventWebhooks": true,
+        "statsTrackingApis": false,
+        "outboundMessagesApi": true,
+        "activityData": true,
+        "emailTemplates": true,
+        "servers": true,
+        "messageStreams": true,
+        "signatureDomains": true,
+        "teamUsers": true
+      },
+      "usageLimits": {
+        "emailsPerMonth": 10000,
+        "apiRequestsPerSecond": 5000,
+        "recipientsPerMessage": 50,
+        "messagesPerBatchRequest": 500,
+        "emailSize": 10,
+        "batchPayloadSize": 50,
+        "resultsPerMessagesRequest": 500,
+        "maxTemplatesPerServer": 100,
+        "activityRetentionDays": 45,
+        "maxServers": {
+          "unlimited": true
+        },
+        "maxStreams": {
+          "unlimited": true
+        },
+        "maxSignatureDomains": {
+          "unlimited": true
+        },
+        "maxUsers": {
+          "unlimited": true
+        }
+      }
+    },
+    "platform+dedicatedIp": {
+      "plan": "platform",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {
+        "dedicatedIp": 1.0
+      },
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "platform",
+          "quantity": 1,
+          "price": {
+            "kind": "fixed",
+            "amount": 18.0
+          },
+          "unitAmount": 18.0,
+          "amount": 18.0
+        },
+        {
+          "kind": "addOn",
+          "id": "dedicatedIp",
+          "quantity": 1.0,
+          "price": {
+            "kind": "fixed",
+            "amount": 50.0
+          },
+          "unitAmount": 50.0,
+          "amount": 50.0
+        }
+      ],
+      "subtotal": 68.0,
+      "requiresQuote": false,
+      "features": {
+        "transactionalEmailApi": true,
+        "templateEmailApi": true,
+        "batchEmailApi": true,
+        "batchWithTemplatesApi": true,
+        "bulkEmailApi": true,
+        "smtpRelay": true,
+        "inboundEmailProcessing": true,
+        "dedicatedIp": true,
+        "eventWebhooks": true,
+        "statsTrackingApis": false,
+        "outboundMessagesApi": true,
+        "activityData": true,
+        "emailTemplates": true,
+        "servers": true,
+        "messageStreams": true,
+        "signatureDomains": true,
+        "teamUsers": true
+      },
+      "usageLimits": {
+        "emailsPerMonth": 10000,
+        "apiRequestsPerSecond": 5000,
+        "recipientsPerMessage": 50,
+        "messagesPerBatchRequest": 500,
+        "emailSize": 10,
+        "batchPayloadSize": 50,
+        "resultsPerMessagesRequest": 500,
+        "maxTemplatesPerServer": 100,
+        "activityRetentionDays": 45,
+        "maxServers": {
+          "unlimited": true
+        },
+        "maxStreams": {
+          "unlimited": true
+        },
+        "maxSignatureDomains": {
+          "unlimited": true
+        },
+        "maxUsers": {
+          "unlimited": true
+        }
+      }
+    }
+  }
+}

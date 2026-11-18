@@ -1,0 +1,14 @@
+{
+  "latestVersionId": "6921867e7004563bd918e7e8",
+  "name": "TomatoMeter",
+  "permanentUrl": "https://sphere.score.us.es/p/6ab0a323697330667ccce8cd",
+  "pricingId": "6ab0a323697330667ccce8cd",
+  "versions": [
+    {
+      "createdAt": "2026-01-01T00:00:04Z",
+      "label": "1.0.0",
+      "private": false,
+      "versionId": "6921867e7004563bd918e7e8"
+    }
+  ]
+}

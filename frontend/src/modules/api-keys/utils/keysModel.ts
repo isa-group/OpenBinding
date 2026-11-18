@@ -74,7 +74,6 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
     name: 'Other',
     permissions: [
       { id: 'notifications:read', description: 'Read notifications' },
-      { id: 'pricing:read', description: 'Read pricing' },
       { id: 'admin:accounts:read', description: 'Read all accounts' },
       { id: 'admin:accounts:write', description: 'Change accounts' },
     ],
@@ -102,7 +101,6 @@ const CATALOGUED: Record<ApiKeyPermission, true> = {
   'studies:read': true,
   'studies:write': true,
   'notifications:read': true,
-  'pricing:read': true,
   'admin:accounts:read': true,
   'admin:accounts:write': true,
 };

@@ -3,7 +3,7 @@ import { expect as baseExpect, test, type Page, type Route, type TestInfo } from
 
 // The dev server compiles each route on first use, so the first assertion of a test can wait for a cold page.
 const expect = baseExpect.configure({ timeout: 15_000 });
-import { CURRENT_FIXTURE, catalogFixture } from '../src/test/fixtures/pricingCatalog';
+import { PLANS_PRICING_FIXTURE } from '../src/test/fixtures/plansPricing';
 import { zipStore } from '../src/modules/core/utils/bimZip';
 
 // S1b · public screens, part 2: eng-catalog, eng-detail, pub-language (its smoke; J6 walks it in f2a-language.spec.ts), and the
@@ -419,9 +419,8 @@ async function mockApi(page: Page, mocks: Mocks = {}) {
       ])
     );
   }
-  // EngineDetail reads the live catalog (the deprecated YAML at /v1/pricing is no longer requested).
-  await page.route(`${API}/v1/pricing/catalog`, json(catalogFixture));
-  await page.route(`${API}/v1/pricing/current`, json(CURRENT_FIXTURE));
+  // EngineDetail reads the published pricing's document.
+  await page.route(`${API}/v1/plans/pricing`, json(PLANS_PRICING_FIXTURE));
   await page.route(`${API}/v1/engines/protocol`, json({ profiles: [profile] }));
   await page.route(`${API}/v1/bim/templates`, json({ templates: EXAMPLES }));
   await page.route(`${API}/v1/bim/templates/**`, route =>

@@ -1,0 +1,9 @@
+{
+  "cache-control": "private, no-cache",
+  "content-type": "application/yaml; charset=utf-8",
+  "etag": "\"16ad85090651779141316ac7761b35d16f099b66c8880562422b38350b39811a\"",
+  "ratelimit-limit": "300",
+  "ratelimit-remaining": "251",
+  "ratelimit-reset": "4",
+  "vary": "Authorization, x-api-key"
+}

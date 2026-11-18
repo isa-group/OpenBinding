@@ -106,7 +106,7 @@ export default function OverviewSection() {
   const moderation = useResource('admin-overview-moderation', () => api.adminModeration());
   const errors = useResource('admin-overview-errors', () => api.adminErrorOverview());
   const pricing = useResource('admin-overview-pricing', async () => ({
-    live: (await api.getCurrentPricing()).version,
+    live: (await api.getPlansPricing()).version,
   }));
 
   const reloadAll = () =>

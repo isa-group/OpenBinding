@@ -1,0 +1,9 @@
+{
+  "cache-control": "private, no-cache",
+  "content-type": "application/json; charset=utf-8",
+  "etag": "\"3dfed3b516061e1e5fd76cd99753d7cc4da537aab58edb36d5ee96fe8c833ddc\"",
+  "ratelimit-limit": "300",
+  "ratelimit-remaining": "294",
+  "ratelimit-reset": "7",
+  "vary": "Authorization, x-api-key"
+}

@@ -29,7 +29,6 @@ SECRET_VARIABLES = (
     "DATABASE_URL",
     "GATEWAY_JWT_SECRET",
     "SPACE_API_KEY",
-    "SPHERE_API_KEY",
     "SECRETS_FERNET_KEYS",
     "FEDERATION_SECRET_KEY",
     "BOOTSTRAP_ADMIN_PASSWORD",
@@ -510,11 +509,10 @@ SECRET_NAMES = (
     "database_url",
     "gateway_jwt_secret",
     "space_api_key",
-    "sphere_api_key",
     "secrets_fernet_keys",
     "bootstrap_admin_password",
 )
-WORKER_SECRETS = ("database_url", "space_api_key", "sphere_api_key", "secrets_fernet_keys")
+WORKER_SECRETS = ("database_url", "space_api_key", "secrets_fernet_keys")
 EXPECTED_SECRETS = {
     "postgres": {"postgres_password"},
     "migrate": {"database_url"},
@@ -522,7 +520,6 @@ EXPECTED_SECRETS = {
         "database_url",
         "gateway_jwt_secret",
         "space_api_key",
-        "sphere_api_key",
         "secrets_fernet_keys",
         "bootstrap_admin_password",
     },
@@ -534,7 +531,6 @@ WORKER_ENVIRONMENT = {
     "OPENBINDING_MIGRATE": "skip",
     "DATABASE_URL_FILE": "/run/secrets/database_url",
     "SPACE_API_KEY_FILE": "/run/secrets/space_api_key",
-    "SPHERE_API_KEY_FILE": "/run/secrets/sphere_api_key",
     "SECRETS_FERNET_KEYS_FILE": "/run/secrets/secrets_fernet_keys",
 }
 # Both read pricing 0.2.0 (the startup check refuses a document without its ids) and verify pricing tokens for the
@@ -554,7 +550,6 @@ REQUIRED_ENVIRONMENT = {
         "DATABASE_URL_FILE": "/run/secrets/database_url",
         "GATEWAY_JWT_SECRET_FILE": "/run/secrets/gateway_jwt_secret",
         "SPACE_API_KEY_FILE": "/run/secrets/space_api_key",
-        "SPHERE_API_KEY_FILE": "/run/secrets/sphere_api_key",
         "SECRETS_FERNET_KEYS_FILE": "/run/secrets/secrets_fernet_keys",
         "BOOTSTRAP_ADMIN_PASSWORD_FILE": "/run/secrets/bootstrap_admin_password",
         **SPACE_PRICING_ENVIRONMENT,
@@ -1017,7 +1012,7 @@ def test_production_has_no_literal_secret_shape_in_the_files():
             edit("secrets", "space_api_key", "file", value="${OPENBINDING_SECRETS_DIR}/space_api_key"),
             "secret space_api_key",
         ),
-        (edit("secrets", "sphere_api_key"), "top-level secrets"),
+        (edit("secrets", "secrets_fernet_keys"), "top-level secrets"),
         (append("services", "worker", "secrets", item="gateway_jwt_secret"), "worker: mounts gateway_jwt_secret"),
         (append("services", "pg-backup", "secrets", item="database_url"), "pg-backup: secrets are"),
         (edit("services", "gateway", "secrets", value=["database_url"]), "gateway: secrets are"),
@@ -2223,7 +2218,7 @@ def typed_secret_problems(text: str) -> list[str]:
     """The keys and passwords that a person provides are read without echo, never written in a command."""
     problems = []
     for line in commands(text):
-        if not re.search(r"put_secret (space_api_key|sphere_api_key|bootstrap_admin_password)\b", line):
+        if not re.search(r"put_secret (space_api_key|bootstrap_admin_password)\b", line):
             continue
         if line.startswith("printf '' | put_secret ") and line.endswith(" allow-empty"):
             continue  # an empty file on purpose
@@ -2255,7 +2250,7 @@ def test_runbook_secrets_that_a_person_provides_are_never_typed_in_a_command():
         "printf '%s' 'abc123' | put_secret space_api_key 10001",
         "printf '%s' '<password>' | put_secret bootstrap_admin_password 10001",
         'printf \'%s\' "$v" | put_secret space_api_key 10001',
-        "IFS= read -rs v; printf '%s' \"$v\" | put_secret sphere_api_key 10001",
+        "IFS= read -rs v; printf '%s' \"$v\" | put_secret space_api_key 10001",
         "printf '' | put_secret space_api_key 10001",
     ],
     ids=["literal-key", "literal-password", "no-read", "no-unset", "empty-without-allow"],
@@ -2390,9 +2385,9 @@ def test_runbook_put_secret_refuses_an_empty_value_and_writes_the_first_file_wit
     result = run_shell(script + "printf '' | put_secret space_api_key 10001\n", env)
     assert result.returncode == 1 and "refuse: empty value" in result.stderr
     assert not list(secrets.iterdir())
-    result = run_shell(script + "printf '' | put_secret sphere_api_key 10001 allow-empty\n", env)
-    assert result.returncode == 0 and (secrets / "sphere_api_key").read_text() == ""
-    assert not (secrets / "sphere_api_key.prev").exists()
+    result = run_shell(script + "printf '' | put_secret optional_key 10001 allow-empty\n", env)
+    assert result.returncode == 0 and (secrets / "optional_key").read_text() == ""
+    assert not (secrets / "optional_key.prev").exists()
 
 
 URL_WITH_OLD_PASSWORD = "postgresql+asyncpg://openbinding:oldpw@postgres:5432/openbinding"

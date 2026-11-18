@@ -4,9 +4,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AdminSubscriptionView } from '../../../core/api/account';
 import type { Revised } from '../../../core/api/http';
 import {
-  AGREEMENT_CURRENT_FIXTURE as CURRENT_FIXTURE,
-  agreementCatalogFixture as catalogFixture,
-} from '../../../../test/fixtures/agreementCatalog';
+  AGREEMENT_PRICING_FIXTURE as PRICING_FIXTURE,
+  agreementDocumentFixture as catalogFixture,
+} from '../../../../test/fixtures/agreementPricing';
 import AdminUserPage from '.';
 import { adminUserPath, type AdminUserTab } from '../../../../routes/paths/admin';
 import {
@@ -27,8 +27,7 @@ const api = vi.hoisted(() => ({
   adminUpdateSubscription: vi.fn(),
   adminChangePlan: vi.fn(),
   adminRevokeApiKey: vi.fn(),
-  getPricingCatalog: vi.fn(),
-  getCurrentPricing: vi.fn(),
+  getPlansPricing: vi.fn(),
   getPricingToken: vi.fn(),
 }));
 
@@ -190,8 +189,7 @@ describe('admin-user-detail · one account', () => {
     );
     api.adminListUsers.mockResolvedValue(userPage());
     api.adminGetUserUsage.mockResolvedValue(usageOf('BASIC'));
-    api.getPricingCatalog.mockResolvedValue(catalogFixture);
-    api.getCurrentPricing.mockResolvedValue(CURRENT_FIXTURE);
+    api.getPlansPricing.mockResolvedValue(PRICING_FIXTURE);
     api.getPricingToken.mockResolvedValue('token');
     api.adminUpdateSubscription.mockImplementation(
       async (id: string, value: { plan: string; add_ons: Record<string, number> }) =>
@@ -771,7 +769,10 @@ describe('admin-user-detail · one account', () => {
   });
 
   it('says it is reading the subscription again in the review in words too, and only then lets the change be confirmed', async () => {
-    api.getPricingCatalog.mockResolvedValue({ ...catalogFixture, syntaxVersion: '9.0' });
+    api.getPlansPricing.mockResolvedValue({
+      ...PRICING_FIXTURE,
+      document: { ...catalogFixture, syntaxVersion: '9.0' },
+    });
     const gateway = subscriptionGateway();
     open();
     await ready();
@@ -808,7 +809,10 @@ describe('admin-user-detail · one account', () => {
   });
 
   it('still lets a change be reviewed in words and applied when the renderer cannot read the pricing document', async () => {
-    api.getPricingCatalog.mockResolvedValue({ ...catalogFixture, syntaxVersion: '9.0' });
+    api.getPlansPricing.mockResolvedValue({
+      ...PRICING_FIXTURE,
+      document: { ...catalogFixture, syntaxVersion: '9.0' },
+    });
     open();
     await ready();
     choose(/^ADVANCED/);
@@ -832,7 +836,7 @@ describe('admin-user-detail · one account', () => {
   });
 
   it('keeps the page useful when the active pricing cannot be read', async () => {
-    api.getPricingCatalog.mockRejectedValue(refusal(503, 'pricing_unavailable', 'down'));
+    api.getPlansPricing.mockRejectedValue(refusal(503, 'pricing_unavailable', 'down'));
     open();
     await screen.findByRole('heading', { level: 1, name: 'sam.okafor' });
     expect(await screen.findByText('The active pricing couldn’t be read')).toBeInTheDocument();
@@ -918,6 +922,6 @@ describe('admin-user-detail · one account', () => {
       await screen.findByRole('heading', { level: 1, name: 'Page not found' })
     ).toBeInTheDocument();
     expect(api.adminGetSubscription).not.toHaveBeenCalled();
-    expect(api.getPricingCatalog).not.toHaveBeenCalled();
+    expect(api.getPlansPricing).not.toHaveBeenCalled();
   });
 });

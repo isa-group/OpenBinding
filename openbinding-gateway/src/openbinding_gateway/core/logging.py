@@ -15,6 +15,8 @@ _LABELED_SECRET = re.compile(
 )
 _BEARER = re.compile(r"(?i)\bBearer\s+[^\s,;]+")
 _OPENBINDING_KEY = re.compile(r"\bobk_[A-Za-z0-9_-]+")
+#: A SPHERE API key (an organization's connection): never logged, whatever carries it.
+_SPHERE_KEY = re.compile(r"\bsk-[0-9a-f]{64}\b")
 
 
 def redact(value: str, secrets: Iterable[str] = ()) -> str:
@@ -26,6 +28,7 @@ def redact(value: str, secrets: Iterable[str] = ()) -> str:
             result = result.replace(secret, "[REDACTED]")
     result = _BEARER.sub("Bearer [REDACTED]", result)
     result = _LABELED_SECRET.sub(r"\1\2[REDACTED]", result)
+    result = _SPHERE_KEY.sub("[REDACTED]", result)
     return _OPENBINDING_KEY.sub("[REDACTED]", result)
 
 

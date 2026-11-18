@@ -432,11 +432,10 @@ def test_structured_http_errors_preserve_their_problem_code() -> None:
 
 def test_pricing_contract_is_public() -> None:
     paths = app.openapi()["paths"]
-    assert "/v1/pricing" not in paths
-    for path in ("/v1/pricing/catalog", "/v1/pricing/current"):
-        operation = paths[path]["get"]
-        assert not operation.get("deprecated")
-        assert not operation.get("security")
+    assert not [path for path in paths if path.startswith("/v1/pricing")]
+    operation = paths["/v1/plans/pricing"]["get"]
+    assert not operation.get("deprecated")
+    assert not operation.get("security")
 
 
 @pytest.mark.asyncio

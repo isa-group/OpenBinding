@@ -29,9 +29,14 @@ TEST_TREES = ("lab/tests/", "openbinding-gateway/tests/", "openbinding-gateway/t
               "frontend/tests/", "frontend/src/test/")
 # test_*.py, *.test.ts and *.spec.ts; the .tsx/.js/.mjs/.cjs variants of the same naming are covered on purpose.
 TEST_NAME = re.compile(r"(^test_.*\.py$|\.(test|spec)\.[cm]?[jt]sx?$)")
-# The plans path is allowed although the module does not exist yet.  The bootstrap exception limits
-# the raw-HTTP exception to lab/tools; the plans module is meant to use space-python-client, not raw HTTP.
-ALLOWED_PREFIXES = ("lab/tools/", "openbinding-gateway/src/openbinding_gateway/plans/")
+# The bootstrap exception limits the raw-HTTP exception to lab/tools; the plans module reads SPHERE through its
+# PricingSource port (core/outbound.py), and the SPHERE fixture recorder is run by hand, anonymous and GET only,
+# to record the answers the tests read offline (tests/fixtures/sphere).
+ALLOWED_PREFIXES = (
+    "lab/tools/",
+    "openbinding-gateway/src/openbinding_gateway/modules/plans/",
+    "openbinding-gateway/tools/record_sphere_fixtures.py",
+)
 # The only file under lab/tools that may be a direct caller; a new one needs a deliberate edit here and in
 # the ADR.
 LAB_TOOLS_DIRECT_CALLERS = {"lab/tools/space_lab_bootstrap.py"}
@@ -80,8 +85,6 @@ KNOWN_DEVIATIONS = {
     "openbinding-gateway/tools/_remote_common.py":
         "development probe: SpaceRemote uses httpx for services and pricings, SphereRemote calls SPHERE directly; "
         "remote_probe.py, remote_provision.py and seed_lab.py reach SPACE only through it (httpx there is for types)",
-    "openbinding-gateway/src/openbinding_gateway/sphere_client.py":
-        "the gateway's home-made SPHERE client (httpx with x-api-key), removed later",
 }
 
 
@@ -167,7 +170,8 @@ def test_control_detects_a_direct_call():
     assert is_direct_caller(DIRECT) and not is_allowed(gateway)
     # the same text under the allowed paths is allowed
     assert is_allowed("lab/tools/space_lab_bootstrap.py")
-    assert is_allowed("openbinding-gateway/src/openbinding_gateway/plans/catalog.py")
+    assert is_allowed("openbinding-gateway/src/openbinding_gateway/modules/plans/adapters/sphere/http.py")
+    assert not is_allowed("openbinding-gateway/src/openbinding_gateway/plans/catalog.py")
     assert not is_allowed("lab/tests/test_x.py") and not is_allowed("lab/other/tool.py")
     # forms of calls and targets
     assert is_direct_caller("const r = await fetch(`${sphereUrl}/api/v1/public/pricings`)")

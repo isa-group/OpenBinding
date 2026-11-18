@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { PricingUnavailableError, QuotaError } from '../../core/api/account';
 import { HttpError } from '../../core/api/http';
-import { agreementCatalogFixture } from '../../../test/fixtures/agreementCatalog';
+import { agreementDocumentFixture } from '../../../test/fixtures/agreementPricing';
 import {
   ageLabel,
   agreementIssues,
@@ -25,7 +25,7 @@ import {
 import { AUDIT, ERROR_EVENTS, SAM } from '../../../test/fixtures/admin';
 
 function catalog(): ContractCatalog {
-  const read = readContractCatalog(agreementCatalogFixture);
+  const read = readContractCatalog(agreementDocumentFixture);
   if (!read) throw new Error('the fixture has plans');
   return read;
 }

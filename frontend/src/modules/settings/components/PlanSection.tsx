@@ -8,7 +8,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { FiCreditCard, FiExternalLink, FiLoader } from 'react-icons/fi';
-import type { PricingCatalog } from '../../core/api/account';
+import type { PricingDocument } from '../../core/api/account';
 import {
   INSTITUTION_NAME,
   useInstitutionalBranding,
@@ -54,7 +54,7 @@ const LINK =
   'inline-flex min-h-6 cursor-pointer items-center gap-1 text-sm font-medium text-tp-link hover:underline';
 
 function limitDefinitions(
-  catalog: PricingCatalog | null | undefined
+  catalog: PricingDocument | null | undefined
 ): Record<string, LimitDefinition> {
   const limits = catalog?.usageLimits;
   return typeof limits === 'object' && limits !== null
@@ -140,7 +140,7 @@ function UsageBody({
   token,
 }: {
   usage: UsageView;
-  catalog: PricingCatalog | null;
+  catalog: PricingDocument | null;
   release: { version: string } | null;
   token: PricingTokenStatus;
 }) {
@@ -348,7 +348,7 @@ export default function PlanSection() {
   const [usage, setUsage] = useState<UsageView | null>(null);
   const [failure, setFailure] = useState<AuthFailure | null>(null);
   // The plan's wording and the published release are context; the section works without them.
-  const [catalog, setCatalog] = useState<PricingCatalog | null>(null);
+  const [catalog, setCatalog] = useState<PricingDocument | null>(null);
   const [release, setRelease] = useState<{ version: string } | null>(null);
   const [attempt, setAttempt] = useState(0);
 
@@ -365,12 +365,12 @@ export default function PlanSection() {
         if (current) setFailure(classifyAuthError(caught));
       });
     api
-      .getPricingCatalog()
-      .then(answer => current && setCatalog(answer))
-      .catch(() => {});
-    api
-      .getCurrentPricing()
-      .then(answer => current && setRelease(answer))
+      .getPlansPricing()
+      .then(answer => {
+        if (!current) return;
+        setCatalog(answer.document);
+        setRelease({ version: answer.version });
+      })
       .catch(() => {});
     return () => {
       current = false;

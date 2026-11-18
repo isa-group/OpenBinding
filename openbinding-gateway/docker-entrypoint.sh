@@ -25,7 +25,7 @@ case "$mode" in
         ;;
 esac
 
-for name in DATABASE_URL GATEWAY_JWT_SECRET SPACE_API_KEY SPHERE_API_KEY \
+for name in DATABASE_URL GATEWAY_JWT_SECRET SPACE_API_KEY \
     SECRETS_FERNET_KEYS FEDERATION_SECRET_KEY BOOTSTRAP_ADMIN_PASSWORD; do
     eval "file=\${${name}_FILE:-}"
     [ -n "$file" ] || continue

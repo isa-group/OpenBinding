@@ -10,7 +10,7 @@ const api = vi.hoisted(() => ({
   adminQueues: vi.fn(),
   adminModeration: vi.fn(),
   adminErrorOverview: vi.fn(),
-  getCurrentPricing: vi.fn(),
+  getPlansPricing: vi.fn(),
   adminListEngineRegistrations: vi.fn(),
   adminMaintenancePreview: vi.fn(),
 }));
@@ -54,11 +54,7 @@ describe('admin-overview · how the platform is doing', () => {
     api.adminQueues.mockImplementation(async () => queuesAt(Date.now()));
     api.adminModeration.mockResolvedValue(MODERATION);
     api.adminErrorOverview.mockResolvedValue(ERROR_OVERVIEW);
-    api.getCurrentPricing.mockResolvedValue({
-      version: '0.1.0',
-      digest: 'sha256-x',
-      url: 'https://sphere.example.test/0.1.0',
-    });
+    api.getPlansPricing.mockResolvedValue({ version: '0.1.0' });
     api.adminListEngineRegistrations.mockResolvedValue([]);
     api.adminMaintenancePreview.mockResolvedValue({
       expiredApiKeys: 0,
@@ -153,7 +149,7 @@ describe('admin-overview · how the platform is doing', () => {
   });
 
   it('lets the pricing block fail on its own when the public pricing is not served', async () => {
-    api.getCurrentPricing.mockRejectedValue(refusal(404, 'not_found'));
+    api.getPlansPricing.mockRejectedValue(refusal(404, 'not_found'));
     renderSection('/admin');
     expect(
       await within(block('Pricing')).findByText('This block couldn’t load')
@@ -347,6 +343,6 @@ describe('admin-overview · how the platform is doing', () => {
     expect(api.adminOverview).not.toHaveBeenCalled();
     expect(api.adminQueues).not.toHaveBeenCalled();
     expect(api.adminListEngineRegistrations).not.toHaveBeenCalled();
-    expect(api.getCurrentPricing).not.toHaveBeenCalled();
+    expect(api.getPlansPricing).not.toHaveBeenCalled();
   });
 });

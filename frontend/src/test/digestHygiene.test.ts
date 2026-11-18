@@ -68,7 +68,7 @@ const EXEMPT_FILES: readonly string[] = [
   '/src/modules/run/components/rendering/runResultFixtures.ts',
   '/src/test/fixtures/accounts.ts',
   '/src/test/fixtures/admin.ts',
-  '/src/test/fixtures/agreementCatalog.ts',
+  '/src/test/fixtures/agreementPricing.ts',
   '/src/test/fixtures/analysis.ts',
   '/src/test/fixtures/boundaries/src/modules/alpha/components/index.ts',
   '/src/test/fixtures/boundaries/src/modules/alpha/utils/index.ts',
@@ -76,7 +76,7 @@ const EXEMPT_FILES: readonly string[] = [
   '/src/test/fixtures/engines.ts',
   '/src/test/fixtures/jobs.ts',
   '/src/test/fixtures/presets.ts',
-  '/src/test/fixtures/pricingCatalog.ts',
+  '/src/test/fixtures/plansPricing.ts',
   '/src/test/fixtures/resources.ts',
   '/src/test/fixtures/studies.ts',
   // test support under src/test/, not shipped behaviour

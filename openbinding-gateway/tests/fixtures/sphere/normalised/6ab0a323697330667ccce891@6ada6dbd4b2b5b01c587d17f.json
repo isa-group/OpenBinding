@@ -1,0 +1,471 @@
+{
+  "pricing": {
+    "syntaxVersion": "3.1",
+    "title": "OpenBinding",
+    "version": "0.2.0",
+    "createdAt": "2026-10-22",
+    "currency": "EUR",
+    "billing": [
+      {
+        "id": "monthly",
+        "multiplier": 1.0,
+        "synthesized": false
+      }
+    ],
+    "features": [
+      {
+        "id": "repository",
+        "name": "repository",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "runs",
+        "name": "runs",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "studies",
+        "name": "studies",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "generator",
+        "name": "generator",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "federatedEngines",
+        "name": "federatedEngines",
+        "type": "INTEGRATION",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "collaboration",
+        "name": "collaboration",
+        "type": "MANAGEMENT",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "apiAccess",
+        "name": "apiAccess",
+        "type": "INTEGRATION",
+        "valueType": "BOOLEAN",
+        "default": true
+      }
+    ],
+    "usageLimits": [
+      {
+        "id": "maxProblems",
+        "name": "maxProblems",
+        "valueType": "NUMERIC",
+        "unit": "problem",
+        "default": 25,
+        "linkedFeatures": [
+          "repository"
+        ]
+      },
+      {
+        "id": "maxCollections",
+        "name": "maxCollections",
+        "valueType": "NUMERIC",
+        "unit": "collection",
+        "default": 5,
+        "linkedFeatures": [
+          "repository"
+        ]
+      },
+      {
+        "id": "maxRepositoryStorage",
+        "name": "maxRepositoryStorage",
+        "valueType": "NUMERIC",
+        "unit": "MB",
+        "default": 500,
+        "linkedFeatures": [
+          "repository"
+        ]
+      },
+      {
+        "id": "solverHours",
+        "name": "solverHours",
+        "valueType": "NUMERIC",
+        "unit": "hour/month",
+        "default": 5,
+        "linkedFeatures": [
+          "runs",
+          "studies"
+        ]
+      },
+      {
+        "id": "maxRunMinutes",
+        "name": "maxRunMinutes",
+        "valueType": "NUMERIC",
+        "unit": "minute",
+        "default": 5,
+        "linkedFeatures": [
+          "runs",
+          "studies"
+        ]
+      },
+      {
+        "id": "maxConcurrentRuns",
+        "name": "maxConcurrentRuns",
+        "valueType": "NUMERIC",
+        "unit": "run",
+        "default": 1,
+        "linkedFeatures": [
+          "runs",
+          "studies",
+          "generator",
+          "federatedEngines"
+        ]
+      },
+      {
+        "id": "maxStudyCells",
+        "name": "maxStudyCells",
+        "valueType": "NUMERIC",
+        "unit": "cell",
+        "default": 500,
+        "linkedFeatures": [
+          "studies"
+        ]
+      },
+      {
+        "id": "generatedInstances",
+        "name": "generatedInstances",
+        "valueType": "NUMERIC",
+        "unit": "instance/month",
+        "default": 1000,
+        "linkedFeatures": [
+          "generator"
+        ]
+      },
+      {
+        "id": "maxInstancesPerGeneration",
+        "name": "maxInstancesPerGeneration",
+        "valueType": "NUMERIC",
+        "unit": "instance",
+        "default": 100,
+        "linkedFeatures": [
+          "generator"
+        ]
+      },
+      {
+        "id": "maxFederatedEngines",
+        "name": "maxFederatedEngines",
+        "valueType": "NUMERIC",
+        "unit": "engine",
+        "default": 1,
+        "linkedFeatures": [
+          "federatedEngines"
+        ]
+      },
+      {
+        "id": "maxPrivateProjects",
+        "name": "maxPrivateProjects",
+        "valueType": "NUMERIC",
+        "unit": "project",
+        "default": 1,
+        "linkedFeatures": [
+          "collaboration"
+        ]
+      },
+      {
+        "id": "maxApiKeys",
+        "name": "maxApiKeys",
+        "valueType": "NUMERIC",
+        "unit": "key",
+        "default": 2,
+        "linkedFeatures": [
+          "apiAccess"
+        ]
+      }
+    ],
+    "plans": [
+      {
+        "id": "FREE",
+        "name": "FREE",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 0.0
+        },
+        "unit": "user/month",
+        "period": "month",
+        "perSeat": true,
+        "features": {
+          "repository": true,
+          "runs": true,
+          "studies": true,
+          "generator": true,
+          "federatedEngines": true,
+          "collaboration": true,
+          "apiAccess": true
+        },
+        "usageLimits": {
+          "maxProblems": 25,
+          "maxCollections": 5,
+          "maxRepositoryStorage": 500,
+          "solverHours": 5,
+          "maxRunMinutes": 5,
+          "maxConcurrentRuns": 1,
+          "maxStudyCells": 500,
+          "generatedInstances": 1000,
+          "maxInstancesPerGeneration": 100,
+          "maxFederatedEngines": 1,
+          "maxPrivateProjects": 1,
+          "maxApiKeys": 2
+        }
+      },
+      {
+        "id": "RESEARCH",
+        "name": "RESEARCH",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 0.0
+        },
+        "unit": "user/month",
+        "period": "month",
+        "perSeat": true,
+        "features": {
+          "repository": true,
+          "runs": true,
+          "studies": true,
+          "generator": true,
+          "federatedEngines": true,
+          "collaboration": true,
+          "apiAccess": true
+        },
+        "usageLimits": {
+          "maxProblems": {
+            "unlimited": true
+          },
+          "maxCollections": {
+            "unlimited": true
+          },
+          "maxRepositoryStorage": {
+            "unlimited": true
+          },
+          "solverHours": 100,
+          "maxRunMinutes": 30,
+          "maxConcurrentRuns": 4,
+          "maxStudyCells": 5000,
+          "generatedInstances": 100000,
+          "maxInstancesPerGeneration": 10000,
+          "maxFederatedEngines": 3,
+          "maxPrivateProjects": 10,
+          "maxApiKeys": 10
+        }
+      },
+      {
+        "id": "LAB",
+        "name": "LAB",
+        "private": false,
+        "price": {
+          "kind": "label",
+          "text": "Contact us"
+        },
+        "unit": "user/month",
+        "period": "month",
+        "perSeat": true,
+        "features": {
+          "repository": true,
+          "runs": true,
+          "studies": true,
+          "generator": true,
+          "federatedEngines": true,
+          "collaboration": true,
+          "apiAccess": true
+        },
+        "usageLimits": {
+          "maxProblems": {
+            "unlimited": true
+          },
+          "maxCollections": {
+            "unlimited": true
+          },
+          "maxRepositoryStorage": {
+            "unlimited": true
+          },
+          "solverHours": 10000,
+          "maxRunMinutes": 1440,
+          "maxConcurrentRuns": 32,
+          "maxStudyCells": 500000,
+          "generatedInstances": 1000000,
+          "maxInstancesPerGeneration": 100000,
+          "maxFederatedEngines": 50,
+          "maxPrivateProjects": 500,
+          "maxApiKeys": 200
+        }
+      }
+    ],
+    "addOns": [],
+    "diagnostics": [],
+    "variables": {}
+  },
+  "effective": {
+    "FREE": {
+      "plan": "FREE",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {},
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "FREE",
+          "quantity": 1,
+          "price": {
+            "kind": "fixed",
+            "amount": 0.0
+          },
+          "unitAmount": 0.0,
+          "amount": 0.0
+        }
+      ],
+      "subtotal": 0.0,
+      "requiresQuote": false,
+      "features": {
+        "repository": true,
+        "runs": true,
+        "studies": true,
+        "generator": true,
+        "federatedEngines": true,
+        "collaboration": true,
+        "apiAccess": true
+      },
+      "usageLimits": {
+        "maxProblems": 25,
+        "maxCollections": 5,
+        "maxRepositoryStorage": 500,
+        "solverHours": 5,
+        "maxRunMinutes": 5,
+        "maxConcurrentRuns": 1,
+        "maxStudyCells": 500,
+        "generatedInstances": 1000,
+        "maxInstancesPerGeneration": 100,
+        "maxFederatedEngines": 1,
+        "maxPrivateProjects": 1,
+        "maxApiKeys": 2
+      }
+    },
+    "RESEARCH": {
+      "plan": "RESEARCH",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {},
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "RESEARCH",
+          "quantity": 1,
+          "price": {
+            "kind": "fixed",
+            "amount": 0.0
+          },
+          "unitAmount": 0.0,
+          "amount": 0.0
+        }
+      ],
+      "subtotal": 0.0,
+      "requiresQuote": false,
+      "features": {
+        "repository": true,
+        "runs": true,
+        "studies": true,
+        "generator": true,
+        "federatedEngines": true,
+        "collaboration": true,
+        "apiAccess": true
+      },
+      "usageLimits": {
+        "maxProblems": {
+          "unlimited": true
+        },
+        "maxCollections": {
+          "unlimited": true
+        },
+        "maxRepositoryStorage": {
+          "unlimited": true
+        },
+        "solverHours": 100,
+        "maxRunMinutes": 30,
+        "maxConcurrentRuns": 4,
+        "maxStudyCells": 5000,
+        "generatedInstances": 100000,
+        "maxInstancesPerGeneration": 10000,
+        "maxFederatedEngines": 3,
+        "maxPrivateProjects": 10,
+        "maxApiKeys": 10
+      }
+    },
+    "LAB": {
+      "plan": "LAB",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {},
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "LAB",
+          "quantity": 1,
+          "price": {
+            "kind": "label",
+            "text": "Contact us"
+          },
+          "unitAmount": null,
+          "amount": null
+        }
+      ],
+      "subtotal": 0.0,
+      "requiresQuote": true,
+      "features": {
+        "repository": true,
+        "runs": true,
+        "studies": true,
+        "generator": true,
+        "federatedEngines": true,
+        "collaboration": true,
+        "apiAccess": true
+      },
+      "usageLimits": {
+        "maxProblems": {
+          "unlimited": true
+        },
+        "maxCollections": {
+          "unlimited": true
+        },
+        "maxRepositoryStorage": {
+          "unlimited": true
+        },
+        "solverHours": 10000,
+        "maxRunMinutes": 1440,
+        "maxConcurrentRuns": 32,
+        "maxStudyCells": 500000,
+        "generatedInstances": 1000000,
+        "maxInstancesPerGeneration": 100000,
+        "maxFederatedEngines": 50,
+        "maxPrivateProjects": 500,
+        "maxApiKeys": 200
+      }
+    }
+  }
+}

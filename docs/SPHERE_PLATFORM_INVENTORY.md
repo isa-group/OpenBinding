@@ -70,9 +70,10 @@ SPHERE and SPACE are **remote** services (`https://space.score.us.es` for SPACE;
 not host them, edit their pricing, publish releases or renew contracts itself:
 
 - It *shows* the account's plan, permissions and links to the consoles.
-- It *reads* the published pricing read-only from SPHERE under the single
-  organization `OpenBinding`, slug `openbinding`, server-to-server with
-  `x-api-key` (`sphere_client.py`, `pricing_catalog.py`).
+- It *reads* pricings read-only from SPHERE through one port
+  (`modules/plans`, `PricingSource`), anonymously: OpenBinding's own pricing
+  (`GET /v1/plans/pricing`), discovery and upstream pricings. An organization
+  may connect its own SPHERE key for its private pricings.
 - It *delegates* account creation and plan changes to the official SPACE client
   with a `MANAGEMENT`-scoped key (`space_client/space.py`).
 - It persists release metadata, digests and the `LIVE` pointer, never the YAML.
@@ -89,9 +90,9 @@ credentials, so a development key is high-risk (see the README).
 **Code that predates this decision.** The earlier pricing-release workflow is
 gone from the gateway: there is no `SpaceDeploymentClient`, no
 `space_client/deployments.py`, no admin pricing route and no `pricing:admin`
-API-key permission, and the deprecated YAML proxy `GET /v1/pricing` was removed.
-`routes/pricing.py` serves only `GET /v1/pricing/catalog` and
-`GET /v1/pricing/current`, which the public Pricing page reads.
+API-key permission, and the deprecated YAML proxy `GET /v1/pricing` was removed;
+F3 removed its `catalog` and `current` routes too, so the public
+Pricing page reads `GET /v1/plans/pricing`.
 
 SPHERE's static-file route does not authenticate the content URL even when a
 version is private in its catalogue. “Private” therefore means catalogue and

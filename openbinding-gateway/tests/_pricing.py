@@ -1,6 +1,7 @@
 """Pricing test helpers, built from the published pricing 0.2.0.
 
-``fixtures/pricing/openbinding-0.2.0.yml`` is a byte copy of
+The recorded SPHERE version 0.2.0 of OpenBinding's pricing
+(``fixtures/sphere/6ab0a323697330667ccce891/6ada6dbd4b2b5b01c587d17f.yml``), byte-identical to
 ``docs/pricing/openbinding-0.2.0.yml`` (plans FREE, RESEARCH and LAB). The fake
 gate resolves its plans the way SPACE would; the real pricings are administered
 in SPHERE and SPACE, never in this repository.
@@ -9,26 +10,26 @@ in SPHERE and SPACE, never in this repository.
 from functools import lru_cache
 from pathlib import Path
 
-from _fake_space import FakePricingGate, PricingCatalog
+from _fake_space import FakePricingGate, FixtureCatalog
 from openbinding_gateway.space_client import PlanCaps
 
-PRICING_YAML = Path(__file__).resolve().parent / "fixtures" / "pricing" / "openbinding-0.2.0.yml"
+PRICING_YAML = Path(__file__).resolve().parent / "fixtures" / "sphere" / "6ab0a323697330667ccce891" / "6ada6dbd4b2b5b01c587d17f.yml"
 
 #: The version the fixture declares; conftest points ``SPACE_PRICING_VERSION`` at it.
 FIXTURE_VERSION = "0.2.0"
 
 
 @lru_cache(maxsize=1)
-def pricing_catalog() -> PricingCatalog:
-    return PricingCatalog.parse(PRICING_YAML.read_bytes())
+def fixture_catalog() -> FixtureCatalog:
+    return FixtureCatalog.parse(PRICING_YAML.read_bytes())
 
 
 def fake_pricing_gate() -> FakePricingGate:
-    return FakePricingGate(pricing_catalog())
+    return FakePricingGate(fixture_catalog())
 
 
 def caps_for(plan: str) -> PlanCaps:
-    catalog = pricing_catalog()
+    catalog = fixture_catalog()
     features, limits = catalog.entitlements(plan)
     return PlanCaps(plan=plan, features=features, limits=limits)
 
@@ -47,7 +48,7 @@ def largest_plan(limit_id: str = "maxRunMinutes") -> str:
 
     By a functional limit: the plan that allows the longest runs.
     """
-    catalog = pricing_catalog()
+    catalog = fixture_catalog()
     return max(catalog.plans, key=lambda plan: catalog.entitlements(plan)[1][limit_id])
 
 
@@ -70,10 +71,10 @@ TEST_ADD_ONS = {
 }
 
 
-def catalog_with_add_ons() -> PricingCatalog:
+def catalog_with_add_ons() -> FixtureCatalog:
     """The fixture pricing plus ``TEST_ADD_ONS`` (available to FREE and LAB, never to RESEARCH)."""
     import yaml
 
     document = yaml.safe_load(PRICING_YAML.read_bytes())
     document["addOns"] = TEST_ADD_ONS
-    return PricingCatalog.parse(yaml.safe_dump(document).encode())
+    return FixtureCatalog.parse(yaml.safe_dump(document).encode())

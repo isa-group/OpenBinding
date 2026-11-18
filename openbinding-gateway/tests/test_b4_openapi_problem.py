@@ -113,10 +113,7 @@ def test_the_platform_error_envelope_gains_the_canonical_keys_beside_detail(docu
 
 
 def test_the_published_pricing_is_served_read_only(document):
-    pricing_paths = {
-        path: item for path, item in document["paths"].items() if path.startswith("/v1/pricing")
-    }
-    assert set(pricing_paths) == {"/v1/pricing/catalog", "/v1/pricing/current"}
-    for path, item in pricing_paths.items():
-        assert set(item) == {"get"}, path
-        assert "503" in item["get"]["responses"], path
+    assert not [path for path in document["paths"] if path.startswith("/v1/pricing")]
+    item = document["paths"]["/v1/plans/pricing"]
+    assert set(item) == {"get"}
+    assert "503" in item["get"]["responses"]

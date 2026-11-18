@@ -1,0 +1,139 @@
+saasName: sendgrid@rapidapi
+syntaxVersion: '3.1'
+version: 2026-10
+createdAt: '2026-10-25'
+url: https://rapidapi.com/sendgrid/api/sendgrid/pricing
+currency: USD
+tags:
+  - Emails
+  - Rate Limit
+  - Platform Fee
+billing:
+  monthly: 1
+features:
+  emails:
+    description: Sending emails through the SendGrid Web API v3 via RapidAPI (billing item "Emails").
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Emails
+  apiRequests:
+    description: Requests to the SendGrid API through the RapidAPI gateway, subject to a per-second rate limit.
+    type: INTEGRATION
+    integrationType: API
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Rate Limit
+  bandwidth:
+    description: Data transferred through the RapidAPI platform, charged as a bandwidth platform fee beyond the included amount.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Platform Fee
+usageLimits:
+  emailsPerDay:
+    description: Maximum emails per day (hard limit).
+    valueType: NUMERIC
+    defaultValue: 50
+    unit: email
+    type: RENEWABLE
+    period:
+      value: 1
+      unit: DAY
+    linkedFeatures:
+      - emails
+  emailsPerMonth:
+    description: Maximum emails per month (hard limit).
+    valueType: NUMERIC
+    defaultValue: .inf
+    unit: email
+    type: RENEWABLE
+    period:
+      value: 1
+      unit: MONTH
+    linkedFeatures:
+      - emails
+  apiRequestsPerSecond:
+    description: Rate limit on requests per second.
+    valueType: NUMERIC
+    defaultValue: 10
+    unit: request
+    type: RENEWABLE
+    period:
+      value: 1
+      unit: SEC
+    linkedFeatures:
+      - apiRequests
+  bandwidthPerMonth:
+    description: Bandwidth included per month before the platform fee applies.
+    valueType: NUMERIC
+    defaultValue: 10240
+    unit: MB
+    type: RENEWABLE
+    period:
+      value: 1
+      unit: MONTH
+    linkedFeatures:
+      - bandwidth
+plans:
+  BASIC:
+    description: Free plan.
+    price: 0
+    unit: account/month
+    features: null
+    usageLimits: null
+  PRO:
+    description: Pro plan.
+    price: 9.95
+    unit: account/month
+    features: null
+    usageLimits:
+      emailsPerDay:
+        value: .inf
+      emailsPerMonth:
+        value: 40000
+  ULTRA:
+    description: Ultra plan.
+    price: 79.95
+    unit: account/month
+    features: null
+    usageLimits:
+      emailsPerDay:
+        value: .inf
+      emailsPerMonth:
+        value: 100000
+  MEGA:
+    description: Mega plan.
+    price: 199.95
+    unit: account/month
+    features: null
+    usageLimits:
+      emailsPerDay:
+        value: .inf
+      emailsPerMonth:
+        value: 300000
+      apiRequestsPerSecond:
+        value: 50
+addOns:
+  bandwidthPlatformFee:
+    description: Bandwidth platform fee charged per MB beyond the 10240 MB included each month.
+    price: 0.001
+    unit: 1 MB
+    availableFor:
+      - BASIC
+      - PRO
+      - ULTRA
+      - MEGA
+    features: null
+    usageLimitsExtensions:
+      bandwidthPerMonth:
+        value: 1
+    subscriptionConstraints:
+      minQuantity: 1
+      maxQuantity: .inf
+      quantityStep: 1
+custom:
+  unmodeled:
+    - element: hard limit on emails
+      source_says: Every plan's Emails quota is marked "Hard Limit" (limitType hard, overage price 0).
+      why: Pricing2Yaml has no field for hard vs. soft limits; it is expressed by the absence of an email overage add-on.

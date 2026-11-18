@@ -12,7 +12,7 @@ import uuid
 import pytest
 from fastapi import HTTPException
 
-from _pricing import caps_for, fake_pricing_gate, largest_plan, pricing_catalog
+from _pricing import caps_for, fake_pricing_gate, largest_plan, fixture_catalog
 from openbinding_gateway import space_client
 from openbinding_gateway.access import policy
 from openbinding_gateway.core.public_errors import PRICING_UNAVAILABLE
@@ -29,7 +29,7 @@ from openbinding_gateway.space_client import PricingUnavailable
 
 #: What the fake pricing service says when it is switched off: it belongs in the log, never in a response.
 REASON = "The fake pricing service is switched off."
-DEFAULT_PLAN = pricing_catalog().default_plan
+DEFAULT_PLAN = fixture_catalog().default_plan
 LARGER_PLAN = largest_plan()
 #: A fixture feature the default plan does not grant.
 DENIED_FEATURE = "advancedAnalytics"

@@ -28,6 +28,7 @@ const CORPUS = [
   'src/test/vocabulary.terms.test.ts',
   'src/test/vocabulary.urls.test.ts',
   'test/version-graph.test.ts',
+  'src/test/sphere/normaliserParity.test.ts',
 ];
 
 // Half of the logical CPUs, which is the physical core count on a hyperthreaded machine: the work

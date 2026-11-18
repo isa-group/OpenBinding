@@ -25,8 +25,8 @@ it does not extend `docker-compose.yml`, builds nothing and has no profiles.
 | `postgres` | `POSTGRES_IMAGE` | `postgres_password` | volume `pgdata`; runs as uid 70 |
 | `redis` | `REDIS_IMAGE` | none | volume `redisdata`; job queue and CAS store |
 | `migrate` | `GATEWAY_IMAGE` | `database_url` | one-shot (`OPENBINDING_MIGRATE=only`), exits when the schema is current |
-| `gateway` | `GATEWAY_IMAGE` | `database_url`, `gateway_jwt_secret`, `space_api_key`, `sphere_api_key`, `secrets_fernet_keys`, `bootstrap_admin_password` | starts after `migrate` completed; the only service with the JWT secret |
-| `worker` | `GATEWAY_IMAGE` | `database_url`, `space_api_key`, `sphere_api_key`, `secrets_fernet_keys` | queue `default`, 4 threads |
+| `gateway` | `GATEWAY_IMAGE` | `database_url`, `gateway_jwt_secret`, `space_api_key`, `secrets_fernet_keys`, `bootstrap_admin_password` | starts after `migrate` completed; the only service with the JWT secret |
+| `worker` | `GATEWAY_IMAGE` | `database_url`, `space_api_key`, `secrets_fernet_keys` | queue `default`, 4 threads |
 | `engine-minizinc` | `ENGINE_MINIZINC_IMAGE` | none | |
 | `engine-random-search` | `ENGINE_RANDOM_SEARCH_IMAGE` | none | |
 | `engine-many-heuristic` | `ENGINE_MANY_HEURISTIC_IMAGE` | none | |
@@ -114,7 +114,6 @@ BOOTSTRAP_ADMIN_EMAIL=
 # only when SPHERE is enabled (it is off by default; without SPHERE_URL the service sees a placeholder):
 # SPHERE_ENABLED=true
 # SPHERE_URL=
-# SPHERE_ORGANIZATION_ID=
 ```
 
 `SPACE_URL` **must be an `https://` URL**: the gateway sends the SPACE API key to it. The [pre-flight](#pre-flight)
@@ -166,7 +165,6 @@ user) for every other file. These are host uids on a rootful Docker Engine only 
 ├── database_url                     (0400, owner uid 10001)
 ├── gateway_jwt_secret               (0400, owner uid 10001)
 ├── space_api_key                    (0400, owner uid 10001)
-├── sphere_api_key                   (0400, owner uid 10001)
 ├── secrets_fernet_keys              (0400, owner uid 10001)
 └── bootstrap_admin_password         (0400, owner uid 10001)
 ```
@@ -180,9 +178,10 @@ The path is an example; the real one is `OPENBINDING_SECRETS_DIR` in `site.env`.
   rely on it for a file that another tool reads.
 - `secrets_fernet_keys` holds a comma-separated list of Fernet keys, newest first.
 - `space_api_key` is required: production runs with SPACE enabled and the gateway refuses to start without it. The
-  SPHERE key (`sphere_api_key`) is mounted too; with `SPHERE_ENABLED=false` (the default) it may be an empty file. The
-  file must exist in every case, because Compose does not start a service whose secret file is missing.
-- The SPACE and SPHERE keys have `MANAGEMENT` scope: treat them as high-risk and never reuse a development key
+  file must exist, because Compose does not start a service whose secret file is missing.
+- OpenBinding holds no SPHERE key of its own: it reads SPHERE anonymously, an organization connects its own key in the
+  app (kept encrypted with `secrets_fernet_keys`), and an on-premise registry's key lives in `SPHERE_REGISTRIES`.
+- The SPACE key has `MANAGEMENT` scope: treat it as high-risk and never reuse a development key
   (`README.md`, "Development scope").
 - **A secret value is never typed into a command line**, because the shell history and the process list would keep it.
   Values that a person provides are read from the terminal with `IFS= read -rs v` and piped to `put_secret`.
@@ -226,9 +225,8 @@ printf '%s' "$(openssl rand -base64 32 | tr '+/' '-_' | tr -d '\n')" | put_secre
 unset password
 
 set +o history          # keep what follows out of the shell history
-# the key issued by the remote SPACE service (and, if enabled, by SPHERE); an empty file when SPHERE is off:
+# the key issued by the remote SPACE service:
 printf 'SPACE key: ' >&2; IFS= read -rs v; echo >&2; printf '%s' "$v" | put_secret space_api_key 10001; unset v
-printf '' | put_secret sphere_api_key 10001 allow-empty
 printf 'First administrator password: ' >&2; IFS= read -rs v; echo >&2; printf '%s' "$v" | put_secret bootstrap_admin_password 10001; unset v
 set -o history
 sudo ls -ln "$OPENBINDING_SECRETS_DIR"
@@ -643,7 +641,7 @@ and a copy of the newest dump in its `OPENBINDING_BACKUP_DIR`, brought over an e
 **The drill never uses a production SPACE key.** Its restored gateway and workers run with the restored data. Give the
 spare host a throwaway SPACE account and key, or leave `SPACE_URL` at an address that nothing answers (for example
 `https://space.invalid`, which still passes the https check) and put a placeholder in `space_api_key`; never copy the
-production `space_api_key` or `sphere_api_key` to it.
+production `space_api_key` to it.
 
 The drill refuses to run unless `DRILL_HOST=yes` is in the environment of that host (set it in `/etc/environment` of the
 spare host only, never on production), and prints the host name first. It restores with the same flags as the
@@ -795,7 +793,7 @@ sudo sh -c 'rm -f -- "$1"/*.prev' sh "$OPENBINDING_SECRETS_DIR"
   ```
 
   Remove an old key only after every stored value has been re-encrypted.
-- **SPACE and SPHERE keys (`space_api_key`, `sphere_api_key`):** create the new key in the remote service, write the
+- **SPACE key (`space_api_key`):** create the new key in the remote service, write the
   file, recreate, then revoke the old key:
 
   ```bash
@@ -806,7 +804,6 @@ sudo sh -c 'rm -f -- "$1"/*.prev' sh "$OPENBINDING_SECRETS_DIR"
   $DC restart nginx
   ```
 
-  The SPHERE key is the same with `sphere_api_key` in place of `space_api_key`.
 - **PostgreSQL password (`postgres_password`, `database_url`):** the new password goes to the database through standard
   input of a command inside the container, never as an argument, then both files are written and the services
   recreated. `postgres` itself reads the file only when it first initialises the data directory. `ALTER ROLE` never

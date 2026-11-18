@@ -450,6 +450,7 @@ class JobEngineAttempt(Base):
 from .platform_models import (  # noqa: E402,F401
     ApiErrorEvent,
     Blob,
+    PricingSnapshot,
     AuthIdentity,
     AuditEvent,
     BindingCase,
@@ -469,6 +470,7 @@ from .platform_models import (  # noqa: E402,F401
     OrganizationInvitationCode,
     OrganizationMembership,
     OrganizationRole,
+    OrgConnection,
     RunPreset,
     RunState,
     Study,

@@ -1,4 +1,4 @@
-"""A SPACE substitute for the tests, driven by the pricing 0.2.0 fixture (``fixtures/pricing``).
+"""A SPACE substitute for the tests, driven by the recorded pricing 0.2.0 (``fixtures/sphere``, ``_pricing.PRICING_YAML``).
 
 Production code holds no pricing and evaluates no plan: SPACE does. The tests
 still need plans with different limits to exercise how the gateway reacts to
@@ -31,28 +31,28 @@ from openbinding_gateway.space_client import (
 IDENTIFIER = re.compile(r"^[A-Za-z][A-Za-z0-9._-]{0,127}$")
 
 
-class PricingCatalogError(ValueError):
+class FixtureCatalogError(ValueError):
     """The fixture or a requested selection is invalid."""
 
 
 def _mapping(value: object, path: str) -> dict[str, Any]:
     if not isinstance(value, dict) or any(not isinstance(key, str) for key in value):
-        raise PricingCatalogError(f"{path} must be an object with string keys")
+        raise FixtureCatalogError(f"{path} must be an object with string keys")
     return value
 
 
 def _identifier(value: object, path: str) -> str:
     if not isinstance(value, str) or not IDENTIFIER.fullmatch(value):
-        raise PricingCatalogError(f"{path} is not a valid identifier")
+        raise FixtureCatalogError(f"{path} is not a valid identifier")
     return value
 
 
 def _number(value: object, path: str) -> float:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
-        raise PricingCatalogError(f"{path} must be numeric")
+        raise FixtureCatalogError(f"{path} must be numeric")
     result = float(value)
     if result < 0 or math.isnan(result):
-        raise PricingCatalogError(f"{path} must be non-negative")
+        raise FixtureCatalogError(f"{path} must be non-negative")
     return result
 
 
@@ -63,10 +63,10 @@ def _configured_values(declarations: dict[str, Any], overrides: object, path: st
     }
     for name, raw in _mapping(overrides or {}, path).items():
         if name not in declarations:
-            raise PricingCatalogError(f"{path}.{name} is not declared")
+            raise FixtureCatalogError(f"{path}.{name} is not declared")
         item = _mapping(raw, f"{path}.{name}")
         if "value" not in item:
-            raise PricingCatalogError(f"{path}.{name}.value is required")
+            raise FixtureCatalogError(f"{path}.{name}.value is required")
         result[name] = item["value"]
     return result
 
@@ -90,7 +90,7 @@ class AddOnDefinition:
 
 
 @dataclass(frozen=True)
-class PricingCatalog:
+class FixtureCatalog:
     """The parts of a Pricing2Yaml document the fake needs to resolve entitlements."""
 
     version: str
@@ -101,11 +101,11 @@ class PricingCatalog:
     text: str = ""
 
     @classmethod
-    def parse(cls, content: bytes) -> "PricingCatalog":
+    def parse(cls, content: bytes) -> "FixtureCatalog":
         root = _mapping(yaml.safe_load(content), "pricing")
         version = root.get("version")
         if not isinstance(version, str) or not version:
-            raise PricingCatalogError("pricing.version is required")
+            raise FixtureCatalogError("pricing.version is required")
         feature_declarations = _mapping(root.get("features"), "features")
         limit_declarations = _mapping(root.get("usageLimits"), "usageLimits")
         for name in feature_declarations:
@@ -131,7 +131,7 @@ class PricingCatalog:
                 limits={key: _number(value, f"plans.{name}.usageLimits.{key}") for key, value in limits.items()},
             )
         if not plans:
-            raise PricingCatalogError("pricing.plans must not be empty")
+            raise FixtureCatalogError("pricing.plans must not be empty")
 
         add_ons: dict[str, AddOnDefinition] = {}
         for name, raw in _mapping(root.get("addOns") or {}, "addOns").items():
@@ -172,23 +172,23 @@ class PricingCatalog:
             and float(plan.price) == 0
         ]
         if len(free) != 1:
-            raise PricingCatalogError("The fixture must declare exactly one non-RESEARCH zero-price plan")
+            raise FixtureCatalogError("The fixture must declare exactly one non-RESEARCH zero-price plan")
         return free[0]
 
     def validate_selection(self, plan: str, add_ons: dict[str, int]) -> dict[str, int]:
         if plan not in self.plans:
-            raise PricingCatalogError(f"Unknown plan {plan!r} in pricing {self.version}")
+            raise FixtureCatalogError(f"Unknown plan {plan!r} in pricing {self.version}")
         selected = {name: quantity for name, quantity in add_ons.items() if quantity}
         for name, quantity in selected.items():
             if isinstance(quantity, bool) or not isinstance(quantity, int) or quantity < 0:
-                raise PricingCatalogError(f"{name} quantity must be a non-negative integer")
+                raise FixtureCatalogError(f"{name} quantity must be a non-negative integer")
             add_on = self.add_ons.get(name)
             if add_on is None:
-                raise PricingCatalogError(f"Unknown add-on {name!r} in pricing {self.version}")
+                raise FixtureCatalogError(f"Unknown add-on {name!r} in pricing {self.version}")
             if plan not in add_on.available_for:
-                raise PricingCatalogError(f"{name} is not available for {plan}")
+                raise FixtureCatalogError(f"{name} is not available for {plan}")
             if quantity < add_on.minimum or quantity > add_on.maximum or (quantity - add_on.minimum) % add_on.step:
-                raise PricingCatalogError(
+                raise FixtureCatalogError(
                     f"{name} quantity must be {add_on.minimum}..{add_on.maximum} in steps of {add_on.step}"
                 )
         return selected
@@ -217,7 +217,7 @@ class FakePricingGate:
     gateway's own novations, a change keeps the current billing period.
     """
 
-    def __init__(self, catalog: PricingCatalog | None = None):
+    def __init__(self, catalog: FixtureCatalog | None = None):
         self.catalog = catalog
         self.default_plan = catalog.default_plan if catalog else ""
         self.plans: Dict[uuid.UUID, str] = {}
@@ -228,7 +228,7 @@ class FakePricingGate:
         self.contract_versions: Dict[uuid.UUID, int] = {}
         self.unavailable = False
 
-    def _check_available(self) -> PricingCatalog:
+    def _check_available(self) -> FixtureCatalog:
         if self.unavailable:
             raise PricingUnavailable("The fake pricing service is switched off.")
         if self.catalog is None:
@@ -250,7 +250,7 @@ class FakePricingGate:
         catalog = self._check_available()
         try:
             return catalog.entitlements(self.plan_of(user_id), self.add_ons.get(user_id, {}))
-        except PricingCatalogError as exc:
+        except FixtureCatalogError as exc:
             raise PricingUnavailable(str(exc)) from exc
 
     async def caps(self, user_id: uuid.UUID) -> PlanCaps:
@@ -276,7 +276,7 @@ class FakePricingGate:
         plan = plan or catalog.default_plan
         try:
             catalog.validate_selection(plan, {})
-        except PricingCatalogError as exc:
+        except FixtureCatalogError as exc:
             raise SubscriptionRejected(str(exc)) from exc
         self.contracts[user_id] = email
         self.plans[user_id] = plan
@@ -323,7 +323,7 @@ class FakePricingGate:
             raise PricingUnavailable(f"Pricing release {pricing_version!r} is not loaded")
         try:
             selected = catalog.validate_selection(plan, add_ons)
-        except PricingCatalogError as exc:
+        except FixtureCatalogError as exc:
             raise SubscriptionRejected(str(exc)) from exc
         current = self.contract_version_of(user_id)
         if expected_contract_version is not None and expected_contract_version != current:

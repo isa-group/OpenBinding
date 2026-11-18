@@ -9,8 +9,7 @@
 import { useCallback, useMemo } from 'react';
 import type {
   ExternalIdentity,
-  PricingCatalog,
-  PricingCurrentView,
+  PlansPricingView,
   UsageView,
   UserProfile,
 } from '../../core/api/account';
@@ -115,14 +114,8 @@ export function useUserSettingsApi() {
   /** The plan, its features and its functional limits. */
   const getUsage = useCallback(() => call<UsageView>(`${ME}/usage`), [call]);
 
-  /** The published pricing (its plans' wording and limit definitions), as the plan section words them. */
-  const getPricingCatalog = useCallback(() => call<PricingCatalog>('/v1/pricing/catalog'), [call]);
-
-  /** The live public pricing release; 404 when none is live. */
-  const getCurrentPricing = useCallback(
-    () => call<PricingCurrentView>('/v1/pricing/current'),
-    [call]
-  );
+  /** The published pricing: its version label, the YAML and the document the plan section words. */
+  const getPlansPricing = useCallback(() => call<PlansPricingView>('/v1/plans/pricing'), [call]);
 
   return useMemo(
     () => ({
@@ -135,8 +128,7 @@ export function useUserSettingsApi() {
       getBetaFeatures,
       updateBetaFeatures,
       getUsage,
-      getPricingCatalog,
-      getCurrentPricing,
+      getPlansPricing,
     }),
     [
       updateProfile,
@@ -148,8 +140,7 @@ export function useUserSettingsApi() {
       getBetaFeatures,
       updateBetaFeatures,
       getUsage,
-      getPricingCatalog,
-      getCurrentPricing,
+      getPlansPricing,
     ]
   );
 }

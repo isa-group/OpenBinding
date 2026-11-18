@@ -164,7 +164,12 @@ export async function measurePage(page: Page): Promise<PageMeasure> {
       'h1, h2, h3, h4, p, span, a, button, li, td, th, label, dd, dt, strong, small, code'
     )) {
       if (clipped.length >= 10) break;
-      if (!visible(element) || !(element.textContent ?? '').trim() || element.closest('.sr-only'))
+      // Text for screen readers only (ours, and pricing-renderer's `pr-sr-only`) is clipped on purpose.
+      if (
+        !visible(element) ||
+        !(element.textContent ?? '').trim() ||
+        element.closest('.sr-only, .pr-sr-only')
+      )
         continue;
       const style = getComputedStyle(element);
       const hides = ['hidden', 'clip'].includes(style.overflowX);

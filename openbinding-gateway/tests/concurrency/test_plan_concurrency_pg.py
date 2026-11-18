@@ -14,7 +14,7 @@ import uuid
 import pytest
 
 from _problem_helpers import seeded_run_refs
-from _pricing import pricing_catalog
+from _pricing import fixture_catalog
 from openbinding_gateway.db.models import Job, JobState, User, UserRole
 from openbinding_gateway.jobs import limits
 from openbinding_gateway.space_client import PlanCaps
@@ -28,7 +28,7 @@ async def an_account(session) -> User:
         email=f"{uuid.uuid4().hex[:8]}@example.org",
         password_hash="not-a-real-hash",
         role=UserRole.USER,
-        plan_cache=pricing_catalog().default_plan,
+        plan_cache=fixture_catalog().default_plan,
     )
     session.add(owner)
     await session.flush()

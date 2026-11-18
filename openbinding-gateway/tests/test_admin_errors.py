@@ -10,7 +10,7 @@ from datetime import timedelta
 import pytest_asyncio
 from sqlalchemy import select
 
-from _pricing import caps_for, fake_pricing_gate, pricing_catalog
+from _pricing import caps_for, fake_pricing_gate, fixture_catalog
 from _repo import REPO_ROOT
 from test_api_keys import key_payload
 from openbinding_gateway import space_client
@@ -19,7 +19,7 @@ from openbinding_gateway.db.models import ApiErrorEvent, Job, JobState, User, Us
 from bim_core.package import load_package
 
 EXAMPLE = REPO_ROOT / "examples/demo/01_simple_seq"
-CATALOG = pricing_catalog()
+CATALOG = fixture_catalog()
 
 
 @pytest_asyncio.fixture
@@ -70,7 +70,7 @@ def _job_request(revision_id):
 
 async def _exceed_the_api_key_allowance(client, headers):
     """A 402 ``quota_exceeded``: the plan's allowance of API keys (``maxApiKeys``) is spent."""
-    allowance = int(caps_for(pricing_catalog().default_plan).limit("maxApiKeys"))
+    allowance = int(caps_for(fixture_catalog().default_plan).limit("maxApiKeys"))
     for n in range(allowance):
         minted = await client.post("/v1/users/me/api-keys", headers=headers, json=key_payload(f"key {n}"))
         assert minted.status_code == 201, minted.text
