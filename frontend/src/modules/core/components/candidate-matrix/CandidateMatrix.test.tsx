@@ -5,6 +5,7 @@ import type { ProblemFacts } from '../../api/types';
 import ambiguous from '../../../../test/fixtures/core/ambiguous.facts.json';
 import fms from '../../../../test/fixtures/core/fms.facts.json';
 import simpleSeq from '../../../../test/fixtures/core/simple-seq.facts.json';
+import tomatometer from '../../../../test/fixtures/core/tomatometer-email.facts.json';
 import { CandidateMatrix } from './CandidateMatrix';
 
 const ranged = () => {
@@ -187,5 +188,66 @@ describe('CandidateMatrix', () => {
     unmount();
     render(<CandidateMatrix matrix={candidateMatrix(facts)} mode="view" label="Candidates" />);
     expect(screen.getAllByRole('columnheader', { name: 'carbon (g)' })).toHaveLength(3);
+  });
+
+  it('draws the properties as a read-only group, each value with its source, and each SPHERE candidate’s plan', () => {
+    render(
+      <CandidateMatrix
+        matrix={candidateMatrix(tomatometer as ProblemFacts)}
+        mode="view"
+        label="Candidates"
+      />
+    );
+    const email = screen.getByRole('table', { name: /Task dailySummary/ });
+    expect(within(email).getByRole('columnheader', { name: 'Properties' })).toHaveAttribute(
+      'scope',
+      'colgroup'
+    );
+    expect(
+      within(email)
+        .getAllByRole('columnheader')
+        .map(cell => cell.textContent)
+    ).toEqual([
+      'Properties',
+      'Candidate',
+      'Provider',
+      'availability',
+      'latency (ms)',
+      'subscription (USD/month)',
+      'emailsPerDay',
+      'emailsPerMonth',
+    ]);
+    const mailgun = within(email).getByRole('rowheader', { name: /email\.mailgun\.foundation/ });
+    expect(mailgun).toHaveTextContent('From danruilop1/mailgun FOUNDATION, version 2026-10');
+    expect(within(mailgun).getByRole('link', { name: /Open in SPHERE/ })).toHaveAttribute(
+      'target',
+      '_blank'
+    );
+    const row = mailgun.closest('tr')!;
+    expect(row).toHaveTextContent('unlimited');
+    expect(row).toHaveTextContent('50,000');
+    expect(within(row).getAllByText('Limit')).toHaveLength(2);
+    expect(within(row).getByText('Priced')).toBeInTheDocument();
+    expect(row).not.toHaveTextContent(/[0-9a-f]{24}/);
+  });
+
+  it('folds the properties of a card on a small screen', () => {
+    setMatchMedia(((query: string) => ({
+      ...matchMedia(query),
+      matches: query === '(max-width: 640px)',
+    })) as typeof window.matchMedia);
+    render(
+      <CandidateMatrix
+        matrix={candidateMatrix(tomatometer as ProblemFacts)}
+        mode="view"
+        label="Candidates"
+      />
+    );
+    const cards = within(
+      screen.getByRole('list', { name: 'Candidates for dailySummary' })
+    ).getAllByRole('listitem');
+    const folded = cards[1].querySelector('details.cm-properties')!;
+    expect(folded).not.toHaveAttribute('open');
+    expect(folded.querySelector('summary')).toHaveTextContent('Properties (2)');
   });
 });

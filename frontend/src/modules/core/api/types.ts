@@ -20,11 +20,20 @@ export type ProblemFactsCandidate = Schemas['ProblemFactsCandidate'];
 /** One constraint of a problem's facts: `<resource>/<id>`, its enforcement and its IR expressions. */
 export type ProblemFactsConstraint = Schemas['ProblemFactsConstraint'];
 
-/** Where the latest version of a problem came from: an upload, the problem editor, QACOForge or (F3) SPHERE. */
+/** Where the latest version of a problem came from: an upload, the problem editor, QACOForge or SPHERE. */
 export type ProblemOrigin = Schemas['LatestRevision']['origin'];
 
-/** Where a value of a candidate is written in its package (`kind: package`; F3 adds the other origins). */
+/** Where a value of a candidate is written in its package (`kind: package`), with the source it was read from when an import wrote it. */
 export type ProblemValueOrigin = Schemas['ProblemValueOrigin'];
+
+/**
+ * What a value was read from when a SPHERE import wrote it: `priced` (a plan's price per month), `guarantee`, `limit` (a usage
+ * limit), `feature`, or `manual` (set by hand when importing); with the upstream plan and how the value was read.
+ */
+export type ValueSource = Schemas['ValueSource'];
+
+/** The upstream plan a SPHERE import read a candidate's values from (`provenance` of a candidate of the facts). */
+export type CandidateProvenance = Schemas['CandidateProvenance'];
 
 /** One version of a composition as the gateway serves it (`GET …/compositions/{composition}/versions/{version}`). */
 export type CompositionVersionView = Schemas['CompositionVersionView'];
