@@ -140,7 +140,9 @@ async def test_a_compiler_refusal_is_a_finding_in_expand_and_a_422_in_apply(api_
     golden_like = await _expand(api_client, headers, org, "tomatometer-email", EMAIL, {"revision": 1})
     refused = await _apply(api_client, headers, org, "tomatometer-email", broken, {"revision": 1},
                            golden_like["packageDigest"])
-    assert refused.status_code == 409 and refused.json()["detail"]["code"] == "sphere_preview_stale"
+    # The package the recipe generates is compiled before anything is stored: refused as an upload is.
+    assert refused.status_code == 422 and refused.json()["code"] == "invalid_instance", refused.text
+    assert any(d["code"] == "feature_value_domain" for d in refused.json()["diagnostics"])
 
 
 async def test_apply_stores_what_the_preview_showed(api_client, registration, db_session, gate, sphere):  # noqa: F811

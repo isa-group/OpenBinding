@@ -27,6 +27,7 @@ from ..domain.sources import (
 )
 from . import connections, discovery
 from .discovery import FamilyAmbiguous, resolve_family
+from .discovery import manifest as sphere_manifest
 from .own_pricing import OwnPricing, OwnPricingUnavailable, own_pricing
 from .connections import credential_for, mark_invalid
 from .parsing import ParsedPricing, parse, parse_sync
@@ -111,5 +112,6 @@ __all__ = [
     "snapshot_bytes",
     "snapshot_url",
     "snapshot_version",
+    "sphere_manifest",
     "url_snapshot_bytes",
 ]

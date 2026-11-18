@@ -25,13 +25,12 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
-from bim_core import PackageError
-from bim_core.package import load_package
 from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .....db.models import BindingCase, BindingCaseRevision, Blob, Organization, PricingSnapshot, User
+from .....integrations import packages
 from .....models.errors import api_error
 from ....plans.application import (
     PricingInvalid,
@@ -40,10 +39,10 @@ from ....plans.application import (
     PricingSourceUnavailable,
     SphereEndpoint,
     credential_for,
-    discovery,
     get_pricing_source,
     normalised,
     snapshot_version,
+    sphere_manifest,
 )
 from ....shared.application import audit, read_verified
 from ...domain.compilation import analysis_summary
@@ -113,7 +112,7 @@ async def resolve_sources(
             async with asyncio.timeout(remaining):
                 latest = None
                 if read_manifests or not ref.pinned:
-                    manifest = await discovery.manifest(where, ref.pricing, keyed)
+                    manifest = await sphere_manifest(where, ref.pricing, keyed)
                     latest = manifest.latest_version_id
                 version = ref.version if ref.pinned else latest
                 assert version is not None
@@ -176,10 +175,8 @@ async def _files_of(session: AsyncSession, revision: BindingCaseRevision) -> dic
     blob = await session.get(Blob, revision.package_blob_id)
     if blob is None:
         raise api_error(409, "content_unavailable", "The stored package of this revision is unavailable.")
-    try:
-        return dict(load_package(read_verified(blob)).files)
-    except PackageError as exc:  # pragma: no cover - a stored package was read once already
-        raise api_error(409, "content_unavailable", "The stored package of this revision cannot be read.") from exc
+    # The toolchain accepted the stored package when it was uploaded: its files, by name.
+    return packages.read_files(read_verified(blob))
 
 
 def _recipe_of(revision: BindingCaseRevision) -> Recipe | None:
@@ -415,7 +412,8 @@ async def apply(
     if has_errors(findings) or not generated.files:
         raise _refuse("sphere_recipe_refused", "The recipe cannot be applied as it is.", findings)
     archive = generated.archive()
-    digest = load_package(archive).package_digest
+    # The package digest is the toolchain's: compiled here, before anything is stored, as add_revision will again.
+    digest = (await compile_package(archive)).package_digest
     if digest != expect_digest:
         raise api_error(409, "sphere_preview_stale",
                         "What this recipe generates now differs from the preview; preview it again.", packageDigest=digest)
