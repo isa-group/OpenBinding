@@ -20,6 +20,10 @@ Its layers stay deliberately separate:
   official clients (`space-python-client`, `space-react-client`), reads SPHERE
   only through its public API and renders pricings with `pricing-renderer`.
   It has no pricing editor or contract console of its own.
+- SPHERE pricings become candidates of a problem: the "Add candidates from
+  SPHERE" wizard turns their plans into an ordinary BIM revision, every value
+  saying where it came from, and a composition draws its upstream plans and its
+  offering from the snapshots the gateway keeps ([`docs/SPHERE.md`](docs/SPHERE.md)).
 - Nothing is metered or charged: there are no credits or compute units, and the
   only execution limit that is not a plan entitlement is a technical
   per-account concurrency cap (`MAX_CONCURRENT_JOBS_PER_USER`, answered with

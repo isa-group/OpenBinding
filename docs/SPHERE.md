@@ -140,6 +140,43 @@ The `sphere_*` findings are listed in [ERRORS.md](ERRORS.md#sphere-imports).
   `base` checked under the problem lock (`409 revision_moved`). The revision's origin is `sphere`.
 - `GET …/sphere/recipe[?revision=N]`: the pinned recipe of a generated revision.
 
+## The wizard
+
+"Add candidates from SPHERE" is a dialog of the problem pages (no route): the problems tab's New ▾ "From SPHERE"
+starts a new problem, the problem page's New version ▾ "Add candidates from SPHERE" adds to its latest version, and
+"Update from SPHERE" opens on the recipe the latest import pinned. Six steps, in SPHERE's order:
+
+1. **Pricing**: SPHERE's search through the gateway (300 ms after typing; a busy SPHERE is waited for by its
+   `Retry-After`), filtered by collection, a minimum price "at least" on SPHERE's whole-result histogram, sort by name
+   or minimum price, the organization's SPHERE organizations when it is connected and the operator's registries;
+2. **Version**: the family's versions by name and date, SPHERE's latest (by date) marked and chosen;
+3. **Task and plans**: the task (an existing service task, or a new problem's name, task and capability), the
+   provider key, the plans drawn by pricing-renderer beside a checklist (private or unreadable plans disabled with the
+   summary's reason; per-use add-ons listed apart, never imported), add-on variants, the billing period the pricing
+   declares and seats for per-seat plans;
+4. **Mapping**: how each problem feature is read (price, limit, feature, guarantee by table or scale, one number, by
+   hand), a pricing's own name for a limit or guarantee, what to assume for a limit it does not declare, the demand and
+   the requirements, dominance pruning;
+5. **Preview**: the gateway's expansion: findings, changes against the base, each candidate with whether the
+   requirements hold and why not, the matrix with every value's source, values left to set by hand, and, for an update,
+   each kept plan whose pinned version changes drawn before and after;
+6. **Generate**: apply with the preview's package digest; a 409 offers to reload and preview again.
+
+The step and the pricing and version being added are in the address (`?sphereStep=&sphere=&sphereVersion=`); the rest
+of the form is kept for the session, so a reload lands on the same step. The browser never calls SPHERE: only an "Open
+in SPHERE" link leaves for it.
+
+## On the screens
+
+- Every value an import wrote says its source (Priced, Guarantee, Limit, Feature, Manual) and the upstream plan by its
+  name and version label; a candidate's properties are a read-only group of the matrix; the problem editor warns before
+  a value with a source is edited (it becomes hand-written).
+- A composition's Overview draws each upstream plan from its stored snapshot (version name and date, "Open in SPHERE")
+  and its storefront from the offering version the evaluation read; with no snapshot the card keeps the reference face.
+  The catalog lists the source kinds of each global value and warns when only values set by hand give one. The version
+  comparison draws an upstream plan that changes through the plan change review.
+- An organization's SPHERE key is connected in the beta Connections tab (ADMIN).
+
 ## Value origins and provenance
 
 `problem_value_origins` keeps, for each value an import wrote, its candidate and target, its source kind (`priced`,

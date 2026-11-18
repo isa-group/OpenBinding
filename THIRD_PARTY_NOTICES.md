@@ -20,7 +20,7 @@ patterns from the following MIT-licensed projects:
 | [space-python-client](https://github.com/Alex-GF/space-python-client) | `1a61898adca73ca500eca4758c24d32f673dd790` (`v1.1.0`) | Official SPACE Python client integration |
 | [Pricing4TS](https://github.com/Alex-GF/Pricing4TS) | `0.11.1` | Pricing2Yaml 3.1 parsing and validation for TypeScript |
 | [space-react-client](https://github.com/Alex-GF/space-react-client) | `0.4.0` | Browser presentation of SPACE-evaluated feature state for React |
-| [pricing-renderer](https://github.com/javiercavlop/pricing-renderer) | `0.2.0` | Public rendering of the active iPricing for the web |
+| [pricing-renderer](https://github.com/javiercavlop/pricing-renderer) | `0.2.0` | Public rendering of the active iPricing for the web; through its public API only (`pricing-renderer`, `/yaml`, `/react`), the SPHERE wizard's plan picker, upstream plan cards, offering storefronts and the plan change review (`compareSelections`, `PricingChangeReview`), with `String()` as the one extra expression function |
 | [lz-string](https://github.com/pieroxy/lz-string) | `1.5.0` | Compressing a composition into the `#composition=` fragment of a share link |
 | [openapi-typescript](https://github.com/openapi-ts/openapi-typescript) | `7.13.0` (development only) | Generating the frontend's API types from `docs/openapi.json` |
 | [@lezer/json](https://github.com/lezer-parser/json) | `1.0.3` | Reading where a JSON Pointer lands in the text of a package file, to place the gateway's BIM findings |
@@ -70,6 +70,7 @@ reads pricings as the two TypeScript readers do, so that the gateway and the scr
 | File | Origin | Use |
 |---|---|---|
 | `pricing2yaml/expression.py` | [pricing-renderer](https://github.com/javiercavlop/pricing-renderer) `v0.2.0` `src/core/expression.ts` (MIT, Copyright (c) 2026 Francisco Javier Cavero) | Grammar ported: the tokenizer, the precedence-climbing parser, the whitelist and the size limits; evaluation in `Decimal`, with `String(x)` as the one extra function |
+| `frontend/src/modules/core/components/value-badge/originText.ts`, `candidate-matrix/CandidateMatrix.tsx` | [Pricing4TS](https://github.com/Alex-GF/Pricing4TS) `0.12.1` `pricing-validators.js` (`unlimitedValue`) | Semantics followed, no code copied: a generated value of `1e8` reads "unlimited" |
 | `pricing2yaml/normalise.py`, `model.py`, `effective.py`, `units.py`, `summary.py` | pricing-renderer `v0.2.0` `src/core/normalize.ts`, `compare-values.ts`, `breakdown.ts`, `resolve.ts`; [Pricing4TS](https://github.com/Alex-GF/Pricing4TS) `0.12.1` `pricing-parser.js`, `pricing-validators.js`, `version-manager.js` (MIT, Copyright (c) 2024 Alejandro García Fernández) | Semantics followed, no code copied: defaults and overrides, add-on extensions, unlimited values (pricing4ts's `1e8` sentinel included), billing, the kept validations |
 
 ## Code ported from SPHERE

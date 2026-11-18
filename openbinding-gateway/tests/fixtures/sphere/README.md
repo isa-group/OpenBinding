@@ -7,7 +7,9 @@ serves exactly these, and the tests never reach the network.
 
 **Licence note.** The pricings belong to their SPHERE authors (the `sphere`, `danruilop1`, `danvelcam`
 and `atenea` organizations). They are recorded for this repository's tests only and are not
-redistributed beyond them. `derived/` and `users-me.json` are synthetic (see below).
+redistributed beyond them. `derived/` and `users-me.json` are synthetic (see below). The frontend's copy
+(`frontend/src/test/fixtures/sphere`, written by `tools/dump_frontend_fixtures.py`), which its unit tests and
+mocked Playwright specs draw and preview, is under the same note.
 
 ## Versions
 

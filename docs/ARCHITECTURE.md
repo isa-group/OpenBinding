@@ -258,7 +258,8 @@ header and its 33-screen budget).
   organization switcher: creation forms choose the organization (`?org=` preselects it).
 - **`/`** is the landing to visitors and the dashboard to a session.
 - **Organization:** `/orgs/:org/:tab?`, SPHERE's hero with tabs Overview · Compositions · Problems · Runs · Studies ·
-  Members · Invitations · Hierarchy · Presets · Audit, each from the least role that may see it. `/me/orgs`,
+  Members · Invitations · Hierarchy · Presets · Audit, each from the least role that may see it, and Connections (ADMIN,
+  a beta tab as SPHERE marks them: only with Settings → Beta features on; the organization's SPHERE key). `/me/orgs`,
   `/organizations`, `/orgs/new` and `/orgs/join/:code` list, explore, create and join.
 - **Resources of an organization** render outside its page, on the card shell, with the breadcrumb "Org / Name":
   `/compositions/:org/:composition/:tab?` (Overview · Analytics · Configuration · Versions · Settings; the version
@@ -266,6 +267,12 @@ header and its 33-screen budget).
   Candidates · Versions · Runs · Compositions · Source · Settings), `/runs/:org/:run` (Result · Settings · Provenance ·
   Timeline) and `/studies/:org/:study/:tab?` (Setup · Progress · Results · Front · Settings). Creation forms:
   `/compositions/new`, `/runs/new`, `/studies/new`, each with `?org=`.
+- **SPHERE candidates** are a dialog, not a route: the six-step wizard (pricing, version, task and plans, mapping,
+  preview, generate) opens from the problems tab's New ▾ "From SPHERE" (a new problem) and the problem page's New
+  version ▾ "Add candidates from SPHERE" (and "Update from SPHERE" when an import pinned a recipe); its step and the
+  pricing and version being added are in the address (`?sphereStep=&sphere=&sphereVersion=`), the rest of the form is
+  kept for the session. It reads SPHERE only through the gateway (`…/sphere/pricings`, `…/sphere/expand`,
+  `…/sphere/apply`).
 - **Editors** are standalone pages open to visitors: `/editor` (Composition2Yaml, publish when signed in) and
   `/problem-editor` (BIM: a visitor edits, validates and downloads; saving needs an account). Each has Code and Visual,
   the Problems panel docked below and, below 640 px, its panes as tabs.
@@ -277,9 +284,11 @@ header and its 33-screen budget).
   in-place 404 (`e2e/not-found-parity.spec.ts` checks every kind of address with a 404 and a 403 answer).
 - **Screen budget:** exactly **38** routed screens (`routes/screenBudget.test.ts`): 20 open to visitors and 18 behind
   an account. F5 adds `/sso/identity/callback` (39), F7 `/orbit` (40) and F9 five collection routes (45). Each user
-  journey has a Playwright walk, mocked (`e2e/f2a-*.spec.ts`, `e2e/f2b-*.spec.ts`) and, for J1 to J4, live against
+  journey has a Playwright walk, mocked (`e2e/f2a-*.spec.ts`, `e2e/f2b-*.spec.ts`, `e2e/f3-*.spec.ts`) and live against
   the lab (`e2e/live/08-derive-seal-compare.spec.ts`, `09-public-fork.spec.ts`, `10-problem-editor.spec.ts`,
-  `11-study-front.spec.ts`).
+  `11-study-front.spec.ts`, and `12-sphere-candidates.spec.ts` against live SPHERE). F3 adds a dialog and a tab, no
+  route. `e2e/live/visual-sweep.spec.ts` sweeps every screen of the route table in both palettes at 1440×900 and
+  390×844, a 375 px pass and a dark operating system.
 
 ### 5.3 Rendering catalogue
 
@@ -292,12 +301,12 @@ composition.
 | Mode | Shows | Data | Used in |
 |---|---|---|---|
 | `catalog` | identity, value status, values, binding, offering, evidence, problem, the evaluation's findings (members) | the composition, the version with `include=document` | Overview |
-| `architecture` | providers and the upstream SPHERE plan references | the document, the facts of the evaluated compilation, `analytics` | Overview |
+| `architecture` | providers and the upstream SPHERE plans, each drawn from its stored snapshot (or the reference face) | the document, the facts of the evaluated compilation, `analytics`, `GET …/upstream` and the snapshots' YAML | Overview |
 | `workflow` | the workflow with each task's candidate, the problem's candidates (members) | the document, the facts | Overview |
 | `comparison` | the later workflow with what changed marked, and the candidates each version chose (drawn by the version diff, whose structured and file views are SPHERE's) | `GET …/diff`, both versions' content and documents | Versions (compare) |
 | `calculator` | every one-task move with the gateway's comparison word and deltas | `GET …/neighborhood` | Configuration |
 | `configurator` | another binding chosen per task and what the toolchain makes of it | `POST …/evaluate` | Configuration |
-| `showcase` | what a visitor reads: what it does, value status, values, workflow, providers, plans, the problem's reference, offering | the redacted public reads | Overview, for a visitor |
+| `showcase` | what a visitor reads: what it does, value status, values, workflow, providers, plans, the problem's reference, and the offering's storefront from the version the evaluation read | the redacted public reads, `GET …/upstream` (public snapshots only) | Overview, for a visitor |
 
 The editor is a page, not a mode: `/editor` (`modules/composition-editor`: bundled Monaco with the gateway's lint and
 completion from the problem, the visual pane, the Problems panel, the publish dialog) on the draft store.
@@ -306,10 +315,11 @@ completion from the problem, the visual pane, the Problems panel, the publish di
 |---|---|---|
 | `WorkflowGraph` | a Composition2Yaml workflow (seq, and, xor with probabilities, loop) as nested groups, each task with its candidate and status in words | problem Overview, composition Overview, both editors, version diff, showcase |
 | `CandidateMatrix` | tasks × candidates × features from the facts, units in headers, the selected candidate marked, cards below 640 px; `select` mode for choosing, `edit` mode for the problem editor's cells | problem Candidates, composition Overview, both editors, configurator |
-| `ValueBadge` | Verified · Declared · Unverified, always in words, and a value's origin | every composition screen |
+| `ValueBadge` | Verified · Declared · Unverified, always in words, and a value's origin: where the package writes it and, for an import, its source (Priced · Guarantee · Limit · Feature · Manual) with the upstream plan by name | every composition and problem screen |
 | `ProblemsPanel` | located findings as buttons that jump to the place, counts announced, grouped by file for a BIM package | both editors, derive preview, catalog (read-only) |
 | `RulesAndObjectives` | the rules (must or should), objectives and penalties of the facts, each rule with where the package writes it | problem Overview, problem editor (Rules) |
-| `ProviderMap`, `PricingCard` | tasks grouped by provider; a plan's reference face, or pricing-renderer when given Pricing2Yaml (F3) | composition Overview, showcase |
+| `ProviderMap`, `PricingCard` | tasks grouped by provider; a plan drawn by pricing-renderer from its stored snapshot with the version's name and SPHERE's link, or its reference face | composition Overview, showcase |
+| `PricingChangeReview` (core) | pricing-renderer's change review in the platform's palette: a subscription change (administration), or a provider's plan across two pricing versions, read only | admin user detail, Update from SPHERE, version comparison |
 | version graph, change summary card | the versions and the fork lanes, and what changed between two versions on hover | Versions |
 | analytics tab | structure and values per version over time, verified, declared and unverified apart, problem and compilation changes marked, a table for each chart | Analytics |
 | `MetricCards` | a row of key numbers with units | dashboards, headers |
