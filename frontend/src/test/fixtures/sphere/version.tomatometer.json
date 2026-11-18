@@ -1,0 +1,257 @@
+{
+  "diagnostics": [
+    {
+      "at": "/syntaxVersion",
+      "code": "p2y_syntax_read_as_3_1",
+      "message": "Pricing2Yaml 3.0 is read as 3.1.",
+      "severity": "info"
+    }
+  ],
+  "snapshot": {
+    "collection": "spherelab",
+    "currency": "USD",
+    "fetchedAt": "2026-01-01T00:00:11Z",
+    "id": "00000000-0000-4000-8000-000000000003",
+    "owner": "sphere",
+    "permanentUrl": "https://sphere.score.us.es/p/6ab0a323697330667ccce8cd?version=6921867e7004563bd918e7e8",
+    "pricingId": "6ab0a323697330667ccce8cd",
+    "registry": null,
+    "renamed": false,
+    "slug": "tomatometer",
+    "source": "sphere",
+    "syntaxVersion": "3.0",
+    "title": "TomatoMeter",
+    "url": null,
+    "valid": true,
+    "versionCreatedAt": "2026-01-01T00:00:04Z",
+    "versionId": "6921867e7004563bd918e7e8",
+    "versionLabel": "1.0.0",
+    "yamlHref": "/v1/organizations/fixtures/pricing-snapshots/00000000-0000-4000-8000-000000000003/yaml"
+  },
+  "summary": {
+    "addOns": [
+      {
+        "availableFor": [
+          "basic",
+          "advanced",
+          "premium"
+        ],
+        "dependsOn": [],
+        "excludes": [],
+        "features": {},
+        "id": "extraTimers",
+        "name": "extraTimers",
+        "period": "month",
+        "price": {
+          "amount": 1.0,
+          "kind": "fixed"
+        },
+        "private": false,
+        "unit": "/month",
+        "usageLimits": {},
+        "usageLimitsExtensions": {
+          "maxPomodoroTimers": 5.0
+        }
+      },
+      {
+        "availableFor": [
+          "premium"
+        ],
+        "dependsOn": [],
+        "excludes": [],
+        "features": {
+          "exportDataToJson": true
+        },
+        "id": "exportAsJson",
+        "name": "exportAsJson",
+        "period": "month",
+        "price": {
+          "amount": 2.0,
+          "kind": "fixed"
+        },
+        "private": false,
+        "unit": "/month",
+        "usageLimits": {},
+        "usageLimitsExtensions": {}
+      }
+    ],
+    "billing": [
+      {
+        "id": "monthly",
+        "multiplier": 1.0,
+        "synthesized": true
+      }
+    ],
+    "createdAt": "2025-05-25",
+    "currency": "USD",
+    "diagnostics": [
+      {
+        "at": "/syntaxVersion",
+        "code": "p2y_syntax_read_as_3_1",
+        "message": "Pricing2Yaml 3.0 is read as 3.1.",
+        "severity": "info"
+      }
+    ],
+    "features": [
+      {
+        "default": true,
+        "id": "pomodoroTimer",
+        "name": "pomodoroTimer",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN"
+      },
+      {
+        "default": true,
+        "id": "soundNotifications",
+        "name": "soundNotifications",
+        "type": "AUTOMATION",
+        "valueType": "BOOLEAN"
+      },
+      {
+        "default": true,
+        "id": "basicAnalytics",
+        "name": "basicAnalytics",
+        "type": "INFORMATION",
+        "valueType": "BOOLEAN"
+      },
+      {
+        "default": false,
+        "id": "motivationalQuotes",
+        "name": "motivationalQuotes",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN"
+      },
+      {
+        "default": false,
+        "id": "dailySummary",
+        "name": "dailySummary",
+        "type": "INFORMATION",
+        "valueType": "BOOLEAN"
+      },
+      {
+        "default": false,
+        "id": "darkMode",
+        "name": "darkMode",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN"
+      },
+      {
+        "default": false,
+        "id": "customPomodoroDuration",
+        "name": "customPomodoroDuration",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN"
+      },
+      {
+        "default": false,
+        "id": "advancedAnalytics",
+        "name": "advancedAnalytics",
+        "type": "INFORMATION",
+        "valueType": "BOOLEAN"
+      },
+      {
+        "default": false,
+        "id": "exportDataToJson",
+        "name": "exportDataToJson",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN"
+      }
+    ],
+    "meteredAddOns": [],
+    "plans": [
+      {
+        "features": {
+          "advancedAnalytics": false,
+          "basicAnalytics": true,
+          "customPomodoroDuration": false,
+          "dailySummary": false,
+          "darkMode": false,
+          "exportDataToJson": false,
+          "motivationalQuotes": false,
+          "pomodoroTimer": true,
+          "soundNotifications": true
+        },
+        "id": "basic",
+        "name": "basic",
+        "perSeat": true,
+        "period": "month",
+        "price": {
+          "amount": 0.0,
+          "kind": "fixed"
+        },
+        "private": false,
+        "unit": "user/month",
+        "usageLimits": {
+          "maxPomodoroTimers": 3
+        }
+      },
+      {
+        "features": {
+          "advancedAnalytics": false,
+          "basicAnalytics": true,
+          "customPomodoroDuration": false,
+          "dailySummary": true,
+          "darkMode": true,
+          "exportDataToJson": false,
+          "motivationalQuotes": true,
+          "pomodoroTimer": true,
+          "soundNotifications": true
+        },
+        "id": "advanced",
+        "name": "advanced",
+        "perSeat": true,
+        "period": "month",
+        "price": {
+          "amount": 3.99,
+          "kind": "fixed"
+        },
+        "private": false,
+        "unit": "user/month",
+        "usageLimits": {
+          "maxPomodoroTimers": 10
+        }
+      },
+      {
+        "features": {
+          "advancedAnalytics": true,
+          "basicAnalytics": true,
+          "customPomodoroDuration": true,
+          "dailySummary": true,
+          "darkMode": true,
+          "exportDataToJson": false,
+          "motivationalQuotes": true,
+          "pomodoroTimer": true,
+          "soundNotifications": true
+        },
+        "id": "premium",
+        "name": "premium",
+        "perSeat": true,
+        "period": "month",
+        "price": {
+          "amount": 9.99,
+          "kind": "fixed"
+        },
+        "private": false,
+        "unit": "user/month",
+        "usageLimits": {
+          "maxPomodoroTimers": 15
+        }
+      }
+    ],
+    "syntaxVersion": "3.0",
+    "title": "TomatoMeter",
+    "usageLimits": [
+      {
+        "default": 3,
+        "id": "maxPomodoroTimers",
+        "linkedFeatures": [
+          "pomodoroTimer"
+        ],
+        "name": "maxPomodoroTimers",
+        "unit": "timer",
+        "valueType": "NUMERIC"
+      }
+    ],
+    "version": "1.0.0"
+  }
+}

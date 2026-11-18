@@ -54,6 +54,11 @@ def test_the_sphere_fixtures_pair_every_readable_version_with_its_golden(two_run
     assert "derived.mailgun-scale" in yamls
     # A 2.x version (Dropbox 2023) is refused by the normaliser and never reaches the frontend.
     assert "6ab0a323697330667ccce9c1.687e4b68102baa50f3a5c7b5" not in yamls
+    # The gateway's own answers about SPHERE, for the frontend's mocks.
+    for name in ("tomatometer", "mailgun", "dropbox"):
+        assert {f"search.{name}.json", f"manifest.{name}.json", f"version.{name}.json"} <= set(names)
+    version = json.loads((first / "sphere" / "version.mailgun.json").read_text(encoding="utf-8"))
+    assert version["snapshot"]["owner"] == "danruilop1" and version["summary"]["meteredAddOns"]
 
 
 def test_the_fixtures_hold_the_facts_each_package_was_chosen_for(two_runs) -> None:

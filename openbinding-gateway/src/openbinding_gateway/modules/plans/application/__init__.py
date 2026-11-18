@@ -25,7 +25,8 @@ from ..domain.sources import (
     SphereUser,
     is_sphere_id,
 )
-from . import connections
+from . import connections, discovery
+from .discovery import FamilyAmbiguous, resolve_family
 from .connections import credential_for, mark_invalid
 from .parsing import ParsedPricing, parse, parse_sync
 from .snapshots import (
@@ -58,6 +59,7 @@ __all__ = [
     "DEFAULT_ENDPOINT",
     "SPHERE_ID",
     "Credential",
+    "FamilyAmbiguous",
     "CredentialRejected",
     "FamilyIdentity",
     "FetchedYaml",
@@ -84,6 +86,7 @@ __all__ = [
     "account_stored_bytes",
     "connections",
     "credential_for",
+    "discovery",
     "entitlement_map",
     "get_pricing_source",
     "installed_pricing_source",
@@ -99,6 +102,7 @@ __all__ = [
     "read_snapshot",
     "read_version",
     "readable_scopes",
+    "resolve_family",
     "set_pricing_source",
     "snapshot_bytes",
     "snapshot_url",

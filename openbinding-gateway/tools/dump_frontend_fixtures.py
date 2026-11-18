@@ -44,7 +44,11 @@ ordering by date survives. Content digests are deterministic and left as they ar
 ``sphere/`` holds the recorded SPHERE set the frontend's parity test reads (the frontend never reads the
 gateway's ``tests/``): for every recorded Pricing2Yaml 3.x version and every synthetic one,
 ``<pricingId>.<versionId>.yml`` (``derived.<name>.yml``) and the matching ``.normalised.json``, copied from
-``openbinding-gateway/tests/fixtures/sphere/normalised/`` (``tools/dump_normalised_pricings.py``).
+``openbinding-gateway/tests/fixtures/sphere/normalised/`` (``tools/dump_normalised_pricings.py``); and the
+gateway's own answers about SPHERE for the frontend's mocks, read with the recorded SPHERE
+(``tests/sphere_recorded.py``) installed as the pricing source: ``search.<name>.json``
+(``searchSpherePricings``), ``manifest.<name>.json`` (``getSpherePricing``) and ``version.<name>.json``
+(``getSpherePricingVersion``) for TomatoMeter, set-B Mailgun and Dropbox (``…ce9c1``).
 
     python tools/dump_frontend_fixtures.py               # rewrite frontend/src/test/fixtures/{core,sphere}/
     python tools/dump_frontend_fixtures.py --out DIR     # write DIR/core/ and DIR/sphere/ instead
@@ -146,8 +150,45 @@ def _archive(directory: Path | None) -> bytes:
     return packages.zip_files(ambiguous_files()) if directory is None else packages.zip_directory(directory)
 
 
-async def _bodies(work: Path) -> dict[str, Any]:
-    """Every fixture body, by file name, from a fresh in-process gateway."""
+#: The gateway's answers about SPHERE written to ``sphere/``: name -> (pricingId, versionId, search words).
+SPHERE_FAMILIES = {
+    "tomatometer": ("6ab0a323697330667ccce8cd", "6921867e7004563bd918e7e8", "tomatometer"),
+    "mailgun": ("6ade364540e55445692b0eda", "6ade36454b2b5b01c587db3d", "Mailgun"),
+    "dropbox": ("6ab0a323697330667ccce9c1", "687e4b68102baa50f3a5c7b7", "Dropbox"),
+}
+
+
+def _install_recorded_sphere(settings: Any) -> None:
+    """The recorded SPHERE as the pricing source, resolving only its own hosts (nothing reaches the network)."""
+    tests = Path(__file__).resolve().parents[1] / "tests"
+    if str(tests) not in sys.path:
+        sys.path.insert(0, str(tests))
+    from sphere_recorded import RecordedSphere
+
+    from openbinding_gateway.core import outbound
+    from openbinding_gateway.modules.plans.adapters.sphere import SphereHttpSource
+    from openbinding_gateway.modules.plans.application import set_pricing_source
+
+    recorded = RecordedSphere()
+    outbound._getaddrinfo = lambda host, port: recorded.getaddrinfo(host, port)
+    set_pricing_source(
+        SphereHttpSource(settings.model_copy(update={"sphere_enabled": True}), transport=recorded.transport())
+    )
+
+
+async def _sphere_bodies(client, headers: dict[str, str]) -> dict[str, Any]:
+    bodies: dict[str, Any] = {}
+    base = "/v1/organizations/fixtures/sphere/pricings"
+    for name, (pricing_id, version_id, words) in SPHERE_FAMILIES.items():
+        bodies[f"search.{name}.json"] = _ok(await client.get(base, params={"q": words}, headers=headers), 200).json()
+        bodies[f"manifest.{name}.json"] = _ok(await client.get(f"{base}/{pricing_id}", headers=headers), 200).json()
+        version = await client.get(f"{base}/{pricing_id}/versions/{version_id}", headers=headers)
+        bodies[f"version.{name}.json"] = _ok(version, 200).json()
+    return bodies
+
+
+async def _bodies(work: Path) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Every fixture body, by file name, from a fresh in-process gateway: ``core/``'s and ``sphere/``'s."""
     from httpx import ASGITransport, AsyncClient
     from sqlalchemy import event
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -170,6 +211,7 @@ async def _bodies(work: Path) -> dict[str, Any]:
     set_work_limiter(WorkRateLimiter(primary=None))
     set_auth_limiter(AuthRateLimiter(primary=None))
     space_client.set_gate(OpenGate())
+    _install_recorded_sphere(settings)
 
     engine = create_async_engine(f"sqlite+aiosqlite:///{work / 'fixtures.db'}")
 
@@ -187,6 +229,7 @@ async def _bodies(work: Path) -> dict[str, Any]:
         await connection.run_sync(Base.metadata.create_all)
     factory = async_sessionmaker(engine, expire_on_commit=False)
     bodies: dict[str, Any] = {}
+    sphere: dict[str, Any] = {}
     try:
         async with factory() as session:
             async def _session():
@@ -223,13 +266,14 @@ async def _bodies(work: Path) -> dict[str, Any]:
                 )
                 bodies["refused.validate.json"] = _ok(answer, 422).json()
                 bodies["refused.package.json"] = {path: content.decode("utf-8") for path, content in refused.items()}
+                sphere = await _sphere_bodies(client, headers)
     finally:
         app.dependency_overrides.clear()
         space_client.set_gate(None)
         set_work_limiter(None)
         set_auth_limiter(None)
         await engine.dispose()
-    return bodies
+    return bodies, sphere
 
 
 async def _versions(client, headers: dict[str, str], name: str, facts: dict[str, Any]) -> tuple[Any, Any]:
@@ -329,10 +373,22 @@ def _environment() -> None:
     os.environ["SPHERE_ENABLED"] = "false"
 
 
-def generate() -> dict[str, str]:
+def generate() -> tuple[dict[str, str], dict[str, str]]:
+    """``core/``'s files and the gateway-answered files of ``sphere/``."""
     _environment()
     with tempfile.TemporaryDirectory(prefix="ob-fixtures-") as work:
-        return render(asyncio.run(_bodies(Path(work))))
+        core, sphere = asyncio.run(_bodies(Path(work)))
+        return render(core), _render_sphere(sphere)
+
+
+def _render_sphere(bodies: dict[str, Any]) -> dict[str, str]:
+    """As ``render``; a snapshot's ``yamlHref`` embeds its id, so it is written again from the replaced id."""
+    normalised = normalise(bodies)
+    for body in normalised.values():
+        snapshot = body.get("snapshot") if isinstance(body, dict) else None
+        if isinstance(snapshot, dict) and "yamlHref" in snapshot:
+            snapshot["yamlHref"] = f"/v1/organizations/fixtures/pricing-snapshots/{snapshot['id']}/yaml"
+    return {name: json.dumps(body, indent=2, sort_keys=True, ensure_ascii=False) + "\n" for name, body in normalised.items()}
 
 
 def drift(files: dict[str, str], directory: Path) -> list[str]:
@@ -379,8 +435,8 @@ def main(argv: list[str] | None = None) -> int:
     target.add_argument("--check", action="store_true", help="Do not write; exit non-zero if the checked-in fixtures differ.")
     arguments = parser.parse_args(argv)
 
-    files = generate()
-    sphere = sphere_files()
+    files, answered = generate()
+    sphere = {**sphere_files(), **answered}
     if arguments.check:
         found = drift(files, FIXTURES) + sphere_drift(sphere, SPHERE_FIXTURES)
         if found:

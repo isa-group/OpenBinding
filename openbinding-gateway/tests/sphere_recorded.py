@@ -195,6 +195,14 @@ class RecordedSphere:
         sent_headers = {"content-type": "application/octet-stream"} | dict(headers or {})
         self.extra[(path, route_key("", query))] = (body, sent_headers, status)
 
+    def keyed(self, credential: str, path: str, body: bytes, *, content_type: str = "application/json") -> None:
+        """``body`` for ``path`` (and its query), answered only to requests carrying ``credential``."""
+        def match(request: httpx.Request, key: str) -> bool:
+            return key == path and request.headers.get("x-api-key") == credential
+
+        self._script(match, lambda r: httpx.Response(200, headers={"content-type": content_type,
+                                                                  "cache-control": "private, no-store"}, content=body))
+
     def private(
         self, pricing_id: str, version_id: str, yaml: bytes, *, credential: str, label: str = "private-1",
         created_at: str = "2030-01-01T00:00:00.000Z", content_hash: str | None = None,

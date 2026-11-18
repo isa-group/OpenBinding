@@ -256,6 +256,8 @@ def allows_request(api_key: Any, *, method: str, path_params: Mapping[str, Any],
             "pricing": {"pricing"},
             "notifications": {"notification", "notifications"},
             "connections": {"organization", "organizations"},
+            "sphere": {"problem", "problems"},
+            "pricing-snapshots": {"problem", "problems"},
         }
         # The last fixed collection in FastAPI's route template is the most
         # specific resource. Thus `/organizations/{org}/problems` is a problem
@@ -393,6 +395,9 @@ def required_permissions(path: str, method: str) -> frozenset[str]:
             if reads
             else {ApiKeyPermission.COMPOSITIONS_WRITE.value}
         )
+    if path.startswith("/v1/organizations/") and path.split("/")[4:5] in (["sphere"], ["pricing-snapshots"]):
+        # SPHERE discovery and the stored upstream pricings of an organization: what a problem is built from.
+        return frozenset({ApiKeyPermission.PROBLEMS_READ.value})
     if path.startswith("/v1/organizations/") and path.split("/")[4:5] == ["connections"]:
         # An organization's connections (a SPHERE key): administration of the organization, reads included,
         # since even listing them is an ADMIN's.

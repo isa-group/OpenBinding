@@ -2020,6 +2020,40 @@ export interface paths {
         patch: operations["updateRunPreset"];
         trace?: never;
     };
+    "/v1/organizations/{org}/pricing-snapshots/{snapshot}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A stored upstream pricing version */
+        get: operations["getPricingSnapshot"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{org}/pricing-snapshots/{snapshot}/yaml": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The bytes of a stored upstream pricing version */
+        get: operations["getPricingSnapshotYaml"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/organizations/{org}/problems": {
         parameters: {
             query?: never;
@@ -2361,6 +2395,57 @@ export interface paths {
          *     teammate's private engine is refused at dispatch (``registration_changed``, D10).
          */
         post: operations["retryRun"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{org}/sphere/pricings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Search SPHERE's pricings (and, with a connection, a connected organization's private ones) */
+        get: operations["searchSpherePricings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{org}/sphere/pricings/{pricing_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A SPHERE pricing's versions, newest first by date */
+        get: operations["getSpherePricing"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{org}/sphere/pricings/{pricing_id}/versions/{version_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One SPHERE version, kept as a snapshot, with its plans, add-ons, features and limits */
+        get: operations["getSpherePricingVersion"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -5226,6 +5311,24 @@ export interface components {
             slug: string;
         };
         /**
+         * Facets
+         * @description SPHERE's histograms over the whole result (never computed from one page).
+         */
+        Facets: {
+            /** Configurationspacesize */
+            configurationSpaceSize?: {
+                [key: string]: unknown;
+            } | null;
+            /** Maxprice */
+            maxPrice?: {
+                [key: string]: unknown;
+            } | null;
+            /** Minprice */
+            minPrice?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /**
          * FieldChangeView
          * @description One field that differs: its dotted path within the entry (or the document), and both values.
          */
@@ -6168,6 +6271,59 @@ export interface components {
             url: string;
             /** Version */
             version: string;
+        };
+        /**
+         * PricingSnapshotView
+         * @description A stored upstream pricing version: where it came from and what it is, by name (no digests).
+         */
+        PricingSnapshotView: {
+            /** Collection */
+            collection?: string | null;
+            /** Currency */
+            currency?: string | null;
+            /**
+             * Fetchedat
+             * Format: date-time
+             */
+            fetchedAt: string;
+            /** Id */
+            id: string;
+            /** Owner */
+            owner?: string | null;
+            /** Permanenturl */
+            permanentUrl?: string | null;
+            /** Pricingid */
+            pricingId?: string | null;
+            /** Registry */
+            registry?: string | null;
+            /**
+             * Renamed
+             * @description Whether an earlier snapshot of the same source had the same content.
+             */
+            renamed: boolean;
+            /** Slug */
+            slug?: string | null;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "sphere" | "registry" | "url";
+            /** Syntaxversion */
+            syntaxVersion?: string | null;
+            /** Title */
+            title: string;
+            /** Url */
+            url?: string | null;
+            /** Valid */
+            valid: boolean;
+            /** Versioncreatedat */
+            versionCreatedAt?: string | null;
+            /** Versionid */
+            versionId?: string | null;
+            /** Versionlabel */
+            versionLabel?: string | null;
+            /** Yamlhref */
+            yamlHref: string;
         };
         /**
          * PricingTokenView
@@ -7188,6 +7344,30 @@ export interface components {
             /** Label */
             label: string;
         };
+        /** SphereAnalytics */
+        SphereAnalytics: {
+            /** Addons */
+            addOns?: number | null;
+            /** Configurationspacesize */
+            configurationSpaceSize?: number | null;
+            /** Features */
+            features?: number | null;
+            /** Maxprice */
+            maxPrice?: number | null;
+            /** Minprice */
+            minPrice?: number | null;
+            /** Plans */
+            plans?: number | null;
+        };
+        /** SphereCollection */
+        SphereCollection: {
+            /** Id */
+            id: string;
+            /** Name */
+            name?: string | null;
+            /** Slug */
+            slug?: string | null;
+        };
         /**
          * SphereConnectionUpdate
          * @description The key of a SPHERE connection: ``sk-`` and 64 hexadecimal characters. It is written, never read back.
@@ -7198,6 +7378,105 @@ export interface components {
              * @description The SPHERE API key (write-only).
              */
             apiKey: string;
+        };
+        /** SphereLatestVersion */
+        SphereLatestVersion: {
+            /** Createdat */
+            createdAt?: string | null;
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+        };
+        /** SphereManifestView */
+        SphereManifestView: {
+            /** Latestversionid */
+            latestVersionId: string;
+            /** Name */
+            name: string;
+            /** Permanenturl */
+            permanentUrl: string;
+            /** Pricingid */
+            pricingId: string;
+            /**
+             * Versions
+             * @description Newest first by date (SPHERE's latest is by date).
+             */
+            versions: components["schemas"]["SphereVersionEntry"][];
+        };
+        /** SphereOwner */
+        SphereOwner: {
+            /** Displayname */
+            displayName?: string | null;
+            /** Name */
+            name: string;
+        };
+        /** SpherePricingRow */
+        SpherePricingRow: {
+            analytics: components["schemas"]["SphereAnalytics"];
+            collection?: components["schemas"]["SphereCollection"] | null;
+            /** Currency */
+            currency?: string | null;
+            latestVersion: components["schemas"]["SphereLatestVersion"];
+            /** Name */
+            name: string;
+            owner?: components["schemas"]["SphereOwner"] | null;
+            /** Pricingid */
+            pricingId: string;
+            /**
+             * Private
+             * @default false
+             */
+            private: boolean;
+            /** Slug */
+            slug: string;
+        };
+        /** SpherePricingSearch */
+        SpherePricingSearch: {
+            /**
+             * Connected
+             * @description Whether the organization has an active SPHERE connection.
+             */
+            connected: boolean;
+            facets: components["schemas"]["Facets"];
+            /** Pricings */
+            pricings: components["schemas"]["SpherePricingRow"][];
+            /**
+             * Registries
+             * @description The SPHERE registries this deployment can read, by alias.
+             */
+            registries: string[];
+            /** Total */
+            total: number;
+        };
+        /** SphereVersionEntry */
+        SphereVersionEntry: {
+            /** Createdat */
+            createdAt?: string | null;
+            /** Label */
+            label: string;
+            /**
+             * Private
+             * @default false
+             */
+            private: boolean;
+            /** Versionid */
+            versionId: string;
+        };
+        /** SphereVersionView */
+        SphereVersionView: {
+            /** Diagnostics */
+            diagnostics: {
+                [key: string]: unknown;
+            }[];
+            snapshot: components["schemas"]["PricingSnapshotView"];
+            /**
+             * Summary
+             * @description The normalised pricing: plans, add-ons (metered apart), features, limits.
+             */
+            summary: {
+                [key: string]: unknown;
+            };
         };
         /** StreamTicket */
         StreamTicket: {
@@ -15799,6 +16078,173 @@ export interface operations {
             };
         };
     };
+    getPricingSnapshot: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                snapshot: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PricingSnapshotView"];
+                };
+            };
+            /** @description Missing or invalid account credential. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The account role, API-key permission, or Engine allow-list does not permit this request. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description No such snapshot, or none this caller may read (`pricing_snapshot_not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request does not satisfy the contract; `diagnostics` says where. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too many `read` requests from this address by a caller with no credential: past the anonymous budget. A signed-in caller is not charged. `Retry-After` says when the window ends. */
+            429: {
+                headers: {
+                    /** @description Seconds until the budget is available again. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Account authentication is not configured on this deployment. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getPricingSnapshotYaml: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                snapshot: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    /** @description Revision of the resource; send it back as `If-Match` to edit it. */
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/yaml": string;
+                };
+            };
+            /** @description The caller's copy (`If-None-Match`) is current. */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or invalid account credential. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The account role, API-key permission, or Engine allow-list does not permit this request. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description No such snapshot, or none this caller may read (`pricing_snapshot_not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request does not satisfy the contract; `diagnostics` says where. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too many `read` requests from this address by a caller with no credential: past the anonymous budget. A signed-in caller is not charged. `Retry-After` says when the window ends. */
+            429: {
+                headers: {
+                    /** @description Seconds until the budget is available again. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Account authentication is not configured on this deployment. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     listProblems: {
         parameters: {
             query?: {
@@ -17468,6 +17914,262 @@ export interface operations {
                 };
                 content: {
                     "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    searchSpherePricings: {
+        parameters: {
+            query?: {
+                /** @description Words of the pricing's name. */
+                q?: string | null;
+                /** @description A SPHERE collection slug. */
+                collection?: string | null;
+                /** @description A SPHERE organization of the connection's scopes: its private pricings are listed too. */
+                organization?: string | null;
+                /** @description A configured SPHERE registry alias. */
+                registry?: string | null;
+                /** @description Only pricings whose cheapest plan costs at least this. */
+                minPrice?: number | null;
+                sort?: ("name" | "minPrice") | null;
+                order?: "asc" | "desc";
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                org: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpherePricingSearch"];
+                };
+            };
+            /** @description Missing or invalid account credential. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The caller is not a MEMBER of the organization. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No such SPHERE pricing, or none this organization may read (`sphere_pricing_not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unknown registry (`sphere_registry_unknown`), or a version the gateway does not read (`sphere_syntax_unsupported`, `sphere_pricing_invalid`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too many `read` requests from this client: past the budget of its address, or of its account when signed in. `Retry-After` says when the window ends. */
+            429: {
+                headers: {
+                    /** @description Seconds until the budget is available again. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description SPHERE is busy (`sphere_busy`, with `Retry-After`) or unavailable (`sphere_unavailable`). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    getSpherePricing: {
+        parameters: {
+            query?: {
+                registry?: string | null;
+            };
+            header?: never;
+            path: {
+                org: string;
+                pricing_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SphereManifestView"];
+                };
+            };
+            /** @description Missing or invalid account credential. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The caller is not a MEMBER of the organization. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No such SPHERE pricing, or none this organization may read (`sphere_pricing_not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unknown registry (`sphere_registry_unknown`), or a version the gateway does not read (`sphere_syntax_unsupported`, `sphere_pricing_invalid`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too many `read` requests from this client: past the budget of its address, or of its account when signed in. `Retry-After` says when the window ends. */
+            429: {
+                headers: {
+                    /** @description Seconds until the budget is available again. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description SPHERE is busy (`sphere_busy`, with `Retry-After`) or unavailable (`sphere_unavailable`). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    getSpherePricingVersion: {
+        parameters: {
+            query?: {
+                registry?: string | null;
+            };
+            header?: never;
+            path: {
+                org: string;
+                pricing_id: string;
+                version_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SphereVersionView"];
+                };
+            };
+            /** @description Missing or invalid account credential. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The caller is not a MEMBER of the organization. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No such SPHERE pricing, or none this organization may read (`sphere_pricing_not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unknown registry (`sphere_registry_unknown`), or a version the gateway does not read (`sphere_syntax_unsupported`, `sphere_pricing_invalid`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too many `read` requests from this client: past the budget of its address, or of its account when signed in. `Retry-After` says when the window ends. */
+            429: {
+                headers: {
+                    /** @description Seconds until the budget is available again. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description SPHERE is busy (`sphere_busy`, with `Retry-After`) or unavailable (`sphere_unavailable`). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };

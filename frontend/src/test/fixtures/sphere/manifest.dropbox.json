@@ -1,0 +1,26 @@
+{
+  "latestVersionId": "687e4b68102baa50f3a5c7b7",
+  "name": "Dropbox",
+  "permanentUrl": "https://sphere.score.us.es/p/6ab0a323697330667ccce9c1",
+  "pricingId": "6ab0a323697330667ccce9c1",
+  "versions": [
+    {
+      "createdAt": "2026-01-01T00:00:00Z",
+      "label": "2021",
+      "private": false,
+      "versionId": "687e4b68102baa50f3a5c7b7"
+    },
+    {
+      "createdAt": "2026-01-01T00:00:01Z",
+      "label": "2023",
+      "private": false,
+      "versionId": "687e4b68102baa50f3a5c7b5"
+    },
+    {
+      "createdAt": "2026-01-01T00:00:02Z",
+      "label": "2024",
+      "private": false,
+      "versionId": "687e4b68102baa50f3a5c7b6"
+    }
+  ]
+}

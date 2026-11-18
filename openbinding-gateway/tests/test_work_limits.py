@@ -66,6 +66,14 @@ REQUESTS = {
     ("POST", DERIVE): ("POST", "/v1/organizations/{org}/compositions/none/derive", EMPTY_JSON),
     # Counted before the key is checked: the first is a 422, the second a 429.
     ("PUT", CONNECTION): ("PUT", CONNECTION, BAD_KEY),
+    # Answered from the recorded SPHERE.
+    ("GET", "/v1/organizations/{org}/sphere/pricings"): ("GET", "/v1/organizations/{org}/sphere/pricings?q=Mailgun", {}),
+    ("GET", "/v1/organizations/{org}/sphere/pricings/{pricing_id}"): (
+        "GET", "/v1/organizations/{org}/sphere/pricings/6ab0a323697330667ccce8cd", {},
+    ),
+    ("GET", "/v1/organizations/{org}/sphere/pricings/{pricing_id}/versions/{version_id}"): (
+        "GET", "/v1/organizations/{org}/sphere/pricings/6ab0a323697330667ccce8cd/versions/6921867e7004563bd918e7e8", {},
+    ),
 }
 
 #: The stateless language services: open to anybody, and answering ``application/problem+json``.
@@ -492,6 +500,12 @@ ANONYMOUS_REQUESTS = {
     ("GET", f"{COMPOSITION}/download"): ("/v1/organizations/{org}/compositions/none/download", 404),
     ("GET", "/v1/permalinks/compositions/{composition_id}"): (
         "/v1/permalinks/compositions/00000000-0000-0000-0000-000000000000", 404,
+    ),
+    ("GET", "/v1/organizations/{org}/pricing-snapshots/{snapshot}"): (
+        "/v1/organizations/{org}/pricing-snapshots/00000000-0000-0000-0000-000000000000", 404,
+    ),
+    ("GET", "/v1/organizations/{org}/pricing-snapshots/{snapshot}/yaml"): (
+        "/v1/organizations/{org}/pricing-snapshots/00000000-0000-0000-0000-000000000000/yaml", 404,
     ),
 }
 
