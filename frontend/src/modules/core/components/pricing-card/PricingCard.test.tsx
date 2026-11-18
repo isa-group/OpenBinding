@@ -105,7 +105,7 @@ describe('PricingCard', () => {
       },
       selectionEnabled: false,
       ctaEnabled: false,
-      hideSections: ['hero', 'billing', 'variables', 'summary'],
+      hideSections: ['hero', 'billing', 'variables', 'summary', 'comparison'],
       diagnostics: 'verbose',
       visibility: 'all',
       theme: 'light',
@@ -129,7 +129,7 @@ describe('PricingCard', () => {
     await screen.findByTestId('pricing-renderer');
     expect(renderer.props).toMatchObject({
       currentSelection: { planId: 'STARTER' },
-      hideSections: ['hero', 'billing', 'variables', 'summary', 'addOns'],
+      hideSections: ['hero', 'billing', 'variables', 'summary', 'addOns', 'comparison'],
     });
   });
 });

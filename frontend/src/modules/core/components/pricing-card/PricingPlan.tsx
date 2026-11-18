@@ -1,9 +1,20 @@
 import { useMemo } from 'react';
 import SpherePricingRenderer from '../pricing-renderer';
 
-/** The card already names the plan, the pricing and the version; only the plan's features and limits (and add-ons) are drawn. */
-const HIDDEN_SECTIONS = ['hero', 'billing', 'variables', 'summary', 'addOns'] as const;
-const HIDDEN_WITH_ADDONS = ['hero', 'billing', 'variables', 'summary'] as const;
+/**
+ * The card already names the plan, the pricing and the version; only the plans (that one marked) and, when the plan is taken
+ * with add-ons, the add-ons are drawn. The whole pricing's comparison table is SPHERE's to show ("Open in SPHERE"): drawn in a
+ * card it runs to every feature of every plan.
+ */
+const HIDDEN_SECTIONS = [
+  'hero',
+  'billing',
+  'variables',
+  'summary',
+  'addOns',
+  'comparison',
+] as const;
+const HIDDEN_WITH_ADDONS = ['hero', 'billing', 'variables', 'summary', 'comparison'] as const;
 
 /**
  * One plan of a Pricing2Yaml document, drawn by pricing-renderer through the bridge's `catalog` preset: read only, with that
