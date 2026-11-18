@@ -230,17 +230,27 @@ async function walk(
       ([key, brand]) => localStorage.setItem(key, brand),
       [BRAND_KEY, options.brand]
     );
-    const page = await context.newPage();
-    page.on('request', request => {
-      if (/jsdelivr|unpkg|cdnjs|monaco-editor@|fonts\.gstatic/i.test(request.url()))
-        foreign.push(request.url());
-    });
+    // One page per screen: the lab's browser has 576 MB, and one page kept for every screen (pricing-renderer drawings,
+    // Monaco) runs out of it. The session lives in the context's storage once the first page has signed in.
+    const watchForeign = (target: Page) =>
+      target.on('request', request => {
+        if (/jsdelivr|unpkg|cdnjs|monaco-editor@|fonts\.gstatic/i.test(request.url()))
+          foreign.push(request.url());
+      });
+    let page = await context.newPage();
+    watchForeign(page);
     const { stops: all } = await plan(page);
     if (!visitor) await signInByApi(page, 'owner');
+    let first = true;
     for (const stop of all.filter(entry => Boolean(entry.visitor) === visitor)) {
+      if (!first) {
+        await page.close();
+        page = await context.newPage();
+        watchForeign(page);
+      }
+      first = false;
       const errors: string[] = [];
-      const onError = (error: Error) => errors.push(error.message);
-      page.on('pageerror', onError);
+      page.on('pageerror', error => errors.push(error.message));
       await page.goto(stop.path);
       await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => undefined);
       await page.waitForTimeout(800);
@@ -266,7 +276,6 @@ async function walk(
           path: `${OUT}/${label}-${stop.id}.png`,
           fullPage: !/editor/.test(stop.id),
         });
-      page.off('pageerror', onError);
       rows.push({ ...stop, ...measured, dark, errors });
     }
     await context.close();
