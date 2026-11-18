@@ -72,7 +72,10 @@ function BuilderBody({ organization }: { organization: Organization }) {
     planClient.getOwnUsage().catch(() => null)
   );
   const pricing = useResource<Record<string, unknown> | null>('builder-pricing', () =>
-    planClient.getPricingCatalog().catch(() => null)
+    planClient
+      .getPlansPricing()
+      .then(answer => answer.document)
+      .catch(() => null)
   );
   const presets = useResource<RunPresetList | null>(`builder-presets:${org}`, () =>
     presetsApi.list(org, { limit: PRESET_PAGE }).catch(() => null)

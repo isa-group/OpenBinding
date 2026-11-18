@@ -642,8 +642,7 @@ flowchart LR
   open gate), refuses to start when a feature or limit it references is missing or not `NUMERIC`, and, with SPACE
   enabled, requires `SPACE_ORGANIZATION_ID` and the `pricing-token-jwks` capability (fatal under `APP_ENV=prod`, a
   warning elsewhere). Pricing tokens are verified against SPACE's JWKS and matched to the account with
-  `pricing_token_user_id`; there is no unverified fallback. The same check on `pricing_activated` moves to F3/F8,
-  with the `PricingSource` port and the SPACE ledger.
+  `pricing_token_user_id`; there is no unverified fallback. The same check on `pricing_activated` moves to F8, with the SPACE ledger.
 - Quotas are per account (`modules/plans/domain/quotas.py`); organizations carry no billing sponsor.
 - Pricing 0.2.0 (`docs/pricing/`) declares seven features and twelve limits. SPACE tracks two usage levels, both
   renewable and monthly: `solverHours` and `generatedInstances`. A run on a built-in engine, a study cell or the
@@ -690,9 +689,10 @@ flowchart LR
   id, the permanent link, the YAML (for pricing-renderer) and the parsed document (`.inf` as `null`), with an
   `ETag` and `public, max-age=300`. When SPHERE cannot be read, a stored snapshot of that label is served; with
   none, `503 pricing_unavailable`. It needs no SPHERE key.
-- Removed: `sphere_client.py`, `pricing_catalog.py`, the deprecated `/v1/pricing` proxy and `/v1/pricing/catalog`,
-  admin pricing validation, `space_client/deployments.py`, the release sweeps, local metering
-  (`domain/usage_counters.py`) and the sponsorship capacity checks.
+- Removed: the legacy SPHERE client and pricing catalog modules, the keyed `/v1/pricing` proxy (its `current` and
+  `catalog` routes) with its key permission, and OpenBinding's own SPHERE key and organization settings (F3); admin
+  pricing validation, `space_client/deployments.py`, the release sweeps, local
+  metering (`domain/usage_counters.py`) and the sponsorship capacity checks.
 
 ### 9.3 Browser side
 

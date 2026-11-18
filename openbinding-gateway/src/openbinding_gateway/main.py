@@ -73,7 +73,6 @@ from .routes.auth import router as auth_router
 from .routes.cas import identity_router, router as cas_router
 from .routes.notifications import router as notifications_router
 from .routes.organizations import avatar_router, invitation_router, router as organizations_router
-from .routes.pricing import public_router as pricing_router
 from .routes.studies import router as studies_router
 from .routes.users import router as users_router
 from .routes.v1 import router as v1_router
@@ -107,7 +106,6 @@ def _configure_logging(startup_settings: Settings) -> None:
         secrets=(
             startup_settings.gateway_jwt_secret or "",
             startup_settings.space_api_key or "",
-            startup_settings.sphere_api_key or "",
             startup_settings.bootstrap_admin_password or "",
             startup_settings.federation_secret_key or "",
             *(startup_settings.secrets_fernet_keys or "").split(","),
@@ -250,8 +248,8 @@ TAGS_METADATA = [
     {
         "name": "Pricing",
         "description": (
-            "The published pricing, read only from SPHERE. Pricings, versions, plans and "
-            "contracts are administered in the SPHERE and SPACE consoles."
+            "OpenBinding's published pricing, SPHERE discovery and the stored upstream pricings, read through the "
+            "pricing source. Pricings, versions, plans and contracts are administered in the SPHERE and SPACE consoles."
         ),
     },
 ]
@@ -444,7 +442,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(users_router)
     app.include_router(identity_router)
     app.include_router(admin_router)
-    app.include_router(pricing_router)
     app.include_router(organizations_router)
     app.include_router(invitation_router)
     app.include_router(avatar_router)

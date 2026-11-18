@@ -175,7 +175,7 @@ gateway refuses to start with.
 
 Private, supplied by the supervisor and only referenced as `${NAME}` (the file
 holds no value and no default): `SPACE_URL`, `SPACE_API_KEY`, `SPHERE_URL`,
-`SPHERE_API_KEY`, `SPHERE_ORGANIZATION_ID`, `SPACE_ORGANIZATION_ID`. The last
+`SPACE_ORGANIZATION_ID` (OpenBinding holds no SPHERE key: it reads SPHERE anonymously). The last
 one goes to `gateway`, `worker` and `seed`: the gateway verifies every pricing
 token against SPACE's published keys for that organization (with SPACE enabled
 it warns at startup without it, and `APP_ENV=prod` refuses to start), and

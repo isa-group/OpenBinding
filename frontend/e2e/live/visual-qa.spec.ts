@@ -21,9 +21,9 @@ import {
  * - no horizontal overflow (`document.documentElement.scrollWidth <= window.innerWidth`);
  * - no `console.error`, no `pageerror`, no 5xx answer (4xx answers are counted and listed, not failed: a 404 the interface expects is
  *   not a defect, and Chromium logs each one as a console error that would hide the real ones, so those log lines are set aside);
- *   the one 5xx listed with them is the 503 of the published pricing (`GET /v1/pricing/catalog|current`, `pricing_unavailable`),
- *   which is how the gateway says SPHERE cannot be read: the lab runs without SPHERE credentials, and the screens that read the
- *   pricing say it cannot be read instead of failing;
+ *   the one 5xx listed with them is the 503 of the published pricing (`GET /v1/plans/pricing`, `pricing_unavailable`),
+ *   which is how the gateway says SPHERE cannot be read (SPHERE unreachable from the lab, or switched off), and the screens that
+ *   read the pricing say it cannot be read instead of failing;
  * - a visible main landmark;
  * - on mobile, every visible button, link, summary and field at least 24 px high (WCAG 2.5.8; a link inside a line of text is exempt,
  *   as the criterion says);
@@ -58,8 +58,8 @@ const finishedResult = (target: Page) =>
   });
 /** Chromium logs every 4xx/5xx of a sub-resource as a console error; the answers are counted on their own. */
 const STATUS_LOG = /^Failed to load resource: the server responded with a status of \d{3}/;
-/** The published pricing answers 503 `pricing_unavailable` whenever SPHERE cannot be read, as in a lab without SPHERE credentials. */
-const PRICING_UNREADABLE = /^\/api\/v1\/pricing\/(catalog|current)$/;
+/** The published pricing answers 503 `pricing_unavailable` whenever SPHERE cannot be read. */
+const PRICING_UNREADABLE = /^\/api\/v1\/plans\/pricing$/;
 
 interface Stop {
   /** Label of the screen in the log and the name of its screenshot. */

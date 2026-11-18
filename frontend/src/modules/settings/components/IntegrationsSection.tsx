@@ -362,9 +362,9 @@ function UnlinkDialog({
     if (!researching) return;
     let current = true;
     api
-      .getPricingCatalog()
+      .getPlansPricing()
       .then(answer => {
-        if (current) setCatalog(readCatalog(answer));
+        if (current) setCatalog(readCatalog(answer.document));
       })
       .catch(() => {});
     return () => {

@@ -4,8 +4,7 @@ import type { IPricingLike } from 'pricing-renderer';
 import type {
   AdminSubscriptionView,
   ContractChangeReason,
-  PricingCatalog,
-  PricingCurrentView,
+  PricingDocument,
 } from '../../../core/api/account';
 import { Action } from '../../../core/components/action-button';
 import { DataTable } from '../../../core/components/data-table';
@@ -79,7 +78,7 @@ function named(
  * and the form above it speak of the same limits and add-ons, and units are in the words of the interface (a run, never a job).
  * No value changes.
  */
-function reviewPricingOf(source: PricingCatalog): IPricingLike {
+function reviewPricingOf(source: PricingDocument): IPricingLike {
   return withInfiniteLimits({
     ...source,
     features: named(source.features, (id, feature) => featureName(id, feature)),
@@ -143,10 +142,11 @@ interface AgreementProps {
   reading: boolean;
   catalog: ContractCatalog | null;
   /** The pricing document the catalog was read from, as the gateway serves it: the change review is drawn from it. */
-  pricing: PricingCatalog | null;
+  pricing: PricingDocument | null;
   catalogFailure: Failure | null;
   catalogLoading: boolean;
-  current: PricingCurrentView | null;
+  /** The published release, by label. */
+  current: { version: string } | null;
   onApplied: (result: AgreementResult) => void;
   /** A change was refused because the subscription had moved since it was read. Nothing was written: it is to be read again. */
   onOutdated: () => void;

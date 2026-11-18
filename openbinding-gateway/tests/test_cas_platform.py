@@ -18,7 +18,7 @@ from openbinding_gateway.cas import (
 from openbinding_gateway.core.settings import Settings, get_settings
 from openbinding_gateway.main import app
 from openbinding_gateway.routes import cas as cas_routes
-from _pricing import fake_pricing_gate, pricing_catalog
+from _pricing import fake_pricing_gate, fixture_catalog
 
 
 @pytest_asyncio.fixture
@@ -146,7 +146,7 @@ async def test_linking_cas_assigns_research_and_unlink_requires_typed_confirmati
     assert unconfirmed.status_code == 409
     assert unconfirmed.json()["detail"]["code"] == "research_downgrade_confirmation_required"
     assert removed.status_code == 204
-    assert downgraded.json()["plan"] == pricing_catalog().default_plan
+    assert downgraded.json()["plan"] == fixture_catalog().default_plan
 
 
 async def test_link_intent_allows_navigation_without_putting_a_jwt_in_the_url(

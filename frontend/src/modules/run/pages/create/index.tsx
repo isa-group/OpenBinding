@@ -11,7 +11,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Link, useSearchParams } from 'react-router-dom';
-import type { PricingCatalog, UsageView } from '../../../core/api/account';
+import type { PricingDocument, UsageView } from '../../../core/api/account';
 import { type EngineCatalogEntry } from '../../../engine/api/engineClient';
 import { problemsApi } from '../../../problem/api/problemsClient';
 import type { CaseContent } from '../../../problem/api/loadProblems';
@@ -108,8 +108,11 @@ function LaunchBody({ organization }: { organization: Organization }) {
   const usage = useResource<UsageView | null>('launch-usage', () =>
     planClient.getOwnUsage().catch(() => null)
   );
-  const pricing = useResource<PricingCatalog | null>('launch-pricing', () =>
-    planClient.getPricingCatalog().catch(() => null)
+  const pricing = useResource<PricingDocument | null>('launch-pricing', () =>
+    planClient
+      .getPlansPricing()
+      .then(answer => answer.document)
+      .catch(() => null)
   );
   const catalog = useResource<EngineCatalogEntry[]>('launch-engines', () =>
     engineClient.getEngines().catch(() => [])

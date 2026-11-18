@@ -82,9 +82,21 @@ test.describe('live · plan, permissions and the native consoles', () => {
     page,
   }, testInfo) => {
     const errors = watchPageErrors(page);
+    const asked: string[] = [];
+    page.on('request', request => asked.push(new URL(request.url()).pathname));
     await page.goto('/pricing');
 
     await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
+    // The page reads the published pricing from /v1/plans/pricing (SPHERE through the gateway): it names the release by its label,
+    // never by a digest, or says the pricing cannot be read. The retired keyed proxy (/v1/pricing) is never asked.
+    const release = page.getByText(/Pricing version/).first();
+    await expect(release.or(page.getByRole('alert')).first()).toBeVisible();
+    if (await release.count()) {
+      await expect(release).toHaveText(/Pricing version \d+\.\d+\.\d+/);
+      await expect(page.locator('main')).not.toContainText(/sha256-|\b[0-9a-f]{64}\b/);
+    }
+    expect(asked.some(path => path.endsWith('/v1/plans/pricing'))).toBe(true);
+    expect(asked.filter(path => path.startsWith('/api/v1/pricing'))).toEqual([]);
     await expect(
       page.getByRole('button', { name: /\b(buy|checkout|pay now|publish|new version)\b/i })
     ).toHaveCount(0);

@@ -2,7 +2,7 @@
 // 694f292b03), https://github.com/SCORELabUS/SPHERE. Copyright (c) 2024 Alejandro García Fernández.
 // MIT licence: the full text is in THIRD_PARTY_NOTICES.md.
 // Changes: the parsed form is pricing-renderer's own `IPricingLike` (OpenBinding has no pricing4ts: the gateway serves the
-// published pricing as JSON, `GET /v1/pricing/catalog`); SPHERE's upgrade through `PUT /api/v1/pricings` and the folding of
+// published pricing, `GET /v1/plans/pricing`, as YAML and as JSON); SPHERE's upgrade through `PUT /api/v1/pricings` and the folding of
 // upgraded values are not brought, since OpenBinding has no such endpoint and hands the renderer documents as they are.
 
 import type { IPricingLike } from 'pricing-renderer';

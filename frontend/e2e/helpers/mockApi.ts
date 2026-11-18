@@ -7,7 +7,7 @@ import type { Job } from '../../src/modules/run/api/runsClient';
 import type { Study, StudyCell, StudyRun } from '../../src/modules/study/api/studiesApi';
 import type { Problem, ProblemRevision } from '../../src/modules/problem/api/problemsClient';
 import { digestOf as caseDigest, compiledDocument } from '../../src/modules/problem/utils/fixtures';
-import { CURRENT_FIXTURE, catalogFixture } from '../../src/test/fixtures/pricingCatalog';
+import { PLANS_PRICING_FIXTURE } from '../../src/test/fixtures/plansPricing';
 import {
   AUDIT,
   ERROR_EVENTS,
@@ -1224,9 +1224,8 @@ function route(request: Request): Reply | null {
           },
         });
       return null;
-    case 'pricing':
-      if (second === 'catalog') return ok(catalogFixture);
-      if (second === 'current') return ok(CURRENT_FIXTURE);
+    case 'plans':
+      if (second === 'pricing') return ok(PLANS_PRICING_FIXTURE);
       return null;
     case 'organizations':
       return organizationRoutes(request);

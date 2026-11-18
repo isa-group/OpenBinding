@@ -5,13 +5,12 @@ import { useEffect, type ReactNode } from 'react';
 import { SpaceProvider, useTokenService } from 'space-react-client';
 import { PricingUnavailableError, type UserProfile } from '../../../core/api/account';
 import { HttpError } from '../../../core/api/http';
-import { CURRENT_FIXTURE, catalogFixture } from '../../../../test/fixtures/pricingCatalog';
+import { PLANS_PRICING_FIXTURE, catalogFixture } from '../../../../test/fixtures/plansPricing';
 import { AuthContext } from '../../../auth/hooks/useAuth';
 import PricingPage from '.';
 
 const api = vi.hoisted(() => ({
-  getPricingCatalog: vi.fn(),
-  getCurrentPricing: vi.fn(),
+  getPlansPricing: vi.fn(),
 }));
 
 const stored = vi.hoisted(() => ({ token: null as string | null }));
@@ -50,7 +49,8 @@ function makeToken(
 }
 
 type RendererProps = Record<string, unknown> & {
-  pricing: { plans?: Record<string, unknown> };
+  pricing?: { plans?: Record<string, unknown> };
+  yaml?: string;
   renderPlanCta: (context: { planId: string }) => ReactNode;
   renderSummaryActions: () => ReactNode;
 };
@@ -68,7 +68,7 @@ vi.mock('pricing-renderer/react', async () => {
       return createElement(
         'div',
         { 'data-testid': 'pricing-renderer' },
-        Object.keys(props.pricing.plans ?? {}).map(planId =>
+        Object.keys(props.pricing?.plans ?? {}).map(planId =>
           createElement(
             'div',
             { key: planId, 'data-plan': planId },
@@ -142,6 +142,9 @@ const withAddOns = {
   },
 };
 
+/** The published pricing without its YAML: in jsdom the renderer stand-in draws the parsed document's plans. */
+const PRICING = { ...PLANS_PRICING_FIXTURE, yaml: '' };
+
 const heading = () =>
   screen.findByRole('heading', { level: 1, name: 'Plans for every kind of binding work' });
 
@@ -150,17 +153,25 @@ describe('PricingPage', () => {
     vi.clearAllMocks();
     stored.token = null;
     renderer.props = null;
-    api.getPricingCatalog.mockResolvedValue(catalogFixture);
-    api.getCurrentPricing.mockResolvedValue(CURRENT_FIXTURE);
+    api.getPlansPricing.mockResolvedValue(PRICING);
   });
 
-  it('reads the live catalog and release, not the deprecated pricing document', async () => {
+  it('reads the published pricing once', async () => {
     renderPricing();
     await heading();
     expect(await screen.findByText('Compare all')).toBeInTheDocument();
 
-    expect(api.getPricingCatalog).toHaveBeenCalledTimes(1);
-    expect(api.getCurrentPricing).toHaveBeenCalledTimes(1);
+    expect(api.getPlansPricing).toHaveBeenCalledTimes(1);
+  });
+
+  it('hands the renderer the published YAML when it can read it', async () => {
+    api.getPlansPricing.mockResolvedValue(PLANS_PRICING_FIXTURE);
+    renderPricing();
+    await heading();
+    await screen.findByTestId('pricing-renderer');
+
+    expect(renderer.props?.yaml).toBe(PLANS_PRICING_FIXTURE.yaml);
+    expect(renderer.props).not.toHaveProperty('pricing');
   });
 
   it('labels the release: version, date, currency and the development copy', async () => {
@@ -308,7 +319,7 @@ describe('PricingPage', () => {
   });
 
   it('lists the add-ons as arranged under an agreement', async () => {
-    api.getPricingCatalog.mockResolvedValue(withAddOns);
+    api.getPlansPricing.mockResolvedValue({ ...PRICING, document: withAddOns });
     renderPricing(person('FREE'));
     await heading();
 
@@ -337,20 +348,8 @@ describe('PricingPage', () => {
     expect(contact).toHaveFocus();
   });
 
-  it('says there is no live release (404) instead of showing a catalog', async () => {
-    api.getCurrentPricing.mockRejectedValue(
-      new HttpError(404, 'No public pricing release is live.')
-    );
-    renderPricing();
-    await heading();
-
-    expect(await screen.findByText('No public pricing release is live')).toBeInTheDocument();
-    expect(screen.getByText(/Accounts keep the plan they already have/)).toBeInTheDocument();
-    expect(screen.queryByRole('list', { name: 'Plans' })).not.toBeInTheDocument();
-  });
-
   it('hides the catalog when pricing is unavailable (503) and retries on request', async () => {
-    api.getPricingCatalog.mockRejectedValueOnce(new PricingUnavailableError('SPHERE is down'));
+    api.getPlansPricing.mockRejectedValueOnce(new PricingUnavailableError('SPHERE is down'));
     renderPricing();
     await heading();
 
@@ -361,13 +360,13 @@ describe('PricingPage', () => {
 
     fireEvent.click(within(alert).getByRole('button', { name: 'Retry' }));
     expect(await screen.findByRole('list', { name: 'Plans' })).toBeInTheDocument();
-    expect(api.getPricingCatalog).toHaveBeenCalledTimes(2);
+    expect(api.getPlansPricing).toHaveBeenCalledTimes(2);
   });
 
   it('refuses a document whose digest does not match (502)', async () => {
     const mismatch = new HttpError(502, 'SPHERE content no longer matches');
     mismatch.code = 'pricing_digest_mismatch';
-    api.getPricingCatalog.mockRejectedValue(mismatch);
+    api.getPlansPricing.mockRejectedValue(mismatch);
     renderPricing();
     await heading();
 
@@ -451,12 +450,12 @@ describe('PricingPage', () => {
     });
     expect(screen.getByRole('link', { name: 'SPHERE' })).toHaveAttribute(
       'href',
-      CURRENT_FIXTURE.url
+      PLANS_PRICING_FIXTURE.permanentUrl
     );
   });
 
   it('draws no document while the pricing cannot be read', async () => {
-    api.getPricingCatalog.mockRejectedValue(new PricingUnavailableError('SPHERE is down'));
+    api.getPlansPricing.mockRejectedValue(new PricingUnavailableError('SPHERE is down'));
     renderPricing();
     await heading();
 
@@ -505,7 +504,7 @@ describe('PricingPage', () => {
       }
     );
     stored.token = token;
-    api.getPricingCatalog.mockResolvedValue(withAddOns);
+    api.getPlansPricing.mockResolvedValue({ ...PRICING, document: withAddOns });
     renderPricing(person('LAB'), token);
     await heading();
     const actions = await documentActions();
@@ -521,7 +520,7 @@ describe('PricingPage', () => {
   });
 
   it('draws no link to SPHERE when the address from the gateway is not a web address', async () => {
-    api.getCurrentPricing.mockResolvedValue({ ...CURRENT_FIXTURE, url: 'javascript:alert(1)' });
+    api.getPlansPricing.mockResolvedValue({ ...PRICING, permanentUrl: 'javascript:alert(1)' });
     renderPricing();
     await heading();
 

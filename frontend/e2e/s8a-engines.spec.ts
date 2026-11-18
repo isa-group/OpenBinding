@@ -23,7 +23,7 @@ import {
   reportOf,
   usageOf,
 } from '../src/test/fixtures/engines';
-import { CURRENT_FIXTURE, catalogFixture } from '../src/test/fixtures/pricingCatalog';
+import { PLANS_PRICING_FIXTURE } from '../src/test/fixtures/plansPricing';
 
 // S8a · engines of the account: eng-register, eng-registrations and eng-registration-detail.
 // There is no backend: the API origin is answered by page.route(). Screenshots go to testInfo.outputPath() (test-results/, ignored by git)
@@ -155,8 +155,7 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
       expires_in: 900,
     })
   );
-  await page.route(`${API}/v1/pricing/catalog`, json(catalogFixture));
-  await page.route(`${API}/v1/pricing/current`, json(CURRENT_FIXTURE));
+  await page.route(`${API}/v1/plans/pricing`, json(PLANS_PRICING_FIXTURE));
   await page.route(`${API}/v1/users/me`, json(user));
   await page.route(`${API}/v1/users/me/usage`, route =>
     json(usageOf('RESEARCH', options.limit === undefined ? 3 : options.limit))(route)

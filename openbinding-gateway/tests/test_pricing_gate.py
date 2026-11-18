@@ -14,7 +14,7 @@ import uuid
 import pytest
 import yaml
 
-from _fake_space import FakePricingGate, PricingCatalog, PricingCatalogError
+from _fake_space import FakePricingGate, FixtureCatalog, FixtureCatalogError
 from openbinding_gateway.access import policy
 from openbinding_gateway.core.settings import Settings
 from openbinding_gateway.modules.plans.domain import entitlement_map
@@ -26,9 +26,9 @@ from openbinding_gateway.space_client import (
     get_gate,
     set_gate,
 )
-from _pricing import PRICING_YAML, caps_for, fake_pricing_gate, largest_plan, pricing_catalog
+from _pricing import PRICING_YAML, caps_for, fake_pricing_gate, largest_plan, fixture_catalog
 
-CATALOG = pricing_catalog()
+CATALOG = fixture_catalog()
 DEFAULT_PLAN = CATALOG.default_plan
 LARGER_PLAN = largest_plan()
 
@@ -76,7 +76,7 @@ async def test_larger_yaml_plan_raises_allowances(gate, user_id):
 
 async def test_renaming_a_plan_in_yaml_changes_catalog_fake_and_contract_validation():
     document = yaml.safe_load(PRICING_YAML.read_bytes())
-    old_name = PricingCatalog.parse(PRICING_YAML.read_bytes()).default_plan
+    old_name = FixtureCatalog.parse(PRICING_YAML.read_bytes()).default_plan
     new_name = "RENAMED_DEFAULT"
     document["plans"][new_name] = document["plans"].pop(old_name)
     for add_on in document.get("addOns", {}).values():
@@ -85,13 +85,13 @@ async def test_renaming_a_plan_in_yaml_changes_catalog_fake_and_contract_validat
             for plan in add_on.get("availableFor", [])
         ]
 
-    catalog = PricingCatalog.parse(yaml.safe_dump(document).encode())
+    catalog = FixtureCatalog.parse(yaml.safe_dump(document).encode())
     gate = FakePricingGate(catalog)
     account_id = uuid.uuid4()
 
     assert catalog.default_plan == new_name
     assert gate.plan_of(account_id) == new_name
-    with pytest.raises(PricingCatalogError, match="Unknown plan"):
+    with pytest.raises(FixtureCatalogError, match="Unknown plan"):
         catalog.validate_selection(old_name, {})
     await gate.create_contract(account_id, new_name, "renamed@example.org")
     assert gate.plan_of(account_id) == new_name
@@ -99,7 +99,7 @@ async def test_renaming_a_plan_in_yaml_changes_catalog_fake_and_contract_validat
 
 async def test_yaml_feature_limit_and_add_on_changes_drive_space_decisions():
     document = yaml.safe_load(PRICING_YAML.read_bytes())
-    catalog_before = PricingCatalog.parse(PRICING_YAML.read_bytes())
+    catalog_before = FixtureCatalog.parse(PRICING_YAML.read_bytes())
     plan = catalog_before.default_plan
     document["plans"][plan]["features"]["runs"] = {"value": False}
     document["plans"][plan]["usageLimits"]["maxRunMinutes"] = {"value": 1}
@@ -123,7 +123,7 @@ async def test_yaml_feature_limit_and_add_on_changes_drive_space_decisions():
         }
     }
 
-    catalog = PricingCatalog.parse(yaml.safe_dump(document).encode())
+    catalog = FixtureCatalog.parse(yaml.safe_dump(document).encode())
     gate = FakePricingGate(catalog)
     account_id = uuid.uuid4()
 
@@ -145,7 +145,7 @@ async def test_changing_plan_raises_the_ceilings(gate, user_id):
     assert before.limit("maxRunMinutes") < after.limit("maxRunMinutes")
 
 
-@pytest.mark.parametrize("plan", list(pricing_catalog().plans))
+@pytest.mark.parametrize("plan", list(fixture_catalog().plans))
 def test_every_plan_bounds_a_single_request(plan):
     # A ceiling of zero or infinity would either refuse everything or protect
     # nothing; both have to be finite and positive on every plan.

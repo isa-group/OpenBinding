@@ -9,7 +9,7 @@ import {
 import { failureBody } from './helpers/problems';
 import type { Job } from '../src/modules/run/api/runsClient';
 import type { Study, StudyCell, StudyRun } from '../src/modules/study/api/studiesApi';
-import { CURRENT_FIXTURE, catalogFixture } from '../src/test/fixtures/pricingCatalog';
+import { PLANS_PRICING_FIXTURE } from '../src/test/fixtures/plansPricing';
 import { jobOf } from '../src/test/fixtures/jobs';
 import { presetPage } from '../src/test/fixtures/presets';
 import { usageOf } from '../src/test/fixtures/resources';
@@ -295,8 +295,7 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
       expires_in: 900,
     })
   );
-  await page.route(`${API}/v1/pricing/catalog`, json(catalogFixture));
-  await page.route(`${API}/v1/pricing/current`, json(CURRENT_FIXTURE));
+  await page.route(`${API}/v1/plans/pricing`, json(PLANS_PRICING_FIXTURE));
   await page.route(`${API}/v1/users/me`, json(lucia));
   await page.route(
     `${API}/v1/users/me/usage`,

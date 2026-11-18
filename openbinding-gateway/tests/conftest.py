@@ -131,7 +131,6 @@ def micro_placement_instance():
 @pytest.fixture(autouse=True)
 def clean_mock_env(monkeypatch):
     monkeypatch.setenv("SPHERE_ENABLED", "false")
-    monkeypatch.delenv("SPHERE_ORGANIZATION_ID", raising=False)
     for name in _ADMIN_ENVIRONMENT:
         monkeypatch.delenv(name, raising=False)
 
@@ -332,7 +331,7 @@ def sphere(monkeypatch, no_outbound_network):
 
 
 @pytest.fixture(autouse=True)
-def pricing_catalog_gate():
+def fixture_catalog_gate():
     """Every test gets a SPACE substitute built from the pricing 0.2.0 fixture."""
     if not GATEWAY_INSTALLED:
         yield

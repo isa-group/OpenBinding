@@ -8,7 +8,7 @@
 // identity the gateway answers must carry its four pins.
 
 import { useCallback, useMemo } from 'react';
-import type { PricingCatalog, UsageView } from '../../core/api/account';
+import type { PlansPricingView, UsageView } from '../../core/api/account';
 import type {
   BimProfile,
   CapabilitySelector,
@@ -236,8 +236,8 @@ export function useEnginesApi() {
   /** The plan's limits, for the room it leaves for federated engines. */
   const getOwnUsage = useCallback(() => call<UsageView>('/v1/users/me/usage'), [call]);
 
-  /** The live pricing document, for the plan ceilings of an engine's options. */
-  const getPricingCatalog = useCallback(() => call<PricingCatalog>('/v1/pricing/catalog'), [call]);
+  /** The published pricing, whose document gives the plan ceilings of an engine's options. */
+  const getPlansPricing = useCallback(() => call<PlansPricingView>('/v1/plans/pricing'), [call]);
 
   return useMemo(
     () => ({
@@ -258,7 +258,7 @@ export function useEnginesApi() {
       deleteEngineRegistration,
       setEngineRegistrationCredential,
       getOwnUsage,
-      getPricingCatalog,
+      getPlansPricing,
     }),
     [
       getPublicEngines,
@@ -278,7 +278,7 @@ export function useEnginesApi() {
       deleteEngineRegistration,
       setEngineRegistrationCredential,
       getOwnUsage,
-      getPricingCatalog,
+      getPlansPricing,
     ]
   );
 }

@@ -21,7 +21,7 @@ const platform = vi.hoisted(() => ({
 const client = vi.hoisted(() => ({
   getEngines: vi.fn(),
   getOwnUsage: vi.fn(),
-  getPricingCatalog: vi.fn(),
+  getPlansPricing: vi.fn(),
 }));
 
 const problems = vi.hoisted(() => ({
@@ -108,7 +108,7 @@ describe('A new study', () => {
     problems.revisions.mockResolvedValue([REVISION_1, REVISION_2]);
     client.getEngines.mockResolvedValue([engineEntry(RANDOM_SEARCH), engineEntry(EVOLUTIONARY)]);
     client.getOwnUsage.mockResolvedValue(usage);
-    client.getPricingCatalog.mockResolvedValue({});
+    client.getPlansPricing.mockResolvedValue({ version: '0.2.0', document: {} });
     presets.list.mockResolvedValue(presetPage());
   });
 

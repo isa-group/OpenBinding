@@ -8,7 +8,7 @@ const api = vi.hoisted(() => ({
   adminMaintenancePreview: vi.fn(),
   adminReconcileJobs: vi.fn(),
   adminPurgeExpired: vi.fn(),
-  getCurrentPricing: vi.fn(),
+  getPlansPricing: vi.fn(),
 }));
 
 vi.mock('../../api/adminApi', () => ({ useAdminApi: () => api }));
@@ -47,11 +47,7 @@ describe(
       api.adminMaintenancePreview.mockResolvedValue(PREVIEW);
       api.adminReconcileJobs.mockResolvedValue({ settled: 1 });
       api.adminPurgeExpired.mockResolvedValue({ apiKeys: 1, jobs: 14 });
-      api.getCurrentPricing.mockResolvedValue({
-        version: '0.1.0',
-        digest: 'sha256-x',
-        url: 'https://sphere.example.test/0.1.0',
-      });
+      api.getPlansPricing.mockResolvedValue({ version: '0.1.0' });
     });
 
     afterEach(() => {
@@ -231,7 +227,7 @@ describe(
         await screen.findByRole('heading', { level: 1, name: 'Page not found' })
       ).toBeInTheDocument();
       expect(api.adminMaintenancePreview).not.toHaveBeenCalled();
-      expect(api.getCurrentPricing).not.toHaveBeenCalled();
+      expect(api.getPlansPricing).not.toHaveBeenCalled();
       expect(api.adminReconcileJobs).not.toHaveBeenCalled();
     });
   }

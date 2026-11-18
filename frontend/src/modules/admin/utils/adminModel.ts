@@ -1,6 +1,6 @@
 import type { PricingSelection } from 'pricing-renderer';
 import { PricingUnavailableError, QuotaError } from '../../core/api/account';
-import type { AdminAuditPage, PricingCatalog } from '../../core/api/account';
+import type { AdminAuditPage, PricingDocument } from '../../core/api/account';
 import { HttpError } from '../../core/api/http';
 import { diagnosticsOf } from '../../core/api/problem';
 import { inInterfaceWords } from '../../core/utils/interfaceWords';
@@ -282,7 +282,7 @@ export function humanize(id: string): string {
 }
 
 /** The plans, add-ons and limits of the pricing the gateway serves, or `null` when the document has no plans. */
-export function readContractCatalog(catalog: PricingCatalog): ContractCatalog | null {
+export function readContractCatalog(catalog: PricingDocument): ContractCatalog | null {
   const plans = dictOf(catalog.plans);
   const planIds = Object.keys(plans);
   if (planIds.length === 0) return null;

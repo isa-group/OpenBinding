@@ -20,7 +20,7 @@ import uuid
 import pytest
 
 from _fake_space import FakePricingGate
-from _pricing import catalog_with_add_ons, largest_plan, pricing_catalog
+from _pricing import catalog_with_add_ons, largest_plan, fixture_catalog
 from space_client import SpaceError
 from _space_tokens import ORGANIZATION, trusted_payload
 from openbinding_gateway.core.settings import Settings
@@ -32,7 +32,7 @@ from openbinding_gateway.space_client import (
     SubscriptionRejected,
 )
 
-CATALOG = pricing_catalog()
+CATALOG = fixture_catalog()
 DEFAULT_PLAN = CATALOG.default_plan
 LARGER_PLAN = largest_plan()
 API_KEYS = "maxApiKeys"

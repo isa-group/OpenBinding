@@ -15,7 +15,7 @@ import RunLaunchPage from '.';
 const runsApi = vi.hoisted(() => ({ create: vi.fn() }));
 const client = vi.hoisted(() => ({
   getOwnUsage: vi.fn(),
-  getPricingCatalog: vi.fn(),
+  getPlansPricing: vi.fn(),
   getEngines: vi.fn(),
 }));
 const problems = vi.hoisted(() => ({ list: vi.fn(), revisions: vi.fn(), compilation: vi.fn() }));
@@ -188,7 +188,7 @@ describe('Start a run', () => {
         capabilities: { maxRunMinutes: 1, maxConcurrentRuns: 3 },
       })
     );
-    client.getPricingCatalog.mockResolvedValue({});
+    client.getPlansPricing.mockResolvedValue({ version: '0.2.0', document: {} });
     client.getEngines.mockResolvedValue(engines);
     problems.compilation.mockResolvedValue(analysis());
     facts.get.mockResolvedValue(factsWith([{ latency: 40 }]));

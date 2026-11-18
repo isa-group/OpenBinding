@@ -1,4 +1,4 @@
-// The plan's client: the account's usage, the pricing catalog and the current pricing, and the pricing token the SPACE
+// The plan's client: the account's usage, the published pricing, and the pricing token the SPACE
 // client reads, cut out of the old `api/client.ts` monolith.
 
 import {
@@ -7,7 +7,7 @@ import {
   apiClient,
   HttpTransport,
 } from '../../core/api/http';
-import type { PricingCatalog, PricingCurrentView, UsageView } from '../../core/api/account';
+import type { PlansPricingView, UsageView } from '../../core/api/account';
 
 /** The client over a transport: the application's own, or a test's. */
 export function planClientOf(transport: HttpTransport) {
@@ -17,19 +17,15 @@ export function planClientOf(transport: HttpTransport) {
     },
 
     /**
-     * The active Pricing2Yaml document, digest-verified by the gateway and served as JSON.
+     * The published pricing: its version label, the YAML and the parsed document, read by the gateway from
+     * SPHERE and verified.
      *
      * Fetched rather than bundled, so the plans page cannot drift from the
      * document SPACE was actually given. Public: a pricing nobody can read
      * before signing up is not much of a pricing.
      */
-    async getPricingCatalog(): Promise<PricingCatalog> {
-      return transport.request<PricingCatalog>('/v1/pricing/catalog');
-    },
-
-    /** The live public release: version, content digest and where SPHERE publishes it. 404 when none is live. */
-    async getCurrentPricing(): Promise<PricingCurrentView> {
-      return transport.request<PricingCurrentView>('/v1/pricing/current');
+    async getPlansPricing(): Promise<PlansPricingView> {
+      return transport.request<PlansPricingView>('/v1/plans/pricing');
     },
 
     /** What the interface gates features with; the browser never sees SPACE. */

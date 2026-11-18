@@ -15,7 +15,7 @@ import uuid
 import pytest
 from sqlalchemy import select
 
-from _pricing import pricing_catalog
+from _pricing import fixture_catalog
 from analysis_b3_b4_b6._helpers import PER_ATTEMPT_CANCELLATION, a_job, a_registration
 from openbinding_gateway.db.models import Job, JobEngineAttempt, JobState, User, UserRole
 from openbinding_gateway.jobs import reconciler
@@ -31,7 +31,7 @@ async def _owner(session) -> User:
         email=f"{uuid.uuid4().hex[:8]}@example.org",
         password_hash="not-a-real-hash",
         role=UserRole.USER,
-        plan_cache=pricing_catalog().default_plan,
+        plan_cache=fixture_catalog().default_plan,
     )
     session.add(user)
     await session.commit()

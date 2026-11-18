@@ -29,7 +29,7 @@ GATEWAY_ROOT = Path(__file__).resolve().parents[1]
 SOURCE = GATEWAY_ROOT / "src" / "openbinding_gateway"
 ENTITLEMENT_MAP = SOURCE / "modules" / "plans" / "domain" / "entitlement_map.py"
 
-#: Path fragments of the routes F0b removed. A route whose path contains one of them is back.
+#: Path fragments of the routes F0b (and later phases) removed. A route whose path contains one of them is back.
 RETIRED_PATH_FRAGMENTS = (
     "/projects",
     "/v1/instances",
@@ -47,6 +47,8 @@ RETIRED_PATH_FRAGMENTS = (
     "/v1/compositions/import",
     "/v1/compositions/language",
     "/v1/jobs",
+    # F3: the keyed SPHERE proxy; OpenBinding's pricing is /v1/plans/pricing (the fragment does not match it).
+    "/v1/pricing/",
 )
 
 #: Tables that features removed before or during F0b used to own. None may be modelled or migrated again.

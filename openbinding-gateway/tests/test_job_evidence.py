@@ -23,7 +23,7 @@ from sqlalchemy import func, select, update
 
 from _b1_helpers import gate, make_key  # noqa: F401
 from _paths import GATEWAY_ROOT
-from _pricing import pricing_catalog
+from _pricing import fixture_catalog
 from _problem_helpers import run_url, runs_url
 from analysis_b3_b4_b6._helpers import account_with_revision, answer, only_job, precondition, submit
 from openbinding_gateway.core.public_errors import JOB_FAILURES
@@ -113,7 +113,7 @@ async def owner(db_session) -> User:
         email=f"{uuid.uuid4().hex[:8]}@example.org",
         password_hash="not-a-real-hash",
         role=UserRole.USER,
-        plan_cache=pricing_catalog().default_plan,
+        plan_cache=fixture_catalog().default_plan,
     )
     db_session.add(user)
     await db_session.commit()

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { optionFacts } from './enginesModel';
-import { catalogFixture } from '../../../test/fixtures/pricingCatalog';
+import { catalogFixture } from '../../../test/fixtures/plansPricing';
 import { optionKind, planCeilings, previewOption } from './planCeilings';
 import type { EngineMode } from './engineClient';
 

@@ -24,7 +24,7 @@ from bim_core.canonical import digest
 from sqlalchemy import func, select, update
 from sqlalchemy.orm.attributes import set_committed_value
 
-from _pricing import pricing_catalog
+from _pricing import fixture_catalog
 
 from openbinding_gateway.core.settings import Settings
 from openbinding_gateway.db.models import (
@@ -74,7 +74,7 @@ async def make_user(session, role: UserRole = UserRole.USER) -> User:
         email=f"{uuid.uuid4().hex[:8]}@example.org",
         password_hash="not-a-real-hash",
         role=role,
-        plan_cache=pricing_catalog().default_plan,
+        plan_cache=fixture_catalog().default_plan,
     )
     session.add(account)
     await session.commit()

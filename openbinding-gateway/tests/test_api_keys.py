@@ -19,10 +19,10 @@ from openbinding_gateway.security import apikeys
 from openbinding_gateway.db.models import ApiKey, utcnow
 
 from _repo import REPO_ROOT
-from _pricing import caps_for, largest_plan, pricing_catalog
+from _pricing import caps_for, largest_plan, fixture_catalog
 
 #: How many keys the default plan allows.
-ALLOWANCE = int(caps_for(pricing_catalog().default_plan).limit("maxApiKeys"))
+ALLOWANCE = int(caps_for(fixture_catalog().default_plan).limit("maxApiKeys"))
 
 
 async def account(client, registration) -> tuple[dict, str]:
@@ -281,7 +281,7 @@ async def test_the_plan_bounds_how_many_keys_you_may_hold(api_client, registrati
 
 async def test_a_plan_without_api_access_mints_no_key(api_client, registration, gate):
     profile, token = await account(api_client, registration)
-    caps = caps_for(pricing_catalog().default_plan)
+    caps = caps_for(fixture_catalog().default_plan)
     without = {**caps.features, "apiAccess": False}
 
     async def no_api_access(user_id):

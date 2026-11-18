@@ -10,7 +10,7 @@ from sqlalchemy import inspect as sa_inspect
 from openbinding_gateway import repositories
 from openbinding_gateway.db.models import Job, JobState, User, utcnow
 from openbinding_gateway.repositories import jobs as job_repository
-from _pricing import pricing_catalog
+from _pricing import fixture_catalog
 
 
 async def _user(session) -> User:
@@ -18,7 +18,7 @@ async def _user(session) -> User:
         username=f"user{uuid.uuid4().hex[:8]}",
         email=f"{uuid.uuid4().hex[:8]}@example.org",
         password_hash="not-a-real-hash",
-        plan_cache=pricing_catalog().default_plan,
+        plan_cache=fixture_catalog().default_plan,
     )
     session.add(user)
     await session.flush()

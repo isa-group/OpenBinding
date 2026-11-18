@@ -16,7 +16,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from _pricing import pricing_catalog, roomy_plan
+from _pricing import fixture_catalog, roomy_plan
 
 from openbinding_gateway import space_client, study_jobs
 from openbinding_gateway.core.settings import get_settings
@@ -45,7 +45,7 @@ async def user(db_session) -> User:
         email=f"{uuid.uuid4().hex[:8]}@example.org",
         password_hash="not-a-real-hash",
         role=UserRole.USER,
-        plan_cache=pricing_catalog().default_plan,
+        plan_cache=fixture_catalog().default_plan,
     )
     db_session.add(account)
     await db_session.commit()
@@ -130,7 +130,7 @@ async def test_the_same_key_with_another_body_is_a_409_problem(db_session, user,
 async def test_a_key_is_scoped_to_the_account(db_session, user, revision_id):
     other = User(
         username="other", email="other@example.org", password_hash="x", role=UserRole.USER,
-        plan_cache=pricing_catalog().default_plan,
+        plan_cache=fixture_catalog().default_plan,
     )
     db_session.add(other)
     await db_session.commit()

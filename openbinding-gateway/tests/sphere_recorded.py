@@ -172,6 +172,13 @@ class RecordedSphere:
 
         self._script(self._for(path, host=host), answer, times)
 
+    def raises(self, error: Exception, path: str | None = None) -> None:
+        """Every matching request fails in the transport with ``error`` (its text may quote a host)."""
+        def answer(request: httpx.Request) -> httpx.Response:
+            raise error
+
+        self._script(self._for(path), answer)
+
     def redirect(self, path: str, location: str) -> None:
         self._script(self._for(path), lambda r: httpx.Response(302, headers={"location": location}))
 

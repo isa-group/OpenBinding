@@ -23,7 +23,7 @@ from bim_client import BimServiceError
 from fastapi import HTTPException
 from sqlalchemy import func, select, text
 
-from _pricing import pricing_catalog
+from _pricing import fixture_catalog
 from openbinding_gateway.core.public_errors import JOB_FAILURES
 from openbinding_gateway.db.models import AuditEvent, Job, JobEngineEvidence, JobState, User, UserRole, utcnow
 from openbinding_gateway.jobs import leases
@@ -42,7 +42,7 @@ async def an_owner(session) -> User:
         email=f"{uuid.uuid4().hex[:8]}@example.org",
         password_hash="not-a-real-hash",
         role=UserRole.USER,
-        plan_cache=pricing_catalog().default_plan,
+        plan_cache=fixture_catalog().default_plan,
     )
     session.add(owner)
     await session.flush()

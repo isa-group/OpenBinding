@@ -188,8 +188,7 @@ export function adminApiOf(fetchWithInterceptor: Fetch) {
     getEngineRegistrationReport: (
       ...args: Parameters<typeof engineClient.getEngineRegistrationReport>
     ) => engineClient.getEngineRegistrationReport(...args),
-    getPricingCatalog: () => planClient.getPricingCatalog(),
-    getCurrentPricing: () => planClient.getCurrentPricing(),
+    getPlansPricing: () => planClient.getPlansPricing(),
     /** A new pricing token for the signed-in account, after an administrator changed their own contract. */
     getPricingToken: () => planClient.getPricingToken(),
   };

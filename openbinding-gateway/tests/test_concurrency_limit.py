@@ -20,7 +20,7 @@ import pytest
 from pydantic import ValidationError
 from sqlalchemy import func, select
 
-from _pricing import largest_plan, pricing_catalog
+from _pricing import largest_plan, fixture_catalog
 from test_idempotency_jobs import _body, _login, _post, _revision
 from test_job_dispatch import _account
 from test_study_cell_launch import BASE, _cells, _study
@@ -85,7 +85,7 @@ def test_the_limit_is_at_least_one(monkeypatch, value):
 async def make_user(db_session) -> User:
     user = User(
         username=f"user{uuid.uuid4().hex[:8]}", email=f"{uuid.uuid4().hex[:8]}@example.org",
-        password_hash="not-a-real-hash", role=UserRole.USER, plan_cache=pricing_catalog().default_plan,
+        password_hash="not-a-real-hash", role=UserRole.USER, plan_cache=fixture_catalog().default_plan,
     )
     db_session.add(user)
     await db_session.flush()

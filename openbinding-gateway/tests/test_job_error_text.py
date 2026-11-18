@@ -25,7 +25,7 @@ import pytest_asyncio
 from bim_client import BimServiceError
 from sqlalchemy import select
 
-from _pricing import pricing_catalog
+from _pricing import fixture_catalog
 from analysis_b3_b4_b6._helpers import (
     account_with_revision,
     answer,
@@ -76,7 +76,7 @@ async def owner(db_session) -> User:
         email=f"{uuid.uuid4().hex[:8]}@example.org",
         password_hash="not-a-real-hash",
         role=UserRole.USER,
-        plan_cache=pricing_catalog().default_plan,
+        plan_cache=fixture_catalog().default_plan,
     )
     db_session.add(user)
     await db_session.commit()

@@ -137,8 +137,6 @@ def test_authentication_and_role_requirements_are_explicit(document):
         ("/v1/artifacts/resolve", "post"),
         ("/v1/bim/templates", "get"),
         ("/v1/bim/templates/{template}", "get"),
-        ("/v1/pricing/catalog", "get"),
-        ("/v1/pricing/current", "get"),
         ("/v1/plans/pricing", "get"),
         # The public engine catalogue: a visitor gets the built-in and published Engines.
         ("/v1/engines", "get"),

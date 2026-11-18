@@ -13,7 +13,7 @@ const api = vi.hoisted(() => ({
   adminQueues: vi.fn(),
   adminModeration: vi.fn(),
   adminErrorOverview: vi.fn(),
-  getCurrentPricing: vi.fn(),
+  getPlansPricing: vi.fn(),
   adminListEngineRegistrations: vi.fn(),
   getEngineRegistrationReport: vi.fn(),
   adminApproveEngineRegistration: vi.fn(),
@@ -39,11 +39,7 @@ describe('the administration console, now the overview', { timeout: 30000 }, () 
       top_solvers_failed: [],
       timeline: [],
     });
-    api.getCurrentPricing.mockResolvedValue({
-      version: '0.1.0',
-      digest: 'sha256-x',
-      url: 'https://sphere.example.test/0.1.0',
-    });
+    api.getPlansPricing.mockResolvedValue({ version: '0.1.0' });
   });
 
   afterEach(() => {

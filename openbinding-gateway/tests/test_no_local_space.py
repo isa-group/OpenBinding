@@ -210,9 +210,10 @@ def test_remote_space_defaults_without_keys() -> None:
         assert env["SPACE_ENABLED"] == f"${{SPACE_ENABLED:-{enabled}}}", name
     for name, service in services.items():
         env = _env(service)
-        for key in ("SPACE_API_KEY", "SPHERE_API_KEY"):
-            if key in env:
-                assert env[key] == f"${{{key}:-}}", f"{name}:{key}"
+        if "SPACE_API_KEY" in env:
+            assert env["SPACE_API_KEY"] == "${SPACE_API_KEY:-}", name
+        # OpenBinding holds no SPHERE key of its own (F3): organizations connect theirs.
+        assert not {"SPHERE_" + "API_KEY", "SPHERE_" + "ORGANIZATION_ID"} & set(env), name
 
 
 def test_openbinding_data_services_remain() -> None:

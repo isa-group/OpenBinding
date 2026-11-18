@@ -1,4 +1,4 @@
-import type { PricingCatalog } from '../../core/api/account';
+import type { PricingDocument } from '../../core/api/account';
 
 // The word and the colour of a run, and the plan's limits a launch reads.
 
@@ -38,7 +38,7 @@ function record(value: unknown): Record<string, unknown> {
  * the document's default; `null` when unlimited or unknown.
  */
 export function planLimit(
-  catalog: PricingCatalog | null | undefined,
+  catalog: PricingDocument | null | undefined,
   plan: string | undefined,
   id: string
 ): number | null {

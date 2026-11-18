@@ -15,7 +15,7 @@ import pytest
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
-from _pricing import pricing_catalog
+from _pricing import fixture_catalog
 from openbinding_gateway.db.models import Job, JobState, User, UserRole, utcnow
 from openbinding_gateway.jobs import clock, leases, limits, reconciler
 
@@ -26,7 +26,7 @@ async def an_abandoned_job(session) -> Job:
         email=f"{uuid.uuid4().hex[:8]}@example.org",
         password_hash="not-a-real-hash",
         role=UserRole.USER,
-        plan_cache=pricing_catalog().default_plan,
+        plan_cache=fixture_catalog().default_plan,
     )
     session.add(owner)
     await session.flush()
@@ -227,7 +227,7 @@ async def test_two_concurrent_creations_cannot_pass_the_last_slot(two_sessions):
         email=f"{uuid.uuid4().hex[:8]}@example.org",
         password_hash="not-a-real-hash",
         role=UserRole.USER,
-        plan_cache=pricing_catalog().default_plan,
+        plan_cache=fixture_catalog().default_plan,
     )
     first.add(owner)
     await first.flush()

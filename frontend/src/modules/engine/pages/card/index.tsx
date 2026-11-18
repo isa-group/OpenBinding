@@ -201,9 +201,9 @@ export default function EngineCardPage() {
     `engine:${namespace}/${name}/${version}:${username ?? 'visitor'}`,
     () => loadEngine(api, username, namespace, name, version)
   );
-  // The live catalog (GET /v1/pricing/catalog).
+  // The published pricing's document (GET /v1/plans/pricing).
   const pricing = useResource('plan-ceilings', async () =>
-    planCeilings(await api.getPricingCatalog())
+    planCeilings((await api.getPlansPricing()).document)
   );
   const registrations = useResource(`engine-registrations:${username ?? 'visitor'}`, async () =>
     username ? api.listEngineRegistrations() : []

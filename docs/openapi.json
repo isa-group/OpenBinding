@@ -607,7 +607,6 @@
           "compositions:read",
           "compositions:write",
           "notifications:read",
-          "pricing:read",
           "admin:accounts:read",
           "admin:accounts:write"
         ],
@@ -8653,29 +8652,6 @@
           "document"
         ],
         "title": "PlansPricingView",
-        "type": "object"
-      },
-      "PricingCurrentView": {
-        "properties": {
-          "digest": {
-            "title": "Digest",
-            "type": "string"
-          },
-          "url": {
-            "title": "Url",
-            "type": "string"
-          },
-          "version": {
-            "title": "Version",
-            "type": "string"
-          }
-        },
-        "required": [
-          "version",
-          "digest",
-          "url"
-        ],
-        "title": "PricingCurrentView",
         "type": "object"
       },
       "PricingSnapshotView": {
@@ -31389,57 +31365,6 @@
         ]
       }
     },
-    "/v1/pricing/catalog": {
-      "get": {
-        "description": "Return the published, digest-verified Pricing2Yaml document unchanged, as JSON.",
-        "operationId": "getPricingCatalog",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Getpricingcatalog",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "503": {
-            "description": "The published pricing cannot be read: SPHERE is not enabled, `SPACE_PRICING_VERSION` is not set, or SPHERE does not serve that public version (`pricing_unavailable`)."
-          }
-        },
-        "summary": "Pricing Catalog",
-        "tags": [
-          "Pricing"
-        ]
-      }
-    },
-    "/v1/pricing/current": {
-      "get": {
-        "operationId": "getCurrentPricing",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PricingCurrentView"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "503": {
-            "description": "The published pricing cannot be read: SPHERE is not enabled, `SPACE_PRICING_VERSION` is not set, or SPHERE does not serve that public version (`pricing_unavailable`)."
-          }
-        },
-        "summary": "Current Pricing",
-        "tags": [
-          "Pricing"
-        ]
-      }
-    },
     "/v1/users": {
       "get": {
         "description": "Active users whose username holds ``q`` (at least four characters), by username, at most twenty: their\nid, username and avatar only, never an email. What inviting users to an organization picks from.",
@@ -33032,7 +32957,7 @@
       "name": "Notifications"
     },
     {
-      "description": "The published pricing, read only from SPHERE. Pricings, versions, plans and contracts are administered in the SPHERE and SPACE consoles.",
+      "description": "OpenBinding's published pricing, SPHERE discovery and the stored upstream pricings, read through the pricing source. Pricings, versions, plans and contracts are administered in the SPHERE and SPACE consoles.",
       "name": "Pricing"
     }
   ],
@@ -33056,7 +32981,6 @@
     "compositions:read",
     "compositions:write",
     "notifications:read",
-    "pricing:read",
     "admin:accounts:read",
     "admin:accounts:write"
   ]

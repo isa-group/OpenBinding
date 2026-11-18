@@ -23,9 +23,9 @@ from openbinding_gateway.db.models import (
     UserRole,
 )
 from _fake_space import FakePricingGate
-from _pricing import caps_for, catalog_with_add_ons, fake_pricing_gate, largest_plan, pricing_catalog
+from _pricing import caps_for, catalog_with_add_ons, fake_pricing_gate, largest_plan, fixture_catalog
 
-CATALOG = pricing_catalog()
+CATALOG = fixture_catalog()
 DEFAULT_PLAN = CATALOG.default_plan
 LARGER_PLAN = largest_plan()
 INSTITUTIONAL_PLAN = "RESEARCH"

@@ -7,6 +7,7 @@
  */
 
 import type { BindingSpaceReport, LimitNotice } from './limitNotice';
+import type { components } from './openapi';
 
 export type RoleName = 'user' | 'admin';
 export type ApiKeyPermission =
@@ -29,7 +30,6 @@ export type ApiKeyPermission =
   | 'compositions:read'
   | 'compositions:write'
   | 'notifications:read'
-  | 'pricing:read'
   | 'admin:accounts:read'
   | 'admin:accounts:write';
 
@@ -118,17 +118,17 @@ export interface UsageView {
 }
 
 /**
- * The active Pricing2Yaml document exactly as `GET /v1/pricing/catalog` serves it, as JSON.
- * Infinite limits (`.inf` in the YAML) arrive as `null`: the gateway has no legal JSON for them.
+ * `GET /v1/plans/pricing`: OpenBinding's published pricing, read by the gateway from SPHERE (the version
+ * `SPACE_PRICING_VERSION` names): its label, version id and permanent link, the YAML for pricing-renderer and
+ * the parsed document.
  */
-export type PricingCatalog = Record<string, unknown>;
+export type PlansPricingView = components['schemas']['PlansPricingView'];
 
-/** `GET /v1/pricing/current`: which public release is live, and the fingerprint of its content. */
-export interface PricingCurrentView {
-  version: string;
-  digest: string;
-  url: string;
-}
+/**
+ * The published Pricing2Yaml document as JSON (`PlansPricingView.document`). Infinite limits (`.inf` in the
+ * YAML) arrive as `null`: the gateway has no legal JSON for them.
+ */
+export type PricingDocument = Record<string, unknown>;
 
 /** What a `contract.changed` notification carries in its payload (admin routes, `_apply_subscription`). */
 export interface ContractChangePayload {

@@ -76,11 +76,12 @@ async function loadAccount(api: AdminApi, param: string) {
 
 /** The active pricing, read for contracts, and the document itself, which the review of a change draws. */
 async function loadCatalog(api: AdminApi) {
-  const [pricingDocument, current] = await Promise.all([
-    api.getPricingCatalog(),
-    api.getCurrentPricing().catch(() => null),
-  ]);
-  return { catalog: readContractCatalog(pricingDocument), document: pricingDocument, current };
+  const published = await api.getPlansPricing();
+  return {
+    catalog: readContractCatalog(published.document),
+    document: published.document,
+    current: { version: published.version },
+  };
 }
 
 function KeysCard({

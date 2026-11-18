@@ -52,8 +52,8 @@ organization roles grant nothing on the platform.
 ## Getting an account
 
 Registration is open: `POST /v1/auth/register` creates an account on the
-catalogue's default plan (the one non-institutional plan priced at zero,
-`PricingCatalog.default_plan` in `pricing_catalog.py`) and a contract to go
+catalogue's default plan (the one non-institutional plan priced at zero, as
+SPACE assigns it) and a contract to go
 with it. If SPACE is unreachable at that moment the account is still created
 and owes a contract (`contract_pending`), which is settled the next time that
 user turns up (`access/contracts.py`) — losing a sign-up because a pricing
@@ -612,7 +612,7 @@ does for a declared size.
 | `SPACE_SERVICE_NAME` | The SPACE service the gateway reads and writes contracts on, plan names, add-ons and feature identifiers included (default `openbinding`, the production service; shape `[a-z0-9][a-z0-9_-]{1,62}`, anything else stops the start). A development deployment sets its own service (for example `openbinding-dev`) so it never touches production contracts: the target is explicit per environment, because the organization does not isolate credentials. Not restricted by `APP_ENV`. The effective name (never a key) is logged at start-up. `tools/seed_lab.py --space-contracts` requires `SPACE_DEV_SERVICE_NAME` to equal it. |
 | `SPACE_PRICING_VERSION`, `SPACE_DEFAULT_PLAN` | The pricing version new contracts are pinned to and the startup check reads (`0.2.0`), and the plan a sign-up starts on (`FREE`). |
 | `SPACE_ORGANIZATION_ID`, `SPACE_TOKEN_ISSUER`, `SPACE_TOKEN_LEEWAY_S` | What a pricing token is verified against: its `aud`/`organizationId` (required with SPACE enabled; `APP_ENV=prod` refuses to start without it), its `iss` (default `space`) and the tolerance for its `exp` (default 30 s). |
-| `SPHERE_ENABLED`, `SPHERE_URL`, `SPHERE_API_KEY`, `SPHERE_ORGANIZATION_ID` | The remote SPHERE, from which the published pricing is read. |
+| `SPHERE_ENABLED`, `SPHERE_URL`, `SPHERE_OPENBINDING_PRICING_ID`, `SPHERE_REGISTRIES` | The remote SPHERE, read anonymously through the pricing source (`GET /v1/plans/pricing` serves OpenBinding's own pricing from the family `SPHERE_OPENBINDING_PRICING_ID`); on-premise registries by alias. OpenBinding holds no SPHERE key of its own: organizations connect theirs. |
 | `SPHERE_REGISTRIES` | The on-premise SPHERE registries a Composition2Yaml document may name (`registry: <alias>`), as JSON keyed by alias: `{"lab": {"url": "https://sphere.lab.local", "api_key": "…"}}`. The URL must be https and an alias lower-case letters, digits and inner `-` (anything else stops the start). An alias not listed is an error in a `from` and a warning in an `offering`. Addresses and keys never reach a response, a log line or a document. Default: none. |
 | `MAX_CONCURRENT_JOBS_PER_USER` | Technical cap on queued plus running jobs per account (default 8); the plan's `maxConcurrentRuns` may lower it. |
 | `MAX_PACKAGE_BYTES` | Largest BIM package of one request (default 128 MiB, never above `MAX_REQUEST_BODY_BYTES`). |

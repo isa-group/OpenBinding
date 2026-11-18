@@ -2693,43 +2693,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/pricing/catalog": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Pricing Catalog
-         * @description Return the published, digest-verified Pricing2Yaml document unchanged, as JSON.
-         */
-        get: operations["getPricingCatalog"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/pricing/current": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Current Pricing */
-        get: operations["getCurrentPricing"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/users": {
         parameters: {
             query?: never;
@@ -3236,7 +3199,7 @@ export interface components {
          *     misspelled permission fail closed instead of turning into future access.
          * @enum {string}
          */
-        ApiKeyPermission: "account:read" | "account:write" | "keys:read" | "keys:write" | "problems:read" | "problems:write" | "jobs:read" | "engines:read" | "engines:execute" | "engines:register" | "engines:publish" | "engines:moderate" | "organizations:read" | "organizations:write" | "studies:read" | "studies:write" | "compositions:read" | "compositions:write" | "notifications:read" | "pricing:read" | "admin:accounts:read" | "admin:accounts:write";
+        ApiKeyPermission: "account:read" | "account:write" | "keys:read" | "keys:write" | "problems:read" | "problems:write" | "jobs:read" | "engines:read" | "engines:execute" | "engines:register" | "engines:publish" | "engines:moderate" | "organizations:read" | "organizations:write" | "studies:read" | "studies:write" | "compositions:read" | "compositions:write" | "notifications:read" | "admin:accounts:read" | "admin:accounts:write";
         /**
          * ApiKeySummary
          * @description An API key as it can safely be shown: everything except the secret.
@@ -6312,15 +6275,6 @@ export interface components {
              * @description The Pricing2Yaml text, for pricing-renderer.
              */
             yaml: string;
-        };
-        /** PricingCurrentView */
-        PricingCurrentView: {
-            /** Digest */
-            digest: string;
-            /** Url */
-            url: string;
-            /** Version */
-            version: string;
         };
         /**
          * PricingSnapshotView
@@ -19302,62 +19256,6 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
-            };
-        };
-    };
-    getPricingCatalog: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description The published pricing cannot be read: SPHERE is not enabled, `SPACE_PRICING_VERSION` is not set, or SPHERE does not serve that public version (`pricing_unavailable`). */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    getCurrentPricing: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PricingCurrentView"];
-                };
-            };
-            /** @description The published pricing cannot be read: SPHERE is not enabled, `SPACE_PRICING_VERSION` is not set, or SPHERE does not serve that public version (`pricing_unavailable`). */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
         };
     };

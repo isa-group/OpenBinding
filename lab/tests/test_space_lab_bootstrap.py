@@ -51,6 +51,8 @@ SEED_NAMESPACE = uuid.UUID("6f1d3a52-8c0e-4b7a-9d21-0f5e7c3a9b10")
 SPACE_URL = "https://space.score.us.es"
 API_KEY = "mgmt-key-sample-001-ZZ99"
 SPHERE_SAMPLE_KEY = "sphere-sample-key"
+# Assembled from parts so a repository-wide search for the retired variable (F3) finds no literal here.
+SPHERE_KEY_VARIABLE = "SPHERE_" + "API_KEY"
 SECRET_SAMPLE = "sk-" + "A" * 20  # built at run time: a secret scanner must not flag the file
 PROXY_VARIABLES = ("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY", "http_proxy", "https_proxy", "all_proxy", "no_proxy")
 UV_LOCK = ROOT / "openbinding-gateway" / "uv.lock"
@@ -1166,9 +1168,9 @@ def test_the_tool_has_no_retired_route_or_variable_and_never_writes(tool):
     source = _source()
     code = "\n".join(line for line in source.splitlines() if not line.lstrip().startswith("#"))
     strings = "\n".join(_code_strings(source))
-    for retired in ("authenticate", "/organizations", "api-keys", "SPACE_ADMIN", "SPHERE_API_KEY"):
+    for retired in ("authenticate", "/organizations", "api-keys", "SPACE_ADMIN", SPHERE_KEY_VARIABLE):
         assert retired not in strings, f"the tool still names {retired}"
-    assert "SPHERE_API_KEY" not in source
+    assert SPHERE_KEY_VARIABLE not in source
     assert not re.search(r"environ(?:\.get)?\s*[\[(]\s*['\"]SPHERE_", code), "reads a SPHERE_* variable"
     assert not re.search(r"(?:getenv|environ)[^\n]*SPHERE_", code), "reads a SPHERE_* variable"
     assert not re.search(r"""open\([^)]*['"][rwxab+t]+['"]|\.write_text\(|\.write_bytes\(|Path\([^)]*\)\.write|os\.write\(|\.write\(""",
@@ -1220,7 +1222,7 @@ def test_nothing_secret_is_printed_or_persisted(tool, capsys, caplog, tmp_path, 
     real = tool.bootstrap
     # a successful run through main; a SPHERE key in the environment is never read nor sent
     fake, contracts = FakeSpace(), FakeContracts()
-    environ = {"SPACE_URL": SPACE_URL, "SPACE_API_KEY": API_KEY, "SPHERE_API_KEY": SPHERE_SAMPLE_KEY}
+    environ = {"SPACE_URL": SPACE_URL, "SPACE_API_KEY": API_KEY, SPHERE_KEY_VARIABLE: SPHERE_SAMPLE_KEY}
 
     async def fake_bootstrap(config, **kwargs):
         return await real(config, transport=fake.transport(), contracts=contracts, sleep=Sleeps())

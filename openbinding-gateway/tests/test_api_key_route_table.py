@@ -48,7 +48,7 @@ def is_open(method: str, path: str) -> bool:
 
 
 def test_the_route_table_has_the_v1_surface():
-    assert len(ROUTES) == 175
+    assert len(ROUTES) == 173
 
 
 def test_the_unclassified_permission_cannot_be_granted():
@@ -71,7 +71,10 @@ def test_pricing_administration_has_no_permission_and_no_route():
     assert not [route for route in ROUTES if route[1].startswith("/v1/admin/pricing")]
     # Every /v1/admin route is an account administration route.
     assert required_permissions("/v1/admin/pricing/validate", "POST") == frozenset({"admin:accounts:write"})
-    assert ("GET", "/v1/pricing") not in ROUTES
+    # The keyed SPHERE proxy and its permission went in F3; OpenBinding's pricing is /v1/plans/pricing, open.
+    assert not [route for route in ROUTES if route[1].startswith("/v1/pricing")]
+    assert "pricing" + ":read" not in ALL_PERMISSIONS
+    assert required_permissions("/v1/plans/pricing", "GET") == frozenset() and is_open("GET", "/v1/plans/pricing")
 
 
 def test_explore_is_gone_and_reports_need_no_permission():

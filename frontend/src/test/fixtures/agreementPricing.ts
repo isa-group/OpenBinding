@@ -1,11 +1,11 @@
-import type { PricingCatalog } from '../../modules/core/api/account';
+import type { PlansPricingView, PricingDocument } from '../../modules/core/api/account';
 
 /**
- * TEST FIXTURE, NOT A REAL PRICING. A synthetic `GET /v1/pricing/catalog` answer for the tests of the agreement editor
+ * TEST FIXTURE, NOT A REAL PRICING. A synthetic published pricing document for the tests of the agreement editor
  * (administration), which needs what the published pricing 0.2.0 does not have: four plans and add-ons, so that the
  * arithmetic of add-ons, a plan change that drops one and an unlimited allowance can be exercised. The ids the
  * gateway reads are those of 0.2.0 (`maxConcurrentRuns`, `maxFederatedEngines`, `maxApiKeys`, `maxRunMinutes`); the other
- * limits are opaque to the editor. The published pricing's transcription is `test/fixtures/pricingCatalog.ts`.
+ * limits are opaque to the editor. The published pricing as the gateway serves it is `test/fixtures/plansPricing.ts`.
  */
 
 const feature = (tag: string, description: string, defaultValue: boolean, expression?: string) => ({
@@ -44,7 +44,7 @@ const BASIC_FEATURES = {
   collaboration: { value: true }, studies: { value: true }, reproducibleExport: { value: true }, publishing: { value: true },
 };
 
-export const agreementCatalogFixture: PricingCatalog = {
+export const agreementDocumentFixture: PricingDocument = {
   syntaxVersion: '3.1',
   saasName: 'openbinding',
   version: '0.1.0',
@@ -137,8 +137,14 @@ export const agreementCatalogFixture: PricingCatalog = {
   },
 };
 
-export const AGREEMENT_CURRENT_FIXTURE = {
+/** The synthetic document as `GET /v1/plans/pricing` would answer it (no YAML: the renderer draws the document). */
+export const AGREEMENT_PRICING_FIXTURE: PlansPricingView = {
+  pricingId: '6b00000000000000000000aa',
+  name: 'OpenBinding',
   version: '0.1.0',
-  digest: `sha256-${'a1b2c3d4'.repeat(8)}`,
-  url: 'https://sphere.example.test/pricings/openbinding/0.1.0',
+  versionId: '6b00000000000000000000ab',
+  createdAt: '2026-01-01T00:00:00Z',
+  permanentUrl: 'https://sphere.example.test/p/6b00000000000000000000aa',
+  yaml: '',
+  document: agreementDocumentFixture,
 };

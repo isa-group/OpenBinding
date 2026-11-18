@@ -1,17 +1,16 @@
 // Adapted from SPHERE frontend/src/modules/presentation/pages/pricing/index.tsx (feat/pricing-renderer, revision
 // 694f292b03), https://github.com/SCORELabUS/SPHERE. Copyright (c) 2024 Alejandro García Fernández.
 // MIT licence: the full text is in THIRD_PARTY_NOTICES.md.
-// Changes: the pricing is the one the gateway serves (`GET /v1/pricing/catalog`, with the live release from
-// `GET /v1/pricing/current`) instead of a YAML file of the site; the hero names OpenBinding's plans and the release; the
+// Changes: the pricing is the one the gateway serves (`GET /v1/plans/pricing`: the release label, its YAML for the renderer and
+// its parsed document) instead of a YAML file of the site; the hero names OpenBinding's plans and the release; the
 // development notice replaces SPHERE's tentative-pricing banner; the renderer marks the account's plan and add-ons and every
 // plan offers the action of the comparison (the contact dialog for a plan by agreement), with no summary (nothing is bought); a 502 or
-// 503 refusal is a BlockAlert with Retry, and no live release (404) an empty state; OpenBinding's comparison table, the gates,
+// 503 refusal is a BlockAlert with Retry; OpenBinding's comparison table, the gates,
 // the account's features (the space-react-client gates), the add-ons, the limit outcomes and the RESEARCH plan follow as
 // cards; SPHERE's silent load failure is said.
 
 import { lazy, Suspense, useCallback, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
-import { MdDescription } from 'react-icons/md';
 import type { IPricingLike } from 'pricing-renderer';
 import { useSubscription } from 'space-react-client';
 import { formatDate } from '../../../core/utils/format';
@@ -21,9 +20,9 @@ import { useAuth } from '../../../auth/hooks/useAuth';
 import { classifyAuthError } from '../../../core/api/errors';
 import BlockAlert from '../../../core/components/block-alert';
 import { Chip } from '../../../core/components/chip';
-import { EmptyState } from '../../../core/components/empty-state';
 import { FilterPills } from '../../../core/components/filter-pills';
 import { Skeleton } from '../../../core/components/skeleton';
+import { pricingRendererSource } from '../../../core/components/pricing-renderer/source';
 import {
   currentSelectionOf,
   readCatalog,
@@ -68,22 +67,21 @@ function describeLoadFailure(error: unknown): string {
 /** The plans, drawn from the same document the gateway serves and SPACE enforces. */
 export default function PricingPage() {
   const { user } = useAuth();
-  const { getPricingCatalog, getCurrentPricing } = useUserSettingsApi();
-  const catalog = useResource('pricing-catalog', getPricingCatalog);
-  const current = useResource('pricing-current', getCurrentPricing);
+  const { getPlansPricing } = useUserSettingsApi();
+  const published = useResource('plans-pricing', getPlansPricing);
+  const pricingDocument = published.data?.document ?? null;
   const [highlight, setHighlight] = useState('all');
   const [contactPlan, setContactPlan] = useState<string | null>(null);
   const subscription = useSubscription();
 
-  const view = useMemo(() => (catalog.data ? readCatalog(catalog.data) : null), [catalog.data]);
-  const noRelease = current.status === 'error' && classifyAuthError(current.error).status === 404;
-  const loading = catalog.status === 'loading' || current.status === 'loading';
-  const failed =
-    !noRelease && (catalog.status === 'error' || (catalog.status === 'ready' && view === null));
-  const release = current.data;
+  const view = useMemo(
+    () => (pricingDocument ? readCatalog(pricingDocument) : null),
+    [pricingDocument]
+  );
+  const loading = published.status === 'loading';
+  const failed = published.status === 'error' || (published.status === 'ready' && view === null);
   const plan = user?.plan ?? null;
-  // Nothing about a pricing is announced while there is no live release to announce it for.
-  const released = noRelease ? null : view;
+  const released = view;
 
   const pills = useMemo(
     () => [
@@ -99,10 +97,14 @@ export default function PricingPage() {
     () => currentSelectionOf(plan, subscription, service),
     [plan, subscription, service]
   );
+  // The renderer reads the published YAML itself (it keeps the author's labels); the parsed document is the fallback.
   const source = useMemo(
     () =>
-      catalog.data ? { pricing: withInfiniteLimits(catalog.data) as IPricingLike } : undefined,
-    [catalog.data]
+      pricingRendererSource(
+        published.data?.yaml,
+        pricingDocument ? (withInfiniteLimits(pricingDocument) as IPricingLike) : null
+      ),
+    [published.data, pricingDocument]
   );
   // Stable, so the renderer keeps the plan cards' actions mounted (and a closed dialog can give focus back to one).
   const renderPlanCta = useCallback(
@@ -121,10 +123,9 @@ export default function PricingPage() {
   );
 
   const retry = () => {
-    catalog.reload();
-    current.reload();
+    published.reload();
   };
-  const sphere = safeExternalHref(release?.url);
+  const sphere = safeExternalHref(published.data?.permanentUrl);
 
   return (
     <>
@@ -181,12 +182,6 @@ export default function PricingPage() {
             </>
           )}
 
-          {!loading && noRelease && (
-            <EmptyState icon={<MdDescription />} title="No public pricing release is live">
-              There’s no live pricing to show right now (404). Accounts keep the plan they already
-              have.
-            </EmptyState>
-          )}
 
           {!loading && failed && (
             <BlockAlert
@@ -194,8 +189,8 @@ export default function PricingPage() {
               message={
                 <span className="flex flex-wrap items-center justify-between gap-3">
                   <span>
-                    {catalog.status === 'error'
-                      ? describeLoadFailure(catalog.error)
+                    {published.status === 'error'
+                      ? describeLoadFailure(published.error)
                       : 'The pricing document has no plans to show.'}
                   </span>
                   <button
@@ -210,7 +205,7 @@ export default function PricingPage() {
             />
           )}
 
-          {!loading && !noRelease && !failed && view && source && (
+          {!loading && !failed && view && source && (
             <>
               <section aria-label="The pricing document" className="flex flex-col gap-2">
                 <Suspense fallback={<Skeleton variant="panel" />}>

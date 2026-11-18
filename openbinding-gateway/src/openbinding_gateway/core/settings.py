@@ -394,12 +394,11 @@ class Settings(BaseSettings):
     expose_recovery_tokens: bool = False
 
     # -- SPHERE pricing source (read only) ------------------------------
+    # Read by the PricingSource port (modules/plans). OpenBinding holds no SPHERE key of its own: an
+    # organization connects its key (org_connections), a registry carries its operator key.
+    #: Whether the default SPHERE (``SPHERE_URL``) is read; registries and Pricing2Yaml URLs are read either way.
     sphere_enabled: bool = False
     sphere_url: str = DEFAULT_SPHERE_URL
-    sphere_api_key: Optional[str] = None
-    sphere_organization_name: Literal["OpenBinding"] = "OpenBinding"
-    sphere_organization_id: Optional[str] = None
-    sphere_pricing_slug: Literal["openbinding"] = "openbinding"
     sphere_timeout_s: float = Field(default=10.0, gt=0)
     #: The largest pricing answer read from SPHERE, a registry or a URL (``SPHERE_MAX_BYTES``).
     sphere_max_bytes: int = Field(default=5 * 1024 * 1024, gt=0)

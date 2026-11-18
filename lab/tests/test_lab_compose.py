@@ -53,7 +53,7 @@ GATEWAY_IMAGE_PREFIX = "openbinding-lab-gateway:"
 # Supplied privately by the supervisor; referenced as ${NAME}, never given a value or a default.
 PRIVATE_VARIABLES = {
     "SPACE_API_KEY", "SPACE_ORGANIZATION_ID", "SPACE_URL",
-    "SPHERE_API_KEY", "SPHERE_ORGANIZATION_ID", "SPHERE_URL",
+    "SPHERE_URL",
 }
 # Assembled from parts so a repository-wide search for the retired key finds no literal here.
 DESTRUCTIVE_KEY = "SPACE_" + "DESTRUCTIVE_API_KEY"

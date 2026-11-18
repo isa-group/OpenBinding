@@ -382,7 +382,12 @@ def generate() -> tuple[dict[str, str], dict[str, str]]:
     _environment()
     with tempfile.TemporaryDirectory(prefix="ob-fixtures-") as work:
         core, sphere = asyncio.run(_bodies(Path(work)))
-        return render(core), _render_sphere(sphere)
+        # OpenBinding's pricing is the recorded SPHERE version, the same on every run, and its document's key order is
+        # the pricing's own (plans in the order they are offered): written as the gateway answers it, not normalised.
+        verbatim = {"plans-pricing.json": core.pop("plans-pricing.json")}
+        files = render(core)
+        files.update({name: json.dumps(body, indent=2, ensure_ascii=False) + "\n" for name, body in verbatim.items()})
+        return dict(sorted(files.items())), _render_sphere(sphere)
 
 
 def _render_sphere(bodies: dict[str, Any]) -> dict[str, str]:

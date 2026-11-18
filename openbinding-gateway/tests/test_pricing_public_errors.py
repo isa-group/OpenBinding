@@ -9,12 +9,11 @@ sentence, and the reason is in the log, masked, under the id the 5xx carries. Th
 administrator reads no more than anybody else: the reason is found by id.
 
 Nothing here talks to SPACE or SPHERE: the gates are local doubles and SPHERE is
-an ``httpx.MockTransport`` or a stub of ``published_pricing``.
+the recorded one (``sphere_recorded``), scripted to fail, or a stub of ``own_pricing``.
 """
 
 from __future__ import annotations
 
-import functools
 import logging
 import re
 import uuid
@@ -25,8 +24,7 @@ import pytest
 from sqlalchemy import select
 
 from _fake_space import FakePricingGate
-from _pricing import largest_plan, pricing_catalog
-from openbinding_gateway import pricing_catalog as catalog_module
+from _pricing import fixture_catalog, largest_plan
 from openbinding_gateway import space_client
 from openbinding_gateway.core import public_errors
 from openbinding_gateway.core.public_errors import (
@@ -38,8 +36,8 @@ from openbinding_gateway.core.public_errors import (
 from openbinding_gateway.core.settings import Settings, get_settings
 from openbinding_gateway.db.models import User, UserRole
 from openbinding_gateway.main import app
-from openbinding_gateway.pricing_catalog import PricingCatalogError, published_pricing
-from openbinding_gateway.routes import pricing as pricing_routes
+from openbinding_gateway.modules.plans.adapters import routes as plans_routes
+from openbinding_gateway.modules.plans.application import OwnPricingUnavailable
 from openbinding_gateway.services.entitlements import EntitlementsUnavailable, entitlement_service
 from openbinding_gateway.space_client import (
     PricingUnavailable,
@@ -109,7 +107,7 @@ async def account(client, registration, db_session=None, *, admin=False) -> tupl
 
 
 def down() -> DownGate:
-    return DownGate(pricing_catalog())
+    return DownGate(fixture_catalog())
 
 
 def assert_a_fixed_503(response, sentence: str) -> None:
@@ -159,7 +157,7 @@ async def test_deleting_an_account_when_the_contract_cannot_be_removed_is_a_fixe
     api_client, registration, logs
 ):
     profile, headers = await account(api_client, registration)
-    gate = FakePricingGate(pricing_catalog())
+    gate = FakePricingGate(fixture_catalog())
     space_client.set_gate(gate)
 
     async def remove_contract(user_id):
@@ -222,7 +220,7 @@ async def test_an_administrator_reads_the_same_fixed_503_and_not_the_reason(
 async def test_a_novation_in_an_outage_is_a_fixed_503(api_client, registration, db_session, logs):
     target, _ = await account(api_client, registration)
     _, admin = await account(api_client, registration, db_session, admin=True)
-    healthy = FakePricingGate(pricing_catalog())
+    healthy = FakePricingGate(fixture_catalog())
     space_client.set_gate(healthy)
 
     async def unavailable(user_id, plan, add_ons, pricing_version=None, expected_contract_version=None):
@@ -242,7 +240,7 @@ async def test_a_refused_novation_keeps_its_code_and_says_a_fixed_sentence(
 ):
     target, _ = await account(api_client, registration)
     _, admin = await account(api_client, registration, db_session, admin=True)
-    space_client.set_gate(RefusingGate(pricing_catalog()))
+    space_client.set_gate(RefusingGate(fixture_catalog()))
 
     response = await api_client.post(
         f"/v1/admin/users/{target['id']}/plan", headers=admin, json={"plan": largest_plan()}
@@ -264,7 +262,7 @@ async def test_a_contract_changed_under_the_novation_is_a_fixed_409(
 ):
     target, _ = await account(api_client, registration)
     _, admin = await account(api_client, registration, db_session, admin=True)
-    space_client.set_gate(ChangedGate(pricing_catalog()))
+    space_client.set_gate(ChangedGate(fixture_catalog()))
 
     response = await api_client.post(
         f"/v1/admin/users/{target['id']}/plan", headers=admin, json={"plan": largest_plan()}
@@ -284,22 +282,8 @@ async def test_a_contract_changed_under_the_novation_is_a_fixed_409(
 # -- The published pricing, to anyone ------------------------------------------------------------
 
 
-@pytest.fixture(autouse=True)
-def fresh_cache():
-    catalog_module.clear_cache()
-    yield
-    catalog_module.clear_cache()
-
-
 def sphere_settings(**overrides) -> Settings:
-    values = dict(
-        _env_file=None,
-        sphere_enabled=True,
-        sphere_url=f"https://{SPHERE_HOST}",
-        sphere_api_key="read-key",
-        sphere_organization_id="org-1",
-        space_pricing_version="0.1.0",
-    )
+    values = dict(_env_file=None, sphere_enabled=True, space_pricing_version="0.2.0")
     values.update(overrides)
     return Settings(**values)
 
@@ -312,63 +296,50 @@ def sphere_is_on(monkeypatch):
     app.dependency_overrides.pop(get_settings, None)
 
 
-PUBLIC_PATHS = ("/v1/pricing/current", "/v1/pricing/catalog")
+PUBLIC_PATH = "/v1/plans/pricing"
 
 
-@pytest.mark.parametrize("path", PUBLIC_PATHS)
-async def test_the_anonymous_503_is_fixed_whatever_sphere_said(api_client, sphere_is_on, monkeypatch, logs, path):
-    async def unavailable(_settings):
-        raise PricingCatalogError(f"SPHERE is unavailable: ConnectError to https://{SPHERE_HOST}/api/v1: {SPACE_ADDRESS}")
+async def test_the_anonymous_503_is_fixed_whatever_sphere_said(api_client, sphere_is_on, monkeypatch, logs):
+    async def unavailable(*_args, **_kwargs):
+        raise OwnPricingUnavailable(f"SPHERE is unavailable: ConnectError to https://{SPHERE_HOST}/api/v1: {SPACE_ADDRESS}")
 
-    monkeypatch.setattr(pricing_routes, "published_pricing", unavailable)
+    monkeypatch.setattr(plans_routes, "own_pricing", unavailable)
 
-    response = await api_client.get(path)
+    response = await api_client.get(PUBLIC_PATH)
 
     assert_a_fixed_503(response, PUBLISHED_PRICING_UNAVAILABLE.detail)
     assert response.json()["detail"]["error"] == PUBLISHED_PRICING_UNAVAILABLE.detail
     log = logged(logs)
-    assert "PricingCatalogError" in log and "SPHERE is unavailable" in log
+    assert "OwnPricingUnavailable" in log and "SPHERE is unavailable" in log
     assert SPHERE_HOST not in log and SPACE_ADDRESS not in log
     assert f"correlation_id={response.json()['correlationId']}" in log
 
 
-async def test_what_the_sphere_client_wraps_is_fixed_too(api_client, sphere_is_on, monkeypatch, logs):
-    def refuse(request):
-        raise httpx.ConnectError(f"All connection attempts failed to {SPHERE_HOST} ({SPACE_ADDRESS})")
+async def test_what_the_transport_says_is_fixed_too(api_client, sphere_is_on, sphere, logs):
+    sphere.raises(httpx.ConnectError(f"All connection attempts failed to {SPHERE_HOST} ({SPACE_ADDRESS})"))
 
-    monkeypatch.setattr(
-        pricing_routes,
-        "published_pricing",
-        functools.partial(published_pricing, transport=httpx.MockTransport(refuse)),
-    )
-
-    response = await api_client.get("/v1/pricing/current")
+    response = await api_client.get(PUBLIC_PATH)
 
     assert_a_fixed_503(response, PUBLISHED_PRICING_UNAVAILABLE.detail)
     log = logged(logs)
-    assert "SPHERE is unavailable" in log and "ConnectError" in log
+    assert "cannot be read" in log
     assert SPHERE_HOST not in log and SPACE_ADDRESS not in log
 
 
-async def test_what_sphere_answers_with_an_error_is_not_repeated(api_client, sphere_is_on, monkeypatch, logs):
-    def answers(request):
-        return httpx.Response(500, json={"error": f"database {SPHERE_HOST} is down, contact ops@{SPHERE_HOST}"})
+async def test_what_sphere_answers_with_an_error_is_not_repeated(api_client, sphere_is_on, sphere, logs):
+    body = f'{{"error": "database {SPHERE_HOST} is down, contact ops@{SPHERE_HOST}"}}'.encode()
+    sphere.serve("/api/v1/public/pricings/6ab0a323697330667ccce891", body, {"content-type": "application/json"}, status=500)
 
-    monkeypatch.setattr(
-        pricing_routes,
-        "published_pricing",
-        functools.partial(published_pricing, transport=httpx.MockTransport(answers)),
-    )
-
-    response = await api_client.get("/v1/pricing/catalog")
+    response = await api_client.get(PUBLIC_PATH)
 
     assert_a_fixed_503(response, PUBLISHED_PRICING_UNAVAILABLE.detail)
     assert "database" not in response.text and "ops@" not in response.text
-    assert "SPHERE returned 500" in logged(logs)
+    log = logged(logs)
+    assert "SPHERE answered 500" in log and SPHERE_HOST not in log
 
 
 async def test_without_sphere_the_reason_is_in_the_log_and_not_in_the_answer(api_client, logs):
-    response = await api_client.get("/v1/pricing/current")
+    response = await api_client.get(PUBLIC_PATH)
 
     assert response.status_code == 503
     assert response.json()["detail"] == {"code": "pricing_unavailable", "error": PUBLISHED_PRICING_UNAVAILABLE.detail}
@@ -382,7 +353,7 @@ async def test_with_no_version_configured_the_answer_does_not_name_the_setting(
     settings = sphere_settings(space_pricing_version=None)
     app.dependency_overrides[get_settings] = lambda: settings
     try:
-        response = await api_client.get("/v1/pricing/catalog")
+        response = await api_client.get(PUBLIC_PATH)
     finally:
         app.dependency_overrides.pop(get_settings, None)
 

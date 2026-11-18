@@ -57,7 +57,6 @@ class ApiKeyPermission(str, Enum):
     COMPOSITIONS_READ = "compositions:read"
     COMPOSITIONS_WRITE = "compositions:write"
     NOTIFICATIONS_READ = "notifications:read"
-    PRICING_READ = "pricing:read"
     ADMIN_ACCOUNTS_READ = "admin:accounts:read"
     ADMIN_ACCOUNTS_WRITE = "admin:accounts:write"
 
@@ -421,8 +420,6 @@ def required_permissions(path: str, method: str) -> frozenset[str]:
         return frozenset({ApiKeyPermission.ORGANIZATIONS_WRITE.value})
     if path.startswith("/v1/notifications"):
         return frozenset({ApiKeyPermission.NOTIFICATIONS_READ.value})
-    if path.startswith("/v1/pricing"):
-        return frozenset({ApiKeyPermission.PRICING_READ.value})
     if path.startswith(("/v1/permalinks/compositions", "/v1/composition-follows")):
         # Resolving a composition's permanent link, and following one: reads of compositions (a follow writes
         # nothing of the composition, as SPHERE keeps it out of the pricing write path).

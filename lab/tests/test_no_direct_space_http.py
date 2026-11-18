@@ -85,8 +85,6 @@ KNOWN_DEVIATIONS = {
     "openbinding-gateway/tools/_remote_common.py":
         "development probe: SpaceRemote uses httpx for services and pricings, SphereRemote calls SPHERE directly; "
         "remote_probe.py, remote_provision.py and seed_lab.py reach SPACE only through it (httpx there is for types)",
-    "openbinding-gateway/src/openbinding_gateway/sphere_client.py":
-        "the gateway's home-made SPHERE client (httpx with x-api-key), removed later",
 }
 
 
