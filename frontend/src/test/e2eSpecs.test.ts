@@ -80,12 +80,12 @@ describe('the Playwright specs', () => {
       expect(read(`${e2e}/${name}`), name).toMatch(/\btest\.describe\('J\d+ · /);
   });
 
-  it('walks each F3 journey closed so far in a mocked spec of its own: J1 and J2 SPHERE candidates', () => {
+  it('walks each F3 journey closed so far in a mocked spec of its own: J1 and J2 SPHERE candidates; J4 upstream plans and the offering', () => {
     const journeys = ts.sys
       .readDirectory(e2e, ['.ts'], undefined, undefined, 1)
       .map(name => name.replace(`${e2e}/`, ''))
       .filter(name => name.startsWith('f3-'));
-    expect(journeys.sort()).toEqual(['f3-sphere-candidates.spec.ts']);
+    expect(journeys.sort()).toEqual(['f3-sphere-candidates.spec.ts', 'f3-upstream.spec.ts']);
     for (const name of journeys)
       expect(read(`${e2e}/${name}`), name).toMatch(/\btest\.describe\('J\d+ · /);
   });

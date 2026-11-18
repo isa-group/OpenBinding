@@ -6,6 +6,10 @@ import type { CompositionVersionView, CompositionView, ProblemFacts } from '../.
 import fmsFacts from '../../../../../test/fixtures/core/fms.facts.json';
 import fmsVersion from '../../../../../test/fixtures/core/fms.version.json';
 import { CompositionRenderer } from '../CompositionRenderer';
+import type { RendererUpstream } from '../../../utils/composition/upstream';
+import tomatometerUpstream from '../../../../../test/fixtures/core/tomatometer-email.upstream.json';
+import tomatometerYaml from '../../../../../test/fixtures/sphere/6ab0a323697330667ccce8cd.6921867e7004563bd918e7e8.yml?raw';
+import type { UpstreamView } from '../../../api/types';
 import type { Section } from '../presets';
 
 const composition = {
@@ -40,6 +44,7 @@ function renderShowcase(
     reader?: Reader;
     hide?: Section[];
     facts?: ProblemFacts;
+    upstream?: RendererUpstream | null;
   } = {}
 ) {
   const version = options.version === undefined ? versionWith(null) : options.version;
@@ -51,7 +56,12 @@ function renderShowcase(
   });
   return render(
     <MemoryRouter>
-      <CompositionRenderer model={model} mode="showcase" hideSections={options.hide} />
+      <CompositionRenderer
+        model={model}
+        mode="showcase"
+        hideSections={options.hide}
+        upstream={options.upstream ?? null}
+      />
     </MemoryRouter>
   );
 }
@@ -96,7 +106,7 @@ describe('the showcase mode', () => {
       within(region('Offering')).getByRole('link', { name: /pricings\.example\.org\/fms\.yml/ })
     ).toHaveAttribute('href', 'https://pricings.example.org/fms.yml');
     expect(region('Offering')).toHaveTextContent(
-      'Plans and prices arrive when OpenBinding reads the offering.'
+      'No evaluation has read the offering yet: its plans and prices show once one does.'
     );
     unmount();
 
@@ -125,5 +135,30 @@ describe('the showcase mode', () => {
     for (const name of ['What it does', 'Upstream plans'])
       expect(screen.queryByRole('region', { name })).toBeNull();
     expect(region('Values')).toBeInTheDocument();
+  });
+
+  it('draws the storefront from the offering version the evaluation read, and says which version it was', async () => {
+    const view = structuredClone(tomatometerUpstream) as UpstreamView;
+    renderShowcase({
+      version: versionWith({ sphere: 'sphere/tomatometer' }),
+      upstream: { view, yaml: { [view.offering!.snapshot!.id]: tomatometerYaml } },
+    });
+    expect(region('Offering')).toHaveTextContent(
+      'Offering version 1.0.0, read when this version was evaluated.'
+    );
+    expect(await screen.findByTestId('storefront')).toBeInTheDocument();
+  });
+
+  it('says in words why an offering was not read, and draws no storefront', () => {
+    const view = structuredClone(tomatometerUpstream) as UpstreamView;
+    view.offering = { ...view.offering!, status: 'unreadable', snapshot: null, versionName: null };
+    renderShowcase({
+      version: versionWith({ url: 'https://pricings.example.org/fms.yml' }),
+      upstream: { view, yaml: {} },
+    });
+    expect(within(region('Offering')).getByRole('status')).toHaveTextContent(
+      'The offering could not be read when this version was evaluated.'
+    );
+    expect(screen.queryByTestId('storefront')).toBeNull();
   });
 });

@@ -5,6 +5,7 @@ import type { CompositionVersionView, CompositionView, ProblemFacts } from '../.
 import fmsFacts from '../../../../../test/fixtures/core/fms.facts.json';
 import fmsVersion from '../../../../../test/fixtures/core/fms.version.json';
 import { CompositionRenderer } from '../CompositionRenderer';
+import type { RendererUpstream } from '../../../utils/composition/upstream';
 import type { Section } from '../presets';
 
 const composition = {
@@ -22,7 +23,7 @@ const composition = {
   version_count: 1,
 } as CompositionView;
 
-const BREVO = { sphere: 'brevo/brevo', version: '665f1c2e9b1d4a0012ab34cd', plan: 'STARTER' };
+const BREVO = { sphere: 'danruilop1/brevo', version: '6ade2d444b2b5b01c587d80d', plan: 'STARTER' };
 
 /** The fleet version with SPHERE plans named: two tasks on one Brevo plan, one on a plan of an on-premise SPHERE. */
 function withPlans(): CompositionVersionView {
@@ -46,7 +47,12 @@ function withPlans(): CompositionVersionView {
 
 function renderArchitecture(
   version: CompositionVersionView | null,
-  options: { reader?: Reader; facts?: ProblemFacts; hide?: Section[] } = {}
+  options: {
+    reader?: Reader;
+    facts?: ProblemFacts;
+    hide?: Section[];
+    upstream?: RendererUpstream;
+  } = {}
 ) {
   const model = compositionViewModel({
     composition,
@@ -55,7 +61,12 @@ function renderArchitecture(
     reader: options.reader ?? 'member',
   });
   return render(
-    <CompositionRenderer model={model} mode="architecture" hideSections={options.hide} />
+    <CompositionRenderer
+      model={model}
+      mode="architecture"
+      hideSections={options.hide}
+      upstream={options.upstream ?? null}
+    />
   );
 }
 
@@ -92,7 +103,7 @@ describe('the architecture mode', () => {
     expect(
       within(providers).getByRole('heading', {
         level: 3,
-        name: 'brevo/brevo SPHERE pricing 2 tasks',
+        name: 'danruilop1/brevo SPHERE pricing 2 tasks',
       })
     ).toBeInTheDocument();
     expect(
@@ -102,7 +113,7 @@ describe('the architecture mode', () => {
     const plans = within(section('Upstream plans')).getAllByRole('listitem');
     expect(plans).toHaveLength(2);
     expect(within(plans[0]).getByRole('article', { name: 'Plan STARTER' })).toHaveTextContent(
-      'brevo/brevo'
+      'danruilop1/brevo'
     );
     expect(plans[0]).toHaveTextContent('For T1, T3');
     expect(within(plans[1]).getByRole('article', { name: 'Plan Pro' })).toHaveTextContent(
@@ -122,5 +133,50 @@ describe('the architecture mode', () => {
   it('draws nothing before the first version', () => {
     const { container } = renderArchitecture(null);
     expect(container.querySelector('[data-mode="architecture"]')).toBeEmptyDOMElement();
+  });
+
+  it('draws a plan from the snapshot the gateway stored, with its version name and a link to SPHERE', () => {
+    const upstream: RendererUpstream = {
+      view: {
+        version: '1.0.0',
+        entries: [
+          {
+            task: 'T1',
+            candidate: 'email.brevo.starter',
+            from: { ...BREVO },
+            status: 'snapshotted',
+            plan: null,
+            snapshot: {
+              id: '00000000-0000-4000-8000-000000000011',
+              title: 'brevo',
+              owner: 'danruilop1',
+              slug: 'brevo',
+              pricingId: '6ade2d4440e55445692b07f1',
+              versionId: '6ade2d444b2b5b01c587d80d',
+              versionName: '2026-10',
+              createdAt: null,
+              registry: null,
+              url: null,
+              permanentUrl:
+                'https://sphere.score.us.es/p/6ade2d4440e55445692b07f1?version=6ade2d444b2b5b01c587d80d',
+            },
+          },
+        ],
+        values: {},
+        offering: null,
+      },
+      yaml: {},
+    };
+    renderArchitecture(withPlans(), { reader: 'public', upstream });
+    const card = within(section('Upstream plans')).getByRole('article', { name: 'Plan STARTER' });
+    expect(card).toHaveTextContent('brevo');
+    expect(card).toHaveTextContent('Version2026-10');
+    expect(within(card).getByRole('link', { name: 'Open in SPHERE' })).toHaveAttribute(
+      'href',
+      expect.stringContaining('/p/6ade2d4440e55445692b07f1')
+    );
+    expect(
+      within(section('Upstream plans')).getByRole('article', { name: 'Plan Pro' })
+    ).toHaveTextContent('The pinned version (no copy here)');
   });
 });

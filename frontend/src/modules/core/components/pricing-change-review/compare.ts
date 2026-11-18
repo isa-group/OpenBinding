@@ -15,14 +15,17 @@ export type PlanComparison =
   { ok: true; comparison: SelectionComparison } | { ok: false; reason: string };
 
 /**
- * One plan (with its add-ons) of a provider, in the pricing version it was pinned to and in the newer one: pricing-renderer's
- * own comparison over the two YAML documents, for drawing only. A plan missing from a side compares as no plan.
+ * One plan (with its add-ons) of a provider, in the pricing version it was pinned to and in the newer one (or another plan of
+ * it, `afterPlan`): pricing-renderer's own comparison over the two YAML documents, for drawing only. A plan missing from a side
+ * compares as no plan.
  */
 export function compareProviderPlan(
   before: string,
   after: string,
   plan: string,
-  addOns: readonly string[] = []
+  addOns: readonly string[] = [],
+  afterPlan: string = plan,
+  afterAddOns: readonly string[] = addOns
 ): PlanComparison {
   const older = parsePricingYaml(before);
   const newer = parsePricingYaml(after);
@@ -35,18 +38,22 @@ export function compareProviderPlan(
       reason: `a version can’t be read${codes.length ? ` (${[...new Set(codes)].join(', ')})` : ''}`,
     };
   }
-  const side = (pricing: NonNullable<typeof older.value>): PricingSelection => ({
+  const side = (
+    pricing: NonNullable<typeof older.value>,
+    wanted: string,
+    extras: readonly string[]
+  ): PricingSelection => ({
     ...createDefaultSelection(pricing),
     ...selectionForConfiguration(pricing, {
-      selectedPlan: pricing.plans.some(entry => entry.id === plan) ? plan : undefined,
-      selectedAddons: addOns.filter(id => pricing.addOns.some(entry => entry.id === id)),
+      selectedPlan: pricing.plans.some(entry => entry.id === wanted) ? wanted : undefined,
+      selectedAddons: extras.filter(id => pricing.addOns.some(entry => entry.id === id)),
     }),
   });
   return {
     ok: true,
     comparison: compareSelections({
-      before: { pricing: older.value, selection: side(older.value) },
-      after: { pricing: newer.value, selection: side(newer.value) },
+      before: { pricing: older.value, selection: side(older.value, plan, addOns) },
+      after: { pricing: newer.value, selection: side(newer.value, afterPlan, afterAddOns) },
       expression: EXPRESSION,
     }),
   };

@@ -1382,7 +1382,8 @@ export async function installMockApi(
     const compositionRead = parts[1] === 'organizations' && parts[3] === 'compositions';
     // The public organizations, an organization's profile and an invitation's preview answer anybody too.
     const openRead =
-      (parts[1] === 'organizations' && (parts[2] === 'public' || parts[3] === 'profile')) ||
+      (parts[1] === 'organizations' &&
+        (parts[2] === 'public' || parts[3] === 'profile' || parts[3] === 'pricing-snapshots')) ||
       (parts[1] === 'invitations' && parts[3] === 'preview');
     if (
       !signedIn &&

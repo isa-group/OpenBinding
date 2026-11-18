@@ -57,7 +57,7 @@ test.describe('J2 · the public composition page and fork', () => {
       'lab-other/problems/route-planning@3'
     );
     await expect(main.getByRole('region', { name: 'Offering' })).toContainText(
-      'Plans and prices arrive when OpenBinding reads the offering.'
+      'This version names no pricing of its own.'
     );
     // A reader who is not a member only reads: no candidates, findings, Settings or New version.
     for (const region of ['Problem candidates', 'Evaluation findings'])

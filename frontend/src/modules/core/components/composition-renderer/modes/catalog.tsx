@@ -1,4 +1,7 @@
 import type { ReactNode } from 'react';
+import type { UpstreamSnapshot } from '../../../api/types';
+import type { RendererUpstream } from '../../../utils/composition/upstream';
+import { SOURCE_WORD } from '../../value-badge/originText';
 import { Link } from 'react-router-dom';
 import { Notice } from '../../notice';
 import type { Evidence, Provenance } from '../../../utils/composition/document';
@@ -10,6 +13,7 @@ import { ValueBadge } from '../../value-badge/ValueBadge';
 import type { RendererLinks } from '../CompositionRenderer';
 import type { Section } from '../presets';
 import { RendererSection } from '../RendererSection';
+import { OfferingDrawn } from './OfferingDrawn';
 
 /**
  * The catalog mode: what a composition is and what it says, read top to bottom. Every value is the gateway's, placed as it came;
@@ -19,6 +23,7 @@ import { RendererSection } from '../RendererSection';
 interface CatalogModeProps extends RendererLinks {
   model: CompositionViewModel;
   sections: readonly Section[];
+  upstream?: RendererUpstream | null;
 }
 
 const shortId = (id: string) => id.slice(0, 8);
@@ -36,15 +41,19 @@ function statusText(model: CompositionViewModel): string {
   return 'No evaluation by the installed toolchain has verified these values yet.';
 }
 
-/** Where a candidate came from: the SPHERE pricing, its plan, the pinned version and the add-ons, as the document writes them. */
-function provenanceText(from: Provenance): string {
+/**
+ * Where a candidate came from, by names: the pricing as SPHERE titles it and the version's name when OpenBinding holds the
+ * snapshot, else the reference as the document writes it (owner/name and plan; a version id is not a name).
+ */
+function provenanceText(from: Provenance, snapshot: UpstreamSnapshot | null): string {
+  const where = from.registry ? `on the SPHERE registry ${from.registry}` : 'on SPHERE';
   const parts = [
-    `${from.sphere}${from.registry ? ` on ${from.registry}` : ''}`,
+    snapshot ? `${snapshot.title} ${where}` : `${from.sphere} ${where}`,
     `plan ${from.plan}`,
-    `version ${from.version}`,
+    snapshot?.versionName ? `version ${snapshot.versionName}` : 'a pinned version',
   ];
   if (from.addons?.length) parts.push(`add-ons ${from.addons.join(', ')}`);
-  return parts.join(' · ');
+  return parts.join(', ');
 }
 
 function RunLink({ run, runHref }: { run: string; runHref: RendererLinks['runHref'] }) {
@@ -58,7 +67,7 @@ function RunLink({ run, runHref }: { run: string; runHref: RendererLinks['runHre
   );
 }
 
-function TaskLine({ task }: { task: TaskModel }) {
+function TaskLine({ task, snapshot }: { task: TaskModel; snapshot: UpstreamSnapshot | null }) {
   return (
     <li>
       <code>{task.id}</code>
@@ -74,7 +83,7 @@ function TaskLine({ task }: { task: TaskModel }) {
       )}
       {task.from && (
         <span className="cr-from basis-full text-xs [overflow-wrap:anywhere] text-tp-steel">
-          From {provenanceText(task.from)}
+          From {provenanceText(task.from, snapshot)}
         </span>
       )}
     </li>
@@ -137,6 +146,7 @@ export function CatalogMode({
   sections,
   problemHref = null,
   runHref = null,
+  upstream = null,
 }: CatalogModeProps) {
   const shows = (section: Section) => sections.includes(section);
   const { identity, version, status } = model;
@@ -193,12 +203,35 @@ export function CatalogMode({
             </p>
           ) : (
             <dl className="cr-values m-0 grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3 [&_dd]:m-0 [&_dd]:text-base [&_dd]:font-semibold [&_dd]:[overflow-wrap:anywhere] [&_dd]:text-tp-ink [&_dt]:text-xs [&_dt]:[overflow-wrap:anywhere] [&_dt]:text-tp-steel [&>div]:flex [&>div]:min-w-0 [&>div]:flex-col [&>div]:gap-0.5 [&>div]:rounded-xl [&>div]:border [&>div]:border-tp-hairline [&>div]:bg-tp-canvas [&>div]:p-3">
-              {model.values.map(value => (
-                <div key={value.name}>
-                  <dt>{value.name}</dt>
-                  <dd>{formatValue(value.value, value.unit)}</dd>
-                </div>
-              ))}
+              {model.values.map(value => {
+                const sources = upstream?.view.values[value.name];
+                return (
+                  <div key={value.name}>
+                    <dt>{value.name}</dt>
+                    <dd>{formatValue(value.value, value.unit)}</dd>
+                    {sources && sources.sources.length > 0 && (
+                      <ul
+                        className="cr-sources m-0 flex list-none flex-wrap gap-1 p-0"
+                        aria-label={`Where ${value.name} comes from`}
+                      >
+                        {sources.sources.map(kind => (
+                          <li
+                            key={kind}
+                            className={`rounded-full border px-1.5 text-[11px] font-semibold text-tp-ink-tint ${kind === 'manual' ? 'border-dashed border-tp-hairline-strong' : 'border-tp-primary'}`}
+                          >
+                            {SOURCE_WORD[kind]}
+                          </li>
+                        ))}
+                        {sources.manualOnly && (
+                          <li className="rounded-full border border-tp-severity-warning-border bg-tp-severity-warning-bg px-1.5 text-[11px] font-semibold text-tp-warning-text">
+                            Set by hand only
+                          </li>
+                        )}
+                      </ul>
+                    )}
+                  </div>
+                );
+              })}
             </dl>
           )}
         </RendererSection>
@@ -214,7 +247,13 @@ export function CatalogMode({
               aria-label="Task bindings"
             >
               {model.tasks.map(task => (
-                <TaskLine key={task.id} task={task} />
+                <TaskLine
+                  key={task.id}
+                  task={task}
+                  snapshot={
+                    upstream?.view.entries.find(entry => entry.task === task.id)?.snapshot ?? null
+                  }
+                />
               ))}
             </ul>
           )}
@@ -239,6 +278,7 @@ export function CatalogMode({
               {model.offering.source !== 'url' && ' (SPHERE pricing)'}
             </p>
           )}
+          {model.offering && <OfferingDrawn upstream={upstream} />}
         </RendererSection>
       )}
 

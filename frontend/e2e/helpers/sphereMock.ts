@@ -295,3 +295,93 @@ export function sphereProblemRoutes(method: string, parts: string[]): SphereRepl
     return ok(problem.facts(revision.revision));
   return notFound('Not mocked.');
 }
+
+// -- A composition version's upstream view (`GET …/compositions/{c}/upstream`), from the gateway's fixtures.
+
+type SnapshotView = Json & { id: string; versionId: string; title: string };
+
+/** Every stored snapshot a fixture names, by SPHERE version id: what an upstream view names for a `from` that pins it. */
+const SNAPSHOTS_BY_VERSION: Record<string, SnapshotView> = (() => {
+  const found: Record<string, SnapshotView> = {};
+  const keep = (snapshot: Record<string, unknown>) => {
+    if (typeof snapshot.versionId !== 'string' || typeof snapshot.id !== 'string') return;
+    found[snapshot.versionId] ??= {
+      createdAt: snapshot.createdAt ?? null,
+      id: snapshot.id,
+      owner: snapshot.owner ?? null,
+      permanentUrl: snapshot.permanentUrl ?? null,
+      pricingId: snapshot.pricingId ?? null,
+      registry: snapshot.registry ?? null,
+      slug: snapshot.slug ?? null,
+      title: String(snapshot.title ?? ''),
+      url: null,
+      versionId: snapshot.versionId,
+      versionName: snapshot.versionName ?? null,
+    } as SnapshotView;
+  };
+  const upstream = fixture<{ entries: Array<{ snapshot: Record<string, unknown> | null }> }>(
+    'core',
+    'tomatometer-email.upstream.json'
+  );
+  for (const entry of upstream.entries) if (entry.snapshot) keep(entry.snapshot);
+  for (const file of ['expand.tomatometer-email.json', 'expand.storage.json'])
+    for (const snapshot of fixture<{ snapshots: Array<Record<string, unknown>> }>('sphere', file)
+      .snapshots)
+      keep(snapshot);
+  return found;
+})();
+
+/** The YAML of a stored snapshot, when the fixtures hold that version (for a mock that wants to read it). */
+export const snapshotYamlOf = (id: string): string | undefined => SNAPSHOT_YAML[id];
+
+const UPSTREAM = fixture<Json & { offering: Json | null; values: Json }>(
+  'core',
+  'tomatometer-email.upstream.json'
+);
+
+/**
+ * The upstream view of a version from its document: each binding entry with the stored snapshot its `from` pins (when a fixture
+ * holds that version), the offering as the evaluation read it (TomatoMeter's offering from the gateway's fixture; a `url`
+ * offering recorded unreadable, as the lab seed's is) and, for TomatoMeter, the source kinds of its global values.
+ */
+export function upstreamOf(version: {
+  label: string;
+  offering?: unknown;
+  document?: unknown;
+}): Json {
+  const document = (version.document ?? {}) as {
+    binding?: Record<string, Record<string, unknown>>;
+  };
+  const binding = document.binding ?? {};
+  const entries = Object.entries(binding).map(([task, entry]) => {
+    const from = (entry.from as Record<string, unknown> | undefined) ?? null;
+    const snapshot =
+      from && typeof from.version === 'string' ? SNAPSHOTS_BY_VERSION[from.version] : undefined;
+    return {
+      task,
+      candidate: String(entry.candidate ?? ''),
+      from,
+      status: snapshot ? 'snapshotted' : 'not_snapshotted',
+      snapshot: snapshot ?? null,
+      plan: null,
+    };
+  });
+  const offering = version.offering as Record<string, string> | null | undefined;
+  const tomatometer = offering?.sphere === 'sphere/tomatometer';
+  return {
+    version: version.label,
+    entries,
+    values: tomatometer ? UPSTREAM.values : {},
+    offering: !offering
+      ? null
+      : tomatometer
+        ? UPSTREAM.offering
+        : {
+            source: offering,
+            status: 'unreadable',
+            snapshot: null,
+            versionName: null,
+            createdAt: '2026-10-05T08:15:00Z',
+          },
+  };
+}

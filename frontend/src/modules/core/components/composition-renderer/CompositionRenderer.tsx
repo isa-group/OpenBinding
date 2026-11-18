@@ -1,3 +1,4 @@
+import type { RendererUpstream } from '../../utils/composition/upstream';
 import type { CompositionViewModel } from '../../utils/composition/viewModel';
 import type { AnalysisActions } from './modes/analysis';
 import { ArchitectureMode } from './modes/architecture';
@@ -23,6 +24,11 @@ interface CompositionRendererProps extends RendererLinks {
   density?: Density;
   /** The page's answers to the configurator (try, derive, open as a draft), and where it starts. */
   analysis?: AnalysisActions;
+  /**
+   * The version's upstream plans and offering as the gateway stored them, with their snapshots' YAML: the plan cards and the
+   * storefront are drawn from it; without it they keep their reference faces. The page loads it, so core never reads a module.
+   */
+  upstream?: RendererUpstream | null;
 }
 
 /**
@@ -37,6 +43,7 @@ export function CompositionRenderer({
   analysis,
   problemHref = null,
   runHref = null,
+  upstream = null,
 }: CompositionRendererProps) {
   const sections = sectionsOf(mode, hideSections);
   return (
@@ -50,14 +57,19 @@ export function CompositionRenderer({
           sections={sections}
           problemHref={problemHref}
           runHref={runHref}
+          upstream={upstream}
         />
       )}
-      {mode === 'architecture' && <ArchitectureMode model={model} sections={sections} />}
+      {mode === 'architecture' && (
+        <ArchitectureMode model={model} sections={sections} upstream={upstream} />
+      )}
       {mode === 'workflow' && <WorkflowMode model={model} sections={sections} />}
       {mode === 'configurator' && (
         <ConfiguratorMode model={model} sections={sections} actions={analysis} />
       )}
-      {mode === 'showcase' && <ShowcaseMode model={model} sections={sections} />}
+      {mode === 'showcase' && (
+        <ShowcaseMode model={model} sections={sections} upstream={upstream} />
+      )}
     </div>
   );
 }

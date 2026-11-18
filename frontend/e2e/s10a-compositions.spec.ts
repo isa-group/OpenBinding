@@ -356,7 +356,7 @@ test.describe('S10a · compositions', () => {
     await expect(region(page, 'Value status')).toContainText('Declared');
     await expect(region(page, 'Values')).toContainText('48 EUR/month');
     await expect(region(page, 'Binding')).toContainText(
-      'From brevo/brevo · plan STARTER · version 665f1c2e9b1d4a0012ab34cd'
+      'From brevo on SPHERE, plan STARTER, version 2026-10'
     );
     await expect(region(page, 'Offering').getByRole('link')).toHaveAttribute(
       'href',
@@ -367,7 +367,7 @@ test.describe('S10a · compositions', () => {
     const providers = region(page, 'Providers');
     await expect(providers).toContainText('The candidates come from 1 SPHERE pricing.');
     await expect(
-      providers.getByRole('heading', { level: 3, name: 'brevo/brevo SPHERE pricing 1 task' })
+      providers.getByRole('heading', { level: 3, name: 'danruilop1/brevo SPHERE pricing 1 task' })
     ).toBeVisible();
     await expect(
       providers.getByRole('heading', { level: 3, name: 'Provider not known 3 tasks' })
@@ -377,10 +377,15 @@ test.describe('S10a · compositions', () => {
     ).toBeVisible();
     const plans = region(page, 'Upstream plans');
     const starter = plans.getByRole('article', { name: 'Plan STARTER' });
-    await expect(starter).toContainText('brevo/brevo');
-    await expect(starter).toContainText('665f1c2e9b1d4a0012ab34cd');
+    // Drawn from the stored snapshot of the set-B Brevo version it pins: its name and SPHERE's link, never the id.
+    await expect(starter).toContainText('brevo');
+    await expect(starter).toContainText('Version2026-10');
+    await expect(starter).not.toContainText('6ade2d444b2b5b01c587d80d');
     await expect(plans).toContainText('For notify');
-    await expect(plans.getByRole('link')).toHaveCount(0);
+    await expect(plans.getByRole('link', { name: 'Open in SPHERE' })).toHaveAttribute(
+      'href',
+      /\/p\/6ade2d4440e55445692b07f1\?version=6ade2d444b2b5b01c587d80d$/
+    );
     await expect(
       region(page, 'Workflow').getByRole('group', {
         name: 'Choice, 2 branches, probabilities 0.7, 0.3',

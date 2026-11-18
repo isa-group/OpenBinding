@@ -5,7 +5,8 @@
 // browser parsing both YAML files; a field absent on one side is read from the gateway's null, and a whole structure that
 // changed (the workflow) is named rather than printed (diffModel); OpenBinding's workflow section follows the entries (the
 // later workflow with each changed task marked, and the candidates each version chose for a member who reads the problem);
-// a pair the values cannot be compared on says why; the pair lives in the address (`from`, `to`) through `onPair`.
+// a pair the values cannot be compared on says why; the pair lives in the address (`from`, `to`) through `onPair`; an upstream
+// plan that changes between the two is drawn by the core plan change review over the two stored snapshots.
 
 import { useState, type ReactNode } from 'react';
 import type { IconType } from 'react-icons';
@@ -47,6 +48,7 @@ import { compositionViewModel } from '../../../core/utils/composition/viewModel'
 import { problemFactsApi } from '../../../core/utils/problem/facts';
 import { compositionsApi } from '../../api/compositionsApi';
 import FileDiffView from './file-diff-view';
+import UpstreamChanges from './upstream-changes';
 
 type ViewMode = 'structured' | 'file';
 
@@ -532,12 +534,15 @@ export default function CompositionVersionDiffView({
               The comparison failed: {readApiError(diff.error).message}
             </div>
           ) : diff.data ? (
-            <DiffResult
-              diff={diff.data}
-              filter={filter}
-              onFilterChange={setFilter}
-              workflow={workflow}
-            />
+            <>
+              <DiffResult
+                diff={diff.data}
+                filter={filter}
+                onFilterChange={setFilter}
+                workflow={workflow}
+              />
+              <UpstreamChanges org={org} composition={slug} from={from} to={to} />
+            </>
           ) : null
         ) : texts.status === 'loading' ? (
           <div className="rounded-xl border border-dashed border-tp-hairline-strong px-4 py-10 text-center text-sm text-tp-slate">

@@ -37,7 +37,7 @@ const declared = (): DocumentModel => ({
     signIn: { local: true },
     notify: {
       candidate: 'email.brevo.starter',
-      from: { sphere: 'brevo/brevo', version: '665f1c2e9b1d4a0012ab34cd', plan: 'STARTER' },
+      from: { sphere: 'danruilop1/brevo', version: '6ade2d444b2b5b01c587d80d', plan: 'STARTER' },
     },
     archive: { candidate: 'storage.dropbox.plus' },
     post: { candidate: 'shipping.post.standard' },

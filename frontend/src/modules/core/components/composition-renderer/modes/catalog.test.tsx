@@ -4,6 +4,9 @@ import { describe, expect, it } from 'vitest';
 import { compositionViewModel, type Reader } from '../../../utils/composition/viewModel';
 import type { CompositionVersionView, CompositionView } from '../../../api/types';
 import fmsVersion from '../../../../../test/fixtures/core/fms.version.json';
+import tomatometerVersion from '../../../../../test/fixtures/core/tomatometer-email.version.json';
+import tomatometerUpstream from '../../../../../test/fixtures/core/tomatometer-email.upstream.json';
+import type { UpstreamView } from '../../../api/types';
 import { CompositionRenderer } from '../CompositionRenderer';
 import type { Section } from '../presets';
 
@@ -142,7 +145,7 @@ describe('the catalog mode', () => {
     ).toBeInTheDocument();
     const binding = within(section('Binding'));
     expect(
-      binding.getByText('From aws/aws · plan BASIC · version 2026-01 · add-ons support')
+      binding.getByText('From aws/aws on SPHERE, plan BASIC, a pinned version, add-ons support')
     ).toBeInTheDocument();
     expect(binding.getByText('In-house')).toBeInTheDocument();
     expect(within(section('Offering')).getByText('acme/fleet')).toBeInTheDocument();
@@ -204,5 +207,51 @@ describe('the catalog mode', () => {
     renderCatalog(null);
     expect(screen.getByText(/No version yet/)).toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'Values' })).toBeNull();
+  });
+
+  describe('with the upstream view the gateway stored', () => {
+    const upstream = { view: tomatometerUpstream as UpstreamView, yaml: {} };
+    const renderTomatometer = () => {
+      const model = compositionViewModel({
+        composition: composition({ slug: 'tomatometer', name: 'TomatoMeter' }),
+        version: structuredClone(tomatometerVersion) as CompositionVersionView,
+        reader: 'member',
+      });
+      return render(
+        <MemoryRouter>
+          <CompositionRenderer model={model} mode="catalog" upstream={upstream} />
+        </MemoryRouter>
+      );
+    };
+
+    it('names each upstream plan by the pricing’s title and the version’s name, never its id', () => {
+      renderTomatometer();
+      const binding = section('Binding');
+      expect(
+        within(binding).getByText('From Mailgun on SPHERE, plan FOUNDATION, version 2026-10')
+      ).toBeInTheDocument();
+      expect(binding).not.toHaveTextContent(/[0-9a-f]{24}/);
+    });
+
+    it('lists the source kinds of each global value and warns when only values set by hand give one', () => {
+      renderTomatometer();
+      const latency = within(section('Values')).getByRole('list', {
+        name: 'Where latency comes from',
+      });
+      expect(latency).toHaveTextContent('Manual');
+      expect(latency).toHaveTextContent('Set by hand only');
+      const subscription = within(section('Values')).getByRole('list', {
+        name: 'Where subscription comes from',
+      });
+      expect(subscription).toHaveTextContent('Priced');
+      expect(subscription).not.toHaveTextContent('Set by hand only');
+    });
+
+    it('says which offering version the evaluation read', () => {
+      renderTomatometer();
+      expect(section('Offering')).toHaveTextContent(
+        'Offering version 1.0.0, read when this version was evaluated.'
+      );
+    });
   });
 });

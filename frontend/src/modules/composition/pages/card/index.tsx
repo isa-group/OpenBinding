@@ -25,6 +25,7 @@ import ResourceCardShell, {
 } from '../../../core/components/resource-card-shell';
 import PricingCardSkeleton from '../../../core/components/skeletons/pricing-card-skeleton';
 import { CompositionRenderer } from '../../../core/components/composition-renderer/CompositionRenderer';
+import { loadUpstream, type RendererUpstream } from '../../../core/utils/composition/upstream';
 import { SYSTEM_TOAST } from '../../../core/contexts/toastKinds';
 import { useToast } from '../../../core/contexts/useToast';
 import { useRecentItems } from '../../../core/hooks/useRecentItems';
@@ -173,11 +174,13 @@ function MemberOverview({
   model,
   version,
   candidates,
+  upstream,
 }: {
   org: string;
   model: CompositionViewModel;
   version: CompositionVersionView | null;
   candidates: { status: 'loading' | 'error'; marker: string; retry: () => void } | null;
+  upstream: RendererUpstream | null;
 }) {
   const link = version?.problem ?? null;
   const problemHref =
@@ -224,10 +227,11 @@ function MemberOverview({
         hideSections={['identity']}
         problemHref={problemHref}
         runHref={run => runPath(org, run)}
+        upstream={upstream}
       />
       {model.version && (
         <>
-          <CompositionRenderer model={model} mode="architecture" />
+          <CompositionRenderer model={model} mode="architecture" upstream={upstream} />
           <CompositionRenderer model={model} mode="workflow" />
           {candidates?.status === 'loading' && (
             <p className="text-xs text-tp-steel" role="status">
@@ -268,6 +272,11 @@ function Overview({
   candidates: { status: 'loading' | 'error'; marker: string; retry: () => void } | null;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  // The version's upstream plans and offering as the gateway stored them (members and visitors alike): stored data only.
+  const upstream = useResource<RendererUpstream | null>(
+    `composition-upstream:${org}/${slug}/${version?.id ?? 'none'}`,
+    async () => (version ? loadUpstream(org, slug, version.id).catch(() => null) : null)
+  );
   const yaml = useResource<string | null>(
     `composition-yaml:${org}/${slug}/${version?.id ?? 'none'}:${sidebarOpen}`,
     async () => (sidebarOpen && version ? compositionsApi.content(org, slug, version.id) : null)
@@ -275,9 +284,15 @@ function Overview({
   const analytics = (version?.analytics ?? null) as CompositionAnalytics | null;
 
   const drawing = member ? (
-    <MemberOverview org={org} model={model} version={version} candidates={candidates} />
+    <MemberOverview
+      org={org}
+      model={model}
+      version={version}
+      candidates={candidates}
+      upstream={upstream.data ?? null}
+    />
   ) : (
-    <CompositionRenderer model={model} mode="showcase" />
+    <CompositionRenderer model={model} mode="showcase" upstream={upstream.data ?? null} />
   );
   const details = (
     <div className="space-y-4">

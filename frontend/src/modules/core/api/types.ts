@@ -41,6 +41,18 @@ export type ValueSource = Schemas['ValueSource'];
 /** The upstream plan a SPHERE import read a candidate's values from (`provenance` of a candidate of the facts). */
 export type CandidateProvenance = Schemas['CandidateProvenance'];
 
+/** A version's upstream plans, the sources of its global values and its offering, from stored data only (`GET …/upstream`). */
+export type UpstreamView = Schemas['UpstreamView'];
+
+/** One binding entry of a version with the upstream plan its `from` names and the stored snapshot of it. */
+export type UpstreamEntry = Schemas['UpstreamEntry'];
+
+/** A stored pricing snapshot, by names and dates. */
+export type UpstreamSnapshot = Schemas['UpstreamSnapshot'];
+
+/** The offering version the current evaluation of a version read. */
+export type UpstreamOffering = Schemas['UpstreamOffering'];
+
 /** One version of a composition as the gateway serves it (`GET …/compositions/{composition}/versions/{version}`). */
 export type CompositionVersionView = Schemas['CompositionVersionView'];
 
