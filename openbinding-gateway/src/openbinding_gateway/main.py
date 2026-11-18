@@ -61,6 +61,8 @@ from .modules.compositions.adapters.public_routes import me_router as own_compos
 from .modules.compositions.adapters.public_routes import router as public_compositions_router
 from .modules.compositions.adapters.routes import router as compositions_router
 from .modules.execution.adapters.preset_routes import router as run_presets_router
+from .modules.plans.adapters.sphere import SphereHttpSource
+from .modules.plans.application import installed_pricing_source, set_pricing_source
 from .modules.execution.adapters.routes import router as runs_router
 from .modules.problems.adapters.bim_routes import router as bim_router
 from .modules.problems.adapters.routes import router as problems_router
@@ -131,12 +133,16 @@ async def _lifespan(settings: Settings):
 
     gate = space_client.build_gate(settings)
     space_client.set_gate(gate)
+    # The one reader of SPHERE, its registries and Pricing2Yaml URLs (modules/plans); its requests go through
+    # core.outbound, so there is nothing to close but its in-process cache.
+    set_pricing_source(SphereHttpSource(settings))
     try:
         await check_pricing(settings, gate)
     except BaseException:
         if hasattr(gate, "aclose"):
             await gate.aclose()
         space_client.set_gate(None)
+        set_pricing_source(None)
         await db_base.dispose_engine()
         bim_integration.close_bim()
         raise
@@ -167,6 +173,7 @@ async def _lifespan(settings: Settings):
         if hasattr(gate, "aclose"):
             await gate.aclose()
         space_client.set_gate(None)
+        set_pricing_source(None)
         await db_base.dispose_engine()
         bim_integration.close_bim()
 
@@ -366,7 +373,11 @@ async def readiness(
             status_code=503,
             detail={"code": "not_ready", "dependencies": dependencies},
         ) from exc
-    dependencies["sphere"] = "configured" if runtime_settings.sphere_enabled else "disabled"
+    # From the pricing source's own state (enabled, switched off, or backing off after failures); no request.
+    source = installed_pricing_source()
+    dependencies["sphere"] = (
+        source.state() if source is not None else ("configured" if runtime_settings.sphere_enabled else "disabled")
+    )
     dependencies["space"] = "configured" if runtime_settings.space_enabled else "disabled"
     return {"status": "ready", "dependencies": dependencies}
 

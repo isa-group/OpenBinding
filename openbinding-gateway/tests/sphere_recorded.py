@@ -31,6 +31,10 @@ SPHERE_HOST = "sphere.score.us.es"
 SPHERE_ADDRESS = "193.147.175.105"
 
 
+class NetworkForbidden(AssertionError):
+    """A test tried to reach the network: every outbound read must be scripted (``tests/conftest.py``)."""
+
+
 class UnrecordedRequest(AssertionError):
     """A request no recording and no script answers."""
 

@@ -658,6 +658,23 @@ flowchart LR
   calls `revert_evaluation` (SPACE honours it within two minutes).
 - SPACE events (`synchronized`, `pricing_created`, `pricing_activated`, `pricing_archived`, `service_disabled`)
   invalidate caches and are relayed to browsers as a `plans.changed` notification.
+- **The `PricingSource` port (F3).** Every read of SPHERE, of an operator's `SPHERE_REGISTRIES` and of a
+  user-supplied Pricing2Yaml URL goes through one port, `modules/plans/application/pricing_source.py`, installed by
+  `main._lifespan` (`SphereHttpSource` for the default SPHERE and each registry, `UrlSource` for URLs). Its requests
+  go through `core/outbound.py`, the one outbound policy the remote engine client shares: https only, every DNS
+  answer checked and pinned (global addresses, except an operator's registry), no redirects for SPHERE and at most
+  `OFFERING_URL_MAX_REDIRECTS` revalidated ones for a URL, identity encoding, `SPHERE_MAX_BYTES` (5 MiB) and
+  `SPHERE_TIMEOUT_S`. SPHERE ids are checked (24 hexadecimal characters) before a URL is built. Only anonymous answers
+  are cached, for `SPHERE_CACHE_TTL_S` and then revalidated by `ETag` (SPHERE serves no `Last-Modified`); a keyed
+  answer is never cached. Back-off follows SPHERE's own keying (per organization key, per registry, anonymous): a
+  429 closes that bucket only, `RateLimit-Remaining` at its 10 % reserve closes it until `RateLimit-Reset`, a 404 or
+  503 is a 60 s negative entry for that path, and transport failures back the host off. A version's bytes must match
+  its `ETag`; the manifest's `contentHash` is SPHERE's *functional* hash (`content_hash.py`, js-yaml reading, sorted
+  keys, `saasName` dropped), and a mismatch is logged and reported, never a refusal. Pricings are read **before** a
+  compile or evaluation slot and outside any transaction, never during compilation or evaluation; the YAML loader
+  (`yaml12.py`, alias, depth and node limits), the hash and the normaliser (`pricing2yaml/`) run in a worker thread.
+  The tests read SPHERE from recordings (`tests/fixtures/sphere`, `tools/record_sphere_fixtures.py`) and cannot open
+  a network socket (`OPENBINDING_FORBID_NETWORK=1` in the CI unit shards).
 - `GET /v1/plans/pricing` (public) returns the pricing descriptor (permanent link, SPHERE version id and label,
   content hash, the version SPACE has activated) and the YAML read from SPHERE's public API
   (`/api/v1/public/pricings/{pricingId}` and `.../versions/{versionId}/yaml`, bounded to 5 MiB, hash-verified,

@@ -236,6 +236,101 @@ def fresh_bim_port():
     bim.set_bim(None)
 
 
+if GATEWAY_INSTALLED:
+    from sphere_recorded import NetworkForbidden  # noqa: E402
+
+
+if GATEWAY_INSTALLED and os.environ.get("OPENBINDING_FORBID_NETWORK") == "1":
+    # The CI unit shards run with this set: a raw connect to anything but loopback or a unix socket fails,
+    # whatever library makes it. The PostgreSQL and compose-integration jobs, which talk to services, do not set it.
+    import ipaddress as _ipaddress
+    import socket as _socket
+
+    _real_connect = _socket.socket.connect
+    _real_connect_ex = _socket.socket.connect_ex
+
+    def _allowed(sock, address) -> bool:
+        if sock.family not in (_socket.AF_INET, _socket.AF_INET6):
+            return True
+        host = address[0] if isinstance(address, tuple) else address
+        try:
+            return _ipaddress.ip_address(host).is_loopback
+        except ValueError:
+            return host == "localhost"
+
+    def _guarded_connect(sock, address):
+        if not _allowed(sock, address):
+            raise NetworkForbidden(f"the tests opened a network socket to {address!r}")
+        return _real_connect(sock, address)
+
+    def _guarded_connect_ex(sock, address):
+        if not _allowed(sock, address):
+            raise NetworkForbidden(f"the tests opened a network socket to {address!r}")
+        return _real_connect_ex(sock, address)
+
+    _socket.socket.connect = _guarded_connect
+    _socket.socket.connect_ex = _guarded_connect_ex
+
+
+@pytest.fixture(autouse=True)
+def no_outbound_network(monkeypatch):
+    """``core.outbound`` refuses anything a test did not script: no real DNS answer and no real transport.
+
+    A test scripts DNS by patching ``socket.getaddrinfo`` (the engine and outbound tests do), or uses the
+    recorded SPHERE (``sphere`` below), whose hosts resolve to fixed addresses.
+    """
+    if not GATEWAY_INSTALLED:
+        yield
+        return
+    import socket
+
+    import httpx
+
+    from openbinding_gateway.core import outbound
+
+    real = socket.getaddrinfo
+
+    def resolve(host, port):
+        if socket.getaddrinfo is not real:
+            return socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
+        raise NetworkForbidden(f"an outbound read asked for the address of {host}")
+
+    def forbid(request):
+        raise NetworkForbidden(f"an outbound read was sent to {request.url}")
+
+    monkeypatch.setattr(outbound, "_getaddrinfo", resolve)
+    monkeypatch.setattr(outbound, "default_transport", lambda: httpx.MockTransport(forbid))
+    yield
+
+
+@pytest.fixture(autouse=True)
+def sphere(monkeypatch, no_outbound_network):
+    """Every test reads SPHERE through the recorded answers (``fixtures/sphere``), with the default SPHERE on."""
+    if not GATEWAY_INSTALLED:
+        yield None
+        return
+    from openbinding_gateway.core import outbound
+    from openbinding_gateway.core.settings import get_settings
+    from openbinding_gateway.modules.plans.adapters.sphere import SphereHttpSource
+    from openbinding_gateway.modules.plans.application import set_pricing_source
+    from sphere_recorded import RecordedSphere
+
+    recorded = RecordedSphere()
+    guarded = outbound._getaddrinfo
+
+    def resolve(host, port):
+        if host in recorded.hosts:
+            return recorded.getaddrinfo(host, port)
+        return guarded(host, port)
+
+    monkeypatch.setattr(outbound, "_getaddrinfo", resolve)
+    settings = get_settings().model_copy(update={"sphere_enabled": True})
+    recorded.source = SphereHttpSource(settings, transport=recorded.transport())
+    set_pricing_source(recorded.source)
+    yield recorded
+    set_pricing_source(None)
+
+
 @pytest.fixture(autouse=True)
 def pricing_catalog_gate():
     """Every test gets a SPACE substitute built from the pricing 0.2.0 fixture."""
