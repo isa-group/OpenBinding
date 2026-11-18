@@ -240,7 +240,9 @@ describe('the Playwright specs', () => {
       expect(qa).toMatch(/MIN_TARGET_PX = 24/);
       expect(qa).toContain('clipped');
       expect(qa).toContain('brokenImages');
-      expect(qa).toContain('${RESULTS_DIR}/screenshots/');
+      // One directory per palette (VISUAL_BRAND), the plain one when the deployment's default is looked at.
+      expect(qa).toContain("`${RESULTS_DIR}/screenshots${BRAND ? `-${BRAND}` : ''}`");
+      expect(qa).toContain('${SCREENSHOTS}/${viewport}-${stop.slug}.png');
       expect(qa).toMatch(/VQA viewport=/);
       // The screens the QA walks.
       for (const screen of [
@@ -253,6 +255,8 @@ describe('the Playwright specs', () => {
         "slug: 'job-result'",
         "slug: 'plan-permissions'",
         "slug: 'team-organization'",
+        "slug: 'pricing'",
+        "slug: 'engine-card'",
       ]) {
         expect(qa, screen).toContain(screen);
       }
