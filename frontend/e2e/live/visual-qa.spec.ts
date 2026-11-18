@@ -516,6 +516,67 @@ function problemStops(mobile: boolean): Stop[] {
   ];
 }
 
+/**
+ * F3: SPHERE on the screens, on what the seed made from live SPHERE: tomatometer-email's Candidates tab with the value sources
+ * and the Properties group, the SPHERE wizard step by step (its last three on the recipe the import pinned), the TomatoMeter
+ * composition with its upstream plan and storefront drawn from snapshots, and the beta Connections tab (beta features are on
+ * for this walk).
+ */
+function sphereStops(): Stop[] {
+  const candidates = `/problems/${ORG}/tomatometer-email/candidates`;
+  const wizard = (step: string, query = '') => ({
+    slug: `sphere-wizard-${step}`,
+    path: `${candidates}?sphereStep=${step}${query}`,
+    ready: (page: Page) => page.getByRole('dialog').getByRole('list', { name: 'Steps' }),
+  });
+  return [
+    {
+      slug: 'sphere-candidates',
+      path: candidates,
+      ready: page =>
+        page.getByRole('region', { name: 'Candidates of each task' }).getByText('Priced').first(),
+    },
+    wizard('pricing'),
+    wizard('version', '&sphere=6ade364540e55445692b0eda'),
+    wizard('plans', '&sphere=6ade364540e55445692b0eda&sphereVersion=6ade36454b2b5b01c587db3d'),
+    wizard('mapping', '&sphereUpdate=1'),
+    wizard('preview', '&sphereUpdate=1'),
+    {
+      slug: 'sphere-composition',
+      path: `/compositions/${ORG}/tomatometer`,
+      ready: page =>
+        page
+          .locator('main')
+          .getByRole('region', { name: 'Upstream plans', exact: true })
+          .getByRole('article')
+          .first(),
+    },
+    {
+      slug: 'connections',
+      path: `/orgs/${ORG}/connections`,
+      ready: page =>
+        page.locator('main').getByRole('region', { name: 'Connections' }).getByRole('heading', {
+          name: 'Connections',
+        }),
+    },
+  ];
+}
+
+/** The owner's beta switch, written through the gateway with the revision it read. */
+async function setBeta(page: Page, token: string, enabled: boolean): Promise<void> {
+  const setting = `${API}/v1/users/me/settings/beta-features`;
+  const read = await page.request.get(setting, { headers: { Authorization: `Bearer ${token}` } });
+  const etag = read.headers()['etag'];
+  await page.request.put(setting, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      ...(etag ? { 'If-Match': etag } : {}),
+    },
+    data: { enabled },
+  });
+}
+
 /** The results of the newest finished study run of lab-main (11-study-front leaves one), or why there is none. */
 async function studyFrontStop(page: Page, token: string): Promise<Stop | { why: string }> {
   const headers = { Authorization: `Bearer ${token}` };
@@ -785,7 +846,12 @@ test.describe('live · visual QA', () => {
       : [];
     const finished = jobs.find(job => String(job.status).toLowerCase() === 'completed');
     const mobile = testInfo.project.name === 'mobile';
-    const stops = [...OWNER_STOPS, ...compositionStops(mobile), ...problemStops(mobile)];
+    const stops = [
+      ...OWNER_STOPS,
+      ...compositionStops(mobile),
+      ...problemStops(mobile),
+      ...sphereStops(),
+    ];
     const skipped: Array<{ slug: string; why: string }> = [];
     // An engine card, whose plan ceilings come from the published pricing's document.
     const engines = await page.request.get(`${API}/v1/engines`);
@@ -833,7 +899,12 @@ test.describe('live · visual QA', () => {
         description: 'job-result: no completed job',
       });
     }
-    await report(testInfo, 'owner', await walk(page, testInfo, stops, skipped));
+    await setBeta(page, token, true);
+    try {
+      await report(testInfo, 'owner', await walk(page, testInfo, stops, skipped));
+    } finally {
+      await setBeta(page, token, false);
+    }
   });
 
   test('a visitor reads the public compositions, a public composition and the language', async ({
