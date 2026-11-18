@@ -53,6 +53,7 @@ import {
 } from '../../src/test/fixtures/studies';
 import { presetPage } from '../../src/test/fixtures/presets';
 import { compositionStore, type CompositionSeed, type CompositionStore } from './mockCompositions';
+import { tomatometerListed, tomatometerRoutes } from './sphereMock';
 
 // One mock of the gateway for the whole QA gallery: a platform administrator of a RESEARCH (institutional) account, one organization
 // with compositions, problems, runs and studies, and everything the public screens read.
@@ -836,17 +837,20 @@ function problemRoutes(request: Request, orgSlug: string): Reply {
         ),
         201
       );
-    return ok({
-      problems: problems.map(item => ({
+    const origin = request.query.get('origin');
+    const listed = [
+      ...problems.map(item => ({
         ...item,
         latest_revision: latestOf(item),
         revision_count: item.id === PROBLEM.id ? PROBLEM_REVISIONS.length : 0,
       })),
-      total: problems.length,
-      limit: 200,
-      offset: 0,
-    });
+      ...(orgSlug === 'isa-demo' ? [tomatometerListed()] : []),
+    ].filter(item => !origin || item.latest_revision?.origin === origin);
+    return ok({ problems: listed, total: listed.length, limit: 200, offset: 0 });
   }
+  // tomatometer-email: its version 2 was imported from SPHERE (e2e/helpers/sphereMock.ts).
+  const sphere = orgSlug === 'isa-demo' ? tomatometerRoutes(method, parts) : null;
+  if (sphere) return sphere;
   const problem = problems.find(item => item.slug === problemSlug || item.id === problemSlug);
   if (!problem) return notFound('Problem not found.');
   const revisions = problem.id === PROBLEM.id ? PROBLEM_REVISIONS : [];

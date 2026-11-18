@@ -23,6 +23,12 @@ export type ProblemFactsConstraint = Schemas['ProblemFactsConstraint'];
 /** Where the latest version of a problem came from: an upload, the problem editor, QACOForge or SPHERE. */
 export type ProblemOrigin = Schemas['LatestRevision']['origin'];
 
+/** The latest version of a problem, as the list and the problem itself show it. */
+export type LatestRevision = Schemas['LatestRevision'];
+
+/** What a SPHERE import generated a version from: its recipe's digest and the pricings it read (titles and version names). */
+export type RevisionSphere = Schemas['RevisionSphere'];
+
 /** Where a value of a candidate is written in its package (`kind: package`), with the source it was read from when an import wrote it. */
 export type ProblemValueOrigin = Schemas['ProblemValueOrigin'];
 

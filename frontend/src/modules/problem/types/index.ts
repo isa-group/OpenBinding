@@ -13,10 +13,10 @@ export interface ProblemOrg {
 /** A problem and its sealed revisions, newest first. */
 export interface ProblemContent {
   item: Problem;
-  revisions: Array<ProblemRevision & { origin?: ProblemOrigin }>;
+  revisions: ProblemRevision[];
 }
 
-/** What each origin of a revision is called on screen. SPHERE is recorded by the gateway already and filtered from F3. */
+/** What each origin of a revision is called on screen (and in the problems filter). */
 export const ORIGIN_LABELS: Readonly<Record<ProblemOrigin, string>> = {
   upload: 'Uploaded',
   editor: 'Problem editor',

@@ -44,8 +44,8 @@ const COMPOSITION_PAGE = 200;
 
 const SEARCH_DELAY = 300;
 
-/** The origins the filter offers; SPHERE is recorded by the gateway already and offered from F3. */
-const FILTER_ORIGINS = ['upload', 'editor', 'qacoforge'] as const;
+/** The origins the filter offers: every origin the gateway records for a version. */
+const FILTER_ORIGINS = ['upload', 'editor', 'qacoforge', 'sphere'] as const;
 const isFilterOrigin = (value: string | null): value is ProblemOrigin =>
   (FILTER_ORIGINS as readonly string[]).includes(value ?? '');
 

@@ -79,7 +79,7 @@ interface Revision {
   created_by_id: string;
   created_at: string;
 }
-type Origin = 'upload' | 'editor' | 'qacoforge';
+type Origin = 'upload' | 'editor' | 'qacoforge' | 'sphere';
 interface ProblemRow {
   item: {
     id: string;
@@ -570,6 +570,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const origins = tab.getByRole('group', { name: 'Origin of the latest version' });
       await origins.getByRole('radio', { name: 'Uploaded' }).click();
       await expect(page).toHaveURL(new RegExp(`${TAB}\\?origin=upload$`));
+      await expect(tab.getByText('No problem matches these filters.')).toBeVisible();
+      await origins.getByRole('radio', { name: 'SPHERE' }).click();
+      await expect(page).toHaveURL(new RegExp(`${TAB}\\?origin=sphere$`));
       await expect(tab.getByText('No problem matches these filters.')).toBeVisible();
       await origins.getByRole('radio', { name: 'Problem editor' }).click();
       await expect(page).toHaveURL(new RegExp(`${TAB}\\?origin=editor$`));

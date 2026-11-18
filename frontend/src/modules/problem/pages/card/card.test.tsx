@@ -228,6 +228,27 @@ describe('Problem page', () => {
     await waitFor(() => expect(addressNow()).toBe(`${page('isa-demo')}?version=1`));
   });
 
+  it('says which SPHERE pricings generated a version, by title and version name', async () => {
+    const imported = versionOf(checkout, 2, {
+      origin: 'sphere',
+      sphere: {
+        recipeDigest: digestOf('5'),
+        sources: [
+          { title: 'Mailgun', versionLabel: '2026-10' },
+          { title: 'Twilio SendGrid Email API', versionLabel: null },
+        ],
+      },
+    });
+    renderPage(owner, '/versions', { revisions: [r1, imported] });
+
+    const line = await screen.findByText(/^Generated from SPHERE:/);
+    expect(line).toHaveTextContent(
+      'Generated from SPHERE: Mailgun, version 2026-10; Twilio SendGrid Email API'
+    );
+    expect(screen.getAllByText(/^Generated from SPHERE:/)).toHaveLength(1);
+    expect(line.textContent).not.toMatch(/sha256-/);
+  });
+
   it('changes the version shown with the select', async () => {
     renderPage();
 

@@ -1,4 +1,4 @@
-import type { ProblemOrigin } from '../../core/api/types';
+import type { LatestRevision, ProblemOrigin, RevisionSphere } from '../../core/api/types';
 import type { BimEngineCompatibility } from '../../core/api/bim';
 import { apiClient } from '../../core/api/http';
 
@@ -8,16 +8,6 @@ const problemsRoot = (org: string) => `/v1/organizations/${enc(org)}/problems`;
 const problemRoot = (org: string, problem: string) => `${problemsRoot(org)}/${enc(problem)}`;
 const revisionRoot = (org: string, problem: string, revision: number | string) =>
   `${problemRoot(org, problem)}/revisions/${enc(String(revision))}`;
-
-/** The newest revision of a problem, as the list and the problem itself show it. */
-export interface LatestRevision {
-  id: string;
-  revision: number;
-  package_digest: string;
-  created_at: string;
-  /** Where it came from: the gateway reads it from the producer the upload named. */
-  origin: ProblemOrigin;
-}
 
 /** A problem of an organization (`BindingCase`): its address, its words and its newest revision. */
 export interface Problem {
@@ -50,6 +40,10 @@ export interface ProblemRevision {
   provenance?: Record<string, unknown> | null;
   created_by_id: string;
   created_at: string;
+  /** Where it came from: the gateway reads it from the producer the upload named. */
+  origin?: ProblemOrigin;
+  /** For a version a SPHERE import generated: the pricings it read, by title and version name. */
+  sphere?: RevisionSphere | null;
 }
 
 export interface PackageFile {
