@@ -174,6 +174,8 @@ def test_authentication_and_role_requirements_are_explicit(document):
         # A stored upstream pricing of an organization and its bytes (F3): public ones for anybody who reads it.
         ("/v1/organizations/{org}/pricing-snapshots/{snapshot}", "get"),
         ("/v1/organizations/{org}/pricing-snapshots/{snapshot}/yaml", "get"),
+        # A version's upstream pricings (F3): stored data only, for anybody who reads the composition.
+        (f"{composition}/upstream", "get"),
     }
     for path, method, operation in operations(document):
         if (path, method) in public:

@@ -17,6 +17,7 @@ idempotent and runs in the seal pre-phase and, later, in F6's poller.
 from __future__ import annotations
 
 import asyncio
+import logging
 import uuid
 from collections.abc import Iterable
 from typing import Any
@@ -42,6 +43,7 @@ from ...problems.application import PRICED_KINDS, origins_for
 from .slots import language_slot
 from .versions import current_of, installed_basis
 
+logger = logging.getLogger(__name__)
 PUBLIC = "public"
 NETWORK_LIMIT = 8
 
@@ -230,6 +232,9 @@ async def resolve_provenance(
             taken = await snapshot_version(session, organization_id, where, pricing_id, version,
                                            credential if registry is None else None, actor_id=actor_id)
         except PricingError:
+            continue
+        except Exception:  # noqa: BLE001 - best effort: an entry that cannot be resolved stays not_snapshotted
+            logger.warning("provenance_unresolved version=%s", version, exc_info=True)
             continue
         found[version] = taken.snapshot.id
     if session.in_transaction():

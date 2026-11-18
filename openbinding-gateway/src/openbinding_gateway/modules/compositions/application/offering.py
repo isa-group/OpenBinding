@@ -25,6 +25,7 @@ read. A failure is remembered for 60 s, so repeated seals do not hammer a dead s
 from __future__ import annotations
 
 import asyncio
+import logging
 import time
 import uuid
 from collections.abc import Callable
@@ -46,15 +47,16 @@ from ...plans.application import (
     PricingSourceUnavailable,
     SphereEndpoint,
     credential_for,
-    discovery,
     get_pricing_source,
     normalised,
     resolve_family,
     snapshot_url,
     snapshot_version,
+    sphere_manifest,
 )
 from .assess import Assessment
 
+logger = logging.getLogger(__name__)
 #: The longest one offering read may take, all its requests together.
 READ_TIMEOUT_S = 20.0
 #: How long a failed read is remembered.
@@ -128,6 +130,9 @@ async def read_offering(
         outcome = OfferingOutcome("unreadable", reason=_REASONS.get(exc.reason, exc.reason))
     except PricingInvalid as exc:
         outcome = OfferingOutcome("invalid_pricing", reason=exc.message)
+    except Exception:  # noqa: BLE001 - nothing commercial may fail a seal: an unexpected failure is unreadable
+        logger.warning("offering_unreadable organization=%s", organization_id, exc_info=True)
+        outcome = OfferingOutcome("unreadable", reason="the source could not be read")
     if outcome.status != "read":
         _FAILED[key] = (clock() + FAILURE_TTL_S, outcome)
     return outcome
@@ -146,7 +151,7 @@ async def _read(
         if session.in_transaction():
             await session.commit()
         pricing_id = await resolve_family(session, where, owner, slug, credential)
-        manifest = await discovery.manifest(where, pricing_id, credential)
+        manifest = await sphere_manifest(where, pricing_id, credential)
         taken = await snapshot_version(session, organization_id, where, pricing_id, manifest.latest_version_id,
                                        credential, actor_id=actor_id)
     snapshot = taken.snapshot
