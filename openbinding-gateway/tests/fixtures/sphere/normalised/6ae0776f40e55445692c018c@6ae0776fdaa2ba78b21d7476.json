@@ -476,29 +476,6 @@
     ],
     "addOns": [
       {
-        "id": "dedicatedIp",
-        "name": "dedicatedIp",
-        "private": false,
-        "price": {
-          "kind": "fixed",
-          "amount": 50.0
-        },
-        "unit": "IP/month",
-        "period": "month",
-        "availableFor": [
-          "pro",
-          "platform"
-        ],
-        "dependsOn": [],
-        "excludes": [],
-        "features": {
-          "dedicatedIp": true
-        },
-        "usageLimits": {},
-        "usageLimitsExtensions": {},
-        "metered": false
-      },
-      {
         "id": "extraEmailsBasic",
         "name": "extraEmailsBasic",
         "private": false,
@@ -551,6 +528,29 @@
           "emailsPerMonth": 1000.0
         },
         "metered": true
+      },
+      {
+        "id": "dedicatedIp",
+        "name": "dedicatedIp",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 50.0
+        },
+        "unit": "IP/month",
+        "period": "month",
+        "availableFor": [
+          "pro",
+          "platform"
+        ],
+        "dependsOn": [],
+        "excludes": [],
+        "features": {
+          "dedicatedIp": true
+        },
+        "usageLimits": {},
+        "usageLimitsExtensions": {},
+        "metered": false
       }
     ],
     "diagnostics": [],

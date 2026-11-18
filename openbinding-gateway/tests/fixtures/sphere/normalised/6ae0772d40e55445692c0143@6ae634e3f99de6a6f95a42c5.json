@@ -370,6 +370,42 @@
     ],
     "addOns": [
       {
+        "id": "overageEssentials",
+        "name": "overageEssentials",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 1.3
+        },
+        "unit": "1000 emails",
+        "quantity": 1000.0,
+        "availableFor": [
+          "essentials"
+        ],
+        "usageLimitsExtensions": {
+          "emailsPerMonth": 1000.0
+        },
+        "metered": true
+      },
+      {
+        "id": "overagePro",
+        "name": "overagePro",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 1.1
+        },
+        "unit": "1000 emails",
+        "quantity": 1000.0,
+        "availableFor": [
+          "pro"
+        ],
+        "usageLimitsExtensions": {
+          "emailsPerMonth": 1000.0
+        },
+        "metered": true
+      },
+      {
         "id": "extraDedicatedIp",
         "name": "extraDedicatedIp",
         "private": false,
@@ -415,42 +451,6 @@
           "emailTestingCreditsPerMonth": 30.0
         },
         "metered": false
-      },
-      {
-        "id": "overageEssentials",
-        "name": "overageEssentials",
-        "private": false,
-        "price": {
-          "kind": "fixed",
-          "amount": 1.3
-        },
-        "unit": "1000 emails",
-        "quantity": 1000.0,
-        "availableFor": [
-          "essentials"
-        ],
-        "usageLimitsExtensions": {
-          "emailsPerMonth": 1000.0
-        },
-        "metered": true
-      },
-      {
-        "id": "overagePro",
-        "name": "overagePro",
-        "private": false,
-        "price": {
-          "kind": "fixed",
-          "amount": 1.1
-        },
-        "unit": "1000 emails",
-        "quantity": 1000.0,
-        "availableFor": [
-          "pro"
-        ],
-        "usageLimitsExtensions": {
-          "emailsPerMonth": 1000.0
-        },
-        "metered": true
       }
     ],
     "diagnostics": [],

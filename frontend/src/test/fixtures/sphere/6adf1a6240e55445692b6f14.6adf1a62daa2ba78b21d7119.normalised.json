@@ -1,0 +1,2451 @@
+{
+  "pricing": {
+    "syntaxVersion": "3.1",
+    "title": "Twilio SendGrid Email API",
+    "version": "2026-10",
+    "createdAt": "2026-10-26",
+    "currency": "USD",
+    "billing": [
+      {
+        "id": "monthly",
+        "multiplier": 1.0,
+        "synthesized": false
+      }
+    ],
+    "features": [
+      {
+        "id": "smtpAndApi",
+        "name": "smtpAndApi",
+        "type": "INTEGRATION",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "comprehensiveClientLibraries",
+        "name": "comprehensiveClientLibraries",
+        "type": "INTEGRATION",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "setupGuide",
+        "name": "setupGuide",
+        "type": "SUPPORT",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "interactiveApiDocs",
+        "name": "interactiveApiDocs",
+        "type": "SUPPORT",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "knowledgeCenter",
+        "name": "knowledgeCenter",
+        "type": "SUPPORT",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "technicalSupport",
+        "name": "technicalSupport",
+        "type": "SUPPORT",
+        "valueType": "TEXT",
+        "default": "Ticket & chat support"
+      },
+      {
+        "id": "purposeBuiltMailTransferAgent",
+        "name": "purposeBuiltMailTransferAgent",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "domainAuthentication",
+        "name": "domainAuthentication",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "dedicatedIpAddresses",
+        "name": "dedicatedIpAddresses",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "dedicatedIpPooling",
+        "name": "dedicatedIpPooling",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "automatedDedicatedIpWarmUp",
+        "name": "automatedDedicatedIpWarmUp",
+        "type": "AUTOMATION",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "emailAddressValidationApi",
+        "name": "emailAddressValidationApi",
+        "type": "INTEGRATION",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "reputationAndDeliveryVisibility",
+        "name": "reputationAndDeliveryVisibility",
+        "type": "INFORMATION",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "suppressionManagement",
+        "name": "suppressionManagement",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "globallyDistributedArchitecture",
+        "name": "globallyDistributedArchitecture",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "linkBranding",
+        "name": "linkBranding",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "reverseDns",
+        "name": "reverseDns",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "universalLinks",
+        "name": "universalLinks",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "ipAccessManagement",
+        "name": "ipAccessManagement",
+        "type": "MANAGEMENT",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "singleSignOn",
+        "name": "singleSignOn",
+        "type": "INTEGRATION",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "twoFactorAuthentication",
+        "name": "twoFactorAuthentication",
+        "type": "MANAGEMENT",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "tlsEncryption",
+        "name": "tlsEncryption",
+        "type": "GUARANTEE",
+        "valueType": "BOOLEAN",
+        "default": true,
+        "docUrl": "https://www.twilio.com/en-us/trust-center"
+      },
+      {
+        "id": "soc2TypeIICertification",
+        "name": "soc2TypeIICertification",
+        "type": "GUARANTEE",
+        "valueType": "BOOLEAN",
+        "default": true,
+        "docUrl": "https://www.twilio.com/en-us/trust-center"
+      },
+      {
+        "id": "gdprCompliance",
+        "name": "gdprCompliance",
+        "type": "GUARANTEE",
+        "valueType": "BOOLEAN",
+        "default": true,
+        "docUrl": "https://www.twilio.com/en-us/trust-center"
+      },
+      {
+        "id": "dataResidencyEu",
+        "name": "dataResidencyEu",
+        "type": "GUARANTEE",
+        "valueType": "BOOLEAN",
+        "default": true,
+        "docUrl": "https://www.twilio.com/en-us/blog/products/data-residency-for-email-eu"
+      },
+      {
+        "id": "eventWebhookSecurity",
+        "name": "eventWebhookSecurity",
+        "type": "GUARANTEE",
+        "valueType": "BOOLEAN",
+        "default": true,
+        "docUrl": "https://www.twilio.com/en-us/trust-center"
+      },
+      {
+        "id": "eventWebhook",
+        "name": "eventWebhook",
+        "type": "INTEGRATION",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "deliverabilityInsights",
+        "name": "deliverabilityInsights",
+        "type": "INFORMATION",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "realTimeAnalytics",
+        "name": "realTimeAnalytics",
+        "type": "INFORMATION",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "advancedStatistics",
+        "name": "advancedStatistics",
+        "type": "INFORMATION",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "inboundParseWebhook",
+        "name": "inboundParseWebhook",
+        "type": "INTEGRATION",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "bounceAndBlockClassifications",
+        "name": "bounceAndBlockClassifications",
+        "type": "INFORMATION",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "engagementTracking",
+        "name": "engagementTracking",
+        "type": "INFORMATION",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "ispFeedbackLoopData",
+        "name": "ispFeedbackLoopData",
+        "type": "INFORMATION",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "subuserComparisonStatistics",
+        "name": "subuserComparisonStatistics",
+        "type": "INFORMATION",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "searchableEmailActivity",
+        "name": "searchableEmailActivity",
+        "type": "INFORMATION",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "additionalEmailActivityHistory",
+        "name": "additionalEmailActivityHistory",
+        "type": "INFORMATION",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "senderEngagementQualityScore",
+        "name": "senderEngagementQualityScore",
+        "type": "INFORMATION",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "emailLogs",
+        "name": "emailLogs",
+        "type": "INFORMATION",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "expertServices",
+        "name": "expertServices",
+        "type": "SUPPORT",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "personalizedSupport",
+        "name": "personalizedSupport",
+        "type": "SUPPORT",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "expertEmailProgramManagement",
+        "name": "expertEmailProgramManagement",
+        "type": "SUPPORT",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "dynamicTemplates",
+        "name": "dynamicTemplates",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "emailContentTesting",
+        "name": "emailContentTesting",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "teammatePermissions",
+        "name": "teammatePermissions",
+        "type": "MANAGEMENT",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "apiKeyPermissions",
+        "name": "apiKeyPermissions",
+        "type": "MANAGEMENT",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "subuserManagement",
+        "name": "subuserManagement",
+        "type": "MANAGEMENT",
+        "valueType": "BOOLEAN",
+        "default": false
+      }
+    ],
+    "usageLimits": [
+      {
+        "id": "emailsPerMonth",
+        "name": "emailsPerMonth",
+        "valueType": "NUMERIC",
+        "unit": "email",
+        "default": 50000,
+        "linkedFeatures": [
+          "smtpAndApi"
+        ]
+      },
+      {
+        "id": "dedicatedIpsLimit",
+        "name": "dedicatedIpsLimit",
+        "valueType": "NUMERIC",
+        "unit": "ip",
+        "default": 0,
+        "linkedFeatures": [
+          "dedicatedIpAddresses"
+        ]
+      },
+      {
+        "id": "emailValidationsIncluded",
+        "name": "emailValidationsIncluded",
+        "valueType": "NUMERIC",
+        "unit": "validation",
+        "default": 0,
+        "linkedFeatures": [
+          "emailAddressValidationApi"
+        ]
+      },
+      {
+        "id": "eventWebhooksLimit",
+        "name": "eventWebhooksLimit",
+        "valueType": "NUMERIC",
+        "unit": "webhook",
+        "default": 2,
+        "linkedFeatures": [
+          "eventWebhook"
+        ]
+      },
+      {
+        "id": "emailActivityHistoryDays",
+        "name": "emailActivityHistoryDays",
+        "valueType": "NUMERIC",
+        "unit": "day",
+        "default": 3,
+        "linkedFeatures": [
+          "searchableEmailActivity"
+        ]
+      },
+      {
+        "id": "emailTestingCreditsPerMonth",
+        "name": "emailTestingCreditsPerMonth",
+        "valueType": "NUMERIC",
+        "unit": "credit",
+        "default": 0,
+        "linkedFeatures": [
+          "emailContentTesting"
+        ]
+      },
+      {
+        "id": "teammatesLimit",
+        "name": "teammatesLimit",
+        "valueType": "NUMERIC",
+        "unit": "teammate",
+        "default": 1,
+        "linkedFeatures": [
+          "teammatePermissions"
+        ]
+      }
+    ],
+    "plans": [
+      {
+        "id": "ESSENTIALS",
+        "name": "ESSENTIALS",
+        "private": false,
+        "price": {
+          "kind": "expression",
+          "source": "#essPriceByTier[String(#essTier)]",
+          "value": 19.95
+        },
+        "unit": "account/month",
+        "period": "month",
+        "perSeat": false,
+        "features": {
+          "smtpAndApi": true,
+          "comprehensiveClientLibraries": true,
+          "setupGuide": true,
+          "interactiveApiDocs": true,
+          "knowledgeCenter": true,
+          "technicalSupport": "Ticket & chat support",
+          "purposeBuiltMailTransferAgent": true,
+          "domainAuthentication": true,
+          "dedicatedIpAddresses": false,
+          "dedicatedIpPooling": false,
+          "automatedDedicatedIpWarmUp": false,
+          "emailAddressValidationApi": false,
+          "reputationAndDeliveryVisibility": true,
+          "suppressionManagement": true,
+          "globallyDistributedArchitecture": true,
+          "linkBranding": true,
+          "reverseDns": true,
+          "universalLinks": true,
+          "ipAccessManagement": true,
+          "singleSignOn": false,
+          "twoFactorAuthentication": true,
+          "tlsEncryption": true,
+          "soc2TypeIICertification": true,
+          "gdprCompliance": true,
+          "dataResidencyEu": true,
+          "eventWebhookSecurity": true,
+          "eventWebhook": true,
+          "deliverabilityInsights": true,
+          "realTimeAnalytics": true,
+          "advancedStatistics": true,
+          "inboundParseWebhook": true,
+          "bounceAndBlockClassifications": true,
+          "engagementTracking": true,
+          "ispFeedbackLoopData": true,
+          "subuserComparisonStatistics": false,
+          "searchableEmailActivity": true,
+          "additionalEmailActivityHistory": false,
+          "senderEngagementQualityScore": true,
+          "emailLogs": true,
+          "expertServices": false,
+          "personalizedSupport": false,
+          "expertEmailProgramManagement": false,
+          "dynamicTemplates": true,
+          "emailContentTesting": false,
+          "teammatePermissions": true,
+          "apiKeyPermissions": true,
+          "subuserManagement": false
+        },
+        "usageLimits": {
+          "emailsPerMonth": 50000,
+          "dedicatedIpsLimit": 0,
+          "emailValidationsIncluded": 0,
+          "eventWebhooksLimit": 2,
+          "emailActivityHistoryDays": 3,
+          "emailTestingCreditsPerMonth": 0,
+          "teammatesLimit": 1
+        }
+      },
+      {
+        "id": "PRO",
+        "name": "PRO",
+        "private": false,
+        "price": {
+          "kind": "expression",
+          "source": "#proPriceByTier[String(#proTier)]",
+          "value": 89.95
+        },
+        "unit": "account/month",
+        "period": "month",
+        "perSeat": false,
+        "features": {
+          "smtpAndApi": true,
+          "comprehensiveClientLibraries": true,
+          "setupGuide": true,
+          "interactiveApiDocs": true,
+          "knowledgeCenter": true,
+          "technicalSupport": "Ticket, chat, & phone support",
+          "purposeBuiltMailTransferAgent": true,
+          "domainAuthentication": true,
+          "dedicatedIpAddresses": true,
+          "dedicatedIpPooling": true,
+          "automatedDedicatedIpWarmUp": true,
+          "emailAddressValidationApi": true,
+          "reputationAndDeliveryVisibility": true,
+          "suppressionManagement": true,
+          "globallyDistributedArchitecture": true,
+          "linkBranding": true,
+          "reverseDns": true,
+          "universalLinks": true,
+          "ipAccessManagement": true,
+          "singleSignOn": true,
+          "twoFactorAuthentication": true,
+          "tlsEncryption": true,
+          "soc2TypeIICertification": true,
+          "gdprCompliance": true,
+          "dataResidencyEu": true,
+          "eventWebhookSecurity": true,
+          "eventWebhook": true,
+          "deliverabilityInsights": true,
+          "realTimeAnalytics": true,
+          "advancedStatistics": true,
+          "inboundParseWebhook": true,
+          "bounceAndBlockClassifications": true,
+          "engagementTracking": true,
+          "ispFeedbackLoopData": true,
+          "subuserComparisonStatistics": true,
+          "searchableEmailActivity": true,
+          "additionalEmailActivityHistory": false,
+          "senderEngagementQualityScore": true,
+          "emailLogs": true,
+          "expertServices": false,
+          "personalizedSupport": false,
+          "expertEmailProgramManagement": false,
+          "dynamicTemplates": true,
+          "emailContentTesting": true,
+          "teammatePermissions": true,
+          "apiKeyPermissions": true,
+          "subuserManagement": true
+        },
+        "usageLimits": {
+          "emailsPerMonth": 100000,
+          "dedicatedIpsLimit": 1,
+          "emailValidationsIncluded": 2500,
+          "eventWebhooksLimit": 5,
+          "emailActivityHistoryDays": 7,
+          "emailTestingCreditsPerMonth": 60,
+          "teammatesLimit": 1000
+        }
+      },
+      {
+        "id": "PREMIER",
+        "name": "PREMIER",
+        "private": true,
+        "price": {
+          "kind": "label",
+          "text": "Contact Sales"
+        },
+        "unit": "account/month",
+        "period": "month",
+        "perSeat": false,
+        "features": {
+          "smtpAndApi": true,
+          "comprehensiveClientLibraries": true,
+          "setupGuide": true,
+          "interactiveApiDocs": true,
+          "knowledgeCenter": true,
+          "technicalSupport": "Prioritized support",
+          "purposeBuiltMailTransferAgent": true,
+          "domainAuthentication": true,
+          "dedicatedIpAddresses": true,
+          "dedicatedIpPooling": true,
+          "automatedDedicatedIpWarmUp": true,
+          "emailAddressValidationApi": true,
+          "reputationAndDeliveryVisibility": true,
+          "suppressionManagement": true,
+          "globallyDistributedArchitecture": true,
+          "linkBranding": true,
+          "reverseDns": true,
+          "universalLinks": true,
+          "ipAccessManagement": true,
+          "singleSignOn": true,
+          "twoFactorAuthentication": true,
+          "tlsEncryption": true,
+          "soc2TypeIICertification": true,
+          "gdprCompliance": true,
+          "dataResidencyEu": true,
+          "eventWebhookSecurity": true,
+          "eventWebhook": true,
+          "deliverabilityInsights": true,
+          "realTimeAnalytics": true,
+          "advancedStatistics": true,
+          "inboundParseWebhook": true,
+          "bounceAndBlockClassifications": true,
+          "engagementTracking": true,
+          "ispFeedbackLoopData": true,
+          "subuserComparisonStatistics": true,
+          "searchableEmailActivity": true,
+          "additionalEmailActivityHistory": false,
+          "senderEngagementQualityScore": true,
+          "emailLogs": true,
+          "expertServices": false,
+          "personalizedSupport": false,
+          "expertEmailProgramManagement": false,
+          "dynamicTemplates": true,
+          "emailContentTesting": true,
+          "teammatePermissions": true,
+          "apiKeyPermissions": true,
+          "subuserManagement": true
+        },
+        "usageLimits": {
+          "emailsPerMonth": 5000000,
+          "dedicatedIpsLimit": 1,
+          "emailValidationsIncluded": 5000,
+          "eventWebhooksLimit": 5,
+          "emailActivityHistoryDays": 7,
+          "emailTestingCreditsPerMonth": 60,
+          "teammatesLimit": 1000
+        }
+      }
+    ],
+    "addOns": [
+      {
+        "id": "extraEmailsEssentials",
+        "name": "extraEmailsEssentials",
+        "private": false,
+        "price": {
+          "kind": "expression",
+          "source": "#essOverageByTier[String(#essTier)]",
+          "value": 0.00133
+        },
+        "unit": "email",
+        "quantity": 1.0,
+        "availableFor": [
+          "ESSENTIALS"
+        ],
+        "usageLimitsExtensions": {
+          "emailsPerMonth": 1.0
+        },
+        "metered": true
+      },
+      {
+        "id": "extraEmailsPro",
+        "name": "extraEmailsPro",
+        "private": false,
+        "price": {
+          "kind": "expression",
+          "source": "#proOverageByTier[String(#proTier)]",
+          "value": 0.0011
+        },
+        "unit": "email",
+        "quantity": 1.0,
+        "availableFor": [
+          "PRO"
+        ],
+        "usageLimitsExtensions": {
+          "emailsPerMonth": 1.0
+        },
+        "metered": true
+      },
+      {
+        "id": "extraEmailsPremier",
+        "name": "extraEmailsPremier",
+        "private": true,
+        "price": {
+          "kind": "label",
+          "text": "Contact Sales"
+        },
+        "unit": "email",
+        "quantity": 1.0,
+        "availableFor": [
+          "PREMIER"
+        ],
+        "usageLimitsExtensions": {
+          "emailsPerMonth": 1.0
+        },
+        "metered": true
+      },
+      {
+        "id": "additionalDedicatedIp",
+        "name": "additionalDedicatedIp",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 30.0
+        },
+        "unit": "ip/month",
+        "period": "month",
+        "availableFor": [
+          "PRO",
+          "PREMIER"
+        ],
+        "dependsOn": [],
+        "excludes": [],
+        "features": {},
+        "usageLimits": {},
+        "usageLimitsExtensions": {
+          "dedicatedIpsLimit": 1.0
+        },
+        "metered": false
+      },
+      {
+        "id": "emailTestingCredits2000",
+        "name": "emailTestingCredits2000",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 800.0
+        },
+        "unit": "2000 credits/month",
+        "period": "month",
+        "availableFor": [
+          "PRO",
+          "PREMIER"
+        ],
+        "dependsOn": [],
+        "excludes": [],
+        "features": {},
+        "usageLimits": {},
+        "usageLimitsExtensions": {
+          "emailTestingCreditsPerMonth": 2000.0
+        },
+        "metered": false
+      },
+      {
+        "id": "additionalEmailActivityHistory",
+        "name": "additionalEmailActivityHistory",
+        "private": false,
+        "price": {
+          "kind": "label",
+          "text": "Not published"
+        },
+        "unit": "account/month",
+        "period": "month",
+        "availableFor": [
+          "ESSENTIALS",
+          "PRO",
+          "PREMIER"
+        ],
+        "dependsOn": [],
+        "excludes": [],
+        "features": {
+          "additionalEmailActivityHistory": true
+        },
+        "usageLimits": {},
+        "usageLimitsExtensions": {},
+        "metered": false
+      },
+      {
+        "id": "expertServices",
+        "name": "expertServices",
+        "private": false,
+        "price": {
+          "kind": "label",
+          "text": "Not published"
+        },
+        "unit": "account/month",
+        "period": "month",
+        "availableFor": [
+          "ESSENTIALS",
+          "PRO",
+          "PREMIER"
+        ],
+        "dependsOn": [],
+        "excludes": [],
+        "features": {
+          "expertServices": true
+        },
+        "usageLimits": {},
+        "usageLimitsExtensions": {},
+        "metered": false
+      },
+      {
+        "id": "personalizedSupport",
+        "name": "personalizedSupport",
+        "private": false,
+        "price": {
+          "kind": "label",
+          "text": "Not published"
+        },
+        "unit": "account/month",
+        "period": "month",
+        "availableFor": [
+          "ESSENTIALS",
+          "PRO",
+          "PREMIER"
+        ],
+        "dependsOn": [],
+        "excludes": [],
+        "features": {
+          "personalizedSupport": true
+        },
+        "usageLimits": {},
+        "usageLimitsExtensions": {},
+        "metered": false
+      },
+      {
+        "id": "expertEmailProgramManagement",
+        "name": "expertEmailProgramManagement",
+        "private": false,
+        "price": {
+          "kind": "label",
+          "text": "Not published"
+        },
+        "unit": "account/month",
+        "period": "month",
+        "availableFor": [
+          "PREMIER"
+        ],
+        "dependsOn": [],
+        "excludes": [],
+        "features": {
+          "expertEmailProgramManagement": true
+        },
+        "usageLimits": {},
+        "usageLimitsExtensions": {},
+        "metered": false
+      }
+    ],
+    "diagnostics": [],
+    "variables": {
+      "essTier": 50000,
+      "essPriceByTier": {
+        "50000": 19.95,
+        "100000": 34.95
+      },
+      "essOverageByTier": {
+        "50000": 0.00133,
+        "100000": 0.00088
+      },
+      "proTier": 100000,
+      "proPriceByTier": {
+        "100000": 89.95,
+        "300000": 249.0,
+        "700000": 499.0,
+        "1500000": 799.0,
+        "2500000": 1099.0
+      },
+      "proOverageByTier": {
+        "100000": 0.0011,
+        "300000": 0.00091,
+        "700000": 0.00078,
+        "1500000": 0.00059,
+        "2500000": 0.00047
+      }
+    }
+  },
+  "effective": {
+    "ESSENTIALS": {
+      "plan": "ESSENTIALS",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {},
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "ESSENTIALS",
+          "quantity": 1,
+          "price": {
+            "kind": "expression",
+            "source": "#essPriceByTier[String(#essTier)]",
+            "value": 19.95
+          },
+          "unitAmount": 19.95,
+          "amount": 19.95
+        }
+      ],
+      "subtotal": 19.95,
+      "requiresQuote": false,
+      "features": {
+        "smtpAndApi": true,
+        "comprehensiveClientLibraries": true,
+        "setupGuide": true,
+        "interactiveApiDocs": true,
+        "knowledgeCenter": true,
+        "technicalSupport": "Ticket & chat support",
+        "purposeBuiltMailTransferAgent": true,
+        "domainAuthentication": true,
+        "dedicatedIpAddresses": false,
+        "dedicatedIpPooling": false,
+        "automatedDedicatedIpWarmUp": false,
+        "emailAddressValidationApi": false,
+        "reputationAndDeliveryVisibility": true,
+        "suppressionManagement": true,
+        "globallyDistributedArchitecture": true,
+        "linkBranding": true,
+        "reverseDns": true,
+        "universalLinks": true,
+        "ipAccessManagement": true,
+        "singleSignOn": false,
+        "twoFactorAuthentication": true,
+        "tlsEncryption": true,
+        "soc2TypeIICertification": true,
+        "gdprCompliance": true,
+        "dataResidencyEu": true,
+        "eventWebhookSecurity": true,
+        "eventWebhook": true,
+        "deliverabilityInsights": true,
+        "realTimeAnalytics": true,
+        "advancedStatistics": true,
+        "inboundParseWebhook": true,
+        "bounceAndBlockClassifications": true,
+        "engagementTracking": true,
+        "ispFeedbackLoopData": true,
+        "subuserComparisonStatistics": false,
+        "searchableEmailActivity": true,
+        "additionalEmailActivityHistory": false,
+        "senderEngagementQualityScore": true,
+        "emailLogs": true,
+        "expertServices": false,
+        "personalizedSupport": false,
+        "expertEmailProgramManagement": false,
+        "dynamicTemplates": true,
+        "emailContentTesting": false,
+        "teammatePermissions": true,
+        "apiKeyPermissions": true,
+        "subuserManagement": false
+      },
+      "usageLimits": {
+        "emailsPerMonth": 50000,
+        "dedicatedIpsLimit": 0,
+        "emailValidationsIncluded": 0,
+        "eventWebhooksLimit": 2,
+        "emailActivityHistoryDays": 3,
+        "emailTestingCreditsPerMonth": 0,
+        "teammatesLimit": 1
+      }
+    },
+    "ESSENTIALS+additionalEmailActivityHistory": {
+      "plan": "ESSENTIALS",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {
+        "additionalEmailActivityHistory": 1.0
+      },
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "ESSENTIALS",
+          "quantity": 1,
+          "price": {
+            "kind": "expression",
+            "source": "#essPriceByTier[String(#essTier)]",
+            "value": 19.95
+          },
+          "unitAmount": 19.95,
+          "amount": 19.95
+        },
+        {
+          "kind": "addOn",
+          "id": "additionalEmailActivityHistory",
+          "quantity": 1.0,
+          "price": {
+            "kind": "label",
+            "text": "Not published"
+          },
+          "unitAmount": null,
+          "amount": null
+        }
+      ],
+      "subtotal": 19.95,
+      "requiresQuote": true,
+      "features": {
+        "smtpAndApi": true,
+        "comprehensiveClientLibraries": true,
+        "setupGuide": true,
+        "interactiveApiDocs": true,
+        "knowledgeCenter": true,
+        "technicalSupport": "Ticket & chat support",
+        "purposeBuiltMailTransferAgent": true,
+        "domainAuthentication": true,
+        "dedicatedIpAddresses": false,
+        "dedicatedIpPooling": false,
+        "automatedDedicatedIpWarmUp": false,
+        "emailAddressValidationApi": false,
+        "reputationAndDeliveryVisibility": true,
+        "suppressionManagement": true,
+        "globallyDistributedArchitecture": true,
+        "linkBranding": true,
+        "reverseDns": true,
+        "universalLinks": true,
+        "ipAccessManagement": true,
+        "singleSignOn": false,
+        "twoFactorAuthentication": true,
+        "tlsEncryption": true,
+        "soc2TypeIICertification": true,
+        "gdprCompliance": true,
+        "dataResidencyEu": true,
+        "eventWebhookSecurity": true,
+        "eventWebhook": true,
+        "deliverabilityInsights": true,
+        "realTimeAnalytics": true,
+        "advancedStatistics": true,
+        "inboundParseWebhook": true,
+        "bounceAndBlockClassifications": true,
+        "engagementTracking": true,
+        "ispFeedbackLoopData": true,
+        "subuserComparisonStatistics": false,
+        "searchableEmailActivity": true,
+        "additionalEmailActivityHistory": true,
+        "senderEngagementQualityScore": true,
+        "emailLogs": true,
+        "expertServices": false,
+        "personalizedSupport": false,
+        "expertEmailProgramManagement": false,
+        "dynamicTemplates": true,
+        "emailContentTesting": false,
+        "teammatePermissions": true,
+        "apiKeyPermissions": true,
+        "subuserManagement": false
+      },
+      "usageLimits": {
+        "emailsPerMonth": 50000,
+        "dedicatedIpsLimit": 0,
+        "emailValidationsIncluded": 0,
+        "eventWebhooksLimit": 2,
+        "emailActivityHistoryDays": 3,
+        "emailTestingCreditsPerMonth": 0,
+        "teammatesLimit": 1
+      }
+    },
+    "ESSENTIALS+expertServices": {
+      "plan": "ESSENTIALS",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {
+        "expertServices": 1.0
+      },
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "ESSENTIALS",
+          "quantity": 1,
+          "price": {
+            "kind": "expression",
+            "source": "#essPriceByTier[String(#essTier)]",
+            "value": 19.95
+          },
+          "unitAmount": 19.95,
+          "amount": 19.95
+        },
+        {
+          "kind": "addOn",
+          "id": "expertServices",
+          "quantity": 1.0,
+          "price": {
+            "kind": "label",
+            "text": "Not published"
+          },
+          "unitAmount": null,
+          "amount": null
+        }
+      ],
+      "subtotal": 19.95,
+      "requiresQuote": true,
+      "features": {
+        "smtpAndApi": true,
+        "comprehensiveClientLibraries": true,
+        "setupGuide": true,
+        "interactiveApiDocs": true,
+        "knowledgeCenter": true,
+        "technicalSupport": "Ticket & chat support",
+        "purposeBuiltMailTransferAgent": true,
+        "domainAuthentication": true,
+        "dedicatedIpAddresses": false,
+        "dedicatedIpPooling": false,
+        "automatedDedicatedIpWarmUp": false,
+        "emailAddressValidationApi": false,
+        "reputationAndDeliveryVisibility": true,
+        "suppressionManagement": true,
+        "globallyDistributedArchitecture": true,
+        "linkBranding": true,
+        "reverseDns": true,
+        "universalLinks": true,
+        "ipAccessManagement": true,
+        "singleSignOn": false,
+        "twoFactorAuthentication": true,
+        "tlsEncryption": true,
+        "soc2TypeIICertification": true,
+        "gdprCompliance": true,
+        "dataResidencyEu": true,
+        "eventWebhookSecurity": true,
+        "eventWebhook": true,
+        "deliverabilityInsights": true,
+        "realTimeAnalytics": true,
+        "advancedStatistics": true,
+        "inboundParseWebhook": true,
+        "bounceAndBlockClassifications": true,
+        "engagementTracking": true,
+        "ispFeedbackLoopData": true,
+        "subuserComparisonStatistics": false,
+        "searchableEmailActivity": true,
+        "additionalEmailActivityHistory": false,
+        "senderEngagementQualityScore": true,
+        "emailLogs": true,
+        "expertServices": true,
+        "personalizedSupport": false,
+        "expertEmailProgramManagement": false,
+        "dynamicTemplates": true,
+        "emailContentTesting": false,
+        "teammatePermissions": true,
+        "apiKeyPermissions": true,
+        "subuserManagement": false
+      },
+      "usageLimits": {
+        "emailsPerMonth": 50000,
+        "dedicatedIpsLimit": 0,
+        "emailValidationsIncluded": 0,
+        "eventWebhooksLimit": 2,
+        "emailActivityHistoryDays": 3,
+        "emailTestingCreditsPerMonth": 0,
+        "teammatesLimit": 1
+      }
+    },
+    "ESSENTIALS+personalizedSupport": {
+      "plan": "ESSENTIALS",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {
+        "personalizedSupport": 1.0
+      },
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "ESSENTIALS",
+          "quantity": 1,
+          "price": {
+            "kind": "expression",
+            "source": "#essPriceByTier[String(#essTier)]",
+            "value": 19.95
+          },
+          "unitAmount": 19.95,
+          "amount": 19.95
+        },
+        {
+          "kind": "addOn",
+          "id": "personalizedSupport",
+          "quantity": 1.0,
+          "price": {
+            "kind": "label",
+            "text": "Not published"
+          },
+          "unitAmount": null,
+          "amount": null
+        }
+      ],
+      "subtotal": 19.95,
+      "requiresQuote": true,
+      "features": {
+        "smtpAndApi": true,
+        "comprehensiveClientLibraries": true,
+        "setupGuide": true,
+        "interactiveApiDocs": true,
+        "knowledgeCenter": true,
+        "technicalSupport": "Ticket & chat support",
+        "purposeBuiltMailTransferAgent": true,
+        "domainAuthentication": true,
+        "dedicatedIpAddresses": false,
+        "dedicatedIpPooling": false,
+        "automatedDedicatedIpWarmUp": false,
+        "emailAddressValidationApi": false,
+        "reputationAndDeliveryVisibility": true,
+        "suppressionManagement": true,
+        "globallyDistributedArchitecture": true,
+        "linkBranding": true,
+        "reverseDns": true,
+        "universalLinks": true,
+        "ipAccessManagement": true,
+        "singleSignOn": false,
+        "twoFactorAuthentication": true,
+        "tlsEncryption": true,
+        "soc2TypeIICertification": true,
+        "gdprCompliance": true,
+        "dataResidencyEu": true,
+        "eventWebhookSecurity": true,
+        "eventWebhook": true,
+        "deliverabilityInsights": true,
+        "realTimeAnalytics": true,
+        "advancedStatistics": true,
+        "inboundParseWebhook": true,
+        "bounceAndBlockClassifications": true,
+        "engagementTracking": true,
+        "ispFeedbackLoopData": true,
+        "subuserComparisonStatistics": false,
+        "searchableEmailActivity": true,
+        "additionalEmailActivityHistory": false,
+        "senderEngagementQualityScore": true,
+        "emailLogs": true,
+        "expertServices": false,
+        "personalizedSupport": true,
+        "expertEmailProgramManagement": false,
+        "dynamicTemplates": true,
+        "emailContentTesting": false,
+        "teammatePermissions": true,
+        "apiKeyPermissions": true,
+        "subuserManagement": false
+      },
+      "usageLimits": {
+        "emailsPerMonth": 50000,
+        "dedicatedIpsLimit": 0,
+        "emailValidationsIncluded": 0,
+        "eventWebhooksLimit": 2,
+        "emailActivityHistoryDays": 3,
+        "emailTestingCreditsPerMonth": 0,
+        "teammatesLimit": 1
+      }
+    },
+    "PRO": {
+      "plan": "PRO",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {},
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "PRO",
+          "quantity": 1,
+          "price": {
+            "kind": "expression",
+            "source": "#proPriceByTier[String(#proTier)]",
+            "value": 89.95
+          },
+          "unitAmount": 89.95,
+          "amount": 89.95
+        }
+      ],
+      "subtotal": 89.95,
+      "requiresQuote": false,
+      "features": {
+        "smtpAndApi": true,
+        "comprehensiveClientLibraries": true,
+        "setupGuide": true,
+        "interactiveApiDocs": true,
+        "knowledgeCenter": true,
+        "technicalSupport": "Ticket, chat, & phone support",
+        "purposeBuiltMailTransferAgent": true,
+        "domainAuthentication": true,
+        "dedicatedIpAddresses": true,
+        "dedicatedIpPooling": true,
+        "automatedDedicatedIpWarmUp": true,
+        "emailAddressValidationApi": true,
+        "reputationAndDeliveryVisibility": true,
+        "suppressionManagement": true,
+        "globallyDistributedArchitecture": true,
+        "linkBranding": true,
+        "reverseDns": true,
+        "universalLinks": true,
+        "ipAccessManagement": true,
+        "singleSignOn": true,
+        "twoFactorAuthentication": true,
+        "tlsEncryption": true,
+        "soc2TypeIICertification": true,
+        "gdprCompliance": true,
+        "dataResidencyEu": true,
+        "eventWebhookSecurity": true,
+        "eventWebhook": true,
+        "deliverabilityInsights": true,
+        "realTimeAnalytics": true,
+        "advancedStatistics": true,
+        "inboundParseWebhook": true,
+        "bounceAndBlockClassifications": true,
+        "engagementTracking": true,
+        "ispFeedbackLoopData": true,
+        "subuserComparisonStatistics": true,
+        "searchableEmailActivity": true,
+        "additionalEmailActivityHistory": false,
+        "senderEngagementQualityScore": true,
+        "emailLogs": true,
+        "expertServices": false,
+        "personalizedSupport": false,
+        "expertEmailProgramManagement": false,
+        "dynamicTemplates": true,
+        "emailContentTesting": true,
+        "teammatePermissions": true,
+        "apiKeyPermissions": true,
+        "subuserManagement": true
+      },
+      "usageLimits": {
+        "emailsPerMonth": 100000,
+        "dedicatedIpsLimit": 1,
+        "emailValidationsIncluded": 2500,
+        "eventWebhooksLimit": 5,
+        "emailActivityHistoryDays": 7,
+        "emailTestingCreditsPerMonth": 60,
+        "teammatesLimit": 1000
+      }
+    },
+    "PRO+additionalDedicatedIp": {
+      "plan": "PRO",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {
+        "additionalDedicatedIp": 1.0
+      },
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "PRO",
+          "quantity": 1,
+          "price": {
+            "kind": "expression",
+            "source": "#proPriceByTier[String(#proTier)]",
+            "value": 89.95
+          },
+          "unitAmount": 89.95,
+          "amount": 89.95
+        },
+        {
+          "kind": "addOn",
+          "id": "additionalDedicatedIp",
+          "quantity": 1.0,
+          "price": {
+            "kind": "fixed",
+            "amount": 30.0
+          },
+          "unitAmount": 30.0,
+          "amount": 30.0
+        }
+      ],
+      "subtotal": 119.95,
+      "requiresQuote": false,
+      "features": {
+        "smtpAndApi": true,
+        "comprehensiveClientLibraries": true,
+        "setupGuide": true,
+        "interactiveApiDocs": true,
+        "knowledgeCenter": true,
+        "technicalSupport": "Ticket, chat, & phone support",
+        "purposeBuiltMailTransferAgent": true,
+        "domainAuthentication": true,
+        "dedicatedIpAddresses": true,
+        "dedicatedIpPooling": true,
+        "automatedDedicatedIpWarmUp": true,
+        "emailAddressValidationApi": true,
+        "reputationAndDeliveryVisibility": true,
+        "suppressionManagement": true,
+        "globallyDistributedArchitecture": true,
+        "linkBranding": true,
+        "reverseDns": true,
+        "universalLinks": true,
+        "ipAccessManagement": true,
+        "singleSignOn": true,
+        "twoFactorAuthentication": true,
+        "tlsEncryption": true,
+        "soc2TypeIICertification": true,
+        "gdprCompliance": true,
+        "dataResidencyEu": true,
+        "eventWebhookSecurity": true,
+        "eventWebhook": true,
+        "deliverabilityInsights": true,
+        "realTimeAnalytics": true,
+        "advancedStatistics": true,
+        "inboundParseWebhook": true,
+        "bounceAndBlockClassifications": true,
+        "engagementTracking": true,
+        "ispFeedbackLoopData": true,
+        "subuserComparisonStatistics": true,
+        "searchableEmailActivity": true,
+        "additionalEmailActivityHistory": false,
+        "senderEngagementQualityScore": true,
+        "emailLogs": true,
+        "expertServices": false,
+        "personalizedSupport": false,
+        "expertEmailProgramManagement": false,
+        "dynamicTemplates": true,
+        "emailContentTesting": true,
+        "teammatePermissions": true,
+        "apiKeyPermissions": true,
+        "subuserManagement": true
+      },
+      "usageLimits": {
+        "emailsPerMonth": 100000,
+        "dedicatedIpsLimit": 2.0,
+        "emailValidationsIncluded": 2500,
+        "eventWebhooksLimit": 5,
+        "emailActivityHistoryDays": 7,
+        "emailTestingCreditsPerMonth": 60,
+        "teammatesLimit": 1000
+      }
+    },
+    "PRO+emailTestingCredits2000": {
+      "plan": "PRO",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {
+        "emailTestingCredits2000": 1.0
+      },
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "PRO",
+          "quantity": 1,
+          "price": {
+            "kind": "expression",
+            "source": "#proPriceByTier[String(#proTier)]",
+            "value": 89.95
+          },
+          "unitAmount": 89.95,
+          "amount": 89.95
+        },
+        {
+          "kind": "addOn",
+          "id": "emailTestingCredits2000",
+          "quantity": 1.0,
+          "price": {
+            "kind": "fixed",
+            "amount": 800.0
+          },
+          "unitAmount": 800.0,
+          "amount": 800.0
+        }
+      ],
+      "subtotal": 889.95,
+      "requiresQuote": false,
+      "features": {
+        "smtpAndApi": true,
+        "comprehensiveClientLibraries": true,
+        "setupGuide": true,
+        "interactiveApiDocs": true,
+        "knowledgeCenter": true,
+        "technicalSupport": "Ticket, chat, & phone support",
+        "purposeBuiltMailTransferAgent": true,
+        "domainAuthentication": true,
+        "dedicatedIpAddresses": true,
+        "dedicatedIpPooling": true,
+        "automatedDedicatedIpWarmUp": true,
+        "emailAddressValidationApi": true,
+        "reputationAndDeliveryVisibility": true,
+        "suppressionManagement": true,
+        "globallyDistributedArchitecture": true,
+        "linkBranding": true,
+        "reverseDns": true,
+        "universalLinks": true,
+        "ipAccessManagement": true,
+        "singleSignOn": true,
+        "twoFactorAuthentication": true,
+        "tlsEncryption": true,
+        "soc2TypeIICertification": true,
+        "gdprCompliance": true,
+        "dataResidencyEu": true,
+        "eventWebhookSecurity": true,
+        "eventWebhook": true,
+        "deliverabilityInsights": true,
+        "realTimeAnalytics": true,
+        "advancedStatistics": true,
+        "inboundParseWebhook": true,
+        "bounceAndBlockClassifications": true,
+        "engagementTracking": true,
+        "ispFeedbackLoopData": true,
+        "subuserComparisonStatistics": true,
+        "searchableEmailActivity": true,
+        "additionalEmailActivityHistory": false,
+        "senderEngagementQualityScore": true,
+        "emailLogs": true,
+        "expertServices": false,
+        "personalizedSupport": false,
+        "expertEmailProgramManagement": false,
+        "dynamicTemplates": true,
+        "emailContentTesting": true,
+        "teammatePermissions": true,
+        "apiKeyPermissions": true,
+        "subuserManagement": true
+      },
+      "usageLimits": {
+        "emailsPerMonth": 100000,
+        "dedicatedIpsLimit": 1,
+        "emailValidationsIncluded": 2500,
+        "eventWebhooksLimit": 5,
+        "emailActivityHistoryDays": 7,
+        "emailTestingCreditsPerMonth": 2060.0,
+        "teammatesLimit": 1000
+      }
+    },
+    "PRO+additionalEmailActivityHistory": {
+      "plan": "PRO",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {
+        "additionalEmailActivityHistory": 1.0
+      },
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "PRO",
+          "quantity": 1,
+          "price": {
+            "kind": "expression",
+            "source": "#proPriceByTier[String(#proTier)]",
+            "value": 89.95
+          },
+          "unitAmount": 89.95,
+          "amount": 89.95
+        },
+        {
+          "kind": "addOn",
+          "id": "additionalEmailActivityHistory",
+          "quantity": 1.0,
+          "price": {
+            "kind": "label",
+            "text": "Not published"
+          },
+          "unitAmount": null,
+          "amount": null
+        }
+      ],
+      "subtotal": 89.95,
+      "requiresQuote": true,
+      "features": {
+        "smtpAndApi": true,
+        "comprehensiveClientLibraries": true,
+        "setupGuide": true,
+        "interactiveApiDocs": true,
+        "knowledgeCenter": true,
+        "technicalSupport": "Ticket, chat, & phone support",
+        "purposeBuiltMailTransferAgent": true,
+        "domainAuthentication": true,
+        "dedicatedIpAddresses": true,
+        "dedicatedIpPooling": true,
+        "automatedDedicatedIpWarmUp": true,
+        "emailAddressValidationApi": true,
+        "reputationAndDeliveryVisibility": true,
+        "suppressionManagement": true,
+        "globallyDistributedArchitecture": true,
+        "linkBranding": true,
+        "reverseDns": true,
+        "universalLinks": true,
+        "ipAccessManagement": true,
+        "singleSignOn": true,
+        "twoFactorAuthentication": true,
+        "tlsEncryption": true,
+        "soc2TypeIICertification": true,
+        "gdprCompliance": true,
+        "dataResidencyEu": true,
+        "eventWebhookSecurity": true,
+        "eventWebhook": true,
+        "deliverabilityInsights": true,
+        "realTimeAnalytics": true,
+        "advancedStatistics": true,
+        "inboundParseWebhook": true,
+        "bounceAndBlockClassifications": true,
+        "engagementTracking": true,
+        "ispFeedbackLoopData": true,
+        "subuserComparisonStatistics": true,
+        "searchableEmailActivity": true,
+        "additionalEmailActivityHistory": true,
+        "senderEngagementQualityScore": true,
+        "emailLogs": true,
+        "expertServices": false,
+        "personalizedSupport": false,
+        "expertEmailProgramManagement": false,
+        "dynamicTemplates": true,
+        "emailContentTesting": true,
+        "teammatePermissions": true,
+        "apiKeyPermissions": true,
+        "subuserManagement": true
+      },
+      "usageLimits": {
+        "emailsPerMonth": 100000,
+        "dedicatedIpsLimit": 1,
+        "emailValidationsIncluded": 2500,
+        "eventWebhooksLimit": 5,
+        "emailActivityHistoryDays": 7,
+        "emailTestingCreditsPerMonth": 60,
+        "teammatesLimit": 1000
+      }
+    },
+    "PRO+expertServices": {
+      "plan": "PRO",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {
+        "expertServices": 1.0
+      },
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "PRO",
+          "quantity": 1,
+          "price": {
+            "kind": "expression",
+            "source": "#proPriceByTier[String(#proTier)]",
+            "value": 89.95
+          },
+          "unitAmount": 89.95,
+          "amount": 89.95
+        },
+        {
+          "kind": "addOn",
+          "id": "expertServices",
+          "quantity": 1.0,
+          "price": {
+            "kind": "label",
+            "text": "Not published"
+          },
+          "unitAmount": null,
+          "amount": null
+        }
+      ],
+      "subtotal": 89.95,
+      "requiresQuote": true,
+      "features": {
+        "smtpAndApi": true,
+        "comprehensiveClientLibraries": true,
+        "setupGuide": true,
+        "interactiveApiDocs": true,
+        "knowledgeCenter": true,
+        "technicalSupport": "Ticket, chat, & phone support",
+        "purposeBuiltMailTransferAgent": true,
+        "domainAuthentication": true,
+        "dedicatedIpAddresses": true,
+        "dedicatedIpPooling": true,
+        "automatedDedicatedIpWarmUp": true,
+        "emailAddressValidationApi": true,
+        "reputationAndDeliveryVisibility": true,
+        "suppressionManagement": true,
+        "globallyDistributedArchitecture": true,
+        "linkBranding": true,
+        "reverseDns": true,
+        "universalLinks": true,
+        "ipAccessManagement": true,
+        "singleSignOn": true,
+        "twoFactorAuthentication": true,
+        "tlsEncryption": true,
+        "soc2TypeIICertification": true,
+        "gdprCompliance": true,
+        "dataResidencyEu": true,
+        "eventWebhookSecurity": true,
+        "eventWebhook": true,
+        "deliverabilityInsights": true,
+        "realTimeAnalytics": true,
+        "advancedStatistics": true,
+        "inboundParseWebhook": true,
+        "bounceAndBlockClassifications": true,
+        "engagementTracking": true,
+        "ispFeedbackLoopData": true,
+        "subuserComparisonStatistics": true,
+        "searchableEmailActivity": true,
+        "additionalEmailActivityHistory": false,
+        "senderEngagementQualityScore": true,
+        "emailLogs": true,
+        "expertServices": true,
+        "personalizedSupport": false,
+        "expertEmailProgramManagement": false,
+        "dynamicTemplates": true,
+        "emailContentTesting": true,
+        "teammatePermissions": true,
+        "apiKeyPermissions": true,
+        "subuserManagement": true
+      },
+      "usageLimits": {
+        "emailsPerMonth": 100000,
+        "dedicatedIpsLimit": 1,
+        "emailValidationsIncluded": 2500,
+        "eventWebhooksLimit": 5,
+        "emailActivityHistoryDays": 7,
+        "emailTestingCreditsPerMonth": 60,
+        "teammatesLimit": 1000
+      }
+    },
+    "PRO+personalizedSupport": {
+      "plan": "PRO",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {
+        "personalizedSupport": 1.0
+      },
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "PRO",
+          "quantity": 1,
+          "price": {
+            "kind": "expression",
+            "source": "#proPriceByTier[String(#proTier)]",
+            "value": 89.95
+          },
+          "unitAmount": 89.95,
+          "amount": 89.95
+        },
+        {
+          "kind": "addOn",
+          "id": "personalizedSupport",
+          "quantity": 1.0,
+          "price": {
+            "kind": "label",
+            "text": "Not published"
+          },
+          "unitAmount": null,
+          "amount": null
+        }
+      ],
+      "subtotal": 89.95,
+      "requiresQuote": true,
+      "features": {
+        "smtpAndApi": true,
+        "comprehensiveClientLibraries": true,
+        "setupGuide": true,
+        "interactiveApiDocs": true,
+        "knowledgeCenter": true,
+        "technicalSupport": "Ticket, chat, & phone support",
+        "purposeBuiltMailTransferAgent": true,
+        "domainAuthentication": true,
+        "dedicatedIpAddresses": true,
+        "dedicatedIpPooling": true,
+        "automatedDedicatedIpWarmUp": true,
+        "emailAddressValidationApi": true,
+        "reputationAndDeliveryVisibility": true,
+        "suppressionManagement": true,
+        "globallyDistributedArchitecture": true,
+        "linkBranding": true,
+        "reverseDns": true,
+        "universalLinks": true,
+        "ipAccessManagement": true,
+        "singleSignOn": true,
+        "twoFactorAuthentication": true,
+        "tlsEncryption": true,
+        "soc2TypeIICertification": true,
+        "gdprCompliance": true,
+        "dataResidencyEu": true,
+        "eventWebhookSecurity": true,
+        "eventWebhook": true,
+        "deliverabilityInsights": true,
+        "realTimeAnalytics": true,
+        "advancedStatistics": true,
+        "inboundParseWebhook": true,
+        "bounceAndBlockClassifications": true,
+        "engagementTracking": true,
+        "ispFeedbackLoopData": true,
+        "subuserComparisonStatistics": true,
+        "searchableEmailActivity": true,
+        "additionalEmailActivityHistory": false,
+        "senderEngagementQualityScore": true,
+        "emailLogs": true,
+        "expertServices": false,
+        "personalizedSupport": true,
+        "expertEmailProgramManagement": false,
+        "dynamicTemplates": true,
+        "emailContentTesting": true,
+        "teammatePermissions": true,
+        "apiKeyPermissions": true,
+        "subuserManagement": true
+      },
+      "usageLimits": {
+        "emailsPerMonth": 100000,
+        "dedicatedIpsLimit": 1,
+        "emailValidationsIncluded": 2500,
+        "eventWebhooksLimit": 5,
+        "emailActivityHistoryDays": 7,
+        "emailTestingCreditsPerMonth": 60,
+        "teammatesLimit": 1000
+      }
+    },
+    "PREMIER": {
+      "plan": "PREMIER",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {},
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "PREMIER",
+          "quantity": 1,
+          "price": {
+            "kind": "label",
+            "text": "Contact Sales"
+          },
+          "unitAmount": null,
+          "amount": null
+        }
+      ],
+      "subtotal": 0.0,
+      "requiresQuote": true,
+      "features": {
+        "smtpAndApi": true,
+        "comprehensiveClientLibraries": true,
+        "setupGuide": true,
+        "interactiveApiDocs": true,
+        "knowledgeCenter": true,
+        "technicalSupport": "Prioritized support",
+        "purposeBuiltMailTransferAgent": true,
+        "domainAuthentication": true,
+        "dedicatedIpAddresses": true,
+        "dedicatedIpPooling": true,
+        "automatedDedicatedIpWarmUp": true,
+        "emailAddressValidationApi": true,
+        "reputationAndDeliveryVisibility": true,
+        "suppressionManagement": true,
+        "globallyDistributedArchitecture": true,
+        "linkBranding": true,
+        "reverseDns": true,
+        "universalLinks": true,
+        "ipAccessManagement": true,
+        "singleSignOn": true,
+        "twoFactorAuthentication": true,
+        "tlsEncryption": true,
+        "soc2TypeIICertification": true,
+        "gdprCompliance": true,
+        "dataResidencyEu": true,
+        "eventWebhookSecurity": true,
+        "eventWebhook": true,
+        "deliverabilityInsights": true,
+        "realTimeAnalytics": true,
+        "advancedStatistics": true,
+        "inboundParseWebhook": true,
+        "bounceAndBlockClassifications": true,
+        "engagementTracking": true,
+        "ispFeedbackLoopData": true,
+        "subuserComparisonStatistics": true,
+        "searchableEmailActivity": true,
+        "additionalEmailActivityHistory": false,
+        "senderEngagementQualityScore": true,
+        "emailLogs": true,
+        "expertServices": false,
+        "personalizedSupport": false,
+        "expertEmailProgramManagement": false,
+        "dynamicTemplates": true,
+        "emailContentTesting": true,
+        "teammatePermissions": true,
+        "apiKeyPermissions": true,
+        "subuserManagement": true
+      },
+      "usageLimits": {
+        "emailsPerMonth": 5000000,
+        "dedicatedIpsLimit": 1,
+        "emailValidationsIncluded": 5000,
+        "eventWebhooksLimit": 5,
+        "emailActivityHistoryDays": 7,
+        "emailTestingCreditsPerMonth": 60,
+        "teammatesLimit": 1000
+      }
+    },
+    "PREMIER+additionalDedicatedIp": {
+      "plan": "PREMIER",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {
+        "additionalDedicatedIp": 1.0
+      },
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "PREMIER",
+          "quantity": 1,
+          "price": {
+            "kind": "label",
+            "text": "Contact Sales"
+          },
+          "unitAmount": null,
+          "amount": null
+        },
+        {
+          "kind": "addOn",
+          "id": "additionalDedicatedIp",
+          "quantity": 1.0,
+          "price": {
+            "kind": "fixed",
+            "amount": 30.0
+          },
+          "unitAmount": 30.0,
+          "amount": 30.0
+        }
+      ],
+      "subtotal": 30.0,
+      "requiresQuote": true,
+      "features": {
+        "smtpAndApi": true,
+        "comprehensiveClientLibraries": true,
+        "setupGuide": true,
+        "interactiveApiDocs": true,
+        "knowledgeCenter": true,
+        "technicalSupport": "Prioritized support",
+        "purposeBuiltMailTransferAgent": true,
+        "domainAuthentication": true,
+        "dedicatedIpAddresses": true,
+        "dedicatedIpPooling": true,
+        "automatedDedicatedIpWarmUp": true,
+        "emailAddressValidationApi": true,
+        "reputationAndDeliveryVisibility": true,
+        "suppressionManagement": true,
+        "globallyDistributedArchitecture": true,
+        "linkBranding": true,
+        "reverseDns": true,
+        "universalLinks": true,
+        "ipAccessManagement": true,
+        "singleSignOn": true,
+        "twoFactorAuthentication": true,
+        "tlsEncryption": true,
+        "soc2TypeIICertification": true,
+        "gdprCompliance": true,
+        "dataResidencyEu": true,
+        "eventWebhookSecurity": true,
+        "eventWebhook": true,
+        "deliverabilityInsights": true,
+        "realTimeAnalytics": true,
+        "advancedStatistics": true,
+        "inboundParseWebhook": true,
+        "bounceAndBlockClassifications": true,
+        "engagementTracking": true,
+        "ispFeedbackLoopData": true,
+        "subuserComparisonStatistics": true,
+        "searchableEmailActivity": true,
+        "additionalEmailActivityHistory": false,
+        "senderEngagementQualityScore": true,
+        "emailLogs": true,
+        "expertServices": false,
+        "personalizedSupport": false,
+        "expertEmailProgramManagement": false,
+        "dynamicTemplates": true,
+        "emailContentTesting": true,
+        "teammatePermissions": true,
+        "apiKeyPermissions": true,
+        "subuserManagement": true
+      },
+      "usageLimits": {
+        "emailsPerMonth": 5000000,
+        "dedicatedIpsLimit": 2.0,
+        "emailValidationsIncluded": 5000,
+        "eventWebhooksLimit": 5,
+        "emailActivityHistoryDays": 7,
+        "emailTestingCreditsPerMonth": 60,
+        "teammatesLimit": 1000
+      }
+    },
+    "PREMIER+emailTestingCredits2000": {
+      "plan": "PREMIER",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {
+        "emailTestingCredits2000": 1.0
+      },
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "PREMIER",
+          "quantity": 1,
+          "price": {
+            "kind": "label",
+            "text": "Contact Sales"
+          },
+          "unitAmount": null,
+          "amount": null
+        },
+        {
+          "kind": "addOn",
+          "id": "emailTestingCredits2000",
+          "quantity": 1.0,
+          "price": {
+            "kind": "fixed",
+            "amount": 800.0
+          },
+          "unitAmount": 800.0,
+          "amount": 800.0
+        }
+      ],
+      "subtotal": 800.0,
+      "requiresQuote": true,
+      "features": {
+        "smtpAndApi": true,
+        "comprehensiveClientLibraries": true,
+        "setupGuide": true,
+        "interactiveApiDocs": true,
+        "knowledgeCenter": true,
+        "technicalSupport": "Prioritized support",
+        "purposeBuiltMailTransferAgent": true,
+        "domainAuthentication": true,
+        "dedicatedIpAddresses": true,
+        "dedicatedIpPooling": true,
+        "automatedDedicatedIpWarmUp": true,
+        "emailAddressValidationApi": true,
+        "reputationAndDeliveryVisibility": true,
+        "suppressionManagement": true,
+        "globallyDistributedArchitecture": true,
+        "linkBranding": true,
+        "reverseDns": true,
+        "universalLinks": true,
+        "ipAccessManagement": true,
+        "singleSignOn": true,
+        "twoFactorAuthentication": true,
+        "tlsEncryption": true,
+        "soc2TypeIICertification": true,
+        "gdprCompliance": true,
+        "dataResidencyEu": true,
+        "eventWebhookSecurity": true,
+        "eventWebhook": true,
+        "deliverabilityInsights": true,
+        "realTimeAnalytics": true,
+        "advancedStatistics": true,
+        "inboundParseWebhook": true,
+        "bounceAndBlockClassifications": true,
+        "engagementTracking": true,
+        "ispFeedbackLoopData": true,
+        "subuserComparisonStatistics": true,
+        "searchableEmailActivity": true,
+        "additionalEmailActivityHistory": false,
+        "senderEngagementQualityScore": true,
+        "emailLogs": true,
+        "expertServices": false,
+        "personalizedSupport": false,
+        "expertEmailProgramManagement": false,
+        "dynamicTemplates": true,
+        "emailContentTesting": true,
+        "teammatePermissions": true,
+        "apiKeyPermissions": true,
+        "subuserManagement": true
+      },
+      "usageLimits": {
+        "emailsPerMonth": 5000000,
+        "dedicatedIpsLimit": 1,
+        "emailValidationsIncluded": 5000,
+        "eventWebhooksLimit": 5,
+        "emailActivityHistoryDays": 7,
+        "emailTestingCreditsPerMonth": 2060.0,
+        "teammatesLimit": 1000
+      }
+    },
+    "PREMIER+additionalEmailActivityHistory": {
+      "plan": "PREMIER",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {
+        "additionalEmailActivityHistory": 1.0
+      },
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "PREMIER",
+          "quantity": 1,
+          "price": {
+            "kind": "label",
+            "text": "Contact Sales"
+          },
+          "unitAmount": null,
+          "amount": null
+        },
+        {
+          "kind": "addOn",
+          "id": "additionalEmailActivityHistory",
+          "quantity": 1.0,
+          "price": {
+            "kind": "label",
+            "text": "Not published"
+          },
+          "unitAmount": null,
+          "amount": null
+        }
+      ],
+      "subtotal": 0.0,
+      "requiresQuote": true,
+      "features": {
+        "smtpAndApi": true,
+        "comprehensiveClientLibraries": true,
+        "setupGuide": true,
+        "interactiveApiDocs": true,
+        "knowledgeCenter": true,
+        "technicalSupport": "Prioritized support",
+        "purposeBuiltMailTransferAgent": true,
+        "domainAuthentication": true,
+        "dedicatedIpAddresses": true,
+        "dedicatedIpPooling": true,
+        "automatedDedicatedIpWarmUp": true,
+        "emailAddressValidationApi": true,
+        "reputationAndDeliveryVisibility": true,
+        "suppressionManagement": true,
+        "globallyDistributedArchitecture": true,
+        "linkBranding": true,
+        "reverseDns": true,
+        "universalLinks": true,
+        "ipAccessManagement": true,
+        "singleSignOn": true,
+        "twoFactorAuthentication": true,
+        "tlsEncryption": true,
+        "soc2TypeIICertification": true,
+        "gdprCompliance": true,
+        "dataResidencyEu": true,
+        "eventWebhookSecurity": true,
+        "eventWebhook": true,
+        "deliverabilityInsights": true,
+        "realTimeAnalytics": true,
+        "advancedStatistics": true,
+        "inboundParseWebhook": true,
+        "bounceAndBlockClassifications": true,
+        "engagementTracking": true,
+        "ispFeedbackLoopData": true,
+        "subuserComparisonStatistics": true,
+        "searchableEmailActivity": true,
+        "additionalEmailActivityHistory": true,
+        "senderEngagementQualityScore": true,
+        "emailLogs": true,
+        "expertServices": false,
+        "personalizedSupport": false,
+        "expertEmailProgramManagement": false,
+        "dynamicTemplates": true,
+        "emailContentTesting": true,
+        "teammatePermissions": true,
+        "apiKeyPermissions": true,
+        "subuserManagement": true
+      },
+      "usageLimits": {
+        "emailsPerMonth": 5000000,
+        "dedicatedIpsLimit": 1,
+        "emailValidationsIncluded": 5000,
+        "eventWebhooksLimit": 5,
+        "emailActivityHistoryDays": 7,
+        "emailTestingCreditsPerMonth": 60,
+        "teammatesLimit": 1000
+      }
+    },
+    "PREMIER+expertServices": {
+      "plan": "PREMIER",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {
+        "expertServices": 1.0
+      },
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "PREMIER",
+          "quantity": 1,
+          "price": {
+            "kind": "label",
+            "text": "Contact Sales"
+          },
+          "unitAmount": null,
+          "amount": null
+        },
+        {
+          "kind": "addOn",
+          "id": "expertServices",
+          "quantity": 1.0,
+          "price": {
+            "kind": "label",
+            "text": "Not published"
+          },
+          "unitAmount": null,
+          "amount": null
+        }
+      ],
+      "subtotal": 0.0,
+      "requiresQuote": true,
+      "features": {
+        "smtpAndApi": true,
+        "comprehensiveClientLibraries": true,
+        "setupGuide": true,
+        "interactiveApiDocs": true,
+        "knowledgeCenter": true,
+        "technicalSupport": "Prioritized support",
+        "purposeBuiltMailTransferAgent": true,
+        "domainAuthentication": true,
+        "dedicatedIpAddresses": true,
+        "dedicatedIpPooling": true,
+        "automatedDedicatedIpWarmUp": true,
+        "emailAddressValidationApi": true,
+        "reputationAndDeliveryVisibility": true,
+        "suppressionManagement": true,
+        "globallyDistributedArchitecture": true,
+        "linkBranding": true,
+        "reverseDns": true,
+        "universalLinks": true,
+        "ipAccessManagement": true,
+        "singleSignOn": true,
+        "twoFactorAuthentication": true,
+        "tlsEncryption": true,
+        "soc2TypeIICertification": true,
+        "gdprCompliance": true,
+        "dataResidencyEu": true,
+        "eventWebhookSecurity": true,
+        "eventWebhook": true,
+        "deliverabilityInsights": true,
+        "realTimeAnalytics": true,
+        "advancedStatistics": true,
+        "inboundParseWebhook": true,
+        "bounceAndBlockClassifications": true,
+        "engagementTracking": true,
+        "ispFeedbackLoopData": true,
+        "subuserComparisonStatistics": true,
+        "searchableEmailActivity": true,
+        "additionalEmailActivityHistory": false,
+        "senderEngagementQualityScore": true,
+        "emailLogs": true,
+        "expertServices": true,
+        "personalizedSupport": false,
+        "expertEmailProgramManagement": false,
+        "dynamicTemplates": true,
+        "emailContentTesting": true,
+        "teammatePermissions": true,
+        "apiKeyPermissions": true,
+        "subuserManagement": true
+      },
+      "usageLimits": {
+        "emailsPerMonth": 5000000,
+        "dedicatedIpsLimit": 1,
+        "emailValidationsIncluded": 5000,
+        "eventWebhooksLimit": 5,
+        "emailActivityHistoryDays": 7,
+        "emailTestingCreditsPerMonth": 60,
+        "teammatesLimit": 1000
+      }
+    },
+    "PREMIER+personalizedSupport": {
+      "plan": "PREMIER",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {
+        "personalizedSupport": 1.0
+      },
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "PREMIER",
+          "quantity": 1,
+          "price": {
+            "kind": "label",
+            "text": "Contact Sales"
+          },
+          "unitAmount": null,
+          "amount": null
+        },
+        {
+          "kind": "addOn",
+          "id": "personalizedSupport",
+          "quantity": 1.0,
+          "price": {
+            "kind": "label",
+            "text": "Not published"
+          },
+          "unitAmount": null,
+          "amount": null
+        }
+      ],
+      "subtotal": 0.0,
+      "requiresQuote": true,
+      "features": {
+        "smtpAndApi": true,
+        "comprehensiveClientLibraries": true,
+        "setupGuide": true,
+        "interactiveApiDocs": true,
+        "knowledgeCenter": true,
+        "technicalSupport": "Prioritized support",
+        "purposeBuiltMailTransferAgent": true,
+        "domainAuthentication": true,
+        "dedicatedIpAddresses": true,
+        "dedicatedIpPooling": true,
+        "automatedDedicatedIpWarmUp": true,
+        "emailAddressValidationApi": true,
+        "reputationAndDeliveryVisibility": true,
+        "suppressionManagement": true,
+        "globallyDistributedArchitecture": true,
+        "linkBranding": true,
+        "reverseDns": true,
+        "universalLinks": true,
+        "ipAccessManagement": true,
+        "singleSignOn": true,
+        "twoFactorAuthentication": true,
+        "tlsEncryption": true,
+        "soc2TypeIICertification": true,
+        "gdprCompliance": true,
+        "dataResidencyEu": true,
+        "eventWebhookSecurity": true,
+        "eventWebhook": true,
+        "deliverabilityInsights": true,
+        "realTimeAnalytics": true,
+        "advancedStatistics": true,
+        "inboundParseWebhook": true,
+        "bounceAndBlockClassifications": true,
+        "engagementTracking": true,
+        "ispFeedbackLoopData": true,
+        "subuserComparisonStatistics": true,
+        "searchableEmailActivity": true,
+        "additionalEmailActivityHistory": false,
+        "senderEngagementQualityScore": true,
+        "emailLogs": true,
+        "expertServices": false,
+        "personalizedSupport": true,
+        "expertEmailProgramManagement": false,
+        "dynamicTemplates": true,
+        "emailContentTesting": true,
+        "teammatePermissions": true,
+        "apiKeyPermissions": true,
+        "subuserManagement": true
+      },
+      "usageLimits": {
+        "emailsPerMonth": 5000000,
+        "dedicatedIpsLimit": 1,
+        "emailValidationsIncluded": 5000,
+        "eventWebhooksLimit": 5,
+        "emailActivityHistoryDays": 7,
+        "emailTestingCreditsPerMonth": 60,
+        "teammatesLimit": 1000
+      }
+    },
+    "PREMIER+expertEmailProgramManagement": {
+      "plan": "PREMIER",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {
+        "expertEmailProgramManagement": 1.0
+      },
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "PREMIER",
+          "quantity": 1,
+          "price": {
+            "kind": "label",
+            "text": "Contact Sales"
+          },
+          "unitAmount": null,
+          "amount": null
+        },
+        {
+          "kind": "addOn",
+          "id": "expertEmailProgramManagement",
+          "quantity": 1.0,
+          "price": {
+            "kind": "label",
+            "text": "Not published"
+          },
+          "unitAmount": null,
+          "amount": null
+        }
+      ],
+      "subtotal": 0.0,
+      "requiresQuote": true,
+      "features": {
+        "smtpAndApi": true,
+        "comprehensiveClientLibraries": true,
+        "setupGuide": true,
+        "interactiveApiDocs": true,
+        "knowledgeCenter": true,
+        "technicalSupport": "Prioritized support",
+        "purposeBuiltMailTransferAgent": true,
+        "domainAuthentication": true,
+        "dedicatedIpAddresses": true,
+        "dedicatedIpPooling": true,
+        "automatedDedicatedIpWarmUp": true,
+        "emailAddressValidationApi": true,
+        "reputationAndDeliveryVisibility": true,
+        "suppressionManagement": true,
+        "globallyDistributedArchitecture": true,
+        "linkBranding": true,
+        "reverseDns": true,
+        "universalLinks": true,
+        "ipAccessManagement": true,
+        "singleSignOn": true,
+        "twoFactorAuthentication": true,
+        "tlsEncryption": true,
+        "soc2TypeIICertification": true,
+        "gdprCompliance": true,
+        "dataResidencyEu": true,
+        "eventWebhookSecurity": true,
+        "eventWebhook": true,
+        "deliverabilityInsights": true,
+        "realTimeAnalytics": true,
+        "advancedStatistics": true,
+        "inboundParseWebhook": true,
+        "bounceAndBlockClassifications": true,
+        "engagementTracking": true,
+        "ispFeedbackLoopData": true,
+        "subuserComparisonStatistics": true,
+        "searchableEmailActivity": true,
+        "additionalEmailActivityHistory": false,
+        "senderEngagementQualityScore": true,
+        "emailLogs": true,
+        "expertServices": false,
+        "personalizedSupport": false,
+        "expertEmailProgramManagement": true,
+        "dynamicTemplates": true,
+        "emailContentTesting": true,
+        "teammatePermissions": true,
+        "apiKeyPermissions": true,
+        "subuserManagement": true
+      },
+      "usageLimits": {
+        "emailsPerMonth": 5000000,
+        "dedicatedIpsLimit": 1,
+        "emailValidationsIncluded": 5000,
+        "eventWebhooksLimit": 5,
+        "emailActivityHistoryDays": 7,
+        "emailTestingCreditsPerMonth": 60,
+        "teammatesLimit": 1000
+      }
+    }
+  }
+}

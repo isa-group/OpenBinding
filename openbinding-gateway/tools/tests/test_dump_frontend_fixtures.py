@@ -36,15 +36,29 @@ def two_runs(tmp_path_factory) -> tuple[Path, Path]:
 
 def test_two_runs_write_byte_identical_trees(two_runs) -> None:
     first, second = two_runs
-    assert _tree(first) == _tree(second)
-    assert sorted(_tree(first)) == sorted(
+    assert _tree(first / "core") == _tree(second / "core")
+    assert _tree(first / "sphere") == _tree(second / "sphere")
+    assert sorted(_tree(first / "core")) == sorted(
         [f"{name}.{kind}.json" for name, _ in tool.PACKAGES for kind in ("facts", "validate", "version", "diff")]
         + ["refused.package.json", "refused.validate.json"]
     )
 
 
+def test_the_sphere_fixtures_pair_every_readable_version_with_its_golden(two_runs) -> None:
+    first, _ = two_runs
+    names = sorted(_tree(first / "sphere"))
+    yamls = {name[: -len(".yml")] for name in names if name.endswith(".yml")}
+    goldens = {name[: -len(".normalised.json")] for name in names if name.endswith(".normalised.json")}
+    assert yamls == goldens and len(yamls) >= 20
+    assert "6ab0a323697330667ccce8cd.6921867e7004563bd918e7e8" in yamls  # TomatoMeter 1.0.0
+    assert "derived.mailgun-scale" in yamls
+    # A 2.x version (Dropbox 2023) is refused by the normaliser and never reaches the frontend.
+    assert "6ab0a323697330667ccce9c1.687e4b68102baa50f3a5c7b5" not in yamls
+
+
 def test_the_fixtures_hold_the_facts_each_package_was_chosen_for(two_runs) -> None:
     first, _ = two_runs
+    first = first / "core"
     fms = json.loads((first / "fms.facts.json").read_text(encoding="utf-8"))
     assert "local" in {task["kind"] for task in fms["tasks"]} and "xor" in json.dumps(fms["workflow"])
     complete = json.dumps(json.loads((first / "json-complete.facts.json").read_text(encoding="utf-8"))["workflow"])
@@ -59,6 +73,7 @@ def test_the_fixtures_hold_the_facts_each_package_was_chosen_for(two_runs) -> No
 
 def test_each_package_has_a_derived_version_and_a_diff_of_one_candidate(two_runs) -> None:
     first, _ = two_runs
+    first = first / "core"
     for name, _ in tool.PACKAGES:
         version = json.loads((first / f"{name}.version.json").read_text(encoding="utf-8"))
         assert version["label"] == "1.0.0" and version["document"]["composition"] == name
@@ -75,6 +90,7 @@ def test_each_package_has_a_derived_version_and_a_diff_of_one_candidate(two_runs
 
 def test_the_refused_package_is_located_in_every_shape_the_editor_reads(two_runs) -> None:
     first, _ = two_runs
+    first = first / "core"
     body = json.loads((first / "refused.validate.json").read_text(encoding="utf-8"))
     assert body["status"] == 422 and body["code"] == "invalid_instance"
     found = {(item["code"], item["resource"], item.get("pointer")): item for item in body["diagnostics"]}

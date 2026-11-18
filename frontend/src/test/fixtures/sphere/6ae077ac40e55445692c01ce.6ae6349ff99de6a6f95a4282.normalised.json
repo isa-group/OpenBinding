@@ -1,0 +1,974 @@
+{
+  "pricing": {
+    "syntaxVersion": "3.1",
+    "title": "Mailgun",
+    "version": "2026-10-31",
+    "createdAt": "2026-09-21",
+    "currency": "USD",
+    "billing": [
+      {
+        "id": "monthly",
+        "multiplier": 1.0,
+        "synthesized": true
+      }
+    ],
+    "features": [
+      {
+        "id": "messagesApi",
+        "name": "messagesApi",
+        "type": "INTEGRATION",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "smtpRelay",
+        "name": "smtpRelay",
+        "type": "INTEGRATION",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "inboundRouting",
+        "name": "inboundRouting",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "dedicatedIp",
+        "name": "dedicatedIp",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "dedicatedIpPools",
+        "name": "dedicatedIpPools",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "sendTimeOptimization",
+        "name": "sendTimeOptimization",
+        "type": "AUTOMATION",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "emailTemplates",
+        "name": "emailTemplates",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "bounceImport",
+        "name": "bounceImport",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "customMessageLimit",
+        "name": "customMessageLimit",
+        "type": "MANAGEMENT",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "sendingDomains",
+        "name": "sendingDomains",
+        "type": "MANAGEMENT",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "webhooks",
+        "name": "webhooks",
+        "type": "INTEGRATION",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "multiUserAccess",
+        "name": "multiUserAccess",
+        "type": "MANAGEMENT",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "rbacApiKeys",
+        "name": "rbacApiKeys",
+        "type": "MANAGEMENT",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "samlSso",
+        "name": "samlSso",
+        "type": "INTEGRATION",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "eventsApi",
+        "name": "eventsApi",
+        "type": "INFORMATION",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "activityLogs",
+        "name": "activityLogs",
+        "type": "INFORMATION",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "messageRetention",
+        "name": "messageRetention",
+        "type": "INFORMATION",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "liveSupport",
+        "name": "liveSupport",
+        "type": "SUPPORT",
+        "valueType": "BOOLEAN",
+        "default": false
+      }
+    ],
+    "usageLimits": [
+      {
+        "id": "emailsPerMonth",
+        "name": "emailsPerMonth",
+        "valueType": "NUMERIC",
+        "unit": "email",
+        "default": 3000,
+        "linkedFeatures": [
+          "messagesApi",
+          "smtpRelay"
+        ]
+      },
+      {
+        "id": "emailsPerDay",
+        "name": "emailsPerDay",
+        "valueType": "NUMERIC",
+        "unit": "email",
+        "default": 100,
+        "linkedFeatures": [
+          "messagesApi",
+          "smtpRelay"
+        ]
+      },
+      {
+        "id": "apiRequestsPerSecond",
+        "name": "apiRequestsPerSecond",
+        "valueType": "NUMERIC",
+        "unit": "request",
+        "default": 1500,
+        "linkedFeatures": [
+          "messagesApi",
+          "eventsApi",
+          "sendingDomains",
+          "emailTemplates",
+          "bounceImport",
+          "customMessageLimit"
+        ]
+      },
+      {
+        "id": "sendRequestsPer10Seconds",
+        "name": "sendRequestsPer10Seconds",
+        "valueType": "NUMERIC",
+        "unit": "request",
+        "default": 80000,
+        "linkedFeatures": [
+          "messagesApi"
+        ]
+      },
+      {
+        "id": "recipientsPerRequest",
+        "name": "recipientsPerRequest",
+        "valueType": "NUMERIC",
+        "unit": "recipient",
+        "default": 1000,
+        "linkedFeatures": [
+          "messagesApi"
+        ]
+      },
+      {
+        "id": "requestSize",
+        "name": "requestSize",
+        "valueType": "NUMERIC",
+        "unit": "MiB",
+        "default": 52,
+        "linkedFeatures": [
+          "messagesApi"
+        ]
+      },
+      {
+        "id": "eventsPerRequest",
+        "name": "eventsPerRequest",
+        "valueType": "NUMERIC",
+        "unit": "event",
+        "default": 300,
+        "linkedFeatures": [
+          "eventsApi"
+        ]
+      },
+      {
+        "id": "bounceImportFileSize",
+        "name": "bounceImportFileSize",
+        "valueType": "NUMERIC",
+        "unit": "MB",
+        "default": 25,
+        "linkedFeatures": [
+          "bounceImport"
+        ]
+      },
+      {
+        "id": "maxTemplates",
+        "name": "maxTemplates",
+        "valueType": "NUMERIC",
+        "unit": "template",
+        "default": 100,
+        "linkedFeatures": [
+          "emailTemplates"
+        ]
+      },
+      {
+        "id": "maxSendingDomains",
+        "name": "maxSendingDomains",
+        "valueType": "NUMERIC",
+        "unit": "domain",
+        "default": 1,
+        "linkedFeatures": [
+          "sendingDomains"
+        ]
+      },
+      {
+        "id": "webhookUrlsPerEventType",
+        "name": "webhookUrlsPerEventType",
+        "valueType": "NUMERIC",
+        "unit": "url",
+        "default": 3,
+        "linkedFeatures": [
+          "webhooks"
+        ]
+      },
+      {
+        "id": "maxDedicatedIps",
+        "name": "maxDedicatedIps",
+        "valueType": "NUMERIC",
+        "unit": "IP",
+        "default": 0,
+        "linkedFeatures": [
+          "dedicatedIp"
+        ]
+      },
+      {
+        "id": "logRetentionDays",
+        "name": "logRetentionDays",
+        "valueType": "NUMERIC",
+        "unit": "day",
+        "default": 1,
+        "linkedFeatures": [
+          "activityLogs"
+        ]
+      },
+      {
+        "id": "messageRetentionDays",
+        "name": "messageRetentionDays",
+        "valueType": "NUMERIC",
+        "unit": "day",
+        "default": 0,
+        "linkedFeatures": [
+          "messageRetention"
+        ]
+      }
+    ],
+    "plans": [
+      {
+        "id": "free",
+        "name": "free",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 0.0
+        },
+        "unit": "month",
+        "period": "month",
+        "perSeat": false,
+        "features": {
+          "messagesApi": true,
+          "smtpRelay": true,
+          "inboundRouting": true,
+          "dedicatedIp": false,
+          "dedicatedIpPools": false,
+          "sendTimeOptimization": false,
+          "emailTemplates": true,
+          "bounceImport": true,
+          "customMessageLimit": true,
+          "sendingDomains": true,
+          "webhooks": true,
+          "multiUserAccess": false,
+          "rbacApiKeys": false,
+          "samlSso": false,
+          "eventsApi": true,
+          "activityLogs": true,
+          "messageRetention": false,
+          "liveSupport": false
+        },
+        "usageLimits": {
+          "emailsPerMonth": 3000,
+          "emailsPerDay": 100,
+          "apiRequestsPerSecond": 1500,
+          "sendRequestsPer10Seconds": 80000,
+          "recipientsPerRequest": 1000,
+          "requestSize": 52,
+          "eventsPerRequest": 300,
+          "bounceImportFileSize": 25,
+          "maxTemplates": 100,
+          "maxSendingDomains": 1,
+          "webhookUrlsPerEventType": 3,
+          "maxDedicatedIps": 0,
+          "logRetentionDays": 1,
+          "messageRetentionDays": 0
+        }
+      },
+      {
+        "id": "basic",
+        "name": "basic",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 15.0
+        },
+        "unit": "month",
+        "period": "month",
+        "perSeat": false,
+        "features": {
+          "messagesApi": true,
+          "smtpRelay": true,
+          "inboundRouting": true,
+          "dedicatedIp": false,
+          "dedicatedIpPools": false,
+          "sendTimeOptimization": false,
+          "emailTemplates": true,
+          "bounceImport": true,
+          "customMessageLimit": true,
+          "sendingDomains": true,
+          "webhooks": true,
+          "multiUserAccess": false,
+          "rbacApiKeys": false,
+          "samlSso": false,
+          "eventsApi": true,
+          "activityLogs": true,
+          "messageRetention": false,
+          "liveSupport": false
+        },
+        "usageLimits": {
+          "emailsPerMonth": 10000,
+          "emailsPerDay": {
+            "unlimited": true
+          },
+          "apiRequestsPerSecond": 1500,
+          "sendRequestsPer10Seconds": 80000,
+          "recipientsPerRequest": 1000,
+          "requestSize": 52,
+          "eventsPerRequest": 300,
+          "bounceImportFileSize": 25,
+          "maxTemplates": 100,
+          "maxSendingDomains": 1,
+          "webhookUrlsPerEventType": 3,
+          "maxDedicatedIps": 0,
+          "logRetentionDays": 1,
+          "messageRetentionDays": 0
+        }
+      },
+      {
+        "id": "foundation",
+        "name": "foundation",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 35.0
+        },
+        "unit": "month",
+        "period": "month",
+        "perSeat": false,
+        "features": {
+          "messagesApi": true,
+          "smtpRelay": true,
+          "inboundRouting": true,
+          "dedicatedIp": false,
+          "dedicatedIpPools": false,
+          "sendTimeOptimization": false,
+          "emailTemplates": true,
+          "bounceImport": true,
+          "customMessageLimit": true,
+          "sendingDomains": true,
+          "webhooks": true,
+          "multiUserAccess": true,
+          "rbacApiKeys": true,
+          "samlSso": false,
+          "eventsApi": true,
+          "activityLogs": true,
+          "messageRetention": true,
+          "liveSupport": false
+        },
+        "usageLimits": {
+          "emailsPerMonth": 50000,
+          "emailsPerDay": {
+            "unlimited": true
+          },
+          "apiRequestsPerSecond": 1500,
+          "sendRequestsPer10Seconds": 80000,
+          "recipientsPerRequest": 1000,
+          "requestSize": 52,
+          "eventsPerRequest": 300,
+          "bounceImportFileSize": 25,
+          "maxTemplates": 100,
+          "maxSendingDomains": 1000,
+          "webhookUrlsPerEventType": 3,
+          "maxDedicatedIps": 0,
+          "logRetentionDays": 5,
+          "messageRetentionDays": 1
+        }
+      },
+      {
+        "id": "scale",
+        "name": "scale",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 90.0
+        },
+        "unit": "month",
+        "period": "month",
+        "perSeat": false,
+        "features": {
+          "messagesApi": true,
+          "smtpRelay": true,
+          "inboundRouting": true,
+          "dedicatedIp": true,
+          "dedicatedIpPools": true,
+          "sendTimeOptimization": true,
+          "emailTemplates": true,
+          "bounceImport": true,
+          "customMessageLimit": true,
+          "sendingDomains": true,
+          "webhooks": true,
+          "multiUserAccess": true,
+          "rbacApiKeys": true,
+          "samlSso": true,
+          "eventsApi": true,
+          "activityLogs": true,
+          "messageRetention": true,
+          "liveSupport": true
+        },
+        "usageLimits": {
+          "emailsPerMonth": 100000,
+          "emailsPerDay": {
+            "unlimited": true
+          },
+          "apiRequestsPerSecond": 1500,
+          "sendRequestsPer10Seconds": 80000,
+          "recipientsPerRequest": 1000,
+          "requestSize": 52,
+          "eventsPerRequest": 300,
+          "bounceImportFileSize": 25,
+          "maxTemplates": 100,
+          "maxSendingDomains": 1000,
+          "webhookUrlsPerEventType": 3,
+          "maxDedicatedIps": 1,
+          "logRetentionDays": 30,
+          "messageRetentionDays": 7
+        }
+      }
+    ],
+    "addOns": [
+      {
+        "id": "extraEmailsBasic",
+        "name": "extraEmailsBasic",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 1.8
+        },
+        "unit": "1000 emails",
+        "quantity": 1000.0,
+        "availableFor": [
+          "basic"
+        ],
+        "usageLimitsExtensions": {
+          "emailsPerMonth": 1000.0
+        },
+        "metered": true
+      },
+      {
+        "id": "extraEmailsFoundation",
+        "name": "extraEmailsFoundation",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 1.3
+        },
+        "unit": "1000 emails",
+        "quantity": 1000.0,
+        "availableFor": [
+          "foundation"
+        ],
+        "usageLimitsExtensions": {
+          "emailsPerMonth": 1000.0
+        },
+        "metered": true
+      },
+      {
+        "id": "extraEmailsScale",
+        "name": "extraEmailsScale",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 1.1
+        },
+        "unit": "1000 emails",
+        "quantity": 1000.0,
+        "availableFor": [
+          "scale"
+        ],
+        "usageLimitsExtensions": {
+          "emailsPerMonth": 1000.0
+        },
+        "metered": true
+      },
+      {
+        "id": "extraDedicatedIp",
+        "name": "extraDedicatedIp",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 59.0
+        },
+        "unit": "IP/month",
+        "period": "month",
+        "availableFor": [
+          "foundation",
+          "scale"
+        ],
+        "dependsOn": [],
+        "excludes": [],
+        "features": {
+          "dedicatedIp": true
+        },
+        "usageLimits": {},
+        "usageLimitsExtensions": {
+          "maxDedicatedIps": 1.0
+        },
+        "metered": false
+      }
+    ],
+    "diagnostics": [],
+    "variables": {}
+  },
+  "effective": {
+    "free": {
+      "plan": "free",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {},
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "free",
+          "quantity": 1,
+          "price": {
+            "kind": "fixed",
+            "amount": 0.0
+          },
+          "unitAmount": 0.0,
+          "amount": 0.0
+        }
+      ],
+      "subtotal": 0.0,
+      "requiresQuote": false,
+      "features": {
+        "messagesApi": true,
+        "smtpRelay": true,
+        "inboundRouting": true,
+        "dedicatedIp": false,
+        "dedicatedIpPools": false,
+        "sendTimeOptimization": false,
+        "emailTemplates": true,
+        "bounceImport": true,
+        "customMessageLimit": true,
+        "sendingDomains": true,
+        "webhooks": true,
+        "multiUserAccess": false,
+        "rbacApiKeys": false,
+        "samlSso": false,
+        "eventsApi": true,
+        "activityLogs": true,
+        "messageRetention": false,
+        "liveSupport": false
+      },
+      "usageLimits": {
+        "emailsPerMonth": 3000,
+        "emailsPerDay": 100,
+        "apiRequestsPerSecond": 1500,
+        "sendRequestsPer10Seconds": 80000,
+        "recipientsPerRequest": 1000,
+        "requestSize": 52,
+        "eventsPerRequest": 300,
+        "bounceImportFileSize": 25,
+        "maxTemplates": 100,
+        "maxSendingDomains": 1,
+        "webhookUrlsPerEventType": 3,
+        "maxDedicatedIps": 0,
+        "logRetentionDays": 1,
+        "messageRetentionDays": 0
+      }
+    },
+    "basic": {
+      "plan": "basic",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {},
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "basic",
+          "quantity": 1,
+          "price": {
+            "kind": "fixed",
+            "amount": 15.0
+          },
+          "unitAmount": 15.0,
+          "amount": 15.0
+        }
+      ],
+      "subtotal": 15.0,
+      "requiresQuote": false,
+      "features": {
+        "messagesApi": true,
+        "smtpRelay": true,
+        "inboundRouting": true,
+        "dedicatedIp": false,
+        "dedicatedIpPools": false,
+        "sendTimeOptimization": false,
+        "emailTemplates": true,
+        "bounceImport": true,
+        "customMessageLimit": true,
+        "sendingDomains": true,
+        "webhooks": true,
+        "multiUserAccess": false,
+        "rbacApiKeys": false,
+        "samlSso": false,
+        "eventsApi": true,
+        "activityLogs": true,
+        "messageRetention": false,
+        "liveSupport": false
+      },
+      "usageLimits": {
+        "emailsPerMonth": 10000,
+        "emailsPerDay": {
+          "unlimited": true
+        },
+        "apiRequestsPerSecond": 1500,
+        "sendRequestsPer10Seconds": 80000,
+        "recipientsPerRequest": 1000,
+        "requestSize": 52,
+        "eventsPerRequest": 300,
+        "bounceImportFileSize": 25,
+        "maxTemplates": 100,
+        "maxSendingDomains": 1,
+        "webhookUrlsPerEventType": 3,
+        "maxDedicatedIps": 0,
+        "logRetentionDays": 1,
+        "messageRetentionDays": 0
+      }
+    },
+    "foundation": {
+      "plan": "foundation",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {},
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "foundation",
+          "quantity": 1,
+          "price": {
+            "kind": "fixed",
+            "amount": 35.0
+          },
+          "unitAmount": 35.0,
+          "amount": 35.0
+        }
+      ],
+      "subtotal": 35.0,
+      "requiresQuote": false,
+      "features": {
+        "messagesApi": true,
+        "smtpRelay": true,
+        "inboundRouting": true,
+        "dedicatedIp": false,
+        "dedicatedIpPools": false,
+        "sendTimeOptimization": false,
+        "emailTemplates": true,
+        "bounceImport": true,
+        "customMessageLimit": true,
+        "sendingDomains": true,
+        "webhooks": true,
+        "multiUserAccess": true,
+        "rbacApiKeys": true,
+        "samlSso": false,
+        "eventsApi": true,
+        "activityLogs": true,
+        "messageRetention": true,
+        "liveSupport": false
+      },
+      "usageLimits": {
+        "emailsPerMonth": 50000,
+        "emailsPerDay": {
+          "unlimited": true
+        },
+        "apiRequestsPerSecond": 1500,
+        "sendRequestsPer10Seconds": 80000,
+        "recipientsPerRequest": 1000,
+        "requestSize": 52,
+        "eventsPerRequest": 300,
+        "bounceImportFileSize": 25,
+        "maxTemplates": 100,
+        "maxSendingDomains": 1000,
+        "webhookUrlsPerEventType": 3,
+        "maxDedicatedIps": 0,
+        "logRetentionDays": 5,
+        "messageRetentionDays": 1
+      }
+    },
+    "foundation+extraDedicatedIp": {
+      "plan": "foundation",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {
+        "extraDedicatedIp": 1.0
+      },
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "foundation",
+          "quantity": 1,
+          "price": {
+            "kind": "fixed",
+            "amount": 35.0
+          },
+          "unitAmount": 35.0,
+          "amount": 35.0
+        },
+        {
+          "kind": "addOn",
+          "id": "extraDedicatedIp",
+          "quantity": 1.0,
+          "price": {
+            "kind": "fixed",
+            "amount": 59.0
+          },
+          "unitAmount": 59.0,
+          "amount": 59.0
+        }
+      ],
+      "subtotal": 94.0,
+      "requiresQuote": false,
+      "features": {
+        "messagesApi": true,
+        "smtpRelay": true,
+        "inboundRouting": true,
+        "dedicatedIp": true,
+        "dedicatedIpPools": false,
+        "sendTimeOptimization": false,
+        "emailTemplates": true,
+        "bounceImport": true,
+        "customMessageLimit": true,
+        "sendingDomains": true,
+        "webhooks": true,
+        "multiUserAccess": true,
+        "rbacApiKeys": true,
+        "samlSso": false,
+        "eventsApi": true,
+        "activityLogs": true,
+        "messageRetention": true,
+        "liveSupport": false
+      },
+      "usageLimits": {
+        "emailsPerMonth": 50000,
+        "emailsPerDay": {
+          "unlimited": true
+        },
+        "apiRequestsPerSecond": 1500,
+        "sendRequestsPer10Seconds": 80000,
+        "recipientsPerRequest": 1000,
+        "requestSize": 52,
+        "eventsPerRequest": 300,
+        "bounceImportFileSize": 25,
+        "maxTemplates": 100,
+        "maxSendingDomains": 1000,
+        "webhookUrlsPerEventType": 3,
+        "maxDedicatedIps": 1.0,
+        "logRetentionDays": 5,
+        "messageRetentionDays": 1
+      }
+    },
+    "scale": {
+      "plan": "scale",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {},
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "scale",
+          "quantity": 1,
+          "price": {
+            "kind": "fixed",
+            "amount": 90.0
+          },
+          "unitAmount": 90.0,
+          "amount": 90.0
+        }
+      ],
+      "subtotal": 90.0,
+      "requiresQuote": false,
+      "features": {
+        "messagesApi": true,
+        "smtpRelay": true,
+        "inboundRouting": true,
+        "dedicatedIp": true,
+        "dedicatedIpPools": true,
+        "sendTimeOptimization": true,
+        "emailTemplates": true,
+        "bounceImport": true,
+        "customMessageLimit": true,
+        "sendingDomains": true,
+        "webhooks": true,
+        "multiUserAccess": true,
+        "rbacApiKeys": true,
+        "samlSso": true,
+        "eventsApi": true,
+        "activityLogs": true,
+        "messageRetention": true,
+        "liveSupport": true
+      },
+      "usageLimits": {
+        "emailsPerMonth": 100000,
+        "emailsPerDay": {
+          "unlimited": true
+        },
+        "apiRequestsPerSecond": 1500,
+        "sendRequestsPer10Seconds": 80000,
+        "recipientsPerRequest": 1000,
+        "requestSize": 52,
+        "eventsPerRequest": 300,
+        "bounceImportFileSize": 25,
+        "maxTemplates": 100,
+        "maxSendingDomains": 1000,
+        "webhookUrlsPerEventType": 3,
+        "maxDedicatedIps": 1,
+        "logRetentionDays": 30,
+        "messageRetentionDays": 7
+      }
+    },
+    "scale+extraDedicatedIp": {
+      "plan": "scale",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {
+        "extraDedicatedIp": 1.0
+      },
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "scale",
+          "quantity": 1,
+          "price": {
+            "kind": "fixed",
+            "amount": 90.0
+          },
+          "unitAmount": 90.0,
+          "amount": 90.0
+        },
+        {
+          "kind": "addOn",
+          "id": "extraDedicatedIp",
+          "quantity": 1.0,
+          "price": {
+            "kind": "fixed",
+            "amount": 59.0
+          },
+          "unitAmount": 59.0,
+          "amount": 59.0
+        }
+      ],
+      "subtotal": 149.0,
+      "requiresQuote": false,
+      "features": {
+        "messagesApi": true,
+        "smtpRelay": true,
+        "inboundRouting": true,
+        "dedicatedIp": true,
+        "dedicatedIpPools": true,
+        "sendTimeOptimization": true,
+        "emailTemplates": true,
+        "bounceImport": true,
+        "customMessageLimit": true,
+        "sendingDomains": true,
+        "webhooks": true,
+        "multiUserAccess": true,
+        "rbacApiKeys": true,
+        "samlSso": true,
+        "eventsApi": true,
+        "activityLogs": true,
+        "messageRetention": true,
+        "liveSupport": true
+      },
+      "usageLimits": {
+        "emailsPerMonth": 100000,
+        "emailsPerDay": {
+          "unlimited": true
+        },
+        "apiRequestsPerSecond": 1500,
+        "sendRequestsPer10Seconds": 80000,
+        "recipientsPerRequest": 1000,
+        "requestSize": 52,
+        "eventsPerRequest": 300,
+        "bounceImportFileSize": 25,
+        "maxTemplates": 100,
+        "maxSendingDomains": 1000,
+        "webhookUrlsPerEventType": 3,
+        "maxDedicatedIps": 2.0,
+        "logRetentionDays": 30,
+        "messageRetentionDays": 7
+      }
+    }
+  }
+}

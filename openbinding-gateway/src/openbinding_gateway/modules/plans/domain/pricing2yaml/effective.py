@@ -14,7 +14,7 @@ import math
 from collections.abc import Mapping
 from dataclasses import dataclass
 
-from .model import Billing, Expression, Fixed, Label, NormalisedPricing, Price, Unlimited, Value
+from .model import UNLIMITED_SENTINEL, Billing, Expression, Fixed, Label, NormalisedPricing, Price, Unlimited, Value
 
 
 @dataclass(frozen=True)
@@ -64,10 +64,13 @@ def _extend(current: Value, amount: float) -> Value:
     if isinstance(current, Unlimited):
         return current
     if isinstance(current, (int, float)) and not isinstance(current, bool):
-        return current + amount
-    if current is None:
-        return amount
-    return current
+        total = current + amount
+    elif current is None:
+        total = amount
+    else:
+        return current
+    # An extended limit that reaches pricing4ts's sentinel is unlimited, like a value written that way.
+    return Unlimited(total) if total >= UNLIMITED_SENTINEL else total
 
 
 def effective(

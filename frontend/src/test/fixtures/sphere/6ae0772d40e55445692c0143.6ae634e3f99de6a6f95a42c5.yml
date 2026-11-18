@@ -1,0 +1,355 @@
+saasName: SendGrid
+syntaxVersion: '3.1'
+version: '2026-10-31'
+url: https://www.twilio.com/en-us/products/email-api/pricing
+createdAt: '2026-09-06'
+currency: USD
+variables: {}
+tags:
+  - Envío
+  - Recursos
+features:
+  transactionalEmailApi:
+    description: >-
+      Envío por POST /v3/mail/send, en todos los planes [DS:89, DS:203-204,
+      DS:213]
+    valueType: BOOLEAN
+    defaultValue: true
+    type: INTEGRATION
+    integrationType: API
+    tag: Envío
+  smtpRelay:
+    description: >-
+      Canal SMTP; la prueba lo cuenta en la misma cuota diaria que la API
+      [DS:189, DS:230]
+    valueType: BOOLEAN
+    defaultValue: true
+    type: INTEGRATION
+    integrationType: API
+    tag: Envío
+  sandboxMode:
+    description: >-
+      Modo sandbox: valida la petición sin entregar y sin consumir créditos
+      [DS:215]
+    valueType: BOOLEAN
+    defaultValue: true
+    type: DOMAIN
+    tag: Envío
+  dedicatedIp:
+    description: >-
+      IP dedicada; incluida desde Pro, sin acceso en la prueba ni en Essentials
+      [DS:216, DS:223]
+    valueType: BOOLEAN
+    defaultValue: false
+    type: DOMAIN
+    tag: Envío
+  euDataResidency:
+    description: >-
+      Envío regional en la UE por api.eu.sendgrid.com; desde Pro [DS:213-214,
+      DS:223]
+    valueType: BOOLEAN
+    defaultValue: false
+    type: DOMAIN
+    tag: Envío
+  emailValidation:
+    description: Validación de direcciones; solo Pro y Premier [DS:220, DS:223, DS:233]
+    valueType: BOOLEAN
+    defaultValue: false
+    type: INTEGRATION
+    integrationType: API
+    tag: Recursos
+  emailTesting:
+    description: Créditos de Email Testing; incluidos desde Pro [DS:218-219, DS:222]
+    valueType: BOOLEAN
+    defaultValue: false
+    type: DOMAIN
+    tag: Recursos
+  eventWebhooks:
+    description: Webhooks de eventos [DS:220]
+    valueType: BOOLEAN
+    defaultValue: true
+    type: INTEGRATION
+    integrationType: API
+    tag: Recursos
+  teammates:
+    description: Usuarios adicionales de la cuenta [DS:220]
+    valueType: BOOLEAN
+    defaultValue: true
+    type: MANAGEMENT
+    tag: Recursos
+  subuserManagement:
+    description: Gestión de subusuarios; desde Pro [DS:223]
+    valueType: BOOLEAN
+    defaultValue: false
+    type: MANAGEMENT
+    tag: Recursos
+  activityData:
+    description: Actividad de los envíos consultable en el panel [DS:185, DS:221]
+    valueType: BOOLEAN
+    defaultValue: true
+    type: INFORMATION
+    tag: Recursos
+usageLimits:
+  emailsPerMonth:
+    description: >-
+      Cuota mensual de emails por ciclo de facturación, por destinatario; la
+      prueba no tiene cuota mensual, solo la diaria [DS:24-44, DS:86, DS:202,
+      DS:247]
+    valueType: NUMERIC
+    defaultValue: 100000000
+    unit: email
+    type: RENEWABLE
+    period:
+      unit: MONTH
+      value: 1
+    linkedFeatures:
+      - transactionalEmailApi
+      - smtpRelay
+  emailsPerDay:
+    description: >-
+      Cuota diaria de la prueba, tope duro con reposición el día UTC siguiente;
+      los planes de pago solo tienen la mensual [DS:16-22, DS:189-190, DS:246]
+    valueType: NUMERIC
+    defaultValue: 100
+    unit: email
+    type: RENEWABLE
+    period:
+      unit: DAY
+      value: 1
+    linkedFeatures:
+      - transactionalEmailApi
+      - smtpRelay
+  mailSendRequestsPerSecond:
+    description: Caudal de POST /v3/mail/send, igual en todos los planes [DS:55-78, DS:203]
+    valueType: NUMERIC
+    defaultValue: 10000
+    unit: request
+    type: RENEWABLE
+    period:
+      unit: SEC
+      value: 1
+    linkedFeatures:
+      - transactionalEmailApi
+  recipientsPerRequest:
+    description: >-
+      Destinatarios por petición, 1.000 en total entre to, cc y bcc de todos los
+      sobres [DS:91-94, DS:209, DS:239]
+    valueType: NUMERIC
+    defaultValue: 1000
+    unit: recipient
+    type: NON_RENEWABLE
+    trackable: false
+    linkedFeatures:
+      - transactionalEmailApi
+  personalizationsPerRequest:
+    description: Sobres (personalizations) por petición [DS:94, DS:211, DS:240]
+    valueType: NUMERIC
+    defaultValue: 1000
+    unit: personalization
+    type: NON_RENEWABLE
+    trackable: false
+    linkedFeatures:
+      - transactionalEmailApi
+  requestSize:
+    description: >-
+      Tamaño de la petición con adjuntos; 30 MiB inclusive, medido en sandbox
+      [DS:95-98, DS:186, DS:210]
+    valueType: NUMERIC
+    defaultValue: 30
+    unit: MiB
+    type: NON_RENEWABLE
+    trackable: false
+    linkedFeatures:
+      - transactionalEmailApi
+  smtpMessagesPerConnection:
+    description: Mensajes por conexión SMTP [DS:230]
+    valueType: NUMERIC
+    defaultValue: 5000
+    unit: email
+    type: NON_RENEWABLE
+    trackable: false
+    linkedFeatures:
+      - smtpRelay
+  smtpConcurrentConnections:
+    description: Conexiones SMTP simultáneas desde un mismo servidor [DS:230]
+    valueType: NUMERIC
+    defaultValue: 10000
+    unit: connection
+    type: NON_RENEWABLE
+    trackable: false
+    linkedFeatures:
+      - smtpRelay
+  maxDedicatedIps:
+    description: IP dedicadas incluidas; una desde Pro [DS:216-217]
+    valueType: NUMERIC
+    defaultValue: 0
+    unit: IP
+    type: NON_RENEWABLE
+    trackable: true
+    linkedFeatures:
+      - dedicatedIp
+  includedEmailValidations:
+    description: >-
+      Validaciones de direcciones incluidas; la fuente no dice el periodo
+      [DS:220]
+    valueType: NUMERIC
+    defaultValue: 0
+    unit: validation
+    type: NON_RENEWABLE
+    trackable: true
+    linkedFeatures:
+      - emailValidation
+  emailTestingCreditsPerMonth:
+    description: Créditos de Email Testing al mes [DS:219, DS:222]
+    valueType: NUMERIC
+    defaultValue: 0
+    unit: credit
+    type: RENEWABLE
+    period:
+      unit: MONTH
+      value: 1
+    linkedFeatures:
+      - emailTesting
+  maxEventWebhooks:
+    description: Webhooks de eventos por plan [DS:220]
+    valueType: NUMERIC
+    defaultValue: 1
+    unit: webhook
+    type: NON_RENEWABLE
+    trackable: true
+    linkedFeatures:
+      - eventWebhooks
+  maxTeammates:
+    description: Usuarios adicionales [DS:220]
+    valueType: NUMERIC
+    defaultValue: 1
+    unit: user
+    type: NON_RENEWABLE
+    trackable: true
+    linkedFeatures:
+      - teammates
+  activityRetentionDays:
+    description: Historial de actividad consultable en el panel [DS:185, DS:221]
+    valueType: NUMERIC
+    defaultValue: 3
+    unit: day
+    type: NON_RENEWABLE
+    trackable: false
+    linkedFeatures:
+      - activityData
+plans:
+  freeTrial:
+    description: >-
+      Free Trial: 60 días, 100 emails al día, tope duro; al caducar la cuenta
+      deja de enviar [DS:81-98, DS:187-190, DS:228]
+    price: 0
+    unit: month
+    features: null
+    usageLimits: null
+  essentials:
+    description: >-
+      Essentials en su primer volumen, 50.000 emails al mes [DS:100-117, DS:193,
+      DS:197]
+    price: 19.95
+    unit: month
+    features: null
+    usageLimits:
+      emailsPerMonth:
+        value: 50000
+      emailsPerDay:
+        value: 100000000
+      maxEventWebhooks:
+        value: 2
+  pro:
+    description: >-
+      Pro en su primer volumen, 100.000 emails al mes [DS:119-136, DS:194,
+      DS:197]
+    price: 89.95
+    unit: month
+    features:
+      dedicatedIp:
+        value: true
+      euDataResidency:
+        value: true
+      emailValidation:
+        value: true
+      emailTesting:
+        value: true
+      subuserManagement:
+        value: true
+    usageLimits:
+      emailsPerMonth:
+        value: 100000
+      emailsPerDay:
+        value: 100000000
+      maxDedicatedIps:
+        value: 1
+      includedEmailValidations:
+        value: 2500
+      emailTestingCreditsPerMonth:
+        value: 60
+      maxEventWebhooks:
+        value: 5
+      maxTeammates:
+        value: 1000
+      activityRetentionDays:
+        value: 7
+addOns:
+  overageEssentials:
+    description: >-
+      Sobrecoste de Essentials 50K: 0,0013 USD por email, en bloques de 1.000;
+      hasta 10 veces el plan [DS:31-33, DS:199-200, DS:248]
+    availableFor:
+      - essentials
+    price: 1.3
+    unit: 1000 emails
+    usageLimitsExtensions:
+      emailsPerMonth:
+        value: 1000
+    subscriptionConstraints:
+      minQuantity: 1
+      maxQuantity: 450
+      quantityStep: 1
+  overagePro:
+    description: >-
+      Sobrecoste de Pro 100K: 0,0011 USD por email, en bloques de 1.000; hasta
+      10 veces el plan [DS:42-44, DS:199-200, DS:248]
+    availableFor:
+      - pro
+    price: 1.1
+    unit: 1000 emails
+    usageLimitsExtensions:
+      emailsPerMonth:
+        value: 1000
+    subscriptionConstraints:
+      minQuantity: 1
+      maxQuantity: 900
+      quantityStep: 1
+  extraDedicatedIp:
+    description: IP dedicada adicional a 30 USD al mes cada una [DS:216-217]
+    availableFor:
+      - pro
+    price: 30
+    unit: IP/month
+    usageLimitsExtensions:
+      maxDedicatedIps:
+        value: 1
+    subscriptionConstraints:
+      minQuantity: 1
+      maxQuantity: 100000000
+      quantityStep: 1
+  emailTestingCredits30:
+    description: >-
+      Paquete de 30 créditos de Email Testing al mes por 18 USD; requiere plan
+      de pago [DS:218-219]
+    availableFor:
+      - essentials
+      - pro
+    price: 18
+    unit: month
+    features:
+      emailTesting:
+        value: true
+    usageLimitsExtensions:
+      emailTestingCreditsPerMonth:
+        value: 30

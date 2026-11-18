@@ -636,6 +636,62 @@
     ],
     "addOns": [
       {
+        "id": "extraEmailsEssentials",
+        "name": "extraEmailsEssentials",
+        "private": false,
+        "price": {
+          "kind": "expression",
+          "source": "#essOverageByTier[String(#essTier)]",
+          "value": 0.00133
+        },
+        "unit": "email",
+        "quantity": 1.0,
+        "availableFor": [
+          "ESSENTIALS"
+        ],
+        "usageLimitsExtensions": {
+          "emailsPerMonth": 1.0
+        },
+        "metered": true
+      },
+      {
+        "id": "extraEmailsPro",
+        "name": "extraEmailsPro",
+        "private": false,
+        "price": {
+          "kind": "expression",
+          "source": "#proOverageByTier[String(#proTier)]",
+          "value": 0.0011
+        },
+        "unit": "email",
+        "quantity": 1.0,
+        "availableFor": [
+          "PRO"
+        ],
+        "usageLimitsExtensions": {
+          "emailsPerMonth": 1.0
+        },
+        "metered": true
+      },
+      {
+        "id": "extraEmailsPremier",
+        "name": "extraEmailsPremier",
+        "private": true,
+        "price": {
+          "kind": "label",
+          "text": "Contact Sales"
+        },
+        "unit": "email",
+        "quantity": 1.0,
+        "availableFor": [
+          "PREMIER"
+        ],
+        "usageLimitsExtensions": {
+          "emailsPerMonth": 1.0
+        },
+        "metered": true
+      },
+      {
         "id": "additionalDedicatedIp",
         "name": "additionalDedicatedIp",
         "private": false,
@@ -774,62 +830,6 @@
         "usageLimits": {},
         "usageLimitsExtensions": {},
         "metered": false
-      },
-      {
-        "id": "extraEmailsEssentials",
-        "name": "extraEmailsEssentials",
-        "private": false,
-        "price": {
-          "kind": "expression",
-          "source": "#essOverageByTier[String(#essTier)]",
-          "value": 0.00133
-        },
-        "unit": "email",
-        "quantity": 1.0,
-        "availableFor": [
-          "ESSENTIALS"
-        ],
-        "usageLimitsExtensions": {
-          "emailsPerMonth": 1.0
-        },
-        "metered": true
-      },
-      {
-        "id": "extraEmailsPro",
-        "name": "extraEmailsPro",
-        "private": false,
-        "price": {
-          "kind": "expression",
-          "source": "#proOverageByTier[String(#proTier)]",
-          "value": 0.0011
-        },
-        "unit": "email",
-        "quantity": 1.0,
-        "availableFor": [
-          "PRO"
-        ],
-        "usageLimitsExtensions": {
-          "emailsPerMonth": 1.0
-        },
-        "metered": true
-      },
-      {
-        "id": "extraEmailsPremier",
-        "name": "extraEmailsPremier",
-        "private": true,
-        "price": {
-          "kind": "label",
-          "text": "Contact Sales"
-        },
-        "unit": "email",
-        "quantity": 1.0,
-        "availableFor": [
-          "PREMIER"
-        ],
-        "usageLimitsExtensions": {
-          "emailsPerMonth": 1.0
-        },
-        "metered": true
       }
     ],
     "diagnostics": [],

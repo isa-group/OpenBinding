@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Write the gateway-produced fixtures of the frontend to frontend/src/test/fixtures/core/.
+"""Write the gateway-produced fixtures of the frontend to frontend/src/test/fixtures/core/ and sphere/.
 
 The frontend's view-models and mocks read what the gateway really answers, not a hand-written
 copy of it. This tool runs the gateway in process (SQLite, inline dispatch, the pinned
@@ -41,8 +41,13 @@ appearance across the fixture set (files in a fixed order, keys sorted), and eac
 instant ``2026-01-01T00:00:00Z`` plus one second per distinct value in order of appearance, so
 ordering by date survives. Content digests are deterministic and left as they are.
 
-    python tools/dump_frontend_fixtures.py               # rewrite frontend/src/test/fixtures/core/
-    python tools/dump_frontend_fixtures.py --out DIR     # write somewhere else
+``sphere/`` holds the recorded SPHERE set the frontend's parity test reads (the frontend never reads the
+gateway's ``tests/``): for every recorded Pricing2Yaml 3.x version and every synthetic one,
+``<pricingId>.<versionId>.yml`` (``derived.<name>.yml``) and the matching ``.normalised.json``, copied from
+``openbinding-gateway/tests/fixtures/sphere/normalised/`` (``tools/dump_normalised_pricings.py``).
+
+    python tools/dump_frontend_fixtures.py               # rewrite frontend/src/test/fixtures/{core,sphere}/
+    python tools/dump_frontend_fixtures.py --out DIR     # write DIR/core/ and DIR/sphere/ instead
     python tools/dump_frontend_fixtures.py --check       # fail if the checked-in fixtures differ
 """
 
@@ -64,6 +69,8 @@ from typing import Any
 GATEWAY_ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = Path(os.environ.get("OPENBINDING_REPO_ROOT", Path(__file__).resolve().parents[2])).resolve()
 FIXTURES = REPO_ROOT / "frontend" / "src" / "test" / "fixtures" / "core"
+SPHERE_FIXTURES = FIXTURES.parent / "sphere"
+SFX = Path(__file__).resolve().parents[1] / "tests" / "fixtures" / "sphere"
 DEMO = REPO_ROOT / "examples" / "demo"
 
 sys.path.insert(0, str(GATEWAY_ROOT / "src"))
@@ -340,6 +347,31 @@ def drift(files: dict[str, str], directory: Path) -> list[str]:
     return found
 
 
+def sphere_files() -> dict[str, str]:
+    """``sphere/``: every readable recorded or derived version and its golden, by file name."""
+    files: dict[str, str] = {}
+    for golden in sorted((SFX / "normalised").glob("*.json")):
+        text = golden.read_text(encoding="utf-8")
+        if '"refused"' in text[:40]:
+            continue
+        family, _, version = golden.stem.partition("@")
+        source = SFX / family / f"{version}.yml"
+        files[f"{family}.{version}.yml"] = source.read_text(encoding="utf-8")
+        files[f"{family}.{version}.normalised.json"] = text
+    return files
+
+
+def sphere_drift(files: dict[str, str], directory: Path) -> list[str]:
+    present = {path.name for path in directory.iterdir() if path.is_file()} if directory.is_dir() else set()
+    found = [f"missing: sphere/{name}" for name in sorted(set(files) - present)]
+    found += [f"not generated: sphere/{name}" for name in sorted(present - set(files))]
+    found += [
+        f"differs: sphere/{name}" for name in sorted(set(files) & present)
+        if (directory / name).read_text(encoding="utf-8") != files[name]
+    ]
+    return found
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     target = parser.add_mutually_exclusive_group()
@@ -348,22 +380,30 @@ def main(argv: list[str] | None = None) -> int:
     arguments = parser.parse_args(argv)
 
     files = generate()
+    sphere = sphere_files()
     if arguments.check:
-        found = drift(files, FIXTURES)
+        found = drift(files, FIXTURES) + sphere_drift(sphere, SPHERE_FIXTURES)
         if found:
             print("The frontend fixtures are out of date; run tools/dump_frontend_fixtures.py and commit the result:")
             print("\n".join(f"  {line}" for line in found))
             return 1
-        print(f"{FIXTURES.relative_to(REPO_ROOT)} is up to date ({len(files)} files).")
+        print(f"{FIXTURES.parent.relative_to(REPO_ROOT)} is up to date ({len(files) + len(sphere)} files).")
         return 0
-    out = arguments.out or FIXTURES
-    out.mkdir(parents=True, exist_ok=True)
-    for stale in out.glob("*.json"):
+    core_out = arguments.out / "core" if arguments.out else FIXTURES
+    sphere_out = arguments.out / "sphere" if arguments.out else SPHERE_FIXTURES
+    core_out.mkdir(parents=True, exist_ok=True)
+    for stale in core_out.glob("*.json"):
         if stale.name not in files:
             stale.unlink()
     for name, content in files.items():
-        (out / name).write_text(content, encoding="utf-8")
-    print(f"Wrote {len(files)} files to {out}")
+        (core_out / name).write_text(content, encoding="utf-8")
+    sphere_out.mkdir(parents=True, exist_ok=True)
+    for stale in sphere_out.iterdir():
+        if stale.is_file() and stale.name not in sphere:
+            stale.unlink()
+    for name, content in sphere.items():
+        (sphere_out / name).write_text(content, encoding="utf-8")
+    print(f"Wrote {len(files)} files to {core_out} and {len(sphere)} to {sphere_out}")
     return 0
 
 

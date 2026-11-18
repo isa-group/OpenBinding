@@ -272,6 +272,25 @@
     ],
     "addOns": [
       {
+        "id": "extraEmailsPayAsYouGo",
+        "name": "extraEmailsPayAsYouGo",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 0.9
+        },
+        "unit": "1000 emails",
+        "quantity": 1000.0,
+        "availableFor": [
+          "pro",
+          "scale"
+        ],
+        "usageLimitsExtensions": {
+          "emailsPerMonth": 1000.0
+        },
+        "metered": true
+      },
+      {
         "id": "extraDomains",
         "name": "extraDomains",
         "private": false,
@@ -337,25 +356,6 @@
         "usageLimits": {},
         "usageLimitsExtensions": {},
         "metered": false
-      },
-      {
-        "id": "extraEmailsPayAsYouGo",
-        "name": "extraEmailsPayAsYouGo",
-        "private": false,
-        "price": {
-          "kind": "fixed",
-          "amount": 0.9
-        },
-        "unit": "1000 emails",
-        "quantity": 1000.0,
-        "availableFor": [
-          "pro",
-          "scale"
-        ],
-        "usageLimitsExtensions": {
-          "emailsPerMonth": 1000.0
-        },
-        "metered": true
       }
     ],
     "diagnostics": [],

@@ -1,0 +1,711 @@
+{
+  "pricing": {
+    "syntaxVersion": "3.1",
+    "title": "Brevo",
+    "version": "2026-09-16",
+    "createdAt": "2026-09-16",
+    "currency": "USD",
+    "billing": [
+      {
+        "id": "monthly",
+        "multiplier": 1.0,
+        "synthesized": false
+      },
+      {
+        "id": "annual",
+        "multiplier": 0.9,
+        "synthesized": false
+      }
+    ],
+    "features": [
+      {
+        "id": "transactionalEmailApi",
+        "name": "transactionalEmailApi",
+        "type": "INTEGRATION",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "smtpRelay",
+        "name": "smtpRelay",
+        "type": "INTEGRATION",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "sandboxMode",
+        "name": "sandboxMode",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "dedicatedIp",
+        "name": "dedicatedIp",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "emailLogsApi",
+        "name": "emailLogsApi",
+        "type": "INFORMATION",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "blockedContactsApi",
+        "name": "blockedContactsApi",
+        "type": "INFORMATION",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "otherApiEndpoints",
+        "name": "otherApiEndpoints",
+        "type": "INTEGRATION",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "outboundWebhooks",
+        "name": "outboundWebhooks",
+        "type": "INTEGRATION",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "inboundWebhooks",
+        "name": "inboundWebhooks",
+        "type": "INTEGRATION",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "teamSeats",
+        "name": "teamSeats",
+        "type": "MANAGEMENT",
+        "valueType": "BOOLEAN",
+        "default": true
+      }
+    ],
+    "usageLimits": [
+      {
+        "id": "emailsPerDay",
+        "name": "emailsPerDay",
+        "valueType": "NUMERIC",
+        "unit": "email",
+        "default": 300,
+        "linkedFeatures": [
+          "transactionalEmailApi",
+          "smtpRelay"
+        ]
+      },
+      {
+        "id": "emailsPerMonth",
+        "name": "emailsPerMonth",
+        "valueType": "NUMERIC",
+        "unit": "email",
+        "default": {
+          "unlimited": true
+        },
+        "linkedFeatures": [
+          "transactionalEmailApi",
+          "smtpRelay"
+        ]
+      },
+      {
+        "id": "sendRequestsPerSecond",
+        "name": "sendRequestsPerSecond",
+        "valueType": "NUMERIC",
+        "unit": "request",
+        "default": 1000,
+        "linkedFeatures": [
+          "transactionalEmailApi",
+          "blockedContactsApi"
+        ]
+      },
+      {
+        "id": "emailLogsRequestsPerSecond",
+        "name": "emailLogsRequestsPerSecond",
+        "valueType": "NUMERIC",
+        "unit": "request",
+        "default": 2,
+        "linkedFeatures": [
+          "emailLogsApi"
+        ]
+      },
+      {
+        "id": "otherRequestsPerHour",
+        "name": "otherRequestsPerHour",
+        "valueType": "NUMERIC",
+        "unit": "request",
+        "default": 100,
+        "linkedFeatures": [
+          "otherApiEndpoints",
+          "inboundWebhooks"
+        ]
+      },
+      {
+        "id": "recipientsPerRequest",
+        "name": "recipientsPerRequest",
+        "valueType": "NUMERIC",
+        "unit": "recipient",
+        "default": 2000,
+        "linkedFeatures": [
+          "transactionalEmailApi"
+        ]
+      },
+      {
+        "id": "messageSize",
+        "name": "messageSize",
+        "valueType": "NUMERIC",
+        "unit": "MB",
+        "default": 20,
+        "linkedFeatures": [
+          "transactionalEmailApi"
+        ]
+      },
+      {
+        "id": "contractableMonthlyVolume",
+        "name": "contractableMonthlyVolume",
+        "valueType": "NUMERIC",
+        "unit": "email",
+        "default": 0,
+        "linkedFeatures": [
+          "transactionalEmailApi"
+        ]
+      },
+      {
+        "id": "maxSeats",
+        "name": "maxSeats",
+        "valueType": "NUMERIC",
+        "unit": "user",
+        "default": 1,
+        "linkedFeatures": [
+          "teamSeats"
+        ]
+      }
+    ],
+    "plans": [
+      {
+        "id": "free",
+        "name": "free",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 0.0
+        },
+        "unit": "month",
+        "period": "month",
+        "perSeat": false,
+        "features": {
+          "transactionalEmailApi": true,
+          "smtpRelay": true,
+          "sandboxMode": true,
+          "dedicatedIp": false,
+          "emailLogsApi": true,
+          "blockedContactsApi": true,
+          "otherApiEndpoints": true,
+          "outboundWebhooks": true,
+          "inboundWebhooks": false,
+          "teamSeats": true
+        },
+        "usageLimits": {
+          "emailsPerDay": 300,
+          "emailsPerMonth": {
+            "unlimited": true
+          },
+          "sendRequestsPerSecond": 1000,
+          "emailLogsRequestsPerSecond": 2,
+          "otherRequestsPerHour": 100,
+          "recipientsPerRequest": 2000,
+          "messageSize": 20,
+          "contractableMonthlyVolume": 0,
+          "maxSeats": 1
+        }
+      },
+      {
+        "id": "starter",
+        "name": "starter",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 9.0
+        },
+        "unit": "month",
+        "period": "month",
+        "perSeat": false,
+        "features": {
+          "transactionalEmailApi": true,
+          "smtpRelay": true,
+          "sandboxMode": true,
+          "dedicatedIp": false,
+          "emailLogsApi": true,
+          "blockedContactsApi": true,
+          "otherApiEndpoints": true,
+          "outboundWebhooks": true,
+          "inboundWebhooks": false,
+          "teamSeats": true
+        },
+        "usageLimits": {
+          "emailsPerDay": {
+            "unlimited": true
+          },
+          "emailsPerMonth": 5000,
+          "sendRequestsPerSecond": 1000,
+          "emailLogsRequestsPerSecond": 2,
+          "otherRequestsPerHour": 100,
+          "recipientsPerRequest": 2000,
+          "messageSize": 20,
+          "contractableMonthlyVolume": 100000,
+          "maxSeats": 1
+        }
+      },
+      {
+        "id": "standard",
+        "name": "standard",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 18.0
+        },
+        "unit": "month",
+        "period": "month",
+        "perSeat": false,
+        "features": {
+          "transactionalEmailApi": true,
+          "smtpRelay": true,
+          "sandboxMode": true,
+          "dedicatedIp": false,
+          "emailLogsApi": true,
+          "blockedContactsApi": true,
+          "otherApiEndpoints": true,
+          "outboundWebhooks": true,
+          "inboundWebhooks": false,
+          "teamSeats": true
+        },
+        "usageLimits": {
+          "emailsPerDay": {
+            "unlimited": true
+          },
+          "emailsPerMonth": 5000,
+          "sendRequestsPerSecond": 1000,
+          "emailLogsRequestsPerSecond": 2,
+          "otherRequestsPerHour": 100,
+          "recipientsPerRequest": 2000,
+          "messageSize": 20,
+          "contractableMonthlyVolume": 500000,
+          "maxSeats": 1
+        }
+      },
+      {
+        "id": "professional",
+        "name": "professional",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 499.0
+        },
+        "unit": "month",
+        "period": "month",
+        "perSeat": false,
+        "features": {
+          "transactionalEmailApi": true,
+          "smtpRelay": true,
+          "sandboxMode": true,
+          "dedicatedIp": false,
+          "emailLogsApi": true,
+          "blockedContactsApi": true,
+          "otherApiEndpoints": true,
+          "outboundWebhooks": true,
+          "inboundWebhooks": true,
+          "teamSeats": true
+        },
+        "usageLimits": {
+          "emailsPerDay": {
+            "unlimited": true
+          },
+          "emailsPerMonth": 150000,
+          "sendRequestsPerSecond": 1000,
+          "emailLogsRequestsPerSecond": 2,
+          "otherRequestsPerHour": 100,
+          "recipientsPerRequest": 2000,
+          "messageSize": 20,
+          "contractableMonthlyVolume": 10000000,
+          "maxSeats": 10
+        }
+      }
+    ],
+    "addOns": [
+      {
+        "id": "extraSeats",
+        "name": "extraSeats",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 12.0
+        },
+        "unit": "user/month",
+        "period": "month",
+        "availableFor": [
+          "standard"
+        ],
+        "dependsOn": [],
+        "excludes": [],
+        "features": {},
+        "usageLimits": {},
+        "usageLimitsExtensions": {
+          "maxSeats": 1.0
+        },
+        "metered": false
+      },
+      {
+        "id": "dedicatedIp",
+        "name": "dedicatedIp",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 251.0
+        },
+        "unit": "IP/year",
+        "period": "year",
+        "availableFor": [
+          "professional"
+        ],
+        "dependsOn": [],
+        "excludes": [],
+        "features": {
+          "dedicatedIp": true
+        },
+        "usageLimits": {},
+        "usageLimitsExtensions": {},
+        "metered": false
+      }
+    ],
+    "diagnostics": [],
+    "variables": {}
+  },
+  "effective": {
+    "free": {
+      "plan": "free",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {},
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "free",
+          "quantity": 1,
+          "price": {
+            "kind": "fixed",
+            "amount": 0.0
+          },
+          "unitAmount": 0.0,
+          "amount": 0.0
+        }
+      ],
+      "subtotal": 0.0,
+      "requiresQuote": false,
+      "features": {
+        "transactionalEmailApi": true,
+        "smtpRelay": true,
+        "sandboxMode": true,
+        "dedicatedIp": false,
+        "emailLogsApi": true,
+        "blockedContactsApi": true,
+        "otherApiEndpoints": true,
+        "outboundWebhooks": true,
+        "inboundWebhooks": false,
+        "teamSeats": true
+      },
+      "usageLimits": {
+        "emailsPerDay": 300,
+        "emailsPerMonth": {
+          "unlimited": true
+        },
+        "sendRequestsPerSecond": 1000,
+        "emailLogsRequestsPerSecond": 2,
+        "otherRequestsPerHour": 100,
+        "recipientsPerRequest": 2000,
+        "messageSize": 20,
+        "contractableMonthlyVolume": 0,
+        "maxSeats": 1
+      }
+    },
+    "starter": {
+      "plan": "starter",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {},
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "starter",
+          "quantity": 1,
+          "price": {
+            "kind": "fixed",
+            "amount": 9.0
+          },
+          "unitAmount": 9.0,
+          "amount": 9.0
+        }
+      ],
+      "subtotal": 9.0,
+      "requiresQuote": false,
+      "features": {
+        "transactionalEmailApi": true,
+        "smtpRelay": true,
+        "sandboxMode": true,
+        "dedicatedIp": false,
+        "emailLogsApi": true,
+        "blockedContactsApi": true,
+        "otherApiEndpoints": true,
+        "outboundWebhooks": true,
+        "inboundWebhooks": false,
+        "teamSeats": true
+      },
+      "usageLimits": {
+        "emailsPerDay": {
+          "unlimited": true
+        },
+        "emailsPerMonth": 5000,
+        "sendRequestsPerSecond": 1000,
+        "emailLogsRequestsPerSecond": 2,
+        "otherRequestsPerHour": 100,
+        "recipientsPerRequest": 2000,
+        "messageSize": 20,
+        "contractableMonthlyVolume": 100000,
+        "maxSeats": 1
+      }
+    },
+    "standard": {
+      "plan": "standard",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {},
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "standard",
+          "quantity": 1,
+          "price": {
+            "kind": "fixed",
+            "amount": 18.0
+          },
+          "unitAmount": 18.0,
+          "amount": 18.0
+        }
+      ],
+      "subtotal": 18.0,
+      "requiresQuote": false,
+      "features": {
+        "transactionalEmailApi": true,
+        "smtpRelay": true,
+        "sandboxMode": true,
+        "dedicatedIp": false,
+        "emailLogsApi": true,
+        "blockedContactsApi": true,
+        "otherApiEndpoints": true,
+        "outboundWebhooks": true,
+        "inboundWebhooks": false,
+        "teamSeats": true
+      },
+      "usageLimits": {
+        "emailsPerDay": {
+          "unlimited": true
+        },
+        "emailsPerMonth": 5000,
+        "sendRequestsPerSecond": 1000,
+        "emailLogsRequestsPerSecond": 2,
+        "otherRequestsPerHour": 100,
+        "recipientsPerRequest": 2000,
+        "messageSize": 20,
+        "contractableMonthlyVolume": 500000,
+        "maxSeats": 1
+      }
+    },
+    "standard+extraSeats": {
+      "plan": "standard",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {
+        "extraSeats": 1.0
+      },
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "standard",
+          "quantity": 1,
+          "price": {
+            "kind": "fixed",
+            "amount": 18.0
+          },
+          "unitAmount": 18.0,
+          "amount": 18.0
+        },
+        {
+          "kind": "addOn",
+          "id": "extraSeats",
+          "quantity": 1.0,
+          "price": {
+            "kind": "fixed",
+            "amount": 12.0
+          },
+          "unitAmount": 12.0,
+          "amount": 12.0
+        }
+      ],
+      "subtotal": 30.0,
+      "requiresQuote": false,
+      "features": {
+        "transactionalEmailApi": true,
+        "smtpRelay": true,
+        "sandboxMode": true,
+        "dedicatedIp": false,
+        "emailLogsApi": true,
+        "blockedContactsApi": true,
+        "otherApiEndpoints": true,
+        "outboundWebhooks": true,
+        "inboundWebhooks": false,
+        "teamSeats": true
+      },
+      "usageLimits": {
+        "emailsPerDay": {
+          "unlimited": true
+        },
+        "emailsPerMonth": 5000,
+        "sendRequestsPerSecond": 1000,
+        "emailLogsRequestsPerSecond": 2,
+        "otherRequestsPerHour": 100,
+        "recipientsPerRequest": 2000,
+        "messageSize": 20,
+        "contractableMonthlyVolume": 500000,
+        "maxSeats": 2.0
+      }
+    },
+    "professional": {
+      "plan": "professional",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {},
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "professional",
+          "quantity": 1,
+          "price": {
+            "kind": "fixed",
+            "amount": 499.0
+          },
+          "unitAmount": 499.0,
+          "amount": 499.0
+        }
+      ],
+      "subtotal": 499.0,
+      "requiresQuote": false,
+      "features": {
+        "transactionalEmailApi": true,
+        "smtpRelay": true,
+        "sandboxMode": true,
+        "dedicatedIp": false,
+        "emailLogsApi": true,
+        "blockedContactsApi": true,
+        "otherApiEndpoints": true,
+        "outboundWebhooks": true,
+        "inboundWebhooks": true,
+        "teamSeats": true
+      },
+      "usageLimits": {
+        "emailsPerDay": {
+          "unlimited": true
+        },
+        "emailsPerMonth": 150000,
+        "sendRequestsPerSecond": 1000,
+        "emailLogsRequestsPerSecond": 2,
+        "otherRequestsPerHour": 100,
+        "recipientsPerRequest": 2000,
+        "messageSize": 20,
+        "contractableMonthlyVolume": 10000000,
+        "maxSeats": 10
+      }
+    },
+    "professional+dedicatedIp": {
+      "plan": "professional",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {
+        "dedicatedIp": 1.0
+      },
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "professional",
+          "quantity": 1,
+          "price": {
+            "kind": "fixed",
+            "amount": 499.0
+          },
+          "unitAmount": 499.0,
+          "amount": 499.0
+        },
+        {
+          "kind": "addOn",
+          "id": "dedicatedIp",
+          "quantity": 1.0,
+          "price": {
+            "kind": "fixed",
+            "amount": 251.0
+          },
+          "unitAmount": 251.0,
+          "amount": 251.0
+        }
+      ],
+      "subtotal": 750.0,
+      "requiresQuote": false,
+      "features": {
+        "transactionalEmailApi": true,
+        "smtpRelay": true,
+        "sandboxMode": true,
+        "dedicatedIp": true,
+        "emailLogsApi": true,
+        "blockedContactsApi": true,
+        "otherApiEndpoints": true,
+        "outboundWebhooks": true,
+        "inboundWebhooks": true,
+        "teamSeats": true
+      },
+      "usageLimits": {
+        "emailsPerDay": {
+          "unlimited": true
+        },
+        "emailsPerMonth": 150000,
+        "sendRequestsPerSecond": 1000,
+        "emailLogsRequestsPerSecond": 2,
+        "otherRequestsPerHour": 100,
+        "recipientsPerRequest": 2000,
+        "messageSize": 20,
+        "contractableMonthlyVolume": 10000000,
+        "maxSeats": 10
+      }
+    }
+  }
+}

@@ -1,0 +1,2113 @@
+{
+  "pricing": {
+    "syntaxVersion": "3.1",
+    "title": "postmark",
+    "version": "2026-10",
+    "createdAt": "2026-10-25",
+    "currency": "USD",
+    "billing": [
+      {
+        "id": "monthly",
+        "multiplier": 1.0,
+        "synthesized": false
+      }
+    ],
+    "features": [
+      {
+        "id": "restApi",
+        "name": "restApi",
+        "type": "INTEGRATION",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "smtp",
+        "name": "smtp",
+        "type": "INTEGRATION",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "multiRegionRoutingSmtp",
+        "name": "multiRegionRoutingSmtp",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "transactionalEmail",
+        "name": "transactionalEmail",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "bulkEmailApi",
+        "name": "bulkEmailApi",
+        "type": "INTEGRATION",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "batchSending",
+        "name": "batchSending",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "monthlyEmailVolume",
+        "name": "monthlyEmailVolume",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "dailyEmailSending",
+        "name": "dailyEmailSending",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "inboundEmail",
+        "name": "inboundEmail",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "messageStreams",
+        "name": "messageStreams",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "servers",
+        "name": "servers",
+        "type": "MANAGEMENT",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "customSendingDomains",
+        "name": "customSendingDomains",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "responsiveEmailTemplates",
+        "name": "responsiveEmailTemplates",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "emailTemplateEditorAndImportTool",
+        "name": "emailTemplateEditorAndImportTool",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "highQualityVettedIps",
+        "name": "highQualityVettedIps",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "dedicatedIps",
+        "name": "dedicatedIps",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "suppressionManagement",
+        "name": "suppressionManagement",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "automaticSuppression",
+        "name": "automaticSuppression",
+        "type": "AUTOMATION",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "dkimSpfDmarcAuthentication",
+        "name": "dkimSpfDmarcAuthentication",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "industryLeadingDeliverability",
+        "name": "industryLeadingDeliverability",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "sandboxMode",
+        "name": "sandboxMode",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "dynamicApiDocumentation",
+        "name": "dynamicApiDocumentation",
+        "type": "INFORMATION",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "migrationGuides",
+        "name": "migrationGuides",
+        "type": "INFORMATION",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "eventWebhooks",
+        "name": "eventWebhooks",
+        "type": "INTEGRATION",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "secureWebhookEndpoints",
+        "name": "secureWebhookEndpoints",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "officialSdks",
+        "name": "officialSdks",
+        "type": "INTEGRATION",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "detailedActivityRetention",
+        "name": "detailedActivityRetention",
+        "type": "INFORMATION",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "granularBounceData",
+        "name": "granularBounceData",
+        "type": "INFORMATION",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "deliveryBounceSpamOpenRates",
+        "name": "deliveryBounceSpamOpenRates",
+        "type": "INFORMATION",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "emailOpenAndLinkTracking",
+        "name": "emailOpenAndLinkTracking",
+        "type": "INFORMATION",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "customTagging",
+        "name": "customTagging",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "statsApi",
+        "name": "statsApi",
+        "type": "INTEGRATION",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "detailedAnalytics",
+        "name": "detailedAnalytics",
+        "type": "INFORMATION",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "userRoles",
+        "name": "userRoles",
+        "type": "MANAGEMENT",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "gdprCompliance",
+        "name": "gdprCompliance",
+        "type": "GUARANTEE",
+        "valueType": "BOOLEAN",
+        "default": true,
+        "docUrl": "https://postmarkapp.com/eu-privacy#gdpr"
+      },
+      {
+        "id": "penetrationTesting",
+        "name": "penetrationTesting",
+        "type": "GUARANTEE",
+        "valueType": "BOOLEAN",
+        "default": true,
+        "docUrl": "https://postmarkapp.com/security"
+      },
+      {
+        "id": "ddosProtection",
+        "name": "ddosProtection",
+        "type": "GUARANTEE",
+        "valueType": "BOOLEAN",
+        "default": true,
+        "docUrl": "https://postmarkapp.com/security"
+      },
+      {
+        "id": "twoFactorAuthentication",
+        "name": "twoFactorAuthentication",
+        "type": "MANAGEMENT",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "apiPermissionControls",
+        "name": "apiPermissionControls",
+        "type": "MANAGEMENT",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "users",
+        "name": "users",
+        "type": "MANAGEMENT",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "customActivityRetention",
+        "name": "customActivityRetention",
+        "type": "MANAGEMENT",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "dmarcMonitoring",
+        "name": "dmarcMonitoring",
+        "type": "INFORMATION",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "paymentMethods",
+        "name": "paymentMethods",
+        "type": "PAYMENT",
+        "valueType": "TEXT",
+        "default": [
+          "CARD"
+        ]
+      }
+    ],
+    "usageLimits": [
+      {
+        "id": "monthlyEmailVolumeLimit",
+        "name": "monthlyEmailVolumeLimit",
+        "valueType": "NUMERIC",
+        "unit": "email",
+        "default": 100,
+        "linkedFeatures": [
+          "monthlyEmailVolume"
+        ]
+      },
+      {
+        "id": "dailyEmailSendingPerDay",
+        "name": "dailyEmailSendingPerDay",
+        "valueType": "NUMERIC",
+        "unit": "email",
+        "default": {
+          "unlimited": true
+        },
+        "linkedFeatures": [
+          "dailyEmailSending"
+        ]
+      },
+      {
+        "id": "messageStreamsLimit",
+        "name": "messageStreamsLimit",
+        "valueType": "NUMERIC",
+        "unit": "stream",
+        "default": 30,
+        "linkedFeatures": [
+          "messageStreams"
+        ]
+      },
+      {
+        "id": "serversLimit",
+        "name": "serversLimit",
+        "valueType": "NUMERIC",
+        "unit": "server",
+        "default": 10,
+        "linkedFeatures": [
+          "servers"
+        ]
+      },
+      {
+        "id": "customSendingDomainsLimit",
+        "name": "customSendingDomainsLimit",
+        "valueType": "NUMERIC",
+        "unit": "domain",
+        "default": 10,
+        "linkedFeatures": [
+          "customSendingDomains"
+        ]
+      },
+      {
+        "id": "detailedActivityRetentionDays",
+        "name": "detailedActivityRetentionDays",
+        "valueType": "NUMERIC",
+        "unit": "day",
+        "default": 45,
+        "linkedFeatures": [
+          "detailedActivityRetention"
+        ]
+      },
+      {
+        "id": "usersLimit",
+        "name": "usersLimit",
+        "valueType": "NUMERIC",
+        "unit": "user",
+        "default": 6,
+        "linkedFeatures": [
+          "users"
+        ]
+      },
+      {
+        "id": "dedicatedIpsLimit",
+        "name": "dedicatedIpsLimit",
+        "valueType": "NUMERIC",
+        "unit": "IP",
+        "default": 0,
+        "linkedFeatures": [
+          "dedicatedIps"
+        ]
+      },
+      {
+        "id": "dmarcMonitoredDomainsLimit",
+        "name": "dmarcMonitoredDomainsLimit",
+        "valueType": "NUMERIC",
+        "unit": "domain",
+        "default": 0,
+        "linkedFeatures": [
+          "dmarcMonitoring"
+        ]
+      }
+    ],
+    "plans": [
+      {
+        "id": "FREE",
+        "name": "FREE",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 0.0
+        },
+        "unit": "account/month",
+        "period": "month",
+        "perSeat": false,
+        "features": {
+          "restApi": true,
+          "smtp": true,
+          "multiRegionRoutingSmtp": true,
+          "transactionalEmail": true,
+          "bulkEmailApi": false,
+          "batchSending": true,
+          "monthlyEmailVolume": true,
+          "dailyEmailSending": true,
+          "inboundEmail": true,
+          "messageStreams": true,
+          "servers": true,
+          "customSendingDomains": true,
+          "responsiveEmailTemplates": true,
+          "emailTemplateEditorAndImportTool": true,
+          "highQualityVettedIps": true,
+          "dedicatedIps": false,
+          "suppressionManagement": true,
+          "automaticSuppression": true,
+          "dkimSpfDmarcAuthentication": true,
+          "industryLeadingDeliverability": true,
+          "sandboxMode": true,
+          "dynamicApiDocumentation": true,
+          "migrationGuides": true,
+          "eventWebhooks": true,
+          "secureWebhookEndpoints": true,
+          "officialSdks": true,
+          "detailedActivityRetention": true,
+          "granularBounceData": true,
+          "deliveryBounceSpamOpenRates": true,
+          "emailOpenAndLinkTracking": true,
+          "customTagging": true,
+          "statsApi": true,
+          "detailedAnalytics": true,
+          "userRoles": true,
+          "gdprCompliance": true,
+          "penetrationTesting": true,
+          "ddosProtection": true,
+          "twoFactorAuthentication": true,
+          "apiPermissionControls": true,
+          "users": true,
+          "customActivityRetention": false,
+          "dmarcMonitoring": false,
+          "paymentMethods": [
+            "CARD"
+          ]
+        },
+        "usageLimits": {
+          "monthlyEmailVolumeLimit": 100,
+          "dailyEmailSendingPerDay": {
+            "unlimited": true
+          },
+          "messageStreamsLimit": 30,
+          "serversLimit": 10,
+          "customSendingDomainsLimit": 10,
+          "detailedActivityRetentionDays": 45,
+          "usersLimit": 6,
+          "dedicatedIpsLimit": 0,
+          "dmarcMonitoredDomainsLimit": 0
+        }
+      },
+      {
+        "id": "BASIC",
+        "name": "BASIC",
+        "private": false,
+        "price": {
+          "kind": "expression",
+          "source": "#basicPriceByVolume[String(#volume)]",
+          "value": 15.0
+        },
+        "unit": "account/month",
+        "period": "month",
+        "perSeat": false,
+        "features": {
+          "restApi": true,
+          "smtp": true,
+          "multiRegionRoutingSmtp": true,
+          "transactionalEmail": true,
+          "bulkEmailApi": true,
+          "batchSending": true,
+          "monthlyEmailVolume": true,
+          "dailyEmailSending": true,
+          "inboundEmail": false,
+          "messageStreams": true,
+          "servers": true,
+          "customSendingDomains": true,
+          "responsiveEmailTemplates": true,
+          "emailTemplateEditorAndImportTool": true,
+          "highQualityVettedIps": true,
+          "dedicatedIps": false,
+          "suppressionManagement": true,
+          "automaticSuppression": true,
+          "dkimSpfDmarcAuthentication": true,
+          "industryLeadingDeliverability": true,
+          "sandboxMode": true,
+          "dynamicApiDocumentation": true,
+          "migrationGuides": true,
+          "eventWebhooks": true,
+          "secureWebhookEndpoints": true,
+          "officialSdks": true,
+          "detailedActivityRetention": true,
+          "granularBounceData": true,
+          "deliveryBounceSpamOpenRates": true,
+          "emailOpenAndLinkTracking": true,
+          "customTagging": true,
+          "statsApi": true,
+          "detailedAnalytics": true,
+          "userRoles": true,
+          "gdprCompliance": true,
+          "penetrationTesting": true,
+          "ddosProtection": true,
+          "twoFactorAuthentication": true,
+          "apiPermissionControls": true,
+          "users": true,
+          "customActivityRetention": false,
+          "dmarcMonitoring": false,
+          "paymentMethods": [
+            "CARD"
+          ]
+        },
+        "usageLimits": {
+          "monthlyEmailVolumeLimit": 10000,
+          "dailyEmailSendingPerDay": {
+            "unlimited": true
+          },
+          "messageStreamsLimit": 15,
+          "serversLimit": 5,
+          "customSendingDomainsLimit": 5,
+          "detailedActivityRetentionDays": 45,
+          "usersLimit": 4,
+          "dedicatedIpsLimit": 0,
+          "dmarcMonitoredDomainsLimit": 0
+        }
+      },
+      {
+        "id": "PRO",
+        "name": "PRO",
+        "private": false,
+        "price": {
+          "kind": "expression",
+          "source": "#proPriceByVolume[String(#volume)]",
+          "value": 16.5
+        },
+        "unit": "account/month",
+        "period": "month",
+        "perSeat": false,
+        "features": {
+          "restApi": true,
+          "smtp": true,
+          "multiRegionRoutingSmtp": true,
+          "transactionalEmail": true,
+          "bulkEmailApi": true,
+          "batchSending": true,
+          "monthlyEmailVolume": true,
+          "dailyEmailSending": true,
+          "inboundEmail": true,
+          "messageStreams": true,
+          "servers": true,
+          "customSendingDomains": true,
+          "responsiveEmailTemplates": true,
+          "emailTemplateEditorAndImportTool": true,
+          "highQualityVettedIps": true,
+          "dedicatedIps": false,
+          "suppressionManagement": true,
+          "automaticSuppression": true,
+          "dkimSpfDmarcAuthentication": true,
+          "industryLeadingDeliverability": true,
+          "sandboxMode": true,
+          "dynamicApiDocumentation": true,
+          "migrationGuides": true,
+          "eventWebhooks": true,
+          "secureWebhookEndpoints": true,
+          "officialSdks": true,
+          "detailedActivityRetention": true,
+          "granularBounceData": true,
+          "deliveryBounceSpamOpenRates": true,
+          "emailOpenAndLinkTracking": true,
+          "customTagging": true,
+          "statsApi": true,
+          "detailedAnalytics": true,
+          "userRoles": true,
+          "gdprCompliance": true,
+          "penetrationTesting": true,
+          "ddosProtection": true,
+          "twoFactorAuthentication": true,
+          "apiPermissionControls": true,
+          "users": true,
+          "customActivityRetention": false,
+          "dmarcMonitoring": false,
+          "paymentMethods": [
+            "CARD"
+          ]
+        },
+        "usageLimits": {
+          "monthlyEmailVolumeLimit": 10000,
+          "dailyEmailSendingPerDay": {
+            "unlimited": true
+          },
+          "messageStreamsLimit": 30,
+          "serversLimit": 10,
+          "customSendingDomainsLimit": 10,
+          "detailedActivityRetentionDays": 45,
+          "usersLimit": 6,
+          "dedicatedIpsLimit": 0,
+          "dmarcMonitoredDomainsLimit": 0
+        }
+      },
+      {
+        "id": "PLATFORM",
+        "name": "PLATFORM",
+        "private": false,
+        "price": {
+          "kind": "expression",
+          "source": "#platformPriceByVolume[String(#volume)]",
+          "value": 18.0
+        },
+        "unit": "account/month",
+        "period": "month",
+        "perSeat": false,
+        "features": {
+          "restApi": true,
+          "smtp": true,
+          "multiRegionRoutingSmtp": true,
+          "transactionalEmail": true,
+          "bulkEmailApi": true,
+          "batchSending": true,
+          "monthlyEmailVolume": true,
+          "dailyEmailSending": true,
+          "inboundEmail": true,
+          "messageStreams": true,
+          "servers": true,
+          "customSendingDomains": true,
+          "responsiveEmailTemplates": true,
+          "emailTemplateEditorAndImportTool": true,
+          "highQualityVettedIps": true,
+          "dedicatedIps": false,
+          "suppressionManagement": true,
+          "automaticSuppression": true,
+          "dkimSpfDmarcAuthentication": true,
+          "industryLeadingDeliverability": true,
+          "sandboxMode": true,
+          "dynamicApiDocumentation": true,
+          "migrationGuides": true,
+          "eventWebhooks": true,
+          "secureWebhookEndpoints": true,
+          "officialSdks": true,
+          "detailedActivityRetention": true,
+          "granularBounceData": true,
+          "deliveryBounceSpamOpenRates": true,
+          "emailOpenAndLinkTracking": true,
+          "customTagging": true,
+          "statsApi": true,
+          "detailedAnalytics": true,
+          "userRoles": true,
+          "gdprCompliance": true,
+          "penetrationTesting": true,
+          "ddosProtection": true,
+          "twoFactorAuthentication": true,
+          "apiPermissionControls": true,
+          "users": true,
+          "customActivityRetention": false,
+          "dmarcMonitoring": false,
+          "paymentMethods": [
+            "CARD"
+          ]
+        },
+        "usageLimits": {
+          "monthlyEmailVolumeLimit": 10000,
+          "dailyEmailSendingPerDay": {
+            "unlimited": true
+          },
+          "messageStreamsLimit": {
+            "unlimited": true
+          },
+          "serversLimit": {
+            "unlimited": true
+          },
+          "customSendingDomainsLimit": {
+            "unlimited": true
+          },
+          "detailedActivityRetentionDays": 45,
+          "usersLimit": {
+            "unlimited": true
+          },
+          "dedicatedIpsLimit": 0,
+          "dmarcMonitoredDomainsLimit": 0
+        }
+      }
+    ],
+    "addOns": [
+      {
+        "id": "extraEmailsBasic",
+        "name": "extraEmailsBasic",
+        "private": false,
+        "price": {
+          "kind": "expression",
+          "source": "#basicOverageByVolume[String(#volume)]",
+          "value": 1.8
+        },
+        "unit": "1000 emails",
+        "quantity": 1000.0,
+        "availableFor": [
+          "BASIC"
+        ],
+        "usageLimitsExtensions": {
+          "monthlyEmailVolumeLimit": 1000.0
+        },
+        "metered": true
+      },
+      {
+        "id": "extraEmailsPro",
+        "name": "extraEmailsPro",
+        "private": false,
+        "price": {
+          "kind": "expression",
+          "source": "#proOverageByVolume[String(#volume)]",
+          "value": 1.3
+        },
+        "unit": "1000 emails",
+        "quantity": 1000.0,
+        "availableFor": [
+          "PRO"
+        ],
+        "usageLimitsExtensions": {
+          "monthlyEmailVolumeLimit": 1000.0
+        },
+        "metered": true
+      },
+      {
+        "id": "extraEmailsPlatform",
+        "name": "extraEmailsPlatform",
+        "private": false,
+        "price": {
+          "kind": "expression",
+          "source": "#platformOverageByVolume[String(#volume)]",
+          "value": 1.2
+        },
+        "unit": "1000 emails",
+        "quantity": 1000.0,
+        "availableFor": [
+          "PLATFORM"
+        ],
+        "usageLimitsExtensions": {
+          "monthlyEmailVolumeLimit": 1000.0
+        },
+        "metered": true
+      },
+      {
+        "id": "dedicatedIp",
+        "name": "dedicatedIp",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 50.0
+        },
+        "unit": "IP/month",
+        "period": "month",
+        "availableFor": [
+          "PRO",
+          "PLATFORM"
+        ],
+        "dependsOn": [],
+        "excludes": [],
+        "features": {
+          "dedicatedIps": true
+        },
+        "usageLimits": {
+          "dedicatedIpsLimit": 1
+        },
+        "usageLimitsExtensions": {},
+        "metered": false
+      },
+      {
+        "id": "additionalDedicatedIp",
+        "name": "additionalDedicatedIp",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 50.0
+        },
+        "unit": "IP/month",
+        "period": "month",
+        "availableFor": [
+          "PRO",
+          "PLATFORM"
+        ],
+        "dependsOn": [
+          "dedicatedIp"
+        ],
+        "excludes": [],
+        "features": {},
+        "usageLimits": {},
+        "usageLimitsExtensions": {
+          "dedicatedIpsLimit": 1.0
+        },
+        "metered": false
+      },
+      {
+        "id": "customActivityRetention",
+        "name": "customActivityRetention",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 5.0
+        },
+        "unit": "account/month",
+        "period": "month",
+        "availableFor": [
+          "PRO",
+          "PLATFORM"
+        ],
+        "dependsOn": [],
+        "excludes": [],
+        "features": {
+          "customActivityRetention": true
+        },
+        "usageLimits": {},
+        "usageLimitsExtensions": {},
+        "metered": false
+      },
+      {
+        "id": "dmarcMonitoring",
+        "name": "dmarcMonitoring",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 14.0
+        },
+        "unit": "domain/month",
+        "period": "month",
+        "availableFor": [
+          "FREE",
+          "BASIC",
+          "PRO",
+          "PLATFORM"
+        ],
+        "dependsOn": [],
+        "excludes": [],
+        "features": {
+          "dmarcMonitoring": true
+        },
+        "usageLimits": {
+          "dmarcMonitoredDomainsLimit": 1
+        },
+        "usageLimitsExtensions": {},
+        "metered": false
+      },
+      {
+        "id": "additionalDmarcMonitoredDomain",
+        "name": "additionalDmarcMonitoredDomain",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 14.0
+        },
+        "unit": "domain/month",
+        "period": "month",
+        "availableFor": [
+          "FREE",
+          "BASIC",
+          "PRO",
+          "PLATFORM"
+        ],
+        "dependsOn": [
+          "dmarcMonitoring"
+        ],
+        "excludes": [],
+        "features": {},
+        "usageLimits": {},
+        "usageLimitsExtensions": {
+          "dmarcMonitoredDomainsLimit": 1.0
+        },
+        "metered": false
+      }
+    ],
+    "diagnostics": [],
+    "variables": {
+      "volume": 10000,
+      "basicPriceByVolume": {
+        "10000": 15,
+        "50000": 55,
+        "125000": 115,
+        "300000": 245,
+        "700000": 455,
+        "1500000": 775
+      },
+      "proPriceByVolume": {
+        "10000": 16.5,
+        "50000": 60.5,
+        "125000": 126.5,
+        "300000": 269.5,
+        "700000": 500.5,
+        "1500000": 852.5
+      },
+      "platformPriceByVolume": {
+        "10000": 18,
+        "50000": 66,
+        "125000": 138,
+        "300000": 294,
+        "700000": 546,
+        "1500000": 930
+      },
+      "basicOverageByVolume": {
+        "10000": 1.8,
+        "50000": 1.8,
+        "125000": 1.8,
+        "300000": 1.7,
+        "700000": 1.7,
+        "1500000": 1.7
+      },
+      "proOverageByVolume": {
+        "10000": 1.3,
+        "50000": 1.3,
+        "125000": 1.3,
+        "300000": 1.25,
+        "700000": 1.25,
+        "1500000": 1.2
+      },
+      "platformOverageByVolume": {
+        "10000": 1.2,
+        "50000": 1.2,
+        "125000": 1.2,
+        "300000": 1.15,
+        "700000": 1.15,
+        "1500000": 1.15
+      }
+    }
+  },
+  "effective": {
+    "FREE": {
+      "plan": "FREE",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {},
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "FREE",
+          "quantity": 1,
+          "price": {
+            "kind": "fixed",
+            "amount": 0.0
+          },
+          "unitAmount": 0.0,
+          "amount": 0.0
+        }
+      ],
+      "subtotal": 0.0,
+      "requiresQuote": false,
+      "features": {
+        "restApi": true,
+        "smtp": true,
+        "multiRegionRoutingSmtp": true,
+        "transactionalEmail": true,
+        "bulkEmailApi": false,
+        "batchSending": true,
+        "monthlyEmailVolume": true,
+        "dailyEmailSending": true,
+        "inboundEmail": true,
+        "messageStreams": true,
+        "servers": true,
+        "customSendingDomains": true,
+        "responsiveEmailTemplates": true,
+        "emailTemplateEditorAndImportTool": true,
+        "highQualityVettedIps": true,
+        "dedicatedIps": false,
+        "suppressionManagement": true,
+        "automaticSuppression": true,
+        "dkimSpfDmarcAuthentication": true,
+        "industryLeadingDeliverability": true,
+        "sandboxMode": true,
+        "dynamicApiDocumentation": true,
+        "migrationGuides": true,
+        "eventWebhooks": true,
+        "secureWebhookEndpoints": true,
+        "officialSdks": true,
+        "detailedActivityRetention": true,
+        "granularBounceData": true,
+        "deliveryBounceSpamOpenRates": true,
+        "emailOpenAndLinkTracking": true,
+        "customTagging": true,
+        "statsApi": true,
+        "detailedAnalytics": true,
+        "userRoles": true,
+        "gdprCompliance": true,
+        "penetrationTesting": true,
+        "ddosProtection": true,
+        "twoFactorAuthentication": true,
+        "apiPermissionControls": true,
+        "users": true,
+        "customActivityRetention": false,
+        "dmarcMonitoring": false,
+        "paymentMethods": [
+          "CARD"
+        ]
+      },
+      "usageLimits": {
+        "monthlyEmailVolumeLimit": 100,
+        "dailyEmailSendingPerDay": {
+          "unlimited": true
+        },
+        "messageStreamsLimit": 30,
+        "serversLimit": 10,
+        "customSendingDomainsLimit": 10,
+        "detailedActivityRetentionDays": 45,
+        "usersLimit": 6,
+        "dedicatedIpsLimit": 0,
+        "dmarcMonitoredDomainsLimit": 0
+      }
+    },
+    "FREE+dmarcMonitoring": {
+      "plan": "FREE",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {
+        "dmarcMonitoring": 1.0
+      },
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "FREE",
+          "quantity": 1,
+          "price": {
+            "kind": "fixed",
+            "amount": 0.0
+          },
+          "unitAmount": 0.0,
+          "amount": 0.0
+        },
+        {
+          "kind": "addOn",
+          "id": "dmarcMonitoring",
+          "quantity": 1.0,
+          "price": {
+            "kind": "fixed",
+            "amount": 14.0
+          },
+          "unitAmount": 14.0,
+          "amount": 14.0
+        }
+      ],
+      "subtotal": 14.0,
+      "requiresQuote": false,
+      "features": {
+        "restApi": true,
+        "smtp": true,
+        "multiRegionRoutingSmtp": true,
+        "transactionalEmail": true,
+        "bulkEmailApi": false,
+        "batchSending": true,
+        "monthlyEmailVolume": true,
+        "dailyEmailSending": true,
+        "inboundEmail": true,
+        "messageStreams": true,
+        "servers": true,
+        "customSendingDomains": true,
+        "responsiveEmailTemplates": true,
+        "emailTemplateEditorAndImportTool": true,
+        "highQualityVettedIps": true,
+        "dedicatedIps": false,
+        "suppressionManagement": true,
+        "automaticSuppression": true,
+        "dkimSpfDmarcAuthentication": true,
+        "industryLeadingDeliverability": true,
+        "sandboxMode": true,
+        "dynamicApiDocumentation": true,
+        "migrationGuides": true,
+        "eventWebhooks": true,
+        "secureWebhookEndpoints": true,
+        "officialSdks": true,
+        "detailedActivityRetention": true,
+        "granularBounceData": true,
+        "deliveryBounceSpamOpenRates": true,
+        "emailOpenAndLinkTracking": true,
+        "customTagging": true,
+        "statsApi": true,
+        "detailedAnalytics": true,
+        "userRoles": true,
+        "gdprCompliance": true,
+        "penetrationTesting": true,
+        "ddosProtection": true,
+        "twoFactorAuthentication": true,
+        "apiPermissionControls": true,
+        "users": true,
+        "customActivityRetention": false,
+        "dmarcMonitoring": true,
+        "paymentMethods": [
+          "CARD"
+        ]
+      },
+      "usageLimits": {
+        "monthlyEmailVolumeLimit": 100,
+        "dailyEmailSendingPerDay": {
+          "unlimited": true
+        },
+        "messageStreamsLimit": 30,
+        "serversLimit": 10,
+        "customSendingDomainsLimit": 10,
+        "detailedActivityRetentionDays": 45,
+        "usersLimit": 6,
+        "dedicatedIpsLimit": 0,
+        "dmarcMonitoredDomainsLimit": 1
+      }
+    },
+    "BASIC": {
+      "plan": "BASIC",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {},
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "BASIC",
+          "quantity": 1,
+          "price": {
+            "kind": "expression",
+            "source": "#basicPriceByVolume[String(#volume)]",
+            "value": 15.0
+          },
+          "unitAmount": 15.0,
+          "amount": 15.0
+        }
+      ],
+      "subtotal": 15.0,
+      "requiresQuote": false,
+      "features": {
+        "restApi": true,
+        "smtp": true,
+        "multiRegionRoutingSmtp": true,
+        "transactionalEmail": true,
+        "bulkEmailApi": true,
+        "batchSending": true,
+        "monthlyEmailVolume": true,
+        "dailyEmailSending": true,
+        "inboundEmail": false,
+        "messageStreams": true,
+        "servers": true,
+        "customSendingDomains": true,
+        "responsiveEmailTemplates": true,
+        "emailTemplateEditorAndImportTool": true,
+        "highQualityVettedIps": true,
+        "dedicatedIps": false,
+        "suppressionManagement": true,
+        "automaticSuppression": true,
+        "dkimSpfDmarcAuthentication": true,
+        "industryLeadingDeliverability": true,
+        "sandboxMode": true,
+        "dynamicApiDocumentation": true,
+        "migrationGuides": true,
+        "eventWebhooks": true,
+        "secureWebhookEndpoints": true,
+        "officialSdks": true,
+        "detailedActivityRetention": true,
+        "granularBounceData": true,
+        "deliveryBounceSpamOpenRates": true,
+        "emailOpenAndLinkTracking": true,
+        "customTagging": true,
+        "statsApi": true,
+        "detailedAnalytics": true,
+        "userRoles": true,
+        "gdprCompliance": true,
+        "penetrationTesting": true,
+        "ddosProtection": true,
+        "twoFactorAuthentication": true,
+        "apiPermissionControls": true,
+        "users": true,
+        "customActivityRetention": false,
+        "dmarcMonitoring": false,
+        "paymentMethods": [
+          "CARD"
+        ]
+      },
+      "usageLimits": {
+        "monthlyEmailVolumeLimit": 10000,
+        "dailyEmailSendingPerDay": {
+          "unlimited": true
+        },
+        "messageStreamsLimit": 15,
+        "serversLimit": 5,
+        "customSendingDomainsLimit": 5,
+        "detailedActivityRetentionDays": 45,
+        "usersLimit": 4,
+        "dedicatedIpsLimit": 0,
+        "dmarcMonitoredDomainsLimit": 0
+      }
+    },
+    "BASIC+dmarcMonitoring": {
+      "plan": "BASIC",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {
+        "dmarcMonitoring": 1.0
+      },
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "BASIC",
+          "quantity": 1,
+          "price": {
+            "kind": "expression",
+            "source": "#basicPriceByVolume[String(#volume)]",
+            "value": 15.0
+          },
+          "unitAmount": 15.0,
+          "amount": 15.0
+        },
+        {
+          "kind": "addOn",
+          "id": "dmarcMonitoring",
+          "quantity": 1.0,
+          "price": {
+            "kind": "fixed",
+            "amount": 14.0
+          },
+          "unitAmount": 14.0,
+          "amount": 14.0
+        }
+      ],
+      "subtotal": 29.0,
+      "requiresQuote": false,
+      "features": {
+        "restApi": true,
+        "smtp": true,
+        "multiRegionRoutingSmtp": true,
+        "transactionalEmail": true,
+        "bulkEmailApi": true,
+        "batchSending": true,
+        "monthlyEmailVolume": true,
+        "dailyEmailSending": true,
+        "inboundEmail": false,
+        "messageStreams": true,
+        "servers": true,
+        "customSendingDomains": true,
+        "responsiveEmailTemplates": true,
+        "emailTemplateEditorAndImportTool": true,
+        "highQualityVettedIps": true,
+        "dedicatedIps": false,
+        "suppressionManagement": true,
+        "automaticSuppression": true,
+        "dkimSpfDmarcAuthentication": true,
+        "industryLeadingDeliverability": true,
+        "sandboxMode": true,
+        "dynamicApiDocumentation": true,
+        "migrationGuides": true,
+        "eventWebhooks": true,
+        "secureWebhookEndpoints": true,
+        "officialSdks": true,
+        "detailedActivityRetention": true,
+        "granularBounceData": true,
+        "deliveryBounceSpamOpenRates": true,
+        "emailOpenAndLinkTracking": true,
+        "customTagging": true,
+        "statsApi": true,
+        "detailedAnalytics": true,
+        "userRoles": true,
+        "gdprCompliance": true,
+        "penetrationTesting": true,
+        "ddosProtection": true,
+        "twoFactorAuthentication": true,
+        "apiPermissionControls": true,
+        "users": true,
+        "customActivityRetention": false,
+        "dmarcMonitoring": true,
+        "paymentMethods": [
+          "CARD"
+        ]
+      },
+      "usageLimits": {
+        "monthlyEmailVolumeLimit": 10000,
+        "dailyEmailSendingPerDay": {
+          "unlimited": true
+        },
+        "messageStreamsLimit": 15,
+        "serversLimit": 5,
+        "customSendingDomainsLimit": 5,
+        "detailedActivityRetentionDays": 45,
+        "usersLimit": 4,
+        "dedicatedIpsLimit": 0,
+        "dmarcMonitoredDomainsLimit": 1
+      }
+    },
+    "PRO": {
+      "plan": "PRO",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {},
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "PRO",
+          "quantity": 1,
+          "price": {
+            "kind": "expression",
+            "source": "#proPriceByVolume[String(#volume)]",
+            "value": 16.5
+          },
+          "unitAmount": 16.5,
+          "amount": 16.5
+        }
+      ],
+      "subtotal": 16.5,
+      "requiresQuote": false,
+      "features": {
+        "restApi": true,
+        "smtp": true,
+        "multiRegionRoutingSmtp": true,
+        "transactionalEmail": true,
+        "bulkEmailApi": true,
+        "batchSending": true,
+        "monthlyEmailVolume": true,
+        "dailyEmailSending": true,
+        "inboundEmail": true,
+        "messageStreams": true,
+        "servers": true,
+        "customSendingDomains": true,
+        "responsiveEmailTemplates": true,
+        "emailTemplateEditorAndImportTool": true,
+        "highQualityVettedIps": true,
+        "dedicatedIps": false,
+        "suppressionManagement": true,
+        "automaticSuppression": true,
+        "dkimSpfDmarcAuthentication": true,
+        "industryLeadingDeliverability": true,
+        "sandboxMode": true,
+        "dynamicApiDocumentation": true,
+        "migrationGuides": true,
+        "eventWebhooks": true,
+        "secureWebhookEndpoints": true,
+        "officialSdks": true,
+        "detailedActivityRetention": true,
+        "granularBounceData": true,
+        "deliveryBounceSpamOpenRates": true,
+        "emailOpenAndLinkTracking": true,
+        "customTagging": true,
+        "statsApi": true,
+        "detailedAnalytics": true,
+        "userRoles": true,
+        "gdprCompliance": true,
+        "penetrationTesting": true,
+        "ddosProtection": true,
+        "twoFactorAuthentication": true,
+        "apiPermissionControls": true,
+        "users": true,
+        "customActivityRetention": false,
+        "dmarcMonitoring": false,
+        "paymentMethods": [
+          "CARD"
+        ]
+      },
+      "usageLimits": {
+        "monthlyEmailVolumeLimit": 10000,
+        "dailyEmailSendingPerDay": {
+          "unlimited": true
+        },
+        "messageStreamsLimit": 30,
+        "serversLimit": 10,
+        "customSendingDomainsLimit": 10,
+        "detailedActivityRetentionDays": 45,
+        "usersLimit": 6,
+        "dedicatedIpsLimit": 0,
+        "dmarcMonitoredDomainsLimit": 0
+      }
+    },
+    "PRO+dedicatedIp": {
+      "plan": "PRO",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {
+        "dedicatedIp": 1.0
+      },
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "PRO",
+          "quantity": 1,
+          "price": {
+            "kind": "expression",
+            "source": "#proPriceByVolume[String(#volume)]",
+            "value": 16.5
+          },
+          "unitAmount": 16.5,
+          "amount": 16.5
+        },
+        {
+          "kind": "addOn",
+          "id": "dedicatedIp",
+          "quantity": 1.0,
+          "price": {
+            "kind": "fixed",
+            "amount": 50.0
+          },
+          "unitAmount": 50.0,
+          "amount": 50.0
+        }
+      ],
+      "subtotal": 66.5,
+      "requiresQuote": false,
+      "features": {
+        "restApi": true,
+        "smtp": true,
+        "multiRegionRoutingSmtp": true,
+        "transactionalEmail": true,
+        "bulkEmailApi": true,
+        "batchSending": true,
+        "monthlyEmailVolume": true,
+        "dailyEmailSending": true,
+        "inboundEmail": true,
+        "messageStreams": true,
+        "servers": true,
+        "customSendingDomains": true,
+        "responsiveEmailTemplates": true,
+        "emailTemplateEditorAndImportTool": true,
+        "highQualityVettedIps": true,
+        "dedicatedIps": true,
+        "suppressionManagement": true,
+        "automaticSuppression": true,
+        "dkimSpfDmarcAuthentication": true,
+        "industryLeadingDeliverability": true,
+        "sandboxMode": true,
+        "dynamicApiDocumentation": true,
+        "migrationGuides": true,
+        "eventWebhooks": true,
+        "secureWebhookEndpoints": true,
+        "officialSdks": true,
+        "detailedActivityRetention": true,
+        "granularBounceData": true,
+        "deliveryBounceSpamOpenRates": true,
+        "emailOpenAndLinkTracking": true,
+        "customTagging": true,
+        "statsApi": true,
+        "detailedAnalytics": true,
+        "userRoles": true,
+        "gdprCompliance": true,
+        "penetrationTesting": true,
+        "ddosProtection": true,
+        "twoFactorAuthentication": true,
+        "apiPermissionControls": true,
+        "users": true,
+        "customActivityRetention": false,
+        "dmarcMonitoring": false,
+        "paymentMethods": [
+          "CARD"
+        ]
+      },
+      "usageLimits": {
+        "monthlyEmailVolumeLimit": 10000,
+        "dailyEmailSendingPerDay": {
+          "unlimited": true
+        },
+        "messageStreamsLimit": 30,
+        "serversLimit": 10,
+        "customSendingDomainsLimit": 10,
+        "detailedActivityRetentionDays": 45,
+        "usersLimit": 6,
+        "dedicatedIpsLimit": 1,
+        "dmarcMonitoredDomainsLimit": 0
+      }
+    },
+    "PRO+customActivityRetention": {
+      "plan": "PRO",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {
+        "customActivityRetention": 1.0
+      },
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "PRO",
+          "quantity": 1,
+          "price": {
+            "kind": "expression",
+            "source": "#proPriceByVolume[String(#volume)]",
+            "value": 16.5
+          },
+          "unitAmount": 16.5,
+          "amount": 16.5
+        },
+        {
+          "kind": "addOn",
+          "id": "customActivityRetention",
+          "quantity": 1.0,
+          "price": {
+            "kind": "fixed",
+            "amount": 5.0
+          },
+          "unitAmount": 5.0,
+          "amount": 5.0
+        }
+      ],
+      "subtotal": 21.5,
+      "requiresQuote": false,
+      "features": {
+        "restApi": true,
+        "smtp": true,
+        "multiRegionRoutingSmtp": true,
+        "transactionalEmail": true,
+        "bulkEmailApi": true,
+        "batchSending": true,
+        "monthlyEmailVolume": true,
+        "dailyEmailSending": true,
+        "inboundEmail": true,
+        "messageStreams": true,
+        "servers": true,
+        "customSendingDomains": true,
+        "responsiveEmailTemplates": true,
+        "emailTemplateEditorAndImportTool": true,
+        "highQualityVettedIps": true,
+        "dedicatedIps": false,
+        "suppressionManagement": true,
+        "automaticSuppression": true,
+        "dkimSpfDmarcAuthentication": true,
+        "industryLeadingDeliverability": true,
+        "sandboxMode": true,
+        "dynamicApiDocumentation": true,
+        "migrationGuides": true,
+        "eventWebhooks": true,
+        "secureWebhookEndpoints": true,
+        "officialSdks": true,
+        "detailedActivityRetention": true,
+        "granularBounceData": true,
+        "deliveryBounceSpamOpenRates": true,
+        "emailOpenAndLinkTracking": true,
+        "customTagging": true,
+        "statsApi": true,
+        "detailedAnalytics": true,
+        "userRoles": true,
+        "gdprCompliance": true,
+        "penetrationTesting": true,
+        "ddosProtection": true,
+        "twoFactorAuthentication": true,
+        "apiPermissionControls": true,
+        "users": true,
+        "customActivityRetention": true,
+        "dmarcMonitoring": false,
+        "paymentMethods": [
+          "CARD"
+        ]
+      },
+      "usageLimits": {
+        "monthlyEmailVolumeLimit": 10000,
+        "dailyEmailSendingPerDay": {
+          "unlimited": true
+        },
+        "messageStreamsLimit": 30,
+        "serversLimit": 10,
+        "customSendingDomainsLimit": 10,
+        "detailedActivityRetentionDays": 45,
+        "usersLimit": 6,
+        "dedicatedIpsLimit": 0,
+        "dmarcMonitoredDomainsLimit": 0
+      }
+    },
+    "PRO+dmarcMonitoring": {
+      "plan": "PRO",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {
+        "dmarcMonitoring": 1.0
+      },
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "PRO",
+          "quantity": 1,
+          "price": {
+            "kind": "expression",
+            "source": "#proPriceByVolume[String(#volume)]",
+            "value": 16.5
+          },
+          "unitAmount": 16.5,
+          "amount": 16.5
+        },
+        {
+          "kind": "addOn",
+          "id": "dmarcMonitoring",
+          "quantity": 1.0,
+          "price": {
+            "kind": "fixed",
+            "amount": 14.0
+          },
+          "unitAmount": 14.0,
+          "amount": 14.0
+        }
+      ],
+      "subtotal": 30.5,
+      "requiresQuote": false,
+      "features": {
+        "restApi": true,
+        "smtp": true,
+        "multiRegionRoutingSmtp": true,
+        "transactionalEmail": true,
+        "bulkEmailApi": true,
+        "batchSending": true,
+        "monthlyEmailVolume": true,
+        "dailyEmailSending": true,
+        "inboundEmail": true,
+        "messageStreams": true,
+        "servers": true,
+        "customSendingDomains": true,
+        "responsiveEmailTemplates": true,
+        "emailTemplateEditorAndImportTool": true,
+        "highQualityVettedIps": true,
+        "dedicatedIps": false,
+        "suppressionManagement": true,
+        "automaticSuppression": true,
+        "dkimSpfDmarcAuthentication": true,
+        "industryLeadingDeliverability": true,
+        "sandboxMode": true,
+        "dynamicApiDocumentation": true,
+        "migrationGuides": true,
+        "eventWebhooks": true,
+        "secureWebhookEndpoints": true,
+        "officialSdks": true,
+        "detailedActivityRetention": true,
+        "granularBounceData": true,
+        "deliveryBounceSpamOpenRates": true,
+        "emailOpenAndLinkTracking": true,
+        "customTagging": true,
+        "statsApi": true,
+        "detailedAnalytics": true,
+        "userRoles": true,
+        "gdprCompliance": true,
+        "penetrationTesting": true,
+        "ddosProtection": true,
+        "twoFactorAuthentication": true,
+        "apiPermissionControls": true,
+        "users": true,
+        "customActivityRetention": false,
+        "dmarcMonitoring": true,
+        "paymentMethods": [
+          "CARD"
+        ]
+      },
+      "usageLimits": {
+        "monthlyEmailVolumeLimit": 10000,
+        "dailyEmailSendingPerDay": {
+          "unlimited": true
+        },
+        "messageStreamsLimit": 30,
+        "serversLimit": 10,
+        "customSendingDomainsLimit": 10,
+        "detailedActivityRetentionDays": 45,
+        "usersLimit": 6,
+        "dedicatedIpsLimit": 0,
+        "dmarcMonitoredDomainsLimit": 1
+      }
+    },
+    "PLATFORM": {
+      "plan": "PLATFORM",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {},
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "PLATFORM",
+          "quantity": 1,
+          "price": {
+            "kind": "expression",
+            "source": "#platformPriceByVolume[String(#volume)]",
+            "value": 18.0
+          },
+          "unitAmount": 18.0,
+          "amount": 18.0
+        }
+      ],
+      "subtotal": 18.0,
+      "requiresQuote": false,
+      "features": {
+        "restApi": true,
+        "smtp": true,
+        "multiRegionRoutingSmtp": true,
+        "transactionalEmail": true,
+        "bulkEmailApi": true,
+        "batchSending": true,
+        "monthlyEmailVolume": true,
+        "dailyEmailSending": true,
+        "inboundEmail": true,
+        "messageStreams": true,
+        "servers": true,
+        "customSendingDomains": true,
+        "responsiveEmailTemplates": true,
+        "emailTemplateEditorAndImportTool": true,
+        "highQualityVettedIps": true,
+        "dedicatedIps": false,
+        "suppressionManagement": true,
+        "automaticSuppression": true,
+        "dkimSpfDmarcAuthentication": true,
+        "industryLeadingDeliverability": true,
+        "sandboxMode": true,
+        "dynamicApiDocumentation": true,
+        "migrationGuides": true,
+        "eventWebhooks": true,
+        "secureWebhookEndpoints": true,
+        "officialSdks": true,
+        "detailedActivityRetention": true,
+        "granularBounceData": true,
+        "deliveryBounceSpamOpenRates": true,
+        "emailOpenAndLinkTracking": true,
+        "customTagging": true,
+        "statsApi": true,
+        "detailedAnalytics": true,
+        "userRoles": true,
+        "gdprCompliance": true,
+        "penetrationTesting": true,
+        "ddosProtection": true,
+        "twoFactorAuthentication": true,
+        "apiPermissionControls": true,
+        "users": true,
+        "customActivityRetention": false,
+        "dmarcMonitoring": false,
+        "paymentMethods": [
+          "CARD"
+        ]
+      },
+      "usageLimits": {
+        "monthlyEmailVolumeLimit": 10000,
+        "dailyEmailSendingPerDay": {
+          "unlimited": true
+        },
+        "messageStreamsLimit": {
+          "unlimited": true
+        },
+        "serversLimit": {
+          "unlimited": true
+        },
+        "customSendingDomainsLimit": {
+          "unlimited": true
+        },
+        "detailedActivityRetentionDays": 45,
+        "usersLimit": {
+          "unlimited": true
+        },
+        "dedicatedIpsLimit": 0,
+        "dmarcMonitoredDomainsLimit": 0
+      }
+    },
+    "PLATFORM+dedicatedIp": {
+      "plan": "PLATFORM",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {
+        "dedicatedIp": 1.0
+      },
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "PLATFORM",
+          "quantity": 1,
+          "price": {
+            "kind": "expression",
+            "source": "#platformPriceByVolume[String(#volume)]",
+            "value": 18.0
+          },
+          "unitAmount": 18.0,
+          "amount": 18.0
+        },
+        {
+          "kind": "addOn",
+          "id": "dedicatedIp",
+          "quantity": 1.0,
+          "price": {
+            "kind": "fixed",
+            "amount": 50.0
+          },
+          "unitAmount": 50.0,
+          "amount": 50.0
+        }
+      ],
+      "subtotal": 68.0,
+      "requiresQuote": false,
+      "features": {
+        "restApi": true,
+        "smtp": true,
+        "multiRegionRoutingSmtp": true,
+        "transactionalEmail": true,
+        "bulkEmailApi": true,
+        "batchSending": true,
+        "monthlyEmailVolume": true,
+        "dailyEmailSending": true,
+        "inboundEmail": true,
+        "messageStreams": true,
+        "servers": true,
+        "customSendingDomains": true,
+        "responsiveEmailTemplates": true,
+        "emailTemplateEditorAndImportTool": true,
+        "highQualityVettedIps": true,
+        "dedicatedIps": true,
+        "suppressionManagement": true,
+        "automaticSuppression": true,
+        "dkimSpfDmarcAuthentication": true,
+        "industryLeadingDeliverability": true,
+        "sandboxMode": true,
+        "dynamicApiDocumentation": true,
+        "migrationGuides": true,
+        "eventWebhooks": true,
+        "secureWebhookEndpoints": true,
+        "officialSdks": true,
+        "detailedActivityRetention": true,
+        "granularBounceData": true,
+        "deliveryBounceSpamOpenRates": true,
+        "emailOpenAndLinkTracking": true,
+        "customTagging": true,
+        "statsApi": true,
+        "detailedAnalytics": true,
+        "userRoles": true,
+        "gdprCompliance": true,
+        "penetrationTesting": true,
+        "ddosProtection": true,
+        "twoFactorAuthentication": true,
+        "apiPermissionControls": true,
+        "users": true,
+        "customActivityRetention": false,
+        "dmarcMonitoring": false,
+        "paymentMethods": [
+          "CARD"
+        ]
+      },
+      "usageLimits": {
+        "monthlyEmailVolumeLimit": 10000,
+        "dailyEmailSendingPerDay": {
+          "unlimited": true
+        },
+        "messageStreamsLimit": {
+          "unlimited": true
+        },
+        "serversLimit": {
+          "unlimited": true
+        },
+        "customSendingDomainsLimit": {
+          "unlimited": true
+        },
+        "detailedActivityRetentionDays": 45,
+        "usersLimit": {
+          "unlimited": true
+        },
+        "dedicatedIpsLimit": 1,
+        "dmarcMonitoredDomainsLimit": 0
+      }
+    },
+    "PLATFORM+customActivityRetention": {
+      "plan": "PLATFORM",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {
+        "customActivityRetention": 1.0
+      },
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "PLATFORM",
+          "quantity": 1,
+          "price": {
+            "kind": "expression",
+            "source": "#platformPriceByVolume[String(#volume)]",
+            "value": 18.0
+          },
+          "unitAmount": 18.0,
+          "amount": 18.0
+        },
+        {
+          "kind": "addOn",
+          "id": "customActivityRetention",
+          "quantity": 1.0,
+          "price": {
+            "kind": "fixed",
+            "amount": 5.0
+          },
+          "unitAmount": 5.0,
+          "amount": 5.0
+        }
+      ],
+      "subtotal": 23.0,
+      "requiresQuote": false,
+      "features": {
+        "restApi": true,
+        "smtp": true,
+        "multiRegionRoutingSmtp": true,
+        "transactionalEmail": true,
+        "bulkEmailApi": true,
+        "batchSending": true,
+        "monthlyEmailVolume": true,
+        "dailyEmailSending": true,
+        "inboundEmail": true,
+        "messageStreams": true,
+        "servers": true,
+        "customSendingDomains": true,
+        "responsiveEmailTemplates": true,
+        "emailTemplateEditorAndImportTool": true,
+        "highQualityVettedIps": true,
+        "dedicatedIps": false,
+        "suppressionManagement": true,
+        "automaticSuppression": true,
+        "dkimSpfDmarcAuthentication": true,
+        "industryLeadingDeliverability": true,
+        "sandboxMode": true,
+        "dynamicApiDocumentation": true,
+        "migrationGuides": true,
+        "eventWebhooks": true,
+        "secureWebhookEndpoints": true,
+        "officialSdks": true,
+        "detailedActivityRetention": true,
+        "granularBounceData": true,
+        "deliveryBounceSpamOpenRates": true,
+        "emailOpenAndLinkTracking": true,
+        "customTagging": true,
+        "statsApi": true,
+        "detailedAnalytics": true,
+        "userRoles": true,
+        "gdprCompliance": true,
+        "penetrationTesting": true,
+        "ddosProtection": true,
+        "twoFactorAuthentication": true,
+        "apiPermissionControls": true,
+        "users": true,
+        "customActivityRetention": true,
+        "dmarcMonitoring": false,
+        "paymentMethods": [
+          "CARD"
+        ]
+      },
+      "usageLimits": {
+        "monthlyEmailVolumeLimit": 10000,
+        "dailyEmailSendingPerDay": {
+          "unlimited": true
+        },
+        "messageStreamsLimit": {
+          "unlimited": true
+        },
+        "serversLimit": {
+          "unlimited": true
+        },
+        "customSendingDomainsLimit": {
+          "unlimited": true
+        },
+        "detailedActivityRetentionDays": 45,
+        "usersLimit": {
+          "unlimited": true
+        },
+        "dedicatedIpsLimit": 0,
+        "dmarcMonitoredDomainsLimit": 0
+      }
+    },
+    "PLATFORM+dmarcMonitoring": {
+      "plan": "PLATFORM",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {
+        "dmarcMonitoring": 1.0
+      },
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "PLATFORM",
+          "quantity": 1,
+          "price": {
+            "kind": "expression",
+            "source": "#platformPriceByVolume[String(#volume)]",
+            "value": 18.0
+          },
+          "unitAmount": 18.0,
+          "amount": 18.0
+        },
+        {
+          "kind": "addOn",
+          "id": "dmarcMonitoring",
+          "quantity": 1.0,
+          "price": {
+            "kind": "fixed",
+            "amount": 14.0
+          },
+          "unitAmount": 14.0,
+          "amount": 14.0
+        }
+      ],
+      "subtotal": 32.0,
+      "requiresQuote": false,
+      "features": {
+        "restApi": true,
+        "smtp": true,
+        "multiRegionRoutingSmtp": true,
+        "transactionalEmail": true,
+        "bulkEmailApi": true,
+        "batchSending": true,
+        "monthlyEmailVolume": true,
+        "dailyEmailSending": true,
+        "inboundEmail": true,
+        "messageStreams": true,
+        "servers": true,
+        "customSendingDomains": true,
+        "responsiveEmailTemplates": true,
+        "emailTemplateEditorAndImportTool": true,
+        "highQualityVettedIps": true,
+        "dedicatedIps": false,
+        "suppressionManagement": true,
+        "automaticSuppression": true,
+        "dkimSpfDmarcAuthentication": true,
+        "industryLeadingDeliverability": true,
+        "sandboxMode": true,
+        "dynamicApiDocumentation": true,
+        "migrationGuides": true,
+        "eventWebhooks": true,
+        "secureWebhookEndpoints": true,
+        "officialSdks": true,
+        "detailedActivityRetention": true,
+        "granularBounceData": true,
+        "deliveryBounceSpamOpenRates": true,
+        "emailOpenAndLinkTracking": true,
+        "customTagging": true,
+        "statsApi": true,
+        "detailedAnalytics": true,
+        "userRoles": true,
+        "gdprCompliance": true,
+        "penetrationTesting": true,
+        "ddosProtection": true,
+        "twoFactorAuthentication": true,
+        "apiPermissionControls": true,
+        "users": true,
+        "customActivityRetention": false,
+        "dmarcMonitoring": true,
+        "paymentMethods": [
+          "CARD"
+        ]
+      },
+      "usageLimits": {
+        "monthlyEmailVolumeLimit": 10000,
+        "dailyEmailSendingPerDay": {
+          "unlimited": true
+        },
+        "messageStreamsLimit": {
+          "unlimited": true
+        },
+        "serversLimit": {
+          "unlimited": true
+        },
+        "customSendingDomainsLimit": {
+          "unlimited": true
+        },
+        "detailedActivityRetentionDays": 45,
+        "usersLimit": {
+          "unlimited": true
+        },
+        "dedicatedIpsLimit": 0,
+        "dmarcMonitoredDomainsLimit": 1
+      }
+    }
+  }
+}

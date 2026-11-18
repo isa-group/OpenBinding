@@ -102,9 +102,8 @@ def effective_json(result: Effective) -> dict[str, Any]:
 def as_json(pricing: NormalisedPricing) -> dict[str, Any]:
     """The whole normalised reading (the goldens of ``tools/dump_normalised_pricings.py``)."""
     out = summary(pricing)
-    out["addOns"] = out["addOns"] + out.pop("meteredAddOns")
-    for item in out["addOns"]:
-        item["metered"] = item["id"] in {a.name for a in pricing.add_ons.values() if a.metered}
+    by_id = {item["id"]: item for item in out["addOns"] + out.pop("meteredAddOns")}
+    out["addOns"] = [by_id[name] | {"metered": add_on.metered} for name, add_on in pricing.add_ons.items()]
     out["variables"] = {k: _plain(v) for k, v in pricing.variables.items()}
     return out
 

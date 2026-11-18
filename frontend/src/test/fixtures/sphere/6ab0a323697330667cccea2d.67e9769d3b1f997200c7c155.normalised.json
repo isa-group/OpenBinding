@@ -1,0 +1,1783 @@
+{
+  "pricing": {
+    "syntaxVersion": "3.1",
+    "title": "Dropbox",
+    "version": "2024-07-16",
+    "createdAt": "2024-07-16",
+    "currency": "EUR",
+    "billing": [
+      {
+        "id": "monthly",
+        "multiplier": 1.0,
+        "synthesized": true
+      }
+    ],
+    "features": [
+      {
+        "id": "storage",
+        "name": "storage",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "bestInClassSyncTechnology",
+        "name": "bestInClassSyncTechnology",
+        "type": "GUARANTEE",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "easyAndSecureSharing",
+        "name": "easyAndSecureSharing",
+        "type": "GUARANTEE",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "anytimeAccess",
+        "name": "anytimeAccess",
+        "type": "GUARANTEE",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "anywhereAccess",
+        "name": "anywhereAccess",
+        "type": "GUARANTEE",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "connectUnlimitedDevices",
+        "name": "connectUnlimitedDevices",
+        "type": "GUARANTEE",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "256BitAES",
+        "name": "256BitAES",
+        "type": "GUARANTEE",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "SSL/TLSEncryption",
+        "name": "SSL/TLSEncryption",
+        "type": "GUARANTEE",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "realTimeDocumentAnalytics",
+        "name": "realTimeDocumentAnalytics",
+        "type": "INFORMATION",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "passcodeVerification",
+        "name": "passcodeVerification",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "emailVerfication",
+        "name": "emailVerfication",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "viewerEngagementDashboard",
+        "name": "viewerEngagementDashboard",
+        "type": "INFORMATION",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "backup",
+        "name": "backup",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "accountRecovery",
+        "name": "accountRecovery",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "versionHistory",
+        "name": "versionHistory",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "restoreDeletedFiles",
+        "name": "restoreDeletedFiles",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "passwordManagement",
+        "name": "passwordManagement",
+        "type": "MANAGEMENT",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "multiFactorAuthentication",
+        "name": "multiFactorAuthentication",
+        "type": "MANAGEMENT",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "documentScanning",
+        "name": "documentScanning",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "remoteDeviceWipe",
+        "name": "remoteDeviceWipe",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "watermarking",
+        "name": "watermarking",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "accountTransferTool",
+        "name": "accountTransferTool",
+        "type": "MANAGEMENT",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "granularPermissions",
+        "name": "granularPermissions",
+        "type": "MANAGEMENT",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "enableHIPAACompliance",
+        "name": "enableHIPAACompliance",
+        "type": "GUARANTEE",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "deviceApprovals",
+        "name": "deviceApprovals",
+        "type": "MANAGEMENT",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "dataClassification",
+        "name": "dataClassification",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "ransomwareDetectionAndRecovery",
+        "name": "ransomwareDetectionAndRecovery",
+        "type": "AUTOMATION",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "suspiciusActivityAlerts",
+        "name": "suspiciusActivityAlerts",
+        "type": "AUTOMATION",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "endToEndEncryption",
+        "name": "endToEndEncryption",
+        "type": "GUARANTEE",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "advancedKeyManagement",
+        "name": "advancedKeyManagement",
+        "type": "GUARANTEE",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "dropboxCapture",
+        "name": "dropboxCapture",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "videoTranscripts",
+        "name": "videoTranscripts",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "closedCaptions",
+        "name": "closedCaptions",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "videoEditing",
+        "name": "videoEditing",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "videoCommenting",
+        "name": "videoCommenting",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "dropboxReplay",
+        "name": "dropboxReplay",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "integratedCloudContent",
+        "name": "integratedCloudContent",
+        "type": "INTEGRATION",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "onlineDocuments",
+        "name": "onlineDocuments",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "onlineNoteTaking",
+        "name": "onlineNoteTaking",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "webPreviews",
+        "name": "webPreviews",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "webComments",
+        "name": "webComments",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "plusButton",
+        "name": "plusButton",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "pdfEditing",
+        "name": "pdfEditing",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "advancedPdfEditing",
+        "name": "advancedPdfEditing",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "annotatePDFs",
+        "name": "annotatePDFs",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "signPDFs",
+        "name": "signPDFs",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "imageEditing",
+        "name": "imageEditing",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "imageSearch",
+        "name": "imageSearch",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "fullTextSearch",
+        "name": "fullTextSearch",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "fileLocking",
+        "name": "fileLocking",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "viewerHistory",
+        "name": "viewerHistory",
+        "type": "INFORMATION",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "sharedLinks",
+        "name": "sharedLinks",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "advancedLinkSettings",
+        "name": "advancedLinkSettings",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "disableDownloads",
+        "name": "disableDownloads",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "customExpirationDates",
+        "name": "customExpirationDates",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "passwordProtectedLinks",
+        "name": "passwordProtectedLinks",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "largeFileDelivery",
+        "name": "largeFileDelivery",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "incomingTransferRequests",
+        "name": "incomingTransferRequests",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "transferAnalytics",
+        "name": "transferAnalytics",
+        "type": "INFORMATION",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "customExpirationDatesForTransfers",
+        "name": "customExpirationDatesForTransfers",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "passwordProtectedTransfers",
+        "name": "passwordProtectedTransfers",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "brandedTransfers",
+        "name": "brandedTransfers",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "selfSigning",
+        "name": "selfSigning",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "signatureRequest",
+        "name": "signatureRequest",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "industryLeadingSecurity",
+        "name": "industryLeadingSecurity",
+        "type": "GUARANTEE",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "industryLeadingPrivacy",
+        "name": "industryLeadingPrivacy",
+        "type": "GUARANTEE",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "signatureTemplates",
+        "name": "signatureTemplates",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "signatureBranding",
+        "name": "signatureBranding",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "adminConsole",
+        "name": "adminConsole",
+        "type": "MANAGEMENT",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "multiTeamAdminLogin",
+        "name": "multiTeamAdminLogin",
+        "type": "MANAGEMENT",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "centralizedBilling",
+        "name": "centralizedBilling",
+        "type": "PAYMENT",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "companyManagedGroups",
+        "name": "companyManagedGroups",
+        "type": "MANAGEMENT",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "apiAccessToSecurityPlatformPartners",
+        "name": "apiAccessToSecurityPlatformPartners",
+        "type": "INTEGRATION",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "apiAccessToProductivityPlatformPartners",
+        "name": "apiAccessToProductivityPlatformPartners",
+        "type": "INTEGRATION",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "apiAccessToDataTransportPlatformPartners",
+        "name": "apiAccessToDataTransportPlatformPartners",
+        "type": "INTEGRATION",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "tieredAdminRoles",
+        "name": "tieredAdminRoles",
+        "type": "MANAGEMENT",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "signInAsUser",
+        "name": "signInAsUser",
+        "type": "MANAGEMENT",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "auditLogsWithFileEventTracking",
+        "name": "auditLogsWithFileEventTracking",
+        "type": "AUTOMATION",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "singleSignOn",
+        "name": "singleSignOn",
+        "type": "INTEGRATION",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "inviteEnforcement",
+        "name": "inviteEnforcement",
+        "type": "MANAGEMENT",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "priorityEmailSupport",
+        "name": "priorityEmailSupport",
+        "type": "SUPPORT",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "liveChatSupport",
+        "name": "liveChatSupport",
+        "type": "SUPPORT",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "phoneSupportDuringBusinessHours",
+        "name": "phoneSupportDuringBusinessHours",
+        "type": "SUPPORT",
+        "valueType": "BOOLEAN",
+        "default": false
+      }
+    ],
+    "usageLimits": [
+      {
+        "id": "storageLimit",
+        "name": "storageLimit",
+        "valueType": "NUMERIC",
+        "unit": "GB",
+        "default": 2000,
+        "linkedFeatures": [
+          "storage"
+        ]
+      },
+      {
+        "id": "usersLimit",
+        "name": "usersLimit",
+        "valueType": "NUMERIC",
+        "unit": "user",
+        "default": 1,
+        "linkedFeatures": []
+      },
+      {
+        "id": "signatureRequestLimit",
+        "name": "signatureRequestLimit",
+        "valueType": "NUMERIC",
+        "unit": "signature/month",
+        "default": 3,
+        "linkedFeatures": [
+          "signatureRequest"
+        ]
+      },
+      {
+        "id": "templatesLimit",
+        "name": "templatesLimit",
+        "valueType": "NUMERIC",
+        "unit": "template",
+        "default": 0,
+        "linkedFeatures": [
+          "signatureTemplates"
+        ]
+      },
+      {
+        "id": "accountRecoveryAndVersionHistoryThreshold",
+        "name": "accountRecoveryAndVersionHistoryThreshold",
+        "valueType": "NUMERIC",
+        "unit": "day",
+        "default": 30,
+        "linkedFeatures": [
+          "accountRecovery",
+          "versionHistory"
+        ]
+      },
+      {
+        "id": "restoreDeletedFilesThreshold",
+        "name": "restoreDeletedFilesThreshold",
+        "valueType": "NUMERIC",
+        "unit": "day",
+        "default": 30,
+        "linkedFeatures": [
+          "restoreDeletedFiles"
+        ]
+      },
+      {
+        "id": "dropboxCaptureRecordingTimeLimit",
+        "name": "dropboxCaptureRecordingTimeLimit",
+        "valueType": "NUMERIC",
+        "unit": "min",
+        "default": 120,
+        "linkedFeatures": [
+          "dropboxCapture"
+        ]
+      },
+      {
+        "id": "dropboxCaptureFullHDQuality",
+        "name": "dropboxCaptureFullHDQuality",
+        "valueType": "BOOLEAN",
+        "unit": null,
+        "default": true,
+        "linkedFeatures": [
+          "dropboxCapture"
+        ]
+      },
+      {
+        "id": "dropboxCapture4kQuality",
+        "name": "dropboxCapture4kQuality",
+        "valueType": "BOOLEAN",
+        "unit": null,
+        "default": true,
+        "linkedFeatures": [
+          "dropboxCapture"
+        ]
+      },
+      {
+        "id": "dropboxCaptureAdvancedVideoEditing",
+        "name": "dropboxCaptureAdvancedVideoEditing",
+        "valueType": "BOOLEAN",
+        "unit": null,
+        "default": true,
+        "linkedFeatures": [
+          "dropboxCapture"
+        ]
+      },
+      {
+        "id": "dropboxReplayFileUploadsLimit",
+        "name": "dropboxReplayFileUploadsLimit",
+        "valueType": "NUMERIC",
+        "unit": "file",
+        "default": 4,
+        "linkedFeatures": [
+          "dropboxReplay"
+        ]
+      },
+      {
+        "id": "dropboxReplayLiveReviews",
+        "name": "dropboxReplayLiveReviews",
+        "valueType": "BOOLEAN",
+        "unit": null,
+        "default": true,
+        "linkedFeatures": [
+          "dropboxReplay"
+        ]
+      },
+      {
+        "id": "dropboxReplayVersions",
+        "name": "dropboxReplayVersions",
+        "valueType": "BOOLEAN",
+        "unit": null,
+        "default": true,
+        "linkedFeatures": [
+          "dropboxReplay"
+        ]
+      },
+      {
+        "id": "dropboxReplayVideoCollaboration",
+        "name": "dropboxReplayVideoCollaboration",
+        "valueType": "BOOLEAN",
+        "unit": null,
+        "default": true,
+        "linkedFeatures": [
+          "dropboxReplay"
+        ]
+      },
+      {
+        "id": "largeFileDeliveryLimit",
+        "name": "largeFileDeliveryLimit",
+        "valueType": "NUMERIC",
+        "unit": "GB/transfer",
+        "default": 2,
+        "linkedFeatures": [
+          "largeFileDelivery"
+        ]
+      },
+      {
+        "id": "apiAccessToDataTransportPlatformPartnersLimit",
+        "name": "apiAccessToDataTransportPlatformPartnersLimit",
+        "valueType": "NUMERIC",
+        "unit": "request/month",
+        "default": 0,
+        "linkedFeatures": [
+          "apiAccessToDataTransportPlatformPartners"
+        ]
+      }
+    ],
+    "plans": [
+      {
+        "id": "PLUS",
+        "name": "PLUS",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 9.99
+        },
+        "unit": "/month",
+        "period": "month",
+        "perSeat": false,
+        "features": {
+          "storage": true,
+          "bestInClassSyncTechnology": true,
+          "easyAndSecureSharing": true,
+          "anytimeAccess": true,
+          "anywhereAccess": true,
+          "connectUnlimitedDevices": true,
+          "256BitAES": true,
+          "SSL/TLSEncryption": true,
+          "realTimeDocumentAnalytics": false,
+          "passcodeVerification": false,
+          "emailVerfication": false,
+          "viewerEngagementDashboard": false,
+          "backup": true,
+          "accountRecovery": true,
+          "versionHistory": true,
+          "restoreDeletedFiles": true,
+          "passwordManagement": true,
+          "multiFactorAuthentication": true,
+          "documentScanning": true,
+          "remoteDeviceWipe": true,
+          "watermarking": false,
+          "accountTransferTool": false,
+          "granularPermissions": false,
+          "enableHIPAACompliance": false,
+          "deviceApprovals": false,
+          "dataClassification": false,
+          "ransomwareDetectionAndRecovery": false,
+          "suspiciusActivityAlerts": false,
+          "endToEndEncryption": false,
+          "advancedKeyManagement": false,
+          "dropboxCapture": true,
+          "videoTranscripts": true,
+          "closedCaptions": true,
+          "videoEditing": true,
+          "videoCommenting": false,
+          "dropboxReplay": true,
+          "integratedCloudContent": true,
+          "onlineDocuments": true,
+          "onlineNoteTaking": true,
+          "webPreviews": true,
+          "webComments": true,
+          "plusButton": true,
+          "pdfEditing": true,
+          "advancedPdfEditing": false,
+          "annotatePDFs": true,
+          "signPDFs": true,
+          "imageEditing": true,
+          "imageSearch": true,
+          "fullTextSearch": true,
+          "fileLocking": false,
+          "viewerHistory": false,
+          "sharedLinks": true,
+          "advancedLinkSettings": false,
+          "disableDownloads": false,
+          "customExpirationDates": false,
+          "passwordProtectedLinks": false,
+          "largeFileDelivery": true,
+          "incomingTransferRequests": true,
+          "transferAnalytics": true,
+          "customExpirationDatesForTransfers": false,
+          "passwordProtectedTransfers": false,
+          "brandedTransfers": false,
+          "selfSigning": true,
+          "signatureRequest": true,
+          "industryLeadingSecurity": true,
+          "industryLeadingPrivacy": true,
+          "signatureTemplates": false,
+          "signatureBranding": false,
+          "adminConsole": false,
+          "multiTeamAdminLogin": false,
+          "centralizedBilling": false,
+          "companyManagedGroups": false,
+          "apiAccessToSecurityPlatformPartners": false,
+          "apiAccessToProductivityPlatformPartners": true,
+          "apiAccessToDataTransportPlatformPartners": false,
+          "tieredAdminRoles": false,
+          "signInAsUser": false,
+          "auditLogsWithFileEventTracking": false,
+          "singleSignOn": false,
+          "inviteEnforcement": false,
+          "priorityEmailSupport": true,
+          "liveChatSupport": true,
+          "phoneSupportDuringBusinessHours": false
+        },
+        "usageLimits": {
+          "storageLimit": 2000,
+          "usersLimit": 1,
+          "signatureRequestLimit": 3,
+          "templatesLimit": 0,
+          "accountRecoveryAndVersionHistoryThreshold": 30,
+          "restoreDeletedFilesThreshold": 30,
+          "dropboxCaptureRecordingTimeLimit": 120,
+          "dropboxCaptureFullHDQuality": true,
+          "dropboxCapture4kQuality": true,
+          "dropboxCaptureAdvancedVideoEditing": true,
+          "dropboxReplayFileUploadsLimit": 4,
+          "dropboxReplayLiveReviews": true,
+          "dropboxReplayVersions": true,
+          "dropboxReplayVideoCollaboration": true,
+          "largeFileDeliveryLimit": 2,
+          "apiAccessToDataTransportPlatformPartnersLimit": 0
+        }
+      },
+      {
+        "id": "ESSENTIALS",
+        "name": "ESSENTIALS",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 16.58
+        },
+        "unit": "/month",
+        "period": "month",
+        "perSeat": false,
+        "features": {
+          "storage": true,
+          "bestInClassSyncTechnology": true,
+          "easyAndSecureSharing": true,
+          "anytimeAccess": true,
+          "anywhereAccess": true,
+          "connectUnlimitedDevices": true,
+          "256BitAES": true,
+          "SSL/TLSEncryption": true,
+          "realTimeDocumentAnalytics": true,
+          "passcodeVerification": true,
+          "emailVerfication": true,
+          "viewerEngagementDashboard": true,
+          "backup": true,
+          "accountRecovery": true,
+          "versionHistory": true,
+          "restoreDeletedFiles": true,
+          "passwordManagement": true,
+          "multiFactorAuthentication": true,
+          "documentScanning": true,
+          "remoteDeviceWipe": true,
+          "watermarking": true,
+          "accountTransferTool": false,
+          "granularPermissions": false,
+          "enableHIPAACompliance": false,
+          "deviceApprovals": false,
+          "dataClassification": false,
+          "ransomwareDetectionAndRecovery": false,
+          "suspiciusActivityAlerts": false,
+          "endToEndEncryption": false,
+          "advancedKeyManagement": false,
+          "dropboxCapture": true,
+          "videoTranscripts": true,
+          "closedCaptions": true,
+          "videoEditing": true,
+          "videoCommenting": true,
+          "dropboxReplay": true,
+          "integratedCloudContent": true,
+          "onlineDocuments": true,
+          "onlineNoteTaking": true,
+          "webPreviews": true,
+          "webComments": true,
+          "plusButton": true,
+          "pdfEditing": true,
+          "advancedPdfEditing": true,
+          "annotatePDFs": true,
+          "signPDFs": true,
+          "imageEditing": true,
+          "imageSearch": true,
+          "fullTextSearch": true,
+          "fileLocking": true,
+          "viewerHistory": true,
+          "sharedLinks": true,
+          "advancedLinkSettings": true,
+          "disableDownloads": true,
+          "customExpirationDates": true,
+          "passwordProtectedLinks": true,
+          "largeFileDelivery": true,
+          "incomingTransferRequests": true,
+          "transferAnalytics": true,
+          "customExpirationDatesForTransfers": true,
+          "passwordProtectedTransfers": true,
+          "brandedTransfers": true,
+          "selfSigning": true,
+          "signatureRequest": true,
+          "industryLeadingSecurity": true,
+          "industryLeadingPrivacy": true,
+          "signatureTemplates": true,
+          "signatureBranding": false,
+          "adminConsole": false,
+          "multiTeamAdminLogin": false,
+          "centralizedBilling": false,
+          "companyManagedGroups": false,
+          "apiAccessToSecurityPlatformPartners": false,
+          "apiAccessToProductivityPlatformPartners": true,
+          "apiAccessToDataTransportPlatformPartners": false,
+          "tieredAdminRoles": false,
+          "signInAsUser": false,
+          "auditLogsWithFileEventTracking": false,
+          "singleSignOn": false,
+          "inviteEnforcement": false,
+          "priorityEmailSupport": true,
+          "liveChatSupport": true,
+          "phoneSupportDuringBusinessHours": false
+        },
+        "usageLimits": {
+          "storageLimit": 3000,
+          "usersLimit": 1,
+          "signatureRequestLimit": {
+            "unlimited": true
+          },
+          "templatesLimit": 5,
+          "accountRecoveryAndVersionHistoryThreshold": 180,
+          "restoreDeletedFilesThreshold": 180,
+          "dropboxCaptureRecordingTimeLimit": {
+            "unlimited": true
+          },
+          "dropboxCaptureFullHDQuality": true,
+          "dropboxCapture4kQuality": true,
+          "dropboxCaptureAdvancedVideoEditing": true,
+          "dropboxReplayFileUploadsLimit": 10,
+          "dropboxReplayLiveReviews": true,
+          "dropboxReplayVersions": true,
+          "dropboxReplayVideoCollaboration": true,
+          "largeFileDeliveryLimit": 100,
+          "apiAccessToDataTransportPlatformPartnersLimit": 0
+        }
+      },
+      {
+        "id": "BUSINESS",
+        "name": "BUSINESS",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 15.0
+        },
+        "unit": "user/month",
+        "period": "month",
+        "perSeat": true,
+        "features": {
+          "storage": true,
+          "bestInClassSyncTechnology": true,
+          "easyAndSecureSharing": true,
+          "anytimeAccess": true,
+          "anywhereAccess": true,
+          "connectUnlimitedDevices": true,
+          "256BitAES": true,
+          "SSL/TLSEncryption": true,
+          "realTimeDocumentAnalytics": true,
+          "passcodeVerification": true,
+          "emailVerfication": true,
+          "viewerEngagementDashboard": true,
+          "backup": true,
+          "accountRecovery": true,
+          "versionHistory": true,
+          "restoreDeletedFiles": true,
+          "passwordManagement": true,
+          "multiFactorAuthentication": true,
+          "documentScanning": true,
+          "remoteDeviceWipe": true,
+          "watermarking": true,
+          "accountTransferTool": true,
+          "granularPermissions": true,
+          "enableHIPAACompliance": true,
+          "deviceApprovals": true,
+          "dataClassification": false,
+          "ransomwareDetectionAndRecovery": false,
+          "suspiciusActivityAlerts": false,
+          "endToEndEncryption": false,
+          "advancedKeyManagement": false,
+          "dropboxCapture": true,
+          "videoTranscripts": true,
+          "closedCaptions": true,
+          "videoEditing": true,
+          "videoCommenting": true,
+          "dropboxReplay": true,
+          "integratedCloudContent": true,
+          "onlineDocuments": true,
+          "onlineNoteTaking": true,
+          "webPreviews": true,
+          "webComments": true,
+          "plusButton": true,
+          "pdfEditing": true,
+          "advancedPdfEditing": true,
+          "annotatePDFs": true,
+          "signPDFs": true,
+          "imageEditing": true,
+          "imageSearch": true,
+          "fullTextSearch": true,
+          "fileLocking": true,
+          "viewerHistory": true,
+          "sharedLinks": true,
+          "advancedLinkSettings": true,
+          "disableDownloads": true,
+          "customExpirationDates": true,
+          "passwordProtectedLinks": true,
+          "largeFileDelivery": true,
+          "incomingTransferRequests": true,
+          "transferAnalytics": true,
+          "customExpirationDatesForTransfers": true,
+          "passwordProtectedTransfers": true,
+          "brandedTransfers": true,
+          "selfSigning": true,
+          "signatureRequest": true,
+          "industryLeadingSecurity": true,
+          "industryLeadingPrivacy": true,
+          "signatureTemplates": true,
+          "signatureBranding": true,
+          "adminConsole": true,
+          "multiTeamAdminLogin": true,
+          "centralizedBilling": true,
+          "companyManagedGroups": true,
+          "apiAccessToSecurityPlatformPartners": true,
+          "apiAccessToProductivityPlatformPartners": true,
+          "apiAccessToDataTransportPlatformPartners": true,
+          "tieredAdminRoles": false,
+          "signInAsUser": false,
+          "auditLogsWithFileEventTracking": false,
+          "singleSignOn": false,
+          "inviteEnforcement": false,
+          "priorityEmailSupport": true,
+          "liveChatSupport": true,
+          "phoneSupportDuringBusinessHours": true
+        },
+        "usageLimits": {
+          "storageLimit": 9000,
+          "usersLimit": {
+            "unlimited": true
+          },
+          "signatureRequestLimit": {
+            "unlimited": true
+          },
+          "templatesLimit": 15,
+          "accountRecoveryAndVersionHistoryThreshold": 180,
+          "restoreDeletedFilesThreshold": 180,
+          "dropboxCaptureRecordingTimeLimit": {
+            "unlimited": true
+          },
+          "dropboxCaptureFullHDQuality": true,
+          "dropboxCapture4kQuality": true,
+          "dropboxCaptureAdvancedVideoEditing": true,
+          "dropboxReplayFileUploadsLimit": 10,
+          "dropboxReplayLiveReviews": true,
+          "dropboxReplayVersions": true,
+          "dropboxReplayVideoCollaboration": true,
+          "largeFileDeliveryLimit": 100,
+          "apiAccessToDataTransportPlatformPartnersLimit": {
+            "unlimited": true
+          }
+        }
+      },
+      {
+        "id": "BUSINESS_PLUS",
+        "name": "BUSINESS_PLUS",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 24.0
+        },
+        "unit": "user/month",
+        "period": "month",
+        "perSeat": true,
+        "features": {
+          "storage": true,
+          "bestInClassSyncTechnology": true,
+          "easyAndSecureSharing": true,
+          "anytimeAccess": true,
+          "anywhereAccess": true,
+          "connectUnlimitedDevices": true,
+          "256BitAES": true,
+          "SSL/TLSEncryption": true,
+          "realTimeDocumentAnalytics": true,
+          "passcodeVerification": true,
+          "emailVerfication": true,
+          "viewerEngagementDashboard": true,
+          "backup": true,
+          "accountRecovery": true,
+          "versionHistory": true,
+          "restoreDeletedFiles": true,
+          "passwordManagement": true,
+          "multiFactorAuthentication": true,
+          "documentScanning": true,
+          "remoteDeviceWipe": true,
+          "watermarking": true,
+          "accountTransferTool": true,
+          "granularPermissions": true,
+          "enableHIPAACompliance": true,
+          "deviceApprovals": true,
+          "dataClassification": true,
+          "ransomwareDetectionAndRecovery": true,
+          "suspiciusActivityAlerts": true,
+          "endToEndEncryption": true,
+          "advancedKeyManagement": true,
+          "dropboxCapture": true,
+          "videoTranscripts": true,
+          "closedCaptions": true,
+          "videoEditing": true,
+          "videoCommenting": true,
+          "dropboxReplay": true,
+          "integratedCloudContent": true,
+          "onlineDocuments": true,
+          "onlineNoteTaking": true,
+          "webPreviews": true,
+          "webComments": true,
+          "plusButton": true,
+          "pdfEditing": true,
+          "advancedPdfEditing": true,
+          "annotatePDFs": true,
+          "signPDFs": true,
+          "imageEditing": true,
+          "imageSearch": true,
+          "fullTextSearch": true,
+          "fileLocking": true,
+          "viewerHistory": true,
+          "sharedLinks": true,
+          "advancedLinkSettings": true,
+          "disableDownloads": true,
+          "customExpirationDates": true,
+          "passwordProtectedLinks": true,
+          "largeFileDelivery": true,
+          "incomingTransferRequests": true,
+          "transferAnalytics": true,
+          "customExpirationDatesForTransfers": true,
+          "passwordProtectedTransfers": true,
+          "brandedTransfers": true,
+          "selfSigning": true,
+          "signatureRequest": true,
+          "industryLeadingSecurity": true,
+          "industryLeadingPrivacy": true,
+          "signatureTemplates": true,
+          "signatureBranding": true,
+          "adminConsole": true,
+          "multiTeamAdminLogin": true,
+          "centralizedBilling": true,
+          "companyManagedGroups": true,
+          "apiAccessToSecurityPlatformPartners": true,
+          "apiAccessToProductivityPlatformPartners": true,
+          "apiAccessToDataTransportPlatformPartners": true,
+          "tieredAdminRoles": true,
+          "signInAsUser": true,
+          "auditLogsWithFileEventTracking": true,
+          "singleSignOn": true,
+          "inviteEnforcement": true,
+          "priorityEmailSupport": true,
+          "liveChatSupport": true,
+          "phoneSupportDuringBusinessHours": true
+        },
+        "usageLimits": {
+          "storageLimit": {
+            "unlimited": true
+          },
+          "usersLimit": {
+            "unlimited": true
+          },
+          "signatureRequestLimit": {
+            "unlimited": true
+          },
+          "templatesLimit": {
+            "unlimited": true
+          },
+          "accountRecoveryAndVersionHistoryThreshold": 360,
+          "restoreDeletedFilesThreshold": 360,
+          "dropboxCaptureRecordingTimeLimit": {
+            "unlimited": true
+          },
+          "dropboxCaptureFullHDQuality": true,
+          "dropboxCapture4kQuality": true,
+          "dropboxCaptureAdvancedVideoEditing": true,
+          "dropboxReplayFileUploadsLimit": 10,
+          "dropboxReplayLiveReviews": true,
+          "dropboxReplayVersions": true,
+          "dropboxReplayVideoCollaboration": true,
+          "largeFileDeliveryLimit": 100,
+          "apiAccessToDataTransportPlatformPartnersLimit": {
+            "unlimited": true
+          }
+        }
+      }
+    ],
+    "addOns": [],
+    "diagnostics": [],
+    "variables": {}
+  },
+  "effective": {
+    "PLUS": {
+      "plan": "PLUS",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {},
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "PLUS",
+          "quantity": 1,
+          "price": {
+            "kind": "fixed",
+            "amount": 9.99
+          },
+          "unitAmount": 9.99,
+          "amount": 9.99
+        }
+      ],
+      "subtotal": 9.99,
+      "requiresQuote": false,
+      "features": {
+        "storage": true,
+        "bestInClassSyncTechnology": true,
+        "easyAndSecureSharing": true,
+        "anytimeAccess": true,
+        "anywhereAccess": true,
+        "connectUnlimitedDevices": true,
+        "256BitAES": true,
+        "SSL/TLSEncryption": true,
+        "realTimeDocumentAnalytics": false,
+        "passcodeVerification": false,
+        "emailVerfication": false,
+        "viewerEngagementDashboard": false,
+        "backup": true,
+        "accountRecovery": true,
+        "versionHistory": true,
+        "restoreDeletedFiles": true,
+        "passwordManagement": true,
+        "multiFactorAuthentication": true,
+        "documentScanning": true,
+        "remoteDeviceWipe": true,
+        "watermarking": false,
+        "accountTransferTool": false,
+        "granularPermissions": false,
+        "enableHIPAACompliance": false,
+        "deviceApprovals": false,
+        "dataClassification": false,
+        "ransomwareDetectionAndRecovery": false,
+        "suspiciusActivityAlerts": false,
+        "endToEndEncryption": false,
+        "advancedKeyManagement": false,
+        "dropboxCapture": true,
+        "videoTranscripts": true,
+        "closedCaptions": true,
+        "videoEditing": true,
+        "videoCommenting": false,
+        "dropboxReplay": true,
+        "integratedCloudContent": true,
+        "onlineDocuments": true,
+        "onlineNoteTaking": true,
+        "webPreviews": true,
+        "webComments": true,
+        "plusButton": true,
+        "pdfEditing": true,
+        "advancedPdfEditing": false,
+        "annotatePDFs": true,
+        "signPDFs": true,
+        "imageEditing": true,
+        "imageSearch": true,
+        "fullTextSearch": true,
+        "fileLocking": false,
+        "viewerHistory": false,
+        "sharedLinks": true,
+        "advancedLinkSettings": false,
+        "disableDownloads": false,
+        "customExpirationDates": false,
+        "passwordProtectedLinks": false,
+        "largeFileDelivery": true,
+        "incomingTransferRequests": true,
+        "transferAnalytics": true,
+        "customExpirationDatesForTransfers": false,
+        "passwordProtectedTransfers": false,
+        "brandedTransfers": false,
+        "selfSigning": true,
+        "signatureRequest": true,
+        "industryLeadingSecurity": true,
+        "industryLeadingPrivacy": true,
+        "signatureTemplates": false,
+        "signatureBranding": false,
+        "adminConsole": false,
+        "multiTeamAdminLogin": false,
+        "centralizedBilling": false,
+        "companyManagedGroups": false,
+        "apiAccessToSecurityPlatformPartners": false,
+        "apiAccessToProductivityPlatformPartners": true,
+        "apiAccessToDataTransportPlatformPartners": false,
+        "tieredAdminRoles": false,
+        "signInAsUser": false,
+        "auditLogsWithFileEventTracking": false,
+        "singleSignOn": false,
+        "inviteEnforcement": false,
+        "priorityEmailSupport": true,
+        "liveChatSupport": true,
+        "phoneSupportDuringBusinessHours": false
+      },
+      "usageLimits": {
+        "storageLimit": 2000,
+        "usersLimit": 1,
+        "signatureRequestLimit": 3,
+        "templatesLimit": 0,
+        "accountRecoveryAndVersionHistoryThreshold": 30,
+        "restoreDeletedFilesThreshold": 30,
+        "dropboxCaptureRecordingTimeLimit": 120,
+        "dropboxCaptureFullHDQuality": true,
+        "dropboxCapture4kQuality": true,
+        "dropboxCaptureAdvancedVideoEditing": true,
+        "dropboxReplayFileUploadsLimit": 4,
+        "dropboxReplayLiveReviews": true,
+        "dropboxReplayVersions": true,
+        "dropboxReplayVideoCollaboration": true,
+        "largeFileDeliveryLimit": 2,
+        "apiAccessToDataTransportPlatformPartnersLimit": 0
+      }
+    },
+    "ESSENTIALS": {
+      "plan": "ESSENTIALS",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {},
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "ESSENTIALS",
+          "quantity": 1,
+          "price": {
+            "kind": "fixed",
+            "amount": 16.58
+          },
+          "unitAmount": 16.58,
+          "amount": 16.58
+        }
+      ],
+      "subtotal": 16.58,
+      "requiresQuote": false,
+      "features": {
+        "storage": true,
+        "bestInClassSyncTechnology": true,
+        "easyAndSecureSharing": true,
+        "anytimeAccess": true,
+        "anywhereAccess": true,
+        "connectUnlimitedDevices": true,
+        "256BitAES": true,
+        "SSL/TLSEncryption": true,
+        "realTimeDocumentAnalytics": true,
+        "passcodeVerification": true,
+        "emailVerfication": true,
+        "viewerEngagementDashboard": true,
+        "backup": true,
+        "accountRecovery": true,
+        "versionHistory": true,
+        "restoreDeletedFiles": true,
+        "passwordManagement": true,
+        "multiFactorAuthentication": true,
+        "documentScanning": true,
+        "remoteDeviceWipe": true,
+        "watermarking": true,
+        "accountTransferTool": false,
+        "granularPermissions": false,
+        "enableHIPAACompliance": false,
+        "deviceApprovals": false,
+        "dataClassification": false,
+        "ransomwareDetectionAndRecovery": false,
+        "suspiciusActivityAlerts": false,
+        "endToEndEncryption": false,
+        "advancedKeyManagement": false,
+        "dropboxCapture": true,
+        "videoTranscripts": true,
+        "closedCaptions": true,
+        "videoEditing": true,
+        "videoCommenting": true,
+        "dropboxReplay": true,
+        "integratedCloudContent": true,
+        "onlineDocuments": true,
+        "onlineNoteTaking": true,
+        "webPreviews": true,
+        "webComments": true,
+        "plusButton": true,
+        "pdfEditing": true,
+        "advancedPdfEditing": true,
+        "annotatePDFs": true,
+        "signPDFs": true,
+        "imageEditing": true,
+        "imageSearch": true,
+        "fullTextSearch": true,
+        "fileLocking": true,
+        "viewerHistory": true,
+        "sharedLinks": true,
+        "advancedLinkSettings": true,
+        "disableDownloads": true,
+        "customExpirationDates": true,
+        "passwordProtectedLinks": true,
+        "largeFileDelivery": true,
+        "incomingTransferRequests": true,
+        "transferAnalytics": true,
+        "customExpirationDatesForTransfers": true,
+        "passwordProtectedTransfers": true,
+        "brandedTransfers": true,
+        "selfSigning": true,
+        "signatureRequest": true,
+        "industryLeadingSecurity": true,
+        "industryLeadingPrivacy": true,
+        "signatureTemplates": true,
+        "signatureBranding": false,
+        "adminConsole": false,
+        "multiTeamAdminLogin": false,
+        "centralizedBilling": false,
+        "companyManagedGroups": false,
+        "apiAccessToSecurityPlatformPartners": false,
+        "apiAccessToProductivityPlatformPartners": true,
+        "apiAccessToDataTransportPlatformPartners": false,
+        "tieredAdminRoles": false,
+        "signInAsUser": false,
+        "auditLogsWithFileEventTracking": false,
+        "singleSignOn": false,
+        "inviteEnforcement": false,
+        "priorityEmailSupport": true,
+        "liveChatSupport": true,
+        "phoneSupportDuringBusinessHours": false
+      },
+      "usageLimits": {
+        "storageLimit": 3000,
+        "usersLimit": 1,
+        "signatureRequestLimit": {
+          "unlimited": true
+        },
+        "templatesLimit": 5,
+        "accountRecoveryAndVersionHistoryThreshold": 180,
+        "restoreDeletedFilesThreshold": 180,
+        "dropboxCaptureRecordingTimeLimit": {
+          "unlimited": true
+        },
+        "dropboxCaptureFullHDQuality": true,
+        "dropboxCapture4kQuality": true,
+        "dropboxCaptureAdvancedVideoEditing": true,
+        "dropboxReplayFileUploadsLimit": 10,
+        "dropboxReplayLiveReviews": true,
+        "dropboxReplayVersions": true,
+        "dropboxReplayVideoCollaboration": true,
+        "largeFileDeliveryLimit": 100,
+        "apiAccessToDataTransportPlatformPartnersLimit": 0
+      }
+    },
+    "BUSINESS": {
+      "plan": "BUSINESS",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {},
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "BUSINESS",
+          "quantity": 1,
+          "price": {
+            "kind": "fixed",
+            "amount": 15.0
+          },
+          "unitAmount": 15.0,
+          "amount": 15.0
+        }
+      ],
+      "subtotal": 15.0,
+      "requiresQuote": false,
+      "features": {
+        "storage": true,
+        "bestInClassSyncTechnology": true,
+        "easyAndSecureSharing": true,
+        "anytimeAccess": true,
+        "anywhereAccess": true,
+        "connectUnlimitedDevices": true,
+        "256BitAES": true,
+        "SSL/TLSEncryption": true,
+        "realTimeDocumentAnalytics": true,
+        "passcodeVerification": true,
+        "emailVerfication": true,
+        "viewerEngagementDashboard": true,
+        "backup": true,
+        "accountRecovery": true,
+        "versionHistory": true,
+        "restoreDeletedFiles": true,
+        "passwordManagement": true,
+        "multiFactorAuthentication": true,
+        "documentScanning": true,
+        "remoteDeviceWipe": true,
+        "watermarking": true,
+        "accountTransferTool": true,
+        "granularPermissions": true,
+        "enableHIPAACompliance": true,
+        "deviceApprovals": true,
+        "dataClassification": false,
+        "ransomwareDetectionAndRecovery": false,
+        "suspiciusActivityAlerts": false,
+        "endToEndEncryption": false,
+        "advancedKeyManagement": false,
+        "dropboxCapture": true,
+        "videoTranscripts": true,
+        "closedCaptions": true,
+        "videoEditing": true,
+        "videoCommenting": true,
+        "dropboxReplay": true,
+        "integratedCloudContent": true,
+        "onlineDocuments": true,
+        "onlineNoteTaking": true,
+        "webPreviews": true,
+        "webComments": true,
+        "plusButton": true,
+        "pdfEditing": true,
+        "advancedPdfEditing": true,
+        "annotatePDFs": true,
+        "signPDFs": true,
+        "imageEditing": true,
+        "imageSearch": true,
+        "fullTextSearch": true,
+        "fileLocking": true,
+        "viewerHistory": true,
+        "sharedLinks": true,
+        "advancedLinkSettings": true,
+        "disableDownloads": true,
+        "customExpirationDates": true,
+        "passwordProtectedLinks": true,
+        "largeFileDelivery": true,
+        "incomingTransferRequests": true,
+        "transferAnalytics": true,
+        "customExpirationDatesForTransfers": true,
+        "passwordProtectedTransfers": true,
+        "brandedTransfers": true,
+        "selfSigning": true,
+        "signatureRequest": true,
+        "industryLeadingSecurity": true,
+        "industryLeadingPrivacy": true,
+        "signatureTemplates": true,
+        "signatureBranding": true,
+        "adminConsole": true,
+        "multiTeamAdminLogin": true,
+        "centralizedBilling": true,
+        "companyManagedGroups": true,
+        "apiAccessToSecurityPlatformPartners": true,
+        "apiAccessToProductivityPlatformPartners": true,
+        "apiAccessToDataTransportPlatformPartners": true,
+        "tieredAdminRoles": false,
+        "signInAsUser": false,
+        "auditLogsWithFileEventTracking": false,
+        "singleSignOn": false,
+        "inviteEnforcement": false,
+        "priorityEmailSupport": true,
+        "liveChatSupport": true,
+        "phoneSupportDuringBusinessHours": true
+      },
+      "usageLimits": {
+        "storageLimit": 9000,
+        "usersLimit": {
+          "unlimited": true
+        },
+        "signatureRequestLimit": {
+          "unlimited": true
+        },
+        "templatesLimit": 15,
+        "accountRecoveryAndVersionHistoryThreshold": 180,
+        "restoreDeletedFilesThreshold": 180,
+        "dropboxCaptureRecordingTimeLimit": {
+          "unlimited": true
+        },
+        "dropboxCaptureFullHDQuality": true,
+        "dropboxCapture4kQuality": true,
+        "dropboxCaptureAdvancedVideoEditing": true,
+        "dropboxReplayFileUploadsLimit": 10,
+        "dropboxReplayLiveReviews": true,
+        "dropboxReplayVersions": true,
+        "dropboxReplayVideoCollaboration": true,
+        "largeFileDeliveryLimit": 100,
+        "apiAccessToDataTransportPlatformPartnersLimit": {
+          "unlimited": true
+        }
+      }
+    },
+    "BUSINESS_PLUS": {
+      "plan": "BUSINESS_PLUS",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {},
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "BUSINESS_PLUS",
+          "quantity": 1,
+          "price": {
+            "kind": "fixed",
+            "amount": 24.0
+          },
+          "unitAmount": 24.0,
+          "amount": 24.0
+        }
+      ],
+      "subtotal": 24.0,
+      "requiresQuote": false,
+      "features": {
+        "storage": true,
+        "bestInClassSyncTechnology": true,
+        "easyAndSecureSharing": true,
+        "anytimeAccess": true,
+        "anywhereAccess": true,
+        "connectUnlimitedDevices": true,
+        "256BitAES": true,
+        "SSL/TLSEncryption": true,
+        "realTimeDocumentAnalytics": true,
+        "passcodeVerification": true,
+        "emailVerfication": true,
+        "viewerEngagementDashboard": true,
+        "backup": true,
+        "accountRecovery": true,
+        "versionHistory": true,
+        "restoreDeletedFiles": true,
+        "passwordManagement": true,
+        "multiFactorAuthentication": true,
+        "documentScanning": true,
+        "remoteDeviceWipe": true,
+        "watermarking": true,
+        "accountTransferTool": true,
+        "granularPermissions": true,
+        "enableHIPAACompliance": true,
+        "deviceApprovals": true,
+        "dataClassification": true,
+        "ransomwareDetectionAndRecovery": true,
+        "suspiciusActivityAlerts": true,
+        "endToEndEncryption": true,
+        "advancedKeyManagement": true,
+        "dropboxCapture": true,
+        "videoTranscripts": true,
+        "closedCaptions": true,
+        "videoEditing": true,
+        "videoCommenting": true,
+        "dropboxReplay": true,
+        "integratedCloudContent": true,
+        "onlineDocuments": true,
+        "onlineNoteTaking": true,
+        "webPreviews": true,
+        "webComments": true,
+        "plusButton": true,
+        "pdfEditing": true,
+        "advancedPdfEditing": true,
+        "annotatePDFs": true,
+        "signPDFs": true,
+        "imageEditing": true,
+        "imageSearch": true,
+        "fullTextSearch": true,
+        "fileLocking": true,
+        "viewerHistory": true,
+        "sharedLinks": true,
+        "advancedLinkSettings": true,
+        "disableDownloads": true,
+        "customExpirationDates": true,
+        "passwordProtectedLinks": true,
+        "largeFileDelivery": true,
+        "incomingTransferRequests": true,
+        "transferAnalytics": true,
+        "customExpirationDatesForTransfers": true,
+        "passwordProtectedTransfers": true,
+        "brandedTransfers": true,
+        "selfSigning": true,
+        "signatureRequest": true,
+        "industryLeadingSecurity": true,
+        "industryLeadingPrivacy": true,
+        "signatureTemplates": true,
+        "signatureBranding": true,
+        "adminConsole": true,
+        "multiTeamAdminLogin": true,
+        "centralizedBilling": true,
+        "companyManagedGroups": true,
+        "apiAccessToSecurityPlatformPartners": true,
+        "apiAccessToProductivityPlatformPartners": true,
+        "apiAccessToDataTransportPlatformPartners": true,
+        "tieredAdminRoles": true,
+        "signInAsUser": true,
+        "auditLogsWithFileEventTracking": true,
+        "singleSignOn": true,
+        "inviteEnforcement": true,
+        "priorityEmailSupport": true,
+        "liveChatSupport": true,
+        "phoneSupportDuringBusinessHours": true
+      },
+      "usageLimits": {
+        "storageLimit": {
+          "unlimited": true
+        },
+        "usersLimit": {
+          "unlimited": true
+        },
+        "signatureRequestLimit": {
+          "unlimited": true
+        },
+        "templatesLimit": {
+          "unlimited": true
+        },
+        "accountRecoveryAndVersionHistoryThreshold": 360,
+        "restoreDeletedFilesThreshold": 360,
+        "dropboxCaptureRecordingTimeLimit": {
+          "unlimited": true
+        },
+        "dropboxCaptureFullHDQuality": true,
+        "dropboxCapture4kQuality": true,
+        "dropboxCaptureAdvancedVideoEditing": true,
+        "dropboxReplayFileUploadsLimit": 10,
+        "dropboxReplayLiveReviews": true,
+        "dropboxReplayVersions": true,
+        "dropboxReplayVideoCollaboration": true,
+        "largeFileDeliveryLimit": 100,
+        "apiAccessToDataTransportPlatformPartnersLimit": {
+          "unlimited": true
+        }
+      }
+    }
+  }
+}

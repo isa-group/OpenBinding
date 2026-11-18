@@ -369,7 +369,9 @@
         "name": "paymentMethods",
         "type": "PAYMENT",
         "valueType": "TEXT",
-        "default": "['CARD']"
+        "default": [
+          "CARD"
+        ]
       }
     ],
     "usageLimits": [
@@ -546,7 +548,9 @@
           "broadcasts": true,
           "segments": true,
           "marketingAnalytics": false,
-          "paymentMethods": "['CARD']"
+          "paymentMethods": [
+            "CARD"
+          ]
         },
         "usageLimits": {
           "transactionalEmailsPerMonth": 3000,
@@ -624,7 +628,9 @@
           "broadcasts": true,
           "segments": true,
           "marketingAnalytics": false,
-          "paymentMethods": "['CARD']"
+          "paymentMethods": [
+            "CARD"
+          ]
         },
         "usageLimits": {
           "transactionalEmailsPerMonth": 50000,
@@ -704,7 +710,9 @@
           "broadcasts": true,
           "segments": true,
           "marketingAnalytics": false,
-          "paymentMethods": "['CARD']"
+          "paymentMethods": [
+            "CARD"
+          ]
         },
         "usageLimits": {
           "transactionalEmailsPerMonth": 100000,
@@ -783,7 +791,9 @@
           "broadcasts": true,
           "segments": true,
           "marketingAnalytics": false,
-          "paymentMethods": "['CARD']"
+          "paymentMethods": [
+            "CARD"
+          ]
         },
         "usageLimits": {
           "transactionalEmailsPerMonth": 3000,
@@ -872,59 +882,6 @@
         "metered": false
       },
       {
-        "id": "extraInboxes",
-        "name": "extraInboxes",
-        "private": false,
-        "price": {
-          "kind": "fixed",
-          "amount": 1.0
-        },
-        "unit": "inbox/month",
-        "period": "month",
-        "availableFor": [
-          "PRO",
-          "SCALE"
-        ],
-        "dependsOn": [],
-        "excludes": [],
-        "features": {},
-        "usageLimits": {},
-        "usageLimitsExtensions": {
-          "inboxesLimit": 1.0
-        },
-        "metered": false
-      },
-      {
-        "id": "proMarketing",
-        "name": "proMarketing",
-        "private": false,
-        "price": {
-          "kind": "expression",
-          "source": "#proMarketingPriceByContacts[String(#marketingContacts)]",
-          "value": 40.0
-        },
-        "unit": "team/month",
-        "period": "month",
-        "availableFor": [
-          "FREE",
-          "PRO",
-          "SCALE"
-        ],
-        "dependsOn": [],
-        "excludes": [],
-        "features": {
-          "marketingAnalytics": true
-        },
-        "usageLimits": {
-          "marketingContactsLimit": 5000,
-          "segmentsLimit": {
-            "unlimited": true
-          }
-        },
-        "usageLimitsExtensions": {},
-        "metered": false
-      },
-      {
         "id": "extraEmailsPro",
         "name": "extraEmailsPro",
         "private": false,
@@ -979,6 +936,59 @@
           "automationRunsPerMonth": 1.0
         },
         "metered": true
+      },
+      {
+        "id": "extraInboxes",
+        "name": "extraInboxes",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 1.0
+        },
+        "unit": "inbox/month",
+        "period": "month",
+        "availableFor": [
+          "PRO",
+          "SCALE"
+        ],
+        "dependsOn": [],
+        "excludes": [],
+        "features": {},
+        "usageLimits": {},
+        "usageLimitsExtensions": {
+          "inboxesLimit": 1.0
+        },
+        "metered": false
+      },
+      {
+        "id": "proMarketing",
+        "name": "proMarketing",
+        "private": false,
+        "price": {
+          "kind": "expression",
+          "source": "#proMarketingPriceByContacts[String(#marketingContacts)]",
+          "value": 40.0
+        },
+        "unit": "team/month",
+        "period": "month",
+        "availableFor": [
+          "FREE",
+          "PRO",
+          "SCALE"
+        ],
+        "dependsOn": [],
+        "excludes": [],
+        "features": {
+          "marketingAnalytics": true
+        },
+        "usageLimits": {
+          "marketingContactsLimit": 5000,
+          "segmentsLimit": {
+            "unlimited": true
+          }
+        },
+        "usageLimitsExtensions": {},
+        "metered": false
       }
     ],
     "diagnostics": [],
@@ -1091,7 +1101,9 @@
         "broadcasts": true,
         "segments": true,
         "marketingAnalytics": false,
-        "paymentMethods": "['CARD']"
+        "paymentMethods": [
+          "CARD"
+        ]
       },
       "usageLimits": {
         "transactionalEmailsPerMonth": 3000,
@@ -1194,7 +1206,9 @@
         "broadcasts": true,
         "segments": true,
         "marketingAnalytics": true,
-        "paymentMethods": "['CARD']"
+        "paymentMethods": [
+          "CARD"
+        ]
       },
       "usageLimits": {
         "transactionalEmailsPerMonth": 3000,
@@ -1286,7 +1300,9 @@
         "broadcasts": true,
         "segments": true,
         "marketingAnalytics": false,
-        "paymentMethods": "['CARD']"
+        "paymentMethods": [
+          "CARD"
+        ]
       },
       "usageLimits": {
         "transactionalEmailsPerMonth": 50000,
@@ -1391,7 +1407,9 @@
         "broadcasts": true,
         "segments": true,
         "marketingAnalytics": false,
-        "paymentMethods": "['CARD']"
+        "paymentMethods": [
+          "CARD"
+        ]
       },
       "usageLimits": {
         "transactionalEmailsPerMonth": 50000,
@@ -1496,7 +1514,9 @@
         "broadcasts": true,
         "segments": true,
         "marketingAnalytics": false,
-        "paymentMethods": "['CARD']"
+        "paymentMethods": [
+          "CARD"
+        ]
       },
       "usageLimits": {
         "transactionalEmailsPerMonth": 50000,
@@ -1602,7 +1622,9 @@
         "broadcasts": true,
         "segments": true,
         "marketingAnalytics": true,
-        "paymentMethods": "['CARD']"
+        "paymentMethods": [
+          "CARD"
+        ]
       },
       "usageLimits": {
         "transactionalEmailsPerMonth": 50000,
@@ -1696,7 +1718,9 @@
         "broadcasts": true,
         "segments": true,
         "marketingAnalytics": false,
-        "paymentMethods": "['CARD']"
+        "paymentMethods": [
+          "CARD"
+        ]
       },
       "usageLimits": {
         "transactionalEmailsPerMonth": 100000,
@@ -1801,7 +1825,9 @@
         "broadcasts": true,
         "segments": true,
         "marketingAnalytics": false,
-        "paymentMethods": "['CARD']"
+        "paymentMethods": [
+          "CARD"
+        ]
       },
       "usageLimits": {
         "transactionalEmailsPerMonth": 100000,
@@ -1906,7 +1932,9 @@
         "broadcasts": true,
         "segments": true,
         "marketingAnalytics": false,
-        "paymentMethods": "['CARD']"
+        "paymentMethods": [
+          "CARD"
+        ]
       },
       "usageLimits": {
         "transactionalEmailsPerMonth": 100000,
@@ -2011,7 +2039,9 @@
         "broadcasts": true,
         "segments": true,
         "marketingAnalytics": false,
-        "paymentMethods": "['CARD']"
+        "paymentMethods": [
+          "CARD"
+        ]
       },
       "usageLimits": {
         "transactionalEmailsPerMonth": 100000,
@@ -2116,7 +2146,9 @@
         "broadcasts": true,
         "segments": true,
         "marketingAnalytics": false,
-        "paymentMethods": "['CARD']"
+        "paymentMethods": [
+          "CARD"
+        ]
       },
       "usageLimits": {
         "transactionalEmailsPerMonth": 100000,
@@ -2222,7 +2254,9 @@
         "broadcasts": true,
         "segments": true,
         "marketingAnalytics": true,
-        "paymentMethods": "['CARD']"
+        "paymentMethods": [
+          "CARD"
+        ]
       },
       "usageLimits": {
         "transactionalEmailsPerMonth": 100000,
@@ -2315,7 +2349,9 @@
         "broadcasts": true,
         "segments": true,
         "marketingAnalytics": false,
-        "paymentMethods": "['CARD']"
+        "paymentMethods": [
+          "CARD"
+        ]
       },
       "usageLimits": {
         "transactionalEmailsPerMonth": 3000,
@@ -2419,7 +2455,9 @@
         "broadcasts": true,
         "segments": true,
         "marketingAnalytics": false,
-        "paymentMethods": "['CARD']"
+        "paymentMethods": [
+          "CARD"
+        ]
       },
       "usageLimits": {
         "transactionalEmailsPerMonth": 3000,

@@ -1,0 +1,745 @@
+{
+  "pricing": {
+    "syntaxVersion": "3.1",
+    "title": "Resend",
+    "version": "2026-09-01",
+    "createdAt": "2026-09-01",
+    "currency": "USD",
+    "billing": [
+      {
+        "id": "monthly",
+        "multiplier": 1.0,
+        "synthesized": true
+      }
+    ],
+    "features": [
+      {
+        "id": "transactionalEmailApi",
+        "name": "transactionalEmailApi",
+        "type": "INTEGRATION",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "batchEmailApi",
+        "name": "batchEmailApi",
+        "type": "INTEGRATION",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "cancelScheduledEmail",
+        "name": "cancelScheduledEmail",
+        "type": "AUTOMATION",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "smtpRelay",
+        "name": "smtpRelay",
+        "type": "INTEGRATION",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "inboundEmail",
+        "name": "inboundEmail",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "dedicatedIp",
+        "name": "dedicatedIp",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "singleSignOn",
+        "name": "singleSignOn",
+        "type": "INTEGRATION",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "sendingDomains",
+        "name": "sendingDomains",
+        "type": "MANAGEMENT",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "activityData",
+        "name": "activityData",
+        "type": "INFORMATION",
+        "valueType": "BOOLEAN",
+        "default": true
+      }
+    ],
+    "usageLimits": [
+      {
+        "id": "emailsPerMonth",
+        "name": "emailsPerMonth",
+        "valueType": "NUMERIC",
+        "unit": "email",
+        "default": 3000,
+        "linkedFeatures": [
+          "transactionalEmailApi",
+          "batchEmailApi",
+          "smtpRelay",
+          "inboundEmail"
+        ]
+      },
+      {
+        "id": "emailsPerDay",
+        "name": "emailsPerDay",
+        "valueType": "NUMERIC",
+        "unit": "email",
+        "default": 100,
+        "linkedFeatures": [
+          "transactionalEmailApi",
+          "batchEmailApi"
+        ]
+      },
+      {
+        "id": "apiRequestsPerSecond",
+        "name": "apiRequestsPerSecond",
+        "valueType": "NUMERIC",
+        "unit": "request",
+        "default": 10,
+        "linkedFeatures": [
+          "transactionalEmailApi",
+          "batchEmailApi",
+          "cancelScheduledEmail"
+        ]
+      },
+      {
+        "id": "recipientsPerEmailRequest",
+        "name": "recipientsPerEmailRequest",
+        "valueType": "NUMERIC",
+        "unit": "recipient",
+        "default": 50,
+        "linkedFeatures": [
+          "transactionalEmailApi"
+        ]
+      },
+      {
+        "id": "messagesPerBatchRequest",
+        "name": "messagesPerBatchRequest",
+        "valueType": "NUMERIC",
+        "unit": "email",
+        "default": 100,
+        "linkedFeatures": [
+          "batchEmailApi"
+        ]
+      },
+      {
+        "id": "attachmentSizePerEmail",
+        "name": "attachmentSizePerEmail",
+        "valueType": "NUMERIC",
+        "unit": "MB",
+        "default": 40,
+        "linkedFeatures": [
+          "transactionalEmailApi"
+        ]
+      },
+      {
+        "id": "maxSendingDomains",
+        "name": "maxSendingDomains",
+        "valueType": "NUMERIC",
+        "unit": "domain",
+        "default": 3,
+        "linkedFeatures": [
+          "sendingDomains"
+        ]
+      },
+      {
+        "id": "activityRetentionDays",
+        "name": "activityRetentionDays",
+        "valueType": "NUMERIC",
+        "unit": "day",
+        "default": 30,
+        "linkedFeatures": [
+          "activityData"
+        ]
+      }
+    ],
+    "plans": [
+      {
+        "id": "free",
+        "name": "free",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 0.0
+        },
+        "unit": "month",
+        "period": "month",
+        "perSeat": false,
+        "features": {
+          "transactionalEmailApi": true,
+          "batchEmailApi": true,
+          "cancelScheduledEmail": false,
+          "smtpRelay": true,
+          "inboundEmail": true,
+          "dedicatedIp": false,
+          "singleSignOn": false,
+          "sendingDomains": true,
+          "activityData": true
+        },
+        "usageLimits": {
+          "emailsPerMonth": 3000,
+          "emailsPerDay": 100,
+          "apiRequestsPerSecond": 10,
+          "recipientsPerEmailRequest": 50,
+          "messagesPerBatchRequest": 100,
+          "attachmentSizePerEmail": 40,
+          "maxSendingDomains": 3,
+          "activityRetentionDays": 30
+        }
+      },
+      {
+        "id": "pro",
+        "name": "pro",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 20.0
+        },
+        "unit": "month",
+        "period": "month",
+        "perSeat": false,
+        "features": {
+          "transactionalEmailApi": true,
+          "batchEmailApi": true,
+          "cancelScheduledEmail": true,
+          "smtpRelay": true,
+          "inboundEmail": true,
+          "dedicatedIp": false,
+          "singleSignOn": false,
+          "sendingDomains": true,
+          "activityData": true
+        },
+        "usageLimits": {
+          "emailsPerMonth": 50000,
+          "emailsPerDay": {
+            "unlimited": true
+          },
+          "apiRequestsPerSecond": 10,
+          "recipientsPerEmailRequest": 50,
+          "messagesPerBatchRequest": 100,
+          "attachmentSizePerEmail": 40,
+          "maxSendingDomains": 10,
+          "activityRetentionDays": 30
+        }
+      },
+      {
+        "id": "scale",
+        "name": "scale",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 90.0
+        },
+        "unit": "month",
+        "period": "month",
+        "perSeat": false,
+        "features": {
+          "transactionalEmailApi": true,
+          "batchEmailApi": true,
+          "cancelScheduledEmail": true,
+          "smtpRelay": true,
+          "inboundEmail": true,
+          "dedicatedIp": false,
+          "singleSignOn": false,
+          "sendingDomains": true,
+          "activityData": true
+        },
+        "usageLimits": {
+          "emailsPerMonth": 100000,
+          "emailsPerDay": {
+            "unlimited": true
+          },
+          "apiRequestsPerSecond": 10,
+          "recipientsPerEmailRequest": 50,
+          "messagesPerBatchRequest": 100,
+          "attachmentSizePerEmail": 40,
+          "maxSendingDomains": 1000,
+          "activityRetentionDays": 30
+        }
+      }
+    ],
+    "addOns": [
+      {
+        "id": "extraEmailsPayAsYouGo",
+        "name": "extraEmailsPayAsYouGo",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 0.9
+        },
+        "unit": "1000 emails",
+        "quantity": 1000.0,
+        "availableFor": [
+          "pro",
+          "scale"
+        ],
+        "usageLimitsExtensions": {
+          "emailsPerMonth": 1000.0
+        },
+        "metered": true
+      },
+      {
+        "id": "extraDomains",
+        "name": "extraDomains",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 20.0
+        },
+        "unit": "month",
+        "period": "month",
+        "availableFor": [
+          "pro",
+          "scale"
+        ],
+        "dependsOn": [],
+        "excludes": [],
+        "features": {},
+        "usageLimits": {},
+        "usageLimitsExtensions": {
+          "maxSendingDomains": 100.0
+        },
+        "metered": false
+      },
+      {
+        "id": "dedicatedIp",
+        "name": "dedicatedIp",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 30.0
+        },
+        "unit": "month",
+        "period": "month",
+        "availableFor": [
+          "scale"
+        ],
+        "dependsOn": [],
+        "excludes": [],
+        "features": {
+          "dedicatedIp": true
+        },
+        "usageLimits": {},
+        "usageLimitsExtensions": {},
+        "metered": false
+      },
+      {
+        "id": "singleSignOn",
+        "name": "singleSignOn",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 150.0
+        },
+        "unit": "month",
+        "period": "month",
+        "availableFor": [
+          "scale"
+        ],
+        "dependsOn": [],
+        "excludes": [],
+        "features": {
+          "singleSignOn": true
+        },
+        "usageLimits": {},
+        "usageLimitsExtensions": {},
+        "metered": false
+      }
+    ],
+    "diagnostics": [],
+    "variables": {}
+  },
+  "effective": {
+    "free": {
+      "plan": "free",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {},
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "free",
+          "quantity": 1,
+          "price": {
+            "kind": "fixed",
+            "amount": 0.0
+          },
+          "unitAmount": 0.0,
+          "amount": 0.0
+        }
+      ],
+      "subtotal": 0.0,
+      "requiresQuote": false,
+      "features": {
+        "transactionalEmailApi": true,
+        "batchEmailApi": true,
+        "cancelScheduledEmail": false,
+        "smtpRelay": true,
+        "inboundEmail": true,
+        "dedicatedIp": false,
+        "singleSignOn": false,
+        "sendingDomains": true,
+        "activityData": true
+      },
+      "usageLimits": {
+        "emailsPerMonth": 3000,
+        "emailsPerDay": 100,
+        "apiRequestsPerSecond": 10,
+        "recipientsPerEmailRequest": 50,
+        "messagesPerBatchRequest": 100,
+        "attachmentSizePerEmail": 40,
+        "maxSendingDomains": 3,
+        "activityRetentionDays": 30
+      }
+    },
+    "pro": {
+      "plan": "pro",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {},
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "pro",
+          "quantity": 1,
+          "price": {
+            "kind": "fixed",
+            "amount": 20.0
+          },
+          "unitAmount": 20.0,
+          "amount": 20.0
+        }
+      ],
+      "subtotal": 20.0,
+      "requiresQuote": false,
+      "features": {
+        "transactionalEmailApi": true,
+        "batchEmailApi": true,
+        "cancelScheduledEmail": true,
+        "smtpRelay": true,
+        "inboundEmail": true,
+        "dedicatedIp": false,
+        "singleSignOn": false,
+        "sendingDomains": true,
+        "activityData": true
+      },
+      "usageLimits": {
+        "emailsPerMonth": 50000,
+        "emailsPerDay": {
+          "unlimited": true
+        },
+        "apiRequestsPerSecond": 10,
+        "recipientsPerEmailRequest": 50,
+        "messagesPerBatchRequest": 100,
+        "attachmentSizePerEmail": 40,
+        "maxSendingDomains": 10,
+        "activityRetentionDays": 30
+      }
+    },
+    "pro+extraDomains": {
+      "plan": "pro",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {
+        "extraDomains": 1.0
+      },
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "pro",
+          "quantity": 1,
+          "price": {
+            "kind": "fixed",
+            "amount": 20.0
+          },
+          "unitAmount": 20.0,
+          "amount": 20.0
+        },
+        {
+          "kind": "addOn",
+          "id": "extraDomains",
+          "quantity": 1.0,
+          "price": {
+            "kind": "fixed",
+            "amount": 20.0
+          },
+          "unitAmount": 20.0,
+          "amount": 20.0
+        }
+      ],
+      "subtotal": 40.0,
+      "requiresQuote": false,
+      "features": {
+        "transactionalEmailApi": true,
+        "batchEmailApi": true,
+        "cancelScheduledEmail": true,
+        "smtpRelay": true,
+        "inboundEmail": true,
+        "dedicatedIp": false,
+        "singleSignOn": false,
+        "sendingDomains": true,
+        "activityData": true
+      },
+      "usageLimits": {
+        "emailsPerMonth": 50000,
+        "emailsPerDay": {
+          "unlimited": true
+        },
+        "apiRequestsPerSecond": 10,
+        "recipientsPerEmailRequest": 50,
+        "messagesPerBatchRequest": 100,
+        "attachmentSizePerEmail": 40,
+        "maxSendingDomains": 110.0,
+        "activityRetentionDays": 30
+      }
+    },
+    "scale": {
+      "plan": "scale",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {},
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "scale",
+          "quantity": 1,
+          "price": {
+            "kind": "fixed",
+            "amount": 90.0
+          },
+          "unitAmount": 90.0,
+          "amount": 90.0
+        }
+      ],
+      "subtotal": 90.0,
+      "requiresQuote": false,
+      "features": {
+        "transactionalEmailApi": true,
+        "batchEmailApi": true,
+        "cancelScheduledEmail": true,
+        "smtpRelay": true,
+        "inboundEmail": true,
+        "dedicatedIp": false,
+        "singleSignOn": false,
+        "sendingDomains": true,
+        "activityData": true
+      },
+      "usageLimits": {
+        "emailsPerMonth": 100000,
+        "emailsPerDay": {
+          "unlimited": true
+        },
+        "apiRequestsPerSecond": 10,
+        "recipientsPerEmailRequest": 50,
+        "messagesPerBatchRequest": 100,
+        "attachmentSizePerEmail": 40,
+        "maxSendingDomains": 1000,
+        "activityRetentionDays": 30
+      }
+    },
+    "scale+extraDomains": {
+      "plan": "scale",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {
+        "extraDomains": 1.0
+      },
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "scale",
+          "quantity": 1,
+          "price": {
+            "kind": "fixed",
+            "amount": 90.0
+          },
+          "unitAmount": 90.0,
+          "amount": 90.0
+        },
+        {
+          "kind": "addOn",
+          "id": "extraDomains",
+          "quantity": 1.0,
+          "price": {
+            "kind": "fixed",
+            "amount": 20.0
+          },
+          "unitAmount": 20.0,
+          "amount": 20.0
+        }
+      ],
+      "subtotal": 110.0,
+      "requiresQuote": false,
+      "features": {
+        "transactionalEmailApi": true,
+        "batchEmailApi": true,
+        "cancelScheduledEmail": true,
+        "smtpRelay": true,
+        "inboundEmail": true,
+        "dedicatedIp": false,
+        "singleSignOn": false,
+        "sendingDomains": true,
+        "activityData": true
+      },
+      "usageLimits": {
+        "emailsPerMonth": 100000,
+        "emailsPerDay": {
+          "unlimited": true
+        },
+        "apiRequestsPerSecond": 10,
+        "recipientsPerEmailRequest": 50,
+        "messagesPerBatchRequest": 100,
+        "attachmentSizePerEmail": 40,
+        "maxSendingDomains": 1100.0,
+        "activityRetentionDays": 30
+      }
+    },
+    "scale+dedicatedIp": {
+      "plan": "scale",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {
+        "dedicatedIp": 1.0
+      },
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "scale",
+          "quantity": 1,
+          "price": {
+            "kind": "fixed",
+            "amount": 90.0
+          },
+          "unitAmount": 90.0,
+          "amount": 90.0
+        },
+        {
+          "kind": "addOn",
+          "id": "dedicatedIp",
+          "quantity": 1.0,
+          "price": {
+            "kind": "fixed",
+            "amount": 30.0
+          },
+          "unitAmount": 30.0,
+          "amount": 30.0
+        }
+      ],
+      "subtotal": 120.0,
+      "requiresQuote": false,
+      "features": {
+        "transactionalEmailApi": true,
+        "batchEmailApi": true,
+        "cancelScheduledEmail": true,
+        "smtpRelay": true,
+        "inboundEmail": true,
+        "dedicatedIp": true,
+        "singleSignOn": false,
+        "sendingDomains": true,
+        "activityData": true
+      },
+      "usageLimits": {
+        "emailsPerMonth": 100000,
+        "emailsPerDay": {
+          "unlimited": true
+        },
+        "apiRequestsPerSecond": 10,
+        "recipientsPerEmailRequest": 50,
+        "messagesPerBatchRequest": 100,
+        "attachmentSizePerEmail": 40,
+        "maxSendingDomains": 1000,
+        "activityRetentionDays": 30
+      }
+    },
+    "scale+singleSignOn": {
+      "plan": "scale",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {
+        "singleSignOn": 1.0
+      },
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "scale",
+          "quantity": 1,
+          "price": {
+            "kind": "fixed",
+            "amount": 90.0
+          },
+          "unitAmount": 90.0,
+          "amount": 90.0
+        },
+        {
+          "kind": "addOn",
+          "id": "singleSignOn",
+          "quantity": 1.0,
+          "price": {
+            "kind": "fixed",
+            "amount": 150.0
+          },
+          "unitAmount": 150.0,
+          "amount": 150.0
+        }
+      ],
+      "subtotal": 240.0,
+      "requiresQuote": false,
+      "features": {
+        "transactionalEmailApi": true,
+        "batchEmailApi": true,
+        "cancelScheduledEmail": true,
+        "smtpRelay": true,
+        "inboundEmail": true,
+        "dedicatedIp": false,
+        "singleSignOn": true,
+        "sendingDomains": true,
+        "activityData": true
+      },
+      "usageLimits": {
+        "emailsPerMonth": 100000,
+        "emailsPerDay": {
+          "unlimited": true
+        },
+        "apiRequestsPerSecond": 10,
+        "recipientsPerEmailRequest": 50,
+        "messagesPerBatchRequest": 100,
+        "attachmentSizePerEmail": 40,
+        "maxSendingDomains": 1000,
+        "activityRetentionDays": 30
+      }
+    }
+  }
+}

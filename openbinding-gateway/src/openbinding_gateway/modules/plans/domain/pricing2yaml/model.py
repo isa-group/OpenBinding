@@ -29,7 +29,8 @@ class Unlimited:
     raw: Any = None
 
 
-Value = float | bool | str | Unlimited | None
+#: A feature or limit value; a PAYMENT feature may hold a list (plain JSON data).
+Value = float | bool | str | Unlimited | list | dict | None
 
 
 @dataclass(frozen=True)

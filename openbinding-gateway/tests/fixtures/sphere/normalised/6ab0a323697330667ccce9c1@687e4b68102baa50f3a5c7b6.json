@@ -1262,102 +1262,6 @@
     ],
     "addOns": [
       {
-        "id": "UNLIMITED_SIGNATURE_REQUESTS_FOR_PLUS",
-        "name": "UNLIMITED_SIGNATURE_REQUESTS_FOR_PLUS",
-        "private": true,
-        "price": {
-          "kind": "fixed",
-          "amount": 0.0
-        },
-        "unit": "per month",
-        "period": "month",
-        "availableFor": [
-          "PLUS"
-        ],
-        "dependsOn": [],
-        "excludes": [],
-        "features": {
-          "unlimitedSignatureRequests": true
-        },
-        "usageLimits": {},
-        "usageLimitsExtensions": {
-          "unlimitedSignatureRequestsLimit": 999999999999999.0
-        },
-        "metered": false
-      },
-      {
-        "id": "DATA_TRANSPORT_API_CALLS_(1_BILLION/MONTH)_FOR_PLUS",
-        "name": "DATA_TRANSPORT_API_CALLS_(1_BILLION/MONTH)_FOR_PLUS",
-        "private": true,
-        "price": {
-          "kind": "fixed",
-          "amount": 0.0
-        },
-        "unit": "API calls/month",
-        "period": "month",
-        "availableFor": [
-          "PLUS"
-        ],
-        "dependsOn": [],
-        "excludes": [],
-        "features": {
-          "1BillionApiCallsMonthForDataTransportPartners": true
-        },
-        "usageLimits": {},
-        "usageLimitsExtensions": {
-          "1BillionApiCallsMonthForDataTransportPartnersLimit": 1000000000.0
-        },
-        "metered": false
-      },
-      {
-        "id": "DATA_TRANSPORT_API_CALLS_(1_BILLION/MONTH)_FOR_ESSENTIALS",
-        "name": "DATA_TRANSPORT_API_CALLS_(1_BILLION/MONTH)_FOR_ESSENTIALS",
-        "private": true,
-        "price": {
-          "kind": "fixed",
-          "amount": 0.0
-        },
-        "unit": "API calls/month",
-        "period": "month",
-        "availableFor": [
-          "ESSENTIALS"
-        ],
-        "dependsOn": [],
-        "excludes": [],
-        "features": {
-          "1BillionApiCallsMonthForDataTransportPartners": true
-        },
-        "usageLimits": {},
-        "usageLimitsExtensions": {
-          "1BillionApiCallsMonthForDataTransportPartnersLimit": 1000000000.0
-        },
-        "metered": false
-      },
-      {
-        "id": "DATA_TRANSPORT_API_CALLS_(1_BILLION/MONTH)_FOR_BUSINESS",
-        "name": "DATA_TRANSPORT_API_CALLS_(1_BILLION/MONTH)_FOR_BUSINESS",
-        "private": true,
-        "price": {
-          "kind": "fixed",
-          "amount": 0.0
-        },
-        "unit": "API calls/month",
-        "period": "month",
-        "availableFor": [
-          "BUSINESS"
-        ],
-        "dependsOn": [],
-        "excludes": [],
-        "features": {
-          "1BillionApiCallsMonthForDataTransportPartners": true
-        },
-        "usageLimits": {},
-        "usageLimitsExtensions": {
-          "1BillionApiCallsMonthForDataTransportPartnersLimit": 1000000000.0
-        },
-        "metered": false
-      },
-      {
         "id": "EXTENDED_ACCOUNT_RECOVERY_AND_VERSION_HISTORY_(180-DAY)_FOR_PLUS",
         "name": "EXTENDED_ACCOUNT_RECOVERY_AND_VERSION_HISTORY_(180-DAY)_FOR_PLUS",
         "private": true,
@@ -1574,6 +1478,30 @@
         "metered": true
       },
       {
+        "id": "UNLIMITED_SIGNATURE_REQUESTS_FOR_PLUS",
+        "name": "UNLIMITED_SIGNATURE_REQUESTS_FOR_PLUS",
+        "private": true,
+        "price": {
+          "kind": "fixed",
+          "amount": 0.0
+        },
+        "unit": "per month",
+        "period": "month",
+        "availableFor": [
+          "PLUS"
+        ],
+        "dependsOn": [],
+        "excludes": [],
+        "features": {
+          "unlimitedSignatureRequests": true
+        },
+        "usageLimits": {},
+        "usageLimitsExtensions": {
+          "unlimitedSignatureRequestsLimit": 999999999999999.0
+        },
+        "metered": false
+      },
+      {
         "id": "EXTENDED_ESIGNATURE_TEMPLATES_(15)_FOR_PLUS",
         "name": "EXTENDED_ESIGNATURE_TEMPLATES_(15)_FOR_PLUS",
         "private": true,
@@ -1626,6 +1554,78 @@
           "templatesLimit": 999999999999999.0
         },
         "metered": true
+      },
+      {
+        "id": "DATA_TRANSPORT_API_CALLS_(1_BILLION/MONTH)_FOR_PLUS",
+        "name": "DATA_TRANSPORT_API_CALLS_(1_BILLION/MONTH)_FOR_PLUS",
+        "private": true,
+        "price": {
+          "kind": "fixed",
+          "amount": 0.0
+        },
+        "unit": "API calls/month",
+        "period": "month",
+        "availableFor": [
+          "PLUS"
+        ],
+        "dependsOn": [],
+        "excludes": [],
+        "features": {
+          "1BillionApiCallsMonthForDataTransportPartners": true
+        },
+        "usageLimits": {},
+        "usageLimitsExtensions": {
+          "1BillionApiCallsMonthForDataTransportPartnersLimit": 1000000000.0
+        },
+        "metered": false
+      },
+      {
+        "id": "DATA_TRANSPORT_API_CALLS_(1_BILLION/MONTH)_FOR_ESSENTIALS",
+        "name": "DATA_TRANSPORT_API_CALLS_(1_BILLION/MONTH)_FOR_ESSENTIALS",
+        "private": true,
+        "price": {
+          "kind": "fixed",
+          "amount": 0.0
+        },
+        "unit": "API calls/month",
+        "period": "month",
+        "availableFor": [
+          "ESSENTIALS"
+        ],
+        "dependsOn": [],
+        "excludes": [],
+        "features": {
+          "1BillionApiCallsMonthForDataTransportPartners": true
+        },
+        "usageLimits": {},
+        "usageLimitsExtensions": {
+          "1BillionApiCallsMonthForDataTransportPartnersLimit": 1000000000.0
+        },
+        "metered": false
+      },
+      {
+        "id": "DATA_TRANSPORT_API_CALLS_(1_BILLION/MONTH)_FOR_BUSINESS",
+        "name": "DATA_TRANSPORT_API_CALLS_(1_BILLION/MONTH)_FOR_BUSINESS",
+        "private": true,
+        "price": {
+          "kind": "fixed",
+          "amount": 0.0
+        },
+        "unit": "API calls/month",
+        "period": "month",
+        "availableFor": [
+          "BUSINESS"
+        ],
+        "dependsOn": [],
+        "excludes": [],
+        "features": {
+          "1BillionApiCallsMonthForDataTransportPartners": true
+        },
+        "usageLimits": {},
+        "usageLimitsExtensions": {
+          "1BillionApiCallsMonthForDataTransportPartnersLimit": 1000000000.0
+        },
+        "metered": false
       },
       {
         "id": "ADDITIONAL_STORAGE_(1TB)_FOR_PLUS,_ESSENTIALS,_BUSINESS",
@@ -1965,7 +1965,9 @@
         "screenAndVideoRecordingsWithDropboxCaptureLimit": 120,
         "creativeReviewAndApprovalsWithDropboxReplayLimit": 4,
         "fileAndFolderTransferLimit": 50,
-        "unlimitedSignatureRequestsLimit": 1000000000000002.0,
+        "unlimitedSignatureRequestsLimit": {
+          "unlimited": true
+        },
         "templatesLimit": 5,
         "1BillionApiCallsMonthForDataTransportPartnersLimit": 0
       }
@@ -2093,7 +2095,9 @@
         "fileAndFolderTransferLimit": 50,
         "unlimitedSignatureRequestsLimit": 3,
         "templatesLimit": 5,
-        "1BillionApiCallsMonthForDataTransportPartnersLimit": 1000000000.0
+        "1BillionApiCallsMonthForDataTransportPartnersLimit": {
+          "unlimited": true
+        }
       }
     },
     "ESSENTIALS": {
@@ -2340,7 +2344,9 @@
           "unlimited": true
         },
         "templatesLimit": 15,
-        "1BillionApiCallsMonthForDataTransportPartnersLimit": 1000000000.0
+        "1BillionApiCallsMonthForDataTransportPartnersLimit": {
+          "unlimited": true
+        }
       }
     },
     "BUSINESS": {
@@ -2591,7 +2597,9 @@
         "templatesLimit": {
           "unlimited": true
         },
-        "1BillionApiCallsMonthForDataTransportPartnersLimit": 1000000000.0
+        "1BillionApiCallsMonthForDataTransportPartnersLimit": {
+          "unlimited": true
+        }
       }
     },
     "BUSINESS_PLUS": {

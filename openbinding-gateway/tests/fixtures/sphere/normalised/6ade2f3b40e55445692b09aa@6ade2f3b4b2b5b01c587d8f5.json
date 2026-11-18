@@ -315,7 +315,9 @@
         "name": "paymentMethods",
         "type": "PAYMENT",
         "valueType": "TEXT",
-        "default": "['CARD']"
+        "default": [
+          "CARD"
+        ]
       }
     ],
     "usageLimits": [
@@ -467,7 +469,9 @@
           "users": true,
           "customActivityRetention": false,
           "dmarcMonitoring": false,
-          "paymentMethods": "['CARD']"
+          "paymentMethods": [
+            "CARD"
+          ]
         },
         "usageLimits": {
           "monthlyEmailVolumeLimit": 100,
@@ -538,7 +542,9 @@
           "users": true,
           "customActivityRetention": false,
           "dmarcMonitoring": false,
-          "paymentMethods": "['CARD']"
+          "paymentMethods": [
+            "CARD"
+          ]
         },
         "usageLimits": {
           "monthlyEmailVolumeLimit": 10000,
@@ -609,7 +615,9 @@
           "users": true,
           "customActivityRetention": false,
           "dmarcMonitoring": false,
-          "paymentMethods": "['CARD']"
+          "paymentMethods": [
+            "CARD"
+          ]
         },
         "usageLimits": {
           "monthlyEmailVolumeLimit": 10000,
@@ -680,7 +688,9 @@
           "users": true,
           "customActivityRetention": false,
           "dmarcMonitoring": false,
-          "paymentMethods": "['CARD']"
+          "paymentMethods": [
+            "CARD"
+          ]
         },
         "usageLimits": {
           "monthlyEmailVolumeLimit": 10000,
@@ -706,6 +716,63 @@
       }
     ],
     "addOns": [
+      {
+        "id": "extraEmailsBasic",
+        "name": "extraEmailsBasic",
+        "private": false,
+        "price": {
+          "kind": "expression",
+          "source": "#basicOverageByVolume[String(#volume)]",
+          "value": 1.8
+        },
+        "unit": "1000 emails",
+        "quantity": 1000.0,
+        "availableFor": [
+          "BASIC"
+        ],
+        "usageLimitsExtensions": {
+          "monthlyEmailVolumeLimit": 1000.0
+        },
+        "metered": true
+      },
+      {
+        "id": "extraEmailsPro",
+        "name": "extraEmailsPro",
+        "private": false,
+        "price": {
+          "kind": "expression",
+          "source": "#proOverageByVolume[String(#volume)]",
+          "value": 1.3
+        },
+        "unit": "1000 emails",
+        "quantity": 1000.0,
+        "availableFor": [
+          "PRO"
+        ],
+        "usageLimitsExtensions": {
+          "monthlyEmailVolumeLimit": 1000.0
+        },
+        "metered": true
+      },
+      {
+        "id": "extraEmailsPlatform",
+        "name": "extraEmailsPlatform",
+        "private": false,
+        "price": {
+          "kind": "expression",
+          "source": "#platformOverageByVolume[String(#volume)]",
+          "value": 1.2
+        },
+        "unit": "1000 emails",
+        "quantity": 1000.0,
+        "availableFor": [
+          "PLATFORM"
+        ],
+        "usageLimitsExtensions": {
+          "monthlyEmailVolumeLimit": 1000.0
+        },
+        "metered": true
+      },
       {
         "id": "dedicatedIp",
         "name": "dedicatedIp",
@@ -832,63 +899,6 @@
           "dmarcMonitoredDomainsLimit": 1.0
         },
         "metered": false
-      },
-      {
-        "id": "extraEmailsBasic",
-        "name": "extraEmailsBasic",
-        "private": false,
-        "price": {
-          "kind": "expression",
-          "source": "#basicOverageByVolume[String(#volume)]",
-          "value": 1.8
-        },
-        "unit": "1000 emails",
-        "quantity": 1000.0,
-        "availableFor": [
-          "BASIC"
-        ],
-        "usageLimitsExtensions": {
-          "monthlyEmailVolumeLimit": 1000.0
-        },
-        "metered": true
-      },
-      {
-        "id": "extraEmailsPro",
-        "name": "extraEmailsPro",
-        "private": false,
-        "price": {
-          "kind": "expression",
-          "source": "#proOverageByVolume[String(#volume)]",
-          "value": 1.3
-        },
-        "unit": "1000 emails",
-        "quantity": 1000.0,
-        "availableFor": [
-          "PRO"
-        ],
-        "usageLimitsExtensions": {
-          "monthlyEmailVolumeLimit": 1000.0
-        },
-        "metered": true
-      },
-      {
-        "id": "extraEmailsPlatform",
-        "name": "extraEmailsPlatform",
-        "private": false,
-        "price": {
-          "kind": "expression",
-          "source": "#platformOverageByVolume[String(#volume)]",
-          "value": 1.2
-        },
-        "unit": "1000 emails",
-        "quantity": 1000.0,
-        "availableFor": [
-          "PLATFORM"
-        ],
-        "usageLimitsExtensions": {
-          "monthlyEmailVolumeLimit": 1000.0
-        },
-        "metered": true
       }
     ],
     "diagnostics": [],
@@ -1011,7 +1021,9 @@
         "users": true,
         "customActivityRetention": false,
         "dmarcMonitoring": false,
-        "paymentMethods": "['CARD']"
+        "paymentMethods": [
+          "CARD"
+        ]
       },
       "usageLimits": {
         "monthlyEmailVolumeLimit": 100,
@@ -1106,7 +1118,9 @@
         "users": true,
         "customActivityRetention": false,
         "dmarcMonitoring": true,
-        "paymentMethods": "['CARD']"
+        "paymentMethods": [
+          "CARD"
+        ]
       },
       "usageLimits": {
         "monthlyEmailVolumeLimit": 100,
@@ -1189,7 +1203,9 @@
         "users": true,
         "customActivityRetention": false,
         "dmarcMonitoring": false,
-        "paymentMethods": "['CARD']"
+        "paymentMethods": [
+          "CARD"
+        ]
       },
       "usageLimits": {
         "monthlyEmailVolumeLimit": 10000,
@@ -1285,7 +1301,9 @@
         "users": true,
         "customActivityRetention": false,
         "dmarcMonitoring": true,
-        "paymentMethods": "['CARD']"
+        "paymentMethods": [
+          "CARD"
+        ]
       },
       "usageLimits": {
         "monthlyEmailVolumeLimit": 10000,
@@ -1368,7 +1386,9 @@
         "users": true,
         "customActivityRetention": false,
         "dmarcMonitoring": false,
-        "paymentMethods": "['CARD']"
+        "paymentMethods": [
+          "CARD"
+        ]
       },
       "usageLimits": {
         "monthlyEmailVolumeLimit": 10000,
@@ -1464,7 +1484,9 @@
         "users": true,
         "customActivityRetention": false,
         "dmarcMonitoring": false,
-        "paymentMethods": "['CARD']"
+        "paymentMethods": [
+          "CARD"
+        ]
       },
       "usageLimits": {
         "monthlyEmailVolumeLimit": 10000,
@@ -1560,7 +1582,9 @@
         "users": true,
         "customActivityRetention": true,
         "dmarcMonitoring": false,
-        "paymentMethods": "['CARD']"
+        "paymentMethods": [
+          "CARD"
+        ]
       },
       "usageLimits": {
         "monthlyEmailVolumeLimit": 10000,
@@ -1656,7 +1680,9 @@
         "users": true,
         "customActivityRetention": false,
         "dmarcMonitoring": true,
-        "paymentMethods": "['CARD']"
+        "paymentMethods": [
+          "CARD"
+        ]
       },
       "usageLimits": {
         "monthlyEmailVolumeLimit": 10000,
@@ -1739,7 +1765,9 @@
         "users": true,
         "customActivityRetention": false,
         "dmarcMonitoring": false,
-        "paymentMethods": "['CARD']"
+        "paymentMethods": [
+          "CARD"
+        ]
       },
       "usageLimits": {
         "monthlyEmailVolumeLimit": 10000,
@@ -1843,7 +1871,9 @@
         "users": true,
         "customActivityRetention": false,
         "dmarcMonitoring": false,
-        "paymentMethods": "['CARD']"
+        "paymentMethods": [
+          "CARD"
+        ]
       },
       "usageLimits": {
         "monthlyEmailVolumeLimit": 10000,
@@ -1947,7 +1977,9 @@
         "users": true,
         "customActivityRetention": true,
         "dmarcMonitoring": false,
-        "paymentMethods": "['CARD']"
+        "paymentMethods": [
+          "CARD"
+        ]
       },
       "usageLimits": {
         "monthlyEmailVolumeLimit": 10000,
@@ -2051,7 +2083,9 @@
         "users": true,
         "customActivityRetention": false,
         "dmarcMonitoring": true,
-        "paymentMethods": "['CARD']"
+        "paymentMethods": [
+          "CARD"
+        ]
       },
       "usageLimits": {
         "monthlyEmailVolumeLimit": 10000,

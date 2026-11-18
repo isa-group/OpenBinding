@@ -773,7 +773,9 @@
         "name": "brevoPayments",
         "type": "PAYMENT",
         "valueType": "TEXT",
-        "default": "['GATEWAY']"
+        "default": [
+          "GATEWAY"
+        ]
       },
       {
         "id": "mailboxSynchronization",
@@ -1265,7 +1267,9 @@
           "inBrowserVideoCalling": true,
           "meetingReminders": true,
           "roundRobinScheduling": false,
-          "brevoPayments": "['GATEWAY']",
+          "brevoPayments": [
+            "GATEWAY"
+          ],
           "mailboxSynchronization": true,
           "conversationsMobileApp": true,
           "instagramDms": false,
@@ -1437,7 +1441,9 @@
           "inBrowserVideoCalling": true,
           "meetingReminders": true,
           "roundRobinScheduling": false,
-          "brevoPayments": "['GATEWAY']",
+          "brevoPayments": [
+            "GATEWAY"
+          ],
           "mailboxSynchronization": true,
           "conversationsMobileApp": true,
           "instagramDms": false,
@@ -1609,7 +1615,9 @@
           "inBrowserVideoCalling": true,
           "meetingReminders": true,
           "roundRobinScheduling": false,
-          "brevoPayments": "['GATEWAY']",
+          "brevoPayments": [
+            "GATEWAY"
+          ],
           "mailboxSynchronization": true,
           "conversationsMobileApp": true,
           "instagramDms": false,
@@ -1783,7 +1791,9 @@
           "inBrowserVideoCalling": true,
           "meetingReminders": true,
           "roundRobinScheduling": false,
-          "brevoPayments": "['GATEWAY']",
+          "brevoPayments": [
+            "GATEWAY"
+          ],
           "mailboxSynchronization": true,
           "conversationsMobileApp": true,
           "instagramDms": false,
@@ -1958,7 +1968,9 @@
           "inBrowserVideoCalling": true,
           "meetingReminders": true,
           "roundRobinScheduling": false,
-          "brevoPayments": "['GATEWAY']",
+          "brevoPayments": [
+            "GATEWAY"
+          ],
           "mailboxSynchronization": true,
           "conversationsMobileApp": true,
           "instagramDms": false,
@@ -2557,7 +2569,9 @@
         "inBrowserVideoCalling": true,
         "meetingReminders": true,
         "roundRobinScheduling": false,
-        "brevoPayments": "['GATEWAY']",
+        "brevoPayments": [
+          "GATEWAY"
+        ],
         "mailboxSynchronization": true,
         "conversationsMobileApp": true,
         "instagramDms": false,
@@ -2741,7 +2755,9 @@
         "inBrowserVideoCalling": true,
         "meetingReminders": true,
         "roundRobinScheduling": false,
-        "brevoPayments": "['GATEWAY']",
+        "brevoPayments": [
+          "GATEWAY"
+        ],
         "mailboxSynchronization": true,
         "conversationsMobileApp": true,
         "instagramDms": false,
@@ -2938,7 +2954,9 @@
         "inBrowserVideoCalling": true,
         "meetingReminders": true,
         "roundRobinScheduling": false,
-        "brevoPayments": "['GATEWAY']",
+        "brevoPayments": [
+          "GATEWAY"
+        ],
         "mailboxSynchronization": true,
         "conversationsMobileApp": true,
         "instagramDms": false,
@@ -3135,7 +3153,9 @@
         "inBrowserVideoCalling": true,
         "meetingReminders": true,
         "roundRobinScheduling": false,
-        "brevoPayments": "['GATEWAY']",
+        "brevoPayments": [
+          "GATEWAY"
+        ],
         "mailboxSynchronization": true,
         "conversationsMobileApp": true,
         "instagramDms": true,
@@ -3327,7 +3347,9 @@
         "inBrowserVideoCalling": true,
         "meetingReminders": true,
         "roundRobinScheduling": false,
-        "brevoPayments": "['GATEWAY']",
+        "brevoPayments": [
+          "GATEWAY"
+        ],
         "mailboxSynchronization": true,
         "conversationsMobileApp": true,
         "instagramDms": false,
@@ -3526,7 +3548,9 @@
         "inBrowserVideoCalling": true,
         "meetingReminders": true,
         "roundRobinScheduling": false,
-        "brevoPayments": "['GATEWAY']",
+        "brevoPayments": [
+          "GATEWAY"
+        ],
         "mailboxSynchronization": true,
         "conversationsMobileApp": true,
         "instagramDms": false,
@@ -3725,7 +3749,9 @@
         "inBrowserVideoCalling": true,
         "meetingReminders": true,
         "roundRobinScheduling": false,
-        "brevoPayments": "['GATEWAY']",
+        "brevoPayments": [
+          "GATEWAY"
+        ],
         "mailboxSynchronization": true,
         "conversationsMobileApp": true,
         "instagramDms": false,
@@ -3924,7 +3950,9 @@
         "inBrowserVideoCalling": true,
         "meetingReminders": true,
         "roundRobinScheduling": false,
-        "brevoPayments": "['GATEWAY']",
+        "brevoPayments": [
+          "GATEWAY"
+        ],
         "mailboxSynchronization": true,
         "conversationsMobileApp": true,
         "instagramDms": true,
@@ -4118,7 +4146,9 @@
         "inBrowserVideoCalling": true,
         "meetingReminders": true,
         "roundRobinScheduling": false,
-        "brevoPayments": "['GATEWAY']",
+        "brevoPayments": [
+          "GATEWAY"
+        ],
         "mailboxSynchronization": true,
         "conversationsMobileApp": true,
         "instagramDms": false,
@@ -4320,7 +4350,9 @@
         "inBrowserVideoCalling": true,
         "meetingReminders": true,
         "roundRobinScheduling": false,
-        "brevoPayments": "['GATEWAY']",
+        "brevoPayments": [
+          "GATEWAY"
+        ],
         "mailboxSynchronization": true,
         "conversationsMobileApp": true,
         "instagramDms": false,
@@ -4521,7 +4553,9 @@
         "inBrowserVideoCalling": true,
         "meetingReminders": true,
         "roundRobinScheduling": false,
-        "brevoPayments": "['GATEWAY']",
+        "brevoPayments": [
+          "GATEWAY"
+        ],
         "mailboxSynchronization": true,
         "conversationsMobileApp": true,
         "instagramDms": false,
@@ -4722,7 +4756,9 @@
         "inBrowserVideoCalling": true,
         "meetingReminders": true,
         "roundRobinScheduling": false,
-        "brevoPayments": "['GATEWAY']",
+        "brevoPayments": [
+          "GATEWAY"
+        ],
         "mailboxSynchronization": true,
         "conversationsMobileApp": true,
         "instagramDms": false,
@@ -4923,7 +4959,9 @@
         "inBrowserVideoCalling": true,
         "meetingReminders": true,
         "roundRobinScheduling": false,
-        "brevoPayments": "['GATEWAY']",
+        "brevoPayments": [
+          "GATEWAY"
+        ],
         "mailboxSynchronization": true,
         "conversationsMobileApp": true,
         "instagramDms": false,
@@ -5124,7 +5162,9 @@
         "inBrowserVideoCalling": true,
         "meetingReminders": true,
         "roundRobinScheduling": false,
-        "brevoPayments": "['GATEWAY']",
+        "brevoPayments": [
+          "GATEWAY"
+        ],
         "mailboxSynchronization": true,
         "conversationsMobileApp": true,
         "instagramDms": true,
@@ -5333,7 +5373,9 @@
         "inBrowserVideoCalling": true,
         "meetingReminders": true,
         "roundRobinScheduling": true,
-        "brevoPayments": "['GATEWAY']",
+        "brevoPayments": [
+          "GATEWAY"
+        ],
         "mailboxSynchronization": true,
         "conversationsMobileApp": true,
         "instagramDms": true,
@@ -5528,7 +5570,9 @@
         "inBrowserVideoCalling": true,
         "meetingReminders": true,
         "roundRobinScheduling": false,
-        "brevoPayments": "['GATEWAY']",
+        "brevoPayments": [
+          "GATEWAY"
+        ],
         "mailboxSynchronization": true,
         "conversationsMobileApp": true,
         "instagramDms": false,
@@ -5736,7 +5780,9 @@
         "inBrowserVideoCalling": true,
         "meetingReminders": true,
         "roundRobinScheduling": true,
-        "brevoPayments": "['GATEWAY']",
+        "brevoPayments": [
+          "GATEWAY"
+        ],
         "mailboxSynchronization": true,
         "conversationsMobileApp": true,
         "instagramDms": true,

@@ -120,7 +120,22 @@ def to_value(raw: Any, *, limit: bool, numeric: bool) -> Value:
         return Unlimited(raw) if raw in UNLIMITED_TEXT else raw
     if isinstance(raw, (_dt.date, _dt.datetime)):
         return raw.isoformat()
+    if isinstance(raw, (list, tuple, Mapping)):
+        return _plain(raw)
     return _text(raw)
+
+
+def _plain(value: Any) -> Any:
+    """A list or mapping value (a PAYMENT feature's methods) as plain JSON data."""
+    if isinstance(value, Mapping):
+        return {str(k): _plain(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_plain(v) for v in value]
+    if isinstance(value, float) and not math.isfinite(value):
+        return None
+    if isinstance(value, (_dt.date, _dt.datetime)):
+        return value.isoformat()
+    return value
 
 
 def _syntax(document: Mapping[str, Any], diagnostics: list[PricingDiagnostic]) -> str:
