@@ -26,7 +26,11 @@ const dialog = (page: Page) => page.getByRole('dialog').first();
 const button = (page: Page, name: string) =>
   dialog(page).getByRole('button', { name, exact: true });
 
-/** Search SPHERE in the wizard and choose the row of `owner`, waiting through a busy SPHERE. */
+/**
+ * Search SPHERE in the wizard until a row of `owner` is listed (waiting through a busy SPHERE), then open the pinned family by
+ * the wizard's address: SPHERE's live catalogue may hold several families of one name and owner, and the walk is pinned to the
+ * recorded one. The form so far is kept for the session, so the address lands on the same import.
+ */
 async function choose(page: Page, words: string, pricing: string) {
   await dialog(page).getByRole('combobox', { name: 'Search SPHERE pricings by name' }).fill(words);
   const row = dialog(page)
@@ -35,8 +39,12 @@ async function choose(page: Page, words: string, pricing: string) {
     .filter({ hasText: OWNER })
     .first();
   await expect(row).toBeVisible({ timeout: 90_000 });
-  await row.click();
-  await expect(page).toHaveURL(new RegExp(`sphere=${pricing}`));
+  const url = new URL(page.url());
+  url.searchParams.set('sphereStep', 'version');
+  url.searchParams.set('sphere', pricing);
+  url.searchParams.delete('sphereVersion');
+  await page.goto(url.toString());
+  await expect(dialog(page).getByRole('radio').first()).toBeVisible({ timeout: 60_000 });
 }
 
 /** The pinned version, by its name, and the address that names it by id. */

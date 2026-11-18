@@ -264,6 +264,8 @@ export default function SphereCandidatesModal({
   const baseRevision = base.data?.revision ?? null;
   useEffect(() => {
     if ((step !== 'preview' && step !== 'generate') || !target) return;
+    // An existing problem is previewed on its latest version: wait until it is read, or the gateway takes it for a new one.
+    if (problem && baseRevision === null) return;
     if (preview?.key === recipeKey && attempt === 0) return;
     const controller = new AbortController();
     api
