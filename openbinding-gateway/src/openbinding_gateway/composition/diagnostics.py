@@ -85,6 +85,10 @@ OFFERING_SHAPE = "c2y_offering_shape"
 OFFERING_URL_NOT_HTTPS = "c2y_offering_url_not_https"
 #: An offering on a registry the deployment does not define; a warning.
 OFFERING_REGISTRY_UNKNOWN = "c2y_offering_registry_unknown"
+#: The offering cannot be read when the evaluation is created; a warning, no margins.
+OFFERING_UNREADABLE = "c2y_offering_unreadable"
+#: The offering's content is not a valid Pricing2Yaml 3.x pricing; a warning, no margins.
+OFFERING_INVALID_PRICING = "c2y_offering_invalid_pricing"
 #: A value that is a boolean, or a unit that is empty.
 VALUE_SHAPE = "c2y_value_shape"
 #: Evidence that does not hold together: a run and ``manual``, a point without a run, a run

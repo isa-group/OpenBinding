@@ -588,6 +588,12 @@ class CompositionEvaluation(Base):
     #: What the toolchain's evaluation returned, as it returned it.
     result: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     diagnostics: Mapped[list] = mapped_column(JSON, nullable=False)
+    #: The offering version read when this row was created (F3): its snapshot, and ``read``, ``unreadable``,
+    #: ``invalid_pricing`` or ``registry_unknown``; both NULL for a document without an offering.
+    offering_snapshot_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("pricing_snapshots.id", ondelete="RESTRICT"), nullable=True, index=True
+    )
+    offering_status: Mapped[Optional[str]] = mapped_column(String(24), nullable=True)
     created_by_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="RESTRICT"), nullable=False, index=True
     )

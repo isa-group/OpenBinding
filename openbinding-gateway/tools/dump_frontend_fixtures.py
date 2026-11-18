@@ -16,7 +16,8 @@ response **bodies** (never headers) of the routes the frontend reads:
 * ``tomatometer-email.facts.json``: the facts of revision 2 of ``tomatometer-email``, which a SPHERE import
   generated (``sphere/apply``): value sources, properties and provenance;
 * ``tomatometer-email.version.json``: version 1.0.0 of a composition ``tomatometer`` derived from that revision,
-  whose binding carries the generated e-mail plan's ``from``.
+  whose binding carries the generated e-mail plan's ``from`` and whose offering (``sphere/tomatometer``) was read
+  when it was sealed.
 
 The packages are ``simple-seq`` (``examples/demo/01_simple_seq``), ``fms`` (``13_fms``: an
 exclusive choice and a local task), ``json-complete`` (``16_json_complete``: a parallel block
@@ -335,7 +336,8 @@ async def _sphere_imports(client, headers: dict[str, str]) -> tuple[dict[str, An
         "export": "storage.local.disk", "quotes": "quotes.zenquotes.free",
     }
     _ok(await client.post(f"{compositions}/tomatometer/derive", headers=headers,
-                          json={"revision": "tomatometer-email@2", "binding": binding, "version": "1.0.0"}), 201)
+                          json={"revision": "tomatometer-email@2", "binding": binding, "version": "1.0.0",
+                                "offering": {"sphere": "sphere/tomatometer"}}), 201)
     version = await client.get(f"{compositions}/tomatometer/versions/1.0.0", params={"include": "document"}, headers=headers)
     core["tomatometer-email.version.json"] = _ok(version, 200).json()
     return core, sphere

@@ -372,6 +372,15 @@ class ValueView(BaseModel):
     unit: str = Field(description='The problem\'s unit; `"1"` for a dimensionless value.')
 
 
+class EvaluationOffering(BaseModel):
+    """The offering version read when the evaluation was created; names and dates, never a digest."""
+
+    status: Literal["read", "unreadable", "invalid_pricing", "registry_unknown"]
+    versionName: Optional[str] = Field(description="The version's name in SPHERE, or null (a URL, or nothing read).")
+    createdAt: Optional[str] = Field(description="When SPHERE says that version was published.")
+    snapshot: Optional[uuid.UUID] = Field(description="The pricing snapshot read (`…/pricing-snapshots/{snapshot}`).")
+
+
 class EvaluationView(BaseModel):
     """One evaluation of a version: by one toolchain release (`bim`), or the author's values (`declared`)."""
 
@@ -398,6 +407,10 @@ class EvaluationView(BaseModel):
     )
     current: bool = Field(description="Whether this is the version's current evaluation.")
     created_at: datetime
+    offering: Optional[EvaluationOffering] = Field(
+        default=None,
+        description="The offering version read when this evaluation was created; null for a document without an offering.",
+    )
 
 
 class EvaluationSummaryCompilation(BaseModel):

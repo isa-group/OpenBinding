@@ -5273,6 +5273,32 @@ export interface components {
             };
         };
         /**
+         * EvaluationOffering
+         * @description The offering version read when the evaluation was created; names and dates, never a digest.
+         */
+        EvaluationOffering: {
+            /**
+             * Createdat
+             * @description When SPHERE says that version was published.
+             */
+            createdAt: string | null;
+            /**
+             * Snapshot
+             * @description The pricing snapshot read (`…/pricing-snapshots/{snapshot}`).
+             */
+            snapshot: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "read" | "unreadable" | "invalid_pricing" | "registry_unknown";
+            /**
+             * Versionname
+             * @description The version's name in SPHERE, or null (a URL, or nothing read).
+             */
+            versionName: string | null;
+        };
+        /**
          * EvaluationSummary
          * @description A version's current evaluation, named: what a list row shows without the evaluations themselves.
          */
@@ -5352,6 +5378,8 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            /** @description The offering version read when this evaluation was created; null for a document without an offering. */
+            offering?: components["schemas"]["EvaluationOffering"] | null;
             /**
              * Outcome
              * @enum {string}

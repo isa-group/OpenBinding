@@ -1,7 +1,7 @@
 {
   "analytics": {
     "boundTasks": 4,
-    "hasOffering": false,
+    "hasOffering": true,
     "localTasks": 0,
     "providers": 4,
     "tasks": 4,
@@ -14,7 +14,7 @@
     }
   },
   "based_on": null,
-  "content_digest": "sha256-49ad636d76494621bc73833482a57bdf80823ce094938735c454fee160c79fef",
+  "content_digest": "sha256-7974798d9e27731cb07f50f9fb0139ea06136554d1c1ee77a74f17ff04cd95ce",
   "created_at": "2026-01-01T00:00:08Z",
   "created_by_id": "00000000-0000-4000-8000-000000000003",
   "current_evaluation": {
@@ -70,6 +70,9 @@
       "toolchain": "bim-core 0.2.0"
     },
     "kind": "application",
+    "offering": {
+      "sphere": "sphere/tomatometer"
+    },
     "problem": {
       "compilation": "sha256-54f288f056ab90e0050c9de96f49bbc422e6a801beb05aa2f7cdbe88e1ff0e78",
       "ref": "fixtures/problems/tomatometer-email@2"
@@ -125,6 +128,12 @@
       "current": true,
       "diagnostics": [],
       "id": "00000000-0000-4000-8000-000000000031",
+      "offering": {
+        "createdAt": "2026-01-01T00:00:10Z",
+        "snapshot": "00000000-0000-4000-8000-000000000034",
+        "status": "read",
+        "versionName": "1.0.0"
+      },
       "outcome": "verified",
       "values": {
         "availability": {
@@ -145,10 +154,12 @@
   ],
   "evidence_run": null,
   "forked_from": null,
-  "id": "00000000-0000-4000-8000-000000000034",
+  "id": "00000000-0000-4000-8000-000000000035",
   "kind": "application",
   "label": "1.0.0",
-  "offering": null,
+  "offering": {
+    "sphere": "sphere/tomatometer"
+  },
   "ordinal": 1,
   "problem": {
     "linked_compilation": {
@@ -157,7 +168,7 @@
       "semantic_digest": "sha256-7568924f5773baa488714b1c34b0b8d9bf72b29bee13712897f355012e7e8f95"
     },
     "problem": {
-      "id": "00000000-0000-4000-8000-000000000035",
+      "id": "00000000-0000-4000-8000-000000000036",
       "name": "tomatometer-email",
       "slug": "tomatometer-email"
     },
@@ -166,7 +177,7 @@
       "revision": 2
     }
   },
-  "size_bytes": 816,
+  "size_bytes": 855,
   "syntax_version": "1.0",
   "values": {
     "availability": {

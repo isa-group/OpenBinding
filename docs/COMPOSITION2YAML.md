@@ -598,9 +598,17 @@ bytes and the feed's ETag stay the same. Changing *which* offering is referenced
 - a `url` that is not an absolute `https://` URL: `c2y_offering_url_not_https`.
 
 **Warnings** (the composition stays valid and sealable; it only has no margins): a `registry` the deployment does not
-define (`c2y_offering_registry_unknown`, from F1), and, from F3, an offering that cannot be read
-(`c2y_offering_unreadable`) or whose content is not a valid Pricing2Yaml (`c2y_offering_invalid_pricing`). **The
-commercial part never invalidates the binding.**
+define (`c2y_offering_registry_unknown`, from the language, and then nothing is read), an offering that cannot be read
+(`c2y_offering_unreadable`, with the reason in words: not found or not visible, ambiguous, a redirect or an address it
+may not follow, too large, too slow) or whose content is not a valid Pricing2Yaml 3.x pricing
+(`c2y_offering_invalid_pricing`). **The commercial part never invalidates the binding.**
+
+**When it is read.** The offering is read when an evaluation is created: on a seal, a derivation that seals, a fork
+and a re-evaluation on a new basis, never on `versions/check` (the editor's lint), `evaluate` or `neighborhood`, and
+never when reading a sealed version. Sealing content that already has an evaluation on the requested basis returns
+that evaluation and reads nothing: the offering version per evaluation is the one read when the evaluation was first
+created. `sphere: owner/name` is resolved by organization and exact slug (never by display name; two families with
+one name are "ambiguous"), and its latest version (by date) is read.
 
 What is stored: F1 keeps the offering's source on each version (`composition_versions.offering`, for the version
 view and the F6 watcher, without re-reading the YAML). From F3, every evaluation and every upstream event also
@@ -1065,6 +1073,8 @@ organization, the toolchain's evaluation and the evidence run.
 | `c2y_offering_shape` | error | language | an offering that is not a well-formed reference |
 | `c2y_offering_url_not_https` | error | language | an offering URL that is not an absolute `https://` URL |
 | `c2y_offering_registry_unknown` | warning | language | an offering on a registry the deployment does not define |
+| `c2y_offering_unreadable` | warning | assessment | the offering cannot be read when the evaluation is created; no margins |
+| `c2y_offering_invalid_pricing` | warning | assessment | the offering's content is not a valid Pricing2Yaml 3.x pricing; no margins |
 | `c2y_value_shape` | error | language | a value that is a boolean, or an empty unit |
 | `c2y_evidence_shape` | error | language | evidence that does not hold together |
 | `c2y_evidence_gateway_without_problem` | error | language | `evaluatedBy: gateway` with no problem |
@@ -1098,13 +1108,6 @@ organization, the toolchain's evaluation and the evidence run.
 | `c2y_run_foreign_revision` | error | assessment | the run solved another revision, or a compilation that reads it differently |
 | `c2y_run_point_invalid` | error | assessment | the run has no binding to cite, or `point` is not one of its solutions |
 | `c2y_run_binding_mismatch` | error | assessment | the binding is not the run's solution |
-
-**Reserved for F3**, named here and emitted then (no constant defines them yet):
-
-| Code | Severity | Phase | Meaning |
-|---|---|---|---|
-| `c2y_offering_unreadable` | warning | assessment | the offering cannot be read; no margins |
-| `c2y_offering_invalid_pricing` | warning | assessment | the offering's content is not a valid Pricing2Yaml; no margins |
 
 The HTTP codes that wrap these findings (`composition_invalid`, `evaluation_invalid`, `derivation_invalid`, …) are in
 [ERRORS.md](ERRORS.md).

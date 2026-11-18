@@ -106,6 +106,7 @@
       "current": true,
       "diagnostics": [],
       "id": "00000000-0000-4000-8000-000000000022",
+      "offering": null,
       "outcome": "verified",
       "values": {
         "latency": {

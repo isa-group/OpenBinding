@@ -43,6 +43,7 @@ from ....integrations import bim
 from ....models.errors import api_error
 from ...shared.application import audit
 from ..domain.records import DECLARED
+from .offering import with_offering
 from .assess import Assessment, StoredLink, assess, resolve_link
 from .compositions import TARGET
 from .language import diagnostic_view
@@ -166,12 +167,15 @@ async def reevaluate(
         session, organization, document,
         caller=actor, source=version.content, run_evidence=False, stored=link,
     )
-    draft = assessment.evaluation
-    if draft is None:
+    if assessment.evaluation is None:
         raise _not_evaluable(
             assessment.diagnostics,
             "The installed toolchain could not evaluate this version; `diagnostics` says why.",
         )
+    # A new basis: the evaluation row is new, so the offering version read now is recorded with it.
+    assessment = await with_offering(session, organization, assessment, actor, source=version.content)
+    draft = assessment.evaluation
+    assert draft is not None
 
     # Phase 1 read in a transaction of its own; nothing it holds is kept across this one.
     await session.commit()

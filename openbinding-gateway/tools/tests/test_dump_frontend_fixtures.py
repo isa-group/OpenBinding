@@ -65,6 +65,7 @@ def test_the_generated_facts_carry_sources_properties_and_provenance(two_runs) -
     assert foundation["provenance"]["sphere"] == "danruilop1/mailgun"
     version = json.loads((first / "core" / "tomatometer-email.version.json").read_text(encoding="utf-8"))
     assert version["document"]["binding"]["dailySummary"]["from"]["plan"] == "FOUNDATION"
+    assert [e["offering"]["status"] for e in version["evaluations"]] == ["read"]
 
 
 def test_the_sphere_fixtures_pair_every_readable_version_with_its_golden(two_runs) -> None:

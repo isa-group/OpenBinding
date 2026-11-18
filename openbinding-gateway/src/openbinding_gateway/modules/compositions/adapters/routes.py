@@ -65,13 +65,14 @@ from ....models.errors import (
     api_error,
 )
 from ....security.apikeys import authenticated_api_key, boundary_of
-from ..application import compositions, derive, evaluate, graph, language, listing, seal, versions
+from ..application import compositions, derive, evaluate, graph, language, listing, offering, seal, versions
 from ..application.fork import NameTaken, fork_composition
-from ..application.language import diagnostic_view
+from ..application.language import decode, diagnostic_view
 from ..domain.records import values_json
 from .list_query import BY_NAME, ListQuery, facets_view
 from .language_routes import MAX_DOCUMENT_BYTES, YAML_BODY, YAML_MEDIA_TYPES, document_body
 from .schemas import (
+    EvaluationOffering,
     CheckResult,
     CompositionGraph,
     GraphLane,
@@ -374,6 +375,15 @@ def _evaluation_view(
             semantic_digest=evaluation.semantic_digest or (row.semantic_digest if row is not None else ""),
             toolchain=dict(evaluation.toolchain or {}),
         )
+    read = None
+    if evaluation.offering_status is not None:
+        snapshot = detail.snapshots.get(evaluation.offering_snapshot_id) if detail is not None and evaluation.offering_snapshot_id else None
+        read = EvaluationOffering(
+            status=evaluation.offering_status,
+            versionName=snapshot.version_label if snapshot is not None else None,
+            createdAt=snapshot.version_created_at if snapshot is not None else None,
+            snapshot=evaluation.offering_snapshot_id,
+        )
     result = evaluation.result or {}
     return EvaluationView(
         id=evaluation.id,
@@ -386,6 +396,7 @@ def _evaluation_view(
         binding=_binding(evaluation.binding),
         current=current is not None and current.id == evaluation.id,
         created_at=evaluation.created_at,
+        offering=read,
     )
 
 
@@ -646,7 +657,12 @@ async def create_composition_version(
     checked = await seal.check(session, organization, found, raw, user)
     if not checked.valid or checked.assessment is None:
         raise _invalid(checked.diagnostics)
-    sealed = await seal.persist(session, found, checked.assessment, actor=user)
+    source = decode(raw)
+    assessment = await offering.with_offering(
+        session, organization, checked.assessment, user,
+        source=source if isinstance(source, str) else None, composition_id=found.id,
+    )
+    sealed = await seal.persist(session, found, assessment, actor=user)
     (detail,) = await versions.details(session, [sealed.version])
     response.status_code = status.HTTP_201_CREATED if sealed.created else status.HTTP_200_OK
     response.headers["ETag"] = _content_tag(sealed.version)
@@ -657,7 +673,7 @@ async def create_composition_version(
     return SealResult(
         version=_version_view(detail),
         evaluation=_evaluation_view(sealed.evaluation, detail.current, detail),
-        diagnostics=[diagnostic_view(item) for item in checked.diagnostics],
+        diagnostics=[diagnostic_view(item) for item in assessment.diagnostics],
     )
 
 
@@ -1119,7 +1135,12 @@ async def derive_composition(
             diagnostics=diagnostics,
         )
         return JSONResponse(status_code=status.HTTP_200_OK, content=draft.model_dump(mode="json"))
-    sealed = await seal.persist(session, found, derived.assessment, actor=user, derivation=derived.derivation)
+    # A derivation that seals reads the offering like a seal: only when an evaluation row will be created.
+    assessment = await offering.with_offering(
+        session, organization, derived.assessment, user, source=derived.content, composition_id=found.id,
+    )
+    diagnostics = [diagnostic_view(item) for item in assessment.diagnostics]
+    sealed = await seal.persist(session, found, assessment, actor=user, derivation=derived.derivation)
     assert sealed.derivation is not None
     (detail,) = await versions.details(session, [sealed.version])
     response.status_code = status.HTTP_201_CREATED if sealed.created else status.HTTP_200_OK

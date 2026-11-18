@@ -335,9 +335,10 @@ Against a compiled problem, and when assessing a document in an organization (th
 | `c2y_run_point_invalid` | the run has no binding to cite, or `evidence.point` is not one of its solutions (`deriveComposition`: the request's `point`) |
 | `c2y_run_binding_mismatch` | the binding is not the run's solution (`point`) or none of them; the message lists the tasks that differ |
 
-Reserved for F3, which emits them (no route reports them yet): `c2y_offering_unreadable` (**warning**: the
-offering cannot be read; no margins) and `c2y_offering_invalid_pricing` (**warning**: its content is not a valid
-Pricing2Yaml; no margins).
+An evaluation created on a seal, a derivation that seals, a fork or a re-evaluation records the offering version it
+read (`EvaluationView.offering`); reading it can give `c2y_offering_unreadable` (**warning**: the offering cannot be
+read, the reason in words; no margins) and `c2y_offering_invalid_pricing` (**warning**: its content is not a valid
+Pricing2Yaml 3.x pricing; no margins). Neither invalidates the binding or blocks a seal.
 
 ## Compositions
 

@@ -12,7 +12,7 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision: str = '688a29e6a3db'
+revision: str = '01f0e39a77c2'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -790,17 +790,21 @@ def upgrade() -> None:
     sa.Column('values', sa.JSON(), nullable=False),
     sa.Column('result', sa.JSON(), nullable=True),
     sa.Column('diagnostics', sa.JSON(), nullable=False),
+    sa.Column('offering_snapshot_id', sa.Uuid(), nullable=True),
+    sa.Column('offering_status', sa.String(length=24), nullable=True),
     sa.Column('created_by_id', sa.Uuid(), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.CheckConstraint("(basis = 'bim') = (compilation_id IS NOT NULL)", name=op.f('ck_composition_evaluations_composition_evaluation_bim_compiled')),
     sa.CheckConstraint("(basis = 'declared') = (outcome = 'declared')", name=op.f('ck_composition_evaluations_composition_evaluation_declared_outcome')),
     sa.ForeignKeyConstraint(['compilation_id', 'revision_id'], ['problem_compilations.id', 'problem_compilations.revision_id'], name='fk_composition_evaluations_compilation', ondelete='RESTRICT'),
     sa.ForeignKeyConstraint(['created_by_id'], ['users.id'], name=op.f('fk_composition_evaluations_created_by_id_users'), ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['offering_snapshot_id'], ['pricing_snapshots.id'], name=op.f('fk_composition_evaluations_offering_snapshot_id_pricing_snapshots'), ondelete='RESTRICT'),
     sa.ForeignKeyConstraint(['version_id'], ['composition_versions.id'], name=op.f('fk_composition_evaluations_version_id_composition_versions'), ondelete='RESTRICT'),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_composition_evaluations')),
     sa.UniqueConstraint('version_id', 'basis_key', name='uq_composition_evaluations_version_basis')
     )
     op.create_index(op.f('ix_composition_evaluations_created_by_id'), 'composition_evaluations', ['created_by_id'], unique=False)
+    op.create_index(op.f('ix_composition_evaluations_offering_snapshot_id'), 'composition_evaluations', ['offering_snapshot_id'], unique=False)
     op.create_index(op.f('ix_composition_evaluations_revision_id'), 'composition_evaluations', ['revision_id'], unique=False)
     op.create_index(op.f('ix_composition_evaluations_version_id'), 'composition_evaluations', ['version_id'], unique=False)
     # Foreign keys that close a cycle: inline on SQLite, added once both tables exist elsewhere.
@@ -816,6 +820,7 @@ def downgrade() -> None:
         op.drop_constraint('fk_jobs_study_cell_id', 'jobs', type_='foreignkey')
     op.drop_index(op.f('ix_composition_evaluations_version_id'), table_name='composition_evaluations')
     op.drop_index(op.f('ix_composition_evaluations_revision_id'), table_name='composition_evaluations')
+    op.drop_index(op.f('ix_composition_evaluations_offering_snapshot_id'), table_name='composition_evaluations')
     op.drop_index(op.f('ix_composition_evaluations_created_by_id'), table_name='composition_evaluations')
     op.drop_table('composition_evaluations')
     op.drop_index(op.f('ix_composition_derivations_job_id'), table_name='composition_derivations')

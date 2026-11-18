@@ -8,7 +8,7 @@ those of its latest evaluation (a declared version has exactly one).
 from __future__ import annotations
 
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Literal
 
@@ -26,6 +26,7 @@ from ....db.models import (
     CompositionEvaluation,
     CompositionVersion,
     EvaluationOutcome,
+    PricingSnapshot,
     ProblemCompilation,
     ValuesStatus,
 )
@@ -65,6 +66,8 @@ class Detail:
     link: Link | None
     compilations: dict[uuid.UUID, ProblemCompilation]
     derivation: Derivation | None
+    #: The offering snapshots its evaluations read, by id.
+    snapshots: dict[uuid.UUID, PricingSnapshot] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -230,6 +233,16 @@ async def details(session: AsyncSession, versions: list[CompositionVersion], *, 
         )).all()
     }
 
+    snapshot_ids = {
+        evaluation.offering_snapshot_id for found in evaluations.values() for evaluation in found
+        if evaluation.offering_snapshot_id is not None
+    }
+    snapshots = {
+        row.id: row for row in (await session.scalars(
+            select(PricingSnapshot).where(PricingSnapshot.id.in_(snapshot_ids))
+        )).all()
+    } if snapshot_ids else {}
+
     basis = installed_basis()
     found: list[Detail] = []
     for version in versions:
@@ -239,7 +252,7 @@ async def details(session: AsyncSession, versions: list[CompositionVersion], *, 
             link = Link(problem, revision, compilations[version.linked_compilation_id])
         own = evaluations[version.id]
         found.append(Detail(
-            version, own, current_of(own, basis), link, compilations, derivations.get(version.id),
+            version, own, current_of(own, basis), link, compilations, derivations.get(version.id), snapshots,
         ))
     return found
 
