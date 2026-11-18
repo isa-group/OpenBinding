@@ -398,8 +398,12 @@ class Settings(BaseSettings):
     frontend_url: str = "http://localhost:5173"
     cas_state_ttl_s: int = 10 * 60
     cas_exchange_ttl_s: int = 30
-    cas_store_backend: Literal["memory", "redis"] = "redis"
     expose_recovery_tokens: bool = False
+
+    # -- Identity -------------------------------------------------------
+    #: Where the one-time records of sign-in (flow state, pending sign-ups) and the session lock live
+    #: (``IDENTITY_STORE_BACKEND``): ``redis``, shared by every worker, or ``memory`` for one process.
+    identity_store_backend: Literal["memory", "redis"] = "redis"
 
     # -- SPHERE pricing source (read only) ------------------------------
     # Read by the PricingSource port (modules/plans). OpenBinding holds no SPHERE key of its own: an

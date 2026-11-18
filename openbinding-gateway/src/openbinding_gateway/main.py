@@ -66,6 +66,14 @@ from .modules.plans.adapters.routes import public_router as plans_public_router
 from .modules.plans.adapters.routes import router as plans_router
 from .modules.plans.adapters.sphere import SphereHttpSource
 from .modules.plans.application import installed_pricing_source, set_pricing_source
+from .modules.identity.adapters.stores import (
+    MemoryOneTimeStore,
+    MemorySessionLock,
+    RedisOneTimeStore,
+    RedisSessionLock,
+)
+from .modules.identity.application import set_lock as set_identity_lock
+from .modules.identity.application import set_store as set_identity_store
 from .modules.execution.adapters.routes import router as runs_router
 from .modules.problems.adapters.bim_routes import router as bim_router
 from .modules.problems.adapters.routes import router as problems_router
@@ -125,6 +133,30 @@ def _make_lifespan(explicit_settings: Settings | None):
     return lifespan
 
 
+def _install_identity_stores(settings: Settings):
+    """Install the identity module's one-time store and lock; the returned coroutine function closes them."""
+    if settings.identity_store_backend == "memory":
+        set_identity_store(MemoryOneTimeStore())
+        set_identity_lock(MemorySessionLock())
+
+        async def close_memory() -> None:
+            set_identity_store(None)
+            set_identity_lock(None)
+
+        return close_memory
+    store = RedisOneTimeStore(settings.redis_url)
+    lock = RedisSessionLock(client=store.redis)
+    set_identity_store(store)
+    set_identity_lock(lock)
+
+    async def close_redis() -> None:
+        set_identity_store(None)
+        set_identity_lock(None)
+        await store.aclose()
+
+    return close_redis
+
+
 @asynccontextmanager
 async def _lifespan(settings: Settings):
     # Fails the start when the BIM service is unreachable or runs another toolchain.
@@ -137,6 +169,7 @@ async def _lifespan(settings: Settings):
     # The one reader of SPHERE, its registries and Pricing2Yaml URLs (modules/plans); its requests go through
     # core.outbound, so there is nothing to close but its in-process cache.
     set_pricing_source(SphereHttpSource(settings))
+    close_identity_stores = _install_identity_stores(settings)
     try:
         await check_pricing(settings, gate)
     except BaseException:
@@ -144,6 +177,7 @@ async def _lifespan(settings: Settings):
             await gate.aclose()
         space_client.set_gate(None)
         set_pricing_source(None)
+        await close_identity_stores()
         await db_base.dispose_engine()
         bim_integration.close_bim()
         raise
@@ -175,6 +209,7 @@ async def _lifespan(settings: Settings):
             await gate.aclose()
         space_client.set_gate(None)
         set_pricing_source(None)
+        await close_identity_stores()
         await db_base.dispose_engine()
         bim_integration.close_bim()
 

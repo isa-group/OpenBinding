@@ -200,6 +200,27 @@ def isolated_feed_rate_limiter():
 
 
 @pytest.fixture(autouse=True)
+def identity_stores():
+    """The identity module's one-time store and session lock, in this test's own memory.
+
+    The lifespan installs Redis ones (``IDENTITY_STORE_BACKEND``); the unit suite has no Redis and runs no
+    lifespan, so every test starts with empty memory adapters. Yields ``(store, lock)``.
+    """
+    if not GATEWAY_INSTALLED:
+        yield None
+        return
+    from openbinding_gateway.modules.identity.adapters.stores import MemoryOneTimeStore, MemorySessionLock
+    from openbinding_gateway.modules.identity.application import set_lock, set_store
+
+    store, lock = MemoryOneTimeStore(), MemorySessionLock()
+    set_store(store)
+    set_lock(lock)
+    yield store, lock
+    set_store(None)
+    set_lock(None)
+
+
+@pytest.fixture(autouse=True)
 def isolated_work_rate_limiter(monkeypatch):
     """The per-client work budget switched off, and counted in this test's own memory.
 

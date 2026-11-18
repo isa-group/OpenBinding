@@ -126,7 +126,7 @@ services:
       SPHERE_URL: ${SPHERE_URL:-https://sphere.example.org}
       CAS_ENABLED: ${CAS_ENABLED:-false}
       CAS_ENVIRONMENT: ${CAS_ENVIRONMENT:-production}
-      CAS_STORE_BACKEND: redis
+      IDENTITY_STORE_BACKEND: redis
       # Comma-separated Fernet keys for stored engine credentials: the first encrypts, all decrypt (rotation).
       SECRETS_FERNET_KEYS_FILE: /run/secrets/secrets_fernet_keys
       FEDERATION_REQUIRE_HTTPS: "true"

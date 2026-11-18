@@ -9,12 +9,9 @@ import pytest
 import pytest_asyncio
 
 from openbinding_gateway import space_client
-from openbinding_gateway.cas import (
-    CasPrincipal,
-    MemoryOneTimeStore,
-    parse_service_validate,
-    set_cas_store,
-)
+from openbinding_gateway.cas import CasPrincipal, parse_service_validate
+from openbinding_gateway.modules.identity.adapters.stores import MemoryOneTimeStore
+from openbinding_gateway.modules.identity.application import set_store
 from openbinding_gateway.core.settings import Settings, get_settings
 from openbinding_gateway.main import app
 from openbinding_gateway.routes import cas as cas_routes
@@ -27,12 +24,12 @@ async def cas_environment():
     gate = fake_pricing_gate()
     space_client.set_gate(gate)
     store = MemoryOneTimeStore()
-    set_cas_store(store)
+    set_store(store)
     settings = Settings(
         _env_file=None,
         cas_enabled=True,
         cas_environment="preproduction",
-        cas_store_backend="memory",
+        identity_store_backend="memory",
         public_base_url="https://openbinding.example",
         frontend_url="https://app.openbinding.example",
         gateway_jwt_secret="cas-test-secret-that-is-at-least-32-bytes",
@@ -40,7 +37,7 @@ async def cas_environment():
     app.dependency_overrides[get_settings] = lambda: settings
     yield gate, store
     app.dependency_overrides.pop(get_settings, None)
-    set_cas_store(None)
+    set_store(None)
     space_client.set_gate(previous)
 
 
@@ -72,8 +69,7 @@ def test_cas_xml_entities_and_dtds_are_rejected(payload: bytes) -> None:
 
 async def test_memory_state_is_single_use_and_expires(monkeypatch) -> None:
     moment = 10.0
-    monkeypatch.setattr("openbinding_gateway.cas.time.monotonic", lambda: moment)
-    store = MemoryOneTimeStore()
+    store = MemoryOneTimeStore(clock=lambda: moment)
     await store.put("state", "replay", {"value": 1}, ttl=10)
     assert await store.pop("state", "replay") == {"value": 1}
     assert await store.pop("state", "replay") is None

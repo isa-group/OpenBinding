@@ -1,7 +1,7 @@
 """Module skeleton: the ``app``, ``shared`` and ``modules`` packages and their import contracts.
 
 ``app`` and ``shared`` are still empty; ``modules`` holds the modules of ARCHITECTURE §4.2 as they arrive
-(``plans`` first, then ``problems``, ``shared`` and ``execution``, F0b, and ``compositions``, F1), and the legacy layers reach a module through its
+(``plans`` first, then ``problems``, ``shared`` and ``execution``, F0b, ``compositions``, F1, and ``identity``, F5), and the legacy layers reach a module through its
 ``application`` package only; ``main.py``, the composition root, also mounts the routers of its ``adapters``.
 
 import-linter lives in the ``lint`` dependency group only, so the static tests read the configuration files;
@@ -162,9 +162,9 @@ def test_nothing_outside_the_new_packages_imports_them_but_a_modules_application
 
 def test_the_composition_root_mounts_only_adapters_of_known_modules() -> None:
     mounted = [entry for entry in _offenders(SOURCE) if _composition_root_mounts_adapters(entry)]
-    assert mounted, "main.py mounts the adapters of modules/problems, execution, compositions and plans"
+    assert mounted, "main.py mounts the adapters of modules/problems, execution, compositions, identity and plans"
     modules = {entry.split(": ", 1)[1].split(".")[2] for entry in mounted}
-    assert modules == {"problems", "execution", "compositions", "plans"}, mounted
+    assert modules == {"problems", "execution", "compositions", "identity", "plans"}, mounted
 
 
 def test_import_resolver_finds_every_import_form(tmp_path: Path) -> None:

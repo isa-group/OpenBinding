@@ -105,7 +105,7 @@ services:
       - OFFERING_URL_MIN_INTERVAL_S=${OFFERING_URL_MIN_INTERVAL_S:-300}
       - CAS_ENABLED=${CAS_ENABLED:-false}
       - CAS_ENVIRONMENT=${CAS_ENVIRONMENT:-preproduction}
-      - CAS_STORE_BACKEND=redis
+      - IDENTITY_STORE_BACKEND=redis
       - FRONTEND_URL=${FRONTEND_URL:-http://localhost:5173}
       # BIM (compile, evaluate, re-evaluate) runs in this process (bim_client's
       # InProcessBim). The BIM toolchain lives in its own repository

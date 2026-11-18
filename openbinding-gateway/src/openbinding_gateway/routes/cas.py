@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from .. import space_client
 from ..access.dependencies import get_current_user, get_optional_user, session_dependency
-from ..cas import CasPrincipal, get_cas_store, parse_service_validate
+from ..cas import CasPrincipal, parse_service_validate
 from ..core.public_errors import pricing_unavailable_error
 from ..core.settings import Settings, get_settings
 from ..db.models import AuditEvent, AuthIdentity, User
@@ -27,6 +27,7 @@ from ..models.errors import api_error
 from ..security.passwords import hash_password
 from .auth import _issue_session, username_reserved, username_unavailable
 from ..access.contracts import live_pricing_version
+from ..modules.identity.application import get_store
 
 logger = logging.getLogger(__name__)
 
@@ -84,7 +85,7 @@ async def start_cas(
     linking_user_id = str(current.id) if current else None
     if mode == "link" and current is None:
         stored_intent = (
-            await get_cas_store(settings).pop("cas-link-intent", intent)
+            await get_store().pop("cas-link-intent", intent)
             if intent
             else None
         )
@@ -96,7 +97,7 @@ async def start_cas(
                 "The CAS link intent was used, expired or is invalid.",
             )
     state = secrets.token_urlsafe(32)
-    store = get_cas_store(settings)
+    store = get_store()
     await store.put(
         "cas-state", state,
         {"mode": mode, "userId": linking_user_id},
@@ -114,7 +115,7 @@ async def create_link_intent(
     """Mint a one-use navigation URL without putting a JWT in the browser URL."""
     _enabled(settings)
     intent = secrets.token_urlsafe(32)
-    await get_cas_store(settings).put(
+    await get_store().put(
         "cas-link-intent",
         intent,
         {"userId": str(user.id)},
@@ -272,7 +273,7 @@ async def _complete_callback(
     _enabled(settings)
     if not state:
         raise api_error(status.HTTP_401_UNAUTHORIZED, "cas_state_invalid", "CAS state is missing.")
-    stored = await get_cas_store(settings).pop("cas-state", state)
+    stored = await get_store().pop("cas-state", state)
     if stored is None:
         raise api_error(status.HTTP_401_UNAUTHORIZED, "cas_state_invalid", "CAS state was used, expired or is invalid.")
     if not ticket:
@@ -355,7 +356,7 @@ async def _complete_callback(
         ))
     await session.flush()
     code = secrets.token_urlsafe(32)
-    await get_cas_store(settings).put(
+    await get_store().put(
         "cas-exchange", code,
         {
             "userId": str(user.id),
@@ -388,7 +389,7 @@ async def exchange_cas_code(
     plan did not change.
     """
     _enabled(settings)
-    value = await get_cas_store(settings).pop("cas-exchange", payload.code)
+    value = await get_store().pop("cas-exchange", payload.code)
     if value is None:
         raise api_error(status.HTTP_401_UNAUTHORIZED, "cas_code_invalid", "CAS code was used, expired or is invalid.")
     user = await session.get(User, uuid.UUID(value["userId"]))

@@ -16,7 +16,9 @@ import pytest_asyncio
 from sqlalchemy import select
 
 from openbinding_gateway import space_client
-from openbinding_gateway.cas import CasPrincipal, MemoryOneTimeStore, set_cas_store
+from openbinding_gateway.cas import CasPrincipal
+from openbinding_gateway.modules.identity.adapters.stores import MemoryOneTimeStore
+from openbinding_gateway.modules.identity.application import set_store
 from openbinding_gateway.core.settings import Settings, get_settings
 from openbinding_gateway.db.models import AuditEvent, AuthIdentity, User
 from openbinding_gateway.main import app
@@ -35,7 +37,7 @@ def make_settings(**overrides) -> Settings:
         _env_file=None,
         cas_enabled=True,
         cas_environment="preproduction",
-        cas_store_backend="memory",
+        identity_store_backend="memory",
         public_base_url="https://openbinding.example",
         frontend_url=FRONTEND,
         gateway_jwt_secret="cas-test-secret-that-is-at-least-32-bytes",
@@ -49,12 +51,12 @@ async def cas_environment():
     previous = space_client.get_gate()
     gate = fake_pricing_gate()
     space_client.set_gate(gate)
-    set_cas_store(MemoryOneTimeStore())
+    set_store(MemoryOneTimeStore())
     settings = make_settings()
     app.dependency_overrides[get_settings] = lambda: settings
     yield gate
     app.dependency_overrides.pop(get_settings, None)
-    set_cas_store(None)
+    set_store(None)
     space_client.set_gate(previous)
 
 
