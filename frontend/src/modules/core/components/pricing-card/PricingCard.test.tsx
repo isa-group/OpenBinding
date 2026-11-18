@@ -103,7 +103,16 @@ describe('PricingCard', () => {
         planId: 'STARTER',
         addOns: { dedicatedIp: { selected: true, quantity: 1 } },
       },
+      // The renderer's own default (the first plan) would be marked beside the card's plan.
+      defaultSelection: {
+        planId: 'STARTER',
+        addOns: { dedicatedIp: { selected: true, quantity: 1 } },
+      },
       selectionEnabled: false,
+      messages: {
+        'pricing.plansTitle': 'Plans of this version',
+        'pricing.addOnsTitle': 'Add-ons of this version',
+      },
       ctaEnabled: false,
       hideSections: [
         'hero',
@@ -138,6 +147,7 @@ describe('PricingCard', () => {
     await screen.findByTestId('pricing-renderer');
     expect(renderer.props).toMatchObject({
       currentSelection: { planId: 'STARTER' },
+      defaultSelection: { planId: 'STARTER' },
       hideSections: [
         'hero',
         'saasName',

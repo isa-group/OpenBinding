@@ -19,9 +19,16 @@ const HIDDEN_SECTIONS = [
 ] as const;
 const HIDDEN_WITH_ADDONS = HIDDEN_SECTIONS.filter(section => section !== 'addOns');
 
+/** The card reads a version; the renderer's storefront titles ("Choose a plan", "Extend your plan") ask to buy. */
+const MESSAGES = {
+  'pricing.plansTitle': 'Plans of this version',
+  'pricing.addOnsTitle': 'Add-ons of this version',
+};
+
 /**
  * One plan of a Pricing2Yaml document, drawn by pricing-renderer through the bridge's `catalog` preset: read only, with that
- * plan (and the add-ons taken with it) marked and nothing to choose or buy.
+ * plan (and the add-ons taken with it) marked and nothing to choose or buy. The plan is also the drawing's selection, or the
+ * renderer would mark its own default (the first plan) beside it.
  */
 export default function PricingPlan({
   yaml,
@@ -52,7 +59,9 @@ export default function PricingPlan({
       source={source}
       preset="catalog"
       currentSelection={current}
+      defaultSelection={current}
       selectionEnabled={false}
+      messages={MESSAGES}
       hideSections={key ? HIDDEN_WITH_ADDONS : HIDDEN_SECTIONS}
     />
   );
