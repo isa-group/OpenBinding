@@ -323,3 +323,69 @@ async def test_space_contracts_require_the_gateway_service_to_match_the_dev_serv
     # A match passes the name checks and reaches the SPACE configuration (absent here).
     matched = await seed_lab._space_contracts(users, {}, "lab-dev-service", "BASIC", "lab-dev-service")
     assert "SPACE configuration" in matched["skipped"]
+
+
+# -- SPHERE (F3) ---------------------------------------------------------------------------------------------------------
+
+
+@pytest.fixture
+def recorded_sphere(monkeypatch):
+    """The recorded SPHERE answers as the pricing source, SPHERE enabled, nothing reaching the network."""
+    import sys
+
+    from openbinding_gateway.core import outbound
+    from openbinding_gateway.core.settings import get_settings
+    from openbinding_gateway.modules.plans.adapters.sphere import SphereHttpSource
+    from openbinding_gateway.modules.plans.application import set_pricing_source
+
+    tests = Path(__file__).resolve().parents[2] / "tests"
+    monkeypatch.syspath_prepend(str(tests))
+    from sphere_recorded import RecordedSphere
+
+    recorded = RecordedSphere()
+    monkeypatch.setattr(outbound, "_getaddrinfo", lambda host, port: recorded.getaddrinfo(host, port))
+    settings = get_settings()
+    monkeypatch.setattr(settings, "sphere_enabled", True)
+    set_pricing_source(SphereHttpSource(settings, transport=recorded.transport()))
+    yield recorded
+    set_pricing_source(None)
+    sys.modules.pop("sphere_recorded", None)
+
+
+async def test_without_sphere_the_sphere_steps_are_skipped(db_session):
+    result = await seed_lab.seed(db_session, PASSWORD, EXAMPLES)
+    assert result["sphere"] == {"status": "skipped", "reason": "SPHERE is not enabled"}
+    assert await db_session.scalar(select(BindingCase).where(BindingCase.slug == seed_lab.TOMATOMETER)) is None
+
+
+async def test_with_sphere_the_tomatometer_problem_comes_from_real_pricings(db_session, recorded_sphere):
+    from openbinding_gateway.db.models import CompositionEvaluation, ProblemValueOrigin
+
+    result = await seed_lab.seed(db_session, PASSWORD, EXAMPLES)
+    assert result["sphere"]["status"] == "seeded", result["sphere"]
+    assert result["sphere"]["revision"] == 2
+    problem = await db_session.scalar(select(BindingCase).where(BindingCase.slug == seed_lab.TOMATOMETER))
+    revisions = (await db_session.scalars(
+        select(BindingCaseRevision).where(BindingCaseRevision.binding_case_id == problem.id)
+        .order_by(BindingCaseRevision.revision)
+    )).all()
+    assert [r.origin for r in revisions] == ["upload", "sphere"]
+    assert revisions[1].provenance["recipe"]["tasks"][0]["from"][0]["sphere"]["version"] == "6ade36454b2b5b01c587db3d"
+    origins = (await db_session.scalars(select(ProblemValueOrigin).where(ProblemValueOrigin.revision_id == revisions[1].id))).all()
+    assert origins and all(o.snapshot_id is not None for o in origins if o.pricing_id)
+    composition = await db_session.scalar(select(Composition).where(Composition.slug == "tomatometer"))
+    version = await db_session.scalar(select(CompositionVersion).where(CompositionVersion.composition_id == composition.id))
+    assert "from:" in version.content and "danruilop1/mailgun" in version.content
+    evaluation = await db_session.scalar(select(CompositionEvaluation).where(CompositionEvaluation.version_id == version.id))
+    assert evaluation.offering_status == "read"
+    # The order-desk offering is a URL that never resolves: recorded as unreadable, sealed all the same.
+    order = await db_session.scalar(select(Composition).where(Composition.slug == "order-desk"))
+    order_version = await db_session.scalar(select(CompositionVersion).where(CompositionVersion.composition_id == order.id))
+    order_evaluation = await db_session.scalar(
+        select(CompositionEvaluation).where(CompositionEvaluation.version_id == order_version.id)
+    )
+    assert order_evaluation.offering_status == "unreadable"
+    calls = len(recorded_sphere.requests)
+    again = await seed_lab.seed(db_session, PASSWORD, EXAMPLES)
+    assert again["sphere"]["status"] == "seeded" and not [c for c in again["created"] if "tomatometer" in c]
+    assert len(recorded_sphere.requests) == calls

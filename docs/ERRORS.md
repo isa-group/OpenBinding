@@ -172,6 +172,25 @@ is not needed.
 | `sphere_recipe_invalid` | 422 | `applySphereRecipe`: the recipe is malformed, or names a version as `latest`; `diagnostics` are the `sphere_*` findings below |
 | `sphere_recipe_refused` | 422 | `applySphereRecipe`: the recipe has an error finding (an unreadable pricing, an unknown plan, an unmapped value…); `diagnostics` are the `sphere_*` findings below |
 
+## SPHERE reads
+
+The SPHERE routes of an organization (`…/sphere/pricings…`, `…/pricing-snapshots/…`, `…/connections/sphere`):
+
+| `code` | Status | Meaning |
+|---|---|---|
+| `sphere_pricing_not_found` | 404 | a pricing or version that is missing, hidden, private without access, or not a SPHERE id: one answer for every unreadable one |
+| `pricing_snapshot_not_found` | 404 | a snapshot that does not exist, or that the caller may not read under that organization |
+| `sphere_registry_unknown` | 422 | a `registry` the deployment does not define in `SPHERE_REGISTRIES` |
+| `sphere_pricing_invalid`, `sphere_syntax_unsupported` | 422 | a version that is not a Pricing2Yaml 3.x pricing; `diagnostics` locate why |
+| `sphere_busy` | 503 | SPHERE's rate limit, or the gateway's back-off for it; `Retry-After` says when to try again |
+| `sphere_unavailable` | 503 | SPHERE cannot be read right now (`reason`: `timeout`, `unavailable`, `transport`, `too_large`, `integrity`, `redirect`, `encoding`, `disabled`) |
+| `sphere_key_malformed` | 422 | `PUT …/connections/sphere` with a key that is not `sk-` and 64 hexadecimal characters |
+| `sphere_key_rejected` | 422 | SPHERE does not accept the key |
+| `secrets_unavailable` | 503 | the deployment has no `SECRETS_FERNET_KEYS`, so a key cannot be stored |
+
+A URL that cannot be read (an offering) never reaches the API as an error: its reason is the warning
+`c2y_offering_unreadable` of the evaluation.
+
 ## SPHERE imports
 
 `expandSphereRecipe` (`POST …/problems/{problem}/sphere/expand`) answers these findings in `diagnostics` with a

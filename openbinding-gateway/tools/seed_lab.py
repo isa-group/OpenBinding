@@ -25,6 +25,18 @@ The compositions (F2a):
 
 The public list therefore holds two compositions, both of lab-other.
 
+From SPHERE (F3), when SPHERE is enabled and reachable:
+
+- ``lab-main/tomatometer-email``: revision 1 is ``examples/tomatometer/tomatometer-email.base.json`` (zipped),
+  revision 2 is ``examples/tomatometer/email-recipe.json`` previewed and applied on it (``sphere/expand`` and
+  ``sphere/apply``: real SPHERE pricing and version ids, the value origins recorded);
+- ``lab-main/tomatometer``: derived from a binding of revision 2 (a SPHERE e-mail plan, so its binding carries
+  ``from``) with the offering ``sphere/tomatometer``, read when it is sealed.
+
+With SPHERE disabled or unreachable these steps log ``sphere: skipped`` and the seed goes on. The ``order-desk``
+offering stays a URL on ``pricings.example.org``, which never resolves: its evaluation records the offering as
+unreadable.
+
 Environment:
     DEMO_SEED_PASSWORD   required; password of every synthetic user (at least 10 chars).
                          API keys are derived from it (HMAC) and are not printed
@@ -46,6 +58,7 @@ import argparse
 import asyncio
 import hashlib
 import hmac
+import json
 import logging
 import os
 import re
@@ -94,12 +107,15 @@ from openbinding_gateway.modules.compositions.application import (
     judge,
     persist,
 )
+from openbinding_gateway.modules.compositions.application.offering import before_seal
+from openbinding_gateway.modules.plans.application import PricingError, installed_pricing_source
 from openbinding_gateway.modules.problems.application import (
     NOT_RECOMPILABLE,
     add_revision,
     compile_or_get,
     create_problem,
 )
+from openbinding_gateway.modules.problems.application.sphere import apply, dump, expand, latest_sphere_revision
 from openbinding_gateway.space_client import OpenGate
 from openbinding_gateway.security.apikeys import ADMIN_PERMISSIONS, ALL_PERMISSIONS, hash_key
 from openbinding_gateway.security.passwords import hash_password, password_complaint, verify_password
@@ -125,6 +141,20 @@ PUBLIC_DECLARED = (
     "Signs customers in, sends a notice and archives the order in parallel, then ships by post or by courier.",
 )
 PRIVATE_DECLARED = ("internal-draft", "Internal draft", "Not shared outside the organization.")
+#: lab-main's problem built from SPHERE pricings (F3), and the composition derived from it.
+TOMATOMETER = "tomatometer-email"
+TOMATOMETER_COMPOSITION = (
+    "tomatometer", "TomatoMeter",
+    "TomatoMeter's back end with its e-mail provider chosen among real SPHERE pricings; its offering is "
+    "TomatoMeter's own pricing in SPHERE.",
+)
+TOMATOMETER_BINDING = {
+    "login": "auth.builtin.local",
+    "dailySummary": "email.mailgun.foundation",
+    "export": "storage.local.disk",
+    "quotes": "quotes.zenquotes.free",
+}
+TOMATOMETER_OFFERING = {"sphere": "sphere/tomatometer"}
 KNOWN_PRODUCTION_SERVICES = ("openbinding",)
 
 #: (username, platform role, {organization slug: organization role})
@@ -158,7 +188,7 @@ workflow:
         - {probability: 0.3, flow: courier}
 binding:
   signIn: {local: true}
-  notify: {candidate: email.brevo.starter, from: {sphere: brevo/brevo, version: 665f1c2e9b1d4a0012ab34cd, plan: STARTER}}
+  notify: {candidate: email.brevo.starter, from: {sphere: danruilop1/brevo, version: 6ade2d444b2b5b01c587d80d, plan: STARTER}}
   archive: {candidate: storage.dropbox.plus}
   post: {candidate: shipping.post.standard}
   courier: {candidate: shipping.courier.express}
@@ -401,7 +431,8 @@ async def seal_derived(
         session, organization, composition, caller=user, label=label,
         revision=f"{CASE_SLUG}@{revision.revision}", binding=dict(binding),
     )
-    sealed = await persist(session, composition, derived.assessment, actor=user, derivation=derived.derivation)
+    assessment = await _before_seal(session, organization, derived.assessment, user, derived.content, composition)
+    sealed = await persist(session, composition, assessment, actor=user, derivation=derived.derivation)
     if sealed.created:
         created.append(f"composition-version:{organization.slug}/{composition.slug}@{label}")
     return sealed.version
@@ -422,10 +453,88 @@ async def seal_declared(
             f"the seed's composition {organization.slug}/{composition.slug} is refused: "
             + "; ".join(map(str, checked.diagnostics))
         )
-    sealed = await persist(session, composition, checked.assessment, actor=user)
+    assessment = await _before_seal(session, organization, checked.assessment, user, document, composition)
+    sealed = await persist(session, composition, assessment, actor=user)
     if sealed.created:
         created.append(f"composition-version:{organization.slug}/{composition.slug}@{label}")
     return sealed.version
+
+
+async def _before_seal(session: AsyncSession, organization: Organization, assessment: Any, user: User, source: str,
+                       composition: Composition) -> Any:
+    """The seal pre-phase of the routes (the offering read, the ``from`` snapshots) when a pricing source is
+    installed; the assessment as it is otherwise."""
+    if installed_pricing_source() is None:
+        return assessment
+    return await before_seal(session, organization, assessment, user, source=source, composition_id=composition.id)
+
+
+def _sphere_skipped(reason: str) -> dict[str, Any]:
+    logger.warning("sphere: skipped (%s)", reason)
+    return {"status": "skipped", "reason": reason}
+
+
+async def ensure_sphere(
+    session: AsyncSession, organizations: Mapping[str, Organization], users: Mapping[str, User], examples_dir: Path,
+    created: list[str],
+) -> dict[str, Any]:
+    """``lab-main/tomatometer-email`` (revision 2 from SPHERE) and the composition derived from it (module
+    docstring), or why they were skipped."""
+    from fastapi import HTTPException
+
+    from openbinding_gateway.core.settings import get_settings
+
+    if installed_pricing_source() is None or not get_settings().sphere_enabled:
+        return _sphere_skipped("SPHERE is not enabled")
+    organization, user = organizations[MAIN_ORG], users["lab-owner"]
+    folder = examples_dir / "tomatometer"
+    recipe = json.loads((folder / "email-recipe.json").read_text(encoding="utf-8"))
+    bundle = json.loads((folder / "tomatometer-email.base.json").read_text(encoding="utf-8"))
+    archive = packages.zip_files({path: dump(document) for path, document in bundle.items()})
+    try:
+        problem = await session.scalar(
+            select(BindingCase).where(BindingCase.organization_id == organization.id, BindingCase.slug == TOMATOMETER)
+        )
+        if problem is None:
+            upload = await create_problem(
+                session, organization, archive, user, slug=TOMATOMETER, name="TomatoMeter e-mail",
+                description="TomatoMeter's back end; revision 2 adds the e-mail providers' plans from SPHERE.",
+                provenance={"producer": "seed_lab"},
+            )
+            problem = upload.problem
+            created.append(f"case:{organization.slug}/{TOMATOMETER}")
+        generated = await latest_sphere_revision(session, problem)
+        if generated is None:
+            latest = int(await session.scalar(
+                select(func.max(BindingCaseRevision.revision)).where(BindingCaseRevision.binding_case_id == problem.id)
+            ) or 1)
+            preview = await expand(session, organization, TOMATOMETER, recipe, latest, user)
+            if not preview.view["valid"]:
+                errors = [d for d in preview.view["diagnostics"] if d.get("severity") == "error"]
+                return _sphere_skipped(errors[0]["message"] if errors else "the preview is not valid")
+            upload = await apply(session, organization, TOMATOMETER, recipe, latest, preview.view["packageDigest"], user)
+            generated = upload.revision
+            created.append(f"case-revision:{organization.slug}/{TOMATOMETER}:{generated.revision}")
+        composition = await ensure_composition(
+            session, organization, user, TOMATOMETER_COMPOSITION, CompositionKind.APPLICATION, "private", created,
+        )
+        version = await labelled(session, composition, "1.0.0")
+        if version is None:
+            derived = await derive_version(
+                session, organization, composition, caller=user, label="1.0.0", offering=TOMATOMETER_OFFERING,
+                revision=f"{TOMATOMETER}@{generated.revision}", binding=dict(TOMATOMETER_BINDING),
+            )
+            assessment = await before_seal(session, organization, derived.assessment, user, source=derived.content,
+                                           composition_id=composition.id)
+            sealed = await persist(session, composition, assessment, actor=user, derivation=derived.derivation)
+            if sealed.created:
+                created.append(f"composition-version:{organization.slug}/{composition.slug}@1.0.0")
+    except (PricingError, HTTPException) as exc:
+        await session.rollback()
+        detail = getattr(exc, "detail", None)
+        return _sphere_skipped(str(detail.get("code") if isinstance(detail, dict) else exc)[:200])
+    return {"status": "seeded", "problem": TOMATOMETER, "revision": generated.revision,
+            "composition": str(composition.id)}
 
 
 async def ensure_compositions(
@@ -509,6 +618,9 @@ async def seed(session: AsyncSession, password: str, examples_dir: Path, *, plan
         }
         recompile = await ensure_current_toolchain(session, created)
         await session.commit()
+        # SPHERE first: its snapshots (set-B Brevo among them) are what order-desk's from pins, so its seal resolves
+        # that from with no request.
+        sphere = await ensure_sphere(session, organizations, users, examples_dir, created)
         compositions = await ensure_compositions(session, organizations, users, revisions, created)
     finally:
         space_client.set_gate(previous)
@@ -518,6 +630,7 @@ async def seed(session: AsyncSession, password: str, examples_dir: Path, *, plan
             {"revisionId": item.revision_id, "code": item.code, **({"reason": item.reason} if item.reason else {})}
             for item in recompile
         ],
+        "sphere": sphere,
         "counts": await count_rows(session, users, organizations),
         "ids": {
             "users": {name: str(user.id) for name, user in users.items()},
@@ -629,6 +742,11 @@ async def _run(args: argparse.Namespace, environ: Mapping[str, str], password: s
     dev_service = environ.get("SPACE_DEV_SERVICE_NAME", "")
     dev_plan = environ.get("SPACE_DEV_PLAN", "")
     examples_dir = find_examples_dir(args.examples_dir)
+    if installed_pricing_source() is None and settings.sphere_enabled:
+        from openbinding_gateway.modules.plans.adapters.sphere import SphereHttpSource
+        from openbinding_gateway.modules.plans.application import set_pricing_source
+
+        set_pricing_source(SphereHttpSource(settings))
     db_base.init_engine(database_url)
     try:
         async with db_base.session_factory()() as session:
