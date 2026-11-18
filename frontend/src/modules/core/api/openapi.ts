@@ -14953,7 +14953,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
+                    "application/json": components["schemas"]["Problem"];
                 };
             };
             /** @description Too many `read` requests from this client: past the budget of its address, or of its account when signed in. `Retry-After` says when the window ends. */
@@ -18036,7 +18036,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
+                    "application/json": components["schemas"]["Problem"];
                 };
             };
             /** @description Too many `read` requests from this client: past the budget of its address, or of its account when signed in. `Retry-After` says when the window ends. */
@@ -18117,7 +18117,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
+                    "application/json": components["schemas"]["Problem"];
                 };
             };
             /** @description Too many `read` requests from this client: past the budget of its address, or of its account when signed in. `Retry-After` says when the window ends. */
@@ -18199,7 +18199,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
+                    "application/json": components["schemas"]["Problem"];
                 };
             };
             /** @description Too many `read` requests from this client: past the budget of its address, or of its account when signed in. `Retry-After` says when the window ends. */

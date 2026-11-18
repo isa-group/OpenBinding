@@ -111,10 +111,7 @@ async def list_connections(
         **etags.EDIT_RESPONSES,
         403: FORBIDDEN_RESPONSE,
         404: NOT_FOUND_RESPONSE,
-        422: {
-            "model": ErrorResponse,
-            "description": "The key is malformed (`sphere_key_malformed`) or SPHERE refused it (`sphere_key_rejected`).",
-        },
+        422: {"description": "The key is malformed (`sphere_key_malformed`) or SPHERE refused it (`sphere_key_rejected`)."},
         503: {
             "model": ErrorResponse,
             "description": "No secrets can be kept (`secrets_unavailable`), or SPHERE is busy or unreachable "
@@ -161,7 +158,7 @@ SNAPSHOT_NOT_FOUND = "pricing_snapshot_not_found"
 SPHERE_RESPONSES = {
     403: {"model": ErrorResponse, "description": "The caller is not a MEMBER of the organization."},
     404: {"model": ErrorResponse, "description": "No such SPHERE pricing, or none this organization may read (`sphere_pricing_not_found`)."},
-    422: {"model": ErrorResponse, "description": "An unknown registry (`sphere_registry_unknown`), or a version the "
+    422: {"description": "An unknown registry (`sphere_registry_unknown`), or a version the "
           "gateway does not read (`sphere_syntax_unsupported`, `sphere_pricing_invalid`)."},
     503: {"model": ErrorResponse, "description": "SPHERE is busy (`sphere_busy`, with `Retry-After`) or unavailable "
           "(`sphere_unavailable`)."},

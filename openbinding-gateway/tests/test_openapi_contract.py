@@ -139,6 +139,7 @@ def test_authentication_and_role_requirements_are_explicit(document):
         ("/v1/bim/templates/{template}", "get"),
         ("/v1/pricing/catalog", "get"),
         ("/v1/pricing/current", "get"),
+        ("/v1/plans/pricing", "get"),
         # The public engine catalogue: a visitor gets the built-in and published Engines.
         ("/v1/engines", "get"),
         ("/v1/bim/validate", "post"),
@@ -172,6 +173,9 @@ def test_authentication_and_role_requirements_are_explicit(document):
         (f"{composition}/graph", "get"),
         (f"{composition}/download", "get"),
         ("/v1/permalinks/compositions/{composition_id}", "get"),
+        # A stored upstream pricing of an organization and its bytes (F3): public ones for anybody who reads it.
+        ("/v1/organizations/{org}/pricing-snapshots/{snapshot}", "get"),
+        ("/v1/organizations/{org}/pricing-snapshots/{snapshot}/yaml", "get"),
     }
     for path, method, operation in operations(document):
         if (path, method) in public:
