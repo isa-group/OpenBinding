@@ -1,0 +1,367 @@
+saasName: Resend
+syntaxVersion: "3.0"
+version: "2026"
+isApi: true
+url: "https://resend.com/pricing"
+createdAt: "2026-01-11"
+currency: "USD"
+tags:
+  - Sending And Receiving
+  - Deliverability And Reliability
+  - Security And Privacy
+  - Customer Support
+features:
+  # Sending And Receiving features
+  dailySendingLimit:
+    tag: Sending And Receiving
+    description: Feature to have access to advanced profile
+    valueType: BOOLEAN
+    defaultValue: true
+    type: DOMAIN
+  inboundEmails:
+    tag: Sending And Receiving
+    description: Receive emails using webhooks. Parse content and attachments. Reply to your users.
+    valueType: BOOLEAN
+    defaultValue: true
+    type: DOMAIN
+  restfulAPI:
+    tag: Sending And Receiving
+    description: Well-documented RESTful API for integrating email into your app.
+    valueType: BOOLEAN
+    defaultValue: true
+    type: DOMAIN
+  smtpRelay:
+    tag: Sending And Receiving
+    description: Well-documented RESTful API for integrating email into your app.
+    valueType: BOOLEAN
+    defaultValue: true
+    type: DOMAIN
+  officialSDKs:
+    tag: Sending And Receiving
+    description: Integrate using your favorite programming language with official open source libraries.
+    valueType: BOOLEAN
+    defaultValue: true
+    type: DOMAIN
+  scheduleEmails:
+    tag: Sending And Receiving
+    description: Send emails at a specific time using natural language.
+    valueType: BOOLEAN
+    defaultValue: true
+    type: DOMAIN
+  batchSending:
+    tag: Sending And Receiving
+    description: Capability to send emails in bulk.
+    valueType: BOOLEAN
+    defaultValue: true
+    type: DOMAIN
+  openTracking:
+    tag: Sending And Receiving
+    description: Track when emails are opened.
+    valueType: BOOLEAN
+    defaultValue: true
+    type: DOMAIN
+  linkTracking:
+    tag: Sending And Receiving
+    description: Monitor clicks on email links.
+    valueType: BOOLEAN
+    defaultValue: true
+    type: DOMAIN
+  reactEmail:
+    tag: Sending And Receiving
+    description: Send emails with React, TypeScript, and Tailwind.
+    valueType: BOOLEAN
+    defaultValue: true
+    type: DOMAIN
+
+  # Delivarability And Reliability
+
+  customDomains:
+    tag: Deliverability And Reliability
+    description: Use your own domain for optimal deliverability and brand recognition.
+    valueType: BOOLEAN
+    defaultValue: true
+    type: DOMAIN
+  dedicatedIPs:
+    tag: Deliverability And Reliability
+    description: Purchase a dedicated IP pool so a range of IPs are exclusively assigned to your sending.
+    valueType: BOOLEAN
+    defaultValue: false
+    type: DOMAIN
+  pristineSharedIPs:
+    tag: Deliverability And Reliability
+    description: By default, all Resend users utilize shared IPs that are carefully monitored and maintained.
+    valueType: BOOLEAN
+    defaultValue: true
+    type: DOMAIN
+  automaticSuppressionList:
+    tag: Deliverability And Reliability
+    description: When an email bounces permanently, Resend automatically adds the email address to the suppression list.
+    valueType: BOOLEAN
+    defaultValue: true
+    type: DOMAIN
+  bounceDetails:
+    tag: Deliverability And Reliability
+    description: Understand the root cause of soft and hard bounces.
+    valueType: BOOLEAN
+    defaultValue: true
+    type: DOMAIN
+  multiRegion:
+    tag: Deliverability And Reliability
+    description: Configure the region that your emails are sent from.
+    valueType: BOOLEAN
+    defaultValue: true
+    type: DOMAIN
+  dataRetentionDays:
+    tag: Deliverability And Reliability
+    description: Search your emails and logs to debug or troubleshoot deliverability issues.
+    valueType: TEXT
+    defaultValue: ''
+    type: DOMAIN
+  deliverabilityInsights:
+    tag: Deliverability And Reliability
+    description: Improve email deliverability by identifying issues and applying best practices.
+    valueType: BOOLEAN
+    defaultValue: true
+    type: DOMAIN
+  dkimSpfDmarcAuthentication:
+    tag: Deliverability And Reliability
+    description: Authenticate domains to prevent spoofing and maintain deliverability.
+    valueType: BOOLEAN
+    defaultValue: true
+    type: DOMAIN
+  webhookEndpoints:
+    tag: Deliverability And Reliability
+    description: Send events to your server in real-time for processing.
+    valueType: BOOLEAN
+    defaultValue: true
+    type: DOMAIN
+  webhookEvents:
+    tag: Deliverability And Reliability
+    description: Control which events are sent to your server.
+    valueType: TEXT
+    defaultValue: All Events
+    type: DOMAIN
+
+  # Security & Privacy
+  socialLogin:
+    tag: Security And Privacy
+    description: Log in using Google or GitHub accounts.
+    valueType: BOOLEAN
+    defaultValue: true
+    type: DOMAIN
+  teamMembers:
+    tag: Security And Privacy
+    description: Number of team members allowed.
+    valueType: BOOLEAN
+    defaultValue: true
+    type: DOMAIN
+  gdprCompliance:
+    tag: Security And Privacy
+    description: GDPR compliance obtained and maintained.
+    valueType: BOOLEAN
+    defaultValue: true
+    type: DOMAIN
+  soc2TypeIICertification:
+    tag: Security And Privacy
+    description: SOC 2 Type II obtained and maintained.
+    valueType: BOOLEAN
+    defaultValue: true
+    type: DOMAIN
+  penetrationTesting:
+    tag: Security And Privacy
+    description: Regular penetration tests conducted by a third-party security firm.
+    valueType: BOOLEAN
+    defaultValue: true
+    type: DOMAIN
+  ddosProtection:
+    tag: Security And Privacy
+    description: Automatically protect from DDoS attacks via counterfeit requests (Layer 7) or SYN floods (Layer 3).
+    valueType: BOOLEAN
+    defaultValue: true
+    type: DOMAIN
+  automatedBackups:
+    tag: Security And Privacy
+    description: Continual backups allow for Point-in-Time Recovery up to 7 days.
+    valueType: BOOLEAN
+    defaultValue: true
+    type: DOMAIN
+  multifactorAuthentication:
+    tag: Security And Privacy
+    description: Secure your account with an additional layer of protection.
+    valueType: BOOLEAN
+    defaultValue: true
+    type: DOMAIN
+  apiKeyPermissions:
+    tag: Security And Privacy
+    description: Create API keys with limited access to your account and manage different permissions.
+    valueType: BOOLEAN
+    defaultValue: true
+    type: DOMAIN
+  signedWebhookEndpoints:
+    tag: Security And Privacy
+    description: Secure webhook events with signed payloads.
+    valueType: BOOLEAN
+    defaultValue: true
+    type: DOMAIN
+  
+  # Customer Support
+  ticketSupport:
+    tag: Customer Support
+    description: Access to help via email and ticket channels.
+    valueType: BOOLEAN
+    defaultValue: true
+    type: DOMAIN
+  slackSupport:
+    tag: Customer Support
+    description: Dedicated Slack channel with the engineering team to get the help you need.
+    valueType: BOOLEAN
+    defaultValue: true
+    type: DOMAIN
+  urgentResponseSLA:
+    tag: Customer Support
+    description: Guaranteed first response time for critical issues affecting production environments.
+    valueType: BOOLEAN
+    defaultValue: true
+    type: DOMAIN
+  deliverabilityExpertise:
+    tag: Customer Support
+    description: Get personalized recommendations based on your actual sending.
+    valueType: BOOLEAN
+    defaultValue: true
+    type: DOMAIN
+  inAppDocumentation:
+    tag: Customer Support
+    description: Access to API Documentation based on your real data straight from the app.
+    valueType: BOOLEAN
+    defaultValue: true
+    type: DOMAIN
+  aiAssistant:
+    tag: Customer Support
+    description: Trained on Resend's documentation, knowledge base, and other content.
+    valueType: BOOLEAN
+    defaultValue: true
+    type: DOMAIN
+
+usageLimits:
+  maxDailyLimit:
+    description: Maximum emails sent per day.
+    valueType: NUMERIC
+    defaultValue: 100
+    unit: email
+    type: RENEWABLE
+    period:
+      value: 1
+      unit: DAY
+    linkedFeatures:
+    - dailySendingLimit
+  maxCustomDomains:
+    description: Maximum number of custom domains allowed.
+    valueType: NUMERIC
+    defaultValue: 1
+    unit: domain
+    type: NON_RENEWABLE
+    linkedFeatures:
+    - customDomains
+  maxWebhookEndpoints:
+    description: Maximum number of webhook endpoints allowed.
+    valueType: NUMERIC
+    defaultValue: 1
+    unit: endpoint
+    type: NON_RENEWABLE
+    linkedFeatures:
+    - webhookEndpoints
+  maxTeamMembers:
+    description: Maximum number of team members allowed.
+    valueType: NUMERIC
+    defaultValue: 1
+    unit: member
+    type: NON_RENEWABLE
+    linkedFeatures:
+    - teamMembers
+plans:
+  FREE:
+    description: Free plan
+    price: 0.00
+    unit: user/month
+    features:
+      dataRetentionDays:
+        value: 1 day
+      slackSupport:
+        value: false
+      urgentResponseSLA:
+        value: false
+      deliverabilityExpertise:
+        value: false
+    usageLimits:
+      maxDailyLimit:
+        value: 100
+      maxCustomDomains:
+        value: 1
+      maxWebhookEndpoints:
+        value: 1
+      maxTeamMembers: 
+        value: 1
+  PRO:
+    description: Pro plan
+    price: 20.00
+    unit: user/month
+    features:
+      dataRetentionDays:
+        value: 3 days
+      slackSupport:
+        value: false
+      urgentResponseSLA:
+        value: false
+    usageLimits:
+      maxDailyLimit:
+        value: .inf #Asumimos que No Limit implica infinito.
+      maxCustomDomains:
+        value: 10
+      maxWebhookEndpoints:
+        value: 10
+      maxTeamMembers: 
+        value: 5
+  SCALE:
+    description: Free plan
+    price: 90.00
+    unit: user/month
+    features:
+      dataRetentionDays:
+        value: 7 days
+    usageLimits:
+      maxDailyLimit:
+        value: .inf 
+      maxCustomDomains:
+        value: 1000
+      maxWebhookEndpoints:
+        value: 10
+      maxTeamMembers: 
+        value: 100
+  ENTERPRISE:
+    description: Enterprise plan
+    price: Contact Sales
+    unit: user/month
+    features:
+      dataRetentionDays:
+        value: Flexible
+    usageLimits:
+      maxDailyLimit:
+        value: .inf #Asumimos que Flexible implica infinito.
+      maxCustomDomains:
+        value: .inf
+      maxWebhookEndpoints:
+        value: .inf
+      maxTeamMembers: 
+        value: .inf
+  
+addOns:
+  dedicatedIPsAddOn:
+    description: Feature to access dedicated IPs for sending emails
+    price: 30.00
+    unit: user/month
+    availableFor:
+      - SCALE
+      - ENTERPRISE
+    features:
+      dedicatedIPs: 
+        value: true

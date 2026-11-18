@@ -1,0 +1,606 @@
+saasName: Resend
+syntaxVersion: "3.1"
+version: "2026-10"
+createdAt: "2026-10-25"
+url: https://resend.com/pricing
+currency: USD
+tags:
+  - Sending & receiving
+  - Inboxes
+  - Deliverability & reliability
+  - Security & privacy
+  - Customer support
+  - AI credits
+  - Automations
+  - Marketing
+  - Billing
+billing:
+  monthly: 1
+variables:
+  proVolume: 50000
+  proPriceByVolume: {"50000": 20, "100000": 35}
+  scaleVolume: 100000
+  scalePriceByVolume: {"100000": 90, "200000": 160, "500000": 350, "1000000": 650, "1500000": 825, "2500000": 1150}
+  scaleOverageByVolume: {"100000": 0.9, "200000": 0.8, "500000": 0.7, "1000000": 0.65, "1500000": 0.52, "2500000": 0.46}
+  marketingContacts: 5000
+  proMarketingPriceByContacts: {"5000": 40, "10000": 80, "15000": 120, "25000": 180, "50000": 250, "100000": 450, "150000": 650}
+features:
+  # --- Sending & receiving ---
+  transactionalEmails:
+    description: Send transactional emails through the /emails API; sent and received emails count towards the transactional quota.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Sending & receiving
+  inboundEmails:
+    description: Receive emails using webhooks. Parse content and attachments. Reply to your users.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Sending & receiving
+  restfulApi:
+    description: Well-documented RESTful API for integrating email into your app.
+    type: INTEGRATION
+    integrationType: API
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Sending & receiving
+  smtpRelay:
+    description: Send emails at scale through a reliable SMTP server.
+    type: INTEGRATION
+    integrationType: API
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Sending & receiving
+  officialSdks:
+    description: Integrate using your favorite programming language with official open source libraries.
+    type: INTEGRATION
+    integrationType: API
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Sending & receiving
+  scheduleEmails:
+    description: Send emails at a specific time using natural language.
+    type: AUTOMATION
+    automationType: TASK_AUTOMATION
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Sending & receiving
+  batchSending:
+    description: Capability to send emails in bulk.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Sending & receiving
+  openTracking:
+    description: Track when emails are opened.
+    type: AUTOMATION
+    automationType: TRACKING
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Sending & receiving
+  linkTracking:
+    description: Monitor clicks on email links.
+    type: AUTOMATION
+    automationType: TRACKING
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Sending & receiving
+  reactEmail:
+    description: Send emails with React, TypeScript, and Tailwind.
+    type: INTEGRATION
+    integrationType: API
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Sending & receiving
+  # --- Inboxes ---
+  inboxes:
+    description: Create inboxes for your team and your agents. Send, receive, and reply from each one.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Inboxes
+  inboxEmails:
+    description: Inbox emails use your transactional quota (no separate email allowance).
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Inboxes
+  threads:
+    description: Conversations are grouped into threads with replies, forwards, and labels.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Inboxes
+  agentAccess:
+    description: Connect your own agents to inboxes through the API and MCP.
+    type: INTEGRATION
+    integrationType: API
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Inboxes
+  # --- Deliverability & reliability ---
+  customDomains:
+    description: Use your own domain for optimal deliverability and brand recognition.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Deliverability & reliability
+  dedicatedIps:
+    description: Purchase a dedicated IP pool so a range of IPs are exclusively assigned to your sending.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Deliverability & reliability
+  dedicatedIpWarming:
+    description: With Resend's Managed Dedicated IP Pools, the warmup process is handled automatically.
+    type: AUTOMATION
+    automationType: TASK_AUTOMATION
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Deliverability & reliability
+  pristineSharedIps:
+    description: By default, all Resend users utilize shared IPs that are carefully monitored and maintained.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Deliverability & reliability
+  automaticSuppressionList:
+    description: When an email bounces permanently, Resend automatically adds the address to the suppression list.
+    type: AUTOMATION
+    automationType: FILTERING
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Deliverability & reliability
+  bounceDetails:
+    description: Understand the root cause of soft and hard bounces.
+    type: INFORMATION
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Deliverability & reliability
+  multiRegion:
+    description: Configure the region that your emails are sent from.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Deliverability & reliability
+  dataRetention:
+    description: Search your emails and logs to debug or troubleshoot deliverability issues.
+    type: INFORMATION
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Deliverability & reliability
+  deliverabilityInsights:
+    description: Improve email deliverability by identifying issues and applying best practices.
+    type: INFORMATION
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Deliverability & reliability
+  dkimSpfDmarcAuthentication:
+    description: Authenticate domains to prevent spoofing and maintain deliverability.
+    type: GUARANTEE
+    docUrl: https://resend.com/pricing.md
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Deliverability & reliability
+  webhooks:
+    description: Send events to your server in real-time for processing.
+    type: INTEGRATION
+    integrationType: API
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Deliverability & reliability
+  webhookEvents:
+    description: Control which events are sent to your server (all events on every plan).
+    type: INTEGRATION
+    integrationType: API
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Deliverability & reliability
+  # --- Security & privacy ---
+  socialLogin:
+    description: Log in using Google or GitHub accounts.
+    type: INTEGRATION
+    integrationType: IDENTITY_PROVIDER
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Security & privacy
+  singleSignOn:
+    description: Sign in with your identity provider.
+    type: INTEGRATION
+    integrationType: IDENTITY_PROVIDER
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Security & privacy
+  gdprCompliance:
+    description: GDPR compliance obtained and maintained.
+    type: GUARANTEE
+    docUrl: https://resend.com/security/gdpr
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Security & privacy
+  soc2TypeIiCertification:
+    description: SOC 2 Type II obtained and maintained.
+    type: GUARANTEE
+    docUrl: https://resend.com/security/soc-2
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Security & privacy
+  penetrationTesting:
+    description: Regular penetration tests conducted by a third-party security firm.
+    type: GUARANTEE
+    docUrl: https://resend.com/security
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Security & privacy
+  ddosProtection:
+    description: Automatically protect from DDoS attacks via counterfeit requests (Layer 7) or SYN floods (Layer 3).
+    type: GUARANTEE
+    docUrl: https://resend.com/security
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Security & privacy
+  automatedBackups:
+    description: Continual backups allow for Point-in-Time Recovery up to 7 days.
+    type: GUARANTEE
+    docUrl: https://resend.com/security
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Security & privacy
+  multiFactorAuthentication:
+    description: Secure your account with an additional layer of protection.
+    type: MANAGEMENT
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Security & privacy
+  apiKeyPermissions:
+    description: Create API keys with limited access to your account and manage different permissions.
+    type: MANAGEMENT
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Security & privacy
+  signedWebhookEndpoints:
+    description: Secure webhook events with signed payloads.
+    type: GUARANTEE
+    docUrl: https://resend.com/security
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Security & privacy
+  # --- Customer support ---
+  ticketSupport:
+    description: Access to help via email and ticket channels.
+    type: SUPPORT
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Customer support
+  slackSupport:
+    description: Dedicated Slack channel with the engineering team to get the help you need.
+    type: SUPPORT
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Customer support
+  urgentResponseSla:
+    description: Guaranteed first response time for critical issues affecting production environments.
+    type: SUPPORT
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Customer support
+  deliverabilityExpertise:
+    description: Get personalized recommendations based on your actual sending.
+    type: SUPPORT
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Customer support
+  inAppDocumentation:
+    description: Access to API Documentation based on your real data straight from the app.
+    type: INFORMATION
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Customer support
+  aiAssistant:
+    description: Assistant trained on Resend's documentation, knowledge base, and other content.
+    type: SUPPORT
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Customer support
+  dedicatedCsm:
+    description: Dedicated customer success manager (Enterprise plan card).
+    type: SUPPORT
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Customer support
+  uptimeSla:
+    description: 99.99% uptime SLA (Enterprise plan card).
+    type: GUARANTEE
+    docUrl: https://resend.com/enterprise
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Customer support
+  # --- AI credits ---
+  aiCredits:
+    description: Monthly credits for AI-powered features like email generation and editing. Unused credits do not roll over.
+    type: AUTOMATION
+    automationType: TASK_AUTOMATION
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: AI credits
+  # --- Automations ---
+  automations:
+    description: Run automations; each execution is an Automation Run.
+    type: AUTOMATION
+    automationType: TASK_AUTOMATION
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Automations
+  # --- Marketing ---
+  broadcasts:
+    description: Send marketing emails via the /broadcasts API or Broadcasts UI to existing contacts; limited by contacts, not by emails sent, and not counted against the transactional quota.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Marketing
+  segments:
+    description: Segment marketing contacts.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Marketing
+  marketingAnalytics:
+    description: Analytics dashboard for broadcasts (separate from open and click tracking).
+    type: INFORMATION
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Marketing
+  # --- Billing ---
+  paymentMethods:
+    description: All major credit cards are accepted.
+    type: PAYMENT
+    valueType: TEXT
+    defaultValue: [CARD]
+    tag: Billing
+usageLimits:
+  transactionalEmailsPerMonth:
+    description: Transactional emails (sent and received) included per month.
+    valueType: NUMERIC
+    defaultValue: 3000
+    unit: email
+    type: RENEWABLE
+    period: {value: 1, unit: MONTH}
+    linkedFeatures: [transactionalEmails]
+  transactionalEmailsPerDay:
+    description: Maximum emails sent per day.
+    valueType: NUMERIC
+    defaultValue: 100
+    unit: email
+    type: RENEWABLE
+    period: {value: 1, unit: DAY}
+    linkedFeatures: [transactionalEmails]
+  apiRequestsPerSecond:
+    description: API rate limit per team, the same on every self-serve plan.
+    valueType: NUMERIC
+    defaultValue: 10
+    unit: request
+    type: RENEWABLE
+    period: {value: 1, unit: SEC}
+    linkedFeatures: [restfulApi]
+  inboxesLimit:
+    description: Inboxes included in the plan.
+    valueType: NUMERIC
+    defaultValue: 3
+    unit: inbox
+    type: NON_RENEWABLE
+    trackable: true
+    linkedFeatures: [inboxes]
+  customDomainsLimit:
+    description: Custom domains included in the plan.
+    valueType: NUMERIC
+    defaultValue: 3
+    unit: domain
+    type: NON_RENEWABLE
+    trackable: true
+    linkedFeatures: [customDomains]
+  dataRetentionDays:
+    description: Days of email and log history kept.
+    valueType: NUMERIC
+    defaultValue: 30
+    unit: day
+    type: NON_RENEWABLE
+    trackable: false
+    linkedFeatures: [dataRetention]
+  webhookEndpointsLimit:
+    description: Webhook endpoints available.
+    valueType: NUMERIC
+    defaultValue: 1
+    unit: endpoint
+    type: NON_RENEWABLE
+    trackable: true
+    linkedFeatures: [webhooks]
+  aiCreditsPerMonth:
+    description: AI credits per month; they reset monthly.
+    valueType: NUMERIC
+    defaultValue: 5
+    unit: credit
+    type: RENEWABLE
+    period: {value: 1, unit: MONTH}
+    linkedFeatures: [aiCredits]
+  automationRunsPerMonth:
+    description: Automation Runs included per month.
+    valueType: NUMERIC
+    defaultValue: 10000
+    unit: run
+    type: RENEWABLE
+    period: {value: 1, unit: MONTH}
+    linkedFeatures: [automations]
+  marketingContactsLimit:
+    description: Marketing contacts allowed.
+    valueType: NUMERIC
+    defaultValue: 1000
+    unit: contact
+    type: NON_RENEWABLE
+    trackable: true
+    linkedFeatures: [broadcasts]
+  segmentsLimit:
+    description: Marketing segments allowed.
+    valueType: NUMERIC
+    defaultValue: 3
+    unit: segment
+    type: NON_RENEWABLE
+    trackable: true
+    linkedFeatures: [segments]
+plans:
+  FREE:
+    description: Free-forever plan with 3,000 emails per month and 100 per day.
+    price: 0
+    unit: team/month
+    features: null
+    usageLimits: null
+  PRO:
+    description: Pro plan; price and included volume depend on the volume selector (50k or 100k emails per month).
+    price: "#proPriceByVolume[String(#proVolume)]"
+    unit: team/month
+    features:
+      deliverabilityExpertise: {value: true}
+    usageLimits:
+      transactionalEmailsPerMonth: {value: 50000}
+      transactionalEmailsPerDay: {value: .inf}
+      customDomainsLimit: {value: 10}
+      webhookEndpointsLimit: {value: 5}
+      aiCreditsPerMonth: {value: 100}
+  SCALE:
+    description: Scale plan; price and included volume depend on the volume selector (100k to 2.5M emails per month).
+    price: "#scalePriceByVolume[String(#scaleVolume)]"
+    unit: team/month
+    features:
+      deliverabilityExpertise: {value: true}
+      dedicatedIpWarming: {value: true}
+      slackSupport: {value: true}
+      urgentResponseSla: {value: true}
+    usageLimits:
+      transactionalEmailsPerMonth: {value: 100000}
+      transactionalEmailsPerDay: {value: .inf}
+      customDomainsLimit: {value: 1000}
+      webhookEndpointsLimit: {value: 10}
+      aiCreditsPerMonth: {value: 500}
+  ENTERPRISE:
+    description: Custom plan with volume-based pricing, custom usage plan and enterprise rate limits.
+    price: "Contact Sales"
+    unit: team/month
+    private: true
+    features:
+      deliverabilityExpertise: {value: true}
+      dedicatedIpWarming: {value: true}
+      slackSupport: {value: true}
+      urgentResponseSla: {value: true}
+      singleSignOn: {value: true}
+      dedicatedCsm: {value: true}
+      uptimeSla: {value: true}
+    usageLimits:
+      transactionalEmailsPerDay: {value: .inf}
+addOns:
+  additionalDomains:
+    description: Adds 100 domains on top of what the plan includes; can be added or removed at any time.
+    price: 20
+    unit: 100 domains/month
+    availableFor: [PRO, SCALE]
+    features: null
+    usageLimitsExtensions:
+      customDomainsLimit: {value: 100}
+    subscriptionConstraints:
+      minQuantity: 1
+      maxQuantity: 1
+      quantityStep: 1
+  dedicatedIpsAddOn:
+    description: Dedicated IP pool with automatic warmup, monitoring and autoscaling. Only for customers exceeding 3,000 emails sent per day.
+    price: 30
+    unit: month
+    availableFor: [SCALE, ENTERPRISE]
+    features:
+      dedicatedIps: {value: true}
+  singleSignOnAddOn:
+    description: Let your team sign in to Resend with your identity provider (included on Enterprise).
+    price: 150
+    unit: month
+    availableFor: [SCALE]
+    features:
+      singleSignOn: {value: true}
+  extraEmailsPro:
+    description: Pay-as-you-go transactional overage, billed per bucket of 1,000 emails at the Pro overage rate.
+    price: 0.9
+    unit: 1000 emails
+    availableFor: [PRO]
+    features: null
+    usageLimitsExtensions:
+      transactionalEmailsPerMonth: {value: 1000}
+    subscriptionConstraints:
+      minQuantity: 1
+      maxQuantity: .inf
+      quantityStep: 1
+  extraEmailsScale:
+    description: Pay-as-you-go transactional overage, billed per bucket of 1,000 emails at the Scale overage rate of the selected volume.
+    price: "#scaleOverageByVolume[String(#scaleVolume)]"
+    unit: 1000 emails
+    availableFor: [SCALE]
+    features: null
+    usageLimitsExtensions:
+      transactionalEmailsPerMonth: {value: 1000}
+    subscriptionConstraints:
+      minQuantity: 1
+      maxQuantity: .inf
+      quantityStep: 1
+  extraAutomationRuns:
+    description: Pay-as-you-go Automation Runs beyond the 10,000 included.
+    price: 0.0015
+    unit: run
+    availableFor: [PRO, SCALE]
+    features: null
+    usageLimitsExtensions:
+      automationRunsPerMonth: {value: 1}
+    subscriptionConstraints:
+      minQuantity: 1
+      maxQuantity: .inf
+      quantityStep: 1
+  extraInboxes:
+    description: Pay-as-you-go additional inboxes; their emails use the transactional quota.
+    price: 1
+    unit: inbox/month
+    availableFor: [PRO, SCALE]
+    features: null
+    usageLimitsExtensions:
+      inboxesLimit: {value: 1}
+    subscriptionConstraints:
+      minQuantity: 1
+      maxQuantity: .inf
+      quantityStep: 1
+  proMarketing:
+    description: Pro marketing plan; price depends on the contacts selector (5k to 150k contacts). Unlimited broadcast sending to existing contacts.
+    price: "#proMarketingPriceByContacts[String(#marketingContacts)]"
+    unit: team/month
+    availableFor: [FREE, PRO, SCALE]
+    features:
+      marketingAnalytics: {value: true}
+    usageLimits:
+      marketingContactsLimit: {value: 5000}
+      segmentsLimit: {value: .inf}
+custom:
+  unmodeled:
+    - element: nonprofit discount
+      source_says: Registered nonprofits can apply for 50% off paid plans; no education pricing.
+      why: Pricing2Yaml has no customer-segment discounts
+    - element: dedicated IP eligibility
+      source_says: Dedicated IPs available to customers exceeding 3,000 emails sent per day on Scale.
+      why: no construct for usage-volume eligibility conditions on add-ons
+    - element: overage activation
+      source_says: Overage, extra automation runs and extra inboxes only apply if pay-as-you-go is enabled; otherwise the team is notified and offered an upgrade.
+      why: no construct for opt-in billing switches
+    - element: Pro marketing overlapping benefits
+      source_says: Pro marketing includes unlimited domains, 100 AI credits/mo, Slack & ticket support, 10,000 automation runs.
+      why: how these combine with the transactional plan's values in the same team is not stated
+    - element: marketing Enterprise
+      source_says: Marketing Enterprise includes priority support, flexible automation runs and AI credits, unlimited segments and domains, marketing analytics, dedicated IPs included, SSO included.
+      why: a single ENTERPRISE plan is modeled from the transactional table; the marketing Enterprise terms are negotiated and differ (dedicated IPs included vs with add-on)
+    - element: Enterprise flexible values
+      source_says: Inboxes, additional inboxes, custom domains, additional domains, data retention, webhook endpoints, AI credits, monthly email volume and rate limits are "Flexible"/"Custom" on Enterprise.
+      why: values not published; ENTERPRISE inherits the defaults for these limits
+    - element: annual commitment
+      source_says: No annual self-serve plans or discount; annual commitment at high volume via sales.
+      why: negotiated terms

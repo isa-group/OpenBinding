@@ -91,7 +91,7 @@ os.environ["GATEWAY_JWT_SECRET"] = "test-secret-not-used-anywhere-real"
 # Jobs run in the request that creates them; there is no worker to claim a queued one.
 os.environ["JOB_DISPATCH_MODE"] = "inline"
 os.environ["SPHERE_ENABLED"] = "false"
-# The fake gate installed below is built from tests/fixtures/pricing/openbinding-0.2.0.yml
+# The fake gate installed below is built from the recorded SPHERE version 0.2.0 (tests/_pricing.py)
 # (the published pricing 0.2.0: plans FREE, RESEARCH and LAB, default FREE); the gateway names
 # that version and plan when it creates contracts.
 os.environ["SPACE_PRICING_VERSION"] = "0.2.0"

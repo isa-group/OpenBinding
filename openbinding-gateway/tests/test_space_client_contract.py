@@ -5,8 +5,10 @@ built with the arguments the gateway passes, and one ``AsyncSpaceClient`` is bui
 against ``https://space.invalid``: its constructor opens no connection (the WebSocket
 opens only in ``connect()``, HTTP only when a call is awaited), and every call made
 on it below is closed before it is awaited. A client upgrade that renames or
-reshapes a name the gateway relies on fails here first. The pricing fixture
-(``fixtures/pricing``) is checked against the docs pricing it was derived from.
+reshapes a name the gateway relies on fails here first. The recorded SPHERE version
+0.2.0 (``fixtures/sphere``) is checked against the docs pricing: the bytes are the same,
+the YAML route's ``ETag`` is their SHA-256, and the manifest's ``contentHash`` is SPHERE's
+functional hash of the document, not a byte digest.
 
 The guarded novation (``SpacePricingGate._novate``) adds the capability check, the
 dry run, the conditional write and their errors; the capability tokens themselves
@@ -62,8 +64,10 @@ LOCKED_VERSION = "1.1.0"
 
 TESTS = Path(__file__).resolve().parent
 DOCS_YAML = REPO_ROOT / "docs" / "pricing" / "openbinding-0.2.0.yml"
-FIXTURES = TESTS / "fixtures" / "pricing"
-YAML_COPY = FIXTURES / "openbinding-0.2.0.yml"
+FIXTURES = TESTS / "fixtures" / "sphere" / "6ab0a323697330667ccce891"
+VERSION_ID = "6ada6dbd4b2b5b01c587d17f"
+YAML_COPY = FIXTURES / f"{VERSION_ID}.yml"
+YAML_HEADERS = FIXTURES / f"{VERSION_ID}.headers.json"
 MANIFEST = FIXTURES / "manifest.json"
 
 # The events M4.2 listens to (the client's spelling, ``pricing_actived`` included).
@@ -328,20 +332,25 @@ def test_pricing_yaml_copy_is_the_docs_file():
     if not DOCS_YAML.is_file():
         pytest.skip("docs/pricing is not present in this container")
     assert YAML_COPY.read_bytes() == DOCS_YAML.read_bytes(), (
-        f"{YAML_COPY} differs from {DOCS_YAML}: refresh it with "
-        f"`cp {DOCS_YAML} {YAML_COPY}` and set contentHash in manifest.json "
-        "to the new sha256 (see fixtures/pricing/README.md)"
+        f"{YAML_COPY} (served by SPHERE) differs from {DOCS_YAML}: publish the docs pricing in SPHERE "
+        "or re-record with tools/record_sphere_fixtures.py"
     )
 
 
 def test_pricing_manifest_matches_the_yaml_copy():
+    from openbinding_gateway.modules.plans.domain.content_hash import functional_hash
+
     manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
     document = yaml.safe_load(YAML_COPY.read_text(encoding="utf-8"))
     versions = {entry["versionId"]: entry for entry in manifest["versions"]}
     assert manifest["latestVersionId"] in versions
-    latest = versions[manifest["latestVersionId"]]
-    assert latest["contentHash"] == hashlib.sha256(YAML_COPY.read_bytes()).hexdigest()
-    assert latest["version"] == document["version"]
+    entry = versions[VERSION_ID]
+    raw = YAML_COPY.read_bytes()
+    # contentHash is SPHERE's functional hash; the bytes are covered by the YAML route's ETag.
+    assert entry["contentHash"] == functional_hash(raw)
+    assert entry["contentHash"] != hashlib.sha256(raw).hexdigest()
+    assert json.loads(YAML_HEADERS.read_text())["etag"] == '"' + hashlib.sha256(raw).hexdigest() + '"'
+    assert entry["version"] == document["version"]
     assert manifest["permanentUrl"].endswith(f"/p/{manifest['pricingId']}")
 
 

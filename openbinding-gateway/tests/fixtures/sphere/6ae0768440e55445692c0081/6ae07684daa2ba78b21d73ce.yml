@@ -1,0 +1,268 @@
+saasName: Brevo
+syntaxVersion: '3.1'
+version: '2026-09-16'
+url: https://www.brevo.com/pricing/
+createdAt: '2026-09-16'
+currency: USD
+billing:
+  monthly: 1
+  annual: 0.9
+variables: {}
+tags:
+  - Envío
+  - Recursos
+features:
+  transactionalEmailApi:
+    description: >-
+      Envío individual o por lotes por POST /v3/smtp/email; en los cinco planes
+      [DS:104-114, DS:374, DS:376]
+    valueType: BOOLEAN
+    defaultValue: true
+    type: INTEGRATION
+    integrationType: API
+    tag: Envío
+  smtpRelay:
+    description: Canal SMTP sobre la misma cuota, sin envío por lotes [DS:374, DS:378]
+    valueType: BOOLEAN
+    defaultValue: true
+    type: INTEGRATION
+    integrationType: API
+    tag: Envío
+  sandboxMode:
+    description: 'Cabecera X-Sib-Sandbox: valida la petición sin enviar ni consumir [DS:377]'
+    valueType: BOOLEAN
+    defaultValue: true
+    type: DOMAIN
+    tag: Envío
+  dedicatedIp:
+    description: IP dedicada; add-on de Professional, incluida en Enterprise [DS:389]
+    valueType: BOOLEAN
+    defaultValue: false
+    type: DOMAIN
+    tag: Envío
+  emailLogsApi:
+    description: Consulta de registros transaccionales por GET /v3/smtp/emails [DS:115-121]
+    valueType: BOOLEAN
+    defaultValue: true
+    type: INFORMATION
+    tag: Recursos
+  blockedContactsApi:
+    description: >-
+      Consulta de contactos bloqueados por GET /v3/smtp/blockedContacts
+      [DS:122-128]
+    valueType: BOOLEAN
+    defaultValue: true
+    type: INFORMATION
+    tag: Recursos
+  otherApiEndpoints:
+    description: Resto de endpoints de la API, /* en la Datasheet [DS:101-103, DS:374]
+    valueType: BOOLEAN
+    defaultValue: true
+    type: INTEGRATION
+    integrationType: API
+    tag: Recursos
+  outboundWebhooks:
+    description: Webhooks de salida; en los cinco planes [DS:374]
+    valueType: BOOLEAN
+    defaultValue: true
+    type: INTEGRATION
+    integrationType: API
+    tag: Recursos
+  inboundWebhooks:
+    description: >-
+      Webhooks de entrada y GET /v3/inbound/events; solo Professional y
+      Enterprise [DS:237-244, DS:374-375]
+    valueType: BOOLEAN
+    defaultValue: false
+    type: INTEGRATION
+    integrationType: API
+    tag: Recursos
+  teamSeats:
+    description: Usuarios de la cuenta [DS:382]
+    valueType: BOOLEAN
+    defaultValue: true
+    type: MANAGEMENT
+    tag: Recursos
+usageLimits:
+  emailsPerDay:
+    description: >-
+      Cuota diaria del Free; los planes de pago no tienen límite diario
+      [DS:16-22, DS:336-337]
+    valueType: NUMERIC
+    defaultValue: 300
+    unit: email
+    type: RENEWABLE
+    period:
+      unit: DAY
+      value: 1
+    linkedFeatures:
+      - transactionalEmailApi
+      - smtpRelay
+  emailsPerMonth:
+    description: >-
+      Cuota mensual de los planes de pago, compartida con el marketing; el Free
+      solo tiene la diaria [DS:25-47, DS:341, DS:343]
+    valueType: NUMERIC
+    defaultValue: 100000000
+    unit: email
+    type: RENEWABLE
+    period:
+      unit: MONTH
+      value: 1
+    linkedFeatures:
+      - transactionalEmailApi
+      - smtpRelay
+  sendRequestsPerSecond:
+    description: >-
+      Caudal del tramo General para el envío y los contactos bloqueados
+      [DS:59-64, DS:345-346, DS:350]
+    valueType: NUMERIC
+    defaultValue: 1000
+    unit: request
+    type: RENEWABLE
+    period:
+      unit: SEC
+      value: 1
+    linkedFeatures:
+      - transactionalEmailApi
+      - blockedContactsApi
+  emailLogsRequestsPerSecond:
+    description: Caudal de GET /v3/smtp/emails, tramo General [DS:80-85, DS:346]
+    valueType: NUMERIC
+    defaultValue: 2
+    unit: request
+    type: RENEWABLE
+    period:
+      unit: SEC
+      value: 1
+    linkedFeatures:
+      - emailLogsApi
+  otherRequestsPerHour:
+    description: Caudal del resto de endpoints, tramo General [DS:87-92, DS:239, DS:346]
+    valueType: NUMERIC
+    defaultValue: 100
+    unit: request
+    type: RENEWABLE
+    period:
+      unit: HOUR
+      value: 1
+    linkedFeatures:
+      - otherApiEndpoints
+      - inboundWebhooks
+  recipientsPerRequest:
+    description: >-
+      Destinatarios por petición de envío; 99 por versión de mensaje
+      [DS:106-110, DS:361]
+    valueType: NUMERIC
+    defaultValue: 2000
+    unit: recipient
+    type: NON_RENEWABLE
+    trackable: false
+    linkedFeatures:
+      - transactionalEmailApi
+  messageSize:
+    description: Tamaño del correo, contenido más adjuntos [DS:111-114, DS:367]
+    valueType: NUMERIC
+    defaultValue: 20
+    unit: MB
+    type: NON_RENEWABLE
+    trackable: false
+    linkedFeatures:
+      - transactionalEmailApi
+  contractableMonthlyVolume:
+    description: >-
+      Techo del escalonado de volumen que admite cada plan; el Free no escala.
+      Distingue Starter de Standard, que en su primer volumen solo difieren en
+      precio [DS:328]
+    valueType: NUMERIC
+    defaultValue: 0
+    unit: email
+    type: NON_RENEWABLE
+    trackable: false
+    linkedFeatures:
+      - transactionalEmailApi
+  maxSeats:
+    description: >-
+      Usuarios por plan: Free, Starter y Standard uno; Professional diez
+      [DS:382]
+    valueType: NUMERIC
+    defaultValue: 1
+    unit: user
+    type: NON_RENEWABLE
+    trackable: true
+    linkedFeatures:
+      - teamSeats
+plans:
+  free:
+    description: Free; 300 correos al día [DS:95-128]
+    price: 0
+    unit: month
+    features: null
+    usageLimits: null
+  starter:
+    description: Starter en su primer volumen, 5.000 emails al mes [DS:130-163, DS:327]
+    price: 9
+    unit: month
+    features: null
+    usageLimits:
+      emailsPerDay:
+        value: 100000000
+      emailsPerMonth:
+        value: 5000
+      contractableMonthlyVolume:
+        value: 100000
+  standard:
+    description: Standard en su primer volumen, 5.000 emails al mes [DS:165-198, DS:327]
+    price: 18
+    unit: month
+    features: null
+    usageLimits:
+      emailsPerDay:
+        value: 100000000
+      emailsPerMonth:
+        value: 5000
+      contractableMonthlyVolume:
+        value: 500000
+  professional:
+    description: >-
+      Professional en su primer volumen, 150.000 emails al mes [DS:200-244,
+      DS:327]
+    price: 499
+    unit: month
+    features:
+      inboundWebhooks:
+        value: true
+    usageLimits:
+      emailsPerDay:
+        value: 100000000
+      emailsPerMonth:
+        value: 150000
+      contractableMonthlyVolume:
+        value: 10000000
+      maxSeats:
+        value: 10
+addOns:
+  extraSeats:
+    description: >-
+      Usuario adicional a 12,00 USD al mes en pago mensual, hasta dos; en
+      Standard (D17, DISC-08) [DS:382, DS:389]
+    availableFor:
+      - standard
+    price: 12
+    unit: user/month
+    usageLimitsExtensions:
+      maxSeats:
+        value: 1
+    subscriptionConstraints:
+      minQuantity: 1
+      maxQuantity: 2
+      quantityStep: 1
+  dedicatedIp:
+    description: IP dedicada a 251 USD al año por IP; add-on de Professional [DS:389]
+    availableFor:
+      - professional
+    price: 251
+    unit: IP/year
+    features:
+      dedicatedIp:
+        value: true

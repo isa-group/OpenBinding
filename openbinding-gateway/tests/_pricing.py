@@ -1,6 +1,7 @@
 """Pricing test helpers, built from the published pricing 0.2.0.
 
-``fixtures/pricing/openbinding-0.2.0.yml`` is a byte copy of
+The recorded SPHERE version 0.2.0 of OpenBinding's pricing
+(``fixtures/sphere/6ab0a323697330667ccce891/6ada6dbd4b2b5b01c587d17f.yml``), byte-identical to
 ``docs/pricing/openbinding-0.2.0.yml`` (plans FREE, RESEARCH and LAB). The fake
 gate resolves its plans the way SPACE would; the real pricings are administered
 in SPHERE and SPACE, never in this repository.
@@ -12,7 +13,7 @@ from pathlib import Path
 from _fake_space import FakePricingGate, PricingCatalog
 from openbinding_gateway.space_client import PlanCaps
 
-PRICING_YAML = Path(__file__).resolve().parent / "fixtures" / "pricing" / "openbinding-0.2.0.yml"
+PRICING_YAML = Path(__file__).resolve().parent / "fixtures" / "sphere" / "6ab0a323697330667ccce891" / "6ada6dbd4b2b5b01c587d17f.yml"
 
 #: The version the fixture declares; conftest points ``SPACE_PRICING_VERSION`` at it.
 FIXTURE_VERSION = "0.2.0"

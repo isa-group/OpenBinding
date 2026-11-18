@@ -2,7 +2,7 @@
 
 Plans live in a SPACE instance, so most of what matters here is the shape of
 the conversation. The fake gate serves the same entitlements from the published
-pricing 0.2.0 (``fixtures/pricing/openbinding-0.2.0.yml``) so that the refusal
+pricing 0.2.0 (the recorded SPHERE version, ``_pricing.PRICING_YAML``) so that the refusal
 paths can be exercised without one; it counts no consumption. The open gate is the stateless
 stand-in for ``SPACE_ENABLED=false``.
 """

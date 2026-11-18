@@ -1,0 +1,428 @@
+saasName: Mailgun
+syntaxVersion: '3.1'
+version: '2026-10-31'
+url: https://www.mailgun.com/pricing/
+createdAt: '2026-09-21'
+currency: USD
+variables: {}
+tags:
+  - Envío
+  - Recursos
+features:
+  messagesApi:
+    description: >-
+      Envío individual o por lotes por POST /v3/{domain_name}/messages
+      [DS:92-103]
+    valueType: BOOLEAN
+    defaultValue: true
+    type: INTEGRATION
+    integrationType: API
+    tag: Envío
+  smtpRelay:
+    description: >-
+      Canal SMTP, puertos 25, 465, 587 y 2525, en los cuatro planes [DS:351,
+      FT:25]
+    valueType: BOOLEAN
+    defaultValue: true
+    type: INTEGRATION
+    integrationType: API
+    tag: Envío
+  inboundRouting:
+    description: Rutas de entrada de correo [FT:24]
+    valueType: BOOLEAN
+    defaultValue: true
+    type: DOMAIN
+    tag: Envío
+  dedicatedIp:
+    description: IP dedicada; incluida en Scale, acceso desde Foundation [FT:18]
+    valueType: BOOLEAN
+    defaultValue: false
+    type: DOMAIN
+    tag: Envío
+  dedicatedIpPools:
+    description: Pools de IP dedicadas; solo Scale [FT:37]
+    valueType: BOOLEAN
+    defaultValue: false
+    type: DOMAIN
+    tag: Envío
+  sendTimeOptimization:
+    description: Send Time Optimization; solo Scale [FT:38]
+    valueType: BOOLEAN
+    defaultValue: false
+    type: AUTOMATION
+    automationType: TASK_AUTOMATION
+    tag: Envío
+  emailTemplates:
+    description: >-
+      Plantillas por POST /v3/{domain_name}/templates; medido en Free
+      [DS:116-121, DS:354-356, FT:26]
+    valueType: BOOLEAN
+    defaultValue: true
+    type: DOMAIN
+    tag: Recursos
+  bounceImport:
+    description: Importación masiva de rebotes en CSV [DS:122-127, DS:342]
+    valueType: BOOLEAN
+    defaultValue: true
+    type: DOMAIN
+    tag: Recursos
+  customMessageLimit:
+    description: >-
+      Tope de envío que el titular se impone, /v5/accounts/limit/custom/monthly
+      [DS:128-133, DS:344]
+    valueType: BOOLEAN
+    defaultValue: true
+    type: MANAGEMENT
+    tag: Recursos
+  sendingDomains:
+    description: Dominios de envío propios, alta por POST /v4/domains [DS:110-115, FT:22]
+    valueType: BOOLEAN
+    defaultValue: true
+    type: MANAGEMENT
+    tag: Recursos
+  webhooks:
+    description: Webhooks de eventos, en los cuatro planes [FT:17]
+    valueType: BOOLEAN
+    defaultValue: true
+    type: INTEGRATION
+    integrationType: API
+    tag: Recursos
+  multiUserAccess:
+    description: Varios usuarios en la cuenta; desde Foundation [FT:23, FT:32]
+    valueType: BOOLEAN
+    defaultValue: false
+    type: MANAGEMENT
+    tag: Recursos
+  rbacApiKeys:
+    description: Claves de API con roles; desde Foundation [FT:33]
+    valueType: BOOLEAN
+    defaultValue: false
+    type: MANAGEMENT
+    tag: Recursos
+  samlSso:
+    description: SAML SSO; solo Scale [FT:34]
+    valueType: BOOLEAN
+    defaultValue: false
+    type: INTEGRATION
+    integrationType: IDENTITY_PROVIDER
+    tag: Recursos
+  eventsApi:
+    description: Consulta de eventos por GET /v3/{domain_name}/events [DS:104-109, DS:340]
+    valueType: BOOLEAN
+    defaultValue: true
+    type: INFORMATION
+    tag: Recursos
+  activityLogs:
+    description: Logs de actividad [FT:19]
+    valueType: BOOLEAN
+    defaultValue: true
+    type: INFORMATION
+    tag: Recursos
+  messageRetention:
+    description: >-
+      Retención del cuerpo de los mensajes; no disponible en Free ni Basic
+      [DS:348, FT:21]
+    valueType: BOOLEAN
+    defaultValue: false
+    type: INFORMATION
+    tag: Recursos
+  liveSupport:
+    description: Soporte por teléfono y chat; solo Scale [FT:40]
+    valueType: BOOLEAN
+    defaultValue: false
+    type: SUPPORT
+    tag: Recursos
+usageLimits:
+  emailsPerMonth:
+    description: >-
+      Cuota mensual de emails; cada destinatario consume una unidad [DS:26-66,
+      DS:99]
+    valueType: NUMERIC
+    defaultValue: 3000
+    unit: email
+    type: RENEWABLE
+    period:
+      unit: MONTH
+      value: 1
+    linkedFeatures:
+      - messagesApi
+      - smtpRelay
+  emailsPerDay:
+    description: >-
+      Cuota diaria del Free; Basic declara no tener límite diario y los demás
+      planes no publican ninguno [DS:17-24, DS:322]
+    valueType: NUMERIC
+    defaultValue: 100
+    unit: email
+    type: RENEWABLE
+    period:
+      unit: DAY
+      value: 1
+    linkedFeatures:
+      - messagesApi
+      - smtpRelay
+  apiRequestsPerSecond:
+    description: >-
+      Caudal publicado por IP de cliente, no por cuenta; igual en los cuatro
+      planes [DS:69-74, DS:324-325, DS:333]
+    valueType: NUMERIC
+    defaultValue: 1500
+    unit: request
+    type: RENEWABLE
+    period:
+      unit: SEC
+      value: 1
+    linkedFeatures:
+      - messagesApi
+      - eventsApi
+      - sendingDomains
+      - emailTemplates
+      - bounceImport
+      - customMessageLimit
+  sendRequestsPer10Seconds:
+    description: >-
+      Caudal medido del envío, 80.000 peticiones en una ventana de 9,85 a 9,87 s
+      [DS:76-81, DS:329-330]
+    valueType: NUMERIC
+    defaultValue: 80000
+    unit: request
+    type: RENEWABLE
+    period:
+      unit: SEC
+      value: 10
+    linkedFeatures:
+      - messagesApi
+  recipientsPerRequest:
+    description: Destinatarios por petición de envío, publicado y medido [DS:96-99, DS:335]
+    valueType: NUMERIC
+    defaultValue: 1000
+    unit: recipient
+    type: NON_RENEWABLE
+    trackable: false
+    linkedFeatures:
+      - messagesApi
+  requestSize:
+    description: >-
+      Tamaño de la petición de envío entera, en MiB; el borde rechaza en 52,4
+      [DS:100-103, DS:338-339]
+    valueType: NUMERIC
+    defaultValue: 52
+    unit: MiB
+    type: NON_RENEWABLE
+    trackable: false
+    linkedFeatures:
+      - messagesApi
+  eventsPerRequest:
+    description: Entradas por página en la consulta de eventos [DS:109, DS:340]
+    valueType: NUMERIC
+    defaultValue: 300
+    unit: event
+    type: NON_RENEWABLE
+    trackable: false
+    linkedFeatures:
+      - eventsApi
+  bounceImportFileSize:
+    description: Tamaño del CSV de importación de rebotes [DS:126-127, DS:342]
+    valueType: NUMERIC
+    defaultValue: 25
+    unit: MB
+    type: NON_RENEWABLE
+    trackable: false
+    linkedFeatures:
+      - bounceImport
+  maxTemplates:
+    description: >-
+      Plantillas de cada dominio de envío, con 40 versiones cada una [DS:121,
+      DS:343]
+    valueType: NUMERIC
+    defaultValue: 100
+    unit: template
+    type: NON_RENEWABLE
+    trackable: true
+    linkedFeatures:
+      - emailTemplates
+  maxSendingDomains:
+    description: Dominios de envío propios por plan [FT:22]
+    valueType: NUMERIC
+    defaultValue: 1
+    unit: domain
+    type: NON_RENEWABLE
+    trackable: true
+    linkedFeatures:
+      - sendingDomains
+  webhookUrlsPerEventType:
+    description: URLs por tipo de evento, sin condición de plan [DS:349, FT:17]
+    valueType: NUMERIC
+    defaultValue: 3
+    unit: url
+    type: NON_RENEWABLE
+    trackable: true
+    linkedFeatures:
+      - webhooks
+  maxDedicatedIps:
+    description: IPs dedicadas; Scale incluye una [FT:18]
+    valueType: NUMERIC
+    defaultValue: 0
+    unit: IP
+    type: NON_RENEWABLE
+    trackable: true
+    linkedFeatures:
+      - dedicatedIp
+  logRetentionDays:
+    description: Retención de logs [DS:320, FT:19]
+    valueType: NUMERIC
+    defaultValue: 1
+    unit: day
+    type: NON_RENEWABLE
+    trackable: false
+    linkedFeatures:
+      - activityLogs
+  messageRetentionDays:
+    description: >-
+      Retención de mensajes; en Scale hasta 7 días por dominio, 3 por defecto
+      [FT:21]
+    valueType: NUMERIC
+    defaultValue: 0
+    unit: day
+    type: NON_RENEWABLE
+    trackable: false
+    linkedFeatures:
+      - messageRetention
+plans:
+  free:
+    description: >-
+      Free; las cuentas Free solo envían a destinatarios autorizados, para
+      pruebas [DS:84-85, DS:345]
+    price: 0
+    unit: month
+    features: null
+    usageLimits: null
+  basic:
+    description: Basic, 10.000 emails al mes, sin límite diario [DS:135-140, DS:322]
+    price: 15
+    unit: month
+    features: null
+    usageLimits:
+      emailsPerMonth:
+        value: 10000
+      emailsPerDay:
+        value: 100000000
+  foundation:
+    description: Foundation en su primer volumen, 50.000 emails al mes [DS:185-190, DS:315]
+    price: 35
+    unit: month
+    features:
+      multiUserAccess:
+        value: true
+      rbacApiKeys:
+        value: true
+      messageRetention:
+        value: true
+    usageLimits:
+      emailsPerMonth:
+        value: 50000
+      emailsPerDay:
+        value: 100000000
+      maxSendingDomains:
+        value: 1000
+      logRetentionDays:
+        value: 5
+      messageRetentionDays:
+        value: 1
+  scale:
+    description: Scale en su primer volumen, 100.000 emails al mes [DS:235-240, DS:315]
+    price: 90
+    unit: month
+    features:
+      dedicatedIp:
+        value: true
+      dedicatedIpPools:
+        value: true
+      sendTimeOptimization:
+        value: true
+      multiUserAccess:
+        value: true
+      rbacApiKeys:
+        value: true
+      samlSso:
+        value: true
+      messageRetention:
+        value: true
+      liveSupport:
+        value: true
+    usageLimits:
+      emailsPerMonth:
+        value: 100000
+      emailsPerDay:
+        value: 100000000
+      maxSendingDomains:
+        value: 1000
+      maxDedicatedIps:
+        value: 1
+      logRetentionDays:
+        value: 30
+      messageRetentionDays:
+        value: 7
+addOns:
+  extraEmailsBasic:
+    description: >-
+      Sobrecoste de Basic: 1,80 USD por 1.000 emails sobre la cuota [DS:42-44,
+      DS:314]
+    availableFor:
+      - basic
+    price: 1.8
+    unit: 1000 emails
+    usageLimitsExtensions:
+      emailsPerMonth:
+        value: 1000
+    subscriptionConstraints:
+      minQuantity: 1
+      maxQuantity: 100000000
+      quantityStep: 1
+  extraEmailsFoundation:
+    description: >-
+      Sobrecoste del primer volumen de Foundation: 1,30 USD por 1.000 emails
+      [DS:53-55, DS:316]
+    availableFor:
+      - foundation
+    price: 1.3
+    unit: 1000 emails
+    usageLimitsExtensions:
+      emailsPerMonth:
+        value: 1000
+    subscriptionConstraints:
+      minQuantity: 1
+      maxQuantity: 100000000
+      quantityStep: 1
+  extraEmailsScale:
+    description: >-
+      Sobrecoste del primer volumen de Scale: 1,10 USD por 1.000 emails
+      [DS:64-66, DS:316]
+    availableFor:
+      - scale
+    price: 1.1
+    unit: 1000 emails
+    usageLimitsExtensions:
+      emailsPerMonth:
+        value: 1000
+    subscriptionConstraints:
+      minQuantity: 1
+      maxQuantity: 100000000
+      quantityStep: 1
+  extraDedicatedIp:
+    description: IP dedicada adicional a 59 USD al mes por IP [FT:18]
+    availableFor:
+      - foundation
+      - scale
+    price: 59
+    unit: IP/month
+    features:
+      dedicatedIp:
+        value: true
+    usageLimitsExtensions:
+      maxDedicatedIps:
+        value: 1
+    subscriptionConstraints:
+      minQuantity: 1
+      maxQuantity: 100000000
+      quantityStep: 1

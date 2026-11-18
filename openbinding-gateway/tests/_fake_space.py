@@ -1,4 +1,4 @@
-"""A SPACE substitute for the tests, driven by the pricing 0.2.0 fixture (``fixtures/pricing``).
+"""A SPACE substitute for the tests, driven by the recorded pricing 0.2.0 (``fixtures/sphere``, ``_pricing.PRICING_YAML``).
 
 Production code holds no pricing and evaluates no plan: SPACE does. The tests
 still need plans with different limits to exercise how the gateway reacts to
