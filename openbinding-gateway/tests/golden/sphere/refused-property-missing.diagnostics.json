@@ -1,0 +1,47 @@
+[
+  {
+    "at": "/tasks/0/from/1",
+    "code": "sphere_limit_assumed",
+    "limit": "emailsPerDay",
+    "message": "This pricing does not declare emailsPerDay; the recipe assumes unlimited.",
+    "severity": "warning"
+  },
+  {
+    "at": "catalog/email.selfhosted.postfix",
+    "code": "sphere_property_missing_on_candidate",
+    "message": "email.selfhosted.postfix provides service/email but has no emailsPerDay, emailsPerMonth; add it to the recipe as a hand-made candidate.",
+    "missing": [
+      "emailsPerDay",
+      "emailsPerMonth"
+    ],
+    "severity": "error"
+  },
+  {
+    "at": "sphere-email/email.brevo.enterprise",
+    "code": "sphere_plan_private",
+    "message": "The plan ENTERPRISE is private in this pricing; it is left out.",
+    "plan": "ENTERPRISE",
+    "severity": "info"
+  },
+  {
+    "at": "sphere-email/email.mailgun.enterprise",
+    "code": "sphere_plan_private",
+    "message": "The plan ENTERPRISE is private in this pricing; it is left out.",
+    "plan": "ENTERPRISE",
+    "severity": "info"
+  },
+  {
+    "at": "sphere-email/email.resend.enterprise",
+    "code": "sphere_plan_private",
+    "message": "The plan ENTERPRISE is private in this pricing; it is left out.",
+    "plan": "ENTERPRISE",
+    "severity": "info"
+  },
+  {
+    "at": "sphere-email/email.sendgrid.premier",
+    "code": "sphere_plan_private",
+    "message": "The plan PREMIER is private in this pricing; it is left out.",
+    "plan": "PREMIER",
+    "severity": "info"
+  }
+]

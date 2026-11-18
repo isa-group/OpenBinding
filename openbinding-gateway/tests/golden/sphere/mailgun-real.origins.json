@@ -1,0 +1,232 @@
+[
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.mailgun.basic",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "BASIC 15 x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 15,
+          "id": "BASIC",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "account/month",
+          "unitAmount": 15
+        }
+      ],
+      "seats": 1
+    },
+    "plan": "BASIC",
+    "pricingId": "6ade364540e55445692b0eda",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "danruilop1/mailgun",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 15,
+    "versionId": "6ade36454b2b5b01c587db3d"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.mailgun.basic",
+    "detail": {
+      "name": "emailsPerMonth",
+      "period": {
+        "unit": "MONTH",
+        "value": 1
+      },
+      "raw": 10000,
+      "unit": "email",
+      "unlimited": false
+    },
+    "plan": "BASIC",
+    "pricingId": "6ade364540e55445692b0eda",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danruilop1/mailgun",
+    "target": "emailsPerMonth",
+    "targetKind": "property",
+    "value": 10000,
+    "versionId": "6ade36454b2b5b01c587db3d"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.mailgun.foundation",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "FOUNDATION 35 x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 35,
+          "id": "FOUNDATION",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "account/month",
+          "unitAmount": 35
+        }
+      ],
+      "seats": 1
+    },
+    "plan": "FOUNDATION",
+    "pricingId": "6ade364540e55445692b0eda",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "danruilop1/mailgun",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 35,
+    "versionId": "6ade36454b2b5b01c587db3d"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.mailgun.foundation",
+    "detail": {
+      "name": "emailsPerMonth",
+      "period": {
+        "unit": "MONTH",
+        "value": 1
+      },
+      "raw": 50000,
+      "unit": "email",
+      "unlimited": false
+    },
+    "plan": "FOUNDATION",
+    "pricingId": "6ade364540e55445692b0eda",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danruilop1/mailgun",
+    "target": "emailsPerMonth",
+    "targetKind": "property",
+    "value": 50000,
+    "versionId": "6ade36454b2b5b01c587db3d"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.mailgun.free",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "FREE 0 x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 0,
+          "id": "FREE",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "account/month",
+          "unitAmount": 0
+        }
+      ],
+      "seats": 1
+    },
+    "plan": "FREE",
+    "pricingId": "6ade364540e55445692b0eda",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "danruilop1/mailgun",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 0,
+    "versionId": "6ade36454b2b5b01c587db3d"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.mailgun.free",
+    "detail": {
+      "name": "emailsPerMonth",
+      "period": {
+        "unit": "MONTH",
+        "value": 1
+      },
+      "raw": {
+        "unlimited": true
+      },
+      "unit": "email",
+      "unlimited": true
+    },
+    "plan": "FREE",
+    "pricingId": "6ade364540e55445692b0eda",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danruilop1/mailgun",
+    "target": "emailsPerMonth",
+    "targetKind": "property",
+    "value": 100000000,
+    "versionId": "6ade36454b2b5b01c587db3d"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.mailgun.scale",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "SCALE 90 x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 90,
+          "id": "SCALE",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "account/month",
+          "unitAmount": 90
+        }
+      ],
+      "seats": 1
+    },
+    "plan": "SCALE",
+    "pricingId": "6ade364540e55445692b0eda",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "danruilop1/mailgun",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 90,
+    "versionId": "6ade36454b2b5b01c587db3d"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.mailgun.scale",
+    "detail": {
+      "name": "emailsPerMonth",
+      "period": {
+        "unit": "MONTH",
+        "value": 1
+      },
+      "raw": 100000,
+      "unit": "email",
+      "unlimited": false
+    },
+    "plan": "SCALE",
+    "pricingId": "6ade364540e55445692b0eda",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danruilop1/mailgun",
+    "target": "emailsPerMonth",
+    "targetKind": "property",
+    "value": 100000,
+    "versionId": "6ade36454b2b5b01c587db3d"
+  }
+]

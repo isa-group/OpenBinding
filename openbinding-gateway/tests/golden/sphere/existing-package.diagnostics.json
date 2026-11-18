@@ -1,0 +1,16 @@
+[
+  {
+    "at": "",
+    "code": "sphere_objective_manual_only",
+    "feature": "latency",
+    "message": "Every generated value of the objective latency was set by hand; no pricing gives it.",
+    "severity": "warning"
+  },
+  {
+    "at": "",
+    "code": "sphere_rescaled",
+    "feature": "cost",
+    "message": "The values of cost go past its bounds; its domain and normalisation now reach 500.",
+    "severity": "warning"
+  }
+]

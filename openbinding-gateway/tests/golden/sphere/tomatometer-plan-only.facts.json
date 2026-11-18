@@ -1,0 +1,189 @@
+{
+  "binding_space": "7",
+  "candidates": [
+    {
+      "id": "pomodoro.tomatometer.advanced",
+      "key": "sphere-pomodoro/pomodoro.tomatometer.advanced",
+      "origins": {
+        "subscription": {
+          "kind": "package",
+          "path": "sphere-pomodoro.json",
+          "pointer": "/spec/candidates/pomodoro.tomatometer.advanced/features/subscription",
+          "resource": "sphere-pomodoro"
+        }
+      },
+      "provider": "tomatometer",
+      "resource": "sphere-pomodoro",
+      "values": {
+        "subscription": 11.97
+      }
+    },
+    {
+      "id": "pomodoro.tomatometer.advanced.extratimers",
+      "key": "sphere-pomodoro/pomodoro.tomatometer.advanced.extratimers",
+      "origins": {
+        "subscription": {
+          "kind": "package",
+          "path": "sphere-pomodoro.json",
+          "pointer": "/spec/candidates/pomodoro.tomatometer.advanced.extratimers/features/subscription",
+          "resource": "sphere-pomodoro"
+        }
+      },
+      "provider": "tomatometer",
+      "resource": "sphere-pomodoro",
+      "values": {
+        "subscription": 12.97
+      }
+    },
+    {
+      "id": "pomodoro.tomatometer.basic",
+      "key": "sphere-pomodoro/pomodoro.tomatometer.basic",
+      "origins": {
+        "subscription": {
+          "kind": "package",
+          "path": "sphere-pomodoro.json",
+          "pointer": "/spec/candidates/pomodoro.tomatometer.basic/features/subscription",
+          "resource": "sphere-pomodoro"
+        }
+      },
+      "provider": "tomatometer",
+      "resource": "sphere-pomodoro",
+      "values": {
+        "subscription": 0
+      }
+    },
+    {
+      "id": "pomodoro.tomatometer.basic.extratimers",
+      "key": "sphere-pomodoro/pomodoro.tomatometer.basic.extratimers",
+      "origins": {
+        "subscription": {
+          "kind": "package",
+          "path": "sphere-pomodoro.json",
+          "pointer": "/spec/candidates/pomodoro.tomatometer.basic.extratimers/features/subscription",
+          "resource": "sphere-pomodoro"
+        }
+      },
+      "provider": "tomatometer",
+      "resource": "sphere-pomodoro",
+      "values": {
+        "subscription": 1
+      }
+    },
+    {
+      "id": "pomodoro.tomatometer.premium",
+      "key": "sphere-pomodoro/pomodoro.tomatometer.premium",
+      "origins": {
+        "subscription": {
+          "kind": "package",
+          "path": "sphere-pomodoro.json",
+          "pointer": "/spec/candidates/pomodoro.tomatometer.premium/features/subscription",
+          "resource": "sphere-pomodoro"
+        }
+      },
+      "provider": "tomatometer",
+      "resource": "sphere-pomodoro",
+      "values": {
+        "subscription": 29.97
+      }
+    },
+    {
+      "id": "pomodoro.tomatometer.premium.exportasjson",
+      "key": "sphere-pomodoro/pomodoro.tomatometer.premium.exportasjson",
+      "origins": {
+        "subscription": {
+          "kind": "package",
+          "path": "sphere-pomodoro.json",
+          "pointer": "/spec/candidates/pomodoro.tomatometer.premium.exportasjson/features/subscription",
+          "resource": "sphere-pomodoro"
+        }
+      },
+      "provider": "tomatometer",
+      "resource": "sphere-pomodoro",
+      "values": {
+        "subscription": 31.97
+      }
+    },
+    {
+      "id": "pomodoro.tomatometer.premium.extratimers",
+      "key": "sphere-pomodoro/pomodoro.tomatometer.premium.extratimers",
+      "origins": {
+        "subscription": {
+          "kind": "package",
+          "path": "sphere-pomodoro.json",
+          "pointer": "/spec/candidates/pomodoro.tomatometer.premium.extratimers/features/subscription",
+          "resource": "sphere-pomodoro"
+        }
+      },
+      "provider": "tomatometer",
+      "resource": "sphere-pomodoro",
+      "values": {
+        "subscription": 30.97
+      }
+    }
+  ],
+  "constraints": [],
+  "features": [
+    {
+      "direction": "min",
+      "id": "subscription",
+      "required": true,
+      "unit": "USD/month"
+    }
+  ],
+  "ir_digest": "sha256-c28924a52b6f2d257b9c173718807a77c86de0e821f94689357bad4e138e7153",
+  "objectives": {
+    "criteria": [
+      {
+        "direction": "minimize",
+        "feature": {
+          "id": "subscription",
+          "resource": "application"
+        },
+        "id": "subscription",
+        "normalize": {
+          "clamp": true,
+          "max": 50.0,
+          "min": 0.0
+        }
+      }
+    ],
+    "penalties": []
+  },
+  "tasks": [
+    {
+      "eligible": [
+        {
+          "candidate": "sphere-pomodoro/pomodoro.tomatometer.advanced",
+          "written": "pomodoro.tomatometer.advanced"
+        },
+        {
+          "candidate": "sphere-pomodoro/pomodoro.tomatometer.advanced.extratimers",
+          "written": "pomodoro.tomatometer.advanced.extratimers"
+        },
+        {
+          "candidate": "sphere-pomodoro/pomodoro.tomatometer.basic",
+          "written": "pomodoro.tomatometer.basic"
+        },
+        {
+          "candidate": "sphere-pomodoro/pomodoro.tomatometer.basic.extratimers",
+          "written": "pomodoro.tomatometer.basic.extratimers"
+        },
+        {
+          "candidate": "sphere-pomodoro/pomodoro.tomatometer.premium",
+          "written": "pomodoro.tomatometer.premium"
+        },
+        {
+          "candidate": "sphere-pomodoro/pomodoro.tomatometer.premium.exportasjson",
+          "written": "pomodoro.tomatometer.premium.exportasjson"
+        },
+        {
+          "candidate": "sphere-pomodoro/pomodoro.tomatometer.premium.extratimers",
+          "written": "pomodoro.tomatometer.premium.extratimers"
+        }
+      ],
+      "id": "track",
+      "kind": "service"
+    }
+  ],
+  "workflow": "track"
+}

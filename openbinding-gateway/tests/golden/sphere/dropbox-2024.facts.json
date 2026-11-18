@@ -1,0 +1,63 @@
+{
+  "binding_space": "1",
+  "candidates": [
+    {
+      "id": "storage.dropbox.basic",
+      "key": "sphere-storage/storage.dropbox.basic",
+      "origins": {
+        "subscription": {
+          "kind": "package",
+          "path": "sphere-storage.json",
+          "pointer": "/spec/candidates/storage.dropbox.basic/features/subscription",
+          "resource": "sphere-storage"
+        }
+      },
+      "provider": "dropbox",
+      "resource": "sphere-storage",
+      "values": {
+        "subscription": 0
+      }
+    }
+  ],
+  "constraints": [],
+  "features": [
+    {
+      "direction": "min",
+      "id": "subscription",
+      "required": true,
+      "unit": "USD/month"
+    }
+  ],
+  "ir_digest": "sha256-50c92aa4bc31a23f558021a3cb0fe0f0fbfbc8db083149c54f4df6eca839364e",
+  "objectives": {
+    "criteria": [
+      {
+        "direction": "minimize",
+        "feature": {
+          "id": "subscription",
+          "resource": "application"
+        },
+        "id": "subscription",
+        "normalize": {
+          "clamp": true,
+          "max": 20.0,
+          "min": 0.0
+        }
+      }
+    ],
+    "penalties": []
+  },
+  "tasks": [
+    {
+      "eligible": [
+        {
+          "candidate": "sphere-storage/storage.dropbox.basic",
+          "written": "storage.dropbox.basic"
+        }
+      ],
+      "id": "export",
+      "kind": "service"
+    }
+  ],
+  "workflow": "export"
+}

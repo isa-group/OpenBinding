@@ -1,0 +1,8 @@
+[
+  {
+    "at": "sphere-email/email.collision.pro",
+    "code": "sphere_id_collision",
+    "message": "Two candidates have the id email.collision.pro (plan names that differ only in case or punctuation, or one source under two tasks with other values).",
+    "severity": "error"
+  }
+]

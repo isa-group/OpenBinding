@@ -1,0 +1,23 @@
+[
+  {
+    "at": "/features/availability",
+    "code": "sphere_objective_manual_only",
+    "feature": "availability",
+    "message": "Every generated value of the objective availability was set by hand; no pricing gives it.",
+    "severity": "warning"
+  },
+  {
+    "at": "/tasks/0/from/0",
+    "code": "sphere_unit_unknown",
+    "message": "The unit 'account' names no period; prices in it are taken as monthly.",
+    "severity": "warning",
+    "unit": "account"
+  },
+  {
+    "at": "/tasks/0/from/0",
+    "code": "sphere_unit_unknown",
+    "message": "The unit 'user' names no period; prices in it are taken as monthly.",
+    "severity": "warning",
+    "unit": "user"
+  }
+]

@@ -1,0 +1,165 @@
+{
+  "application.json": {
+    "apiVersion": "qos-binding/v1",
+    "kind": "Application",
+    "metadata": {
+      "name": "mailgun-application"
+    },
+    "spec": {
+      "features": {
+        "subscription": {
+          "aggregation": "sum",
+          "direction": "minimize",
+          "domain": {
+            "kind": "real",
+            "maximum": 100,
+            "minimum": 0
+          },
+          "scope": "selectedCandidate",
+          "unit": "USD/month"
+        }
+      },
+      "tasks": {
+        "send": {
+          "requires": {
+            "predicate": "candidate.properties.emailsPerMonth >= 30000",
+            "type": "service/email"
+          }
+        }
+      },
+      "workflow": {
+        "sequence": [
+          {
+            "task": {
+              "id": "send",
+              "resource": "application"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "instance.json": {
+    "apiVersion": "bim/v1",
+    "kind": "Instance",
+    "metadata": {
+      "annotations": {
+        "openbinding.org/sphere-recipe": "sha256-393a289a1141f8a0883de91eefc62222ba8ac659d1470d634a8fd120b8436823"
+      },
+      "name": "mailgun"
+    },
+    "spec": {
+      "profile": "qos-binding/v1",
+      "resources": {
+        "application": {
+          "application": "application.json"
+        },
+        "candidateCatalog": {
+          "sphere-email": "sphere-email.json"
+        },
+        "optimization": {
+          "optimization": "optimization.json"
+        }
+      }
+    }
+  },
+  "optimization.json": {
+    "apiVersion": "qos-binding/v1",
+    "kind": "Optimization",
+    "metadata": {
+      "name": "mailgun-optimization"
+    },
+    "spec": {
+      "criteria": [
+        {
+          "feature": {
+            "id": "subscription",
+            "resource": "application"
+          },
+          "id": "subscription",
+          "normalize": {
+            "clamp": true,
+            "max": 100,
+            "min": 0
+          }
+        }
+      ]
+    }
+  },
+  "sphere-email.json": {
+    "apiVersion": "qos-binding/v1",
+    "kind": "CandidateCatalog",
+    "metadata": {
+      "name": "sphere-email"
+    },
+    "spec": {
+      "candidates": {
+        "email.mailgun.basic": {
+          "features": {
+            "subscription": 15
+          },
+          "name": "BASIC",
+          "properties": {
+            "emailsPerMonth": 10000
+          },
+          "provider": {
+            "id": "mailgun",
+            "resource": "sphere-email"
+          },
+          "provides": "service/email"
+        },
+        "email.mailgun.foundation": {
+          "features": {
+            "subscription": 35
+          },
+          "name": "FOUNDATION",
+          "properties": {
+            "emailsPerMonth": 50000
+          },
+          "provider": {
+            "id": "mailgun",
+            "resource": "sphere-email"
+          },
+          "provides": "service/email"
+        },
+        "email.mailgun.free": {
+          "features": {
+            "subscription": 0
+          },
+          "name": "FREE",
+          "properties": {
+            "emailsPerMonth": 100000000
+          },
+          "provider": {
+            "id": "mailgun",
+            "resource": "sphere-email"
+          },
+          "provides": "service/email"
+        },
+        "email.mailgun.scale": {
+          "features": {
+            "subscription": 90
+          },
+          "name": "SCALE",
+          "properties": {
+            "emailsPerMonth": 100000
+          },
+          "provider": {
+            "id": "mailgun",
+            "resource": "sphere-email"
+          },
+          "provides": "service/email"
+        }
+      },
+      "featureBindings": {
+        "subscription": {
+          "id": "subscription",
+          "resource": "application"
+        }
+      },
+      "providers": {
+        "mailgun": {}
+      }
+    }
+  }
+}

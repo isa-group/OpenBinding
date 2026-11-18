@@ -1,0 +1,14 @@
+[
+  {
+    "at": "/tasks/0",
+    "code": "sphere_no_candidates",
+    "message": "No candidate is generated for the task export.",
+    "severity": "error"
+  },
+  {
+    "at": "/tasks/0/from/0",
+    "code": "sphere_currency_mismatch",
+    "message": "This pricing is in EUR and the recipe in USD; F3 converts no currency.",
+    "severity": "error"
+  }
+]

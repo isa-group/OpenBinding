@@ -1,0 +1,324 @@
+{
+  "binding_space": "16",
+  "candidates": [
+    {
+      "id": "only_t1",
+      "key": "catalog/only_t1",
+      "origins": {
+        "cost": {
+          "kind": "package",
+          "path": "candidates.json",
+          "pointer": "/spec/candidates/only_t1/features/cost",
+          "resource": "catalog"
+        },
+        "latency": {
+          "kind": "package",
+          "path": "candidates.json",
+          "pointer": "/spec/candidates/only_t1/features/latency",
+          "resource": "catalog"
+        }
+      },
+      "provider": "pB",
+      "resource": "catalog",
+      "values": {
+        "cost": 7,
+        "latency": 10
+      }
+    },
+    {
+      "id": "only_t2",
+      "key": "catalog/only_t2",
+      "origins": {
+        "cost": {
+          "kind": "package",
+          "path": "candidates.json",
+          "pointer": "/spec/candidates/only_t2/features/cost",
+          "resource": "catalog"
+        },
+        "latency": {
+          "kind": "package",
+          "path": "candidates.json",
+          "pointer": "/spec/candidates/only_t2/features/latency",
+          "resource": "catalog"
+        }
+      },
+      "provider": "pB",
+      "resource": "catalog",
+      "values": {
+        "cost": 7,
+        "latency": 10
+      }
+    },
+    {
+      "id": "only_t3",
+      "key": "catalog/only_t3",
+      "origins": {
+        "cost": {
+          "kind": "package",
+          "path": "candidates.json",
+          "pointer": "/spec/candidates/only_t3/features/cost",
+          "resource": "catalog"
+        },
+        "latency": {
+          "kind": "package",
+          "path": "candidates.json",
+          "pointer": "/spec/candidates/only_t3/features/latency",
+          "resource": "catalog"
+        }
+      },
+      "provider": "pB",
+      "resource": "catalog",
+      "values": {
+        "cost": 4,
+        "latency": 10
+      }
+    },
+    {
+      "id": "shared",
+      "key": "catalog/shared",
+      "origins": {
+        "cost": {
+          "kind": "package",
+          "path": "candidates.json",
+          "pointer": "/spec/candidates/shared/features/cost",
+          "resource": "catalog"
+        },
+        "latency": {
+          "kind": "package",
+          "path": "candidates.json",
+          "pointer": "/spec/candidates/shared/features/latency",
+          "resource": "catalog"
+        }
+      },
+      "provider": "pA",
+      "resource": "catalog",
+      "values": {
+        "cost": 12,
+        "latency": 20
+      }
+    },
+    {
+      "id": "mail.brevo.professional",
+      "key": "sphere-mail/mail.brevo.professional",
+      "origins": {
+        "cost": {
+          "kind": "package",
+          "path": "sphere-mail.json",
+          "pointer": "/spec/candidates/mail.brevo.professional/features/cost",
+          "resource": "sphere-mail"
+        },
+        "latency": {
+          "kind": "package",
+          "path": "sphere-mail.json",
+          "pointer": "/spec/candidates/mail.brevo.professional/features/latency",
+          "resource": "sphere-mail"
+        }
+      },
+      "provider": "brevo",
+      "resource": "sphere-mail",
+      "values": {
+        "cost": 499,
+        "latency": 15
+      }
+    },
+    {
+      "id": "mail.brevo.starter",
+      "key": "sphere-mail/mail.brevo.starter",
+      "origins": {
+        "cost": {
+          "kind": "package",
+          "path": "sphere-mail.json",
+          "pointer": "/spec/candidates/mail.brevo.starter/features/cost",
+          "resource": "sphere-mail"
+        },
+        "latency": {
+          "kind": "package",
+          "path": "sphere-mail.json",
+          "pointer": "/spec/candidates/mail.brevo.starter/features/latency",
+          "resource": "sphere-mail"
+        }
+      },
+      "provider": "brevo",
+      "resource": "sphere-mail",
+      "values": {
+        "cost": 9,
+        "latency": 15
+      }
+    }
+  ],
+  "constraints": [
+    {
+      "enforcement": "hard",
+      "expression": {
+        "kind": "compare",
+        "left": {
+          "kind": "path",
+          "segments": [
+            "tasks",
+            "t1",
+            "candidate"
+          ]
+        },
+        "op": "eq",
+        "right": {
+          "kind": "path",
+          "segments": [
+            "tasks",
+            "t2",
+            "candidate"
+          ]
+        }
+      },
+      "id": "constraints/first_two_on_one_thing",
+      "origin": {
+        "path": "constraints.json",
+        "pointer": "/spec/constraints/first_two_on_one_thing",
+        "resource": "constraints"
+      },
+      "penalty": null,
+      "when": {
+        "kind": "literal",
+        "value": true
+      }
+    },
+    {
+      "enforcement": "hard",
+      "expression": {
+        "kind": "compare",
+        "left": {
+          "kind": "path",
+          "segments": [
+            "tasks",
+            "t2",
+            "candidate"
+          ]
+        },
+        "op": "ne",
+        "right": {
+          "kind": "path",
+          "segments": [
+            "tasks",
+            "t3",
+            "candidate"
+          ]
+        }
+      },
+      "id": "constraints/keep_the_third_apart",
+      "origin": {
+        "path": "constraints.json",
+        "pointer": "/spec/constraints/keep_the_third_apart",
+        "resource": "constraints"
+      },
+      "penalty": null,
+      "when": {
+        "kind": "literal",
+        "value": true
+      }
+    }
+  ],
+  "features": [
+    {
+      "direction": "min",
+      "id": "cost",
+      "required": true,
+      "unit": "eur"
+    },
+    {
+      "direction": "min",
+      "id": "latency",
+      "required": true,
+      "unit": "ms"
+    }
+  ],
+  "ir_digest": "sha256-d00bd6024be344941c22f273ac5f4be37123ed309d134a97b8664b376b62f3ca",
+  "objectives": {
+    "criteria": [
+      {
+        "direction": "minimize",
+        "feature": {
+          "id": "cost",
+          "resource": "application"
+        },
+        "id": "cost",
+        "normalize": {
+          "clamp": true,
+          "max": 500.0,
+          "min": 0.0
+        }
+      },
+      {
+        "direction": "minimize",
+        "feature": {
+          "id": "latency",
+          "resource": "application"
+        },
+        "id": "latency",
+        "normalize": {
+          "clamp": true,
+          "max": 90.0,
+          "min": 0.0
+        }
+      }
+    ],
+    "penalties": []
+  },
+  "tasks": [
+    {
+      "eligible": [
+        {
+          "candidate": "catalog/only_t1",
+          "written": "only_t1"
+        },
+        {
+          "candidate": "catalog/shared",
+          "written": "shared"
+        }
+      ],
+      "id": "t1",
+      "kind": "service"
+    },
+    {
+      "eligible": [
+        {
+          "candidate": "catalog/only_t2",
+          "written": "only_t2"
+        },
+        {
+          "candidate": "catalog/shared",
+          "written": "shared"
+        },
+        {
+          "candidate": "sphere-mail/mail.brevo.professional",
+          "written": "mail.brevo.professional"
+        },
+        {
+          "candidate": "sphere-mail/mail.brevo.starter",
+          "written": "mail.brevo.starter"
+        }
+      ],
+      "id": "t2",
+      "kind": "service"
+    },
+    {
+      "eligible": [
+        {
+          "candidate": "catalog/only_t3",
+          "written": "only_t3"
+        },
+        {
+          "candidate": "catalog/shared",
+          "written": "shared"
+        }
+      ],
+      "id": "t3",
+      "kind": "service"
+    }
+  ],
+  "workflow": {
+    "seq": [
+      "t1",
+      "t2",
+      "t3"
+    ]
+  }
+}

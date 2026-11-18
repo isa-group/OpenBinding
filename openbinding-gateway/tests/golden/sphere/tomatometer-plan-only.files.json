@@ -1,0 +1,202 @@
+{
+  "application.json": {
+    "apiVersion": "qos-binding/v1",
+    "kind": "Application",
+    "metadata": {
+      "name": "tomatometer-application"
+    },
+    "spec": {
+      "features": {
+        "subscription": {
+          "aggregation": "sum",
+          "direction": "minimize",
+          "domain": {
+            "kind": "real",
+            "maximum": 50,
+            "minimum": 0
+          },
+          "scope": "selectedCandidate",
+          "unit": "USD/month"
+        }
+      },
+      "tasks": {
+        "track": "service/pomodoro"
+      },
+      "workflow": {
+        "sequence": [
+          {
+            "task": {
+              "id": "track",
+              "resource": "application"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "instance.json": {
+    "apiVersion": "bim/v1",
+    "kind": "Instance",
+    "metadata": {
+      "annotations": {
+        "openbinding.org/sphere-recipe": "sha256-8d870f5998d3e208d633758d108d2412c8f511f3b6fb101019180313dcd3a469"
+      },
+      "name": "tomatometer"
+    },
+    "spec": {
+      "profile": "qos-binding/v1",
+      "resources": {
+        "application": {
+          "application": "application.json"
+        },
+        "candidateCatalog": {
+          "sphere-pomodoro": "sphere-pomodoro.json"
+        },
+        "optimization": {
+          "optimization": "optimization.json"
+        }
+      }
+    }
+  },
+  "optimization.json": {
+    "apiVersion": "qos-binding/v1",
+    "kind": "Optimization",
+    "metadata": {
+      "name": "tomatometer-optimization"
+    },
+    "spec": {
+      "criteria": [
+        {
+          "feature": {
+            "id": "subscription",
+            "resource": "application"
+          },
+          "id": "subscription",
+          "normalize": {
+            "clamp": true,
+            "max": 50,
+            "min": 0
+          }
+        }
+      ]
+    }
+  },
+  "sphere-pomodoro.json": {
+    "apiVersion": "qos-binding/v1",
+    "kind": "CandidateCatalog",
+    "metadata": {
+      "name": "sphere-pomodoro"
+    },
+    "spec": {
+      "candidates": {
+        "pomodoro.tomatometer.advanced": {
+          "features": {
+            "subscription": 11.97
+          },
+          "name": "advanced",
+          "properties": {
+            "timers": 10
+          },
+          "provider": {
+            "id": "tomatometer",
+            "resource": "sphere-pomodoro"
+          },
+          "provides": "service/pomodoro"
+        },
+        "pomodoro.tomatometer.advanced.extratimers": {
+          "features": {
+            "subscription": 12.97
+          },
+          "name": "advanced + extraTimers",
+          "properties": {
+            "timers": 15
+          },
+          "provider": {
+            "id": "tomatometer",
+            "resource": "sphere-pomodoro"
+          },
+          "provides": "service/pomodoro"
+        },
+        "pomodoro.tomatometer.basic": {
+          "features": {
+            "subscription": 0
+          },
+          "name": "basic",
+          "properties": {
+            "timers": 3
+          },
+          "provider": {
+            "id": "tomatometer",
+            "resource": "sphere-pomodoro"
+          },
+          "provides": "service/pomodoro"
+        },
+        "pomodoro.tomatometer.basic.extratimers": {
+          "features": {
+            "subscription": 1
+          },
+          "name": "basic + extraTimers",
+          "properties": {
+            "timers": 8
+          },
+          "provider": {
+            "id": "tomatometer",
+            "resource": "sphere-pomodoro"
+          },
+          "provides": "service/pomodoro"
+        },
+        "pomodoro.tomatometer.premium": {
+          "features": {
+            "subscription": 29.97
+          },
+          "name": "premium",
+          "properties": {
+            "timers": 15
+          },
+          "provider": {
+            "id": "tomatometer",
+            "resource": "sphere-pomodoro"
+          },
+          "provides": "service/pomodoro"
+        },
+        "pomodoro.tomatometer.premium.exportasjson": {
+          "features": {
+            "subscription": 31.97
+          },
+          "name": "premium + exportAsJson",
+          "properties": {
+            "timers": 15
+          },
+          "provider": {
+            "id": "tomatometer",
+            "resource": "sphere-pomodoro"
+          },
+          "provides": "service/pomodoro"
+        },
+        "pomodoro.tomatometer.premium.extratimers": {
+          "features": {
+            "subscription": 30.97
+          },
+          "name": "premium + extraTimers",
+          "properties": {
+            "timers": 20
+          },
+          "provider": {
+            "id": "tomatometer",
+            "resource": "sphere-pomodoro"
+          },
+          "provides": "service/pomodoro"
+        }
+      },
+      "featureBindings": {
+        "subscription": {
+          "id": "subscription",
+          "resource": "application"
+        }
+      },
+      "providers": {
+        "tomatometer": {}
+      }
+    }
+  }
+}

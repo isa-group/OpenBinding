@@ -1,0 +1,214 @@
+{
+  "application.json": {
+    "apiVersion": "qos-binding/v1",
+    "kind": "Application",
+    "metadata": {
+      "name": "storage-application"
+    },
+    "spec": {
+      "features": {
+        "availability": {
+          "aggregation": {
+            "parallel": "product",
+            "sequence": "product"
+          },
+          "direction": "maximize",
+          "domain": {
+            "kind": "ratio",
+            "maximum": 1,
+            "minimum": 0
+          },
+          "scope": "invocation",
+          "unit": "1"
+        },
+        "subscription": {
+          "aggregation": "sum",
+          "direction": "minimize",
+          "domain": {
+            "kind": "real",
+            "maximum": 20,
+            "minimum": 0
+          },
+          "scope": "selectedCandidate",
+          "unit": "USD/month"
+        }
+      },
+      "tasks": {
+        "export": {
+          "requires": {
+            "predicate": "candidate.properties.storageLimit >= 1000",
+            "type": "service/storage"
+          }
+        }
+      },
+      "workflow": {
+        "sequence": [
+          {
+            "task": {
+              "id": "export",
+              "resource": "application"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "instance.json": {
+    "apiVersion": "bim/v1",
+    "kind": "Instance",
+    "metadata": {
+      "annotations": {
+        "openbinding.org/sphere-recipe": "sha256-fcd019e7735dc4042830f3874f41bcd85c8b733cfc6a6d94def4cd3b17b5f8bb"
+      },
+      "name": "storage"
+    },
+    "spec": {
+      "profile": "qos-binding/v1",
+      "resources": {
+        "application": {
+          "application": "application.json"
+        },
+        "candidateCatalog": {
+          "sphere-storage": "sphere-storage.json"
+        },
+        "optimization": {
+          "optimization": "optimization.json"
+        }
+      }
+    }
+  },
+  "optimization.json": {
+    "apiVersion": "qos-binding/v1",
+    "kind": "Optimization",
+    "metadata": {
+      "name": "storage-optimization"
+    },
+    "spec": {
+      "criteria": [
+        {
+          "feature": {
+            "id": "availability",
+            "resource": "application"
+          },
+          "id": "availability",
+          "normalize": {
+            "clamp": true,
+            "max": 1,
+            "min": 0
+          }
+        },
+        {
+          "feature": {
+            "id": "subscription",
+            "resource": "application"
+          },
+          "id": "subscription",
+          "normalize": {
+            "clamp": true,
+            "max": 20,
+            "min": 0
+          }
+        }
+      ]
+    }
+  },
+  "sphere-storage.json": {
+    "apiVersion": "qos-binding/v1",
+    "kind": "CandidateCatalog",
+    "metadata": {
+      "name": "sphere-storage"
+    },
+    "spec": {
+      "candidates": {
+        "storage.dropbox.advanced": {
+          "features": {
+            "availability": 0.999,
+            "subscription": 20
+          },
+          "name": "ADVANCED",
+          "properties": {
+            "storageLimit": 100000000
+          },
+          "provider": {
+            "id": "dropbox",
+            "resource": "sphere-storage"
+          },
+          "provides": "service/storage"
+        },
+        "storage.dropbox.family": {
+          "features": {
+            "availability": 0.999,
+            "subscription": 16.99
+          },
+          "name": "FAMILY",
+          "properties": {
+            "storageLimit": 2000
+          },
+          "provider": {
+            "id": "dropbox",
+            "resource": "sphere-storage"
+          },
+          "provides": "service/storage"
+        },
+        "storage.dropbox.plus": {
+          "features": {
+            "availability": 0.999,
+            "subscription": 9.99
+          },
+          "name": "PLUS",
+          "properties": {
+            "storageLimit": 2000
+          },
+          "provider": {
+            "id": "dropbox",
+            "resource": "sphere-storage"
+          },
+          "provides": "service/storage"
+        },
+        "storage.dropbox.professional": {
+          "features": {
+            "availability": 0.999,
+            "subscription": 16.58
+          },
+          "name": "PROFESSIONAL",
+          "properties": {
+            "storageLimit": 3000
+          },
+          "provider": {
+            "id": "dropbox",
+            "resource": "sphere-storage"
+          },
+          "provides": "service/storage"
+        },
+        "storage.dropbox.standard": {
+          "features": {
+            "availability": 0.999,
+            "subscription": 12.5
+          },
+          "name": "STANDARD",
+          "properties": {
+            "storageLimit": 5000
+          },
+          "provider": {
+            "id": "dropbox",
+            "resource": "sphere-storage"
+          },
+          "provides": "service/storage"
+        }
+      },
+      "featureBindings": {
+        "availability": {
+          "id": "availability",
+          "resource": "application"
+        },
+        "subscription": {
+          "id": "subscription",
+          "resource": "application"
+        }
+      },
+      "providers": {
+        "dropbox": {}
+      }
+    }
+  }
+}

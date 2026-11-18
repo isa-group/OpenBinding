@@ -1,0 +1,136 @@
+[
+  {
+    "addOns": [],
+    "candidateKey": "sphere-mail/mail.brevo.professional",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "PROFESSIONAL 499 x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 499,
+          "expression": "#professionalPrices[String(#professionalVolume)]",
+          "id": "PROFESSIONAL",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "account/month",
+          "unitAmount": 499,
+          "variables": {
+            "professionalPrices": {
+              "1000000": 999,
+              "10000000": 4543,
+              "150000": 499,
+              "2000000": 1479,
+              "250000": 599,
+              "3000000": 1863,
+              "4000000": 2170,
+              "500000": 699,
+              "5000000": 2447,
+              "6000000": 2866,
+              "7000000": 3285,
+              "8000000": 3705
+            },
+            "professionalVolume": 150000
+          }
+        }
+      ],
+      "seats": 1
+    },
+    "plan": "PROFESSIONAL",
+    "pricingId": "6ade2d4440e55445692b07f1",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "danruilop1/brevo",
+    "target": "cost",
+    "targetKind": "feature",
+    "value": 499,
+    "versionId": "6ade2d444b2b5b01c587d80d"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-mail/mail.brevo.professional",
+    "detail": {
+      "key": "*"
+    },
+    "plan": "PROFESSIONAL",
+    "pricingId": "6ade2d4440e55445692b07f1",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "manual",
+    "sphereRef": "danruilop1/brevo",
+    "target": "latency",
+    "targetKind": "feature",
+    "value": 15,
+    "versionId": "6ade2d444b2b5b01c587d80d"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-mail/mail.brevo.starter",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "STARTER 9 x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 9,
+          "expression": "#starterPrices[String(#starterVolume)]",
+          "id": "STARTER",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "account/month",
+          "unitAmount": 9,
+          "variables": {
+            "starterPrices": {
+              "10000": 17,
+              "100000": 82,
+              "15000": 25,
+              "20000": 32,
+              "30000": 39,
+              "40000": 46,
+              "5000": 9,
+              "50000": 56,
+              "60000": 65,
+              "80000": 74
+            },
+            "starterVolume": 5000
+          }
+        }
+      ],
+      "seats": 1
+    },
+    "plan": "STARTER",
+    "pricingId": "6ade2d4440e55445692b07f1",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "danruilop1/brevo",
+    "target": "cost",
+    "targetKind": "feature",
+    "value": 9,
+    "versionId": "6ade2d444b2b5b01c587d80d"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-mail/mail.brevo.starter",
+    "detail": {
+      "key": "*"
+    },
+    "plan": "STARTER",
+    "pricingId": "6ade2d4440e55445692b07f1",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "manual",
+    "sphereRef": "danruilop1/brevo",
+    "target": "latency",
+    "targetKind": "feature",
+    "value": 15,
+    "versionId": "6ade2d444b2b5b01c587d80d"
+  }
+]

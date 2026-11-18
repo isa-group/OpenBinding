@@ -1,0 +1,14 @@
+[
+  {
+    "at": "/tasks/0",
+    "code": "sphere_no_candidates",
+    "message": "No candidate is generated for the task send.",
+    "severity": "error"
+  },
+  {
+    "at": "/tasks/0/from/0",
+    "code": "sphere_billing_unknown",
+    "message": "This pricing declares no billing period 'annual' (it has monthly).",
+    "severity": "error"
+  }
+]

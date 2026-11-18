@@ -1,0 +1,56 @@
+[
+  {
+    "addOns": [],
+    "candidateKey": "sphere-storage/storage.dropbox.basic",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "BASIC 0 x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 0,
+          "id": "BASIC",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": null,
+          "seats": 1,
+          "unit": "account",
+          "unitAmount": 0
+        }
+      ],
+      "seats": 1
+    },
+    "plan": "BASIC",
+    "pricingId": "6ab0a323697330667ccce9c1",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "atenea/dropbox",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 0,
+    "versionId": "687e4b68102baa50f3a5c7b6"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-storage/storage.dropbox.basic",
+    "detail": {
+      "name": "storageLimit",
+      "period": null,
+      "raw": 2,
+      "unit": "GB of storage",
+      "unlimited": false
+    },
+    "plan": "BASIC",
+    "pricingId": "6ab0a323697330667ccce9c1",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "atenea/dropbox",
+    "target": "storage",
+    "targetKind": "property",
+    "value": 2,
+    "versionId": "687e4b68102baa50f3a5c7b6"
+  }
+]

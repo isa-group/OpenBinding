@@ -1,0 +1,574 @@
+{
+  "application.json": {
+    "apiVersion": "qos-binding/v1",
+    "kind": "Application",
+    "metadata": {
+      "name": "tomatometer-application"
+    },
+    "spec": {
+      "features": {
+        "availability": {
+          "aggregation": {
+            "parallel": "product",
+            "sequence": "product"
+          },
+          "direction": "maximize",
+          "domain": {
+            "kind": "ratio",
+            "maximum": 1,
+            "minimum": 0
+          },
+          "scope": "invocation",
+          "unit": "1"
+        },
+        "latency": {
+          "aggregation": "sum",
+          "direction": "minimize",
+          "domain": {
+            "kind": "real",
+            "maximum": 2000,
+            "minimum": 0
+          },
+          "scope": "invocation",
+          "unit": "ms"
+        },
+        "subscription": {
+          "aggregation": "sum",
+          "direction": "minimize",
+          "domain": {
+            "kind": "real",
+            "maximum": 1000,
+            "minimum": 0
+          },
+          "scope": "selectedCandidate",
+          "unit": "USD/month"
+        }
+      },
+      "tasks": {
+        "dailySummary": {
+          "requires": {
+            "predicate": "candidate.properties.emailsPerDay >= 1000 && candidate.properties.emailsPerMonth >= 30000",
+            "type": "service/email"
+          }
+        },
+        "export": "service/storage",
+        "login": "service/auth",
+        "quotes": "service/quotes"
+      },
+      "workflow": {
+        "sequence": [
+          {
+            "task": {
+              "id": "login",
+              "resource": "application"
+            }
+          },
+          {
+            "parallel": [
+              {
+                "task": {
+                  "id": "dailySummary",
+                  "resource": "application"
+                }
+              },
+              {
+                "task": {
+                  "id": "export",
+                  "resource": "application"
+                }
+              }
+            ]
+          },
+          {
+            "task": {
+              "id": "quotes",
+              "resource": "application"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "candidates.json": {
+    "apiVersion": "qos-binding/v1",
+    "kind": "CandidateCatalog",
+    "metadata": {
+      "name": "tomatometer-catalog"
+    },
+    "spec": {
+      "candidates": {
+        "auth.builtin.local": {
+          "features": {
+            "availability": 0.999,
+            "latency": 15,
+            "subscription": 0
+          },
+          "name": "Built-in accounts",
+          "provider": {
+            "id": "builtin",
+            "resource": "catalog"
+          },
+          "provides": "service/auth"
+        },
+        "email.selfhosted.postfix": {
+          "features": {
+            "availability": 0.99,
+            "latency": 300,
+            "subscription": 12
+          },
+          "name": "Postfix on a VPS",
+          "properties": {
+            "emailsPerDay": 100000000,
+            "emailsPerMonth": 100000000
+          },
+          "provider": {
+            "id": "selfhosted",
+            "resource": "catalog"
+          },
+          "provides": "service/email"
+        },
+        "quotes.zenquotes.free": {
+          "features": {
+            "availability": 0.98,
+            "latency": 120,
+            "subscription": 0
+          },
+          "name": "ZenQuotes free",
+          "provider": {
+            "id": "zenquotes",
+            "resource": "catalog"
+          },
+          "provides": "service/quotes"
+        },
+        "storage.local.disk": {
+          "features": {
+            "availability": 0.995,
+            "latency": 40,
+            "subscription": 0
+          },
+          "name": "Local disk",
+          "provider": {
+            "id": "local",
+            "resource": "catalog"
+          },
+          "provides": "service/storage"
+        }
+      },
+      "featureBindings": {
+        "availability": {
+          "id": "availability",
+          "resource": "application"
+        },
+        "latency": {
+          "id": "latency",
+          "resource": "application"
+        },
+        "subscription": {
+          "id": "subscription",
+          "resource": "application"
+        }
+      },
+      "providers": {
+        "builtin": {},
+        "local": {},
+        "selfhosted": {},
+        "zenquotes": {}
+      }
+    }
+  },
+  "instance.json": {
+    "apiVersion": "bim/v1",
+    "kind": "Instance",
+    "metadata": {
+      "annotations": {
+        "openbinding.org/sphere-recipe": "sha256-6b84ab0e25c298ea4d83c38911549baffd25e627df50c29c3808d8f2456b752c"
+      },
+      "description": "TomatoMeter's back end: sign in, then send the daily summary e-mail and export the data in parallel, then fetch a quote. Revision 1 has one hand-made candidate per task; SPHERE adds the e-mail providers' plans.",
+      "name": "tomatometer-email",
+      "version": "1.0.0"
+    },
+    "spec": {
+      "profile": "qos-binding/v1",
+      "resources": {
+        "application": {
+          "application": "application.json"
+        },
+        "candidateCatalog": {
+          "catalog": "candidates.json",
+          "sphere-email": "sphere-email.json"
+        },
+        "optimization": {
+          "optimization": "optimization.json"
+        }
+      }
+    }
+  },
+  "optimization.json": {
+    "apiVersion": "qos-binding/v1",
+    "kind": "Optimization",
+    "metadata": {
+      "name": "tomatometer-optimization"
+    },
+    "spec": {
+      "criteria": [
+        {
+          "feature": {
+            "id": "subscription",
+            "resource": "application"
+          },
+          "id": "subscription",
+          "normalize": {
+            "clamp": true,
+            "max": 1000,
+            "min": 0
+          }
+        },
+        {
+          "feature": {
+            "id": "availability",
+            "resource": "application"
+          },
+          "id": "availability",
+          "normalize": {
+            "clamp": true,
+            "max": 1,
+            "min": 0
+          }
+        },
+        {
+          "feature": {
+            "id": "latency",
+            "resource": "application"
+          },
+          "id": "latency",
+          "normalize": {
+            "clamp": true,
+            "max": 2000,
+            "min": 0
+          }
+        }
+      ]
+    }
+  },
+  "sphere-email.json": {
+    "apiVersion": "qos-binding/v1",
+    "kind": "CandidateCatalog",
+    "metadata": {
+      "name": "sphere-email"
+    },
+    "spec": {
+      "candidates": {
+        "email.brevo.free": {
+          "features": {
+            "availability": 0.99,
+            "latency": 300,
+            "subscription": 0
+          },
+          "name": "FREE",
+          "properties": {
+            "emailsPerDay": 300,
+            "emailsPerMonth": 100000000
+          },
+          "provider": {
+            "id": "brevo",
+            "resource": "sphere-email"
+          },
+          "provides": "service/email"
+        },
+        "email.brevo.professional": {
+          "features": {
+            "availability": 0.99,
+            "latency": 300,
+            "subscription": 499
+          },
+          "name": "PROFESSIONAL",
+          "properties": {
+            "emailsPerDay": 100000000,
+            "emailsPerMonth": 150000
+          },
+          "provider": {
+            "id": "brevo",
+            "resource": "sphere-email"
+          },
+          "provides": "service/email"
+        },
+        "email.brevo.standard": {
+          "features": {
+            "availability": 0.99,
+            "latency": 300,
+            "subscription": 18
+          },
+          "name": "STANDARD",
+          "properties": {
+            "emailsPerDay": 100000000,
+            "emailsPerMonth": 5000
+          },
+          "provider": {
+            "id": "brevo",
+            "resource": "sphere-email"
+          },
+          "provides": "service/email"
+        },
+        "email.brevo.starter": {
+          "features": {
+            "availability": 0.99,
+            "latency": 300,
+            "subscription": 9
+          },
+          "name": "STARTER",
+          "properties": {
+            "emailsPerDay": 100000000,
+            "emailsPerMonth": 5000
+          },
+          "provider": {
+            "id": "brevo",
+            "resource": "sphere-email"
+          },
+          "provides": "service/email"
+        },
+        "email.mailgun.basic": {
+          "features": {
+            "availability": 0.99,
+            "latency": 250,
+            "subscription": 15
+          },
+          "name": "BASIC",
+          "properties": {
+            "emailsPerDay": 100000000,
+            "emailsPerMonth": 10000
+          },
+          "provider": {
+            "id": "mailgun",
+            "resource": "sphere-email"
+          },
+          "provides": "service/email"
+        },
+        "email.mailgun.foundation": {
+          "features": {
+            "availability": 0.9995,
+            "latency": 200,
+            "subscription": 35
+          },
+          "name": "FOUNDATION",
+          "properties": {
+            "emailsPerDay": 100000000,
+            "emailsPerMonth": 50000
+          },
+          "provider": {
+            "id": "mailgun",
+            "resource": "sphere-email"
+          },
+          "provides": "service/email"
+        },
+        "email.mailgun.free": {
+          "features": {
+            "availability": 0.99,
+            "latency": 250,
+            "subscription": 0
+          },
+          "name": "FREE",
+          "properties": {
+            "emailsPerDay": 100,
+            "emailsPerMonth": 100000000
+          },
+          "provider": {
+            "id": "mailgun",
+            "resource": "sphere-email"
+          },
+          "provides": "service/email"
+        },
+        "email.mailgun.scale": {
+          "features": {
+            "availability": 0.9995,
+            "latency": 250,
+            "subscription": 90
+          },
+          "name": "SCALE",
+          "properties": {
+            "emailsPerDay": 100000000,
+            "emailsPerMonth": 100000
+          },
+          "provider": {
+            "id": "mailgun",
+            "resource": "sphere-email"
+          },
+          "provides": "service/email"
+        },
+        "email.postmark.basic": {
+          "features": {
+            "availability": 0.999,
+            "latency": 150,
+            "subscription": 15
+          },
+          "name": "BASIC",
+          "properties": {
+            "emailsPerDay": 100000000,
+            "emailsPerMonth": 10000
+          },
+          "provider": {
+            "id": "postmark",
+            "resource": "sphere-email"
+          },
+          "provides": "service/email"
+        },
+        "email.postmark.free": {
+          "features": {
+            "availability": 0.999,
+            "latency": 150,
+            "subscription": 0
+          },
+          "name": "FREE",
+          "properties": {
+            "emailsPerDay": 100000000,
+            "emailsPerMonth": 100
+          },
+          "provider": {
+            "id": "postmark",
+            "resource": "sphere-email"
+          },
+          "provides": "service/email"
+        },
+        "email.postmark.platform": {
+          "features": {
+            "availability": 0.999,
+            "latency": 150,
+            "subscription": 18
+          },
+          "name": "PLATFORM",
+          "properties": {
+            "emailsPerDay": 100000000,
+            "emailsPerMonth": 10000
+          },
+          "provider": {
+            "id": "postmark",
+            "resource": "sphere-email"
+          },
+          "provides": "service/email"
+        },
+        "email.postmark.pro": {
+          "features": {
+            "availability": 0.999,
+            "latency": 150,
+            "subscription": 16.5
+          },
+          "name": "PRO",
+          "properties": {
+            "emailsPerDay": 100000000,
+            "emailsPerMonth": 10000
+          },
+          "provider": {
+            "id": "postmark",
+            "resource": "sphere-email"
+          },
+          "provides": "service/email"
+        },
+        "email.resend.free": {
+          "features": {
+            "availability": 0.99,
+            "latency": 180,
+            "subscription": 0
+          },
+          "name": "FREE",
+          "properties": {
+            "emailsPerDay": 100,
+            "emailsPerMonth": 3000
+          },
+          "provider": {
+            "id": "resend",
+            "resource": "sphere-email"
+          },
+          "provides": "service/email"
+        },
+        "email.resend.pro": {
+          "features": {
+            "availability": 0.99,
+            "latency": 180,
+            "subscription": 20
+          },
+          "name": "PRO",
+          "properties": {
+            "emailsPerDay": 100000000,
+            "emailsPerMonth": 50000
+          },
+          "provider": {
+            "id": "resend",
+            "resource": "sphere-email"
+          },
+          "provides": "service/email"
+        },
+        "email.resend.scale": {
+          "features": {
+            "availability": 0.99,
+            "latency": 180,
+            "subscription": 90
+          },
+          "name": "SCALE",
+          "properties": {
+            "emailsPerDay": 100000000,
+            "emailsPerMonth": 100000
+          },
+          "provider": {
+            "id": "resend",
+            "resource": "sphere-email"
+          },
+          "provides": "service/email"
+        },
+        "email.sendgrid.essentials": {
+          "features": {
+            "availability": 0.999,
+            "latency": 220,
+            "subscription": 19.95
+          },
+          "name": "ESSENTIALS",
+          "properties": {
+            "emailsPerDay": 100000000,
+            "emailsPerMonth": 50000
+          },
+          "provider": {
+            "id": "sendgrid",
+            "resource": "sphere-email"
+          },
+          "provides": "service/email"
+        },
+        "email.sendgrid.pro": {
+          "features": {
+            "availability": 0.999,
+            "latency": 220,
+            "subscription": 89.95
+          },
+          "name": "PRO",
+          "properties": {
+            "emailsPerDay": 100000000,
+            "emailsPerMonth": 100000
+          },
+          "provider": {
+            "id": "sendgrid",
+            "resource": "sphere-email"
+          },
+          "provides": "service/email"
+        }
+      },
+      "featureBindings": {
+        "availability": {
+          "id": "availability",
+          "resource": "application"
+        },
+        "latency": {
+          "id": "latency",
+          "resource": "application"
+        },
+        "subscription": {
+          "id": "subscription",
+          "resource": "application"
+        }
+      },
+      "providers": {
+        "brevo": {},
+        "mailgun": {},
+        "postmark": {},
+        "resend": {},
+        "sendgrid": {}
+      }
+    }
+  }
+}

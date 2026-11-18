@@ -1,0 +1,312 @@
+{
+  "sphere-email/email.brevo.free": [
+    {
+      "bound": 30000,
+      "operator": ">=",
+      "property": "emailsPerMonth",
+      "satisfied": true,
+      "text": "emailsPerMonth: 100000000 >= 30000",
+      "value": 100000000
+    }
+  ],
+  "sphere-email/email.brevo.professional": [
+    {
+      "bound": 30000,
+      "operator": ">=",
+      "property": "emailsPerMonth",
+      "satisfied": true,
+      "text": "emailsPerMonth: 150000 >= 30000",
+      "value": 150000
+    }
+  ],
+  "sphere-email/email.brevo.professional.dedicatedip": [
+    {
+      "bound": 30000,
+      "operator": ">=",
+      "property": "emailsPerMonth",
+      "satisfied": true,
+      "text": "emailsPerMonth: 150000 >= 30000",
+      "value": 150000
+    }
+  ],
+  "sphere-email/email.brevo.standard": [
+    {
+      "bound": 30000,
+      "operator": ">=",
+      "property": "emailsPerMonth",
+      "satisfied": false,
+      "text": "emailsPerMonth: 5000 < 30000",
+      "value": 5000
+    }
+  ],
+  "sphere-email/email.brevo.standard.extraseats": [
+    {
+      "bound": 30000,
+      "operator": ">=",
+      "property": "emailsPerMonth",
+      "satisfied": false,
+      "text": "emailsPerMonth: 5000 < 30000",
+      "value": 5000
+    }
+  ],
+  "sphere-email/email.brevo.starter": [
+    {
+      "bound": 30000,
+      "operator": ">=",
+      "property": "emailsPerMonth",
+      "satisfied": false,
+      "text": "emailsPerMonth: 5000 < 30000",
+      "value": 5000
+    }
+  ],
+  "sphere-email/email.mailgun.basic": [
+    {
+      "bound": 30000,
+      "operator": ">=",
+      "property": "emailsPerMonth",
+      "satisfied": false,
+      "text": "emailsPerMonth: 10000 < 30000",
+      "value": 10000
+    }
+  ],
+  "sphere-email/email.mailgun.foundation": [
+    {
+      "bound": 30000,
+      "operator": ">=",
+      "property": "emailsPerMonth",
+      "satisfied": true,
+      "text": "emailsPerMonth: 50000 >= 30000",
+      "value": 50000
+    }
+  ],
+  "sphere-email/email.mailgun.foundation.extradedicatedip": [
+    {
+      "bound": 30000,
+      "operator": ">=",
+      "property": "emailsPerMonth",
+      "satisfied": true,
+      "text": "emailsPerMonth: 50000 >= 30000",
+      "value": 50000
+    }
+  ],
+  "sphere-email/email.mailgun.free": [
+    {
+      "bound": 30000,
+      "operator": ">=",
+      "property": "emailsPerMonth",
+      "satisfied": false,
+      "text": "emailsPerMonth: 3000 < 30000",
+      "value": 3000
+    }
+  ],
+  "sphere-email/email.mailgun.scale": [
+    {
+      "bound": 30000,
+      "operator": ">=",
+      "property": "emailsPerMonth",
+      "satisfied": true,
+      "text": "emailsPerMonth: 100000 >= 30000",
+      "value": 100000
+    }
+  ],
+  "sphere-email/email.mailgun.scale.extradedicatedip": [
+    {
+      "bound": 30000,
+      "operator": ">=",
+      "property": "emailsPerMonth",
+      "satisfied": true,
+      "text": "emailsPerMonth: 100000 >= 30000",
+      "value": 100000
+    }
+  ],
+  "sphere-email/email.postmark.basic": [
+    {
+      "bound": 30000,
+      "operator": ">=",
+      "property": "emailsPerMonth",
+      "satisfied": false,
+      "text": "emailsPerMonth: 10000 < 30000",
+      "value": 10000
+    }
+  ],
+  "sphere-email/email.postmark.free": [
+    {
+      "bound": 30000,
+      "operator": ">=",
+      "property": "emailsPerMonth",
+      "satisfied": false,
+      "text": "emailsPerMonth: 100 < 30000",
+      "value": 100
+    }
+  ],
+  "sphere-email/email.postmark.platform": [
+    {
+      "bound": 30000,
+      "operator": ">=",
+      "property": "emailsPerMonth",
+      "satisfied": false,
+      "text": "emailsPerMonth: 10000 < 30000",
+      "value": 10000
+    }
+  ],
+  "sphere-email/email.postmark.platform.dedicatedip": [
+    {
+      "bound": 30000,
+      "operator": ">=",
+      "property": "emailsPerMonth",
+      "satisfied": false,
+      "text": "emailsPerMonth: 10000 < 30000",
+      "value": 10000
+    }
+  ],
+  "sphere-email/email.postmark.pro": [
+    {
+      "bound": 30000,
+      "operator": ">=",
+      "property": "emailsPerMonth",
+      "satisfied": false,
+      "text": "emailsPerMonth: 10000 < 30000",
+      "value": 10000
+    }
+  ],
+  "sphere-email/email.postmark.pro.dedicatedip": [
+    {
+      "bound": 30000,
+      "operator": ">=",
+      "property": "emailsPerMonth",
+      "satisfied": false,
+      "text": "emailsPerMonth: 10000 < 30000",
+      "value": 10000
+    }
+  ],
+  "sphere-email/email.resend.free": [
+    {
+      "bound": 30000,
+      "operator": ">=",
+      "property": "emailsPerMonth",
+      "satisfied": false,
+      "text": "emailsPerMonth: 3000 < 30000",
+      "value": 3000
+    }
+  ],
+  "sphere-email/email.resend.pro": [
+    {
+      "bound": 30000,
+      "operator": ">=",
+      "property": "emailsPerMonth",
+      "satisfied": true,
+      "text": "emailsPerMonth: 50000 >= 30000",
+      "value": 50000
+    }
+  ],
+  "sphere-email/email.resend.pro.extradomains": [
+    {
+      "bound": 30000,
+      "operator": ">=",
+      "property": "emailsPerMonth",
+      "satisfied": true,
+      "text": "emailsPerMonth: 50000 >= 30000",
+      "value": 50000
+    }
+  ],
+  "sphere-email/email.resend.scale": [
+    {
+      "bound": 30000,
+      "operator": ">=",
+      "property": "emailsPerMonth",
+      "satisfied": true,
+      "text": "emailsPerMonth: 100000 >= 30000",
+      "value": 100000
+    }
+  ],
+  "sphere-email/email.resend.scale.dedicatedip": [
+    {
+      "bound": 30000,
+      "operator": ">=",
+      "property": "emailsPerMonth",
+      "satisfied": true,
+      "text": "emailsPerMonth: 100000 >= 30000",
+      "value": 100000
+    }
+  ],
+  "sphere-email/email.resend.scale.extradomains": [
+    {
+      "bound": 30000,
+      "operator": ">=",
+      "property": "emailsPerMonth",
+      "satisfied": true,
+      "text": "emailsPerMonth: 100000 >= 30000",
+      "value": 100000
+    }
+  ],
+  "sphere-email/email.resend.scale.singlesignon": [
+    {
+      "bound": 30000,
+      "operator": ">=",
+      "property": "emailsPerMonth",
+      "satisfied": true,
+      "text": "emailsPerMonth: 100000 >= 30000",
+      "value": 100000
+    }
+  ],
+  "sphere-email/email.sendgrid.essentials": [
+    {
+      "bound": 30000,
+      "operator": ">=",
+      "property": "emailsPerMonth",
+      "satisfied": true,
+      "text": "emailsPerMonth: 50000 >= 30000",
+      "value": 50000
+    }
+  ],
+  "sphere-email/email.sendgrid.essentials.emailtestingcredits30": [
+    {
+      "bound": 30000,
+      "operator": ">=",
+      "property": "emailsPerMonth",
+      "satisfied": true,
+      "text": "emailsPerMonth: 50000 >= 30000",
+      "value": 50000
+    }
+  ],
+  "sphere-email/email.sendgrid.freetrial": [
+    {
+      "bound": 30000,
+      "operator": ">=",
+      "property": "emailsPerMonth",
+      "satisfied": true,
+      "text": "emailsPerMonth: 100000000 >= 30000",
+      "value": 100000000
+    }
+  ],
+  "sphere-email/email.sendgrid.pro": [
+    {
+      "bound": 30000,
+      "operator": ">=",
+      "property": "emailsPerMonth",
+      "satisfied": true,
+      "text": "emailsPerMonth: 100000 >= 30000",
+      "value": 100000
+    }
+  ],
+  "sphere-email/email.sendgrid.pro.emailtestingcredits30": [
+    {
+      "bound": 30000,
+      "operator": ">=",
+      "property": "emailsPerMonth",
+      "satisfied": true,
+      "text": "emailsPerMonth: 100000 >= 30000",
+      "value": 100000
+    }
+  ],
+  "sphere-email/email.sendgrid.pro.extradedicatedip": [
+    {
+      "bound": 30000,
+      "operator": ">=",
+      "property": "emailsPerMonth",
+      "satisfied": true,
+      "text": "emailsPerMonth: 100000 >= 30000",
+      "value": 100000
+    }
+  ]
+}

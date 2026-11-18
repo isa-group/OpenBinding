@@ -1,0 +1,52 @@
+{
+  "sphere-storage/storage.dropbox.advanced": [
+    {
+      "bound": 1000,
+      "operator": ">=",
+      "property": "storageLimit",
+      "satisfied": true,
+      "text": "storageLimit: 100000000 >= 1000",
+      "value": 100000000
+    }
+  ],
+  "sphere-storage/storage.dropbox.family": [
+    {
+      "bound": 1000,
+      "operator": ">=",
+      "property": "storageLimit",
+      "satisfied": true,
+      "text": "storageLimit: 2000 >= 1000",
+      "value": 2000
+    }
+  ],
+  "sphere-storage/storage.dropbox.plus": [
+    {
+      "bound": 1000,
+      "operator": ">=",
+      "property": "storageLimit",
+      "satisfied": true,
+      "text": "storageLimit: 2000 >= 1000",
+      "value": 2000
+    }
+  ],
+  "sphere-storage/storage.dropbox.professional": [
+    {
+      "bound": 1000,
+      "operator": ">=",
+      "property": "storageLimit",
+      "satisfied": true,
+      "text": "storageLimit: 3000 >= 1000",
+      "value": 3000
+    }
+  ],
+  "sphere-storage/storage.dropbox.standard": [
+    {
+      "bound": 1000,
+      "operator": ">=",
+      "property": "storageLimit",
+      "satisfied": true,
+      "text": "storageLimit: 5000 >= 1000",
+      "value": 5000
+    }
+  ]
+}

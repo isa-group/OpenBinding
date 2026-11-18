@@ -1,0 +1,9 @@
+[
+  {
+    "at": "/tasks/0/from/2",
+    "code": "sphere_unit_per_user",
+    "message": "Prices per user (user/month) are taken for one seat; the recipe names no seats.",
+    "severity": "warning",
+    "unit": "user/month"
+  }
+]

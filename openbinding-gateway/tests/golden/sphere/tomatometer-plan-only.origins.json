@@ -1,0 +1,457 @@
+[
+  {
+    "addOns": [],
+    "candidateKey": "sphere-pomodoro/pomodoro.tomatometer.advanced",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "advanced 3.99 x 3 seats x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 11.97,
+          "id": "advanced",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 3,
+          "unit": "user/month",
+          "unitAmount": 3.99
+        }
+      ],
+      "seats": 3
+    },
+    "plan": "advanced",
+    "pricingId": "6ab0a323697330667ccce8cd",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "sphere/tomatometer",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 11.97,
+    "versionId": "6921867e7004563bd918e7e8"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-pomodoro/pomodoro.tomatometer.advanced",
+    "detail": {
+      "name": "maxPomodoroTimers",
+      "period": {
+        "unit": "DAY",
+        "value": 1
+      },
+      "raw": 10,
+      "unit": "timer",
+      "unlimited": false
+    },
+    "plan": "advanced",
+    "pricingId": "6ab0a323697330667ccce8cd",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "sphere/tomatometer",
+    "target": "timers",
+    "targetKind": "property",
+    "value": 10,
+    "versionId": "6921867e7004563bd918e7e8"
+  },
+  {
+    "addOns": [
+      "extraTimers"
+    ],
+    "candidateKey": "sphere-pomodoro/pomodoro.tomatometer.advanced.extratimers",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "(advanced 3.99 x 3 seats + extraTimers 1) x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 11.97,
+          "id": "advanced",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 3,
+          "unit": "user/month",
+          "unitAmount": 3.99
+        },
+        {
+          "amount": 1,
+          "id": "extraTimers",
+          "kind": "addOn",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "/month",
+          "unitAmount": 1
+        }
+      ],
+      "seats": 3
+    },
+    "plan": "advanced",
+    "pricingId": "6ab0a323697330667ccce8cd",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "sphere/tomatometer",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 12.97,
+    "versionId": "6921867e7004563bd918e7e8"
+  },
+  {
+    "addOns": [
+      "extraTimers"
+    ],
+    "candidateKey": "sphere-pomodoro/pomodoro.tomatometer.advanced.extratimers",
+    "detail": {
+      "name": "maxPomodoroTimers",
+      "period": {
+        "unit": "DAY",
+        "value": 1
+      },
+      "raw": 15,
+      "unit": "timer",
+      "unlimited": false
+    },
+    "plan": "advanced",
+    "pricingId": "6ab0a323697330667ccce8cd",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "sphere/tomatometer",
+    "target": "timers",
+    "targetKind": "property",
+    "value": 15,
+    "versionId": "6921867e7004563bd918e7e8"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-pomodoro/pomodoro.tomatometer.basic",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "basic 0 x 3 seats x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 0,
+          "id": "basic",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 3,
+          "unit": "user/month",
+          "unitAmount": 0
+        }
+      ],
+      "seats": 3
+    },
+    "plan": "basic",
+    "pricingId": "6ab0a323697330667ccce8cd",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "sphere/tomatometer",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 0,
+    "versionId": "6921867e7004563bd918e7e8"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-pomodoro/pomodoro.tomatometer.basic",
+    "detail": {
+      "name": "maxPomodoroTimers",
+      "period": {
+        "unit": "DAY",
+        "value": 1
+      },
+      "raw": 3,
+      "unit": "timer",
+      "unlimited": false
+    },
+    "plan": "basic",
+    "pricingId": "6ab0a323697330667ccce8cd",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "sphere/tomatometer",
+    "target": "timers",
+    "targetKind": "property",
+    "value": 3,
+    "versionId": "6921867e7004563bd918e7e8"
+  },
+  {
+    "addOns": [
+      "extraTimers"
+    ],
+    "candidateKey": "sphere-pomodoro/pomodoro.tomatometer.basic.extratimers",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "(basic 0 x 3 seats + extraTimers 1) x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 0,
+          "id": "basic",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 3,
+          "unit": "user/month",
+          "unitAmount": 0
+        },
+        {
+          "amount": 1,
+          "id": "extraTimers",
+          "kind": "addOn",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "/month",
+          "unitAmount": 1
+        }
+      ],
+      "seats": 3
+    },
+    "plan": "basic",
+    "pricingId": "6ab0a323697330667ccce8cd",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "sphere/tomatometer",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 1,
+    "versionId": "6921867e7004563bd918e7e8"
+  },
+  {
+    "addOns": [
+      "extraTimers"
+    ],
+    "candidateKey": "sphere-pomodoro/pomodoro.tomatometer.basic.extratimers",
+    "detail": {
+      "name": "maxPomodoroTimers",
+      "period": {
+        "unit": "DAY",
+        "value": 1
+      },
+      "raw": 8,
+      "unit": "timer",
+      "unlimited": false
+    },
+    "plan": "basic",
+    "pricingId": "6ab0a323697330667ccce8cd",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "sphere/tomatometer",
+    "target": "timers",
+    "targetKind": "property",
+    "value": 8,
+    "versionId": "6921867e7004563bd918e7e8"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-pomodoro/pomodoro.tomatometer.premium",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "premium 9.99 x 3 seats x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 29.97,
+          "id": "premium",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 3,
+          "unit": "user/month",
+          "unitAmount": 9.99
+        }
+      ],
+      "seats": 3
+    },
+    "plan": "premium",
+    "pricingId": "6ab0a323697330667ccce8cd",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "sphere/tomatometer",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 29.97,
+    "versionId": "6921867e7004563bd918e7e8"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-pomodoro/pomodoro.tomatometer.premium",
+    "detail": {
+      "name": "maxPomodoroTimers",
+      "period": {
+        "unit": "DAY",
+        "value": 1
+      },
+      "raw": 15,
+      "unit": "timer",
+      "unlimited": false
+    },
+    "plan": "premium",
+    "pricingId": "6ab0a323697330667ccce8cd",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "sphere/tomatometer",
+    "target": "timers",
+    "targetKind": "property",
+    "value": 15,
+    "versionId": "6921867e7004563bd918e7e8"
+  },
+  {
+    "addOns": [
+      "exportAsJson"
+    ],
+    "candidateKey": "sphere-pomodoro/pomodoro.tomatometer.premium.exportasjson",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "(premium 9.99 x 3 seats + exportAsJson 2) x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 29.97,
+          "id": "premium",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 3,
+          "unit": "user/month",
+          "unitAmount": 9.99
+        },
+        {
+          "amount": 2,
+          "id": "exportAsJson",
+          "kind": "addOn",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "/month",
+          "unitAmount": 2
+        }
+      ],
+      "seats": 3
+    },
+    "plan": "premium",
+    "pricingId": "6ab0a323697330667ccce8cd",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "sphere/tomatometer",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 31.97,
+    "versionId": "6921867e7004563bd918e7e8"
+  },
+  {
+    "addOns": [
+      "exportAsJson"
+    ],
+    "candidateKey": "sphere-pomodoro/pomodoro.tomatometer.premium.exportasjson",
+    "detail": {
+      "name": "maxPomodoroTimers",
+      "period": {
+        "unit": "DAY",
+        "value": 1
+      },
+      "raw": 15,
+      "unit": "timer",
+      "unlimited": false
+    },
+    "plan": "premium",
+    "pricingId": "6ab0a323697330667ccce8cd",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "sphere/tomatometer",
+    "target": "timers",
+    "targetKind": "property",
+    "value": 15,
+    "versionId": "6921867e7004563bd918e7e8"
+  },
+  {
+    "addOns": [
+      "extraTimers"
+    ],
+    "candidateKey": "sphere-pomodoro/pomodoro.tomatometer.premium.extratimers",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "(premium 9.99 x 3 seats + extraTimers 1) x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 29.97,
+          "id": "premium",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 3,
+          "unit": "user/month",
+          "unitAmount": 9.99
+        },
+        {
+          "amount": 1,
+          "id": "extraTimers",
+          "kind": "addOn",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "/month",
+          "unitAmount": 1
+        }
+      ],
+      "seats": 3
+    },
+    "plan": "premium",
+    "pricingId": "6ab0a323697330667ccce8cd",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "sphere/tomatometer",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 30.97,
+    "versionId": "6921867e7004563bd918e7e8"
+  },
+  {
+    "addOns": [
+      "extraTimers"
+    ],
+    "candidateKey": "sphere-pomodoro/pomodoro.tomatometer.premium.extratimers",
+    "detail": {
+      "name": "maxPomodoroTimers",
+      "period": {
+        "unit": "DAY",
+        "value": 1
+      },
+      "raw": 20,
+      "unit": "timer",
+      "unlimited": false
+    },
+    "plan": "premium",
+    "pricingId": "6ab0a323697330667ccce8cd",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "sphere/tomatometer",
+    "target": "timers",
+    "targetKind": "property",
+    "value": 20,
+    "versionId": "6921867e7004563bd918e7e8"
+  }
+]
