@@ -3,18 +3,23 @@
 ``period_of`` reads ``…/month``, ``month``, ``per month``, ``…/year``, ``year``, ``…/week`` and ``week``
 (any case); anything else has no period. An add-on whose unit has no period (``1000 emails``, ``email``,
 ``100 validations``) is metered: it is paid per quantity used, not per period, and ``metered_quantity``
-reads the leading number of its unit.
+reads the leading number of its unit. ``month_factor`` turns a period into months, the one table the problem
+generator and the margins share.
 """
 
 from __future__ import annotations
 
 import re
+from decimal import Decimal, localcontext
+from fractions import Fraction
 
 _PERIODS = {
     "month": "month", "months": "month", "monthly": "month", "mo": "month",
     "year": "year", "years": "year", "yearly": "year", "annual": "year", "annually": "year", "yr": "year",
     "week": "week", "weeks": "week", "weekly": "week",
 }
+#: How many of a period make one month (a week is 52 / 12 of a month's worth per month).
+MONTHLY_FACTOR: dict[str, Fraction] = {"month": Fraction(1), "year": Fraction(1, 12), "week": Fraction(52, 12)}
 _LEADING_NUMBER = re.compile(r"^\s*(\d+(?:\.\d+)?)\b")
 
 
@@ -48,3 +53,13 @@ def metered_quantity(unit: str | None) -> float:
 def is_metered(unit: str | None) -> bool:
     """A unit with no period: the add-on is paid per quantity used."""
     return bool(unit and unit.strip()) and period_of(unit) is None
+
+
+def month_factor(period: str | None) -> Decimal | None:
+    """The factor that makes a price in ``period`` monthly, to 34 digits; ``None`` for no or an unknown period."""
+    factor = MONTHLY_FACTOR.get(period or "")
+    if factor is None:
+        return None
+    with localcontext() as ctx:
+        ctx.prec = 34
+        return Decimal(factor.numerator) / Decimal(factor.denominator)

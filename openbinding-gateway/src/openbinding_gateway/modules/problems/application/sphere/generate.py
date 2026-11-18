@@ -35,6 +35,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
+from ....plans.application import month_factor
 from ....plans.application import pricing2yaml as p2y
 from ...domain.sphere import ids
 from ...domain.sphere.diagnostics import SphereDiagnostic, diagnostic, has_errors, pointer
@@ -56,7 +57,6 @@ MAX_PACKAGE_ENTRIES = 256
 MAX_PACKAGE_BYTES = 16 * 1024 * 1024
 MAX_PREDICATE_CHARS = 4096
 MAX_PREDICATE_TERMS = 32
-_MONTHLY = {"month": 1.0, "year": 1.0 / 12.0, "week": 52.0 / 12.0}
 
 #: ``(registry, pricingId, versionId)``.
 SourceKey = tuple[str | None, str, str]
@@ -266,7 +266,8 @@ def _price(
     for part in result.parts:
         unit = pricing.plans[plan].unit if part.kind == "plan" else pricing.add_ons[part.id].unit
         period = p2y.units.period_of(unit)
-        factor = _MONTHLY.get(period or "")
+        exact_factor = month_factor(period)
+        factor = None if exact_factor is None else float(exact_factor)
         if factor is None:
             ctx.once("sphere_unit_unknown",
                      f"The unit {unit or '(none)'!r} names no period; prices in it are taken as monthly.",

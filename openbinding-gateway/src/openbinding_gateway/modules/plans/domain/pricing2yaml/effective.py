@@ -136,13 +136,22 @@ def effective(
     )
 
 
-def single_variants(pricing: NormalisedPricing) -> list[tuple[str, str | None]]:
-    """Every plan alone and with each single subscription add-on available for it (metered ones excluded)."""
+def single_variants(pricing: NormalisedPricing, *, limit: int | None = None) -> list[tuple[str, str | None]]:
+    """Every plan alone and with each single subscription add-on available for it (metered ones excluded).
+
+    With ``limit``, the generation stops at ``limit + 1`` variants (in declared order), so a caller learns that it
+    was truncated without materialising plans x add-ons.
+    """
     variants: list[tuple[str, str | None]] = []
+    stop = None if limit is None else limit + 1
     for plan in pricing.plans:
         variants.append((plan, None))
+        if stop is not None and len(variants) >= stop:
+            return variants
         for name, add_on in pricing.add_ons.items():
             if add_on.metered or plan not in add_on.available_for or add_on.depends_on:
                 continue
             variants.append((plan, name))
+            if stop is not None and len(variants) >= stop:
+                return variants
     return variants
