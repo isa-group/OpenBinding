@@ -509,6 +509,15 @@ from: {sphere: <owner/name>, registry: <alias>, version: <versionId>, plan: <pla
   snapshots F3 keeps (`c2y_unknown_key`).
 - Any field that is not well formed (an `owner/name`, an alias, a version id, a plan or add-on name of 1 to 128
   characters with no control character), or an add-on listed twice, is `c2y_from_shape`.
+- **Derive writes it.** A composition derived from a problem a SPHERE import generated gets the `from` of every
+  candidate the import generated, from the revision's value origins: the family's `owner/name` when it was read,
+  the version id, the plan and add-ons as the pricing names them. A candidate written by hand gets none.
+- **Coherence with the problem.** Wherever a document is assessed against its problem (check, seal, derive, fork,
+  re-evaluation, stored versions included), a `from` on a candidate the import generated must say what the
+  revision recorded: `owner/name`, registry, version, plan and the add-ons as a set (`c2y_provenance_mismatch`, an
+  error at the first field that differs). An entry **without** `from` on such a candidate is valid, with the
+  warning `c2y_provenance_missing`: the version then pins no upstream version of its own (it can still be watched
+  through the revision's value origins). On a candidate no import generated, a hand-written `from` is not checked.
 
 ```yaml c2y valid registries=lab
 syntaxVersion: "1.0"
@@ -1075,6 +1084,8 @@ organization, the toolchain's evaluation and the evidence run.
 | `c2y_value_not_computed` | warning | problem | a declared value of a property the toolchain does not compute; dropped |
 | `c2y_constraint_violated` | error | problem | the binding violates a hard constraint |
 | `c2y_constraint_soft` | warning | problem | the binding misses a soft constraint, with its penalty |
+| `c2y_provenance_mismatch` | error | problem | a `from` disagrees with the provenance a SPHERE-generated problem recorded for the candidate (owner/name, registry, version, plan, add-ons) |
+| `c2y_provenance_missing` | warning | problem | an entry without `from` whose candidate a SPHERE import generated: the version pins no upstream version of its own |
 | `c2y_problem_foreign` | error | assessment | `problem.ref` names a problem of another organization |
 | `c2y_problem_not_found` | error | assessment | no such problem or revision in the organization |
 | `c2y_problem_not_recompilable` | error | assessment | the installed toolchain refuses the linked revision's stored package |
@@ -1094,7 +1105,6 @@ organization, the toolchain's evaluation and the evidence run.
 |---|---|---|---|
 | `c2y_offering_unreadable` | warning | assessment | the offering cannot be read; no margins |
 | `c2y_offering_invalid_pricing` | warning | assessment | the offering's content is not a valid Pricing2Yaml; no margins |
-| `c2y_provenance_mismatch` | error | problem | a `from` disagrees with the provenance a SPHERE-generated problem recorded for the candidate |
 
 The HTTP codes that wrap these findings (`composition_invalid`, `evaluation_invalid`, `derivation_invalid`, …) are in
 [ERRORS.md](ERRORS.md).

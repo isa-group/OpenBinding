@@ -33,7 +33,7 @@ from typing import Any, Iterable, Mapping
 
 from . import diagnostics as codes
 from .diagnostics import Diagnostic, Path, at
-from .document import DIMENSIONLESS, Document, Entry, Value
+from .document import DIMENSIONLESS, Document, Entry, Provenance, Value
 from .workflow import Node, WorkflowError, first_mismatch, from_ir, normalise, tasks
 
 #: The relative difference below which a declared value is taken to be the computed one. It only
@@ -403,10 +403,17 @@ def violation_findings(violations: Iterable[Mapping[str, Any]], facts: ProblemFa
 # --------------------------------------------------------------------------- the inverse
 
 
-def document_binding(bim_binding: Mapping[str, Mapping[str, Any]], facts: ProblemFacts) -> tuple[tuple[str, Entry], ...]:
+def document_binding(
+    bim_binding: Mapping[str, Mapping[str, Any]],
+    facts: ProblemFacts,
+    provenance: Mapping[str, Mapping[str, Any]] | None = None,
+) -> tuple[tuple[str, Entry], ...]:
     """A BIM binding as a document writes it, in the order a depth-first walk of the workflow
     first meets each task: a candidate by its id, by ``<resource>/<id>`` only when two catalogs
-    give the task that id, and ``local: true`` for a task done in house."""
+    give the task that id, and ``local: true`` for a task done in house.
+
+    ``provenance`` (``{<resource>/<id>: {sphere, version, plan, registry?, addons?}}``, a SPHERE-generated
+    problem's value origins as a plain mapping) gives a candidate its ``from``; a candidate without one gets none."""
     found: list[tuple[str, Entry]] = []
     for task in tasks(facts.workflow):
         if task in facts.local_tasks:
@@ -415,7 +422,73 @@ def document_binding(bim_binding: Mapping[str, Mapping[str, Any]], facts: Proble
         item = bim_binding.get(task)
         if item is None:
             raise ValueError(f"the binding leaves out the service task {task!r}")
-        found.append((task, Entry(candidate=_short(_ref(item), facts.eligibility.get(task, ())))))
+        reference = _ref(item)
+        source = from_provenance((provenance or {}).get(str(reference)))
+        found.append((task, Entry(candidate=_short(reference, facts.eligibility.get(task, ())), source=source)))
+    return tuple(found)
+
+
+def from_provenance(item: Mapping[str, Any] | None) -> Provenance | None:
+    """The ``from`` a candidate's recorded provenance is written as (``None`` without its ``owner/name``)."""
+    if not item or not item.get("sphere") or not item.get("version"):
+        return None
+    return Provenance(
+        sphere=str(item["sphere"]),
+        version=str(item["version"]),
+        plan=None if item.get("plan") is None else str(item["plan"]),
+        registry=item.get("registry") or None,
+        addons=tuple(item.get("addons") or ()),
+    )
+
+
+def _shown(value: Any) -> Any:
+    return sorted(value) if isinstance(value, frozenset) else value
+
+
+def provenance_findings(
+    binding: tuple[tuple[str, Entry], ...],
+    bim_binding: Mapping[str, Mapping[str, Any]],
+    provenance: Mapping[str, Mapping[str, Any]],
+) -> tuple[Diagnostic, ...]:
+    """A document's ``from`` entries against the provenance its problem recorded (plain mappings by candidate key).
+
+    An entry with a ``from`` whose candidate has a provenance must match it (``owner/name``, registry, version,
+    plan, and the add-ons as a set): ``c2y_provenance_mismatch``, at the first field that differs. An entry without
+    ``from`` whose candidate has one is ``c2y_provenance_missing`` (a warning). Anything else says nothing: a
+    hand-written ``from`` on a candidate no import generated is the author's.
+    """
+    found: list[Diagnostic] = []
+    for task, entry in binding:
+        if entry.local or entry.candidate is None or task not in bim_binding:
+            continue
+        recorded = from_provenance(provenance.get(str(_ref(bim_binding[task]))))
+        if recorded is None:
+            continue
+        if entry.source is None:
+            found.append(at(
+                ("binding", task), codes.PROVENANCE_MISSING,
+                f"{entry.candidate} was generated from {recorded.sphere} (plan {recorded.plan}, version "
+                f"{recorded.version}); without from, this version pins no upstream version of its own",
+                severity="warning",
+            ))
+            continue
+        written = entry.source
+        fields = (
+            ("sphere", written.sphere, recorded.sphere),
+            ("registry", written.registry, recorded.registry),
+            ("version", written.version, recorded.version),
+            ("plan", written.plan, recorded.plan),
+            ("addons", frozenset(written.addons), frozenset(recorded.addons)),
+        )
+        differing = [(name, mine, theirs) for name, mine, theirs in fields if mine != theirs]
+        if differing:
+            name, mine, theirs = differing[0]
+            found.append(at(
+                ("binding", task, "from", name) if name != "registry" or written.registry else ("binding", task, "from"),
+                codes.PROVENANCE_MISMATCH,
+                f"the problem generated {entry.candidate} from {recorded.sphere} plan {recorded.plan} at version "
+                f"{recorded.version}; this from says {name} {_shown(mine)!r}, not {_shown(theirs)!r}",
+            ))
     return tuple(found)
 
 

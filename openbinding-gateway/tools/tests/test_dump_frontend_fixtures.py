@@ -40,7 +40,8 @@ def test_two_runs_write_byte_identical_trees(two_runs) -> None:
     assert _tree(first / "sphere") == _tree(second / "sphere")
     assert sorted(_tree(first / "core")) == sorted(
         [f"{name}.{kind}.json" for name, _ in tool.PACKAGES for kind in ("facts", "validate", "version", "diff")]
-        + ["refused.package.json", "refused.validate.json", "plans-pricing.json", "tomatometer-email.facts.json"]
+        + ["refused.package.json", "refused.validate.json", "plans-pricing.json", "tomatometer-email.facts.json",
+           "tomatometer-email.version.json"]
     )
 
 
@@ -62,6 +63,8 @@ def test_the_generated_facts_carry_sources_properties_and_provenance(two_runs) -
     assert foundation["origins"]["subscription"]["source"]["kind"] == "priced"
     assert foundation["propertyOrigins"]["emailsPerMonth"]["source"]["kind"] == "limit"
     assert foundation["provenance"]["sphere"] == "danruilop1/mailgun"
+    version = json.loads((first / "core" / "tomatometer-email.version.json").read_text(encoding="utf-8"))
+    assert version["document"]["binding"]["dailySummary"]["from"]["plan"] == "FOUNDATION"
 
 
 def test_the_sphere_fixtures_pair_every_readable_version_with_its_golden(two_runs) -> None:

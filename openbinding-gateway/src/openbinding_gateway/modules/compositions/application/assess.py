@@ -49,6 +49,7 @@ from ....composition.document import Document, Entry, Evidence, ProblemLink, Val
 from ....composition.problem import (
     ProblemFacts,
     against,
+    provenance_findings,
     computed_values,
     value_findings,
     violation_findings,
@@ -58,6 +59,7 @@ from ....integrations import bim
 from ....models.errors import api_error
 from ....models.problem import split_detail
 from ...execution.application import run_solutions
+from ...problems.application import candidate_provenance
 from ...problems.application import (
     NOT_RECOMPILABLE,
     compilation_by_digest,
@@ -173,6 +175,12 @@ async def assess(
     if resolution.blocking or resolution.bim_binding is None:
         return conclude(*resolution.blocking, problem=resolved)
     binding = resolution.bim_binding
+    # The binding's ``from`` against the provenance the linked revision recorded (immutable, so stored versions too).
+    provenance = provenance_findings(doc.binding, binding, await recorded_provenance(session, revision.id))
+    mismatched = tuple(item for item in provenance if item.severity == "error")
+    if mismatched:
+        return conclude(*mismatched, problem=resolved)
+    conclude.add(*provenance)
 
     async with evaluation_slot():
         try:
@@ -223,6 +231,25 @@ async def assess(
         ),
         evidence_run=run,
     )
+
+
+# --------------------------------------------------------------------------- provenance
+
+
+async def recorded_provenance(session: AsyncSession, revision_id: uuid.UUID) -> dict[str, dict[str, Any]]:
+    """``{<resource>/<id>: {sphere, version, plan, registry?, addons?}}`` of the candidates a SPHERE import generated in
+    the revision (only those whose ``owner/name`` is known: a ``from`` needs it)."""
+    out: dict[str, dict[str, Any]] = {}
+    for key, item in (await candidate_provenance(session, revision_id)).items():
+        if item.sphere is None:
+            continue
+        entry: dict[str, Any] = {"sphere": item.sphere, "version": item.version, "plan": item.plan}
+        if item.registry:
+            entry["registry"] = item.registry
+        if item.addons:
+            entry["addons"] = list(item.addons)
+        out[key] = entry
+    return out
 
 
 # --------------------------------------------------------------------------- the link

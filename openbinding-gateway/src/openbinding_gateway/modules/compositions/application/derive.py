@@ -16,7 +16,9 @@ deriving again answers the version that holds them.
    one toolchain call. A binding with a hard violation is not derivable.
 4. **Build.** :func:`openbinding_gateway.composition.derive.derived` writes the document from the binding the
    toolchain evaluated and the values it computed, the evidence (``{run, point}`` or ``manual: true``), and
-   the offering only when the request gives one. No ``from`` is written.
+   the offering only when the request gives one. A candidate a SPHERE import generated is written with its
+   ``from`` (the revision's value origins), so the version names the upstream plan and version it was chosen
+   against.
 5. **Guard.** The canonical bytes are read again by the language: a refusal there is a bug (500), so a
    derivation never stores bytes its own language refuses.
 
@@ -49,7 +51,7 @@ from ....composition.document import (
     ProblemLink,
     ProblemRef,
 )
-from ....composition.problem import ProblemFacts, document_binding
+from ....composition.problem import ProblemFacts, document_binding, from_provenance, written_candidate
 from ....composition.workflow import tasks
 from ....core.settings import get_settings
 from ....db.models import (
@@ -64,7 +66,7 @@ from ....models.errors import api_error
 from ...execution.application import RunSolutions, run_solutions
 from ...problems.application import problem_by_ref, revision_by_ref
 from ..domain.records import DerivationDraft
-from .assess import Assessment, StoredLink, assess, installed_compilation, resolve_link
+from .assess import Assessment, StoredLink, assess, installed_compilation, recorded_provenance, resolve_link
 from .language import diagnostic_view
 from .slots import language_slot
 
@@ -187,12 +189,15 @@ async def _from_binding(
     return _Source("binding", problem, revision, installed, request_binding=dict(binding))
 
 
-def _entries(source: _Source, facts: ProblemFacts) -> tuple[tuple[str, Entry], ...]:
+def _entries(
+    source: _Source, facts: ProblemFacts, provenance: Mapping[str, Mapping[str, Any]],
+) -> tuple[tuple[str, Entry], ...]:
     """The document's binding: the run's solution as a document writes it, or the request's binding with
-    every local task bound ``local: true``; 422 for what does not fit the problem's workflow."""
+    every local task bound ``local: true``; 422 for what does not fit the problem's workflow. A candidate a SPHERE
+    import generated carries its ``from`` (``provenance``)."""
     if source.run_binding is not None:
         try:
-            return document_binding(source.run_binding, facts)
+            return document_binding(source.run_binding, facts, provenance)
         except ValueError as error:
             raise _refused([at(_POINT, codes.RUN_POINT_INVALID, f"solution {source.point} of the run: {error}")]) from None
     given = source.request_binding or {}
@@ -212,7 +217,7 @@ def _entries(source: _Source, facts: ProblemFacts) -> tuple[tuple[str, Entry], .
     entries: list[tuple[str, Entry]] = []
     for task in known:
         if task in given:
-            entries.append((task, Entry(candidate=given[task])))
+            entries.append((task, Entry(candidate=given[task], source=_from_of(task, given[task], facts, provenance))))
         elif task in facts.local_tasks:
             entries.append((task, Entry(local=True)))
         else:
@@ -251,6 +256,15 @@ def _gate(found: tuple[Diagnostic, ...], source: _Source) -> tuple[Diagnostic, .
         )) if item.code == codes.COMPILATION_SEMANTICS_CHANGED else item
         for item in found
     )
+
+
+def _from_of(task: str, candidate: str, facts: ProblemFacts, provenance: Mapping[str, Mapping[str, Any]]):
+    """The ``from`` of a candidate the request names for ``task``, when a SPHERE import generated it."""
+    matches = [
+        reference for reference in facts.eligibility.get(task, ())
+        if written_candidate(task, reference.as_bim(), facts) == candidate or str(reference) == candidate
+    ]
+    return from_provenance(provenance.get(str(matches[0]))) if len(matches) == 1 else None
 
 
 def _provenance(installed: ProblemCompilation, run: RunSolutions | None) -> dict[str, Any]:
@@ -315,6 +329,7 @@ async def derive_version(
     if resolved is None or resolved.facts is None:
         raise _refused(found)
     facts = resolved.facts
+    provenance = await recorded_provenance(session, revision_row.id)
 
     workflow = written.written(facts.workflow)
     evidence = Evidence(run=str(source.run.run_id), point=source.point) if source.run is not None else Evidence(manual=True)
@@ -325,7 +340,7 @@ async def derive_version(
         kind=kind,
         problem=link,
         workflow=workflow,
-        binding=text.canonical_binding(workflow, _entries(source, facts)),
+        binding=text.canonical_binding(workflow, _entries(source, facts, provenance)),
         values=(),
         evidence=evidence,
     )
@@ -351,6 +366,7 @@ async def derive_version(
         features=draft.result["features"],
         evidence=assessment.effective.evidence or evidence,
         offering=chosen,
+        provenance=provenance,
     )
     try:
         content = text.serialise(document)

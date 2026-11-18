@@ -320,6 +320,8 @@ Against a compiled problem, and when assessing a document in an organization (th
 | `c2y_value_not_computed` | **warning**: a declared value of a property the toolchain does not compute; dropped |
 | `c2y_constraint_violated` | the binding violates a hard constraint |
 | `c2y_constraint_soft` | **warning**: the binding misses a soft constraint, with its penalty |
+| `c2y_provenance_mismatch` | a `from` disagrees with the provenance a SPHERE-generated problem recorded for its candidate (owner/name, registry, version, plan, add-ons); located at the first field that differs |
+| `c2y_provenance_missing` | **warning**: an entry without `from` on a candidate a SPHERE import generated; the version pins no upstream version of its own |
 | `c2y_problem_foreign` | `problem.ref` names a problem of another organization; it is not looked up there |
 | `c2y_problem_not_found` | the organization has no such problem or revision (or it was deleted while the version was being sealed) |
 | `c2y_problem_not_recompilable` | the installed toolchain refuses the linked revision's stored package |
@@ -334,9 +336,8 @@ Against a compiled problem, and when assessing a document in an organization (th
 | `c2y_run_binding_mismatch` | the binding is not the run's solution (`point`) or none of them; the message lists the tasks that differ |
 
 Reserved for F3, which emits them (no route reports them yet): `c2y_offering_unreadable` (**warning**: the
-offering cannot be read; no margins), `c2y_offering_invalid_pricing` (**warning**: its content is not a valid
-Pricing2Yaml; no margins) and `c2y_provenance_mismatch` (a `from` disagrees with the provenance a
-SPHERE-generated problem recorded for its candidate).
+offering cannot be read; no margins) and `c2y_offering_invalid_pricing` (**warning**: its content is not a valid
+Pricing2Yaml; no margins).
 
 ## Compositions
 

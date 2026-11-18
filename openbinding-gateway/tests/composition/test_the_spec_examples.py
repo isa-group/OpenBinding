@@ -35,7 +35,7 @@ SPEC = REPO_ROOT / "docs" / "COMPOSITION2YAML.md"
 PAGE_EXAMPLES = REPO_ROOT / "frontend" / "src" / "content" / "composition2yaml-examples.json"
 FENCE = re.compile(r"^```yaml c2y (?P<info>[^\n]*)\n(?P<body>.*?)^```$", re.MULTILINE | re.DOTALL)
 #: Codes the language reserves for later phases: named in the specification, defined by no module yet.
-RESERVED = ("c2y_offering_unreadable", "c2y_offering_invalid_pricing", "c2y_provenance_mismatch")
+RESERVED = ("c2y_offering_unreadable", "c2y_offering_invalid_pricing")
 
 
 @dataclass(frozen=True)

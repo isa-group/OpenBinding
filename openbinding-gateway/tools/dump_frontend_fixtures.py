@@ -14,7 +14,9 @@ response **bodies** (never headers) of the routes the frontend reads:
   same binding with one task bound to another candidate;
 * ``plans-pricing.json``: ``getPlansPricing``, OpenBinding's published pricing 0.2.0 as the recorded SPHERE serves it;
 * ``tomatometer-email.facts.json``: the facts of revision 2 of ``tomatometer-email``, which a SPHERE import
-  generated (``sphere/apply``): value sources, properties and provenance.
+  generated (``sphere/apply``): value sources, properties and provenance;
+* ``tomatometer-email.version.json``: version 1.0.0 of a composition ``tomatometer`` derived from that revision,
+  whose binding carries the generated e-mail plan's ``from``.
 
 The packages are ``simple-seq`` (``examples/demo/01_simple_seq``), ``fms`` (``13_fms``: an
 exclusive choice and a local task), ``json-complete`` (``16_json_complete``: a parallel block
@@ -325,6 +327,17 @@ async def _sphere_imports(client, headers: dict[str, str]) -> tuple[dict[str, An
         headers=headers,
     )
     core["tomatometer-email.facts.json"] = _ok(facts, 200).json()
+    # A composition derived from revision 2: its binding carries the e-mail plan's ``from``.
+    compositions = "/v1/organizations/fixtures/compositions"
+    _ok(await client.post(compositions, json={"slug": "tomatometer", "name": "TomatoMeter"}, headers=headers), 201)
+    binding = {
+        "login": "auth.builtin.local", "dailySummary": "email.mailgun.foundation",
+        "export": "storage.local.disk", "quotes": "quotes.zenquotes.free",
+    }
+    _ok(await client.post(f"{compositions}/tomatometer/derive", headers=headers,
+                          json={"revision": "tomatometer-email@2", "binding": binding, "version": "1.0.0"}), 201)
+    version = await client.get(f"{compositions}/tomatometer/versions/1.0.0", params={"include": "document"}, headers=headers)
+    core["tomatometer-email.version.json"] = _ok(version, 200).json()
     return core, sphere
 
 
