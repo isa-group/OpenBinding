@@ -47,14 +47,16 @@ async def test_one_connection_per_organization_and_kind_never_moved(pg, sphere: 
         user, organization = await _org(session)
         _, other = await _org(session)
         row = await connections.put_sphere_key(session, organization.id, KEY, user, None)
-        stored = await session.scalar(text("SELECT secret FROM org_connections WHERE id = :id").bindparams(id=row.id))
+        # A rollback expires every loaded row: keep the ids.
+        row_id, organization_id, other_id = row.id, organization.id, other.id
+        stored = await session.scalar(text("SELECT secret FROM org_connections WHERE id = :id").bindparams(id=row_id))
         assert KEY not in stored
-        session.add(OrgConnection(organization_id=organization.id, kind="sphere", secret="x", key_hint="x"))
+        session.add(OrgConnection(organization_id=organization_id, kind="sphere", secret="x", key_hint="x"))
         with pytest.raises(IntegrityError):
             await session.commit()
         await session.rollback()
         with pytest.raises(DBAPIError):
-            await session.execute(update(OrgConnection).where(OrgConnection.id == row.id).values(organization_id=other.id))
+            await session.execute(update(OrgConnection).where(OrgConnection.id == row_id).values(organization_id=other_id))
         await session.rollback()
 
 
