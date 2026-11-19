@@ -19,7 +19,7 @@ vi.mock('../../../settings/api/userSettingsApi', () => ({ useUserSettingsApi: ()
 
 vi.mock('../../../core/api/http', async () => ({
   ...(await vi.importActual<typeof import('../../../core/api/http')>('../../../core/api/http')),
-  getStoredPricingToken: () => stored.token,
+  currentPricingToken: () => stored.token,
 }));
 
 const person = (plan: string): UserProfile => ({

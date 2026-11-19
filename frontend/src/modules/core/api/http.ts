@@ -38,8 +38,6 @@ export class HttpError extends Error {
   }
 }
 
-export const PRICING_TOKEN_KEY = 'pricingToken';
-
 /** What `POST /v1/auth/identity/session` and a local sign-in answer: a short gateway token, kept in memory only. */
 export interface AccessGrant {
   access_token: string;
@@ -57,16 +55,24 @@ export const RENEW_BEFORE_MS = 60_000;
  */
 export const PRICING_TOKEN_UPDATED_EVENT = 'openbinding:pricing-token-updated';
 
-/** Helper to retrieve the active pricing token from localStorage safely. */
-export function getStoredPricingToken(): string | null {
-  const raw = localStorage.getItem(PRICING_TOKEN_KEY);
-  if (!raw) return null;
-  try {
-    const parsed = JSON.parse(raw);
-    return typeof parsed === 'string' ? parsed : raw;
-  } catch {
-    return raw;
-  }
+/**
+ * The SPACE pricing token the gateway minted for this account (`GET /v1/users/me/pricing-token`), which the SPACE client
+ * gates features with. Like the gateway token it lives in memory only, never in Web Storage: fetched when the page loads
+ * and dropped when the session ends.
+ */
+let pricingToken: string | null = null;
+
+/** The pricing token of this page, or `null` when there is none. */
+export function currentPricingToken(): string | null {
+  return pricingToken;
+}
+
+/** Keep (or, with `null`, drop) the pricing token, and tell whoever shows its state. */
+export function setPricingToken(token: string | null): void {
+  pricingToken = token;
+  window.dispatchEvent(
+    new CustomEvent(PRICING_TOKEN_UPDATED_EVENT, { detail: token ?? undefined })
+  );
 }
 
 /**
@@ -226,9 +232,8 @@ export class HttpTransport {
   clearTokens(): void {
     this.accessToken = null;
     this.accessTokenExpiresAt = null;
-    localStorage.removeItem(PRICING_TOKEN_KEY);
     // Whoever shows the state of the pricing token (the usage screen) learns that there is none.
-    window.dispatchEvent(new CustomEvent(PRICING_TOKEN_UPDATED_EVENT));
+    setPricingToken(null);
   }
 
   /** Whether the token is missing its expiry or has less than `RENEW_BEFORE_MS` left. */

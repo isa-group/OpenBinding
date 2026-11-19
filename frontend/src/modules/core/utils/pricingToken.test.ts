@@ -1,6 +1,6 @@
 import { renderHook, act } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { PRICING_TOKEN_UPDATED_EVENT } from '../api/http';
+import { setPricingToken } from '../api/http';
 import { pricingTokenStatus, usePricingTokenStatus } from './pricingToken';
 
 const NOW = Date.UTC(2026, 9, 9, 12, 0, 0);
@@ -31,28 +31,30 @@ describe('pricingTokenStatus', () => {
 });
 
 describe('usePricingTokenStatus', () => {
-  beforeEach(() => localStorage.clear());
+  beforeEach(() => setPricingToken(null));
   afterEach(() => {
     vi.useRealTimers();
-    localStorage.clear();
+    setPricingToken(null);
   });
 
-  it('follows the stored token, and never returns the token itself', () => {
+  it('follows the token in memory, never in Web Storage, and never returns the token itself', () => {
     const { result } = renderHook(() => usePricingTokenStatus());
     expect(result.current).toBe('missing');
 
     const fresh = token({ exp: Date.now() / 1000 + 3600 });
-    act(() => {
-      localStorage.setItem('pricingToken', fresh);
-      window.dispatchEvent(new CustomEvent(PRICING_TOKEN_UPDATED_EVENT, { detail: fresh }));
-    });
+    act(() => setPricingToken(fresh));
     expect(result.current).toBe('valid');
+    expect(Object.keys(localStorage)).toEqual([]);
+
+    act(() => setPricingToken(null));
+    expect(result.current).toBe('missing');
+    act(() => setPricingToken(fresh));
     expect(JSON.stringify(result.current)).not.toContain(fresh);
   });
 
   it('turns stale by itself when the token expires', () => {
     vi.useFakeTimers({ now: NOW });
-    localStorage.setItem('pricingToken', token({ exp: NOW / 1000 + 60 }));
+    setPricingToken(token({ exp: NOW / 1000 + 60 }));
     const { result } = renderHook(() => usePricingTokenStatus());
     expect(result.current).toBe('valid');
 

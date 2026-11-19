@@ -1,7 +1,11 @@
 import { useEffect, type ReactNode } from 'react';
 import { SpaceProvider, useTokenService } from 'space-react-client';
 import { useAuth } from '../../auth/hooks/useAuth';
-import { getStoredPricingToken, PRICING_TOKEN_UPDATED_EVENT } from '../../core/api/http';
+import {
+  currentPricingToken,
+  PRICING_TOKEN_UPDATED_EVENT,
+  setPricingToken,
+} from '../../core/api/http';
 import { planClient } from '../api/planClient';
 
 const TOKEN_ONLY_SPACE_CONFIG = {
@@ -17,13 +21,13 @@ function SpaceTokenSync({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!user) return;
 
-    // 1. Immediately hydrate from localStorage if available to avoid flicker
-    const stored = getStoredPricingToken();
-    if (stored) {
+    // 1. Hydrate from the token this page already holds (in memory), to avoid flicker
+    const held = currentPricingToken();
+    if (held) {
       try {
-        tokenService.update(stored);
+        tokenService.update(held);
       } catch {
-        localStorage.removeItem('pricingToken');
+        setPricingToken(null);
       }
     }
 

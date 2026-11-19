@@ -1,11 +1,6 @@
 import { useCallback, useEffect, useEffectEvent, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import {
-  HttpError,
-  apiClient,
-  PRICING_TOKEN_UPDATED_EVENT,
-  SESSION_ENDED_EVENT,
-} from '../../core/api/http';
+import { HttpError, apiClient, SESSION_ENDED_EVENT, setPricingToken } from '../../core/api/http';
 import type { UserProfile } from '../../core/api/account';
 import { ErrorState, StateAction } from '../../core/components/error-state';
 import { clearSessionEnded, markSessionEnded } from '../utils/authFlow';
@@ -85,8 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await planClient.getPricingToken();
     } catch {
       // No token could be issued: forget the old one, and tell whoever shows its state.
-      localStorage.removeItem('pricingToken');
-      window.dispatchEvent(new CustomEvent(PRICING_TOKEN_UPDATED_EVENT));
+      setPricingToken(null);
     }
   }, []);
 
