@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { authConfig, signedIn as withSession } from './helpers/session';
+import { installMockApi } from './helpers/mockApi';
 
 // Anything missing and anything unreadable read the same (design §1 and §3.7): every address of a resource answers with the
 // in-place 404 whether the gateway says 404 (missing) or 403 (not yours), so the page never reveals that something private
@@ -66,6 +67,7 @@ const VISITOR: string[] = [
   '/orgs/ghost-lab',
   '/orgs/ghost-lab/members',
   '/compositions/ghost-lab/fleet-plan',
+  '/compositions/ghost-lab/fleet-plan/operation',
   '/compositions/isa-demo/ghost/versions',
   '/p/00000000-0000-4000-8000-000000000001',
   '/engines/ghost/solver/1.0.0',
@@ -77,6 +79,7 @@ const MEMBER: string[] = [
   '/orgs/isa-demo/connections',
   '/problems/isa-demo/ghost?sphereStep=pricing&sphere=6ade364540e55445692b0eda',
   '/compositions/isa-demo/ghost',
+  '/compositions/other-lab/fleet-plan/operation',
   '/problems/isa-demo/ghost',
   '/problems/other-lab/checkout-flow/versions',
   '/runs/isa-demo/00000000-0000-4000-8000-000000000002',
@@ -109,3 +112,19 @@ for (const [who, paths, signedIn] of [
     }
   });
 }
+
+// The Operation tab is a member's: a visitor naming it on a public composition that does exist gets the same in-place 404 as
+// a tab the page does not have, and the composition's other tabs say nothing of environments (F4).
+test('the Operation tab of a public composition is the in-place 404 for a visitor', async ({
+  page,
+}) => {
+  await installMockApi(page, 'none');
+  await page.goto('/compositions/lab-other/fleet-routing');
+  const tabs = page.getByRole('navigation', { name: 'Composition sections' });
+  await expect(tabs.getByRole('link', { name: 'Overview' })).toBeVisible({ timeout: 15_000 });
+  await expect(tabs.getByRole('link', { name: 'Operation' })).toHaveCount(0);
+  await page.goto('/compositions/lab-other/fleet-routing/operation');
+  await expect(page.locator('main').getByRole('heading', { name: 'Page not found' })).toBeVisible({
+    timeout: 15_000,
+  });
+});

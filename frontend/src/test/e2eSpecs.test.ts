@@ -172,7 +172,7 @@ describe('the Playwright specs', () => {
   describe('the live project', () => {
     const specs = liveFiles.filter(name => name.endsWith('.spec.ts'));
 
-    it('covers login, navigation, the upload-run-study walk, a job, the viewer, the outsider, the plan page, J1 to J4, SPHERE candidates, the visual QA and the palette sweep', () => {
+    it('covers login, navigation, the upload-run-study walk, a job, the viewer, the outsider, the plan page, J1 to J4, SPHERE candidates, the operation of TomatoMeter, the run-to-adoption chain and templates, the visual QA and the palette sweep', () => {
       expect(specs.map(name => name.replace(`${live}/`, ''))).toEqual([
         '01-login.spec.ts',
         '02-navigation.spec.ts',
@@ -186,6 +186,8 @@ describe('the Playwright specs', () => {
         '10-problem-editor.spec.ts',
         '11-study-front.spec.ts',
         '12-sphere-candidates.spec.ts',
+        '13-operation.spec.ts',
+        '14-run-and-templates.spec.ts',
         'visual-qa.spec.ts',
         'visual-sweep.spec.ts',
       ]);
