@@ -5,8 +5,7 @@ from __future__ import annotations
 import logging
 import secrets
 import uuid
-from collections.abc import Awaitable, Callable
-from typing import Literal, TypeVar
+from typing import Literal
 from urllib.parse import urlencode
 
 import httpx
@@ -26,13 +25,11 @@ from ..models.accounts import CasSession, PlanChange
 from ..models.errors import api_error
 from ..security.passwords import hash_password
 from .auth import _issue_session
-from ..modules.identity.application import username_reserved, username_unavailable
+from ..modules.identity.application import apply_plan_rule, upgrade_to_research, username_reserved, username_unavailable
 from ..access.contracts import create_contract_or_mark_pending, live_pricing_version
 from ..modules.identity.application import get_store
 
 logger = logging.getLogger(__name__)
-
-T = TypeVar("T")
 
 router = APIRouter(prefix="/v1/auth/cas", tags=["Authentication"])
 identity_router = APIRouter(prefix="/v1/users/me/identities", tags=["Users"])
@@ -150,60 +147,11 @@ def _attribute(principal: CasPrincipal, *names: str) -> str | None:
 
 
 async def _upgrade_to_research(user: User, session: AsyncSession) -> PlanChange | None:
-    """Move a default-plan account to RESEARCH; the change made, or ``None`` if there was none.
-
-    Deliberate product rule (decided by the owner): linking a verified CAS
-    identity is what entitles an account to RESEARCH, so the upgrade is
-    automatic and costs nothing. An account on any other plan is left alone.
-    The caller reports the returned change to the person (``plan_changed``).
-    The rule is applied to the contract version it was decided on
-    (``_apply_plan_rule``), so it never overwrites a change made meanwhile.
-    """
-    settings = get_settings()
-    default_plan = settings.space_default_plan
-    if not default_plan:
-        # Without a configured default plan there is no "default-plan account"
-        # to upgrade; plans are SPACE's to assign.
-        return None
-    version = live_pricing_version(settings)
-
-    async def upgrade(current: space_client.SubscriptionSnapshot) -> PlanChange | None:
-        if current.plan != default_plan:
-            return None
-        # SPACE rejects the novation if the pricing version has no RESEARCH plan.
-        await space_client.get_gate().change_plan(
-            user.id, "RESEARCH", version, current.contract_version
-        )
-        return PlanChange(from_plan=current.plan, to="RESEARCH", extra_cost=False)
-
+    """Linking a verified CAS identity entitles a default-plan account to RESEARCH (the identity module's rule)."""
     try:
-        change = await _apply_plan_rule(user.id, upgrade)
+        return await upgrade_to_research(user)
     except space_client.PricingUnavailable as exc:
         raise pricing_unavailable_error(exc, where="CAS research upgrade") from exc
-    if change is not None:
-        user.plan_cache = "RESEARCH"
-    return change
-
-
-async def _apply_plan_rule(
-    user_id: uuid.UUID,
-    rule: Callable[[space_client.SubscriptionSnapshot], Awaitable[T]],
-    current: space_client.SubscriptionSnapshot | None = None,
-) -> T:
-    """Apply a plan change that follows a rule to the contract it was decided on.
-
-    ``rule`` looks at a subscription and, when the rule applies, novates with
-    that subscription's ``contract_version``. If the contract changed in between
-    (a renewal, an administrator), the novation is refused with
-    ``ContractChanged`` and the rule is applied again, once, to the contract as
-    it is now: a rule, unlike a person, can decide again on its own. A second
-    change in a row propagates as the ``PricingUnavailable`` it also is.
-    """
-    gate = space_client.get_gate()
-    try:
-        return await rule(current if current is not None else await gate.subscription(user_id))
-    except space_client.ContractChanged:
-        return await rule(await gate.subscription(user_id))
 
 
 def _frontend_redirect(settings: Settings, params: dict[str, str]) -> RedirectResponse:
@@ -458,7 +406,7 @@ async def unlink_identity(
             return True
 
         try:
-            if await _apply_plan_rule(user.id, downgrade, current):
+            if await apply_plan_rule(user.id, downgrade, current):
                 user.plan_cache = default_plan
         except space_client.PricingUnavailable as exc:
             raise pricing_unavailable_error(exc, where="CAS research downgrade") from exc

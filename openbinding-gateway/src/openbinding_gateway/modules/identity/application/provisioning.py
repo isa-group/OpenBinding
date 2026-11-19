@@ -274,6 +274,10 @@ async def _create(
             reason = await sessions.release_reason(db, holder, claims.issuer)
             await sessions.release_email(db, holder, reason or "unverified_holder", actor=user_id)
         email = claims.email
+    from .research import RESEARCH, eligible
+
+    research = eligible(settings, claims.email, claims.email_verified)
+    plan = RESEARCH if research else (settings.space_default_plan or None)
     user = User(
         id=user_id,
         username=username,
@@ -285,7 +289,7 @@ async def _create(
         password_hash=hash_password(secrets.token_urlsafe(48)),
         password_enabled=False,
         role=UserRole.USER,
-        plan_cache=settings.space_default_plan or "",
+        plan_cache=plan or "",
         contract_pending=True,
     )
     identity = AuthIdentity(
@@ -310,7 +314,9 @@ async def _create(
                 "identity_already_provisioned", "This SCORETech account already has an OpenBinding account; start signing in again."
             ) from None
         raise _conflict("username_taken", "That username is taken.") from None
-    await create_contract_or_mark_pending(user, settings.space_default_plan or None, settings)
+    await create_contract_or_mark_pending(user, plan, settings)
+    if research:
+        sessions.audit(db, "account.research.granted", actor=user.id, target=user.id, detail={"basis": "email"})
     await after_sign_in(db, settings, user, claims, provisioned=True)
     row, value = await sessions.create(db, user, "scoretech", settings=settings, identity=identity, tokens=tokens, now=now)
     sessions.audit(db, "account.identity.provisioned", actor=user.id, target=user.id, detail={"provider": "scoretech"})
@@ -321,8 +327,15 @@ async def _create(
 async def after_sign_in(
     db: AsyncSession, settings: Settings, user: User, claims: IdentityClaims, *, provisioned: bool = False
 ) -> None:
-    """What every Identity sign-in, renewal and provisioning does after the claims are synchronised."""
-    return None
+    """What every Identity sign-in, renewal and provisioning does after the claims are synchronised:
+    the bootstrap administrator by ``sub``, and RESEARCH by a verified institutional email (a provisioned
+    account got its plan at creation)."""
+    from .bootstrap import promote_if_bootstrap
+    from .research import grant_by_email
+
+    await promote_if_bootstrap(db, settings, user, claims)
+    if not provisioned:
+        await grant_by_email(db, settings, user, claims)
 
 
 def expires_at_of(record: dict) -> datetime:

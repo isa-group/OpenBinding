@@ -156,6 +156,13 @@ class UserProfile(BaseModel):
     )
     created_at: datetime
     cas_verified: bool = False
+    email_verified: bool = Field(
+        default=False, description="Whether SCORETech Identity verified `email` (never for a local account)."
+    )
+    institutional_email: bool = Field(
+        default=False,
+        description="Whether `email` is verified and in an institutional domain that entitles the account to RESEARCH.",
+    )
 
 
 class PasswordResetRequest(BaseModel):

@@ -133,8 +133,7 @@ SUBSCRIPTION_CONFLICT_RESPONSE = {
     "description": (
         "`contract_changed`: the contract changed while the gateway was applying this change "
         "(another administrator, a renewal), and nothing changed. Read the subscription again and "
-        "decide again; a request whose `If-Match` named a revision gets `412 precondition_failed` instead. "
-        "`research_requires_us_cas`: RESEARCH needs a verified Universidad de Sevilla CAS identity."
+        "decide again; a request whose `If-Match` named a revision gets `412 precondition_failed` instead."
     ),
 }
 QUOTA_RESPONSE = {

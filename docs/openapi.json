@@ -221,10 +221,22 @@
             "title": "Email",
             "type": "string"
           },
+          "email_verified": {
+            "default": false,
+            "description": "Whether SCORETech Identity verified `email` (never for a local account).",
+            "title": "Email Verified",
+            "type": "boolean"
+          },
           "id": {
             "format": "uuid",
             "title": "Id",
             "type": "string"
+          },
+          "institutional_email": {
+            "default": false,
+            "description": "Whether `email` is verified and in an institutional domain that entitles the account to RESEARCH.",
+            "title": "Institutional Email",
+            "type": "boolean"
           },
           "is_active": {
             "title": "Is Active",
@@ -15981,10 +15993,22 @@
             "title": "Email",
             "type": "string"
           },
+          "email_verified": {
+            "default": false,
+            "description": "Whether SCORETech Identity verified `email` (never for a local account).",
+            "title": "Email Verified",
+            "type": "boolean"
+          },
           "id": {
             "format": "uuid",
             "title": "Id",
             "type": "string"
+          },
+          "institutional_email": {
+            "default": false,
+            "description": "Whether `email` is verified and in an institutional domain that entitles the account to RESEARCH.",
+            "title": "Institutional Email",
+            "type": "boolean"
           },
           "is_active": {
             "title": "Is Active",
@@ -17976,7 +18000,7 @@
                 }
               }
             },
-            "description": "`contract_changed`: the contract changed while the gateway was applying this change (another administrator, a renewal), and nothing changed. Read the subscription again and decide again; a request whose `If-Match` named a revision gets `412 precondition_failed` instead. `research_requires_us_cas`: RESEARCH needs a verified Universidad de Sevilla CAS identity."
+            "description": "`contract_changed`: the contract changed while the gateway was applying this change (another administrator, a renewal), and nothing changed. Read the subscription again and decide again; a request whose `If-Match` named a revision gets `412 precondition_failed` instead."
           },
           "412": {
             "content": {
@@ -18248,7 +18272,7 @@
                 }
               }
             },
-            "description": "`contract_changed`: the contract changed while the gateway was applying this change (another administrator, a renewal), and nothing changed. Read the subscription again and decide again; a request whose `If-Match` named a revision gets `412 precondition_failed` instead. `research_requires_us_cas`: RESEARCH needs a verified Universidad de Sevilla CAS identity."
+            "description": "`contract_changed`: the contract changed while the gateway was applying this change (another administrator, a renewal), and nothing changed. Read the subscription again and decide again; a request whose `If-Match` named a revision gets `412 precondition_failed` instead."
           },
           "412": {
             "content": {

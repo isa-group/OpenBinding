@@ -347,7 +347,7 @@ async def test_subscription_changes_plan_add_ons_and_notifies_only_on_a_real_cha
     assert notification_count == 1
 
 
-async def test_research_requires_verified_us_cas_and_never_accepts_add_ons(
+async def test_an_administrator_grants_research_without_any_identity_and_never_with_add_ons(
     api_client, registration, gate, db_session
 ):
     catalog = catalog_with_add_ons()
@@ -393,8 +393,9 @@ async def test_research_requires_verified_us_cas_and_never_accepts_add_ons(
         },
     )
 
-    assert missing_identity.status_code == 409
-    assert missing_identity.json()["detail"]["code"] == "research_requires_us_cas"
+    # An administrator grants RESEARCH to any account: no CAS (or other) identity is required.
+    assert missing_identity.status_code == 200, missing_identity.text
+    assert missing_identity.json()["subscription"]["plan"] == INSTITUTIONAL_PLAN
     assert invalid_add_on.status_code == 422
     assert accepted.status_code == 200
     assert accepted.json()["subscription"]["plan"] == INSTITUTIONAL_PLAN

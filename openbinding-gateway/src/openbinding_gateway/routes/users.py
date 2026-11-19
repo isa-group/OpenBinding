@@ -15,7 +15,7 @@ from ..db.models import (
     ApiKey, AuditEvent, AuthIdentity, IdentitySession, Notification, NotificationStreamTicket, OrganizationInvitationCode, OrganizationMembership,
     OrganizationRole, PasswordResetToken, RefreshToken, User, UserRole, utcnow,
 )
-from ..modules.identity.application import PSEUDONYM_PREFIX, end_all
+from ..modules.identity.application import PSEUDONYM_PREFIX, end_all, institutional_email
 from ..models.accounts import (
     ApiKeyList,
     ApiKeyBoundary,
@@ -108,6 +108,8 @@ async def profile_of(session: AsyncSession, user: User) -> UserProfile:
         plan=user.plan_cache,
         created_at=user.created_at,
         cas_verified=cas_verified,
+        email_verified=user.email_verified,
+        institutional_email=institutional_email(user),
     )
 
 

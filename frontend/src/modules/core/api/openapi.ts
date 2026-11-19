@@ -3347,10 +3347,22 @@ export interface components {
              */
             email: string;
             /**
+             * Email Verified
+             * @description Whether SCORETech Identity verified `email` (never for a local account).
+             * @default false
+             */
+            email_verified: boolean;
+            /**
              * Id
              * Format: uuid
              */
             id: string;
+            /**
+             * Institutional Email
+             * @description Whether `email` is verified and in an institutional domain that entitles the account to RESEARCH.
+             * @default false
+             */
+            institutional_email: boolean;
             /** Is Active */
             is_active: boolean;
             /**
@@ -9461,10 +9473,22 @@ export interface components {
              */
             email: string;
             /**
+             * Email Verified
+             * @description Whether SCORETech Identity verified `email` (never for a local account).
+             * @default false
+             */
+            email_verified: boolean;
+            /**
              * Id
              * Format: uuid
              */
             id: string;
+            /**
+             * Institutional Email
+             * @description Whether `email` is verified and in an institutional domain that entitles the account to RESEARCH.
+             * @default false
+             */
+            institutional_email: boolean;
             /** Is Active */
             is_active: boolean;
             /**
@@ -10588,7 +10612,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description `contract_changed`: the contract changed while the gateway was applying this change (another administrator, a renewal), and nothing changed. Read the subscription again and decide again; a request whose `If-Match` named a revision gets `412 precondition_failed` instead. `research_requires_us_cas`: RESEARCH needs a verified Universidad de Sevilla CAS identity. */
+            /** @description `contract_changed`: the contract changed while the gateway was applying this change (another administrator, a renewal), and nothing changed. Read the subscription again and decide again; a request whose `If-Match` named a revision gets `412 precondition_failed` instead. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -10762,7 +10786,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description `contract_changed`: the contract changed while the gateway was applying this change (another administrator, a renewal), and nothing changed. Read the subscription again and decide again; a request whose `If-Match` named a revision gets `412 precondition_failed` instead. `research_requires_us_cas`: RESEARCH needs a verified Universidad de Sevilla CAS identity. */
+            /** @description `contract_changed`: the contract changed while the gateway was applying this change (another administrator, a renewal), and nothing changed. Read the subscription again and decide again; a request whose `If-Match` named a revision gets `412 precondition_failed` instead. */
             409: {
                 headers: {
                     [name: string]: unknown;

@@ -505,6 +505,13 @@ class Settings(BaseSettings):
     #: (``SESSION_MAX_S``, ``SESSION_IDLE_S``): Identity's own SSO maximum and idle limits.
     session_max_s: int = Field(default=7 * 24 * 60 * 60, ge=60)
     session_idle_s: int = Field(default=12 * 60 * 60, ge=60)
+    #: Institutional email domains that entitle an account to RESEARCH when SCORETech Identity verified its
+    #: email (``RESEARCH_EMAIL_DOMAINS``, comma separated, lower-case hostnames): the part after the last ``@``
+    #: must equal one of them, with no suffix matching.
+    research_email_domains: str = "us.es,alum.us.es"
+    #: The SCORETech Identity ``sub`` of the first administrator (``BOOTSTRAP_ADMIN_SUB``): promoted at sign-in
+    #: while no active administrator exists. ``scoretech`` mode only; at most 255 characters.
+    bootstrap_admin_sub: Optional[str] = Field(default=None, max_length=255)
     #: Extra browser origins the sign-in routes accept in ``Origin`` besides ``FRONTEND_URL``'s
     #: (``AUTH_TRUSTED_ORIGINS``, comma separated, exact ``scheme://host[:port]``): every entry has
     #: ``FRONTEND_URL``'s scheme, and only https in production. The ordinary lab's walks browse
@@ -753,6 +760,12 @@ class Settings(BaseSettings):
                 "EXPOSE_RECOVERY_TOKENS is true while APP_ENV=prod: it would let anybody reset any "
                 "account's password by naming its email. It is for labs without mail only."
             )
+        for domain in self.research_email_domain_list:
+            if not re.fullmatch(r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+", domain):
+                raise ValueError(
+                    f"RESEARCH_EMAIL_DOMAINS has {domain!r}: list lower-case hostnames, comma separated "
+                    "(for example us.es,alum.us.es)."
+                )
         frontend_scheme = urlsplit(self.frontend_url).scheme
         for entry in self.auth_trusted_origin_list:
             _require_origin("AUTH_TRUSTED_ORIGINS", entry, trailing_slash=False)
@@ -828,6 +841,10 @@ class Settings(BaseSettings):
         return self
 
     # -- Derived values --------------------------------------------------
+
+    @property
+    def research_email_domain_list(self) -> List[str]:
+        return [item.strip() for item in self.research_email_domains.split(",") if item.strip()]
 
     @property
     def auth_trusted_origin_list(self) -> List[str]:
