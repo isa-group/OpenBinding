@@ -8,7 +8,7 @@ import uuid
 from datetime import datetime
 from typing import Any, Literal, Mapping, Optional
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from ..security.redaction import (
     redact_options,
@@ -151,7 +151,7 @@ class MemberView(BaseModel):
     id: uuid.UUID
     organization_id: uuid.UUID
     username: Optional[str] = None
-    email: Optional[EmailStr] = None
+    email: Optional[str] = None
     created_at: datetime
 
 

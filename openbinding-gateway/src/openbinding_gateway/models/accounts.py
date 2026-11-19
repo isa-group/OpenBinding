@@ -71,6 +71,14 @@ class AuthConfigView(BaseModel):
     )
 
 
+class AccessGrant(BaseModel):
+    """A short gateway access token minted from the session cookie; kept in memory by the browser."""
+
+    access_token: str
+    token_type: str = Field(default="bearer")
+    expires_in: int = Field(..., description="Lifetime of the access token, in seconds.")
+
+
 class PendingSignUp(BaseModel):
     """A first SCORETech Identity sign-in waiting for its username."""
 
@@ -120,7 +128,14 @@ class UserProfile(BaseModel):
 
     id: uuid.UUID
     username: str
-    email: EmailStr
+    email: str = Field(
+        ...,
+        description=(
+            "The account's address as stored: what the person registered, the email SCORETech Identity verified, "
+            "or `<id>@identity.openbinding.invalid` when Identity verified none (a reserved name, so not an "
+            "`email` format)."
+        ),
+    )
     role: RoleName
     is_active: bool
     plan: str = Field(

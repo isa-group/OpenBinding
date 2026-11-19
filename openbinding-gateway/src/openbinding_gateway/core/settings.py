@@ -313,7 +313,9 @@ class Settings(BaseSettings):
     #: ``APP_ENV=test`` a value shorter than ``MIN_JWT_SECRET_LENGTH`` is refused
     #: at startup, and ``APP_ENV=prod`` refuses to start without one.
     gateway_jwt_secret: Optional[str] = None
-    access_token_ttl_s: int = 15 * 60
+    #: Lifetime of a gateway access token (``ACCESS_TOKEN_TTL_S``). The browser keeps it in memory and renews it
+    #: from its session cookie (``POST /v1/auth/identity/session``) before it ends.
+    access_token_ttl_s: int = 5 * 60
     refresh_token_ttl_s: int = 30 * 24 * 60 * 60
     #: ``iss`` and ``aud`` of the session tokens (``GATEWAY_JWT_ISSUER`` /
     #: ``GATEWAY_JWT_AUDIENCE``). Both are written when a token is issued and

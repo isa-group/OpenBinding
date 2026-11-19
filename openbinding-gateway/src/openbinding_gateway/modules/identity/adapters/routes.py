@@ -12,19 +12,26 @@ import logging
 from functools import lru_cache
 from typing import Literal
 
-from fastapi import APIRouter, Depends, Query, Request, status
+from datetime import timedelta
+
+from fastapi import APIRouter, Depends, Query, Request, Response, status
 from fastapi.responses import JSONResponse, RedirectResponse
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ....access.dependencies import session_dependency
 from ....core.ratelimit import enforce_auth_rate_limit
 from ....core.settings import Settings, get_settings
-from ....models.accounts import AuthConfigView, CompletedSignUp, CompleteSignUpRequest, PendingSignUp
-from ....models.errors import CONFLICT_RESPONSE, ErrorResponse, NOT_FOUND_RESPONSE
-from ..application import flows, provisioning
+from ....models.accounts import AccessGrant, AuthConfigView, CompletedSignUp, CompleteSignUpRequest, PendingSignUp
+from ....models.errors import CONFLICT_RESPONSE, ErrorResponse, NOT_FOUND_RESPONSE, api_error
+from ....security.tokens import issue_access_token
+from ....db.models import IdentitySession, User, utcnow
+from sqlalchemy import update
+from ..application import flows, provisioning, sessions
+from ..application.renewal import RenewalBusy, renewer
 from ..application.config import Provider, auth_config_view, refuse_outside
 from ..application.stores import IdentityStoreNotConfigured
-from ..domain.errors import IDENTITY_ERROR_CODES, IdentityError
+from ..domain.errors import IDENTITY_ERROR_CODES, IdentityEnded, IdentityError, IdentityUnavailable
 from . import cookies
 
 logger = logging.getLogger(__name__)
@@ -238,4 +245,107 @@ async def identity_complete(
     response = JSONResponse(CompletedSignUp(return_to=done.return_to).model_dump(), status_code=status.HTTP_201_CREATED)
     cookies.set_cookie(response, settings, cookies.name(settings, cookies.SESSION), done.session_cookie, done.session_max_age)
     cookies.clear_cookie(response, settings, cookies.name(settings, cookies.PENDING))
+    return response
+
+
+def _cleared_session_header(settings: Settings) -> str:
+    response = Response()
+    cookies.clear_cookie(response, settings, cookies.name(settings, cookies.SESSION))
+    return response.headers["set-cookie"]
+
+
+def _session_refused(settings: Settings, code: str, message: str) -> Exception:
+    return api_error(
+        status.HTTP_401_UNAUTHORIZED, code, message, headers={"Set-Cookie": _cleared_session_header(settings)}
+    )
+
+
+def _identity_unavailable(retry_after: int) -> Exception:
+    return api_error(
+        status.HTTP_503_SERVICE_UNAVAILABLE,
+        "identity_unavailable",
+        "SCORETech Identity cannot renew this session right now; try again shortly.",
+        headers={"Retry-After": str(retry_after)},
+    )
+
+
+@router.post(
+    "/identity/session",
+    response_model=AccessGrant,
+    operation_id="mintSessionAccessToken",
+    summary="Mint a short gateway token from the session cookie, renewing Identity when needed",
+    dependencies=[Depends(requires_provider("any"))],
+    responses={
+        401: {"model": ErrorResponse, "description": "`no_session` or `session_ended`; the cookie is cleared."},
+        403: {"model": ErrorResponse, "description": "Not from the frontend's origin (`origin_refused`)."},
+        429: {"description": "Too many renewals; see `Retry-After`."},
+        503: {"model": ErrorResponse, "description": "`identity_unavailable`; see `Retry-After`. The session survives."},
+    },
+)
+async def identity_session(
+    request: Request,
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+    settings: Settings = Depends(get_settings),
+) -> JSONResponse:
+    """The browser's only credential is the HttpOnly cookie; this turns it into a 5-minute bearer token.
+
+    Each call also keeps the session from going idle. In `scoretech` mode the Identity access behind it is
+    renewed (once per expiry, whatever the number of tabs or workers).
+    """
+    cookies.require_same_origin(request, settings)
+    value = request.cookies.get(cookies.name(settings, cookies.SESSION))
+    await enforce_auth_rate_limit(
+        request, "identity_session", sessions.cookie_hash(value) if value else None, settings
+    )
+    row = await sessions.find_by_cookie(session, value)
+    if row is None:
+        raise _session_refused(settings, "no_session", "There is no session; sign in.")
+    now = utcnow()
+    if not sessions.is_live(row, now) or row.provider != settings.auth_provider:
+        raise _session_refused(settings, "session_ended", "This session has ended; sign in again.")
+    try:
+        await renewer.renew(session, settings, row)
+    except RenewalBusy:
+        raise _identity_unavailable(1) from None
+    except IdentityEnded:
+        raise _session_refused(settings, "session_ended", "This session has ended; sign in again.") from None
+    except IdentityUnavailable:
+        raise _identity_unavailable(5) from None
+    row = (
+        await session.execute(
+            select(IdentitySession).where(IdentitySession.id == row.id).execution_options(populate_existing=True)
+        )
+    ).scalars().one()
+    user = await session.get(User, row.user_id)
+    if row.revoked_at is not None:
+        raise _session_refused(settings, "session_ended", "This session has ended; sign in again.")
+    if user is None or not user.is_active or user.deleted_at is not None:
+        await sessions.revoke(session, row, "deactivated")
+        raise _session_refused(settings, "session_ended", "This account is not active.")
+    idle = now + timedelta(seconds=settings.session_idle_s)
+    await session.execute(
+        update(IdentitySession)
+        .where(IdentitySession.id == row.id, IdentitySession.revoked_at.is_(None))
+        .values(idle_expires_at=idle, last_renewed_at=now)
+        .execution_options(synchronize_session=False)
+    )
+    row.idle_expires_at, row.last_renewed_at = idle, now
+    secret = settings.gateway_jwt_secret
+    if not secret:
+        raise api_error(status.HTTP_503_SERVICE_UNAVAILABLE, "auth_unavailable", "This gateway has no signing secret configured.")
+    token = issue_access_token(
+        secret,
+        user_id=user.id,
+        ttl_seconds=settings.access_token_ttl_s,
+        session_id=row.id,
+        provider=row.provider,
+        issuer=settings.gateway_jwt_issuer,
+        audience=settings.gateway_jwt_audience,
+    )
+    response = JSONResponse(
+        AccessGrant(access_token=token, expires_in=settings.access_token_ttl_s).model_dump()
+    )
+    cookies.set_cookie(
+        response, settings, cookies.name(settings, cookies.SESSION), value, sessions.remaining_seconds(row, now)
+    )
     return response

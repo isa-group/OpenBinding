@@ -459,6 +459,9 @@ Quotas are per account: there are no billing sponsors. Deleting an account pseud
 |---|---|---|
 | `identity_disabled` | 409 | a SCORETech Identity route was called on a gateway that signs people in locally (`AUTH_PROVIDER=local`) |
 | `local_auth_disabled` | 409 | a local credential route (register, login, password reset) was called on a gateway that signs people in with SCORETech Identity (`AUTH_PROVIDER=scoretech`) |
+| `no_session` | 401 | `POST /v1/auth/identity/session` without a session cookie, or with one that names no session; sign in |
+| `session_ended` | 401 | the session was signed out, expired (seven days at most, twelve hours idle), ended in SCORETech Identity, lost the `openbinding:access` permission, or its account was deactivated; the cookie is cleared |
+| `identity_unavailable` | 503 | SCORETech Identity (or the shared lock that keeps renewals single) could not be reached, or another worker is renewing the same session; the session survives, retry after `Retry-After` |
 | `no_pending_signup` | 404 | `GET /v1/auth/identity/pending` or `POST /v1/auth/identity/complete` without a first sign-in waiting (it lasts 15 minutes); start signing in again |
 | `pending_in_progress` | 409 | `POST /v1/auth/identity/complete` while the same sign-up is being completed |
 | `username_taken` | 409 | the chosen username is in use, whatever its case |
