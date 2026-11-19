@@ -17,7 +17,8 @@ export const RUN = process.env.WALK_RUN ?? '';
 const RESULTS = process.env.E2E_RESULTS_DIR ?? '/results';
 const STATE = `${RESULTS}/walk-state.json`;
 
-export type Role = 'admin' | 'member' | 'research' | 'norole' | 'clash' | 'squat' | 'new';
+export type Role =
+  'admin' | 'member' | 'research' | 'norole' | 'clash' | 'squat' | 'new' | 'screens';
 
 export function email(role: Role): string {
   if (role === 'research') return `ob-walk-${RUN}-research@research.example`;
@@ -61,6 +62,17 @@ async function messageIds(recipient: string): Promise<Set<string>> {
   );
 }
 
+/**
+ * Identity sends one code per recipient a minute: wait until a minute has passed since this run last asked for one for
+ * `recipient` (the phases and the walks share the fixture users), then note when this one is asked for.
+ */
+async function respectTheCodeLimit(recipient: string): Promise<void> {
+  const key = `codeAt:${recipient.toLowerCase()}`;
+  const wait = Number(readState()[key] ?? 0) + 61_000 - Date.now();
+  if (wait > 0) await new Promise(resolve => setTimeout(resolve, wait));
+  remember({ [key]: String(Date.now()) });
+}
+
 async function newCode(recipient: string, before: Set<string>): Promise<string> {
   for (let attempt = 0; attempt < 240; attempt++) {
     for (const id of await messageIds(recipient)) {
@@ -83,6 +95,7 @@ export async function answerWithCode(
   names?: { first: string; last: string }
 ) {
   await page.locator('#email').waitFor();
+  await respectTheCodeLimit(recipient);
   const before = await messageIds(recipient);
   await page.locator('#email').fill(recipient);
   // The sign-in form's submit is "Continue"; the registration screen's may be named otherwise: Enter submits either.
@@ -144,4 +157,41 @@ export function api(page: Page) {
 export async function tokenOf(response: APIResponse): Promise<string> {
   expect(response.status(), 'POST /v1/auth/identity/session').toBe(200);
   return ((await response.json()) as { access_token: string }).access_token;
+}
+
+/** The two palettes of the screens (`data-brand`), set before the page loads as the palette switch stores it. */
+export const BRANDS = ['sphere', 'openbinding'] as const;
+export const WIDTHS = [
+  { name: 'desktop', width: 1440, height: 900 },
+  { name: 'mobile', width: 390, height: 844 },
+] as const;
+const BRAND_KEY = 'openbinding:brand';
+
+/** Use `brand` from the next load of `page` on (the palette is read once, before the first paint). */
+export async function chooseBrand(page: Page, brand: (typeof BRANDS)[number]): Promise<void> {
+  await page.evaluate(([key, value]) => localStorage.setItem(key, value), [BRAND_KEY, brand]);
+}
+
+/** A visual stop: a screenshot under the results (`screens/<name>.png`), after the fonts and with no sideways scroll. */
+export async function stop(page: Page, name: string): Promise<void> {
+  await page.evaluate(() => document.fonts.ready);
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - window.innerWidth
+  );
+  expect(overflow, `${name} scrolls sideways`).toBeLessThanOrEqual(1);
+  mkdirSync(`${RESULTS}/screens`, { recursive: true });
+  await page.screenshot({
+    path: `${RESULTS}/screens/${name}.png`,
+    fullPage: true,
+    animations: 'disabled',
+  });
+}
+
+/** Every key and value Web Storage holds, to prove that none is a token. */
+export async function webStorage(page: Page): Promise<string[]> {
+  return page.evaluate(() =>
+    [localStorage, sessionStorage].flatMap(storage =>
+      Object.keys(storage).map(key => `${key}=${storage.getItem(key)}`)
+    )
+  );
 }

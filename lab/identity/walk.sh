@@ -5,8 +5,9 @@
 #   WALK_LOGS=<dir> IDENTITY_SECRET_DIR=<private dir> BIM_TOOLCHAIN_TOKEN=... lab/identity/walk.sh
 #
 # Order: Identity up -> fixtures -> the OB lab (project obf5id, port 18198) on an empty database -> @bootstrap (the
-# administrator by sub, before any administrator exists) -> seed_lab -> the main phase -> @signup, Keycloak's view of the
-# native registration, @granted -> post-checks in psql -> the gateway in local mode and @rollback -> cleanup, always.
+# administrator by sub, before any administrator exists) -> seed_lab -> the main phase (the gateway, 01) -> @screens
+# (OpenBinding's screens, 02) -> @signup, Keycloak's view of the native registration, @granted -> post-checks in psql ->
+# the gateway in local mode and @rollback (01 and 02) -> cleanup, always.
 # Nothing printed carries a token, a secret, a code or an address: ids, counts and booleans only.
 set -Eeuo pipefail
 
@@ -80,7 +81,7 @@ cleanup() {
   set +e
   echo "== cleanup"
   if [ -n "$(identity_container account-api)" ]; then
-    fixtures "{\"action\": \"delete\", \"emails\": [\"$(email admin)\", \"$(email member)\", \"$(email research)\", \"$(email norole)\", \"$(email clash)\", \"$(email squat)\", \"$(email new)\"]}" \
+    fixtures "{\"action\": \"delete\", \"emails\": [\"$(email admin)\", \"$(email member)\", \"$(email research)\", \"$(email norole)\", \"$(email clash)\", \"$(email squat)\", \"$(email screens)\", \"$(email new)\"]}" \
       > "$LOGS/identity-fixtures-deleted.json" 2>&1
     echo "FIXTURES_DELETE=$?"
   fi
@@ -112,7 +113,7 @@ def email(role):
     return {"research": f"ob-walk-{run}-research@research.example", "clash": "lab-orgadmin@example.org",
             "squat": "lab-outsider@example.org"}.get(role, f"ob-walk-{run}-{role}@example.invalid")
 users = []
-for role in ("admin", "member", "research", "norole", "clash", "squat"):
+for role in ("admin", "member", "research", "norole", "clash", "squat", "screens"):
     user = {"role": role, "email": email(role), "emailVerified": role != "member", "permission": role != "norole",
             "displayName": f"Walk {role}"}
     if role == "member":
@@ -151,7 +152,8 @@ echo "== seed_lab"
 $OB run --rm --no-deps seed > "$LOGS/seed.log" 2>&1; echo "SEED_EXIT=$?"
 sql "update users set email_verified = true where username = 'lab-orgadmin'" > /dev/null
 
-phase main --grep-invert "@bootstrap|@signup|@granted|@rollback" || failed=1
+phase main --grep-invert "@bootstrap|@screens|@signup|@granted|@rollback" || failed=1
+phase screens --grep @screens || failed=1
 
 phase signup --grep @signup || failed=1
 fixtures "{\"action\": \"inspect\", \"email\": \"$(email new)\"}" > "$LOGS/identity-native.json"
@@ -162,6 +164,8 @@ phase granted --grep @granted || failed=1
 echo "== post-checks"
 MEMBER="ob-walk-${RUN}-member"
 echo "MEMBER_LOGGED_OUT_GENERATION=$(sql "select string_agg(s.refresh_generation::text, ',') from identity_sessions s join users u on u.id = s.user_id where u.username = '${MEMBER}' and s.revoked_reason = 'logout'")"
+echo "SCREENS_RENEWED_GENERATION=$(sql "select max(s.refresh_generation) from identity_sessions s join users u on u.id = s.user_id where u.username = 'ob-walk-${RUN}-screens'")"
+echo "SCREENS_SIGNED_OUT=$(sql "select count(*) from identity_sessions s join users u on u.id = s.user_id where u.username = 'ob-walk-${RUN}-screens' and s.revoked_reason = 'logout'")"
 echo "SCORETECH_IDENTITIES=$(sql "select count(*) from auth_identities where provider = 'scoretech'")"
 echo "CLASH_ACCOUNTS=$(sql "select count(*) from auth_identities i join users u on u.id = i.user_id where u.email = 'lab-orgadmin@example.org' and i.provider = 'scoretech'")"
 echo "SQUAT_HOLDER_RELEASED=$(sql "select count(*) from users where username = 'lab-outsider' and email like '%@identity.openbinding.invalid'")"
