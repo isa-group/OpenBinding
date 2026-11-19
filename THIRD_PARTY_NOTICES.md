@@ -73,6 +73,26 @@ reads pricings as the two TypeScript readers do, so that the gateway and the scr
 | `frontend/src/modules/core/components/value-badge/originText.ts`, `candidate-matrix/CandidateMatrix.tsx` | [Pricing4TS](https://github.com/Alex-GF/Pricing4TS) `0.12.1` `pricing-validators.js` (`unlimitedValue`) | Semantics followed, no code copied: a generated value of `1e8` reads "unlimited" |
 | `pricing2yaml/normalise.py`, `model.py`, `effective.py`, `units.py`, `summary.py` | pricing-renderer `v0.2.0` `src/core/normalize.ts`, `compare-values.ts`, `breakdown.ts`, `resolve.ts`; [Pricing4TS](https://github.com/Alex-GF/Pricing4TS) `0.12.1` `pricing-parser.js`, `pricing-validators.js`, `version-manager.js` (MIT, Copyright (c) 2024 Alejandro García Fernández) | Semantics followed, no code copied: defaults and overrides, add-on extensions, unlimited values (pricing4ts's `1e8` sentinel included), billing, the kept validations |
 
+## Code ported from SCORETech Identity
+
+The file below ports code of [SCORELabUS/SCORETech-identity](https://github.com/SCORELabUS/SCORETech-identity) at
+`215dffedf556294e2424f7c7b4e9bf57d038d66f` (tag `v0.1.11`, MIT, "Copyright (c) 2026 SCORE Lab") and names its origin in
+its header:
+
+| File | Identity origin |
+|---|---|
+| `openbinding-gateway/src/openbinding_gateway/modules/identity/domain/claims.py` | `packages/ui/src/avatar.tsx` (the twelve named avatar colours) and `provider/.../ApplicationUserClaims.java` (the avatar descriptor's shapes) |
+
+## Code ported from SPACE
+
+The files below port SPACE code at revision `3d35281` of [SCORELabUS/space](https://github.com/SCORELabUS/space) (MIT),
+and each names its origin in its header:
+
+| File | SPACE origin |
+|---|---|
+| `openbinding-gateway/src/openbinding_gateway/modules/identity/application/provisioning.py` | `api/src/main/services/SphereAuthService.ts` lines 119-160 (the pending sign-up and its completion with a chosen username) |
+| `openbinding-gateway/src/openbinding_gateway/modules/identity/application/renewal.py` | `api/src/main/services/ScoretechIdentityService.ts` lines 342-381 (revoking the token a lost write obtained) |
+
 ## Code ported from SPHERE
 
 The files below port SPHERE code at revision `73779a8a`, and each names its origin in its header (the SVGs, which
@@ -84,6 +104,11 @@ listed with its module:
 | `openbinding-gateway/src/openbinding_gateway/composition/diff.py` | `frontend/src/modules/pricing/utils/pricing-diff.ts` (the PricingDiff shape and rules) |
 | `openbinding-gateway/src/openbinding_gateway/modules/compositions/application/fork.py` | `PricingService.forkPricing` and its `ForkedFrom` snapshot (the fork rules) |
 | `openbinding-gateway/src/openbinding_gateway/modules/identity/adapters/oidc.py` | `api/src/main/services/ScoretechIdentityService.ts` (discovery, the token grant and verification; stricter: `aud` and `azp` on both tokens, `typ`, the `kid` and refetch rules, an hour of discovery cache) |
+| `openbinding-gateway/src/openbinding_gateway/modules/identity/adapters/routes.py` and `adapters/cookies.py` | `api/src/main/controllers/ScoretechIdentityController.ts` (the login, callback, session and logout routes and their cookies; adapted: `__Host-` cookies at `Path=/`, mode declared per route) |
+| `openbinding-gateway/src/openbinding_gateway/modules/identity/application/flows.py` | `ScoretechIdentityService.begin` and `complete` (PKCE, state, nonce, the browser binding compared before the flow is consumed) |
+| `openbinding-gateway/src/openbinding_gateway/modules/identity/application/sessions.py` and `application/renewal.py` | `ScoretechIdentityService.active`, `session` and `logout` (adapted: sessions in PostgreSQL with a sealed refresh token, a waiting lock with an owner token, a generation compare-and-swap) |
+| `openbinding-gateway/src/openbinding_gateway/modules/identity/application/config.py` and the Identity settings of `core/settings.py` | `api/src/main/services/scoretech/config.ts` (`publicUrl`, the callback and account URL rules, `authenticationConfig`) |
+| `docs/IDENTITY.md` | `docs/scoretech-identity.md` (adapted) |
 | `frontend/src/modules/core/theme/editor-themes/GitHub-Dark.json` | `frontend/src/modules/core/theme/editor-themes/GitHub-Dark.json` | verbatim |
 | `frontend/src/modules/core/theme/editor-themes/Textmate.json` | `frontend/src/modules/core/theme/editor-themes/Textmate.json` | verbatim |
 | `frontend/src/modules/core/utils/sphere/text-diff.ts` | `frontend/src/modules/pricing/utils/text-diff.ts` (copied verbatim) |

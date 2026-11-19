@@ -105,7 +105,7 @@ has the one-shot `pricing-bootstrap`, a separate compose project that prepares t
 
 | Module | Owns | Main ports used | Code today (to move) |
 |---|---|---|---|
-| `identity` | accounts, sessions, passwords, API keys, external identities (CAS) | `IdentityProvider` (CAS), `Mailer` | `routes/auth.py`, `routes/users.py`, `routes/cas.py`, `cas.py`, `security/*` |
+| `identity` | accounts, browser sessions (`identity_sessions`), SCORETech Identity sign-in (the OIDC client, first-time provisioning, single-flight renewal, logout), RESEARCH by verified email, the bootstrap administrator by `sub`, orphan API keys ([IDENTITY.md](IDENTITY.md)); passwords and API keys | `OidcClient`, `OneTimeStore`, `SessionLock`, `Mailer` | `modules/identity` (F5); `routes/auth.py`, `routes/users.py`, `routes/cas.py`, `cas.py`, `security/*` |
 | `collaboration` | organizations (nested, the only container), memberships, roles, invitations, audit, notifications | — | `collaboration.py`, `routes/organizations.py`, `repositories/organizations.py` |
 | `problems` | problems of an organization, their sealed revisions (the uploaded `.bim.zip` and its digests) and compilations (one per revision and toolchain, insert-only), the stateless BIM services (`/v1/bim/validate`, `/v1/bim/templates`) | `BimPort`, `BlobStore` | `modules/problems` (domain, application, adapters; F0b); `integrations/bim*.py`, the engine protocol document in `services/engines.py` |
 | `engines` | engine revisions, modes and manifests, federated deployments, conformance, capability matching | `EngineTransport` | `services/engines.py`, `services/engine_registry.py`, `services/probe.py`, `v1/remote.py` |

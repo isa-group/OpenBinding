@@ -5,6 +5,9 @@ parent domain can plant one (``__Host-`` forbids ``Domain`` and requires ``Path=
 origin (labs) they drop the prefix and ``Secure``. Every one is ``HttpOnly`` and ``SameSite=Lax``. Data
 routes never read cookies: only the sign-in routes do, and those that change state refuse a request whose
 ``Origin`` is not trusted.
+
+Adapted from SPHERE's ``ScoretechIdentityController`` cookies (SCORELabUS/SPHERE@73779a8a, MIT), whose cookies sit
+at ``Path=/api/v1/auth/identity`` without the prefix.
 """
 
 from __future__ import annotations
