@@ -49,6 +49,32 @@ def test_every_reference_but_the_port_has_a_dummy_value(name: str) -> None:
     assert not missing, f"{name} references variables with no dummy value: {sorted(missing)}"
 
 
+ENV_EXAMPLE = REPO_ROOT / "lab" / "compose.lab.env.example"
+EXAMPLE_LINE = re.compile(r"^([A-Z][A-Z0-9_]*)=(\S*)")
+
+
+def _example() -> dict[str, str]:
+    values = {}
+    for line in ENV_EXAMPLE.read_text(encoding="utf-8").splitlines():
+        found = EXAMPLE_LINE.match(line)
+        if found:
+            values[found.group(1)] = found.group(2)
+    return values
+
+
+def test_the_env_example_lists_every_variable_the_lab_reads() -> None:
+    """A complete env file can be made from it (TomatoMeter's composite lab generates one)."""
+    text = (REPO_ROOT / "compose.lab.json").read_text(encoding="utf-8").replace("$$", "")
+    assert set(_example()) == set(REFERENCE_NAME.findall(text))
+
+
+def test_the_env_example_gives_no_secret_a_value() -> None:
+    example = _example()
+    for name in ("DEMO_PG_PASSWORD", "DEMO_JWT_SECRET", "DEMO_FERNET_KEY", "DEMO_SEED_PASSWORD", "SPACE_API_KEY"):
+        assert example[name] == "", name
+    assert example["DEMO_LAB_PORT"] == "18100" and example["DEMO_PUBLIC_ORIGIN"] == "http://localhost:18100"
+
+
 @pytest.mark.skipif(
     os.environ.get("OPENBINDING_COMPOSE_CONFIG") != "1",
     reason="set OPENBINDING_COMPOSE_CONFIG=1 to run docker compose config",

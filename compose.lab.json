@@ -324,6 +324,7 @@
         "SPACE_ORGANIZATION_ID": "${SPACE_ORGANIZATION_ID}",
         "DEMO_SEED_PASSWORD": "${DEMO_SEED_PASSWORD}",
         "SMOKE_BASE_URL": "http://web:8080",
+        "LAB_HANDOFF_DIR": "/handoff",
         "SPACE_SERVICE_NAME": "${DEMO_SPACE_DEV_SERVICE}",
         "SPACE_DEV_SERVICE_NAME": "${DEMO_SPACE_DEV_SERVICE}",
         "SPACE_DEV_PLAN": "${DEMO_SPACE_DEV_PLAN}",
@@ -345,9 +346,60 @@
           "type": "volume",
           "source": "lab-artifacts-2",
           "target": "/var/lib/openbinding/artifacts"
+        },
+        {
+          "type": "volume",
+          "source": "lab-handoff",
+          "target": "/handoff"
         }
       ],
       "mem_limit": "384m"
+    },
+    "mailpit": {
+      "image": "axllent/mailpit:v1.33.0@sha256:9b3a463be15354c0f0eba91697d80e3e0d8a5623ef0e627cacc836bc17fd5231",
+      "environment": {
+        "MP_WEBROOT": "/mailpit/",
+        "MP_MAX_MESSAGES": "500"
+      },
+      "mem_limit": "64m",
+      "healthcheck": {
+        "test": ["CMD", "/mailpit", "readyz"],
+        "interval": "10s",
+        "timeout": "3s",
+        "retries": 10,
+        "start_period": "10s"
+      }
+    },
+    "feed-consumer": {
+      "image": "openbinding-lab-gateway:${DEMO_LAB_PORT:-18100}",
+      "entrypoint": [],
+      "command": ["python", "tools/feed_consumer.py"],
+      "environment": {
+        "PYTHONDONTWRITEBYTECODE": "1",
+        "FEED_HANDOFF": "/handoff/openbinding.json",
+        "FEED_POLL_S": "3",
+        "MAILPIT_URL": "http://mailpit:8025/mailpit"
+      },
+      "volumes": [
+        {
+          "type": "volume",
+          "source": "lab-handoff",
+          "target": "/handoff"
+        }
+      ],
+      "depends_on": {
+        "gateway": {
+          "condition": "service_healthy"
+        }
+      },
+      "mem_limit": "96m",
+      "healthcheck": {
+        "test": ["CMD", "curl", "-fsS", "http://localhost:8090/state"],
+        "interval": "10s",
+        "timeout": "3s",
+        "retries": 6,
+        "start_period": "10s"
+      }
     },
     "e2e": {
       "build": {
@@ -386,6 +438,7 @@
     "lab-pg-4": {},
     "lab-redis": {},
     "lab-artifacts-2": {},
+    "lab-handoff": {},
     "lab-e2e": {}
   }
 }

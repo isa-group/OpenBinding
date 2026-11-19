@@ -77,13 +77,16 @@ RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 # The artifact directory is created here, owned by 10001, so that a new named volume
 # mounted on it inherits that owner (Docker copies the ownership of the image directory
 # into an empty named volume). A volume created by an earlier root-run image keeps its
-# old owner and must be recreated or chown'ed once.
+# old owner and must be recreated or chown'ed once. /handoff is the lab's hand-off
+# directory (compose.lab.json, volume lab-handoff) for the same reason: the seed (10001,
+# no CAP_CHOWN) writes the feed's address and key there, and only 10001 or root reads it.
 RUN groupadd --system --gid 10001 openbinding \
  && useradd --system --uid 10001 --gid 10001 --no-create-home --home-dir /nonexistent --shell /usr/sbin/nologin openbinding \
  && chmod -R a+rX /app \
- && mkdir -p /var/lib/openbinding/artifacts \
- && chown -R 10001:10001 /var/lib/openbinding \
- && chmod 750 /var/lib/openbinding/artifacts
+ && mkdir -p /var/lib/openbinding/artifacts /handoff \
+ && chown -R 10001:10001 /var/lib/openbinding /handoff \
+ && chmod 750 /var/lib/openbinding/artifacts \
+ && chmod 700 /handoff
 
 # The PostgreSQL test harness (compose.pgtest.json) builds this stage. It adds only the
 # tests on top of base, so the production image below never carries them and the harness

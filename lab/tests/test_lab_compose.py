@@ -38,7 +38,8 @@ ALLOWED_BUILD_KEYS = {"context", "dockerfile", "args", "target", "secrets"}
 ALLOWED_MOUNT_KEYS = {"type", "source", "target", "tmpfs"}
 MAX_SERVICES = 15
 MAX_MIB = 4096  # the lab ceiling; the sum includes `seed`, which only runs on demand
-EXPECTED_MIB = 3776  # 4032 with the HTTP bim-service (256), 3456 before e2e (576); docs/DEMO.md states it
+EXPECTED_MIB = 3936  # 3776 before Mailpit (64) and the feed consumer (96); 4032 with the HTTP bim-service (256),
+#                      3456 before e2e (576); docs/DEMO.md states it
 ARTIFACT_DIR = "/var/lib/openbinding/artifacts"
 LOCK = ROOT / "frontend" / "pnpm-lock.yaml"
 DOCKERFILE_E2E = ROOT / "frontend" / "Dockerfile.e2e"
@@ -102,7 +103,8 @@ SPACE_DEV_VARIABLES = {
     "SPACE_DEV_PLAN": "${DEMO_SPACE_DEV_PLAN}",
     "SPACE_DEV_PRICING_VERSION": "${DEMO_SPACE_PRICING_VERSION}",
 }
-SEED_EXTRAS = {"DEMO_SEED_PASSWORD", "SMOKE_BASE_URL", *SPACE_DEV_VARIABLES}
+#: LAB_HANDOFF_DIR: where tools/seed_lab.py writes the feed hand-off file (the lab-handoff volume).
+SEED_EXTRAS = {"DEMO_SEED_PASSWORD", "SMOKE_BASE_URL", "LAB_HANDOFF_DIR", *SPACE_DEV_VARIABLES}
 
 
 @pytest.fixture(scope="module")
@@ -413,14 +415,16 @@ def test_builds_use_only_allowed_keys_and_literal_paths_inside_the_repo(services
 
 def test_gateway_worker_and_seed_share_one_always_rebuilt_image(services):
     # ``up --build`` rebuilds only profile-less services; ``run --no-deps seed`` reuses an existing
-    # image.  So only the gateway builds, and worker and seed use the image it tags.
+    # image.  So only the gateway builds, and worker, seed and the feed consumer use the image it tags.
     image = f"{GATEWAY_IMAGE_PREFIX}18100"
     services = {n: {**s, "image": _expand(s.get("image", ""), {})} for n, s in services.items()}
     assert "build" in services["gateway"]
-    for name in ("gateway", "worker", "seed"):
+    for name in ("gateway", "worker", "seed", "feed-consumer"):
         assert services[name]["image"] == image, name
-    assert "build" not in services["worker"] and "build" not in services["seed"]
-    assert services["worker"]["depends_on"]["gateway"]["condition"] == "service_healthy"
+    for name in ("worker", "seed", "feed-consumer"):
+        assert "build" not in services[name], name
+    for name in ("worker", "feed-consumer"):
+        assert services[name]["depends_on"]["gateway"]["condition"] == "service_healthy", name
 
 
 def test_frontend_is_built_for_the_api_prefix(services):
@@ -913,7 +917,7 @@ def test_nginx_sets_the_client_address_instead_of_appending_to_the_one_the_clien
     # let it forge the address the gateway throttles logins by.
     conf = re.sub(r"#.*", "", _nginx_conf())
     headers = re.findall(r"proxy_set_header\s+X-Forwarded-For\s+(\S+);", conf)
-    assert len(headers) == len(re.findall(r"proxy_pass\s", conf)) == 3
+    assert len(headers) == len(re.findall(r"proxy_pass\s", conf)) == 4
     assert set(headers) == {"$remote_addr"}
     assert "$proxy_add_x_forwarded_for" not in conf
 
@@ -950,3 +954,67 @@ def test_demo_doc_states_the_default_and_the_cors_effect_of_the_public_origin():
     assert LOCAL_ORIGIN in row and "CORS_ALLOW_ORIGINS" in row
     assert "PUBLIC_BASE_URL" in row and "FRONTEND_URL" in row
     assert "18100" in doc and "lab_compose" in doc
+
+
+# -- Mailpit and the feed consumer (F4) ----------------------------------------------------------
+
+
+MAILPIT_IMAGE = re.compile(r"axllent/mailpit:v\d+\.\d+\.\d+@sha256:[0-9a-f]{64}")
+
+
+def test_mailpit_and_the_feed_consumer_are_ordinary_services_with_no_port(services):
+    for name in ("mailpit", "feed-consumer"):
+        service = services[name]
+        assert "profiles" not in service and not service.get("ports"), name
+        assert "user" not in service, f"{name} runs as its image's user"
+        assert service["healthcheck"]["test"], name
+
+
+def test_mailpit_is_pinned_by_digest_and_serves_under_its_webroot(services):
+    mailpit = services["mailpit"]
+    assert MAILPIT_IMAGE.fullmatch(mailpit["image"]), mailpit["image"]
+    assert "latest" not in mailpit["image"]
+    assert _env(mailpit) == {"MP_WEBROOT": "/mailpit/", "MP_MAX_MESSAGES": "500"}
+    assert mailpit["mem_limit"] == "64m"
+
+
+def test_the_feed_consumer_reads_the_handoff_and_reaches_nothing_but_literals(services):
+    consumer = services["feed-consumer"]
+    assert consumer["entrypoint"] == []  # never the migrating entrypoint: it touches no database
+    assert consumer["command"] == ["python", "tools/feed_consumer.py"]
+    assert _env(consumer) == {
+        "PYTHONDONTWRITEBYTECODE": "1", "FEED_HANDOFF": "/handoff/openbinding.json", "FEED_POLL_S": "3",
+        "MAILPIT_URL": "http://mailpit:8025/mailpit",
+    }
+    assert consumer["depends_on"] == {"gateway": {"condition": "service_healthy"}}
+    assert consumer["mem_limit"] == "96m"
+    assert "8090/state" in " ".join(consumer["healthcheck"]["test"])
+    assert (ROOT / "openbinding-gateway" / "tools" / "feed_consumer.py").is_file()
+
+
+def test_only_the_seed_and_the_feed_consumer_mount_the_handoff(services):
+    mounting = sorted(name for name, mount in _mounts(services) if mount.get("source") == "lab-handoff")
+    assert mounting == ["feed-consumer", "seed"]
+    for name in mounting:
+        (mount,) = [m for m in services[name]["volumes"] if m.get("source") == "lab-handoff"]
+        assert mount == {"type": "volume", "source": "lab-handoff", "target": "/handoff"}
+    assert _env(services["seed"])["LAB_HANDOFF_DIR"] == "/handoff"
+
+
+def test_the_gateway_image_makes_the_handoff_directory_for_its_user():
+    # A fresh named volume inherits the image directory's owner, and the seed (10001) has no CAP_CHOWN.
+    dockerfile = (ROOT / "openbinding-gateway" / "Dockerfile").read_text(encoding="utf-8")
+    assert "mkdir -p /var/lib/openbinding/artifacts /handoff" in dockerfile
+    assert "chown -R 10001:10001 /var/lib/openbinding /handoff" in dockerfile
+    assert "chmod 700 /handoff" in dockerfile
+
+
+def test_nginx_serves_mailpit_read_only_through_a_resolved_variable():
+    conf = re.sub(r"#.*", "", _nginx_conf())
+    block = re.search(r"location \^~ /mailpit/ \{(.*?)\n    \}", conf, re.DOTALL)
+    assert block, "no /mailpit/ location"
+    body = block.group(1)
+    assert re.search(r"limit_except GET \{\s*deny all;\s*\}", body)
+    assert "resolver" in body and "127.0.0.11" in body
+    assert re.search(r"proxy_pass\s+\$mailpit;", body)
+    assert "$http_upgrade" in body

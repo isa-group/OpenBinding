@@ -76,18 +76,20 @@ A static check also exists (`lab/tests/test_lab_compose.py`).
 | `worker` | `image: openbinding-lab-gateway:${DEMO_LAB_PORT:-18100}`, no build | 448 MiB | dramatiq, one process, 2 threads, queue `default` only |
 | `web` | `frontend/Dockerfile`, target `lab` (config `frontend/nginx.lab.conf` baked in) | 96 MiB | nginx: production build of the frontend, `/api/` to the gateway without the prefix; **the only published port** |
 | `seed` | `image: openbinding-lab-gateway:${DEMO_LAB_PORT:-18100}`, no build | 384 MiB | `profiles: ["seed"]`; not started by `up` |
+| `mailpit` | `axllent/mailpit:v1.33.0`, pinned by digest | 64 MiB | the lab's outbox: SMTP 1025 and HTTP 8025 on the compose network only, `MP_WEBROOT=/mailpit/`, `MP_MAX_MESSAGES=500`; people read it **read-only** at `<lab origin>/mailpit/` through `web` (only `GET`: marking a message read fails quietly) |
+| `feed-consumer` | `image: openbinding-lab-gateway:${DEMO_LAB_PORT:-18100}`, no build | 96 MiB | `python tools/feed_consumer.py`, the lab's stand-in for TomatoMeter: reads the feed of `lab-main/tomatometer` `production` with the key in `/handoff/openbinding.json` (volume `lab-handoff`, written by the seed), every 3 s; `GET /state` and `POST /send` (the daily summary into Mailpit, tagged with the provider) on 8090 inside the network; waits, healthy, until the seed has run |
 | `e2e` | `frontend/Dockerfile.e2e` (`mcr.microsoft.com/playwright:v1.62.1-jammy`, the version `pnpm-lock.yaml` resolves for `@playwright/test`) | 576 MiB | `user: pwuser`, volume `lab-e2e` on `/results`; runs the live specs when `DEMO_E2E=1`, then stays alive; healthy when `/results/done` exists |
 
-**Memory sum of all `mem_limit`: 3776 MiB** (3.6875 GiB; lab ceiling 4096 MiB,
-320 MiB to spare).
+**Memory sum of all `mem_limit`: 3936 MiB** (3.84375 GiB; lab ceiling 4096 MiB,
+160 MiB to spare; Mailpit and the feed consumer add 160 MiB to the 3776 MiB before them).
 It includes `seed`, which only runs on demand,
-so the steady state is 3392 MiB. `test_lab_compose.py` and
-`test_container_hardening.py` recompute the sum and fail if it is not 3776 or
+so the steady state is 3552 MiB. `test_lab_compose.py` and
+`test_container_hardening.py` recompute the sum and fail if it is not 3936 or
 if this document does not state it. `mem_limit` bounds the container, not the
 page cache of the named volumes, and image builds are not limited by it.
 
 Optional: the pricing profile `compose.lab-pricing.json` is a 96 MiB one-shot against the remote SPACE, a separate
-project outside this 3776 MiB sum; see `docs/qa/PRICING_PROFILE.md` (removed with the factory artifacts in `e47da50d5`; in git history).
+project outside this 3936 MiB sum; see `docs/qa/PRICING_PROFILE.md` (removed with the factory artifacts in `e47da50d5`; in git history).
 
 **Unprivileged containers.** The gateway image (`gateway`, `worker`, `seed`) runs as
 UID/GID 10001 with no login shell. Root inside a rootless
@@ -423,7 +425,8 @@ the lab network, where `web:8080` resolves):
 DEMO_SEED_TOOL=smoke_lab.py DEMO_SEED_ARGS='--with-space' docker compose run --rm --no-deps seed
 ```
 
-Use `DEMO_SEED_ARGS='--skip 8,9,10,11'` to leave out the optional steps. Drop
+Use `DEMO_SEED_ARGS='--skip 8,9,10,11'` to leave out the optional steps, or `--steps 16,17,18` to run only
+those (the operation of TomatoMeter: the feed, the provider switch, the restore). Drop
 `--with-space` when the users have no SPACE contract or `DEMO_SPACE_ENABLED=false`:
 step `plan_usage` runs only with that flag, and the other steps complete against
 the open gate. It reads `DEMO_SEED_PASSWORD`
@@ -458,6 +461,10 @@ check `remote_probe.py` before reading it as a seeding gap.
 | `cors` | preflight allowed from `http://localhost:18100`, refused from `http://evil.example` |
 | `body_limit` | JSON over 16 MiB gets a 413 problem+json |
 | `public_compositions` | anonymous: the public list holds lab-other's two public compositions, `lab-other/sequential-workflow` reads 200, and `lab-other/internal-draft` answers 404 with the bytes of a missing composition |
+| `sphere_candidates`, `sphere_engines` | the seeded `tomatometer-email` revision 2 came from SPHERE; one run of it on each built-in single-objective engine (skipped without SPHERE) |
+| `environment_feed` | the feed of `lab-main/tomatometer` `production`, through this nginx: the key the seed derives from `DEMO_SEED_PASSWORD` reads 1.0.0's bytes with 1.0.0's content `ETag`; `If-None-Match` gives a 304 that keeps `ETag` and `Vary`; the outsider's key is a 404, no credential a 401, the feed key on `/v1/users/me` a 401 `environment_key_elsewhere`; re-evaluating 1.0.0 leaves the `ETag`; the margins of the pinned evaluation at 1000 users are `ok` with 7 rows, basic's negative |
+| `adopt_switches_provider` | the feed consumer follows Brevo and mails through it (Mailpit, tag `provider-brevo`); `lab-owner` adopts 1.1.0 with `If-Match`; the feed's `ETag` becomes 1.1.0's; within 15 s the consumer follows Resend and mails with tag `provider-resend`; an adopt without `If-Match` is 428 and `lab-member`'s is 403 |
+| `restore_operation` | `lab-owner` adopts 1.0.0 again, so the walks start from the seed's state; the next mail is Brevo's |
 | `plan_usage` | (`--with-space`) plan and capabilities of the owner, no usage counters |
 | `login_throttle` | 12 failed logins of a made-up user end in a 429 with `Retry-After`; the counter is per address and identifier |
 
@@ -605,7 +612,7 @@ diagnostic guide, not a list of verified results.
   possible peers.
 - `engine-minizinc` at 192 MiB runs Node plus MiniZinc and its solver as child
   processes; a large model may not fit. Raising it means lowering something
-  else to stay under 4096 MiB (the current total, 3776 MiB, leaves 320 MiB).
+  else to stay under 4096 MiB (the current total, 3936 MiB, leaves 160 MiB).
 - A single worker serves the `default` queue with two threads; concurrent jobs
   can delay each other.
 - `gateway`, `worker` and `seed` share one image, `openbinding-lab-gateway:${DEMO_LAB_PORT:-18100}`

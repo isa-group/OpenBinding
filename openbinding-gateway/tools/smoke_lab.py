@@ -39,8 +39,21 @@ Steps (a failure never aborts the next one; 8-11 can be dropped with ``--skip``;
    15 sphere_engines    one run of tomatometer-email revision 2 on each built-in single-objective engine (MiniZinc,
                         random search, the elitist genetic search), each completing with an eligible e-mail candidate
 
+   16 environment_feed  the seeded production environment of lab-main/tomatometer through the lab nginx: its feed key
+                        (derived from DEMO_SEED_PASSWORD as the seed derives it) reads 1.0.0's bytes with 1.0.0's
+                        content ETag; If-None-Match gives a 304 that keeps ETag and Vary; the outsider's key is a 404,
+                        no credential a 401, the feed key on /v1/users/me a 401 environment_key_elsewhere;
+                        re-evaluating 1.0.0 leaves the ETag; the margins of the pinned evaluation at 1000 users are ok,
+                        7 rows, basic negative
+   17 adopt_switches_provider  the lab's feed consumer follows Brevo and mails through it (Mailpit, tag
+                        provider-brevo); lab-owner adopts 1.1.0 with If-Match; the feed's ETag becomes 1.1.0's; the
+                        consumer switches to Resend within 15 s and mails with tag provider-resend; an adopt without
+                        If-Match is 428 and lab-member's adopt is 403
+   18 restore_operation lab-owner adopts 1.0.0 again (the walks start from the seed's state); the next mail is Brevo's
+
 Steps 14 and 15 are reported ``skipped`` when the seed skipped SPHERE (it was disabled or unreachable): the problem
-then has no revision 2, as ``plan_usage`` is skipped without ``--with-space``.
+then has no revision 2, as ``plan_usage`` is skipped without ``--with-space``. Steps 16 to 18 are skipped likewise
+when the seed made no TomatoMeter environments. ``--steps 16,17,18`` runs only the steps named.
 
 Steps 3 to 5 are the F0b walk (upload, run, study) on the organization's paths. Every smoke uploads one problem
 (``smoke-<run id>``) and creates one study of it in lab-main; nothing is deleted, since runs keep their problem.
@@ -51,12 +64,14 @@ so the logins of the other steps are not the ones that get blocked; it still con
 budget for the length of the window (300 s by default).
 
 Usage:
-    python tools/smoke_lab.py [--base-url URL] [--skip 8,9,10,11] [--with-space] [--job-timeout 120]
+    python tools/smoke_lab.py [--base-url URL] [--skip 8,9,10,11] [--steps 16,17,18] [--with-space] [--job-timeout 120]
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
+import hmac
 import json
 import os
 import re
@@ -113,6 +128,17 @@ SPHERE_OPTIMIZATION = {
     "weights": [{"criteria": name, "value": 1 / 3} for name in ("subscription", "availability", "latency")],
 }
 
+#: The operation of lab-main/tomatometer the seed made (F4): its production environment, read through the lab nginx,
+#: and the lab's feed consumer and Mailpit, reached by their names on the compose network.
+TOMATOMETER = f"/v1/organizations/{ORG}/compositions/tomatometer"
+PRODUCTION = f"{TOMATOMETER}/environments/production"
+FEED = f"{PRODUCTION}/composition"
+FEED_CONSUMER = "http://feed-consumer:8090"
+MAILPIT_API = "http://mailpit:8025/mailpit/api/v1"
+#: How long the consumer may take to leave waiting_for_handoff, and to follow an adoption (it polls every 3 s).
+CONSUMER_READY_S = 30.0
+CONSUMER_SWITCH_S = 15.0
+
 TERMINAL = frozenset({"completed", "failed", "cancelled"})
 #: A study run that is over (``partial``: some cells failed or were cancelled).
 STUDY_TERMINAL = frozenset({"completed", "partial", "failed", "cancelled"})
@@ -140,7 +166,7 @@ BLOCKED_HINT = (
 #: Step number -> optional via --skip.
 SKIPPABLE = (8, 9, 10, 11)
 #: 11 last: it burns the per-address login budget.
-RUN_ORDER = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 13, 14, 15, 12, 11)
+RUN_ORDER = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 13, 14, 15, 16, 17, 18, 12, 11)
 
 #: Key words that make a name look like a credential or an address (as security/redaction.py).
 SENSITIVE_WORDS = frozenset(
@@ -203,6 +229,8 @@ class Config:
     launches: int = 5
     skip: frozenset[int] = frozenset()
     with_space: bool = False
+    #: Only these steps (``--steps``); ``None`` runs them all.
+    only: frozenset[int] | None = None
 
 
 class StepError(Exception):
@@ -1050,6 +1078,182 @@ def step_sphere_engines(lab: Lab) -> Checks:
     return checks
 
 
+# --------------------------------------------------------------------------
+# The operation of TomatoMeter (F4): the feed, the lab's consumer and Mailpit
+# --------------------------------------------------------------------------
+
+
+def derived_feed_key(password: str, environment: str = "production") -> str:
+    """The seed's feed key of a lab-main/tomatometer environment (``seed_lab.feed_key_for``, by HMAC of the
+    password); the smoke derives it, as the live walks do, and never reads the hand-off file."""
+    message = f"openbinding-lab-seed:feedkey:{ORG}/tomatometer/{environment}".encode()
+    digest = hmac.new(password.encode("utf-8"), message, hashlib.sha256).hexdigest()
+    return f"obe_{digest[:8]}_{digest[8:]}"
+
+
+def derived_api_key(password: str, username: str) -> str:
+    """A synthetic user's personal key as the seed derives it (``seed_lab.api_key_for``)."""
+    digest = hmac.new(password.encode("utf-8"), f"openbinding-lab-seed:apikey:{username}".encode(), hashlib.sha256)
+    hexed = digest.hexdigest()
+    return f"obk_{hexed[:8]}_{hexed[8:]}"
+
+
+def feed_key(lab: Lab) -> str:
+    key = derived_feed_key(lab.config.password)
+    lab.redact.add(key)
+    return key
+
+
+def read_feed(lab: Lab, **headers: str) -> httpx.Response:
+    return lab.call("GET", FEED, headers={"X-API-Key": feed_key(lab), **headers})
+
+
+def content_tag(lab: Lab, label: str) -> tuple[str | None, bytes]:
+    content = lab.call("GET", f"{TOMATOMETER}/versions/{label}/content", "owner")
+    return content.headers.get("ETag"), content.content
+
+
+def adopt(lab: Lab, user: str, label: str, *, if_match: bool = True) -> httpx.Response:
+    headers = {}
+    if if_match:
+        headers["If-Match"] = lab.call("GET", PRODUCTION, user).headers.get("ETag", "")
+    return lab.call("POST", f"{PRODUCTION}/adopt", user, headers=headers,
+                    json={"version": label, "note": "smoke_lab"})
+
+
+def consumer_state(lab: Lab) -> Mapping[str, Any]:
+    response = lab.client.get(f"{FEED_CONSUMER}/state", timeout=10.0)
+    return mapping(body_of(response)) if response.status_code == 200 else {}
+
+
+def wait_for_provider(lab: Lab, provider: str | None, within_s: float) -> Mapping[str, Any]:
+    """The consumer's state once it follows ``provider`` (any provider when ``None``), or the last state seen."""
+    deadline = lab.clock() + within_s
+    state: Mapping[str, Any] = {}
+    while True:
+        state = consumer_state(lab)
+        if state.get("status") == "following" and (provider is None or state.get("provider") == provider):
+            return state
+        if lab.clock() >= deadline:
+            return state
+        lab.sleep(1.0)
+
+
+def send_summary(lab: Lab, checks: Checks, provider: str, adoption: str) -> str | None:
+    """Ask the consumer for the daily summary and find it in Mailpit with the provider's tag and headers."""
+    sent = lab.client.post(f"{FEED_CONSUMER}/send", json={}, timeout=15.0)
+    body = mapping(body_of(sent))
+    if not checks.expect(sent.status_code == 200 and body.get("provider") == provider,
+                         f"the consumer mails through {provider} ({sent.status_code} {body.get('provider')})"):
+        return None
+    identifier = body.get("messageId")
+    message = mapping(body_of(lab.client.get(f"{MAILPIT_API}/message/{identifier}", timeout=10.0)))
+    tags = list(message.get("Tags") or [])
+    checks.expect(f"provider-{provider}" in tags and f"adoption-{adoption}" in tags,
+                  f"Mailpit's message is tagged provider-{provider} and adoption-{adoption} ({tags})")
+    headers = mapping(body_of(lab.client.get(f"{MAILPIT_API}/message/{identifier}/headers", timeout=10.0)))
+    checks.expect(list(headers.get("X-Openbinding-Provider") or headers.get("X-OpenBinding-Provider") or []) == [provider],
+                  f"the message says X-OpenBinding-Provider: {provider}")
+    found = mapping(body_of(lab.client.get(f"{MAILPIT_API}/search", params={"query": f"tag:provider-{provider}"},
+                                          timeout=10.0)))
+    ids = [mapping(item).get("ID") for item in found.get("messages") or []]
+    checks.expect(identifier in ids, f"Mailpit's search tag:provider-{provider} finds it")
+    checks.note(f"{message.get('Subject')} tags={tags}")
+    return identifier
+
+
+def step_environment_feed(lab: Lab) -> Checks:
+    checks = lab.begin()
+    read = read_feed(lab)
+    tag, content = content_tag(lab, "1.0.0")
+    if not checks.expect(read.status_code == 200, f"the seed's feed key reads production's feed ({describe(read)})"):
+        return checks
+    etag = read.headers.get("ETag")
+    checks.expect(bool(etag) and etag == tag, f"the feed's ETag is 1.0.0's content ETag ({etag})")
+    checks.expect(read.content == content, "the feed's bytes are 1.0.0's content")
+    checks.expect(read.headers.get("OpenBinding-Composition-Version") == "1.0.0", "the feed says version 1.0.0")
+    cached = read_feed(lab, **{"If-None-Match": etag or ""})
+    checks.expect(cached.status_code == 304 and cached.headers.get("ETag") == etag
+                  and "X-API-Key" in (cached.headers.get("Vary") or ""),
+                  f"If-None-Match gives a 304 that keeps ETag and Vary through nginx ({describe(cached)})")
+    outsider = lab.call("GET", FEED, headers={"X-API-Key": derived_api_key(lab.config.password, USERS["outsider"])})
+    checks.expect(outsider.status_code == 404, f"the outsider's personal key is a 404 ({describe(outsider)})")
+    anonymous = lab.call("GET", FEED)
+    checks.expect(anonymous.status_code == 401, f"no credential is a 401 ({describe(anonymous)})")
+    elsewhere = lab.call("GET", "/v1/users/me", headers={"X-API-Key": feed_key(lab)})
+    checks.expect(elsewhere.status_code == 401 and code_of(elsewhere) == "environment_key_elsewhere",
+                  f"the feed key opens nothing else ({describe(elsewhere)})")
+    reevaluated = lab.call("POST", f"{TOMATOMETER}/versions/1.0.0/evaluations", "owner")
+    checks.expect(reevaluated.status_code in (200, 201), f"1.0.0 is re-evaluated ({describe(reevaluated)})")
+    again = read_feed(lab)
+    checks.expect(again.headers.get("ETag") == etag, "re-evaluating 1.0.0 leaves the feed's ETag")
+    production = mapping(body_of(lab.call("GET", PRODUCTION, "owner")))
+    pinned = mapping(mapping(production.get("inEffect")).get("evaluation")).get("id")
+    margins = lab.call("GET", f"{TOMATOMETER}/versions/1.0.0/margins", "owner",
+                       params={"users": 1000, "evaluation": pinned})
+    answer = mapping(body_of(margins))
+    rows = [mapping(row) for row in answer.get("rows") or []]
+    basic = next((row for row in rows if row.get("plan") == "basic" and not row.get("addOns")), {})
+    checks.expect(margins.status_code == 200 and answer.get("status") == "ok" and len(rows) == 7,
+                  f"margins of the pinned evaluation at 1000 users ({answer.get('status')}, {len(rows)} rows)")
+    checks.expect(str(basic.get("margin", "")).startswith("-"), f"basic's margin is negative ({basic.get('margin')})")
+    checks.note(f"feed 200 {etag}, 304 {cached.headers.get('ETag')}; costPerUser {answer.get('costPerUser')}")
+    return checks
+
+
+def step_adopt_switches_provider(lab: Lab) -> Checks:
+    checks = lab.begin()
+    state = wait_for_provider(lab, None, CONSUMER_READY_S)
+    if not checks.expect(state.get("provider") == "brevo",
+                         f"the feed consumer follows Brevo ({state.get('status')}, {state.get('provider')})"):
+        return checks
+    send_summary(lab, checks, "brevo", str(state.get("adoption")))
+    adopted = adopt(lab, "owner", "1.1.0")
+    if not checks.expect(adopted.status_code == 200, f"lab-owner adopts 1.1.0 with If-Match ({describe(adopted)})"):
+        return checks
+    tag, _ = content_tag(lab, "1.1.0")
+    switched = read_feed(lab)
+    checks.expect(switched.status_code == 200 and switched.headers.get("ETag") == tag,
+                  f"the feed's ETag is now 1.1.0's ({switched.headers.get('ETag')})")
+    state = wait_for_provider(lab, "resend", CONSUMER_SWITCH_S)
+    if checks.expect(state.get("provider") == "resend" and state.get("version") == "1.1.0",
+                     f"the consumer follows Resend within {CONSUMER_SWITCH_S:.0f} s ({state.get('provider')})"):
+        send_summary(lab, checks, "resend", str(state.get("adoption")))
+    unconditional = adopt(lab, "owner", "1.0.0", if_match=False)
+    checks.expect(unconditional.status_code == 428 and code_of(unconditional) == "precondition_required",
+                  f"an adopt without If-Match is 428 ({describe(unconditional)})")
+    member = adopt(lab, "member", "1.0.0")
+    checks.expect(member.status_code == 403, f"lab-member may not adopt in production ({describe(member)})")
+    checks.note(f"feed 200 {switched.headers.get('ETag')} after the adoption")
+    return checks
+
+
+def step_restore_operation(lab: Lab) -> Checks:
+    checks = lab.begin()
+    restored = adopt(lab, "owner", "1.0.0")
+    if not checks.expect(restored.status_code == 200, f"lab-owner adopts 1.0.0 again ({describe(restored)})"):
+        return checks
+    tag, _ = content_tag(lab, "1.0.0")
+    read = read_feed(lab)
+    checks.expect(read.headers.get("ETag") == tag, "the feed serves 1.0.0's ETag again")
+    state = wait_for_provider(lab, "brevo", CONSUMER_SWITCH_S)
+    if checks.expect(state.get("provider") == "brevo", f"the consumer follows Brevo again ({state.get('provider')})"):
+        send_summary(lab, checks, "brevo", str(state.get("adoption")))
+    return checks
+
+
+def _operation_seeded(lab: Lab) -> bool:
+    """Whether the seed made TomatoMeter's production environment (an environment view answers its slug); asked once."""
+    if not hasattr(lab, "_operation_seeded"):
+        try:
+            response = lab.call("GET", PRODUCTION, "owner")
+            seeded = response.status_code == 200 and mapping(body_of(response)).get("slug") == "production"
+        except (StepError, RemoteBlocked, httpx.HTTPError):
+            seeded = False
+        lab._operation_seeded = seeded  # type: ignore[attr-defined]
+    return lab._operation_seeded  # type: ignore[attr-defined]
+
+
 STEPS: dict[int, tuple[str, Callable[[Lab], Checks]]] = {
     1: ("proxy_and_spa", step_proxy_and_spa),
     2: ("login", step_login),
@@ -1066,9 +1270,14 @@ STEPS: dict[int, tuple[str, Callable[[Lab], Checks]]] = {
     13: ("public_compositions", step_public_compositions),
     14: ("sphere_candidates", step_sphere_candidates),
     15: ("sphere_engines", step_sphere_engines),
+    16: ("environment_feed", step_environment_feed),
+    17: ("adopt_switches_provider", step_adopt_switches_provider),
+    18: ("restore_operation", step_restore_operation),
 }
 #: The steps that need the seed's SPHERE problem.
 SPHERE_STEPS = (14, 15)
+#: The steps that need the seed's TomatoMeter environments (F4), in this order: 17 adopts, 18 restores.
+OPERATION_STEPS = (16, 17, 18)
 
 
 # --------------------------------------------------------------------------
@@ -1110,7 +1319,13 @@ def run_smoke(
         if number in config.skip or (number == 12 and not config.with_space):
             skipped.append(name)
             continue
+        if config.only is not None and number not in config.only:
+            skipped.append(name)
+            continue
         if number in SPHERE_STEPS and not _sphere_seeded(lab):
+            skipped.append(name)
+            continue
+        if number in OPERATION_STEPS and not _operation_seeded(lab):
             skipped.append(name)
             continue
         steps.append(run_step(lab, number))
@@ -1147,10 +1362,22 @@ def parse_skip(value: str) -> frozenset[int]:
     return frozenset(skipped)
 
 
+def parse_steps(value: str) -> frozenset[int]:
+    names = {name: number for number, (name, _) in STEPS.items()}
+    chosen: set[int] = set()
+    for item in (part.strip() for part in value.split(",") if part.strip()):
+        number = int(item) if item.isdigit() else names.get(item)
+        if number not in STEPS:
+            raise argparse.ArgumentTypeError(f"no step {item!r}")
+        chosen.add(number)
+    return frozenset(chosen)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="API smoke test of the lab demo through the nginx proxy.")
     parser.add_argument("--base-url", default=None, help=f"proxy origin (default $SMOKE_BASE_URL or {DEFAULT_BASE_URL})")
     parser.add_argument("--skip", type=parse_skip, default=frozenset(), help="optional steps to leave out: numbers or names among 8-11")
+    parser.add_argument("--steps", type=parse_steps, default=None, help="run only these steps: numbers or names")
     parser.add_argument("--with-space", action="store_true", help="also check the owner's plan and capabilities (needs SPACE contracts)")
     parser.add_argument("--origin", default="http://localhost:18100", help="origin that must pass CORS")
     parser.add_argument("--evil-origin", default="http://evil.example", help="origin that must not pass CORS")
@@ -1176,6 +1403,7 @@ def main(
     config = Config(
         base_url=base_url, password=password, origin=args.origin, evil_origin=args.evil_origin,
         job_timeout_s=args.job_timeout, max_concurrent=args.max_concurrent, skip=args.skip, with_space=args.with_space,
+        only=args.steps,
     )
     with httpx.Client(base_url=base_url, transport=transport, follow_redirects=False) as client:
         report = run_smoke(config, client, sleep=sleep)
