@@ -444,7 +444,7 @@ for a missing environment).
 | `code` | Status | Meaning |
 |---|---|---|
 | `quota_exceeded` | 402 | a per-account limit of the plan would be passed: `maxApiKeys`, `maxFederatedEngines`, `maxProblems`, `maxRepositoryStorage`. `quota` names `limit_id`, `limit` and `used` |
-| `username_unavailable` | 409 | registration or a first CAS sign-in asked for a reserved username: one that names engines or engine registrations already (engine namespaces are usernames baked into immutable manifests, and they outlive a deleted account), or one starting with `deleted-`, the pseudonyms of deleted accounts |
+| `username_unavailable` | 409 | registration or a first CAS or SCORETech sign-in asked for a reserved username: one that names engines or engine registrations already (engine namespaces are usernames baked into immutable manifests, and they outlive a deleted account), one starting with `deleted-`, the pseudonyms of deleted accounts, or one of the platform's names (`admin`, `identity`, `support`, …) |
 | `last_owner` | 409 | `DELETE /v1/users/me`: the account owns an organization; it hands it over first |
 | `owner_transfer_required` | 409 | a member route named the owner of the organization: the owner's seat moves only by `PUT /v1/organizations/{org}/owner` |
 
@@ -459,6 +459,11 @@ Quotas are per account: there are no billing sponsors. Deleting an account pseud
 |---|---|---|
 | `identity_disabled` | 409 | a SCORETech Identity route was called on a gateway that signs people in locally (`AUTH_PROVIDER=local`) |
 | `local_auth_disabled` | 409 | a local credential route (register, login, password reset) was called on a gateway that signs people in with SCORETech Identity (`AUTH_PROVIDER=scoretech`) |
+| `no_pending_signup` | 404 | `GET /v1/auth/identity/pending` or `POST /v1/auth/identity/complete` without a first sign-in waiting (it lasts 15 minutes); start signing in again |
+| `pending_in_progress` | 409 | `POST /v1/auth/identity/complete` while the same sign-up is being completed |
+| `username_taken` | 409 | the chosen username is in use, whatever its case |
+| `identity_already_provisioned` | 409 | this SCORETech account already has an OpenBinding account (completed from another browser); start signing in again |
+| `account_not_linked` | 409 | the verified email of the SCORETech account belongs to another OpenBinding account whose email is verified too; accounts are never linked by email |
 | `origin_refused` | 403 | a sign-in route that reads the session cookie was called without an `Origin` from the frontend (`FRONTEND_URL`'s origin or `AUTH_TRUSTED_ORIGINS`) |
 
 ### Redirect codes

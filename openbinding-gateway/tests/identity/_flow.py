@@ -47,3 +47,12 @@ def query_of(location: str) -> dict:
 
 def session_cookie(browser) -> str | None:
     return browser.cookies.get("__Host-ob_session")
+
+
+async def first_sign_in(browser, fake, person, **start_values):
+    """A sign-in of an unknown identity: the callback answer (to the username screen, with the pending cookie)."""
+    return await sign_in(browser, fake, person, **start_values)
+
+
+async def choose(browser, username: str, **headers):
+    return await browser.post("/v1/auth/identity/complete", json={"username": username}, headers=headers or None)

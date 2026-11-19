@@ -15,6 +15,7 @@ from ..db.models import (
     ApiKey, AuditEvent, AuthIdentity, IdentitySession, Notification, OrganizationInvitationCode, OrganizationMembership,
     OrganizationRole, PasswordResetToken, RefreshToken, User, UserRole, utcnow,
 )
+from ..modules.identity.application import PSEUDONYM_PREFIX
 from ..models.accounts import (
     ApiKeyList,
     ApiKeyBoundary,
@@ -635,10 +636,6 @@ async def delete_own_account(
         raise pricing_unavailable_error(exc, where="contract removal") from exc
 
 
-#: The prefix of the username a deleted account is given. Registration and CAS refuse
-#: every name that starts with it (``routes/auth.py``, ``username_reserved``), so a
-#: deletion never finds its pseudonym taken.
-PSEUDONYM_PREFIX = "deleted-"
 
 
 async def pseudonymise(session: AsyncSession, user: User) -> None:

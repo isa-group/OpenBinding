@@ -13,14 +13,15 @@ from functools import lru_cache
 from typing import Literal
 
 from fastapi import APIRouter, Depends, Query, Request, status
-from fastapi.responses import RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ....access.dependencies import session_dependency
 from ....core.ratelimit import enforce_auth_rate_limit
 from ....core.settings import Settings, get_settings
-from ....models.accounts import AuthConfigView
-from ..application import flows
+from ....models.accounts import AuthConfigView, CompletedSignUp, CompleteSignUpRequest, PendingSignUp
+from ....models.errors import CONFLICT_RESPONSE, ErrorResponse, NOT_FOUND_RESPONSE
+from ..application import flows, provisioning
 from ..application.config import Provider, auth_config_view, refuse_outside
 from ..application.stores import IdentityStoreNotConfigured
 from ..domain.errors import IDENTITY_ERROR_CODES, IdentityError
@@ -170,4 +171,71 @@ async def identity_callback(
     response = _apply(_redirect(outcome.target), settings, outcome)
     if flow_cookie and flow_cookie in request.cookies and not outcome.target.endswith("identity_error=expired"):
         cookies.clear_cookie(response, settings, flow_cookie)
+    return response
+
+
+_PENDING_RESPONSES = {404: {**NOT_FOUND_RESPONSE, "description": "No sign-up is waiting (`no_pending_signup`)."}}
+
+
+@router.get(
+    "/identity/pending",
+    response_model=PendingSignUp,
+    operation_id="getPendingIdentitySignUp",
+    summary="The first SCORETech sign-in waiting for its username",
+    dependencies=[Depends(requires_provider("scoretech"))],
+    responses=_PENDING_RESPONSES,
+)
+async def identity_pending(
+    request: Request,
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+    settings: Settings = Depends(get_settings),
+) -> PendingSignUp:
+    """Read with the pending cookie the callback set; the email is shown only when Identity verified it."""
+    found = await provisioning.read_pending(session, request.cookies.get(cookies.name(settings, cookies.PENDING)))
+    if found is None:
+        raise provisioning._no_pending()
+    _, record = found
+    return PendingSignUp(
+        suggested_username=await provisioning.suggestion(session, record),
+        email=record.get("email") if record.get("email_verified") else None,
+        email_verified=record.get("email_verified") is True,
+        display_name=record.get("display_name"),
+        expires_at=provisioning.expires_at_of(record),
+    )
+
+
+@router.post(
+    "/identity/complete",
+    response_model=CompletedSignUp,
+    status_code=status.HTTP_201_CREATED,
+    operation_id="completeIdentitySignUp",
+    summary="Choose a username and create the account of a first SCORETech sign-in",
+    dependencies=[Depends(requires_provider("scoretech"))],
+    responses={
+        **_PENDING_RESPONSES,
+        403: {"model": ErrorResponse, "description": "Not from the frontend's origin (`origin_refused`)."},
+        409: {
+            **CONFLICT_RESPONSE,
+            "description": (
+                "`username_taken`, `username_unavailable`, `account_not_linked`, `pending_in_progress` or "
+                "`identity_already_provisioned`."
+            ),
+        },
+        429: {"description": "Too many attempts; see `Retry-After`."},
+    },
+)
+async def identity_complete(
+    payload: CompleteSignUpRequest,
+    request: Request,
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+    settings: Settings = Depends(get_settings),
+) -> JSONResponse:
+    cookies.require_same_origin(request, settings)
+    pending_cookie = request.cookies.get(cookies.name(settings, cookies.PENDING))
+    key = provisioning.pending_key(pending_cookie) if pending_cookie else None
+    await enforce_auth_rate_limit(request, "identity_complete", key, settings)
+    done = await provisioning.complete(session, settings, pending_cookie, payload.username)
+    response = JSONResponse(CompletedSignUp(return_to=done.return_to).model_dump(), status_code=status.HTTP_201_CREATED)
+    cookies.set_cookie(response, settings, cookies.name(settings, cookies.SESSION), done.session_cookie, done.session_max_age)
+    cookies.clear_cookie(response, settings, cookies.name(settings, cookies.PENDING))
     return response

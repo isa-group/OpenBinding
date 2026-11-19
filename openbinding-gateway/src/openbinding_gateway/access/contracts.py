@@ -78,6 +78,25 @@ async def settle_pending_contract(user: User, session: AsyncSession) -> None:
     logger.info("Settled the pending contract for %s", user.username)
 
 
+async def create_contract_or_mark_pending(user: User, plan: str | None, settings: Settings | None = None) -> None:
+    """Create ``user``'s SPACE contract on ``plan``, or leave it owed (``contract_pending``) when SPACE is down.
+
+    What a new account does, whichever way it was created (local registration, a first SCORETech Identity
+    sign-in): the account exists either way, keyed in SPACE by ``str(user.id)``.
+    """
+    from .. import space_client
+    from ..space_client import PricingUnavailable
+
+    user.contract_pending = True
+    try:
+        gate = space_client.get_gate()
+        await gate.create_contract(user.id, plan, user.email, live_pricing_version(settings))
+        user.contract_pending = False
+        await record_assigned_plan(user, gate)
+    except PricingUnavailable:
+        user.contract_pending = True
+
+
 async def record_assigned_plan(user: User, gate) -> None:
     """Keep in ``plan_cache`` the plan SPACE gave a contract created without one.
 

@@ -25,8 +25,9 @@ from ..db.models import AuditEvent, AuthIdentity, User
 from ..models.accounts import CasSession, PlanChange
 from ..models.errors import api_error
 from ..security.passwords import hash_password
-from .auth import _issue_session, username_reserved, username_unavailable
-from ..access.contracts import live_pricing_version
+from .auth import _issue_session
+from ..modules.identity.application import username_reserved, username_unavailable
+from ..access.contracts import create_contract_or_mark_pending, live_pricing_version
 from ..modules.identity.application import get_store
 
 logger = logging.getLogger(__name__)
@@ -342,16 +343,7 @@ async def _complete_callback(
         )
         session.add(user)
         await session.flush()
-        try:
-            await space_client.get_gate().create_contract(
-                user.id,
-                "RESEARCH",
-                user.email,
-                live_pricing_version(settings),
-            )
-            user.contract_pending = False
-        except space_client.PricingUnavailable:
-            user.contract_pending = True
+        await create_contract_or_mark_pending(user, "RESEARCH", settings)
         session.add(AuthIdentity(
             user_id=user.id, provider="us-cas", issuer=settings.effective_cas_base_url, subject=principal.subject,
             attributes=principal.attributes,

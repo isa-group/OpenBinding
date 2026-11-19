@@ -71,6 +71,28 @@ class AuthConfigView(BaseModel):
     )
 
 
+class PendingSignUp(BaseModel):
+    """A first SCORETech Identity sign-in waiting for its username."""
+
+    suggested_username: str = Field(..., description="A free username derived from the verified email or the display name; advisory.")
+    email: Optional[str] = Field(default=None, description="The email Identity verified; null when it shared none or did not verify it.")
+    email_verified: bool
+    display_name: Optional[str] = None
+    expires_at: datetime = Field(..., description="When this pending sign-up is discarded.")
+
+
+class CompleteSignUpRequest(BaseModel):
+    username: str = Field(
+        ...,
+        pattern=USERNAME_PATTERN,
+        description="Letters, digits, dot, underscore or hyphen; 3 to 64 characters. Public: it names your compositions, engines and organizations.",
+    )
+
+
+class CompletedSignUp(BaseModel):
+    return_to: str = Field(..., description="The frontend path to continue at.")
+
+
 class PlanChange(BaseModel):
     """A plan change the account holder did not ask for by name, and what it costs."""
 
