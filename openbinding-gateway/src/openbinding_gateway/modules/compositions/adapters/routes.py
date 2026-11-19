@@ -1030,7 +1030,8 @@ async def reevaluate_composition_version(
         "Have the installed toolchain evaluate the binding of a version (the latest by default) with the "
         "tasks `binding` names bound to those candidates, the others as the version binds them. Nothing is "
         "stored. A binding the toolchain evaluated answers 200, `valid` false when it reports a hard "
-        "violation; one it could not evaluate is 422 `evaluation_invalid`."
+        "violation; one it could not evaluate is 422 `evaluation_invalid`. `revision` evaluates it against another "
+        "revision of the linked problem (a demand variant), and `users` adds the margins per plan of the values."
     ),
     dependencies=[Depends(limit_work)],
     responses={
@@ -1042,6 +1043,7 @@ async def reevaluate_composition_version(
                 f"at `/binding/<task>`), or {_NOT_LINKED}."
             ),
         },
+        404: {**NOT_FOUND_RESPONSE, "description": "No such composition or version, or `revision_not_found`."},
         **_BUSY,
         **_TOOLCHAIN_DOWN,
     },
@@ -1057,13 +1059,20 @@ async def evaluate_composition(
     found = await compositions.required_composition(session, organization, composition)
     evaluated = await evaluate.evaluate_binding(
         session, organization, found, version_ref=payload.version, binding=payload.binding, caller=user,
+        revision=payload.revision,
     )
+    margins = await margins_module.what_if(session, evaluated.version, evaluated.values, evaluated.valid, payload.users)
+    revision = None
+    if evaluated.revision is not None:
+        revision = {"number": evaluated.revision.revision, "demand": evaluate.demand_of(evaluated.revision)}
     return EvaluateResult(
         version=VersionName(**_name(evaluated.version)),
         valid=evaluated.valid,
         values=_values(dict(evaluated.values)),
         violations=evaluated.violations,
         diagnostics=[diagnostic_view(item) for item in evaluated.diagnostics],
+        revision=revision,
+        margins=margins,
     )
 
 

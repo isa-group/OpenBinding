@@ -673,6 +673,17 @@ class CompositionEvaluate(BaseModel):
             "the other tasks keep the version's binding."
         ),
     )
+    users: Optional[int] = Field(
+        default=None, ge=1, le=1_000_000_000,
+        description="The users the upstream cost is divided by: the answer then carries the margins per plan.",
+    )
+    revision: Optional[int] = Field(
+        default=None, ge=1, le=2**31 - 1,
+        description=(
+            "Evaluate against this revision of the linked problem instead (a demand variant), in memory: nothing is "
+            "stored and the version keeps its link."
+        ),
+    )
 
 
 class EvaluateResult(BaseModel):
@@ -685,6 +696,27 @@ class EvaluateResult(BaseModel):
     diagnostics: list[CompositionDiagnosticView] = Field(
         description="What the evaluation found; a finding about a task the request rebinds points at `/binding/<task>`.",
     )
+    revision: Optional["EvaluatedRevision"] = Field(
+        default=None, description="The problem revision evaluated, and the capacity demand its recipe states.",
+    )
+    margins: Optional["CompositionMargins"] = Field(
+        default=None,
+        description=(
+            "The margins per plan of these values, against the offering version the version's current evaluation "
+            "read; present when `users` is given or that evaluation read an offering."
+        ),
+    )
+
+
+class EvaluatedDemand(BaseModel):
+    name: str
+    value: Optional[float]
+    unit: str
+
+
+class EvaluatedRevision(BaseModel):
+    number: int
+    demand: list[EvaluatedDemand] = Field(description="Empty for a problem not generated from SPHERE.")
 
 
 class CompositionMove(CounterfactualMove):
@@ -1209,7 +1241,9 @@ class CompositionMargins(BaseModel):
     """
 
     version: VersionName
-    evaluation: MarginsEvaluation
+    evaluation: Optional[MarginsEvaluation] = Field(
+        description="The stored evaluation read; null for the margins of a what-if binding (`evaluateComposition`).",
+    )
     offering: Optional[MarginsOffering]
     cost: Optional[MarginsCost]
     users: Optional[int]
@@ -1221,3 +1255,6 @@ class CompositionMargins(BaseModel):
     rowsTruncated: bool = Field(description="More than 200 rows: the first 200, in declared order.")
     rows: list[MarginRow]
     warnings: list[Literal["declared_values", "rows_truncated", "amount_out_of_range"]]
+
+
+EvaluateResult.model_rebuild()

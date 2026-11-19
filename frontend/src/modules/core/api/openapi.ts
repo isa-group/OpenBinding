@@ -1752,7 +1752,7 @@ export interface paths {
         put?: never;
         /**
          * Evaluate another binding of a version
-         * @description Have the installed toolchain evaluate the binding of a version (the latest by default) with the tasks `binding` names bound to those candidates, the others as the version binds them. Nothing is stored. A binding the toolchain evaluated answers 200, `valid` false when it reports a hard violation; one it could not evaluate is 422 `evaluation_invalid`.
+         * @description Have the installed toolchain evaluate the binding of a version (the latest by default) with the tasks `binding` names bound to those candidates, the others as the version binds them. Nothing is stored. A binding the toolchain evaluated answers 200, `valid` false when it reports a hard violation; one it could not evaluate is 422 `evaluation_invalid`. `revision` evaluates it against another revision of the linked problem (a demand variant), and `users` adds the margins per plan of the values.
          */
         post: operations["evaluateComposition"];
         delete?: never;
@@ -4552,6 +4552,16 @@ export interface components {
                 [key: string]: string;
             } | null;
             /**
+             * Revision
+             * @description Evaluate against this revision of the linked problem instead (a demand variant), in memory: nothing is stored and the version keeps its link.
+             */
+            revision?: number | null;
+            /**
+             * Users
+             * @description The users the upstream cost is divided by: the answer then carries the margins per plan.
+             */
+            users?: number | null;
+            /**
              * Version
              * @description The version to evaluate: its id, label or ordinal; the latest by default.
              */
@@ -4656,7 +4666,8 @@ export interface components {
             costPerUser: string | null;
             /** Currency */
             currency: string | null;
-            evaluation: components["schemas"]["MarginsEvaluation"];
+            /** @description The stored evaluation read; null for the margins of a what-if binding (`evaluateComposition`). */
+            evaluation: components["schemas"]["MarginsEvaluation"] | null;
             offering: components["schemas"]["MarginsOffering"] | null;
             /** Rows */
             rows: components["schemas"]["MarginRow"][];
@@ -5940,6 +5951,10 @@ export interface components {
              * @description What the evaluation found; a finding about a task the request rebinds points at `/binding/<task>`.
              */
             diagnostics: components["schemas"]["CompositionDiagnosticView"][];
+            /** @description The margins per plan of these values, against the offering version the version's current evaluation read; present when `users` is given or that evaluation read an offering. */
+            margins?: components["schemas"]["CompositionMargins"] | null;
+            /** @description The problem revision evaluated, and the capacity demand its recipe states. */
+            revision?: components["schemas"]["EvaluatedRevision"] | null;
             /**
              * Valid
              * @description Whether the binding holds: the toolchain reports no hard violation.
@@ -5960,6 +5975,25 @@ export interface components {
             violations: {
                 [key: string]: unknown;
             }[];
+        };
+        /** EvaluatedDemand */
+        EvaluatedDemand: {
+            /** Name */
+            name: string;
+            /** Unit */
+            unit: string;
+            /** Value */
+            value: number | null;
+        };
+        /** EvaluatedRevision */
+        EvaluatedRevision: {
+            /**
+             * Demand
+             * @description Empty for a problem not generated from SPHERE.
+             */
+            demand: components["schemas"]["EvaluatedDemand"][];
+            /** Number */
+            number: number;
         };
         /**
          * EvaluationCompilation
@@ -16349,7 +16383,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description No such organization or composition, or the caller cannot read it. */
+            /** @description No such composition or version, or `revision_not_found`. */
             404: {
                 headers: {
                     [name: string]: unknown;

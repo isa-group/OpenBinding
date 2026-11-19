@@ -3911,6 +3911,34 @@
             "description": "Tasks to bind otherwise, each to a candidate as a document names it (its id, or `<resource>/<id>`); the other tasks keep the version's binding.",
             "title": "Binding"
           },
+          "revision": {
+            "anyOf": [
+              {
+                "maximum": 2147483647.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Evaluate against this revision of the linked problem instead (a demand variant), in memory: nothing is stored and the version keeps its link.",
+            "title": "Revision"
+          },
+          "users": {
+            "anyOf": [
+              {
+                "maximum": 1000000000.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The users the upstream cost is divided by: the answer then carries the margins per plan.",
+            "title": "Users"
+          },
           "version": {
             "anyOf": [
               {
@@ -4139,7 +4167,15 @@
             "title": "Currency"
           },
           "evaluation": {
-            "$ref": "#/components/schemas/MarginsEvaluation"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MarginsEvaluation"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The stored evaluation read; null for the margins of a what-if binding (`evaluateComposition`)."
           },
           "offering": {
             "anyOf": [
@@ -7333,6 +7369,28 @@
             "title": "Diagnostics",
             "type": "array"
           },
+          "margins": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CompositionMargins"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The margins per plan of these values, against the offering version the version's current evaluation read; present when `users` is given or that evaluation read an offering."
+          },
+          "revision": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EvaluatedRevision"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The problem revision evaluated, and the capacity demand its recipe states."
+          },
           "valid": {
             "description": "Whether the binding holds: the toolchain reports no hard violation.",
             "title": "Valid",
@@ -7367,6 +7425,58 @@
           "diagnostics"
         ],
         "title": "EvaluateResult",
+        "type": "object"
+      },
+      "EvaluatedDemand": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "unit": {
+            "title": "Unit",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "name",
+          "value",
+          "unit"
+        ],
+        "title": "EvaluatedDemand",
+        "type": "object"
+      },
+      "EvaluatedRevision": {
+        "properties": {
+          "demand": {
+            "description": "Empty for a problem not generated from SPHERE.",
+            "items": {
+              "$ref": "#/components/schemas/EvaluatedDemand"
+            },
+            "title": "Demand",
+            "type": "array"
+          },
+          "number": {
+            "title": "Number",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "number",
+          "demand"
+        ],
+        "title": "EvaluatedRevision",
         "type": "object"
       },
       "EvaluationCompilation": {
@@ -27357,7 +27467,7 @@
     },
     "/v1/organizations/{org}/compositions/{composition}/evaluate": {
       "post": {
-        "description": "Have the installed toolchain evaluate the binding of a version (the latest by default) with the tasks `binding` names bound to those candidates, the others as the version binds them. Nothing is stored. A binding the toolchain evaluated answers 200, `valid` false when it reports a hard violation; one it could not evaluate is 422 `evaluation_invalid`.",
+        "description": "Have the installed toolchain evaluate the binding of a version (the latest by default) with the tasks `binding` names bound to those candidates, the others as the version binds them. Nothing is stored. A binding the toolchain evaluated answers 200, `valid` false when it reports a hard violation; one it could not evaluate is 422 `evaluation_invalid`. `revision` evaluates it against another revision of the linked problem (a demand variant), and `users` adds the margins per plan of the values.",
         "operationId": "evaluateComposition",
         "parameters": [
           {
@@ -27428,7 +27538,7 @@
                 }
               }
             },
-            "description": "No such organization or composition, or the caller cannot read it."
+            "description": "No such composition or version, or `revision_not_found`."
           },
           "409": {
             "content": {

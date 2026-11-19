@@ -349,3 +349,27 @@ async def margins(
         "offering": offering_view(version, found.evaluation, found.snapshot),
         **core,
     }
+
+
+async def what_if(
+    session: AsyncSession,
+    version: CompositionVersion,
+    values: Mapping[str, Any],
+    valid: bool,
+    users: int | None,
+) -> dict[str, Any] | None:
+    """The margins of what-if ``values`` (an ``evaluate`` answer) against the offering version the version's current
+    evaluation read; ``None`` when neither ``users`` is given nor that evaluation read an offering."""
+    found = await inputs(session, version)
+    if users is None and found.evaluation.offering_status is None:
+        return None
+    core = compute(
+        dict(values), "verified", "verified" if valid else EvaluationOutcome.BINDING_INVALID.value, found.pricing,
+        found.evaluation.offering_status, users,
+    )
+    return {
+        "version": {"id": version.id, "label": version.label},
+        "evaluation": None,
+        "offering": offering_view(version, found.evaluation, found.snapshot),
+        **core,
+    }
