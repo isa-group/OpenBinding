@@ -1029,3 +1029,49 @@ class CompositionEnvironmentUpdate(BaseModel):
     operator: Optional[str] = Field(default=None, min_length=1, max_length=64, description="A member's username; null for none.")
     adoptRole: Optional[AdoptRoleName] = None
     expectedUsers: Optional[int] = Field(default=None, **_USERS, description="Null for none.")
+
+
+class EnvironmentAdopt(BaseModel):
+    """The version to adopt in an environment, and why."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    version: str = Field(min_length=1, max_length=64, description="The version's id, label or ordinal.")
+    note: str = Field(default="", max_length=500, description="Why it is adopted; kept in the history.")
+
+
+class AdoptionEvaluation(BaseModel):
+    id: uuid.UUID
+    basisKey: str
+    valuesStatus: Literal["verified", "declared"]
+
+
+class AdoptionOffering(BaseModel):
+    versionName: Optional[str]
+    createdAt: Optional[str]
+
+
+class CompositionAdoptionView(BaseModel):
+    """One adoption of an environment's history: insert only."""
+
+    ordinal: int = Field(description="The adoption's number in its environment (1, 2, 3 …).")
+    version: VersionName
+    previousVersion: Optional[VersionName] = Field(description="The version in effect before; null for the first.")
+    adoptedAt: datetime
+    adoptedBy: Optional[EnvironmentPerson]
+    note: str
+    evaluation: Optional[AdoptionEvaluation] = Field(description="The evaluation the adoption pinned.")
+    offering: Optional[AdoptionOffering] = Field(description="The offering version that evaluation read.")
+    feedEtag: str = Field(description="The feed's `ETag` after this adoption: the version's content digest, quoted.")
+
+
+class CompositionAdoptionList(BaseModel):
+    adoptions: list[CompositionAdoptionView] = Field(description="Newest first.")
+    nextBefore: Optional[int] = Field(description="Send as `before` for the next page; null on the last one.")
+
+
+class EnvironmentAdoptResult(BaseModel):
+    """The environment with its new version in effect, and the adoption that put it there."""
+
+    environment: CompositionEnvironmentView
+    adoption: CompositionAdoptionView

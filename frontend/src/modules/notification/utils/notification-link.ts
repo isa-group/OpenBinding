@@ -1,7 +1,7 @@
 // The deep links of SPHERE's notification item (frontend/src/modules/notification/components/notification-item, revision
 // 73779a8a), https://github.com/SCORELabUS/SPHERE. Copyright (c) 2024 Alejandro García Fernández. MIT licence: the full
 // text is in THIRD_PARTY_NOTICES.md. Adapted: OpenBinding's kinds and payload (an invitation opens its join page, a new
-// version its composition at that version, a finished or failed run the run); the icon of each kind; the time as date-fns
+// version its composition at that version, an adoption its composition, a finished or failed run the run); the icon of each kind; the time as date-fns
 // says it (SPHERE's two copies of `timeAgo` are gone).
 
 import { formatDistanceStrict } from 'date-fns';
@@ -15,6 +15,7 @@ export const KIND_ICONS: Record<string, string> = {
   CompositionUpdated: 'mdi:file-replace',
   RunFinished: 'mdi:check-circle-outline',
   RunFailed: 'mdi:close',
+  CompositionAdopted: 'mdi:check',
 };
 
 export const KIND_LABELS: Record<string, string> = {
@@ -23,6 +24,7 @@ export const KIND_LABELS: Record<string, string> = {
   CompositionUpdated: 'Composition updates',
   RunFinished: 'Runs finished',
   RunFailed: 'Runs failed',
+  CompositionAdopted: 'Adoptions',
 };
 
 const text = (value: unknown) => (typeof value === 'string' && value ? value : null);
@@ -44,6 +46,12 @@ export function notificationLink(
       return org && composition
         ? compositionPath(org, composition, undefined, version ? { version } : {})
         : null;
+    }
+    case 'CompositionAdopted': {
+      // The composition's Overview until the Operation tab exists (F4-C).
+      const adoptedOrg = text(payload.organization);
+      const composition = text(payload.composition);
+      return adoptedOrg && composition ? compositionPath(adoptedOrg, composition) : null;
     }
     case 'RunFinished':
     case 'RunFailed': {

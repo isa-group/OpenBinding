@@ -19,7 +19,7 @@ describe('API-key permissions', () => {
     const listed = PERMISSION_GROUPS.flatMap(group =>
       group.permissions.map(permission => permission.id)
     );
-    expect(ALL_PERMISSIONS).toHaveLength(21);
+    expect(ALL_PERMISSIONS).toHaveLength(22);
     expect(new Set(listed).size).toBe(listed.length);
     expect([...listed].sort()).toEqual([...ALL_PERMISSIONS].sort());
   });

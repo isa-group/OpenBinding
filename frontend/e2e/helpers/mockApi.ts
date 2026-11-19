@@ -1234,6 +1234,7 @@ function route(request: Request): Reply | null {
             CompositionUpdated: { inbox: true, email: false },
             RunFinished: { inbox: true, email: false },
             RunFailed: { inbox: true, email: true },
+            CompositionAdopted: { inbox: true, email: false },
           },
         });
       return null;

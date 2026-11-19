@@ -99,6 +99,7 @@ ENVIRONMENTS = "/v1/organizations/{org}/compositions/{composition}/environments"
 #: feed keys (F4). Outside the compiling-prefix rule, and asserted exactly, so the walk stays exhaustive.
 OPERATION_WRITES = {
     ("POST", ENVIRONMENTS),
+    ("POST", f"{ENVIRONMENTS}/{{environment}}/adopt"),
 }
 
 

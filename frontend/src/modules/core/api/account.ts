@@ -29,6 +29,7 @@ export type ApiKeyPermission =
   | 'studies:write'
   | 'compositions:read'
   | 'compositions:write'
+  | 'compositions:adopt'
   | 'notifications:read'
   | 'admin:accounts:read'
   | 'admin:accounts:write';

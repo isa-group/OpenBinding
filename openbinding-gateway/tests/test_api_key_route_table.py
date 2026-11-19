@@ -48,7 +48,7 @@ def is_open(method: str, path: str) -> bool:
 
 
 def test_the_route_table_has_the_v1_surface():
-    assert len(ROUTES) == 182
+    assert len(ROUTES) == 184
 
 
 def test_the_unclassified_permission_cannot_be_granted():
@@ -346,3 +346,16 @@ def test_environment_crud_permissions():
     for method in ("PATCH", "DELETE"):
         assert required_permissions(f"{base}/{{environment}}", method) == frozenset({"compositions:write"})
     assert required_permissions(f"{base}/{{environment}}", "GET") == frozenset({"compositions:read"})
+
+
+def test_adopting_needs_its_own_permission():
+    """Adopting changes what an application runs: ``compositions:write`` does not imply it."""
+    adopt = "/v1/organizations/{org}/compositions/{composition}/environments/{environment}/adopt"
+    assert ("POST", adopt) in ROUTES
+    assert required_permissions(adopt, "POST") == frozenset({"compositions:adopt"})
+    assert required_permissions("/v1/organizations/acme/compositions/tomato/environments/production/adopt", "POST") == (
+        frozenset({"compositions:adopt"})
+    )
+    assert "compositions:adopt" not in apikeys.ADMIN_PERMISSIONS
+    history = "/v1/organizations/{org}/compositions/{composition}/environments/{environment}/adoptions"
+    assert required_permissions(history, "GET") == frozenset({"compositions:read"})

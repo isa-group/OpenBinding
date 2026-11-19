@@ -186,3 +186,176 @@ async def test_a_feed_key_is_protected_and_stays_revoked(pg) -> None:
         assert (await session.scalar(
             select(CompositionEnvironmentKey.revoked_at).where(CompositionEnvironmentKey.id == key_id)
         )) is not None
+
+
+# -- Adoption under concurrency (A4) ---------------------------------------------------------------------
+
+
+async def _adopt(pg, w, environment_id, version: str, tag: str) -> tuple[int, str | None]:
+    """One adopt in a session of its own; its read phase (the rows and the tag) happens before it locks."""
+    import asyncio
+
+    from fastapi import HTTPException
+
+    from openbinding_gateway.db.models import Composition, OrganizationRole, User
+    from openbinding_gateway.modules.compositions.application import adoption
+
+    async with pg.session() as session:
+        organization = await session.get(Organization, w.organization_id)
+        composition = await session.get(Composition, w.composition_id)
+        environment = await session.get(CompositionEnvironment, environment_id)
+        actor = await session.get(User, w.user_id)
+        await asyncio.sleep(0)
+        try:
+            adopted = await adoption.adopt(
+                session, organization=organization, composition=composition, environment=environment,
+                role=OrganizationRole.OWNER, version_ref=version, actor=actor, if_match=tag,
+            )
+        except HTTPException as exc:
+            await session.rollback()
+            return exc.status_code, (exc.headers or {}).get("ETag")
+        from openbinding_gateway.core import revision
+
+        return 200, revision.etag_for(adopted.environment)
+
+
+async def _tag(pg, environment_id) -> str:
+    from openbinding_gateway.core import revision
+
+    async with pg.session() as session:
+        return revision.etag_for(await session.get(CompositionEnvironment, environment_id))
+
+
+async def test_two_adopts_with_one_tag_one_wins(pg) -> None:
+    import asyncio
+
+    async with pg.session() as session:
+        w = await world(session)
+        environment_id = await environment(session, w)
+        await session.commit()
+    tag = await _tag(pg, environment_id)
+
+    results = await asyncio.gather(_adopt(pg, w, environment_id, "1.0.0", tag), _adopt(pg, w, environment_id, "1.1.0", tag))
+
+    statuses = sorted(status for status, _ in results)
+    assert statuses == [200, 412], results
+    winner = next(etag for status, etag in results if status == 200)
+    loser = next(etag for status, etag in results if status == 412)
+    assert loser == winner == await _tag(pg, environment_id)
+    async with pg.session() as session:
+        rows = (await session.scalars(select(CompositionAdoption))).all()
+        assert [row.ordinal for row in rows] == [1]
+
+
+async def test_a_stale_read_phase_is_refused_after_another_adopt(pg) -> None:
+    async with pg.session() as session:
+        w = await world(session)
+        environment_id = await environment(session, w)
+        await session.commit()
+    tag = await _tag(pg, environment_id)
+    first = await _adopt(pg, w, environment_id, "1.0.0", tag)
+    second = await _adopt(pg, w, environment_id, "1.1.0", tag)
+    assert first[0] == 200 and second == (412, first[1])
+    third = await _adopt(pg, w, environment_id, "1.1.0", first[1])
+    assert third[0] == 200
+    async with pg.session() as session:
+        rows = (await session.scalars(select(CompositionAdoption).order_by(CompositionAdoption.ordinal))).all()
+        assert [(row.ordinal, row.previous_version_id) for row in rows] == [(1, None), (2, w.versions[0])]
+        row = await session.get(CompositionEnvironment, environment_id)
+        assert (row.adoption_ordinal, row.adopted_version_id) == (2, w.versions[1])
+
+
+async def test_an_adopt_racing_the_environments_deletion(pg) -> None:
+    import asyncio
+
+    from fastapi import HTTPException
+
+    from openbinding_gateway.db.models import Composition, User
+    from openbinding_gateway.modules.compositions.application import environments
+
+    async with pg.session() as session:
+        w = await world(session)
+        environment_id = await environment(session, w)
+        await session.commit()
+    tag = await _tag(pg, environment_id)
+
+    async def remove():
+        async with pg.session() as session:
+            composition = await session.get(Composition, w.composition_id)
+            row = await session.get(CompositionEnvironment, environment_id)
+            actor = await session.get(User, w.user_id)
+            try:
+                await environments.delete_environment(session, composition, row, actor)
+                await session.commit()
+                return 204
+            except HTTPException as exc:
+                return exc.status_code
+
+    adopted, removed = await asyncio.gather(_adopt(pg, w, environment_id, "1.0.0", tag), remove())
+
+    assert removed == 204
+    assert adopted[0] in (200, 404), adopted
+    async with pg.session() as session:
+        assert await session.get(CompositionEnvironment, environment_id) is None
+        assert not (await session.scalars(select(CompositionAdoption))).all()
+
+
+async def test_an_adopt_and_a_composition_delete_never_collide(pg) -> None:
+    import asyncio
+
+    from fastapi import HTTPException
+
+    from openbinding_gateway.db.models import Composition, User
+    from openbinding_gateway.modules.compositions.application import delete_composition
+
+    async with pg.session() as session:
+        w = await world(session)
+        environment_id = await environment(session, w)
+        await session.commit()
+    tag = await _tag(pg, environment_id)
+
+    async def remove():
+        async with pg.session() as session:
+            composition = await session.get(Composition, w.composition_id)
+            actor = await session.get(User, w.user_id)
+            try:
+                await delete_composition(session, composition, actor)
+                await session.commit()
+                return 204
+            except HTTPException as exc:
+                await session.rollback()
+                return exc.status_code
+
+    adopted, removed = await asyncio.gather(_adopt(pg, w, environment_id, "1.0.0", tag), remove())
+
+    assert adopted[0] == 200 and removed == 409
+
+
+async def test_a_patch_racing_an_adopt_with_one_tag(pg) -> None:
+    import asyncio
+
+    from fastapi import HTTPException
+
+    from openbinding_gateway.core import revision
+
+    async with pg.session() as session:
+        w = await world(session)
+        environment_id = await environment(session, w)
+        await session.commit()
+    tag = await _tag(pg, environment_id)
+
+    async def patch():
+        async with pg.session() as session:
+            row = await session.get(CompositionEnvironment, environment_id)
+            try:
+                await revision.guard(session, row, tag)
+                row.expected_users = 500
+                await session.commit()
+                return 200
+            except HTTPException as exc:
+                await session.rollback()
+                return exc.status_code
+
+    adopted, patched = await asyncio.gather(_adopt(pg, w, environment_id, "1.0.0", tag), patch())
+
+    assert sorted([adopted[0], patched]) == [200, 412], (adopted, patched)

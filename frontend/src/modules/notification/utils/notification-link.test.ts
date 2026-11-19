@@ -18,6 +18,17 @@ describe('notificationLink', () => {
         payload: { organization_slug: 'isa-demo', run_id: 'r1' },
       })
     ).toBe('/runs/isa-demo/r1');
+    expect(
+      notificationLink({
+        kind: 'CompositionAdopted',
+        payload: {
+          organization: 'lab-main',
+          composition: 'tomatometer',
+          environment: 'production',
+        },
+      })
+    ).toBe('/compositions/lab-main/tomatometer');
+    expect(notificationLink({ kind: 'CompositionAdopted', payload: {} })).toBeNull();
     expect(notificationLink({ kind: 'System', payload: { organization_slug: 'isa-demo' } })).toBe(
       '/orgs/isa-demo'
     );

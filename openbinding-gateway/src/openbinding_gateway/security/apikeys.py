@@ -56,6 +56,8 @@ class ApiKeyPermission(str, Enum):
     STUDIES_WRITE = "studies:write"
     COMPOSITIONS_READ = "compositions:read"
     COMPOSITIONS_WRITE = "compositions:write"
+    #: Adopting a version in a composition environment changes what an application runs: not implied by write.
+    COMPOSITIONS_ADOPT = "compositions:adopt"
     NOTIFICATIONS_READ = "notifications:read"
     ADMIN_ACCOUNTS_READ = "admin:accounts:read"
     ADMIN_ACCOUNTS_WRITE = "admin:accounts:write"
@@ -390,6 +392,10 @@ def required_permissions(path: str, method: str) -> frozenset[str]:
     if path.startswith("/v1/organizations/") and path.split("/")[4:5] == ["compositions"]:
         # The compositions of an organization. Before the organizations fallthrough, so that a key
         # that may administer organizations does not inherit composition writes.
+        segments = path.split("/")
+        if method == "POST" and segments[-1] == "adopt" and segments[-3:-2] == ["environments"]:
+            # Adopting changes what an application runs: its own permission, which write does not imply.
+            return frozenset({ApiKeyPermission.COMPOSITIONS_ADOPT.value})
         reads = method == "GET" or (method == "POST" and path.endswith(_COMPOSITION_READ_ACTIONS))
         return frozenset(
             {ApiKeyPermission.COMPOSITIONS_READ.value}

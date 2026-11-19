@@ -20,6 +20,7 @@ export const NOTIFICATION_KINDS = [
   'CompositionUpdated',
   'RunFinished',
   'RunFailed',
+  'CompositionAdopted',
 ] as const;
 
 export interface NotificationQuery {

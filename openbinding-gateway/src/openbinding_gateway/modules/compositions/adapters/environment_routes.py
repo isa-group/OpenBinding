@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ....access.dependencies import get_current_user, session_dependency
@@ -19,9 +19,16 @@ from ....composition import text
 from ....core import revision as etags
 from ....db.models import OrganizationRole, User
 from ....models.errors import CONFLICT_RESPONSE, FORBIDDEN_RESPONSE, NOT_FOUND_RESPONSE, ErrorResponse, api_error
-from ..application import environments
+from ..application import adoption, environments
 from ..domain.environments import AdoptRole
 from .schemas import (
+    AdoptionEvaluation,
+    AdoptionOffering,
+    CompositionAdoptionList,
+    CompositionAdoptionView,
+    EnvironmentAdopt,
+    EnvironmentAdoptResult,
+    VersionName,
     CompositionEnvironmentCreate,
     CompositionEnvironmentList,
     CompositionEnvironmentUpdate,
@@ -283,3 +290,106 @@ async def delete_composition_environment(
     environments.require(role, OrganizationRole.ADMIN)
     await etags.guard(session, row, if_match)
     await environments.delete_environment(session, found, row, user)
+
+
+# -- Adoption --------------------------------------------------------------------------------------------
+
+
+def adoption_view(row: adoption.HistoryRow) -> CompositionAdoptionView:
+    evaluation = row.evaluation
+    snapshot = row.offering
+    return CompositionAdoptionView(
+        ordinal=row.adoption.ordinal,
+        version=VersionName(id=row.version.id, label=row.version.label),
+        previousVersion=None if row.previous is None else VersionName(id=row.previous.id, label=row.previous.label),
+        adoptedAt=row.adoption.created_at,
+        adoptedBy=None if row.actor is None else EnvironmentPerson(
+            username=row.actor.username, displayName=row.actor.username,
+        ),
+        note=row.adoption.note,
+        evaluation=None if evaluation is None else AdoptionEvaluation(
+            id=evaluation.id, basisKey=evaluation.basis_key, valuesStatus=row.version.values_status.value,
+        ),
+        offering=None if snapshot is None else AdoptionOffering(
+            versionName=snapshot.version_label, createdAt=snapshot.version_created_at,
+        ),
+        feedEtag=f'"{row.adoption.content_digest}"',
+    )
+
+
+@router.post(
+    "/{environment}/adopt",
+    response_model=EnvironmentAdoptResult,
+    operation_id="adoptCompositionVersion",
+    summary="Adopt a sealed version in an environment",
+    description=(
+        "Makes the version the one the environment's feed serves. `If-Match` with the environment's `ETag` is "
+        "required. The caller's role must reach the environment's `adoptRole`; a personal API key also needs "
+        "`compositions:adopt`."
+    ),
+    responses={
+        200: {"headers": {"ETag": etags.ETAG_HEADER}},
+        **etags.PRECONDITION_RESPONSES,
+        **etags.PRECONDITION_REQUIRED_RESPONSE,
+        **UNREADABLE,
+        **FORBIDDEN,
+        409: {
+            **CONFLICT_RESPONSE,
+            "description": (
+                "`already_in_effect`, `composition_archived`, `evaluation_stale` (re-evaluate the version first), "
+                "`binding_invalid` or `evaluation_semantics_changed` (derive it again)."
+            ),
+        },
+    },
+)
+async def adopt_composition_version(
+    org: str,
+    composition: str,
+    environment: str,
+    payload: EnvironmentAdopt,
+    response: Response,
+    if_match: str | None = etags.IF_MATCH_HEADER,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> EnvironmentAdoptResult:
+    """Adopt a version in an environment: what its application reads changes on its next poll."""
+    organization, found, row, role = await environments.readable_environment(
+        session, org, composition, environment, user,
+    )
+    adopted = await adoption.adopt(
+        session, organization=organization, composition=found, environment=row, role=role,
+        version_ref=payload.version, actor=user, if_match=if_match, note=payload.note,
+    )
+    headers(response, adopted.environment)
+    (history,) = await adoption.adoptions(session, adopted.environment, limit=1)
+    return EnvironmentAdoptResult(
+        environment=await viewed(session, organization, found, adopted.environment, role),
+        adoption=adoption_view(history),
+    )
+
+
+@router.get(
+    "/{environment}/adoptions",
+    response_model=CompositionAdoptionList,
+    operation_id="listCompositionAdoptions",
+    responses=UNREADABLE,
+)
+async def list_composition_adoptions(
+    org: str,
+    composition: str,
+    environment: str,
+    response: Response,
+    limit: int = Query(default=20, ge=1, le=100),
+    before: int | None = Query(default=None, ge=1, description="Only adoptions numbered below this one."),
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> CompositionAdoptionList:
+    """An environment's adoption history, newest first (members only)."""
+    _, _, row, _ = await environments.readable_environment(session, org, composition, environment, user)
+    rows = await adoption.adoptions(session, row, limit=limit, before=before)
+    headers(response)
+    last = rows[-1].adoption.ordinal if rows else None
+    return CompositionAdoptionList(
+        adoptions=[adoption_view(item) for item in rows],
+        nextBefore=last if last is not None and last > 1 and len(rows) == limit else None,
+    )

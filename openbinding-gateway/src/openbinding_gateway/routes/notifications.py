@@ -34,6 +34,7 @@ from ..models.platform import NotificationView
 from ..modules.shared.application import (
     NOTIFICATION_KINDS,
     NOTIFICATION_RETENTION_DAYS,
+    default_channels,
     retention_cutoff,
     unread_count,
 )
@@ -41,7 +42,9 @@ from ..modules.shared.application import (
 router = APIRouter(prefix="/v1/notifications", tags=["Notifications"])
 
 NOTIFICATION_RETENTION_DAYS = NOTIFICATION_RETENTION_DAYS
-NotificationKind = Literal["OrganizationInvitation", "System", "CompositionUpdated", "RunFinished", "RunFailed"]
+NotificationKind = Literal[
+    "OrganizationInvitation", "System", "CompositionUpdated", "RunFinished", "RunFailed", "CompositionAdopted",
+]
 
 #: How long a stream ticket may wait to be used.
 TICKET_SECONDS = 60
@@ -310,7 +313,7 @@ async def delete_notification(
 
 
 def _with_every_kind(preferences: NotificationPreferences) -> NotificationPreferences:
-    kinds = {kind: preferences.kinds.get(kind, KindChannels()) for kind in NOTIFICATION_KINDS}
+    kinds = {kind: preferences.kinds.get(kind, KindChannels(**default_channels(kind))) for kind in NOTIFICATION_KINDS}
     return preferences.model_copy(update={"kinds": kinds})
 
 

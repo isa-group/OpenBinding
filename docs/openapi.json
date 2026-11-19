@@ -256,6 +256,66 @@
         "title": "AdminUserView",
         "type": "object"
       },
+      "AdoptionEvaluation": {
+        "properties": {
+          "basisKey": {
+            "title": "Basiskey",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "valuesStatus": {
+            "enum": [
+              "verified",
+              "declared"
+            ],
+            "title": "Valuesstatus",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "basisKey",
+          "valuesStatus"
+        ],
+        "title": "AdoptionEvaluation",
+        "type": "object"
+      },
+      "AdoptionOffering": {
+        "properties": {
+          "createdAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Createdat"
+          },
+          "versionName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Versionname"
+          }
+        },
+        "required": [
+          "versionName",
+          "createdAt"
+        ],
+        "title": "AdoptionOffering",
+        "type": "object"
+      },
       "AnalysisResult": {
         "additionalProperties": false,
         "properties": {
@@ -606,6 +666,7 @@
           "studies:write",
           "compositions:read",
           "compositions:write",
+          "compositions:adopt",
           "notifications:read",
           "admin:accounts:read",
           "admin:accounts:write"
@@ -2971,6 +3032,119 @@
           "analysis"
         ],
         "title": "CompilationView",
+        "type": "object"
+      },
+      "CompositionAdoptionList": {
+        "properties": {
+          "adoptions": {
+            "description": "Newest first.",
+            "items": {
+              "$ref": "#/components/schemas/CompositionAdoptionView"
+            },
+            "title": "Adoptions",
+            "type": "array"
+          },
+          "nextBefore": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Send as `before` for the next page; null on the last one.",
+            "title": "Nextbefore"
+          }
+        },
+        "required": [
+          "adoptions",
+          "nextBefore"
+        ],
+        "title": "CompositionAdoptionList",
+        "type": "object"
+      },
+      "CompositionAdoptionView": {
+        "description": "One adoption of an environment's history: insert only.",
+        "properties": {
+          "adoptedAt": {
+            "format": "date-time",
+            "title": "Adoptedat",
+            "type": "string"
+          },
+          "adoptedBy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EnvironmentPerson"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "evaluation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AdoptionEvaluation"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The evaluation the adoption pinned."
+          },
+          "feedEtag": {
+            "description": "The feed's `ETag` after this adoption: the version's content digest, quoted.",
+            "title": "Feedetag",
+            "type": "string"
+          },
+          "note": {
+            "title": "Note",
+            "type": "string"
+          },
+          "offering": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AdoptionOffering"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The offering version that evaluation read."
+          },
+          "ordinal": {
+            "description": "The adoption's number in its environment (1, 2, 3 …).",
+            "title": "Ordinal",
+            "type": "integer"
+          },
+          "previousVersion": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VersionName"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The version in effect before; null for the first."
+          },
+          "version": {
+            "$ref": "#/components/schemas/VersionName"
+          }
+        },
+        "required": [
+          "ordinal",
+          "version",
+          "previousVersion",
+          "adoptedAt",
+          "adoptedBy",
+          "note",
+          "evaluation",
+          "offering",
+          "feedEtag"
+        ],
+        "title": "CompositionAdoptionView",
         "type": "object"
       },
       "CompositionCreate": {
@@ -6244,6 +6418,48 @@
           "changes"
         ],
         "title": "EntryDiffView",
+        "type": "object"
+      },
+      "EnvironmentAdopt": {
+        "additionalProperties": false,
+        "description": "The version to adopt in an environment, and why.",
+        "properties": {
+          "note": {
+            "default": "",
+            "description": "Why it is adopted; kept in the history.",
+            "maxLength": 500,
+            "title": "Note",
+            "type": "string"
+          },
+          "version": {
+            "description": "The version's id, label or ordinal.",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version"
+        ],
+        "title": "EnvironmentAdopt",
+        "type": "object"
+      },
+      "EnvironmentAdoptResult": {
+        "description": "The environment with its new version in effect, and the adoption that put it there.",
+        "properties": {
+          "adoption": {
+            "$ref": "#/components/schemas/CompositionAdoptionView"
+          },
+          "environment": {
+            "$ref": "#/components/schemas/CompositionEnvironmentView"
+          }
+        },
+        "required": [
+          "environment",
+          "adoption"
+        ],
+        "title": "EnvironmentAdoptResult",
         "type": "object"
       },
       "EnvironmentBound": {
@@ -21284,7 +21500,8 @@
                     "System",
                     "CompositionUpdated",
                     "RunFinished",
-                    "RunFailed"
+                    "RunFailed",
+                    "CompositionAdopted"
                   ],
                   "type": "string"
                 },
@@ -25428,6 +25645,345 @@
         ],
         "x-required-api-key-permissions": [
           "compositions:write"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/compositions/{composition}/environments/{environment}/adopt": {
+      "post": {
+        "description": "Makes the version the one the environment's feed serves. `If-Match` with the environment's `ETag` is required. The caller's role must reach the environment's `adoptRole`; a personal API key also needs `compositions:adopt`.",
+        "operationId": "adoptCompositionVersion",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "composition",
+            "required": true,
+            "schema": {
+              "title": "Composition",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "environment",
+            "required": true,
+            "schema": {
+              "title": "Environment",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Revision the client last read, as given by the `ETag` of a GET or of an earlier edit: an entity-tag, a list of them, or `*` for any existing resource. Absent: the edit is applied without a revision check. Weak tags never match.",
+            "in": "header",
+            "name": "If-Match",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Revision the client last read, as given by the `ETag` of a GET or of an earlier edit: an entity-tag, a list of them, or `*` for any existing resource. Absent: the edit is applied without a revision check. Weak tags never match.",
+              "title": "If-Match"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnvironmentAdopt"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvironmentAdoptResult"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "ETag": {
+                "description": "Revision of the resource; send it back as `If-Match` to edit it.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`If-Match` is not a list of entity-tags or `*` (code `invalid_if_match`)."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No credential, or one that is not valid (`unauthorized`)."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller's role is too weak (`organization_forbidden`)."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization, composition or environment, or the caller is not a member: `Composition not found.` for a private or missing composition, `Environment not found.` otherwise."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`already_in_effect`, `composition_archived`, `evaluation_stale` (re-evaluate the version first), `binding_invalid` or `evaluation_semantics_changed` (derive it again)."
+          },
+          "412": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`If-Match` does not match the current revision (code `precondition_failed`): nothing was applied. The `ETag` header carries the current revision.",
+            "headers": {
+              "ETag": {
+                "description": "Revision of the resource; send it back as `If-Match` to edit it.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "428": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`If-Match` is absent or `*` (code `precondition_required`): this write needs the ETag the caller last read. Nothing was applied."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Adopt a sealed version in an environment",
+        "tags": [
+          "Composition environments"
+        ],
+        "x-required-api-key-permissions": [
+          "compositions:adopt"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/compositions/{composition}/environments/{environment}/adoptions": {
+      "get": {
+        "description": "An environment's adoption history, newest first (members only).",
+        "operationId": "listCompositionAdoptions",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "composition",
+            "required": true,
+            "schema": {
+              "title": "Composition",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "environment",
+            "required": true,
+            "schema": {
+              "title": "Environment",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Only adoptions numbered below this one.",
+            "in": "query",
+            "name": "before",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only adoptions numbered below this one.",
+              "title": "Before"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompositionAdoptionList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No credential, or one that is not valid (`unauthorized`)."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization, composition or environment, or the caller is not a member: `Composition not found.` for a private or missing composition, `Environment not found.` otherwise."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "List Composition Adoptions",
+        "tags": [
+          "Composition environments"
+        ],
+        "x-required-api-key-permissions": [
+          "compositions:read"
         ]
       }
     },
@@ -36784,6 +37340,7 @@
     "studies:write",
     "compositions:read",
     "compositions:write",
+    "compositions:adopt",
     "notifications:read",
     "admin:accounts:read",
     "admin:accounts:write"

@@ -39,6 +39,11 @@ const KINDS: Record<Kind, { label: string; description: string }> = {
   },
   RunFinished: { label: 'Runs finished', description: 'When a run you launched finishes' },
   RunFailed: { label: 'Runs failed', description: 'When a run you launched fails' },
+  CompositionAdopted: {
+    label: 'Adoptions',
+    description:
+      'When a version is adopted in an environment you operate or a composition you follow',
+  },
 };
 
 const CHANNELS = [
@@ -49,12 +54,13 @@ const CHANNELS = [
 type Channel = (typeof CHANNELS)[number]['key'];
 type Grid = Record<Kind, KindChannels>;
 
-/** A kind with no saved preference is delivered on both channels, as the gateway does. */
+/** A kind with no saved preference takes the gateway's default (both channels, but no email for adoptions). */
 function gridOf(preferences: NotificationPreferences): Grid {
   return Object.fromEntries(
     NOTIFICATION_KINDS.map(kind => {
       const saved = preferences.kinds?.[kind];
-      return [kind, { inbox: saved?.inbox !== false, email: saved?.email !== false }];
+      const email = saved?.email ?? kind !== 'CompositionAdopted';
+      return [kind, { inbox: saved?.inbox !== false, email }];
     })
   ) as Grid;
 }
