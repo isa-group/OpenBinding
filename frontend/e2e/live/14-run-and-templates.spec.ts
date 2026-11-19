@@ -80,7 +80,7 @@ test('J4 · a member keeps a run of revision 3 as the next version and adopts it
   await expect(
     main
       .getByRole('radiogroup', { name: 'Source' })
-      .getByRole('radio', { name: /tomatometer-email · version 3/ })
+      .getByRole('radio', { name: /(TomatoMeter e-mail|tomatometer-email) · version 3/ })
   ).toBeChecked({ timeout: 30_000 });
   await main.getByRole('button', { name: 'Continue' }).click();
   const engines = main.getByRole('radiogroup', { name: 'Engine' });
