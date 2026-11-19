@@ -199,7 +199,7 @@ async def test_seed_dev_compositions_are_derived_and_declared_once(db_session):
     # 1.1.0 binds t1 to its other candidate, from a binding of the same revision.
     assert second.values_status.value == "verified" and second.evidence_job_id is None
     assert "candidate: c1a" in derived.content and "candidate: c1b" in second.content
-    assert declared.values_status.value == "declared" and declared.offering == {"sphere": "isa/tomatometer"}
+    assert declared.values_status.value == "declared" and declared.offering == {"sphere": "sphere/tomatometer"}
     assert "  login:\n    local: true\n" in declared.content
 
     again = await ensure_compositions(db_session, organization, alice, case_map, [run])

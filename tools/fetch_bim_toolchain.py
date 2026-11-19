@@ -19,7 +19,7 @@ contract of OpenBinding (the corpus tier of the toolchain run against this repos
 --check`` and the gateway's BIM consumer tests) reads it; ``BIM_TOOLCHAIN_ROOT`` points the tests to another checkout.
 
 The token: ``BIM_TOOLCHAIN_TOKEN``, else ``GH_TOKEN``/``GITHUB_TOKEN``, else ``gh auth token``; none is needed once the
-repository is public. It is sent only to api.github.com, and never written anywhere.
+repository is public, nor when every wheel the lock pins is already in the flat index with its SHA-256. It is sent only to api.github.com, and never written anywhere.
 """
 
 from __future__ import annotations
@@ -108,7 +108,15 @@ def release_assets(tag: str) -> dict[str, int]:
 
 
 def fetch_wheels(into: Path, tag: str, expected: dict[str, str] | None) -> list[str]:
-    """Download the wheels of ``tag`` into ``into``, each verified; ``expected`` None reads the release's SHA256SUMS."""
+    """Download the wheels of ``tag`` into ``into``, each verified; ``expected`` None reads the release's SHA256SUMS.
+
+    A wheel already in ``into`` with the expected SHA-256 is kept; when every pinned wheel is there (wheels fetched
+    before, or copied in by the gateway image's build), nothing is asked of GitHub and no token is needed."""
+    if expected is not None and all(
+        (into / name).is_file() and hashlib.sha256((into / name).read_bytes()).hexdigest() == digest
+        for name, digest in expected.items()
+    ):
+        return []
     assets = release_assets(tag)
     if expected is None:
         if "SHA256SUMS" not in assets:

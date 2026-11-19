@@ -33,7 +33,10 @@ test.describe('J4 · upstream plans and the offering drawn from snapshots', () =
     await page.goto(`${TOMATOMETER}?version=1.0.0`);
 
     await expect(region(page, 'Binding')).toContainText(
-      'From Mailgun on SPHERE, plan FOUNDATION, version 2026-10'
+      'From brevo on SPHERE, plan PROFESSIONAL, version 2026-10'
+    );
+    await expect(region(page, 'Binding')).toContainText(
+      'From Dropbox on SPHERE, plan PLUS, version 2021'
     );
     await expect(region(page, 'Binding')).not.toContainText(/[0-9a-f]{24}/);
     const latency = region(page, 'Values').getByRole('list', { name: 'Where latency comes from' });
@@ -49,14 +52,17 @@ test.describe('J4 · upstream plans and the offering drawn from snapshots', () =
     );
     await expect(offering.getByTestId('storefront').locator('pricing-renderer')).toBeAttached();
 
-    const card = region(page, 'Upstream plans').getByRole('article', { name: 'Plan FOUNDATION' });
-    await expect(card).toContainText('Mailgun');
+    const card = region(page, 'Upstream plans').getByRole('article', { name: 'Plan PROFESSIONAL' });
+    await expect(card).toContainText('brevo');
     await expect(card).toContainText('Version2026-10');
     await expect(card.getByRole('link', { name: 'Open in SPHERE' })).toHaveAttribute(
       'href',
-      'https://sphere.score.us.es/p/6ade364540e55445692b0eda?version=6ade36454b2b5b01c587db3d'
+      'https://sphere.score.us.es/p/6ade2d4440e55445692b07f1?version=6ade2d444b2b5b01c587d80d'
     );
     await expect(card.locator('pricing-renderer')).toBeAttached();
+    const storage = region(page, 'Upstream plans').getByRole('article', { name: 'Plan PLUS' });
+    await expect(storage).toContainText('Dropbox');
+    await expect(storage).toContainText('Version2021');
     expect(outside).toEqual([]);
     expect(handle.unmocked).toEqual([]);
   });
@@ -67,7 +73,7 @@ test.describe('J4 · upstream plans and the offering drawn from snapshots', () =
     await installMockApi(page, 'none', { tomatometer: true });
     const outside = watchOrigins(page);
     await page.goto(`${TOMATOMETER}?version=1.0.0`);
-    const card = region(page, 'Upstream plans').getByRole('article', { name: 'Plan FOUNDATION' });
+    const card = region(page, 'Upstream plans').getByRole('article', { name: 'Plan PROFESSIONAL' });
     await expect(card.getByRole('link', { name: 'Open in SPHERE' })).toBeVisible();
     await expect(region(page, 'Offering')).toContainText('Offering version 1.0.0');
     await expect(region(page, 'Offering').getByTestId('storefront')).toBeAttached();

@@ -9,11 +9,11 @@
     "ir_digest": "sha256-20bdde978f13423a4c72683c00184e410a59920286b876262fa82119a0fa3a3d",
     "semantic_digest": "sha256-7568924f5773baa488714b1c34b0b8d9bf72b29bee13712897f355012e7e8f95"
   },
-  "created": true,
+  "created": false,
   "problem": {
     "created_at": "2026-01-01T00:00:05Z",
     "created_by_id": "00000000-0000-4000-8000-000000000002",
-    "description": "",
+    "description": "TomatoMeter's back end; revision 2 adds the e-mail providers' plans from SPHERE, revision 3 Dropbox for the export and the built-in quotes.",
     "id": "00000000-0000-4000-8000-000000000008",
     "latest_revision": {
       "created_at": "2026-01-01T00:00:06Z",
@@ -32,7 +32,7 @@
       "package_digest": "sha256-22a9ed0e33ccdffa89ca2450a487ecb1a5d8ae827740bbea2c2d97bb4d9b29ad",
       "revision": 2
     },
-    "name": "tomatometer-email",
+    "name": "TomatoMeter e-mail",
     "organization_id": "00000000-0000-4000-8000-000000000005",
     "revision_count": 2,
     "slug": "tomatometer-email",

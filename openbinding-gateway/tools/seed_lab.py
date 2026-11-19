@@ -25,13 +25,19 @@ The compositions (F2a):
 
 The public list therefore holds two compositions, both of lab-other.
 
-From SPHERE (F3), when SPHERE is enabled and reachable:
+From SPHERE (F3, F4), when SPHERE is enabled and reachable, through the TomatoMeter composition template
+(``examples/templates/tomatometer.json``, the same function as ``POST …/compositions/from-template``):
 
 - ``lab-main/tomatometer-email``: revision 1 is ``examples/tomatometer/tomatometer-email.base.json`` (zipped),
-  revision 2 is ``examples/tomatometer/email-recipe.json`` previewed and applied on it (``sphere/expand`` and
-  ``sphere/apply``: real SPHERE pricing and version ids, the value origins recorded);
-- ``lab-main/tomatometer``: derived from a binding of revision 2 (a SPHERE e-mail plan, so its binding carries
-  ``from``) with the offering ``sphere/tomatometer``, read when it is sealed.
+  revision 2 ``email-recipe.json`` and revision 3 ``tomatometer-recipe.json`` previewed and applied on it
+  (``sphere/expand`` and ``sphere/apply``: real SPHERE pricing and version ids, the value origins recorded);
+- ``lab-main/tomatometer`` 1.0.0: derived from revision 3 with Brevo PROFESSIONAL, Dropbox PLUS and ZenQuotes and
+  the offering ``sphere/tomatometer``, read when it is sealed (its bytes are ``examples/tomatometer/composition.yaml``);
+  1.1.0: the same with the e-mail provider switched to Resend PRO;
+- the environments of ``tomatometer``: ``production`` (operator ``lab-owner``, ADMIN adopts, 1000 expected users,
+  1.0.0 adopted by ``lab-owner``, one feed key derived from the demo password, ``feed_key_for``) and ``staging``
+  (MEMBER adopts, nothing adopted, no key). With ``LAB_HANDOFF_DIR`` set, ``openbinding.json`` there (mode 0600)
+  tells a consumer the feed's address and key (``write_handoff``).
 
 With SPHERE disabled or unreachable these steps log ``sphere: skipped`` and the seed goes on. The ``order-desk``
 offering stays a URL on ``pricings.example.org``, which never resolves: its evaluation records the offering as
@@ -42,6 +48,8 @@ Environment:
                          API keys are derived from it (HMAC) and are not printed
                          unless --print-keys is given.
     DATABASE_URL         the gateway's database (read through the gateway settings).
+    LAB_HANDOFF_DIR      optional; a directory the seed writes the feed hand-off file to (the lab's
+                         ``seed`` service sets it to the ``lab-handoff`` volume, ``/handoff``).
     With --space-contracts additionally: SPACE_URL, SPACE_API_KEY, SPACE_ORGANIZATION_ID,
     SPACE_DEV_SERVICE_NAME, SPACE_DEV_PLAN (and optionally SPACE_DEV_PRICING_VERSION,
     default 0.1.0, and SPACE_PROD_SERVICE_NAME). SPACE_DEV_SERVICE_NAME must equal the
@@ -94,6 +102,9 @@ from openbinding_gateway.db.platform_models import (
     BindingCase,
     BindingCaseRevision,
     Composition,
+    CompositionDerivation,
+    CompositionEnvironment,
+    CompositionEnvironmentKey,
     CompositionKind,
     CompositionVersion,
     Organization,
@@ -107,7 +118,9 @@ from openbinding_gateway.modules.compositions.application import (
     judge,
     persist,
 )
+from openbinding_gateway.modules.compositions.application import adoption, environments, feed_keys, templates
 from openbinding_gateway.modules.compositions.application.offering import before_seal
+from openbinding_gateway.modules.compositions.domain.environments import AdoptRole
 from openbinding_gateway.modules.plans.application import PricingError, installed_pricing_source
 from openbinding_gateway.modules.problems.application import (
     NOT_RECOMPILABLE,
@@ -115,9 +128,8 @@ from openbinding_gateway.modules.problems.application import (
     compile_or_get,
     create_problem,
 )
-from openbinding_gateway.modules.problems.application.sphere import apply, dump, expand, latest_sphere_revision
 from openbinding_gateway.space_client import OpenGate
-from openbinding_gateway.security.apikeys import ADMIN_PERMISSIONS, ALL_PERMISSIONS, hash_key
+from openbinding_gateway.security.apikeys import ADMIN_PERMISSIONS, ALL_PERMISSIONS, MintedKey, hash_key
 from openbinding_gateway.security.passwords import hash_password, password_complaint, verify_password
 
 logger = logging.getLogger("seed_lab")
@@ -141,20 +153,27 @@ PUBLIC_DECLARED = (
     "Signs customers in, sends a notice and archives the order in parallel, then ships by post or by courier.",
 )
 PRIVATE_DECLARED = ("internal-draft", "Internal draft", "Not shared outside the organization.")
-#: lab-main's problem built from SPHERE pricings (F3), and the composition derived from it.
+#: lab-main's problem built from SPHERE pricings (F3) and the composition derived from it, both made by the
+#: TomatoMeter composition template (F4); the template's manifest holds the problem, the binding and the offering.
+TOMATOMETER_TEMPLATE = "tomatometer"
 TOMATOMETER = "tomatometer-email"
-TOMATOMETER_COMPOSITION = (
-    "tomatometer", "TomatoMeter",
-    "TomatoMeter's back end with its e-mail provider chosen among real SPHERE pricings; its offering is "
-    "TomatoMeter's own pricing in SPHERE.",
+TOMATOMETER_SLUG = "tomatometer"
+#: 1.1.0 changes only the e-mail provider of 1.0.0: the version the demo adopts.
+TOMATOMETER_SWITCH = ("1.1.0", {"dailySummary": "email.resend.pro"})
+#: The environments of ``tomatometer``: slug, name, description, operator, who adopts, expected users, the version
+#: adopted by the operator (``None``: nothing) and whether it gets a feed key (a consumer reads it).
+TOMATOMETER_ENVIRONMENTS = (
+    ("production", "Production", "What TomatoMeter reads in production.", "lab-owner", AdoptRole.ADMIN, 1000,
+     "1.0.0", True),
+    ("staging", "Staging", "Where a member tries a version before production.", None, AdoptRole.MEMBER, None,
+     None, False),
 )
-TOMATOMETER_BINDING = {
-    "login": "auth.builtin.local",
-    "dailySummary": "email.mailgun.foundation",
-    "export": "storage.local.disk",
-    "quotes": "quotes.zenquotes.free",
-}
-TOMATOMETER_OFFERING = {"sphere": "sphere/tomatometer"}
+#: The hand-off file a consumer of the lab's feed reads (the feed consumer, TomatoMeter's server).
+HANDOFF_FILE = "openbinding.json"
+#: The feed's address inside the lab's compose network, through the lab nginx (``frontend/nginx.lab.conf``).
+FEED_URL = (
+    "http://web:8080/api/v1/organizations/lab-main/compositions/tomatometer/environments/production/composition"
+)
 KNOWN_PRODUCTION_SERVICES = ("openbinding",)
 
 #: (username, platform role, {organization slug: organization role})
@@ -229,6 +248,43 @@ def api_key_for(password: str, username: str) -> tuple[str, str, str]:
     prefix = f"obk_{digest[:8]}"
     full = f"{prefix}_{digest[8:]}"
     return full, prefix, hash_key(full)
+
+
+def feed_key_for(password: str, organization: str, composition: str, environment: str) -> MintedKey:
+    """The lab's deterministic feed key of one environment, derived from the demo password as ``api_key_for``
+    derives the personal keys; whoever holds the password (the seed, ``smoke_lab``, the live walks) derives it."""
+    message = f"openbinding-lab-seed:feedkey:{organization}/{composition}/{environment}".encode()
+    digest = hmac.new(password.encode("utf-8"), message, hashlib.sha256).hexdigest()
+    prefix = f"obe_{digest[:8]}"
+    full = f"{prefix}_{digest[8:]}"
+    return MintedKey(secret=full, prefix=prefix, secret_hash=hash_key(full))
+
+
+class HandoffError(RuntimeError):
+    """The hand-off directory is missing or not writable."""
+
+
+def write_handoff(directory: str, *, organization: str, composition: str, environment: str, key: str) -> Path:
+    """``openbinding.json`` in ``directory`` (mode 0600): the feed's address and key for the lab's consumers."""
+    folder = Path(directory)
+    if not folder.is_dir():
+        raise HandoffError(f"LAB_HANDOFF_DIR {directory} is not a directory")
+    target = folder / HANDOFF_FILE
+    document = {
+        "organization": organization, "composition": composition, "environment": environment,
+        "feedUrl": FEED_URL, "feedKey": key,
+    }
+    temporary = folder / f".{HANDOFF_FILE}.tmp"
+    try:
+        descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            json.dump(document, handle, indent=2, sort_keys=True)
+            handle.write("\n")
+        os.chmod(temporary, 0o600)
+        os.replace(temporary, target)
+    except OSError as exc:
+        raise HandoffError(f"LAB_HANDOFF_DIR {directory} is not writable: {exc.strerror or exc}") from None
+    return target
 
 
 def find_examples_dir(explicit: Path | None = None) -> Path:
@@ -475,66 +531,99 @@ def _sphere_skipped(reason: str) -> dict[str, Any]:
 
 
 async def ensure_sphere(
-    session: AsyncSession, organizations: Mapping[str, Organization], users: Mapping[str, User], examples_dir: Path,
-    created: list[str],
+    session: AsyncSession, organizations: Mapping[str, Organization], users: Mapping[str, User], password: str,
+    created: list[str], *, handoff_dir: str | None = None,
 ) -> dict[str, Any]:
-    """``lab-main/tomatometer-email`` (revision 2 from SPHERE) and the composition derived from it (module
-    docstring), or why they were skipped."""
+    """``lab-main/tomatometer`` from its composition template, 1.1.0, its environments and feed key, and the
+    hand-off file (module docstring), or why they were skipped. Rows that exist are left as they are."""
     from fastapi import HTTPException
 
-    from openbinding_gateway.core.settings import get_settings
-
-    if installed_pricing_source() is None or not get_settings().sphere_enabled:
+    if installed_pricing_source() is None or not templates.sphere_available():
         return _sphere_skipped("SPHERE is not enabled")
     organization, user = organizations[MAIN_ORG], users["lab-owner"]
-    folder = examples_dir / "tomatometer"
-    recipe = json.loads((folder / "email-recipe.json").read_text(encoding="utf-8"))
-    bundle = json.loads((folder / "tomatometer-email.base.json").read_text(encoding="utf-8"))
-    archive = packages.zip_files({path: dump(document) for path, document in bundle.items()})
     try:
-        problem = await session.scalar(
-            select(BindingCase).where(BindingCase.organization_id == organization.id, BindingCase.slug == TOMATOMETER)
-        )
-        if problem is None:
-            upload = await create_problem(
-                session, organization, archive, user, slug=TOMATOMETER, name="TomatoMeter e-mail",
-                description="TomatoMeter's back end; revision 2 adds the e-mail providers' plans from SPHERE.",
-                provenance={"producer": "seed_lab"},
-            )
-            problem = upload.problem
-            created.append(f"case:{organization.slug}/{TOMATOMETER}")
-        generated = await latest_sphere_revision(session, problem)
-        if generated is None:
-            latest = int(await session.scalar(
-                select(func.max(BindingCaseRevision.revision)).where(BindingCaseRevision.binding_case_id == problem.id)
-            ) or 1)
-            preview = await expand(session, organization, TOMATOMETER, recipe, latest, user)
-            if not preview.view["valid"]:
-                errors = [d for d in preview.view["diagnostics"] if d.get("severity") == "error"]
-                return _sphere_skipped(errors[0]["message"] if errors else "the preview is not valid")
-            upload = await apply(session, organization, TOMATOMETER, recipe, latest, preview.view["packageDigest"], user)
-            generated = upload.revision
-            created.append(f"case-revision:{organization.slug}/{TOMATOMETER}:{generated.revision}")
-        composition = await ensure_composition(
-            session, organization, user, TOMATOMETER_COMPOSITION, CompositionKind.APPLICATION, "private", created,
-        )
-        version = await labelled(session, composition, "1.0.0")
-        if version is None:
+        composition = await session.scalar(select(Composition).where(
+            Composition.organization_id == organization.id, Composition.slug == TOMATOMETER_SLUG,
+        ))
+        if composition is None:
+            made = await templates.instantiate(session, organization, user, TOMATOMETER_TEMPLATE, slug=TOMATOMETER_SLUG)
+            composition = made.composition
+            created.append(f"case:{organization.slug}/{made.problem_slug}")
+            created.append(f"composition:{organization.slug}/{composition.slug}")
+            created.append(f"composition-version:{organization.slug}/{composition.slug}@{made.sealed.version.label}")
+        first = await labelled(session, composition, templates.template(TOMATOMETER_TEMPLATE).composition["label"])
+        if first is None:
+            return _sphere_skipped("tomatometer has no version 1.0.0")
+        derivation = await session.scalar(select(CompositionDerivation).where(CompositionDerivation.version_id == first.id))
+        revision = await session.get(BindingCaseRevision, derivation.revision_id)
+        label, change = TOMATOMETER_SWITCH
+        if await labelled(session, composition, label) is None:
+            spec = templates.template(TOMATOMETER_TEMPLATE).composition
             derived = await derive_version(
-                session, organization, composition, caller=user, label="1.0.0", offering=TOMATOMETER_OFFERING,
-                revision=f"{TOMATOMETER}@{generated.revision}", binding=dict(TOMATOMETER_BINDING),
+                session, organization, composition, caller=user, label=label, offering=spec["offering"],
+                revision=f"{TOMATOMETER}@{revision.revision}", binding={**spec["binding"], **change},
             )
             assessment = await before_seal(session, organization, derived.assessment, user, source=derived.content,
                                            composition_id=composition.id)
             sealed = await persist(session, composition, assessment, actor=user, derivation=derived.derivation)
             if sealed.created:
-                created.append(f"composition-version:{organization.slug}/{composition.slug}@1.0.0")
+                created.append(f"composition-version:{organization.slug}/{composition.slug}@{label}")
+        keyed = await ensure_environments(session, organization, composition, users, password, created)
     except (PricingError, HTTPException) as exc:
         await session.rollback()
         detail = getattr(exc, "detail", None)
         return _sphere_skipped(str(detail.get("code") if isinstance(detail, dict) else exc)[:200])
-    return {"status": "seeded", "problem": TOMATOMETER, "revision": generated.revision,
-            "composition": str(composition.id)}
+    handoff = None
+    if handoff_dir:
+        environment, key = keyed
+        handoff = str(write_handoff(handoff_dir, organization=organization.slug, composition=composition.slug,
+                                    environment=environment, key=key))
+    return {"status": "seeded", "problem": TOMATOMETER, "revision": revision.revision,
+            "composition": str(composition.id), "versions": ["1.0.0", label],
+            "environments": [item[0] for item in TOMATOMETER_ENVIRONMENTS], "handoff": handoff}
+
+
+async def ensure_environments(
+    session: AsyncSession, organization: Organization, composition: Composition, users: Mapping[str, User],
+    password: str, created: list[str],
+) -> tuple[str, str]:
+    """The environments of ``TOMATOMETER_ENVIRONMENTS``, their first adoption and feed key, made when missing;
+    answers the environment a consumer reads and its derived feed key."""
+    from openbinding_gateway.core import revision as etags
+
+    owner = users["lab-owner"]
+    keyed: tuple[str, str] | None = None
+    for slug, name, description, operator, adopt_role, expected, adopt, with_key in TOMATOMETER_ENVIRONMENTS:
+        row = await session.scalar(select(CompositionEnvironment).where(
+            CompositionEnvironment.composition_id == composition.id, CompositionEnvironment.slug == slug,
+        ))
+        if row is None:
+            row = await environments.create_environment(
+                session, organization, composition, owner, slug=slug, name=name, description=description,
+                operator=operator, adopt_role=adopt_role, expected_users=expected,
+            )
+            await session.commit()
+            created.append(f"environment:{organization.slug}/{composition.slug}/{slug}")
+            if adopt is not None:
+                adopted = await adoption.adopt(
+                    session, organization=organization, composition=composition, environment=row,
+                    role=OrganizationRole.OWNER, version_ref=adopt, actor=owner, if_match=etags.etag_for(row),
+                    note="Seeded by the lab",
+                )
+                row = adopted.environment
+                created.append(f"adoption:{organization.slug}/{composition.slug}/{slug}@{adopt}")
+        if with_key:
+            minted = feed_key_for(password, organization.slug, composition.slug, slug)
+            exists = await session.scalar(select(CompositionEnvironmentKey.id).where(
+                CompositionEnvironmentKey.prefix == minted.prefix,
+            ))
+            if exists is None:
+                await feed_keys.mint_key(session, composition, row, owner, "Lab feed consumer", minted=minted)
+                await session.commit()
+                created.append(f"feed-key:{organization.slug}/{composition.slug}/{slug}")
+            keyed = keyed or (slug, minted.secret)
+    assert keyed is not None
+    return keyed
 
 
 async def ensure_compositions(
@@ -598,7 +687,9 @@ async def count_rows(session: AsyncSession, users: dict[str, User], organization
     }
 
 
-async def seed(session: AsyncSession, password: str, examples_dir: Path, *, plan: str = "FREE") -> dict[str, Any]:
+async def seed(
+    session: AsyncSession, password: str, examples_dir: Path, *, plan: str = "FREE", handoff_dir: str | None = None,
+) -> dict[str, Any]:
     """Create what is missing; return what was created (empty on a repeated run) and the row counts."""
     created: list[str] = []
     # Uploading a problem consults the pricing gate for the uploader's allowances. The lab data is local
@@ -620,7 +711,7 @@ async def seed(session: AsyncSession, password: str, examples_dir: Path, *, plan
         await session.commit()
         # SPHERE first: its snapshots (set-B Brevo among them) are what order-desk's from pins, so its seal resolves
         # that from with no request.
-        sphere = await ensure_sphere(session, organizations, users, examples_dir, created)
+        sphere = await ensure_sphere(session, organizations, users, password, created, handoff_dir=handoff_dir)
         compositions = await ensure_compositions(session, organizations, users, revisions, created)
     finally:
         space_client.set_gate(previous)
@@ -750,7 +841,12 @@ async def _run(args: argparse.Namespace, environ: Mapping[str, str], password: s
     db_base.init_engine(database_url)
     try:
         async with db_base.session_factory()() as session:
-            result = await seed(session, password, examples_dir, plan=dev_plan or "FREE")
+            try:
+                result = await seed(session, password, examples_dir, plan=dev_plan or "FREE",
+                                    handoff_dir=environ.get("LAB_HANDOFF_DIR") or None)
+            except HandoffError as exc:
+                print(f"seed_lab: {exc}", file=sys.stderr)
+                return 1
         users = result.pop("users")
         report: dict[str, Any] = {"tool": "seed_lab", **result}
         for failure in result["recompileFailed"]:
@@ -768,6 +864,11 @@ async def _run(args: argparse.Namespace, environ: Mapping[str, str], password: s
     finally:
         await db_base.dispose_engine()
     secrets = [password] + ([] if args.print_keys else [api_key_for(password, name)[0] for name, *_ in SYNTHETIC_USERS])
+    # The lab's feed keys are never printed: a consumer reads them from the hand-off file or derives them.
+    secrets += [
+        feed_key_for(password, MAIN_ORG, TOMATOMETER_SLUG, slug).secret
+        for slug, *_rest in TOMATOMETER_ENVIRONMENTS
+    ]
     emit_json(report, Redactor(secrets))
     return 0
 

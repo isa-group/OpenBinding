@@ -16,18 +16,18 @@
       "multiplier": "1.0"
     },
     "cost": {
-      "monthly": "499.000000",
+      "monthly": "508.990000",
       "name": "subscription",
       "unit": "USD/month",
-      "value": "499.000000"
+      "value": "508.990000"
     },
-    "costPerUser": "0.499000",
+    "costPerUser": "0.508990",
     "currency": "USD",
     "evaluation": null,
     "offering": {
-      "createdAt": "2026-01-01T00:00:09Z",
+      "createdAt": "2026-01-01T00:00:10Z",
       "currency": "USD",
-      "snapshot": "00000000-0000-4000-8000-000000000031",
+      "snapshot": "00000000-0000-4000-8000-000000000032",
       "source": {
         "sphere": "sphere/tomatometer"
       },
@@ -38,9 +38,9 @@
       {
         "addOns": [],
         "basis": "seat",
-        "cost": "0.499000",
+        "cost": "0.508990",
         "excludedParts": [],
-        "margin": "-0.499000",
+        "margin": "-0.508990",
         "outOfRange": false,
         "plan": "basic",
         "planName": "basic",
@@ -53,9 +53,9 @@
           "extraTimers"
         ],
         "basis": "seat",
-        "cost": "0.499000",
+        "cost": "0.508990",
         "excludedParts": [],
-        "margin": "0.501000",
+        "margin": "0.491010",
         "outOfRange": false,
         "plan": "basic",
         "planName": "basic",
@@ -66,9 +66,9 @@
       {
         "addOns": [],
         "basis": "seat",
-        "cost": "0.499000",
+        "cost": "0.508990",
         "excludedParts": [],
-        "margin": "3.491000",
+        "margin": "3.481010",
         "outOfRange": false,
         "plan": "advanced",
         "planName": "advanced",
@@ -81,9 +81,9 @@
           "extraTimers"
         ],
         "basis": "seat",
-        "cost": "0.499000",
+        "cost": "0.508990",
         "excludedParts": [],
-        "margin": "4.491000",
+        "margin": "4.481010",
         "outOfRange": false,
         "plan": "advanced",
         "planName": "advanced",
@@ -94,9 +94,9 @@
       {
         "addOns": [],
         "basis": "seat",
-        "cost": "0.499000",
+        "cost": "0.508990",
         "excludedParts": [],
-        "margin": "9.491000",
+        "margin": "9.481010",
         "outOfRange": false,
         "plan": "premium",
         "planName": "premium",
@@ -109,9 +109,9 @@
           "extraTimers"
         ],
         "basis": "seat",
-        "cost": "0.499000",
+        "cost": "0.508990",
         "excludedParts": [],
-        "margin": "10.491000",
+        "margin": "10.481010",
         "outOfRange": false,
         "plan": "premium",
         "planName": "premium",
@@ -124,9 +124,9 @@
           "exportAsJson"
         ],
         "basis": "seat",
-        "cost": "0.499000",
+        "cost": "0.508990",
         "excludedParts": [],
-        "margin": "11.491000",
+        "margin": "11.481010",
         "outOfRange": false,
         "plan": "premium",
         "planName": "premium",
@@ -139,7 +139,7 @@
     "status": "ok",
     "users": 1000,
     "version": {
-      "id": "00000000-0000-4000-8000-000000000037",
+      "id": "00000000-0000-4000-8000-000000000038",
       "label": "1.1.0"
     },
     "warnings": []
@@ -157,25 +157,25 @@
         "value": 60000.0
       }
     ],
-    "number": 3
+    "number": 4
   },
   "valid": true,
   "values": {
     "availability": {
       "unit": "1",
-      "value": 0.9643836509999999
+      "value": 0.9682605702
     },
     "latency": {
       "unit": "ms",
-      "value": 475.0
+      "value": 615.0
     },
     "subscription": {
       "unit": "USD/month",
-      "value": 499.0
+      "value": 508.99
     }
   },
   "version": {
-    "id": "00000000-0000-4000-8000-000000000037",
+    "id": "00000000-0000-4000-8000-000000000038",
     "label": "1.1.0"
   },
   "violations": []

@@ -228,7 +228,10 @@ describe('the catalog mode', () => {
       renderTomatometer();
       const binding = section('Binding');
       expect(
-        within(binding).getByText('From Mailgun on SPHERE, plan FOUNDATION, version 2026-10')
+        within(binding).getByText('From brevo on SPHERE, plan PROFESSIONAL, version 2026-10')
+      ).toBeInTheDocument();
+      expect(
+        within(binding).getByText('From Dropbox on SPHERE, plan PLUS, version 2021')
       ).toBeInTheDocument();
       expect(binding).not.toHaveTextContent(/[0-9a-f]{24}/);
     });

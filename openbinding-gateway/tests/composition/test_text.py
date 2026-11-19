@@ -149,7 +149,7 @@ def test_a_document_built_in_code_writes_like_a_read_one() -> None:
         syntax_version=read.syntax_version, composition=read.composition, version=read.version,
         kind=read.kind, problem=read.problem, workflow=read.workflow,
         binding=tuple(reversed(read.binding)), values=tuple(reversed(read.values)),
-        offering=Offering(sphere="isa/tomatometer"),
+        offering=Offering(sphere="sphere/tomatometer"),
         evidence=Evidence(run=read.evidence.run, evaluated_by="gateway", toolchain="bim-core 0.2.0"),
     )
     assert text.serialise(built) == text.serialise(read)

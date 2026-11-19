@@ -6,7 +6,26 @@ TomatoMeter's back end as a BIM problem, and the SPHERE import recipes that add 
 |---|---|
 | `tomatometer-email.base.json` | Revision 1 of the `tomatometer-email` problem: sign in, then send the daily summary e-mail and export the data in parallel, then fetch a quote. One hand-made candidate per task; the e-mail candidate (Postfix on a VPS) carries the `emailsPerMonth` and `emailsPerDay` properties the e-mail requirements read. Features `subscription` (USD/month, paid once per selected candidate), `availability` (a ratio, multiplied along the workflow) and `latency` (ms). |
 | `email-recipe.json` | The flagship SPHERE import for the `dailySummary` task: the five e-mail providers of the `danruilop1` set (SendGrid, Mailgun, Brevo, Resend, Postmark, version `2026-10` each), a demand of 30 000 e-mails a month and 1 000 a day, the subscription from each plan's price, the availability from the uptime guarantees through one table (SendGrid and Postmark, which publish none, by hand) and the latency by hand. SendGrid declares no daily limit, so the recipe assumes it unlimited. |
+| `tomatometer-recipe.json` | The combined import that makes revision 3: the `dailySummary` task copied verbatim from `email-recipe.json`, `export` from the five Dropbox plans (`atenea/dropbox`, version `2021`, one seat, latency 180 ms by hand, no storage requirement) and `quotes` with one hand-made candidate, `quotes.builtin.static` (TomatoMeter's own ten hard-coded quotes: 0 USD, availability 0.999, 2 ms). |
 | `storage-recipe.json` | A new problem born from SPHERE: Dropbox (`atenea`, version `2021`) for an `export` task needing 1 000 GB. |
+| `composition.yaml` | The Composition2Yaml document the lab seals as `lab-main/tomatometer` 1.0.0, byte for byte: revision 3 bound to Brevo PROFESSIONAL, Dropbox PLUS and ZenQuotes, with the gateway's values and the offering `sphere/tomatometer`. It names `lab-main`'s problem and the toolchain's compilation digest, so it is written by `openbinding-gateway/tools/dump_examples.py` (the TomatoMeter composition template instantiated in process) and held to it by `tests/test_tomatometer_example.py`; another organization gets its own document from the template. |
+
+## The three revisions of `tomatometer-email`
+
+| Revision | Made by | Choices |
+|---|---|---|
+| 1 | uploading `tomatometer-email.base.json` | one hand-made candidate per task |
+| 2 | applying `email-recipe.json` | `dailySummary`: Postfix and the 17 public plans of the five e-mail providers |
+| 3 | applying `tomatometer-recipe.json` | the same e-mail candidates; `export`: local disk and the five Dropbox plans; `quotes`: ZenQuotes and the built-in quotes |
+
+A problem owns one recipe at a time: the generator rewrites only the catalogs and requirement predicates its
+previous recipe made, and refuses one it did not make. So revision 3 is **one combined recipe** that repeats the
+e-mail task exactly (same sources, same ids, same values) and adds the two new tasks, rather than a storage recipe
+applied on top. `email-recipe.json` stays: it is the step that made revision 2 and the input of the generator's
+goldens. The demand is the e-mail recipe's: 30 000 e-mails a month and 1 000 a day, which is TomatoMeter's daily
+summary for 1 000 users (30 a month each). `export` has no storage requirement, so the base's local disk needs no
+`storageLimit` and stays eligible. The generator's golden for revision 3 is the case `tomatometer-r3` of
+`openbinding-gateway/tests/golden/sphere/cases.json`.
 
 ## Why JSON bundles and not package directories
 
@@ -24,6 +43,13 @@ files = {path: dump(document) for path, document in json.load(open("tomatometer-
 open("tomatometer-email.bim.zip", "wb").write(zip_files(files))
 ```
 
-Upload it as a new problem, then preview and apply `email-recipe.json` on it
-(`POST /v1/organizations/{org}/problems/tomatometer-email/sphere/expand` and `…/sphere/apply`); the lab seed
-(`openbinding-gateway/tools/seed_lab.py`) does exactly that. `docs/SPHERE.md` describes the recipe.
+Upload it as a new problem, then preview and apply `email-recipe.json` on it, then `tomatometer-recipe.json`
+(`POST /v1/organizations/{org}/problems/tomatometer-email/sphere/expand` and `…/sphere/apply`, once per recipe). `docs/SPHERE.md` describes the recipe.
+
+## The composition, its template and the demo
+
+`examples/templates/tomatometer.json` is the composition template that makes this problem (revisions 1 to 3) and the
+composition `tomatometer` 1.0.0 in one action (`POST /v1/organizations/{org}/compositions/from-template`); the lab seed
+calls the same function and then derives 1.1.0 (Resend PRO for the e-mail), creates the environments `production`
+and `staging` and adopts 1.0.0 in production. The demo that adopts 1.1.0 and watches the e-mail provider switch in
+Mailpit is the "TomatoMeter composite (demo script v1)" section of [docs/DEMO.md](../../docs/DEMO.md#tomatometer-composite-demo-script-v1).

@@ -913,6 +913,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/compositions/templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the templates a composition can start from */
+        get: operations["listCompositionTemplates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/compositions/templates/{template}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read one composition template */
+        get: operations["getCompositionTemplate"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/compositions/validate": {
         parameters: {
             query?: never;
@@ -1614,6 +1648,26 @@ export interface paths {
          * @description Create an empty composition: no version yet.
          */
         post: operations["createComposition"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{org}/compositions/from-template": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start a composition from a template
+         * @description Create the template's problem (revision 1, then one revision per SPHERE import recipe, previewed and applied as a member would) and a composition whose first version is derived from the template's binding of the latest revision, with its offering read when it is sealed. No environment is created: `operation` holds defaults for one. Needs the `repository` feature and room for a problem.
+         */
+        post: operations["createCompositionFromTemplate"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4835,6 +4889,32 @@ export interface components {
             version: string;
         };
         /**
+         * CompositionFromTemplate
+         * @description Instantiate a template in an organization: its problem and its composition, under these slugs.
+         */
+        CompositionFromTemplate: {
+            /**
+             * Name
+             * @description The composition's name.
+             */
+            name?: string | null;
+            /**
+             * Problemslug
+             * @description The problem's slug; the template's by default.
+             */
+            problemSlug?: string | null;
+            /**
+             * Slug
+             * @description The composition's slug; the template's by default.
+             */
+            slug?: string | null;
+            /**
+             * Template
+             * @description The template's id.
+             */
+            template: string;
+        };
+        /**
          * CompositionGraph
          * @description The version graph of a composition, as SPHERE's pricing version graph: newest versions first.
          */
@@ -4846,6 +4926,19 @@ export interface components {
              * @description More source lanes exist than were drawn (at most 20).
              */
             truncated: boolean;
+        };
+        /**
+         * CompositionInstantiated
+         * @description What instantiating a template made.
+         */
+        CompositionInstantiated: {
+            composition: components["schemas"]["CompositionView"];
+            evaluation: components["schemas"]["EvaluationView"];
+            operation: components["schemas"]["TemplateOperation"];
+            problem: components["schemas"]["InstantiatedProblem"];
+            /** Template */
+            template: string;
+            version: components["schemas"]["CompositionVersionView"];
         };
         /**
          * CompositionList
@@ -5027,6 +5120,88 @@ export interface components {
             end_line: number;
             /** Line */
             line: number;
+        };
+        /** CompositionTemplateList */
+        CompositionTemplateList: {
+            /** Templates */
+            templates: components["schemas"]["CompositionTemplateSummary"][];
+        };
+        /**
+         * CompositionTemplateSummary
+         * @description A template a member starts a composition from: a problem and a composition derived from it.
+         */
+        CompositionTemplateSummary: {
+            /**
+             * Available
+             * @description Whether this deployment can instantiate it now.
+             */
+            available: boolean;
+            /**
+             * Hasoffering
+             * @description Whether the composition names an offering (margins are computed from it).
+             */
+            hasOffering: boolean;
+            /** Id */
+            id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "application" | "workflow" | "pipeline" | "system";
+            /** Summary */
+            summary: string;
+            /**
+             * Tasks
+             * @description The tasks the composition binds, in the manifest's order.
+             */
+            tasks: string[];
+            /** Title */
+            title: string;
+            /**
+             * Unavailablereason
+             * @description Why it is not available: `sphere_disabled` for a template that reads SPHERE while SPHERE is off.
+             */
+            unavailableReason: "sphere_disabled" | null;
+        };
+        /**
+         * CompositionTemplateView
+         * @description One template with the problem it makes and the composition it derives.
+         */
+        CompositionTemplateView: {
+            /**
+             * Available
+             * @description Whether this deployment can instantiate it now.
+             */
+            available: boolean;
+            composition: components["schemas"]["TemplateCompositionView"];
+            /**
+             * Hasoffering
+             * @description Whether the composition names an offering (margins are computed from it).
+             */
+            hasOffering: boolean;
+            /** Id */
+            id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "application" | "workflow" | "pipeline" | "system";
+            operation: components["schemas"]["TemplateOperation"];
+            problem: components["schemas"]["TemplateProblemView"];
+            /** Summary */
+            summary: string;
+            /**
+             * Tasks
+             * @description The tasks the composition binds, in the manifest's order.
+             */
+            tasks: string[];
+            /** Title */
+            title: string;
+            /**
+             * Unavailablereason
+             * @description Why it is not available: `sphere_disabled` for a template that reads SPHERE while SPHERE is off.
+             */
+            unavailableReason: "sphere_disabled" | null;
         };
         /**
          * CompositionUpdate
@@ -6729,6 +6904,16 @@ export interface components {
                 };
                 resourceTarget: components["schemas"]["InstanceManifest"]["$defs"]["localPath"] | components["schemas"]["InstanceManifest"]["$defs"]["registeredRef"] | components["schemas"]["InstanceManifest"]["$defs"]["artifactRef"];
             };
+        };
+        /** InstantiatedProblem */
+        InstantiatedProblem: {
+            /**
+             * Revision
+             * @description The latest revision, which the first version links.
+             */
+            revision: number;
+            /** Slug */
+            slug: string;
         };
         /**
          * InvitationPreview
@@ -9503,8 +9688,65 @@ export interface components {
             /** State */
             state: string;
         };
+        /** TemplateCompositionView */
+        TemplateCompositionView: {
+            /**
+             * Binding
+             * @description Task -> the candidate the first version binds.
+             */
+            binding: {
+                [key: string]: string;
+            };
+            /**
+             * Label
+             * @description The first version's label.
+             */
+            label: string;
+            /** Name */
+            name: string;
+            /**
+             * Offering
+             * @description The offering the first version names (`sphere` or `url`).
+             */
+            offering: {
+                [key: string]: string;
+            } | null;
+            /**
+             * Slug
+             * @description The composition's default slug.
+             */
+            slug: string;
+            /**
+             * Workflow
+             * @description The workflow the derived document writes, in Composition2Yaml's form.
+             */
+            workflow: unknown;
+        };
         TemplateList: {
             templates: string[];
+        };
+        /** TemplateOperation */
+        TemplateOperation: {
+            /**
+             * Expectedusers
+             * @description A default for a later environment form; instantiating creates no environment.
+             */
+            expectedUsers?: number | null;
+        };
+        /** TemplateProblemView */
+        TemplateProblemView: {
+            /** Name */
+            name: string;
+            /**
+             * Revisions
+             * @description The revisions instantiating makes: 1, then one per SPHERE recipe.
+             */
+            revisions: number;
+            /**
+             * Slug
+             * @description The problem's default slug.
+             */
+            slug: string;
         };
         /** TokenPair */
         TokenPair: {
@@ -12608,6 +12850,142 @@ export interface operations {
             };
         };
     };
+    listCompositionTemplates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompositionTemplateList"];
+                };
+            };
+            /** @description Missing or invalid account credential. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The account role, API-key permission, or Engine allow-list does not permit this request. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too many `read` requests from this address by a caller with no credential: past the anonymous budget. A signed-in caller is not charged. `Retry-After` says when the window ends. */
+            429: {
+                headers: {
+                    /** @description Seconds until the budget is available again. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Account authentication is not configured on this deployment. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getCompositionTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                template: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompositionTemplateView"];
+                };
+            };
+            /** @description Missing or invalid account credential. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The account role, API-key permission, or Engine allow-list does not permit this request. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description No such template. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request does not satisfy the contract; `diagnostics` says where. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too many `read` requests from this address by a caller with no credential: past the anonymous budget. A signed-in caller is not charged. `Retry-After` says when the window ends. */
+            429: {
+                headers: {
+                    /** @description Seconds until the budget is available again. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Account authentication is not configured on this deployment. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     validateComposition: {
         parameters: {
             query?: never;
@@ -15481,6 +15859,108 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Account authentication is not configured on this deployment. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    createCompositionFromTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CompositionFromTemplate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    /** @description Revision of the resource; send it back as `If-Match` to edit it. */
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompositionInstantiated"];
+                };
+            };
+            /** @description Missing or invalid account credential. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The account role, API-key permission, or Engine allow-list does not permit this request. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description No such organization or template, or the caller is not a member. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Nothing was written: the composition or problem slug is in use (`slug_conflict`, `field` names which), or the template reads SPHERE and SPHERE is off (`template_needs_sphere`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request does not satisfy the contract; `diagnostics` says where. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too many `compile` requests from this client: past the budget of its address, or of its account when signed in. `Retry-After` says when the window ends. A request may also find every Composition2Yaml or evaluation slot of this gateway busy: `composition_busy`, `Retry-After: 1`. */
+            429: {
+                headers: {
+                    /** @description Seconds until the budget is available again. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The template stopped after its problem was created (`template_incomplete`): the problem is kept, `problem` and `revision` name it, `cause` says what failed; no composition was made. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
             /** @description Account authentication is not configured on this deployment. */

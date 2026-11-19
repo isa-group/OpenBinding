@@ -5,23 +5,23 @@
     "multiplier": "1.0"
   },
   "cost": {
-    "monthly": "35.000000",
+    "monthly": "508.990000",
     "name": "subscription",
     "unit": "USD/month",
-    "value": "35.000000"
+    "value": "508.990000"
   },
-  "costPerUser": "0.035000",
+  "costPerUser": "0.508990",
   "currency": "USD",
   "evaluation": {
     "basisKey": "sha256-b91fc3a05d1a58d128f5589f35396aaf8ebd0c3854e1e072ce17c765fe42b4d4",
-    "id": "00000000-0000-4000-8000-000000000032",
+    "id": "00000000-0000-4000-8000-000000000033",
     "outcome": "verified",
     "valuesStatus": "verified"
   },
   "offering": {
-    "createdAt": "2026-01-01T00:00:09Z",
+    "createdAt": "2026-01-01T00:00:10Z",
     "currency": "USD",
-    "snapshot": "00000000-0000-4000-8000-000000000031",
+    "snapshot": "00000000-0000-4000-8000-000000000032",
     "source": {
       "sphere": "sphere/tomatometer"
     },
@@ -32,9 +32,9 @@
     {
       "addOns": [],
       "basis": "seat",
-      "cost": "0.035000",
+      "cost": "0.508990",
       "excludedParts": [],
-      "margin": "-0.035000",
+      "margin": "-0.508990",
       "outOfRange": false,
       "plan": "basic",
       "planName": "basic",
@@ -47,9 +47,9 @@
         "extraTimers"
       ],
       "basis": "seat",
-      "cost": "0.035000",
+      "cost": "0.508990",
       "excludedParts": [],
-      "margin": "0.965000",
+      "margin": "0.491010",
       "outOfRange": false,
       "plan": "basic",
       "planName": "basic",
@@ -60,9 +60,9 @@
     {
       "addOns": [],
       "basis": "seat",
-      "cost": "0.035000",
+      "cost": "0.508990",
       "excludedParts": [],
-      "margin": "3.955000",
+      "margin": "3.481010",
       "outOfRange": false,
       "plan": "advanced",
       "planName": "advanced",
@@ -75,9 +75,9 @@
         "extraTimers"
       ],
       "basis": "seat",
-      "cost": "0.035000",
+      "cost": "0.508990",
       "excludedParts": [],
-      "margin": "4.955000",
+      "margin": "4.481010",
       "outOfRange": false,
       "plan": "advanced",
       "planName": "advanced",
@@ -88,9 +88,9 @@
     {
       "addOns": [],
       "basis": "seat",
-      "cost": "0.035000",
+      "cost": "0.508990",
       "excludedParts": [],
-      "margin": "9.955000",
+      "margin": "9.481010",
       "outOfRange": false,
       "plan": "premium",
       "planName": "premium",
@@ -103,9 +103,9 @@
         "extraTimers"
       ],
       "basis": "seat",
-      "cost": "0.035000",
+      "cost": "0.508990",
       "excludedParts": [],
-      "margin": "10.955000",
+      "margin": "10.481010",
       "outOfRange": false,
       "plan": "premium",
       "planName": "premium",
@@ -118,9 +118,9 @@
         "exportAsJson"
       ],
       "basis": "seat",
-      "cost": "0.035000",
+      "cost": "0.508990",
       "excludedParts": [],
-      "margin": "11.955000",
+      "margin": "11.481010",
       "outOfRange": false,
       "plan": "premium",
       "planName": "premium",
@@ -133,7 +133,7 @@
   "status": "ok",
   "users": 1000,
   "version": {
-    "id": "00000000-0000-4000-8000-000000000035",
+    "id": "00000000-0000-4000-8000-000000000036",
     "label": "1.0.0"
   },
   "warnings": []

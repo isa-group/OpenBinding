@@ -29,6 +29,8 @@ ALL_STEPS = [
 ]
 #: The steps that need the seed's SPHERE problem; a lab without it skips them.
 SPHERE_STEPS = ("sphere_candidates", "sphere_engines")
+#: The steps that need the seed's TomatoMeter environments (F4); this fake has none, so they are skipped.
+OPERATION_STEPS = ("environment_feed", "adopt_switches_provider", "restore_operation")
 NOT_FOUND = {"detail": {"code": "not_found", "error": "Composition not found."}, "code": "not_found", "status": 404}
 TEMPLATE = b"PK-example"
 ENGINE = {"name": "random-search", "namespace": "bim.builtin", "version": "1.0.0", "digest": "sha256-e"}
@@ -456,7 +458,9 @@ def test_every_step_passes_against_a_healthy_lab():
     report = smoke(FakeLab("sphere"), with_space=True)
     assert failing(report) == [], [step for step in report["steps"] if not step["ok"]]
     assert [step["name"] for step in report["steps"]] == ALL_STEPS
-    assert report["ok"] is True and report["passed"] == 15 and report["failed"] == 0 and report["skipped"] == []
+    # The operation steps (16-18) have a fake of their own: tools/tests/test_smoke_lab_operation.py.
+    assert report["ok"] is True and report["passed"] == 15 and report["failed"] == 0
+    assert report["skipped"] == list(OPERATION_STEPS)
     assert report["blocked"] == 0 and report["blockedSteps"] == []
     assert not any(step["blockedByRemote"] for step in report["steps"])
 
@@ -633,7 +637,8 @@ def test_skip_leaves_out_optional_steps_and_the_space_step_needs_its_flag():
         "proxy_and_spa", "login", "upload", "owner_job", "study", "idempotency", "authorization", "public_compositions",
     ]
     assert report["skipped"] == [
-        "concurrency_limit", "cors", "body_limit", "sphere_candidates", "sphere_engines", "plan_usage", "login_throttle",
+        "concurrency_limit", "cors", "body_limit", "sphere_candidates", "sphere_engines", *OPERATION_STEPS, "plan_usage",
+        "login_throttle",
     ]
     assert report["ok"] is True
 
@@ -645,13 +650,13 @@ def test_without_with_space_every_other_step_completes_and_the_usage_endpoint_is
     assert [step["name"] for step in report["steps"]] == [
         name for name in ALL_STEPS if name != "plan_usage" and name not in SPHERE_STEPS
     ]
-    assert report["skipped"] == [*SPHERE_STEPS, "plan_usage"]
+    assert report["skipped"] == [*SPHERE_STEPS, *OPERATION_STEPS, "plan_usage"]
     assert not [request for request in fake.requests if request[1].endswith("/users/me/usage")]
 
     fake = FakeLab()
     code = smoke_lab.main([], {"DEMO_SEED_PASSWORD": PASSWORD}, transport=fake.transport(), sleep=lambda _: None)
     assert code == smoke_lab.EXIT_OK
-    assert json.loads(capsys.readouterr().out)["skipped"] == [*SPHERE_STEPS, "plan_usage"]
+    assert json.loads(capsys.readouterr().out)["skipped"] == [*SPHERE_STEPS, *OPERATION_STEPS, "plan_usage"]
     assert not [request for request in fake.requests if request[1].endswith("/users/me/usage")]
 
 
@@ -885,7 +890,7 @@ def test_a_visitor_lists_the_two_public_compositions_and_reads_only_those():
     step = steps_of(smoke(fake))["public_compositions"]
     assert step["ok"], step["detail"]
     # Every request of the step is anonymous.
-    reads = [path for _, path in fake.requests if "/compositions" in path]
+    reads = [path for _, path in fake.requests if "/compositions" in path and "/environments/" not in path]
     assert reads == [
         "/api/v1/compositions", "/api/v1/organizations/lab-other/compositions/sequential-workflow",
         "/api/v1/organizations/lab-other/compositions/internal-draft", reads[3],

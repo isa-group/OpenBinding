@@ -181,7 +181,7 @@ cannot keep the compiler busy for everybody else, every client also has a budget
 
 | Class | Routes | Anonymous, per client address | Signed in, per account |
 |---|---|---|---|
-| `compile` | `POST /v1/bim/validate`, `POST /v1/organizations/{org}/problems`, `POST …/problems/{problem}/revisions`, `GET …/revisions/{revision}/compilation`, `POST …/problems/{problem}/sphere/expand`, `POST …/problems/{problem}/sphere/apply` | `WORK_RATE_LIMIT_COMPILE_REQUESTS` (default 10) | that, times `WORK_RATE_LIMIT_SIGNED_IN_MULTIPLIER` (default 5) |
+| `compile` | `POST /v1/bim/validate`, `POST /v1/organizations/{org}/problems`, `POST …/problems/{problem}/revisions`, `GET …/revisions/{revision}/compilation`, `POST …/problems/{problem}/sphere/expand`, `POST …/problems/{problem}/sphere/apply`, `POST …/compositions/from-template` | `WORK_RATE_LIMIT_COMPILE_REQUESTS` (default 10) | that, times `WORK_RATE_LIMIT_SIGNED_IN_MULTIPLIER` (default 5) |
 | `read` | `POST /v1/compositions/validate`, `/parse`, `/serialise`, `/diff`; and, for a visitor only, `GET /v1/compositions` and the five reads of a public composition | `WORK_RATE_LIMIT_READ_REQUESTS` (default 60) | that, times `WORK_RATE_LIMIT_SIGNED_IN_MULTIPLIER` (not charged on the reads of a composition) |
 | `evaluate` | `POST /v1/organizations/{org}/compositions/{composition}/versions`, `POST …/versions/check`, `POST …/fork`, `POST …/versions/{version}/evaluations`, `POST …/evaluate`, `GET …/neighborhood`, `POST …/derive` | `WORK_RATE_LIMIT_EVALUATE_REQUESTS` (default 30) | that, times `WORK_RATE_LIMIT_SIGNED_IN_MULTIPLIER` |
 
@@ -211,6 +211,13 @@ cannot keep the compiler busy for everybody else, every client also has a budget
   Their concurrency is bounded apart, per process, by `COMPOSITION_LANGUAGE_SLOTS` (default 4):
   a request that finds every slot taken gets `429 composition_busy` with `Retry-After: 1`.
   `GET /v1/compositions/schema` is open, like the BIM templates, and needs no permission.
+- **The composition templates are read by anybody.** `GET /v1/compositions/templates` and
+  `…/templates/{template}` serve repository files: a visitor is charged one `read` request each against the
+  anonymous budget (`ANONYMOUS_READ_ROUTES`), a signed-in caller nothing; an API key needs `compositions:read`.
+  `POST /v1/organizations/{org}/compositions/from-template` needs MEMBER, the `repository` feature and room for a
+  problem; it compiles the template's problem and every recipe revision, so it is one `compile` request, and a
+  personal key needs `compositions:write` **and** `problems:write` (a key bounded by `resourceKinds` must name
+  both `compositions` and `problems`).
 - **Sealing, checking, forking, evaluating and deriving a composition version is the `evaluate` class.** Each
   request has the toolchain evaluate one binding once (or, for the neighbourhood, at most 128
   alternatives within two seconds), and compiles the linked revision only when the installed

@@ -1,0 +1,58 @@
+[
+  {
+    "at": "/features/latency",
+    "code": "sphere_objective_manual_only",
+    "feature": "latency",
+    "message": "Every generated value of the objective latency was set by hand; no pricing gives it.",
+    "severity": "warning"
+  },
+  {
+    "at": "/tasks/0/from/1",
+    "code": "sphere_limit_assumed",
+    "limit": "emailsPerDay",
+    "message": "This pricing does not declare emailsPerDay; the recipe assumes unlimited.",
+    "severity": "warning"
+  },
+  {
+    "at": "/tasks/1/from/0",
+    "code": "sphere_unit_unknown",
+    "message": "The unit 'account' names no period; prices in it are taken as monthly.",
+    "severity": "warning",
+    "unit": "account"
+  },
+  {
+    "at": "/tasks/1/from/0",
+    "code": "sphere_unit_unknown",
+    "message": "The unit 'user' names no period; prices in it are taken as monthly.",
+    "severity": "warning",
+    "unit": "user"
+  },
+  {
+    "at": "sphere-email/email.brevo.enterprise",
+    "code": "sphere_plan_private",
+    "message": "The plan ENTERPRISE is private in this pricing; it is left out.",
+    "plan": "ENTERPRISE",
+    "severity": "info"
+  },
+  {
+    "at": "sphere-email/email.mailgun.enterprise",
+    "code": "sphere_plan_private",
+    "message": "The plan ENTERPRISE is private in this pricing; it is left out.",
+    "plan": "ENTERPRISE",
+    "severity": "info"
+  },
+  {
+    "at": "sphere-email/email.resend.enterprise",
+    "code": "sphere_plan_private",
+    "message": "The plan ENTERPRISE is private in this pricing; it is left out.",
+    "plan": "ENTERPRISE",
+    "severity": "info"
+  },
+  {
+    "at": "sphere-email/email.sendgrid.premier",
+    "code": "sphere_plan_private",
+    "message": "The plan PREMIER is private in this pricing; it is left out.",
+    "plan": "PREMIER",
+    "severity": "info"
+  }
+]

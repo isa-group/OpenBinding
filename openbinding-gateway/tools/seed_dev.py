@@ -698,7 +698,8 @@ async def ensure_standalone_jobs(
 
 
 #: The declared composition of the seed: the TomatoMeter sample of the redesign plan, with no problem, its
-#: in-house login bound ``local``, and the composite's own offering in SPHERE.
+#: in-house login bound ``local``, real SPHERE plans (Brevo PROFESSIONAL of ``danruilop1/brevo``) and the composite's
+#: own offering in SPHERE (``sphere/tomatometer``).
 TOMATOMETER_SKETCH = """\
 syntaxVersion: "1.0"
 composition: tomatometer-sketch
@@ -709,15 +710,15 @@ workflow:
 binding:
   login: {local: true}
   dailySummary:
-    candidate: email.brevo.business
-    from: {sphere: brevo/brevo, version: 665f1c2e9b1d4a0012ab34cd, plan: BUSINESS}
+    candidate: email.brevo.professional
+    from: {sphere: danruilop1/brevo, version: 6ade2d444b2b5b01c587d80d, plan: PROFESSIONAL}
   export: {candidate: storage.dropbox.plus}
   quotes: {candidate: quotes.zenquotes.free}
 values:
   availability: 0.9985
-  cost: {value: 34.5, unit: EUR/month}
+  subscription: {value: 508.99, unit: USD/month}
   latency: {value: 420, unit: ms}
-offering: {sphere: isa/tomatometer}
+offering: {sphere: sphere/tomatometer}
 """
 
 

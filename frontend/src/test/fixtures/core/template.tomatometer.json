@@ -1,0 +1,49 @@
+{
+  "available": true,
+  "composition": {
+    "binding": {
+      "dailySummary": "email.brevo.professional",
+      "export": "storage.dropbox.plus",
+      "login": "auth.builtin.local",
+      "quotes": "quotes.zenquotes.free"
+    },
+    "label": "1.0.0",
+    "name": "TomatoMeter",
+    "offering": {
+      "sphere": "sphere/tomatometer"
+    },
+    "slug": "tomatometer",
+    "workflow": {
+      "seq": [
+        "login",
+        {
+          "and": [
+            "dailySummary",
+            "export"
+          ]
+        },
+        "quotes"
+      ]
+    }
+  },
+  "hasOffering": true,
+  "id": "tomatometer",
+  "kind": "application",
+  "operation": {
+    "expectedUsers": 1000
+  },
+  "problem": {
+    "name": "TomatoMeter e-mail",
+    "revisions": 3,
+    "slug": "tomatometer-email"
+  },
+  "summary": "TomatoMeter's back end: sign in, send the daily summary e-mail and export the data in parallel, then fetch a quote. The e-mail and storage providers are real SPHERE plans; the offering is TomatoMeter's own pricing in SPHERE.",
+  "tasks": [
+    "login",
+    "dailySummary",
+    "export",
+    "quotes"
+  ],
+  "title": "TomatoMeter composite",
+  "unavailableReason": null
+}

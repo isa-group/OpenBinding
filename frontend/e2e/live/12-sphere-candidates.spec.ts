@@ -7,8 +7,9 @@ import { API, ORG, OTHER_ORG, PROBLEMS_TAB, signInByApi, watchPageErrors } from 
  * - J1/J2: a problem born from two SPHERE pricings, pinned to their recorded versions (Mailgun and Postmark of danruilop1, both
  *   `2026-10`), Postmark's own name for the monthly limit chosen in the mapping, previewed and created; its Candidates tab says
  *   where each value comes from;
- * - J4: the seeded `lab-main/tomatometer` draws its upstream plan from the stored snapshot with SPHERE's link and its storefront
- *   from the offering version its evaluation read; lab-other's `order-desk`, whose offering URL never resolves, says so in words;
+ * - J4: the seeded `lab-main/tomatometer` (made by its composition template) draws a card for each upstream plan its version
+ *   1.0.0 binds, from the stored snapshot with SPHERE's link, and its storefront from the offering version its evaluation read;
+ *   lab-other's `order-desk`, whose offering URL never resolves, says so in words;
  * - the registry path, when the lab names one (`SPHERE_REGISTRIES`): the search through the `score-mirror` alias;
  * - J3's refusal: with beta features on, the Connections tab sends an invalid key to SPHERE and shows its refusal (the lab has no
  *   real key).
@@ -151,17 +152,32 @@ test.describe('live · F3 SPHERE candidates', () => {
     page,
   }) => {
     test.setTimeout(240_000);
-    await signInByApi(page, 'owner');
-    await page.goto(`/compositions/${ORG}/tomatometer`);
-    const plans = page.locator('main').getByRole('region', { name: 'Upstream plans', exact: true });
-    const card = plans.getByRole('article').first();
-    await expect(card.getByRole('link', { name: 'Open in SPHERE' })).toHaveAttribute(
-      'href',
-      /^https:\/\/sphere\.score\.us\.es\/p\/[0-9a-f]{24}\?version=[0-9a-f]{24}$/,
-      { timeout: 60_000 }
+    const token = await signInByApi(page, 'owner');
+    // The plans the seeded 1.0.0 binds, as its document pins them: a card for each, whatever provider the seed chose.
+    const read = await page.request.get(
+      `${API}/v1/organizations/${ORG}/compositions/tomatometer/versions/1.0.0`,
+      { params: { include: 'document' }, headers: { Authorization: `Bearer ${token}` } }
     );
-    await expect(card).toContainText('Version2026-10');
-    await expect(card.locator('pricing-renderer')).toBeAttached();
+    expect(read.ok()).toBe(true);
+    const binding = (
+      (await read.json()) as {
+        document: { binding: Record<string, { from?: { plan: string; version: string } }> };
+      }
+    ).document.binding;
+    const pinned = Object.values(binding).flatMap(entry => (entry.from ? [entry.from] : []));
+    expect(pinned.length).toBeGreaterThan(0);
+    await page.goto(`/compositions/${ORG}/tomatometer?version=1.0.0`);
+    const plans = page.locator('main').getByRole('region', { name: 'Upstream plans', exact: true });
+    for (const from of pinned) {
+      const card = plans.getByRole('article', { name: `Plan ${from.plan}` });
+      await expect(card.getByRole('link', { name: 'Open in SPHERE' })).toHaveAttribute(
+        'href',
+        new RegExp(`^https://sphere\\.score\\.us\\.es/p/[0-9a-f]{24}\\?version=${from.version}$`),
+        { timeout: 60_000 }
+      );
+      await expect(card).toContainText(/Version\S+/);
+      await expect(card.locator('pricing-renderer')).toBeAttached();
+    }
     const offering = page.locator('main').getByRole('region', { name: 'Offering', exact: true });
     await expect(offering).toContainText(
       /Offering version .+, read when this version was evaluated\./

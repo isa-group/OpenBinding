@@ -1,33 +1,6 @@
 {
   "adoptions": [
     {
-      "adoptedAt": "2026-01-01T00:00:12Z",
-      "adoptedBy": {
-        "displayName": "fixtures",
-        "username": "fixtures"
-      },
-      "evaluation": {
-        "basisKey": "sha256-b91fc3a05d1a58d128f5589f35396aaf8ebd0c3854e1e072ce17c765fe42b4d4",
-        "id": "00000000-0000-4000-8000-000000000032",
-        "valuesStatus": "verified"
-      },
-      "feedEtag": "\"sha256-7974798d9e27731cb07f50f9fb0139ea06136554d1c1ee77a74f17ff04cd95ce\"",
-      "note": "Back to Mailgun",
-      "offering": {
-        "createdAt": "2026-01-01T00:00:09Z",
-        "versionName": "1.0.0"
-      },
-      "ordinal": 3,
-      "previousVersion": {
-        "id": "00000000-0000-4000-8000-000000000037",
-        "label": "1.1.0"
-      },
-      "version": {
-        "id": "00000000-0000-4000-8000-000000000035",
-        "label": "1.0.0"
-      }
-    },
-    {
       "adoptedAt": "2026-01-01T00:00:13Z",
       "adoptedBy": {
         "displayName": "fixtures",
@@ -35,23 +8,23 @@
       },
       "evaluation": {
         "basisKey": "sha256-b91fc3a05d1a58d128f5589f35396aaf8ebd0c3854e1e072ce17c765fe42b4d4",
-        "id": "00000000-0000-4000-8000-000000000038",
+        "id": "00000000-0000-4000-8000-000000000033",
         "valuesStatus": "verified"
       },
-      "feedEtag": "\"sha256-83efb9ee96b05a261a911d2b4dd4edb2e3377ee3e297252492eded6edb2a7241\"",
-      "note": "Switch to Resend",
+      "feedEtag": "\"sha256-f8877f33423f7fa96418c4a7af8d6388696c0275e3c9b53482610b0c4b63172d\"",
+      "note": "Back to Brevo",
       "offering": {
-        "createdAt": "2026-01-01T00:00:09Z",
+        "createdAt": "2026-01-01T00:00:10Z",
         "versionName": "1.0.0"
       },
-      "ordinal": 2,
+      "ordinal": 3,
       "previousVersion": {
-        "id": "00000000-0000-4000-8000-000000000035",
-        "label": "1.0.0"
+        "id": "00000000-0000-4000-8000-000000000038",
+        "label": "1.1.0"
       },
       "version": {
-        "id": "00000000-0000-4000-8000-000000000037",
-        "label": "1.1.0"
+        "id": "00000000-0000-4000-8000-000000000036",
+        "label": "1.0.0"
       }
     },
     {
@@ -62,19 +35,46 @@
       },
       "evaluation": {
         "basisKey": "sha256-b91fc3a05d1a58d128f5589f35396aaf8ebd0c3854e1e072ce17c765fe42b4d4",
-        "id": "00000000-0000-4000-8000-000000000032",
+        "id": "00000000-0000-4000-8000-000000000039",
         "valuesStatus": "verified"
       },
-      "feedEtag": "\"sha256-7974798d9e27731cb07f50f9fb0139ea06136554d1c1ee77a74f17ff04cd95ce\"",
+      "feedEtag": "\"sha256-8f3be077d629c797d4cd93693f0026d07ee93015cbce5e90648dcf1ae8a878a1\"",
+      "note": "Switch to Resend",
+      "offering": {
+        "createdAt": "2026-01-01T00:00:10Z",
+        "versionName": "1.0.0"
+      },
+      "ordinal": 2,
+      "previousVersion": {
+        "id": "00000000-0000-4000-8000-000000000036",
+        "label": "1.0.0"
+      },
+      "version": {
+        "id": "00000000-0000-4000-8000-000000000038",
+        "label": "1.1.0"
+      }
+    },
+    {
+      "adoptedAt": "2026-01-01T00:00:15Z",
+      "adoptedBy": {
+        "displayName": "fixtures",
+        "username": "fixtures"
+      },
+      "evaluation": {
+        "basisKey": "sha256-b91fc3a05d1a58d128f5589f35396aaf8ebd0c3854e1e072ce17c765fe42b4d4",
+        "id": "00000000-0000-4000-8000-000000000033",
+        "valuesStatus": "verified"
+      },
+      "feedEtag": "\"sha256-f8877f33423f7fa96418c4a7af8d6388696c0275e3c9b53482610b0c4b63172d\"",
       "note": "Go live",
       "offering": {
-        "createdAt": "2026-01-01T00:00:09Z",
+        "createdAt": "2026-01-01T00:00:10Z",
         "versionName": "1.0.0"
       },
       "ordinal": 1,
       "previousVersion": null,
       "version": {
-        "id": "00000000-0000-4000-8000-000000000035",
+        "id": "00000000-0000-4000-8000-000000000036",
         "label": "1.0.0"
       }
     }

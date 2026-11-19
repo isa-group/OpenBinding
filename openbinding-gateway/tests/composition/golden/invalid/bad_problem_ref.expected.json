@@ -1,4 +1,4 @@
 [
-  {"code": "c2y_problem_ref", "severity": "error", "path": "problem.ref", "pointer": "/problem/ref", "span": [6, 11, 6, 33]},
-  {"code": "c2y_problem_ref", "severity": "error", "path": "problem.compilation", "pointer": "/problem/compilation", "span": [6, 35, 6, 58]}
+  {"code": "c2y_problem_ref", "severity": "error", "path": "problem.ref", "pointer": "/problem/ref", "span": [6, 11, 6, 38]},
+  {"code": "c2y_problem_ref", "severity": "error", "path": "problem.compilation", "pointer": "/problem/compilation", "span": [6, 40, 6, 63]}
 ]

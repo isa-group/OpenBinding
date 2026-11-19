@@ -24,10 +24,12 @@ from .environments import TARGET, environment_unreadable
 
 async def mint_key(
     session: AsyncSession, composition: Composition, environment: CompositionEnvironment, actor: User, label: str,
+    *, minted: feed_keys.MintedKey | None = None,
 ) -> tuple[CompositionEnvironmentKey, str]:
     """A new live key of ``environment`` and its secret (to show once); 409 ``feed_key_limit`` at the limit.
 
-    The environment row is locked first, so two concurrent mints count each other.
+    The environment row is locked first, so two concurrent mints count each other. ``minted`` is a key made
+    elsewhere (the lab seed derives its key from the demo password); by default a new one is drawn.
     """
     locked = await session.scalar(
         select(CompositionEnvironment.id).where(CompositionEnvironment.id == environment.id).with_for_update()
@@ -45,7 +47,7 @@ async def mint_key(
             f"An environment holds at most {MAX_LIVE_FEED_KEYS} live feed keys: revoke one first.",
             limit=MAX_LIVE_FEED_KEYS,
         )
-    minted = feed_keys.mint()
+    minted = minted or feed_keys.mint()
     row = CompositionEnvironmentKey(
         environment_id=environment.id, prefix=minted.prefix, secret_hash=minted.secret_hash, label=label,
         created_by_id=actor.id,

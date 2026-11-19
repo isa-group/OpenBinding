@@ -13,11 +13,15 @@ response **bodies** (never headers) of the routes the frontend reads:
 * ``<name>.diff.json``: ``diffCompositionVersions`` from that 1.0.0 to a 1.1.0 derived from the
   same binding with one task bound to another candidate;
 * ``plans-pricing.json``: ``getPlansPricing``, OpenBinding's published pricing 0.2.0 as the recorded SPHERE serves it;
-* ``tomatometer-email.facts.json``: the facts of revision 2 of ``tomatometer-email``, which a SPHERE import
-  generated (``sphere/apply``): value sources, properties and provenance;
-* ``tomatometer-email.version.json``: version 1.0.0 of a composition ``tomatometer`` derived from that revision,
-  whose binding carries the generated e-mail plan's ``from`` and whose offering (``sphere/tomatometer``) was read
-  when it was sealed, and ``tomatometer-email.upstream.json``, its upstream view (``getCompositionUpstream``).
+* ``templates.json`` and ``template.tomatometer.json``: ``listCompositionTemplates`` and
+  ``getCompositionTemplate`` of the TomatoMeter template, as a visitor reads them;
+* ``tomatometer-email.facts.json``: the facts of revision 3 of ``tomatometer-email``, made by the TomatoMeter
+  composition template (``createCompositionFromTemplate``: the base, then the e-mail and the combined SPHERE recipes):
+  value sources, properties and provenance;
+* ``tomatometer-email.version.json``: version 1.0.0 of the composition ``tomatometer`` the template derives from that
+  revision (Brevo PROFESSIONAL and Dropbox PLUS, pinned by ``from``; ZenQuotes), whose offering
+  (``sphere/tomatometer``) was read when it was sealed, and ``tomatometer-email.upstream.json``, its upstream view
+  (``getCompositionUpstream``).
 
 The packages are ``simple-seq`` (``examples/demo/01_simple_seq``), ``fms`` (``13_fms``: an
 exclusive choice and a local task), ``json-complete`` (``16_json_complete``: a parallel block
@@ -56,8 +60,8 @@ gateway's own answers about SPHERE for the frontend's mocks, read with the recor
 (``searchSpherePricings``), ``manifest.<name>.json`` (``getSpherePricing``) and ``version.<name>.json``
 (``getSpherePricingVersion``) for TomatoMeter, set-B Mailgun and Dropbox (``…ce9c1``); and the two SPHERE import
 journeys, ``expand.<name>.json`` (``expandSphereRecipe``), ``apply.<name>.json`` (``applySphereRecipe``) and
-``recipe.<name>.json`` (``getSphereRecipe``) for ``tomatometer-email`` (the e-mail recipe on the TomatoMeter base
-problem, J2) and ``storage`` (a new problem from Dropbox, J1).
+``recipe.<name>.json`` (``getSphereRecipe``) for ``tomatometer-email`` (the e-mail recipe on revision 1 of the
+template's problem, J2, whose apply answers revision 2 that holds the same package) and ``storage`` (a new problem from Dropbox, J1).
 
     python tools/dump_frontend_fixtures.py               # rewrite frontend/src/test/fixtures/{core,sphere}/
     python tools/dump_frontend_fixtures.py --out DIR     # write DIR/core/ and DIR/sphere/ instead
@@ -297,6 +301,10 @@ async def _bodies(work: Path) -> tuple[dict[str, Any], dict[str, Any]]:
                 bodies.update(imported_core)
                 sphere.update(imported_sphere)
                 bodies["plans-pricing.json"] = _ok(await client.get("/v1/plans/pricing"), 200).json()
+                # The composition template catalog, as a visitor reads it, and the TomatoMeter template.
+                bodies["templates.json"] = _ok(await client.get("/v1/compositions/templates"), 200).json()
+                bodies["template.tomatometer.json"] = _ok(
+                    await client.get("/v1/compositions/templates/tomatometer"), 200).json()
     finally:
         app.dependency_overrides.clear()
         space_client.set_gate(None)
@@ -307,26 +315,25 @@ async def _bodies(work: Path) -> tuple[dict[str, Any], dict[str, Any]]:
 
 
 async def _sphere_imports(client, headers: dict[str, str], session) -> tuple[dict[str, Any], dict[str, Any]]:
-    """The two SPHERE import journeys through the API: ``core/``'s generated facts and ``sphere/``'s bodies.
+    """TomatoMeter through its composition template, the SPHERE import journeys, and the operation of it.
 
-    J2 uploads the TomatoMeter base problem, previews and applies ``examples/tomatometer/email-recipe.json`` on it
-    (revision 2); J1 previews and applies ``storage-recipe.json`` as a new problem ``storage``.
+    ``from-template`` makes ``tomatometer-email`` (revision 1 the base, 2 the e-mail recipe, 3 the combined recipe)
+    and ``tomatometer`` 1.0.0 (Brevo PROFESSIONAL, Dropbox PLUS, ZenQuotes, offering ``sphere/tomatometer``): the
+    path the lab seed takes. J2's bodies are the e-mail recipe previewed on revision 1 and applied (revision 2 holds
+    its package, so the apply answers that revision) and read back from revision 2; J1 previews and applies
+    ``storage-recipe.json`` as a new problem ``storage``.
     """
-    from dump_sphere_goldens import RUNNER_BASE_BUNDLE, bundle_files
-
-    from openbinding_gateway.integrations import packages
-
     examples = REPO_ROOT / "examples" / "tomatometer"
     core: dict[str, Any] = {}
     sphere: dict[str, Any] = {}
-    base = packages.zip_files(bundle_files(REPO_ROOT / RUNNER_BASE_BUNDLE))
-    _ok(await client.post("/v1/organizations/fixtures/problems", params={"slug": "tomatometer-email"}, content=base,
-                          headers={**headers, **ZIP}), 201)
+    made = _ok(await client.post("/v1/organizations/fixtures/compositions/from-template",
+                                 json={"template": "tomatometer"}, headers=headers), 201).json()
+    email = json.loads((examples / "email-recipe.json").read_text())
     journeys = (
-        ("tomatometer-email", json.loads((examples / "email-recipe.json").read_text()), {"revision": 1}),
-        ("storage", json.loads((examples / "storage-recipe.json").read_text()), None),
+        ("tomatometer-email", email, {"revision": 1}, 200),
+        ("storage", json.loads((examples / "storage-recipe.json").read_text()), None, 201),
     )
-    for name, recipe, base_ref in journeys:
+    for name, recipe, base_ref, applied_status in journeys:
         url = f"/v1/organizations/fixtures/problems/{name}/sphere"
         preview = _ok(await client.post(f"{url}/expand", json={"recipe": recipe, "base": base_ref}, headers=headers), 200).json()
         sphere[f"expand.{name}.json"] = preview
@@ -334,46 +341,39 @@ async def _sphere_imports(client, headers: dict[str, str], session) -> tuple[dic
             f"{url}/apply", json={"recipe": recipe, "base": base_ref, "expect": {"packageDigest": preview["packageDigest"]}},
             headers=headers,
         )
-        sphere[f"apply.{name}.json"] = _ok(applied, 201).json()
-        sphere[f"recipe.{name}.json"] = _ok(await client.get(f"{url}/recipe", headers=headers), 200).json()
-    revision = sphere["apply.tomatometer-email.json"]["revision"]["id"]
-    compilation = sphere["apply.tomatometer-email.json"]["compilation"]["id"]
-    facts = await client.get(
-        f"/v1/organizations/fixtures/problems/tomatometer-email/revisions/{revision}/compilations/{compilation}/facts",
-        headers=headers,
-    )
+        sphere[f"apply.{name}.json"] = _ok(applied, applied_status).json()
+        params = {"revision": 2} if name == "tomatometer-email" else None
+        sphere[f"recipe.{name}.json"] = _ok(await client.get(f"{url}/recipe", params=params, headers=headers), 200).json()
+    problems = "/v1/organizations/fixtures/problems/tomatometer-email/revisions"
+    latest = made["problem"]["revision"]
+    compilation = _ok(await client.get(f"{problems}/{latest}/compilation", headers=headers), 200).json()
+    facts = await client.get(f"{problems}/{compilation['revision_id']}/compilations/{compilation['id']}/facts",
+                             headers=headers)
     core["tomatometer-email.facts.json"] = _ok(facts, 200).json()
-    # A composition derived from revision 2: its binding carries the e-mail plan's ``from``.
     compositions = "/v1/organizations/fixtures/compositions"
-    _ok(await client.post(compositions, json={"slug": "tomatometer", "name": "TomatoMeter"}, headers=headers), 201)
-    binding = {
-        "login": "auth.builtin.local", "dailySummary": "email.mailgun.foundation",
-        "export": "storage.local.disk", "quotes": "quotes.zenquotes.free",
-    }
-    _ok(await client.post(f"{compositions}/tomatometer/derive", headers=headers,
-                          json={"revision": "tomatometer-email@2", "binding": binding, "version": "1.0.0",
-                                "offering": {"sphere": "sphere/tomatometer"}}), 201)
     version = await client.get(f"{compositions}/tomatometer/versions/1.0.0", params={"include": "document"}, headers=headers)
     core["tomatometer-email.version.json"] = _ok(version, 200).json()
     upstream = await client.get(f"{compositions}/tomatometer/upstream", headers=headers)
     core["tomatometer-email.upstream.json"] = _ok(upstream, 200).json()
+    template = json.loads((REPO_ROOT / "examples" / "templates" / "tomatometer.json").read_text())
     core.update(await _operation(
-        client, headers, session, binding, recipe=json.loads((examples / "email-recipe.json").read_text()),
+        client, headers, session, template["composition"]["binding"], revision=latest,
+        recipe=json.loads((examples / "tomatometer-recipe.json").read_text()),
     ))
     return core, sphere
 
 
 async def _operation(
-    client, headers: dict[str, str], session, binding: dict[str, str], *, recipe: dict[str, Any],
+    client, headers: dict[str, str], session, binding: dict[str, str], *, revision: int, recipe: dict[str, Any],
 ) -> dict[str, Any]:
     """F4's operation of ``tomatometer``: a second version, two environments, three adoptions, a feed key, the feed,
     margins, check reports, what-if evaluations and the versions derived from a run.
 
-    1.1.0 binds Resend instead of Mailgun; ``production`` (an operator, ADMIN adopts, 1000 expected users, one feed
+    1.1.0 binds Resend PRO instead of Brevo PROFESSIONAL, from the same revision; ``production`` (an operator, ADMIN adopts, 1000 expected users, one feed
     key with the fixed ``FIXTURE_FEED_KEY``) adopts 1.0.0, 1.1.0 and 1.0.0 again; ``staging`` (MEMBER adopts) is
-    empty. ``tomatometer.check.production.newer.json`` is the same check over a scripted Mailgun manifest that names
+    empty. ``tomatometer.check.production.newer.json`` is the same check over a scripted Brevo manifest that names
     a newer version: the only fixture with ``newer``. ``tomatometer.evaluate.revision.json`` evaluates against a
-    demand variant, revision 3 (the e-mail recipe with twice the demand).
+    demand variant, revision 4 (the combined recipe with twice the demand).
     """
     import copy
 
@@ -383,7 +383,7 @@ async def _operation(
     compositions = "/v1/organizations/fixtures/compositions/tomatometer"
     environments = f"{compositions}/environments"
     _ok(await client.post(f"{compositions}/derive", headers=headers,
-                          json={"revision": "tomatometer-email@2", "binding": {**binding, "dailySummary": "email.resend.pro"},
+                          json={"revision": f"tomatometer-email@{revision}", "binding": {**binding, "dailySummary": "email.resend.pro"},
                                 "version": "1.1.0", "offering": {"sphere": "sphere/tomatometer"}}), 201)
     me = _ok(await client.get("/v1/users/me", headers=headers), 200).json()["username"]
     _ok(await client.post(environments, headers=headers, json={
@@ -393,7 +393,7 @@ async def _operation(
     _ok(await client.post(environments, headers=headers, json={
         "slug": "staging", "name": "Staging", "adoptRole": "MEMBER",
     }), 201)
-    for label, note in (("1.0.0", "Go live"), ("1.1.0", "Switch to Resend"), ("1.0.0", "Back to Mailgun")):
+    for label, note in (("1.0.0", "Go live"), ("1.1.0", "Switch to Resend"), ("1.0.0", "Back to Brevo")):
         tag = _ok(await client.get(f"{environments}/production", headers=headers), 200).headers["ETag"]
         _ok(await client.post(f"{environments}/production/adopt", headers={**headers, "If-Match": tag},
                               json={"version": label, "note": note}), 200)
@@ -426,13 +426,13 @@ async def _operation(
     _fresh_pricing_source()
     out["tomatometer.check.production.json"] = _ok(
         await client.post(f"{environments}/production/check", headers=headers), 200).json()
-    # The recorded manifest route of set-B Mailgun (the family the e-mail plan was read from).
-    mailgun = next(route for route in _RECORDED.routes if route.endswith("/public/pricings/6ade364540e55445692b0eda"))
-    manifest = json.loads((_RECORDED.root / _RECORDED.routes[mailgun]["file"]).read_text())
+    # The recorded manifest route of set-B Brevo (the family the e-mail plan was read from).
+    brevo = next(route for route in _RECORDED.routes if route.endswith("/public/pricings/6ade2d4440e55445692b07f1"))
+    manifest = json.loads((_RECORDED.root / _RECORDED.routes[brevo]["file"]).read_text())
     newer = {"versionId": "6ffffffffffffffffffffff1", "version": "2027-01", "createdAt": "2027-01-15T00:00:00.000Z",
              "contentHash": "0" * 64}
     scripted = {**manifest, "latestVersionId": newer["versionId"], "versions": [newer, *manifest["versions"]]}
-    _RECORDED.serve(mailgun, json.dumps(scripted).encode(), {"content-type": "application/json"})
+    _RECORDED.serve(brevo, json.dumps(scripted).encode(), {"content-type": "application/json"})
     _fresh_pricing_source()
     out["tomatometer.check.production.newer.json"] = _ok(
         await client.post(f"{environments}/production/check", headers=headers), 200).json()
@@ -447,12 +447,13 @@ async def _operation(
     doubled["demand"]["monthlyEmails"]["value"] = 60000
     doubled["demand"]["dailyEmails"]["value"] = 2000
     url = "/v1/organizations/fixtures/problems/tomatometer-email/sphere"
-    preview = _ok(await client.post(f"{url}/expand", json={"recipe": doubled, "base": {"revision": 2}}, headers=headers), 200).json()
+    base = {"revision": revision}
+    preview = _ok(await client.post(f"{url}/expand", json={"recipe": doubled, "base": base}, headers=headers), 200).json()
     _ok(await client.post(f"{url}/apply", headers=headers, json={
-        "recipe": doubled, "base": {"revision": 2}, "expect": {"packageDigest": preview["packageDigest"]}}), 201)
+        "recipe": doubled, "base": base, "expect": {"packageDigest": preview["packageDigest"]}}), 201)
     out["tomatometer.evaluate.revision.json"] = _ok(await client.post(
         f"{compositions}/evaluate", headers=headers,
-        json={"version": "1.1.0", "revision": 3, "binding": {"dailySummary": "email.brevo.professional"},
+        json={"version": "1.1.0", "revision": revision + 1, "binding": {"dailySummary": "email.brevo.professional"},
               "users": 1000}), 200).json()
     out["tomatometer.runs.derived.json"] = await _derived_from_a_run(client, headers, session)
     return out

@@ -55,18 +55,22 @@ describe('providerGroups', () => {
   });
 
   it('falls back to the SPHERE pricing a candidate comes from, then to an unknown provider', () => {
-    const brevo = { sphere: 'brevo/brevo', version: 'v1', plan: 'STARTER' };
+    const brevo = {
+      sphere: 'danruilop1/brevo',
+      version: '6ade2d444b2b5b01c587d80d',
+      plan: 'STARTER',
+    };
     const groups = providerGroups([
       task('signIn', { local: true, candidate: null }),
       task('notify', { from: brevo }),
       task('archive'),
-      task('digest', { from: { ...brevo, plan: 'BUSINESS' } }),
+      task('digest', { from: { ...brevo, plan: 'PROFESSIONAL' } }),
       task('mirror', { from: { ...brevo, registry: 'lab' } }),
       task('idle', { candidate: null }),
     ]);
     expect(groups.map(item => [item.kind, item.name, item.tasks.map(entry => entry.id)])).toEqual([
-      ['pricing', 'brevo/brevo', ['notify', 'digest']],
-      ['pricing', 'brevo/brevo on lab', ['mirror']],
+      ['pricing', 'danruilop1/brevo', ['notify', 'digest']],
+      ['pricing', 'danruilop1/brevo on lab', ['mirror']],
       ['unknown', '', ['archive', 'idle']],
       ['in-house', '', ['signIn']],
     ]);
@@ -76,7 +80,7 @@ describe('providerGroups', () => {
     const groups = providerGroups([
       task('notify', {
         provider: 'brevo',
-        from: { sphere: 'brevo/brevo', version: 'v1', plan: 'STARTER' },
+        from: { sphere: 'danruilop1/brevo', version: '6ade2d444b2b5b01c587d80d', plan: 'STARTER' },
       }),
     ]);
     expect(groups).toMatchObject([{ kind: 'provider', name: 'brevo' }]);
@@ -104,7 +108,12 @@ describe('ProviderMap', () => {
       <ProviderMap
         tasks={[
           task('notify', {
-            from: { sphere: 'brevo/brevo', version: '665f1c2e', plan: 'STARTER', addons: ['SMS'] },
+            from: {
+              sphere: 'danruilop1/brevo',
+              version: '6ade2d444b2b5b01c587d80d',
+              plan: 'STARTER',
+              addons: ['SMS'],
+            },
           }),
           task('pick', {
             provider: 'acme',
@@ -116,8 +125,8 @@ describe('ProviderMap', () => {
       />
     );
     expect(screen.getByText('The candidates come from 2 SPHERE pricings.')).toBeInTheDocument();
-    expect(group('brevo/brevo')).toHaveTextContent('plan STARTER · add-ons SMS');
-    expect(group('brevo/brevo')).not.toHaveTextContent('665f1c2e');
+    expect(group('danruilop1/brevo')).toHaveTextContent('plan STARTER · add-ons SMS');
+    expect(group('danruilop1/brevo')).not.toHaveTextContent('6ade2d44');
     expect(group('acme')).toHaveTextContent('acme/picking on lab · plan Pro');
     expect(
       screen.getByRole('heading', { level: 3, name: 'Provider not known 1 task' })

@@ -87,6 +87,9 @@ WORK_ROUTES: dict[tuple[str, str], WorkClass] = {
     ("GET", "/v1/organizations/{org}/compositions/{composition}/neighborhood"): "evaluate",
     # A derivation evaluates the binding it writes the document of, and seals it as a seal does.
     ("POST", "/v1/organizations/{org}/compositions/{composition}/derive"): "evaluate",
+    # A template's instantiation compiles its problem, generates and compiles a revision per SPHERE recipe, and
+    # derives and seals the first version: one request of the costliest class it does.
+    ("POST", "/v1/organizations/{org}/compositions/from-template"): "compile",
     # Connecting to SPHERE asks SPHERE who the key is, and the discovery routes read SPHERE for the caller: one
     # outbound read (a few for a version's first snapshot) per request.
     ("PUT", "/v1/organizations/{org}/connections/sphere"): "read",
@@ -126,6 +129,9 @@ ANONYMOUS_READ_ROUTES: frozenset[tuple[str, str]] = frozenset({
     # A stored upstream pricing of an organization, and its bytes: public ones for anybody who reads it.
     ("GET", "/v1/organizations/{org}/pricing-snapshots/{snapshot}"),
     ("GET", "/v1/organizations/{org}/pricing-snapshots/{snapshot}/yaml"),
+    # The composition templates: repository files only.
+    ("GET", "/v1/compositions/templates"),
+    ("GET", "/v1/compositions/templates/{template}"),
 })
 
 #: The routes that count against a limiter of their own instead of a work class: a composition environment's

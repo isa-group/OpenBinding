@@ -2,28 +2,28 @@
   "compositions": [
     {
       "archived": false,
-      "created_at": "2026-01-01T00:00:23Z",
+      "created_at": "2026-01-01T00:00:24Z",
       "created_by_id": "00000000-0000-4000-8000-000000000003",
       "derivedVersions": [
         {
-          "id": "00000000-0000-4000-8000-000000000042",
+          "id": "00000000-0000-4000-8000-000000000043",
           "inEffect": [],
           "label": "2.0.0",
-          "sealedAt": "2026-01-01T00:00:24Z"
+          "sealedAt": "2026-01-01T00:00:25Z"
         }
       ],
       "description": "",
-      "id": "00000000-0000-4000-8000-000000000043",
+      "id": "00000000-0000-4000-8000-000000000044",
       "kind": "application",
       "latest_version": {
-        "created_at": "2026-01-01T00:00:24Z",
+        "created_at": "2026-01-01T00:00:25Z",
         "figures": {
           "cost": null,
           "cost_unit": null,
           "providers": 3,
           "tasks": 3
         },
-        "id": "00000000-0000-4000-8000-000000000042",
+        "id": "00000000-0000-4000-8000-000000000043",
         "label": "2.0.0",
         "ordinal": 3,
         "values_status": "verified",
@@ -31,12 +31,12 @@
       },
       "name": "simple-seq",
       "organization": {
-        "id": "00000000-0000-4000-8000-000000000044",
+        "id": "00000000-0000-4000-8000-000000000045",
         "name": "Fixtures",
         "slug": "fixtures"
       },
       "slug": "simple-seq",
-      "updated_at": "2026-01-01T00:00:25Z",
+      "updated_at": "2026-01-01T00:00:26Z",
       "version_count": 3,
       "visibility": "private"
     }

@@ -1,7 +1,7 @@
 {
   "cache-control": "private, no-cache",
   "content-type": "application/yaml; charset=utf-8",
-  "etag": "\"sha256-7974798d9e27731cb07f50f9fb0139ea06136554d1c1ee77a74f17ff04cd95ce\"",
+  "etag": "\"sha256-f8877f33423f7fa96418c4a7af8d6388696c0275e3c9b53482610b0c4b63172d\"",
   "openbinding-adoption": "3",
   "openbinding-composition-version": "1.0.0",
   "vary": "Authorization, X-API-Key",

@@ -61,6 +61,8 @@ from .modules.compositions.adapters.public_routes import me_router as own_compos
 from .modules.compositions.adapters.public_routes import router as public_compositions_router
 from .modules.compositions.adapters.routes import router as compositions_router
 from .modules.compositions.adapters.environment_routes import router as composition_environments_router
+from .modules.compositions.adapters.template_routes import public_router as composition_templates_router
+from .modules.compositions.adapters.template_routes import router as composition_from_template_router
 from .modules.execution.adapters.preset_routes import router as run_presets_router
 from .modules.plans.adapters.routes import public_router as plans_public_router
 from .modules.plans.adapters.routes import router as plans_router
@@ -509,8 +511,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(problems_router)
     app.include_router(compositions_router)
     app.include_router(composition_environments_router)
+    app.include_router(composition_from_template_router)
     app.include_router(bim_router)
     app.include_router(composition_language_router)
+    app.include_router(composition_templates_router)
     app.include_router(public_compositions_router)
     app.include_router(own_compositions_router)
     app.include_router(composition_permalink_router)
@@ -1314,7 +1318,9 @@ def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_o
                 "schema": {"type": "integer", "minimum": 1},
             }
         }
-        refused["content"] = {JSON_MEDIA_TYPE: {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}}
+        if not any(path.startswith(prefix) for prefix in _PROBLEM_JSON_PREFIXES):
+            # The composition template catalog answers as the other `/v1/compositions/` routes do.
+            refused["content"] = {JSON_MEDIA_TYPE: {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}}
         operation = paths[path][method.lower()]
         declared = operation.setdefault("responses", {}).get("429")
         if declared and declared.get("description"):

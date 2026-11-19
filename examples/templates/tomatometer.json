@@ -1,0 +1,33 @@
+{
+  "templateVersion": "1.0",
+  "id": "tomatometer",
+  "title": "TomatoMeter composite",
+  "summary": "TomatoMeter's back end: sign in, send the daily summary e-mail and export the data in parallel, then fetch a quote. The e-mail and storage providers are real SPHERE plans; the offering is TomatoMeter's own pricing in SPHERE.",
+  "kind": "application",
+  "problem": {
+    "slug": "tomatometer-email",
+    "name": "TomatoMeter e-mail",
+    "description": "TomatoMeter's back end; revision 2 adds the e-mail providers' plans from SPHERE, revision 3 Dropbox for the export and the built-in quotes.",
+    "bundle": "examples/tomatometer/tomatometer-email.base.json",
+    "recipes": [
+      "examples/tomatometer/email-recipe.json",
+      "examples/tomatometer/tomatometer-recipe.json"
+    ]
+  },
+  "composition": {
+    "slug": "tomatometer",
+    "name": "TomatoMeter",
+    "description": "TomatoMeter's back end with its providers chosen among real SPHERE pricings; its offering is TomatoMeter's own pricing in SPHERE.",
+    "label": "1.0.0",
+    "workflow": {"seq": ["login", {"and": ["dailySummary", "export"]}, "quotes"]},
+    "binding": {
+      "login": "auth.builtin.local",
+      "dailySummary": "email.brevo.professional",
+      "export": "storage.dropbox.plus",
+      "quotes": "quotes.zenquotes.free"
+    },
+    "offering": {"sphere": "sphere/tomatometer"}
+  },
+  "operation": {"expectedUsers": 1000},
+  "requires": ["sphere"]
+}

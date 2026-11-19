@@ -21,8 +21,9 @@ IMAGE_USER = 10001
 ARTIFACT_DIR = "/var/lib/openbinding/artifacts"
 SHARED_IMAGE = "openbinding-lab-gateway:${DEMO_LAB_PORT:-18100}"
 MAX_MIB = 4096
-# The sum of every mem_limit of compose.lab.json, seed included (docs/DEMO.md states it): 3456 before e2e (576).
-EXPECTED_MIB = 3776
+# The sum of every mem_limit of compose.lab.json, seed included (docs/DEMO.md states it): 3776 before Mailpit (64)
+# and the feed consumer (96), 3456 before e2e (576).
+EXPECTED_MIB = 3936
 
 # A reference to a variable the supervisor supplies: nothing else may stand where a secret goes.
 ALLOWED_REFERENCE = re.compile(r"\$\{(?:DEMO|SPACE|SPHERE)_[A-Z0-9_]+\}")
@@ -189,7 +190,9 @@ def test_code_stays_readable_and_curl_stays_for_the_healthcheck(instructions: li
     assert "chmod -R a+rX /app" in text
     for source in ("alembic/", "schemas/", "examples/", "openbinding-gateway/tools/"):
         assert any(line.startswith("COPY ") and source in line for line in instructions), source
-    assert not re.search(r"chmod\b[^&]*\b(?:700|o-r|go-r|go-rwx|o-rwx)\b", text)
+    # The one private directory: the lab's hand-off directory holds a feed key, read by the image's user alone.
+    assert re.findall(r"chmod 700 (\S+)", text) == ["/handoff"]
+    assert not re.search(r"chmod\b[^&]*\b(?:700|o-r|go-r|go-rwx|o-rwx)\b", text.replace("chmod 700 /handoff", ""))
 
 
 def test_the_entrypoint_needs_no_privileges() -> None:
@@ -209,19 +212,22 @@ def test_the_entrypoint_needs_no_privileges() -> None:
 
 
 def _gateway_image_services(services: dict) -> dict:
-    """The services that run the application: gateway, worker and seed."""
+    """The services that run the application (gateway, worker and seed) and the lab's feed consumer."""
     found = {
         name: service
         for name, service in services.items()
         if service.get("image") == SHARED_IMAGE
         or service.get("build", {}).get("dockerfile") == "openbinding-gateway/Dockerfile"
     }
-    assert set(found) == {"gateway", "worker", "seed"}, sorted(found)
+    assert set(found) == {"gateway", "worker", "seed", "feed-consumer"}, sorted(found)
     return found
 
 
 def test_the_artifact_volume_is_the_one_the_image_directory_seeds(services: dict) -> None:
-    for name, service in _gateway_image_services(services).items():
+    applications = {name: s for name, s in _gateway_image_services(services).items() if name != "feed-consumer"}
+    # The feed consumer reads only the hand-off volume: it stores nothing and touches no database.
+    assert not [m for m in services["feed-consumer"]["volumes"] if m.get("target") == ARTIFACT_DIR]
+    for name, service in applications.items():
         mounts = [m for m in service["volumes"] if m.get("target") == ARTIFACT_DIR]
         assert mounts and all(m["type"] == "volume" and m["source"] == "lab-artifacts-2" for m in mounts), name
         assert service["environment"]["ARTIFACT_ROOT"] == ARTIFACT_DIR, name

@@ -1,0 +1,2564 @@
+[
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.brevo.free",
+    "detail": {
+      "docUrl": "https://www.brevo.com/legal/termsofuse/",
+      "feature": "sla",
+      "map": {
+        "false": 0.99,
+        "true": 0.9995
+      },
+      "raw": false
+    },
+    "plan": "FREE",
+    "pricingId": "6ade2d4440e55445692b07f1",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "guarantee",
+    "sphereRef": "danruilop1/brevo",
+    "target": "availability",
+    "targetKind": "feature",
+    "value": 0.99,
+    "versionId": "6ade2d444b2b5b01c587d80d"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.brevo.free",
+    "detail": {
+      "key": "brevo"
+    },
+    "plan": "FREE",
+    "pricingId": "6ade2d4440e55445692b07f1",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "manual",
+    "sphereRef": "danruilop1/brevo",
+    "target": "latency",
+    "targetKind": "feature",
+    "value": 300,
+    "versionId": "6ade2d444b2b5b01c587d80d"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.brevo.free",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "FREE 0 x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 0,
+          "id": "FREE",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "account/month",
+          "unitAmount": 0
+        }
+      ],
+      "seats": 1
+    },
+    "plan": "FREE",
+    "pricingId": "6ade2d4440e55445692b07f1",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "danruilop1/brevo",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 0,
+    "versionId": "6ade2d444b2b5b01c587d80d"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.brevo.free",
+    "detail": {
+      "name": "emailsPerDay",
+      "period": {
+        "unit": "DAY",
+        "value": 1
+      },
+      "raw": 300,
+      "unit": "email",
+      "unlimited": false
+    },
+    "plan": "FREE",
+    "pricingId": "6ade2d4440e55445692b07f1",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danruilop1/brevo",
+    "target": "emailsPerDay",
+    "targetKind": "property",
+    "value": 300,
+    "versionId": "6ade2d444b2b5b01c587d80d"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.brevo.free",
+    "detail": {
+      "name": "emailsPerMonth",
+      "period": {
+        "unit": "MONTH",
+        "value": 1
+      },
+      "raw": {
+        "unlimited": true
+      },
+      "unit": "email",
+      "unlimited": true
+    },
+    "plan": "FREE",
+    "pricingId": "6ade2d4440e55445692b07f1",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danruilop1/brevo",
+    "target": "emailsPerMonth",
+    "targetKind": "property",
+    "value": 100000000,
+    "versionId": "6ade2d444b2b5b01c587d80d"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.brevo.professional",
+    "detail": {
+      "docUrl": "https://www.brevo.com/legal/termsofuse/",
+      "feature": "sla",
+      "map": {
+        "false": 0.99,
+        "true": 0.9995
+      },
+      "raw": false
+    },
+    "plan": "PROFESSIONAL",
+    "pricingId": "6ade2d4440e55445692b07f1",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "guarantee",
+    "sphereRef": "danruilop1/brevo",
+    "target": "availability",
+    "targetKind": "feature",
+    "value": 0.99,
+    "versionId": "6ade2d444b2b5b01c587d80d"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.brevo.professional",
+    "detail": {
+      "key": "brevo"
+    },
+    "plan": "PROFESSIONAL",
+    "pricingId": "6ade2d4440e55445692b07f1",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "manual",
+    "sphereRef": "danruilop1/brevo",
+    "target": "latency",
+    "targetKind": "feature",
+    "value": 300,
+    "versionId": "6ade2d444b2b5b01c587d80d"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.brevo.professional",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "PROFESSIONAL 499 x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 499,
+          "expression": "#professionalPrices[String(#professionalVolume)]",
+          "id": "PROFESSIONAL",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "account/month",
+          "unitAmount": 499,
+          "variables": {
+            "professionalPrices": {
+              "1000000": 999,
+              "10000000": 4543,
+              "150000": 499,
+              "2000000": 1479,
+              "250000": 599,
+              "3000000": 1863,
+              "4000000": 2170,
+              "500000": 699,
+              "5000000": 2447,
+              "6000000": 2866,
+              "7000000": 3285,
+              "8000000": 3705
+            },
+            "professionalVolume": 150000
+          }
+        }
+      ],
+      "seats": 1
+    },
+    "plan": "PROFESSIONAL",
+    "pricingId": "6ade2d4440e55445692b07f1",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "danruilop1/brevo",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 499,
+    "versionId": "6ade2d444b2b5b01c587d80d"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.brevo.professional",
+    "detail": {
+      "name": "emailsPerDay",
+      "period": {
+        "unit": "DAY",
+        "value": 1
+      },
+      "raw": {
+        "unlimited": true
+      },
+      "unit": "email",
+      "unlimited": true
+    },
+    "plan": "PROFESSIONAL",
+    "pricingId": "6ade2d4440e55445692b07f1",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danruilop1/brevo",
+    "target": "emailsPerDay",
+    "targetKind": "property",
+    "value": 100000000,
+    "versionId": "6ade2d444b2b5b01c587d80d"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.brevo.professional",
+    "detail": {
+      "name": "emailsPerMonth",
+      "period": {
+        "unit": "MONTH",
+        "value": 1
+      },
+      "raw": 150000,
+      "unit": "email",
+      "unlimited": false
+    },
+    "plan": "PROFESSIONAL",
+    "pricingId": "6ade2d4440e55445692b07f1",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danruilop1/brevo",
+    "target": "emailsPerMonth",
+    "targetKind": "property",
+    "value": 150000,
+    "versionId": "6ade2d444b2b5b01c587d80d"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.brevo.standard",
+    "detail": {
+      "docUrl": "https://www.brevo.com/legal/termsofuse/",
+      "feature": "sla",
+      "map": {
+        "false": 0.99,
+        "true": 0.9995
+      },
+      "raw": false
+    },
+    "plan": "STANDARD",
+    "pricingId": "6ade2d4440e55445692b07f1",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "guarantee",
+    "sphereRef": "danruilop1/brevo",
+    "target": "availability",
+    "targetKind": "feature",
+    "value": 0.99,
+    "versionId": "6ade2d444b2b5b01c587d80d"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.brevo.standard",
+    "detail": {
+      "key": "brevo"
+    },
+    "plan": "STANDARD",
+    "pricingId": "6ade2d4440e55445692b07f1",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "manual",
+    "sphereRef": "danruilop1/brevo",
+    "target": "latency",
+    "targetKind": "feature",
+    "value": 300,
+    "versionId": "6ade2d444b2b5b01c587d80d"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.brevo.standard",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "STANDARD 18 x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 18,
+          "expression": "#standardPrices[String(#standardVolume)]",
+          "id": "STANDARD",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "account/month",
+          "unitAmount": 18,
+          "variables": {
+            "standardPrices": {
+              "10000": 35,
+              "100000": 139,
+              "15000": 49,
+              "150000": 179,
+              "20000": 69,
+              "250000": 249,
+              "30000": 79,
+              "350000": 309,
+              "40000": 89,
+              "5000": 18,
+              "50000": 97,
+              "500000": 429,
+              "60000": 104,
+              "80000": 119
+            },
+            "standardVolume": 5000
+          }
+        }
+      ],
+      "seats": 1
+    },
+    "plan": "STANDARD",
+    "pricingId": "6ade2d4440e55445692b07f1",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "danruilop1/brevo",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 18,
+    "versionId": "6ade2d444b2b5b01c587d80d"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.brevo.standard",
+    "detail": {
+      "name": "emailsPerDay",
+      "period": {
+        "unit": "DAY",
+        "value": 1
+      },
+      "raw": {
+        "unlimited": true
+      },
+      "unit": "email",
+      "unlimited": true
+    },
+    "plan": "STANDARD",
+    "pricingId": "6ade2d4440e55445692b07f1",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danruilop1/brevo",
+    "target": "emailsPerDay",
+    "targetKind": "property",
+    "value": 100000000,
+    "versionId": "6ade2d444b2b5b01c587d80d"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.brevo.standard",
+    "detail": {
+      "name": "emailsPerMonth",
+      "period": {
+        "unit": "MONTH",
+        "value": 1
+      },
+      "raw": 5000,
+      "unit": "email",
+      "unlimited": false
+    },
+    "plan": "STANDARD",
+    "pricingId": "6ade2d4440e55445692b07f1",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danruilop1/brevo",
+    "target": "emailsPerMonth",
+    "targetKind": "property",
+    "value": 5000,
+    "versionId": "6ade2d444b2b5b01c587d80d"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.brevo.starter",
+    "detail": {
+      "docUrl": "https://www.brevo.com/legal/termsofuse/",
+      "feature": "sla",
+      "map": {
+        "false": 0.99,
+        "true": 0.9995
+      },
+      "raw": false
+    },
+    "plan": "STARTER",
+    "pricingId": "6ade2d4440e55445692b07f1",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "guarantee",
+    "sphereRef": "danruilop1/brevo",
+    "target": "availability",
+    "targetKind": "feature",
+    "value": 0.99,
+    "versionId": "6ade2d444b2b5b01c587d80d"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.brevo.starter",
+    "detail": {
+      "key": "brevo"
+    },
+    "plan": "STARTER",
+    "pricingId": "6ade2d4440e55445692b07f1",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "manual",
+    "sphereRef": "danruilop1/brevo",
+    "target": "latency",
+    "targetKind": "feature",
+    "value": 300,
+    "versionId": "6ade2d444b2b5b01c587d80d"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.brevo.starter",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "STARTER 9 x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 9,
+          "expression": "#starterPrices[String(#starterVolume)]",
+          "id": "STARTER",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "account/month",
+          "unitAmount": 9,
+          "variables": {
+            "starterPrices": {
+              "10000": 17,
+              "100000": 82,
+              "15000": 25,
+              "20000": 32,
+              "30000": 39,
+              "40000": 46,
+              "5000": 9,
+              "50000": 56,
+              "60000": 65,
+              "80000": 74
+            },
+            "starterVolume": 5000
+          }
+        }
+      ],
+      "seats": 1
+    },
+    "plan": "STARTER",
+    "pricingId": "6ade2d4440e55445692b07f1",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "danruilop1/brevo",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 9,
+    "versionId": "6ade2d444b2b5b01c587d80d"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.brevo.starter",
+    "detail": {
+      "name": "emailsPerDay",
+      "period": {
+        "unit": "DAY",
+        "value": 1
+      },
+      "raw": {
+        "unlimited": true
+      },
+      "unit": "email",
+      "unlimited": true
+    },
+    "plan": "STARTER",
+    "pricingId": "6ade2d4440e55445692b07f1",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danruilop1/brevo",
+    "target": "emailsPerDay",
+    "targetKind": "property",
+    "value": 100000000,
+    "versionId": "6ade2d444b2b5b01c587d80d"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.brevo.starter",
+    "detail": {
+      "name": "emailsPerMonth",
+      "period": {
+        "unit": "MONTH",
+        "value": 1
+      },
+      "raw": 5000,
+      "unit": "email",
+      "unlimited": false
+    },
+    "plan": "STARTER",
+    "pricingId": "6ade2d4440e55445692b07f1",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danruilop1/brevo",
+    "target": "emailsPerMonth",
+    "targetKind": "property",
+    "value": 5000,
+    "versionId": "6ade2d444b2b5b01c587d80d"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.mailgun.basic",
+    "detail": {
+      "docUrl": "https://www.mailgun.com/legal/terms/",
+      "feature": "guaranteedUptimeSla",
+      "map": {
+        "false": 0.99,
+        "true": 0.9995
+      },
+      "raw": false
+    },
+    "plan": "BASIC",
+    "pricingId": "6ade364540e55445692b0eda",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "guarantee",
+    "sphereRef": "danruilop1/mailgun",
+    "target": "availability",
+    "targetKind": "feature",
+    "value": 0.99,
+    "versionId": "6ade36454b2b5b01c587db3d"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.mailgun.basic",
+    "detail": {
+      "key": "mailgun"
+    },
+    "plan": "BASIC",
+    "pricingId": "6ade364540e55445692b0eda",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "manual",
+    "sphereRef": "danruilop1/mailgun",
+    "target": "latency",
+    "targetKind": "feature",
+    "value": 250,
+    "versionId": "6ade36454b2b5b01c587db3d"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.mailgun.basic",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "BASIC 15 x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 15,
+          "id": "BASIC",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "account/month",
+          "unitAmount": 15
+        }
+      ],
+      "seats": 1
+    },
+    "plan": "BASIC",
+    "pricingId": "6ade364540e55445692b0eda",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "danruilop1/mailgun",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 15,
+    "versionId": "6ade36454b2b5b01c587db3d"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.mailgun.basic",
+    "detail": {
+      "name": "emailsPerDay",
+      "period": {
+        "unit": "DAY",
+        "value": 1
+      },
+      "raw": {
+        "unlimited": true
+      },
+      "unit": "email",
+      "unlimited": true
+    },
+    "plan": "BASIC",
+    "pricingId": "6ade364540e55445692b0eda",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danruilop1/mailgun",
+    "target": "emailsPerDay",
+    "targetKind": "property",
+    "value": 100000000,
+    "versionId": "6ade36454b2b5b01c587db3d"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.mailgun.basic",
+    "detail": {
+      "name": "emailsPerMonth",
+      "period": {
+        "unit": "MONTH",
+        "value": 1
+      },
+      "raw": 10000,
+      "unit": "email",
+      "unlimited": false
+    },
+    "plan": "BASIC",
+    "pricingId": "6ade364540e55445692b0eda",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danruilop1/mailgun",
+    "target": "emailsPerMonth",
+    "targetKind": "property",
+    "value": 10000,
+    "versionId": "6ade36454b2b5b01c587db3d"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.mailgun.foundation",
+    "detail": {
+      "docUrl": "https://www.mailgun.com/legal/terms/",
+      "feature": "guaranteedUptimeSla",
+      "map": {
+        "false": 0.99,
+        "true": 0.9995
+      },
+      "raw": true
+    },
+    "plan": "FOUNDATION",
+    "pricingId": "6ade364540e55445692b0eda",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "guarantee",
+    "sphereRef": "danruilop1/mailgun",
+    "target": "availability",
+    "targetKind": "feature",
+    "value": 0.9995,
+    "versionId": "6ade36454b2b5b01c587db3d"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.mailgun.foundation",
+    "detail": {
+      "key": "mailgun.FOUNDATION"
+    },
+    "plan": "FOUNDATION",
+    "pricingId": "6ade364540e55445692b0eda",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "manual",
+    "sphereRef": "danruilop1/mailgun",
+    "target": "latency",
+    "targetKind": "feature",
+    "value": 200,
+    "versionId": "6ade36454b2b5b01c587db3d"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.mailgun.foundation",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "FOUNDATION 35 x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 35,
+          "id": "FOUNDATION",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "account/month",
+          "unitAmount": 35
+        }
+      ],
+      "seats": 1
+    },
+    "plan": "FOUNDATION",
+    "pricingId": "6ade364540e55445692b0eda",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "danruilop1/mailgun",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 35,
+    "versionId": "6ade36454b2b5b01c587db3d"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.mailgun.foundation",
+    "detail": {
+      "name": "emailsPerDay",
+      "period": {
+        "unit": "DAY",
+        "value": 1
+      },
+      "raw": {
+        "unlimited": true
+      },
+      "unit": "email",
+      "unlimited": true
+    },
+    "plan": "FOUNDATION",
+    "pricingId": "6ade364540e55445692b0eda",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danruilop1/mailgun",
+    "target": "emailsPerDay",
+    "targetKind": "property",
+    "value": 100000000,
+    "versionId": "6ade36454b2b5b01c587db3d"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.mailgun.foundation",
+    "detail": {
+      "name": "emailsPerMonth",
+      "period": {
+        "unit": "MONTH",
+        "value": 1
+      },
+      "raw": 50000,
+      "unit": "email",
+      "unlimited": false
+    },
+    "plan": "FOUNDATION",
+    "pricingId": "6ade364540e55445692b0eda",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danruilop1/mailgun",
+    "target": "emailsPerMonth",
+    "targetKind": "property",
+    "value": 50000,
+    "versionId": "6ade36454b2b5b01c587db3d"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.mailgun.free",
+    "detail": {
+      "docUrl": "https://www.mailgun.com/legal/terms/",
+      "feature": "guaranteedUptimeSla",
+      "map": {
+        "false": 0.99,
+        "true": 0.9995
+      },
+      "raw": false
+    },
+    "plan": "FREE",
+    "pricingId": "6ade364540e55445692b0eda",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "guarantee",
+    "sphereRef": "danruilop1/mailgun",
+    "target": "availability",
+    "targetKind": "feature",
+    "value": 0.99,
+    "versionId": "6ade36454b2b5b01c587db3d"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.mailgun.free",
+    "detail": {
+      "key": "mailgun"
+    },
+    "plan": "FREE",
+    "pricingId": "6ade364540e55445692b0eda",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "manual",
+    "sphereRef": "danruilop1/mailgun",
+    "target": "latency",
+    "targetKind": "feature",
+    "value": 250,
+    "versionId": "6ade36454b2b5b01c587db3d"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.mailgun.free",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "FREE 0 x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 0,
+          "id": "FREE",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "account/month",
+          "unitAmount": 0
+        }
+      ],
+      "seats": 1
+    },
+    "plan": "FREE",
+    "pricingId": "6ade364540e55445692b0eda",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "danruilop1/mailgun",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 0,
+    "versionId": "6ade36454b2b5b01c587db3d"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.mailgun.free",
+    "detail": {
+      "name": "emailsPerDay",
+      "period": {
+        "unit": "DAY",
+        "value": 1
+      },
+      "raw": 100,
+      "unit": "email",
+      "unlimited": false
+    },
+    "plan": "FREE",
+    "pricingId": "6ade364540e55445692b0eda",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danruilop1/mailgun",
+    "target": "emailsPerDay",
+    "targetKind": "property",
+    "value": 100,
+    "versionId": "6ade36454b2b5b01c587db3d"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.mailgun.free",
+    "detail": {
+      "name": "emailsPerMonth",
+      "period": {
+        "unit": "MONTH",
+        "value": 1
+      },
+      "raw": {
+        "unlimited": true
+      },
+      "unit": "email",
+      "unlimited": true
+    },
+    "plan": "FREE",
+    "pricingId": "6ade364540e55445692b0eda",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danruilop1/mailgun",
+    "target": "emailsPerMonth",
+    "targetKind": "property",
+    "value": 100000000,
+    "versionId": "6ade36454b2b5b01c587db3d"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.mailgun.scale",
+    "detail": {
+      "docUrl": "https://www.mailgun.com/legal/terms/",
+      "feature": "guaranteedUptimeSla",
+      "map": {
+        "false": 0.99,
+        "true": 0.9995
+      },
+      "raw": true
+    },
+    "plan": "SCALE",
+    "pricingId": "6ade364540e55445692b0eda",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "guarantee",
+    "sphereRef": "danruilop1/mailgun",
+    "target": "availability",
+    "targetKind": "feature",
+    "value": 0.9995,
+    "versionId": "6ade36454b2b5b01c587db3d"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.mailgun.scale",
+    "detail": {
+      "key": "mailgun"
+    },
+    "plan": "SCALE",
+    "pricingId": "6ade364540e55445692b0eda",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "manual",
+    "sphereRef": "danruilop1/mailgun",
+    "target": "latency",
+    "targetKind": "feature",
+    "value": 250,
+    "versionId": "6ade36454b2b5b01c587db3d"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.mailgun.scale",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "SCALE 90 x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 90,
+          "id": "SCALE",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "account/month",
+          "unitAmount": 90
+        }
+      ],
+      "seats": 1
+    },
+    "plan": "SCALE",
+    "pricingId": "6ade364540e55445692b0eda",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "danruilop1/mailgun",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 90,
+    "versionId": "6ade36454b2b5b01c587db3d"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.mailgun.scale",
+    "detail": {
+      "name": "emailsPerDay",
+      "period": {
+        "unit": "DAY",
+        "value": 1
+      },
+      "raw": {
+        "unlimited": true
+      },
+      "unit": "email",
+      "unlimited": true
+    },
+    "plan": "SCALE",
+    "pricingId": "6ade364540e55445692b0eda",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danruilop1/mailgun",
+    "target": "emailsPerDay",
+    "targetKind": "property",
+    "value": 100000000,
+    "versionId": "6ade36454b2b5b01c587db3d"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.mailgun.scale",
+    "detail": {
+      "name": "emailsPerMonth",
+      "period": {
+        "unit": "MONTH",
+        "value": 1
+      },
+      "raw": 100000,
+      "unit": "email",
+      "unlimited": false
+    },
+    "plan": "SCALE",
+    "pricingId": "6ade364540e55445692b0eda",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danruilop1/mailgun",
+    "target": "emailsPerMonth",
+    "targetKind": "property",
+    "value": 100000,
+    "versionId": "6ade36454b2b5b01c587db3d"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.postmark.basic",
+    "detail": {
+      "key": "*",
+      "override": true
+    },
+    "plan": "BASIC",
+    "pricingId": "6ade2f3b40e55445692b09aa",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "manual",
+    "sphereRef": "danruilop1/postmark",
+    "target": "availability",
+    "targetKind": "feature",
+    "value": 0.999,
+    "versionId": "6ade2f3b4b2b5b01c587d8f5"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.postmark.basic",
+    "detail": {
+      "key": "postmark"
+    },
+    "plan": "BASIC",
+    "pricingId": "6ade2f3b40e55445692b09aa",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "manual",
+    "sphereRef": "danruilop1/postmark",
+    "target": "latency",
+    "targetKind": "feature",
+    "value": 150,
+    "versionId": "6ade2f3b4b2b5b01c587d8f5"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.postmark.basic",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "BASIC 15 x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 15,
+          "expression": "#basicPriceByVolume[String(#volume)]",
+          "id": "BASIC",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "account/month",
+          "unitAmount": 15,
+          "variables": {
+            "basicPriceByVolume": {
+              "10000": 15,
+              "125000": 115,
+              "1500000": 775,
+              "300000": 245,
+              "50000": 55,
+              "700000": 455
+            },
+            "volume": 10000
+          }
+        }
+      ],
+      "seats": 1
+    },
+    "plan": "BASIC",
+    "pricingId": "6ade2f3b40e55445692b09aa",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "danruilop1/postmark",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 15,
+    "versionId": "6ade2f3b4b2b5b01c587d8f5"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.postmark.basic",
+    "detail": {
+      "name": "dailyEmailSendingPerDay",
+      "period": {
+        "unit": "DAY",
+        "value": 1
+      },
+      "raw": {
+        "unlimited": true
+      },
+      "unit": "email",
+      "unlimited": true
+    },
+    "plan": "BASIC",
+    "pricingId": "6ade2f3b40e55445692b09aa",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danruilop1/postmark",
+    "target": "emailsPerDay",
+    "targetKind": "property",
+    "value": 100000000,
+    "versionId": "6ade2f3b4b2b5b01c587d8f5"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.postmark.basic",
+    "detail": {
+      "name": "monthlyEmailVolumeLimit",
+      "period": {
+        "unit": "MONTH",
+        "value": 1
+      },
+      "raw": 10000,
+      "unit": "email",
+      "unlimited": false
+    },
+    "plan": "BASIC",
+    "pricingId": "6ade2f3b40e55445692b09aa",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danruilop1/postmark",
+    "target": "emailsPerMonth",
+    "targetKind": "property",
+    "value": 10000,
+    "versionId": "6ade2f3b4b2b5b01c587d8f5"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.postmark.free",
+    "detail": {
+      "key": "*",
+      "override": true
+    },
+    "plan": "FREE",
+    "pricingId": "6ade2f3b40e55445692b09aa",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "manual",
+    "sphereRef": "danruilop1/postmark",
+    "target": "availability",
+    "targetKind": "feature",
+    "value": 0.999,
+    "versionId": "6ade2f3b4b2b5b01c587d8f5"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.postmark.free",
+    "detail": {
+      "key": "postmark"
+    },
+    "plan": "FREE",
+    "pricingId": "6ade2f3b40e55445692b09aa",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "manual",
+    "sphereRef": "danruilop1/postmark",
+    "target": "latency",
+    "targetKind": "feature",
+    "value": 150,
+    "versionId": "6ade2f3b4b2b5b01c587d8f5"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.postmark.free",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "FREE 0 x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 0,
+          "id": "FREE",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "account/month",
+          "unitAmount": 0
+        }
+      ],
+      "seats": 1
+    },
+    "plan": "FREE",
+    "pricingId": "6ade2f3b40e55445692b09aa",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "danruilop1/postmark",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 0,
+    "versionId": "6ade2f3b4b2b5b01c587d8f5"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.postmark.free",
+    "detail": {
+      "name": "dailyEmailSendingPerDay",
+      "period": {
+        "unit": "DAY",
+        "value": 1
+      },
+      "raw": {
+        "unlimited": true
+      },
+      "unit": "email",
+      "unlimited": true
+    },
+    "plan": "FREE",
+    "pricingId": "6ade2f3b40e55445692b09aa",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danruilop1/postmark",
+    "target": "emailsPerDay",
+    "targetKind": "property",
+    "value": 100000000,
+    "versionId": "6ade2f3b4b2b5b01c587d8f5"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.postmark.free",
+    "detail": {
+      "name": "monthlyEmailVolumeLimit",
+      "period": {
+        "unit": "MONTH",
+        "value": 1
+      },
+      "raw": 100,
+      "unit": "email",
+      "unlimited": false
+    },
+    "plan": "FREE",
+    "pricingId": "6ade2f3b40e55445692b09aa",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danruilop1/postmark",
+    "target": "emailsPerMonth",
+    "targetKind": "property",
+    "value": 100,
+    "versionId": "6ade2f3b4b2b5b01c587d8f5"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.postmark.platform",
+    "detail": {
+      "key": "*",
+      "override": true
+    },
+    "plan": "PLATFORM",
+    "pricingId": "6ade2f3b40e55445692b09aa",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "manual",
+    "sphereRef": "danruilop1/postmark",
+    "target": "availability",
+    "targetKind": "feature",
+    "value": 0.999,
+    "versionId": "6ade2f3b4b2b5b01c587d8f5"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.postmark.platform",
+    "detail": {
+      "key": "postmark"
+    },
+    "plan": "PLATFORM",
+    "pricingId": "6ade2f3b40e55445692b09aa",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "manual",
+    "sphereRef": "danruilop1/postmark",
+    "target": "latency",
+    "targetKind": "feature",
+    "value": 150,
+    "versionId": "6ade2f3b4b2b5b01c587d8f5"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.postmark.platform",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "PLATFORM 18 x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 18,
+          "expression": "#platformPriceByVolume[String(#volume)]",
+          "id": "PLATFORM",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "account/month",
+          "unitAmount": 18,
+          "variables": {
+            "platformPriceByVolume": {
+              "10000": 18,
+              "125000": 138,
+              "1500000": 930,
+              "300000": 294,
+              "50000": 66,
+              "700000": 546
+            },
+            "volume": 10000
+          }
+        }
+      ],
+      "seats": 1
+    },
+    "plan": "PLATFORM",
+    "pricingId": "6ade2f3b40e55445692b09aa",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "danruilop1/postmark",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 18,
+    "versionId": "6ade2f3b4b2b5b01c587d8f5"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.postmark.platform",
+    "detail": {
+      "name": "dailyEmailSendingPerDay",
+      "period": {
+        "unit": "DAY",
+        "value": 1
+      },
+      "raw": {
+        "unlimited": true
+      },
+      "unit": "email",
+      "unlimited": true
+    },
+    "plan": "PLATFORM",
+    "pricingId": "6ade2f3b40e55445692b09aa",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danruilop1/postmark",
+    "target": "emailsPerDay",
+    "targetKind": "property",
+    "value": 100000000,
+    "versionId": "6ade2f3b4b2b5b01c587d8f5"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.postmark.platform",
+    "detail": {
+      "name": "monthlyEmailVolumeLimit",
+      "period": {
+        "unit": "MONTH",
+        "value": 1
+      },
+      "raw": 10000,
+      "unit": "email",
+      "unlimited": false
+    },
+    "plan": "PLATFORM",
+    "pricingId": "6ade2f3b40e55445692b09aa",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danruilop1/postmark",
+    "target": "emailsPerMonth",
+    "targetKind": "property",
+    "value": 10000,
+    "versionId": "6ade2f3b4b2b5b01c587d8f5"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.postmark.pro",
+    "detail": {
+      "key": "*",
+      "override": true
+    },
+    "plan": "PRO",
+    "pricingId": "6ade2f3b40e55445692b09aa",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "manual",
+    "sphereRef": "danruilop1/postmark",
+    "target": "availability",
+    "targetKind": "feature",
+    "value": 0.999,
+    "versionId": "6ade2f3b4b2b5b01c587d8f5"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.postmark.pro",
+    "detail": {
+      "key": "postmark"
+    },
+    "plan": "PRO",
+    "pricingId": "6ade2f3b40e55445692b09aa",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "manual",
+    "sphereRef": "danruilop1/postmark",
+    "target": "latency",
+    "targetKind": "feature",
+    "value": 150,
+    "versionId": "6ade2f3b4b2b5b01c587d8f5"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.postmark.pro",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "PRO 16.5 x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 16.5,
+          "expression": "#proPriceByVolume[String(#volume)]",
+          "id": "PRO",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "account/month",
+          "unitAmount": 16.5,
+          "variables": {
+            "proPriceByVolume": {
+              "10000": 16.5,
+              "125000": 126.5,
+              "1500000": 852.5,
+              "300000": 269.5,
+              "50000": 60.5,
+              "700000": 500.5
+            },
+            "volume": 10000
+          }
+        }
+      ],
+      "seats": 1
+    },
+    "plan": "PRO",
+    "pricingId": "6ade2f3b40e55445692b09aa",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "danruilop1/postmark",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 16.5,
+    "versionId": "6ade2f3b4b2b5b01c587d8f5"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.postmark.pro",
+    "detail": {
+      "name": "dailyEmailSendingPerDay",
+      "period": {
+        "unit": "DAY",
+        "value": 1
+      },
+      "raw": {
+        "unlimited": true
+      },
+      "unit": "email",
+      "unlimited": true
+    },
+    "plan": "PRO",
+    "pricingId": "6ade2f3b40e55445692b09aa",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danruilop1/postmark",
+    "target": "emailsPerDay",
+    "targetKind": "property",
+    "value": 100000000,
+    "versionId": "6ade2f3b4b2b5b01c587d8f5"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.postmark.pro",
+    "detail": {
+      "name": "monthlyEmailVolumeLimit",
+      "period": {
+        "unit": "MONTH",
+        "value": 1
+      },
+      "raw": 10000,
+      "unit": "email",
+      "unlimited": false
+    },
+    "plan": "PRO",
+    "pricingId": "6ade2f3b40e55445692b09aa",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danruilop1/postmark",
+    "target": "emailsPerMonth",
+    "targetKind": "property",
+    "value": 10000,
+    "versionId": "6ade2f3b4b2b5b01c587d8f5"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.resend.free",
+    "detail": {
+      "docUrl": "https://resend.com/enterprise",
+      "feature": "uptimeSla",
+      "map": {
+        "false": 0.99,
+        "true": 0.9995
+      },
+      "raw": false
+    },
+    "plan": "FREE",
+    "pricingId": "6ade2d2540e55445692b07c6",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "guarantee",
+    "sphereRef": "danruilop1/resend",
+    "target": "availability",
+    "targetKind": "feature",
+    "value": 0.99,
+    "versionId": "6ade2d254b2b5b01c587d7ee"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.resend.free",
+    "detail": {
+      "key": "resend"
+    },
+    "plan": "FREE",
+    "pricingId": "6ade2d2540e55445692b07c6",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "manual",
+    "sphereRef": "danruilop1/resend",
+    "target": "latency",
+    "targetKind": "feature",
+    "value": 180,
+    "versionId": "6ade2d254b2b5b01c587d7ee"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.resend.free",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "FREE 0 x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 0,
+          "id": "FREE",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "team/month",
+          "unitAmount": 0
+        }
+      ],
+      "seats": 1
+    },
+    "plan": "FREE",
+    "pricingId": "6ade2d2540e55445692b07c6",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "danruilop1/resend",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 0,
+    "versionId": "6ade2d254b2b5b01c587d7ee"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.resend.free",
+    "detail": {
+      "name": "transactionalEmailsPerDay",
+      "period": {
+        "unit": "DAY",
+        "value": 1
+      },
+      "raw": 100,
+      "unit": "email",
+      "unlimited": false
+    },
+    "plan": "FREE",
+    "pricingId": "6ade2d2540e55445692b07c6",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danruilop1/resend",
+    "target": "emailsPerDay",
+    "targetKind": "property",
+    "value": 100,
+    "versionId": "6ade2d254b2b5b01c587d7ee"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.resend.free",
+    "detail": {
+      "name": "transactionalEmailsPerMonth",
+      "period": {
+        "unit": "MONTH",
+        "value": 1
+      },
+      "raw": 3000,
+      "unit": "email",
+      "unlimited": false
+    },
+    "plan": "FREE",
+    "pricingId": "6ade2d2540e55445692b07c6",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danruilop1/resend",
+    "target": "emailsPerMonth",
+    "targetKind": "property",
+    "value": 3000,
+    "versionId": "6ade2d254b2b5b01c587d7ee"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.resend.pro",
+    "detail": {
+      "docUrl": "https://resend.com/enterprise",
+      "feature": "uptimeSla",
+      "map": {
+        "false": 0.99,
+        "true": 0.9995
+      },
+      "raw": false
+    },
+    "plan": "PRO",
+    "pricingId": "6ade2d2540e55445692b07c6",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "guarantee",
+    "sphereRef": "danruilop1/resend",
+    "target": "availability",
+    "targetKind": "feature",
+    "value": 0.99,
+    "versionId": "6ade2d254b2b5b01c587d7ee"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.resend.pro",
+    "detail": {
+      "key": "resend"
+    },
+    "plan": "PRO",
+    "pricingId": "6ade2d2540e55445692b07c6",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "manual",
+    "sphereRef": "danruilop1/resend",
+    "target": "latency",
+    "targetKind": "feature",
+    "value": 180,
+    "versionId": "6ade2d254b2b5b01c587d7ee"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.resend.pro",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "PRO 20 x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 20,
+          "expression": "#proPriceByVolume[String(#proVolume)]",
+          "id": "PRO",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "team/month",
+          "unitAmount": 20,
+          "variables": {
+            "proPriceByVolume": {
+              "100000": 35,
+              "50000": 20
+            },
+            "proVolume": 50000
+          }
+        }
+      ],
+      "seats": 1
+    },
+    "plan": "PRO",
+    "pricingId": "6ade2d2540e55445692b07c6",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "danruilop1/resend",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 20,
+    "versionId": "6ade2d254b2b5b01c587d7ee"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.resend.pro",
+    "detail": {
+      "name": "transactionalEmailsPerDay",
+      "period": {
+        "unit": "DAY",
+        "value": 1
+      },
+      "raw": {
+        "unlimited": true
+      },
+      "unit": "email",
+      "unlimited": true
+    },
+    "plan": "PRO",
+    "pricingId": "6ade2d2540e55445692b07c6",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danruilop1/resend",
+    "target": "emailsPerDay",
+    "targetKind": "property",
+    "value": 100000000,
+    "versionId": "6ade2d254b2b5b01c587d7ee"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.resend.pro",
+    "detail": {
+      "name": "transactionalEmailsPerMonth",
+      "period": {
+        "unit": "MONTH",
+        "value": 1
+      },
+      "raw": 50000,
+      "unit": "email",
+      "unlimited": false
+    },
+    "plan": "PRO",
+    "pricingId": "6ade2d2540e55445692b07c6",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danruilop1/resend",
+    "target": "emailsPerMonth",
+    "targetKind": "property",
+    "value": 50000,
+    "versionId": "6ade2d254b2b5b01c587d7ee"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.resend.scale",
+    "detail": {
+      "docUrl": "https://resend.com/enterprise",
+      "feature": "uptimeSla",
+      "map": {
+        "false": 0.99,
+        "true": 0.9995
+      },
+      "raw": false
+    },
+    "plan": "SCALE",
+    "pricingId": "6ade2d2540e55445692b07c6",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "guarantee",
+    "sphereRef": "danruilop1/resend",
+    "target": "availability",
+    "targetKind": "feature",
+    "value": 0.99,
+    "versionId": "6ade2d254b2b5b01c587d7ee"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.resend.scale",
+    "detail": {
+      "key": "resend"
+    },
+    "plan": "SCALE",
+    "pricingId": "6ade2d2540e55445692b07c6",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "manual",
+    "sphereRef": "danruilop1/resend",
+    "target": "latency",
+    "targetKind": "feature",
+    "value": 180,
+    "versionId": "6ade2d254b2b5b01c587d7ee"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.resend.scale",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "SCALE 90 x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 90,
+          "expression": "#scalePriceByVolume[String(#scaleVolume)]",
+          "id": "SCALE",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "team/month",
+          "unitAmount": 90,
+          "variables": {
+            "scalePriceByVolume": {
+              "100000": 90,
+              "1000000": 650,
+              "1500000": 825,
+              "200000": 160,
+              "2500000": 1150,
+              "500000": 350
+            },
+            "scaleVolume": 100000
+          }
+        }
+      ],
+      "seats": 1
+    },
+    "plan": "SCALE",
+    "pricingId": "6ade2d2540e55445692b07c6",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "danruilop1/resend",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 90,
+    "versionId": "6ade2d254b2b5b01c587d7ee"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.resend.scale",
+    "detail": {
+      "name": "transactionalEmailsPerDay",
+      "period": {
+        "unit": "DAY",
+        "value": 1
+      },
+      "raw": {
+        "unlimited": true
+      },
+      "unit": "email",
+      "unlimited": true
+    },
+    "plan": "SCALE",
+    "pricingId": "6ade2d2540e55445692b07c6",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danruilop1/resend",
+    "target": "emailsPerDay",
+    "targetKind": "property",
+    "value": 100000000,
+    "versionId": "6ade2d254b2b5b01c587d7ee"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.resend.scale",
+    "detail": {
+      "name": "transactionalEmailsPerMonth",
+      "period": {
+        "unit": "MONTH",
+        "value": 1
+      },
+      "raw": 100000,
+      "unit": "email",
+      "unlimited": false
+    },
+    "plan": "SCALE",
+    "pricingId": "6ade2d2540e55445692b07c6",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danruilop1/resend",
+    "target": "emailsPerMonth",
+    "targetKind": "property",
+    "value": 100000,
+    "versionId": "6ade2d254b2b5b01c587d7ee"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.sendgrid.essentials",
+    "detail": {
+      "key": "*",
+      "override": true
+    },
+    "plan": "ESSENTIALS",
+    "pricingId": "6adf1a6240e55445692b6f14",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "manual",
+    "sphereRef": "danruilop1/twilio-sendgrid-email-api",
+    "target": "availability",
+    "targetKind": "feature",
+    "value": 0.999,
+    "versionId": "6adf1a62daa2ba78b21d7119"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.sendgrid.essentials",
+    "detail": {
+      "key": "sendgrid"
+    },
+    "plan": "ESSENTIALS",
+    "pricingId": "6adf1a6240e55445692b6f14",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "manual",
+    "sphereRef": "danruilop1/twilio-sendgrid-email-api",
+    "target": "latency",
+    "targetKind": "feature",
+    "value": 220,
+    "versionId": "6adf1a62daa2ba78b21d7119"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.sendgrid.essentials",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "ESSENTIALS 19.95 x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 19.95,
+          "expression": "#essPriceByTier[String(#essTier)]",
+          "id": "ESSENTIALS",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "account/month",
+          "unitAmount": 19.95,
+          "variables": {
+            "essPriceByTier": {
+              "100000": 34.95,
+              "50000": 19.95
+            },
+            "essTier": 50000
+          }
+        }
+      ],
+      "seats": 1
+    },
+    "plan": "ESSENTIALS",
+    "pricingId": "6adf1a6240e55445692b6f14",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "danruilop1/twilio-sendgrid-email-api",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 19.95,
+    "versionId": "6adf1a62daa2ba78b21d7119"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.sendgrid.essentials",
+    "detail": {
+      "assumed": true,
+      "limit": "emailsPerDay",
+      "reason": "not declared by the pricing",
+      "value": "unlimited"
+    },
+    "plan": "ESSENTIALS",
+    "pricingId": "6adf1a6240e55445692b6f14",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "manual",
+    "sphereRef": "danruilop1/twilio-sendgrid-email-api",
+    "target": "emailsPerDay",
+    "targetKind": "property",
+    "value": 100000000,
+    "versionId": "6adf1a62daa2ba78b21d7119"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.sendgrid.essentials",
+    "detail": {
+      "name": "emailsPerMonth",
+      "period": {
+        "unit": "MONTH",
+        "value": 1
+      },
+      "raw": 50000,
+      "unit": "email",
+      "unlimited": false
+    },
+    "plan": "ESSENTIALS",
+    "pricingId": "6adf1a6240e55445692b6f14",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danruilop1/twilio-sendgrid-email-api",
+    "target": "emailsPerMonth",
+    "targetKind": "property",
+    "value": 50000,
+    "versionId": "6adf1a62daa2ba78b21d7119"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.sendgrid.pro",
+    "detail": {
+      "key": "*",
+      "override": true
+    },
+    "plan": "PRO",
+    "pricingId": "6adf1a6240e55445692b6f14",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "manual",
+    "sphereRef": "danruilop1/twilio-sendgrid-email-api",
+    "target": "availability",
+    "targetKind": "feature",
+    "value": 0.999,
+    "versionId": "6adf1a62daa2ba78b21d7119"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.sendgrid.pro",
+    "detail": {
+      "key": "sendgrid"
+    },
+    "plan": "PRO",
+    "pricingId": "6adf1a6240e55445692b6f14",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "manual",
+    "sphereRef": "danruilop1/twilio-sendgrid-email-api",
+    "target": "latency",
+    "targetKind": "feature",
+    "value": 220,
+    "versionId": "6adf1a62daa2ba78b21d7119"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.sendgrid.pro",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "PRO 89.95 x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 89.95,
+          "expression": "#proPriceByTier[String(#proTier)]",
+          "id": "PRO",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": "month",
+          "seats": 1,
+          "unit": "account/month",
+          "unitAmount": 89.95,
+          "variables": {
+            "proPriceByTier": {
+              "100000": 89.95,
+              "1500000": 799,
+              "2500000": 1099,
+              "300000": 249,
+              "700000": 499
+            },
+            "proTier": 100000
+          }
+        }
+      ],
+      "seats": 1
+    },
+    "plan": "PRO",
+    "pricingId": "6adf1a6240e55445692b6f14",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "danruilop1/twilio-sendgrid-email-api",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 89.95,
+    "versionId": "6adf1a62daa2ba78b21d7119"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.sendgrid.pro",
+    "detail": {
+      "assumed": true,
+      "limit": "emailsPerDay",
+      "reason": "not declared by the pricing",
+      "value": "unlimited"
+    },
+    "plan": "PRO",
+    "pricingId": "6adf1a6240e55445692b6f14",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "manual",
+    "sphereRef": "danruilop1/twilio-sendgrid-email-api",
+    "target": "emailsPerDay",
+    "targetKind": "property",
+    "value": 100000000,
+    "versionId": "6adf1a62daa2ba78b21d7119"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-email/email.sendgrid.pro",
+    "detail": {
+      "name": "emailsPerMonth",
+      "period": {
+        "unit": "MONTH",
+        "value": 1
+      },
+      "raw": 100000,
+      "unit": "email",
+      "unlimited": false
+    },
+    "plan": "PRO",
+    "pricingId": "6adf1a6240e55445692b6f14",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "limit",
+    "sphereRef": "danruilop1/twilio-sendgrid-email-api",
+    "target": "emailsPerMonth",
+    "targetKind": "property",
+    "value": 100000,
+    "versionId": "6adf1a62daa2ba78b21d7119"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-quotes/quotes.builtin.static",
+    "detail": {
+      "handMade": true
+    },
+    "plan": null,
+    "pricingId": null,
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "manual",
+    "sphereRef": null,
+    "target": "availability",
+    "targetKind": "feature",
+    "value": 0.999,
+    "versionId": null
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-quotes/quotes.builtin.static",
+    "detail": {
+      "handMade": true
+    },
+    "plan": null,
+    "pricingId": null,
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "manual",
+    "sphereRef": null,
+    "target": "latency",
+    "targetKind": "feature",
+    "value": 2,
+    "versionId": null
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-quotes/quotes.builtin.static",
+    "detail": {
+      "handMade": true
+    },
+    "plan": null,
+    "pricingId": null,
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "manual",
+    "sphereRef": null,
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 0,
+    "versionId": null
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-storage/storage.dropbox.advanced",
+    "detail": {
+      "key": "dropbox"
+    },
+    "plan": "ADVANCED",
+    "pricingId": "6ab0a323697330667ccce9c1",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "manual",
+    "sphereRef": "atenea/dropbox",
+    "target": "availability",
+    "targetKind": "feature",
+    "value": 0.999,
+    "versionId": "687e4b68102baa50f3a5c7b7"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-storage/storage.dropbox.advanced",
+    "detail": {
+      "key": "dropbox"
+    },
+    "plan": "ADVANCED",
+    "pricingId": "6ab0a323697330667ccce9c1",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "manual",
+    "sphereRef": "atenea/dropbox",
+    "target": "latency",
+    "targetKind": "feature",
+    "value": 180,
+    "versionId": "687e4b68102baa50f3a5c7b7"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-storage/storage.dropbox.advanced",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "ADVANCED 20 x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 20,
+          "id": "ADVANCED",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": null,
+          "seats": 1,
+          "unit": "user",
+          "unitAmount": 20
+        }
+      ],
+      "seats": 1
+    },
+    "plan": "ADVANCED",
+    "pricingId": "6ab0a323697330667ccce9c1",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "atenea/dropbox",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 20,
+    "versionId": "687e4b68102baa50f3a5c7b7"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-storage/storage.dropbox.family",
+    "detail": {
+      "key": "dropbox"
+    },
+    "plan": "FAMILY",
+    "pricingId": "6ab0a323697330667ccce9c1",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "manual",
+    "sphereRef": "atenea/dropbox",
+    "target": "availability",
+    "targetKind": "feature",
+    "value": 0.999,
+    "versionId": "687e4b68102baa50f3a5c7b7"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-storage/storage.dropbox.family",
+    "detail": {
+      "key": "dropbox"
+    },
+    "plan": "FAMILY",
+    "pricingId": "6ab0a323697330667ccce9c1",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "manual",
+    "sphereRef": "atenea/dropbox",
+    "target": "latency",
+    "targetKind": "feature",
+    "value": 180,
+    "versionId": "687e4b68102baa50f3a5c7b7"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-storage/storage.dropbox.family",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "FAMILY 16.99 x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 16.99,
+          "id": "FAMILY",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": null,
+          "seats": 1,
+          "unit": "account",
+          "unitAmount": 16.99
+        }
+      ],
+      "seats": 1
+    },
+    "plan": "FAMILY",
+    "pricingId": "6ab0a323697330667ccce9c1",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "atenea/dropbox",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 16.99,
+    "versionId": "687e4b68102baa50f3a5c7b7"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-storage/storage.dropbox.plus",
+    "detail": {
+      "key": "dropbox"
+    },
+    "plan": "PLUS",
+    "pricingId": "6ab0a323697330667ccce9c1",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "manual",
+    "sphereRef": "atenea/dropbox",
+    "target": "availability",
+    "targetKind": "feature",
+    "value": 0.999,
+    "versionId": "687e4b68102baa50f3a5c7b7"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-storage/storage.dropbox.plus",
+    "detail": {
+      "key": "dropbox"
+    },
+    "plan": "PLUS",
+    "pricingId": "6ab0a323697330667ccce9c1",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "manual",
+    "sphereRef": "atenea/dropbox",
+    "target": "latency",
+    "targetKind": "feature",
+    "value": 180,
+    "versionId": "687e4b68102baa50f3a5c7b7"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-storage/storage.dropbox.plus",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "PLUS 9.99 x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 9.99,
+          "id": "PLUS",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": null,
+          "seats": 1,
+          "unit": "account",
+          "unitAmount": 9.99
+        }
+      ],
+      "seats": 1
+    },
+    "plan": "PLUS",
+    "pricingId": "6ab0a323697330667ccce9c1",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "atenea/dropbox",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 9.99,
+    "versionId": "687e4b68102baa50f3a5c7b7"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-storage/storage.dropbox.professional",
+    "detail": {
+      "key": "dropbox"
+    },
+    "plan": "PROFESSIONAL",
+    "pricingId": "6ab0a323697330667ccce9c1",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "manual",
+    "sphereRef": "atenea/dropbox",
+    "target": "availability",
+    "targetKind": "feature",
+    "value": 0.999,
+    "versionId": "687e4b68102baa50f3a5c7b7"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-storage/storage.dropbox.professional",
+    "detail": {
+      "key": "dropbox"
+    },
+    "plan": "PROFESSIONAL",
+    "pricingId": "6ab0a323697330667ccce9c1",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "manual",
+    "sphereRef": "atenea/dropbox",
+    "target": "latency",
+    "targetKind": "feature",
+    "value": 180,
+    "versionId": "687e4b68102baa50f3a5c7b7"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-storage/storage.dropbox.professional",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "PROFESSIONAL 16.58 x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 16.58,
+          "id": "PROFESSIONAL",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": null,
+          "seats": 1,
+          "unit": "account",
+          "unitAmount": 16.58
+        }
+      ],
+      "seats": 1
+    },
+    "plan": "PROFESSIONAL",
+    "pricingId": "6ab0a323697330667ccce9c1",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "atenea/dropbox",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 16.58,
+    "versionId": "687e4b68102baa50f3a5c7b7"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-storage/storage.dropbox.standard",
+    "detail": {
+      "key": "dropbox"
+    },
+    "plan": "STANDARD",
+    "pricingId": "6ab0a323697330667ccce9c1",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "manual",
+    "sphereRef": "atenea/dropbox",
+    "target": "availability",
+    "targetKind": "feature",
+    "value": 0.999,
+    "versionId": "687e4b68102baa50f3a5c7b7"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-storage/storage.dropbox.standard",
+    "detail": {
+      "key": "dropbox"
+    },
+    "plan": "STANDARD",
+    "pricingId": "6ab0a323697330667ccce9c1",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "manual",
+    "sphereRef": "atenea/dropbox",
+    "target": "latency",
+    "targetKind": "feature",
+    "value": 180,
+    "versionId": "687e4b68102baa50f3a5c7b7"
+  },
+  {
+    "addOns": [],
+    "candidateKey": "sphere-storage/storage.dropbox.standard",
+    "detail": {
+      "billing": "monthly",
+      "currency": "USD",
+      "formula": "STANDARD 12.5 x 1 (monthly)",
+      "multiplier": 1,
+      "parts": [
+        {
+          "amount": 12.5,
+          "id": "STANDARD",
+          "kind": "plan",
+          "monthlyFactor": 1,
+          "period": null,
+          "seats": 1,
+          "unit": "user",
+          "unitAmount": 12.5
+        }
+      ],
+      "seats": 1
+    },
+    "plan": "STANDARD",
+    "pricingId": "6ab0a323697330667ccce9c1",
+    "registry": null,
+    "snapshot": null,
+    "sourceKind": "priced",
+    "sphereRef": "atenea/dropbox",
+    "target": "subscription",
+    "targetKind": "feature",
+    "value": 12.5,
+    "versionId": "687e4b68102baa50f3a5c7b7"
+  }
+]

@@ -271,6 +271,10 @@ def allows_request(api_key: Any, *, method: str, path_params: Mapping[str, Any],
         )
         if not target or not target & kinds:
             return False
+        if method.upper() == "POST" and path.split("/")[4:] == ["compositions", "from-template"]:
+            # A template's instantiation also writes a problem: the key's kinds must name both.
+            if not aliases["problems"] & kinds:
+                return False
     return True
 
 
@@ -393,6 +397,9 @@ def required_permissions(path: str, method: str) -> frozenset[str]:
         # The compositions of an organization. Before the organizations fallthrough, so that a key
         # that may administer organizations does not inherit composition writes.
         segments = path.split("/")
+        if method == "POST" and segments[5:] == ["from-template"]:
+            # Instantiating a template creates a problem and applies recipes to it as well as the composition.
+            return frozenset({ApiKeyPermission.COMPOSITIONS_WRITE.value, ApiKeyPermission.PROBLEMS_WRITE.value})
         if method == "POST" and segments[-1] == "adopt" and segments[-3:-2] == ["environments"]:
             # Adopting changes what an application runs: its own permission, which write does not imply.
             return frozenset({ApiKeyPermission.COMPOSITIONS_ADOPT.value})

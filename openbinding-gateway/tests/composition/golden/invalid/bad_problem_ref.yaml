@@ -3,7 +3,7 @@ syntaxVersion: "1.0"
 composition: shop
 version: 1.0.0
 kind: application
-problem: {ref: isa/tomatometer@3, compilation: sha256-abc}
+problem: {ref: lab-main/tomatometer@3, compilation: sha256-abc}
 workflow: {seq: [pick, ship]}
 binding:
   pick: {candidate: c_pick}
