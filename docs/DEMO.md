@@ -589,6 +589,77 @@ diagnostic guide, not a list of verified results.
    evolutionary engine's Dockerfile uses `ENTRYPOINT`, so a `command` override
    would not reach it).
 
+## TomatoMeter composite (demo script v1)
+
+The flagship demo of the composition redesign, in at most 20 minutes: a real application's back end composed from
+real SPHERE plans, operated in an environment, and switched to another e-mail provider by one human adoption, which
+the application follows on its next poll. Until the Operation tab exists (F4-C) the operation steps are API calls; the
+problem, run and composition steps are screens already.
+
+What the lab seeds for it (`openbinding-gateway/tools/seed_lab.py`, through the TomatoMeter composition template
+`examples/templates/tomatometer.json`, the same function as `POST /v1/organizations/{org}/compositions/from-template`):
+
+- `lab-main/tomatometer-email`, revisions 1 to 3 (`examples/tomatometer/README.md`): the base problem, the five e-mail
+  providers of SPHERE, then Dropbox for the export and the built-in quotes beside ZenQuotes;
+- `lab-main/tomatometer` **1.0.0**: Brevo PROFESSIONAL, Dropbox PLUS and ZenQuotes, offering `sphere/tomatometer`,
+  byte for byte `examples/tomatometer/composition.yaml`; **1.1.0**: the same with Resend PRO for the e-mail;
+- the environments `production` (operator `lab-owner`, ADMIN adopts, 1000 expected users, 1.0.0 in effect, one feed
+  key) and `staging` (MEMBER adopts, nothing in effect);
+- the hand-off file `/handoff/openbinding.json` (volume `lab-handoff`, mode 0600) with the feed's address and key,
+  which the `feed-consumer` service reads.
+
+The commands below run on the lab's host. `API=http://localhost:18100/api` (the lab's published port), `OWNER`
+holds `Authorization: Bearer <token>` of `lab-owner` (sign in with `POST $API/v1/auth/login`), and
+`C="docker compose -f compose.lab.json"` (or the `lab_compose` tools). Nothing below prints a key:
+
+```sh
+T=$API/v1/organizations/lab-main/compositions/tomatometer
+FEED_KEY=$(python3 -c 'import hashlib,hmac,os; d=hmac.new(os.environ["DEMO_SEED_PASSWORD"].encode(), b"openbinding-lab-seed:feedkey:lab-main/tomatometer/production", hashlib.sha256).hexdigest(); print(f"obe_{d[:8]}_{d[8:]}")')
+```
+
+### In OpenBinding's lab alone
+
+| Minute | Step | Where | What the audience sees |
+| --- | --- | --- | --- |
+| 0-2 | Start | `$C up --build --wait`, then `seed` (section "Running it with lab_compose") | the services healthy; the seed's report names `tomatometer`, `production`, `staging` and the feed key (never its value) |
+| 2-5 | The problem | `/problems/lab-main/tomatometer-email/candidates` | three revisions; every e-mail and Dropbox plan with where each value comes from (priced from SPHERE, a limit, set by hand) |
+| 5-8 | A run, kept as a composition | a run of revision 3 on random search, then "Keep as composition" into `tomatometer` | the optimum binds the built-in quotes and an e-mail plan the engines agree on; a version derived from the run (1.2.0 on a fresh lab) |
+| 8-10 | In effect | `curl -sS -H "$OWNER" $T/environments/production` | 1.0.0 in effect, adoption #1, operator `lab-owner`, Brevo PROFESSIONAL bound to `dailySummary` |
+| 10-11 | Margins at 1000 users | `curl -sS -H "$OWNER" "$T/versions/1.0.0/margins?users=1000&evaluation=<inEffect.evaluation.id>"` | 508.99 USD a month is 0.508990 per user; basic loses that much, premium with exportAsJson earns 11.481010 |
+| 11-12 | Check now | `curl -sS -X POST -H "$OWNER" $T/environments/production/check` | the binding valid; Brevo 2026-10, Dropbox 2021 and the offering 1.0.0 the latest of their sources; nothing written |
+| 12-14 | Adopt 1.1.0 | `ETAG=$(curl -sSI -H "$OWNER" $T/environments/production \| sed -n 's/^etag: //Ip' \| tr -d '\r')`, then `curl -sS -X POST -H "$OWNER" -H "If-Match: $ETAG" -H 'Content-Type: application/json' -d '{"version": "1.1.0", "note": "Switch to Resend"}' $T/environments/production/adopt` | adoption #2; without `If-Match` the answer is 428, and `lab-member` gets 403 (ADMIN adopts in production) |
+| 14-15 | The feed changes | `curl -sSi -H "X-API-Key: $FEED_KEY" $T/environments/production/composition` | the YAML of 1.1.0 with 1.1.0's content `ETag`; with `If-None-Match` set to it, 304 |
+| 15-16 | The application follows | `$C exec feed-consumer curl -s localhost:8090/state`, then `$C exec feed-consumer curl -s -X POST localhost:8090/send` | within one poll (3 s) the consumer follows `email.resend.pro` and mails the daily summary through Resend |
+| 16-17 | Mailpit | `http://localhost:18100/mailpit/` (read-only) | the summary sent before the adoption tagged `provider-brevo`, the one after tagged `provider-resend`, each with `X-OpenBinding-Provider` and `X-OpenBinding-Composition-Version` |
+| 17-18 | Margins compared, history | margins of 1.1.0 at 1000 users; `curl -sS -H "$OWNER" $T/environments/production/adoptions` | per user 0.508990 becomes 0.029990: every plan earns 0.479000 more; the history says 1.0.0 → 1.1.0 by `lab-owner` with the note |
+| 18-19 | The template | `curl -sS $API/v1/compositions/templates`, then `POST $API/v1/organizations/<org>/compositions/from-template {"template": "tomatometer"}` in another organization | the same problem and composition made in one action for anyone with the `repository` feature |
+| 19-20 | Restore | adopt 1.0.0 again (the walks and the next demo start from it) | adoption #3; the next summary goes through Brevo |
+
+`tools/smoke_lab.py` steps 16 to 18 (`environment_feed`, `adopt_switches_provider`, `restore_operation`) run this
+middle part unattended and restore the seed's state.
+
+### With TomatoMeter itself
+
+The same demo with the real application instead of the lab's consumer (Part T of the F4 design): TomatoMeter's
+`npm run composite` (on the `feat/openbinding-composite` branch of the owner's fork of TomatoMeter) starts
+OpenBinding's lab from a local checkout (`OPENBINDING_DIR`, built with the builder's own `BIM_TOOLCHAIN_TOKEN`) as the
+compose project `tomatometer-ob`, with the services `web` and `worker` and what they need, then TomatoMeter's own lab
+and Mailpit. TomatoMeter's server joins the network `tomatometer-ob_default` and reads the hand-off file
+`openbinding.json` from the volume `tomatometer-ob_lab-handoff`: `feedUrl` is
+`http://web:8080/api/v1/organizations/lab-main/compositions/tomatometer/environments/production/composition` and
+`feedKey` the production key. "Send the daily summary" in TomatoMeter then lands in Mailpit through the provider of
+the composition in effect, and adopting 1.1.0 in OpenBinding switches it. Only the owner can build this joint lab
+while the bim-toolchain wheels are private; its recorded walk (Mailpit messages, screenshots, the check report) is
+the reproducible artefact.
+
+### What comes next
+
+- **F6**: SPHERE watches and upstream events. "Brevo raises its price" arrives as an event on the environment with
+  the margins before (the adoption's pinned evaluation) and after (the new offering or upstream version), a badge on
+  the Operation tab, and a proposal to derive and adopt, which a person accepts.
+- **F8**: SPACE links per environment, the upstream ledger with a contract per environment and novation on adopt,
+  and the users and demand of the margins read from SPACE contracts instead of `expectedUsers`.
+
 ## Known limits
 
 - Observed on 2026-10-13: build and `lab_compose up` completed with every

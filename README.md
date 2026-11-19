@@ -227,6 +227,23 @@ server, and runs and studies start from run presets. The decisions are ADRs 0051
 `frontend/e2e/f2b-*.spec.ts` (mocked) and `frontend/e2e/live/10-problem-editor.spec.ts` and `11-study-front.spec.ts`
 (against the lab).
 
+### Operation: environments, the feed and the TomatoMeter demo
+
+A composition is operated in **environments** (`…/compositions/{c}/environments`): a person **adopts** a sealed
+version in one (`…/adopt`, with the environment's `ETag` in `If-Match`), and the application reads the version in
+effect from the environment's **feed** (`…/environments/{e}/composition`) with a feed key that opens nothing else.
+The feed's bytes are the adopted version's and its `ETag` that version's content digest, so it changes only when
+somebody adopts. Margins per offering plan come from the evaluation an adoption pinned. The contract is
+[Composition2Yaml §16](docs/COMPOSITION2YAML.md) and ADRs 0054 and 0055.
+
+The flagship is TomatoMeter: its problem and composition come from a **composition template**
+(`examples/templates/`, `GET /v1/compositions/templates`, `POST /v1/organizations/{org}/compositions/from-template`),
+and the lab (`compose.lab.json`) seeds it with two versions (Brevo, then Resend for the e-mail), two environments and
+a feed key. The lab also runs **Mailpit** (read-only at `<lab origin>/mailpit/`) and a small **feed consumer**
+(`openbinding-gateway/tools/feed_consumer.py`) that plays TomatoMeter's part: adopt the other version and its next
+daily summary arrives in Mailpit through the other provider. The demo script is in
+[docs/DEMO.md](docs/DEMO.md#tomatometer-composite-demo-script-v1), and `tools/smoke_lab.py` steps 16 to 18 run it.
+
 ### Reset the dev database
 
 The schema is one Alembic revision, regenerated from the models

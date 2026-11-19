@@ -45,3 +45,11 @@ open("tomatometer-email.bim.zip", "wb").write(zip_files(files))
 
 Upload it as a new problem, then preview and apply `email-recipe.json` on it, then `tomatometer-recipe.json`
 (`POST /v1/organizations/{org}/problems/tomatometer-email/sphere/expand` and `…/sphere/apply`, once per recipe). `docs/SPHERE.md` describes the recipe.
+
+## The composition, its template and the demo
+
+`examples/templates/tomatometer.json` is the composition template that makes this problem (revisions 1 to 3) and the
+composition `tomatometer` 1.0.0 in one action (`POST /v1/organizations/{org}/compositions/from-template`); the lab seed
+calls the same function and then derives 1.1.0 (Resend PRO for the e-mail), creates the environments `production`
+and `staging` and adopts 1.0.0 in production. The demo that adopts 1.1.0 and watches the e-mail provider switch in
+Mailpit is the "TomatoMeter composite (demo script v1)" section of [docs/DEMO.md](../../docs/DEMO.md#tomatometer-composite-demo-script-v1).
