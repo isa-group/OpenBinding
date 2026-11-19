@@ -96,9 +96,10 @@ test('@screens J1, J2: a first sign-in from the header, a taken username, the da
   expect((await webStorage(page)).filter(entry => /eyJ|access|refresh|token/i.test(entry))).toEqual(
     []
   );
-  expect(
-    (await context.cookies()).filter(cookie => !cookie.httpOnly && /session/i.test(cookie.name))
-  ).toEqual([]);
+  // OpenBinding's own cookies (Keycloak's, on Identity's path, are not its business) are all HttpOnly.
+  const ours = (await context.cookies(OB)).filter(cookie => cookie.name.includes('ob_'));
+  expect(ours.map(cookie => cookie.name)).toContain('ob_session');
+  expect(ours.filter(cookie => !cookie.httpOnly).map(cookie => cookie.name)).toEqual([]);
 
   // Past the lab's 60 s access lifespan the screens keep working: the session renews through Identity (the harness checks
   // the generation moved).
