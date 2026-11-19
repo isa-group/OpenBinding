@@ -74,6 +74,7 @@ import os
 import re
 import sys
 import tempfile
+import uuid
 from datetime import datetime, timedelta, timezone
 from collections.abc import Callable
 from pathlib import Path
@@ -175,14 +176,28 @@ def _install_recorded_sphere(settings: Any) -> None:
     from sphere_recorded import RecordedSphere
 
     from openbinding_gateway.core import outbound
+
+    global _RECORDED, _SETTINGS
+    recorded = RecordedSphere()
+    _RECORDED, _SETTINGS = recorded, settings
+    outbound._getaddrinfo = lambda host, port: recorded.getaddrinfo(host, port)
+    _fresh_pricing_source()
+
+
+def _fresh_pricing_source() -> None:
+    """A new pricing port over the recorded SPHERE (its manifest cache empty)."""
     from openbinding_gateway.modules.plans.adapters.sphere import SphereHttpSource
     from openbinding_gateway.modules.plans.application import set_pricing_source
 
-    recorded = RecordedSphere()
-    outbound._getaddrinfo = lambda host, port: recorded.getaddrinfo(host, port)
     set_pricing_source(
-        SphereHttpSource(settings.model_copy(update={"sphere_enabled": True}), transport=recorded.transport())
+        SphereHttpSource(_SETTINGS.model_copy(update={"sphere_enabled": True}), transport=_RECORDED.transport())
     )
+
+
+_RECORDED: Any = None
+_SETTINGS: Any = None
+#: The feed key the fixtures mint: fixed, so the reveal fixture and the feed read are the same on every run.
+FIXTURE_FEED_KEY = "obe_f1c7a5e0_" + "fixture-feed-key-not-a-secret-0123456789abc"
 
 
 async def _sphere_bodies(client, headers: dict[str, str]) -> dict[str, Any]:
@@ -278,7 +293,7 @@ async def _bodies(work: Path) -> tuple[dict[str, Any], dict[str, Any]]:
                 bodies["refused.validate.json"] = _ok(answer, 422).json()
                 bodies["refused.package.json"] = {path: content.decode("utf-8") for path, content in refused.items()}
                 sphere = await _sphere_bodies(client, headers)
-                imported_core, imported_sphere = await _sphere_imports(client, headers)
+                imported_core, imported_sphere = await _sphere_imports(client, headers, session)
                 bodies.update(imported_core)
                 sphere.update(imported_sphere)
                 bodies["plans-pricing.json"] = _ok(await client.get("/v1/plans/pricing"), 200).json()
@@ -291,7 +306,7 @@ async def _bodies(work: Path) -> tuple[dict[str, Any], dict[str, Any]]:
     return bodies, sphere
 
 
-async def _sphere_imports(client, headers: dict[str, str]) -> tuple[dict[str, Any], dict[str, Any]]:
+async def _sphere_imports(client, headers: dict[str, str], session) -> tuple[dict[str, Any], dict[str, Any]]:
     """The two SPHERE import journeys through the API: ``core/``'s generated facts and ``sphere/``'s bodies.
 
     J2 uploads the TomatoMeter base problem, previews and applies ``examples/tomatometer/email-recipe.json`` on it
@@ -342,7 +357,133 @@ async def _sphere_imports(client, headers: dict[str, str]) -> tuple[dict[str, An
     core["tomatometer-email.version.json"] = _ok(version, 200).json()
     upstream = await client.get(f"{compositions}/tomatometer/upstream", headers=headers)
     core["tomatometer-email.upstream.json"] = _ok(upstream, 200).json()
+    core.update(await _operation(
+        client, headers, session, binding, recipe=json.loads((examples / "email-recipe.json").read_text()),
+    ))
     return core, sphere
+
+
+async def _operation(
+    client, headers: dict[str, str], session, binding: dict[str, str], *, recipe: dict[str, Any],
+) -> dict[str, Any]:
+    """F4's operation of ``tomatometer``: a second version, two environments, three adoptions, a feed key, the feed,
+    margins, check reports, what-if evaluations and the versions derived from a run.
+
+    1.1.0 binds Resend instead of Mailgun; ``production`` (an operator, ADMIN adopts, 1000 expected users, one feed
+    key with the fixed ``FIXTURE_FEED_KEY``) adopts 1.0.0, 1.1.0 and 1.0.0 again; ``staging`` (MEMBER adopts) is
+    empty. ``tomatometer.check.production.newer.json`` is the same check over a scripted Mailgun manifest that names
+    a newer version: the only fixture with ``newer``. ``tomatometer.evaluate.revision.json`` evaluates against a
+    demand variant, revision 3 (the e-mail recipe with twice the demand).
+    """
+    import copy
+
+    import httpx
+
+    from openbinding_gateway.security import apikeys, feed_keys
+
+    out: dict[str, Any] = {}
+    compositions = "/v1/organizations/fixtures/compositions/tomatometer"
+    environments = f"{compositions}/environments"
+    _ok(await client.post(f"{compositions}/derive", headers=headers,
+                          json={"revision": "tomatometer-email@2", "binding": {**binding, "dailySummary": "email.resend.pro"},
+                                "version": "1.1.0", "offering": {"sphere": "sphere/tomatometer"}}), 201)
+    me = _ok(await client.get("/v1/users/me", headers=headers), 200).json()["username"]
+    _ok(await client.post(environments, headers=headers, json={
+        "slug": "production", "name": "Production", "description": "What TomatoMeter reads in production.",
+        "operator": me, "adoptRole": "ADMIN", "expectedUsers": 1000,
+    }), 201)
+    _ok(await client.post(environments, headers=headers, json={
+        "slug": "staging", "name": "Staging", "adoptRole": "MEMBER",
+    }), 201)
+    for label, note in (("1.0.0", "Go live"), ("1.1.0", "Switch to Resend"), ("1.0.0", "Back to Mailgun")):
+        tag = _ok(await client.get(f"{environments}/production", headers=headers), 200).headers["ETag"]
+        _ok(await client.post(f"{environments}/production/adopt", headers={**headers, "If-Match": tag},
+                              json={"version": label, "note": note}), 200)
+    minted = feed_keys.mint
+    prefix = FIXTURE_FEED_KEY.rsplit("_", 1)[0]
+    feed_keys.mint = lambda: apikeys.MintedKey(FIXTURE_FEED_KEY, prefix, apikeys.hash_key(FIXTURE_FEED_KEY))
+    try:
+        out["tomatometer.key.created.json"] = _ok(await client.post(
+            f"{environments}/production/keys", headers=headers, json={"label": "TomatoMeter production"}), 201).json()
+    finally:
+        feed_keys.mint = minted
+    out["tomatometer.environments.json"] = _ok(await client.get(environments, headers=headers), 200).json()
+    production = _ok(await client.get(f"{environments}/production", headers=headers), 200).json()
+    out["tomatometer.environment.production.json"] = production
+    out["tomatometer.adoptions.production.json"] = _ok(
+        await client.get(f"{environments}/production/adoptions", headers=headers), 200).json()
+    pinned = production["inEffect"]["evaluation"]["id"]
+    out["tomatometer.margins.1.0.0.json"] = _ok(await client.get(
+        f"{compositions}/versions/1.0.0/margins", params={"users": 1000, "evaluation": pinned}, headers=headers), 200).json()
+    out["tomatometer.margins.1.1.0.json"] = _ok(await client.get(
+        f"{compositions}/versions/1.1.0/margins", params={"users": 1000}, headers=headers), 200).json()
+    feed = _ok(await client.get(f"{environments}/production/composition", headers={"X-API-Key": FIXTURE_FEED_KEY}), 200)
+    out["tomatometer.feed.production.yaml"] = feed.text
+    out["tomatometer.feed.production.headers.json"] = {
+        name: feed.headers[name] for name in (
+            "content-type", "etag", "cache-control", "vary", "x-content-type-options", "openbinding-adoption",
+            "openbinding-composition-version",
+        )
+    }
+    _fresh_pricing_source()
+    out["tomatometer.check.production.json"] = _ok(
+        await client.post(f"{environments}/production/check", headers=headers), 200).json()
+    mailgun = "/api/v1/public/pricings/6ade364540e55445692b0eda"
+    manifest = json.loads((_RECORDED.root / _RECORDED.routes[mailgun]["file"]).read_text())
+    newer = {"versionId": "6ffffffffffffffffffffff1", "version": "2027-01", "createdAt": "2027-01-15T00:00:00.000Z",
+             "contentHash": "0" * 64}
+    scripted = {**manifest, "latestVersionId": newer["versionId"], "versions": [newer, *manifest["versions"]]}
+    _RECORDED._script(_RECORDED._for(mailgun), lambda request: httpx.Response(200, json=scripted))
+    _fresh_pricing_source()
+    out["tomatometer.check.production.newer.json"] = _ok(
+        await client.post(f"{environments}/production/check", headers=headers), 200).json()
+    _RECORDED.scripts.clear()
+    _fresh_pricing_source()
+    out["tomatometer.versions.json"] = _ok(await client.get(f"{compositions}/versions", headers=headers), 200).json()
+    # The calculator: a what-if binding with users, and the same against a demand variant (revision 3).
+    out["tomatometer.evaluate.users.json"] = _ok(await client.post(
+        f"{compositions}/evaluate", headers=headers,
+        json={"version": "1.1.0", "binding": {"dailySummary": "email.mailgun.foundation"}, "users": 1000}), 200).json()
+    doubled = copy.deepcopy(recipe)
+    doubled["demand"]["monthlyEmails"]["value"] = 60000
+    doubled["demand"]["dailyEmails"]["value"] = 2000
+    url = "/v1/organizations/fixtures/problems/tomatometer-email/sphere"
+    preview = _ok(await client.post(f"{url}/expand", json={"recipe": doubled, "base": {"revision": 2}}, headers=headers), 200).json()
+    _ok(await client.post(f"{url}/apply", headers=headers, json={
+        "recipe": doubled, "base": {"revision": 2}, "expect": {"packageDigest": preview["packageDigest"]}}), 201)
+    out["tomatometer.evaluate.revision.json"] = _ok(await client.post(
+        f"{compositions}/evaluate", headers=headers,
+        json={"version": "1.1.0", "revision": 3, "binding": {"dailySummary": "email.brevo.professional"},
+              "users": 1000}), 200).json()
+    out["tomatometer.runs.derived.json"] = await _derived_from_a_run(client, headers, session)
+    return out
+
+
+async def _derived_from_a_run(client, headers: dict[str, str], session) -> Any:
+    """A10's answer: ``simple-seq`` 2.0.0 derived from a finished run whose solution is 1.0.0's binding, then the
+    organization's compositions listed with ``?run=``."""
+    from sqlalchemy import select
+
+    from openbinding_gateway.db.models import CompositionDerivation, Job, JobState, User
+
+    compositions = "/v1/organizations/fixtures/compositions"
+    version = _ok(await client.get(f"{compositions}/simple-seq/versions/1.0.0", headers=headers), 200).json()
+    derivation = await session.scalar(select(CompositionDerivation).where(
+        CompositionDerivation.version_id == uuid.UUID(version["id"])))
+    user = await session.scalar(select(User).where(User.username == "fixtures"))
+    organization_id = (await client.get("/v1/organizations/fixtures", headers=headers)).json()["id"]
+    job = Job(
+        created_by_id=user.id, engine_id="random-search", engine_job_id="fixtures-run", service_url="http://engine",
+        state=JobState.COMPLETED, termination="FEASIBLE",
+        result={"solutions": [{"decision": {"kind": "binding", "binding": derivation.binding}, "features": {}}]},
+        organization_id=uuid.UUID(organization_id), revision_id=derivation.revision_id,
+        compilation_id=derivation.compilation_id, provenance={},
+    )
+    session.add(job)
+    await session.commit()
+    _ok(await client.post(f"{compositions}/simple-seq/derive", headers=headers,
+                          json={"run": str(job.id), "version": "2.0.0"}), 201)
+    return _ok(await client.get(compositions, params={"run": str(job.id)}, headers=headers), 200).json()
 
 
 async def _versions(client, headers: dict[str, str], name: str, facts: dict[str, Any]) -> tuple[Any, Any]:
@@ -450,8 +591,10 @@ def generate() -> tuple[dict[str, str], dict[str, str]]:
         # OpenBinding's pricing is the recorded SPHERE version, the same on every run, and its document's key order is
         # the pricing's own (plans in the order they are offered): written as the gateway answers it, not normalised.
         verbatim = {"plans-pricing.json": core.pop("plans-pricing.json")}
+        texts = {name: core.pop(name) for name in [name for name in core if name.endswith(".yaml")]}
         files = render(core)
         files.update({name: json.dumps(body, indent=2, ensure_ascii=False) + "\n" for name, body in verbatim.items()})
+        files.update(texts)
         return dict(sorted(files.items())), _render_sphere(sphere)
 
 
@@ -467,7 +610,9 @@ def _render_sphere(bodies: dict[str, Any]) -> dict[str, str]:
 
 def drift(files: dict[str, str], directory: Path) -> list[str]:
     """What differs between ``files`` and the ``.json`` files of ``directory``."""
-    present = {path.name for path in directory.glob("*.json")} if directory.is_dir() else set()
+    present = (
+        {path.name for pattern in ("*.json", "*.yaml") for path in directory.glob(pattern)} if directory.is_dir() else set()
+    )
     found = [f"missing: {name}" for name in sorted(set(files) - present)]
     found += [f"not generated: {name}" for name in sorted(present - set(files))]
     found += [
@@ -522,7 +667,7 @@ def main(argv: list[str] | None = None) -> int:
     core_out = arguments.out / "core" if arguments.out else FIXTURES
     sphere_out = arguments.out / "sphere" if arguments.out else SPHERE_FIXTURES
     core_out.mkdir(parents=True, exist_ok=True)
-    for stale in core_out.glob("*.json"):
+    for stale in [*core_out.glob("*.json"), *core_out.glob("*.yaml")]:
         if stale.name not in files:
             stale.unlink()
     for name, content in files.items():

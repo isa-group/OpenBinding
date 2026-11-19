@@ -1,0 +1,41 @@
+syntaxVersion: '1.0'
+composition: tomatometer
+version: 1.0.0
+kind: application
+problem:
+  ref: fixtures/problems/tomatometer-email@2
+  compilation: sha256-54f288f056ab90e0050c9de96f49bbc422e6a801beb05aa2f7cdbe88e1ff0e78
+workflow:
+  seq:
+  - login
+  - and:
+    - dailySummary
+    - export
+  - quotes
+binding:
+  login:
+    candidate: auth.builtin.local
+  dailySummary:
+    candidate: email.mailgun.foundation
+    from:
+      sphere: danruilop1/mailgun
+      version: 6ade36454b2b5b01c587db3d
+      plan: FOUNDATION
+  export:
+    candidate: storage.local.disk
+  quotes:
+    candidate: quotes.zenquotes.free
+values:
+  availability: 0.9736378375500001
+  latency:
+    value: 375.0
+    unit: ms
+  subscription:
+    value: 35.0
+    unit: USD/month
+offering:
+  sphere: sphere/tomatometer
+evidence:
+  manual: true
+  evaluatedBy: gateway
+  toolchain: bim-core 0.2.0

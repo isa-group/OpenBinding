@@ -42,7 +42,41 @@ def test_two_runs_write_byte_identical_trees(two_runs) -> None:
         [f"{name}.{kind}.json" for name, _ in tool.PACKAGES for kind in ("facts", "validate", "version", "diff")]
         + ["refused.package.json", "refused.validate.json", "plans-pricing.json", "tomatometer-email.facts.json",
            "tomatometer-email.version.json", "tomatometer-email.upstream.json"]
+        + [f"tomatometer.{name}" for name in OPERATION]
     )
+
+
+#: F4's operation fixtures (environments, adoptions, keys, the feed, margins, checks, what-if evaluations).
+OPERATION = (
+    "adoptions.production.json", "check.production.json", "check.production.newer.json",
+    "environment.production.json", "environments.json", "evaluate.revision.json", "evaluate.users.json",
+    "feed.production.headers.json", "feed.production.yaml", "key.created.json", "margins.1.0.0.json",
+    "margins.1.1.0.json", "runs.derived.json", "versions.json",
+)
+
+
+def test_the_operation_fixtures_hold_what_the_screens_draw(two_runs) -> None:
+    core = two_runs[0] / "core"
+
+    def read(name: str):
+        return json.loads((core / f"tomatometer.{name}").read_text(encoding="utf-8"))
+
+    production = read("environment.production.json")
+    assert production["inEffect"]["adoption"] == 3 and production["inEffect"]["version"]["label"] == "1.0.0"
+    assert production["expectedUsers"] == 1000 and production["keyCount"] == 1
+    assert [row["ordinal"] for row in read("adoptions.production.json")["adoptions"]] == [3, 2, 1]
+    assert [item["slug"] for item in read("environments.json")["environments"]] == ["production", "staging"]
+    assert read("margins.1.0.0.json")["status"] == "ok" and read("margins.1.1.0.json")["status"] == "ok"
+    assert {row["status"] for row in read("check.production.json")["upstream"]} == {"current"}
+    assert {row["status"] for row in read("check.production.newer.json")["upstream"]} == {"newer"}
+    assert read("key.created.json")["secret"] == tool.FIXTURE_FEED_KEY
+    headers = read("feed.production.headers.json")
+    assert headers["etag"] == production["feed"]["etag"] and headers["openbinding-adoption"] == "3"
+    assert (core / "tomatometer.feed.production.yaml").read_text(encoding="utf-8").startswith("syntaxVersion")
+    assert read("evaluate.revision.json")["revision"]["number"] == 3
+    assert read("evaluate.users.json")["margins"]["users"] == 1000
+    (derived,) = read("runs.derived.json")["compositions"]
+    assert derived["slug"] == "simple-seq" and derived["derivedVersions"][0]["label"] == "2.0.0"
 
 
 def test_the_sphere_import_journeys_are_written(two_runs) -> None:

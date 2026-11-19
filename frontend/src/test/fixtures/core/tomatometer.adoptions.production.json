@@ -1,0 +1,83 @@
+{
+  "adoptions": [
+    {
+      "adoptedAt": "2026-01-01T00:00:12Z",
+      "adoptedBy": {
+        "displayName": "fixtures",
+        "username": "fixtures"
+      },
+      "evaluation": {
+        "basisKey": "sha256-b91fc3a05d1a58d128f5589f35396aaf8ebd0c3854e1e072ce17c765fe42b4d4",
+        "id": "00000000-0000-4000-8000-000000000032",
+        "valuesStatus": "verified"
+      },
+      "feedEtag": "\"sha256-7974798d9e27731cb07f50f9fb0139ea06136554d1c1ee77a74f17ff04cd95ce\"",
+      "note": "Back to Mailgun",
+      "offering": {
+        "createdAt": "2026-01-01T00:00:09Z",
+        "versionName": "1.0.0"
+      },
+      "ordinal": 3,
+      "previousVersion": {
+        "id": "00000000-0000-4000-8000-000000000037",
+        "label": "1.1.0"
+      },
+      "version": {
+        "id": "00000000-0000-4000-8000-000000000035",
+        "label": "1.0.0"
+      }
+    },
+    {
+      "adoptedAt": "2026-01-01T00:00:13Z",
+      "adoptedBy": {
+        "displayName": "fixtures",
+        "username": "fixtures"
+      },
+      "evaluation": {
+        "basisKey": "sha256-b91fc3a05d1a58d128f5589f35396aaf8ebd0c3854e1e072ce17c765fe42b4d4",
+        "id": "00000000-0000-4000-8000-000000000038",
+        "valuesStatus": "verified"
+      },
+      "feedEtag": "\"sha256-83efb9ee96b05a261a911d2b4dd4edb2e3377ee3e297252492eded6edb2a7241\"",
+      "note": "Switch to Resend",
+      "offering": {
+        "createdAt": "2026-01-01T00:00:09Z",
+        "versionName": "1.0.0"
+      },
+      "ordinal": 2,
+      "previousVersion": {
+        "id": "00000000-0000-4000-8000-000000000035",
+        "label": "1.0.0"
+      },
+      "version": {
+        "id": "00000000-0000-4000-8000-000000000037",
+        "label": "1.1.0"
+      }
+    },
+    {
+      "adoptedAt": "2026-01-01T00:00:14Z",
+      "adoptedBy": {
+        "displayName": "fixtures",
+        "username": "fixtures"
+      },
+      "evaluation": {
+        "basisKey": "sha256-b91fc3a05d1a58d128f5589f35396aaf8ebd0c3854e1e072ce17c765fe42b4d4",
+        "id": "00000000-0000-4000-8000-000000000032",
+        "valuesStatus": "verified"
+      },
+      "feedEtag": "\"sha256-7974798d9e27731cb07f50f9fb0139ea06136554d1c1ee77a74f17ff04cd95ce\"",
+      "note": "Go live",
+      "offering": {
+        "createdAt": "2026-01-01T00:00:09Z",
+        "versionName": "1.0.0"
+      },
+      "ordinal": 1,
+      "previousVersion": null,
+      "version": {
+        "id": "00000000-0000-4000-8000-000000000035",
+        "label": "1.0.0"
+      }
+    }
+  ],
+  "nextBefore": null
+}
