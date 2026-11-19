@@ -135,7 +135,9 @@ The frontend files of the move to SPHERE's frontend (`docs/adr/0053-frontend-on-
 `73779a8a` of `main` (and `694f292b03` of its `feat/pricing-renderer` branch, for the pricing-renderer bridge, `/pricing`,
 the configuration compare tray, the study front and the SPHERE wizard's plan picker and selection mapping, as each header says), each with its reuse class: **verbatim** (copied; only imports, wording and types changed), **adapted**
 (copied, with logic changed; the header says what) or **pattern-only** (the layout followed, the code written here).
-Generated from the origin header of each file.
+Generated from the origin header of each file. The F4 screens (the Operation tab, the environment and template cards,
+the adopt dialog, the adoption history and the feed key panel) copy SPHERE at `fc776b4d`, where those files are unchanged
+since `73779a8a`; their rows say so.
 
 | File | SPHERE origin | Class |
 |---|---|---|

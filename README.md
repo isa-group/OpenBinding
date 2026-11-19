@@ -318,6 +318,7 @@ OpenBinding guarantees strict cryptographic immutability and provenance:
 - **In-browser ZIP Uncompression & Inspection**: Explore `.bim.zip` problem revisions directly in the browser with directory trees and syntax-highlighted code inspection in the bundled Monaco editor.
 - **Frozen study definitions**: A study keeps its editable matrix inline; every study run freezes a copy of it, with its digest and the compilation each problem revision runs on, so editing a study never changes what a run ran. Archive/restore preserves execution history.
 - **Dedicated Deep-Linked Views**: Full-page inspection and editing for Problems (`/problems/:org/:problem`), their revisions, Runs (`/runs/:org/:run`) and Studies (`/studies/:org/:study`).
+- **Operating compositions**: A composition's Operation tab lists its environments (where an application reads the version in effect through a polled feed with its own `obe_` keys), adopts a sealed version in one with the environment's `If-Match`, keeps the adoption history, shows the margin per offering plan of the version in effect, and checks its SPHERE sources on demand; "New composition" starts one from a template such as TomatoMeter (docs/DEMO.md, "TomatoMeter composite").
 
 ## Repository layout
 
