@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Annotated, Any, Literal, Optional
+from typing import Annotated, Any, Awaitable, Callable, Literal, Optional
 
 from fastapi import Depends, HTTPException, Request, Security, status
 from fastapi.security import APIKeyHeader, HTTPAuthorizationCredentials, HTTPBearer
@@ -65,6 +65,17 @@ _API_KEY_AUTH = APIKeyHeader(
         "access to either selected immutable Engine revisions or all visible Engines."
     ),
 )
+
+#: Resolves a session-bound gateway token to its user (``identity.application.active_for_token``), installed by
+#: the composition root (``main.create_app``): this layer sits below the identity module and may not import it.
+SessionResolver = Callable[..., Awaitable[Optional[User]]]
+_session_resolver: Optional[SessionResolver] = None
+
+
+def set_session_resolver(resolver: Optional[SessionResolver]) -> None:
+    global _session_resolver
+    _session_resolver = resolver
+
 
 #: How stale ``last_used_at`` is allowed to get before it is worth a write.
 LAST_USED_RESOLUTION = timedelta(minutes=1)
@@ -179,6 +190,7 @@ async def _user_for_api_key(credential: str, session: AsyncSession) -> Optional[
         # while preserving which key authenticated it for authorization and
         # Engine allow-list checks deeper in the call graph.
         user._authenticated_api_key = api_key  # type: ignore[attr-defined]
+        user._identity_session_id = None  # type: ignore[attr-defined]
     return user
 
 
@@ -205,7 +217,21 @@ async def _user_for_credential(
     except TokenError:
         return None
 
-    user = await session.get(User, claims.user_id)
+    if claims.session_id is not None:
+        # One joined read of the session and its user: logout, deactivation, deletion and a change of
+        # AUTH_PROVIDER end the token on its next request. No resolver installed: refused.
+        user = (
+            await _session_resolver(session, claims.session_id, claims.user_id, claims.provider, settings=settings)
+            if _session_resolver is not None
+            else None
+        )
+    elif settings.auth_provider == "local":
+        # Tokens of the local TokenPair, until local sign-in opens sessions too.
+        user = await session.get(User, claims.user_id)
+        if user is not None:
+            user._identity_session_id = None  # type: ignore[attr-defined]
+    else:
+        user = None
     if user is not None:
         user._authenticated_api_key = None  # type: ignore[attr-defined]
     return user

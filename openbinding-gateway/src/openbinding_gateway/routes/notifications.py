@@ -26,6 +26,8 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..access.dependencies import get_current_user, session_dependency
+from ..core.settings import get_settings
+from ..modules.identity.application import session_still_valid
 from ..core import revision
 from ..db import base as db_base
 from ..db.models import Notification, NotificationStreamTicket, User, utcnow
@@ -52,6 +54,8 @@ TICKET_SECONDS = 60
 #: inbox, and how often it says it is still there when nothing changed.
 STREAM_SECONDS = 15 * 60.0
 POLL_SECONDS = 2.0
+#: How often an open stream checks that its account and browser session are still good.
+SESSION_CHECK_SECONDS = 30.0
 KEEPALIVE_SECONDS = 15.0
 #: The reconnection delay an ``EventSource`` is told to use.
 RETRY_MS = 5000
@@ -177,13 +181,16 @@ async def create_stream_ticket(
     expires_at = now + timedelta(seconds=TICKET_SECONDS)
     session.add(NotificationStreamTicket(
         user_id=user.id, ticket_hash=hashlib.sha256(ticket.encode()).hexdigest(), expires_at=expires_at,
+        # The browser session that bought it: the stream ends with that session (null for an API key).
+        session_id=getattr(user, "_identity_session_id", None),
     ))
     await session.flush()
     return StreamTicket(ticket=ticket, expires_at=expires_at)
 
 
-async def _redeem(session: AsyncSession, ticket: str) -> uuid.UUID | None:
-    """The user a ticket was minted for, deleting it; ``None`` when unknown, used or expired."""
+async def _redeem(session: AsyncSession, ticket: str) -> tuple[uuid.UUID, uuid.UUID | None] | None:
+    """The user (and browser session) a ticket was minted for, deleting it; ``None`` when unknown, used, expired,
+    or bought by a session that has ended since."""
     row = await session.scalar(
         select(NotificationStreamTicket).where(
             NotificationStreamTicket.ticket_hash == hashlib.sha256(ticket.encode()).hexdigest()
@@ -194,7 +201,11 @@ async def _redeem(session: AsyncSession, ticket: str) -> uuid.UUID | None:
     await session.delete(row)
     await session.flush()
     expires = row.expires_at if row.expires_at.tzinfo else row.expires_at.replace(tzinfo=utcnow().tzinfo)
-    return row.user_id if expires > utcnow() else None
+    if expires <= utcnow():
+        return None
+    if not await session_still_valid(session, row.user_id, row.session_id, settings=get_settings()):
+        return None
+    return row.user_id, row.session_id
 
 
 @asynccontextmanager
@@ -212,11 +223,13 @@ def _event(name: str, data: dict) -> str:
     return f"event: {name}\ndata: {json.dumps(data, default=str, separators=(',', ':'))}\n\n"
 
 
-async def _events(user_id: uuid.UUID) -> AsyncIterator[str]:
+async def _events(user_id: uuid.UUID, session_id: uuid.UUID | None = None) -> AsyncIterator[str]:
     """The stream: ``connected``, the unread count, then each committed notification and each new count.
 
     It reads the inbox every ``POLL_SECONDS`` rather than being pushed to, so any replica serves any user and
-    only committed notifications are shown. It ends after ``STREAM_SECONDS``; the client reconnects.
+    only committed notifications are shown. It ends after ``STREAM_SECONDS``; the client reconnects. Every
+    ``SESSION_CHECK_SECONDS`` it checks that the account is active and the browser session that opened it still
+    live, and ends with ``event: session-ended`` when not (a sign-out ends the stream too).
     """
     yield f"retry: {RETRY_MS}\n\n" + _event("connected", {"userId": str(user_id)})
     since = utcnow() - timedelta(seconds=1)
@@ -226,8 +239,16 @@ async def _events(user_id: uuid.UUID) -> AsyncIterator[str]:
     yield _event("unread-count", {"count": count})
     deadline = time.monotonic() + STREAM_SECONDS
     quiet_since = time.monotonic()
+    checked_at = time.monotonic()
     while time.monotonic() < deadline:
         await _pause(POLL_SECONDS)
+        if time.monotonic() - checked_at >= SESSION_CHECK_SECONDS:
+            checked_at = time.monotonic()
+            async with _open_session() as session:
+                valid = await session_still_valid(session, user_id, session_id, settings=get_settings())
+            if not valid:
+                yield _event("session-ended", {})
+                return
         async with _open_session() as session:
             rows = (await session.scalars(
                 select(Notification).where(Notification.user_id == user_id, Notification.created_at >= since)
@@ -268,11 +289,12 @@ async def stream_notifications(
 ) -> StreamingResponse:
     """The caller's notifications as they arrive, as SPHERE's notification stream, opened with a single-use
     ticket instead of an access token in the URL."""
-    user_id = await _redeem(session, ticket)
-    if user_id is None:
+    redeemed = await _redeem(session, ticket)
+    if redeemed is None:
         raise api_error(status.HTTP_401_UNAUTHORIZED, "invalid_ticket", "The stream ticket is unknown, used or expired.")
+    user_id, session_id = redeemed
     return StreamingResponse(
-        _events(user_id),
+        _events(user_id, session_id),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )

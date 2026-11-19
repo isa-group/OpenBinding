@@ -79,6 +79,12 @@ class AccessGrant(BaseModel):
     expires_in: int = Field(..., description="Lifetime of the access token, in seconds.")
 
 
+class SignOutRequest(BaseModel):
+    scope: Literal["this", "all"] = Field(
+        default="this", description="`this` session, or `all` the sessions of the account."
+    )
+
+
 class PendingSignUp(BaseModel):
     """A first SCORETech Identity sign-in waiting for its username."""
 

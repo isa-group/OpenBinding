@@ -12,8 +12,10 @@ PostgreSQL as the authority instead of a cache entry holding the plain refresh t
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
+import logging
 import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -25,6 +27,8 @@ from ....core.settings import Settings
 from ....db.models import SESSION_REVOKE_REASONS, AuditEvent, AuthIdentity, IdentitySession, User, utcnow
 from ....security.secrets import CredentialStore, SecretsUnavailable
 from ..domain.claims import IdentityClaims, TokenSet
+
+logger = logging.getLogger(__name__)
 
 #: Expired or revoked rows older than this are deleted when the same user opens a new session.
 HOUSEKEEPING_AFTER = timedelta(days=7)
@@ -297,3 +301,112 @@ async def sync_claims(db: AsyncSession, user: User, claims: IdentityClaims, *, n
                 await release_email(db, holder, reason, actor=user.id)
             user.email = claims.email
     user.email_verified = bool(claims.email and claims.email_verified and user.email == claims.email)
+
+
+# -- checks and logout ---------------------------------------------------------------------------------------
+
+#: Ends of Identity sessions run at most this many at once, each bounded by ``END_SESSION_TIMEOUT_S``.
+END_SESSION_PARALLEL = 5
+END_SESSION_TIMEOUT_S = 5.0
+
+
+async def session_still_valid(
+    db: AsyncSession,
+    user_id: uuid.UUID,
+    session_id: uuid.UUID | None,
+    *,
+    settings: Settings,
+    now: datetime | None = None,
+) -> bool:
+    """Whether a long-lived answer (a notification or run event stream) may go on for this caller.
+
+    The account must be active and, when the caller came with a browser session, that session must still be
+    live and of the gateway's mode. Streams re-check this every 30 s.
+    """
+    user = await db.get(User, user_id, populate_existing=True)
+    if user is None or not user.is_active or user.deleted_at is not None:
+        return False
+    if session_id is None:
+        return True
+    row = await db.get(IdentitySession, session_id, populate_existing=True)
+    return (
+        row is not None
+        and row.user_id == user_id
+        and row.provider == settings.auth_provider
+        and is_live(row, now or utcnow())
+    )
+
+
+async def end_upstream_sessions(settings: Settings, rows: list[IdentitySession]) -> None:
+    """End the Identity session behind each ``scoretech`` row; best effort, a few at a time, bounded in time."""
+    from .stores import get_oidc
+
+    tokens = []
+    for row in rows:
+        if row.provider != "scoretech" or not row.refresh_ciphertext:
+            continue
+        try:
+            tokens.append(open_refresh(settings, row))
+        except SealedTokenInvalid:
+            continue
+    if not tokens:
+        return
+    try:
+        oidc = get_oidc()
+    except Exception:  # noqa: BLE001 - local mode, or no client installed: nothing to end upstream
+        return
+    gate = asyncio.Semaphore(END_SESSION_PARALLEL)
+
+    async def end(token: str) -> None:
+        async with gate:
+            try:
+                await asyncio.wait_for(oidc.end_session(token), END_SESSION_TIMEOUT_S)
+            except Exception as error:  # noqa: BLE001 - logged by code, never fatal
+                logger.info("identity_end_session_failed error=%s", type(error).__name__)
+
+    await asyncio.gather(*(end(token) for token in tokens))
+
+
+async def end_all(db: AsyncSession, settings: Settings, user: User | uuid.UUID, reason: str) -> list[IdentitySession]:
+    """Revoke every live session of ``user`` and end their Identity sessions (deactivation, deletion, reset)."""
+    rows = await revoke(db, user, reason)
+    await end_upstream_sessions(settings, rows)
+    return rows
+
+
+async def logout(
+    db: AsyncSession,
+    settings: Settings,
+    *,
+    session_cookie: str | None,
+    pending_cookie: str | None,
+    scope: str,
+) -> None:
+    """End this session (or, with ``scope="all"``, every session of its account) and any pending sign-up.
+
+    Answers nothing about what it found: signing out is idempotent and tells nobody whether a cookie was real.
+    """
+    from .provisioning import PENDING_NAMESPACE, open_tokens, read_pending
+    from .stores import get_oidc, get_store
+
+    row = await find_by_cookie(db, session_cookie)
+    if row is not None and row.revoked_at is None:
+        if scope == "all":
+            ended = await revoke(db, row.user_id, "logout_all")
+        else:
+            ended = await revoke(db, row, "logout")
+        audit(db, "account.signed_out", actor=row.user_id, target=row.user_id, detail={"scope": scope})
+        await end_upstream_sessions(settings, ended)
+    if settings.auth_provider != "scoretech":
+        return
+    found = await read_pending(db, pending_cookie)
+    if found is not None:
+        key, record = found
+        await get_store().delete(PENDING_NAMESPACE, key)
+        tokens = open_tokens(settings, key, record)
+        if tokens is not None:
+            try:
+                oidc = get_oidc()
+                await asyncio.wait_for(oidc.end_session(tokens.refresh_token), END_SESSION_TIMEOUT_S)
+            except Exception as error:  # noqa: BLE001
+                logger.info("identity_end_session_failed error=%s", type(error).__name__)

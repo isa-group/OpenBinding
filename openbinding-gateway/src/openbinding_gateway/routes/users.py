@@ -12,10 +12,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..access.dependencies import get_current_user, get_user_by_identifier, session_dependency
 from ..db.models import (
-    ApiKey, AuditEvent, AuthIdentity, IdentitySession, Notification, OrganizationInvitationCode, OrganizationMembership,
+    ApiKey, AuditEvent, AuthIdentity, IdentitySession, Notification, NotificationStreamTicket, OrganizationInvitationCode, OrganizationMembership,
     OrganizationRole, PasswordResetToken, RefreshToken, User, UserRole, utcnow,
 )
-from ..modules.identity.application import PSEUDONYM_PREFIX
+from ..modules.identity.application import PSEUDONYM_PREFIX, end_all
 from ..models.accounts import (
     ApiKeyList,
     ApiKeyBoundary,
@@ -54,6 +54,7 @@ from ..security.apikeys import (
 )
 from ..security.passwords import hash_password, password_complaint, verify_password
 from ..core import revision
+from ..core.settings import get_settings
 from ..core.public_errors import pricing_unavailable_error
 from ..services import engine_registry
 from ..services.entitlements import entitlement_service
@@ -626,6 +627,9 @@ async def delete_own_account(
                 "Transfer or delete every organization for which this is the last owner.",
             )
 
+    # Every browser session ends now, and the SCORETech sessions behind them (best effort); pseudonymise
+    # then deletes the rows. The access token of this very request stops working with them.
+    await end_all(session, get_settings(), user, "deleted")
     # Pseudonymised and flushed first, so that a database refusal (a taken
     # pseudonym, a RESTRICT) stops the deletion while the contract still exists;
     # a contract that cannot be removed then rolls the whole request back.
@@ -660,6 +664,7 @@ async def pseudonymise(session: AsyncSession, user: User) -> None:
         (ApiKey, ApiKey.user_id),
         (RefreshToken, RefreshToken.user_id),
         (PasswordResetToken, PasswordResetToken.user_id),
+        (NotificationStreamTicket, NotificationStreamTicket.user_id),
         (IdentitySession, IdentitySession.user_id),
         (AuthIdentity, AuthIdentity.user_id),
         (Notification, Notification.user_id),

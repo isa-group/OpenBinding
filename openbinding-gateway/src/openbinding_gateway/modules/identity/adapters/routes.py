@@ -22,7 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ....access.dependencies import session_dependency
 from ....core.ratelimit import enforce_auth_rate_limit
 from ....core.settings import Settings, get_settings
-from ....models.accounts import AccessGrant, AuthConfigView, CompletedSignUp, CompleteSignUpRequest, PendingSignUp
+from ....models.accounts import AccessGrant, AuthConfigView, SignOutRequest, CompletedSignUp, CompleteSignUpRequest, PendingSignUp
 from ....models.errors import CONFLICT_RESPONSE, ErrorResponse, NOT_FOUND_RESPONSE, api_error
 from ....security.tokens import issue_access_token
 from ....db.models import IdentitySession, User, utcnow
@@ -348,4 +348,35 @@ async def identity_session(
     cookies.set_cookie(
         response, settings, cookies.name(settings, cookies.SESSION), value, sessions.remaining_seconds(row, now)
     )
+    return response
+
+
+@router.post(
+    "/identity/logout",
+    status_code=status.HTTP_204_NO_CONTENT,
+    operation_id="signOut",
+    summary="Sign out: end this session (or every session of the account) and the SCORETech SSO session",
+    dependencies=[Depends(requires_provider("any"))],
+    responses={403: {"model": ErrorResponse, "description": "Not from the frontend's origin (`origin_refused`)."}},
+)
+async def identity_logout(
+    request: Request,
+    payload: SignOutRequest | None = None,
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+    settings: Settings = Depends(get_settings),
+) -> Response:
+    """Always 204. A tokens minted from the session stop working at once; in `scoretech` mode the Identity
+    session behind it is ended too (so signing in again asks for a code), and so is a sign-up still waiting
+    for its username."""
+    cookies.require_same_origin(request, settings)
+    await sessions.logout(
+        session,
+        settings,
+        session_cookie=request.cookies.get(cookies.name(settings, cookies.SESSION)),
+        pending_cookie=request.cookies.get(cookies.name(settings, cookies.PENDING)),
+        scope=(payload.scope if payload else "this"),
+    )
+    response = Response(status_code=status.HTTP_204_NO_CONTENT)
+    cookies.clear_cookie(response, settings, cookies.name(settings, cookies.SESSION))
+    cookies.clear_cookie(response, settings, cookies.name(settings, cookies.PENDING))
     return response

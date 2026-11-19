@@ -85,6 +85,7 @@ from ..space_client import (
     get_gate,
 )
 from ..mailer import send_mail
+from ..modules.identity.application import end_all
 from .users import cas_verified_ids, usage_view_for
 
 router = APIRouter(
@@ -301,6 +302,9 @@ async def update_user(
     if request.is_active is not None and request.is_active != user.is_active:
         changes["is_active"] = {"from": user.is_active, "to": request.is_active}
         user.is_active = request.is_active
+        if request.is_active is False:
+            # Deactivation ends every browser session at once (and the Identity sessions behind them).
+            await end_all(session, get_settings(), user, "deactivated")
     if request.role is not None and request.role.value != user.role.value:
         changes["role"] = {"from": user.role.value, "to": request.role.value}
         user.role = UserRole(request.role.value)

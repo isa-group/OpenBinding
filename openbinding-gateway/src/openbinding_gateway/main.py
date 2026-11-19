@@ -28,7 +28,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from . import space_client
 from .jobs import reconciler as job_reconciler
-from .access.dependencies import session_dependency
+from .access.dependencies import session_dependency, set_session_resolver
 from .access.work_limits import ANONYMOUS_READ_ROUTES, WORK_ROUTES
 from .core import revision
 from .core.settings import Settings, get_settings
@@ -76,6 +76,7 @@ from .modules.identity.adapters.cookies import NoStoreAuthMiddleware
 from .modules.identity.adapters.oidc import IdentityOidc
 from .modules.identity.adapters.routes import router as identity_auth_router
 from .modules.identity.application import set_lock as set_identity_lock
+from .modules.identity.application import active_for_token as identity_active_for_token
 from .modules.identity.application import set_oidc as set_identity_oidc
 from .modules.identity.application import startup_warnings as identity_startup_warnings
 from .modules.identity.application import set_store as set_identity_store
@@ -445,6 +446,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     settings = explicit or get_settings()
     if explicit is None:
         _configure_logging(settings)
+    # Session-bound gateway tokens resolve through the identity module (access sits below it).
+    set_session_resolver(identity_active_for_token)
 
     app = FastAPI(
         title="OpenBinding Gateway",
