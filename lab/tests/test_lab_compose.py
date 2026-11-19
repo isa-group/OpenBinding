@@ -840,6 +840,23 @@ def test_nginx_listens_on_the_published_target_and_strips_the_api_prefix(service
     assert 1 <= int(check["retries"]) <= 10
 
 
+@pytest.mark.parametrize("path", [NGINX_CONF, ROOT / "nginx" / "production" / "nginx.conf"])
+def test_nginx_logs_the_sign_in_callback_and_the_reset_page_by_path_only(path):
+    """The callback's ``code``/``state`` and the reset link's ``token`` never reach an access log."""
+    conf = path.read_text(encoding="utf-8")
+    block = re.search(r"map \$request_uri \$loggable_request \{(.*?)\}", conf, re.DOTALL)
+    assert block, path.name
+    body = block[1]
+    assert re.search(r"default\s+\$request;", body)
+    for prefix in ("~^/api/v1/auth/identity/callback", "~^/reset-password"):
+        assert re.search(re.escape(prefix) + r'\s+"\$request_method \$uri \$server_protocol";', body), prefix
+    formats = re.findall(r"log_format \w+[^;]*;", conf, re.DOTALL)
+    assert formats and all("$loggable_request" in item and "$request\"" not in item and "$request " not in item for item in formats)
+    assert "$http_referer" not in " ".join(formats)
+    for line in re.findall(r"^\s*access_log\s+([^;]+);", conf, re.MULTILINE):
+        assert line.strip() == "off" or len(line.split()) >= 2, f"{path.name}: access_log without the format: {line}"
+
+
 def test_prod_stage_is_stock_nginx_and_lab_stage_bakes_in_the_lab_config():
     # Target `prod` (the production image) is nginx:1.27-alpine plus the build output and must not
     # change; target `lab` is built FROM it and only replaces conf.d/default.conf.
@@ -871,7 +888,7 @@ def test_nginx_lab_conf_reaches_the_build_context():
 
 def test_nginx_lab_conf_logs_to_the_container_and_keeps_healthz_quiet():
     conf = _nginx_conf()
-    assert "access_log /dev/stdout;" in conf and "error_log /dev/stderr warn;" in conf
+    assert "access_log /dev/stdout openbinding_lab;" in conf and "error_log /dev/stderr warn;" in conf
     health = re.search(r"location = /healthz \{([^}]*)\}", conf)
     assert health and "access_log off;" in health.group(1)
     assert "pid " not in re.sub(r"#.*", "", conf)  # not valid in a server block

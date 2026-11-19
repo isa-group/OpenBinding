@@ -461,6 +461,20 @@ Quotas are per account: there are no billing sponsors. Deleting an account pseud
 | `local_auth_disabled` | 409 | a local credential route (register, login, password reset) was called on a gateway that signs people in with SCORETech Identity (`AUTH_PROVIDER=scoretech`) |
 | `origin_refused` | 403 | a sign-in route that reads the session cookie was called without an `Origin` from the frontend (`FRONTEND_URL`'s origin or `AUTH_TRUSTED_ORIGINS`) |
 
+### Redirect codes
+
+`GET /v1/auth/identity/login` and `/callback` are navigated to, not fetched: a failure sends the browser to
+`/authentication?identity_error=<code>`, one of this closed list.
+
+| `identity_error` | Meaning |
+|---|---|
+| `signin_failed` | Identity's answer could not be trusted (a token failed verification, an `iss` of another issuer, a missing code) or anything unexpected |
+| `account_not_linked` | the verified email belongs to another OpenBinding account whose email is verified too; nothing was created |
+| `access_denied` | the person declined at Identity, or the account lacks the permission OpenBinding requires (`openbinding:access`) |
+| `unavailable` | Identity could not be reached, or this gateway does not sign in with Identity |
+| `expired` | the sign-in took longer than ten minutes, was already used, or came back to another browser |
+| `account_disabled` | the OpenBinding account is deactivated or deleted |
+
 ## Conditional writes (`If-Match`)
 
 These operations take an optional `If-Match` header:

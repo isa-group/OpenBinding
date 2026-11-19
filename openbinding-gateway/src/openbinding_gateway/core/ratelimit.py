@@ -301,12 +301,29 @@ def client_bucket(address: str) -> str:
     return f"{ipaddress.IPv6Address(int(parsed) >> 64 << 64)}/64"
 
 
-def _budget(settings: Settings, action: str) -> int:
-    return {
+#: The sign-in actions with fixed budgets per window: ``(per identifier, per client address)``. The identifier
+#: is the pending sign-up (``identity_complete``), the session (``identity_session``) or the email
+#: (``reset_request``), hashed before it names a counter.
+FIXED_BUDGETS: dict[str, tuple[int, int]] = {
+    "identity_login": (0, 30),
+    "identity_callback": (0, 30),
+    "identity_complete": (10, 30),
+    "identity_session": (120, 600),
+    "reset_request": (3, 5),
+    "reset_complete": (0, 10),
+}
+
+
+def _budget(settings: Settings, action: str) -> tuple[int, int]:
+    """``(attempts per identifier, attempts per client address)`` of ``action`` in one window."""
+    if action in FIXED_BUDGETS:
+        return FIXED_BUDGETS[action]
+    attempts = {
         "login": settings.auth_rate_limit_login_attempts,
         "register": settings.auth_rate_limit_register_attempts,
         "refresh": settings.auth_rate_limit_refresh_attempts,
     }[action]
+    return attempts, attempts * settings.auth_rate_limit_ip_multiplier
 
 
 async def enforce_auth_rate_limit(
@@ -322,8 +339,8 @@ async def enforce_auth_rate_limit(
     ...}}`` error shape (``rate_limit_exceeded``).
     """
     settings = settings or get_settings()
-    attempts = _budget(settings, action)
-    if attempts <= 0:
+    attempts, ip_attempts = _budget(settings, action)
+    if attempts <= 0 and ip_attempts <= 0:
         return
     limiter = limiter or get_auth_limiter()
     try:
@@ -332,7 +349,7 @@ async def enforce_auth_rate_limit(
             client_address(request),
             identifier,
             attempts=attempts,
-            ip_attempts=attempts * settings.auth_rate_limit_ip_multiplier,
+            ip_attempts=ip_attempts,
             window_s=settings.auth_rate_limit_window_s,
         )
     except RateLimited as limited:

@@ -22,9 +22,9 @@ from sqlalchemy import delete, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ....core.settings import Settings
-from ....db.models import SESSION_REVOKE_REASONS, AuthIdentity, IdentitySession, User, utcnow
+from ....db.models import SESSION_REVOKE_REASONS, AuditEvent, AuthIdentity, IdentitySession, User, utcnow
 from ....security.secrets import CredentialStore, SecretsUnavailable
-from ..domain.claims import TokenSet
+from ..domain.claims import IdentityClaims, TokenSet
 
 #: Expired or revoked rows older than this are deleted when the same user opens a new session.
 HOUSEKEEPING_AFTER = timedelta(days=7)
@@ -79,6 +79,7 @@ async def housekeep(db: AsyncSession, user_id: uuid.UUID, now: datetime) -> None
             IdentitySession.user_id == user_id,
             or_(IdentitySession.revoked_at < cutoff, IdentitySession.expires_at < cutoff),
         )
+        .execution_options(synchronize_session="fetch")
     )
 
 
@@ -216,3 +217,83 @@ async def revoke(
         row.revoked_reason = reason
     await db.flush()
     return rows
+
+
+# -- claims ---------------------------------------------------------------------------------------------------
+
+
+def placeholder_email(user_id: uuid.UUID) -> str:
+    """The address of an account whose email Identity has not verified (the CAS precedent)."""
+    return f"{user_id}@identity.openbinding.invalid"
+
+
+def audit(
+    db: AsyncSession, action: str, *, actor: uuid.UUID | None, target: uuid.UUID | None, detail: dict | None = None
+) -> None:
+    """An ``account.*`` audit row. Details carry ids, codes and reasons only: never an email or a token."""
+    db.add(AuditEvent(actor_id=actor, action=action, target_type="User", target_id=target, detail=detail or {}))
+
+
+async def has_identity_of(db: AsyncSession, user_id: uuid.UUID, issuer: str) -> bool:
+    return (
+        await db.scalar(
+            select(AuthIdentity.id).where(
+                AuthIdentity.user_id == user_id,
+                AuthIdentity.provider == "scoretech",
+                AuthIdentity.issuer == issuer,
+            ).limit(1)
+        )
+    ) is not None
+
+
+async def email_holder(db: AsyncSession, email: str, *, other_than: uuid.UUID | None = None) -> User | None:
+    query = select(User).where(User.email == email)
+    if other_than is not None:
+        query = query.where(User.id != other_than)
+    return (await db.execute(query)).scalars().first()
+
+
+async def release_reason(db: AsyncSession, holder: User, issuer: str) -> str | None:
+    """Why ``holder``'s copy of an email someone else verified may be released, or ``None`` if it may not.
+
+    A holder with an Identity account of this issuer holds a stale copy (Identity forbids duplicate emails);
+    a holder whose own email is unverified (every local, seeded or CAS account) proves nothing. A holder whose
+    email is verified and who has no identity of this issuer keeps it.
+    """
+    if await has_identity_of(db, holder.id, issuer):
+        return "stale_identity"
+    if not holder.email_verified:
+        return "unverified_holder"
+    return None
+
+
+async def release_email(db: AsyncSession, holder: User, reason: str, *, actor: uuid.UUID | None) -> None:
+    holder.email = placeholder_email(holder.id)
+    holder.email_verified = False
+    audit(db, "account.email.released", actor=actor, target=holder.id, detail={"reason": reason})
+    await db.flush()
+
+
+async def sync_claims(db: AsyncSession, user: User, claims: IdentityClaims, *, now: datetime | None = None) -> None:
+    """Bring what OpenBinding keeps of ``user`` up to date with a verified Identity sign-in or renewal.
+
+    Liveness (``last_identity_refresh_at``) always moves. The profile moves only with a verified ID token:
+    the verified email (released from a holder whose copy proves nothing, kept with an
+    ``account.identity.email_conflict`` audit when a holder verified it too), ``email_verified``, the display
+    name and the avatar. Nothing ever finds an account by its email.
+    """
+    user.last_identity_refresh_at = now or utcnow()
+    if not claims.profile_from_id_token:
+        return
+    user.display_name = claims.display_name
+    user.avatar = claims.avatar
+    if claims.email and claims.email_verified and user.email != claims.email:
+        holder = await email_holder(db, claims.email, other_than=user.id)
+        reason = None if holder is None else await release_reason(db, holder, claims.issuer)
+        if holder is not None and reason is None:
+            audit(db, "account.identity.email_conflict", actor=user.id, target=user.id, detail={"holder": str(holder.id)})
+        else:
+            if holder is not None:
+                await release_email(db, holder, reason, actor=user.id)
+            user.email = claims.email
+    user.email_verified = bool(claims.email and claims.email_verified and user.email == claims.email)
