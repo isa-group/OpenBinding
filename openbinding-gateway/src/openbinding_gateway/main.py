@@ -72,7 +72,10 @@ from .modules.identity.adapters.stores import (
     RedisOneTimeStore,
     RedisSessionLock,
 )
+from .modules.identity.adapters.cookies import NoStoreAuthMiddleware
+from .modules.identity.adapters.routes import router as identity_auth_router
 from .modules.identity.application import set_lock as set_identity_lock
+from .modules.identity.application import startup_warnings as identity_startup_warnings
 from .modules.identity.application import set_store as set_identity_store
 from .modules.execution.adapters.routes import router as runs_router
 from .modules.problems.adapters.bim_routes import router as bim_router
@@ -117,6 +120,11 @@ def _configure_logging(startup_settings: Settings) -> None:
             startup_settings.space_api_key or "",
             startup_settings.bootstrap_admin_password or "",
             startup_settings.federation_secret_key or "",
+            (
+                startup_settings.scoretech_identity_client_secret.get_secret_value()
+                if startup_settings.scoretech_identity_client_secret
+                else ""
+            ),
             *(startup_settings.secrets_fernet_keys or "").split(","),
         ),
     )
@@ -170,6 +178,8 @@ async def _lifespan(settings: Settings):
     # core.outbound, so there is nothing to close but its in-process cache.
     set_pricing_source(SphereHttpSource(settings))
     close_identity_stores = _install_identity_stores(settings)
+    for warning in identity_startup_warnings(settings):
+        logging.getLogger(__name__).warning(warning)
     try:
         await check_pricing(settings, gate)
     except BaseException:
@@ -454,6 +464,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # Added first, so it is the innermost: a 413 still leaves through the CORS and telemetry
     # layers, and nothing inside it reads a body it has not counted.
     app.add_middleware(BodyLimitMiddleware)
+    # Nothing a sign-in route answers may be cached by a browser or a proxy.
+    app.add_middleware(NoStoreAuthMiddleware)
     # Next, so telemetry and CORS see the 5xx documents with their correlationId.
     app.add_middleware(CorrelationIdMiddleware)
     app.add_middleware(
@@ -474,6 +486,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.include_router(v1_router)
     app.include_router(auth_router)
+    app.include_router(identity_auth_router)
     app.include_router(cas_router)
     app.include_router(users_router)
     app.include_router(identity_router)

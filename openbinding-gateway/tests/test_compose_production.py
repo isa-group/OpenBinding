@@ -32,6 +32,7 @@ SECRET_VARIABLES = (
     "SECRETS_FERNET_KEYS",
     "FEDERATION_SECRET_KEY",
     "BOOTSTRAP_ADMIN_PASSWORD",
+    "SCORETECH_IDENTITY_CLIENT_SECRET",
 )
 FILE_IDS = [f"{name}_FILE" for name in SECRET_VARIABLES]
 
@@ -1654,6 +1655,56 @@ def test_production_variable_rule_detects_an_undefined_or_unused_variable():
     assert variable_problems(text + "\n# ${NEW_THING:?set it}\n", images_env(), site)
     assert variable_problems(text, images_env(), {**site, "UNUSED_SITE": "x"})
     assert variable_problems(text, images_env(), {k: v for k, v in site.items() if k != "SPACE_URL"})
+
+
+def _resolved_gateway_environment() -> dict[str, str]:
+    """The production gateway's environment with every ``${NAME:-default}`` and ``${NAME:?…}`` filled in."""
+    resolved = {}
+    for key, value in _environment(production()["services"]["gateway"]).items():
+        value = re.sub(r"\$\{[A-Z0-9_]+:-([^}]*)\}", r"\1", value)
+        value = re.sub(r"\$\{[A-Z0-9_]+:\?[^}]*\}", "https://openbinding.example.org", value)
+        resolved[key] = value
+    return resolved
+
+
+def test_production_starts_with_local_accounts_until_the_identity_client_exists():
+    env = _resolved_gateway_environment()
+    assert env["AUTH_PROVIDER"] == "local"
+    assert "${AUTH_PROVIDER:-local}" in production_text()
+    for name in ("SCORETECH_IDENTITY_ISSUER", "SCORETECH_IDENTITY_CLIENT_ID", "SCORETECH_IDENTITY_CLIENT_SECRET_FILE"):
+        assert f"# {name}:" in production_text(), name
+
+
+def test_production_switches_to_identity_with_one_variable(caplog):
+    """``AUTH_PROVIDER=scoretech`` plus the client: the mounted bootstrap password stays and is ignored."""
+    from openbinding_gateway.core.settings import Settings
+    from openbinding_gateway.db.bootstrap import ensure_administrator
+    from openbinding_gateway.security.secrets import generate_key
+
+    env = _resolved_gateway_environment()
+    assert env["BOOTSTRAP_ADMIN_PASSWORD_FILE"].startswith("/run/secrets/")
+    values = {
+        key: value for key, value in env.items() if not key.endswith("_FILE") and not key.startswith("ENGINE_")
+    }
+    values.update(
+        AUTH_PROVIDER="scoretech",
+        SCORETECH_IDENTITY_ISSUER="https://identity.example.org/identity/auth/realms/score",
+        SCORETECH_IDENTITY_CLIENT_ID="score-app-00000000-0000-4000-8000-000000000000",
+        SCORETECH_IDENTITY_CLIENT_SECRET="from-the-secret-file",
+        GATEWAY_JWT_SECRET="x" * 40,
+        SECRETS_FERNET_KEYS=generate_key(),
+        BOOTSTRAP_ADMIN_USERNAME="operator",
+        BOOTSTRAP_ADMIN_PASSWORD="from-the-bootstrap-secret",
+    )
+    settings = Settings(_env_file=None, **{key.lower(): value for key, value in values.items()})
+    assert settings.auth_provider == "scoretech"
+    assert settings.identity_callback_url == "https://openbinding.example.org/api/v1/auth/identity/callback"
+
+    import asyncio
+
+    with caplog.at_level("WARNING"):
+        assert asyncio.run(ensure_administrator(None, settings)) is False  # type: ignore[arg-type]
+    assert [r.message for r in caplog.records if "bootstrap_admin_ignored" in r.message]
 
 
 def test_production_files_name_no_real_host():

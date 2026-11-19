@@ -54,6 +54,23 @@ class TokenPair(BaseModel):
     expires_in: int = Field(..., description="Lifetime of the access token, in seconds.")
 
 
+class AuthConfigView(BaseModel):
+    """How this gateway signs people in, for the frontend to read before it draws anything."""
+
+    provider: Literal["local", "scoretech"] = Field(
+        ..., description="`scoretech`: SCORETech Identity through the gateway; `local`: OpenBinding's own accounts."
+    )
+    login_url: Optional[str] = Field(
+        default=None, description="Where the browser starts a SCORETech sign-in (add `returnTo`); null in `local` mode."
+    )
+    register_url: Optional[str] = Field(
+        default=None, description="Where the browser starts a SCORETech registration; null in `local` mode."
+    )
+    account_url: Optional[str] = Field(
+        default=None, description="The person's SCORETech Identity account page; null in `local` mode."
+    )
+
+
 class PlanChange(BaseModel):
     """A plan change the account holder did not ask for by name, and what it costs."""
 

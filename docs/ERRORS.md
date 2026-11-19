@@ -451,6 +451,16 @@ for a missing environment).
 Quotas are per account: there are no billing sponsors. Deleting an account pseudonymises it
 ([ACCOUNTS_AND_PLANS.md](ACCOUNTS_AND_PLANS.md)).
 
+## Sign-in
+
+`/v1/auth/*` answers carry `Cache-Control: no-store`. See [IDENTITY.md](IDENTITY.md).
+
+| `code` | Status | Meaning |
+|---|---|---|
+| `identity_disabled` | 409 | a SCORETech Identity route was called on a gateway that signs people in locally (`AUTH_PROVIDER=local`) |
+| `local_auth_disabled` | 409 | a local credential route (register, login, password reset) was called on a gateway that signs people in with SCORETech Identity (`AUTH_PROVIDER=scoretech`) |
+| `origin_refused` | 403 | a sign-in route that reads the session cookie was called without an `Origin` from the frontend (`FRONTEND_URL`'s origin or `AUTH_TRUSTED_ORIGINS`) |
+
 ## Conditional writes (`If-Match`)
 
 These operations take an optional `If-Match` header:

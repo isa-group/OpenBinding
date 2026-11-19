@@ -51,7 +51,28 @@ def operational_plan(settings: Settings | None = None) -> str:
 
 
 async def ensure_administrator(session: AsyncSession, settings: Settings) -> bool:
-    """Seed or promote the configured administrator. Returns whether anything changed."""
+    """Seed or promote the configured administrator. Returns whether anything changed.
+
+    With ``AUTH_PROVIDER=scoretech`` the password settings are ignored (one ``bootstrap_admin_ignored``
+    warning, no account): a password account could never sign in, and the first administrator comes from
+    ``BOOTSTRAP_ADMIN_SUB`` instead. Production compose mounts the bootstrap password secret either way,
+    so refusing them would make the switch to Identity more than one variable.
+    """
+    if settings.auth_provider == "scoretech":
+        if any(
+            (value or "").strip()
+            for value in (
+                settings.bootstrap_admin_username,
+                settings.bootstrap_admin_password,
+                settings.bootstrap_admin_email,
+            )
+        ):
+            logger.warning(
+                "bootstrap_admin_ignored: AUTH_PROVIDER=scoretech ignores BOOTSTRAP_ADMIN_USERNAME, "
+                "BOOTSTRAP_ADMIN_EMAIL and BOOTSTRAP_ADMIN_PASSWORD; the first administrator comes from "
+                "BOOTSTRAP_ADMIN_SUB"
+            )
+        return False
     username = (settings.bootstrap_admin_username or "").strip()
     if not username:
         return False

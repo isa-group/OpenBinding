@@ -132,6 +132,7 @@ def test_authentication_and_role_requirements_are_explicit(document):
         ("/v1/auth/cas/start", "get"),
         ("/v1/auth/cas/callback", "get"),
         ("/v1/auth/cas/exchange", "post"),
+        ("/v1/auth/config", "get"),
         ("/v1/engines/protocol", "get"),
         ("/v1/artifacts/{artifact_id}/versions", "get"),
         ("/v1/artifacts/{artifact_id}/versions/{version_id}/content", "get"),

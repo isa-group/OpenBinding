@@ -146,6 +146,71 @@ def _require_origin(name: str, value: str, *, trailing_slash: bool) -> None:
         )
 
 
+#: The path every Identity callback URL ends in; the login route is its sibling ``…/login``.
+IDENTITY_CALLBACK_PATH = "/v1/auth/identity/callback"
+
+#: Hosts on which an Identity URL may use plain http (development and labs).
+LOOPBACK_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
+
+
+def _origin(url: str) -> str:
+    parts = urlsplit(url)
+    return f"{parts.scheme}://{parts.netloc}".lower()
+
+
+def _realm_of(url: str) -> Optional[str]:
+    match = re.search(r"/realms/([^/]+)$", urlsplit(url).path)
+    return match[1] if match else None
+
+
+def _identity_url(name: str, value: Optional[str]) -> str:
+    """``value`` when it is an https URL, or http on a loopback host, with no userinfo, query, fragment or
+    trailing '/'; raise naming ``name`` otherwise (port of SPHERE's ``publicUrl``)."""
+    if not value or not value.strip():
+        raise ValueError(f"{name} is required when AUTH_PROVIDER=scoretech.")
+    try:
+        parts = urlsplit(value)
+        host = parts.hostname or ""
+        parts.port  # noqa: B018 - raises ValueError for a port out of range
+    except ValueError as error:
+        raise ValueError(f"{name} is not a valid URL.") from error
+    secure = parts.scheme == "https" or (parts.scheme == "http" and host in LOOPBACK_HOSTS)
+    if (
+        not host
+        or not secure
+        or parts.username
+        or parts.password
+        or parts.query
+        or parts.fragment
+        or "?" in value
+        or "#" in value
+        or value.endswith("/")
+        or re.search(r"\s", value)
+    ):
+        raise ValueError(
+            f"{name} must be an https URL (http only on localhost, 127.0.0.1 or [::1]) with no userinfo, "
+            "query, fragment or trailing '/'."
+        )
+    return value
+
+
+def _fernet_available(keys: Optional[str], legacy: Optional[str]) -> bool:
+    """Whether the credential store (``security.secrets.CredentialStore``) would hold at least one valid key."""
+    from cryptography.fernet import Fernet
+
+    candidates = [item.strip() for item in (keys or "").split(",") if item.strip()]
+    if (legacy or "").strip():
+        candidates.append(legacy.strip())
+    if not candidates:
+        return False
+    try:
+        for key in candidates:
+            Fernet(key.encode("utf-8"))
+    except (ValueError, TypeError):
+        return False
+    return True
+
+
 class Settings(BaseSettings):
     """The gateway's configuration, read from the environment once."""
 
@@ -224,9 +289,9 @@ class Settings(BaseSettings):
     # -- CORS ------------------------------------------------------------
     #: Comma-separated browser origins allowed to call the API: a closed list.
     #: The default is only the local development origins of the frontend (Vite
-    #: dev server and the Playwright server), because the sessions' tokens live
-    #: in the browser's ``localStorage`` and a wildcard would let any site read
-    #: the API as the signed-in user. In ``APP_ENV=prod`` an empty list or a
+    #: dev server and the Playwright server), because sign-in is same-origin (the
+    #: session cookie and the routes that read it serve the frontend's origin) and
+    #: a wildcard would let any site read the API as the signed-in user. In ``APP_ENV=prod`` an empty list or a
     #: ``*`` entry is refused at startup (see ``closed_cors_in_production``).
     #: Every entry must be scheme://host[:port] exactly as a browser sends it in
     #: ``Origin`` (no path, no trailing /, no * inside an entry, lower-case,
@@ -401,9 +466,48 @@ class Settings(BaseSettings):
     expose_recovery_tokens: bool = False
 
     # -- Identity -------------------------------------------------------
+    #: Who signs people in (``AUTH_PROVIDER``): ``scoretech``, SCORETech Identity through the gateway's
+    #: OIDC client (docs/IDENTITY.md), or ``local``, OpenBinding's own accounts with passwords, kept for
+    #: development, labs and rollback. ``local`` in production starts with a warning.
+    auth_provider: Literal["local", "scoretech"] = "local"
+    #: The Identity realm's issuer (``SCORETECH_IDENTITY_ISSUER``), exactly as its tokens name it:
+    #: https (http only on a loopback host), no userinfo, query, fragment or trailing '/', ending in
+    #: ``/realms/<realm>``. Required in ``scoretech`` mode.
+    scoretech_identity_issuer: Optional[str] = None
+    #: The confidential client of this deployment (``SCORETECH_IDENTITY_CLIENT_ID``, at most 255
+    #: characters) and its secret (``SCORETECH_IDENTITY_CLIENT_SECRET``, or ``_FILE``). Required in
+    #: ``scoretech`` mode; neither ever reaches a response.
+    scoretech_identity_client_id: Optional[str] = Field(default=None, max_length=255)
+    scoretech_identity_client_secret: Optional[SecretStr] = None
+    #: Where Identity returns the browser (``SCORETECH_IDENTITY_CALLBACK_URL``); by default
+    #: ``PUBLIC_BASE_URL`` + ``/api/v1/auth/identity/callback``. On ``FRONTEND_URL``'s origin, and its path
+    #: ends in ``/v1/auth/identity/callback``; the browser starts sign-in at its sibling ``…/login``.
+    scoretech_identity_callback_url: Optional[str] = None
+    #: The Identity account page (``SCORETECH_IDENTITY_ACCOUNT_URL``); by default the issuer with
+    #: ``/auth/realms/<realm>`` replaced by ``/account/``.
+    scoretech_identity_account_url: Optional[str] = None
+    #: Where the gateway itself reaches the realm when that differs from the issuer
+    #: (``SCORETECH_IDENTITY_TRANSPORT_URL``, labs: ``http://keycloak:8080/identity/auth/realms/score``):
+    #: only the issuer prefix of each endpoint is rewritten, and every token is still checked against the
+    #: issuer. https, or http when the issuer is loopback http; ends in the same ``/realms/<realm>``.
+    scoretech_identity_transport_url: Optional[str] = None
+    #: The Identity permission an account needs to use OpenBinding
+    #: (``SCORETECH_IDENTITY_REQUIRED_PERMISSION``), checked in the access token at every sign-in and
+    #: renewal; empty switches the check off (Identity's own admission still applies).
+    scoretech_identity_required_permission: str = "openbinding:access"
     #: Where the one-time records of sign-in (flow state, pending sign-ups) and the session lock live
-    #: (``IDENTITY_STORE_BACKEND``): ``redis``, shared by every worker, or ``memory`` for one process.
+    #: (``IDENTITY_STORE_BACKEND``): ``redis``, shared by every worker, or ``memory`` for one process
+    #: (refused in production).
     identity_store_backend: Literal["memory", "redis"] = "redis"
+    #: The longest a browser session lives, and how long it lives without a renewal
+    #: (``SESSION_MAX_S``, ``SESSION_IDLE_S``): Identity's own SSO maximum and idle limits.
+    session_max_s: int = Field(default=7 * 24 * 60 * 60, ge=60)
+    session_idle_s: int = Field(default=12 * 60 * 60, ge=60)
+    #: Extra browser origins the sign-in routes accept in ``Origin`` besides ``FRONTEND_URL``'s
+    #: (``AUTH_TRUSTED_ORIGINS``, comma separated, exact ``scheme://host[:port]``): every entry has
+    #: ``FRONTEND_URL``'s scheme, and only https in production. The ordinary lab's walks browse
+    #: ``http://web:8080``.
+    auth_trusted_origins: str = ""
 
     # -- SPHERE pricing source (read only) ------------------------------
     # Read by the PricingSource port (modules/plans). OpenBinding holds no SPHERE key of its own: an
@@ -627,7 +731,139 @@ class Settings(BaseSettings):
             )
         return self
 
+    @model_validator(mode="after")
+    def identity_configuration(self) -> "Settings":
+        """Fail closed on a SCORETech Identity configuration that could not work safely.
+
+        Checked in every mode: the store backend and ``EXPOSE_RECOVERY_TOKENS`` in production, and the
+        trusted origins. In ``scoretech`` mode: the issuer, the client, the callback, account and transport
+        URLs, one origin for the frontend, the gateway and the callback (the session cookie is
+        same-origin), a usable credential key (the refresh token is encrypted with it), and no seeded
+        password administrator. Messages name the setting and never its value when it is a secret.
+        """
+        if self.app_env == "prod" and self.identity_store_backend == "memory":
+            raise ValueError(
+                "IDENTITY_STORE_BACKEND=memory while APP_ENV=prod: sign-in state and the session lock "
+                "must be shared by every worker; use redis."
+            )
+        if self.app_env == "prod" and self.expose_recovery_tokens:
+            raise ValueError(
+                "EXPOSE_RECOVERY_TOKENS is true while APP_ENV=prod: it would let anybody reset any "
+                "account's password by naming its email. It is for labs without mail only."
+            )
+        frontend_scheme = urlsplit(self.frontend_url).scheme
+        for entry in self.auth_trusted_origin_list:
+            _require_origin("AUTH_TRUSTED_ORIGINS", entry, trailing_slash=False)
+            scheme = urlsplit(entry).scheme
+            if scheme != frontend_scheme:
+                raise ValueError(
+                    f"AUTH_TRUSTED_ORIGINS has {entry!r}, whose scheme is not FRONTEND_URL's "
+                    f"({frontend_scheme}): cookie names and Secure follow FRONTEND_URL's scheme."
+                )
+            if self.app_env == "prod" and scheme != "https":
+                raise ValueError(f"AUTH_TRUSTED_ORIGINS has {entry!r} while APP_ENV=prod: https only.")
+        if self.auth_provider != "scoretech":
+            return self
+        issuer = _identity_url("SCORETECH_IDENTITY_ISSUER", self.scoretech_identity_issuer)
+        realm = _realm_of(issuer)
+        if realm is None:
+            raise ValueError(
+                "SCORETECH_IDENTITY_ISSUER must end in /realms/<realm> (the realm's issuer, for example "
+                "https://sphere.score.us.es/identity/auth/realms/score)."
+            )
+        if not (self.scoretech_identity_client_id or "").strip():
+            raise ValueError("SCORETECH_IDENTITY_CLIENT_ID is required when AUTH_PROVIDER=scoretech.")
+        secret = self.scoretech_identity_client_secret
+        if secret is None or not secret.get_secret_value().strip():
+            raise ValueError(
+                "SCORETECH_IDENTITY_CLIENT_SECRET (or SCORETECH_IDENTITY_CLIENT_SECRET_FILE) is required "
+                "when AUTH_PROVIDER=scoretech."
+            )
+        frontend = _identity_url("FRONTEND_URL", self.frontend_url.rstrip("/"))
+        public = self.public_base_url.rstrip("/")
+        if _origin(public) != _origin(frontend):
+            raise ValueError(
+                "PUBLIC_BASE_URL and FRONTEND_URL must share one origin when AUTH_PROVIDER=scoretech: the "
+                "session cookie is same-origin."
+            )
+        callback = _identity_url("SCORETECH_IDENTITY_CALLBACK_URL", self.identity_callback_url)
+        if _origin(callback) != _origin(frontend) or not urlsplit(callback).path.endswith(IDENTITY_CALLBACK_PATH):
+            raise ValueError(
+                "SCORETECH_IDENTITY_CALLBACK_URL must be on FRONTEND_URL's origin and end in "
+                f"{IDENTITY_CALLBACK_PATH}."
+            )
+        account = self.scoretech_identity_account_url
+        if account:
+            parts = urlsplit(account)
+            if parts.username or parts.password or parts.query:
+                raise ValueError("SCORETECH_IDENTITY_ACCOUNT_URL must have no userinfo or query.")
+            _identity_url("SCORETECH_IDENTITY_ACCOUNT_URL", f"{parts.scheme}://{parts.netloc}{parts.path}".rstrip("/"))
+        transport = self.scoretech_identity_transport_url
+        if transport:
+            parts = urlsplit(transport.rstrip("/"))
+            loopback_http_issuer = urlsplit(issuer).scheme == "http"
+            if parts.scheme not in ("https", "http") or (parts.scheme == "http" and not loopback_http_issuer):
+                raise ValueError(
+                    "SCORETECH_IDENTITY_TRANSPORT_URL must be https, or http only when the issuer is a "
+                    "loopback http URL (a lab)."
+                )
+            if not parts.hostname or parts.username or parts.password or parts.query or parts.fragment:
+                raise ValueError("SCORETECH_IDENTITY_TRANSPORT_URL must have a host and no userinfo, query or fragment.")
+            if _realm_of(transport.rstrip("/")) != realm:
+                raise ValueError(
+                    f"SCORETECH_IDENTITY_TRANSPORT_URL must end in the issuer's /realms/{realm}."
+                )
+        if self.seed_default_admin:
+            raise ValueError(
+                "SEED_DEFAULT_ADMIN is set while AUTH_PROVIDER=scoretech: a password account could never "
+                "sign in. The first administrator comes from BOOTSTRAP_ADMIN_SUB."
+            )
+        if not _fernet_available(self.secrets_fernet_keys, self.federation_secret_key):
+            raise ValueError(
+                "AUTH_PROVIDER=scoretech needs SECRETS_FERNET_KEYS (or the legacy FEDERATION_SECRET_KEY) "
+                "holding valid Fernet keys: the Identity refresh token is stored encrypted with them."
+            )
+        return self
+
     # -- Derived values --------------------------------------------------
+
+    @property
+    def auth_trusted_origin_list(self) -> List[str]:
+        return [item.strip() for item in self.auth_trusted_origins.split(",") if item.strip()]
+
+    @property
+    def trusted_browser_origins(self) -> frozenset[str]:
+        """The origins the sign-in routes accept in ``Origin``: ``FRONTEND_URL``'s plus ``AUTH_TRUSTED_ORIGINS``."""
+        return frozenset({_origin(self.frontend_url.rstrip("/")), *self.auth_trusted_origin_list})
+
+    @property
+    def identity_secure_cookies(self) -> bool:
+        """Whether the session cookies are ``__Host-`` and ``Secure``: ``FRONTEND_URL`` is https."""
+        return urlsplit(self.frontend_url).scheme == "https"
+
+    @property
+    def identity_issuer(self) -> str:
+        return (self.scoretech_identity_issuer or "").rstrip("/")
+
+    @property
+    def identity_callback_url(self) -> str:
+        """``SCORETECH_IDENTITY_CALLBACK_URL``, or ``PUBLIC_BASE_URL`` + ``/api/v1/auth/identity/callback``."""
+        configured = (self.scoretech_identity_callback_url or "").strip()
+        return configured or f"{self.public_base_url.rstrip('/')}/api{IDENTITY_CALLBACK_PATH}"
+
+    @property
+    def identity_login_url(self) -> str:
+        """Where the browser starts a sign-in: the callback's sibling ``…/login``."""
+        callback = self.identity_callback_url
+        return callback[: -len("/callback")] + "/login"
+
+    @property
+    def identity_account_url(self) -> str:
+        """The Identity account page, with ``#public-profile``."""
+        configured = (self.scoretech_identity_account_url or "").strip()
+        base = configured or re.sub(r"/auth/realms/[^/]+$", "/account/", self.identity_issuer)
+        return base.split("#", 1)[0] + "#public-profile"
+
 
     @property
     def sphere_registry_aliases(self) -> frozenset[str]:

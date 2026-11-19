@@ -124,6 +124,13 @@ services:
       SPHERE_ENABLED: ${SPHERE_ENABLED:-false}
       # A placeholder: SPHERE is off by default; set SPHERE_URL in site.env together with SPHERE_ENABLED=true.
       SPHERE_URL: ${SPHERE_URL:-https://sphere.example.org}
+      # Local accounts until the SCORETech Identity client of docs/runbooks/identity-client-request.md exists;
+      # then AUTH_PROVIDER=scoretech with the lines below uncommented and the client secret as a compose secret
+      # (secrets: scoretech_identity_client_secret, file ./secrets/scoretech_identity_client_secret).
+      AUTH_PROVIDER: ${AUTH_PROVIDER:-local}
+      # SCORETECH_IDENTITY_ISSUER: <the realm's issuer, https://<identity host>/identity/auth/realms/score>
+      # SCORETECH_IDENTITY_CLIENT_ID: <the generated score-app-<uuid> client id>
+      # SCORETECH_IDENTITY_CLIENT_SECRET_FILE: /run/secrets/scoretech_identity_client_secret
       CAS_ENABLED: ${CAS_ENABLED:-false}
       CAS_ENVIRONMENT: ${CAS_ENVIRONMENT:-production}
       IDENTITY_STORE_BACKEND: redis
