@@ -68,6 +68,13 @@ def test_the_env_example_lists_every_variable_the_lab_reads() -> None:
     assert set(_example()) == set(REFERENCE_NAME.findall(text))
 
 
+def test_the_env_example_is_plain_key_value_lines() -> None:
+    """Other tools read it as plain KEY=value lines (TomatoMeter's composite lab generates an env file from it)."""
+    for line in ENV_EXAMPLE.read_text(encoding="utf-8").splitlines():
+        if line and not line.startswith("#"):
+            assert re.fullmatch(r"[A-Z][A-Z0-9_]*=\S*", line), line
+
+
 def test_the_env_example_gives_no_secret_a_value() -> None:
     example = _example()
     for name in ("DEMO_PG_PASSWORD", "DEMO_JWT_SECRET", "DEMO_FERNET_KEY", "DEMO_SEED_PASSWORD", "SPACE_API_KEY"):
