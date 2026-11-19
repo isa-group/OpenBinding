@@ -1,0 +1,266 @@
+{
+  "cost": {
+    "name": "subscription",
+    "value": "35.000000",
+    "unit": "USD/month",
+    "monthly": "35.000000"
+  },
+  "users": 1000,
+  "billing": {
+    "id": "annual",
+    "multiplier": "0.9"
+  },
+  "apportionment": "uniform",
+  "status": "ok",
+  "currency": "USD",
+  "costPerUser": "0.035000",
+  "rowsTruncated": false,
+  "rows": [
+    {
+      "plan": "FREE",
+      "planName": "FREE",
+      "addOns": [],
+      "basis": "subscription",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "0.000000",
+      "cost": "0.035000",
+      "margin": "-0.035000"
+    },
+    {
+      "plan": "STARTER",
+      "planName": "STARTER",
+      "addOns": [],
+      "basis": "subscription",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "8.100000",
+      "cost": "0.035000",
+      "margin": "8.065000"
+    },
+    {
+      "plan": "STARTER",
+      "planName": "STARTER",
+      "addOns": [
+        "removeBrevoLogo"
+      ],
+      "basis": "subscription",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "18.900000",
+      "cost": "0.035000",
+      "margin": "18.865000"
+    },
+    {
+      "plan": "STARTER",
+      "planName": "STARTER",
+      "addOns": [
+        "salesEssentials"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "36.000000",
+      "cost": "0.035000",
+      "margin": "35.965000"
+    },
+    {
+      "plan": "STANDARD",
+      "planName": "STANDARD",
+      "addOns": [],
+      "basis": "subscription",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "16.200000",
+      "cost": "0.035000",
+      "margin": "16.165000"
+    },
+    {
+      "plan": "STANDARD",
+      "planName": "STANDARD",
+      "addOns": [
+        "extraMarketingSeats"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "27.000000",
+      "cost": "0.035000",
+      "margin": "26.965000"
+    },
+    {
+      "plan": "STANDARD",
+      "planName": "STANDARD",
+      "addOns": [
+        "extraLandingPages"
+      ],
+      "basis": "subscription",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "37.800000",
+      "cost": "0.035000",
+      "margin": "37.765000"
+    },
+    {
+      "plan": "STANDARD",
+      "planName": "STANDARD",
+      "addOns": [
+        "salesEssentials"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "44.100000",
+      "cost": "0.035000",
+      "margin": "44.065000"
+    },
+    {
+      "plan": "PROFESSIONAL",
+      "planName": "PROFESSIONAL",
+      "addOns": [],
+      "basis": "subscription",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "449.100000",
+      "cost": "0.035000",
+      "margin": "449.065000"
+    },
+    {
+      "plan": "PROFESSIONAL",
+      "planName": "PROFESSIONAL",
+      "addOns": [
+        "extraPushSubscribers"
+      ],
+      "basis": "subscription",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "546.300000",
+      "cost": "0.035000",
+      "margin": "546.265000"
+    },
+    {
+      "plan": "PROFESSIONAL",
+      "planName": "PROFESSIONAL",
+      "addOns": [
+        "dedicatedIpAddOn"
+      ],
+      "basis": "subscription",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "467.925000",
+      "cost": "0.035000",
+      "margin": "467.890000"
+    },
+    {
+      "plan": "PROFESSIONAL",
+      "planName": "PROFESSIONAL",
+      "addOns": [
+        "samlSso"
+      ],
+      "basis": "subscription",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "740.700000",
+      "cost": "0.035000",
+      "margin": "740.665000"
+    },
+    {
+      "plan": "PROFESSIONAL",
+      "planName": "PROFESSIONAL",
+      "addOns": [
+        "multiLanguagePackAddOn"
+      ],
+      "basis": "subscription",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "642.600000",
+      "cost": "0.035000",
+      "margin": "642.565000"
+    },
+    {
+      "plan": "PROFESSIONAL",
+      "planName": "PROFESSIONAL",
+      "addOns": [
+        "salesEssentials"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "477.000000",
+      "cost": "0.035000",
+      "margin": "476.965000"
+    },
+    {
+      "plan": "PROFESSIONAL",
+      "planName": "PROFESSIONAL",
+      "addOns": [
+        "salesAdvanced"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "507.600000",
+      "cost": "0.035000",
+      "margin": "507.565000"
+    },
+    {
+      "plan": "ENTERPRISE",
+      "planName": "ENTERPRISE",
+      "addOns": [],
+      "basis": "subscription",
+      "private": true,
+      "requiresQuote": true,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": null,
+      "cost": "0.035000",
+      "margin": null
+    },
+    {
+      "plan": "ENTERPRISE",
+      "planName": "ENTERPRISE",
+      "addOns": [
+        "salesAdvanced"
+      ],
+      "basis": "seat",
+      "private": true,
+      "requiresQuote": true,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": null,
+      "cost": "0.035000",
+      "margin": null
+    }
+  ],
+  "warnings": []
+}

@@ -4087,6 +4087,145 @@
         "title": "CompositionList",
         "type": "object"
       },
+      "CompositionMargins": {
+        "description": "Margin per offering plan: revenue minus the upstream cost per user, apportioned uniformly.\n\nEvery amount is a six-place decimal string in `currency` per month. `status` is `ok` only when every margin\ncould be computed; otherwise the rows carry their revenue and null margins (or there are no rows when the\noffering could not be read).",
+        "properties": {
+          "apportionment": {
+            "const": "uniform",
+            "title": "Apportionment",
+            "type": "string"
+          },
+          "billing": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MarginsBilling"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "cost": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MarginsCost"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "costPerUser": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A fixed six-place decimal string.",
+            "title": "Costperuser"
+          },
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency"
+          },
+          "evaluation": {
+            "$ref": "#/components/schemas/MarginsEvaluation"
+          },
+          "offering": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MarginsOffering"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/MarginRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "rowsTruncated": {
+            "description": "More than 200 rows: the first 200, in declared order.",
+            "title": "Rowstruncated",
+            "type": "boolean"
+          },
+          "status": {
+            "enum": [
+              "ok",
+              "users_required",
+              "no_offering",
+              "offering_unreadable",
+              "offering_invalid",
+              "offering_registry_unknown",
+              "no_cost_value",
+              "ambiguous_cost",
+              "currency_mismatch",
+              "binding_invalid",
+              "semantics_changed",
+              "amount_out_of_range"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "users": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Users"
+          },
+          "version": {
+            "$ref": "#/components/schemas/VersionName"
+          },
+          "warnings": {
+            "items": {
+              "enum": [
+                "declared_values",
+                "rows_truncated",
+                "amount_out_of_range"
+              ],
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "version",
+          "evaluation",
+          "offering",
+          "cost",
+          "users",
+          "billing",
+          "apportionment",
+          "status",
+          "currency",
+          "costPerUser",
+          "rowsTruncated",
+          "rows",
+          "warnings"
+        ],
+        "title": "CompositionMargins",
+        "type": "object"
+      },
       "CompositionMove": {
         "description": "One alternative of the version's binding: one task bound to another candidate.",
         "properties": {
@@ -8966,6 +9105,301 @@
           "confirmation"
         ],
         "title": "MaintenancePurgeRequest",
+        "type": "object"
+      },
+      "MarginRow": {
+        "description": "One plan of the offering, alone or with one add-on: its revenue per subscription and month, and margin.",
+        "properties": {
+          "addOns": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Addons",
+            "type": "array"
+          },
+          "basis": {
+            "description": "`seat`: a per-seat price counted for one seat.",
+            "enum": [
+              "subscription",
+              "seat"
+            ],
+            "title": "Basis",
+            "type": "string"
+          },
+          "cost": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The cost per user. A fixed six-place decimal string.",
+            "title": "Cost"
+          },
+          "excludedParts": {
+            "description": "Parts without a period (one-off or metered), left out of the revenue.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Excludedparts",
+            "type": "array"
+          },
+          "margin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`revenue - cost`. A fixed six-place decimal string.",
+            "title": "Margin"
+          },
+          "outOfRange": {
+            "description": "An amount beyond 10^12 or not finite: no revenue or margin.",
+            "title": "Outofrange",
+            "type": "boolean"
+          },
+          "plan": {
+            "title": "Plan",
+            "type": "string"
+          },
+          "planName": {
+            "title": "Planname",
+            "type": "string"
+          },
+          "private": {
+            "title": "Private",
+            "type": "boolean"
+          },
+          "requiresQuote": {
+            "description": "A price that is a label or an expression that failed: no revenue.",
+            "title": "Requiresquote",
+            "type": "boolean"
+          },
+          "revenue": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A fixed six-place decimal string.",
+            "title": "Revenue"
+          }
+        },
+        "required": [
+          "plan",
+          "planName",
+          "addOns",
+          "basis",
+          "private",
+          "requiresQuote",
+          "outOfRange",
+          "excludedParts",
+          "revenue",
+          "cost",
+          "margin"
+        ],
+        "title": "MarginRow",
+        "type": "object"
+      },
+      "MarginsBilling": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "multiplier": {
+            "title": "Multiplier",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "multiplier"
+        ],
+        "title": "MarginsBilling",
+        "type": "object"
+      },
+      "MarginsCost": {
+        "description": "The global value taken as the composition's upstream cost, and its monthly amount.",
+        "properties": {
+          "monthly": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A fixed six-place decimal string.",
+            "title": "Monthly"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "unit": {
+            "title": "Unit",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A fixed six-place decimal string. Null when it is out of range.",
+            "title": "Value"
+          }
+        },
+        "required": [
+          "name",
+          "value",
+          "unit",
+          "monthly"
+        ],
+        "title": "MarginsCost",
+        "type": "object"
+      },
+      "MarginsEvaluation": {
+        "properties": {
+          "basisKey": {
+            "title": "Basiskey",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "outcome": {
+            "enum": [
+              "verified",
+              "binding_invalid",
+              "semantics_changed",
+              "declared"
+            ],
+            "title": "Outcome",
+            "type": "string"
+          },
+          "valuesStatus": {
+            "enum": [
+              "verified",
+              "declared"
+            ],
+            "title": "Valuesstatus",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "basisKey",
+          "valuesStatus",
+          "outcome"
+        ],
+        "title": "MarginsEvaluation",
+        "type": "object"
+      },
+      "MarginsOffering": {
+        "properties": {
+          "createdAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Createdat"
+          },
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency"
+          },
+          "snapshot": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The pricing snapshot read (`…/pricing-snapshots/{snapshot}`).",
+            "title": "Snapshot"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "enum": [
+                  "read",
+                  "unreadable",
+                  "invalid_pricing",
+                  "registry_unknown"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "versionName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Versionname"
+          }
+        },
+        "required": [
+          "source",
+          "status",
+          "versionName",
+          "createdAt",
+          "snapshot",
+          "currency"
+        ],
+        "title": "MarginsOffering",
         "type": "object"
       },
       "MemberBatchChange": {
@@ -28703,6 +29137,216 @@
         ],
         "x-required-api-key-permissions": [
           "compositions:write"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/compositions/{composition}/versions/{version}/margins": {
+      "get": {
+        "description": "Revenue of each plan of the version's offering (alone and with each single add-on) minus the composition's upstream cost per user, apportioned uniformly, from a stored evaluation and the offering version it read: nothing is evaluated or fetched. `evaluation` pins one of the version's evaluations (an environment passes its adoption's); `users` divides the monthly cost. Members only; counted as a `read`.",
+        "operationId": "getCompositionVersionMargins",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "composition",
+            "required": true,
+            "schema": {
+              "title": "Composition",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "title": "Version",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The users the cost is divided by.",
+            "in": "query",
+            "name": "users",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 1000000000,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The users the cost is divided by.",
+              "title": "Users"
+            }
+          },
+          {
+            "description": "One of the version's evaluations; the current one by default.",
+            "in": "query",
+            "name": "evaluation",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "One of the version's evaluations; the current one by default.",
+              "title": "Evaluation"
+            }
+          },
+          {
+            "description": "A billing period of the offering.",
+            "in": "query",
+            "name": "billing",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "A billing period of the offering.",
+              "title": "Billing"
+            }
+          },
+          {
+            "description": "The global value taken as the cost.",
+            "in": "query",
+            "name": "cost",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The global value taken as the cost.",
+              "title": "Cost"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompositionMargins"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No credential, or one that is not valid (`unauthorized`)."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such composition or version, or the caller is not a member (`not_found`); an `evaluation` that is not the version's (`evaluation_not_found`)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "An unknown `billing` period or `cost` value."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many `read` requests from this client: past the budget of its address, or of its account when signed in. `Retry-After` says when the window ends. A request may also find every Composition2Yaml or evaluation slot of this gateway busy: `composition_busy`, `Retry-After: 1`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Margin per offering plan of a version",
+        "tags": [
+          "Compositions"
+        ],
+        "x-required-api-key-permissions": [
+          "compositions:read"
         ]
       }
     },

@@ -80,6 +80,9 @@ REQUESTS = {
     # Counted before the key is checked: the first is a 422, the second a 429.
     ("PUT", CONNECTION): ("PUT", CONNECTION, BAD_KEY),
     # Counted before the composition is looked up: the first is a 404, the second a 429.
+    ("GET", "/v1/organizations/{org}/compositions/{composition}/versions/{version}/margins"): (
+        "GET", "/v1/organizations/{org}/compositions/none/versions/1/margins", {},
+    ),
     ("POST", "/v1/organizations/{org}/compositions/{composition}/environments/{environment}/check"): (
         "POST", "/v1/organizations/{org}/compositions/none/environments/production/check", EMPTY_JSON,
     ),
@@ -99,6 +102,9 @@ LANGUAGE_ROUTES = {route for route in REQUESTS if route[1].startswith(LANGUAGE)}
 SPHERE_ROUTES = {route for route in REQUESTS if route[1].startswith(("/v1/organizations/{org}/connections",
                                                                       "/v1/organizations/{org}/sphere"))
                  or route[1].endswith("/environments/{environment}/check")}
+#: Reads computed from stored data that a document can still make costly: a GET is outside the deny-by-default
+#: POST rule, so they are listed (a version's margins).
+COMPUTED_READS = {("GET", "/v1/organizations/{org}/compositions/{composition}/versions/{version}/margins")}
 BIM_ROUTES = {("POST", PROBE)} | LANGUAGE_ROUTES
 ENVIRONMENTS = "/v1/organizations/{org}/compositions/{composition}/environments"
 #: Writes under a composition that compile, read and evaluate nothing: an environment, its adoptions and its
@@ -200,7 +206,7 @@ def test_a_route_added_under_the_compiling_prefixes_has_to_be_classified():
         or path.endswith("/compilation")
         or (path.startswith("/v1/organizations/{org}/compositions/{composition}/") and path.endswith("/neighborhood"))
     }
-    assert found - OPERATION_WRITES == set(WORK_ROUTES)
+    assert (found - OPERATION_WRITES) | COMPUTED_READS == set(WORK_ROUTES)
     assert OPERATION_WRITES <= found
 
 
@@ -225,7 +231,9 @@ def test_every_counted_route_is_exercised_below():
 
 def test_compile_read_and_evaluate_are_the_classes_the_policy_states():
     assert set(WORK_ROUTES.values()) == {"compile", "read", "evaluate"}
-    assert {route for route, work_class in WORK_ROUTES.items() if work_class == "read"} == LANGUAGE_ROUTES | SPHERE_ROUTES
+    assert {route for route, work_class in WORK_ROUTES.items() if work_class == "read"} == (
+        LANGUAGE_ROUTES | SPHERE_ROUTES | COMPUTED_READS
+    )
     assert {route for route, work_class in WORK_ROUTES.items() if work_class == "evaluate"} == {
         ("POST", VERSIONS), ("POST", f"{VERSIONS}/check"), ("POST", FORK),
         ("POST", REEVALUATE), ("POST", EVALUATE), ("GET", NEIGHBORHOOD), ("POST", DERIVE),

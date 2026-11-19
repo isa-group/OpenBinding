@@ -1,0 +1,3021 @@
+{
+  "cost": {
+    "name": "subscription",
+    "value": "35.000000",
+    "unit": "USD/month",
+    "monthly": "35.000000"
+  },
+  "users": 1000,
+  "billing": {
+    "id": "monthly",
+    "multiplier": "1.0"
+  },
+  "apportionment": "uniform",
+  "status": "ok",
+  "currency": "USD",
+  "costPerUser": "0.035000",
+  "rowsTruncated": true,
+  "rows": [
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "0.000000",
+      "cost": "0.035000",
+      "margin": "-0.035000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a000"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a001"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a002"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a003"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a004"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a005"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a006"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a007"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a008"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a009"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a010"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a011"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a012"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a013"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a014"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a015"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a016"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a017"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a018"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a019"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a020"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a021"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a022"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a023"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a024"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a025"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a026"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a027"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a028"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a029"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a030"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a031"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a032"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a033"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a034"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a035"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a036"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a037"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a038"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a039"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a040"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a041"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a042"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a043"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a044"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a045"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a046"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a047"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a048"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a049"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a050"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a051"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a052"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a053"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a054"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a055"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a056"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a057"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a058"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a059"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a060"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a061"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a062"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a063"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a064"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a065"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a066"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a067"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a068"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a069"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a070"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a071"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a072"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a073"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a074"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a075"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a076"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a077"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a078"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a079"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a080"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a081"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a082"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a083"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a084"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a085"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a086"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a087"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a088"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a089"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a090"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a091"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a092"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a093"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a094"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a095"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a096"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a097"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a098"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a099"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a100"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a101"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a102"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a103"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a104"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a105"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a106"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a107"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a108"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a109"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a110"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a111"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a112"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a113"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a114"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a115"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a116"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a117"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a118"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a119"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a120"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a121"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a122"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a123"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a124"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a125"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a126"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a127"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a128"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a129"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a130"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a131"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a132"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a133"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a134"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a135"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a136"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a137"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a138"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a139"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a140"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a141"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a142"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a143"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a144"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a145"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a146"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a147"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a148"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a149"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a150"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a151"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a152"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a153"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a154"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a155"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a156"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a157"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a158"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a159"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a160"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a161"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a162"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a163"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a164"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a165"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a166"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a167"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a168"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a169"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a170"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a171"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a172"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a173"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a174"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a175"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a176"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a177"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a178"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a179"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a180"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a181"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a182"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a183"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a184"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a185"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a186"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a187"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a188"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a189"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a190"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a191"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a192"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a193"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a194"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a195"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a196"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a197"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "p000",
+      "planName": "p000",
+      "addOns": [
+        "a198"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    }
+  ],
+  "warnings": [
+    "rows_truncated"
+  ]
+}

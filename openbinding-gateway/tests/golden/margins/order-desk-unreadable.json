@@ -1,0 +1,19 @@
+{
+  "cost": {
+    "name": "subscription",
+    "value": "42.500000",
+    "unit": "EUR/month",
+    "monthly": "42.500000"
+  },
+  "users": 1000,
+  "billing": null,
+  "apportionment": "uniform",
+  "status": "offering_unreadable",
+  "currency": null,
+  "costPerUser": null,
+  "rowsTruncated": false,
+  "rows": [],
+  "warnings": [
+    "declared_values"
+  ]
+}

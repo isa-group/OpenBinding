@@ -1,0 +1,122 @@
+{
+  "comment": "Inputs of the margin goldens (tools/dump_margin_goldens.py): an offering (a recorded SPHERE version, optionally changed, or a generated one), an evaluation's global values, its values status and outcome, the offering status, users, billing and cost. Per user per month.",
+  "cases": {
+    "brevo-dropbox": {
+      "offering": {"sfx": "6ab0a323697330667ccce8cd/6921867e7004563bd918e7e8.yml"},
+      "values": {"subscription": {"value": 508.99, "unit": "USD/month"}, "availability": {"value": 0.99, "unit": "1"}},
+      "users": 1000
+    },
+    "resend-dropbox": {
+      "offering": {"sfx": "6ab0a323697330667ccce8cd/6921867e7004563bd918e7e8.yml"},
+      "values": {"subscription": {"value": 29.99, "unit": "USD/month"}},
+      "users": 1000
+    },
+    "mailgun-foundation": {
+      "offering": {"sfx": "6ab0a323697330667ccce8cd/6921867e7004563bd918e7e8.yml"},
+      "values": {"subscription": {"value": 35.0, "unit": "USD/month"}, "latency": {"value": 120, "unit": "ms"}},
+      "users": 1000
+    },
+    "users-three": {
+      "offering": {"sfx": "6ab0a323697330667ccce8cd/6921867e7004563bd918e7e8.yml"},
+      "values": {"subscription": {"value": 35.0, "unit": "USD/month"}},
+      "users": 3
+    },
+    "users-required": {
+      "offering": {"sfx": "6ab0a323697330667ccce8cd/6921867e7004563bd918e7e8.yml"},
+      "values": {"subscription": {"value": 35.0, "unit": "USD/month"}},
+      "users": null
+    },
+    "float-noise": {
+      "offering": {"sfx": "6ab0a323697330667ccce8cd/6921867e7004563bd918e7e8.yml"},
+      "values": {"subscription": {"value": 29.990000000000002, "unit": "USD/month"}},
+      "users": 1000
+    },
+    "yearly": {
+      "offering": {"sfx": "6ab0a323697330667ccce8cd/6921867e7004563bd918e7e8.yml"},
+      "values": {"subscription": {"value": 240, "unit": "USD/year"}},
+      "users": 1000
+    },
+    "weekly": {
+      "offering": {"sfx": "6ab0a323697330667ccce8cd/6921867e7004563bd918e7e8.yml"},
+      "values": {"subscription": {"value": 7, "unit": "USD/week"}},
+      "users": 1000
+    },
+    "order-desk-unreadable": {
+      "offering": null,
+      "offeringStatus": "unreadable",
+      "valuesStatus": "declared",
+      "outcome": "declared",
+      "values": {"subscription": {"value": 42.5, "unit": "EUR/month"}},
+      "users": 1000
+    },
+    "currency-mismatch": {
+      "offering": {"sfx": "6ab0a323697330667ccce8cd/6921867e7004563bd918e7e8.yml"},
+      "values": {"subscription": {"value": 42.5, "unit": "EUR/month"}},
+      "users": 1000
+    },
+    "brevo-offering-annual": {
+      "offering": {"sfx": "6ade2d4440e55445692b07f1/6ade2d444b2b5b01c587d80d.yml"},
+      "values": {"subscription": {"value": 35.0, "unit": "USD/month"}},
+      "users": 1000,
+      "billing": "annual"
+    },
+    "no-cost-value": {
+      "offering": {"sfx": "6ab0a323697330667ccce8cd/6921867e7004563bd918e7e8.yml"},
+      "values": {"availability": {"value": 0.99, "unit": "1"}, "latency": {"value": 120, "unit": "ms"}},
+      "users": 1000
+    },
+    "ambiguous-cost": {
+      "offering": {"sfx": "6ab0a323697330667ccce8cd/6921867e7004563bd918e7e8.yml"},
+      "values": {"subscription": {"value": 35.0, "unit": "USD/month"}, "support": {"value": 5.0, "unit": "USD/month"}},
+      "users": 1000
+    },
+    "binding-invalid": {
+      "offering": {"sfx": "6ab0a323697330667ccce8cd/6921867e7004563bd918e7e8.yml"},
+      "outcome": "binding_invalid",
+      "values": {"subscription": {"value": 35.0, "unit": "USD/month"}},
+      "users": 1000
+    },
+    "no-offering": {
+      "offering": null,
+      "offeringStatus": null,
+      "values": {"subscription": {"value": 35.0, "unit": "USD/month"}},
+      "users": 1000
+    },
+    "declared": {
+      "offering": {"sfx": "6ab0a323697330667ccce8cd/6921867e7004563bd918e7e8.yml"},
+      "valuesStatus": "declared",
+      "outcome": "declared",
+      "values": {"subscription": {"value": 35.0, "unit": "USD/month"}},
+      "users": 1000
+    },
+    "semantics-changed": {
+      "offering": {"sfx": "6ab0a323697330667ccce8cd/6921867e7004563bd918e7e8.yml"},
+      "outcome": "semantics_changed",
+      "values": {"subscription": {"value": 35.0, "unit": "USD/month"}},
+      "users": 1000
+    },
+    "price-1e30": {
+      "offering": {"sfx": "6ab0a323697330667ccce8cd/6921867e7004563bd918e7e8.yml", "set": {"plans.premium.price": 1e30}},
+      "values": {"subscription": {"value": 35.0, "unit": "USD/month"}},
+      "users": 1000
+    },
+    "huge-addon-quantity": {
+      "offering": {
+        "sfx": "6ab0a323697330667ccce8cd/6921867e7004563bd918e7e8.yml",
+        "set": {"addOns.extraTimers.subscriptionConstraints": {"minQuantity": 1e15, "maxQuantity": 1e16, "quantityStep": 1}}
+      },
+      "values": {"subscription": {"value": 35.0, "unit": "USD/month"}},
+      "users": 1000
+    },
+    "cost-infinite": {
+      "offering": {"sfx": "6ab0a323697330667ccce8cd/6921867e7004563bd918e7e8.yml"},
+      "values": {"subscription": {"value": "inf", "unit": "USD/month"}},
+      "users": 1000
+    },
+    "many-variants": {
+      "offering": {"generated": "wide", "plans": 300, "addOns": 300},
+      "values": {"subscription": {"value": 35.0, "unit": "USD/month"}},
+      "users": 1000
+    }
+  }
+}

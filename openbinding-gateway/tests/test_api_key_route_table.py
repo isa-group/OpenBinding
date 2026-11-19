@@ -48,7 +48,7 @@ def is_open(method: str, path: str) -> bool:
 
 
 def test_the_route_table_has_the_v1_surface():
-    assert len(ROUTES) == 188
+    assert len(ROUTES) == 189
 
 
 def test_the_unclassified_permission_cannot_be_granted():
@@ -273,6 +273,7 @@ def test_the_compositions_of_an_organization_are_composition_reads_and_writes():
         ("GET", f"{compositions}/{{composition}}/versions"),
         ("GET", f"{compositions}/{{composition}}/versions/{{version}}"),
         ("GET", f"{compositions}/{{composition}}/versions/{{version}}/content"),
+        ("GET", f"{compositions}/{{composition}}/versions/{{version}}/margins"),
         ("PATCH", f"{compositions}/{{composition}}"),
         ("POST", compositions),
         ("POST", f"{compositions}/{{composition}}/derive"),

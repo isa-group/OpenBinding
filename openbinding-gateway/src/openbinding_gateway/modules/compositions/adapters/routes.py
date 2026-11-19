@@ -66,12 +66,14 @@ from ....models.errors import (
 )
 from ....security.apikeys import authenticated_api_key, boundary_of
 from ..application import compositions, derive, evaluate, graph, language, listing, offering, seal, upstream, versions
+from ..application import margins as margins_module
 from ..application.fork import NameTaken, fork_composition
 from ..application.language import decode, diagnostic_view
 from ..domain.records import values_json
 from .list_query import BY_NAME, ListQuery, facets_view
 from .language_routes import MAX_DOCUMENT_BYTES, YAML_BODY, YAML_MEDIA_TYPES, document_body
 from .schemas import (
+    CompositionMargins,
     UpstreamView,
     EvaluationOffering,
     CheckResult,
@@ -781,6 +783,53 @@ async def get_composition_version_content(
     if tag in {item.strip() for item in request.headers.get("if-none-match", "").split(",")}:
         return Response(status_code=status.HTTP_304_NOT_MODIFIED, headers=headers)
     return Response(content=row.content.encode("utf-8"), media_type="application/yaml; charset=utf-8", headers=headers)
+
+
+# -- Margins ---------------------------------------------------------------------------------------------
+
+
+@router.get(
+    "/{composition}/versions/{version}/margins",
+    response_model=CompositionMargins,
+    operation_id="getCompositionVersionMargins",
+    summary="Margin per offering plan of a version",
+    description=(
+        "Revenue of each plan of the version's offering (alone and with each single add-on) minus the composition's "
+        "upstream cost per user, apportioned uniformly, from a stored evaluation and the offering version it read: "
+        "nothing is evaluated or fetched. `evaluation` pins one of the version's evaluations (an environment passes "
+        "its adoption's); `users` divides the monthly cost. Members only; counted as a `read`."
+    ),
+    dependencies=[Depends(limit_work)],
+    responses={
+        401: {"model": ErrorResponse, "description": "No credential, or one that is not valid (`unauthorized`)."},
+        404: {
+            **NOT_FOUND_RESPONSE,
+            "description": (
+                "No such composition or version, or the caller is not a member (`not_found`); an `evaluation` that "
+                "is not the version's (`evaluation_not_found`)."
+            ),
+        },
+        422: {"model": ErrorResponse, "description": "An unknown `billing` period or `cost` value."},
+    },
+)
+async def get_composition_version_margins(
+    org: str,
+    composition: str,
+    version: str,
+    users: int | None = Query(default=None, ge=1, le=1_000_000_000, description="The users the cost is divided by."),
+    evaluation: uuid.UUID | None = Query(default=None, description="One of the version's evaluations; the current one by default."),
+    billing: str | None = Query(default=None, min_length=1, max_length=64, description="A billing period of the offering."),
+    cost: str | None = Query(default=None, min_length=1, max_length=64, description="The global value taken as the cost."),
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> CompositionMargins:
+    """The margins of one version: cost per user is business data, so members only."""
+    _, found, reader = await compositions.readable_composition(session, org, composition, user)
+    if reader.public:
+        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Version not found.")
+    row = await versions.required_version(session, found, version)
+    answer = await margins_module.margins(session, row, evaluation=evaluation, users=users, billing=billing, cost=cost)
+    return CompositionMargins.model_validate(answer)
 
 
 # -- Diff and fork ---------------------------------------------------------------------------------------

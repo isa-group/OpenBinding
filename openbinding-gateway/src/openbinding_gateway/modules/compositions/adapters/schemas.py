@@ -1142,3 +1142,82 @@ class EnvironmentCheck(BaseModel):
     binding: CheckBinding
     upstream: list[CheckUpstream]
     offering: CheckOffering
+
+
+# -- Margins ---------------------------------------------------------------------------------------------
+
+MarginsStatus = Literal[
+    "ok", "users_required", "no_offering", "offering_unreadable", "offering_invalid", "offering_registry_unknown",
+    "no_cost_value", "ambiguous_cost", "currency_mismatch", "binding_invalid", "semantics_changed",
+    "amount_out_of_range",
+]
+_AMOUNT = "A fixed six-place decimal string."
+
+
+class MarginsEvaluation(BaseModel):
+    id: uuid.UUID
+    basisKey: str
+    valuesStatus: Literal["verified", "declared"]
+    outcome: Literal["verified", "binding_invalid", "semantics_changed", "declared"]
+
+
+class MarginsOffering(BaseModel):
+    source: Optional[dict[str, str]]
+    status: Optional[Literal["read", "unreadable", "invalid_pricing", "registry_unknown"]]
+    versionName: Optional[str]
+    createdAt: Optional[str]
+    snapshot: Optional[uuid.UUID] = Field(description="The pricing snapshot read (`…/pricing-snapshots/{snapshot}`).")
+    currency: Optional[str]
+
+
+class MarginsCost(BaseModel):
+    """The global value taken as the composition's upstream cost, and its monthly amount."""
+
+    name: str
+    value: Optional[str] = Field(description=_AMOUNT + " Null when it is out of range.")
+    unit: str
+    monthly: Optional[str] = Field(description=_AMOUNT)
+
+
+class MarginsBilling(BaseModel):
+    id: str
+    multiplier: str
+
+
+class MarginRow(BaseModel):
+    """One plan of the offering, alone or with one add-on: its revenue per subscription and month, and margin."""
+
+    plan: str
+    planName: str
+    addOns: list[str]
+    basis: Literal["subscription", "seat"] = Field(description="`seat`: a per-seat price counted for one seat.")
+    private: bool
+    requiresQuote: bool = Field(description="A price that is a label or an expression that failed: no revenue.")
+    outOfRange: bool = Field(description="An amount beyond 10^12 or not finite: no revenue or margin.")
+    excludedParts: list[str] = Field(description="Parts without a period (one-off or metered), left out of the revenue.")
+    revenue: Optional[str] = Field(description=_AMOUNT)
+    cost: Optional[str] = Field(description="The cost per user. " + _AMOUNT)
+    margin: Optional[str] = Field(description="`revenue - cost`. " + _AMOUNT)
+
+
+class CompositionMargins(BaseModel):
+    """Margin per offering plan: revenue minus the upstream cost per user, apportioned uniformly.
+
+    Every amount is a six-place decimal string in `currency` per month. `status` is `ok` only when every margin
+    could be computed; otherwise the rows carry their revenue and null margins (or there are no rows when the
+    offering could not be read).
+    """
+
+    version: VersionName
+    evaluation: MarginsEvaluation
+    offering: Optional[MarginsOffering]
+    cost: Optional[MarginsCost]
+    users: Optional[int]
+    billing: Optional[MarginsBilling]
+    apportionment: Literal["uniform"]
+    status: MarginsStatus
+    currency: Optional[str]
+    costPerUser: Optional[str] = Field(description=_AMOUNT)
+    rowsTruncated: bool = Field(description="More than 200 rows: the first 200, in declared order.")
+    rows: list[MarginRow]
+    warnings: list[Literal["declared_values", "rows_truncated", "amount_out_of_range"]]

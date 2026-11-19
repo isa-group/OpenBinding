@@ -93,6 +93,8 @@ WORK_ROUTES: dict[tuple[str, str], WorkClass] = {
     ("GET", "/v1/organizations/{org}/sphere/pricings"): "read",
     ("GET", "/v1/organizations/{org}/sphere/pricings/{pricing_id}"): "read",
     ("GET", "/v1/organizations/{org}/sphere/pricings/{pricing_id}/versions/{version_id}"): "read",
+    # A version's margins: a stored offering normalised and up to 200 rows; a document can make each costly.
+    ("GET", "/v1/organizations/{org}/compositions/{composition}/versions/{version}/margins"): "read",
     # Checking a composition environment now: an assessment and up to eight manifest reads.
     ("POST", "/v1/organizations/{org}/compositions/{composition}/environments/{environment}/check"): "read",
 }

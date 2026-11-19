@@ -1950,6 +1950,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/organizations/{org}/compositions/{composition}/versions/{version}/margins": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Margin per offering plan of a version
+         * @description Revenue of each plan of the version's offering (alone and with each single add-on) minus the composition's upstream cost per user, apportioned uniformly, from a stored evaluation and the offering version it read: nothing is evaluated or fetched. `evaluation` pins one of the version's evaluations (an environment passes its adoption's); `users` divides the monthly cost. Members only; counted as a `read`.
+         */
+        get: operations["getCompositionVersionMargins"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/organizations/{org}/connections": {
         parameters: {
             query?: never;
@@ -4614,6 +4634,49 @@ export interface components {
             total: number;
         };
         /**
+         * CompositionMargins
+         * @description Margin per offering plan: revenue minus the upstream cost per user, apportioned uniformly.
+         *
+         *     Every amount is a six-place decimal string in `currency` per month. `status` is `ok` only when every margin
+         *     could be computed; otherwise the rows carry their revenue and null margins (or there are no rows when the
+         *     offering could not be read).
+         */
+        CompositionMargins: {
+            /**
+             * Apportionment
+             * @constant
+             */
+            apportionment: "uniform";
+            billing: components["schemas"]["MarginsBilling"] | null;
+            cost: components["schemas"]["MarginsCost"] | null;
+            /**
+             * Costperuser
+             * @description A fixed six-place decimal string.
+             */
+            costPerUser: string | null;
+            /** Currency */
+            currency: string | null;
+            evaluation: components["schemas"]["MarginsEvaluation"];
+            offering: components["schemas"]["MarginsOffering"] | null;
+            /** Rows */
+            rows: components["schemas"]["MarginRow"][];
+            /**
+             * Rowstruncated
+             * @description More than 200 rows: the first 200, in declared order.
+             */
+            rowsTruncated: boolean;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "ok" | "users_required" | "no_offering" | "offering_unreadable" | "offering_invalid" | "offering_registry_unknown" | "no_cost_value" | "ambiguous_cost" | "currency_mismatch" | "binding_invalid" | "semantics_changed" | "amount_out_of_range";
+            /** Users */
+            users: number | null;
+            version: components["schemas"]["VersionName"];
+            /** Warnings */
+            warnings: ("declared_values" | "rows_truncated" | "amount_out_of_range")[];
+        };
+        /**
          * CompositionMove
          * @description One alternative of the version's binding: one task bound to another candidate.
          */
@@ -6618,6 +6681,123 @@ export interface components {
              * @default 365
              */
             terminal_job_retention_days: number;
+        };
+        /**
+         * MarginRow
+         * @description One plan of the offering, alone or with one add-on: its revenue per subscription and month, and margin.
+         */
+        MarginRow: {
+            /** Addons */
+            addOns: string[];
+            /**
+             * Basis
+             * @description `seat`: a per-seat price counted for one seat.
+             * @enum {string}
+             */
+            basis: "subscription" | "seat";
+            /**
+             * Cost
+             * @description The cost per user. A fixed six-place decimal string.
+             */
+            cost: string | null;
+            /**
+             * Excludedparts
+             * @description Parts without a period (one-off or metered), left out of the revenue.
+             */
+            excludedParts: string[];
+            /**
+             * Margin
+             * @description `revenue - cost`. A fixed six-place decimal string.
+             */
+            margin: string | null;
+            /**
+             * Outofrange
+             * @description An amount beyond 10^12 or not finite: no revenue or margin.
+             */
+            outOfRange: boolean;
+            /** Plan */
+            plan: string;
+            /** Planname */
+            planName: string;
+            /** Private */
+            private: boolean;
+            /**
+             * Requiresquote
+             * @description A price that is a label or an expression that failed: no revenue.
+             */
+            requiresQuote: boolean;
+            /**
+             * Revenue
+             * @description A fixed six-place decimal string.
+             */
+            revenue: string | null;
+        };
+        /** MarginsBilling */
+        MarginsBilling: {
+            /** Id */
+            id: string;
+            /** Multiplier */
+            multiplier: string;
+        };
+        /**
+         * MarginsCost
+         * @description The global value taken as the composition's upstream cost, and its monthly amount.
+         */
+        MarginsCost: {
+            /**
+             * Monthly
+             * @description A fixed six-place decimal string.
+             */
+            monthly: string | null;
+            /** Name */
+            name: string;
+            /** Unit */
+            unit: string;
+            /**
+             * Value
+             * @description A fixed six-place decimal string. Null when it is out of range.
+             */
+            value: string | null;
+        };
+        /** MarginsEvaluation */
+        MarginsEvaluation: {
+            /** Basiskey */
+            basisKey: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Outcome
+             * @enum {string}
+             */
+            outcome: "verified" | "binding_invalid" | "semantics_changed" | "declared";
+            /**
+             * Valuesstatus
+             * @enum {string}
+             */
+            valuesStatus: "verified" | "declared";
+        };
+        /** MarginsOffering */
+        MarginsOffering: {
+            /** Createdat */
+            createdAt: string | null;
+            /** Currency */
+            currency: string | null;
+            /**
+             * Snapshot
+             * @description The pricing snapshot read (`…/pricing-snapshots/{snapshot}`).
+             */
+            snapshot: string | null;
+            /** Source */
+            source: {
+                [key: string]: string;
+            } | null;
+            /** Status */
+            status: ("read" | "unreadable" | "invalid_pricing" | "registry_unknown") | null;
+            /** Versionname */
+            versionName: string | null;
         };
         /**
          * MemberBatchChange
@@ -17160,6 +17340,95 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    getCompositionVersionMargins: {
+        parameters: {
+            query?: {
+                /** @description The users the cost is divided by. */
+                users?: number | null;
+                /** @description One of the version's evaluations; the current one by default. */
+                evaluation?: string | null;
+                /** @description A billing period of the offering. */
+                billing?: string | null;
+                /** @description The global value taken as the cost. */
+                cost?: string | null;
+            };
+            header?: never;
+            path: {
+                org: string;
+                composition: string;
+                version: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompositionMargins"];
+                };
+            };
+            /** @description No credential, or one that is not valid (`unauthorized`). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The account role, API-key permission, or Engine allow-list does not permit this request. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description No such composition or version, or the caller is not a member (`not_found`); an `evaluation` that is not the version's (`evaluation_not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An unknown `billing` period or `cost` value. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too many `read` requests from this client: past the budget of its address, or of its account when signed in. `Retry-After` says when the window ends. A request may also find every Composition2Yaml or evaluation slot of this gateway busy: `composition_busy`, `Retry-After: 1`. */
+            429: {
+                headers: {
+                    /** @description Seconds until the budget is available again. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Account authentication is not configured on this deployment. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
