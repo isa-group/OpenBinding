@@ -159,11 +159,15 @@ test('the configuration names the Identity account page, and it answers', async 
   await context.close();
 });
 
-test('@signup a native registration through the registration screen is refused until the permission is granted', async ({
+test('@signup a native registration by email code is refused until the permission is granted', async ({
   browser,
 }) => {
   const { context, page } = await fresh(browser);
+  // The registration screen answers (at 215dffe it is Keycloak's own form, not the code flow; see the PR's limits).
   await startSignIn(page, '?screen=register');
+  await expect(page.getByRole('heading', { name: 'Register' })).toBeVisible();
+  // Identity registers natively from its sign-in page: an unknown email gets a code, then the registration stage.
+  await startSignIn(page);
   await answerWithCode(page, email('new'), { first: 'Walk', last: 'Newcomer' });
   const url = await landed(page);
   expect(url.pathname).toBe('/authentication');

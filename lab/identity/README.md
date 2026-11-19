@@ -27,7 +27,7 @@ The walk (`frontend/e2e/identity/01-gateway.spec.ts`, phases selected by tag):
    its return without a code, five parallel renewals after 35 s, logout (the captured token refused, Identity asking for
    an email again); `research` on RESEARCH; `clash` refused (`account_not_linked`); `squat` provisioned with the address an
    unverified seeded account held; `norole` refused (`access_denied`); the account page answering.
-6. `@signup` (a native registration through `?screen=register`, refused until the permission is granted), Keycloak's view
+6. `@signup` (the registration screen answers; a native registration by email code from the sign-in page, refused until the permission is granted), Keycloak's view
    of its verified email, the grant, `@granted`.
 7. Post-checks in PostgreSQL: one refresh for the five renewals, the identities, the released email, the audit rows.
 8. `@rollback`: the gateway recreated with `AUTH_PROVIDER=local`; the old session refused, a password reset and a local
