@@ -25,6 +25,16 @@
       }
     },
     {
+      "name": "tomatometer-r3",
+      "recipe": {
+        "file": "examples/tomatometer/tomatometer-recipe.json"
+      },
+      "base": {
+        "case": "tomatometer-email"
+      },
+      "problem": "tomatometer-email"
+    },
+    {
       "name": "born-storage",
       "recipe": {
         "file": "examples/tomatometer/storage-recipe.json"

@@ -1,9 +1,10 @@
-"""The SPHERE-generated TomatoMeter package solves on every built-in single-objective engine alike.
+"""The SPHERE-generated TomatoMeter packages solve on every built-in single-objective engine alike.
 
-The ``tomatometer-email`` golden (``tests/golden/sphere``) is the first corpus-adjacent use of compile-time
+The ``tomatometer-email`` golden (``tests/golden/sphere``, revision 2) is the first corpus-adjacent use of compile-time
 ``requires.predicate`` and candidate properties, with a ``selectedCandidate`` subscription and a ``product``
 availability. Through the compose stack, MiniZinc (exact), random search and the elitist genetic search must return
-the same optimum, and the e-mail candidate they bind must be one the facts call eligible.
+the same optimum, and the e-mail candidate they bind must be one the facts call eligible. The ``tomatometer-r3``
+golden (revision 3: Dropbox for ``export`` and the built-in quotes beside ZenQuotes) must agree the same way.
 """
 
 from __future__ import annotations
@@ -21,7 +22,7 @@ from job_polling import wait_for_job
 from problem_upload import compatible_modes, upload_problem
 
 GATEWAY_URL = "http://127.0.0.1:8000"
-GOLDEN = TESTS_DIR / "golden" / "sphere" / "tomatometer-email.files.json"
+GOLDENS = TESTS_DIR / "golden" / "sphere"
 #: Equal weights: the genetic search requires them, and every engine optimises the same scalar.
 OPTIMIZATION = {
     "type": "SINGLE",
@@ -40,8 +41,9 @@ ENGINES = (
 )
 
 
-def _package() -> bytes:
-    files = {path: canonical_json(document) for path, document in json.loads(GOLDEN.read_text()).items()}
+def _package(case: str) -> bytes:
+    golden = GOLDENS / f"{case}.files.json"
+    files = {path: canonical_json(document) for path, document in json.loads(golden.read_text()).items()}
     return InstancePackage(files).to_zip()
 
 
@@ -59,19 +61,22 @@ def _binding(result: dict) -> dict[str, str]:
 
 
 @pytest.mark.integration
+@pytest.mark.parametrize("case", ["tomatometer-email", "tomatometer-r3"])
 def test_the_generated_tomatometer_problem_solves_alike_on_three_engines(
-    bootstrap_admin_credentials: tuple[str, str],
+    case: str, bootstrap_admin_credentials: tuple[str, str],
 ) -> None:
     with httpx.Client(base_url=GATEWAY_URL, timeout=30.0) as client:
         headers = _admin_headers(client, bootstrap_admin_credentials)
-        upload = upload_problem(client, headers, _package())
+        upload = upload_problem(client, headers, _package(case))
         modes = compatible_modes(client, headers, upload)
         facts = client.get(
             f"{upload['revision_path']}/compilations/{upload['compilation']['id']}/facts", headers=headers,
         ).json()
-        eligible = {
-            item["candidate"] for task in facts["tasks"] if task["id"] == "dailySummary" for item in task["eligible"]
-        }
+        by_task = {task["id"]: {item["candidate"] for item in task["eligible"]} for task in facts["tasks"]}
+        eligible = by_task["dailySummary"]
+        if case == "tomatometer-r3":
+            assert "sphere-storage/storage.dropbox.plus" in by_task["export"]
+            assert by_task["quotes"] == {"sphere-quotes/quotes.builtin.static", "catalog/quotes.zenquotes.free"}
         assert "sphere-email/email.mailgun.foundation" in eligible and "sphere-email/email.mailgun.free" not in eligible
         found = {}
         for engine, mode, options in ENGINES:
