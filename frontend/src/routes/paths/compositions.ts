@@ -13,6 +13,7 @@ export const COMPOSITION_TAB_SEGMENTS = [
   'analytics',
   'configuration',
   'versions',
+  'operation',
   'settings',
 ] as const;
 
@@ -28,11 +29,15 @@ export interface CompositionsFilter {
   q?: string;
 }
 
-/** The query of a composition page: the version shown (`version`), and the pair the Versions tab compares (`from`, `to`). */
+/**
+ * The query of a composition page: the version shown (`version`), the pair the Versions tab compares (`from`, `to`), and the
+ * environment the Operation tab opens (`environment`, its slug).
+ */
 export interface CompositionQuery {
   version?: number | string;
   from?: number | string;
   to?: number | string;
+  environment?: string;
 }
 
 function withQuery(

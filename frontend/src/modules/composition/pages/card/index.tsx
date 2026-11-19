@@ -65,6 +65,7 @@ import CompositionVersionGraph from '../../components/version-graph';
 import CompositionVersionsTab from '../../components/versions-tab';
 import CompositionAnalyticsTab from '../../components/analytics-tab';
 import ConfigurationSpaceView from '../../components/configuration-space-view';
+import OperationTab from '../../components/operation-tab';
 import { roleAtLeast, useCompositionRole } from '../../hooks/useCompositionRole';
 import { saveBlob, saveText } from '../../utils/download';
 import { useCardComposition, type LoadedComposition } from './hooks';
@@ -616,6 +617,7 @@ function CardBody({
         shown: analysable || tab === 'configuration',
       },
       { id: 'versions', label: 'Versions', shown: true },
+      { id: 'operation', label: 'Operation', shown: member },
       { id: 'settings', label: 'Settings', shown: canWrite || tab === 'settings' },
     ];
     return list
@@ -623,7 +625,7 @@ function CardBody({
       .map(item => ({ id: item.id, label: item.label, to: tabTo(item.id) }));
     // `tabTo` reads only the address and the composition.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canWrite, analysable, tab, org, slug, versionQuery]);
+  }, [canWrite, member, analysable, tab, org, slug, versionQuery]);
 
   const overflow: OverflowAction[] = [
     ...(version ? [{ label: 'Fork', onSelect: fork }] : []),
@@ -695,6 +697,9 @@ function CardBody({
       )}
     </>
   );
+
+  // The Operation tab is the members': anybody else naming it gets the same in-place 404 as a tab the page does not have.
+  if (tab === 'operation' && !member) return <NotFoundPage />;
 
   const versionFailure = shown.status === 'error' ? classifyAuthError(shown.error) : null;
   const reading =
@@ -849,6 +854,9 @@ function CardBody({
               }}
             />
           </div>
+        )}
+        {tab === 'operation' && (
+          <OperationTab org={org} composition={composition} versions={versions} role={role} />
         )}
         {tab === 'settings' && (
           <CompositionSettingsTab
