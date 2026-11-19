@@ -85,10 +85,11 @@ export async function answerWithCode(
   await page.locator('#email').waitFor();
   const before = await messageIds(recipient);
   await page.locator('#email').fill(recipient);
-  await page.getByRole('button', { name: 'Continue', exact: true }).click();
+  // The sign-in form's submit is "Continue"; the registration screen's may be named otherwise: Enter submits either.
+  await page.locator('#email').press('Enter');
   await page.locator('#code').waitFor();
   await page.locator('#code').fill(await newCode(recipient, before));
-  // The field submits itself once six digits are in; press Continue when it has not.
+  // The field submits itself once six digits are in; press its button when it has not.
   await page
     .locator('[data-otp-submit]')
     .click({ timeout: 3_000 })
@@ -99,7 +100,7 @@ export async function answerWithCode(
     await page.locator('#lastName').fill(names.last);
     await page.locator('#terms').check();
     await page.locator('#privacy').check();
-    await page.getByRole('button', { name: /Create account/ }).click();
+    await page.locator('#firstName').press('Enter');
   }
 }
 

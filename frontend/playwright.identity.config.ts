@@ -18,8 +18,17 @@ export default defineConfig({
   retries: 0,
   timeout: 300_000,
   expect: { timeout: 15_000 },
-  outputDir: `${results}/test-output`,
-  reporter: [['list'], ['json', { outputFile: `${results}/identity-report.json` }]],
+  // One directory per phase (WALK_PHASE): Playwright empties its output directory when a run starts.
+  outputDir: `${results}/test-output${process.env.WALK_PHASE ? `-${process.env.WALK_PHASE}` : ''}`,
+  reporter: [
+    ['list'],
+    [
+      'json',
+      {
+        outputFile: `${results}/identity-report${process.env.WALK_PHASE ? `-${process.env.WALK_PHASE}` : ''}.json`,
+      },
+    ],
+  ],
   use: {
     baseURL: process.env.BASE_URL ?? 'http://localhost:18198',
     browserName: 'chromium',

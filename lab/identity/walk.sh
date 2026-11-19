@@ -67,7 +67,7 @@ email() {
 phase() {
   echo "== phase $1"
   local status=0
-  $OB --profile identity-walk run --rm e2e-identity pnpm exec playwright test -c playwright.identity.config.ts "${@:2}" \
+  $OB --profile identity-walk run --rm -e "WALK_PHASE=$1" e2e-identity pnpm exec playwright test -c playwright.identity.config.ts "${@:2}" \
     > "$LOGS/phase-$1.log" 2>&1 || status=$?
   grep -E "✓|✘|passed|failed|skipped|flaky" "$LOGS/phase-$1.log" | tail -30
   echo "PHASE_$1=$status"
@@ -173,9 +173,13 @@ done
 echo "RELEASED_UNVERIFIED_HOLDER=$(sql "select count(*) from audit_events where action = 'account.email.released' and detail->>'reason' = 'unverified_holder'")"
 
 echo "== rollback: the gateway in local mode"
-OB_AUTH_PROVIDER=local $OB up -d --wait --no-deps gateway > "$LOGS/rollback-up.log" 2>&1 || { tail -20 "$LOGS/rollback-up.log"; failed=1; }
-$OB restart web > /dev/null 2>&1
-$OB up -d --wait web > /dev/null 2>&1
+$OB logs --no-color gateway > "$LOGS/gateway-scoretech.log" 2>&1
+# Exported, so that no later compose command recreates the gateway in scoretech mode again.
+export OB_AUTH_PROVIDER=local
+$OB up -d --wait --no-deps gateway > "$LOGS/rollback-up.log" 2>&1 || { tail -20 "$LOGS/rollback-up.log"; failed=1; }
+# nginx resolves the gateway when it starts: it follows the recreated container after a restart.
+$OB restart web > "$LOGS/rollback-web.log" 2>&1 || failed=1
+echo "ROLLBACK_PROVIDER=$(curl -fsS "$ORIGIN/api/v1/auth/config" | python3 -c 'import json,sys;print(json.load(sys.stdin)["provider"])')"
 phase rollback --grep @rollback || failed=1
 
 echo "WALK_FAILED=$failed"
