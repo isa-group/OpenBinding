@@ -335,7 +335,7 @@ export class HttpTransport {
     options.signal?.addEventListener('abort', abortFromCaller, { once: true });
 
     try {
-      if (retryOnUnauthorized) await this.freshen();
+      if (retryOnUnauthorized && this.tokenDueForRenewal()) await this.freshen();
       const response = await fetch(url, {
         ...options,
         headers: {
@@ -419,7 +419,7 @@ export class HttpTransport {
     const timeoutId = timeoutMs ? setTimeout(() => controller.abort(), timeoutMs) : undefined;
 
     try {
-      if (retryOnUnauthorized) await this.freshen();
+      if (retryOnUnauthorized && this.tokenDueForRenewal()) await this.freshen();
       const response = await fetch(url, {
         ...options,
         headers: {
@@ -461,7 +461,7 @@ export class HttpTransport {
     const controller = new AbortController();
     const timeoutId = timeoutMs ? setTimeout(() => controller.abort(), timeoutMs) : undefined;
     try {
-      if (retryOnUnauthorized) await this.freshen();
+      if (retryOnUnauthorized && this.tokenDueForRenewal()) await this.freshen();
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
         headers: this.authHeaders(),
         signal: controller.signal,
@@ -489,7 +489,7 @@ export class HttpTransport {
     retryOnUnauthorized = true
   ): Promise<Response> => {
     const url = /^https?:\/\//.test(path) ? path : `${this.baseUrl}${path}`;
-    if (retryOnUnauthorized) await this.freshen();
+    if (retryOnUnauthorized && this.tokenDueForRenewal()) await this.freshen();
     const headers = new Headers(init.headers);
     for (const [name, value] of Object.entries(this.authHeaders())) {
       if (!headers.has(name)) headers.set(name, value);
