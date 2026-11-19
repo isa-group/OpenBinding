@@ -75,7 +75,7 @@ browser                       gateway                                       Iden
   them from access tokens.
 - **Never by email.** An account is found only by `(provider, issuer, subject)`. An email Identity verified that another
   account holds is released from that account when its copy proves nothing (a stale Identity account of the same issuer,
-  or an account whose own email is unverified: every local, seeded or CAS account); held by an account that verified it
+  or an account whose own email is unverified: every local or seeded account); held by an account that verified it
   too and has no identity of this issuer, the first sign-in is refused (`account_not_linked`) and a known account keeps
   its old email. Nothing is ever merged.
 - **A chosen username.** A first sign-in becomes a pending sign-up (15 minutes); the person chooses a username at
@@ -108,6 +108,14 @@ browser                       gateway                                       Iden
   username, and clears the cookies.
 - Identity offers managed applications no back-channel logout: OpenBinding learns that an Identity session ended at the
   next renewal, at most one access-token lifetime later.
+- **In the browser** the gateway token lives in memory only, never in Web Storage (nor does the SPACE pricing token): the
+  SPA asks the session route for a token when the page loads, renews it when under a minute is left, on focus, when the
+  page is shown again and every 30 s, and once more on a `401`. Tabs follow each other's sign-in and sign-out through the
+  `openbinding-auth` BroadcastChannel; a renewal whose token names another account loads that account. The account menu
+  offers **Sign out** and **End every session** (`scope: "all"`).
+- **Signing up** uses the same sign-in URL as signing in: SCORETech Identity registers an unknown email from its sign-in
+  page (a code, then its registration stage). Its `/registrations` endpoint is Keycloak's stock form, so
+  `GET /v1/auth/config` names only `login_url` (and `account_url`).
 
 ## RESEARCH, administrators and API keys
 
@@ -125,7 +133,11 @@ browser                       gateway                                       Iden
 ## Local mode and rollback
 
 `AUTH_PROVIDER=local` keeps registration, password sign-in and the password reset of OpenBinding's own accounts, for
-development, labs and rollback. In `scoretech` mode those routes answer `409 local_auth_disabled`, and changing the email
+development, labs and rollback. **Local mode uses the same cookie session**: `POST /v1/auth/login` and `/register` open an
+`identity_sessions` row with provider `local` (no refresh token, the same limits), set the session cookie and answer a
+token bound to it; the SPA renews and ends it at the same `/v1/auth/identity/session` and `/logout`. A present `Origin`
+outside the frontend's (`FRONTEND_URL` and `AUTH_TRUSTED_ORIGINS`) is refused; an absent one passes, for scripts. There
+are no refresh tokens: one session model holds in every mode, a production rollback included. In `scoretech` mode those routes answer `409 local_auth_disabled`, and changing the email
 or password answers `409 managed_by_identity`; in `local` mode the Identity routes answer `409 identity_disabled` (the
 browser ones redirect to `/authentication?identity_error=unavailable`).
 
@@ -166,4 +178,7 @@ account, so a switch starts from an empty database ([the runbook](runbooks/ident
   CI never reaches a real issuer.
 - [lab/identity/README.md](../lab/identity/README.md) runs the SCORETech Identity lab at its pinned revision and walks
   the real issuer at the gateway level: first sign-in, renewal, logout, the email rules, RESEARCH, native registration
-  and the rollback leg (`frontend/e2e/identity/01-gateway.spec.ts`).
+  and the rollback leg (`frontend/e2e/identity/01-gateway.spec.ts`), then through OpenBinding's screens: a first sign-in
+  from the header with the username screen, the renewal past the access lifespan, two tabs signing out, the error pages
+  and the local form after the rollback (`frontend/e2e/identity/02-screens.spec.ts`).
+- The ordinary lab (`AUTH_PROVIDER=local`) runs every `e2e/live` walk over the same cookie session.

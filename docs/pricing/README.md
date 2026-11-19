@@ -148,9 +148,9 @@ with `pricing4ts` 0.12.1, the library SPACE 1.7.1 uses (3 plans, 0 add-ons, 7 fe
 
 - **Strategy.** FREE uses penetration pricing (price 0): adoption by researchers is the goal. RESEARCH is
   institutional (price 0): Universidad de Sevilla runs the platform; eligibility is a `us.es` or `alum.us.es` e-mail that
-  SCORETech Identity verified, or an administrator's grant. The published 0.2.0 YAML still describes RESEARCH as "for
-  Universidad de Sevilla members who sign in with CAS"; a published version is immutable, so the next pricing version
-  carries the corrected sentence. LAB is set by
+  SCORETech Identity verified, or an administrator's grant. The published 0.2.0 YAML still describes RESEARCH by the
+  university's former single sign-on; a published version is immutable, so the next pricing version carries the
+  corrected sentence. LAB is set by
   agreement and should cover at least the OpEx of a fully-utilizing LAB account. Nothing is charged inside OpenBinding.
   Demand-driven pricing needs data on perceived value that does not exist yet; we revisit after a year of
   SPACE usage data (accounts per plan, hours used against allowance).

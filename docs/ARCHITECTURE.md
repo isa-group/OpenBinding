@@ -14,7 +14,7 @@ Contents: 1 Principles · 2 System context · 3 Containers · 4 Backend · 5 Fro
 2. **Modular monolith, hexagonal inside.** One deployable gateway split into bounded-context modules; each module
    keeps its domain free of frameworks and reaches the outside world through ports.
 3. **Everything external behind a port, everything shared behind a contract.** BIM toolchain, engines, SPACE,
-   SPHERE, CAS, blob storage and mail are adapters; contracts are versioned and tested on both sides.
+   SPHERE, SCORETech Identity, blob storage and mail are adapters; contracts are versioned and tested on both sides.
 4. **Render, never dump.** The frontend renders every domain object with a shared catalogue of components; source
    views are secondary.
 5. **Immutable evidence, named for people and addressed by digest for machines.** Problem versions,
@@ -41,14 +41,14 @@ flowchart LR
   end
   SPH[(SPHERE<br/>sphere.score.us.es)]
   SPA[(SPACE<br/>space.score.us.es)]
-  CAS[(Universidad de Sevilla CAS)]
+  IDP[(SCORETech Identity<br/>OIDC)]
   FED[(Federated engines)]
   R & E & A & P --> W --> G
   R -. API keys, scripts, QACOBench, MCP .-> G
   G -- space-python-client --> SPA
   SPA -- permanent-link sync --> SPH
   G -- public permanent-link API --> SPH
-  G -- CAS 3.0 --> CAS
+  G -- OIDC code + PKCE, confidential client --> IDP
   G -- bim-engine/v1 --> FED
 ```
 
@@ -105,7 +105,7 @@ has the one-shot `pricing-bootstrap`, a separate compose project that prepares t
 
 | Module | Owns | Main ports used | Code today (to move) |
 |---|---|---|---|
-| `identity` | accounts, browser sessions (`identity_sessions`), SCORETech Identity sign-in (the OIDC client, first-time provisioning, single-flight renewal, logout), RESEARCH by verified email, the bootstrap administrator by `sub`, orphan API keys ([IDENTITY.md](IDENTITY.md)); passwords and API keys | `OidcClient`, `OneTimeStore`, `SessionLock`, `Mailer` | `modules/identity` (F5); `routes/auth.py`, `routes/users.py`, `routes/cas.py`, `cas.py`, `security/*` |
+| `identity` | accounts, browser sessions (`identity_sessions`), SCORETech Identity sign-in (the OIDC client, first-time provisioning, single-flight renewal, logout), RESEARCH by verified email, the bootstrap administrator by `sub`, orphan API keys ([IDENTITY.md](IDENTITY.md)); passwords (local mode) and API keys | `OidcClient`, `OneTimeStore`, `SessionLock`, `Mailer` | `modules/identity` (F5); `routes/auth.py` (local sign-in, which opens the same cookie session), `routes/users.py`, `security/*` |
 | `collaboration` | organizations (nested, the only container), memberships, roles, invitations, audit, notifications | — | `collaboration.py`, `routes/organizations.py`, `repositories/organizations.py` |
 | `problems` | problems of an organization, their sealed revisions (the uploaded `.bim.zip` and its digests) and compilations (one per revision and toolchain, insert-only), the stateless BIM services (`/v1/bim/validate`, `/v1/bim/templates`) | `BimPort`, `BlobStore` | `modules/problems` (domain, application, adapters; F0b); `integrations/bim*.py`, the engine protocol document in `services/engines.py` |
 | `engines` | engine revisions, modes and manifests, federated deployments, conformance, capability matching | `EngineTransport` | `services/engines.py`, `services/engine_registry.py`, `services/probe.py`, `v1/remote.py` |
@@ -113,7 +113,7 @@ has the one-shot `pricing-bootstrap`, a separate compose project that prepares t
 | `compositions` | compositions of an organization, their sealed versions (canonical Composition2Yaml bytes), their evaluations (one per toolchain, or one declared) and derivations, forks into another organization, composition environments with their adoption history, feed keys and feed, margins per offering plan (F4), and the stateless language services (`/v1/compositions/validate`, `parse`, `serialise`, `diff`, `schema`). The language itself is the pure library `openbinding_gateway/composition` (contract `composition-library-pure`) | `BimPort`; `problems` and `execution` application APIs | `modules/compositions` (F1) |
 | `laboratory` | studies of an organization (the editable matrix inline), study runs that freeze their definition and pin each revision's compilation, cells, protocol metrics, trade-offs across engines | `execution` application API | `studies.py`, `study_jobs.py`, `routes/studies.py` (`/v1/organizations/{org}/studies`; F0b); the generator moved to QACOForge; the decision-space workspace (`analysis_jobs.py`, analysis routes, analysis queue and worker) was removed by M9.6 |
 | `publishing` | published results (a frozen study run), citations, Zenodo-ready export | application APIs of `problems` and `laboratory` | none: the reports, their publications and Explore were removed in F0a |
-| `plans` | the SPACE port, the entitlement map, the pricing descriptor, plan changes and eligibility (RESEARCH through CAS) | `PlanPort` (SPACE), `PricingSource` (SPHERE public API) | `modules/plans` (entitlement map, per-account quotas, the package copy of the pricing; F0b); `space_client/*`, `services/entitlements.py`, `access/policy.py`, `access/contracts.py`, `domain/entitlements.py`. Local metering and billing sponsorship were removed in F0b |
+| `plans` | the SPACE port, the entitlement map, the pricing descriptor, plan changes and eligibility (RESEARCH by verified institutional email, or an administrator) | `PlanPort` (SPACE), `PricingSource` (SPHERE public API) | `modules/plans` (entitlement map, per-account quotas, the package copy of the pricing; F0b); `space_client/*`, `services/entitlements.py`, `access/policy.py`, `access/contracts.py`, `domain/entitlements.py`. Local metering and billing sponsorship were removed in F0b |
 | `administration` | users, queues and engine health, storage and retention, audit, moderation of public content | application APIs of the other modules | `routes/admin.py`, `telemetry.py` |
 | `shared` (kernel) | settings, logging, problem+json errors, pagination, digests, clock, ids, mail, content-addressed blobs | — | `modules/shared` (blobs; F0b), `core/*`, `mailer.py`, `security/bodylimit.py` |
 
@@ -280,10 +280,17 @@ header and its 33-screen budget).
   `/me/engines/new` and `/me/engines/:name`.
 - **Account and administration:** `/me/settings?section=`, `/me/api-keys`, `/notifications`, `/admin/:section?`
   and `/admin/users/:user`.
+- **Sign-in:** `/authentication` is the way to SCORETech Identity in `scoretech` mode (no form; `?identity_error=` pages
+  with Try again) and the local form, registration (`?view=register`), `/forgot-password` and `/reset-password` in
+  `local` mode; `/sso/identity/callback` finishes a sign-in and `/sso/identity/username` chooses the username of a first
+  one. The whole application waits for `GET /v1/auth/config`. The browser's credential is the HttpOnly session cookie
+  (both modes): the gateway token lives in memory, is renewed from the cookie and names its session (`sid`), which the
+  gateway checks on every request ([`IDENTITY.md`](IDENTITY.md)).
 - **Missing and unreadable read the same:** anything missing, of another organization or not readable renders the
   in-place 404 (`e2e/not-found-parity.spec.ts` checks every kind of address with a 404 and a 403 answer).
-- **Screen budget:** exactly **38** routed screens (`routes/screenBudget.test.ts`): 20 open to visitors and 18 behind
-  an account. F5 adds `/sso/identity/callback` (39), F7 `/orbit` (40) and F9 five collection routes (45). Each user
+- **Screen budget:** exactly **39** routed screens (`routes/screenBudget.test.ts`): 21 open to visitors and 18 behind
+  an account. F5 replaced the old university sign-in's return page by `/sso/identity/callback` and added
+  `/sso/identity/username`; F7 adds `/orbit` (40) and F9 five collection routes (45). Each user
   journey has a Playwright walk, mocked (`e2e/f2a-*.spec.ts`, `e2e/f2b-*.spec.ts`, `e2e/f3-*.spec.ts`) and live against
   the lab (`e2e/live/08-derive-seal-compare.spec.ts`, `09-public-fork.spec.ts`, `10-problem-editor.spec.ts`,
   `11-study-front.spec.ts`, and `12-sphere-candidates.spec.ts` against live SPHERE). F3 adds a dialog and a tab, no
@@ -671,7 +678,7 @@ flowchart LR
 |---|---|
 | SPHERE (`sphere.score.us.es`) | authoring and versioning of the OpenBinding pricing; public permanent-link API |
 | SPACE | contracts, feature evaluation, the solver-hours and generated-instances usage levels, contract migration when the pricing changes, events |
-| OpenBinding | enforcement points and its own counts for the other limits, contract creation (registration, CAS link), plan changes for FREE and RESEARCH and by administrators, pricing display, token issuance to the browser |
+| OpenBinding | enforcement points and its own counts for the other limits, contract creation (registration, a first SCORETech sign-in), plan changes for FREE and RESEARCH and by administrators, pricing display, token issuance to the browser |
 
 | Stage | SPHERE | SPACE |
 |---|---|---|
@@ -759,8 +766,8 @@ flowchart LR
   refreshed on sign-in, on plan change and on `plans.changed`. No SPACE key ever reaches the browser.
 - `<Feature id="openbinding-…">` gates UI; the server enforces the same decision.
 - The Pricing page and the account Plan page render the pricing with `pricing-renderer` (React adapter, themed with
-  the OpenBinding tokens); signed-in users see their plan selected; FREE, and RESEARCH for accounts with a
-  Universidad de Sevilla CAS identity, change self-service; LAB shows "Contact us".
+  the OpenBinding tokens); signed-in users see their plan selected; RESEARCH is free for a verified e-mail at `us.es`
+  or `alum.us.es` (granted at sign-in) or granted by an administrator; LAB shows "Contact us".
 - An administrator confirms a change of somebody's contract (admin-user-detail) from the change review of
   `pricing-renderer` (`compareSelections` and `PricingChangeReview`, loaded on demand): plan, price, add-ons, features
   and limits before and after, both read from the catalog, without the Upgrade/Downgrade badge, since the plans are

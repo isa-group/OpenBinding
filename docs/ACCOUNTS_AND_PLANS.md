@@ -59,9 +59,26 @@ and owes a contract (`contract_pending`), which is settled the next time that
 user turns up (`access/contracts.py`) — losing a sign-up because a pricing
 service was restarting would be the worse failure.
 
-Sessions are a short-lived access token plus a refresh token that is **rotated
-on every use**: presenting one spends it. That makes a stolen refresh token
-survivable, because the legitimate holder and the thief cannot both keep going.
+There are two ways in, set by `AUTH_PROVIDER` ([`IDENTITY.md`](IDENTITY.md)):
+`scoretech` (SCORETech Identity: one button, the account created at the first
+sign-in with a username the person chooses on `/sso/identity/username`, never
+linked to another account by email) and `local` (OpenBinding's own form,
+registration and password reset; development, labs and the documented
+rollback). Production compose keeps `local` until the Identity client exists.
+
+**One session model in both modes.** A sign-in (Identity's callback, a first
+sign-in's completion, a local login or registration) opens a row of
+`identity_sessions` and sets an opaque HttpOnly cookie (`__Host-ob_session`
+over https). The browser never sees a long-lived token: the SPA asks
+`POST /v1/auth/identity/session` for a 300-second gateway token, keeps it in
+memory only (never Web Storage) and renews it before it runs out, on focus and
+every 30 s; a reload keeps the session because the cookie does. Every gateway
+token names its session (`sid`, `prv`), which the gateway checks on every
+request, so `POST /v1/auth/identity/logout` (with `{"scope": "all"}`, every
+session of the account) ends it at once; in `scoretech` mode the SCORE SSO
+session behind it ends too, so signing in again asks for a code. A session
+lasts at most 7 days and 12 hours idle (Identity's SSO lifetimes). There are no
+refresh tokens and no local logout route; a token without a session is refused.
 
 API keys are `obk_`-prefixed, shown once, and stored only as a SHA-256. Not
 argon2: the secret is 256 uniformly random bits, so there is nothing to guess
@@ -230,11 +247,11 @@ An administrator cannot deactivate or demote themselves. It is always a mistake,
 and a gateway whose last administrator locked themselves out needs database
 access to recover.
 
-`cas_verified` in the administrator's account views (`GET /v1/admin/users`, and
-the user inside the `PATCH`, `/plan` and `/subscription` responses) is the real
-value: the account has a linked `us-cas` identity. A page of accounts costs one
-identity query, not one per row. (There is no `GET /v1/admin/users/{id}`; the
-detail screen reads the list with `search`.)
+The administrator's account views (`GET /v1/admin/users`, and the user inside
+the `PATCH`, `/plan` and `/subscription` responses) carry `email_verified` and
+`institutional_email` (a verified email at one of `RESEARCH_EMAIL_DOMAINS`).
+(There is no `GET /v1/admin/users/{id}`; the detail screen reads the list with
+`search`.)
 
 ### A change decided on an outdated contract is refused
 
@@ -276,15 +293,14 @@ Every novation keeps the current billing period (`keep_billing_period`).
 OpenBinding charges nothing, so a plan change, or a novation that only moves the
 contract to `SPACE_PRICING_VERSION`, no longer moves the renewal date. No
 novation asks SPACE to refuse private plans (`reject_private`): an administrator
-is exactly who may assign one, and the CAS upgrade must keep working should
-RESEARCH be private.
+is exactly who may assign one, and the RESEARCH grant by email must keep working
+should RESEARCH be private.
 
-The automatic plan changes follow a rule, so they decide again instead of
-failing. When the contract moved between the read and the novation, linking a
-`us-cas` identity (default plan to RESEARCH) and unlinking it with
-`DOWNGRADE RESEARCH` (RESEARCH to the default plan) read the contract again and
-apply the rule once more: an account an administrator moved meanwhile keeps its
-plan. A second change in a row is the usual `pricing_unavailable`.
+The automatic plan change follows a rule, so it decides again instead of
+failing. When the contract moved between the read and the novation, the RESEARCH
+grant by verified email (default plan to RESEARCH) reads the contract again and
+applies the rule once more: an account an administrator moved meanwhile keeps
+its plan. A second change in a row is the usual `pricing_unavailable`.
 
 All of this depends on what SPACE advertises in `X-Space-Capabilities`, which
 the client reads from any response or from SPACE's unauthenticated healthcheck.
@@ -355,7 +371,7 @@ step, nothing is changed and the contract stays.
   empty, `plan_cache` empty, `role` USER, `is_active` false and `deleted_at`
   set (so a deleted administrator no longer counts as one, and the bootstrap
   administrator is seeded again when it was the last);
-- its API keys, refresh tokens, password-reset tokens, linked identities,
+- its API keys, browser sessions, password-reset tokens, Identity identity,
   notifications, memberships and the invitations it sent or received are
   deleted;
 - each of its active federated engine registrations is deactivated, as the
@@ -370,7 +386,7 @@ shared history. Administration no longer lists or acts on a deleted account.
 
 A username that names engine revisions or engine registration revisions stays
 reserved: engine namespaces are the username baked into immutable manifests, so
-registration and a first CAS sign-in refuse it with `409 username_unavailable`.
+registration and a first SCORETech Identity sign-in refuse it with `409 username_unavailable`.
 So is every username that starts with `deleted-`, the pseudonyms of deleted
 accounts.
 
@@ -382,59 +398,22 @@ projects are gone; a public showcase arrives with compositions (F1/F9). Checking
 package without storing it (`POST /v1/bim/validate`) and the templates
 (`GET /v1/bim/templates*`) need no account and read no organization.
 
-## Signing in with Universidad de Sevilla CAS
+## RESEARCH by verified institutional email
 
-`GET /v1/auth/cas/start` sends the browser to the university, which sends it
-back to `GET /v1/auth/cas/callback`. The callback is a browser navigation, so it
-**always answers with a `303` redirect to the frontend** (`FRONTEND_URL`, from
-configuration only; nothing in the request can change the destination):
+`RESEARCH` is free for an account whose email SCORETech Identity verified at one
+of `RESEARCH_EMAIL_DOMAINS` (`us.es` and `alum.us.es` by default), or granted by
+an administrator to any account. The grant is automatic and **has no extra
+cost**: at the first sign-in, or at the next sign-in or renewal that brings a
+verified institutional email, an account on the default plan moves to
+`RESEARCH` with a SPACE novation, audited as `account.research.granted
+{basis: email}` (`{basis: admin}` when an administrator assigns it). It is never
+withdrawn automatically; an administrator changes it. `GET /v1/users/me` shows
+the resulting `plan`, `email_verified` and `institutional_email`.
 
-- success: `{FRONTEND_URL}/sso/callback?code=<one-time code>`; the frontend
-  exchanges the code at `POST /v1/auth/cas/exchange` for the session.
-- failure: `{FRONTEND_URL}/sso/callback?error=<code>`, with a code from this
-  closed list:
-
-| `error` | Meaning |
-|---|---|
-| `cas_unavailable` | CAS login is disabled, or the university's validation could not be reached |
-| `cas_state_invalid` | the login state is missing, already used, expired or unknown |
-| `cas_ticket_invalid` | the ticket is missing or the university refused it |
-| `account_inactive` | the account being signed in or linked is deactivated or gone |
-| `identity_in_use` | that UVUS identity is already linked to another account |
-| `account_collision` | a local account with the same username or email exists; sign in to it and link CAS explicitly (accounts are never linked by email) |
-| `username_unavailable` | the UVUS is a reserved username: it names published engines, or is the pseudonym of a deleted account |
-| `pricing_unavailable` | the pricing service could not be reached |
-| `institutional_pricing_invalid` | the live pricing declares no `RESEARCH` plan |
-| `cas_error` | anything else (the detail stays in the server log) |
-
-The frontend has its own words for every code of this list; anything else falls
-back to its generic "this code can't be used" message.
-
-### Linking CAS raises the plan to RESEARCH — automatically, at no cost
-
-Linking a verified CAS identity (the callback of a `mode=link` start, whether it
-was started with a bearer token or through `POST /v1/auth/cas/link-intent`)
-moves an account that is on the default plan to `RESEARCH`. This is a product
-decision, not a side effect to be confirmed: it is automatic and **has no extra
-cost**. An account already on `RESEARCH`, or on any other plan, is left alone.
-
-So that the person is told, the change is reported where the frontend can show it:
-
-- the callback redirect adds `plan_changed=RESEARCH` next to `code`;
-- `POST /v1/auth/cas/exchange` returns the tokens plus
-  `plan_changed: {"from": "<previous plan>", "to": "RESEARCH", "extra_cost": false}`
-  (`null` when the plan did not change);
-- `GET /v1/users/me` shows the resulting `plan` and `cas_verified`;
-- the platform audit log records `account.cas.linked` (provider, identity id and
-  the `plan_changed` object, never the UVUS or attributes).
-
-Creating a new account through CAS starts it on `RESEARCH`, which is not a
-change, so it reports nothing. Unlinking is unchanged: removing the identity of
-a `RESEARCH` account needs `?confirmation=DOWNGRADE RESEARCH` and returns it to
-the default plan. Both changes apply to the contract version they were decided
-on; if the contract moved meanwhile, the rule is applied once more to the
-contract as it is now (see "A change decided on an outdated contract is
-refused").
+In `local` mode no email is verified, so RESEARCH comes from an administrator.
+The published pricing 0.2.0 still describes RESEARCH by the university's former
+single sign-on (which `/pricing` shows as it is); a published version is
+immutable, and the next pricing version carries the corrected sentence.
 
 ## How a limit behaves
 
@@ -624,11 +603,11 @@ does for a declared size.
 | `BOOTSTRAP_ADMIN_*` | The first administrator, above. |
 | `SEED_DEFAULT_ADMIN` | Opt-in `admin` account for an empty database; needs `BOOTSTRAP_ADMIN_PASSWORD`. |
 | `FEDERATION_SECRET_KEY` | Fernet key for credentials registered with federated engines. |
-| `CORS_ALLOW_ORIGINS` | Browser origins allowed to call the API, comma separated: a **closed list**. Default: only the local development origins `http://localhost:5173`, `http://127.0.0.1:5173` (Vite) and `http://localhost:4177`, `http://127.0.0.1:4177` (Playwright). There is no wildcard default, because session tokens live in the browser's `localStorage`. With `APP_ENV=prod`, an empty list or a `*` entry makes the gateway **refuse to start** (`CORS_ALLOW_ORIGINS … APP_ENV=prod`), so a production deployment must name its frontend origin(s) exactly. A `*` outside production still works and switches credentialed requests off. |
+| `CORS_ALLOW_ORIGINS` | Browser origins allowed to call the API, comma separated: a **closed list**. Default: only the local development origins `http://localhost:5173`, `http://127.0.0.1:5173` (Vite) and `http://localhost:4177`, `http://127.0.0.1:4177` (Playwright). There is no wildcard default, because the session cookie must never be sent to a foreign origin with credentials. With `APP_ENV=prod`, an empty list or a `*` entry makes the gateway **refuse to start** (`CORS_ALLOW_ORIGINS … APP_ENV=prod`), so a production deployment must name its frontend origin(s) exactly. A `*` outside production still works and switches credentialed requests off. |
 | `CORS_ALLOW_CREDENTIALS` | Whether credentialed cross-origin requests are allowed (default `true`; ignored when the list contains `*`). |
 | `APP_ENV` | `dev` (default), `test` or `prod`; `prod` enables the startup checks above. |
 | `FEDERATION_REQUIRE_HTTPS` | Plain-http switch for a trusted development or lab network (federated engines over `http`). With `APP_ENV=prod`, `FEDERATION_REQUIRE_HTTPS=false` makes the gateway **refuse to start**, like `SPACE_ENABLED=false`. `dev`, `test` and the lab are unaffected. |
-| `FRONTEND_URL` | Where the CAS callback returns the browser (`/sso/callback?code=…` or `?error=…`) and where the password-reset email links to (`/reset-password?token=…`). It must be `scheme://host[:port]`, with no path, query, fragment or userinfo. |
+| `FRONTEND_URL` | Where a SCORETech Identity sign-in returns the browser (`/sso/identity/callback`, `/sso/identity/username`, or `/authentication?identity_error=…`), whose origin the sign-in routes trust in `Origin` (with `AUTH_TRUSTED_ORIGINS`), and where the password-reset email links to (`/reset-password?token=…`). It must be `scheme://host[:port]`, with no path, query, fragment or userinfo. |
 
 Origin values (`FRONTEND_URL` and every `CORS_ALLOW_ORIGINS` entry) must be
 `scheme://host[:port]` with no path, query, fragment or userinfo, and
