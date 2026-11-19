@@ -25,13 +25,15 @@ from ..models.accounts import CasSession, PlanChange
 from ..models.errors import api_error
 from ..security.passwords import hash_password
 from .auth import _issue_session
-from ..modules.identity.application import apply_plan_rule, upgrade_to_research, username_reserved, username_unavailable
+from ..modules.identity.application import requires_provider, apply_plan_rule, upgrade_to_research, username_reserved, username_unavailable
 from ..access.contracts import create_contract_or_mark_pending, live_pricing_version
 from ..modules.identity.application import get_store
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/v1/auth/cas", tags=["Authentication"])
+router = APIRouter(
+    prefix="/v1/auth/cas", tags=["Authentication"], dependencies=[Depends(requires_provider("local"))]
+)
 identity_router = APIRouter(prefix="/v1/users/me/identities", tags=["Users"])
 
 #: The closed list of values `GET /v1/auth/cas/callback` may put in `?error=`.

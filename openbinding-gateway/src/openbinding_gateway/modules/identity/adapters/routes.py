@@ -9,7 +9,6 @@ document whatever ``AUTH_PROVIDER`` says. Adapted from SPHERE's ``ScoretechIdent
 from __future__ import annotations
 
 import logging
-from functools import lru_cache
 from typing import Literal
 
 from datetime import timedelta
@@ -29,7 +28,7 @@ from ....db.models import IdentitySession, User, utcnow
 from sqlalchemy import update
 from ..application import flows, provisioning, sessions
 from ..application.renewal import RenewalBusy, renewer
-from ..application.config import Provider, auth_config_view, refuse_outside
+from ..application.config import auth_config_view, requires_provider
 from ..application.stores import IdentityStoreNotConfigured
 from ..domain.errors import IDENTITY_ERROR_CODES, IdentityEnded, IdentityError, IdentityUnavailable
 from . import cookies
@@ -37,23 +36,6 @@ from . import cookies
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/v1/auth", tags=["Authentication"])
-
-
-@lru_cache(maxsize=None)
-def requires_provider(mode: Provider, *, browser: bool = False):
-    """A dependency that refuses (409) a request for a route of another mode than the gateway's.
-
-    ``browser`` routes are navigated to, not fetched: they answer a redirect themselves instead of a 409.
-    The returned function carries ``auth_provider`` so the route table can be checked.
-    """
-
-    def dependency(settings: Settings = Depends(get_settings)) -> None:
-        if not browser:
-            refuse_outside(mode, settings)
-
-    dependency.auth_provider = mode  # type: ignore[attr-defined]
-    dependency.__name__ = f"requires_provider_{mode}{'_browser' if browser else ''}"
-    return dependency
 
 
 @router.get(

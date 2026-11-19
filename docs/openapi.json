@@ -18826,6 +18826,16 @@
               }
             },
             "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many attempts from this address; see the `Retry-After` header."
           }
         },
         "summary": "Spend a reset token and set a password",
@@ -18869,6 +18879,16 @@
               }
             },
             "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many attempts from this address; see the `Retry-After` header."
           }
         },
         "summary": "Request a one-time password reset",

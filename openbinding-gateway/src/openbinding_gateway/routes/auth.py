@@ -28,7 +28,7 @@ from ..access.contracts import create_contract_or_mark_pending
 from ..access.dependencies import get_user_by_identifier, session_dependency
 from ..core.ratelimit import enforce_auth_rate_limit
 from ..core.settings import Settings, get_settings
-from ..db.models import ApiKey, Notification, PasswordResetToken, RefreshToken, User, UserRole, utcnow
+from ..db.models import ApiKey, AuditEvent, Notification, PasswordResetToken, RefreshToken, User, UserRole, utcnow
 from ..mailer import send_mail
 from ..models.accounts import (
     LoginRequest,
@@ -55,9 +55,13 @@ from ..security.tokens import (
     read_refresh_token,
 )
 from .users import profile_of
-from ..modules.identity.application import username_reserved, username_unavailable
+from ..modules.identity.application import end_all, requires_provider, username_reserved, username_unavailable
 
-router = APIRouter(prefix="/v1/auth", tags=["Authentication"])
+#: Every route here serves ``AUTH_PROVIDER=local`` only: in ``scoretech`` mode each answers 409
+#: ``local_auth_disabled`` (SCORETech Identity is then the only way in).
+router = APIRouter(
+    prefix="/v1/auth", tags=["Authentication"], dependencies=[Depends(requires_provider("local"))]
+)
 
 TOO_MANY_ATTEMPTS_RESPONSE = {
     "model": ErrorResponse,
@@ -331,12 +335,16 @@ _DUMMY_HASH = hash_password("openbinding-timing-equalizer")
     status_code=status.HTTP_202_ACCEPTED,
     operation_id="requestPasswordReset",
     summary="Request a one-time password reset",
+    responses={429: TOO_MANY_ATTEMPTS_RESPONSE},
 )
 async def request_password_reset(
     payload: PasswordResetRequest,
+    http_request: Request,
     session: AsyncSession = Depends(session_dependency, scope="function"),
     settings: Settings = Depends(get_settings),
 ) -> dict:
+    # Counted per address and per email (hashed) whether or not the account exists: the answer stays uniform.
+    await enforce_auth_rate_limit(http_request, "reset_request", str(payload.email).lower(), settings)
     user = await get_user_by_identifier(session, str(payload.email).lower())
     response = {"accepted": True, "delivery": "email" if settings.smtp_url else "inbox"}
     if user is None or not user.is_active:
@@ -369,11 +377,15 @@ async def request_password_reset(
     status_code=status.HTTP_204_NO_CONTENT,
     operation_id="completePasswordReset",
     summary="Spend a reset token and set a password",
+    responses={429: TOO_MANY_ATTEMPTS_RESPONSE},
 )
 async def complete_password_reset(
     payload: PasswordResetComplete,
+    http_request: Request,
     session: AsyncSession = Depends(session_dependency, scope="function"),
+    settings: Settings = Depends(get_settings),
 ) -> None:
+    await enforce_auth_rate_limit(http_request, "reset_complete", None, settings)
     complaint = password_complaint(payload.new_password)
     if complaint:
         raise api_error(status.HTTP_422_UNPROCESSABLE_ENTITY, "weak_password", complaint)
@@ -401,3 +413,8 @@ async def complete_password_reset(
     await session.execute(ApiKey.__table__.update().where(
         ApiKey.user_id == user.id, ApiKey.revoked_at.is_(None)
     ).values(revoked_at=utcnow()))
+    # Every browser session of the account ends too (and any SCORETech session behind one, after a rollback).
+    await end_all(session, settings, user, "password_reset")
+    session.add(AuditEvent(
+        actor_id=user.id, action="account.password_reset.completed", target_type="User", target_id=user.id, detail={},
+    ))

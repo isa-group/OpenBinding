@@ -15,7 +15,7 @@ from ..db.models import (
     ApiKey, AuditEvent, AuthIdentity, IdentitySession, Notification, NotificationStreamTicket, OrganizationInvitationCode, OrganizationMembership,
     OrganizationRole, PasswordResetToken, RefreshToken, User, UserRole, utcnow,
 )
-from ..modules.identity.application import PSEUDONYM_PREFIX, end_all, institutional_email, owner_may_use_keys
+from ..modules.identity.application import PSEUDONYM_PREFIX, end_all, institutional_email, managed_by_identity, owner_may_use_keys
 from ..models.accounts import (
     ApiKeyList,
     ApiKeyBoundary,
@@ -231,6 +231,8 @@ async def update_own_profile(
 
     The revision is the account row's, shared with the notification preferences.
     """
+    if request.new_password is not None or request.email is not None:
+        managed_by_identity(get_settings())
     if request.new_password is None and request.email is None:
         # A read: the tag is still checked, but nothing is stored and the revision stays.
         revision.precondition(user, if_match)

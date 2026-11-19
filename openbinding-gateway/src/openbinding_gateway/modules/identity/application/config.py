@@ -8,11 +8,12 @@ route (``identity_error=unavailable``).
 
 from __future__ import annotations
 
+from functools import lru_cache
 from typing import Literal
 
-from fastapi import status
+from fastapi import Depends, status
 
-from ....core.settings import Settings
+from ....core.settings import Settings, get_settings
 from ....models.accounts import AuthConfigView
 from ....models.errors import api_error
 
@@ -57,3 +58,33 @@ def refuse_outside(mode: Provider, settings: Settings) -> None:
         "local_auth_disabled",
         "This gateway signs people in with SCORETech Identity; local credentials are not accepted.",
     )
+
+
+@lru_cache(maxsize=None)
+def requires_provider(mode: Provider, *, browser: bool = False):
+    """A dependency that refuses (409) a request for a route of another mode than the gateway's.
+
+    Every ``/v1/auth`` route declares one (``tests/identity/test_auth_route_modes.py`` enumerates them), so
+    routes are mounted in both modes and the OpenAPI document does not depend on ``AUTH_PROVIDER``. ``browser``
+    routes are navigated to, not fetched: they answer a redirect themselves instead of a 409. The returned
+    function carries ``auth_provider`` (and ``auth_browser``) so the route table can be checked.
+    """
+
+    def dependency(settings: Settings = Depends(get_settings)) -> None:
+        if not browser:
+            refuse_outside(mode, settings)
+
+    dependency.auth_provider = mode  # type: ignore[attr-defined]
+    dependency.auth_browser = browser  # type: ignore[attr-defined]
+    dependency.__name__ = f"requires_provider_{mode}{'_browser' if browser else ''}"
+    return dependency
+
+
+def managed_by_identity(settings: Settings) -> None:
+    """409 ``managed_by_identity`` for a change of email or password in ``scoretech`` mode."""
+    if settings.auth_provider == "scoretech":
+        raise api_error(
+            status.HTTP_409_CONFLICT,
+            "managed_by_identity",
+            "Your email and sign-in are managed in your SCORETech Identity account.",
+        )
