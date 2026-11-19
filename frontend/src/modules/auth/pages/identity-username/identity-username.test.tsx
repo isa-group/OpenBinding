@@ -3,6 +3,8 @@ import { HelmetProvider } from 'react-helmet-async';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../../core/api/http';
+import { StaticAuthConfig } from '../../contexts/authConfig';
+import type { AuthConfig } from '../../contexts/authConfigContext';
 import { AuthContext } from '../../hooks/useAuth';
 import IdentityUsernamePage from '.';
 
@@ -34,30 +36,41 @@ function Where() {
 const resume = vi.fn();
 const signOut = vi.fn();
 
-function draw(entry = '/sso/identity/username?returnTo=%2Fme%2Forgs') {
+const SCORETECH: AuthConfig = {
+  provider: 'scoretech',
+  login_url: 'https://openbinding.test/api/v1/auth/identity/login',
+  account_url: null,
+};
+
+function draw(
+  entry = '/sso/identity/username?returnTo=%2Fme%2Forgs',
+  config: AuthConfig = SCORETECH
+) {
   return render(
     <HelmetProvider>
-      <AuthContext.Provider
-        value={{
-          user: null,
-          loading: false,
-          signIn: vi.fn(),
-          register: vi.fn(),
-          signOut,
-          refresh: vi.fn(),
-          resume,
-          isAdmin: false,
-          fetchWithInterceptor: vi.fn(),
-        }}
-      >
-        <MemoryRouter initialEntries={[entry]}>
-          <Routes>
-            <Route path="/sso/identity/username" element={<IdentityUsernamePage />} />
-            <Route path="*" element={<h1>Elsewhere</h1>} />
-          </Routes>
-          <Where />
-        </MemoryRouter>
-      </AuthContext.Provider>
+      <StaticAuthConfig value={config}>
+        <AuthContext.Provider
+          value={{
+            user: null,
+            loading: false,
+            signIn: vi.fn(),
+            register: vi.fn(),
+            signOut,
+            refresh: vi.fn(),
+            resume,
+            isAdmin: false,
+            fetchWithInterceptor: vi.fn(),
+          }}
+        >
+          <MemoryRouter initialEntries={[entry]}>
+            <Routes>
+              <Route path="/sso/identity/username" element={<IdentityUsernamePage />} />
+              <Route path="*" element={<h1>Elsewhere</h1>} />
+            </Routes>
+            <Where />
+          </MemoryRouter>
+        </AuthContext.Provider>
+      </StaticAuthConfig>
     </HelmetProvider>
   );
 }
@@ -146,6 +159,12 @@ describe('IdentityUsernamePage', () => {
         '/authentication?identity_error=expired'
       )
     );
+  });
+
+  it('sends a local-mode visitor to the sign-in form: there is no first SCORETech sign-in to finish', async () => {
+    draw('/sso/identity/username', { provider: 'local' });
+    await waitFor(() => expect(screen.getByTestId('where')).toHaveTextContent('/authentication'));
+    expect(api.identityPending).not.toHaveBeenCalled();
   });
 
   it('offers another account: it signs out (ending the pending sign-up) and goes home', async () => {

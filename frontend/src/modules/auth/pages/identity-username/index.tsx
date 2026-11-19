@@ -7,11 +7,12 @@
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Helmet } from 'react-helmet-async';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { HttpError } from '../../../core/api/http';
 import { AuthField } from '../../components/auth-field';
 import AuthLayout from '../../components/auth-layout';
 import { identityApi, type PendingSignUp } from '../../api/identityApi';
+import { useAuthConfig } from '../../contexts/authConfigContext';
 import { useAuth } from '../../hooks/useAuth';
 import { safeReturnPath } from '../../utils/authFlow';
 import { LEDE, PRIMARY_ACTION, SECONDARY_ACTION, TITLE } from '../../utils/classes';
@@ -41,6 +42,12 @@ function complaintFor(username: string): string | null {
 
 /** `/sso/identity/username`: the first SCORETech sign-in chooses the public name of its OpenBinding account. */
 export default function IdentityUsernamePage() {
+  // A gateway that signs people in locally has no first SCORETech sign-in to finish: its sign-in page is the form.
+  if (useAuthConfig().provider !== 'scoretech') return <Navigate to="/authentication" replace />;
+  return <ChooseUsername />;
+}
+
+function ChooseUsername() {
   const { resume, signOut } = useAuth();
   const navigate = useNavigate();
   const [params] = useSearchParams();
